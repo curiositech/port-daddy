@@ -1,8 +1,24 @@
 # Port Daddy ⚓
 
-**Stop fighting over ports. Start shipping faster.**
+<p align="center">
+  <img src="https://raw.githubusercontent.com/erichowens/port-daddy/main/assets/port_daddy_cover_art.webp" alt="Port Daddy" width="600">
+</p>
 
-Port Daddy is an authoritative port assignment service that eliminates port conflicts across multiple dev servers, AI coding agents, and terminal sessions. One command, one port, zero conflicts.
+<p align="center">
+  <strong>Your ports. My rules. Zero conflicts.</strong>
+</p>
+
+<p align="center">
+  <a href="#quick-start">Quick Start</a> •
+  <a href="#why-port-daddy">Why Port Daddy?</a> •
+  <a href="#framework-integrations">Frameworks</a> •
+  <a href="#api-reference">API</a> •
+  <a href="#credits">Credits</a>
+</p>
+
+---
+
+Port Daddy is the authoritative port assignment service that eliminates port conflicts across dev servers, AI coding agents, and terminal sessions. One command, one port, zero drama.
 
 ```bash
 # The only port command you'll ever need
@@ -18,11 +34,11 @@ PORT=$(get-port my-project) && npm run dev -- --port $PORT
 - 5+ rounds of agent negotiation → wasted tokens & time
 
 **The Solution:**
-- ⚡ **Atomic assignment** - SQLite ACID transactions prevent race conditions
-- 🔄 **Auto-cleanup** - Tracks PIDs, removes stale assignments automatically
-- 🎯 **Project persistence** - Same project always gets same port (if available)
-- 🌍 **Universal** - Works with any framework, any language, any AI agent
-- 🚀 **Zero config** - One daemon, three CLI commands, infinite projects
+- **Atomic assignment** - SQLite ACID transactions prevent race conditions
+- **Auto-cleanup** - Tracks PIDs, removes stale assignments automatically
+- **Project persistence** - Same project always gets same port (if available)
+- **Universal** - Works with any framework, any language, any AI agent
+- **Zero config** - One daemon, three CLI commands, infinite projects
 
 ## Quick Start
 
@@ -36,7 +52,7 @@ brew services start port-daddy
 
 **Option 2: Manual**
 ```bash
-cd ~/.claude/port-daddy
+cd ~/coding/port-daddy
 npm install
 node install-daemon.js install
 ```
@@ -436,16 +452,16 @@ list-ports
 PORT DADDY - Active Port Assignments
 ============================================================
 
-3100 | windags-ai | PID:12345 | ✅ | 15m ago
-3101 | erichowens-com | PID:12346 | ✅ | 2m ago
-3221 | my-api | PID:12347 | 💀 | 45m ago
+3100 | windags-ai      | PID:12345 | alive | 15m ago
+3101 | erichowens-com  | PID:12346 | alive | 2m ago
+3221 | my-api          | PID:12347 | dead  | 45m ago
 
 Total: 3 port(s)
 ```
 
 **Status indicators:**
-- ✅ Process alive
-- 💀 Process dead (will be cleaned up)
+- `alive` - Process is running
+- `dead` - Process exited (will be cleaned up)
 
 ## API Reference
 
@@ -625,7 +641,7 @@ This ensures two processes requesting ports simultaneously never get the same po
 ### Check Service Status
 
 ```bash
-cd ~/.claude/port-daddy && node install-daemon.js status
+cd ~/coding/port-daddy && node install-daemon.js status
 ```
 
 Output:
@@ -640,33 +656,33 @@ Output:
 ### Restart Service
 
 ```bash
-cd ~/.claude/port-daddy && node install-daemon.js uninstall
-cd ~/.claude/port-daddy && node install-daemon.js install
+cd ~/coding/port-daddy && node install-daemon.js uninstall
+cd ~/coding/port-daddy && node install-daemon.js install
 ```
 
 ### View Logs
 
 ```bash
 # stdout
-tail -f ~/.claude/port-daddy/port-daddy.log
+tail -f ~/coding/port-daddy/port-daddy.log
 
 # stderr
-tail -f ~/.claude/port-daddy/port-daddy-error.log
+tail -f ~/coding/port-daddy/port-daddy-error.log
 
 # combined
-tail -f ~/.claude/port-daddy/*.log
+tail -f ~/coding/port-daddy/*.log
 ```
 
 ### Database Maintenance
 
 **View database:**
 ```bash
-sqlite3 ~/.claude/port-daddy/port-registry.db "SELECT * FROM port_assignments;"
+sqlite3 ~/coding/port-daddy/port-registry.db "SELECT * FROM port_assignments;"
 ```
 
 **Reset database:**
 ```bash
-cd ~/.claude/port-daddy
+cd ~/coding/port-daddy
 launchctl unload ~/Library/LaunchAgents/com.erichowens.port-daddy.plist
 rm port-registry.db*
 launchctl load ~/Library/LaunchAgents/com.erichowens.port-daddy.plist
@@ -680,7 +696,7 @@ launchctl load ~/Library/LaunchAgents/com.erichowens.port-daddy.plist
 
 **Solution:**
 ```bash
-cd ~/.claude/port-daddy && node install-daemon.js install
+cd ~/coding/port-daddy && node install-daemon.js install
 ```
 
 ### Port Already In Use
@@ -730,7 +746,7 @@ lsof -i :9876
 log show --predicate 'subsystem == "com.erichowens.port-daddy"' --last 1h
 
 # Try manual start to see errors
-cd ~/.claude/port-daddy && node server.js
+cd ~/coding/port-daddy && node server.js
 ```
 
 ## Performance
@@ -784,12 +800,12 @@ cd ~/.claude/port-daddy && node server.js
 | **Port Killer** | Centralized but manual | Automatic process monitoring |
 
 Port Daddy is the only tool that combines:
-- ✅ Proactive port reservation
-- ✅ Automatic process tracking
-- ✅ Atomic assignment (no race conditions)
-- ✅ Auto-cleanup of dead processes
-- ✅ Universal framework support
-- ✅ AI agent coordination
+- Proactive port reservation
+- Automatic process tracking
+- Atomic assignment (no race conditions)
+- Auto-cleanup of dead processes
+- Universal framework support
+- AI agent coordination
 
 ## Multi-Agent Workflows
 
@@ -844,41 +860,57 @@ CREATE INDEX idx_pid ON port_assignments(pid);
 
 ## Contributing
 
-Port Daddy is a solo project by Erich Owens, built to solve real multi-agent development pain points. If you have ideas or find bugs:
+Port Daddy is open source and PRs are welcome! If you have ideas or find bugs:
 
-1. Check existing issues: (repo link)
+1. Check [existing issues](https://github.com/erichowens/port-daddy/issues)
 2. Open a new issue with details
-3. PRs welcome for framework integrations
+3. PRs welcome for framework integrations and improvements
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup.
 
 ## License
 
-Built for internal use by Erich Owens. Use freely, no warranty provided.
+MIT License - see [LICENSE](LICENSE) for details.
 
 ## Credits
 
-Built with:
-- Express.js - HTTP server
-- better-sqlite3 - Database
-- Node.js - Runtime
-- macOS launchd - Service management
+<p align="center">
+  <strong>Built with 🔥 by <a href="https://github.com/erichowens">Erich Owens</a> / <a href="https://curiositech.com">Curiositech LLC</a></strong>
+</p>
 
-Inspired by the chaos of running 20+ Claude sessions simultaneously.
+Port Daddy was born from the chaos of running 20+ Claude sessions simultaneously, each fighting over localhost ports like toddlers over a single toy. No more.
+
+**Tech Stack:**
+- [Express.js](https://expressjs.com/) - HTTP server
+- [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) - Atomic database operations
+- [Winston](https://github.com/winstonjs/winston) - Structured logging
+- [Node.js](https://nodejs.org/) - Runtime
+- macOS launchd - Daemon management
+
+**Special Thanks:**
+- Claude (Anthropic) - For being the reason this exists
+- The localhost:3000 conflict - For the final straw
 
 ---
 
-**Stop fighting over ports. Start shipping faster.**
+<p align="center">
+  <strong>Your ports. My rules. Zero conflicts.</strong>
+</p>
 
-Install Port Daddy today and never think about port conflicts again.
+<p align="center">
+  <sub>If Port Daddy saved you from port conflict hell, star this repo ⭐</sub>
+</p>
 
 ```bash
-cd ~/.claude/port-daddy
-npm install
-node install-daemon.js install
-```
+# Install
+cd ~/coding/port-daddy && npm install && node install-daemon.js install
 
-Then just:
-```bash
+# Use
 PORT=$(get-port my-app) && npm run dev -- --port $PORT
+
+# Profit
 ```
 
-That's it. Welcome to peaceful localhost development.
+<p align="center">
+  <sub>© 2026 Erich Owens / Curiositech LLC</sub>
+</p>
