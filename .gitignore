@@ -17,6 +17,9 @@ node_modules/
 .vscode/
 *.swp
 
+# Build output
+dist/
+
 # Test coverage
 coverage/
 

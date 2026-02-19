@@ -1,14 +1,26 @@
+/** @type {import('@swc/jest').JestConfigWithTsJest} */
+const swcTransform = {
+  '^.+\\.tsx?$': ['@swc/jest', {
+    jsc: {
+      parser: { syntax: 'typescript', decorators: true },
+      target: 'es2022',
+    },
+    module: { type: 'es6' },
+  }],
+};
+
 export default {
   testEnvironment: 'node',
   transform: {},
-  moduleFileExtensions: ['js', 'mjs'],
-  testPathIgnorePatterns: ['/node_modules/', '/tests/benchmark/'],
+  moduleFileExtensions: ['js', 'mjs', 'ts'],
+  extensionsToTreatAsEsm: ['.ts'],
+  testPathIgnorePatterns: ['/node_modules/', '/tests/benchmark/', '/dist/'],
   collectCoverageFrom: [
-    'server.js',
-    'install-daemon.js',
-    'lib/**/*.js',
-    'shared/**/*.js',
-    'routes/**/*.js',
+    'server.{js,ts}',
+    'install-daemon.{js,ts}',
+    'lib/**/*.{js,ts}',
+    'shared/**/*.{js,ts}',
+    'routes/**/*.{js,ts}',
     '!node_modules/**'
   ],
   coverageThreshold: {
@@ -24,18 +36,20 @@ export default {
     {
       displayName: 'unit',
       testEnvironment: 'node',
-      transform: {},
-      moduleFileExtensions: ['js', 'mjs'],
-      testMatch: ['<rootDir>/tests/unit/**/*.test.js'],
+      transform: { ...swcTransform },
+      moduleFileExtensions: ['js', 'mjs', 'ts'],
+      extensionsToTreatAsEsm: ['.ts'],
+      testMatch: ['<rootDir>/tests/unit/**/*.test.{js,ts}'],
       setupFilesAfterEnv: [],
       testTimeout: 10000
     },
     {
       displayName: 'integration',
       testEnvironment: 'node',
-      transform: {},
-      moduleFileExtensions: ['js', 'mjs'],
-      testMatch: ['<rootDir>/tests/integration/**/*.test.js'],
+      transform: { ...swcTransform },
+      moduleFileExtensions: ['js', 'mjs', 'ts'],
+      extensionsToTreatAsEsm: ['.ts'],
+      testMatch: ['<rootDir>/tests/integration/**/*.test.{js,ts}'],
       globalSetup: '<rootDir>/tests/helpers/global-setup.js',
       globalTeardown: '<rootDir>/tests/helpers/global-teardown.js',
       setupFilesAfterEnv: [],
