@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Port Daddy v2.0 - Semantic Port Management Service
+ * Port Daddy - Semantic Port Management Service
  *
  * Features:
  * - Semantic identities: project:stack:context
@@ -21,7 +21,7 @@ import { createHash } from 'crypto';
 import winston from 'winston';
 import rateLimit from 'express-rate-limit';
 
-// V2 modules
+// Core modules
 import { createServices } from './lib/services.js';
 import { createMessaging } from './lib/messaging.js';
 import { createLocks } from './lib/locks.js';

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Port Daddy v2 CLI
+ * Port Daddy CLI
  *
  * The authoritative port management tool for multi-agent development.
  * Grammar: port-daddy <verb> [identity] [--options]
@@ -388,6 +388,51 @@ Examples:
   port-daddy install                        # Install as system service
 `;
 
+// =============================================================================
+// Command Suggestion (fuzzy "did you mean?")
+// =============================================================================
+
+const ALL_COMMANDS: string[] = [
+  'claim', 'c', 'release', 'r', 'find', 'f', 'list', 'l', 'ps', 'url', 'env',
+  'pub', 'publish', 'sub', 'subscribe', 'wait', 'lock', 'unlock', 'locks',
+  'up', 'down', 'scan', 's', 'projects', 'p', 'detect', 'init',
+  'agent', 'agents', 'log', 'activity',
+  'start', 'stop', 'restart', 'status', 'install', 'uninstall', 'dev', 'ci-gate',
+  'doctor', 'diagnose', 'version', 'help'
+];
+
+/** Simple Levenshtein distance for short strings */
+function editDistance(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0) as number[]);
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1][j - 1]
+        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[m][n];
+}
+
+/** Suggest closest command if within edit distance 2 */
+function suggestCommand(input: string): string | undefined {
+  let best: string | undefined;
+  let bestDist = 3; // threshold
+  for (const cmd of ALL_COMMANDS) {
+    if (cmd.length === 1) continue; // skip single-letter aliases for suggestions
+    const d = editDistance(input.toLowerCase(), cmd);
+    if (d < bestDist) {
+      bestDist = d;
+      best = cmd;
+    }
+  }
+  return best;
+}
+
 let autoStartAttempted: boolean = false;
 
 async function main(): Promise<void> {
@@ -623,19 +668,31 @@ async function main(): Promise<void> {
         await handleVersion();
         break;
 
-      default:
-        // If it looks like an identity, treat as claim
-        if (command.match(/^[a-zA-Z0-9._:-]+$/)) {
+      default: {
+        // Check for misspelled commands first
+        const suggestion = suggestCommand(command);
+        if (suggestion) {
+          console.error(`Unknown command: ${command}`);
+          console.error(`  Did you mean: port-daddy ${suggestion}?`);
+          console.error('');
+          console.error('Run "port-daddy help" for usage');
+          process.exit(1);
+        }
+        // If it looks like a semantic identity (contains : or is alphanumeric), treat as claim
+        if (command.includes(':') || command.match(/^[a-zA-Z][a-zA-Z0-9._-]*$/)) {
           await handleClaim(command, options);
         } else {
           console.error(`Unknown command: ${command}`);
           console.error('Run "port-daddy help" for usage');
           process.exit(1);
         }
+        break;
+      }
     }
   } catch (err: unknown) {
-    const error = err as Error & { cause?: { code?: string } };
-    if (error.cause?.code === 'ECONNREFUSED') {
+    const error = err as Error & { code?: string; cause?: { code?: string } };
+    const errCode = error.code || error.cause?.code;
+    if (errCode === 'ECONNREFUSED' || errCode === 'ENOENT') {
       if (!autoStartAttempted) {
         // Auto-start daemon on first use
         autoStartAttempted = true;
@@ -852,7 +909,7 @@ async function handleFind(pattern: string | undefined, options: CLIOptions): Pro
   }
 
   console.error('');
-  console.log(`Total: ${data.count} service(s)`);
+  console.error(`Total: ${data.count} service(s)`);
 }
 
 async function handleUrl(id: string | undefined, options: CLIOptions): Promise<void> {
@@ -2141,7 +2198,11 @@ async function handleVersion(): Promise<void> {
     console.log(`Server PID: ${data.pid}`);
     console.log(`Uptime: ${Math.floor((data.uptime as number) / 60)}m`);
   } catch {
-    console.log('Port Daddy v2.0.0 (server not running)');
+    const pkgFallback: string = join(__dirname, '..', 'package.json');
+    const ver: string = existsSync(pkgFallback)
+      ? (JSON.parse(readFileSync(pkgFallback, 'utf8')) as { version: string }).version
+      : 'unknown';
+    console.log(`Port Daddy v${ver} (server not running)`);
   }
 }
 
@@ -2427,6 +2488,30 @@ async function handleDoctor(): Promise<void> {
   }
 
   // -------------------------------------------------------------------------
+  // Check 10: Shell completions
+  // -------------------------------------------------------------------------
+  const shell: string = process.env.SHELL || '';
+  const completionsDir: string = join(__dirname, '..', 'completions');
+  if (shell.includes('zsh')) {
+    const zshFile: string = join(completionsDir, 'port-daddy.zsh');
+    check('Shell completions', existsSync(zshFile),
+      existsSync(zshFile) ? 'Zsh completions file found' : 'Zsh completions file missing',
+      'See: completions/port-daddy.zsh');
+  } else if (shell.includes('bash')) {
+    const bashFile: string = join(completionsDir, 'port-daddy.bash');
+    check('Shell completions', existsSync(bashFile),
+      existsSync(bashFile) ? 'Bash completions file found' : 'Bash completions file missing',
+      'See: completions/port-daddy.bash');
+  } else if (shell.includes('fish')) {
+    const fishFile: string = join(completionsDir, 'port-daddy.fish');
+    check('Shell completions', existsSync(fishFile),
+      existsSync(fishFile) ? 'Fish completions file found' : 'Fish completions file missing',
+      'See: completions/port-daddy.fish');
+  } else {
+    check('Shell completions', true, `Shell "${shell || 'unknown'}" — completions available for bash/zsh/fish`);
+  }
+
+  // -------------------------------------------------------------------------
   // Output
   // -------------------------------------------------------------------------
   console.log('');
@@ -2458,19 +2543,17 @@ async function handleDoctor(): Promise<void> {
 
 async function handleDev(): Promise<void> {
   const libDir: string = join(__dirname, '..');
-  const filesToWatch: string[] = [
-    'server.js',
-    'lib/services.js',
-    'lib/messaging.js',
-    'lib/locks.js',
-    'lib/health.js',
-    'lib/detect.js',
-    'lib/config.js',
-    'lib/identity.js',
-    'lib/utils.js',
-    'lib/agents.js',
-    'lib/activity.js'
-  ];
+
+  // Dynamically discover files to watch — matches server.ts calculateCodeHash() approach
+  const filesToWatch: string[] = ['server.js'];
+  for (const dir of ['lib', 'routes', 'shared']) {
+    const dirPath: string = join(libDir, dir);
+    if (existsSync(dirPath)) {
+      for (const f of readdirSync(dirPath)) {
+        if (f.endsWith('.js')) filesToWatch.push(`${dir}/${f}`);
+      }
+    }
+  }
 
   console.log('');
   console.log('Port Daddy Dev Mode');
@@ -2547,18 +2630,20 @@ async function handleDev(): Promise<void> {
     }
   }
 
-  // Also watch the lib directory for new files
-  const libPath: string = join(libDir, 'lib');
-  if (existsSync(libPath)) {
-    try {
-      const libWatcher: FSWatcher = watch(libPath, (eventType: string, filename: string | null) => {
-        if (filename && filename.endsWith('.js')) {
-          scheduleRestart();
-        }
-      });
-      watchers.push(libWatcher);
-      console.log(`  Watching: lib/`);
-    } catch {}
+  // Also watch directories for new/deleted files
+  for (const dir of ['lib', 'routes', 'shared']) {
+    const dirPath: string = join(libDir, dir);
+    if (existsSync(dirPath)) {
+      try {
+        const dirWatcher: FSWatcher = watch(dirPath, (eventType: string, filename: string | null) => {
+          if (filename && filename.endsWith('.js')) {
+            scheduleRestart();
+          }
+        });
+        watchers.push(dirWatcher);
+        console.log(`  Watching: ${dir}/`);
+      } catch {}
+    }
   }
 
   console.log('');
