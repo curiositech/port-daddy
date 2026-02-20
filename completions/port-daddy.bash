@@ -85,16 +85,16 @@ _port_daddy() {
   # Top-level commands
   # -------------------------------------------------------------------------
   local commands=(
-    # Service management
-    claim release find list ps url env
+    # Service management (+ single-letter aliases)
+    claim c release r find f list l ps url env
     # Agent coordination
     pub publish sub subscribe wait lock unlock locks
     # Agent registry
     agent agents
     # Activity
     log activity
-    # Project
-    scan projects detect init doctor
+    # Project (+ alias)
+    scan s projects p detect init doctor
     # Daemon lifecycle
     start stop restart status install uninstall dev ci-gate
     # Info
@@ -160,16 +160,16 @@ _port_daddy() {
     # claim  [identity] [--port N] [--range lo-hi] [--expires N] [--pair id]
     #                   [--cmd "..."]
     # -----------------------------------------------------------------------
-    claim)
-      _pd_complete_service '--port -p --range --expires --pair --cmd'
+    c|claim)
+      _pd_complete_service '--port -p --range --expires --pair --cmd --export'
       ;;
 
     # -----------------------------------------------------------------------
     # release  [identity] [--expired]
     # -----------------------------------------------------------------------
-    release)
+    r|release)
       case "$prev" in
-        release)
+        r|release)
           if [[ "$cur" == -* ]]; then
             _pd_opts '--expired'
           else
@@ -185,7 +185,7 @@ _port_daddy() {
     # -----------------------------------------------------------------------
     # find  [identity] [--status STATUS] [--port N] [--expired]
     # -----------------------------------------------------------------------
-    find)
+    f|find)
       case "$prev" in
         --status)
           # shellcheck disable=SC2207
@@ -202,16 +202,9 @@ _port_daddy() {
       ;;
 
     # -----------------------------------------------------------------------
-    # list  (no arguments)
+    # list / l / ps  (no arguments)
     # -----------------------------------------------------------------------
-    list)
-      _pd_opts ''
-      ;;
-
-    # -----------------------------------------------------------------------
-    # ps  (alias for list, no arguments)
-    # -----------------------------------------------------------------------
-    ps)
+    l|list|ps)
       _pd_opts ''
       ;;
 
@@ -503,16 +496,16 @@ _port_daddy() {
     # -----------------------------------------------------------------------
     # scan  [--dry-run] [--json] (deep recursive project scanner)
     # -----------------------------------------------------------------------
-    scan)
+    s|scan)
       _pd_opts '--dry-run'
       ;;
 
     # -----------------------------------------------------------------------
     # projects  [rm <name>]
     # -----------------------------------------------------------------------
-    projects)
+    p|projects)
       case "$prev" in
-        projects)
+        p|projects)
           if [[ "$cur" == -* ]]; then
             _pd_opts ''
           else

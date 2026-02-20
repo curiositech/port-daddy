@@ -120,6 +120,7 @@ _pd_cmd_claim() {
     '--expires[TTL in seconds]:seconds:' \
     '--pair[paired service identity]:service:_pd_complete_services' \
     '--cmd[command to associate]:command:_command_names' \
+    '--export[print export PORT=N for eval]' \
     '(-j --json)'{-j,--json}'[JSON output]' \
     '(-q --quiet)'{-q,--quiet}'[suppress output]' \
     '(-h --help)'{-h,--help}'[show help]' \
@@ -151,10 +152,6 @@ _pd_cmd_list() {
     '(-j --json)'{-j,--json}'[JSON output]' \
     '(-q --quiet)'{-q,--quiet}'[suppress output]' \
     '(-h --help)'{-h,--help}'[show help]'
-}
-
-_pd_cmd_ps() {
-  _pd_cmd_list
 }
 
 _pd_cmd_url() {
@@ -388,11 +385,15 @@ _pd_cmd_daemon() {
 _port_daddy() {
   local -a commands
   commands=(
-    # Service management
+    # Service management (+ single-letter aliases)
     'claim:claim a port for a service'
+    'c:claim a port (alias for claim)'
     'release:release a service port'
+    'r:release a service port (alias for release)'
     'find:find a service by identity or port'
+    'f:find a service (alias for find)'
     'list:list all active services'
+    'l:list all active services (alias for list)'
     'ps:list all active services (alias for list)'
     'url:get the URL for a service'
     'env:get environment variable block for a service'
@@ -411,9 +412,11 @@ _port_daddy() {
     # Activity
     'log:tail the activity log'
     'activity:show activity summary or stats'
-    # Project
+    # Project (+ aliases)
     'scan:deep-scan project for frameworks and register with daemon'
+    's:deep-scan project (alias for scan)'
     'projects:list or manage registered projects'
+    'p:list or manage projects (alias for projects)'
     'detect:detect framework (deprecated, use scan)'
     'init:initialise a project config (deprecated, use scan)'
     'doctor:run environment diagnostics'
@@ -453,11 +456,10 @@ _port_daddy() {
     args)
       local cmd="${words[1]}"
       case "$cmd" in
-        claim)              _pd_cmd_claim ;;
-        release)            _pd_cmd_release ;;
-        find)               _pd_cmd_find ;;
-        list)               _pd_cmd_list ;;
-        ps)                 _pd_cmd_ps ;;
+        c|claim)            _pd_cmd_claim ;;
+        r|release)          _pd_cmd_release ;;
+        f|find)             _pd_cmd_find ;;
+        l|list|ps)          _pd_cmd_list ;;
         url)                _pd_cmd_url ;;
         env)                _pd_cmd_env ;;
         pub|publish)        _pd_cmd_pub ;;
@@ -470,8 +472,8 @@ _port_daddy() {
         agents)             _pd_cmd_agents ;;
         log)                _pd_cmd_log ;;
         activity)           _pd_cmd_activity ;;
-        scan)               _pd_cmd_scan ;;
-        projects)           _pd_cmd_projects ;;
+        s|scan)             _pd_cmd_scan ;;
+        p|projects)         _pd_cmd_projects ;;
         detect)             _pd_cmd_detect ;;
         init)               _pd_cmd_init ;;
         doctor)             _pd_cmd_doctor ;;

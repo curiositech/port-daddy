@@ -58,6 +58,23 @@ interface CLIOptions {
 }
 
 // =============================================================================
+// Output Helpers (TTY-aware)
+// =============================================================================
+
+/** Whether stdout is a terminal (not a pipe or redirect) */
+const IS_TTY: boolean = process.stderr.isTTY ?? false;
+
+/** Print a Unicode separator line (only in TTY mode) */
+function separator(width: number = 75): void {
+  if (IS_TTY) console.error('\u2500'.repeat(width));
+}
+
+/** Format a table header (only decorates in TTY mode) */
+function tableHeader(...cols: [string, number][]): string {
+  return cols.map(([label, width]) => label.padEnd(width)).join('');
+}
+
+// =============================================================================
 // Connection & Fetch
 // =============================================================================
 
@@ -256,9 +273,9 @@ Orchestration:
   down              Stop all services started by 'up'
 
 Service Commands:
-  claim <id>        Claim a port for your service
-  release <id>      Release port(s) by identity or pattern
-  find [pattern]    List services (default: all running)
+  claim <id>        Claim a port (alias: c)
+  release <id>      Release port(s) by identity/pattern (alias: r)
+  find [pattern]    List services (alias: f, l)
   url <id>          Get URL for a service
   env [pattern]     Export environment variables
   ps                Alias for 'find' — list running services
@@ -283,8 +300,8 @@ Activity Log:
   log summary       View activity summary by type
 
 Project Setup:
-  scan [dir]        Deep scan project, detect all services, save config
-  projects          List all registered projects
+  scan [dir]        Deep scan project, detect all services (alias: s)
+  projects          List all registered projects (alias: p)
   projects rm <id>  Remove a registered project
   detect            (deprecated — use scan)
   init              (deprecated — use scan)
@@ -310,6 +327,7 @@ Options:
   -p, --port <n>      Request a specific port
   --range <a>-<b>     Acceptable port range
   --expires <dur>     Auto-release after duration (2h, 30m, 1d)
+  --export            Print 'export PORT=XXXX' for eval (claim)
   -e, --env <name>    Environment: local, tunnel, dev, staging, prod
   -j, --json          Output as JSON
   -q, --quiet         Minimal output (just the value)
@@ -332,9 +350,12 @@ Note: Quote wildcards to prevent shell expansion:
 
 Examples:
   port-daddy claim myapp                    # Get a port for myapp
+  port-daddy c myapp                        # Same, using alias
+  port-daddy claim                          # Auto-detect from package.json
   port-daddy claim myapp:api:feature-x      # Full semantic identity
   port-daddy claim myapp --port 3000        # Request specific port
   port-daddy claim myapp --expires 2h       # Auto-release in 2 hours
+  eval $(port-daddy claim myapp --export)   # Set PORT env var directly
 
   port-daddy find                           # List all services
   port-daddy find myapp:*                   # All stacks for myapp
@@ -386,7 +407,7 @@ async function main(): Promise<void> {
   }
 
   // Check for stale daemon before running commands (skip for daemon management)
-  const skipFreshnessCheck: boolean = ['start', 'stop', 'restart', 'install', 'uninstall', 'status', 'version', 'dev', 'ci-gate', 'doctor', 'diagnose', 'up', 'down'].includes(command);
+  const skipFreshnessCheck: boolean = ['start', 'stop', 'restart', 'install', 'uninstall', 'status', 'version', 'dev', 'ci-gate', 'doctor', 'diagnose', 'up', 'down'].includes(command as string);
   if (!skipFreshnessCheck) {
     await checkDaemonFreshness();
   }
@@ -461,15 +482,19 @@ async function main(): Promise<void> {
 
   try {
     switch (command) {
-      // Service commands
+      // Service commands (single-letter aliases: c, r, f, l)
+      case 'c':
       case 'claim':
         await handleClaim(positional[0], options);
         break;
 
+      case 'r':
       case 'release':
         await handleRelease(positional[0], options);
         break;
 
+      case 'f':
+      case 'l':
       case 'find':
       case 'list':
       case 'ps':
@@ -520,11 +545,13 @@ async function main(): Promise<void> {
         await handleDown(options);
         break;
 
-      // Project setup
+      // Project setup (single-letter aliases: s, p)
+      case 's':
       case 'scan':
         await handleScan(positional[0], options);
         break;
 
+      case 'p':
       case 'projects':
         await handleProjects(positional[0], positional.slice(1), options);
         break;
@@ -638,13 +665,55 @@ async function main(): Promise<void> {
 }
 
 // =============================================================================
+// Auto-Identity
+// =============================================================================
+
+/**
+ * Walk up from cwd looking for a package.json, extract the project name.
+ * Returns a sanitized identity string or undefined if not found.
+ */
+function autoIdentityFromPackageJson(): string | undefined {
+  let dir: string = process.cwd();
+  const root: string = dirname(dir) === dir ? dir : '/';
+
+  while (true) {
+    const pkgPath: string = join(dir, 'package.json');
+    if (existsSync(pkgPath)) {
+      try {
+        const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as { name?: string };
+        if (pkg.name) {
+          // Sanitize: strip @scope/, replace invalid chars with dashes
+          const name: string = pkg.name
+            .replace(/^@[^/]+\//, '')   // strip npm scope
+            .replace(/[^a-zA-Z0-9._:-]/g, '-')
+            .replace(/^-+|-+$/g, '');   // trim leading/trailing dashes
+          return name || undefined;
+        }
+      } catch {
+        // Invalid JSON, keep walking
+      }
+    }
+    const parent: string = dirname(dir);
+    if (parent === dir || dir === root) break;
+    dir = parent;
+  }
+  return undefined;
+}
+
+// =============================================================================
 // Service Commands
 // =============================================================================
 
 async function handleClaim(id: string | undefined, options: CLIOptions): Promise<void> {
+  // Auto-identity: read from nearest package.json if no id given
   if (!id) {
-    console.error('Usage: port-daddy claim <identity> [options]');
-    process.exit(1);
+    id = autoIdentityFromPackageJson();
+    if (!id) {
+      console.error('Usage: port-daddy claim <identity> [options]');
+      console.error('  Tip: Run from a directory with package.json for auto-detection');
+      process.exit(1);
+    }
+    if (IS_TTY) console.error(`Auto-detected identity: ${id}`);
   }
 
   const body: Record<string, unknown> = { id };
@@ -676,6 +745,10 @@ async function handleClaim(id: string | undefined, options: CLIOptions): Promise
   if (options.json) {
     // JSON mode: full data to stdout
     console.log(JSON.stringify(data, null, 2));
+  } else if (options.export) {
+    // Export mode: prints shell export statement for eval
+    // Usage: eval $(port-daddy claim myapp --export)
+    console.log(`export PORT=${data.port}`);
   } else if (options.quiet) {
     // Quiet mode: just the port to stdout
     console.log(data.port);
@@ -683,8 +756,10 @@ async function handleClaim(id: string | undefined, options: CLIOptions): Promise
     // Normal mode: friendly message to stderr, port to stdout
     // This allows: PORT=$(port-daddy claim myapp) to work
     // while still showing the user what happened
-    console.error(`${data.id} \u2192 port ${data.port}`);
-    if (data.existing) console.error('  (reused existing)');
+    if (IS_TTY) {
+      console.error(`${data.id} \u2192 port ${data.port}`);
+      if (data.existing) console.error('  (reused existing)');
+    }
     console.log(data.port);
   }
 }

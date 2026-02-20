@@ -256,4 +256,78 @@ describe('CLI Integration Tests', () => {
       expect(html).toContain('Run it in your terminal');
     });
   });
+
+  describe('CLI Syntactic Sugar', () => {
+    const aliasId = `test-alias-${Date.now()}`;
+
+    afterAll(() => {
+      runCli(['release', aliasId]);
+    });
+
+    test('single-letter alias "c" works for claim', () => {
+      const result = runCli(['c', aliasId, '-q']);
+      expect(result.success).toBe(true);
+      expect(result.stdout).toMatch(/^\d+$/);
+    });
+
+    test('single-letter alias "f" works for find', () => {
+      const result = runCli(['f', aliasId, '--json']);
+      expect(result.success).toBe(true);
+      const data = JSON.parse(result.stdout);
+      expect(data.services.some(s => s.id === aliasId)).toBe(true);
+    });
+
+    test('single-letter alias "r" works for release', () => {
+      // Claim first, then release with alias
+      const claimId = `alias-release-${Date.now()}`;
+      runCli(['claim', claimId, '-q']);
+      const result = runCli(['r', claimId]);
+      expect(result.success).toBe(true);
+    });
+
+    test('single-letter alias "l" works for list', () => {
+      const result = runCli(['l', '--json']);
+      expect(result.success).toBe(true);
+      const data = JSON.parse(result.stdout);
+      expect(data).toHaveProperty('count');
+      expect(data).toHaveProperty('services');
+    });
+
+    test('single-letter alias "s" works for scan', () => {
+      const result = runCli(['s', '--dry-run', '--json']);
+      expect(result.success).toBe(true);
+    });
+
+    test('single-letter alias "p" works for projects', () => {
+      const result = runCli(['p', '--json']);
+      expect(result.success).toBe(true);
+    });
+
+    test('--export flag prints export statement', () => {
+      const exportId = `test-export-${Date.now()}`;
+      const result = runCli(['claim', exportId, '--export']);
+      expect(result.success).toBe(true);
+      expect(result.stdout).toMatch(/^export PORT=\d+$/);
+      // Cleanup
+      runCli(['release', exportId]);
+    });
+
+    test('--export flag works with alias', () => {
+      const exportId = `test-export-alias-${Date.now()}`;
+      const result = runCli(['c', exportId, '--export']);
+      expect(result.success).toBe(true);
+      expect(result.stdout).toMatch(/^export PORT=\d+$/);
+      runCli(['release', exportId]);
+    });
+
+    test('pipe-friendly: -q outputs only port number', () => {
+      const quietId = `test-quiet-${Date.now()}`;
+      const result = runCli(['claim', quietId, '-q']);
+      expect(result.success).toBe(true);
+      // Should be just the port number, nothing else
+      expect(result.stdout).toMatch(/^\d+$/);
+      expect(result.stderr).toBe('');
+      runCli(['release', quietId]);
+    });
+  });
 });
