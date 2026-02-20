@@ -346,7 +346,10 @@ function shutdown(signal: string): void {
     webhooks.trigger(WebhookEvent.DAEMON_STOP, {
       signal, uptime: Date.now() - STARTED_AT, version: VERSION
     });
-  } catch {}
+  } catch (e) {
+    // Best-effort logging during shutdown — don't let it prevent exit
+    logger.error('shutdown_logging_failed', { error: (e as Error).message });
+  }
   db.close();
   // Clean up socket file
   try { unlinkSync(SOCK_PATH); } catch {}

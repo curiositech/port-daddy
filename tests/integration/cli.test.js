@@ -249,9 +249,8 @@ describe('CLI Integration Tests', () => {
       expect(overlap).toEqual([]);
     });
 
-    test('CLI-only commands get a helpful message, not "Unknown command"', async () => {
-      const res = await request('/');
-      expect(res.ok).toBe(true);
+    test('CLI-only commands get a helpful message, not "Unknown command"', () => {
+      // Verify dashboard HTML directly — no HTTP request needed (ephemeral daemon may be socket-only)
       expect(html).toContain('is a CLI-only command');
       expect(html).toContain('Run it in your terminal');
     });

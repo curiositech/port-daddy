@@ -30,6 +30,7 @@ const CLEANUP_RETENTION_DAYS = 7;
 const RESPONSE_BODY_MAX_LENGTH = 1000;
 
 const PRIVATE_IP_PATTERNS = [
+  // IPv4 loopback & private ranges
   /^localhost$/i,
   /^127\./,
   /^10\./,
@@ -37,13 +38,28 @@ const PRIVATE_IP_PATTERNS = [
   /^192\.168\./,
   /^169\.254\./,
   /^0\./,
+  // Shared address space (CGN) — RFC 6598
+  /^100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\./,
+  // IPv6 loopback & private ranges
   /^::1$/,
+  /^\[::1\]$/,
   /^fc00:/i,
   /^fe80:/i,
   /^fd[0-9a-f]{2}:/i,
-  /^\[::1\]$/,
+  // IPv6 multicast — RFC 4291
+  /^ff[0-9a-f]{2}:/i,
+  // IPv4-mapped IPv6 loopback/private
+  /^::ffff:127\./i,
+  /^::ffff:10\./i,
+  /^::ffff:172\.(1[6-9]|2[0-9]|3[01])\./i,
+  /^::ffff:192\.168\./i,
+  // Cloud metadata endpoints
   /^metadata\.google\.internal$/i,
   /^169\.254\.169\.254$/,
+  // Local hostname patterns
+  /\.local$/i,
+  /\.localhost$/i,
+  /\.internal$/i,
 ] as const;
 
 export const WebhookEvent = {
