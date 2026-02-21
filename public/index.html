@@ -154,6 +154,7 @@
       box-shadow: var(--shadow-sm);
     }
     .tabs-wrapper {
+      position: relative; z-index: 101;
       overflow-x: auto; overflow-y: hidden; scrollbar-width: thin;
       scrollbar-color: var(--border) transparent;
       -webkit-overflow-scrolling: touch;
@@ -181,6 +182,7 @@
     .tab.active .tab-badge { background: var(--accent-glow); color: var(--accent); }
     .tab-content { display: none; padding: 20px; overflow-y: auto; flex: 1; min-height: 0; animation: fadeIn 0.2s ease; }
     .tab-content.active { display: block; }
+    #tab-terminal.active { display: flex; flex-direction: column; min-height: 420px; }
 
     /* Tables */
     table { width: 100%; border-collapse: collapse; }
@@ -676,7 +678,7 @@
         </div>
       </div>
 
-      <div class="tab-content active" id="tab-terminal" style="display:flex;flex-direction:column;min-height:420px">
+      <div class="tab-content active" id="tab-terminal">
         <div class="command-output" id="command-output" style="flex:1;max-height:600px">
           <div class="cmd-entry"><div class="cmd-entry-body" style="border-left:3px solid var(--border)"><pre><span class="text-muted">Type a command below, or try: find, scan, projects, status, tutorial</span></pre></div></div>
         </div>
@@ -963,7 +965,12 @@
       pub:      { args: '<channel> <json>', opts: [], desc: 'Publish a message' },
       scan:     { args: '', opts: [], desc: 'Deep scan project for all services' },
       projects: { args: '', opts: [], desc: 'List registered projects' },
-      detect:   { args: '', opts: [], desc: '(deprecated) Use scan instead' },
+      channels: { args: '', opts: [], desc: 'List pub/sub channels' },
+      webhooks: { args: '', opts: [], desc: 'List webhooks' },
+      metrics:  { args: '', opts: [], desc: 'Show daemon metrics' },
+      config:   { args: '', opts: [], desc: 'Show resolved configuration' },
+      health:   { args: '[id]', opts: [], desc: 'Check service health' },
+      ports:    { args: '', opts: [], desc: 'List active port assignments' },
       doctor:   { args: '', opts: [], desc: 'Run environment diagnostics' },
       help:     { args: '', opts: [], desc: 'Show available commands' },
       tutorial: { args: '', opts: [], desc: 'Show command tutorial' }
@@ -1238,7 +1245,12 @@
         case 'pub': var payload = args.find(function(a) { return a.startsWith('{'); }) || '{}'; return fetch(API + '/msg/' + opts.target, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ payload: JSON.parse(payload) }) }).then(function(r) { return r.json(); });
         case 'scan': return fetch(API + '/scan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) }).then(function(r) { return r.json(); });
         case 'projects': return fetch(API + '/projects').then(function(r) { return r.json(); });
-        case 'detect': case 'init': return fetch(API + '/scan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dryRun: true }) }).then(function(r) { return r.json(); });
+        case 'channels': return fetch(API + '/channels').then(function(r) { return r.json(); });
+        case 'webhooks': return fetch(API + '/webhooks').then(function(r) { return r.json(); });
+        case 'metrics': return fetch(API + '/metrics').then(function(r) { return r.json(); });
+        case 'config': return fetch(API + '/config').then(function(r) { return r.json(); });
+        case 'health': return fetch(opts.target ? API + '/services/health/' + encodeURIComponent(opts.target) : API + '/services/health').then(function(r) { return r.json(); });
+        case 'ports': return fetch(API + '/ports/active').then(function(r) { return r.json(); });
         case 'doctor': return runDashboardDoctor();
         default: throw new Error('Unknown command: ' + verb);
       }

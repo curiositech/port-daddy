@@ -136,16 +136,31 @@ npm test -- tests/integration/cli.test.js
 | `/claim/:id` | POST | Claim a port |
 | `/release/:id` | DELETE | Release a service |
 | `/services` | GET | List services |
-| `/locks/:name` | POST/DELETE | Acquire/release lock |
+| `/services/health` | GET | Health check all services |
+| `/services/health/:id` | GET | Health check single service |
+| `/locks/:name` | POST/PUT/DELETE | Acquire/extend/release lock |
 | `/locks` | GET | List locks |
-| `/msg/:channel` | POST/GET | Publish/get messages |
+| `/msg/:channel` | POST/GET/DELETE | Publish/get/clear messages |
+| `/channels` | GET | List pub/sub channels |
 | `/subscribe/:channel` | GET | SSE subscription |
 | `/agents/:id` | POST/DELETE | Register/unregister agent |
 | `/agents/:id/heartbeat` | PUT | Agent heartbeat |
-| `/webhooks` | POST/GET | Manage webhooks |
+| `/webhooks` | POST/GET | Create/list webhooks |
+| `/webhooks/events` | GET | List available webhook events |
+| `/webhooks/:id` | GET/PUT/DELETE | Get/update/delete webhook |
+| `/webhooks/:id/test` | POST | Send test delivery |
+| `/webhooks/:id/deliveries` | GET | List webhook deliveries |
 | `/scan` | POST | Deep-scan directory, register project |
 | `/projects` | GET | List registered projects |
 | `/projects/:id` | GET/DELETE | Get or remove a project |
 | `/activity` | GET | Activity log |
-| `/health` | GET | Health check |
+| `/activity/summary` | GET | Activity summary by type |
+| `/activity/stats` | GET | Activity log statistics |
+| `/activity/range` | GET | Activity in time range |
+| `/metrics` | GET | Daemon metrics |
+| `/config` | GET | Resolved configuration |
+| `/ports/active` | GET | List active port assignments |
+| `/ports/system` | GET | List system/well-known ports |
+| `/ports/cleanup` | POST | Release stale ports |
+| `/health` | GET | Daemon health check |
 | `/version` | GET | Version and code hash |

@@ -648,9 +648,13 @@ Claude Code, Cursor, Windsurf, Cline, Aider, Continue, Codex CLI, and [many more
 | `port-daddy sub <channel>` | Subscribe to a channel (real-time) |
 | `port-daddy wait <id> [...]` | Wait for service(s) to become healthy |
 | `port-daddy lock <name>` | Acquire a distributed lock |
+| `port-daddy lock extend <name>` | Extend a lock's TTL |
 | `port-daddy unlock <name>` | Release a lock |
 | `port-daddy locks` | List all active locks |
+| `port-daddy channels` | List pub/sub channels |
+| `port-daddy channels clear <ch>` | Clear messages from a channel |
 | `port-daddy log` | View activity log |
+| `port-daddy log --from/--to` | View activity in a time range |
 
 ### Agent Registry
 
@@ -671,8 +675,24 @@ Claude Code, Cursor, Windsurf, Cline, Aider, Continue, Codex CLI, and [many more
 | `port-daddy projects` (alias: `p`) | List all registered projects |
 | `port-daddy projects rm <name>` | Remove a registered project |
 | `port-daddy doctor` | Run environment diagnostics |
-| `port-daddy detect` | *(deprecated)* Show detected framework — use `scan` |
-| `port-daddy init` | *(deprecated)* Generate config — use `scan` |
+
+### System & Monitoring
+
+| Command | Description |
+|---------|-------------|
+| `port-daddy dashboard` | Open web dashboard in browser |
+| `port-daddy webhook list` | List all webhooks |
+| `port-daddy webhook events` | List available webhook events |
+| `port-daddy webhook test <id>` | Send test delivery to a webhook |
+| `port-daddy webhook update <id>` | Update a webhook |
+| `port-daddy webhook rm <id>` | Delete a webhook |
+| `port-daddy webhook deliveries <id>` | List webhook deliveries |
+| `port-daddy metrics` | Show daemon metrics |
+| `port-daddy config` | Show resolved configuration |
+| `port-daddy health [id]` | Check service health (all or by ID) |
+| `port-daddy ports` | List active port assignments |
+| `port-daddy ports cleanup` | Release stale port assignments |
+| `port-daddy ports --system` | Show system/well-known ports |
 
 ### Daemon Management
 
@@ -701,6 +721,9 @@ Claude Code, Cursor, Windsurf, Cline, Aider, Continue, Codex CLI, and [many more
 | `--agent <id>` | Agent ID for registration/heartbeat |
 | `--type <type>` | Agent type (cli, sdk, mcp) |
 | `--export` | Print `export PORT=N` for shell eval (claim only) |
+| `--from <ts>` | Start of time range (log, ISO or epoch) |
+| `--to <ts>` | End of time range (log, ISO or epoch) |
+| `--system` | Show system/well-known ports (ports command) |
 
 ### Shell Completions
 
@@ -949,8 +972,6 @@ port-daddy scan
 | Docker | 3000 | `Dockerfile`, `compose.yml` |
 | Go | 8080 | `go.mod` |
 | Rust | 8080 | `Cargo.toml` |
-
-`detect` and `init` still work but print a deprecation notice directing you to `scan`.
 
 ### Daemon Config (`config.json`)
 
