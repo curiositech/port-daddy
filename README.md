@@ -452,6 +452,97 @@ const pd = new PortDaddy({
 });
 ```
 
+### Projects
+
+```javascript
+// Deep-scan a directory for frameworks
+const result = await pd.scan('/path/to/project', { save: true });
+console.log(result.frameworks); // ['react', 'express', ...]
+
+// List all registered projects
+const { projects } = await pd.listProjects();
+
+// Get project details
+const project = await pd.getProject('myproject');
+
+// Remove a project
+await pd.deleteProject('myproject');
+```
+
+### Webhooks (SDK)
+
+```javascript
+// Register a webhook
+const { id } = await pd.addWebhook('https://example.com/hook', {
+  events: ['claim', 'release'],
+  secret: 'my-secret',
+});
+
+// List webhooks
+const { webhooks } = await pd.listWebhooks();
+
+// Get, update, test, remove
+const hook = await pd.getWebhook(id);
+await pd.updateWebhook(id, { events: ['claim'], active: false });
+await pd.testWebhook(id);
+await pd.removeWebhook(id);
+
+// List available events and delivery history
+const { events } = await pd.getWebhookEvents();
+const deliveries = await pd.getWebhookDeliveries(id);
+```
+
+### System & Monitoring
+
+```javascript
+// Health, version, metrics
+const health = await pd.health();
+const ver = await pd.version();
+const stats = await pd.metrics();
+
+// Resolved configuration (optionally for a specific directory)
+const config = await pd.getConfig('/path/to/project');
+
+// Quick connectivity check
+const alive = await pd.ping(); // true | false
+
+// Service health
+const allHealth = await pd.listServiceHealth();
+const svcHealth = await pd.checkServiceHealth('myapp:api');
+```
+
+### Activity & Ports
+
+```javascript
+// Activity log
+const { activity } = await pd.getActivity({ limit: 50, type: 'claim' });
+
+// Time-range query
+const range = await pd.getActivityRange('2025-01-01T00:00:00Z', '2025-01-31T23:59:59Z');
+
+// Summary and stats
+const summary = await pd.getActivitySummary('1h'); // since 1 hour ago
+const activityStats = await pd.getActivityStats();
+
+// Port management
+const activePorts = await pd.listActivePorts();
+const systemPorts = await pd.getSystemPorts();
+const cleaned = await pd.cleanup(); // remove expired
+```
+
+### Extended Lock Operations
+
+```javascript
+// Check if a lock exists without acquiring
+const lockInfo = await pd.checkLock('db-migrations');
+
+// Extend a lock's TTL
+await pd.extendLock('db-migrations', { ttl: 120 });
+
+// Clear a pub/sub channel
+await pd.clearChannel('builds');
+```
+
 ### Error Handling
 
 ```javascript
@@ -762,7 +853,6 @@ cp /path/to/port-daddy/completions/port-daddy.fish ~/.config/fish/completions/
 ```
 GET /health          # Health check (for monitoring)
 GET /version         # Version and code hash
-GET /activity        # Activity log
 ```
 
 ### Services
@@ -778,6 +868,7 @@ GET    /services/:id      # Get service details
 
 ```
 POST   /locks/:name       # Acquire a lock
+PUT    /locks/:name       # Extend lock TTL
 DELETE /locks/:name       # Release a lock
 GET    /locks             # List all locks
 GET    /locks/:name       # Get lock details
@@ -823,6 +914,27 @@ DELETE /webhooks/:id      # Delete webhook
 POST   /webhooks/:id/test # Send test payload
 GET    /webhooks/:id/deliveries # Delivery history
 GET    /webhooks/events   # List available events
+```
+
+### Activity
+
+```
+GET    /activity          # Activity log (?limit=N&type=claim&agent=ID)
+GET    /activity/range    # Time-range query (?from=ISO&to=ISO)
+GET    /activity/summary  # Summary (?since=1h)
+GET    /activity/stats    # Aggregate statistics
+```
+
+### System
+
+```
+GET    /metrics           # Daemon metrics (uptime, counts, memory)
+GET    /config            # Resolved configuration (?dir=/path)
+GET    /ports/active      # List active port assignments
+GET    /ports/system      # List system ports in use
+POST   /ports/cleanup     # Remove expired port assignments
+GET    /services/health   # Health of all services
+GET    /services/health/:id # Health of a specific service
 ```
 
 ---
