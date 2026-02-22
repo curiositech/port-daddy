@@ -13,7 +13,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/npm/l/port-daddy.svg" alt="license"></a>
   <a href="https://github.com/curiositech/port-daddy"><img src="https://img.shields.io/badge/tests-1169%20passing-brightgreen" alt="tests"></a>
   <a href="package.json"><img src="https://img.shields.io/node/v/port-daddy.svg" alt="node"></a>
-  <a href="https://github.com/curiositech/port-daddy/tree/main/skills/port-daddy-cli"><img src="https://img.shields.io/badge/Claude%20Code-plugin-blueviolet" alt="Claude Code Plugin"></a>
+  <a href="https://github.com/curiositech/port-daddy/tree/main/skills/port-daddy-cli"><img src="https://img.shields.io/badge/AI%20Agents-40%2B%20compatible-blueviolet" alt="AI Agent Skill"></a>
   <a href="package.json"><img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey" alt="platform"></a>
 </p>
 
@@ -42,6 +42,7 @@ Port Daddy is the coordination layer for multi-agent development. It runs as a l
 
 **Port management** — [claim/release](#quick-start), [persistent assignment](#semantic-identities), [service orchestration](#service-orchestration), [60+ framework auto-detection](#auto-detection-port-daddy-scan)
 **Agent coordination** — [pub/sub messaging](#pubsub-messaging), [distributed locks](#distributed-locks), [agent registry](#agent-registry), [webhooks](#webhooks), [web dashboard](#dashboard)
+**Works with your agent** — Ships as a [Vercel Agent Skill](#ai-agent-skill) compatible with Claude Code, Cursor, Windsurf, Cline, Aider, Codex CLI, and [40+ more](https://github.com/vercel-labs/skills#compatible-agents)
 
 ---
 
@@ -655,9 +656,9 @@ Port Daddy includes a web dashboard at `http://localhost:9876`:
 
 ---
 
-## Claude Code Plugin
+## AI Agent Skill
 
-Port Daddy ships as a [Claude Code plugin](https://github.com/curiositech/port-daddy/tree/main/skills/port-daddy-cli) and is compatible with 40+ AI coding agents via the [Vercel Labs Agent Skills](https://github.com/vercel-labs/skills) format.
+Port Daddy ships as an [agent skill](https://github.com/curiositech/port-daddy/tree/main/skills/port-daddy-cli) in the [Vercel Labs Agent Skills](https://github.com/vercel-labs/skills) format, compatible with 40+ AI coding agents.
 
 ### Install the Skill
 
