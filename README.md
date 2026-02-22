@@ -1,12 +1,30 @@
-# Port Daddy
+# Port Daddy ⚓
 
-[![npm version](https://img.shields.io/npm/v/port-daddy.svg)](https://npmjs.com/package/port-daddy)
-[![license](https://img.shields.io/npm/l/port-daddy.svg)](LICENSE)
-[![CI](https://github.com/curiositech/port-daddy/actions/workflows/ci.yml/badge.svg)](https://github.com/curiositech/port-daddy/actions/workflows/ci.yml)
-[![tests](https://img.shields.io/badge/tests-1255%20unit%20%2B%20integration-brightgreen)](https://github.com/curiositech/port-daddy)
-[![node](https://img.shields.io/node/v/port-daddy.svg)](package.json)
-[![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-plugin-blueviolet)](https://github.com/curiositech/port-daddy/tree/main/skills/port-daddy-cli)
-[![platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey)](package.json)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/curiositech/port-daddy/main/assets/port_daddy_cover_art.webp" alt="Port Daddy" width="600">
+</p>
+
+<p align="center">
+  <strong>Your ports. My rules. Zero conflicts.</strong>
+</p>
+
+<p align="center">
+  <a href="https://npmjs.com/package/port-daddy"><img src="https://img.shields.io/npm/v/port-daddy.svg" alt="npm version"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/npm/l/port-daddy.svg" alt="license"></a>
+  <a href="https://github.com/curiositech/port-daddy"><img src="https://img.shields.io/badge/tests-1169%20passing-brightgreen" alt="tests"></a>
+  <a href="package.json"><img src="https://img.shields.io/node/v/port-daddy.svg" alt="node"></a>
+  <a href="https://github.com/curiositech/port-daddy/tree/main/skills/port-daddy-cli"><img src="https://img.shields.io/badge/Claude%20Code-plugin-blueviolet" alt="Claude Code Plugin"></a>
+  <a href="package.json"><img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey" alt="platform"></a>
+</p>
+
+<p align="center">
+  <a href="#quick-start">Quick Start</a> •
+  <a href="#javascript-sdk">SDK</a> •
+  <a href="#api-reference">API</a> •
+  <a href="#credits">Credits</a>
+</p>
+
+---
 
 **Authoritative port management, service orchestration, pub/sub messaging, distributed locks, and agent coordination for local development.**
 
