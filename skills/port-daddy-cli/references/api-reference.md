@@ -244,17 +244,87 @@ Trigger cleanup of stale port assignments.
 
 ---
 
-## Detection & Config
+## Projects & Scanning
 
-### POST /detect
-Detect framework in a directory.
+### POST /scan
+Deep-scan a directory for frameworks (60+ supported). Registers the project automatically.
 
-**Body:** `{ "path": "/path/to/project" }`
+**Body:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `path` | string | yes | Directory to scan |
+| `dryRun` | boolean | no | Preview without saving |
 
-### POST /init
-Auto-detect framework and generate `.portdaddyrc`.
+### GET /projects
+List all registered projects.
 
-**Body:** `{ "path": "/path/to/project" }`
+### GET /projects/:id
+Get a specific project by ID.
+
+### DELETE /projects/:id
+Remove a registered project.
+
+---
+
+## Activity
+
+### GET /activity/range
+Get activity log within a time range.
+
+**Query params:**
+| Param | Type | Description |
+|-------|------|-------------|
+| `from` | string | ISO timestamp (start) |
+| `to` | string | ISO timestamp (end) |
+
+### GET /activity/summary
+Get activity summary. Optional query param: `since` (ISO timestamp).
+
+### GET /activity/stats
+Get aggregate activity statistics.
+
+---
+
+## Ports
+
+### GET /ports/active
+List all active port assignments.
+
+### GET /ports/system
+List system-level port usage (netstat-style).
+
+---
+
+## Health (Per-Service)
+
+### GET /services/health
+Health check all registered services.
+
+### GET /services/health/:id
+Health check a specific service by ID.
+
+---
+
+## Webhooks (Extended)
+
+### GET /webhooks/:id
+Get a specific webhook.
+
+### PUT /webhooks/:id
+Update a webhook configuration.
+
+### POST /webhooks/:id/test
+Send a test delivery to a webhook.
+
+### GET /webhooks/:id/deliveries
+Get delivery log for a webhook.
+
+### GET /webhooks/events
+List all available webhook event types.
+
+---
+
+## Config
 
 ### GET /config
-Get current daemon configuration.
+Get current daemon configuration. Optional query param: `dir`.

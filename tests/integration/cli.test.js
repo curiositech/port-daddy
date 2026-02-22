@@ -111,23 +111,6 @@ describe('CLI Integration Tests', () => {
     });
   });
 
-  describe('Detect Command', () => {
-    test('detect runs without error', () => {
-      const result = runCli(['detect']);
-      expect(result.success).toBe(true);
-      expect(result.stdout).toContain('Detected');
-    });
-
-    test('detect --json returns valid JSON', () => {
-      const result = runCli(['detect', '--json']);
-      expect(result.success).toBe(true);
-
-      const data = JSON.parse(result.stdout);
-      expect(data.success).toBe(true);
-      expect(data.suggestedIdentity).toBeDefined();
-    });
-  });
-
   describe('Pub/Sub Commands', () => {
     const testChannel = `test-channel-${Date.now()}`;
 
@@ -171,22 +154,6 @@ describe('CLI Integration Tests', () => {
     });
   });
 
-  describe('Deprecation Notices', () => {
-    test('detect shows deprecation notice on stderr', () => {
-      const result = runCli(['detect']);
-      expect(result.success).toBe(true);
-      expect(result.stderr).toContain('deprecated');
-      expect(result.stderr).toContain('scan');
-    });
-
-    test('init shows deprecation notice on stderr', () => {
-      const result = runCli(['init', '--dry-run']);
-      expect(result.success).toBe(true);
-      expect(result.stderr).toContain('deprecated');
-      expect(result.stderr).toContain('scan');
-    });
-  });
-
   describe('Dashboard Terminal Command Parity', () => {
     let html, dashboardCommands, cliOnlyCommands;
 
@@ -195,7 +162,6 @@ describe('CLI Integration Tests', () => {
       'pub', 'sub', 'wait', 'lock', 'unlock', 'locks',
       'up', 'down',
       'scan', 'projects',
-      'detect', 'init',
       'agent', 'agents',
       'log', 'activity',
       'start', 'stop', 'restart', 'status',
@@ -237,7 +203,7 @@ describe('CLI Integration Tests', () => {
 
     test('every known CLI command is either in COMMANDS or CLI_ONLY', () => {
       const covered = new Set([...dashboardCommands, ...cliOnlyCommands]);
-      const exceptions = ['sub', 'wait', 'url', 'env', 'agent', 'version', 'init'];
+      const exceptions = ['sub', 'wait', 'url', 'env', 'agent', 'version'];
       const missing = knownCliCommands.filter(cmd =>
         !covered.has(cmd) && !exceptions.includes(cmd)
       );

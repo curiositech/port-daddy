@@ -4,7 +4,7 @@ description: Manage local dev server ports, coordinate multi-agent workflows wit
 allowed-tools: Read,Bash,Grep,Glob
 metadata:
   author: curiositech
-  version: "2.0.0"
+  version: "3.1.0"
 ---
 
 # Port Daddy CLI
@@ -16,7 +16,7 @@ Authoritative port management daemon for multi-agent development. Provides atomi
 ✅ **Use for**:
 - Claiming ports for dev servers (no conflicts between agents)
 - Setting up project port configuration (`.portdaddyrc`)
-- Auto-detecting frameworks and generating config (`port-daddy init`)
+- Deep-scanning projects for frameworks and generating config (`port-daddy scan`)
 - Coordinating between multiple Claude sessions (locks, messaging)
 - Registering agents with heartbeats
 - Querying which ports/services are active
@@ -72,8 +72,8 @@ flowchart TB
 ```mermaid
 flowchart TD
     Start[Need a port for dev server] --> HasConfig{.portdaddyrc exists?}
-    HasConfig -->|No| Init[Run: port-daddy init]
-    Init --> HasConfig
+    HasConfig -->|No| Scan[Run: port-daddy scan]
+    Scan --> HasConfig
     HasConfig -->|Yes| HowUse{How to claim?}
 
     HowUse -->|CLI| CLIClaim["port-daddy claim myapp:api"]
@@ -107,21 +107,27 @@ Pattern queries work with globs: `myapp:*` matches all services for myapp.
 | `port-daddy claim <id>` | Claim a port |
 | `port-daddy release <id>` | Release a port |
 | `port-daddy list` | List active services |
-| `port-daddy init` | Auto-detect framework, generate .portdaddyrc |
-| `port-daddy dev` | Start all services from .portdaddyrc |
-| `port-daddy doctor` | Run 9 diagnostic checks |
+| `port-daddy find <id>` | Find a service by identity or port |
+| `port-daddy scan` | Deep-scan project, detect frameworks, register |
+| `port-daddy up` | Start all services from .portdaddyrc |
+| `port-daddy pub <ch> <msg>` | Publish to a channel |
+| `port-daddy sub <ch>` | Subscribe to a channel |
+| `port-daddy lock <name>` | Acquire a distributed lock |
+| `port-daddy unlock <name>` | Release a distributed lock |
+| `port-daddy agent register` | Register an agent |
+| `port-daddy dashboard` | Open web dashboard |
+| `port-daddy doctor` | Run diagnostic checks |
 | `port-daddy start` | Start daemon |
-| `port-daddy restart` | Restart daemon |
 | `port-daddy status` | Check daemon status |
 | `port-daddy version` | Show version + code hash |
 
 ---
 
-## Project Setup: port-daddy init
+## Project Setup: port-daddy scan
 
-To set up a new project, run `port-daddy init` in the project root. It auto-detects 16 frameworks:
+To set up a new project, run `port-daddy scan` in the project root. It deep-scans recursively and auto-detects 60+ frameworks including:
 
-Next.js, Nuxt, SvelteKit, Remix, Astro, Vite, Angular, Create React App, Vue CLI, Express, Fastify, Hono, NestJS, FastAPI, Flask, Django
+Next.js, Nuxt, SvelteKit, Remix, Astro, Vite, Angular, Vue CLI, Express, Fastify, Hono, NestJS, FastAPI, Flask, Django, Rails, Phoenix, Spring Boot, Laravel, Gin, Fiber, Echo, Actix, Rocket, Warp, Axum, Ktor, Micronaut, Quarkus, Vapor, and many more
 
 The generated `.portdaddyrc` defines services, port ranges, dev commands, and health checks:
 
@@ -136,7 +142,7 @@ The generated `.portdaddyrc` defines services, port ranges, dev commands, and he
 }
 ```
 
-Use `port-daddy dev` to start all services defined in `.portdaddyrc`.
+Use `port-daddy up` to start all services defined in `.portdaddyrc`.
 
 ---
 

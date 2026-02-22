@@ -143,6 +143,22 @@ List agents. Options: `activeOnly`. Returns `{ agents, count }`.
 
 ---
 
+## Projects
+
+### `pd.scan(dir, options?)`
+Deep-scan a directory for frameworks (60+ supported). Options: `dryRun`. Returns project with detected services.
+
+### `pd.listProjects()`
+List all registered projects.
+
+### `pd.getProject(id)`
+Get a specific project by ID.
+
+### `pd.deleteProject(id)`
+Remove a registered project.
+
+---
+
 ## Webhooks
 
 ### `pd.addWebhook(url, options?)`
@@ -150,6 +166,21 @@ Register webhook. Options: `events`, `secret`, `filterPattern`, `metadata`. Retu
 
 ### `pd.listWebhooks(options?)`
 List webhooks. Options: `activeOnly`. Returns `{ webhooks, count }`.
+
+### `pd.getWebhook(id)`
+Get a specific webhook by ID.
+
+### `pd.updateWebhook(id, options)`
+Update webhook configuration. Options: `url`, `events`, `secret`, `filterPattern`, `active`.
+
+### `pd.testWebhook(id)`
+Send a test delivery to a webhook.
+
+### `pd.getWebhookDeliveries(id)`
+Get delivery log for a webhook.
+
+### `pd.getWebhookEvents()`
+List all available webhook event types.
 
 ### `pd.removeWebhook(id)`
 Delete webhook.
@@ -166,6 +197,36 @@ Version info. Returns `{ version, codeHash, uptime }`.
 
 ### `pd.getActivity(options?)`
 Activity log. Options: `limit`, `type`, `agent`. Returns `{ activities, count }`.
+
+### `pd.metrics()`
+Get daemon metrics (ports assigned, messages published, locks held, etc.).
+
+### `pd.getConfig(dir?)`
+Get resolved daemon configuration. Optional `dir` for project-specific config.
+
+### `pd.getActivityRange(from, to)`
+Get activity log within a time range (ISO timestamps).
+
+### `pd.getActivitySummary(since?)`
+Get activity summary. Optional `since` (ISO timestamp).
+
+### `pd.getActivityStats()`
+Get aggregate activity statistics.
+
+### `pd.listActivePorts()`
+List all active port assignments.
+
+### `pd.getSystemPorts()`
+List system-level port usage.
+
+### `pd.cleanupPorts()`
+Trigger cleanup of stale port assignments. Returns `{ freed, count }`.
+
+### `pd.checkServiceHealth(id)`
+Health check a specific service.
+
+### `pd.listServiceHealth()`
+Health check all registered services.
 
 ### `pd.cleanup()`
 Trigger stale assignment cleanup. Returns `{ freed, count }`.
