@@ -26,17 +26,22 @@
 
 ---
 
-Claim a port. Start your stack. Port Daddy remembers.
+Claim a port. Start your stack. Coordinate your agents. Port Daddy remembers.
 
 ```bash
 port-daddy claim myapp:frontend    # → port 3100 (same port, every time)
 port-daddy claim myapp:api         # → port 3101
 port-daddy up                      # Start everything, auto-detected
+
+port-daddy pub build:api '{"status":"ready"}'   # Agent A signals completion
+port-daddy sub build:*                          # Agent B listens
+port-daddy lock db-migrations                   # Mutual exclusion across agents
 ```
 
-A lightweight daemon on `localhost:9876` that gives every service a stable port, starts your whole stack with one command, and never forgets an assignment — even across restarts. Backed by SQLite for atomic operations and zero race conditions.
+Port Daddy is the coordination layer for multi-agent development. It runs as a lightweight daemon on `localhost:9876` and gives every service a stable port, starts your whole stack with one command, brokers messages between agents, manages distributed locks, and tracks agent lifecycles — all backed by SQLite for atomic operations and zero race conditions.
 
-**Also built in:** [pub/sub messaging](#pubsub-messaging), [distributed locks](#distributed-locks), [agent registry](#agent-registry), [webhooks](#webhooks), and a [web dashboard](#dashboard) — everything multi-agent and multi-service development needs, no external dependencies.
+**Port management** — [claim/release](#quick-start), [persistent assignment](#semantic-identities), [service orchestration](#service-orchestration), [60+ framework auto-detection](#auto-detection-port-daddy-scan)
+**Agent coordination** — [pub/sub messaging](#pubsub-messaging), [distributed locks](#distributed-locks), [agent registry](#agent-registry), [webhooks](#webhooks), [web dashboard](#dashboard)
 
 ---
 
@@ -46,7 +51,9 @@ A lightweight daemon on `localhost:9876` that gives every service a stable port,
 
 ## The Problem
 
-Every web developer knows "Something is already running on port 3000." You kill a stale process, restart, find another collision, restart again. Multiply that by microservices (5-10 local servers fighting over ports), CI pipelines (parallel test runners on hardcoded ports), or AI coding agents (autonomous sessions launching dev servers with no human to fix collisions) — and port conflicts go from annoying to genuinely expensive.
+Every web developer knows "Something is already running on port 3000." Multiply that by microservices (5-10 local servers fighting over ports) and it's a daily friction.
+
+Now add AI coding agents. Multiple autonomous sessions launch dev servers simultaneously, each unaware of the others. No human is watching to resolve collisions. Every port conflict wastes an agent cycle. And agents need more than ports — they need to signal each other when builds finish, take exclusive locks on shared resources like databases, and know which other agents are alive. There's no standard tool for any of this.
 
 Existing tools solve pieces of this. Port Daddy solves the whole thing.
 
