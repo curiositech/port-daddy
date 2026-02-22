@@ -26,90 +26,43 @@
 
 ---
 
-**Authoritative port management, service orchestration, pub/sub messaging, distributed locks, and agent coordination for local development.**
-
-Port Daddy is a lightweight daemon that runs on `localhost:9876` and solves port conflicts, service orchestration, and multi-process coordination in a single tool. It assigns ports atomically, starts your entire stack with `port-daddy up`, brokers messages between processes, manages distributed locks, and tracks agent lifecycles -- all backed by SQLite for persistence and zero race conditions.
+Claim a port. Start your stack. Port Daddy remembers.
 
 ```bash
-port-daddy up                    # Start your whole stack (detects frameworks automatically)
-port-daddy down                  # Graceful shutdown, all services
-
-port-daddy claim myapp:frontend  # Or manage ports individually
-# → myapp:frontend → port 3100
-
-port-daddy pub build:ready '{"services":["frontend","api"]}'
-port-daddy lock db-migrations
+port-daddy claim myapp:frontend    # → port 3100 (same port, every time)
+port-daddy claim myapp:api         # → port 3101
+port-daddy up                      # Start everything, auto-detected
 ```
+
+A lightweight daemon on `localhost:9876` that gives every service a stable port, starts your whole stack with one command, and never forgets an assignment — even across restarts. Backed by SQLite for atomic operations and zero race conditions.
+
+**Also built in:** [pub/sub messaging](#pubsub-messaging), [distributed locks](#distributed-locks), [agent registry](#agent-registry), [webhooks](#webhooks), and a [web dashboard](#dashboard) — everything multi-agent and multi-service development needs, no external dependencies.
 
 ---
 
-## Table of Contents
-
-- [The Problem](#the-problem)
-  - [Why Port Daddy?](#why-port-daddy)
-- [Quick Start](#quick-start)
-- [Service Orchestration](#service-orchestration)
-- [Semantic Identities](#semantic-identities)
-- [Agent Coordination](#agent-coordination)
-  - [Pub/Sub Messaging](#pubsub-messaging)
-  - [Distributed Locks](#distributed-locks)
-  - [Channel Patterns](#channel-patterns)
-- [Agent Registry](#agent-registry)
-- [JavaScript SDK](#javascript-sdk)
-- [Webhooks](#webhooks)
-- [Activity Log](#activity-log)
-- [Dashboard](#dashboard)
-- [Claude Code Plugin](#claude-code-plugin)
-- [CLI Reference](#cli-reference)
-  - [Shell Completions](#shell-completions)
-- [API Reference](#api-reference)
-- [How It Works](#how-it-works)
-- [Configuration](#configuration)
-  - [Project Config (.portdaddyrc)](#project-config-portdaddyrc)
-  - [Auto-Detection (port-daddy scan)](#auto-detection-port-daddy-scan)
-  - [Daemon Config (config.json)](#daemon-config-configjson)
-- [Examples](#examples)
-- [License](#license)
+**Jump to:** [Quick Start](#quick-start) | [Orchestration](#service-orchestration) | [SDK](#javascript-sdk) | [CLI Reference](#cli-reference) | [API Reference](#api-reference) | [Configuration](#configuration) | [Examples](#examples)
 
 ---
 
 ## The Problem
 
-Port conflicts and process coordination failures waste real time across three common scenarios:
+Every web developer knows "Something is already running on port 3000." You kill a stale process, restart, find another collision, restart again. Multiply that by microservices (5-10 local servers fighting over ports), CI pipelines (parallel test runners on hardcoded ports), or AI coding agents (autonomous sessions launching dev servers with no human to fix collisions) — and port conflicts go from annoying to genuinely expensive.
 
-**Solo developers** hit "Something is already running on port 3000" constantly. You restart your terminal, kill a stale process, restart again -- and waste 5 minutes before you can even start coding. Every web developer has been there.
+Existing tools solve pieces of this. Port Daddy solves the whole thing.
 
-**Microservice developers** running 5-10 services locally hit port collisions constantly. You start a frontend on 3000, an API on 3001, a worker on 3002 -- then restart one and discover something else grabbed its port. Docker Compose helps in containers, but local development outside containers is a free-for-all.
+| | [get-port](https://npmjs.com/package/get-port) | [portfinder](https://npmjs.com/package/portfinder) | [kill-port](https://npmjs.com/package/kill-port) | **Port Daddy** |
+|---|:---:|:---:|:---:|:---:|
+| Find a free port | ✅ | ✅ | — | ✅ |
+| Kill port processes | — | — | ✅ | ✅ |
+| Persistent assignment (same project → same port) | — | — | — | ✅ |
+| Named services (`myapp:api:main`) | — | — | — | ✅ |
+| Service orchestration (`up`/`down`) | — | — | — | ✅ |
+| Framework auto-detection (60+) | — | — | — | ✅ |
+| Multi-process coordination | — | — | — | ✅ |
+| Dashboard, webhooks, activity log | — | — | — | ✅ |
+| Works as CLI and SDK | Library | Library | CLI | **CLI + SDK + HTTP** |
 
-**CI/CD pipelines** with parallel test runners need deterministic port assignment. When multiple test suites run concurrently, each spinning up servers on hardcoded ports, you get flaky failures that are impossible to reproduce locally. The workaround -- random ports with retry loops -- adds complexity and still races.
-
-**Multi-agent AI development** multiplies the problem. Multiple autonomous agent sessions launch dev servers simultaneously, each unaware of the others. No human is watching to resolve conflicts, and every port collision wastes an agent cycle figuring out what went wrong.
-
-Port Daddy solves all four with a single daemon: atomic port assignment, semantic service naming, pub/sub messaging for coordination, distributed locks for mutual exclusion, and an agent registry for lifecycle tracking.
-
-### Why Port Daddy?
-
-Existing tools solve fragments of the problem. Port Daddy solves the whole thing.
-
-| | [get-port](https://npmjs.com/package/get-port) | [portfinder](https://npmjs.com/package/portfinder) | [kill-port](https://npmjs.com/package/kill-port) | [Portless](https://portless.app) | **Port Daddy** |
-|---|:---:|:---:|:---:|:---:|:---:|
-| Find a free port | ✅ | ✅ | — | — | ✅ |
-| Kill port processes | — | — | ✅ | ✅ | ✅ |
-| Persistent assignment (same project → same port) | — | — | — | — | ✅ |
-| Named services (`myapp:api:main`) | — | — | — | — | ✅ |
-| Multi-process coordination | — | — | — | — | ✅ |
-| Pub/sub messaging | — | — | — | — | ✅ |
-| Distributed locks | — | — | — | — | ✅ |
-| Agent lifecycle tracking | — | — | — | — | ✅ |
-| Webhooks | — | — | — | — | ✅ |
-| Service orchestration (`up`/`down`) | — | — | — | — | ✅ |
-| Framework auto-detection (60+ frameworks) | — | — | — | — | ✅ |
-| Activity audit log | — | — | — | — | ✅ |
-| Dashboard UI | — | — | — | ✅ | ✅ |
-| AI agent plugin | — | — | — | — | ✅ |
-| Works as CLI and SDK | Library only | Library only | CLI only | GUI only | **CLI + SDK + HTTP** |
-
-`get-port` and `portfinder` are libraries — they find a free port and hand it back. No persistence, no naming, no coordination. Next time you run your app, you get a different port. Port Daddy remembers.
+`get-port` and `portfinder` find a free port and hand it back. No persistence, no naming, no coordination. Next time you run your app, you get a different port. Port Daddy remembers.
 
 ---
 
