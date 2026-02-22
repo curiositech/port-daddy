@@ -42,7 +42,7 @@ Port Daddy is the coordination layer for multi-agent development. It runs as a l
 
 **Port management** — [claim/release](#quick-start), [persistent assignment](#semantic-identities), [service orchestration](#service-orchestration), [60+ framework auto-detection](#auto-detection-port-daddy-scan)
 **Agent coordination** — [pub/sub messaging](#pubsub-messaging), [distributed locks](#distributed-locks), [agent registry](#agent-registry), [webhooks](#webhooks), [web dashboard](#dashboard)
-**Works with your agent** — Ships as a [Vercel Agent Skill](#ai-agent-skill) compatible with Claude Code, Cursor, Windsurf, Cline, Aider, Codex CLI, and [40+ more](https://github.com/vercel-labs/skills#compatible-agents)
+**Works with your agent** — `npx skills add curiositech/port-daddy` — Claude Code, Cursor, Windsurf, Cline, Aider, Codex CLI, and [40+ more](#ai-agent-skill)
 
 ---
 
