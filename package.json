@@ -1,15 +1,23 @@
 {
   "name": "port-daddy",
-  "version": "2.0.0",
+  "version": "3.1.0",
   "description": "Authoritative port management and service orchestration for multi-agent development — port-daddy up/down, atomic assignment, pub/sub messaging, distributed locks, agent registry, and project:stack:context semantic identities",
-  "main": "server.js",
+  "main": "./dist/server.js",
   "type": "module",
+  "types": "./dist/server.d.ts",
   "exports": {
-    ".": "./server.js",
-    "./client": "./lib/client.js"
+    ".": {
+      "types": "./dist/server.d.ts",
+      "default": "./dist/server.js"
+    },
+    "./client": {
+      "types": "./dist/lib/client.d.ts",
+      "default": "./dist/lib/client.js"
+    }
   },
   "bin": {
-    "port-daddy": "./bin/port-daddy-cli.js"
+    "port-daddy": "./bin/port-daddy-cli.js",
+    "pd": "./bin/port-daddy-cli.js"
   },
   "scripts": {
     "start": "tsx server.ts",
@@ -20,7 +28,8 @@
     "test:coverage": "npm test -- --coverage",
     "test:ci": "npm test",
     "typecheck": "tsc --noEmit",
-    "build": "tsc"
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
   },
   "repository": {
     "type": "git",
@@ -52,6 +61,7 @@
     "claude"
   ],
   "files": [
+    "dist/",
     "server.ts",
     "install-daemon.ts",
     "bin/",
