@@ -5,730 +5,126 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Port Daddy — Port Management & Service Orchestration</title>
   <meta name="description" content="Stop fighting over ports. Port Daddy manages local development ports, orchestrates services, and coordinates multi-agent workflows.">
-  
-  <meta property="og:title" content="Port Daddy — Port Management & Service Orchestration">
+  <meta property="og:title" content="Port Daddy">
   <meta property="og:description" content="Stop fighting over ports.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://portdaddy.dev">
   <meta property="og:image" content="https://portdaddy.dev/images/og-image.png">
-  
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Port Daddy">
   <meta name="twitter:image" content="https://portdaddy.dev/images/og-image.png">
-  
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231e3a5f' stroke-width='2'><path d='M12 2v18M12 2a4 4 0 0 1 4 4v2a4 4 0 0 1-4 4'/><circle cx='12' cy='7' r='1'/></svg>">
-  
-  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231e3a5f' stroke-width='2'><path d='M12 2v18M12 2a4 4 0 0 1 4 4v2a4 4 0 0 1-4 4'/><circle cx='12' cy='7' r='1'/></svg>">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  
   <style>
-    :root {
-      --bg-primary: #faf9f6;
-      --bg-secondary: #f5f4f0;
-      --bg-elevated: #ffffff;
-      
-      --navy: #1e3a5f;
-      --navy-light: #2d4a6f;
-      --teal: #4a7c7e;
-      --teal-light: #6a9c9e;
-      
-      --text-primary: #1a1a2e;
-      --text-secondary: #5a5a6e;
-      --text-muted: #8a8a9e;
-      
-      --border: #e5e4e0;
-      --border-light: #f0f0ec;
-      
-      --font-serif: 'Playfair Display', Georgia, serif;
-      --font-sans: 'Inter', system-ui, sans-serif;
-      --font-mono: 'JetBrains Mono', monospace;
-    }
-    
+    :root { --bg-primary: #faf9f6; --bg-secondary: #f5f4f0; --navy: #1e3a5f; --navy-light: #2d4a6f; --teal: #4a7c7e; --teal-light: #6a9c9e; --text-primary: #1a1a2e; --text-secondary: #5a5a6e; --text-muted: #8a8a9e; --border: #e5e4e0; --font-serif: 'Playfair Display', Georgia, serif; --font-sans: 'Inter', system-ui, sans-serif; --font-mono: 'JetBrains Mono', monospace; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html { scroll-behavior: smooth; }
-    
-    body {
-      font-family: var(--font-sans);
-      background: var(--bg-primary);
-      color: var(--text-primary);
-      line-height: 1.6;
-    }
-    
-    /* Navigation */
-    nav {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      z-index: 100;
-      padding: 1rem 2rem;
-      background: rgba(250, 249, 246, 0.95);
-      backdrop-filter: blur(20px);
-      border-bottom: 1px solid var(--border);
-    }
-    
-    .nav-container {
-      max-width: 1200px;
-      margin: 0 auto;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      font-family: var(--font-serif);
-      font-weight: 600;
-      font-size: 1.25rem;
-      color: var(--navy);
-      text-decoration: none;
-    }
-    
-    .nav-links {
-      display: flex;
-      gap: 2rem;
-    }
-    
-    .nav-links a {
-      color: var(--text-secondary);
-      text-decoration: none;
-      font-size: 0.9rem;
-      font-weight: 500;
-      transition: color 0.2s;
-    }
-    
+    body { font-family: var(--font-sans); background: var(--bg-primary); color: var(--text-primary); line-height: 1.6; }
+    nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; padding: 1rem 2rem; background: rgba(250, 249, 246, 0.95); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); }
+    .nav-container { max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; }
+    .logo { display: flex; align-items: center; gap: 0.5rem; font-family: var(--font-serif); font-weight: 600; font-size: 1.25rem; color: var(--navy); text-decoration: none; }
+    .nav-links { display: flex; gap: 2rem; }
+    .nav-links a { color: var(--text-secondary); text-decoration: none; font-size: 0.9rem; font-weight: 500; transition: color 0.2s; }
     .nav-links a:hover { color: var(--navy); }
-    
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.6rem 1.25rem;
-      border-radius: 6px;
-      font-weight: 500;
-      font-size: 0.9rem;
-      text-decoration: none;
-      transition: all 0.2s;
-      cursor: pointer;
-      border: none;
-      font-family: inherit;
-    }
-    
-    .btn-primary {
-      background: var(--navy);
-      color: white;
-    }
-    
-    .btn-primary:hover {
-      background: var(--navy-light);
-      transform: translateY(-1px);
-    }
-    
-    .btn-outline {
-      border: 1.5px solid var(--navy);
-      color: var(--navy);
-      background: transparent;
-    }
-    
-    .btn-outline:hover {
-      background: var(--navy);
-      color: white;
-    }
-    
-    /* Hero */
-    .hero {
-      min-height: 100vh;
-      padding: 7rem 2rem 4rem;
-      background: linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
-      position: relative;
-      overflow: hidden;
-    }
-    
-    .hero-image {
-      position: absolute;
-      top: 0;
-      right: 0;
-      width: 60%;
-      height: 100%;
-      opacity: 0.15;
-      object-fit: cover;
-      mask-image: linear-gradient(to left, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%);
-      -webkit-mask-image: linear-gradient(to left, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%);
-    }
-    
-    .hero-container {
-      max-width: 1200px;
-      margin: 0 auto;
-      display: grid;
-      grid-template-columns: 1.2fr 1fr;
-      gap: 4rem;
-      align-items: center;
-      position: relative;
-      z-index: 1;
-    }
-    
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.35rem 0.9rem;
-      background: white;
-      border: 1px solid var(--border);
-      border-radius: 100px;
-      font-size: 0.8rem;
-      color: var(--teal);
-      font-weight: 500;
-      margin-bottom: 1.5rem;
-    }
-    
-    .hero h1 {
-      font-family: var(--font-serif);
-      font-size: 3.5rem;
-      font-weight: 600;
-      line-height: 1.1;
-      margin-bottom: 1.25rem;
-      color: var(--navy);
-    }
-    
-    .hero-subtitle {
-      font-size: 1.15rem;
-      color: var(--text-secondary);
-      margin-bottom: 2rem;
-      max-width: 480px;
-      line-height: 1.7;
-    }
-    
-    .hero-cta {
-      display: flex;
-      gap: 1rem;
-      margin-bottom: 2.5rem;
-    }
-    
-    .install-command {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 1rem 1.25rem;
-      background: white;
-      border: 1.5px solid var(--border);
-      border-radius: 8px;
-      font-family: var(--font-mono);
-      font-size: 0.9rem;
-      color: var(--text-primary);
-      cursor: pointer;
-      transition: all 0.2s;
-      max-width: fit-content;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-    }
-    
-    .install-command:hover {
-      border-color: var(--teal);
-    }
-    
-    .install-command code {
-      color: var(--navy);
-      font-weight: 500;
-    }
-    
-    .install-command .copy-hint {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      opacity: 0;
-      transition: opacity 0.2s;
-    }
-    
+    .btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1.25rem; border-radius: 6px; font-weight: 500; font-size: 0.9rem; text-decoration: none; transition: all 0.2s; cursor: pointer; border: none; font-family: inherit; }
+    .btn-primary { background: var(--navy); color: white; }
+    .btn-primary:hover { background: var(--navy-light); transform: translateY(-1px); }
+    .btn-outline { border: 1.5px solid var(--navy); color: var(--navy); background: transparent; }
+    .btn-outline:hover { background: var(--navy); color: white; }
+    .hero { min-height: 100vh; padding: 7rem 2rem 4rem; background: linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-secondary) 100%); position: relative; overflow: hidden; }
+    .hero-image { position: absolute; top: 0; right: 0; width: 55%; height: 100%; object-fit: cover; opacity: 0.15; mask-image: linear-gradient(to left, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%); -webkit-mask-image: linear-gradient(to left, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%); }
+    .hero-container { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1.1fr 1fr; gap: 4rem; align-items: center; position: relative; z-index: 1; }
+    .badge { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.9rem; background: white; border: 1px solid var(--border); border-radius: 100px; font-size: 0.8rem; color: var(--teal); font-weight: 500; margin-bottom: 1.5rem; }
+    .hero h1 { font-family: var(--font-serif); font-size: 3.25rem; font-weight: 600; line-height: 1.12; margin-bottom: 1.25rem; color: var(--navy); }
+    .hero-subtitle { font-size: 1.15rem; color: var(--text-secondary); margin-bottom: 2rem; max-width: 480px; line-height: 1.7; }
+    .hero-cta { display: flex; gap: 1rem; margin-bottom: 2.5rem; }
+    .install-command { display: flex; align-items: center; gap: 0.75rem; padding: 1rem 1.25rem; background: white; border: 1.5px solid var(--border); border-radius: 8px; font-family: var(--font-mono); font-size: 0.9rem; color: var(--text-primary); cursor: pointer; transition: all 0.2s; max-width: fit-content; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+    .install-command:hover { border-color: var(--teal); }
+    .install-command code { color: var(--navy); font-weight: 500; }
+    .install-command .copy-hint { font-size: 0.75rem; color: var(--text-muted); opacity: 0; transition: opacity 0.2s; }
     .install-command:hover .copy-hint { opacity: 1; }
-    
-    /* Terminal */
-    .terminal {
-      background: var(--navy);
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: 0 25px 60px rgba(30, 58, 95, 0.3);
-    }
-    
-    .terminal-header {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.875rem 1rem;
-      background: var(--navy-light);
-      border-bottom: 1px solid rgba(255,255,255,0.08);
-    }
-    
-    .terminal-dot {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-    }
-    
+    .terminal { background: var(--navy); border-radius: 12px; overflow: hidden; box-shadow: 0 25px 60px rgba(30, 58, 95, 0.3); }
+    .terminal-header { display: flex; align-items: center; gap: 0.5rem; padding: 0.875rem 1rem; background: var(--navy-light); border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .terminal-dot { width: 12px; height: 12px; border-radius: 50%; }
     .terminal-dot.red { background: #c44536; }
     .terminal-dot.yellow { background: #d4a017; }
     .terminal-dot.green { background: #5a8f5a; }
-    
-    .terminal-title {
-      margin-left: 0.5rem;
-      font-size: 0.8rem;
-      color: rgba(255,255,255,0.4);
-      font-family: var(--font-mono);
-    }
-    
-    .terminal-body {
-      padding: 1.5rem;
-      font-family: var(--font-mono);
-      font-size: 0.85rem;
-      line-height: 1.7;
-      color: rgba(255,255,255,0.9);
-    }
-    
-    .terminal-line {
-      display: flex;
-      gap: 0.75rem;
-      margin-bottom: 0.25rem;
-    }
-    
+    .terminal-title { margin-left: 0.5rem; font-size: 0.8rem; color: rgba(255,255,255,0.4); font-family: var(--font-mono); }
+    .terminal-body { padding: 1.5rem; font-family: var(--font-mono); font-size: 0.85rem; line-height: 1.7; color: rgba(255,255,255,0.9); }
+    .terminal-line { display: flex; gap: 0.75rem; margin-bottom: 0.25rem; }
     .terminal-prompt { color: var(--teal-light); flex-shrink: 0; }
     .terminal-command { color: rgba(255,255,255,0.95); }
-    .terminal-output {
-      color: rgba(255,255,255,0.6);
-      margin: 0.5rem 0 1rem 1.5rem;
-    }
-    
-    .cursor {
-      display: inline-block;
-      width: 8px;
-      height: 1.2em;
-      background: var(--teal-light);
-      animation: blink 1s infinite;
-      vertical-align: text-bottom;
-    }
-    
-    @keyframes blink {
-      0%, 50% { opacity: 1; }
-      51%, 100% { opacity: 0; }
-    }
-    
-    /* Sections */
-    .section {
-      padding: 6rem 2rem;
-    }
-    
-    .section-header {
-      text-align: center;
-      max-width: 600px;
-      margin: 0 auto 4rem;
-    }
-    
-    .section-label {
-      display: inline-block;
-      padding: 0.35rem 0.8rem;
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-radius: 100px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      color: var(--teal);
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      margin-bottom: 1rem;
-    }
-    
-    .section-title {
-      font-family: var(--font-serif);
-      font-size: 2.25rem;
-      font-weight: 600;
-      margin-bottom: 1rem;
-      color: var(--navy);
-    }
-    
-    .section-subtitle {
-      color: var(--text-secondary);
-      font-size: 1.05rem;
-    }
-    
-    /* Features */
-    .features {
-      background: white;
-    }
-    
-    .features-grid {
-      max-width: 1100px;
-      margin: 0 auto;
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1.5rem;
-    }
-    
-    .feature-card {
-      padding: 1.75rem;
-      background: var(--bg-primary);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      transition: all 0.3s;
-    }
-    
-    .feature-card:hover {
-      border-color: var(--teal-light);
-      transform: translateY(-3px);
-      box-shadow: 0 12px 30px rgba(30, 58, 95, 0.08);
-    }
-    
-    .feature-icon {
-      width: 44px;
-      height: 44px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: white;
-      border: 1.5px solid var(--border);
-      border-radius: 8px;
-      margin-bottom: 1.25rem;
-      color: var(--teal);
-    }
-    
-    .feature-card h3 {
-      font-size: 1.05rem;
-      font-weight: 600;
-      margin-bottom: 0.5rem;
-      color: var(--navy);
-    }
-    
-    .feature-card p {
-      color: var(--text-secondary);
-      font-size: 0.9rem;
-      line-height: 1.6;
-    }
-    
-    /* Identity */
-    .identity {
-      background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--border-light) 100%);
-    }
-    
-    .identity-container {
-      max-width: 1100px;
-      margin: 0 auto;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 4rem;
-      align-items: center;
-    }
-    
-    .identity-visual {
-      background: white;
-      border: 1.5px solid var(--border);
-      border-radius: 12px;
-      padding: 2rem;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.04);
-    }
-    
-    .identity-example {
-      font-family: var(--font-mono);
-      font-size: 1.1rem;
-      margin-bottom: 1.5rem;
-      padding: 1rem;
-      background: var(--navy);
-      border-radius: 8px;
-      color: rgba(255,255,255,0.9);
-    }
-    
-    .identity-part.project { color: var(--teal-light); }
-    .identity-part.separator { color: rgba(255,255,255,0.4); }
-    .identity-part.stack { color: #d4a017; }
-    .identity-part.context { color: #7fb069; }
-    
-    .identity-labels {
-      display: flex;
-      gap: 2rem;
-      font-size: 0.85rem;
-    }
-    
-    .identity-label {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      color: var(--text-secondary);
-    }
-    
-    .identity-label span {
-      width: 10px;
-      height: 10px;
-      border-radius: 2px;
-    }
-    
-    .identity-label.project span { background: var(--teal-light); }
-    .identity-label.stack span { background: #d4a017; }
-    .identity-label.context span { background: #7fb069; }
-    
-    /* Code Tabs */
-    .code-tabs {
-      max-width: 900px;
-      margin: 0 auto;
-      background: var(--navy);
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: 0 20px 50px rgba(30, 58, 95, 0.2);
-    }
-    
-    .code-tabs-header {
-      display: flex;
-      background: var(--navy-light);
-      border-bottom: 1px solid rgba(255,255,255,0.08);
-    }
-    
-    .code-tab {
-      padding: 0.875rem 1.5rem;
-      font-size: 0.85rem;
-      font-weight: 500;
-      color: rgba(255,255,255,0.5);
-      cursor: pointer;
-      border-bottom: 2px solid transparent;
-      transition: all 0.2s;
-      font-family: var(--font-mono);
-    }
-    
-    .code-tab:hover { color: rgba(255,255,255,0.8); }
-    .code-tab.active {
-      color: white;
-      border-bottom-color: var(--teal-light);
-    }
-    
-    .code-tabs-body {
-      padding: 1.5rem;
-      font-family: var(--font-mono);
-      font-size: 0.85rem;
-      line-height: 1.8;
-    }
-    
-    .code-panel {
-      display: none;
-      color: rgba(255,255,255,0.9);
-    }
-    
-    .code-panel.active { display: block; }
-    .code-panel pre { margin: 0; overflow-x: auto; }
-    
-    .syntax-keyword { color: #c792ea; }
-    .syntax-string { color: #c3e88d; }
-    .syntax-number { color: #f78c6c; }
-    .syntax-comment { color: rgba(255,255,255,0.35); }
-    .syntax-key { color: #82aaff; }
-    
-    /* Frameworks */
-    .frameworks {
-      background: linear-gradient(180deg, var(--bg-secondary) 0%, white 100%);
-    }
-    
-    .frameworks-grid {
-      max-width: 1000px;
-      margin: 3rem auto 0;
-      display: grid;
-      grid-template-columns: repeat(6, 1fr);
-      gap: 1rem;
-    }
-    
-    .framework-item {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 1.25rem 1rem;
-      background: white;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      transition: all 0.2s;
-    }
-    
-    .framework-item:hover {
-      border-color: var(--teal-light);
-      transform: translateY(-2px);
-    }
-    
-    .framework-icon {
-      width: 28px;
-      height: 28px;
-      color: var(--navy);
-    }
-    
-    .framework-name {
-      font-size: 0.75rem;
-      font-weight: 500;
-      color: var(--text-secondary);
-    }
-    
-    /* Coordination */
-    .coordination { background: white; }
-    
-    .coordination-container {
-      max-width: 1100px;
-      margin: 0 auto;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 4rem;
-      align-items: center;
-    }
-    
-    .coordination-image {
-      width: 100%;
-      border-radius: 12px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.1);
-    }
-    
-    /* Stats */
-    .stats {
-      background: var(--navy);
-      padding: 4rem 2rem;
-    }
-    
-    .stats-grid {
-      max-width: 900px;
-      margin: 0 auto;
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 2rem;
-      text-align: center;
-    }
-    
-    .stat-item h3 {
-      font-family: var(--font-serif);
-      font-size: 2.5rem;
-      font-weight: 600;
-      color: white;
-    }
-    
-    .stat-item p {
-      color: var(--teal-light);
-      font-size: 0.9rem;
-      margin-top: 0.25rem;
-    }
-    
-    /* CTA */
-    .cta {
-      padding: 6rem 2rem;
-      text-align: center;
-      background: linear-gradient(180deg, var(--bg-primary) 0%, white 100%);
-    }
-    
-    .cta h2 {
-      font-family: var(--font-serif);
-      font-size: 2.5rem;
-      font-weight: 600;
-      margin-bottom: 1rem;
-      color: var(--navy);
-    }
-    
-    .cta > p {
-      color: var(--text-secondary);
-      font-size: 1.1rem;
-      margin-bottom: 2rem;
-    }
-    
-    .cta-buttons {
-      display: flex;
-      gap: 1rem;
-      justify-content: center;
-    }
-    
-    /* Footer */
-    footer {
-      padding: 4rem 2rem 2rem;
-      background: var(--navy);
-      color: rgba(255,255,255,0.6);
-    }
-    
+    .terminal-output { color: rgba(255,255,255,0.6); margin: 0.5rem 0 1rem 1.5rem; }
+    .cursor { display: inline-block; width: 8px; height: 1.2em; background: var(--teal-light); animation: blink 1s infinite; vertical-align: text-bottom; }
+    @keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
+    .section { padding: 6rem 2rem; }
+    .section-header { text-align: center; max-width: 600px; margin: 0 auto 4rem; }
+    .section-label { display: inline-block; padding: 0.35rem 0.8rem; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 100px; font-size: 0.75rem; font-weight: 600; color: var(--teal); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 1rem; }
+    .section-title { font-family: var(--font-serif); font-size: 2.25rem; font-weight: 600; margin-bottom: 1rem; color: var(--navy); }
+    .section-subtitle { color: var(--text-secondary); font-size: 1.05rem; }
+    .features { background: white; }
+    .features-grid { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+    .feature-card { padding: 1.75rem; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 12px; transition: all 0.3s; }
+    .feature-card:hover { border-color: var(--teal-light); transform: translateY(-3px); box-shadow: 0 12px 30px rgba(30, 58, 95, 0.08); }
+    .feature-icon { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; background: white; border: 1.5px solid var(--border); border-radius: 8px; margin-bottom: 1.25rem; color: var(--teal); }
+    .feature-card h3 { font-size: 1.05rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--navy); }
+    .feature-card p { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.6; }
+    .frameworks { background: linear-gradient(180deg, var(--bg-secondary) 0%, white 100%); }
+    .frameworks-grid { max-width: 1000px; margin: 3rem auto 0; display: grid; grid-template-columns: repeat(6, 1fr); gap: 1rem; }
+    .framework-item { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; padding: 1.25rem 0.75rem; background: white; border: 1px solid var(--border); border-radius: 10px; transition: all 0.2s; }
+    .framework-item:hover { border-color: var(--teal-light); transform: translateY(-2px); box-shadow: 0 8px 20px rgba(30, 58, 95, 0.08); }
+    .framework-icon { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; }
+    .framework-icon img { width: 100%; height: 100%; object-fit: contain; }
+    .framework-name { font-size: 0.75rem; font-weight: 500; color: var(--text-secondary); text-align: center; }
+    .frameworks-more { max-height: 0; overflow: hidden; transition: max-height 0.5s ease-out; }
+    .frameworks-more.expanded { max-height: 2000px; }
+    .show-more-btn { display: flex; align-items: center; gap: 0.5rem; margin: 2rem auto 0; padding: 0.75rem 1.5rem; background: white; border: 1.5px solid var(--border); border-radius: 100px; font-size: 0.9rem; font-weight: 500; color: var(--navy); cursor: pointer; transition: all 0.2s; }
+    .show-more-btn:hover { border-color: var(--navy); }
+    .show-more-btn svg { transition: transform 0.3s; }
+    .show-more-btn.expanded svg { transform: rotate(180deg); }
+    .art-section { padding: 6rem 2rem; background: white; }
+    .art-container { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center; }
+    .art-image { width: 100%; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.1); }
+    .art-content h2 { font-family: var(--font-serif); font-size: 2.25rem; font-weight: 600; color: var(--navy); margin-bottom: 1rem; }
+    .art-content p { color: var(--text-secondary); font-size: 1.05rem; line-height: 1.7; margin-bottom: 1.5rem; }
+    .harbor-master { padding: 6rem 2rem; background: linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-secondary) 100%); text-align: center; }
+    .harbor-master-container { max-width: 800px; margin: 0 auto; }
+    .harbor-master-image { width: 280px; height: 280px; border-radius: 50%; object-fit: cover; margin-bottom: 2rem; box-shadow: 0 20px 60px rgba(30, 58, 95, 0.2); }
+    .harbor-master h2 { font-family: var(--font-serif); font-size: 2.5rem; font-weight: 600; color: var(--navy); margin-bottom: 1rem; }
+    .harbor-master p { color: var(--text-secondary); font-size: 1.1rem; line-height: 1.7; }
+    .stats { background: var(--navy); padding: 5rem 2rem; position: relative; }
+    .stats::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, var(--teal), #d4a017, var(--teal)); }
+    .stats-grid { max-width: 900px; margin: 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); gap: 2rem; text-align: center; }
+    .stat-item h3 { font-family: var(--font-serif); font-size: 3rem; font-weight: 600; color: white; }
+    .stat-item p { color: var(--teal-light); font-size: 0.95rem; margin-top: 0.5rem; }
+    .cta { padding: 6rem 2rem; text-align: center; background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%); }
+    .cta h2 { font-family: var(--font-serif); font-size: 2.5rem; font-weight: 600; margin-bottom: 1rem; color: var(--navy); }
+    .cta > p { color: var(--text-secondary); font-size: 1.1rem; margin-bottom: 2rem; }
+    .cta-buttons { display: flex; gap: 1rem; justify-content: center; }
+    footer { padding: 4rem 2rem 2rem; background: var(--navy); color: rgba(255,255,255,0.6); }
     .footer-container { max-width: 1100px; margin: 0 auto; }
-    
-    .footer-grid {
-      display: grid;
-      grid-template-columns: 2fr repeat(3, 1fr);
-      gap: 3rem;
-      margin-bottom: 3rem;
-    }
-    
-    .footer-brand p {
-      font-size: 0.9rem;
-      margin-top: 1rem;
-      max-width: 300px;
-      line-height: 1.7;
-    }
-    
-    .footer-column h4 {
-      font-size: 0.85rem;
-      font-weight: 600;
-      margin-bottom: 1rem;
-      color: white;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-    
+    .footer-grid { display: grid; grid-template-columns: 2fr repeat(3, 1fr); gap: 3rem; margin-bottom: 3rem; }
+    .footer-brand p { font-size: 0.9rem; margin-top: 1rem; max-width: 300px; line-height: 1.7; }
+    .footer-column h4 { font-size: 0.85rem; font-weight: 600; margin-bottom: 1rem; color: white; text-transform: uppercase; letter-spacing: 0.05em; }
     .footer-column ul { list-style: none; }
     .footer-column li { margin-bottom: 0.5rem; }
-    
-    .footer-column a {
-      color: rgba(255,255,255,0.5);
-      text-decoration: none;
-      font-size: 0.9rem;
-      transition: color 0.2s;
-    }
-    
+    .footer-column a { color: rgba(255,255,255,0.5); text-decoration: none; font-size: 0.9rem; transition: color 0.2s; }
     .footer-column a:hover { color: var(--teal-light); }
-    
-    .footer-bottom {
-      padding-top: 2rem;
-      border-top: 1px solid rgba(255,255,255,0.1);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 0.85rem;
-      color: rgba(255,255,255,0.4);
-    }
-    
-    /* Responsive */
-    @media (max-width: 1024px) {
-      .hero-container {
-        grid-template-columns: 1fr;
-        text-align: center;
-      }
-      
-      .hero h1 { font-size: 2.75rem; }
-      .hero-subtitle { margin: 0 auto 2rem; }
-      .hero-cta { justify-content: center; }
-      .install-command { margin: 0 auto; }
-      .hero-image { display: none; }
-      
-      .features-grid { grid-template-columns: repeat(2, 1fr); }
-      .identity-container, .coordination-container { grid-template-columns: 1fr; }
-      .frameworks-grid { grid-template-columns: repeat(4, 1fr); }
-      .stats-grid { grid-template-columns: repeat(2, 1fr); }
-      .footer-grid { grid-template-columns: repeat(2, 1fr); }
-    }
-    
-    @media (max-width: 640px) {
-      .nav-links { display: none; }
-      .hero h1 { font-size: 2rem; }
-      .features-grid { grid-template-columns: 1fr; }
-      .frameworks-grid { grid-template-columns: repeat(3, 1fr); }
-      .stats-grid { grid-template-columns: 1fr 1fr; }
-      .footer-grid { grid-template-columns: 1fr; }
-      .footer-bottom { flex-direction: column; gap: 1rem; text-align: center; }
-      .cta-buttons { flex-direction: column; }
-    }
+    .footer-bottom { padding-top: 2rem; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; color: rgba(255,255,255,0.4); }
+    @media (max-width: 1024px) { .hero-container { grid-template-columns: 1fr; text-align: center; } .hero h1 { font-size: 2.5rem; } .hero-subtitle { margin: 0 auto 2rem; } .hero-cta { justify-content: center; } .install-command { margin: 0 auto; } .hero-image { display: none; } .features-grid { grid-template-columns: repeat(2, 1fr); } .art-container { grid-template-columns: 1fr; } .frameworks-grid { grid-template-columns: repeat(4, 1fr); } .stats-grid { grid-template-columns: repeat(2, 1fr); } .footer-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 768px) { .frameworks-grid { grid-template-columns: repeat(4, 1fr); } }
+    @media (max-width: 640px) { .nav-links { display: none; } .hero h1 { font-size: 2rem; } .features-grid { grid-template-columns: 1fr; } .frameworks-grid { grid-template-columns: repeat(3, 1fr); } .stats-grid { grid-template-columns: 1fr 1fr; } .stat-item h3 { font-size: 2rem; } .footer-grid { grid-template-columns: 1fr; } .footer-bottom { flex-direction: column; gap: 1rem; text-align: center; } .cta-buttons { flex-direction: column; } .harbor-master-image { width: 200px; height: 200px; } }
   </style>
 </head>
 <body>
   <nav>
     <div class="nav-container">
       <a href="#" class="logo">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M12 2v18M12 2a4 4 0 0 1 4 4v2a4 4 0 0 1-4 4"/>
-          <circle cx="12" cy="7" r="1"/>
-        </svg>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v18M12 2a4 4 0 0 1 4 4v2a4 4 0 0 1-4 4"/><circle cx="12" cy="7" r="1"/></svg>
         <span>Port Daddy</span>
       </a>
       <div class="nav-links">
         <a href="#features">Features</a>
-        <a href="#orchestration">Orchestration</a>
         <a href="#frameworks">Frameworks</a>
         <a href="https://github.com/curiositech/port-daddy" target="_blank">GitHub</a>
       </div>
@@ -742,17 +138,9 @@
       <div class="hero-content">
         <div class="badge">v3.1.0 — 60+ frameworks supported</div>
         <h1>Port management that just works</h1>
-        <p class="hero-subtitle">
-          Stop fighting over ports. Port Daddy assigns ports atomically, orchestrates your services, 
-          and coordinates multi-agent workflows so you can focus on building.
-        </p>
+        <p class="hero-subtitle">Stop fighting over ports. Port Daddy assigns ports atomically, orchestrates your services, and coordinates multi-agent workflows so you can focus on building.</p>
         <div class="hero-cta">
-          <a href="#install" class="btn btn-primary">
-            Get Started
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M5 12h14M12 5l7 7-7 7"/>
-            </svg>
-          </a>
+          <a href="#install" class="btn btn-primary">Get Started</a>
           <a href="https://github.com/curiositech/port-daddy" class="btn btn-outline" target="_blank">View on GitHub</a>
         </div>
         <div class="install-command" onclick="copyInstall()">
@@ -761,7 +149,6 @@
           <span class="copy-hint">Click to copy</span>
         </div>
       </div>
-      
       <div class="terminal">
         <div class="terminal-header">
           <div class="terminal-dot red"></div>
@@ -770,39 +157,11 @@
           <span class="terminal-title">~/myproject</span>
         </div>
         <div class="terminal-body">
-          <div class="terminal-line">
-            <span class="terminal-prompt">$</span>
-            <span class="terminal-command">port-daddy scan</span>
-          </div>
-          <div class="terminal-output">
-            <div>Scanning /home/dev/myproject...</div>
-            <div>Discovered 3 services:</div>
-            <div style="margin-top: 0.5rem; color: var(--teal-light);">  api</div>
-            <div style="color: #d4a017;">  web</div>
-            <div style="color: #7fb069;">  worker</div>
-            <div style="margin-top: 0.5rem;">→ Saved .portdaddyrc</div>
-          </div>
-          
-          <div class="terminal-line">
-            <span class="terminal-prompt">$</span>
-            <span class="terminal-command">port-daddy up</span>
-          </div>
-          <div class="terminal-output">
-            <div style="color: var(--teal-light);">[api]</div>
-            <div style="color: rgba(255,255,255,0.4);">  Port 3100 assigned</div>
-            <div style="color: #7fb069;">  ✓ Healthy</div>
-            <div style="margin-top: 0.5rem; color: #d4a017;">[web]</div>
-            <div style="color: rgba(255,255,255,0.4);">  Port 3101 assigned</div>
-            <div style="color: #7fb069;">  ✓ Healthy</div>
-            <div style="margin-top: 0.5rem; color: #7fb069;">[worker]</div>
-            <div style="color: #7fb069;">  ✓ Started</div>
-            <div style="margin-top: 1rem; color: #7fb069; font-weight: 500;">3 services running. Press Ctrl+C to stop.</div>
-          </div>
-          
-          <div class="terminal-line">
-            <span class="terminal-prompt">$</span>
-            <span class="terminal-command"><span class="cursor"></span></span>
-          </div>
+          <div class="terminal-line"><span class="terminal-prompt">$</span><span class="terminal-command">port-daddy scan</span></div>
+          <div class="terminal-output"><div>Scanning /home/dev/myproject...</div><div>Discovered 3 services:</div><div style="margin-top: 0.5rem; color: var(--teal-light);">  api</div><div style="color: #d4a017;">  web</div><div style="color: #7fb069;">  worker</div><div style="margin-top: 0.5rem;">→ Saved .portdaddyrc</div></div>
+          <div class="terminal-line"><span class="terminal-prompt">$</span><span class="terminal-command">port-daddy up</span></div>
+          <div class="terminal-output"><div style="color: var(--teal-light);">[api]</div><div style="color: rgba(255,255,255,0.4);">  Port 3100 assigned</div><div style="color: #7fb069;">  ✓ Healthy</div><div style="margin-top: 0.5rem; color: #d4a017;">[web]</div><div style="color: rgba(255,255,255,0.4);">  Port 3101 assigned</div><div style="color: #7fb069;">  ✓ Healthy</div><div style="margin-top: 1rem; color: #7fb069; font-weight: 500;">3 services running. Press Ctrl+C to stop.</div></div>
+          <div class="terminal-line"><span class="terminal-prompt">$</span><span class="terminal-command"><span class="cursor"></span></span></div>
         </div>
       </div>
     </div>
@@ -814,347 +173,115 @@
       <h2 class="section-title">Everything you need</h2>
       <p class="section-subtitle">From atomic port assignment to service orchestration, Port Daddy handles the complexity so you can focus on shipping.</p>
     </div>
-    
     <div class="features-grid">
-      <div class="feature-card">
-        <div class="feature-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-        </div>
-        <h3>Atomic Port Assignment</h3>
-        <p>SQLite-backed ACID transactions ensure zero race conditions. Same project always gets the same port.</p>
-      </div>
-      
-      <div class="feature-card">
-        <div class="feature-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"/><circle cx="7" cy="7" r="1"/></svg>
-        </div>
-        <h3>Semantic Identities</h3>
-        <p>Use <code>project:service:context</code> naming. Query with wildcards to find any service in your stack.</p>
-      </div>
-      
-      <div class="feature-card">
-        <div class="feature-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/></svg>
-        </div>
-        <h3>Service Orchestration</h3>
-        <p><code>port-daddy up</code> starts your entire stack. Dependency ordering, health checks, colored logs.</p>
-      </div>
-      
-      <div class="feature-card">
-        <div class="feature-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-        </div>
-        <h3>Deep Auto-Detection</h3>
-        <p>Scans 5 levels deep to find 60+ frameworks. Handles monorepos, workspaces, and nested services.</p>
-      </div>
-      
-      <div class="feature-card">
-        <div class="feature-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h2"/><path d="M20 12h2"/><path d="M6 12a6 6 0 0 1 12 0"/><path d="M9 12a3 3 0 0 1 6 0"/><circle cx="12" cy="12" r="1"/></svg>
-        </div>
-        <h3>Pub/Sub Messaging</h3>
-        <p>Services signal each other when builds finish. Real-time SSE subscriptions for coordination.</p>
-      </div>
-      
-      <div class="feature-card">
-        <div class="feature-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-        </div>
-        <h3>Distributed Locks</h3>
-        <p>Prevent conflicting operations. Take exclusive locks on databases, migrations, or shared resources.</p>
-      </div>
-      
-      <div class="feature-card">
-        <div class="feature-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="10" x="3" y="11" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" x2="8" y1="16" y2="16"/><line x1="16" x2="16" y1="16" y2="16"/></svg>
-        </div>
-        <h3>AI Agent Native</h3>
-        <p>Works with Claude, Cursor, Windsurf, Cline, Aider, and 40+ coding agents.</p>
-      </div>
-      
-      <div class="feature-card">
-        <div class="feature-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
-        </div>
-        <h3>Web Dashboard</h3>
-        <p>Monitor services, locks, agents, and activity in real-time at <code>localhost:9876</code>.</p>
-      </div>
-      
-      <div class="feature-card">
-        <div class="feature-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
-        </div>
-        <h3>Auto-Cleanup</h3>
-        <p>Tracks process IDs and automatically frees ports from crashed processes.</p>
-      </div>
+      <div class="feature-card"><div class="feature-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div><h3>Atomic Port Assignment</h3><p>SQLite-backed ACID transactions ensure zero race conditions. Same project always gets the same port.</p></div>
+      <div class="feature-card"><div class="feature-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"/><circle cx="7" cy="7" r="1"/></svg></div><h3>Semantic Identities</h3><p>Use <code>project:service:context</code> naming. Query with wildcards to find any service in your stack.</p></div>
+      <div class="feature-card"><div class="feature-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/></svg></div><h3>Service Orchestration</h3><p><code>port-daddy up</code> starts your entire stack. Dependency ordering, health checks, colored logs.</p></div>
+      <div class="feature-card"><div class="feature-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></div><h3>Deep Auto-Detection</h3><p>Scans 5 levels deep to find 60+ frameworks. Handles monorepos, workspaces, and nested services.</p></div>
+      <div class="feature-card"><div class="feature-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h2"/><path d="M20 12h2"/><path d="M6 12a6 6 0 0 1 12 0"/><path d="M9 12a3 3 0 0 1 6 0"/><circle cx="12" cy="12" r="1"/></svg></div><h3>Pub/Sub Messaging</h3><p>Services signal each other when builds finish. Real-time SSE subscriptions for coordination.</p></div>
+      <div class="feature-card"><div class="feature-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><h3>Distributed Locks</h3><p>Prevent conflicting operations. Take exclusive locks on databases, migrations, or shared resources.</p></div>
+      <div class="feature-card"><div class="feature-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="10" x="3" y="11" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" x2="8" y1="16" y2="16"/><line x1="16" x2="16" y1="16" y2="16"/></svg></div><h3>AI Agent Native</h3><p>Works with Claude, Cursor, Windsurf, Cline, Aider, and 40+ coding agents.</p></div>
+      <div class="feature-card"><div class="feature-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg></div><h3>Web Dashboard</h3><p>Monitor services, locks, agents, and activity in real-time at <code>localhost:9876</code>.</p></div>
+      <div class="feature-card"><div class="feature-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg></div><h3>Auto-Cleanup</h3><p>Tracks process IDs and automatically frees ports from crashed processes.</p></div>
     </div>
   </section>
-  
-  <section class="section identity">
-    <div class="identity-container">
-      <div>
-        <span class="section-label">Identity</span>
-        <h2 class="section-title" style="text-align: left; margin-top: 1rem;">Named services, not magic numbers</h2>
-        <p class="section-subtitle" style="text-align: left;">
-          Port Daddy uses a <code>project:service:context</code> naming scheme that makes your services discoverable. 
-          No more remembering that the API is on port 3001.
-        </p>
-        <ul style="margin-top: 1.5rem; color: var(--text-secondary); list-style: none;">
-          <li style="margin-bottom: 0.75rem; display: flex; gap: 0.5rem;">
-            <span style="color: var(--teal);">✓</span>
-            <code style="background: white; padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.85rem;">myapp:api:main</code>
-            <span>— the main API</span>
-          </li>
-          <li style="margin-bottom: 0.75rem; display: flex; gap: 0.5rem;">
-            <span style="color: var(--teal);">✓</span>
-            <code style="background: white; padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.85rem;">myapp:web:feature-auth</code>
-            <span>— branch-specific</span>
-          </li>
-          <li style="margin-bottom: 0.75rem; display: flex; gap: 0.5rem;">
-            <span style="color: var(--teal);">✓</span>
-            <code style="background: white; padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.85rem;">myapp:*:feature-auth</code>
-            <span>— wildcard search</span>
-          </li>
-        </ul>
-      </div>
-      
-      <div class="identity-visual">
-        <div class="identity-example">
-          <span class="identity-part project">windags</span><span class="identity-part separator">:</span><span class="identity-part stack">api</span><span class="identity-part separator">:</span><span class="identity-part context">feature-auth</span>
-        </div>
-        <div class="identity-labels">
-          <div class="identity-label project"><span></span>project</div>
-          <div class="identity-label stack"><span></span>service</div>
-          <div class="identity-label context"><span></span>context</div>
-        </div>
-      </div>
-    </div>
-  </section>
-  
-  <section class="section" id="orchestration" style="background: white;">
-    <div class="section-header">
-      <span class="section-label">Orchestration</span>
-      <h2 class="section-title">One command to rule them all</h2>
-      <p class="section-subtitle">
-        Define your services in <code>.portdaddyrc</code> and run <code>port-daddy up</code>. 
-        Dependencies are resolved via topological sort, health checks ensure readiness.
-      </p>
-    </div>
-    
-    <div class="code-tabs">
-      <div class="code-tabs-header">
-        <div class="code-tab active" onclick="switchTab('config')">.portdaddyrc</div>
-        <div class="code-tab" onclick="switchTab('cli')">CLI</div>
-        <div class="code-tab" onclick="switchTab('sdk')">SDK</div>
-      </div>
-      <div class="code-tabs-body">
-        <div class="code-panel active" id="panel-config">
-          <pre><span class="syntax-key">{</span>
-  <span class="syntax-key">"project"</span><span class="syntax-keyword">:</span> <span class="syntax-string">"myapp"</span><span class="syntax-keyword">,</span>
-  <span class="syntax-key">"services"</span><span class="syntax-keyword">: {</span>
-    <span class="syntax-key">"api"</span><span class="syntax-keyword">: {</span>
-      <span class="syntax-key">"cmd"</span><span class="syntax-keyword">:</span> <span class="syntax-string">"npm run dev:api"</span><span class="syntax-keyword">,</span>
-      <span class="syntax-key">"port"</span><span class="syntax-keyword">:</span> <span class="syntax-number">3001</span><span class="syntax-keyword">,</span>
-      <span class="syntax-key">"healthPath"</span><span class="syntax-keyword">:</span> <span class="syntax-string">"/health"</span>
-    <span class="syntax-keyword">},</span>
-    <span class="syntax-key">"web"</span><span class="syntax-keyword">: {</span>
-      <span class="syntax-key">"cmd"</span><span class="syntax-keyword">:</span> <span class="syntax-string">"npm run dev"</span><span class="syntax-keyword">,</span>
-      <span class="syntax-key">"port"</span><span class="syntax-keyword">:</span> <span class="syntax-number">3000</span><span class="syntax-keyword">,</span>
-      <span class="syntax-key">"needs"</span><span class="syntax-keyword">:</span> <span class="syntax-key">[</span><span class="syntax-string">"api"</span><span class="syntax-key">]</span>
-    <span class="syntax-keyword">}</span>
-  <span class="syntax-keyword">}</span>
-<span class="syntax-key">}</span></pre>
-        </div>
-        <div class="code-panel" id="panel-cli">
-          <pre><span class="syntax-comment"># Auto-detect and configure</span>
-$ <span class="syntax-keyword">port-daddy</span> scan
 
-<span class="syntax-comment"># Start everything</span>
-$ <span class="syntax-keyword">port-daddy</span> up
-
-<span class="syntax-comment"># Start one service + dependencies</span>
-$ <span class="syntax-keyword">port-daddy</span> up --service web
-
-<span class="syntax-comment"># Pub/sub between agents</span>
-$ <span class="syntax-keyword">port-daddy</span> pub build:api <span class="syntax-string">'{"status":"ready"}'</span>
-$ <span class="syntax-keyword">port-daddy</span> sub build:*
-
-<span class="syntax-comment"># Distributed locks</span>
-$ <span class="syntax-keyword">port-daddy</span> lock db-migrations && npm run migrate</pre>
-        </div>
-        <div class="code-panel" id="panel-sdk">
-          <pre><span class="syntax-keyword">import</span> { PortDaddy } <span class="syntax-keyword">from</span> <span class="syntax-string">'port-daddy/client'</span><span class="syntax-keyword">;</span>
-
-<span class="syntax-keyword">const</span> pd = <span class="syntax-keyword">new</span> <span class="syntax-keyword">PortDaddy</span>();
-
-<span class="syntax-comment">// Claim a port</span>
-<span class="syntax-keyword">const</span> { port } = <span class="syntax-keyword">await</span> pd.<span class="syntax-keyword">claim</span>(<span class="syntax-string">'myapp:api'</span>);
-
-<span class="syntax-comment">// Subscribe to events</span>
-<span class="syntax-keyword">const</span> sub = pd.<span class="syntax-keyword">subscribe</span>(<span class="syntax-string">'builds'</span>);
-sub.<span class="syntax-keyword">on</span>(<span class="syntax-string">'message'</span>, (data) => <span class="syntax-keyword">console</span>.<span class="syntax-keyword">log</span>(data));
-
-<span class="syntax-comment">// Use locks</span>
-<span class="syntax-keyword">await</span> pd.<span class="syntax-keyword">withLock</span>(<span class="syntax-string">'deploy'</span>, <span class="syntax-keyword">async</span> () => {
-  <span class="syntax-keyword">await</span> <span class="syntax-keyword">deploy</span>();
-});</pre>
-        </div>
-      </div>
-    </div>
-  </section>
   
   <section class="section frameworks" id="frameworks">
     <div class="section-header">
       <span class="section-label">Frameworks</span>
-      <h2 class="section-title">Works with everything</h2>
-      <p class="section-subtitle">
-        Deep scanning detects 60+ frameworks across Node.js, Python, Ruby, PHP, Java, Go, Rust, and more.
-      </p>
+      <h2 class="section-title">Works with everything you build</h2>
+      <p class="section-subtitle">Deep scanning detects 60+ frameworks across Node.js, Python, Ruby, PHP, Java, Go, Rust, and more.</p>
     </div>
     
     <div class="frameworks-grid">
-      <div class="framework-item">
-        <div class="framework-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg></div>
-        <div class="framework-name">Next.js</div>
-      </div>
-      <div class="framework-item">
-        <div class="framework-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
-        <div class="framework-name">Vite</div>
-      </div>
-      <div class="framework-item">
-        <div class="framework-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 12l10 10 10-10L12 2zm0 2.5L18.5 12 12 18.5 5.5 12 12 5.5z"/></svg></div>
-        <div class="framework-name">Nuxt</div>
-      </div>
-      <div class="framework-item">
-        <div class="framework-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 12l10 10 10-10L12 2zm0 2.5L18 12l-6 7.5L6 12 12 4.5z"/></svg></div>
-        <div class="framework-name">Svelte</div>
-      </div>
-      <div class="framework-item">
-        <div class="framework-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 19h20L12 2zm0 3.5L17.5 17h-11L12 5.5z"/></svg></div>
-        <div class="framework-name">Astro</div>
-      </div>
-      <div class="framework-item">
-        <div class="framework-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14H7v-2h5v2zm5-4H7v-2h10v2z"/></svg></div>
-        <div class="framework-name">Remix</div>
-      </div>
-      <div class="framework-item">
-        <div class="framework-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 6l2 12 8 4 8-4 2-12-10-4zm0 2.5l6 2.2-1.5 9.3-4.5 2.2-4.5-2.2L6 6.7l6-2.2z"/></svg></div>
-        <div class="framework-name">Angular</div>
-      </div>
-      <div class="framework-item">
-        <div class="framework-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 3h4l6 10.5L18 3h4L12 21 2 3z"/></svg></div>
-        <div class="framework-name">Vue</div>
-      </div>
-      <div class="framework-item">
-        <div class="framework-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg></div>
-        <div class="framework-name">Express</div>
-      </div>
-      <div class="framework-item">
-        <div class="framework-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l-10 6v8l10 6 10-6V8L12 2zm0 2.5L19.5 8 12 12.5 4.5 8 12 4.5z"/></svg></div>
-        <div class="framework-name">Fastify</div>
-      </div>
-      <div class="framework-item">
-        <div class="framework-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg></div>
-        <div class="framework-name">FastAPI</div>
-      </div>
-      <div class="framework-item">
-        <div class="framework-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z"/></svg></div>
-        <div class="framework-name">Flask</div>
-      </div>
-      <div class="framework-item">
-        <div class="framework-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg></div>
-        <div class="framework-name">Django</div>
-      </div>
-      <div class="framework-item">
-        <div class="framework-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg></div>
-        <div class="framework-name">Rails</div>
-      </div>
-      <div class="framework-item">
-        <div class="framework-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div>
-        <div class="framework-name">Laravel</div>
-      </div>
-      <div class="framework-item">
-        <div class="framework-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3"/></svg></div>
-        <div class="framework-name">Spring</div>
-      </div>
-      <div class="framework-item">
-        <div class="framework-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg></div>
-        <div class="framework-name">Phoenix</div>
-      </div>
-      <div class="framework-item">
-        <div class="framework-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19c0-1.7-1.3-3-3-3h-5c-1.7 0-3 1.3-3 3"/><path d="M17.5 19H6.5c-1.7 0-3-1.3-3-3 0-1.4 1-2.6 2.3-2.9.3-2.3 2.3-4.1 4.7-4.1.6 0 1.2.1 1.7.4C13.3 7.1 16 5 19 5c3.2 0 5.7 2.7 5.5 6 .8.9 1.3 2 1.3 3.2 0 2.5-2 4.6-4.5 4.8z"/></svg></div>
-        <div class="framework-name">Workers</div>
+      <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/next.js/000" alt="Next.js"></div><div class="framework-name">Next.js</div></div>
+      <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/vitejs/646CFF" alt="Vite"></div><div class="framework-name">Vite</div></div>
+      <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/nuxtdotjs/00DC82" alt="Nuxt"></div><div class="framework-name">Nuxt</div></div>
+      <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/svelte/FF3E00" alt="Svelte"></div><div class="framework-name">Svelte</div></div>
+      <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/astro/BC52EE" alt="Astro"></div><div class="framework-name">Astro</div></div>
+      <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/remix/000" alt="Remix"></div><div class="framework-name">Remix</div></div>
+      <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/angular/DD0031" alt="Angular"></div><div class="framework-name">Angular</div></div>
+      <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/vuedotjs/4FC08D" alt="Vue"></div><div class="framework-name">Vue</div></div>
+      <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/express/000" alt="Express"></div><div class="framework-name">Express</div></div>
+      <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/fastify/000" alt="Fastify"></div><div class="framework-name">Fastify</div></div>
+      <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/fastapi/009688" alt="FastAPI"></div><div class="framework-name">FastAPI</div></div>
+      <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/flask/000" alt="Flask"></div><div class="framework-name">Flask</div></div>
+    </div>
+    
+    <div class="frameworks-more" id="frameworks-more">
+      <div class="frameworks-grid">
+        <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/django/092E20" alt="Django"></div><div class="framework-name">Django</div></div>
+        <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/rubyonrails/D30001" alt="Rails"></div><div class="framework-name">Rails</div></div>
+        <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/laravel/FF2D20" alt="Laravel"></div><div class="framework-name">Laravel</div></div>
+        <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/spring/6DB33F" alt="Spring"></div><div class="framework-name">Spring</div></div>
+        <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/phoenixframework/FD4F00" alt="Phoenix"></div><div class="framework-name">Phoenix</div></div>
+        <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/cloudflare/F38020" alt="Workers"></div><div class="framework-name">Workers</div></div>
+        <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/go/00ADD8" alt="Go"></div><div class="framework-name">Go</div></div>
+        <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/rust/000" alt="Rust"></div><div class="framework-name">Rust</div></div>
+        <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/nestjs/E0234E" alt="NestJS"></div><div class="framework-name">NestJS</div></div>
+        <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/hono/E36002" alt="Hono"></div><div class="framework-name">Hono</div></div>
+        <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/elysia/000" alt="Elysia"></div><div class="framework-name">Elysia</div></div>
+        <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/adonisjs/5A45FF" alt="AdonisJS"></div><div class="framework-name">AdonisJS</div></div>
+        <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/strapi/2F2E8B" alt="Strapi"></div><div class="framework-name">Strapi</div></div>
+        <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/gatsby/663399" alt="Gatsby"></div><div class="framework-name">Gatsby</div></div>
+        <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/eleventy/000" alt="Eleventy"></div><div class="framework-name">Eleventy</div></div>
+        <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/hugo/FF4088" alt="Hugo"></div><div class="framework-name">Hugo</div></div>
+        <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/jekyll/CC0000" alt="Jekyll"></div><div class="framework-name">Jekyll</div></div>
+        <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/docusaurus/3ECC5F" alt="Docusaurus"></div><div class="framework-name">Docusaurus</div></div>
+        <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/redwood/BF4722" alt="Redwood"></div><div class="framework-name">Redwood</div></div>
+        <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/blitz/000" alt="Blitz"></div><div class="framework-name">Blitz</div></div>
+        <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/tanstack/FF4154" alt="TanStack"></div><div class="framework-name">TanStack</div></div>
+        <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/quarkus/4695EB" alt="Quarkus"></div><div class="framework-name">Quarkus</div></div>
+        <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/micronaut/000" alt="Micronaut"></div><div class="framework-name">Micronaut</div></div>
+        <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/symfony/000" alt="Symfony"></div><div class="framework-name">Symfony</div></div>
+        <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/streamlit/FF4B4B" alt="Streamlit"></div><div class="framework-name">Streamlit</div></div>
+        <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/gradio/F97316" alt="Gradio"></div><div class="framework-name">Gradio</div></div>
+        <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/sinatra/000" alt="Sinatra"></div><div class="framework-name">Sinatra</div></div>
+        <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/wordpress/21759B" alt="WordPress"></div><div class="framework-name">WordPress</div></div>
+        <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/expo/000" alt="Expo"></div><div class="framework-name">Expo</div></div>
+        <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/tauri/24C8D8" alt="Tauri"></div><div class="framework-name">Tauri</div></div>
+        <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/electron/47848F" alt="Electron"></div><div class="framework-name">Electron</div></div>
+        <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/deno/000" alt="Deno"></div><div class="framework-name">Deno</div></div>
+        <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/bun/000" alt="Bun"></div><div class="framework-name">Bun</div></div>
+        <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/zig/F7A41D" alt="Zig"></div><div class="framework-name">Zig</div></div>
+        <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/docker/2496ED" alt="Docker"></div><div class="framework-name">Docker</div></div>
+        <div class="framework-item"><div class="framework-icon"><img src="https://cdn.simpleicons.org/kubernetes/326CE5" alt="Kubernetes"></div><div class="framework-name">Kubernetes</div></div>
       </div>
     </div>
     
-    <p style="text-align: center; margin-top: 2rem; color: var(--text-muted); font-size: 0.9rem;">And 40+ more frameworks</p>
+    <button class="show-more-btn" id="show-more-btn" onclick="toggleFrameworks()">
+      Show all 60+ frameworks
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+    </button>
   </section>
   
-  <section class="section coordination">
-    <div class="coordination-container">
-      <img src="images/coordination.png" alt="Service coordination" class="coordination-image">
-      
-      <div>
-        <span class="section-label">Coordination</span>
-        <h2 class="section-title" style="text-align: left; margin-top: 1rem;">Multiple agents, one source of truth</h2>
-        <p class="section-subtitle" style="text-align: left;">
-          Running Claude + Cursor + Aider simultaneously? Port Daddy provides the coordination layer 
-          that lets your AI agents work together instead of stepping on each other's ports.
-        </p>
-        <div style="margin-top: 2rem;">
-          <div class="terminal">
-            <div class="terminal-header">
-              <div class="terminal-dot red"></div>
-              <div class="terminal-dot yellow"></div>
-              <div class="terminal-dot green"></div>
-              <span class="terminal-title">multi-agent</span>
-            </div>
-            <div class="terminal-body">
-              <div class="terminal-line">
-                <span class="terminal-comment"># Agent A signals completion</span>
-              </div>
-              <div class="terminal-line">
-                <span class="terminal-prompt">agent-a $</span>
-                <span class="terminal-command">port-daddy pub build:api '{"status":"ready","port":3100}'</span>
-              </div>
-              <div class="terminal-output" style="color: #7fb069;">published to build:api</div>
-              
-              <div class="terminal-line" style="margin-top: 1rem;">
-                <span class="terminal-comment"># Agent B subscribes and waits</span>
-              </div>
-              <div class="terminal-line">
-                <span class="terminal-prompt">agent-b $</span>
-                <span class="terminal-command">port-daddy sub build:*</span>
-              </div>
-              <div class="terminal-output">
-                <div>[2025-01-15T10:30:00Z] build:api {"status":"ready","port":3100}</div>
-                <div style="color: #7fb069;">Starting integration tests...</div>
-              </div>
-            </div>
-          </div>
-        </div>
+  <section class="art-section">
+    <div class="art-container">
+      <img src="images/battleships.png" alt="AI agents playing battleships with port numbers" class="art-image">
+      <div class="art-content">
+        <span class="section-label">Multi-Agent</span>
+        <h2>Coordinate your AI agents</h2>
+        <p>Running Claude + Cursor + Aider simultaneously? Port Daddy provides the coordination layer that lets your AI agents work together instead of stepping on each other's ports.</p>
+        <p>Services can publish events and subscribe to channels—like a game of battleships where everyone knows which ports are taken.</p>
       </div>
+    </div>
+  </section>
+  
+  <section class="harbor-master">
+    <div class="harbor-master-container">
+      <img src="images/harbor-master.png" alt="Port Daddy - The Harbor Master" class="harbor-master-image">
+      <h2>Your trusted harbor master</h2>
+      <p>Port Daddy keeps watch over your development environment. No more port conflicts, no more guessing which service runs where. Just smooth sailing.</p>
     </div>
   </section>
   
   <section class="stats">
     <div class="stats-grid">
-      <div class="stat-item">
-        <h3>60+</h3>
-        <p>Frameworks detected</p>
-      </div>
-      <div class="stat-item">
-        <h3>40+</h3>
-        <p>AI agents supported</p>
-      </div>
-      <div class="stat-item">
-        <h3>&lt;10ms</h3>
-        <p>Port assignment</p>
-      </div>
-      <div class="stat-item">
-        <h3>0</h3>
-        <p>Race conditions</p>
-      </div>
+      <div class="stat-item"><h3>60+</h3><p>Frameworks detected</p></div>
+      <div class="stat-item"><h3>40+</h3><p>AI agents supported</p></div>
+      <div class="stat-item"><h3>&lt;10ms</h3><p>Port assignment</p></div>
+      <div class="stat-item"><h3>0</h3><p>Race conditions</p></div>
     </div>
   </section>
   
@@ -1177,41 +304,24 @@ sub.<span class="syntax-keyword">on</span>(<span class="syntax-string">'message'
       <div class="footer-grid">
         <div class="footer-brand">
           <a href="#" class="logo" style="color: white;">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 2v18M12 2a4 4 0 0 1 4 4v2a4 4 0 0 1-4 4"/>
-              <circle cx="12" cy="7" r="1"/>
-            </svg>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v18M12 2a4 4 0 0 1 4 4v2a4 4 0 0 1-4 4"/><circle cx="12" cy="7" r="1"/></svg>
             <span>Port Daddy</span>
           </a>
           <p>Port management, service orchestration, and agent coordination for modern development workflows.</p>
         </div>
-        
         <div class="footer-column">
           <h4>Product</h4>
-          <ul>
-            <li><a href="#features">Features</a></li>
-            <li><a href="#orchestration">Orchestration</a></li>
-            <li><a href="#frameworks">Frameworks</a></li>
-          </ul>
+          <ul><li><a href="#features">Features</a></li><li><a href="#frameworks">Frameworks</a></li><li><a href="https://www.npmjs.com/package/port-daddy" target="_blank">npm Package</a></li></ul>
         </div>
-        
         <div class="footer-column">
           <h4>Resources</h4>
-          <ul>
-            <li><a href="https://github.com/curiositech/port-daddy" target="_blank">GitHub</a></li>
-            <li><a href="https://github.com/curiositech/port-daddy#readme" target="_blank">Documentation</a></li>
-            <li><a href="https://github.com/curiositech/port-daddy/issues" target="_blank">Issues</a></li>
-          </ul>
+          <ul><li><a href="https://github.com/curiositech/port-daddy" target="_blank">GitHub</a></li><li><a href="https://github.com/curiositech/port-daddy#readme" target="_blank">Documentation</a></li><li><a href="https://github.com/curiositech/port-daddy/issues" target="_blank">Issues</a></li></ul>
         </div>
-        
         <div class="footer-column">
           <h4>Connect</h4>
-          <ul>
-            <li><a href="https://github.com/curiositech" target="_blank">@curiositech</a></li>
-          </ul>
+          <ul><li><a href="https://github.com/curiositech" target="_blank">@curiositech</a></li></ul>
         </div>
       </div>
-      
       <div class="footer-bottom">
         <p>&copy; 2025 Curiositech LLC. Released under the MIT License.</p>
       </div>
@@ -1225,12 +335,14 @@ sub.<span class="syntax-keyword">on</span>(<span class="syntax-string">'message'
       hint.textContent = 'Copied!';
       setTimeout(() => hint.textContent = 'Click to copy', 2000);
     }
-    
-    function switchTab(tab) {
-      document.querySelectorAll('.code-tab').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.code-panel').forEach(p => p.classList.remove('active'));
-      event.target.classList.add('active');
-      document.getElementById('panel-' + tab).classList.add('active');
+    function toggleFrameworks() {
+      const more = document.getElementById('frameworks-more');
+      const btn = document.getElementById('show-more-btn');
+      more.classList.toggle('expanded');
+      btn.classList.toggle('expanded');
+      btn.innerHTML = more.classList.contains('expanded') 
+        ? 'Show fewer frameworks <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m18 15-6-6-6 6"/></svg>'
+        : 'Show all 60+ frameworks <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>';
     }
   </script>
 </body>
