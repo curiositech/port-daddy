@@ -20,6 +20,7 @@ import { createActivityRoutes } from './activity.js';
 import { createWebhooksRoutes } from './webhooks.js';
 import { createConfigRoutes } from './config.js';
 import { createProjectsRoutes } from './projects.js';
+import { createSessionsRoutes } from './sessions.js';
 import { createInfoRoutes } from './info.js';
 
 // Each route factory defines its own deps interface (e.g. ServicesRouteDeps,
@@ -52,6 +53,7 @@ export function createRoutes(deps: AnyDeps): Router {
   router.use(createWebhooksRoutes(deps as unknown as Parameters<typeof createWebhooksRoutes>[0]));
   router.use(createConfigRoutes(deps as unknown as Parameters<typeof createConfigRoutes>[0]));
   router.use(createProjectsRoutes(deps as unknown as Parameters<typeof createProjectsRoutes>[0]));
+  router.use(createSessionsRoutes(deps as unknown as Parameters<typeof createSessionsRoutes>[0]));
 
   return router;
 }
