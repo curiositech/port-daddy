@@ -228,6 +228,55 @@ pd session rm session-abc   # delete entirely (cascades to notes + file claims)
 
 ---
 
+## Multi-Agent Patterns
+
+Port Daddy turns independent agents into a coordinated swarm. Here's what becomes possible:
+
+### The War Room
+
+Three agents attack a bug from different angles, sharing discoveries in real-time:
+
+```bash
+# Terminal 1: Watch the war room channel
+pd sub war-room-bug-123
+
+# Terminal 2-4: Spawn specialist agents (see examples/war-room/)
+./historian.sh bug-123 "TypeError: Cannot read property 'id'"
+./tracer.sh bug-123 "src/api/users.ts:42"
+./scout.sh bug-123 "property 'id' of undefined"
+```
+
+What you see:
+```
+[14:23:01] 📍 [historian] Starting git archaeology
+[14:23:02] 📍 [tracer]    Instrumenting src/api/users.ts:42
+[14:23:03] 💡 [scout]     Found working pattern in src/api/posts.ts:87
+[14:23:04] 💡 [historian] Bug introduced in commit a4f2c1
+[14:23:05] 💡 [tracer]    user is undefined with expired session
+[14:23:06] 🎯 [scout]     CORRELATION: All findings converge - fix is user?.id
+```
+
+**45 seconds to root cause.** A human would take 20+ minutes.
+
+### More Patterns
+
+| Pattern | What It Does |
+|---------|--------------|
+| **30-Second Architecture Review** | 5 agents review a spec simultaneously (schema, API, security, cost, UX) |
+| **Adversarial Hardening** | Attacker agent fuzzes, defender agent patches, code evolves |
+| **Living Documentation** | Agents watch file changes, auto-update docs/tests/changelog |
+| **Speculative Execution** | Agents build multiple options in parallel while you decide |
+
+See `examples/` for working implementations of each pattern.
+
+### The Key Insight
+
+The bottleneck was never intelligence. It was coordination.
+
+One brilliant agent working alone is like one brilliant human working alone. A swarm of coordinated agents is a hive mind that thinks at the speed of silicon.
+
+---
+
 ## When NOT to Use Port Daddy
 
 Be honest with yourself:
