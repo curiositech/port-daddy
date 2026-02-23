@@ -294,12 +294,21 @@ describe('port-daddy up/down Integration', () => {
     expect(claimedPorts).toContain(portMap.api);
     expect(claimedPorts).toContain(portMap.frontend);
 
-    // Send SIGTERM to stop (simulates Ctrl+C)
-    const exitResult = await killAndWait(upProcess, 'SIGTERM', 15000);
-    expect(exitResult).toBe('exited');
+    // Use `port-daddy down` to stop — the proper shutdown path.
+    // `down` sends SIGTERM, waits for process exit, verifies port release,
+    // and force-releases stragglers. Much more reliable than raw SIGTERM.
+    const downResult = spawnSync(TSX_PATH, [CLI_PATH, 'down'], {
+      encoding: 'utf-8',
+      timeout: 30000,
+      env: cliEnv()
+    });
 
-    // Brief wait for port release
-    await new Promise(r => setTimeout(r, 1000));
+    // `down` should complete successfully
+    expect(downResult.status).toBe(0);
+    expect(downResult.stdout).toContain('Stopped');
+
+    // Wait for upProcess exit event to fire (down already killed it)
+    await killAndWait(upProcess, 'SIGTERM', 5000);
 
     // Verify ports are released from daemon
     const servicesAfter = await getClaimedServices();

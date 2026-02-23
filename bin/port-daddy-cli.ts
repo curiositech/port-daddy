@@ -1545,8 +1545,9 @@ async function handleUp(positional: string[], options: CLIOptions): Promise<void
     console.error(`  Error in ${name}: ${error}`);
   });
 
-  // 9. Handle Ctrl+C
+  // 9. Handle Ctrl+C / SIGTERM
   let shuttingDown: boolean = false;
+  let keepAliveResolve: (() => void) | null = null;
   const gracefulShutdown = async (): Promise<void> => {
     if (shuttingDown) {
       // Double Ctrl+C: force kill
@@ -1556,7 +1557,10 @@ async function handleUp(positional: string[], options: CLIOptions): Promise<void
     shuttingDown = true;
     console.log('\n  Shutting down...');
     await orchestrator.stop();
-    process.exit(0);
+    removePidFile();
+    // Resolve the keep-alive promise so the process exits naturally
+    // after all async work (port release HTTP calls) has completed.
+    if (keepAliveResolve) keepAliveResolve();
   };
 
   process.on('SIGINT', gracefulShutdown);
@@ -1577,46 +1581,115 @@ async function handleUp(positional: string[], options: CLIOptions): Promise<void
     process.exit(1);
   }
 
-  // Keep alive
-  await new Promise<void>(() => {});
+  // Keep alive until graceful shutdown resolves this promise
+  await new Promise<void>((resolve) => { keepAliveResolve = resolve; });
 }
 
-async function handleDown(options: CLIOptions): Promise<void> {
-  // Read PID file
-  try {
-    if (!existsSync(UP_PID_FILE)) {
-      console.error('No port-daddy up session found.');
-      console.error('(No PID file at ' + UP_PID_FILE + ')');
-      process.exit(1);
-    }
-
-    const pidStr: string = readFileSync(UP_PID_FILE, 'utf-8').trim();
-    const pid: number = parseInt(pidStr, 10);
-
-    if (isNaN(pid)) {
-      console.error('Invalid PID file. Removing it.');
-      removePidFile();
-      process.exit(1);
-    }
-
-    // Check if process is alive
-    try {
-      process.kill(pid, 0); // Signal 0 = just check if alive
-    } catch {
-      console.error(`Process ${pid} is not running. Cleaning up PID file.`);
-      removePidFile();
-      process.exit(1);
-    }
-
-    // Send SIGTERM to trigger graceful shutdown
-    console.log(`Sending shutdown signal to port-daddy up (PID ${pid})...`);
-    process.kill(pid, 'SIGTERM');
-    console.log('Shutdown initiated.');
-  } catch (err: unknown) {
-    const error = err as Error & { code?: number };
-    if (error.code !== undefined) throw err; // Re-throw non-handled errors
-    console.error(`Failed to stop: ${error.message}`);
+async function handleDown(_options: CLIOptions): Promise<void> {
+  if (!existsSync(UP_PID_FILE)) {
+    console.error('No port-daddy up session found.');
+    console.error('(No PID file at ' + UP_PID_FILE + ')');
     process.exit(1);
+  }
+
+  const pidStr: string = readFileSync(UP_PID_FILE, 'utf-8').trim();
+  const pid: number = parseInt(pidStr, 10);
+
+  if (isNaN(pid)) {
+    console.error('Invalid PID file. Removing it.');
+    removePidFile();
+    process.exit(1);
+  }
+
+  // Check if process is alive
+  if (!isProcessAlive(pid)) {
+    console.error(`Process ${pid} is not running. Cleaning up PID file.`);
+    removePidFile();
+    process.exit(1);
+  }
+
+  // Snapshot services before shutdown so we can verify release
+  let servicesBefore: string[] = [];
+  try {
+    const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/services`);
+    if (res.ok) {
+      const data = await res.json();
+      const svcs = (data as { services?: { id: string }[] }).services || [];
+      servicesBefore = svcs.map((s: { id: string }) => s.id);
+    }
+  } catch { /* daemon unreachable — proceed anyway */ }
+
+  // Send SIGTERM to trigger graceful shutdown
+  console.log(`Stopping port-daddy up (PID ${pid})...`);
+  try {
+    process.kill(pid, 'SIGTERM');
+  } catch (err: unknown) {
+    console.error(`Failed to signal process: ${(err as Error).message}`);
+    removePidFile();
+    process.exit(1);
+  }
+
+  // Wait for process to exit (poll every 200ms, up to 10s)
+  const deadline: number = Date.now() + 10000;
+  while (Date.now() < deadline && isProcessAlive(pid)) {
+    await new Promise(r => setTimeout(r, 200));
+  }
+
+  // If still alive after 10s, escalate to SIGKILL
+  if (isProcessAlive(pid)) {
+    console.log('  Graceful shutdown timed out. Force killing...');
+    try { process.kill(pid, 'SIGKILL'); } catch { /* already dead */ }
+    await new Promise(r => setTimeout(r, 500));
+  }
+
+  // Verify ports were released (poll up to 3s)
+  if (servicesBefore.length > 0) {
+    let remaining: string[] = servicesBefore;
+    const releaseDeadline: number = Date.now() + 3000;
+    while (Date.now() < releaseDeadline && remaining.length > 0) {
+      await new Promise(r => setTimeout(r, 300));
+      try {
+        const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/services`);
+        if (res.ok) {
+          const data = await res.json();
+          const svcs = (data as { services?: { id: string }[] }).services || [];
+          const activeIds: string[] = svcs.map((s: { id: string }) => s.id);
+          remaining = servicesBefore.filter(id => activeIds.includes(id));
+        }
+      } catch { break; /* daemon unreachable */ }
+    }
+
+    // Force-release any stragglers (graceful shutdown was interrupted)
+    if (remaining.length > 0) {
+      for (const id of remaining) {
+        try {
+          await pdFetch(`${PORT_DADDY_URL}/release`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id })
+          });
+        } catch { /* best effort */ }
+      }
+    }
+  }
+
+  // Clean up PID file
+  removePidFile();
+
+  if (isProcessAlive(pid)) {
+    console.error(`  Warning: process ${pid} may still be running.`);
+  } else {
+    console.log('  Stopped.');
+  }
+}
+
+/** Check if a process is alive via signal 0 */
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
   }
 }
 
