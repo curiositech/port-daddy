@@ -54,15 +54,22 @@ interface ClaimOptions {
   metadata?: Record<string, unknown>;
 }
 
+/** Matches the actual return shape of services.claim() */
 interface ClaimResponse {
-  port: number;
+  success: boolean;
   id: string;
+  port: number;
+  status: string;
   existing: boolean;
+  message: string;
 }
 
+/** Matches the actual return shape of services.release() */
 interface ReleaseResponse {
+  success: boolean;
   released: number;
-  releasedPorts: number[];
+  port?: number;
+  message: string;
 }
 
 interface ListServicesOptions {
@@ -71,9 +78,59 @@ interface ListServicesOptions {
   port?: number;
 }
 
+/** A single service entry as returned by services.find() */
+interface ServiceEntry {
+  id: string;
+  port: number;
+  pid: number | null;
+  status: string;
+  cmd: string | null;
+  createdAt: number;
+  lastSeen: number;
+  expiresAt: number | null;
+  tunnelUrl: string | null;
+  pairedWith: string | null;
+  urls: Record<string, string>;
+  metadata: Record<string, unknown> | null;
+}
+
+/** Matches the actual return shape of services.find() */
 interface ListServicesResponse {
-  services: Record<string, unknown>[];
+  success: boolean;
+  services: ServiceEntry[];
   count: number;
+}
+
+/** A full service detail as returned by services.get() */
+interface ServiceDetail {
+  id: string;
+  port: number;
+  pid: number | null;
+  status: string;
+  cmd: string | null;
+  cwd: string | null;
+  createdAt: number;
+  lastSeen: number;
+  expiresAt: number | null;
+  restartPolicy: string | null;
+  healthUrl: string | null;
+  tunnelProvider: string | null;
+  tunnelUrl: string | null;
+  pairedWith: string | null;
+  urls: Record<string, string>;
+  metadata: Record<string, unknown> | null;
+}
+
+/** Matches the actual return shape of services.get() */
+interface GetServiceResponse {
+  success: boolean;
+  service: ServiceDetail;
+}
+
+/** Matches the actual return shape of services.setEndpoint() */
+interface SetEndpointResponse {
+  success: boolean;
+  message: string;
 }
 
 interface PublishOptions {
@@ -81,9 +138,11 @@ interface PublishOptions {
   expires?: number;
 }
 
+/** Matches the actual return shape of messaging.publish() */
 interface PublishResponse {
-  id: number;
-  channel: string;
+  success: boolean;
+  id: number | bigint;
+  message: string;
 }
 
 interface GetMessagesOptions {
@@ -91,8 +150,19 @@ interface GetMessagesOptions {
   after?: number;
 }
 
+/** A single message entry as returned by the messaging module */
+interface MessageEntry {
+  id: number;
+  payload: unknown;
+  sender: string | null;
+  createdAt: number;
+}
+
+/** Matches the actual return shape of messaging.getMessages() */
 interface GetMessagesResponse {
-  messages: Record<string, unknown>[];
+  success: boolean;
+  channel: string;
+  messages: MessageEntry[];
   count: number;
 }
 
@@ -101,8 +171,32 @@ interface PollOptions {
   timeout?: number;
 }
 
+/** Matches the actual return shape of messaging.poll() */
 interface PollResponse {
-  message: Record<string, unknown> | null;
+  success: boolean;
+  channel: string;
+  message: MessageEntry | null;
+  lastId: number;
+}
+
+/** A single channel entry as returned by messaging.listChannels() */
+interface ChannelEntry {
+  channel: string;
+  count: number;
+  lastMessage: number;
+}
+
+/** Matches the actual return shape of messaging.listChannels() */
+interface ListChannelsResponse {
+  success: boolean;
+  channels: ChannelEntry[];
+}
+
+/** Matches the actual return shape of messaging.clear() */
+interface ClearChannelResponse {
+  success: boolean;
+  deleted: number;
+  message: string;
 }
 
 interface LockOptions {
@@ -111,10 +205,14 @@ interface LockOptions {
   metadata?: Record<string, unknown>;
 }
 
+/** Matches the actual return shape of locks.acquire() */
 interface LockResponse {
   success: boolean;
+  name: string;
   owner: string;
-  expiresAt: number;
+  acquiredAt: number;
+  expiresAt: number | null;
+  message: string;
 }
 
 interface UnlockOptions {
@@ -122,22 +220,52 @@ interface UnlockOptions {
   force?: boolean;
 }
 
+/** Matches the actual return shape of locks.release() */
 interface UnlockResponse {
+  success: boolean;
   released: boolean;
+  name?: string;
+  message: string;
 }
 
+/** Matches the actual return shape of locks.check() */
 interface CheckLockResponse {
-  locked: boolean;
+  success: boolean;
+  held: boolean;
+  name: string;
   owner?: string;
-  expiresAt?: number;
+  pid?: number | null;
+  acquiredAt?: number;
+  expiresAt?: number | null;
+  metadata?: Record<string, unknown> | null;
+}
+
+/** Matches the actual return shape of locks.extend() */
+interface ExtendLockResponse {
+  success: boolean;
+  name: string;
+  expiresAt: number;
+  message: string;
 }
 
 interface ListLocksOptions {
   owner?: string;
 }
 
+/** A single lock entry as returned by locks.list() */
+interface LockEntry {
+  name: string;
+  owner: string;
+  pid: number | null;
+  acquiredAt: number;
+  expiresAt: number | null;
+  metadata: Record<string, unknown> | null;
+}
+
+/** Matches the actual return shape of locks.list() */
 interface ListLocksResponse {
-  locks: Record<string, unknown>[];
+  success: boolean;
+  locks: LockEntry[];
   count: number;
 }
 
@@ -149,12 +277,73 @@ interface RegisterOptions {
   metadata?: Record<string, unknown>;
 }
 
+/** Matches the actual return shape of agents.register() */
+interface RegisterAgentResponse {
+  success: boolean;
+  agentId: string;
+  registered: boolean;
+  message: string;
+}
+
+/** Matches the actual return shape of agents.heartbeat() */
+interface HeartbeatResponse {
+  success: boolean;
+  agentId: string;
+  lastHeartbeat: number;
+  message: string;
+}
+
+/** Matches the actual return shape of agents.unregister() */
+interface UnregisterAgentResponse {
+  success: boolean;
+  unregistered: boolean;
+  agentId?: string;
+  message: string;
+}
+
+/** A single agent entry as returned by agents.get() */
+interface AgentDetail {
+  id: string;
+  name: string | null;
+  pid: number;
+  type: string;
+  registeredAt: number;
+  lastHeartbeat: number;
+  isActive: boolean;
+  timeSinceHeartbeat: number;
+  maxServices: number;
+  maxLocks: number;
+  metadata: Record<string, unknown> | null;
+}
+
+/** Matches the actual return shape of agents.get() */
+interface GetAgentResponse {
+  success: boolean;
+  agent: AgentDetail;
+}
+
 interface ListAgentsOptions {
   activeOnly?: boolean;
 }
 
+/** A single agent entry in a list */
+interface AgentEntry {
+  id: string;
+  name: string | null;
+  pid: number;
+  type: string;
+  registeredAt: number;
+  lastHeartbeat: number;
+  isActive: boolean;
+  maxServices: number;
+  maxLocks: number;
+  metadata: Record<string, unknown> | null;
+}
+
+/** Matches the actual return shape of agents.list() */
 interface ListAgentsResponse {
-  agents: Record<string, unknown>[];
+  success: boolean;
+  agents: AgentEntry[];
   count: number;
 }
 
@@ -165,26 +354,127 @@ interface AddWebhookOptions {
   metadata?: Record<string, unknown>;
 }
 
+/** Matches the actual return shape of webhooks.register() */
+interface AddWebhookResponse {
+  success: boolean;
+  id: string;
+  url: string;
+  events: string[];
+  message: string;
+}
+
 interface ListWebhooksOptions {
   activeOnly?: boolean;
 }
 
+/** A single webhook entry as returned by webhooks.list() / webhooks.get() */
+interface WebhookEntry {
+  id: string;
+  url: string;
+  hasSecret: boolean;
+  events: string[];
+  filterPattern: string | null;
+  active: boolean;
+  createdAt: number;
+  lastTriggered: number | null;
+  successCount: number;
+  failureCount: number;
+  metadata: Record<string, unknown> | null;
+}
+
+/** Matches the actual return shape of webhooks.list() */
 interface ListWebhooksResponse {
-  webhooks: Record<string, unknown>[];
+  success: boolean;
+  webhooks: WebhookEntry[];
   count: number;
 }
 
+/** Matches the actual return shape of webhooks.get() */
+interface GetWebhookResponse {
+  success: boolean;
+  webhook: WebhookEntry;
+}
+
+/** Matches the actual return shape of webhooks.update() */
+interface UpdateWebhookResponse {
+  success: boolean;
+  message: string;
+}
+
+/** Matches the actual return shape of webhooks.remove() */
+interface RemoveWebhookResponse {
+  success: boolean;
+  deleted: boolean;
+}
+
+/** Matches the actual return shape of webhooks.test() */
+interface TestWebhookResponse {
+  success: boolean;
+  status?: number;
+  statusText?: string;
+  body?: string;
+  error?: string;
+}
+
+/** A single delivery entry as returned by webhooks.getDeliveries() */
+interface DeliveryEntry {
+  id: string;
+  event: string;
+  status: string;
+  attempts: number;
+  lastAttempt: number | null;
+  responseStatus: number | null;
+  createdAt: number;
+}
+
+/** Matches the actual return shape of webhooks.getDeliveries() */
+interface GetWebhookDeliveriesResponse {
+  success: boolean;
+  deliveries: DeliveryEntry[];
+  count: number;
+}
+
+/** Matches the actual /health endpoint response */
 interface HealthResponse {
   status: string;
   version: string;
   uptime_seconds: number;
   active_ports: number;
+  pid: number;
 }
 
+/** Matches the actual /version endpoint response */
 interface VersionResponse {
   version: string;
   codeHash: string;
+  startedAt: number;
+  service: string;
+  api: string;
+  node_version: string;
+  pid: number;
   uptime: number;
+  installDir: string;
+}
+
+/** Matches the actual /metrics endpoint response */
+interface MetricsResponse {
+  errors: number;
+  total_assignments: number;
+  total_releases: number;
+  uptime_start: number;
+  messages_published?: number;
+  validation_failures?: number;
+  active_ports: number;
+  uptime_seconds: number;
+  uptime_formatted: string;
+  [key: string]: unknown;
+}
+
+/** Matches the actual /config endpoint response */
+interface GetConfigResponse {
+  success: boolean;
+  config: Record<string, unknown>;
+  path: string;
 }
 
 interface ActivityOptions {
@@ -193,14 +483,180 @@ interface ActivityOptions {
   agent?: string;
 }
 
+/** A single activity log entry */
+interface ActivityEntry {
+  id: number;
+  timestamp: number;
+  type: string;
+  agentId: string | null;
+  targetId: string | null;
+  details: string | null;
+  metadata: Record<string, unknown> | null;
+}
+
+/** Matches the actual return shape of activityLog.getRecent() */
 interface ActivityResponse {
-  activities: Record<string, unknown>[];
+  success: boolean;
+  entries: ActivityEntry[];
   count: number;
 }
 
-interface CleanupResponse {
-  freed: Record<string, unknown>[];
+/** Matches the actual return shape of activityLog.getByTimeRange() */
+interface ActivityRangeResponse {
+  success: boolean;
+  entries: ActivityEntry[];
   count: number;
+  timeRange: { start: number; end: number };
+}
+
+/** Matches the actual return shape of activityLog.getSummary() */
+interface ActivitySummaryResponse {
+  success: boolean;
+  summary: Record<string, number>;
+  total: number;
+  since: number;
+}
+
+/** Matches the actual return shape of activityLog.getStats() */
+interface ActivityStatsResponse {
+  success: boolean;
+  stats: {
+    totalEntries: number;
+    oldestEntry: number | null;
+    newestEntry: number | null;
+    retentionMs: number;
+    maxEntries: number;
+  };
+}
+
+/** Matches the actual /services/health/:id endpoint response */
+interface ServiceHealthResponse {
+  success: boolean;
+  serviceId: string;
+  healthy: boolean;
+  reason?: string;
+  statusCode?: number;
+  error?: string;
+  latency?: number;
+  checkedAt: number;
+  url?: string;
+}
+
+/** A cached health entry as returned by health.listStatus() */
+interface CachedHealthEntry {
+  serviceId: string;
+  url: string;
+  healthy: boolean;
+  statusCode?: number;
+  error?: string;
+  latency?: number;
+  checkedAt: number;
+}
+
+/** Matches the actual /services/health endpoint response */
+interface ListServiceHealthResponse {
+  success: boolean;
+  statuses: CachedHealthEntry[];
+}
+
+/** A single active port entry as returned by /ports/active */
+interface ActivePortEntry {
+  port: number;
+  project: string;
+  pid: number | null;
+  started: number;
+  last_seen: number;
+  alive: boolean;
+  age_minutes: number;
+}
+
+/** Matches the actual /ports/active endpoint response */
+interface ListActivePortsResponse {
+  ports: ActivePortEntry[];
+  count: number;
+}
+
+/** A single system port entry as returned by /ports/system */
+interface SystemPortEntry {
+  port: number;
+  managed_by_port_daddy: boolean;
+  project: string | null;
+  [key: string]: unknown;
+}
+
+/** Matches the actual /ports/system endpoint response */
+interface GetSystemPortsResponse {
+  ports: SystemPortEntry[];
+  count: number;
+  total_system_ports: number;
+}
+
+/** Matches the actual /ports/cleanup endpoint response */
+interface CleanupResponse {
+  freed: unknown[];
+  count: number;
+}
+
+/** Matches the actual /scan endpoint response */
+interface ScanResponse {
+  success: boolean;
+  project: string;
+  root: string;
+  type: string;
+  serviceCount: number;
+  services: Record<string, {
+    dir: string;
+    framework: string;
+    dev: unknown;
+    health: unknown;
+    preferredPort: unknown;
+  }>;
+  suggestions: unknown;
+  config: Record<string, unknown>;
+  saved: boolean;
+  savedPath: string | null;
+  dryRun: boolean;
+  guidance: unknown;
+  existingConfig: { path: string; serviceCount: number } | null;
+}
+
+/** A single project summary entry as returned by /projects */
+interface ProjectSummary {
+  id: string;
+  root: string;
+  type: string;
+  serviceCount: number;
+  lastScanned: string;
+  createdAt: string;
+  frameworks: string[];
+}
+
+/** Matches the actual /projects endpoint response */
+interface ListProjectsResponse {
+  success: boolean;
+  count: number;
+  projects: ProjectSummary[];
+}
+
+/** Matches the actual /projects/:id endpoint response */
+interface GetProjectResponse {
+  success: boolean;
+  project: {
+    id: string;
+    root: string;
+    type: string;
+    config: unknown;
+    services: Record<string, unknown> | null;
+    lastScanned: string;
+    createdAt: string;
+    metadata: Record<string, unknown> | null;
+  };
+}
+
+/** Matches the actual DELETE /projects/:id endpoint response */
+interface DeleteProjectResponse {
+  success: boolean;
+  message: string;
 }
 
 type SubscriptionEventType = 'message' | 'error' | 'connected';
@@ -371,8 +827,8 @@ class PortDaddy {
   /**
    * Get a single service by ID.
    */
-  async getService(id: string): Promise<Record<string, unknown>> {
-    return this._request('GET', `/services/${encodeURIComponent(id)}`) as Promise<Record<string, unknown>>;
+  async getService(id: string): Promise<GetServiceResponse> {
+    return this._request('GET', `/services/${encodeURIComponent(id)}`) as Promise<GetServiceResponse>;
   }
 
   /**
@@ -390,8 +846,8 @@ class PortDaddy {
   /**
    * Set an endpoint URL for a service.
    */
-  async setEndpoint(id: string, env: string, url: string): Promise<Record<string, unknown>> {
-    return this._request('PUT', `/services/${encodeURIComponent(id)}/endpoints/${encodeURIComponent(env)}`, { url }) as Promise<Record<string, unknown>>;
+  async setEndpoint(id: string, env: string, url: string): Promise<SetEndpointResponse> {
+    return this._request('PUT', `/services/${encodeURIComponent(id)}/endpoints/${encodeURIComponent(env)}`, { url }) as Promise<SetEndpointResponse>;
   }
 
   // ===========================================================================
@@ -422,8 +878,8 @@ class PortDaddy {
   /**
    * List all active channels.
    */
-  async listChannels(): Promise<{ channels: string[] }> {
-    return this._request('GET', '/channels') as Promise<{ channels: string[] }>;
+  async listChannels(): Promise<ListChannelsResponse> {
+    return this._request('GET', '/channels') as Promise<ListChannelsResponse>;
   }
 
   /**
@@ -530,8 +986,8 @@ class PortDaddy {
   /**
    * Clear all messages from a channel.
    */
-  async clearChannel(channel: string): Promise<Record<string, unknown>> {
-    return this._request('DELETE', `/msg/${encodeURIComponent(channel)}`) as Promise<Record<string, unknown>>;
+  async clearChannel(channel: string): Promise<ClearChannelResponse> {
+    return this._request('DELETE', `/msg/${encodeURIComponent(channel)}`) as Promise<ClearChannelResponse>;
   }
 
   // ===========================================================================
@@ -569,11 +1025,11 @@ class PortDaddy {
   /**
    * Extend a lock's TTL.
    */
-  async extendLock(name: string, options: LockOptions = {}): Promise<Record<string, unknown>> {
+  async extendLock(name: string, options: LockOptions = {}): Promise<ExtendLockResponse> {
     return this._request('PUT', `/locks/${encodeURIComponent(name)}`, {
       owner: options.owner || this.agentId,
       ttl: options.ttl,
-    }) as Promise<Record<string, unknown>>;
+    }) as Promise<ExtendLockResponse>;
   }
 
   /**
@@ -606,7 +1062,7 @@ class PortDaddy {
   /**
    * Register this client as an agent.
    */
-  async register(options: RegisterOptions = {}): Promise<Record<string, unknown>> {
+  async register(options: RegisterOptions = {}): Promise<RegisterAgentResponse> {
     if (!this.agentId) {
       throw new PortDaddyError('agentId required for registration. Set it in constructor options.', 0, null);
     }
@@ -617,17 +1073,17 @@ class PortDaddy {
       metadata: options.metadata,
       maxServices: options.maxServices,
       maxLocks: options.maxLocks,
-    }) as Promise<Record<string, unknown>>;
+    }) as Promise<RegisterAgentResponse>;
   }
 
   /**
    * Send a heartbeat to keep the agent registration alive.
    */
-  async heartbeat(): Promise<Record<string, unknown>> {
+  async heartbeat(): Promise<HeartbeatResponse> {
     if (!this.agentId) {
       throw new PortDaddyError('agentId required for heartbeat', 0, null);
     }
-    return this._request('POST', `/agents/${encodeURIComponent(this.agentId)}/heartbeat`) as Promise<Record<string, unknown>>;
+    return this._request('POST', `/agents/${encodeURIComponent(this.agentId)}/heartbeat`) as Promise<HeartbeatResponse>;
   }
 
   /**
@@ -651,20 +1107,20 @@ class PortDaddy {
   /**
    * Unregister this agent.
    */
-  async unregister(): Promise<Record<string, unknown>> {
+  async unregister(): Promise<UnregisterAgentResponse> {
     if (!this.agentId) {
       throw new PortDaddyError('agentId required for unregister', 0, null);
     }
-    return this._request('DELETE', `/agents/${encodeURIComponent(this.agentId)}`) as Promise<Record<string, unknown>>;
+    return this._request('DELETE', `/agents/${encodeURIComponent(this.agentId)}`) as Promise<UnregisterAgentResponse>;
   }
 
   /**
    * Get info about an agent.
    */
-  async getAgent(id?: string): Promise<Record<string, unknown>> {
+  async getAgent(id?: string): Promise<GetAgentResponse> {
     const agentId = id || this.agentId;
     if (!agentId) throw new PortDaddyError('agent id required', 0, null);
-    return this._request('GET', `/agents/${encodeURIComponent(agentId)}`) as Promise<Record<string, unknown>>;
+    return this._request('GET', `/agents/${encodeURIComponent(agentId)}`) as Promise<GetAgentResponse>;
   }
 
   /**
@@ -684,8 +1140,8 @@ class PortDaddy {
   /**
    * Register a webhook.
    */
-  async addWebhook(url: string, options: AddWebhookOptions = {}): Promise<{ id: string }> {
-    return this._request('POST', '/webhooks', { url, ...options }) as Promise<{ id: string }>;
+  async addWebhook(url: string, options: AddWebhookOptions = {}): Promise<AddWebhookResponse> {
+    return this._request('POST', '/webhooks', { url, ...options }) as Promise<AddWebhookResponse>;
   }
 
   /**
@@ -701,36 +1157,36 @@ class PortDaddy {
   /**
    * Get a single webhook by ID.
    */
-  async getWebhook(id: string): Promise<Record<string, unknown>> {
-    return this._request('GET', `/webhooks/${encodeURIComponent(id)}`) as Promise<Record<string, unknown>>;
+  async getWebhook(id: string): Promise<GetWebhookResponse> {
+    return this._request('GET', `/webhooks/${encodeURIComponent(id)}`) as Promise<GetWebhookResponse>;
   }
 
   /**
    * Update a webhook.
    */
-  async updateWebhook(id: string, options: Partial<AddWebhookOptions> & { url?: string; active?: boolean }): Promise<Record<string, unknown>> {
-    return this._request('PUT', `/webhooks/${encodeURIComponent(id)}`, options as Record<string, unknown>) as Promise<Record<string, unknown>>;
+  async updateWebhook(id: string, options: Partial<AddWebhookOptions> & { url?: string; active?: boolean }): Promise<UpdateWebhookResponse> {
+    return this._request('PUT', `/webhooks/${encodeURIComponent(id)}`, options as Record<string, unknown>) as Promise<UpdateWebhookResponse>;
   }
 
   /**
    * Delete a webhook.
    */
-  async removeWebhook(id: string): Promise<Record<string, unknown>> {
-    return this._request('DELETE', `/webhooks/${encodeURIComponent(id)}`) as Promise<Record<string, unknown>>;
+  async removeWebhook(id: string): Promise<RemoveWebhookResponse> {
+    return this._request('DELETE', `/webhooks/${encodeURIComponent(id)}`) as Promise<RemoveWebhookResponse>;
   }
 
   /**
    * Send a test event to a webhook.
    */
-  async testWebhook(id: string): Promise<Record<string, unknown>> {
-    return this._request('POST', `/webhooks/${encodeURIComponent(id)}/test`) as Promise<Record<string, unknown>>;
+  async testWebhook(id: string): Promise<TestWebhookResponse> {
+    return this._request('POST', `/webhooks/${encodeURIComponent(id)}/test`) as Promise<TestWebhookResponse>;
   }
 
   /**
    * Get delivery history for a webhook.
    */
-  async getWebhookDeliveries(id: string): Promise<Record<string, unknown>> {
-    return this._request('GET', `/webhooks/${encodeURIComponent(id)}/deliveries`) as Promise<Record<string, unknown>>;
+  async getWebhookDeliveries(id: string): Promise<GetWebhookDeliveriesResponse> {
+    return this._request('GET', `/webhooks/${encodeURIComponent(id)}/deliveries`) as Promise<GetWebhookDeliveriesResponse>;
   }
 
   /**
@@ -761,18 +1217,18 @@ class PortDaddy {
   /**
    * Get daemon metrics.
    */
-  async metrics(): Promise<Record<string, unknown>> {
-    return this._request('GET', '/metrics') as Promise<Record<string, unknown>>;
+  async metrics(): Promise<MetricsResponse> {
+    return this._request('GET', '/metrics') as Promise<MetricsResponse>;
   }
 
   /**
    * Get config for a directory.
    */
-  async getConfig(dir?: string): Promise<Record<string, unknown>> {
+  async getConfig(dir?: string): Promise<GetConfigResponse> {
     const params = new URLSearchParams();
     if (dir) params.set('dir', dir);
     const qs = params.toString();
-    return this._request('GET', `/config${qs ? '?' + qs : ''}`) as Promise<Record<string, unknown>>;
+    return this._request('GET', `/config${qs ? '?' + qs : ''}`) as Promise<GetConfigResponse>;
   }
 
   /**
@@ -790,26 +1246,26 @@ class PortDaddy {
   /**
    * Get activity entries within a time range.
    */
-  async getActivityRange(from: string, to: string): Promise<ActivityResponse> {
+  async getActivityRange(from: string, to: string): Promise<ActivityRangeResponse> {
     const params = new URLSearchParams({ from, to });
-    return this._request('GET', `/activity/range?${params}`) as Promise<ActivityResponse>;
+    return this._request('GET', `/activity/range?${params}`) as Promise<ActivityRangeResponse>;
   }
 
   /**
    * Get activity summary grouped by type.
    */
-  async getActivitySummary(since?: string): Promise<Record<string, unknown>> {
+  async getActivitySummary(since?: string): Promise<ActivitySummaryResponse> {
     const params = new URLSearchParams();
     if (since) params.set('since', since);
     const qs = params.toString();
-    return this._request('GET', `/activity/summary${qs ? '?' + qs : ''}`) as Promise<Record<string, unknown>>;
+    return this._request('GET', `/activity/summary${qs ? '?' + qs : ''}`) as Promise<ActivitySummaryResponse>;
   }
 
   /**
    * Get activity statistics.
    */
-  async getActivityStats(): Promise<Record<string, unknown>> {
-    return this._request('GET', '/activity/stats') as Promise<Record<string, unknown>>;
+  async getActivityStats(): Promise<ActivityStatsResponse> {
+    return this._request('GET', '/activity/stats') as Promise<ActivityStatsResponse>;
   }
 
   // ===========================================================================
@@ -819,15 +1275,15 @@ class PortDaddy {
   /**
    * Check health of a specific service.
    */
-  async checkServiceHealth(id: string): Promise<Record<string, unknown>> {
-    return this._request('GET', `/services/health/${encodeURIComponent(id)}`) as Promise<Record<string, unknown>>;
+  async checkServiceHealth(id: string): Promise<ServiceHealthResponse> {
+    return this._request('GET', `/services/health/${encodeURIComponent(id)}`) as Promise<ServiceHealthResponse>;
   }
 
   /**
    * List health status for all services.
    */
-  async listServiceHealth(): Promise<Record<string, unknown>> {
-    return this._request('GET', '/services/health') as Promise<Record<string, unknown>>;
+  async listServiceHealth(): Promise<ListServiceHealthResponse> {
+    return this._request('GET', '/services/health') as Promise<ListServiceHealthResponse>;
   }
 
   // ===========================================================================
@@ -837,15 +1293,15 @@ class PortDaddy {
   /**
    * List all active port assignments.
    */
-  async listActivePorts(): Promise<Record<string, unknown>> {
-    return this._request('GET', '/ports/active') as Promise<Record<string, unknown>>;
+  async listActivePorts(): Promise<ListActivePortsResponse> {
+    return this._request('GET', '/ports/active') as Promise<ListActivePortsResponse>;
   }
 
   /**
    * Get system port usage (ports in use by OS processes).
    */
-  async getSystemPorts(): Promise<Record<string, unknown>> {
-    return this._request('GET', '/ports/system') as Promise<Record<string, unknown>>;
+  async getSystemPorts(): Promise<GetSystemPortsResponse> {
+    return this._request('GET', '/ports/system') as Promise<GetSystemPortsResponse>;
   }
 
   /**
@@ -862,29 +1318,29 @@ class PortDaddy {
   /**
    * Deep scan a directory for services.
    */
-  async scan(dir: string, options: { save?: boolean; useBranch?: boolean; dryRun?: boolean } = {}): Promise<Record<string, unknown>> {
-    return this._request('POST', '/scan', { dir, ...options }) as Promise<Record<string, unknown>>;
+  async scan(dir: string, options: { save?: boolean; useBranch?: boolean; dryRun?: boolean } = {}): Promise<ScanResponse> {
+    return this._request('POST', '/scan', { dir, ...options }) as Promise<ScanResponse>;
   }
 
   /**
    * List all registered projects.
    */
-  async listProjects(): Promise<Record<string, unknown>> {
-    return this._request('GET', '/projects') as Promise<Record<string, unknown>>;
+  async listProjects(): Promise<ListProjectsResponse> {
+    return this._request('GET', '/projects') as Promise<ListProjectsResponse>;
   }
 
   /**
    * Get a project by ID.
    */
-  async getProject(id: string): Promise<Record<string, unknown>> {
-    return this._request('GET', `/projects/${encodeURIComponent(id)}`) as Promise<Record<string, unknown>>;
+  async getProject(id: string): Promise<GetProjectResponse> {
+    return this._request('GET', `/projects/${encodeURIComponent(id)}`) as Promise<GetProjectResponse>;
   }
 
   /**
    * Delete a project.
    */
-  async deleteProject(id: string): Promise<Record<string, unknown>> {
-    return this._request('DELETE', `/projects/${encodeURIComponent(id)}`) as Promise<Record<string, unknown>>;
+  async deleteProject(id: string): Promise<DeleteProjectResponse> {
+    return this._request('DELETE', `/projects/${encodeURIComponent(id)}`) as Promise<DeleteProjectResponse>;
   }
 
   /**
