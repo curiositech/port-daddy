@@ -72,6 +72,11 @@ export function loadConfig(dir: string = process.cwd()): PortDaddyRcConfig | nul
  * Save config to file
  */
 export function saveConfig(config: PortDaddyRcConfig, dir: string = process.cwd()): string {
+  const errors = validateConfig(config);
+  if (errors.length > 0) {
+    throw new Error(`Invalid config: ${errors.join('; ')}`);
+  }
+
   const configPath = join(dir, '.portdaddyrc');
   const { _path, ...rest } = config; // Remove internal _path
   writeFileSync(configPath, JSON.stringify(rest, null, 2) + '\n');

@@ -126,12 +126,21 @@ export function createProjects(db: Database.Database) {
   /**
    * Deserialize JSON fields from a database row.
    */
+  function safeJsonParse(value: string | null): Record<string, unknown> | null {
+    if (!value) return null;
+    try {
+      return JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+
   function deserialize(row: ProjectRow): ProjectDeserialized {
     return {
       ...row,
-      config: row.config ? JSON.parse(row.config) : null,
-      services: row.services ? JSON.parse(row.services) : null,
-      metadata: row.metadata ? JSON.parse(row.metadata) : null
+      config: safeJsonParse(row.config),
+      services: safeJsonParse(row.services),
+      metadata: safeJsonParse(row.metadata)
     };
   }
 

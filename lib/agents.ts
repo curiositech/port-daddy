@@ -104,7 +104,7 @@ export function createAgents(db: Database.Database) {
     listActive: db.prepare('SELECT * FROM agents WHERE last_heartbeat > ? ORDER BY last_heartbeat DESC'),
     listStale: db.prepare('SELECT * FROM agents WHERE last_heartbeat < ?'),
     deleteStale: db.prepare('DELETE FROM agents WHERE last_heartbeat < ?'),
-    countServices: db.prepare('SELECT COUNT(*) as count FROM services WHERE metadata LIKE ?'),
+    countServices: db.prepare("SELECT COUNT(*) as count FROM services WHERE metadata LIKE ? ESCAPE '\\'"),
     countLocks: db.prepare('SELECT COUNT(*) as count FROM locks WHERE owner = ?')
   };
 
@@ -239,9 +239,21 @@ export function createAgents(db: Database.Database) {
         timeSinceHeartbeat: now - agent.last_heartbeat,
         maxServices: agent.max_services,
         maxLocks: agent.max_locks,
-        metadata: agent.metadata ? JSON.parse(agent.metadata) : null
+        metadata: safeJsonParse(agent.metadata)
       }
     };
+  }
+
+  /**
+   * Safely parse JSON, returning null on failure
+   */
+  function safeJsonParse(value: string | null): Record<string, unknown> | null {
+    if (!value) return null;
+    try {
+      return JSON.parse(value);
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -267,7 +279,7 @@ export function createAgents(db: Database.Database) {
         isActive: (now - a.last_heartbeat) < DEFAULT_AGENT_TTL,
         maxServices: a.max_services,
         maxLocks: a.max_locks,
-        metadata: a.metadata ? JSON.parse(a.metadata) : null
+        metadata: safeJsonParse(a.metadata)
       })),
       count: agents.length
     };

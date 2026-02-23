@@ -26,3 +26,12 @@ coverage/
 # Environment
 .env
 .env.local
+
+# Internal: analysis, strategy, dev planning
+analyses/
+plans/
+.CLAUDE_LOCK
+.CLAUDE_NOTES.md
+.portdaddyrc
+*.strategy.md
+*.internal.md

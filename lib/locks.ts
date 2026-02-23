@@ -54,7 +54,9 @@ export function createLocks(db: Database.Database) {
       acquired_at INTEGER NOT NULL,
       expires_at INTEGER,
       metadata TEXT
-    )
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_locks_expires ON locks(expires_at);
   `);
 
   const stmts = {
@@ -69,6 +71,15 @@ export function createLocks(db: Database.Database) {
     list: db.prepare('SELECT * FROM locks ORDER BY acquired_at DESC'),
     listByOwner: db.prepare('SELECT * FROM locks WHERE owner = ?')
   };
+
+  function safeJsonParse(value: string | null): Record<string, unknown> | null {
+    if (!value) return null;
+    try {
+      return JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
 
   /**
    * Try to acquire a lock
@@ -131,7 +142,7 @@ export function createLocks(db: Database.Database) {
         message: `acquired lock: ${name}`
       };
     } catch (err) {
-      if ((err as SqliteError).code === 'SQLITE_CONSTRAINT') {
+      if ((err as SqliteError)?.code === 'SQLITE_CONSTRAINT') {
         // Race condition - someone else got it
         const holder = stmts.get.get(name) as LockRow | undefined;
         return {
@@ -207,7 +218,7 @@ export function createLocks(db: Database.Database) {
       pid: lock.pid,
       acquiredAt: lock.acquired_at,
       expiresAt: lock.expires_at,
-      metadata: lock.metadata ? JSON.parse(lock.metadata) : null
+      metadata: safeJsonParse(lock.metadata)
     };
   }
 
@@ -232,7 +243,7 @@ export function createLocks(db: Database.Database) {
         pid: l.pid,
         acquiredAt: l.acquired_at,
         expiresAt: l.expires_at,
-        metadata: l.metadata ? JSON.parse(l.metadata) : null
+        metadata: safeJsonParse(l.metadata)
       })),
       count: locks.length
     };

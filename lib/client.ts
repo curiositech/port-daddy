@@ -633,13 +633,15 @@ class PortDaddy {
   /**
    * Start automatic heartbeats at a regular interval.
    */
-  startHeartbeat(intervalMs: number = 60000): HeartbeatHandle {
+  startHeartbeat(intervalMs: number = 60000, onError?: (err: Error) => void): HeartbeatHandle {
+    const handleError = onError || (() => {}); // Default: silently swallow
+
     const timer = setInterval(() => {
-      this.heartbeat().catch(() => {}); // Swallow errors silently
+      this.heartbeat().catch(handleError);
     }, intervalMs);
 
     // Send one immediately
-    this.heartbeat().catch(() => {});
+    this.heartbeat().catch(handleError);
 
     return {
       stop: () => clearInterval(timer),

@@ -354,7 +354,13 @@ export function createWebhooks(db: Database.Database) {
     }
 
     const webhooks = (stmts.getActive.all() as WebhookRow[]).filter(webhook => {
-      const events = JSON.parse(webhook.events) as string[];
+      let events: string[];
+      try {
+        events = JSON.parse(webhook.events) as string[];
+      } catch {
+        return false;
+      }
+      if (!Array.isArray(events)) return false;
       const eventMatches = events.includes('*') || events.includes(event);
       if (!eventMatches) return false;
 

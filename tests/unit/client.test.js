@@ -427,6 +427,9 @@ describe('Agents', () => {
     await new Promise(r => setTimeout(r, 80));
     hb.stop();
 
+    // Allow in-flight HTTP requests to drain so they don't leak into the next test
+    await new Promise(r => setTimeout(r, 50));
+
     // Should have at least 1 call
     expect(receivedRequests.length).toBeGreaterThanOrEqual(1);
   });

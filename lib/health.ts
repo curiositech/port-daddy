@@ -51,7 +51,8 @@ interface Waiter {
 /**
  * Initialize health monitoring with a database connection
  */
-export function createHealth(_db: Database.Database, services: ServicesLike) {
+export function createHealth(db: Database.Database, services: ServicesLike) {
+  void db; // Retained for API compatibility; not currently used
   // Track health check intervals
   const intervals = new Map<string, ReturnType<typeof setInterval>>();
 
@@ -214,20 +215,24 @@ export function createHealth(_db: Database.Database, services: ServicesLike) {
   /**
    * Wait for a service to become healthy
    */
-  function waitFor(serviceId: string, options: WaitForOptions = {}) {
+  async function waitFor(serviceId: string, options: WaitForOptions = {}) {
     const { timeout = 60000, checkInterval = 1000 } = options;
 
-    return new Promise(async (resolve, reject) => {
-      // Check immediately
+    // Check immediately — guard against unexpected throws
+    try {
       const initial = await check(serviceId);
       if (initial.success && initial.healthy) {
-        resolve(initial);
-        return;
+        return initial;
       }
+    } catch {
+      // Initial check failed, fall through to polling
+    }
 
+    return new Promise<Record<string, unknown>>((resolve, reject) => {
       // Set up timeout
       const timeoutId = setTimeout(() => {
         removeWaiter(serviceId, waiter);
+        clearInterval(checkId);
         reject(new Error(`Timeout waiting for ${serviceId} to become healthy`));
       }, timeout);
 
@@ -248,14 +253,17 @@ export function createHealth(_db: Database.Database, services: ServicesLike) {
       waiters.get(serviceId)!.add(waiter);
 
       // Poll until healthy
-      const checkId = setInterval(async () => {
-        const result = await check(serviceId);
-        if (result.success && result.healthy) {
-          removeWaiter(serviceId, waiter);
-          clearTimeout(timeoutId);
-          clearInterval(checkId);
-          resolve(result);
-        }
+      const checkId = setInterval(() => {
+        check(serviceId).then(result => {
+          if (result.success && result.healthy) {
+            removeWaiter(serviceId, waiter);
+            clearTimeout(timeoutId);
+            clearInterval(checkId);
+            resolve(result);
+          }
+        }).catch(() => {
+          // Health check failed, will retry on next interval
+        });
       }, checkInterval);
     });
   }

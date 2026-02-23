@@ -113,11 +113,26 @@ export function createServices(db: Database.Database) {
     deleteAllEndpoints: db.prepare('DELETE FROM endpoints WHERE service_id = ?'),
   };
 
+  function safeJsonParse(value: string | null): Record<string, unknown> | null {
+    if (!value) return null;
+    try {
+      return JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+
   /**
    * Find an available port in the given range
    */
   function findAvailablePort(range: [number, number] = DEFAULT_RANGE, systemPorts: Set<number> = new Set()): number {
     const [min, max] = range;
+
+    // Validate range bounds
+    if (min < 1 || max > 65535 || min > max) {
+      throw new Error(`Invalid port range ${min}-${max} (must be within 1-65535)`);
+    }
+
     const usedPorts = new Set((stmts.getAllPorts.all() as PortRow[]).map(r => r.port));
 
     for (let port = min; port <= max; port++) {
@@ -184,7 +199,7 @@ export function createServices(db: Database.Database) {
 
     // Find a port
     let port: number | undefined;
-    if (preferredPort && !RESERVED_PORTS.has(preferredPort) && !systemPorts.has(preferredPort)) {
+    if (preferredPort && preferredPort >= 1 && preferredPort <= 65535 && !RESERVED_PORTS.has(preferredPort) && !systemPorts.has(preferredPort)) {
       const conflict = stmts.getByPort.get(preferredPort) as ServiceRow | undefined;
       if (!conflict) {
         port = preferredPort;
@@ -360,7 +375,7 @@ export function createServices(db: Database.Database) {
         tunnelUrl: svc.tunnel_url,
         pairedWith: svc.paired_with,
         urls,
-        metadata: svc.metadata ? JSON.parse(svc.metadata) : null
+        metadata: safeJsonParse(svc.metadata)
       };
     });
 
@@ -409,7 +424,7 @@ export function createServices(db: Database.Database) {
         tunnelUrl: svc.tunnel_url,
         pairedWith: svc.paired_with,
         urls,
-        metadata: svc.metadata ? JSON.parse(svc.metadata) : null
+        metadata: safeJsonParse(svc.metadata)
       }
     };
   }

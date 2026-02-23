@@ -396,7 +396,10 @@ export function createOrchestrator(options: OrchestratorOptions): OrchestratorIn
     const res = await daemonRequest('POST', '/claim', body);
 
     if (!res.ok) {
-      throw new Error(`Failed to claim port for ${name}: ${(res.data as Record<string, string> | null)?.error || 'unknown error'}`);
+      const errorMsg = res.data && typeof res.data === 'object' && 'error' in res.data
+        ? String((res.data as Record<string, unknown>).error)
+        : 'unknown error';
+      throw new Error(`Failed to claim port for ${name}: ${errorMsg}`);
     }
 
     return (res.data as Record<string, unknown>)!.port as number;
@@ -525,7 +528,7 @@ export function createOrchestrator(options: OrchestratorOptions): OrchestratorIn
     // Spawn in topological order
     for (const name of order) {
       const svc = toStart[name];
-      if (svc.remote || svc.noPort && !svc.cmd) continue;
+      if ((svc.remote || svc.noPort) && !svc.cmd) continue;
       if (!svc.cmd) continue;
 
       spawnService(name, svc, envMaps[name], prefixer);

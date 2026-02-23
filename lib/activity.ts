@@ -123,6 +123,15 @@ interface StatsResult {
 /**
  * Initialize activity log with database connection
  */
+function safeJsonParse(value: string | null): Record<string, unknown> | null {
+  if (!value) return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
 export function createActivityLog(db: Database.Database) {
   // Ensure activity table exists
   db.exec(`
@@ -223,7 +232,7 @@ export function createActivityLog(db: Database.Database) {
       agentId: e.agent_id,
       targetId: e.target_id,
       details: e.details,
-      metadata: e.metadata ? JSON.parse(e.metadata) : null
+      metadata: safeJsonParse(e.metadata)
     };
   }
 
