@@ -42,7 +42,7 @@ Port Daddy is the coordination layer for multi-agent development. It runs as a l
 
 **Port management** — [claim/release](#quick-start), [persistent assignment](#semantic-identities), [service orchestration](#service-orchestration), [60+ framework auto-detection](#auto-detection-port-daddy-scan)
 **Agent coordination** — [pub/sub messaging](#pubsub-messaging), [distributed locks](#distributed-locks), [agent registry](#agent-registry), [webhooks](#webhooks), [web dashboard](#dashboard)
-**Works with your agent** — `npx skills add curiositech/port-daddy` — Claude Code, Cursor, Windsurf, Cline, Aider, Codex CLI, and [40+ more](#ai-agent-skill)
+**Works with your agent** — `npx skills add curiositech/port-daddy` — Claude Code ([plugin](#install-for-claude-code)), Cursor, Windsurf, Cline, Aider, Codex CLI, and [40+ more](#ai-agent-skill)
 
 ---
 
@@ -658,15 +658,30 @@ Port Daddy includes a web dashboard at `http://localhost:9876`:
 
 ## AI Agent Skill
 
-Port Daddy ships as an [agent skill](https://github.com/curiositech/port-daddy/tree/main/skills/port-daddy-cli) in the [Vercel Labs Agent Skills](https://github.com/vercel-labs/skills) format, compatible with 40+ AI coding agents.
+Port Daddy ships as both a [Claude Code plugin](https://github.com/curiositech/port-daddy/tree/main/.claude-plugin) and a [Vercel Agent Skill](https://github.com/curiositech/port-daddy/tree/main/skills/port-daddy-cli), compatible with 40+ AI coding agents.
 
-### Install the Skill
+### Install for Claude Code
 
 ```bash
-# Claude Code (via npx)
-npx skills add curiositech/port-daddy
+# Add the plugin marketplace and install (recommended)
+/plugin marketplace add curiositech/port-daddy
+/plugin install port-daddy
+```
 
-# Or add directly to your project's .claude/settings.json
+Or install via the interactive plugin browser:
+
+```
+/plugin → Discover → search "port-daddy"
+```
+
+Port Daddy ships a native `.claude-plugin/` with full skill definitions, so Claude gets port claiming, agent coordination patterns, `.portdaddyrc` generation, SDK usage, and reference docs — all loaded on demand.
+
+### Install for Other Agents
+
+Cursor, Windsurf, Cline, Aider, Codex CLI, and [40+ more](https://github.com/vercel-labs/skills#compatible-agents):
+
+```bash
+npx skills add curiositech/port-daddy
 ```
 
 ### What the Skill Provides
