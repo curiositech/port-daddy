@@ -5,6 +5,80 @@ All notable changes to Port Daddy will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] (v3.2.0)
+
+### Added
+- **Sessions & Notes system** (`lib/sessions.ts`): Structured multi-agent coordination with session lifecycle (start, end, abandon, remove), immutable append-only notes, and advisory file claims with conflict detection
+- **Session schema**: `sessions`, `session_files` (with `released_at` audit trail), `session_notes` (with type: note/handoff/commit/warning) tables with CASCADE deletion
+- **Auto-session**: `quickNote` creates an implicit session for agents that skip explicit `session start`
+- **Session garbage collection**: `cleanup(olderThan?, status?)` for removing stale sessions
+- **Session HTTP routes** (`routes/sessions.ts`): 11 endpoints — `POST/GET /sessions`, `GET/PUT/DELETE /sessions/:id`, `POST/GET /sessions/:id/notes`, `POST/DELETE /sessions/:id/files`, `POST/GET /notes`
+- **Session CLI commands**: `pd session start/end/done/abandon/rm`, `pd session files add/rm`, `pd sessions [--all] [--status] [--files]`, `pd note <content> [--type TYPE]`, `pd notes [session-id] [--limit N] [--type TYPE]` — all with `--quiet/-q` and `--json/-j` output modes
+- **Session SDK methods**: 10 new methods on `PortDaddy` class — `startSession`, `endSession`, `abandonSession`, `removeSession`, `note`, `notes`, `sessions`, `sessionDetails`, `claimFiles`, `releaseFiles`
+- **SDK type honesty** (Batch 3): 42 typed response interfaces replacing every `Record<string, unknown>` — `ClaimResponse`, `ReleaseResponse`, `LockResponse`, `ServiceEntry`, `AgentDetail`, `WebhookEntry`, `ActivityEntry`, and 8 new session-related interfaces
+- Activity logging for `session_start`, `session_end`, `session_note`, `file_claim`, `file_release` events
+- 110 new unit tests for sessions module; test suite now at 1283 tests across 19 suites
+
+### Changed
+- Shell completions (Batch 2): added `up`, `down`, `diagnose` commands to all 3 completion files (zsh, bash, fish); added `--from`/`--to` flags for `log` command in fish; normalized quiet flag handling in CLI
+
+### Fixed
+- **GC zombie cleanup**: removed dead agents-to-services cleanup path (services lack `agent_id` column); added PID liveness checking via `process.kill(pid, 0)` to `services.cleanup()`; only checks running services (assigned services preserved)
+- **Stale agent lock release**: agents that disappear now have their held locks properly released
+- **Jest open handle leak**: `unref()` webhook retry timers to prevent Jest worker hang; added `messaging.destroy()` for clean subscriber teardown
+- **Shell completions**: `handlePorts()` now distinguishes empty results from API errors
+- **Batch 1 safety bugs**: 6 crash/corruption defects fixed — operator precedence in `orchestrator.ts` skip-logic; systemic `safeJsonParse` across 13 `JSON.parse` call sites on DB TEXT columns (webhooks, activity, locks, agents, projects, services) so a single corrupted row no longer crashes the daemon; defensive optional chaining on `SqliteError` in `locks.ts`
+
+## [3.1.0] - 2026-02-22
+
+### Added
+- **SDK parity**: methods for every API endpoint — `scan`, `listProjects`, `getProject`, `deleteProject`, webhook CRUD (`get`, `update`, `test`, `deliveries`, `events`), `metrics`, `getConfig`, activity range/summary/stats, service health checks, port listing (active, system)
+- **CLI parity**: commands for every API endpoint — `dashboard`, `channels`, `webhook`, `metrics`, `config`, `health`, `ports`; `lock extend` subcommand; `log --from/--to` time-range flags
+- **Shell completions** (`completions/`): zsh, bash, and fish completions for all new CLI commands — dashboard, channels, webhook, metrics, config, health, ports, lock extend, log --from/--to
+- **Claude Code plugin** (`.claude-plugin/`): agent skill manifest for Claude Code and Vercel AI SDK integration
+- **OIDC npm publishing**: GitHub Actions workflow for trusted npm publishing via OpenID Connect (no stored tokens)
+- `pd` alias for `port-daddy` CLI binary
+- Complete SDK and API reference documentation in README
+
+### Changed
+- **CLI syntactic sugar**: single-letter command aliases (`c`=claim, `r`=release, `f`=find, `l`=list, `s`=scan, `p`=projects); `--export` flag on claim prints `export PORT=XXXX` for shell eval; TTY-aware output suppresses decorative text when piped
+- UX friction points addressed from product analysis
+- README rewritten for clarity — agentic coordination story above the fold, one-liner skill install, Vercel Agent Skill compatibility surfaced
+- Dashboard updated to reflect full v3.1 command surface
+
+### Fixed
+- CLI binary broken after TypeScript migration (`d62cb92`)
+- Package publishable: `dist/` exports, `types` field in package.json, `pd` bin alias
+- REST cover art and centered branding header in README
+
+### Removed
+- **`detect` and `init` commands**: deprecated in favor of `scan` (which combines detection + registration)
+
+## [3.0.0] - 2026-02-19
+
+### Added
+- **TypeScript rewrite**: all 32 source files migrated from `.js` to `.ts` with full type annotations — 18 lib modules, 11 route files, 3 entry points (server, CLI, install-daemon)
+- **Framework detection expanded to 58 stacks** (`lib/detect.ts`): added `stackType` property and 36 new framework signatures — Gatsby, Docusaurus, Eleventy, TanStack Start, Koa, Hapi, AdonisJS, Strapi, KeystoneJS, RedwoodJS, Elysia, Blitz.js (Node.js); Streamlit, Gradio, Starlette (Python); Rails, Sinatra with Gemfile parser (Ruby); Laravel, Symfony, WordPress with composer.json parser (PHP); Spring Boot, Quarkus, Micronaut with pom.xml/gradle parser (Java/JVM); Phoenix with mix.exs parser (Elixir); Deno, Fresh (Deno); ASP.NET, Blazor with *.csproj parser (.NET); Expo, Tauri, Electron (Mobile/Desktop); Hugo, Jekyll, Zola (SSGs); Bun, Webpack Dev Server
+- **Ephemeral test daemon**: Jest `globalSetup`/`globalTeardown` spawns fresh daemon with temp SQLite DB and temp Unix socket per test run — no dependency on running daemon, fully CI-friendly
+- **Unix socket support**: SDK (`lib/client.ts`) and CLI use `http.request` with Unix socket for daemon communication
+- `import type` used for type-only imports throughout
+- `tsx` runtime replaces `node` in all scripts and test helpers
+
+### Changed
+- **BREAKING**: Node.js 18 dropped (EOL); now tested on Node 20, 22, and 24
+- **BREAKING**: All imports are `.ts` source files (NodeNext resolution); consumers must use `dist/` compiled output
+- better-sqlite3 upgraded to v12 for Node 24 compatibility
+- Security audit findings addressed: expanded SSRF protection (IPv4-mapped IPv6, CGN RFC 6598, multicast, `.local`/`.localhost`/`.internal` hostnames); replaced `as any` casts with bounded `as unknown as Parameters<>` casts; error logging in shutdown catch block
+- Flaky rate-limit test stabilized
+- Orchestrator daemon requests routed through Unix socket instead of TCP fetch
+
+### Fixed
+- `port-daddy down` now uses PID-based orphan cleanup — previous snapshot-diffing approach skipped force-release when daemon was unreachable, root cause of CI flakes on macOS
+- `port-daddy down` waits for shutdown and verifies port release before returning
+- Process groups killed in up-down tests to prevent orphaned children on Linux
+- Up-down test cleanup scoped to own projects only (was interfering with parallel test workers)
+- `api.test.js` isolated with in-memory SQLite DB (was sharing file-based DB across parallel Jest workers)
+
 ## [2.0.0] - 2025-02-17
 
 ### Added
