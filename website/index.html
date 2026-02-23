@@ -1,0 +1,1565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Port Daddy — The Coordination Layer for Multi-Agent Development</title>
+  <meta name="description" content="Stop fighting over ports. Start shipping faster. Port Daddy is the authoritative port manager and service orchestrator for modern development workflows.">
+  
+  <!-- Open Graph -->
+  <meta property="og:title" content="Port Daddy — Zero-Conflict Port Assignment">
+  <meta property="og:description" content="The coordination layer for multi-agent development. Atomic port assignment, service orchestration, and agent coordination.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://portdaddy.dev">
+  <meta property="og:image" content="https://portdaddy.dev/og-image.png">
+  
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Port Daddy — Zero-Conflict Port Assignment">
+  <meta name="twitter:description" content="The coordination layer for multi-agent development.">
+  <meta name="twitter:image" content="https://portdaddy.dev/og-image.png">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚓</text></svg>">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-primary: #0a0a0f;
+      --bg-secondary: #12121a;
+      --bg-tertiary: #1a1a25;
+      --bg-elevated: #222230;
+      
+      --text-primary: #f0f0f5;
+      --text-secondary: #a0a0b0;
+      --text-muted: #606070;
+      
+      --accent-cyan: #00d4ff;
+      --accent-purple: #a855f7;
+      --accent-green: #22c55e;
+      --accent-yellow: #eab308;
+      --accent-pink: #ec4899;
+      
+      --border-color: rgba(255,255,255,0.08);
+      --glow-cyan: rgba(0, 212, 255, 0.3);
+      --glow-purple: rgba(168, 85, 247, 0.3);
+      
+      --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+      
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 16px;
+      --radius-xl: 24px;
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    html {
+      scroll-behavior: smooth;
+    }
+    
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+    
+    /* Noise texture overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+      opacity: 0.03;
+      pointer-events: none;
+      z-index: 1000;
+    }
+    
+    /* Gradient orbs */
+    .orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(100px);
+      pointer-events: none;
+      z-index: 0;
+    }
+    
+    .orb-cyan {
+      width: 600px;
+      height: 600px;
+      background: var(--accent-cyan);
+      opacity: 0.08;
+      top: -200px;
+      right: -200px;
+    }
+    
+    .orb-purple {
+      width: 500px;
+      height: 500px;
+      background: var(--accent-purple);
+      opacity: 0.06;
+      bottom: 10%;
+      left: -150px;
+    }
+    
+    /* Navigation */
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      padding: 1rem 2rem;
+      background: rgba(10, 10, 15, 0.8);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .nav-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-weight: 700;
+      font-size: 1.25rem;
+      color: var(--text-primary);
+      text-decoration: none;
+    }
+    
+    .logo-icon {
+      font-size: 1.5rem;
+    }
+    
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+    }
+    
+    .nav-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+    
+    .nav-links a:hover {
+      color: var(--text-primary);
+    }
+    
+    .nav-cta {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.6rem 1.2rem;
+      border-radius: var(--radius-md);
+      font-weight: 600;
+      font-size: 0.9rem;
+      text-decoration: none;
+      transition: all 0.2s;
+      cursor: pointer;
+      border: none;
+      font-family: inherit;
+    }
+    
+    .btn-secondary {
+      color: var(--text-secondary);
+      background: transparent;
+    }
+    
+    .btn-secondary:hover {
+      color: var(--text-primary);
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+      color: var(--bg-primary);
+      box-shadow: 0 4px 20px rgba(0, 212, 255, 0.3);
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 30px rgba(0, 212, 255, 0.4);
+    }
+    
+    .btn-outline {
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      background: transparent;
+    }
+    
+    .btn-outline:hover {
+      border-color: var(--accent-cyan);
+      background: rgba(0, 212, 255, 0.05);
+    }
+    
+    /* Hero Section */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      padding: 8rem 2rem 4rem;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .hero-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1.1fr;
+      gap: 4rem;
+      align-items: center;
+    }
+    
+    .hero-content {
+      position: relative;
+      z-index: 1;
+    }
+    
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 0.8rem;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: 100px;
+      font-size: 0.8rem;
+      color: var(--accent-cyan);
+      margin-bottom: 1.5rem;
+    }
+    
+    .badge-dot {
+      width: 6px;
+      height: 6px;
+      background: var(--accent-cyan);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    .hero h1 {
+      font-size: 4rem;
+      font-weight: 700;
+      line-height: 1.1;
+      margin-bottom: 1.5rem;
+      letter-spacing: -0.02em;
+    }
+    
+    .hero h1 span {
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .hero-subtitle {
+      font-size: 1.25rem;
+      color: var(--text-secondary);
+      margin-bottom: 2rem;
+      max-width: 500px;
+    }
+    
+    .hero-cta {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 3rem;
+    }
+    
+    .hero-cta .btn {
+      padding: 0.875rem 1.5rem;
+      font-size: 1rem;
+    }
+    
+    .install-command {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 1rem 1.25rem;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: all 0.2s;
+      max-width: fit-content;
+    }
+    
+    .install-command:hover {
+      border-color: var(--accent-cyan);
+      background: var(--bg-tertiary);
+    }
+    
+    .install-command code {
+      color: var(--accent-cyan);
+    }
+    
+    .install-command .copy-hint {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    
+    .install-command:hover .copy-hint {
+      opacity: 1;
+    }
+    
+    /* Terminal */
+    .terminal {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: 
+        0 25px 50px -12px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(255, 255, 255, 0.05);
+    }
+    
+    .terminal-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.875rem 1rem;
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .terminal-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+    
+    .terminal-dot.red { background: #ff5f56; }
+    .terminal-dot.yellow { background: #ffbd2e; }
+    .terminal-dot.green { background: #27c93f; }
+    
+    .terminal-title {
+      margin-left: 0.5rem;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+    
+    .terminal-body {
+      padding: 1.5rem;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      line-height: 1.7;
+      min-height: 400px;
+    }
+    
+    .terminal-line {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 0.25rem;
+    }
+    
+    .terminal-prompt {
+      color: var(--accent-green);
+      flex-shrink: 0;
+    }
+    
+    .terminal-command {
+      color: var(--text-primary);
+    }
+    
+    .terminal-output {
+      color: var(--text-secondary);
+      margin: 0.5rem 0 1rem 1.5rem;
+    }
+    
+    .terminal-comment {
+      color: var(--text-muted);
+    }
+    
+    .cursor {
+      display: inline-block;
+      width: 8px;
+      height: 1.2em;
+      background: var(--accent-cyan);
+      animation: blink 1s infinite;
+      vertical-align: text-bottom;
+    }
+    
+    @keyframes blink {
+      0%, 50% { opacity: 1; }
+      51%, 100% { opacity: 0; }
+    }
+    
+    /* Features Grid */
+    .features {
+      padding: 6rem 2rem;
+      position: relative;
+    }
+    
+    .section-header {
+      text-align: center;
+      max-width: 600px;
+      margin: 0 auto 4rem;
+    }
+    
+    .section-label {
+      display: inline-block;
+      padding: 0.4rem 0.8rem;
+      background: rgba(0, 212, 255, 0.1);
+      border: 1px solid rgba(0, 212, 255, 0.2);
+      border-radius: 100px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--accent-cyan);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 1rem;
+    }
+    
+    .section-title {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+    }
+    
+    .section-subtitle {
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+    }
+    
+    .features-grid {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+    }
+    
+    .feature-card {
+      padding: 2rem;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      transition: all 0.3s;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    
+    .feature-card:hover {
+      border-color: rgba(0, 212, 255, 0.3);
+      transform: translateY(-4px);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    }
+    
+    .feature-card:hover::before {
+      opacity: 1;
+    }
+    
+    .feature-icon {
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      font-size: 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    
+    .feature-card h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+    
+    .feature-card p {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+    
+    /* Identity Section */
+    .identity-section {
+      padding: 6rem 2rem;
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border-color);
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .identity-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4rem;
+      align-items: center;
+    }
+    
+    .identity-visual {
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 2rem;
+    }
+    
+    .identity-example {
+      font-family: var(--font-mono);
+      font-size: 1.1rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .identity-part {
+      display: inline;
+    }
+    
+    .identity-part.project { color: var(--accent-cyan); }
+    .identity-part.separator { color: var(--text-muted); }
+    .identity-part.stack { color: var(--accent-purple); }
+    .identity-part.context { color: var(--accent-green); }
+    
+    .identity-labels {
+      display: flex;
+      gap: 2rem;
+      font-size: 0.85rem;
+    }
+    
+    .identity-label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--text-secondary);
+    }
+    
+    .identity-label span {
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+    }
+    
+    .identity-label.project span { background: var(--accent-cyan); }
+    .identity-label.stack span { background: var(--accent-purple); }
+    .identity-label.context span { background: var(--accent-green); }
+    
+    /* Orchestration Section */
+    .orchestration {
+      padding: 6rem 2rem;
+    }
+    
+    .orchestration-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .code-tabs {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    
+    .code-tabs-header {
+      display: flex;
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .code-tab {
+      padding: 0.875rem 1.5rem;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+    
+    .code-tab:hover {
+      color: var(--text-primary);
+      background: rgba(255,255,255,0.02);
+    }
+    
+    .code-tab.active {
+      color: var(--accent-cyan);
+      border-bottom-color: var(--accent-cyan);
+      background: rgba(0, 212, 255, 0.05);
+    }
+    
+    .code-tabs-body {
+      padding: 1.5rem;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      line-height: 1.8;
+    }
+    
+    .code-panel {
+      display: none;
+    }
+    
+    .code-panel.active {
+      display: block;
+    }
+    
+    .code-panel pre {
+      margin: 0;
+      overflow-x: auto;
+    }
+    
+    .syntax-keyword { color: var(--accent-purple); }
+    .syntax-string { color: var(--accent-green); }
+    .syntax-number { color: var(--accent-yellow); }
+    .syntax-comment { color: var(--text-muted); }
+    .syntax-key { color: var(--accent-cyan); }
+    
+    /* Frameworks Section */
+    .frameworks {
+      padding: 6rem 2rem;
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border-color);
+    }
+    
+    .frameworks-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .frameworks-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 1rem;
+      margin-top: 3rem;
+    }
+    
+    .framework-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 1.5rem 1rem;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      transition: all 0.2s;
+    }
+    
+    .framework-item:hover {
+      border-color: var(--accent-cyan);
+      transform: translateY(-2px);
+    }
+    
+    .framework-icon {
+      font-size: 1.5rem;
+    }
+    
+    .framework-name {
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+    
+    .frameworks-note {
+      text-align: center;
+      margin-top: 2rem;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+    
+    /* Agent Coordination Section */
+    .coordination {
+      padding: 6rem 2rem;
+    }
+    
+    .coordination-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4rem;
+      align-items: center;
+    }
+    
+    .coordination-features {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+    
+    .coordination-feature {
+      display: flex;
+      gap: 1rem;
+      padding: 1.25rem;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+    }
+    
+    .coordination-feature-icon {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-sm);
+      font-size: 1.25rem;
+      flex-shrink: 0;
+    }
+    
+    .coordination-feature-content h4 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+    
+    .coordination-feature-content p {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+    
+    /* Testimonials / Social Proof */
+    .social-proof {
+      padding: 4rem 2rem;
+      background: linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+      border-top: 1px solid var(--border-color);
+    }
+    
+    .stats-grid {
+      max-width: 1000px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 2rem;
+      text-align: center;
+    }
+    
+    .stat-item h3 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .stat-item p {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      margin-top: 0.25rem;
+    }
+    
+    /* CTA Section */
+    .cta {
+      padding: 6rem 2rem;
+      text-align: center;
+    }
+    
+    .cta-container {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    
+    .cta h2 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+    }
+    
+    .cta p {
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+      margin-bottom: 2rem;
+    }
+    
+    .cta-buttons {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+    }
+    
+    .cta-buttons .btn {
+      padding: 1rem 2rem;
+      font-size: 1rem;
+    }
+    
+    /* Footer */
+    footer {
+      padding: 4rem 2rem 2rem;
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border-color);
+    }
+    
+    .footer-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 2fr repeat(3, 1fr);
+      gap: 3rem;
+      margin-bottom: 3rem;
+    }
+    
+    .footer-brand p {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      margin-top: 1rem;
+      max-width: 300px;
+    }
+    
+    .footer-column h4 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: var(--text-primary);
+    }
+    
+    .footer-column ul {
+      list-style: none;
+    }
+    
+    .footer-column li {
+      margin-bottom: 0.5rem;
+    }
+    
+    .footer-column a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: color 0.2s;
+    }
+    
+    .footer-column a:hover {
+      color: var(--accent-cyan);
+    }
+    
+    .footer-bottom {
+      padding-top: 2rem;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+    
+    .footer-links {
+      display: flex;
+      gap: 1.5rem;
+    }
+    
+    .footer-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+    }
+    
+    .footer-links a:hover {
+      color: var(--text-secondary);
+    }
+    
+    /* Responsive */
+    @media (max-width: 1024px) {
+      .hero-container {
+        grid-template-columns: 1fr;
+        text-align: center;
+      }
+      
+      .hero h1 {
+        font-size: 3rem;
+      }
+      
+      .hero-subtitle {
+        margin-left: auto;
+        margin-right: auto;
+      }
+      
+      .hero-cta {
+        justify-content: center;
+      }
+      
+      .install-command {
+        margin: 0 auto;
+      }
+      
+      .features-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      
+      .identity-container,
+      .coordination-container {
+        grid-template-columns: 1fr;
+      }
+      
+      .frameworks-grid {
+        grid-template-columns: repeat(4, 1fr);
+      }
+      
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      
+      .footer-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    
+    @media (max-width: 640px) {
+      .nav-links {
+        display: none;
+      }
+      
+      .hero {
+        padding: 6rem 1.5rem 3rem;
+      }
+      
+      .hero h1 {
+        font-size: 2.25rem;
+      }
+      
+      .features-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .frameworks-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+      
+      .stats-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+      }
+      
+      .footer-grid {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+      }
+      
+      .footer-bottom {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+      }
+      
+      .cta-buttons {
+        flex-direction: column;
+      }
+    }
+    
+    /* Animations */
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .animate-in {
+      animation: fadeInUp 0.6s ease-out forwards;
+    }
+    
+    .delay-1 { animation-delay: 0.1s; }
+    .delay-2 { animation-delay: 0.2s; }
+    .delay-3 { animation-delay: 0.3s; }
+  </style>
+</head>
+<body>
+  <!-- Gradient Orbs -->
+  <div class="orb orb-cyan"></div>
+  <div class="orb orb-purple"></div>
+  
+  <!-- Navigation -->
+  <nav>
+    <div class="nav-container">
+      <a href="#" class="logo">
+        <span class="logo-icon">⚓</span>
+        <span>Port Daddy</span>
+      </a>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#orchestration">Orchestration</a>
+        <a href="#frameworks">Frameworks</a>
+        <a href="#docs">Docs</a>
+      </div>
+      <div class="nav-cta">
+        <a href="https://github.com/curiositech/port-daddy" class="btn btn-secondary" target="_blank">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+          GitHub
+        </a>
+        <a href="#install" class="btn btn-primary">Get Started</a>
+      </div>
+    </div>
+  </nav>
+  
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="hero-container">
+      <div class="hero-content">
+        <div class="badge">
+          <span class="badge-dot"></span>
+          v3.1.0 — Now with 60+ framework detection
+        </div>
+        <h1 class="animate-in">
+          The <span>Coordination Layer</span> for Multi-Agent Development
+        </h1>
+        <p class="hero-subtitle animate-in delay-1">
+          Stop fighting over ports. Port Daddy gives every service a semantic identity, 
+          orchestrates your entire stack with one command, and coordinates agents through 
+          pub/sub messaging and distributed locks.
+        </p>
+        <div class="hero-cta animate-in delay-2">
+          <a href="#install" class="btn btn-primary">
+            Install Port Daddy
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </a>
+          <a href="https://github.com/curiositech/port-daddy" class="btn btn-outline" target="_blank">
+            View on GitHub
+          </a>
+        </div>
+        <div class="install-command animate-in delay-3" onclick="copyInstall()">
+          <span>$</span>
+          <code>npm install -g port-daddy</code>
+          <span class="copy-hint">Click to copy</span>
+        </div>
+      </div>
+      
+      <div class="terminal animate-in delay-2">
+        <div class="terminal-header">
+          <div class="terminal-dot red"></div>
+          <div class="terminal-dot yellow"></div>
+          <div class="terminal-dot green"></div>
+          <span class="terminal-title">port-daddy up</span>
+        </div>
+        <div class="terminal-body" id="terminal-body">
+          <div class="terminal-line">
+            <span class="terminal-prompt">$</span>
+            <span class="terminal-command">port-daddy scan</span>
+          </div>
+          <div class="terminal-output">
+            <div>Scanning /home/dev/myproject...</div>
+            <div>Discovered 3 services:</div>
+            <div style="margin-top: 0.5rem; color: var(--accent-cyan);">  api</div>
+            <div style="color: var(--accent-purple);">  web</div>
+            <div style="color: var(--accent-green);">  worker</div>
+            <div style="margin-top: 0.5rem;">→ Saved .portdaddyrc</div>
+          </div>
+          
+          <div class="terminal-line">
+            <span class="terminal-prompt">$</span>
+            <span class="terminal-command">port-daddy up</span>
+          </div>
+          <div class="terminal-output">
+            <div style="color: var(--accent-cyan);">[api]</div>
+            <div style="color: var(--text-muted);">  Claimed port 3100</div>
+            <div style="color: var(--accent-green);">  ✓ Healthy</div>
+            <div style="margin-top: 0.5rem; color: var(--accent-purple);">[web]</div>
+            <div style="color: var(--text-muted);">  Claimed port 3101</div>
+            <div style="color: var(--accent-green);">  ✓ Healthy</div>
+            <div style="margin-top: 0.5rem; color: var(--accent-yellow);">[worker]</div>
+            <div style="color: var(--accent-green);">  ✓ Started</div>
+            <div style="margin-top: 1rem; color: var(--accent-green); font-weight: 600;">3 services running. Press Ctrl+C to stop.</div>
+          </div>
+          
+          <div class="terminal-line">
+            <span class="terminal-prompt">$</span>
+            <span class="terminal-command"><span class="cursor"></span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Features Section -->
+  <section class="features" id="features">
+    <div class="section-header">
+      <span class="section-label">Features</span>
+      <h2 class="section-title">Everything you need for local development</h2>
+      <p class="section-subtitle">From atomic port assignment to service orchestration, Port Daddy handles the complexity so you can focus on shipping.</p>
+    </div>
+    
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">⚡</div>
+        <h3>Atomic Port Assignment</h3>
+        <p>SQLite-backed ACID transactions ensure zero race conditions. Same project always gets the same port, even across restarts.</p>
+      </div>
+      
+      <div class="feature-card">
+        <div class="feature-icon">🏷️</div>
+        <h3>Semantic Identities</h3>
+        <p>Use <code>project:stack:context</code> naming like <code>myapp:api:feature-auth</code>. Query with wildcards: <code>myapp:*</code></p>
+      </div>
+      
+      <div class="feature-card">
+        <div class="feature-icon">🚀</div>
+        <h3>Service Orchestration</h3>
+        <p><code>port-daddy up</code> starts your entire stack. Topological ordering, health checks, colored logs—like docker-compose for local dev.</p>
+      </div>
+      
+      <div class="feature-card">
+        <div class="feature-icon">🔍</div>
+        <h3>Deep Auto-Detection</h3>
+        <p>Scans 5 levels deep to find 60+ frameworks. Handles monorepos, npm workspaces, pnpm, and nested services automatically.</p>
+      </div>
+      
+      <div class="feature-card">
+        <div class="feature-icon">📡</div>
+        <h3>Pub/Sub Messaging</h3>
+        <p>Agents signal each other when builds finish. Real-time SSE subscriptions for inter-service communication.</p>
+      </div>
+      
+      <div class="feature-card">
+        <div class="feature-icon">🔒</div>
+        <h3>Distributed Locks</h3>
+        <p>Prevent conflicting operations across agents. Take exclusive locks on databases, migrations, or any shared resource.</p>
+      </div>
+      
+      <div class="feature-card">
+        <div class="feature-icon">🤖</div>
+        <h3>AI Agent Native</h3>
+        <p>Works with Claude, Cursor, Windsurf, Cline, Aider, and 40+ agents. Published skill for automatic coordination.</p>
+      </div>
+      
+      <div class="feature-card">
+        <div class="feature-icon">📊</div>
+        <h3>Web Dashboard</h3>
+        <p>Monitor services, locks, agents, and activity in real-time. Dark-themed UI at <code>localhost:9876</code>.</p>
+      </div>
+      
+      <div class="feature-card">
+        <div class="feature-icon">🔄</div>
+        <h3>Auto-Cleanup</h3>
+        <p>Tracks PIDs and automatically frees ports from crashed processes. No more forgotten assignments.</p>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Identity Section -->
+  <section class="identity-section">
+    <div class="identity-container">
+      <div>
+        <span class="section-label">Semantic Identity</span>
+        <h2 class="section-title" style="text-align: left; margin-top: 1rem;">Named services, not magic numbers</h2>
+        <p class="section-subtitle" style="text-align: left;">
+          Port Daddy uses a <code>project:stack:context</code> naming scheme that makes your services discoverable and queryable. 
+          No more remembering that the API is on port 3001.
+        </p>
+        <ul style="margin-top: 1.5rem; color: var(--text-secondary); list-style: none;">
+          <li style="margin-bottom: 0.75rem; display: flex; gap: 0.5rem;">
+            <span style="color: var(--accent-green);">✓</span>
+            <code>myapp:api:main</code> — the main API
+          </li>
+          <li style="margin-bottom: 0.75rem; display: flex; gap: 0.5rem;">
+            <span style="color: var(--accent-green);">✓</span>
+            <code>myapp:frontend:feature-auth</code> — branch-specific frontend
+          </li>
+          <li style="margin-bottom: 0.75rem; display: flex; gap: 0.5rem;">
+            <span style="color: var(--accent-green);">✓</span>
+            <code>myapp:*:feature-auth</code> — wildcard to find all services on a branch
+          </li>
+        </ul>
+      </div>
+      
+      <div class="identity-visual">
+        <div class="identity-example">
+          <span class="identity-part project">windags</span><span class="identity-part separator">:</span><span class="identity-part stack">api</span><span class="identity-part separator">:</span><span class="identity-part context">feature-auth</span>
+        </div>
+        <div class="identity-labels">
+          <div class="identity-label project"><span></span>project</div>
+          <div class="identity-label stack"><span></span>stack</div>
+          <div class="identity-label context"><span></span>context</div>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Orchestration Section -->
+  <section class="orchestration" id="orchestration">
+    <div class="orchestration-container">
+      <div class="section-header">
+        <span class="section-label">Orchestration</span>
+        <h2 class="section-title">One command to rule them all</h2>
+        <p class="section-subtitle">
+          Define your services in <code>.portdaddyrc</code> and run <code>port-daddy up</code>. 
+          Dependencies are resolved via topological sort, health checks ensure readiness, 
+          and logs are multiplexed with color-coded prefixes.
+        </p>
+      </div>
+      
+      <div class="code-tabs">
+        <div class="code-tabs-header">
+          <div class="code-tab active" onclick="switchTab('config')">.portdaddyrc</div>
+          <div class="code-tab" onclick="switchTab('cli')">CLI Usage</div>
+          <div class="code-tab" onclick="switchTab('sdk')">JavaScript SDK</div>
+        </div>
+        <div class="code-tabs-body">
+          <div class="code-panel active" id="panel-config">
+            <pre><span class="syntax-key">{</span>
+  <span class="syntax-key">"project"</span><span class="syntax-keyword">:</span> <span class="syntax-string">"myapp"</span><span class="syntax-keyword">,</span>
+  <span class="syntax-key">"services"</span><span class="syntax-keyword">: {</span>
+    <span class="syntax-key">"api"</span><span class="syntax-keyword">: {</span>
+      <span class="syntax-key">"cmd"</span><span class="syntax-keyword">:</span> <span class="syntax-string">"npm run dev:api"</span><span class="syntax-keyword">,</span>
+      <span class="syntax-key">"port"</span><span class="syntax-keyword">:</span> <span class="syntax-number">3001</span><span class="syntax-keyword">,</span>
+      <span class="syntax-key">"healthPath"</span><span class="syntax-keyword">:</span> <span class="syntax-string">"/health"</span>
+    <span class="syntax-keyword">},</span>
+    <span class="syntax-key">"frontend"</span><span class="syntax-keyword">: {</span>
+      <span class="syntax-key">"cmd"</span><span class="syntax-keyword">:</span> <span class="syntax-string">"npm run dev -- --port ${PORT}"</span><span class="syntax-keyword">,</span>
+      <span class="syntax-key">"port"</span><span class="syntax-keyword">:</span> <span class="syntax-number">3000</span><span class="syntax-keyword">,</span>
+      <span class="syntax-key">"needs"</span><span class="syntax-keyword">:</span> <span class="syntax-key">[</span><span class="syntax-string">"api"</span><span class="syntax-key">]</span>
+    <span class="syntax-keyword">},</span>
+    <span class="syntax-key">"worker"</span><span class="syntax-keyword">: {</span>
+      <span class="syntax-key">"cmd"</span><span class="syntax-keyword">:</span> <span class="syntax-string">"npm run worker"</span><span class="syntax-keyword">,</span>
+      <span class="syntax-key">"needs"</span><span class="syntax-keyword">:</span> <span class="syntax-key">[</span><span class="syntax-string">"api"</span><span class="syntax-key">],</span>
+      <span class="syntax-key">"noPort"</span><span class="syntax-keyword">:</span> <span class="syntax-keyword">true</span>
+    <span class="syntax-keyword">}</span>
+  <span class="syntax-keyword">}</span>
+<span class="syntax-key">}</span></pre>
+          </div>
+          <div class="code-panel" id="panel-cli">
+            <pre><span class="syntax-comment"># Start everything with auto-detected config</span>
+$ <span class="syntax-keyword">port-daddy</span> up
+
+<span class="syntax-comment"># Start one service and its dependencies</span>
+$ <span class="syntax-keyword">port-daddy</span> up --service frontend
+
+<span class="syntax-comment"># Use git branch in identity</span>
+$ <span class="syntax-keyword">port-daddy</span> up --branch
+
+<span class="syntax-comment"># Graceful shutdown</span>
+$ <span class="syntax-keyword">port-daddy</span> down
+
+<span class="syntax-comment"># Publish/subscribe between agents</span>
+$ <span class="syntax-keyword">port-daddy</span> pub build:api <span class="syntax-string">'{"status":"ready"}'</span>
+$ <span class="syntax-keyword">port-daddy</span> sub build:*
+
+<span class="syntax-comment"># Distributed locks</span>
+$ <span class="syntax-keyword">port-daddy</span> lock db-migrations && npm run migrate
+$ <span class="syntax-keyword">port-daddy</span> unlock db-migrations</pre>
+          </div>
+          <div class="code-panel" id="panel-sdk">
+            <pre><span class="syntax-keyword">import</span> { PortDaddy } <span class="syntax-keyword">from</span> <span class="syntax-string">'port-daddy/client'</span><span class="syntax-keyword">;</span>
+
+<span class="syntax-keyword">const</span> pd = <span class="syntax-keyword">new</span> <span class="syntax-keyword">PortDaddy</span>();
+
+<span class="syntax-comment">// Claim a port</span>
+<span class="syntax-keyword">const</span> { port } = <span class="syntax-keyword">await</span> pd.<span class="syntax-keyword">claim</span>(<span class="syntax-string">'myapp:api'</span>);
+
+<span class="syntax-comment">// Pub/sub messaging</span>
+<span class="syntax-keyword">await</span> pd.<span class="syntax-keyword">publish</span>(<span class="syntax-string">'builds'</span>, { status: <span class="syntax-string">'complete'</span> });
+<span class="syntax-keyword">const</span> sub = pd.<span class="syntax-keyword">subscribe</span>(<span class="syntax-string">'deployments'</span>);
+sub.<span class="syntax-keyword">on</span>(<span class="syntax-string">'message'</span>, (data) => <span class="syntax-keyword">console</span>.<span class="syntax-keyword">log</span>(data));
+
+<span class="syntax-comment">// Distributed locks</span>
+<span class="syntax-keyword">await</span> pd.<span class="syntax-keyword">withLock</span>(<span class="syntax-string">'deploy-prod'</span>, <span class="syntax-keyword">async</span> () => {
+  <span class="syntax-keyword">await</span> <span class="syntax-keyword">deployToProduction</span>();
+});</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Frameworks Section -->
+  <section class="frameworks" id="frameworks">
+    <div class="frameworks-container">
+      <div class="section-header">
+        <span class="section-label">Framework Detection</span>
+        <h2 class="section-title">Works with everything you build</h2>
+        <p class="section-subtitle">
+          Deep recursive scanning detects 60+ frameworks across Node.js, Python, Ruby, PHP, Java, Go, Rust, and more.
+        </p>
+      </div>
+      
+      <div class="frameworks-grid">
+        <div class="framework-item"><div class="framework-icon">▲</div><div class="framework-name">Next.js</div></div>
+        <div class="framework-item"><div class="framework-icon">⚡</div><div class="framework-name">Vite</div></div>
+        <div class="framework-item"><div class="framework-icon">🟢</div><div class="framework-name">Nuxt</div></div>
+        <div class="framework-item"><div class="framework-icon">🟠</div><div class="framework-name">SvelteKit</div></div>
+        <div class="framework-item"><div class="framework-icon">🚀</div><div class="framework-name">Astro</div></div>
+        <div class="framework-item"><div class="framework-icon">🔺</div><div class="framework-name">Remix</div></div>
+        <div class="framework-item"><div class="framework-icon">🅰️</div><div class="framework-name">Angular</div></div>
+        <div class="framework-item"><div class="framework-icon">🟩</div><div class="framework-name">Vue</div></div>
+        <div class="framework-item"><div class="framework-icon">⚫</div><div class="framework-name">Express</div></div>
+        <div class="framework-item"><div class="framework-icon">🔷</div><div class="framework-name">Fastify</div></div>
+        <div class="framework-item"><div class="framework-icon">🐍</div><div class="framework-name">FastAPI</div></div>
+        <div class="framework-item"><div class="framework-icon">🌶️</div><div class="framework-name">Flask</div></div>
+        <div class="framework-item"><div class="framework-icon">🎯</div><div class="framework-name">Django</div></div>
+        <div class="framework-item"><div class="framework-icon">💎</div><div class="framework-name">Rails</div></div>
+        <div class="framework-item"><div class="framework-icon">🌸</div><div class="framework-name">Laravel</div></div>
+        <div class="framework-item"><div class="framework-icon">☕</div><div class="framework-name">Spring Boot</div></div>
+        <div class="framework-item"><div class="framework-icon">🔥</div><div class="framework-name">Phoenix</div></div>
+        <div class="framework-item"><div class="framework-icon">☁️</div><div class="framework-name">Workers</div></div>
+      </div>
+      
+      <p class="frameworks-note">And 40+ more including Go, Rust, Deno, Bun, NestJS, Hono, Elysia, Strapi...</p>
+    </div>
+  </section>
+  
+  <!-- Agent Coordination Section -->
+  <section class="coordination">
+    <div class="coordination-container">
+      <div class="coordination-features">
+        <div class="coordination-feature">
+          <div class="coordination-feature-icon">📡</div>
+          <div class="coordination-feature-content">
+            <h4>Pub/Sub Messaging</h4>
+            <p>Agents publish events and subscribe to channels. Real-time SSE subscriptions for instant coordination.</p>
+          </div>
+        </div>
+        <div class="coordination-feature">
+          <div class="coordination-feature-icon">🔐</div>
+          <div class="coordination-feature-content">
+            <h4>Distributed Locks</h4>
+            <p>Atomic lock/unlock with TTL. Prevent conflicting database migrations or deployments across agents.</p>
+          </div>
+        </div>
+        <div class="coordination-feature">
+          <div class="coordination-feature-icon">👤</div>
+          <div class="coordination-feature-content">
+            <h4>Agent Registry</h4>
+            <p>Register agents with heartbeats. Auto-cleanup when agents crash or go stale.</p>
+          </div>
+        </div>
+        <div class="coordination-feature">
+          <div class="coordination-feature-icon">🪝</div>
+          <div class="coordination-feature-content">
+            <h4>Webhooks</h4>
+            <p>Subscribe to events with HMAC-signed payloads. Integrate with external systems.</p>
+          </div>
+        </div>
+      </div>
+      
+      <div>
+        <span class="section-label">Agent Coordination</span>
+        <h2 class="section-title" style="text-align: left; margin-top: 1rem;">Your AI agents, coordinated</h2>
+        <p class="section-subtitle" style="text-align: left;">
+          Running Claude + Cursor + Aider simultaneously? Port Daddy provides the coordination primitives 
+          that let agents work together instead of stepping on each other's ports.
+        </p>
+        <div style="margin-top: 2rem;">
+          <div class="terminal">
+            <div class="terminal-header">
+              <div class="terminal-dot red"></div>
+              <div class="terminal-dot yellow"></div>
+              <div class="terminal-dot green"></div>
+              <span class="terminal-title">multi-agent coordination</span>
+            </div>
+            <div class="terminal-body">
+              <div class="terminal-line">
+                <span class="terminal-comment"># Agent A finishes the API</span>
+              </div>
+              <div class="terminal-line">
+                <span class="terminal-prompt">agent-a $</span>
+                <span class="terminal-command">port-daddy pub build:api '{"status":"ready","port":3100}'</span>
+              </div>
+              <div class="terminal-output" style="color: var(--accent-green);">published to build:api</div>
+              
+              <div class="terminal-line" style="margin-top: 1rem;">
+                <span class="terminal-comment"># Agent B subscribes and waits</span>
+              </div>
+              <div class="terminal-line">
+                <span class="terminal-prompt">agent-b $</span>
+                <span class="terminal-command">port-daddy sub build:*</span>
+              </div>
+              <div class="terminal-output">
+                <div>[2025-01-15T10:30:00Z] build:api {"status":"ready","port":3100}</div>
+                <div style="color: var(--accent-green);">Now starting integration tests...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Social Proof -->
+  <section class="social-proof">
+    <div class="stats-grid">
+      <div class="stat-item">
+        <h3>60+</h3>
+        <p>Frameworks detected</p>
+      </div>
+      <div class="stat-item">
+        <h3>40+</h3>
+        <p>AI agents supported</p>
+      </div>
+      <div class="stat-item">
+        <h3>&lt;10ms</h3>
+        <p>Port assignment latency</p>
+      </div>
+      <div class="stat-item">
+        <h3>0</h3>
+        <p>Race conditions, ever</p>
+      </div>
+    </div>
+  </section>
+  
+  <!-- CTA Section -->
+  <section class="cta" id="install">
+    <div class="cta-container">
+      <h2>Ready to stop fighting over ports?</h2>
+      <p>Install Port Daddy in seconds and never think about port conflicts again.</p>
+      <div class="cta-buttons">
+        <a href="https://www.npmjs.com/package/port-daddy" class="btn btn-primary" target="_blank">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M0 7.5v9h6.75v1.5H12V16.5h12V7.5H0zm6.75 7.5H4.5V9h2.25v6zm4.5 0H9V9h2.25v6zm4.5 0h-2.25V9H15.75v6zm4.5 0H18V9h2.25v6z"/></svg>
+          npm install -g port-daddy
+        </a>
+        <a href="https://github.com/curiositech/port-daddy" class="btn btn-outline" target="_blank">
+          View Documentation
+        </a>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Footer -->
+  <footer>
+    <div class="footer-container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a href="#" class="logo">
+            <span class="logo-icon">⚓</span>
+            <span>Port Daddy</span>
+          </a>
+          <p>The coordination layer for multi-agent development. Atomic port assignment, service orchestration, and agent coordination.</p>
+        </div>
+        
+        <div class="footer-column">
+          <h4>Product</h4>
+          <ul>
+            <li><a href="#features">Features</a></li>
+            <li><a href="#orchestration">Orchestration</a></li>
+            <li><a href="#frameworks">Frameworks</a></li>
+            <li><a href="https://www.npmjs.com/package/port-daddy" target="_blank">npm Package</a></li>
+          </ul>
+        </div>
+        
+        <div class="footer-column">
+          <h4>Resources</h4>
+          <ul>
+            <li><a href="https://github.com/curiositech/port-daddy" target="_blank">GitHub</a></li>
+            <li><a href="https://github.com/curiositech/port-daddy#readme" target="_blank">Documentation</a></li>
+            <li><a href="https://github.com/curiositech/port-daddy/issues" target="_blank">Issues</a></li>
+            <li><a href="https://github.com/curiositech/port-daddy/blob/main/CHANGELOG.md" target="_blank">Changelog</a></li>
+          </ul>
+        </div>
+        
+        <div class="footer-column">
+          <h4>Connect</h4>
+          <ul>
+            <li><a href="https://github.com/curiositech" target="_blank">@curiositech</a></li>
+            <li><a href="https://curiositech.ai" target="_blank">Curiositech</a></li>
+          </ul>
+        </div>
+      </div>
+      
+      <div class="footer-bottom">
+        <p>&copy; 2025 Curiositech LLC. Released under the MIT License.</p>
+        <div class="footer-links">
+          <a href="https://github.com/curiositech/port-daddy/blob/main/LICENSE" target="_blank">License</a>
+          <a href="#">Privacy</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+  
+  <script>
+    // Copy install command
+    function copyInstall() {
+      navigator.clipboard.writeText('npm install -g port-daddy');
+      const hint = document.querySelector('.copy-hint');
+      hint.textContent = 'Copied!';
+      setTimeout(() => hint.textContent = 'Click to copy', 2000);
+    }
+    
+    // Tab switching
+    function switchTab(tab) {
+      document.querySelectorAll('.code-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.code-panel').forEach(p => p.classList.remove('active'));
+      
+      event.target.classList.add('active');
+      document.getElementById('panel-' + tab).classList.add('active');
+    }
+    
+    // Smooth scroll for nav links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function (e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
+    
+    // Intersection Observer for animations
+    const observerOptions = {
+      threshold: 0.1,
+      rootMargin: '0px 0px -50px 0px'
+    };
+    
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.style.opacity = '1';
+          entry.target.style.transform = 'translateY(0)';
+        }
+      });
+    }, observerOptions);
+    
+    document.querySelectorAll('.feature-card, .coordination-feature, .framework-item').forEach(el => {
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(20px)';
+      el.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+      observer.observe(el);
+    });
+  </script>
+</body>
+</html>

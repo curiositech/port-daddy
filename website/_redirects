@@ -1,0 +1,4 @@
+# Cloudflare Pages redirects
+# Single-page application - all routes serve index.html
+
+/* /index.html 200
