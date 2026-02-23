@@ -33,6 +33,7 @@ import { createServices } from '../lib/services.js';
 import { createLocks } from '../lib/locks.js';
 import { createSessions } from '../lib/sessions.js';
 import { createActivityLog } from '../lib/activity.js';
+import { status as maritimeStatus, highlightChannel, flag } from '../lib/maritime.js';
 
 const __dirname: string = dirname(fileURLToPath(import.meta.url));
 const PORT_DADDY_URL: string = process.env.PORT_DADDY_URL || 'http://localhost:9876';
@@ -607,7 +608,7 @@ async function executeDirectMode(
       const result = svc.claim(id, claimOpts as Parameters<typeof svc.claim>[1]);
 
       if (!result.success) {
-        console.error(result.error || 'Failed to claim port');
+        console.error(maritimeStatus('error', result.error || 'Failed to claim port'));
         process.exit(1);
       }
 
@@ -615,7 +616,7 @@ async function executeDirectMode(
       if (!result.existing) {
         const portFree = await isPortAvailable(result.port as number);
         if (!portFree && IS_TTY) {
-          console.error(`  Warning: port ${result.port} is assigned but appears in use by another process`);
+          console.error(maritimeStatus('warning', `port ${result.port} is assigned but appears in use by another process`));
         }
       }
 
@@ -627,7 +628,7 @@ async function executeDirectMode(
         console.log(result.port);
       } else {
         if (IS_TTY) {
-          console.error(`${result.id} \u2192 port ${result.port}`);
+          console.error(maritimeStatus('success', `${highlightChannel(result.id as string)} → port ${result.port}`));
           if (result.existing) console.error('  (reused existing)');
         }
         console.log(result.port);
@@ -646,7 +647,7 @@ async function executeDirectMode(
         } else if (options.quiet) {
           console.log(result.released);
         } else {
-          console.log(result.message);
+          console.log(maritimeStatus('success', result.message as string));
         }
         return true;
       }
@@ -660,7 +661,7 @@ async function executeDirectMode(
 
       const result = svc.release(id);
       if (!result.success) {
-        console.error(result.error || 'Failed to release');
+        console.error(maritimeStatus('error', result.error || 'Failed to release'));
         process.exit(1);
       }
 
@@ -669,7 +670,7 @@ async function executeDirectMode(
       } else if (options.quiet) {
         console.log(result.released);
       } else {
-        console.log(result.message);
+        console.log(maritimeStatus('success', result.message as string));
       }
       return true;
     }
@@ -788,7 +789,7 @@ async function executeDirectMode(
       } else if (options.quiet) {
         // Silent success for scripting
       } else {
-        console.log(`Acquired lock: ${name}`);
+        console.log(maritimeStatus('success', `Acquired lock: ${name}`));
         if (result.expiresAt) {
           const ttlSeconds = Math.ceil(((result.expiresAt as number) - (result.acquiredAt as number)) / 1000);
           console.log(`  TTL: ${ttlSeconds}s`);
@@ -811,7 +812,7 @@ async function executeDirectMode(
       });
 
       if (!result.success) {
-        console.error(result.error || 'Failed to release lock');
+        console.error(maritimeStatus('error', result.error || 'Failed to release lock'));
         process.exit(1);
       }
 
@@ -819,9 +820,9 @@ async function executeDirectMode(
         console.log(JSON.stringify(result, null, 2));
       } else if (!options.quiet) {
         if (result.released) {
-          console.log(`Released lock: ${name}`);
+          console.log(maritimeStatus('success', `Released lock: ${name}`));
         } else {
-          console.log(`Lock '${name}' was not held`);
+          console.log(maritimeStatus('warning', `Lock '${name}' was not held`));
         }
       }
       return true;
@@ -960,7 +961,7 @@ async function executeDirectMode(
           if (options.quiet) {
             console.log(sessionId);
           } else {
-            console.log(`Started session: ${sessionId}`);
+            console.log(maritimeStatus('success', `Started session: ${sessionId}`));
             console.log(`  Purpose: ${purpose}`);
             if (files.length > 0) console.log(`  Files claimed: ${files.length}`);
           }
@@ -976,7 +977,7 @@ async function executeDirectMode(
           const listResult = sess.list({ status: 'active', limit: 1 });
           const sessionsList = (listResult as Record<string, unknown>).sessions as Array<{ id: string }>;
           if (!sessionsList || sessionsList.length === 0) {
-            console.error('No active session found');
+            console.error(maritimeStatus('error', 'No active session found'));
             process.exit(1);
           }
 
@@ -987,12 +988,12 @@ async function executeDirectMode(
           const result = sess.end(sessionId, endOpts as Parameters<typeof sess.end>[1]);
 
           if (!result.success) {
-            console.error(result.error || 'Failed to end session');
+            console.error(maritimeStatus('error', result.error || 'Failed to end session'));
             process.exit(1);
           }
 
           if (!options.quiet) {
-            console.log(`Ended session: ${sessionId}`);
+            console.log(maritimeStatus('success', `Ended session: ${sessionId}`));
             console.log(`  Status: ${status}`);
           }
           break;
@@ -1004,7 +1005,7 @@ async function executeDirectMode(
           const listResult = sess.list({ status: 'active', limit: 1 });
           const sessionsList = (listResult as Record<string, unknown>).sessions as Array<{ id: string }>;
           if (!sessionsList || sessionsList.length === 0) {
-            console.error('No active session found');
+            console.error(maritimeStatus('error', 'No active session found'));
             process.exit(1);
           }
 
@@ -1012,12 +1013,12 @@ async function executeDirectMode(
           const result = sess.abandon(sessionId);
 
           if (!result.success) {
-            console.error(result.error || 'Failed to abandon session');
+            console.error(maritimeStatus('error', result.error || 'Failed to abandon session'));
             process.exit(1);
           }
 
           if (!options.quiet) {
-            console.log(`Abandoned session: ${sessionId}`);
+            console.log(maritimeStatus('warning', `Abandoned session: ${sessionId}`));
           }
           break;
         }
@@ -1867,7 +1868,7 @@ async function handlePub(channel: string | undefined, message: string | undefine
   if (options.json) {
     console.log(JSON.stringify(data, null, 2));
   } else if (!options.quiet) {
-    console.log(`Published to ${channel} (id: ${data.id})`);
+    console.log(maritimeStatus('success', `Published to ${highlightChannel(channel)} (id: ${data.id})`));
   }
 }
 
@@ -1877,7 +1878,7 @@ async function handleSub(channel: string | undefined, options: CLIOptions): Prom
     process.exit(1);
   }
 
-  console.error(`Subscribing to ${channel}... (Ctrl+C to exit)`);
+  console.error(maritimeStatus('ready', `Subscribing to ${highlightChannel(channel)}... (Ctrl+C to exit)`));
 
   // SSE requires raw streaming — can't use pdFetch which buffers the full response
   const target: ConnectionTarget = resolveTarget();
@@ -2080,7 +2081,7 @@ async function handleLock(name: string | undefined, options: CLIOptions): Promis
   } else if (options.quiet) {
     // Silent success for scripting: port-daddy lock foo && do_stuff
   } else {
-    console.log(`Acquired lock: ${name}`);
+    console.log(maritimeStatus('success', `Acquired lock: ${name}`));
     if (data.expiresAt) {
       const ttlSeconds: number = Math.ceil(((data.expiresAt as number) - (data.acquiredAt as number)) / 1000);
       console.log(`  TTL: ${ttlSeconds}s`);
@@ -2108,7 +2109,7 @@ async function handleUnlock(name: string | undefined, options: CLIOptions): Prom
   const data = await res.json();
 
   if (!res.ok) {
-    console.error((data.error as string) || 'Failed to release lock');
+    console.error(maritimeStatus('error', (data.error as string) || 'Failed to release lock'));
     process.exit(1);
   }
 
@@ -2116,9 +2117,9 @@ async function handleUnlock(name: string | undefined, options: CLIOptions): Prom
     console.log(JSON.stringify(data, null, 2));
   } else if (!options.quiet) {
     if (data.released) {
-      console.log(`Released lock: ${name}`);
+      console.log(maritimeStatus('success', `Released lock: ${name}`));
     } else {
-      console.log(`Lock '${name}' was not held`);
+      console.log(maritimeStatus('warning', `Lock '${name}' was not held`));
     }
   }
 }
@@ -3093,7 +3094,7 @@ async function handleSession(subcommand: string | undefined, rest: string[], opt
       const data = await res.json();
 
       if (!res.ok) {
-        console.error((data.error as string) || 'Failed to start session');
+        console.error(maritimeStatus('error', (data.error as string) || 'Failed to start session'));
         if (data.conflicts) {
           const conflicts = data.conflicts as Array<{ file: string; sessionId: string; purpose: string }>;
           console.error('');
@@ -3108,7 +3109,7 @@ async function handleSession(subcommand: string | undefined, rest: string[], opt
       if (options.quiet) {
         console.log(data.sessionId);
       } else {
-        console.log(`Started session: ${data.sessionId}`);
+        console.log(maritimeStatus('success', `Started session: ${data.sessionId}`));
         console.log(`  Purpose: ${purpose}`);
         if (files.length > 0) {
           console.log(`  Files claimed: ${files.length}`);
@@ -3127,7 +3128,7 @@ async function handleSession(subcommand: string | undefined, rest: string[], opt
       const listData = await listRes.json();
 
       if (!listRes.ok || (listData.count as number) === 0) {
-        console.error('No active session found');
+        console.error(maritimeStatus('error', 'No active session found'));
         process.exit(1);
       }
 
@@ -3146,12 +3147,12 @@ async function handleSession(subcommand: string | undefined, rest: string[], opt
       const data = await res.json();
 
       if (!res.ok) {
-        console.error((data.error as string) || 'Failed to end session');
+        console.error(maritimeStatus('error', (data.error as string) || 'Failed to end session'));
         process.exit(1);
       }
 
       if (!options.quiet) {
-        console.log(`Ended session: ${sessionId}`);
+        console.log(maritimeStatus('success', `Ended session: ${sessionId}`));
         console.log(`  Status: ${status}`);
         if (data.filesReleased) {
           console.log(`  Files released: ${data.filesReleased}`);
@@ -3168,7 +3169,7 @@ async function handleSession(subcommand: string | undefined, rest: string[], opt
       const listData = await listRes.json();
 
       if (!listRes.ok || (listData.count as number) === 0) {
-        console.error('No active session found');
+        console.error(maritimeStatus('error', 'No active session found'));
         process.exit(1);
       }
 
@@ -3187,12 +3188,12 @@ async function handleSession(subcommand: string | undefined, rest: string[], opt
       const data = await res.json();
 
       if (!res.ok) {
-        console.error((data.error as string) || 'Failed to abandon session');
+        console.error(maritimeStatus('error', (data.error as string) || 'Failed to abandon session'));
         process.exit(1);
       }
 
       if (!options.quiet) {
-        console.log(`Abandoned session: ${sessionId}`);
+        console.log(maritimeStatus('warning', `Abandoned session: ${sessionId}`));
         if (data.filesReleased) {
           console.log(`  Files released: ${data.filesReleased}`);
         }
@@ -3214,12 +3215,12 @@ async function handleSession(subcommand: string | undefined, rest: string[], opt
       const data = await res.json();
 
       if (!res.ok) {
-        console.error((data.error as string) || 'Failed to delete session');
+        console.error(maritimeStatus('error', (data.error as string) || 'Failed to delete session'));
         process.exit(1);
       }
 
       if (!options.quiet) {
-        console.log(`Deleted session: ${sessionId}`);
+        console.log(maritimeStatus('success', `Deleted session: ${sessionId}`));
       }
       break;
     }
@@ -3242,7 +3243,7 @@ async function handleSession(subcommand: string | undefined, rest: string[], opt
       const listData = await listRes.json();
 
       if (!listRes.ok || (listData.count as number) === 0) {
-        console.error('No active session found');
+        console.error(maritimeStatus('error', 'No active session found'));
         process.exit(1);
       }
 
@@ -3529,7 +3530,7 @@ async function handleChannels(subcommand: string | undefined, args: string[], op
     if (options.json) {
       console.log(JSON.stringify(data, null, 2));
     } else if (!options.quiet) {
-      console.log(`Cleared channel: ${channel}`);
+      console.log(maritimeStatus('success', `Cleared channel: ${highlightChannel(channel)}`));
     }
     return;
   }
@@ -3539,7 +3540,7 @@ async function handleChannels(subcommand: string | undefined, args: string[], op
   const data = await res.json();
 
   if (!res.ok) {
-    console.error((data.error as string) || 'Failed to list channels');
+    console.error(maritimeStatus('error', (data.error as string) || 'Failed to list channels'));
     process.exit(1);
   }
 
@@ -3550,17 +3551,20 @@ async function handleChannels(subcommand: string | undefined, args: string[], op
 
   const channels = data.channels as Array<{ name: string; messageCount: number; subscriberCount: number }>;
   if (!channels || channels.length === 0) {
-    console.log('No active channels');
+    console.log(maritimeStatus('ready', 'No active channels'));
     return;
   }
 
   console.log('');
-  console.log(tableHeader(['CHANNEL', 30], ['MESSAGES', 12], ['SUBSCRIBERS', 12]));
-  separator(54);
+  console.log(tableHeader(['CHANNEL', 40], ['MESSAGES', 12], ['SUBSCRIBERS', 12]));
+  separator(64);
 
   for (const ch of channels) {
+    // Use highlighted channel name with padding calculation based on raw name length
+    const highlighted = highlightChannel(ch.name || '-');
+    const padding = 40 - (ch.name || '-').length;
     console.log(
-      (ch.name || '-').padEnd(30) +
+      highlighted + ' '.repeat(Math.max(0, padding)) +
       String(ch.messageCount ?? 0).padEnd(12) +
       String(ch.subscriberCount ?? 0).padEnd(12)
     );
