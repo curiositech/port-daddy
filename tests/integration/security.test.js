@@ -112,7 +112,7 @@ function createSecureTestServer() {
 
   // Rate limiting keyed by project/PID
   const limiter = rateLimit({
-    windowMs: 1000, // 1 second for testing
+    windowMs: 60000, // 60 seconds — long enough that the window never expires during test
     max: 10,
     standardHeaders: true,
     legacyHeaders: false,
@@ -519,21 +519,20 @@ describe('Security Validation', () => {
 
   describe('Rate Limiting', () => {
     it('should rate limit rapid requests from same project', async () => {
-      const promises = [];
-
-      // Send 15 rapid requests (limit is 10)
+      // Send requests sequentially with the SAME project name so they
+      // all hit the same rate-limit key (keyed by project name)
+      const results = [];
       for (let i = 0; i < 15; i++) {
-        promises.push(
-          request(app)
+        results.push(
+          await request(app)
             .post('/ports/request')
             .send({ project: 'rate-limit-test' })
         );
       }
 
-      const results = await Promise.all(promises);
       const rateLimited = results.filter(r => r.status === 429);
 
-      // At least some should be rate limited
+      // At least some should be rate limited (limit is 10 per window)
       expect(rateLimited.length).toBeGreaterThan(0);
     });
 
