@@ -74,6 +74,18 @@ function tableHeader(...cols: [string, number][]): string {
   return cols.map(([label, width]) => label.padEnd(width)).join('');
 }
 
+/** Format relative time from milliseconds (for sessions/notes) */
+function relativeTime(ms: number): string {
+  const seconds = Math.floor(ms / 1000);
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  return `${days}d`;
+}
+
 // =============================================================================
 // Connection & Fetch
 // =============================================================================
@@ -304,6 +316,17 @@ Activity Log:
   log summary       View activity summary by type
   log stats         View activity log statistics
 
+Sessions & Notes:
+  session start     Start a new session with purpose and files
+  session end       End active session (completed)
+  session done      Alias for "session end"
+  session abandon   End active session (abandoned)
+  session rm <id>   Delete a session
+  session files     Manage files in active session (add/rm)
+  sessions          List sessions (default: active only)
+  note <content>    Quick note (auto-creates session if needed)
+  notes [id]        View notes for session or recent across all
+
 Project Setup:
   scan [dir]        Deep scan project, detect all services (alias: s)
   projects          List all registered projects (alias: p)
@@ -412,6 +435,7 @@ const ALL_COMMANDS: string[] = [
   'pub', 'publish', 'sub', 'subscribe', 'wait', 'lock', 'unlock', 'locks',
   'up', 'down', 'scan', 's', 'projects', 'p',
   'agent', 'agents', 'log', 'activity',
+  'session', 'sessions', 'note', 'notes',
   'dashboard', 'channels', 'webhook', 'webhooks', 'metrics', 'config', 'health', 'ports',
   'start', 'stop', 'restart', 'status', 'install', 'uninstall', 'dev', 'ci-gate',
   'doctor', 'diagnose', 'version', 'help'
@@ -630,6 +654,23 @@ async function main(): Promise<void> {
       case 'log':
       case 'activity':
         await handleLog(positional[0], options);
+        break;
+
+      // Sessions & Notes
+      case 'session':
+        await handleSession(positional[0], positional.slice(1), options);
+        break;
+
+      case 'sessions':
+        await handleSessions(options);
+        break;
+
+      case 'note':
+        await handleNote(positional[0], options);
+        break;
+
+      case 'notes':
+        await handleNotes(positional[0], options);
         break;
 
       // Daemon management
@@ -2210,6 +2251,473 @@ async function handleLog(subcommand: string | undefined, options: CLIOptions): P
 
   console.log('');
   console.log(`Showing ${data.count} entries`);
+}
+
+// =============================================================================
+// Sessions & Notes
+// =============================================================================
+
+async function handleSession(subcommand: string | undefined, rest: string[], options: CLIOptions): Promise<void> {
+  if (!subcommand) {
+    console.error('Usage: port-daddy session <start|end|done|abandon|rm|files> [args]');
+    console.error('');
+    console.error('Commands:');
+    console.error('  start <purpose> [--files file1 file2...] [--agent AGENT_ID] [--force]');
+    console.error('  end [note] [--status STATUS]');
+    console.error('  done [note]           # Alias for "end" with status=completed');
+    console.error('  abandon [note]        # End session with status=abandoned');
+    console.error('  rm <id>               # Delete a session');
+    console.error('  files add <paths...>  # Claim files in active session');
+    console.error('  files rm <paths...>   # Release files in active session');
+    process.exit(1);
+  }
+
+  switch (subcommand) {
+    case 'start': {
+      const purpose = rest[0];
+      if (!purpose) {
+        console.error('Usage: port-daddy session start <purpose> [--files file1 file2...] [--agent AGENT_ID] [--force]');
+        process.exit(1);
+      }
+
+      const body: Record<string, unknown> = { purpose };
+      if (options.agent) body.agentId = options.agent;
+      if (options.force) body.force = true;
+      
+      // Collect files from --files option or remaining positional args
+      const files: string[] = [];
+      if (options.files) {
+        // --files can be a string or array
+        const filesOpt = options.files;
+        if (typeof filesOpt === 'string') {
+          files.push(filesOpt);
+        } else if (Array.isArray(filesOpt)) {
+          files.push(...filesOpt);
+        }
+      }
+      // Also check remaining positional args after purpose
+      for (let i = 1; i < rest.length; i++) {
+        if (!rest[i].startsWith('-')) {
+          files.push(rest[i]);
+        }
+      }
+      if (files.length > 0) {
+        body.files = files;
+      }
+
+      const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/sessions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        console.error((data.error as string) || 'Failed to start session');
+        if (data.conflicts) {
+          const conflicts = data.conflicts as Array<{ file: string; sessionId: string; purpose: string }>;
+          console.error('');
+          console.error('File conflicts:');
+          for (const c of conflicts) {
+            console.error(`  ${c.file} (claimed by ${c.sessionId}: ${c.purpose})`);
+          }
+        }
+        process.exit(1);
+      }
+
+      if (options.quiet) {
+        console.log(data.sessionId);
+      } else {
+        console.log(`Started session: ${data.sessionId}`);
+        console.log(`  Purpose: ${purpose}`);
+        if (files.length > 0) {
+          console.log(`  Files claimed: ${files.length}`);
+        }
+      }
+      break;
+    }
+
+    case 'end':
+    case 'done': {
+      const note = rest[0];
+      const status = (options.status as string) || (subcommand === 'done' ? 'completed' : 'completed');
+
+      // Find active session first
+      const listRes: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/sessions?status=active&limit=1`);
+      const listData = await listRes.json();
+
+      if (!listRes.ok || (listData.count as number) === 0) {
+        console.error('No active session found');
+        process.exit(1);
+      }
+
+      const sessions = listData.sessions as Array<{ id: string }>;
+      const sessionId = sessions[0].id;
+
+      const body: Record<string, unknown> = { status };
+      if (note) body.note = note;
+
+      const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/sessions/${encodeURIComponent(sessionId)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        console.error((data.error as string) || 'Failed to end session');
+        process.exit(1);
+      }
+
+      if (!options.quiet) {
+        console.log(`Ended session: ${sessionId}`);
+        console.log(`  Status: ${status}`);
+        if (data.filesReleased) {
+          console.log(`  Files released: ${data.filesReleased}`);
+        }
+      }
+      break;
+    }
+
+    case 'abandon': {
+      const note = rest[0];
+
+      // Find active session first
+      const listRes: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/sessions?status=active&limit=1`);
+      const listData = await listRes.json();
+
+      if (!listRes.ok || (listData.count as number) === 0) {
+        console.error('No active session found');
+        process.exit(1);
+      }
+
+      const sessions = listData.sessions as Array<{ id: string }>;
+      const sessionId = sessions[0].id;
+
+      const body: Record<string, unknown> = { status: 'abandoned' };
+      if (note) body.note = note;
+
+      const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/sessions/${encodeURIComponent(sessionId)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        console.error((data.error as string) || 'Failed to abandon session');
+        process.exit(1);
+      }
+
+      if (!options.quiet) {
+        console.log(`Abandoned session: ${sessionId}`);
+        if (data.filesReleased) {
+          console.log(`  Files released: ${data.filesReleased}`);
+        }
+      }
+      break;
+    }
+
+    case 'rm': {
+      const sessionId = rest[0];
+      if (!sessionId) {
+        console.error('Usage: port-daddy session rm <id>');
+        process.exit(1);
+      }
+
+      const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/sessions/${encodeURIComponent(sessionId)}`, {
+        method: 'DELETE'
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        console.error((data.error as string) || 'Failed to delete session');
+        process.exit(1);
+      }
+
+      if (!options.quiet) {
+        console.log(`Deleted session: ${sessionId}`);
+      }
+      break;
+    }
+
+    case 'files': {
+      const filesCmd = rest[0];
+      if (!filesCmd || !['add', 'rm'].includes(filesCmd)) {
+        console.error('Usage: port-daddy session files <add|rm> <paths...>');
+        process.exit(1);
+      }
+
+      const paths = rest.slice(1);
+      if (paths.length === 0) {
+        console.error(`Usage: port-daddy session files ${filesCmd} <paths...>`);
+        process.exit(1);
+      }
+
+      // Find active session first
+      const listRes: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/sessions?status=active&limit=1`);
+      const listData = await listRes.json();
+
+      if (!listRes.ok || (listData.count as number) === 0) {
+        console.error('No active session found');
+        process.exit(1);
+      }
+
+      const sessions = listData.sessions as Array<{ id: string }>;
+      const sessionId = sessions[0].id;
+
+      if (filesCmd === 'add') {
+        const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/sessions/${encodeURIComponent(sessionId)}/files`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ files: paths })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          console.error((data.error as string) || 'Failed to claim files');
+          if (data.conflicts) {
+            const conflicts = data.conflicts as Array<{ file: string; sessionId: string; purpose: string }>;
+            console.error('');
+            console.error('File conflicts:');
+            for (const c of conflicts) {
+              console.error(`  ${c.file} (claimed by ${c.sessionId}: ${c.purpose})`);
+            }
+          }
+          process.exit(1);
+        }
+
+        if (!options.quiet) {
+          console.log(`Claimed ${paths.length} file(s) in session ${sessionId}`);
+        }
+      } else {
+        // rm
+        const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/sessions/${encodeURIComponent(sessionId)}/files`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ files: paths })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          console.error((data.error as string) || 'Failed to release files');
+          process.exit(1);
+        }
+
+        if (!options.quiet) {
+          console.log(`Released ${data.filesReleased || 0} file(s) from session ${sessionId}`);
+        }
+      }
+      break;
+    }
+
+    default:
+      console.error(`Unknown session command: ${subcommand}`);
+      console.error('Run "port-daddy session" for usage');
+      process.exit(1);
+  }
+}
+
+async function handleSessions(options: CLIOptions): Promise<void> {
+  const params = new URLSearchParams();
+  
+  // Default to active sessions unless --all is specified
+  if (!options.all) {
+    params.append('status', 'active');
+  }
+  
+  if (options.status) {
+    params.delete('status');
+    params.append('status', options.status as string);
+  }
+
+  const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/sessions?${params}`);
+  const data = await res.json();
+
+  if (!res.ok) {
+    console.error((data.error as string) || 'Failed to list sessions');
+    process.exit(1);
+  }
+
+  if (options.json) {
+    console.log(JSON.stringify(data, null, 2));
+    return;
+  }
+
+  const count = data.count as number;
+  if (count === 0) {
+    console.log('No sessions found');
+    return;
+  }
+
+  const sessions = data.sessions as Array<{
+    id: string;
+    purpose: string;
+    status: string;
+    startedAt: number;
+    endedAt?: number;
+    fileCount: number;
+    noteCount: number;
+  }>;
+
+  // Show files column if --files option
+  if (options.files) {
+    console.log('');
+    console.log(tableHeader(
+      ['ID', 16],
+      ['PURPOSE', 30],
+      ['STATUS', 10],
+      ['FILES', 6],
+      ['NOTES', 6],
+      ['AGE', 6]
+    ));
+    separator(74);
+
+    for (const s of sessions) {
+      const age = s.endedAt 
+        ? relativeTime(s.endedAt - s.startedAt)
+        : relativeTime(Date.now() - s.startedAt);
+      
+      console.log(
+        s.id.slice(0, 15).padEnd(16) +
+        s.purpose.slice(0, 29).padEnd(30) +
+        s.status.padEnd(10) +
+        String(s.fileCount).padEnd(6) +
+        String(s.noteCount).padEnd(6) +
+        age
+      );
+    }
+  } else {
+    console.log('');
+    console.log(tableHeader(
+      ['ID', 16],
+      ['PURPOSE', 30],
+      ['STATUS', 10],
+      ['FILES', 6],
+      ['NOTES', 6],
+      ['AGE', 6]
+    ));
+    separator(74);
+
+    for (const s of sessions) {
+      const age = s.endedAt 
+        ? relativeTime(s.endedAt - s.startedAt)
+        : relativeTime(Date.now() - s.startedAt);
+      
+      console.log(
+        s.id.slice(0, 15).padEnd(16) +
+        s.purpose.slice(0, 29).padEnd(30) +
+        s.status.padEnd(10) +
+        String(s.fileCount).padEnd(6) +
+        String(s.noteCount).padEnd(6) +
+        age
+      );
+    }
+  }
+
+  console.log('');
+  console.log(`Total: ${count} session(s)`);
+}
+
+async function handleNote(content: string | undefined, options: CLIOptions): Promise<void> {
+  if (!content) {
+    console.error('Usage: port-daddy note <content> [--type TYPE]');
+    process.exit(1);
+  }
+
+  const body: Record<string, unknown> = { content };
+  if (options.type) body.type = options.type;
+
+  const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/notes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    console.error((data.error as string) || 'Failed to create note');
+    process.exit(1);
+  }
+
+  if (options.quiet) {
+    console.log(data.noteId);
+  } else {
+    console.log(`Created note: ${data.noteId}`);
+    console.log(`  Session: ${data.sessionId}`);
+    if (data.sessionCreated) {
+      console.log(`  (New session auto-created)`);
+    }
+  }
+}
+
+async function handleNotes(sessionId: string | undefined, options: CLIOptions): Promise<void> {
+  let url: string;
+  const params = new URLSearchParams();
+  
+  if (options.limit) params.append('limit', options.limit as string);
+  if (options.type) params.append('type', options.type as string);
+
+  if (sessionId) {
+    // Notes for specific session
+    url = `${PORT_DADDY_URL}/sessions/${encodeURIComponent(sessionId)}/notes?${params}`;
+  } else {
+    // Recent notes across all sessions
+    url = `${PORT_DADDY_URL}/notes?${params}`;
+  }
+
+  const res: PdFetchResponse = await pdFetch(url);
+  const data = await res.json();
+
+  if (!res.ok) {
+    console.error((data.error as string) || 'Failed to get notes');
+    process.exit(1);
+  }
+
+  if (options.json) {
+    console.log(JSON.stringify(data, null, 2));
+    return;
+  }
+
+  const count = data.count as number;
+  if (count === 0) {
+    console.log('No notes found');
+    return;
+  }
+
+  // Timeline format
+  const notes = data.notes as Array<{
+    id: string;
+    sessionId: string;
+    content: string;
+    type: string;
+    createdAt: number;
+  }>;
+
+  if (sessionId && data.session) {
+    // Show session header
+    const session = data.session as { id: string; purpose: string; status: string; startedAt: number };
+    const age = relativeTime(Date.now() - session.startedAt);
+    console.log('');
+    console.log(`--- ${session.id}: ${session.purpose} (${session.status}, ${age}) ---`);
+  }
+
+  console.log('');
+  for (const note of notes) {
+    const age = relativeTime(Date.now() - note.createdAt);
+    const typeLabel = note.type !== 'general' ? ` [${note.type}]` : '';
+    console.log(`  [${age} ago]${typeLabel} ${note.content}`);
+  }
+
+  console.log('');
+  console.log(`Total: ${count} note(s)`);
 }
 
 // =============================================================================
