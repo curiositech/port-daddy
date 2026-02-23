@@ -50,6 +50,8 @@ tests/
   setup-unit.js     # In-memory SQLite factory for unit tests
   unit/             # Unit tests (19 suites, 1283+ tests)
   integration/      # Integration tests (require live daemon)
+docs/
+  sdk.md                # Full SDK reference (moved from README)
 examples/
   agent-coordination.js  # Multi-agent example
 ```
@@ -148,7 +150,8 @@ When adding ANY new command, endpoint, or operation, verify it exists in ALL of:
 | Bash completions | `completions/port-daddy.bash` | 72% |
 | Zsh completions | `completions/port-daddy.zsh` | 77% |
 | Fish completions | `completions/port-daddy.fish` | 65% |
-| README.md | `README.md` | 78% |
+| README.md | `README.md` | 95% |
+| SDK Reference | `docs/sdk.md` | 95% |
 | CLAUDE.md | `CLAUDE.md` | varies |
 | CHANGELOG.md | `CHANGELOG.md` | must update per release |
 

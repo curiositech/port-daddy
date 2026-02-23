@@ -5,29 +5,37 @@ All notable changes to Port Daddy will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] (v3.2.0)
+## [Unreleased]
+
+## [3.2.0] - 2026-02-23
 
 ### Added
-- **Sessions & Notes system** (`lib/sessions.ts`): Structured multi-agent coordination with session lifecycle (start, end, abandon, remove), immutable append-only notes, and advisory file claims with conflict detection
-- **Session schema**: `sessions`, `session_files` (with `released_at` audit trail), `session_notes` (with type: note/handoff/commit/warning) tables with CASCADE deletion
+- **Sessions & Notes system** (`lib/sessions.ts`): Structured multi-agent coordination replacing flat-file `.CLAUDE_LOCK` / `.CLAUDE_NOTES.md` patterns — session lifecycle (start, end, abandon, remove), immutable append-only notes with types (note/handoff/commit/warning), and advisory file claims with conflict detection
+- **Session schema**: `sessions`, `session_files` (with `released_at` audit trail), `session_notes` tables with CASCADE deletion
 - **Auto-session**: `quickNote` creates an implicit session for agents that skip explicit `session start`
 - **Session garbage collection**: `cleanup(olderThan?, status?)` for removing stale sessions
 - **Session HTTP routes** (`routes/sessions.ts`): 11 endpoints — `POST/GET /sessions`, `GET/PUT/DELETE /sessions/:id`, `POST/GET /sessions/:id/notes`, `POST/DELETE /sessions/:id/files`, `POST/GET /notes`
 - **Session CLI commands**: `pd session start/end/done/abandon/rm`, `pd session files add/rm`, `pd sessions [--all] [--status] [--files]`, `pd note <content> [--type TYPE]`, `pd notes [session-id] [--limit N] [--type TYPE]` — all with `--quiet/-q` and `--json/-j` output modes
 - **Session SDK methods**: 10 new methods on `PortDaddy` class — `startSession`, `endSession`, `abandonSession`, `removeSession`, `note`, `notes`, `sessions`, `sessionDetails`, `claimFiles`, `releaseFiles`
-- **SDK type honesty** (Batch 3): 42 typed response interfaces replacing every `Record<string, unknown>` — `ClaimResponse`, `ReleaseResponse`, `LockResponse`, `ServiceEntry`, `AgentDetail`, `WebhookEntry`, `ActivityEntry`, and 8 new session-related interfaces
+- **SDK type honesty**: 42 typed response interfaces replacing every `Record<string, unknown>` — `ClaimResponse`, `ReleaseResponse`, `LockResponse`, `ServiceEntry`, `AgentDetail`, `WebhookEntry`, `ActivityEntry`, and 8 new session-related interfaces
 - Activity logging for `session_start`, `session_end`, `session_note`, `file_claim`, `file_release` events
 - 110 new unit tests for sessions module; test suite now at 1283 tests across 19 suites
+- **SDK reference doc** (`docs/sdk.md`): full SDK documentation moved out of README into dedicated reference
 
 ### Changed
-- Shell completions (Batch 2): added `up`, `down`, `diagnose` commands to all 3 completion files (zsh, bash, fish); added `--from`/`--to` flags for `log` command in fish; normalized quiet flag handling in CLI
+- **README restructured for layered audiences**: Layer 1 (solo devs — stable ports), Layer 2 (teams — orchestration), Layer 3 (agents — sessions, locks, pub/sub). Non-technical summary above the fold. README reduced from 1187 to ~470 lines
+- **Sessions & Notes documented** as headline feature with `.CLAUDE_LOCK` comparison table
+- **"When NOT to Use Port Daddy" section** added for honest self-selection
+- **`pd` alias** prominently documented throughout (previously buried)
+- **Colon syntax** explained inline in Quick Start: `myapp:api:main` = project:stack:context
+- Shell completions: added `up`, `down`, `diagnose` commands to all 3 completion files (zsh, bash, fish); added `--from`/`--to` flags for `log` command in fish; normalized quiet flag handling in CLI
 
 ### Fixed
 - **GC zombie cleanup**: removed dead agents-to-services cleanup path (services lack `agent_id` column); added PID liveness checking via `process.kill(pid, 0)` to `services.cleanup()`; only checks running services (assigned services preserved)
 - **Stale agent lock release**: agents that disappear now have their held locks properly released
 - **Jest open handle leak**: `unref()` webhook retry timers to prevent Jest worker hang; added `messaging.destroy()` for clean subscriber teardown
 - **Shell completions**: `handlePorts()` now distinguishes empty results from API errors
-- **Batch 1 safety bugs**: 6 crash/corruption defects fixed — operator precedence in `orchestrator.ts` skip-logic; systemic `safeJsonParse` across 13 `JSON.parse` call sites on DB TEXT columns (webhooks, activity, locks, agents, projects, services) so a single corrupted row no longer crashes the daemon; defensive optional chaining on `SqliteError` in `locks.ts`
+- **6 crash/corruption defects**: operator precedence in `orchestrator.ts` skip-logic; systemic `safeJsonParse` across 13 `JSON.parse` call sites on DB TEXT columns so a single corrupted row no longer crashes the daemon; defensive optional chaining on `SqliteError` in `locks.ts`
 
 ## [3.1.0] - 2026-02-22
 
