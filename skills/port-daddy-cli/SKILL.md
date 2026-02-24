@@ -1,280 +1,244 @@
 ---
 name: port-daddy-cli
-description: Manage local dev server ports, coordinate multi-agent workflows with pub/sub messaging, distributed locks, and agent registry via Port Daddy daemon. Use when claiming ports, resolving port conflicts, coordinating agents, or setting up project port configs. Activate on "port conflict", "claim port", "get-port", "port-daddy", "agent coordination", "distributed lock", "pub/sub", "dev server port". NOT for production deployment, Docker networking, cloud infrastructure, or CI/CD pipelines.
-allowed-tools: Read,Bash,Grep,Glob
-metadata:
-  author: curiositech
-  version: "3.1.0"
+description: Multi-agent coordination via Port Daddy. Use when starting dev servers, coordinating with other agents, preventing file conflicts, or leaving breadcrumbs for future sessions. Activate on "port conflict", "claim port", "coordinate agents", "start session", "leave note", "file conflict", "dev server".
 ---
 
-# Port Daddy CLI
+# Port Daddy — The Authoritative Port Manager
 
-Authoritative port management daemon for multi-agent development. Provides atomic port assignment, pub/sub messaging, distributed locks, and agent registry — all backed by SQLite on `localhost:9876`.
+**Your ports. My rules. Zero conflicts.**
 
-## When to Use
+Port Daddy eliminates the chaos of multi-agent development. No more port collisions. No more wondering what another agent touched. No more lost context between sessions.
 
-✅ **Use for**:
-- Claiming ports for dev servers (no conflicts between agents)
-- Setting up project port configuration (`.portdaddyrc`)
-- Deep-scanning projects for frameworks and generating config (`port-daddy scan`)
-- Coordinating between multiple Claude sessions (locks, messaging)
-- Registering agents with heartbeats
-- Querying which ports/services are active
-- Diagnosing daemon health issues (`port-daddy doctor`)
-
-❌ **NOT for**:
-- Production deployment or cloud port management
-- Docker/Kubernetes networking
-- Reverse proxy configuration (nginx, Caddy)
-- CI/CD pipeline setup (though Port Daddy has its own CI gate)
-- General Node.js or Express development
-
----
-
-## Architecture
-
-```mermaid
-flowchart TB
-    subgraph Clients
-        CLI[port-daddy CLI]
-        SDK[PortDaddy SDK]
-        HTTP[curl / fetch]
-    end
-
-    subgraph Daemon["Daemon (localhost:9876)"]
-        API[Express API]
-        DB[(SQLite WAL)]
-    end
-
-    subgraph Features
-        Ports[Port Assignment]
-        Locks[Distributed Locks]
-        Msg[Pub/Sub Messaging]
-        Agents[Agent Registry]
-        Hooks[Webhooks]
-    end
-
-    CLI --> API
-    SDK --> API
-    HTTP --> API
-    API --> DB
-    API --> Ports
-    API --> Locks
-    API --> Msg
-    API --> Agents
-    API --> Hooks
-```
-
----
-
-## Core Process: Claiming a Port
-
-```mermaid
-flowchart TD
-    Start[Need a port for dev server] --> HasConfig{.portdaddyrc exists?}
-    HasConfig -->|No| Scan[Run: port-daddy scan]
-    Scan --> HasConfig
-    HasConfig -->|Yes| HowUse{How to claim?}
-
-    HowUse -->|CLI| CLIClaim["port-daddy claim myapp:api"]
-    HowUse -->|Script| ScriptClaim["PORT=$(port-daddy claim myapp:api --quiet)\nnpm run dev -- --port $PORT"]
-    HowUse -->|SDK| SDKClaim["const pd = new PortDaddy()\nconst { port } = await pd.claim('myapp:api')"]
-    HowUse -->|HTTP| HTTPClaim["curl -X POST localhost:9876/claim\n  -d '{\"id\":\"myapp:api\"}'"]
-
-    CLIClaim --> Done[Port assigned atomically]
-    ScriptClaim --> Done
-    SDKClaim --> Done
-    HTTPClaim --> Done
-```
-
-### Semantic Identities
-
-All services use `project:stack:context` naming:
-
-| Identity | Meaning |
-|----------|---------|
-| `myapp:api:main` | Main API server for myapp |
-| `myapp:frontend:feature-auth` | Frontend on feature branch |
-| `myapp:worker` | Background worker (2-part is valid) |
-| `blog` | Simple project name (1-part is valid) |
-
-Pattern queries work with globs: `myapp:*` matches all services for myapp.
-
-### Quick Reference: CLI Commands
-
-| Command | Purpose |
-|---------|---------|
-| `port-daddy claim <id>` | Claim a port |
-| `port-daddy release <id>` | Release a port |
-| `port-daddy list` | List active services |
-| `port-daddy find <id>` | Find a service by identity or port |
-| `port-daddy scan` | Deep-scan project, detect frameworks, register |
-| `port-daddy up` | Start all services from .portdaddyrc |
-| `port-daddy pub <ch> <msg>` | Publish to a channel |
-| `port-daddy sub <ch>` | Subscribe to a channel |
-| `port-daddy lock <name>` | Acquire a distributed lock |
-| `port-daddy unlock <name>` | Release a distributed lock |
-| `port-daddy agent register` | Register an agent |
-| `port-daddy dashboard` | Open web dashboard |
-| `port-daddy doctor` | Run diagnostic checks |
-| `port-daddy start` | Start daemon |
-| `port-daddy status` | Check daemon status |
-| `port-daddy version` | Show version + code hash |
-
----
-
-## Project Setup: port-daddy scan
-
-To set up a new project, run `port-daddy scan` in the project root. It deep-scans recursively and auto-detects 60+ frameworks including:
-
-Next.js, Nuxt, SvelteKit, Remix, Astro, Vite, Angular, Vue CLI, Express, Fastify, Hono, NestJS, FastAPI, Flask, Django, Rails, Phoenix, Spring Boot, Laravel, Gin, Fiber, Echo, Actix, Rocket, Warp, Axum, Ktor, Micronaut, Quarkus, Vapor, and many more
-
-The generated `.portdaddyrc` defines services, port ranges, dev commands, and health checks:
-
-```json
-{
-  "project": "myapp",
-  "services": {
-    "api": { "port": 3100, "cmd": "npm run dev", "healthPath": "/health" },
-    "frontend": { "port": 3101, "cmd": "npm run dev -- --port ${PORT}" }
-  },
-  "portRange": [3100, 3199]
-}
-```
-
-Use `port-daddy up` to start all services defined in `.portdaddyrc`.
-
----
-
-## Multi-Agent Coordination
-
-Port Daddy is more than ports. It provides three coordination primitives:
-
-### 1. Distributed Locks
-
-Prevent concurrent modifications to shared resources.
+## Quick Reference
 
 ```bash
-# CLI
-port-daddy lock deploy-prod --owner agent-1 --ttl 300000
+# Ports
+pd claim myapp:api:main          # Get a stable port (always same for this identity)
+pd claim myapp -q                # Quiet mode — just the port number
+pd find "myapp:*"                # Find all myapp services
+pd release myapp:api:main        # Release when done
 
-# SDK
-await pd.withLock('deploy-prod', async () => {
-  await deployToProduction()
-})
+# Sessions (multi-agent coordination)
+pd session start "Implementing dark mode" --files src/theme.ts src/components/ThemeProvider.tsx
+pd note "Created ThemeProvider skeleton, CSS variables approach"
+pd note "Blocked on design tokens — need @design-agent input" --type handoff
+pd session done "Dark mode complete, tested in Chrome/Safari"
+
+# File conflicts
+pd session files add src/api/auth.ts    # Claim a file mid-session
+pd sessions --files                      # See who has what files
+
+# Locks (critical sections)
+pd lock deployment --owner agent-1 --ttl 300
+pd unlock deployment --owner agent-1
 ```
 
-### 2. Pub/Sub Messaging
+## Core Philosophy
 
-Agents communicate through named channels.
+### 1. Identity Convention: `project:stack:context`
+
+Every service gets a semantic identity. Port Daddy hashes this to a stable port.
+
+| Identity | Port | Use Case |
+|----------|------|----------|
+| `myapp:api:main` | 9234 | Main API server |
+| `myapp:api:feature-auth` | 9847 | Feature branch API |
+| `myapp:frontend` | 9156 | Frontend dev server |
+| `myapp:db:test` | 9523 | Test database |
+
+**Same identity = same port, every time.** No more "what port was that on?"
+
+### 2. Sessions Are Mutable, Notes Are Immutable
+
+Sessions have a lifecycle:
+```
+active → completed
+active → abandoned
+```
+
+Notes are append-only. You can never edit or delete a note. They form the permanent record of what happened. If you wrote it, it happened.
+
+**Why?** When debugging "what went wrong?", you need the full timeline. Edited notes lie.
+
+### 3. File Claims Are Advisory
+
+`pd session files add src/auth.ts` doesn't lock the file. It announces your intent. Other agents see the conflict and can coordinate.
+
+**Why?** Hard locks cause deadlocks. Advisory claims cause conversations.
+
+## Workflows
+
+### Starting a Dev Server
 
 ```bash
-# Publish
-curl -X POST localhost:9876/msg/builds \
-  -H 'Content-Type: application/json' \
-  -d '{"payload":{"status":"complete"}}'
+# 1. Claim your port
+PORT=$(pd claim myproject:api -q)
 
-# Subscribe (SSE)
-curl -N localhost:9876/msg/builds/subscribe
+# 2. Start with that port
+npm run dev -- --port $PORT
+
+# Or export for the whole shell
+eval $(pd claim myproject:api --export)
+npm run dev  # Uses $PORT automatically
 ```
 
-### 3. Agent Registry
+### Multi-Agent Coordination
 
-Track active agents with heartbeats.
+**Agent A** (starting work):
+```bash
+pd session start "Refactoring auth system" --files src/auth/*.ts
+pd note "Splitting monolithic auth.ts into separate modules"
+```
+
+**Agent B** (checking before touching auth):
+```bash
+pd sessions --files
+# Output:
+# session-a1b2 (active, 12m) - Refactoring auth system
+#   Files: src/auth/*.ts
+#   Notes: 1
+
+# Sees conflict, coordinates:
+pd note "Need to touch src/auth/types.ts — coordinating with @agent-a"
+```
+
+**Agent A** (completing):
+```bash
+pd note "Auth refactor done: auth.ts → login.ts, session.ts, types.ts"
+pd session done "Refactored auth into 3 modules, all tests passing"
+```
+
+### Leaving Breadcrumbs
+
+Notes support inline markup for cross-referencing:
 
 ```bash
-# Register
-curl -X POST localhost:9876/agents \
-  -H 'Content-Type: application/json' \
-  -d '{"id":"agent-1","name":"Build Agent","type":"ci"}'
-
-# Heartbeat (every 60s)
-curl -X POST localhost:9876/agents/agent-1/heartbeat
+pd note "Fixed CORS bug in #file:server.ts:142"
+pd note "Handing off to @agent-frontend for UI integration" --type handoff
+pd note "Committed: abc123 - CORS headers for API gateway" --type commit
+pd note "WARNING: Don't touch auth until tests stabilized" --type warning
 ```
 
----
+### Critical Sections with Locks
+
+```bash
+# Only one agent can deploy at a time
+pd lock deployment --owner $(hostname) --ttl 300
+
+# Do the deployment...
+npm run deploy
+
+# Release
+pd unlock deployment --owner agent-1
+```
+
+Locks auto-expire after TTL (default 60s). Use `--wait` to block until available:
+
+```bash
+pd lock deployment --owner agent-1 --wait --timeout 30000
+```
+
+## Direct Mode (No Daemon)
+
+Core operations work without the daemon running:
+
+```bash
+# These work even if daemon is down (direct SQLite)
+pd claim myapp -q
+pd session start "Quick fix"
+pd note "Fixed the thing"
+pd session done
+```
+
+**Tier 1 (no daemon):** claim, release, find, lock, unlock, session, note, notes, status
+**Tier 2 (daemon required):** pub/sub, SSE, webhooks, orchestration (up/down)
+
+## Dashboard
+
+Open `http://localhost:9876` for a visual overview of:
+- Active services and their ports
+- Running sessions and file claims
+- Recent notes timeline
+- Lock status
+
+## When to Use Port Daddy
+
+| Situation | Action |
+|-----------|--------|
+| Starting any dev server | `pd claim <identity> -q` |
+| Multi-file refactoring | `pd session start` + claim files |
+| Handing off to another agent | `pd note --type handoff` |
+| Critical section (deploy, migrate) | `pd lock` |
+| Debugging "what happened?" | `pd notes` or `pd sessions` |
+| Port conflict | `pd find "*"` to see what's claimed |
 
 ## Anti-Patterns
 
-### Anti-Pattern: Manual Port Numbers
-**Novice**: "I'll just use port 3000 for everything"
-**Expert**: Port conflicts between agents are the #1 time-waster in multi-agent dev. Use `port-daddy claim` for atomic assignment — same project always gets the same port, no conflicts.
-**Detection**: Hardcoded port numbers in `package.json` scripts or `.env` files.
+**Don't:**
+- Use raw port numbers (`--port 3000`) — they collide
+- Edit files without checking `pd sessions --files`
+- Forget to end sessions — stale sessions confuse future agents
+- Skip notes — your future self (or another agent) needs context
 
-### Anti-Pattern: Flat Service Names
-**Novice**: "I'll call it `api` or `frontend`"
-**Expert**: Flat names collide between projects. Use semantic identities: `myapp:api:main`. This enables pattern queries (`myapp:*`) and gives structure that scales.
-**Timeline**: v1 used flat names → v2 introduced `project:stack:context` semantic identities.
+**Do:**
+- Always claim ports through Port Daddy
+- Start sessions for non-trivial work
+- Leave notes liberally — they're cheap
+- End sessions when done (even if abandoning)
 
-### Anti-Pattern: Polling for Coordination
-**Novice**: "I'll check a file every 5 seconds to see if the other agent is done"
-**Expert**: Use Port Daddy's pub/sub messaging or SSE subscriptions for real-time coordination. File-based polling has race conditions, stale reads, and wasted cycles.
+## Worktree-Aware Development
 
-### Anti-Pattern: Raw HTTP Instead of SDK
-**Novice**: "I'll just curl the API directly in my Node.js code"
-**Expert**: Use the SDK (`import { PortDaddy } from 'port-daddy/client'`) for proper error handling, connection detection, timeout management, and typed responses. Save raw HTTP for shell scripts and one-liners.
+Port Daddy tracks which git worktree you're in. Sessions automatically scope to the worktree:
 
----
+```bash
+# Main worktree
+cd ~/coding/myproject
+pd session start "Feature A"  # session-a1b2 in main worktree
 
-## Troubleshooting
+# Chaos testing worktree
+cd ~/coding/myproject-chaos
+pd session start "Breaking things"  # session-c3d4 in chaos worktree
 
-```mermaid
-flowchart TD
-    Problem[Something's wrong] --> Running{Daemon running?}
-    Running -->|No| Start[port-daddy start]
-    Running -->|Yes| Health{port-daddy doctor passes?}
-    Health -->|No| Restart[port-daddy restart]
-    Health -->|Yes| Stale{Code hash matches?}
-    Stale -->|No| RestartFresh[port-daddy restart]
-    Stale -->|Yes| Specific[Check specific issue]
-
-    Specific --> PortInUse{Port conflict?}
-    PortInUse -->|Yes| Release[port-daddy release <id>]
-
-    Specific --> LockStuck{Lock stuck?}
-    LockStuck -->|Yes| ForceUnlock["curl -X DELETE localhost:9876/locks/<name>\n  -d '{\"force\":true}'"]
-
-    Specific --> NoPort{port-daddy claim fails?}
-    NoPort -->|Yes| CheckRange[Check portRange in .portdaddyrc\nDefault: 3100-9999]
+# See all sessions across worktrees
+pd sessions --all-worktrees
 ```
 
-Run `port-daddy doctor` for a comprehensive 9-point diagnostic that checks daemon status, database integrity, port availability, stale assignments, and more.
+### Multi-Daemon Development
 
----
+For developing Port Daddy itself:
 
-## JavaScript SDK
+```bash
+# Production daemon (your daily driver)
+pd claim port-daddy:daemon:prod      # → 9876
 
-For programmatic usage in Node.js 18+:
+# Development daemon (testing changes)  
+cd ~/coding/port-daddy
+PORT=$(pd claim port-daddy:daemon:dev -q)  # → 9877
+npm run dev -- --port $PORT
 
-```js
-import { PortDaddy } from 'port-daddy/client'
-
-const pd = new PortDaddy({ agentId: 'my-agent' })
-
-// Claim a port
-const { port } = await pd.claim('myapp:api')
-
-// Use pub/sub
-await pd.publish('builds', { status: 'started' })
-
-// Distributed lock
-await pd.withLock('deploy', async () => {
-  // critical section
-})
-
-// Agent lifecycle
-await pd.register({ name: 'Build Agent', type: 'ci' })
-const hb = pd.startHeartbeat(30000)
-// ... work ...
-hb.stop()
-await pd.unregister()
+# Chaos daemon (adversarial testing)
+cd ~/coding/port-daddy-chaos  
+PORT=$(pd claim port-daddy:daemon:chaos -q)  # → 9878
+npm run dev -- --port $PORT
 ```
 
----
+## Local DNS for Ports (Experimental)
 
-## References
+Instead of remembering `localhost:9234`, use semantic names:
 
-- `references/api-reference.md` — Full HTTP API documentation with all endpoints, parameters, and response shapes
-- `references/multi-agent-patterns.md` — Coordination patterns: leader election, work distribution, pipeline orchestration
-- `references/portdaddyrc-spec.md` — Complete .portdaddyrc specification with all fields and examples
-- `references/sdk-reference.md` — JavaScript SDK class reference with all methods and options
+```bash
+# Register a DNS name for your service
+pd claim myapp:api --dns
+# Now accessible at: http://myapp-api.local
+
+# Works with any claimed service
+pd claim frontend:react --dns
+# → http://frontend-react.local
+
+# List DNS registrations
+pd dns list
+# myapp-api.local      → 127.0.0.1:9234
+# frontend-react.local → 127.0.0.1:9156
+```
+
+**Requirements:** macOS (uses mDNS/Bonjour), or Linux with avahi-daemon.
