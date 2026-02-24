@@ -29,10 +29,23 @@ export interface CLIOptions {
   ttl?: string | number;
   wait?: boolean;
   timeout?: number;
+  name?: string;
 
   // Service flags
   port?: number;
   expires?: string | number;
+  range?: string;
+  expired?: boolean;
+  pair?: string;
+  cmd?: string;
+  export?: boolean;
+  env?: string;
+  open?: boolean;
+  file?: string;
+  system?: boolean;
+
+  // Messaging flags
+  sender?: string;
 
   // Filter/query flags
   limit?: number;
