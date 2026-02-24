@@ -100,7 +100,7 @@ export async function handleWebhook(subcommand: string | undefined, args: string
     const body: Record<string, unknown> = {};
     if (options.url) body.url = options.url;
     if (options.events) body.events = (options.events as string).split(',');
-    if (options.active !== undefined) body.active = options.active === true || options.active === 'true';
+    if (options.active !== undefined) body.active = options.active === true || String(options.active) === 'true';
 
     const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/webhooks/${encodeURIComponent(id)}`, {
       method: 'PUT',

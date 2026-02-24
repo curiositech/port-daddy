@@ -291,12 +291,11 @@ function handleSessionDirect(subcommand: string, rest: string[], options: CLIOpt
 
       const result = sessions.start(purpose, {
         agentId: options.agent as string,
-        files: files.length > 0 ? files : undefined,
-        force: options.force
+        files: files.length > 0 ? files : undefined
       });
 
       if (!result.success) {
-        console.error(maritimeStatus('error', result.error || 'Failed to start session'));
+        console.error(maritimeStatus('error', (result.error as string) || 'Failed to start session'));
         process.exit(1);
       }
 

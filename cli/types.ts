@@ -28,7 +28,7 @@ export interface CLIOptions {
   owner?: string;
   ttl?: string | number;
   wait?: boolean;
-  timeout?: number;
+  timeout?: string | number;
   name?: string;
 
   // Agent flags
@@ -39,7 +39,7 @@ export interface CLIOptions {
   target?: string;
 
   // Service flags
-  port?: number;
+  port?: string | number;
   expires?: string | number;
   range?: string;
   expired?: boolean;
@@ -55,10 +55,10 @@ export interface CLIOptions {
   sender?: string;
 
   // Filter/query flags
-  limit?: number;
-  since?: number;
-  from?: number;
-  to?: number;
+  limit?: string | number;
+  since?: string | number;
+  from?: string | number;
+  to?: string | number;
   level?: string;
   service?: string;
 

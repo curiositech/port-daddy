@@ -12,8 +12,11 @@ import { CLIOptions } from '../types.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 
 // Orchestration types
-import { loadConfig, discoverServices, mergeWithConfig, suggestNames, normalizeServiceConfig, topologicalSort, createOrchestrator } from '../../lib/orchestrator.js';
-import type { DiscoveredService, PortDaddyRcConfig } from '../../lib/orchestrator.js';
+import { normalizeServiceConfig, topologicalSort, createOrchestrator } from '../../lib/orchestrator.js';
+import { discoverServices, mergeWithConfig, suggestNames } from '../../lib/discover.js';
+import type { DiscoveredService } from '../../lib/discover.js';
+import { loadConfig } from '../../lib/config.js';
+import type { PortDaddyRcConfig } from '../../lib/config.js';
 
 // PID file for tracking `up` sessions
 const UP_PID_FILE: string = join(tmpdir(), 'port-daddy-up.pid');

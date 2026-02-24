@@ -433,9 +433,9 @@ export function handleReleaseDirect(id: string | undefined, options: CLIOptions)
     if (isJson(options)) {
       console.log(JSON.stringify(result, null, 2));
     } else if (isQuiet(options)) {
-      console.log(result.released);
+      console.log(result.cleaned);
     } else {
-      console.log(`Released ${result.released} expired service(s)`);
+      console.log(`Released ${result.cleaned} expired service(s)`);
     }
     return;
   }
@@ -494,7 +494,7 @@ export function handleFindDirect(pattern: string | undefined, options: CLIOption
   console.error('ID'.padEnd(35) + 'PORT'.padEnd(8) + 'STATUS'.padEnd(12) + 'URL');
   console.error('\u2500'.repeat(75));
 
-  for (const svc of result.services) {
+  for (const svc of result.services ?? []) {
     const localUrl: string = (svc.urls as { local?: string })?.local || '-';
     console.error(
       svc.id.padEnd(35) +
