@@ -766,11 +766,16 @@ describe('Sessions Module', () => {
       const ended = sessions.start('Ended');
       sessions.end(ended.id);
 
-      const result = sessions.list();
+      // list() without status returns ALL sessions (active + completed + abandoned)
+      const allResult = sessions.list();
+      expect(allResult.success).toBe(true);
+      expect(allResult.count).toBe(3);
 
-      expect(result.success).toBe(true);
-      expect(result.count).toBe(2);
-      expect(result.sessions.every(s => s.status === 'active')).toBe(true);
+      // list({ status: 'active' }) returns only active sessions
+      const activeResult = sessions.list({ status: 'active' });
+      expect(activeResult.success).toBe(true);
+      expect(activeResult.count).toBe(2);
+      expect(activeResult.sessions.every(s => s.status === 'active')).toBe(true);
     });
 
     it('should filter by status', () => {
@@ -1217,16 +1222,23 @@ describe('Sessions Module', () => {
       const s2 = sessions.start('Session 2');
       const s3 = sessions.start('Session 3');
 
-      expect(sessions.list().count).toBe(3);
+      // All 3 are active
+      expect(sessions.list({ status: 'active' }).count).toBe(3);
 
       sessions.end(s1.id);
-      expect(sessions.list().count).toBe(2);
+      // 2 active, 1 completed
+      expect(sessions.list({ status: 'active' }).count).toBe(2);
 
       sessions.abandon(s2.id);
-      expect(sessions.list().count).toBe(1);
+      // 1 active, 1 completed, 1 abandoned
+      expect(sessions.list({ status: 'active' }).count).toBe(1);
 
       sessions.start('Session 4');
-      expect(sessions.list().count).toBe(2);
+      // 2 active, 1 completed, 1 abandoned
+      expect(sessions.list({ status: 'active' }).count).toBe(2);
+
+      // Total across all statuses
+      expect(sessions.list().count).toBe(4);
     });
 
     it('should preserve data integrity across file claim/release cycles', () => {

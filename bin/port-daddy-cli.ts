@@ -959,7 +959,9 @@ async function executeDirectMode(
 
           // sessions.start() returns 'id' not 'sessionId'
           const sessionId = (result as Record<string, unknown>).id;
-          if (options.quiet) {
+          if (options.json) {
+            console.log(JSON.stringify(result, null, 2));
+          } else if (options.quiet) {
             console.log(sessionId);
           } else {
             console.log(maritimeStatus('success', `Started session: ${sessionId}`));
@@ -993,7 +995,9 @@ async function executeDirectMode(
             process.exit(1);
           }
 
-          if (!options.quiet) {
+          if (options.json) {
+            console.log(JSON.stringify({ success: true, id: sessionId, status }, null, 2));
+          } else if (!options.quiet) {
             console.log(maritimeStatus('success', `Ended session: ${sessionId}`));
             console.log(`  Status: ${status}`);
           }
@@ -1018,7 +1022,9 @@ async function executeDirectMode(
             process.exit(1);
           }
 
-          if (!options.quiet) {
+          if (options.json) {
+            console.log(JSON.stringify({ success: true, id: sessionId, status: 'abandoned' }, null, 2));
+          } else if (!options.quiet) {
             console.log(maritimeStatus('warning', `Abandoned session: ${sessionId}`));
           }
           break;
@@ -1037,7 +1043,9 @@ async function executeDirectMode(
             process.exit(1);
           }
 
-          if (!options.quiet) {
+          if (options.json) {
+            console.log(JSON.stringify({ success: true, id: sessionId, deleted: true }, null, 2));
+          } else if (!options.quiet) {
             console.log(`Deleted session: ${sessionId}`);
           }
           break;
@@ -1071,7 +1079,9 @@ async function executeDirectMode(
               console.error((result as Record<string, unknown>).error || 'Failed to claim files');
               process.exit(1);
             }
-            if (!options.quiet) {
+            if (options.json) {
+              console.log(JSON.stringify(result, null, 2));
+            } else if (!options.quiet) {
               console.log(`Claimed ${paths.length} file(s) in session ${sessionId}`);
             }
           } else {
@@ -1080,7 +1090,9 @@ async function executeDirectMode(
               console.error((result as Record<string, unknown>).error || 'Failed to release files');
               process.exit(1);
             }
-            if (!options.quiet) {
+            if (options.json) {
+              console.log(JSON.stringify(result, null, 2));
+            } else if (!options.quiet) {
               console.log(`Released file(s) from session ${sessionId}`);
             }
           }
@@ -3107,7 +3119,9 @@ async function handleSession(subcommand: string | undefined, rest: string[], opt
 
       // API returns 'id', not 'sessionId'
       const sessionId = data.id;
-      if (options.quiet) {
+      if (options.json) {
+        console.log(JSON.stringify(data, null, 2));
+      } else if (options.quiet) {
         console.log(sessionId);
       } else {
         console.log(maritimeStatus('success', `Started session: ${sessionId}`));
@@ -3152,7 +3166,9 @@ async function handleSession(subcommand: string | undefined, rest: string[], opt
         process.exit(1);
       }
 
-      if (!options.quiet) {
+      if (options.json) {
+        console.log(JSON.stringify(data, null, 2));
+      } else if (!options.quiet) {
         console.log(maritimeStatus('success', `Ended session: ${sessionId}`));
         console.log(`  Status: ${status}`);
         if (data.filesReleased) {
@@ -3193,7 +3209,9 @@ async function handleSession(subcommand: string | undefined, rest: string[], opt
         process.exit(1);
       }
 
-      if (!options.quiet) {
+      if (options.json) {
+        console.log(JSON.stringify(data, null, 2));
+      } else if (!options.quiet) {
         console.log(maritimeStatus('warning', `Abandoned session: ${sessionId}`));
         if (data.filesReleased) {
           console.log(`  Files released: ${data.filesReleased}`);
@@ -3220,7 +3238,9 @@ async function handleSession(subcommand: string | undefined, rest: string[], opt
         process.exit(1);
       }
 
-      if (!options.quiet) {
+      if (options.json) {
+        console.log(JSON.stringify(data, null, 2));
+      } else if (!options.quiet) {
         console.log(maritimeStatus('success', `Deleted session: ${sessionId}`));
       }
       break;
@@ -3273,7 +3293,9 @@ async function handleSession(subcommand: string | undefined, rest: string[], opt
           process.exit(1);
         }
 
-        if (!options.quiet) {
+        if (options.json) {
+          console.log(JSON.stringify(data, null, 2));
+        } else if (!options.quiet) {
           console.log(`Claimed ${paths.length} file(s) in session ${sessionId}`);
         }
       } else {
@@ -3291,7 +3313,9 @@ async function handleSession(subcommand: string | undefined, rest: string[], opt
           process.exit(1);
         }
 
-        if (!options.quiet) {
+        if (options.json) {
+          console.log(JSON.stringify(data, null, 2));
+        } else if (!options.quiet) {
           console.log(`Released ${data.filesReleased || 0} file(s) from session ${sessionId}`);
         }
       }
@@ -3531,7 +3555,7 @@ async function handleChannels(subcommand: string | undefined, args: string[], op
     const name = ch.channel || '-';
     const highlighted = highlightChannel(name);
     const padding = 40 - name.length;
-    const lastActivity = ch.lastMessage ? relativeTime(ch.lastMessage) : '-';
+    const lastActivity = ch.lastMessage ? relativeTime(Date.now() - ch.lastMessage) : '-';
     console.log(
       highlighted + ' '.repeat(Math.max(0, padding)) +
       String(ch.count ?? 0).padEnd(12) +

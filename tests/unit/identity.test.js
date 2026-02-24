@@ -414,6 +414,47 @@ describe('Identity Module', () => {
     });
   });
 
+  describe('patternToSql() - Embedded Wildcards (Bug #14 regression)', () => {
+    // Bug #14: patternToSql('qa-test*') returned 'qa-test*' instead of 'qa-test%'
+    // The * was only converted to % when it was a standalone segment (like 'myapp:*:main')
+    // but not when embedded in a segment name (like 'qa-test*')
+
+    it('should convert trailing wildcard in project to SQL %', () => {
+      const sql = patternToSql('qa-test*');
+      expect(sql).toBe('qa-test%');
+    });
+
+    it('should convert leading wildcard in project to SQL %', () => {
+      const sql = patternToSql('*prefix');
+      expect(sql).toBe('%prefix');
+    });
+
+    it('should convert middle wildcard in project to SQL %', () => {
+      const sql = patternToSql('mid*fix');
+      expect(sql).toBe('mid%fix');
+    });
+
+    it('should convert embedded wildcard in stack to SQL %', () => {
+      const sql = patternToSql('myapp:api*:main');
+      expect(sql).toBe('myapp:api%:main');
+    });
+
+    it('should convert embedded wildcard in context to SQL %', () => {
+      const sql = patternToSql('myapp:api:main*');
+      expect(sql).toBe('myapp:api:main%');
+    });
+
+    it('should convert multiple embedded wildcards to SQL %', () => {
+      const sql = patternToSql('my*app:api*:*main');
+      expect(sql).toBe('my%app:api%:%main');
+    });
+
+    it('should handle two-segment pattern with trailing wildcard', () => {
+      const sql = patternToSql('myapp:api*');
+      expect(sql).toBe('myapp:api%');
+    });
+  });
+
   describe('patternToSql() - Edge Cases (5 tests)', () => {
     it('should return null for invalid pattern', () => {
       const sql = patternToSql('invalid:pattern:too:many');

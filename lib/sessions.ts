@@ -694,8 +694,8 @@ export function createSessions(db: Database.Database) {
     } else if (agentId) {
       sessions = stmts.listByAgent.all(agentId, limit) as SessionRow[];
     } else {
-      // Default: active sessions only
-      sessions = stmts.listActive.all(limit) as SessionRow[];
+      // No filter: return all sessions
+      sessions = stmts.listAll.all(limit) as SessionRow[];
     }
 
     const formatted = sessions.map(s => {

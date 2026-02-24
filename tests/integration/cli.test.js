@@ -381,5 +381,98 @@ describe('CLI Integration Tests', () => {
       // No service named "services" should exist
       expect(data.services.some(s => s.id === 'services')).toBe(false);
     });
+
+    // Bug #14: Embedded wildcard in pattern not converted to SQL %
+    // "pd release 'test-prefix*'" released 0 services because 'test-prefix*'
+    // was passed to SQL LIKE as-is (should be 'test-prefix%')
+    test('wildcard pattern releases services (not literal asterisk)', () => {
+      // Create several services with a prefix
+      const prefix = `bug14-test-${Date.now()}`;
+      runCli(['claim', `${prefix}-a`, '-q']);
+      runCli(['claim', `${prefix}-b`, '-q']);
+      runCli(['claim', `${prefix}-c`, '-q']);
+
+      // Verify they exist
+      const findBefore = runCli(['find', '--json']);
+      const beforeData = JSON.parse(findBefore.stdout);
+      const beforeCount = beforeData.services.filter(s => s.id.startsWith(prefix)).length;
+      expect(beforeCount).toBe(3);
+
+      // Release with wildcard pattern
+      const result = runCli(['release', `${prefix}*`, '--json']);
+      expect(result.success).toBe(true);
+      const data = JSON.parse(result.stdout);
+      expect(data.released).toBe(3);
+
+      // Verify they're gone
+      const findAfter = runCli(['find', '--json']);
+      const afterData = JSON.parse(findAfter.stdout);
+      const afterCount = afterData.services.filter(s => s.id.startsWith(prefix)).length;
+      expect(afterCount).toBe(0);
+    });
+
+    // Bug #15: session start --json ignored --json flag, output human-readable
+    test('session start --json outputs JSON (not colored text)', () => {
+      const result = runCli(['session', 'start', 'Bug 15 test', '--json']);
+      expect(result.success).toBe(true);
+
+      // Should be valid JSON
+      let data;
+      expect(() => { data = JSON.parse(result.stdout); }).not.toThrow();
+      expect(data.success).toBe(true);
+      expect(data.id).toMatch(/^session-[a-f0-9]+$/);
+      expect(data.purpose).toBe('Bug 15 test');
+
+      // Should NOT contain ANSI escape codes
+      expect(result.stdout).not.toMatch(/\x1b\[/);
+
+      // Cleanup
+      runCli(['session', 'rm', data.id]);
+    });
+
+    // Bug #11: Channels LAST ACTIVITY showed "20508d" because relativeTime()
+    // was passed a timestamp instead of a duration (Date.now() - timestamp)
+    test('channels LAST ACTIVITY shows reasonable relative time (not 20000+ days)', () => {
+      // Create a channel by publishing a message
+      const testChannel = `bug11-test-${Date.now()}`;
+      runCli(['pub', testChannel, '{"test": true}']);
+
+      const result = runCli(['channels']);
+      expect(result.success).toBe(true);
+
+      // Should NOT contain five-digit day counts like "20508d"
+      expect(result.stdout).not.toMatch(/\d{5,}d/);
+
+      // Our just-created channel should show recent time (seconds or minutes)
+      expect(result.stdout).toContain(testChannel);
+    });
+
+    // Bug #12: sessions --all returned same results as sessions without --all
+    // because list() defaulted to listActive when no status was passed
+    test('sessions --all shows all statuses (not just active)', () => {
+      // Create sessions with different statuses
+      const activeId = runCli(['session', 'start', 'Bug 12 active test', '-q']).stdout.trim();
+      const completedId = runCli(['session', 'start', 'Bug 12 completed test', '-q']).stdout.trim();
+      runCli(['session', 'done', 'Done', '-q']); // completes most recent
+      const abandonedId = runCli(['session', 'start', 'Bug 12 abandoned test', '-q']).stdout.trim();
+      runCli(['session', 'abandon', 'Abandoned', '-q']);
+
+      // Without --all: should only show active sessions
+      const activeOnly = runCli(['sessions', '--json']);
+      const activeData = JSON.parse(activeOnly.stdout);
+      expect(activeData.sessions.every(s => s.status === 'active')).toBe(true);
+
+      // With --all: should show all statuses
+      const allSessions = runCli(['sessions', '--all', '--json']);
+      const allData = JSON.parse(allSessions.stdout);
+      const statuses = new Set(allData.sessions.map(s => s.status));
+      expect(statuses.has('completed')).toBe(true);
+      expect(statuses.has('abandoned')).toBe(true);
+
+      // Cleanup
+      runCli(['session', 'rm', activeId]);
+      runCli(['session', 'rm', completedId]);
+      runCli(['session', 'rm', abandonedId]);
+    });
   });
 });

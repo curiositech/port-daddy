@@ -93,36 +93,28 @@ export function matchesPattern(pattern: string, identity: string): boolean {
 
 /**
  * Convert identity pattern to SQL LIKE clause
+ *
+ * Converts * to % (SQL wildcard) in each segment:
+ * - "qa-test*" → "qa-test%"
+ * - "qa-test:*" → "qa-test:%"
+ * - "myapp:*:main" → "myapp:%:main"
  */
 export function patternToSql(pattern: string): string | null {
   const p = parseIdentity(pattern);
   if (!p.valid) return null;
 
-  // Build SQL pattern
-  let sqlPattern = '';
+  // Convert * to % in each segment (handles embedded wildcards like "qa-test*")
+  const convertWildcards = (s: string): string => s.replace(/\*/g, '%');
 
-  if (p.project === '*') {
-    sqlPattern += '%';
-  } else {
-    sqlPattern += p.project;
-  }
+  // Build SQL pattern
+  let sqlPattern = convertWildcards(p.project);
 
   if (p.stack !== null) {
-    sqlPattern += ':';
-    if (p.stack === '*') {
-      sqlPattern += '%';
-    } else {
-      sqlPattern += p.stack;
-    }
+    sqlPattern += ':' + convertWildcards(p.stack);
   }
 
   if (p.context !== null) {
-    sqlPattern += ':';
-    if (p.context === '*') {
-      sqlPattern += '%';
-    } else {
-      sqlPattern += p.context;
-    }
+    sqlPattern += ':' + convertWildcards(p.context);
   }
 
   return sqlPattern;
