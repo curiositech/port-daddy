@@ -2731,7 +2731,7 @@ async function handleAgent(subcommand: string | undefined, args: string[], optio
     process.exit(1);
   }
 
-  const agentId: string = (options.agent as string) || `cli-${process.pid}`;
+  const agentId: string = (options.agent as string) || process.env.AGENT_ID || `cli-${process.pid}`;
 
   switch (subcommand) {
     case 'register': {
