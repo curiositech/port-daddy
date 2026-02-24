@@ -1,0 +1,251 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "name": "port-daddy",
+  "version": "3.1.0",
+  "description": "The authoritative port manager for multi-agent development. Claim ports, coordinate agents, manage sessions and notes.",
+  "homepage": "https://github.com/curiositech/port-daddy",
+  "repository": "https://github.com/curiositech/port-daddy",
+  "license": "MIT",
+  "author": "Curiositech",
+  "capabilities": {
+    "tools": {
+      "listChanged": false
+    }
+  },
+  "tools": [
+    {
+      "name": "port_daddy_claim",
+      "title": "Claim Port",
+      "description": "Claim a port for a service. Returns the same port every time for a given identity. Use format 'project:stack:context' for semantic naming.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "identity": {
+            "type": "string",
+            "description": "Service identity in format 'project:stack:context' (e.g., 'myapp:api:main', 'myapp:frontend'). All parts except project are optional."
+          },
+          "port": {
+            "type": "integer",
+            "description": "Optional specific port to claim. If not provided, one will be assigned."
+          },
+          "pid": {
+            "type": "integer",
+            "description": "Process ID owning this port claim."
+          }
+        },
+        "required": ["identity"]
+      }
+    },
+    {
+      "name": "port_daddy_release",
+      "title": "Release Port",
+      "description": "Release a claimed port. Supports wildcards (e.g., 'myapp:*' releases all myapp services).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "identity": {
+            "type": "string",
+            "description": "Service identity or wildcard pattern to release."
+          }
+        },
+        "required": ["identity"]
+      }
+    },
+    {
+      "name": "port_daddy_find",
+      "title": "Find Services",
+      "description": "Find services by pattern. Returns matching services with their ports.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "pattern": {
+            "type": "string",
+            "description": "Pattern to match (supports wildcards). E.g., 'myapp:*', '*:api:*'."
+          }
+        },
+        "required": ["pattern"]
+      }
+    },
+    {
+      "name": "port_daddy_lock",
+      "title": "Acquire Lock",
+      "description": "Acquire a distributed lock. Blocks until lock is acquired or timeout.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Lock name (unique identifier for this lock)."
+          },
+          "owner": {
+            "type": "string",
+            "description": "Lock owner identifier (e.g., agent ID)."
+          },
+          "ttl": {
+            "type": "integer",
+            "description": "Time-to-live in seconds. Lock expires after this duration. Default: 60."
+          },
+          "wait": {
+            "type": "boolean",
+            "description": "If true, wait for lock to become available. If false, fail immediately if locked."
+          },
+          "timeout": {
+            "type": "integer",
+            "description": "Maximum time to wait in milliseconds (only used if wait=true). Default: 30000."
+          }
+        },
+        "required": ["name", "owner"]
+      }
+    },
+    {
+      "name": "port_daddy_unlock",
+      "title": "Release Lock",
+      "description": "Release a distributed lock.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Lock name to release."
+          },
+          "owner": {
+            "type": "string",
+            "description": "Lock owner identifier. Must match the owner who acquired the lock."
+          }
+        },
+        "required": ["name", "owner"]
+      }
+    },
+    {
+      "name": "port_daddy_session_start",
+      "title": "Start Session",
+      "description": "Start a new coordination session. Sessions track work across multiple agents and provide file conflict detection.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "purpose": {
+            "type": "string",
+            "description": "Brief description of what this session is for (e.g., 'Implementing dark mode')."
+          },
+          "files": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Optional list of files to claim for this session."
+          },
+          "agentId": {
+            "type": "string",
+            "description": "Optional agent ID to associate with this session."
+          }
+        },
+        "required": ["purpose"]
+      }
+    },
+    {
+      "name": "port_daddy_session_end",
+      "title": "End Session",
+      "description": "End the current active session.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string",
+            "description": "Optional closing note/summary for the session."
+          },
+          "status": {
+            "type": "string",
+            "enum": ["completed", "abandoned"],
+            "description": "Session completion status. Default: 'completed'."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "port_daddy_note",
+      "title": "Add Note",
+      "description": "Add a note to the current session. Notes are immutable and form an audit trail of agent coordination.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "description": "Note content. Can use inline markup: @agent-id, #file:path/to/file, $session-id."
+          },
+          "type": {
+            "type": "string",
+            "enum": ["note", "handoff", "commit", "warning"],
+            "description": "Note type for categorization. Default: 'note'."
+          }
+        },
+        "required": ["content"]
+      }
+    },
+    {
+      "name": "port_daddy_notes",
+      "title": "List Notes",
+      "description": "Get notes from the current session or all recent notes.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "description": "Optional session ID. If not provided, returns notes from active session."
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Maximum number of notes to return. Default: 50."
+          },
+          "type": {
+            "type": "string",
+            "description": "Filter by note type."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "port_daddy_publish",
+      "title": "Publish Message",
+      "description": "Publish a message to a pub/sub channel for agent-to-agent communication.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "channel": {
+            "type": "string",
+            "description": "Channel name in format 'scope:topic:qualifier' (e.g., 'bridge:myapp:helm', 's2s:agent-a:agent-b')."
+          },
+          "message": {
+            "type": "string",
+            "description": "Message content."
+          },
+          "sender": {
+            "type": "string",
+            "description": "Sender identifier."
+          }
+        },
+        "required": ["channel", "message"]
+      }
+    },
+    {
+      "name": "port_daddy_status",
+      "title": "Daemon Status",
+      "description": "Get Port Daddy daemon status including active services, locks, agents, and sessions.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false
+      }
+    }
+  ],
+  "transport": {
+    "type": "http",
+    "url": "http://localhost:9876"
+  },
+  "tags": [
+    "ports",
+    "coordination",
+    "agents",
+    "sessions",
+    "locks",
+    "messaging"
+  ]
+}
