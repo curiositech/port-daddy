@@ -86,6 +86,24 @@ export async function handleClaim(id: string | undefined, options: CLIOptions): 
     process.exit(1);
   }
 
+  // Register DNS if --dns flag is set
+  if (options.dns && data.port) {
+    try {
+      const dnsRes: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/dns/${encodeURIComponent(data.id as string)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ port: data.port })
+      });
+      const dnsData = await dnsRes.json();
+      if (dnsData.success && IS_TTY) {
+        console.error(`DNS: ${dnsData.hostname}`);
+      }
+    } catch {
+      // DNS registration is best-effort
+      if (IS_TTY) console.error('DNS registration failed (mDNS may not be available)');
+    }
+  }
+
   if (isJson(options)) {
     // JSON mode: full data to stdout
     console.log(JSON.stringify(data, null, 2));

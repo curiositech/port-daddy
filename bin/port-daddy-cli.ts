@@ -59,6 +59,8 @@ import {
   handleMetrics, handleConfigCmd, handleHealth, handlePorts, handleDashboard, handleDoctor, handleStatus, handleVersion,
   // Daemon
   handleDaemon, handleDev,
+  // DNS
+  handleDns,
 } from '../cli/commands/index.js';
 
 const __dirname: string = dirname(fileURLToPath(import.meta.url));
@@ -1541,6 +1543,10 @@ async function main(): Promise<void> {
 
       case 'ports':
         await handlePorts(positional[0], options);
+        break;
+
+      case 'dns':
+        await handleDns(positional[0], positional.slice(1), options);
         break;
 
       default: {

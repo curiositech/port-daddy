@@ -31,6 +31,7 @@ import { createActivityLog, ActivityType } from './lib/activity.js';
 import { createWebhooks, WebhookEvent } from './lib/webhooks.js';
 import { createProjects } from './lib/projects.js';
 import { createSessions } from './lib/sessions.js';
+import { createDns } from './lib/dns.js';
 import { initDatabase, resolveDbPath } from './lib/db.js';
 
 // Route aggregator
@@ -153,6 +154,7 @@ const webhooks = createWebhooks(db);
 const projects = createProjects(db);
 const sessions = createSessions(db);
 sessions.setActivityLog(activityLog);
+const dns = createDns(db);
 
 interface DaemonMetrics {
   total_assignments: number;
@@ -252,7 +254,7 @@ app.use((req: Request, res: Response, next: NextFunction): void => {
 // Mount all routes via aggregator
 app.use(createRoutes({
   db, logger, metrics, config,
-  services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
+  services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions, dns,
   VERSION, CODE_HASH, STARTED_AT, __dirname,
   cleanupStale, getSystemPorts
 }));
