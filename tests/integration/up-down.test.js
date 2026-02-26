@@ -13,12 +13,12 @@ import { join } from 'node:path';
 import {
   mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, readFileSync
 } from 'node:fs';
-import { tmpdir, homedir } from 'node:os';
+import { tmpdir } from 'node:os';
 import { request, getDaemonState } from '../helpers/integration-setup.js';
 
 const CLI_PATH = join(import.meta.dirname, '../../bin/port-daddy-cli.js');
 const TSX_PATH = join(import.meta.dirname, '../../node_modules/.bin/tsx');
-const UP_PID_FILE = join(homedir(), '.port-daddy-up.pid');
+const UP_PID_FILE = join(tmpdir(), 'port-daddy-up.pid');
 
 // Inline server script that reads PORT from env and responds with JSON
 const MINI_SERVER_SCRIPT = `

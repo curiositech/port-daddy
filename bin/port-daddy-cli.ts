@@ -48,6 +48,8 @@ import {
   // Agents & Resurrection
   handleAgent, handleAgents,
   handleSalvage,
+  // Changelog
+  handleChangelog,
   // Activity
   handleLog,
   // Webhooks
@@ -1466,6 +1468,11 @@ async function main(): Promise<void> {
       case 'salvage':
       case 'resurrection':
         await handleSalvage(positional[0], positional.slice(1), options);
+        break;
+
+      // Hierarchical changelog
+      case 'changelog':
+        await handleChangelog(positional[0], positional.slice(1), options);
         break;
 
       // Activity log

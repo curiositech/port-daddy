@@ -17,3 +17,4 @@ export * from './diagnostics.js';
 export * from './daemon.js';
 export * from './dns.js';
 export * from './resurrection.js';
+export * from './changelog.js';

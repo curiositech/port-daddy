@@ -83,9 +83,11 @@ export function createResurrection(db: Database.Database) {
 
   const emitter = new EventEmitter();
 
-  // Heartbeat threshold: 2 minutes = stale, 10 minutes = dead
-  const STALE_THRESHOLD = 2 * 60 * 1000;
-  const DEAD_THRESHOLD = 10 * 60 * 1000;
+  // Heartbeat thresholds — tuned for typical agentic task distribution
+  // Stale: Agent hasn't checked in, might be deep in thought or stuck
+  // Dead: Agent is definitely gone, work should be salvaged
+  const STALE_THRESHOLD = 10 * 60 * 1000;  // 10 minutes
+  const DEAD_THRESHOLD = 20 * 60 * 1000;   // 20 minutes
 
   function formatQueueEntry(row: ResurrectionQueueRow): StaleAgent {
     const metadata = row.metadata ? JSON.parse(row.metadata) : {};
