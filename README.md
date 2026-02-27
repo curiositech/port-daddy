@@ -23,7 +23,7 @@ Port Daddy is a local daemon that manages dev server ports, starts your entire s
 
 One daemon. Many projects. Zero port conflicts.
 
-**Jump to:** [Just Want Stable Ports?](#just-want-stable-ports) | [Run Your Whole Stack](#run-your-whole-stack) | [Agent Coordination](#agent-coordination) | [Sessions & Notes](#sessions--notes) | [Changelog](#changelog) | [CLI Reference](#cli-reference) | [API Reference](#api-reference)
+**Jump to:** [Just Want Stable Ports?](#just-want-stable-ports) | [Run Your Whole Stack](#run-your-whole-stack) | [Agent Coordination](#agent-coordination) | [Sessions & Notes](#sessions--notes) | [Changelog](#changelog) | [Local DNS](#local-dns-for-ports) | [CLI Reference](#cli-reference) | [API Reference](#api-reference)
 
 ---
 
@@ -108,14 +108,12 @@ pd down                     # graceful shutdown
   "project": "myapp",
   "services": {
     "api": {
-      "cmd": "npm run dev:api",
-      "port": 3001,
+      "cmd": "npm run dev:api -- --port ${PORT}",
       "healthPath": "/health",
       "env": { "DATABASE_URL": "postgresql://localhost:5432/myapp" }
     },
     "frontend": {
       "cmd": "npm run dev -- --port ${PORT}",
-      "port": 3000,
       "healthPath": "/",
       "needs": ["api"]
     },
@@ -128,12 +126,38 @@ pd down                     # graceful shutdown
 }
 ```
 
+Note: No `port` fields — Port Daddy assigns them automatically from the identity hash. See [Sharing Configs](#sharing-configs-with-your-team) for why.
+
 ```bash
 pd up                       # start everything
 pd up --service frontend    # start one service + its dependencies
 pd up --branch              # include git branch in identity (myapp:api:feature-auth)
 pd up --no-health           # skip health checks for faster startup
 ```
+
+### Sharing Configs with Your Team
+
+When you commit `.portdaddyrc` to version control, **omit the `port` field**. Port Daddy assigns ports deterministically from the identity hash — `myapp:api` always gets the same port on each machine.
+
+```json
+{
+  "project": "myapp",
+  "services": {
+    "api": {
+      "cmd": "npm run dev -- --port ${PORT}",
+      "healthPath": "/health"
+    },
+    "frontend": {
+      "cmd": "next dev --port ${PORT}",
+      "needs": ["api"]
+    }
+  }
+}
+```
+
+**Why?** Raw port numbers like `3847` are machine-local. They confuse your teammates ("what is this random port?"). By omitting ports, every developer gets consistent behavior: same identity → same port on their machine.
+
+If you *need* a specific port (e.g., OAuth callbacks to `localhost:3000`), specify it. Otherwise, let Port Daddy handle it.
 
 ---
 
@@ -342,6 +366,45 @@ See `examples/` for working implementations of each pattern.
 The bottleneck was never intelligence. It was coordination.
 
 One brilliant agent working alone is like one brilliant human working alone. A swarm of coordinated agents is a hive mind that thinks at the speed of silicon.
+
+---
+
+## Local DNS for Ports
+
+Tired of remembering `localhost:3847`? Use semantic names instead:
+
+```bash
+# Claim with DNS registration
+pd claim myapp:api --dns
+# → Port 3847 claimed
+# → Registered: myapp-api.local
+
+curl http://myapp-api.local/health
+# Works!
+```
+
+Every claimed service can get a `.local` domain:
+
+```bash
+pd claim frontend:react --dns    # → frontend-react.local
+pd claim backend:graphql --dns   # → backend-graphql.local
+
+# List all DNS registrations
+pd dns list
+# myapp-api.local       → 127.0.0.1:3847
+# frontend-react.local  → 127.0.0.1:3156
+# backend-graphql.local → 127.0.0.1:4000
+```
+
+**Requirements:**
+- **macOS**: Works out of the box (mDNS/Bonjour built-in)
+- **Linux**: Install `avahi-daemon` (`apt install avahi-daemon` or equivalent)
+- **Windows**: Not supported yet
+
+**Use cases:**
+- OAuth callbacks that require consistent URLs
+- Microservices that need to discover each other by name
+- Documentation and README examples that don't use magic port numbers
 
 ---
 
