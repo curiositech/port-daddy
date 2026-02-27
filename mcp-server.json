@@ -234,6 +234,119 @@
         "type": "object",
         "additionalProperties": false
       }
+    },
+    {
+      "name": "port_daddy_agent_register",
+      "title": "Register Agent",
+      "description": "Register this agent with Port Daddy. Registration enables inbox messaging, resurrection if you die, and priority in lock acquisition. Call this at the start of every agent session.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "agentId": {
+            "type": "string",
+            "description": "Unique agent identifier (e.g., 'claude-code-abc123', 'cursor-session-1')."
+          },
+          "name": {
+            "type": "string",
+            "description": "Human-readable name for this agent."
+          },
+          "type": {
+            "type": "string",
+            "description": "Agent type (e.g., 'cli', 'vscode', 'cursor', 'claude-code')."
+          },
+          "purpose": {
+            "type": "string",
+            "description": "What this agent is working on. Helps other agents understand context if you die."
+          }
+        },
+        "required": ["agentId"]
+      }
+    },
+    {
+      "name": "port_daddy_agent_heartbeat",
+      "title": "Agent Heartbeat",
+      "description": "Send a heartbeat to indicate this agent is still alive. Call every 5 minutes to avoid being marked stale (10min) or dead (20min).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "agentId": {
+            "type": "string",
+            "description": "Your agent identifier."
+          }
+        },
+        "required": ["agentId"]
+      }
+    },
+    {
+      "name": "port_daddy_salvage",
+      "title": "Check Salvage Queue",
+      "description": "Check if any agents died with unfinished work. Returns sessions and notes from dead agents that can be continued. Call this at the start of work to pick up abandoned tasks.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "claim": {
+            "type": "string",
+            "description": "Optional: agent ID to claim for resurrection. If provided, marks the agent as being resurrected by you."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "port_daddy_changelog_add",
+      "title": "Add Changelog Entry",
+      "description": "Record a change in the hierarchical changelog. Use semantic identities (project:service:feature) for automatic rollup. Call after completing meaningful work.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "identity": {
+            "type": "string",
+            "description": "Semantic identity of what changed (e.g., 'myapp:api:auth', 'myapp:frontend'). Changes roll up to parent levels automatically."
+          },
+          "summary": {
+            "type": "string",
+            "description": "One-line summary of the change (like a git commit message)."
+          },
+          "type": {
+            "type": "string",
+            "enum": ["feature", "fix", "refactor", "docs", "chore", "breaking"],
+            "description": "Type of change. Default: 'feature'."
+          },
+          "description": {
+            "type": "string",
+            "description": "Optional detailed description (markdown supported)."
+          },
+          "sessionId": {
+            "type": "string",
+            "description": "Optional session ID to link this change to."
+          }
+        },
+        "required": ["identity", "summary"]
+      }
+    },
+    {
+      "name": "port_daddy_changelog_list",
+      "title": "List Changelog",
+      "description": "List recent changelog entries. Use to see what's been done across a project or service.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "identity": {
+            "type": "string",
+            "description": "Optional: filter to this identity and its children (e.g., 'myapp' shows all myapp changes)."
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Maximum entries to return. Default: 20."
+          },
+          "format": {
+            "type": "string",
+            "enum": ["json", "flat", "tree", "keep-a-changelog"],
+            "description": "Output format. 'json' for structured data, others for markdown."
+          }
+        },
+        "additionalProperties": false
+      }
     }
   ],
   "transport": {

@@ -23,7 +23,7 @@ Port Daddy is a local daemon that manages dev server ports, starts your entire s
 
 One daemon. Many projects. Zero port conflicts.
 
-**Jump to:** [Just Want Stable Ports?](#just-want-stable-ports) | [Run Your Whole Stack](#run-your-whole-stack) | [Agent Coordination](#agent-coordination) | [Sessions & Notes](#sessions--notes) | [CLI Reference](#cli-reference) | [API Reference](#api-reference)
+**Jump to:** [Just Want Stable Ports?](#just-want-stable-ports) | [Run Your Whole Stack](#run-your-whole-stack) | [Agent Coordination](#agent-coordination) | [Sessions & Notes](#sessions--notes) | [Changelog](#changelog) | [CLI Reference](#cli-reference) | [API Reference](#api-reference)
 
 ---
 
@@ -166,12 +166,36 @@ pd lock db-migrations || echo "Lock held, skipping"
 ### Agent Registry
 
 ```bash
-pd agent register --agent builder-1 --type cli
+pd agent register --agent builder-1 --name "API Builder" --type cli --purpose "Building the payment API"
 pd agent heartbeat --agent builder-1
 pd agents                   # list all active agents
 ```
 
-Agents that stop sending heartbeats for 2+ minutes are marked stale and their resources are automatically released.
+Agents that stop sending heartbeats are marked stale (10min) then dead (20min).
+
+### Agent Resurrection (Salvage)
+
+When an agent dies mid-task, its work isn't lost. Port Daddy captures session state and notes for salvage:
+
+```bash
+# At session start, check if someone died with unfinished work
+pd salvage
+
+# Sample output:
+# Dead agent: builder-1 (died 15 minutes ago)
+#   Purpose: Building the payment API
+#   Session: session-a1b2c3 (active, 3 notes)
+#   Last note: "Finished Stripe integration, starting PayPal"
+#   Files: src/payments/stripe.ts, src/payments/paypal.ts
+
+# Claim the dead agent's session and continue their work
+pd salvage --claim builder-1
+
+# Clear salvage queue after you've reviewed it
+pd salvage --clear
+```
+
+**Pro tip:** Register with `--purpose` so the salvaging agent knows what you were doing.
 
 ---
 
@@ -225,6 +249,50 @@ pd session rm session-abc   # delete entirely (cascades to notes + file claims)
 | Stale locks rot | Garbage collection on stale sessions |
 | No timeline | Immutable, queryable note history |
 | Single file, many writers | Concurrent sessions, atomic operations |
+
+---
+
+## Changelog
+
+Port Daddy maintains a hierarchical changelog that rolls up changes by identity. When you complete meaningful work, record it:
+
+```bash
+# Record a change
+pd changelog add myapp:api:auth "Added JWT refresh token endpoint" --type feature
+
+# With detailed description
+pd changelog add myapp:frontend "Fixed mobile nav overlap" --type fix \
+  --description "Nav was overlapping content on iOS Safari viewport"
+
+# List recent changes
+pd changelog list
+
+# Filter to a specific identity (includes children)
+pd changelog list --identity myapp:api
+
+# Different output formats
+pd changelog list --format tree          # hierarchical tree view
+pd changelog list --format flat          # simple list
+pd changelog list --format keep-a-changelog   # standard changelog format
+```
+
+### Hierarchical rollup
+
+Changes roll up automatically:
+- `myapp:api:auth` appears under `myapp:api` which appears under `myapp`
+- Query `myapp` to see all changes across the entire project
+- Query `myapp:api` to see all API changes
+
+### Change types
+
+| Type | When to use |
+|------|-------------|
+| `feature` | New functionality |
+| `fix` | Bug fixes |
+| `refactor` | Code restructuring |
+| `docs` | Documentation updates |
+| `chore` | Maintenance tasks |
+| `breaking` | Breaking changes |
 
 ---
 
@@ -396,9 +464,21 @@ The skill teaches agents to claim ports with semantic identities, coordinate via
 
 | Command | Description |
 |---------|-------------|
-| `pd agent register` | Register as an agent (`--agent ID --type TYPE`) |
+| `pd agent register` | Register as an agent (`--agent ID --type TYPE --purpose "..."`) |
 | `pd agent heartbeat` | Send heartbeat |
 | `pd agents` | List all registered agents |
+| `pd salvage` | Check for dead agents with recoverable work |
+| `pd salvage --claim <id>` | Claim a dead agent's session |
+| `pd salvage --clear` | Clear the salvage queue |
+
+### Changelog
+
+| Command | Description |
+|---------|-------------|
+| `pd changelog add <id> <summary>` | Record a change (`--type TYPE --description "..."`) |
+| `pd changelog list` | List recent changes |
+| `pd changelog list --identity <id>` | Filter to an identity (includes children) |
+| `pd changelog list --format tree` | Output as hierarchical tree |
 
 ### System
 
@@ -462,6 +542,9 @@ DELETE /locks/:name             GET    /locks
 POST   /msg/:channel            GET    /msg/:channel
 GET    /subscribe/:channel      GET    /channels
 POST   /agents/:id              GET    /agents
+GET    /salvage                 POST   /salvage
+POST   /changelog               GET    /changelog
+GET    /changelog/identities
 POST   /webhooks                GET    /webhooks/:id
 POST   /scan                    GET    /projects
 GET    /activity                GET    /activity/range

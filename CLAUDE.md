@@ -208,6 +208,9 @@ Fish completions are historically the worst — double-check fish.
 | `/sessions/:id/notes` | POST/GET | Add/get session notes |
 | `/sessions/:id/files` | POST/DELETE/GET | Claim/release/list files |
 | `/notes` | POST/GET | Quick note / recent notes |
+| `/salvage` | GET/POST | Check salvage queue / claim dead agent |
+| `/changelog` | POST/GET | Add entry / list changelog |
+| `/changelog/identities` | GET | List all identities with changelog entries |
 | `/scan` | POST | Deep-scan directory, register project |
 | `/projects` | GET | List registered projects |
 | `/projects/:id` | GET/DELETE | Get or remove a project |

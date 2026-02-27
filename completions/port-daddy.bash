@@ -95,6 +95,8 @@ _port_daddy() {
     log activity
     # Sessions & Notes
     session sessions note notes
+    # Agent Resurrection & Changelog
+    salvage changelog
     # System & Monitoring
     dashboard channels webhook webhooks metrics config health ports
     # Orchestration
@@ -611,6 +613,155 @@ _port_daddy() {
           ;;
         *)
           _pd_opts '--limit --type'
+          ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
+    # salvage  [subcommand] [agent-id] [--all] [--limit N]
+    # -----------------------------------------------------------------------
+    salvage)
+      local salvage_subcommands='claim complete abandon dismiss'
+      local subcmd=""
+      for (( i = 1; i < cword; i++ )); do
+        local w="${words[$i]}"
+        if [[ "$w" == "salvage" ]]; then
+          if (( i + 1 < cword )); then
+            subcmd="${words[$((i+1))]}"
+          fi
+          break
+        fi
+      done
+
+      if [[ -z "$subcmd" ]]; then
+        if [[ "$cur" == -* ]]; then
+          _pd_opts '--all --limit'
+        else
+          # shellcheck disable=SC2207
+          COMPREPLY=( $(compgen -W "$salvage_subcommands" -- "$cur") )
+        fi
+        return 0
+      fi
+
+      case "$subcmd" in
+        claim|abandon|dismiss)
+          if [[ "$cur" == -* ]]; then
+            _pd_opts ''
+          else
+            local aids; aids="$(_pd_agent_ids)"
+            # shellcheck disable=SC2207
+            COMPREPLY=( $(compgen -W "$aids" -- "$cur") )
+          fi
+          ;;
+        complete)
+          # complete takes old-agent-id and new-agent-id
+          if [[ "$cur" == -* ]]; then
+            _pd_opts ''
+          else
+            local aids; aids="$(_pd_agent_ids)"
+            # shellcheck disable=SC2207
+            COMPREPLY=( $(compgen -W "$aids" -- "$cur") )
+          fi
+          ;;
+        *)
+          _pd_opts '--all --limit'
+          ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
+    # changelog  [subcommand] [args] [--limit N] [--type TYPE] [--format FMT]
+    # -----------------------------------------------------------------------
+    changelog)
+      local changelog_subcommands='add show tree export identities'
+      local subcmd=""
+      for (( i = 1; i < cword; i++ )); do
+        local w="${words[$i]}"
+        if [[ "$w" == "changelog" ]]; then
+          if (( i + 1 < cword )); then
+            subcmd="${words[$((i+1))]}"
+          fi
+          break
+        fi
+      done
+
+      if [[ -z "$subcmd" ]]; then
+        if [[ "$cur" == -* ]]; then
+          _pd_opts '--limit'
+        else
+          # shellcheck disable=SC2207
+          COMPREPLY=( $(compgen -W "$changelog_subcommands" -- "$cur") )
+        fi
+        return 0
+      fi
+
+      case "$subcmd" in
+        add)
+          case "$prev" in
+            --type)
+              # shellcheck disable=SC2207
+              COMPREPLY=( $(compgen -W "feature fix refactor docs chore breaking" -- "$cur") )
+              ;;
+            --agent)
+              local aids; aids="$(_pd_agent_ids)"
+              # shellcheck disable=SC2207
+              COMPREPLY=( $(compgen -W "$aids" -- "$cur") )
+              ;;
+            --description|--session)
+              COMPREPLY=()  # Free-form
+              ;;
+            *)
+              if [[ "$cur" == -* ]]; then
+                _pd_opts '--type --description --session --agent'
+              else
+                local ids; ids="$(_pd_service_ids)"
+                # shellcheck disable=SC2207
+                COMPREPLY=( $(compgen -W "$ids" -- "$cur") )
+              fi
+              ;;
+          esac
+          ;;
+        show|tree)
+          case "$prev" in
+            --limit)
+              COMPREPLY=()  # Numeric
+              ;;
+            *)
+              if [[ "$cur" == -* ]]; then
+                _pd_opts '--limit'
+              else
+                local ids; ids="$(_pd_service_ids)"
+                # shellcheck disable=SC2207
+                COMPREPLY=( $(compgen -W "$ids" -- "$cur") )
+              fi
+              ;;
+          esac
+          ;;
+        export)
+          case "$prev" in
+            --format)
+              # shellcheck disable=SC2207
+              COMPREPLY=( $(compgen -W "flat tree keep-a-changelog" -- "$cur") )
+              ;;
+            --limit|--since)
+              COMPREPLY=()  # Free-form
+              ;;
+            *)
+              if [[ "$cur" == -* ]]; then
+                _pd_opts '--format --limit --since'
+              else
+                local ids; ids="$(_pd_service_ids)"
+                # shellcheck disable=SC2207
+                COMPREPLY=( $(compgen -W "$ids" -- "$cur") )
+              fi
+              ;;
+          esac
+          ;;
+        identities)
+          _pd_opts ''
+          ;;
+        *)
+          _pd_opts '--limit'
           ;;
       esac
       ;;

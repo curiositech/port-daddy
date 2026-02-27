@@ -95,6 +95,8 @@ set -l __pd_commands \
     'claim' 'c' 'release' 'r' 'find' 'f' 'list' 'l' 'ps' 'url' 'env' \
     'pub' 'publish' 'sub' 'subscribe' 'wait' 'lock' 'unlock' 'locks' \
     'agent' 'agents' 'log' 'activity' \
+    'session' 'sessions' 'note' 'notes' \
+    'salvage' 'changelog' \
     'up' 'down' \
     'dashboard' 'channels' 'webhook' 'webhooks' 'metrics' 'config' 'health' 'ports' \
     'scan' 's' 'projects' 'p' 'doctor' 'diagnose' \
@@ -139,6 +141,12 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a sessions -d 'List sessions'
     complete -c $prog -n __pd_needs_command -a note -d 'Add a quick note'
     complete -c $prog -n __pd_needs_command -a notes -d 'List recent notes'
+
+    # Agent Resurrection
+    complete -c $prog -n __pd_needs_command -a salvage -d 'Check for dead agents with recoverable work'
+
+    # Changelog
+    complete -c $prog -n __pd_needs_command -a changelog -d 'Hierarchical changelog with identity-based rollup'
 
     # System & Monitoring
     complete -c $prog -n __pd_needs_command -a dashboard -d 'Open web dashboard'
@@ -297,6 +305,30 @@ for prog in port-daddy pd
     # notes
     complete -c $prog -n "__pd_using_command notes" -l limit -d 'Max entries' -x
     complete -c $prog -n "__pd_using_command notes" -l type -d 'Filter by note type' -x -a 'note handoff commit warning'
+
+    # salvage subcommands
+    complete -c $prog -n "__pd_using_command salvage" -x -a 'claim' -d 'Claim a dead agent\'s work for resurrection'
+    complete -c $prog -n "__pd_using_command salvage" -x -a 'complete' -d 'Mark resurrection as complete'
+    complete -c $prog -n "__pd_using_command salvage" -x -a 'abandon' -d 'Return agent to resurrection queue'
+    complete -c $prog -n "__pd_using_command salvage" -x -a 'dismiss' -d 'Remove agent from queue (reviewed, not resurrecting)'
+    complete -c $prog -n "__pd_using_command salvage" -l all -d 'Show all queue entries, not just pending'
+    complete -c $prog -n "__pd_using_command salvage" -l limit -d 'Max entries to return' -x
+    complete -c $prog -n "__pd_using_command salvage" -x -a '(__pd_agent_ids)'
+
+    # changelog subcommands
+    complete -c $prog -n "__pd_using_command changelog" -x -a 'add' -d 'Add a changelog entry'
+    complete -c $prog -n "__pd_using_command changelog" -x -a 'show' -d 'Show changes for an identity'
+    complete -c $prog -n "__pd_using_command changelog" -x -a 'tree' -d 'Show changes for identity and children'
+    complete -c $prog -n "__pd_using_command changelog" -x -a 'export' -d 'Export changelog as markdown'
+    complete -c $prog -n "__pd_using_command changelog" -x -a 'identities' -d 'List all identities with changelog entries'
+    complete -c $prog -n "__pd_using_command changelog" -l limit -d 'Max entries to return' -x
+    complete -c $prog -n "__pd_using_command changelog" -l type -d 'Entry type' -x -a 'feature fix refactor docs chore breaking'
+    complete -c $prog -n "__pd_using_command changelog" -l description -d 'Detailed description' -x
+    complete -c $prog -n "__pd_using_command changelog" -l session -d 'Link to session ID' -x
+    complete -c $prog -n "__pd_using_command changelog" -l agent -d 'Link to agent ID' -x -a '(__pd_agent_ids)'
+    complete -c $prog -n "__pd_using_command changelog" -l format -d 'Export format' -x -a 'flat tree keep-a-changelog'
+    complete -c $prog -n "__pd_using_command changelog" -l since -d 'Filter by timestamp' -x
+    complete -c $prog -n "__pd_using_command changelog" -x -a '(__pd_service_ids)'
 
     # -----------------------------------------------------------------------
     # Fill parity gaps for existing commands

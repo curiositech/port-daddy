@@ -594,6 +594,115 @@ _pd_cmd_daemon() {
     '(-h --help)'{-h,--help}'[show help]'
 }
 
+_pd_cmd_salvage() {
+  local -a salvage_subcmds
+  salvage_subcmds=(
+    'claim:claim a dead agent'\''s work for resurrection'
+    'complete:mark resurrection as complete'
+    'abandon:return agent to resurrection queue'
+    'dismiss:remove agent from queue (reviewed, not resurrecting)'
+  )
+
+  local state subcmd
+  _arguments -C \
+    '--all[show all queue entries, not just pending]' \
+    '--limit[max entries to return]:count:' \
+    '(-j --json)'{-j,--json}'[JSON output]' \
+    '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+    '(-h --help)'{-h,--help}'[show help]' \
+    '1:subcommand:->subcommand' \
+    '*::subcommand args:->args' \
+    && return
+
+  case "$state" in
+    subcommand)
+      _describe 'salvage subcommand' salvage_subcmds
+      ;;
+    args)
+      subcmd="${words[1]}"
+      case "$subcmd" in
+        claim|abandon|dismiss)
+          _arguments \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+            '1:agent ID:_pd_complete_agents'
+          ;;
+        complete)
+          _arguments \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+            '1:old agent ID:_pd_complete_agents' \
+            '2:new agent ID:'
+          ;;
+      esac
+      ;;
+  esac
+}
+
+_pd_cmd_changelog() {
+  local -a changelog_subcmds
+  changelog_subcmds=(
+    'add:add a changelog entry'
+    'show:show changes for an identity'
+    'tree:show changes for identity and children'
+    'export:export changelog as markdown'
+    'identities:list all identities with changelog entries'
+  )
+
+  local state subcmd
+  _arguments -C \
+    '--limit[max entries to return]:count:' \
+    '(-j --json)'{-j,--json}'[JSON output]' \
+    '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+    '(-h --help)'{-h,--help}'[show help]' \
+    '1:subcommand:->subcommand' \
+    '*::subcommand args:->args' \
+    && return
+
+  case "$state" in
+    subcommand)
+      _describe 'changelog subcommand' changelog_subcmds
+      ;;
+    args)
+      subcmd="${words[1]}"
+      case "$subcmd" in
+        add)
+          _arguments \
+            '--type[change type]:type:(feature fix refactor docs chore breaking)' \
+            '--description[detailed description]:description:' \
+            '--session[link to session ID]:session ID:' \
+            '--agent[link to agent ID]:agent ID:_pd_complete_agents' \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+            '1:identity (project:service:feature):_pd_complete_services' \
+            '2:summary:'
+          ;;
+        show|tree)
+          _arguments \
+            '--limit[max entries to return]:count:' \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+            '1:identity:_pd_complete_services'
+          ;;
+        export)
+          _arguments \
+            '--format[output format]:format:(flat tree keep-a-changelog)' \
+            '--limit[max entries to return]:count:' \
+            '--since[filter by timestamp]:timestamp:' \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+            '1:identity:_pd_complete_services'
+          ;;
+        identities)
+          _arguments \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[suppress output]'
+          ;;
+      esac
+      ;;
+  esac
+}
+
 # ---------------------------------------------------------------------------
 # Main completion entry point
 # ---------------------------------------------------------------------------
@@ -633,6 +742,10 @@ _port_daddy() {
     'sessions:list sessions'
     'note:add a quick note'
     'notes:list recent notes'
+    # Agent Resurrection
+    'salvage:check for dead agents with recoverable work'
+    # Changelog
+    'changelog:hierarchical changelog with identity-based rollup'
     # System & Monitoring
     'dashboard:open web dashboard in browser'
     'channels:list pub/sub channels'
@@ -708,6 +821,8 @@ _port_daddy() {
         sessions)           _pd_cmd_sessions ;;
         note)               _pd_cmd_note ;;
         notes)              _pd_cmd_notes ;;
+        salvage)            _pd_cmd_salvage ;;
+        changelog)          _pd_cmd_changelog ;;
         up)                 _pd_cmd_up ;;
         down)               _pd_cmd_down ;;
         s|scan)             _pd_cmd_scan ;;

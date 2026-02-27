@@ -756,6 +756,7 @@
           <button class="tab" data-tab="webhooks"><svg class="icon"><use href="#icon-webhook"/></svg>Webhooks<span class="tab-badge" id="badge-webhooks">0</span></button>
           <button class="tab" data-tab="projects"><svg class="icon"><use href="#icon-folder"/></svg>Projects<span class="tab-badge" id="badge-projects">0</span></button>
           <button class="tab" data-tab="sessions"><svg class="icon"><use href="#icon-clipboard"/></svg>Sessions<span class="tab-badge" id="badge-sessions">0</span></button>
+          <button class="tab" data-tab="changelog"><svg class="icon"><use href="#icon-book"/></svg>Changelog<span class="tab-badge" id="badge-changelog">0</span></button>
           <button class="tab" data-tab="activity"><svg class="icon"><use href="#icon-activity"/></svg>Activity</button>
           <button class="tab" data-tab="config"><svg class="icon"><use href="#icon-settings"/></svg>Config</button>
         </div>
@@ -856,6 +857,22 @@
         </table>
         <h3 style="color:var(--accent);margin:24px 0 12px;font-size:1.05em">Recent Notes</h3>
         <div class="activity-feed" id="notes-feed"><div class="empty-state"><svg class="empty-state-icon"><use href="#icon-message"/></svg><div class="empty-state-text">No notes yet</div></div></div>
+      </div>
+
+      <div class="tab-content" id="tab-changelog">
+        <div class="tab-toolbar">
+          <button class="refresh-btn" onclick="refreshChangelog()" id="refresh-changelog"><svg class="icon"><use href="#icon-refresh"/></svg>Refresh</button>
+          <select class="filter-select" id="changelog-identity" onchange="refreshChangelog()">
+            <option value="">All Identities</option>
+          </select>
+          <select class="filter-select" id="changelog-format" onchange="refreshChangelog()">
+            <option value="json">List View</option>
+            <option value="flat">Flat Markdown</option>
+            <option value="tree">Tree View</option>
+            <option value="keep-a-changelog">Keep A Changelog</option>
+          </select>
+        </div>
+        <div class="activity-feed" id="changelog-feed"><div class="empty-state"><svg class="empty-state-icon"><use href="#icon-book"/></svg><div class="empty-state-text">Loading...</div></div></div>
       </div>
 
       <div class="tab-content" id="tab-activity">
@@ -1741,6 +1758,104 @@
         });
       } catch (e) { console.error(e); }
     }
+    async function refreshChangelog() {
+      spinRefreshBtn('refresh-changelog');
+      try {
+        // Refresh identity dropdown first
+        var identityData = await (await fetch(API + '/changelog/identities')).json();
+        var identitySelect = document.getElementById('changelog-identity');
+        var currentVal = identitySelect.value;
+        identitySelect.textContent = '';
+        var defaultOpt = document.createElement('option');
+        defaultOpt.value = '';
+        defaultOpt.textContent = 'All Identities';
+        identitySelect.appendChild(defaultOpt);
+        if (identityData.identities) {
+          identityData.identities.forEach(function(id) {
+            var opt = document.createElement('option');
+            opt.value = id;
+            opt.textContent = id;
+            identitySelect.appendChild(opt);
+          });
+        }
+        identitySelect.value = currentVal;
+
+        // Fetch changelog
+        var identity = identitySelect.value;
+        var format = document.getElementById('changelog-format').value;
+        var url = identity ? API + '/changelog/' + encodeURIComponent(identity) : API + '/changelog';
+        url += '?limit=50';
+
+        var feed = document.getElementById('changelog-feed');
+
+        if (format !== 'json') {
+          // Markdown format requested
+          url += '&format=' + format + '&raw=true';
+          var resp = await fetch(url);
+          var md = await resp.text();
+          feed.textContent = '';
+          var pre = document.createElement('pre');
+          pre.style.whiteSpace = 'pre-wrap';
+          pre.style.fontFamily = 'inherit';
+          pre.textContent = md || 'No changelog entries';
+          feed.appendChild(pre);
+          document.getElementById('badge-changelog').textContent = '';
+          return;
+        }
+
+        // JSON list format
+        var data = await (await fetch(url)).json();
+        var ct = data.count || 0;
+        document.getElementById('badge-changelog').textContent = ct;
+        feed.textContent = '';
+
+        if (ct === 0) {
+          var empty = document.createElement('div');
+          empty.className = 'empty-state';
+          var svgNs = 'http://www.w3.org/2000/svg';
+          var svg = document.createElementNS(svgNs, 'svg');
+          svg.setAttribute('class', 'empty-state-icon');
+          var use = document.createElementNS(svgNs, 'use');
+          use.setAttributeNS('http://www.w3.org/1999/xlink', 'href', '#icon-book');
+          svg.appendChild(use);
+          empty.appendChild(svg);
+          var t = document.createElement('div'); t.className = 'empty-state-text'; t.textContent = 'No changelog entries'; empty.appendChild(t);
+          var h = document.createElement('div'); h.className = 'empty-state-hint'; h.textContent = 'Add entries with "pd changelog add <identity> <summary>"'; empty.appendChild(h);
+          feed.appendChild(empty);
+          return;
+        }
+
+        var typeIcons = { 'feature': '#icon-zap', 'fix': '#icon-check', 'refactor': '#icon-refresh', 'docs': '#icon-book', 'chore': '#icon-box', 'breaking': '#icon-flag' };
+        var typeClasses = { 'feature': 'claim', 'fix': 'release', 'refactor': 'lock', 'docs': 'agent', 'chore': '', 'breaking': 'danger' };
+        data.entries.forEach(function(e) {
+          var item = document.createElement('div');
+          item.className = 'activity-item';
+          var iconDiv = document.createElement('div');
+          iconDiv.className = 'activity-icon ' + (typeClasses[e.type] || '');
+          var svgNs2 = 'http://www.w3.org/2000/svg';
+          var svg2 = document.createElementNS(svgNs2, 'svg');
+          svg2.setAttribute('class', 'icon');
+          var use2 = document.createElementNS(svgNs2, 'use');
+          use2.setAttributeNS('http://www.w3.org/1999/xlink', 'href', typeIcons[e.type] || '#icon-book');
+          svg2.appendChild(use2);
+          iconDiv.appendChild(svg2);
+          var content = document.createElement('div');
+          content.className = 'activity-content';
+          var typeDiv = document.createElement('div'); typeDiv.className = 'type';
+          var typeBadge = document.createElement('span');
+          typeBadge.className = 'badge badge-' + (e.type === 'breaking' ? 'danger' : 'muted');
+          typeBadge.style.marginRight = '8px';
+          typeBadge.textContent = e.type.toUpperCase();
+          typeDiv.appendChild(typeBadge);
+          typeDiv.appendChild(document.createTextNode(e.identity));
+          var detailsDiv = document.createElement('div'); detailsDiv.className = 'details'; detailsDiv.textContent = e.summary;
+          var timeDiv = document.createElement('div'); timeDiv.className = 'time'; timeDiv.textContent = formatTime(e.createdAt);
+          content.appendChild(typeDiv); content.appendChild(detailsDiv); content.appendChild(timeDiv);
+          item.appendChild(iconDiv); item.appendChild(content);
+          feed.appendChild(item);
+        });
+      } catch (e) { console.error(e); }
+    }
     async function refreshConfig() {
       try {
         var data = await (await fetch(API + '/version')).json();
@@ -2068,7 +2183,7 @@
       } catch (e) { showToast('Failed to abandon session', 'error'); }
     }
     async function refreshAll() {
-      await Promise.all([refreshHealth(), refreshVersion(), refreshServices(), refreshAgents(), refreshSalvage(), refreshLocks(), refreshChannels(), refreshWebhooks(), refreshActivity(), refreshProjects(), refreshSessions(), refreshConfig()]);
+      await Promise.all([refreshHealth(), refreshVersion(), refreshServices(), refreshAgents(), refreshSalvage(), refreshLocks(), refreshChannels(), refreshWebhooks(), refreshActivity(), refreshProjects(), refreshSessions(), refreshConfig(), refreshChangelog()]);
     }
     refreshAll();
     setInterval(refreshAll, 5000);
