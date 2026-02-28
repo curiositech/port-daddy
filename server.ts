@@ -34,6 +34,7 @@ import { createSessions } from './lib/sessions.js';
 import { createAgentInbox } from './lib/agent-inbox.js';
 import { createResurrection } from './lib/resurrection.js';
 import { createChangelog } from './lib/changelog.js';
+import { createTunnel } from './lib/tunnel.js';
 import { initDatabase, resolveDbPath } from './lib/db.js';
 
 // Route aggregator
@@ -159,6 +160,7 @@ sessions.setActivityLog(activityLog);
 const agentInbox = createAgentInbox(db);
 const resurrection = createResurrection(db);
 const changelog = createChangelog(db);
+const tunnel = createTunnel(db);
 
 // Wire resurrection events to broadcast on the radio
 resurrection.on('agent:stale', (agent) => {
@@ -355,7 +357,7 @@ app.use((req: Request, res: Response, next: NextFunction): void => {
 app.use(createRoutes({
   db, logger, metrics, config,
   services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
-  agentInbox, resurrection, changelog,
+  agentInbox, resurrection, changelog, tunnel,
   VERSION, CODE_HASH, STARTED_AT, __dirname,
   cleanupStale, getSystemPorts
 }));

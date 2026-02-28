@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Tunnel integration**: Expose local services to the internet via ngrok, cloudflared, or localtunnel
+  - `pd tunnel start <service> --provider cloudflared|ngrok|localtunnel` — start a tunnel
+  - `pd tunnel stop <service>` — stop a tunnel
+  - `pd tunnel status <service>` — get tunnel status
+  - `pd tunnel list` — list all active tunnels
+  - `pd tunnel providers` — check which providers are installed
+  - API: `POST/DELETE/GET /tunnel/:id`, `GET /tunnels`, `GET /tunnel/providers`
+  - SDK: `tunnelStart()`, `tunnelStop()`, `tunnelStatus()`, `tunnelList()`, `tunnelProviders()` methods
+  - Shell completions: tunnel subcommands in bash, zsh, fish
 - **Context-aware salvage UX**: Agent identity (`--identity project:stack:context`) enables smart filtering
   - `pd agent register --identity myapp:backend:main` — semantic identity for agents
   - Auto-salvage notice: when registering, check for dead agents in the same project and show notice

@@ -1,0 +1,195 @@
+{
+  "$schema": "./features.schema.json",
+  "_comment": "Feature manifest for parity enforcement. Every feature MUST be declared here before shipping.",
+
+  "features": {
+    "claim": {
+      "description": "Claim a port for a service",
+      "cli": ["claim", "c"],
+      "sdk": ["claim"],
+      "routes": ["POST /claim"],
+      "completions": ["claim", "c"],
+      "docs": { "readme": true, "sdk": true }
+    },
+    "release": {
+      "description": "Release a service and free its port",
+      "cli": ["release", "r"],
+      "sdk": ["release"],
+      "routes": ["DELETE /release"],
+      "completions": ["release", "r"],
+      "docs": { "readme": true, "sdk": true }
+    },
+    "services": {
+      "description": "List and query services",
+      "cli": ["find", "f", "list", "l", "services", "ps", "status"],
+      "sdk": ["listServices", "getService"],
+      "routes": ["GET /services", "GET /services/:param"],
+      "completions": ["find", "f", "list", "l", "services", "ps", "status"],
+      "docs": { "readme": true, "sdk": true }
+    },
+    "endpoints": {
+      "description": "Service endpoint URLs for discovery",
+      "cli": ["url"],
+      "sdk": ["setEndpoint"],
+      "routes": ["PUT /services/:param/endpoints/:param", "DELETE /services/:param/endpoints/:param"],
+      "completions": ["url"],
+      "docs": { "readme": true, "sdk": true }
+    },
+    "locks": {
+      "description": "Distributed locking",
+      "cli": ["lock", "unlock", "locks"],
+      "sdk": ["lock", "unlock", "checkLock", "extendLock", "listLocks", "lockWithRetry", "withLock"],
+      "routes": ["POST /locks/:param", "PUT /locks/:param", "DELETE /locks/:param", "GET /locks/:param", "GET /locks"],
+      "completions": ["lock", "unlock", "locks"],
+      "docs": { "readme": true, "sdk": true }
+    },
+    "messaging": {
+      "description": "Pub/sub messaging",
+      "cli": ["pub", "publish", "sub", "subscribe", "channels"],
+      "sdk": ["publish", "getMessages", "poll", "subscribe", "listChannels", "clearChannel"],
+      "routes": ["POST /msg/:param", "GET /msg/:param", "DELETE /msg/:param", "GET /msg/:param/poll", "GET /msg/:param/subscribe", "GET /channels"],
+      "completions": ["pub", "publish", "sub", "subscribe", "channels"],
+      "docs": { "readme": true, "sdk": true }
+    },
+    "agents": {
+      "description": "Agent registration and heartbeats",
+      "cli": ["agent", "agents"],
+      "sdk": ["register", "heartbeat", "unregister", "getAgent", "listAgents", "startHeartbeat"],
+      "routes": ["POST /agents", "POST /agents/:param/heartbeat", "DELETE /agents/:param", "GET /agents/:param", "GET /agents"],
+      "completions": ["agent", "agents"],
+      "docs": { "readme": true, "sdk": true }
+    },
+    "salvage": {
+      "description": "Agent resurrection / salvage queue",
+      "cli": ["salvage", "resurrection"],
+      "sdk": ["salvage", "salvageClaim", "salvageComplete", "salvageAbandon", "salvageDismiss"],
+      "routes": ["GET /resurrection/pending", "GET /resurrection", "POST /resurrection/claim/:param", "POST /resurrection/complete/:param", "POST /resurrection/abandon/:param", "DELETE /resurrection/:param"],
+      "completions": ["salvage", "resurrection"],
+      "docs": { "readme": true, "sdk": true }
+    },
+    "sessions": {
+      "description": "Work sessions for agent coordination",
+      "cli": ["session", "sessions"],
+      "sdk": ["startSession", "endSession", "abandonSession", "removeSession", "sessions", "sessionDetails", "claimFiles", "releaseFiles"],
+      "routes": ["POST /sessions", "GET /sessions", "GET /sessions/:param", "PUT /sessions/:param", "DELETE /sessions/:param", "POST /sessions/:param/files", "DELETE /sessions/:param/files"],
+      "completions": ["session", "sessions"],
+      "docs": { "readme": true, "sdk": true }
+    },
+    "notes": {
+      "description": "Session notes",
+      "cli": ["note", "notes"],
+      "sdk": ["note", "notes"],
+      "routes": ["POST /notes", "GET /notes", "POST /sessions/:param/notes", "GET /sessions/:param/notes"],
+      "completions": ["note", "notes"],
+      "docs": { "readme": true, "sdk": true }
+    },
+    "webhooks": {
+      "description": "Webhook subscriptions",
+      "cli": ["webhook", "webhooks"],
+      "sdk": ["addWebhook", "listWebhooks", "getWebhook", "updateWebhook", "removeWebhook", "testWebhook", "getWebhookDeliveries", "getWebhookEvents"],
+      "routes": ["POST /webhooks", "GET /webhooks", "GET /webhooks/events", "GET /webhooks/:param", "PUT /webhooks/:param", "DELETE /webhooks/:param", "POST /webhooks/:param/test", "GET /webhooks/:param/deliveries"],
+      "completions": ["webhook", "webhooks"],
+      "docs": { "readme": true, "sdk": true }
+    },
+    "tunnel": {
+      "description": "Expose services via ngrok/cloudflared/localtunnel",
+      "cli": ["tunnel"],
+      "sdk": ["tunnelStart", "tunnelStop", "tunnelStatus", "tunnelList", "tunnelProviders"],
+      "routes": ["GET /tunnel/providers", "POST /tunnel/:param", "DELETE /tunnel/:param", "GET /tunnel/:param", "GET /tunnels"],
+      "completions": ["tunnel"],
+      "docs": { "readme": true, "sdk": true }
+    },
+    "changelog": {
+      "description": "Hierarchical changelog",
+      "cli": ["changelog"],
+      "sdk": [],
+      "routes": ["POST /changelog", "GET /changelog", "GET /changelog/identities"],
+      "completions": ["changelog"],
+      "docs": { "readme": true, "sdk": false },
+      "_note": "SDK methods not yet implemented"
+    },
+    "orchestration": {
+      "description": "Service orchestration (up/down)",
+      "cli": ["up", "down"],
+      "sdk": [],
+      "routes": [],
+      "completions": ["up", "down"],
+      "docs": { "readme": true, "sdk": false },
+      "_note": "Orchestration is CLI-only, no HTTP API"
+    },
+    "scan": {
+      "description": "Project scanning and detection",
+      "cli": ["scan", "s"],
+      "sdk": ["scan"],
+      "routes": ["POST /scan"],
+      "completions": ["scan", "s"],
+      "docs": { "readme": true, "sdk": true }
+    },
+    "projects": {
+      "description": "Project registry",
+      "cli": ["projects", "p"],
+      "sdk": ["listProjects", "getProject", "deleteProject"],
+      "routes": ["GET /projects", "GET /projects/:param", "DELETE /projects/:param"],
+      "completions": ["projects", "p"],
+      "docs": { "readme": true, "sdk": true }
+    },
+    "health": {
+      "description": "Health checks",
+      "cli": ["health"],
+      "sdk": ["health", "checkServiceHealth", "listServiceHealth"],
+      "routes": ["GET /health", "GET /services/health", "GET /services/health/:param"],
+      "completions": ["health"],
+      "docs": { "readme": true, "sdk": true }
+    },
+    "activity": {
+      "description": "Activity logging",
+      "cli": ["log", "activity"],
+      "sdk": ["getActivity", "getActivityRange", "getActivitySummary", "getActivityStats"],
+      "routes": ["GET /activity", "GET /activity/range", "GET /activity/summary", "GET /activity/stats"],
+      "completions": ["log", "activity"],
+      "docs": { "readme": true, "sdk": true }
+    },
+    "ports": {
+      "description": "Port management",
+      "cli": ["ports"],
+      "sdk": ["listActivePorts", "getSystemPorts", "cleanup"],
+      "routes": ["GET /ports/active", "GET /ports/system", "POST /ports/cleanup"],
+      "completions": ["ports"],
+      "docs": { "readme": true, "sdk": true }
+    },
+    "system": {
+      "description": "System info and config",
+      "cli": ["version", "metrics", "config", "dashboard"],
+      "sdk": ["version", "metrics", "getConfig", "ping"],
+      "routes": ["GET /version", "GET /metrics", "GET /config"],
+      "completions": ["version", "metrics", "config", "dashboard"],
+      "docs": { "readme": true, "sdk": true }
+    },
+    "daemon": {
+      "description": "Daemon lifecycle (CLI-only)",
+      "cli": ["start", "stop", "restart", "install", "uninstall", "dev"],
+      "sdk": [],
+      "routes": [],
+      "completions": ["start", "stop", "restart", "install", "uninstall", "dev"],
+      "docs": { "readme": true, "sdk": false },
+      "_note": "Daemon management is CLI-only"
+    },
+    "diagnostics": {
+      "description": "Environment diagnostics (CLI-only)",
+      "cli": ["doctor", "diagnose", "ci-gate"],
+      "sdk": [],
+      "routes": [],
+      "completions": ["doctor", "diagnose", "ci-gate"],
+      "docs": { "readme": true, "sdk": false },
+      "_note": "Diagnostics are CLI-only"
+    },
+    "wait": {
+      "description": "Wait for services to become available",
+      "cli": ["wait"],
+      "sdk": ["waitForService", "waitForServices"],
+      "routes": ["GET /wait/:param", "POST /wait"],
+      "completions": ["wait"],
+      "docs": { "readme": true, "sdk": true }
+    }
+  }
+}

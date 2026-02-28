@@ -98,9 +98,16 @@ export function createTestDb() {
       last_heartbeat INTEGER NOT NULL,
       max_services INTEGER DEFAULT 10,
       max_locks INTEGER DEFAULT 5,
-      metadata TEXT
+      metadata TEXT,
+      worktree_id TEXT,
+      identity_project TEXT,
+      identity_stack TEXT,
+      identity_context TEXT,
+      purpose TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_agents_heartbeat ON agents(last_heartbeat);
+    CREATE INDEX IF NOT EXISTS idx_agents_worktree ON agents(worktree_id);
+    CREATE INDEX IF NOT EXISTS idx_agents_project ON agents(identity_project);
   `);
 
   // V2 schema - Activity Log

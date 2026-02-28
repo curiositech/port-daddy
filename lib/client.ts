@@ -424,6 +424,60 @@ interface SalvageAbandonResponse {
   message: string;
 }
 
+// ──────────────────────────────────────────────────────────────
+// Tunnel types
+// ──────────────────────────────────────────────────────────────
+
+/** Response from starting a tunnel */
+interface TunnelStartResponse {
+  success: boolean;
+  serviceId: string;
+  provider: 'ngrok' | 'cloudflared' | 'localtunnel';
+  url: string;
+}
+
+/** Response from stopping a tunnel */
+interface TunnelStopResponse {
+  success: boolean;
+  serviceId: string;
+}
+
+/** Response from getting tunnel status */
+interface TunnelStatusResponse {
+  success: boolean;
+  serviceId: string;
+  provider: 'ngrok' | 'cloudflared' | 'localtunnel';
+  port: number;
+  url: string | null;
+  status: string;
+  pid?: number;
+  startedAt?: number;
+}
+
+/** A single tunnel entry in the list */
+interface TunnelEntry {
+  serviceId: string;
+  provider: 'ngrok' | 'cloudflared' | 'localtunnel';
+  port: number;
+  url: string | null;
+  status: string;
+  pid?: number;
+  startedAt?: number;
+}
+
+/** Response from listing tunnels */
+interface TunnelListResponse {
+  success: boolean;
+  tunnels: TunnelEntry[];
+  count: number;
+}
+
+/** Response from checking providers */
+interface TunnelProvidersResponse {
+  success: boolean;
+  providers: Record<string, boolean>;
+}
+
 interface AddWebhookOptions {
   events?: string[];
   secret?: string;
@@ -1898,6 +1952,47 @@ class PortDaddy {
    */
   async salvageDismiss(agentId: string): Promise<SalvageAbandonResponse> {
     return this._request('DELETE', `/resurrection/${encodeURIComponent(agentId)}`) as Promise<SalvageAbandonResponse>;
+  }
+
+  // ──────────────────────────────────────────────────────────────
+  // Tunnels (expose local services via ngrok, cloudflared, localtunnel)
+  // ──────────────────────────────────────────────────────────────
+
+  /**
+   * Start a tunnel for a service.
+   * @param serviceId - Service identity (must already be claimed)
+   * @param provider - Tunnel provider: 'ngrok' | 'cloudflared' | 'localtunnel'
+   */
+  async tunnelStart(serviceId: string, provider: 'ngrok' | 'cloudflared' | 'localtunnel' = 'ngrok'): Promise<TunnelStartResponse> {
+    return this._request('POST', `/tunnel/${encodeURIComponent(serviceId)}`, { provider }) as Promise<TunnelStartResponse>;
+  }
+
+  /**
+   * Stop a tunnel for a service.
+   */
+  async tunnelStop(serviceId: string): Promise<TunnelStopResponse> {
+    return this._request('DELETE', `/tunnel/${encodeURIComponent(serviceId)}`) as Promise<TunnelStopResponse>;
+  }
+
+  /**
+   * Get tunnel status for a service.
+   */
+  async tunnelStatus(serviceId: string): Promise<TunnelStatusResponse> {
+    return this._request('GET', `/tunnel/${encodeURIComponent(serviceId)}`) as Promise<TunnelStatusResponse>;
+  }
+
+  /**
+   * List all active tunnels.
+   */
+  async tunnelList(): Promise<TunnelListResponse> {
+    return this._request('GET', '/tunnels') as Promise<TunnelListResponse>;
+  }
+
+  /**
+   * Check which tunnel providers are installed.
+   */
+  async tunnelProviders(): Promise<TunnelProvidersResponse> {
+    return this._request('GET', '/tunnel/providers') as Promise<TunnelProvidersResponse>;
   }
 }
 

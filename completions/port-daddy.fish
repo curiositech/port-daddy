@@ -116,8 +116,9 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a l -d 'List services (alias)'
     complete -c $prog -n __pd_needs_command -a ps -d 'List services (alias)'
     complete -c $prog -n __pd_needs_command -a services -d 'List all active services (alias)'
-    complete -c $prog -n __pd_needs_command -a url -d 'Get URL for a service'
+    complete -c $prog -n __pd_needs_command -a url -d 'Manage service URLs (get/set/rm/list)'
     complete -c $prog -n __pd_needs_command -a env -d 'Get environment variables for a service'
+    complete -c $prog -n __pd_needs_command -a tunnel -d 'Manage tunnels (start/stop/status/list)'
 
     # Agent coordination
     complete -c $prog -n __pd_needs_command -a pub -d 'Publish a message to a channel'
@@ -209,10 +210,24 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command find f" -l expired -d 'Include expired'
     complete -c $prog -n "__pd_using_command find f" -x -a '(__pd_service_ids)'
 
-    # url
+    # url subcommands
+    complete -c $prog -n "__pd_using_command url" -x -a 'set' -d 'Set URL for environment'
+    complete -c $prog -n "__pd_using_command url" -x -a 'rm' -d 'Remove URL for environment'
+    complete -c $prog -n "__pd_using_command url" -x -a 'list' -d 'List all URLs'
+    complete -c $prog -n "__pd_using_command url" -x -a 'ls' -d 'List all URLs (alias)'
     complete -c $prog -n "__pd_using_command url" -s e -l env -d 'Environment name' -x -a 'dev staging prod'
     complete -c $prog -n "__pd_using_command url" -l open -d 'Open URL in browser'
     complete -c $prog -n "__pd_using_command url" -x -a '(__pd_service_ids)'
+
+    # tunnel subcommands
+    complete -c $prog -n "__pd_using_command tunnel" -x -a 'start' -d 'Start a tunnel'
+    complete -c $prog -n "__pd_using_command tunnel" -x -a 'stop' -d 'Stop a tunnel'
+    complete -c $prog -n "__pd_using_command tunnel" -x -a 'status' -d 'Get tunnel status'
+    complete -c $prog -n "__pd_using_command tunnel" -x -a 'list' -d 'List active tunnels'
+    complete -c $prog -n "__pd_using_command tunnel" -x -a 'ls' -d 'List active tunnels (alias)'
+    complete -c $prog -n "__pd_using_command tunnel" -x -a 'providers' -d 'Check installed providers'
+    complete -c $prog -n "__pd_using_command tunnel" -l provider -d 'Tunnel provider' -x -a 'ngrok cloudflared localtunnel'
+    complete -c $prog -n "__pd_using_command tunnel" -x -a '(__pd_service_ids)'
 
     # env
     complete -c $prog -n "__pd_using_command env" -l file -d 'Write env vars to file' -r

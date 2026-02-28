@@ -50,6 +50,8 @@ import {
   handleSalvage,
   // Changelog
   handleChangelog,
+  // Tunnel
+  handleTunnel,
   // Activity
   handleLog,
   // Webhooks
@@ -1399,7 +1401,7 @@ async function main(): Promise<void> {
         break;
 
       case 'url':
-        await handleUrl(positional[0], options);
+        await handleUrl(positional[0], positional.slice(1), options);
         break;
 
       case 'env':
@@ -1471,6 +1473,11 @@ async function main(): Promise<void> {
       // Hierarchical changelog
       case 'changelog':
         await handleChangelog(positional[0], positional.slice(1), options);
+        break;
+
+      // Tunnel
+      case 'tunnel':
+        await handleTunnel(positional[0], positional.slice(1), options);
         break;
 
       // Activity log

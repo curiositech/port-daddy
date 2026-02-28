@@ -86,7 +86,7 @@ _port_daddy() {
   # -------------------------------------------------------------------------
   local commands=(
     # Service management (+ single-letter aliases)
-    claim c release r find f list l ps url env
+    claim c release r find f list l services ps status url env tunnel
     # Agent coordination
     pub publish sub subscribe wait lock unlock locks
     # Agent registry
@@ -104,7 +104,7 @@ _port_daddy() {
     # Project (+ alias)
     scan s projects p doctor diagnose
     # Daemon lifecycle
-    start stop restart status install uninstall dev ci-gate
+    start stop restart install uninstall dev ci-gate
     # Info
     version help
   )
@@ -217,10 +217,55 @@ _port_daddy() {
       ;;
 
     # -----------------------------------------------------------------------
-    # url  [identity] [-e/--env] [--open]
+    # url  [subcommand|identity] [-e/--env] [--open]
+    # Subcommands: set, rm, list
     # -----------------------------------------------------------------------
     url)
+      local url_subcmds="set rm remove list ls"
       case "$prev" in
+        url)
+          # First arg: subcommand or identity
+          local services; services="$(_pd_service_ids)"
+          # shellcheck disable=SC2207
+          COMPREPLY=( $(compgen -W "$url_subcmds $services" -- "$cur") )
+          ;;
+        set)
+          # After set: identity, then env, then url
+          case $cword in
+            3)
+              local services; services="$(_pd_service_ids)"
+              # shellcheck disable=SC2207
+              COMPREPLY=( $(compgen -W "$services" -- "$cur") )
+              ;;
+            4)
+              # shellcheck disable=SC2207
+              COMPREPLY=( $(compgen -W "dev staging prod local tunnel" -- "$cur") )
+              ;;
+            5)
+              COMPREPLY=()  # URL is free-form
+              ;;
+          esac
+          ;;
+        rm|remove)
+          # After rm: identity, then env
+          case $cword in
+            3)
+              local services; services="$(_pd_service_ids)"
+              # shellcheck disable=SC2207
+              COMPREPLY=( $(compgen -W "$services" -- "$cur") )
+              ;;
+            4)
+              # shellcheck disable=SC2207
+              COMPREPLY=( $(compgen -W "dev staging prod local tunnel" -- "$cur") )
+              ;;
+          esac
+          ;;
+        list|ls)
+          # After list: identity
+          local services; services="$(_pd_service_ids)"
+          # shellcheck disable=SC2207
+          COMPREPLY=( $(compgen -W "$services" -- "$cur") )
+          ;;
         -e|--env)
           # VALUE for --env: environment name hint
           # shellcheck disable=SC2207
@@ -244,6 +289,48 @@ _port_daddy() {
           ;;
         *)
           _pd_complete_service '--file'
+          ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
+    # tunnel  <subcommand> [identity] [--provider]
+    # Subcommands: start, stop, status, list, providers
+    # -----------------------------------------------------------------------
+    tunnel)
+      local tunnel_subcmds="start stop status list ls providers"
+      case "$prev" in
+        tunnel)
+          # First arg: subcommand
+          # shellcheck disable=SC2207
+          COMPREPLY=( $(compgen -W "$tunnel_subcmds" -- "$cur") )
+          ;;
+        start)
+          if [[ "$cur" == -* ]]; then
+            _pd_opts '--provider'
+          else
+            local services; services="$(_pd_service_ids)"
+            # shellcheck disable=SC2207
+            COMPREPLY=( $(compgen -W "$services" -- "$cur") )
+          fi
+          ;;
+        --provider)
+          # shellcheck disable=SC2207
+          COMPREPLY=( $(compgen -W "ngrok cloudflared localtunnel" -- "$cur") )
+          ;;
+        stop|status)
+          local services; services="$(_pd_service_ids)"
+          # shellcheck disable=SC2207
+          COMPREPLY=( $(compgen -W "$services" -- "$cur") )
+          ;;
+        list|ls|providers)
+          _pd_opts ''
+          ;;
+        *)
+          # Inside start with --provider already given
+          local services; services="$(_pd_service_ids)"
+          # shellcheck disable=SC2207
+          COMPREPLY=( $(compgen -W "$services" -- "$cur") )
           ;;
       esac
       ;;

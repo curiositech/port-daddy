@@ -164,6 +164,33 @@ await pd.unregister();
 
 ---
 
+## Agent Salvage (Resurrection)
+
+When an agent dies mid-task, Port Daddy preserves its context for another agent to continue.
+
+```javascript
+// Check for dead agents in your project
+const { entries } = await pd.salvage({ project: 'myapp' });
+
+// See all dead agents (requires explicit opt-in)
+const { entries } = await pd.salvage({ all: true, limit: 20 });
+
+// Claim a dead agent's work
+const result = await pd.salvageClaim('dead-agent-123');
+// result: { success: true, sessions: [...], notes: [...] }
+
+// After completing the salvaged work
+await pd.salvageComplete('dead-agent-123');
+
+// If you can't complete it, abandon for another agent
+await pd.salvageAbandon('dead-agent-123');
+
+// Nothing to salvage, just dismiss from queue
+await pd.salvageDismiss('dead-agent-123');
+```
+
+---
+
 ## Projects
 
 ```javascript
@@ -250,6 +277,54 @@ const activePorts = await pd.listActivePorts();
 const systemPorts = await pd.getSystemPorts();
 const cleaned = await pd.cleanup(); // remove expired
 ```
+
+---
+
+## Waiting for Services
+
+Block until services become available (useful for startup scripts).
+
+```javascript
+// Wait for a single service (30s timeout by default)
+await pd.waitForService('myapp:db');
+
+// Wait with custom timeout (in ms)
+await pd.waitForService('myapp:api', 60000);
+
+// Wait for multiple services at once
+await pd.waitForServices(['myapp:db', 'myapp:redis', 'myapp:api']);
+```
+
+---
+
+## Tunnels
+
+Expose local services to the internet via ngrok, cloudflared, or localtunnel.
+
+```javascript
+// Check which providers are installed
+const { providers } = await pd.tunnelProviders();
+// { ngrok: true, cloudflared: true, localtunnel: false }
+
+// Start a tunnel (service must be claimed first)
+const { url } = await pd.tunnelStart('myapp:api', 'cloudflared');
+console.log(`Public URL: ${url}`);
+// https://random-words.trycloudflare.com
+
+// Check status
+const status = await pd.tunnelStatus('myapp:api');
+
+// List all active tunnels
+const { tunnels } = await pd.tunnelList();
+
+// Stop a tunnel
+await pd.tunnelStop('myapp:api');
+```
+
+**Providers:**
+- `ngrok` — requires auth token (`ngrok config add-authtoken`)
+- `cloudflared` — free quick tunnels, no signup required
+- `localtunnel` — free but has password prompt
 
 ---
 

@@ -517,6 +517,14 @@ The skill teaches agents to claim ports with semantic identities, coordinate via
 | `pd scan` | Deep-scan project, generate `.portdaddyrc` |
 | `pd doctor` | Run environment diagnostics |
 
+### Projects
+
+| Command | Description |
+|---------|-------------|
+| `pd projects` | List all registered projects (alias: `pd p`) |
+| `pd projects <id>` | Get project details |
+| `pd projects rm <id>` | Remove a project from registry |
+
 ### Sessions & Notes
 
 | Command | Description |
@@ -556,6 +564,29 @@ The skill teaches agents to claim ports with semantic identities, coordinate via
 | `pd salvage complete <old> <new>` | Mark resurrection complete |
 | `pd salvage abandon <id>` | Return agent to queue |
 | `pd salvage dismiss <id>` | Remove from queue (reviewed) |
+
+### Webhooks
+
+| Command | Description |
+|---------|-------------|
+| `pd webhook add <url>` | Register webhook (`--events claim,release --secret KEY`) |
+| `pd webhook list` | List all webhooks |
+| `pd webhook get <id>` | Get webhook details |
+| `pd webhook update <id>` | Update webhook settings |
+| `pd webhook rm <id>` | Remove a webhook |
+| `pd webhook test <id>` | Send a test delivery |
+| `pd webhooks events` | List available event types |
+| `pd webhooks deliveries <id>` | View delivery history |
+
+### Tunnels
+
+| Command | Description |
+|---------|-------------|
+| `pd tunnel start <id>` | Start a tunnel (`--provider ngrok\|cloudflared\|localtunnel`) |
+| `pd tunnel stop <id>` | Stop a tunnel |
+| `pd tunnel status <id>` | Get tunnel status |
+| `pd tunnel list` | List all active tunnels |
+| `pd tunnel providers` | Check which providers are installed |
 
 ### Changelog
 
@@ -635,6 +666,9 @@ POST   /webhooks                GET    /webhooks/:id
 POST   /scan                    GET    /projects
 GET    /activity                GET    /activity/range
 GET    /ports/active            POST   /ports/cleanup
+POST   /tunnel/:id             DELETE /tunnel/:id
+GET    /tunnel/:id              GET    /tunnels
+GET    /tunnel/providers
 ```
 
 ---

@@ -155,13 +155,93 @@ _pd_cmd_list() {
 }
 
 _pd_cmd_url() {
-  _arguments \
-    '(-e --env)'{-e,--env}'[environment name]:env name:(dev staging prod)' \
-    '--open[open URL in browser]' \
-    '(-j --json)'{-j,--json}'[JSON output]' \
-    '(-q --quiet)'{-q,--quiet}'[suppress output]' \
-    '(-h --help)'{-h,--help}'[show help]' \
-    '1:service identity:_pd_complete_services'
+  local -a subcmds
+  subcmds=(
+    'set:set URL for an environment'
+    'rm:remove URL for an environment'
+    'list:list all URLs for a service'
+    'ls:list all URLs for a service (alias)'
+  )
+
+  # Check if first arg is a subcommand
+  if (( CURRENT == 2 )); then
+    _alternative \
+      'subcommands:subcommand:_describe "subcommand" subcmds' \
+      'identities:service identity:_pd_complete_services'
+    return
+  fi
+
+  local subcmd="${words[2]}"
+  case "$subcmd" in
+    set)
+      case $CURRENT in
+        3) _pd_complete_services ;;
+        4) _values 'environment' dev staging prod local tunnel ;;
+        5) _message 'URL (e.g. https://example.com)' ;;
+      esac
+      ;;
+    rm|remove)
+      case $CURRENT in
+        3) _pd_complete_services ;;
+        4) _values 'environment' dev staging prod local tunnel ;;
+      esac
+      ;;
+    list|ls)
+      _pd_complete_services
+      ;;
+    *)
+      # Original behavior: pd url <identity>
+      _arguments \
+        '(-e --env)'{-e,--env}'[environment name]:env name:(dev staging prod)' \
+        '--open[open URL in browser]' \
+        '(-j --json)'{-j,--json}'[JSON output]' \
+        '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+        '(-h --help)'{-h,--help}'[show help]' \
+        '1:service identity:_pd_complete_services'
+      ;;
+  esac
+}
+
+_pd_cmd_tunnel() {
+  local -a subcmds
+  subcmds=(
+    'start:start a tunnel for a service'
+    'stop:stop a tunnel'
+    'status:get tunnel status'
+    'list:list all active tunnels'
+    'ls:list all active tunnels (alias)'
+    'providers:check installed tunnel providers'
+  )
+
+  if (( CURRENT == 2 )); then
+    _describe 'subcommand' subcmds
+    return
+  fi
+
+  local subcmd="${words[2]}"
+  case "$subcmd" in
+    start)
+      _arguments \
+        '--provider[tunnel provider]:provider:(ngrok cloudflared localtunnel)' \
+        '(-j --json)'{-j,--json}'[JSON output]' \
+        '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+        '(-h --help)'{-h,--help}'[show help]' \
+        '1:service identity:_pd_complete_services'
+      ;;
+    stop|status)
+      _arguments \
+        '(-j --json)'{-j,--json}'[JSON output]' \
+        '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+        '(-h --help)'{-h,--help}'[show help]' \
+        '1:service identity:_pd_complete_services'
+      ;;
+    list|ls|providers)
+      _arguments \
+        '(-j --json)'{-j,--json}'[JSON output]' \
+        '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+        '(-h --help)'{-h,--help}'[show help]'
+      ;;
+  esac
 }
 
 _pd_cmd_env() {
@@ -726,8 +806,9 @@ _port_daddy() {
     'l:list all active services (alias for list)'
     'ps:list all active services (alias for list)'
     'services:list all active services (alias for list)'
-    'url:get the URL for a service'
+    'url:manage service URLs (get/set/rm/list)'
     'env:get environment variable block for a service'
+    'tunnel:manage tunnels (start/stop/status/list)'
     # Agent coordination
     'pub:publish a message to a channel'
     'publish:publish a message to a channel (alias for pub)'
@@ -814,6 +895,7 @@ _port_daddy() {
         l|list|ps|services)  _pd_cmd_list ;;
         url)                _pd_cmd_url ;;
         env)                _pd_cmd_env ;;
+        tunnel)             _pd_cmd_tunnel ;;
         pub|publish)        _pd_cmd_pub ;;
         sub|subscribe)      _pd_cmd_sub ;;
         wait)               _pd_cmd_wait ;;

@@ -1,18 +1,20 @@
 #!/usr/bin/env npx tsx
 /**
- * Parity Checker — Ensures CLI, SDK, and API surfaces stay in sync.
+ * Parity Checker — Ensures all surfaces are implemented for every feature.
  *
  * Usage: npx tsx scripts/check-parity.ts
  *
- * Scans:
- * - routes/*.ts for HTTP endpoints
- * - bin/port-daddy-cli.ts for CLI commands
- * - lib/client.ts for SDK methods
+ * Reads features.manifest.json and validates that each feature has:
+ * - CLI commands implemented
+ * - SDK methods implemented
+ * - HTTP routes implemented
+ * - Shell completions (bash, zsh, fish)
+ * - Documentation (README, SDK docs)
  *
- * Reports any endpoint/command/method that doesn't exist in all surfaces.
+ * Exits with code 1 if any feature is missing surfaces.
  */
 
-import { readFileSync, readdirSync } from 'fs';
+import { readFileSync, readdirSync, existsSync } from 'fs';
 import { join } from 'path';
 
 const ROOT = join(import.meta.dirname, '..');
@@ -22,28 +24,100 @@ const RED = '\x1b[31m';
 const GREEN = '\x1b[32m';
 const YELLOW = '\x1b[33m';
 const CYAN = '\x1b[36m';
+const DIM = '\x1b[2m';
 const BOLD = '\x1b[1m';
 const RESET = '\x1b[0m';
 
-interface ParityReport {
-  routes: Set<string>;
+// ═══════════════════════════════════════════════════════════════════════════
+// Types
+// ═══════════════════════════════════════════════════════════════════════════
+
+interface FeatureDefinition {
+  description: string;
+  cli: string[];
+  sdk: string[];
+  routes: string[];
+  completions: string[];
+  docs: { readme: boolean; sdk: boolean };
+  _note?: string;
+}
+
+interface Manifest {
+  features: Record<string, FeatureDefinition>;
+}
+
+interface ExtractedSurfaces {
   cliCommands: Set<string>;
   sdkMethods: Set<string>;
+  routes: Set<string>;
   completions: {
-    zsh: Set<string>;
     bash: Set<string>;
+    zsh: Set<string>;
     fish: Set<string>;
+  };
+  readme: {
+    cliCommands: Set<string>;
+    apiEndpoints: Set<string>;
+  };
+  sdkDocs: {
+    methods: Set<string>;
   };
 }
 
-/**
- * Extract HTTP endpoints from route files
- */
+interface FeatureReport {
+  feature: string;
+  description: string;
+  issues: string[];
+  warnings: string[];
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Extraction Functions
+// ═══════════════════════════════════════════════════════════════════════════
+
+function extractCliCommands(): Set<string> {
+  const cliContent = readFileSync(join(ROOT, 'bin', 'port-daddy-cli.ts'), 'utf-8');
+  const commands = new Set<string>();
+
+  // Pattern: case 'command':
+  const casePattern = /case\s+['"`]([^'"`]+)['"`]\s*:/g;
+  let match;
+  while ((match = casePattern.exec(cliContent)) !== null) {
+    const cmd = match[1];
+    // Skip options
+    if (!cmd.startsWith('-')) {
+      commands.add(cmd);
+    }
+  }
+
+  return commands;
+}
+
+function extractSdkMethods(): Set<string> {
+  const clientContent = readFileSync(join(ROOT, 'lib', 'client.ts'), 'utf-8');
+  const methods = new Set<string>();
+
+  // Find the PortDaddy class and extract its methods
+  const methodPattern = /^\s+(?:async\s+)?(\w+)\s*(?:<[^>]+>)?\s*\(/gm;
+  const classMatch = clientContent.match(/class\s+PortDaddy\s*\{([\s\S]*?)^\}/m);
+  if (classMatch) {
+    const classBody = classMatch[1];
+    let match;
+    while ((match = methodPattern.exec(classBody)) !== null) {
+      const method = match[1];
+      if (!method.startsWith('_') && method !== 'constructor') {
+        methods.add(method);
+      }
+    }
+  }
+
+  return methods;
+}
+
 function extractRoutes(): Set<string> {
   const routesDir = join(ROOT, 'routes');
   const routes = new Set<string>();
 
-  // Pattern: app.get('/path', ...) or router.post('/path', ...)
   const routePattern = /\.(get|post|put|delete|patch)\s*\(\s*['"`]([^'"`]+)['"`]/gi;
 
   for (const file of readdirSync(routesDir)) {
@@ -52,12 +126,12 @@ function extractRoutes(): Set<string> {
     let match;
     while ((match = routePattern.exec(content)) !== null) {
       const method = match[1].toUpperCase();
-      const path = match[2].replace(/:[^/]+/g, ':param'); // Normalize params
+      const path = match[2].replace(/:[^/]+/g, ':param');
       routes.add(`${method} ${path}`);
     }
   }
 
-  // Also check server.ts for any direct routes
+  // Also check server.ts
   const serverContent = readFileSync(join(ROOT, 'server.ts'), 'utf-8');
   let match;
   while ((match = routePattern.exec(serverContent)) !== null) {
@@ -69,106 +143,26 @@ function extractRoutes(): Set<string> {
   return routes;
 }
 
-/**
- * Extract CLI commands from the CLI entry point
- */
-function extractCliCommands(): Set<string> {
-  const cliContent = readFileSync(join(ROOT, 'bin', 'port-daddy-cli.ts'), 'utf-8');
-  const commands = new Set<string>();
-
-  // Pattern: case 'command':
-  // Exclude nested subcommands that are only valid with a parent command
-  const NESTED_SUBCOMMANDS = new Set([
-    // session subcommands (only valid as 'session <subcommand>')
-    'end', 'abandon',
-    // Other nested subcommands that appear in switch statements
-    'add', 'rm', 'remove', 'clear', 'extend', 'summary', 'stats',
-    'ls', 'test', 'update', 'deliveries', 'events',
-    'tree', 'export', 'identities', 'complete', 'dismiss',
-    'heartbeat', 'unregister', 'register', 'cleanup',
-  ]);
-  const casePattern = /case\s+['"`]([^'"`]+)['"`]\s*:/g;
-  let match;
-  while ((match = casePattern.exec(cliContent)) !== null) {
-    const cmd = match[1];
-    // Skip options, help, and known nested subcommands
-    if (!['help', '--help', '-h', '--version', '-v', '--quiet', '-q', '--json', '-j'].includes(cmd) &&
-        !NESTED_SUBCOMMANDS.has(cmd)) {
-      commands.add(cmd);
-    }
-  }
-
-  // Also extract from yargs-style .command() if present
-  const commandPattern = /\.command\s*\(\s*['"`]([^'"`\s]+)/g;
-  while ((match = commandPattern.exec(cliContent)) !== null) {
-    commands.add(match[1]);
-  }
-
-  return commands;
-}
-
-/**
- * Extract SDK methods from the client
- */
-function extractSdkMethods(): Set<string> {
-  const clientContent = readFileSync(join(ROOT, 'lib', 'client.ts'), 'utf-8');
-  const methods = new Set<string>();
-
-  // Pattern: async methodName( or methodName( or methodName<T>(
-  // Looking for public methods on the PortDaddy class
-  // Note: We match up to the opening paren, not the full signature, to handle
-  // nested parens in callback parameters like fn: () => Promise<T>
-  const methodPattern = /^\s+(?:async\s+)?(\w+)\s*(?:<[^>]+>)?\s*\(/gm;
-  let match;
-
-  // Find the PortDaddy class and extract its methods
-  const classMatch = clientContent.match(/class\s+PortDaddy\s*{([\s\S]*?)^\}/m);
-  if (classMatch) {
-    const classBody = classMatch[1];
-    while ((match = methodPattern.exec(classBody)) !== null) {
-      const method = match[1];
-      // Skip private methods and constructor
-      if (!method.startsWith('_') && method !== 'constructor') {
-        methods.add(method);
-      }
-    }
-  }
-
-  return methods;
-}
-
-/**
- * Extract commands from completion files
- */
-function extractCompletionCommands(shell: 'zsh' | 'bash' | 'fish'): Set<string> {
+function extractCompletions(shell: 'bash' | 'zsh' | 'fish'): Set<string> {
   const filePath = join(ROOT, 'completions', `port-daddy.${shell}`);
+  if (!existsSync(filePath)) return new Set();
+
   const content = readFileSync(filePath, 'utf-8');
   const commands = new Set<string>();
 
   if (shell === 'zsh') {
-    // Pattern: 'command:description'
-    const pattern = /'([a-z-]+):/g;
+    const pattern = /'([\w-]+):/g;
     let match;
     while ((match = pattern.exec(content)) !== null) {
       commands.add(match[1]);
     }
   } else if (shell === 'bash') {
-    // Pattern 1: Look for words in commands array - both string and array syntax
-    // local commands='claim release status ...' OR local commands=(claim release ...)
-    const stringMatch = content.match(/local\s+commands=['"]([^'"]+)['"]/);
-    if (stringMatch) {
-      for (const cmd of stringMatch[1].split(/\s+/)) {
-        if (cmd) commands.add(cmd);
-      }
-    }
-    // Array syntax: local commands=(\n  cmd1 cmd2 ...\n)
-    // The closing paren must be at the start of a line (after optional whitespace)
+    // Array syntax
     const arrayMatch = content.match(/local\s+commands=\(([\s\S]*?)^\s*\)/m);
     if (arrayMatch) {
-      // Extract words, ignoring comments and newlines
       const words = arrayMatch[1]
         .split('\n')
-        .map(line => line.replace(/#.*$/, '').trim()) // Remove comments
+        .map(line => line.replace(/#.*$/, '').trim())
         .join(' ')
         .split(/\s+/)
         .filter(w => w && !w.startsWith('#'));
@@ -176,23 +170,19 @@ function extractCompletionCommands(shell: 'zsh' | 'bash' | 'fish'): Set<string> 
         commands.add(cmd);
       }
     }
-    // Also look for case patterns (supports hyphenated commands)
-    const casePattern = /([\w-]+)\)\s*$/gm;
-    let match;
-    while ((match = casePattern.exec(content)) !== null) {
-      const cmd = match[1];
-      if (!['*', ''].includes(cmd)) {
-        commands.add(cmd);
+    // String syntax
+    const stringMatch = content.match(/local\s+commands=['"]([^'"]+)['"]/);
+    if (stringMatch) {
+      for (const cmd of stringMatch[1].split(/\s+/)) {
+        if (cmd) commands.add(cmd);
       }
     }
   } else if (shell === 'fish') {
-    // Pattern: complete -c port-daddy -a 'command' or similar (supports hyphenated commands)
     const pattern = /complete\s+-c\s+\$?prog\s+.*?-a\s+['"]?([\w-]+)/g;
     let match;
     while ((match = pattern.exec(content)) !== null) {
       commands.add(match[1]);
     }
-    // Also look for __pd_using_command patterns (supports hyphenated commands)
     const usingPattern = /__pd_using_command\s+([\w-]+)/g;
     while ((match = usingPattern.exec(content)) !== null) {
       commands.add(match[1]);
@@ -202,112 +192,216 @@ function extractCompletionCommands(shell: 'zsh' | 'bash' | 'fish'): Set<string> 
   return commands;
 }
 
-/**
- * Mapping from CLI commands to expected SDK methods
- */
-const CLI_TO_SDK_MAP: Record<string, string[]> = {
-  claim: ['claim'],
-  release: ['release'],
-  status: ['listServices', 'getService'],
-  lock: ['lock', 'checkLock', 'extendLock', 'lockWithRetry', 'withLock'],
-  unlock: ['unlock'],
-  locks: ['listLocks'],
-  pub: ['publish'],
-  sub: ['subscribe', 'poll'],
-  channels: ['listChannels', 'getMessages', 'clearChannel'],
-  agent: ['register', 'heartbeat', 'unregister', 'getAgent'],
-  agents: ['listAgents'],
-  session: ['startSession', 'endSession', 'abandonSession', 'removeSession', 'claimFiles', 'releaseFiles'],
-  sessions: ['sessions', 'sessionDetails'],
-  note: ['note'],
-  notes: ['notes'],
-  webhook: ['addWebhook', 'getWebhook', 'updateWebhook', 'removeWebhook', 'testWebhook', 'getWebhookDeliveries', 'getWebhookEvents'],
-  webhooks: ['listWebhooks'],
-  salvage: ['salvage', 'salvageClaim', 'salvageComplete', 'salvageAbandon', 'salvageDismiss'],
-  dashboard: [], // Browser-based, no SDK equivalent
-  diagnose: [], // CLI-only diagnostic
-  log: ['getActivity', 'getActivityRange', 'getActivitySummary', 'getActivityStats'],
-  ports: ['listActivePorts', 'getSystemPorts', 'cleanup'],
-  metrics: ['metrics'],
-  config: ['getConfig'],
-  health: ['health', 'checkServiceHealth', 'listServiceHealth'],
-  version: ['version'],
-  scan: ['scan'],
-  projects: ['listProjects', 'getProject', 'deleteProject'],
-  up: [], // Orchestration - server-side
-  down: [], // Orchestration - server-side
-};
+function extractReadmeCliCommands(): Set<string> {
+  const readme = readFileSync(join(ROOT, 'README.md'), 'utf-8');
+  const commands = new Set<string>();
 
-function printReport(report: ParityReport): void {
-  console.log(`\n${BOLD}${CYAN}═══ Port Daddy Parity Report ═══${RESET}\n`);
+  // Look for commands in CLI Reference tables: | `pd command` |
+  const pattern = /\|\s*`pd\s+([\w-]+)/g;
+  let match;
+  while ((match = pattern.exec(readme)) !== null) {
+    commands.add(match[1]);
+  }
 
-  console.log(`${BOLD}Surfaces detected:${RESET}`);
-  console.log(`  API Routes:      ${report.routes.size} endpoints`);
-  console.log(`  CLI Commands:    ${report.cliCommands.size} commands`);
-  console.log(`  SDK Methods:     ${report.sdkMethods.size} methods`);
-  console.log(`  Zsh completions: ${report.completions.zsh.size} commands`);
-  console.log(`  Bash completions: ${report.completions.bash.size} commands`);
-  console.log(`  Fish completions: ${report.completions.fish.size} commands`);
-  console.log();
+  return commands;
+}
 
-  // Check CLI command coverage
-  let issues = 0;
+function extractReadmeApiEndpoints(): Set<string> {
+  const readme = readFileSync(join(ROOT, 'README.md'), 'utf-8');
+  const endpoints = new Set<string>();
 
-  console.log(`${BOLD}CLI → SDK Parity:${RESET}`);
-  for (const cmd of report.cliCommands) {
-    const expectedMethods = CLI_TO_SDK_MAP[cmd] || [];
-    if (expectedMethods.length === 0) {
-      console.log(`  ${YELLOW}⚠${RESET} ${cmd}: No SDK mapping defined (CLI-only or needs mapping)`);
-      continue;
-    }
-    const missing = expectedMethods.filter(m => !report.sdkMethods.has(m));
-    if (missing.length > 0) {
-      console.log(`  ${RED}✗${RESET} ${cmd}: Missing SDK methods: ${missing.join(', ')}`);
-      issues++;
-    } else {
-      console.log(`  ${GREEN}✓${RESET} ${cmd}`);
+  // Look for endpoints in API Reference: GET /path, POST /path, etc.
+  const pattern = /(GET|POST|PUT|DELETE|PATCH)\s+\/([\w/:]+)/g;
+  let match;
+  while ((match = pattern.exec(readme)) !== null) {
+    const method = match[1];
+    const path = '/' + match[2].replace(/:[^/]+/g, ':param');
+    endpoints.add(`${method} ${path}`);
+  }
+
+  return endpoints;
+}
+
+function extractSdkDocsMethods(): Set<string> {
+  const sdkDocsPath = join(ROOT, 'docs', 'sdk.md');
+  if (!existsSync(sdkDocsPath)) return new Set();
+
+  const content = readFileSync(sdkDocsPath, 'utf-8');
+  const methods = new Set<string>();
+
+  // Look for pd.methodName( in code blocks
+  const pattern = /pd\.(\w+)\s*\(/g;
+  let match;
+  while ((match = pattern.exec(content)) !== null) {
+    methods.add(match[1]);
+  }
+
+  return methods;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Validation
+// ═══════════════════════════════════════════════════════════════════════════
+
+function validateFeature(
+  feature: string,
+  def: FeatureDefinition,
+  surfaces: ExtractedSurfaces
+): FeatureReport {
+  const issues: string[] = [];
+  const warnings: string[] = [];
+
+  // Check CLI commands
+  for (const cmd of def.cli) {
+    if (!surfaces.cliCommands.has(cmd)) {
+      issues.push(`CLI command '${cmd}' not found in bin/port-daddy-cli.ts`);
     }
   }
-  console.log();
 
-  console.log(`${BOLD}CLI → Completions Parity:${RESET}`);
-  for (const cmd of report.cliCommands) {
-    const inZsh = report.completions.zsh.has(cmd);
-    const inBash = report.completions.bash.has(cmd);
-    const inFish = report.completions.fish.has(cmd);
-
-    if (!inZsh || !inBash || !inFish) {
-      const missing = [];
-      if (!inZsh) missing.push('zsh');
-      if (!inBash) missing.push('bash');
-      if (!inFish) missing.push('fish');
-      console.log(`  ${RED}✗${RESET} ${cmd}: Missing in ${missing.join(', ')}`);
-      issues++;
-    } else {
-      console.log(`  ${GREEN}✓${RESET} ${cmd}`);
+  // Check SDK methods
+  for (const method of def.sdk) {
+    if (!surfaces.sdkMethods.has(method)) {
+      issues.push(`SDK method '${method}' not found in lib/client.ts`);
     }
   }
+
+  // Check routes
+  for (const route of def.routes) {
+    if (!surfaces.routes.has(route)) {
+      issues.push(`Route '${route}' not found in routes/*.ts`);
+    }
+  }
+
+  // Check completions
+  for (const cmd of def.completions) {
+    if (!surfaces.completions.bash.has(cmd)) {
+      issues.push(`Completion '${cmd}' missing in bash`);
+    }
+    if (!surfaces.completions.zsh.has(cmd)) {
+      issues.push(`Completion '${cmd}' missing in zsh`);
+    }
+    if (!surfaces.completions.fish.has(cmd)) {
+      issues.push(`Completion '${cmd}' missing in fish`);
+    }
+  }
+
+  // Check docs
+  if (def.docs.readme) {
+    const cliInReadme = def.cli.some(cmd => surfaces.readme.cliCommands.has(cmd));
+    if (!cliInReadme && def.cli.length > 0) {
+      warnings.push(`CLI command not documented in README.md`);
+    }
+  }
+
+  if (def.docs.sdk) {
+    const sdkInDocs = def.sdk.some(method => surfaces.sdkDocs.methods.has(method));
+    if (!sdkInDocs && def.sdk.length > 0) {
+      warnings.push(`SDK methods not documented in docs/sdk.md`);
+    }
+  }
+
+  return { feature, description: def.description, issues, warnings };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Main
+// ═══════════════════════════════════════════════════════════════════════════
+
+function main() {
+  console.log(`\n${BOLD}${CYAN}═══ Port Daddy Parity Checker ═══${RESET}\n`);
+
+  // Load manifest
+  const manifestPath = join(ROOT, 'features.manifest.json');
+  if (!existsSync(manifestPath)) {
+    console.error(`${RED}✗${RESET} features.manifest.json not found!`);
+    console.error(`  Create it to define all features and their expected surfaces.`);
+    process.exit(1);
+  }
+
+  const manifest: Manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'));
+  const featureCount = Object.keys(manifest.features).length;
+
+  console.log(`${DIM}Loading manifest: ${featureCount} features defined${RESET}\n`);
+
+  // Extract all surfaces
+  console.log(`${DIM}Extracting surfaces...${RESET}`);
+  const surfaces: ExtractedSurfaces = {
+    cliCommands: extractCliCommands(),
+    sdkMethods: extractSdkMethods(),
+    routes: extractRoutes(),
+    completions: {
+      bash: extractCompletions('bash'),
+      zsh: extractCompletions('zsh'),
+      fish: extractCompletions('fish'),
+    },
+    readme: {
+      cliCommands: extractReadmeCliCommands(),
+      apiEndpoints: extractReadmeApiEndpoints(),
+    },
+    sdkDocs: {
+      methods: extractSdkDocsMethods(),
+    },
+  };
+
+  console.log(`  CLI commands:     ${surfaces.cliCommands.size}`);
+  console.log(`  SDK methods:      ${surfaces.sdkMethods.size}`);
+  console.log(`  HTTP routes:      ${surfaces.routes.size}`);
+  console.log(`  Bash completions: ${surfaces.completions.bash.size}`);
+  console.log(`  Zsh completions:  ${surfaces.completions.zsh.size}`);
+  console.log(`  Fish completions: ${surfaces.completions.fish.size}`);
+  console.log();
+
+  // Validate each feature
+  const reports: FeatureReport[] = [];
+  for (const [name, def] of Object.entries(manifest.features)) {
+    reports.push(validateFeature(name, def, surfaces));
+  }
+
+  // Print results
+  let totalIssues = 0;
+  let totalWarnings = 0;
+
+  console.log(`${BOLD}Feature Parity Status:${RESET}\n`);
+
+  for (const report of reports) {
+    const hasIssues = report.issues.length > 0;
+    const hasWarnings = report.warnings.length > 0;
+
+    if (hasIssues) {
+      console.log(`${RED}✗${RESET} ${BOLD}${report.feature}${RESET} ${DIM}(${report.description})${RESET}`);
+      for (const issue of report.issues) {
+        console.log(`  ${RED}•${RESET} ${issue}`);
+        totalIssues++;
+      }
+    } else if (hasWarnings) {
+      console.log(`${YELLOW}⚠${RESET} ${BOLD}${report.feature}${RESET} ${DIM}(${report.description})${RESET}`);
+    } else {
+      console.log(`${GREEN}✓${RESET} ${report.feature}`);
+    }
+
+    if (hasWarnings) {
+      for (const warning of report.warnings) {
+        console.log(`  ${YELLOW}⚠${RESET} ${warning}`);
+        totalWarnings++;
+      }
+    }
+  }
+
   console.log();
 
   // Summary
-  if (issues === 0) {
-    console.log(`${GREEN}${BOLD}✓ All surfaces in sync!${RESET}\n`);
+  if (totalIssues === 0) {
+    console.log(`${GREEN}${BOLD}✓ All ${featureCount} features have complete parity!${RESET}`);
+    if (totalWarnings > 0) {
+      console.log(`${YELLOW}  ${totalWarnings} documentation warning(s) to address${RESET}`);
+    }
+    console.log();
   } else {
-    console.log(`${RED}${BOLD}✗ ${issues} parity issues found${RESET}\n`);
+    console.log(`${RED}${BOLD}✗ ${totalIssues} parity issue(s) found across features${RESET}`);
+    console.log(`${DIM}  Fix these before merging to main.${RESET}`);
+    console.log();
     process.exitCode = 1;
   }
 }
 
-// Main
-const report: ParityReport = {
-  routes: extractRoutes(),
-  cliCommands: extractCliCommands(),
-  sdkMethods: extractSdkMethods(),
-  completions: {
-    zsh: extractCompletionCommands('zsh'),
-    bash: extractCompletionCommands('bash'),
-    fish: extractCompletionCommands('fish'),
-  },
-};
-
-printReport(report);
+main();

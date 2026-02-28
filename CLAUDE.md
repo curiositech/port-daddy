@@ -283,6 +283,9 @@ When an agent dies, other agents in the same project should be notified.
 | `/salvage` | GET/POST | Check salvage queue / claim dead agent |
 | `/changelog` | POST/GET | Add entry / list changelog |
 | `/changelog/identities` | GET | List all identities with changelog entries |
+| `/tunnel/providers` | GET | Check which tunnel providers are installed |
+| `/tunnel/:id` | POST/DELETE/GET | Start/stop/status tunnel for service |
+| `/tunnels` | GET | List all active tunnels |
 | `/scan` | POST | Deep-scan directory, register project |
 | `/projects` | GET | List registered projects |
 | `/projects/:id` | GET/DELETE | Get or remove a project |
