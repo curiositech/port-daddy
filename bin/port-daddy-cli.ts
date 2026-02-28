@@ -1401,7 +1401,7 @@ async function main(): Promise<void> {
         break;
 
       case 'url':
-        await handleUrl(positional[0], positional.slice(1), options);
+        await handleUrl(positional[0], options);
         break;
 
       case 'env':
