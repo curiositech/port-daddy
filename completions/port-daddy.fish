@@ -92,12 +92,12 @@ complete -c pd -s V -l version -d 'Print version'
 # Commands (with single-letter aliases)
 # ---------------------------------------------------------------------------
 set -l __pd_commands \
-    'claim' 'c' 'release' 'r' 'find' 'f' 'list' 'l' 'ps' 'url' 'env' \
+    'claim' 'c' 'release' 'r' 'find' 'f' 'list' 'l' 'ps' 'services' 'url' 'env' \
     'pub' 'publish' 'sub' 'subscribe' 'wait' 'lock' 'unlock' 'locks' \
     'agent' 'agents' 'log' 'activity' \
     'session' 'sessions' 'note' 'notes' \
-    'salvage' 'changelog' \
-    'up' 'down' \
+    'salvage' 'resurrection' 'changelog' \
+    'dns' 'up' 'down' \
     'dashboard' 'channels' 'webhook' 'webhooks' 'metrics' 'config' 'health' 'ports' \
     'scan' 's' 'projects' 'p' 'doctor' 'diagnose' \
     'start' 'stop' 'restart' 'status' 'install' 'uninstall' 'dev' 'ci-gate' \
@@ -115,6 +115,7 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a list -d 'List all active services'
     complete -c $prog -n __pd_needs_command -a l -d 'List services (alias)'
     complete -c $prog -n __pd_needs_command -a ps -d 'List services (alias)'
+    complete -c $prog -n __pd_needs_command -a services -d 'List all active services (alias)'
     complete -c $prog -n __pd_needs_command -a url -d 'Get URL for a service'
     complete -c $prog -n __pd_needs_command -a env -d 'Get environment variables for a service'
 
@@ -144,9 +145,13 @@ for prog in port-daddy pd
 
     # Agent Resurrection
     complete -c $prog -n __pd_needs_command -a salvage -d 'Check for dead agents with recoverable work'
+    complete -c $prog -n __pd_needs_command -a resurrection -d 'Check for dead agents (alias for salvage)'
 
     # Changelog
     complete -c $prog -n __pd_needs_command -a changelog -d 'Hierarchical changelog with identity-based rollup'
+
+    # DNS
+    complete -c $prog -n __pd_needs_command -a dns -d 'Manage local DNS registrations'
 
     # System & Monitoring
     complete -c $prog -n __pd_needs_command -a dashboard -d 'Open web dashboard'
@@ -305,6 +310,35 @@ for prog in port-daddy pd
     # notes
     complete -c $prog -n "__pd_using_command notes" -l limit -d 'Max entries' -x
     complete -c $prog -n "__pd_using_command notes" -l type -d 'Filter by note type' -x -a 'note handoff commit warning'
+
+    # resurrection (alias for salvage)
+    complete -c $prog -n "__pd_using_command resurrection" -x -a 'claim' -d 'Claim a dead agent\'s work for resurrection'
+    complete -c $prog -n "__pd_using_command resurrection" -x -a 'complete' -d 'Mark resurrection as complete'
+    complete -c $prog -n "__pd_using_command resurrection" -x -a 'abandon' -d 'Return agent to resurrection queue'
+    complete -c $prog -n "__pd_using_command resurrection" -x -a 'dismiss' -d 'Remove agent from queue (reviewed, not resurrecting)'
+    complete -c $prog -n "__pd_using_command resurrection" -l project -d 'Filter to agents in this project' -x
+    complete -c $prog -n "__pd_using_command resurrection" -l stack -d 'Filter by stack (requires --project)' -x
+    complete -c $prog -n "__pd_using_command resurrection" -l all -d 'Show ALL queue entries globally (use sparingly)'
+    complete -c $prog -n "__pd_using_command resurrection" -l limit -d 'Max entries to return' -x
+    complete -c $prog -n "__pd_using_command resurrection" -x -a '(__pd_agent_ids)'
+
+    # dns subcommands
+    complete -c $prog -n "__pd_using_command dns" -x -a 'list' -d 'List DNS registrations'
+    complete -c $prog -n "__pd_using_command dns" -x -a 'ls' -d 'List DNS registrations (alias)'
+    complete -c $prog -n "__pd_using_command dns" -x -a 'register' -d 'Register DNS for an identity'
+    complete -c $prog -n "__pd_using_command dns" -x -a 'add' -d 'Register DNS (alias)'
+    complete -c $prog -n "__pd_using_command dns" -x -a 'unregister' -d 'Unregister DNS for an identity'
+    complete -c $prog -n "__pd_using_command dns" -x -a 'rm' -d 'Unregister DNS (alias)'
+    complete -c $prog -n "__pd_using_command dns" -x -a 'remove' -d 'Unregister DNS (alias)'
+    complete -c $prog -n "__pd_using_command dns" -x -a 'cleanup' -d 'Remove all DNS registrations'
+    complete -c $prog -n "__pd_using_command dns" -x -a 'clear' -d 'Remove all DNS registrations (alias)'
+    complete -c $prog -n "__pd_using_command dns" -x -a '(__pd_service_ids)'
+
+    # services (alias for list/find)
+    complete -c $prog -n "__pd_using_command services" -l status -d 'Filter by status' -x -a 'active expired all'
+    complete -c $prog -n "__pd_using_command services" -l port -d 'Filter by port' -x
+    complete -c $prog -n "__pd_using_command services" -l expired -d 'Include expired'
+    complete -c $prog -n "__pd_using_command services" -x -a '(__pd_service_ids)'
 
     # salvage subcommands
     complete -c $prog -n "__pd_using_command salvage" -x -a 'claim' -d 'Claim a dead agent\'s work for resurrection'

@@ -96,7 +96,9 @@ _port_daddy() {
     # Sessions & Notes
     session sessions note notes
     # Agent Resurrection & Changelog
-    salvage changelog
+    salvage resurrection changelog
+    # DNS
+    dns
     # System & Monitoring
     dashboard channels webhook webhooks metrics config health ports
     # Orchestration
@@ -618,9 +620,9 @@ _port_daddy() {
       ;;
 
     # -----------------------------------------------------------------------
-    # salvage  [subcommand] [agent-id] [--project P] [--stack S] [--all] [--limit N]
+    # salvage / resurrection  [subcommand] [agent-id] [--project P] [--stack S] [--all] [--limit N]
     # -----------------------------------------------------------------------
-    salvage)
+    salvage|resurrection)
       local salvage_subcommands='claim complete abandon dismiss'
       local subcmd=""
       for (( i = 1; i < cword; i++ )); do
@@ -769,6 +771,60 @@ _port_daddy() {
           ;;
         *)
           _pd_opts '--limit'
+          ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
+    # dns  [subcommand] [identity] [port]
+    # -----------------------------------------------------------------------
+    dns)
+      local dns_subcommands='list ls register add unregister rm remove cleanup clear'
+      local subcmd=""
+      for (( i = 1; i < cword; i++ )); do
+        local w="${words[$i]}"
+        if [[ "$w" == "dns" ]]; then
+          if (( i + 1 < cword )); then
+            subcmd="${words[$((i+1))]}"
+          fi
+          break
+        fi
+      done
+
+      if [[ -z "$subcmd" ]]; then
+        if [[ "$cur" == -* ]]; then
+          _pd_opts ''
+        else
+          # shellcheck disable=SC2207
+          COMPREPLY=( $(compgen -W "$dns_subcommands" -- "$cur") )
+        fi
+        return 0
+      fi
+
+      case "$subcmd" in
+        register|add)
+          if [[ "$cur" == -* ]]; then
+            _pd_opts ''
+          else
+            local ids; ids="$(_pd_service_ids)"
+            # shellcheck disable=SC2207
+            COMPREPLY=( $(compgen -W "$ids" -- "$cur") )
+          fi
+          ;;
+        unregister|rm|remove)
+          if [[ "$cur" == -* ]]; then
+            _pd_opts ''
+          else
+            local ids; ids="$(_pd_service_ids)"
+            # shellcheck disable=SC2207
+            COMPREPLY=( $(compgen -W "$ids" -- "$cur") )
+          fi
+          ;;
+        list|ls|cleanup|clear)
+          _pd_opts ''
+          ;;
+        *)
+          _pd_opts ''
           ;;
       esac
       ;;

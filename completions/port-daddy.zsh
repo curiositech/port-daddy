@@ -644,6 +644,59 @@ _pd_cmd_salvage() {
   esac
 }
 
+_pd_cmd_dns() {
+  local -a dns_subcmds
+  dns_subcmds=(
+    'list:list DNS registrations'
+    'ls:list DNS registrations (alias)'
+    'register:register DNS for an identity'
+    'add:register DNS for an identity (alias)'
+    'unregister:unregister DNS for an identity'
+    'rm:unregister DNS (alias)'
+    'remove:unregister DNS (alias)'
+    'cleanup:remove all DNS registrations'
+    'clear:remove all DNS registrations (alias)'
+  )
+
+  local state subcmd
+  _arguments -C \
+    '(-j --json)'{-j,--json}'[JSON output]' \
+    '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+    '(-h --help)'{-h,--help}'[show help]' \
+    '1:subcommand:->subcommand' \
+    '*::subcommand args:->args' \
+    && return
+
+  case "$state" in
+    subcommand)
+      _describe 'dns subcommand' dns_subcmds
+      ;;
+    args)
+      subcmd="${words[1]}"
+      case "$subcmd" in
+        register|add)
+          _arguments \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+            '1:identity:_pd_complete_services' \
+            '2:port:'
+          ;;
+        unregister|rm|remove)
+          _arguments \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+            '1:identity:_pd_complete_services'
+          ;;
+        list|ls|cleanup|clear)
+          _arguments \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[suppress output]'
+          ;;
+      esac
+      ;;
+  esac
+}
+
 _pd_cmd_changelog() {
   local -a changelog_subcmds
   changelog_subcmds=(
@@ -725,6 +778,7 @@ _port_daddy() {
     'list:list all active services'
     'l:list all active services (alias for list)'
     'ps:list all active services (alias for list)'
+    'services:list all active services (alias for list)'
     'url:get the URL for a service'
     'env:get environment variable block for a service'
     # Agent coordination
@@ -749,8 +803,11 @@ _port_daddy() {
     'notes:list recent notes'
     # Agent Resurrection
     'salvage:check for dead agents with recoverable work'
+    'resurrection:check for dead agents (alias for salvage)'
     # Changelog
     'changelog:hierarchical changelog with identity-based rollup'
+    # DNS
+    'dns:manage local DNS registrations'
     # System & Monitoring
     'dashboard:open web dashboard in browser'
     'channels:list pub/sub channels'
@@ -809,7 +866,7 @@ _port_daddy() {
         c|claim)            _pd_cmd_claim ;;
         r|release)          _pd_cmd_release ;;
         f|find)             _pd_cmd_find ;;
-        l|list|ps)          _pd_cmd_list ;;
+        l|list|ps|services)  _pd_cmd_list ;;
         url)                _pd_cmd_url ;;
         env)                _pd_cmd_env ;;
         pub|publish)        _pd_cmd_pub ;;
@@ -826,8 +883,9 @@ _port_daddy() {
         sessions)           _pd_cmd_sessions ;;
         note)               _pd_cmd_note ;;
         notes)              _pd_cmd_notes ;;
-        salvage)            _pd_cmd_salvage ;;
+        salvage|resurrection) _pd_cmd_salvage ;;
         changelog)          _pd_cmd_changelog ;;
+        dns)                _pd_cmd_dns ;;
         up)                 _pd_cmd_up ;;
         down)               _pd_cmd_down ;;
         s|scan)             _pd_cmd_scan ;;

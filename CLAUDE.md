@@ -88,6 +88,19 @@ All state is in SQLite for:
 - Persistence across restarts
 - Pattern-based queries
 
+**Database location**: `<project-root>/port-registry.db` (NOT `~/.port-daddy/`)
+- Override with `PORT_DADDY_DB` environment variable
+- Test DBs: `port-registry-test.db`, `port-registry-security-test.db`
+- Direct SQLite access for debugging:
+  ```bash
+  sqlite3 /Users/erichowens/coding/port-daddy/port-registry.db
+  .tables                           # List all tables
+  SELECT * FROM agents;             # View agents
+  SELECT * FROM sessions;           # View sessions
+  SELECT * FROM session_notes;      # View notes
+  SELECT * FROM resurrection_queue; # View salvage queue
+  ```
+
 ### Sessions & Notes
 Sessions provide structured multi-agent coordination:
 - **Sessions** are mutable (active → completed/abandoned)
@@ -99,6 +112,36 @@ Sessions provide structured multi-agent coordination:
 ### Operation Tiers
 - **Tier 1 (no daemon)**: claim, release, find, lock, unlock, status, cleanup, session, note, notes
 - **Tier 2 (daemon required)**: pub/sub, SSE, webhooks, agent heartbeats, orchestration (up/down), health checks
+
+### Agent Resurrection (Salvage)
+
+When an agent dies mid-task (crashes, loses connection, context window exceeded), Port Daddy preserves its work for another agent to continue.
+
+**Lifecycle**:
+1. Agent registers: `pd agent register --agent <id> --purpose "Task description"`
+2. Agent sends heartbeats every 5 min: `pd agent heartbeat --agent <id>`
+3. Agent stops heartbeating → marked stale (10 min) → dead (20 min)
+4. Dead agents with active sessions enter resurrection queue
+5. New agent runs `pd salvage` to see dead agents' context
+6. New agent claims: `pd salvage claim <dead-agent-id>`
+7. New agent completes work, marks resurrection done
+
+**Demo/debug resurrection**:
+```bash
+# Register a test agent
+pd agent register --agent test-123 --purpose "Testing resurrection"
+
+# Manually mark it dead (backdate heartbeat)
+sqlite3 port-registry.db "UPDATE agents SET lastHeartbeat = datetime('now', '-30 minutes') WHERE id = 'test-123'"
+
+# Trigger the reaper to move dead agents to resurrection queue
+curl -X POST http://localhost:9876/resurrection/reap
+
+# Check salvage queue
+pd salvage
+```
+
+**Key tables**: `agents`, `resurrection_queue`, `sessions`, `session_notes`
 
 ### Rate Limiting
 Server has built-in rate limiting:
@@ -166,6 +209,35 @@ When adding ANY new command, endpoint, or operation, verify it exists in ALL of:
 8. CHANGELOG.md entry added
 
 Fish completions are historically the worst — double-check fish.
+
+## In-Progress Features — Surface Tracking
+
+**Update this section for every feature in progress.**
+
+### Context-Aware Salvage (Agent Resurrection)
+
+When an agent dies, other agents in the same project should be notified.
+
+| Surface | Status | Notes |
+|---------|--------|-------|
+| `lib/agents.ts` | ✅ DONE | Added identity_project/stack/context, worktree_id, purpose columns. `register()` returns salvageHint. `listStale()` filters by identity prefix. |
+| `lib/resurrection.ts` | ✅ DONE | Added identity_project/stack/context columns. `pending()` and `list()` filter by project/stack. `countByProject()` for salvage hints. |
+| `routes/agents.ts` | ✅ DONE | Accepts identity, worktreeId, purpose. Returns salvageHint. Broadcasts identity to radio. |
+| `routes/resurrection.ts` | ✅ DONE | Added `?project=` and `?stack=` filters to `/resurrection/pending` and `/resurrection`. |
+| `cli/commands/agents.ts` | ✅ DONE | Accepts `--identity`, `--purpose`, `--worktree`. Shows salvageHint notice on register. |
+| `cli/commands/resurrection.ts` | ✅ DONE | Added `--project`, `--stack` flags. Warns on `--all`. Shows identity in output. |
+| `public/index.html` | ⬜ TODO | Add "Resurrection Queue" panel showing dead agents by project |
+| `completions/*.{bash,zsh,fish}` | ⬜ TODO | Add `--identity`, `--project`, `--purpose` flags |
+| `lib/client.ts` | ⬜ TODO | Add identity/purpose params to register(), salvage filter to SDK |
+| `README.md` | ⬜ TODO | Document agent identity and auto-salvage notice |
+| `CHANGELOG.md` | ⬜ TODO | Add entry when feature ships |
+
+**Flow:**
+1. `pd agent register --identity myapp:api --purpose "Building auth"` → stores identity
+2. Server checks for dead agents in `myapp:*` → returns `salvageHint` in response
+3. CLI displays: "⚠️ 2 dead agent(s) in myapp:*. Run: pd salvage --project myapp"
+4. `pd salvage --project myapp` shows only dead agents in that project
+5. Dashboard shows resurrection queue prominently with project grouping
 
 ## Adding New Features
 

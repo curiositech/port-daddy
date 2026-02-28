@@ -77,11 +77,23 @@ function extractCliCommands(): Set<string> {
   const commands = new Set<string>();
 
   // Pattern: case 'command':
+  // Exclude nested subcommands that are only valid with a parent command
+  const NESTED_SUBCOMMANDS = new Set([
+    // session subcommands (only valid as 'session <subcommand>')
+    'end', 'abandon',
+    // Other nested subcommands that appear in switch statements
+    'add', 'rm', 'remove', 'clear', 'extend', 'summary', 'stats',
+    'ls', 'test', 'update', 'deliveries', 'events',
+    'tree', 'export', 'identities', 'complete', 'dismiss',
+    'heartbeat', 'unregister', 'register', 'cleanup',
+  ]);
   const casePattern = /case\s+['"`]([^'"`]+)['"`]\s*:/g;
   let match;
   while ((match = casePattern.exec(cliContent)) !== null) {
     const cmd = match[1];
-    if (!['help', '--help', '-h', '--version', '-v', '--quiet', '-q', '--json', '-j'].includes(cmd)) {
+    // Skip options, help, and known nested subcommands
+    if (!['help', '--help', '-h', '--version', '-v', '--quiet', '-q', '--json', '-j'].includes(cmd) &&
+        !NESTED_SUBCOMMANDS.has(cmd)) {
       commands.add(cmd);
     }
   }
@@ -104,7 +116,9 @@ function extractSdkMethods(): Set<string> {
 
   // Pattern: async methodName( or methodName( or methodName<T>(
   // Looking for public methods on the PortDaddy class
-  const methodPattern = /^\s+(?:async\s+)?(\w+)\s*(?:<[^>]+>)?\s*\([^)]*\)\s*(?::\s*[^{]+)?\s*{/gm;
+  // Note: We match up to the opening paren, not the full signature, to handle
+  // nested parens in callback parameters like fn: () => Promise<T>
+  const methodPattern = /^\s+(?:async\s+)?(\w+)\s*(?:<[^>]+>)?\s*\(/gm;
   let match;
 
   // Find the PortDaddy class and extract its methods
@@ -139,16 +153,31 @@ function extractCompletionCommands(shell: 'zsh' | 'bash' | 'fish'): Set<string> 
       commands.add(match[1]);
     }
   } else if (shell === 'bash') {
-    // Pattern: Look for words in single quotes in the commands array
-    // local commands='claim release status ...'
-    const commandsMatch = content.match(/local\s+commands=['"]([^'"]+)['"]/);
-    if (commandsMatch) {
-      for (const cmd of commandsMatch[1].split(/\s+/)) {
+    // Pattern 1: Look for words in commands array - both string and array syntax
+    // local commands='claim release status ...' OR local commands=(claim release ...)
+    const stringMatch = content.match(/local\s+commands=['"]([^'"]+)['"]/);
+    if (stringMatch) {
+      for (const cmd of stringMatch[1].split(/\s+/)) {
         if (cmd) commands.add(cmd);
       }
     }
-    // Also look for case patterns
-    const casePattern = /(\w+)\)\s*$/gm;
+    // Array syntax: local commands=(\n  cmd1 cmd2 ...\n)
+    // The closing paren must be at the start of a line (after optional whitespace)
+    const arrayMatch = content.match(/local\s+commands=\(([\s\S]*?)^\s*\)/m);
+    if (arrayMatch) {
+      // Extract words, ignoring comments and newlines
+      const words = arrayMatch[1]
+        .split('\n')
+        .map(line => line.replace(/#.*$/, '').trim()) // Remove comments
+        .join(' ')
+        .split(/\s+/)
+        .filter(w => w && !w.startsWith('#'));
+      for (const cmd of words) {
+        commands.add(cmd);
+      }
+    }
+    // Also look for case patterns (supports hyphenated commands)
+    const casePattern = /([\w-]+)\)\s*$/gm;
     let match;
     while ((match = casePattern.exec(content)) !== null) {
       const cmd = match[1];
@@ -157,16 +186,14 @@ function extractCompletionCommands(shell: 'zsh' | 'bash' | 'fish'): Set<string> 
       }
     }
   } else if (shell === 'fish') {
-    // Pattern: complete -c port-daddy -a 'command' or similar
-    const pattern = /complete\s+-c\s+\$?prog\s+.*?-a\s+['"]?(\w+)/g;
+    // Pattern: complete -c port-daddy -a 'command' or similar (supports hyphenated commands)
+    const pattern = /complete\s+-c\s+\$?prog\s+.*?-a\s+['"]?([\w-]+)/g;
     let match;
     while ((match = pattern.exec(content)) !== null) {
-      if (!['help', 'version'].includes(match[1])) {
-        commands.add(match[1]);
-      }
+      commands.add(match[1]);
     }
-    // Also look for __pd_using_command patterns
-    const usingPattern = /__pd_using_command\s+(\w+)/g;
+    // Also look for __pd_using_command patterns (supports hyphenated commands)
+    const usingPattern = /__pd_using_command\s+([\w-]+)/g;
     while ((match = usingPattern.exec(content)) !== null) {
       commands.add(match[1]);
     }

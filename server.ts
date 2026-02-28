@@ -65,7 +65,7 @@ const config: PortDaddyServerConfig = existsSync(configPath)
       ports: { range_start: 3100, range_end: 9999, reserved: [8080, 8000, 9876] },
       cleanup: { interval_ms: 300000 },
       logging: { level: 'info', file: 'port-daddy.log', error_file: 'port-daddy-error.log' },
-      security: { rate_limit: { window_ms: 60000, max_requests: 100 } }
+      security: { rate_limit: { window_ms: 60000, max_requests: 1000 } }
     };
 
 const pkgPath: string = join(__dirname, 'package.json');
@@ -319,7 +319,14 @@ app.use(rateLimit({
     }
     return `pid:${req.headers['x-pid'] || 'unknown'}`;
   },
-  skip: (req: Request): boolean => req.path === '/health' || req.path === '/version',
+  skip: (req: Request): boolean => {
+    // Skip rate limiting for health checks
+    if (req.path === '/health' || req.path === '/version') return true;
+    // Skip for localhost/loopback (this is a local dev tool)
+    const ip = req.ip || req.socket.remoteAddress || '';
+    if (ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1') return true;
+    return false;
+  },
   message: { error: 'Too many requests, please slow down' },
   standardHeaders: true,
   legacyHeaders: false
