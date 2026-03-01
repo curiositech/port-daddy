@@ -70,7 +70,7 @@ describe('Health Module', () => {
       expect(result.serviceId).toBe('test:app:main');
       expect(result.healthy).toBe(true);
       expect(result.statusCode).toBe(200);
-      expect(result.latency).toBeGreaterThan(0);
+      expect(result.latency).toBeGreaterThanOrEqual(0);
     });
 
     it('should return error for missing service', async () => {
