@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Multi-Agent Orchestration — Port Daddy Tutorials</title>
+  <meta name="description" content="Coordinate 5 AI agents working in parallel. Learn sessions, file claims, pub/sub messaging, distributed locks, and the salvage system.">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%9A%93</text></svg>">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/shared.css">
+</head>
+<body>
+  <nav>
+    <div class="nav-container">
+      <a href="../" class="logo">
+        <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
+        <span>Port Daddy</span>
+      </a>
+      <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Toggle navigation">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="nav-links">
+        <a href="../#features">Features</a>
+        <a href="./" class="active">Tutorials</a>
+        <a href="../mcp/">MCP</a>
+        <a href="../docs/">Docs</a>
+        <a href="https://github.com/curiositech/port-daddy" target="_blank">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <section class="page-hero">
+    <div class="page-hero-container">
+      <div class="breadcrumbs">
+        <a href="../">Home</a>
+        <span class="separator">/</span>
+        <a href="./">Tutorials</a>
+        <span class="separator">/</span>
+        <span>Multi-Agent Orchestration</span>
+      </div>
+      <h1>Orchestrating 5 AI Agents Without Losing Your Mind</h1>
+      <p>Turn multi-agent chaos into a coordinated symphony using sessions, file claims, pub/sub, and distributed locks.</p>
+      <div class="meta">
+        <span class="meta-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          15 min read
+        </span>
+        <span class="meta-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+          Tutorial 2 of 5
+        </span>
+        <span class="meta-item">Intermediate</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="content-layout">
+    <aside class="toc">
+      <h4>On this page</h4>
+      <ul>
+        <li><a href="#the-problem">Multi-Agent Collision</a></li>
+        <li><a href="#sessions">Sessions: The Coordination Journal</a></li>
+        <li><a href="#file-claims">File Claims</a></li>
+        <li><a href="#pub-sub">Pub/Sub: Real-Time Signaling</a></li>
+        <li><a href="#locks">Distributed Locks</a></li>
+        <li><a href="#real-scenario">Real Scenario: Payment System</a></li>
+        <li><a href="#agent-registration">Agent Registration</a></li>
+        <li><a href="#sdk-pattern">JavaScript SDK Pattern</a></li>
+        <li><a href="#common-patterns">Common Patterns</a></li>
+        <li><a href="#deadlock">Preventing Deadlock</a></li>
+        <li><a href="#whats-next">What's Next</a></li>
+      </ul>
+    </aside>
+
+    <article class="article">
+      <p>It's 3pm on a Thursday. You've launched 5 Claude Code agents to build different parts of your full-stack app simultaneously. Within 30 seconds, chaos:</p>
+      <pre><code><span class="output">Agent 1 (Frontend):   "Claiming port 3100 for the React app..."
+Agent 2 (API):        "Claiming port 3100 for the backend..."
+Agent 3 (Database):   "Setting up migrations..."
+Agent 4 (Worker):     "Starting the job processor..."
+Agent 5 (Auth):       "Implementing OAuth, need session coordination!"</span></code></pre>
+      <p>Without coordination, agents step on each other's files, fight over ports, duplicate work, and collide on dependencies. Port Daddy turns this chaos into a symphony.</p>
+
+      <h2 id="the-problem">The Problem: Multi-Agent Collision</h2>
+      <p>Let's say you're building a payments system. You launch multiple agents:</p>
+      <ol>
+        <li><strong>Frontend Agent</strong> -- Building the checkout UI</li>
+        <li><strong>Backend Agent</strong> -- Building the payment API</li>
+        <li><strong>Database Agent</strong> -- Creating the schema and migrations</li>
+        <li><strong>Testing Agent</strong> -- Writing integration tests (needs backend running first)</li>
+        <li><strong>Docs Agent</strong> -- Documenting the API (needs final backend shape)</li>
+      </ol>
+      <p>Without coordination, you'd see:</p>
+      <ul>
+        <li>Both frontend and backend agents try to claim port 3100 (race condition)</li>
+        <li>Database agent migrates, frontend agent expects old schema</li>
+        <li>Testing agent starts before backend is healthy</li>
+        <li>Multiple agents editing <code>src/types.ts</code> simultaneously (merge conflict)</li>
+        <li>Nobody knows what anyone else is doing</li>
+      </ul>
+      <p>Port Daddy solves all of this with three primitives:</p>
+      <ol>
+        <li><strong>Sessions &amp; Notes</strong> -- Structured coordination</li>
+        <li><strong>File Claims</strong> -- Conflict detection on files</li>
+        <li><strong>Pub/Sub + Locks</strong> -- Synchronization and exclusive access</li>
+      </ol>
+
+      <h2 id="sessions">Sessions: The Coordination Journal</h2>
+      <p>A session is like a bouncer at a club: "I'm working on this. Here are the files I've claimed. Here's what I've discovered so far."</p>
+
+      <h3>Agent 1: Frontend</h3>
+      <pre><code><span class="comment"># Start a session with file claims</span>
+<span class="prompt">$</span> pd session start <span class="string">"Building checkout UI"</span> \
+  --files <span class="string">"src/components/checkout/*"</span> \
+  <span class="string">"src/pages/checkout.tsx"</span> \
+  <span class="string">"src/hooks/usePayment.ts"</span>
+
+<span class="comment"># Make notes of progress</span>
+<span class="prompt">$</span> pd note <span class="string">"Installed Stripe React library"</span>
+<span class="prompt">$</span> pd note <span class="string">"Built CheckoutForm component"</span>
+<span class="prompt">$</span> pd note <span class="string">"Blocked waiting on payment API types"</span></code></pre>
+
+      <h3>Agent 2: Backend</h3>
+      <pre><code><span class="comment"># Start a session</span>
+<span class="prompt">$</span> pd session start <span class="string">"Building payment API"</span> \
+  --files <span class="string">"src/api/payments/*"</span> \
+  <span class="string">"src/types/Payment.ts"</span> \
+  <span class="string">"src/middleware/auth.ts"</span>
+
+<span class="comment"># Make notes as you work</span>
+<span class="prompt">$</span> pd note <span class="string">"Created POST /api/payments endpoint"</span> --type commit
+<span class="prompt">$</span> pd note <span class="string">"Integrated Stripe API client"</span>
+<span class="prompt">$</span> pd note <span class="string">"TypeScript types ready at src/types/Payment.ts"</span></code></pre>
+
+      <p>Then, when you ask the Testing Agent what's ready:</p>
+      <pre><code><span class="comment"># View all notes across all agents</span>
+<span class="prompt">$</span> pd notes --limit 20
+
+<span class="output">[Agent 1] Built CheckoutForm component
+[Agent 1] Blocked waiting on payment API types
+[Agent 2] TypeScript types ready at src/types/Payment.ts
+[Agent 2] Created POST /api/payments endpoint
+[Agent 3] Created payments table with webhook_id tracking
+[Agent 3] Ready for integration tests</span></code></pre>
+      <p>Now Agent 4 (Testing) knows exactly what's ready and can write tests against the actual API.</p>
+
+      <h2 id="file-claims">File Claims: Preventing Collisions</h2>
+      <p>When you claim files, Port Daddy warns if another session already claimed them:</p>
+      <pre><code><span class="comment"># Agent 5 tries to claim a file Agent 2 is working on</span>
+<span class="prompt">$</span> pd session start <span class="string">"OAuth integration"</span> \
+  --files <span class="string">"src/middleware/auth.ts"</span>
+
+<span class="output">Warning: src/middleware/auth.ts claimed by session-ab3 (Backend Agent)
+Use --force to claim anyway</span></code></pre>
+      <p>This is advisory, not enforced. You can force-claim if you need to, but the warning lets you say "wait, should Backend Agent and I coordinate here?" and avoid a merge conflict later.</p>
+
+      <h2 id="pub-sub">Pub/Sub: Real-Time Signaling</h2>
+      <p>Sometimes agents need to wait for each other. Use pub/sub for real-time events:</p>
+      <pre><code><span class="comment"># Backend Agent: "I'm ready, other agents listening?"</span>
+<span class="prompt">$</span> pd pub payments:api <span class="string">'{"status":"healthy","port":3101}'</span>
+
+<span class="comment"># Testing Agent: "Waiting for backend..."</span>
+<span class="prompt">$</span> pd sub payments:*
+
+<span class="output">{"status":"healthy","port":3101}</span></code></pre>
+
+      <p>In code (JavaScript SDK):</p>
+      <pre><code><span class="keyword">import</span> { PortDaddy } <span class="keyword">from</span> <span class="string">'port-daddy/client'</span>;
+<span class="keyword">const</span> pd = <span class="keyword">new</span> PortDaddy();
+
+<span class="comment">// Backend finishes setup</span>
+<span class="keyword">await</span> pd.publish(<span class="string">'payments:api'</span>, {
+  status: <span class="string">'healthy'</span>,
+  port: 3101,
+  typesUrl: <span class="string">'http://localhost:3101/api/types.json'</span>
+});
+
+<span class="comment">// Testing agent waits for backend signal</span>
+<span class="keyword">const</span> sub = pd.subscribe(<span class="string">'payments:*'</span>);
+sub.on(<span class="string">'message'</span>, <span class="keyword">async</span> (msg) =&gt; {
+  <span class="keyword">if</span> (msg.status === <span class="string">'healthy'</span>) {
+    console.log(<span class="string">'Backend ready, starting tests'</span>);
+    <span class="keyword">await</span> runTests(msg.port);
+  }
+});</code></pre>
+
+      <h2 id="locks">Distributed Locks: Exclusive Access</h2>
+      <p>When only one agent can run something (migrations, seeding), use locks:</p>
+      <pre><code><span class="comment"># Database Agent claims exclusive lock for migrations</span>
+<span class="prompt">$</span> pd lock db-migrations
+<span class="prompt">$</span> npx prisma migrate dev
+<span class="prompt">$</span> pd unlock db-migrations
+
+<span class="comment"># Testing Agent checks if it can run (non-blocking)</span>
+<span class="prompt">$</span> pd lock db-migrations || echo <span class="string">"Migrations already running, skipping"</span></code></pre>
+
+      <p>In code:</p>
+      <pre><code><span class="comment">// Exclusive access pattern</span>
+<span class="keyword">await</span> pd.withLock(<span class="string">'db-migrations'</span>, <span class="keyword">async</span> () =&gt; {
+  <span class="keyword">await</span> runMigrations();
+  console.log(<span class="string">'Migrations complete'</span>);
+});
+
+<span class="comment">// Non-blocking pattern</span>
+<span class="keyword">const</span> lockAcquired = <span class="keyword">await</span> pd.lock(<span class="string">'db-migrations'</span>, { blocking: <span class="keyword">false</span> });
+<span class="keyword">if</span> (!lockAcquired) {
+  console.log(<span class="string">'Migrations already running, skipping'</span>);
+} <span class="keyword">else</span> {
+  <span class="keyword">try</span> {
+    <span class="keyword">await</span> runMigrations();
+  } <span class="keyword">finally</span> {
+    <span class="keyword">await</span> pd.unlock(<span class="string">'db-migrations'</span>);
+  }
+}</code></pre>
+
+      <h2 id="real-scenario">Real Scenario: Building a Payment System in Parallel</h2>
+      <p>Here's how 5 agents coordinate to build a complete payments feature:</p>
+
+      <h3>Chronological Flow</h3>
+
+      <h4>10:00am -- Agent 1 (Database)</h4>
+      <pre><code><span class="prompt">$</span> pd session start <span class="string">"Payment system schema"</span> \
+  --files <span class="string">"supabase/migrations/*"</span>
+<span class="prompt">$</span> pd note <span class="string">"Creating payments table, webhook_requests, refunds"</span></code></pre>
+
+      <h4>10:02am -- Agent 1 (Database)</h4>
+      <pre><code><span class="prompt">$</span> pd note <span class="string">"Schema ready, importing src/types/Payment.ts"</span>
+<span class="prompt">$</span> pd pub payments:schema <span class="string">'{"version":1,"tables":["payments","refunds"]}'</span>
+<span class="prompt">$</span> pd lock db-migrations
+<span class="comment"># (runs actual migration)</span>
+<span class="prompt">$</span> pd unlock db-migrations</code></pre>
+
+      <h4>10:05am -- Agent 2 (Backend API)</h4>
+      <pre><code><span class="prompt">$</span> pd session start <span class="string">"Stripe API integration"</span> \
+  --files <span class="string">"src/api/payments/*"</span> <span class="string">"src/types/Payment.ts"</span>
+
+<span class="comment"># Waits for schema signal</span>
+<span class="prompt">$</span> pd sub payments:schema
+<span class="output"># Receives: version 1, tables ready</span>
+
+<span class="prompt">$</span> pd note <span class="string">"Implemented POST /api/payments (charges)"</span>
+<span class="prompt">$</span> pd note <span class="string">"Ready for integration tests"</span>
+<span class="prompt">$</span> pd pub payments:api <span class="string">'{"status":"ready","port":3101}'</span></code></pre>
+
+      <h4>10:12am -- Agent 4 (Frontend)</h4>
+      <pre><code><span class="prompt">$</span> pd session start <span class="string">"Checkout UI"</span> \
+  --files <span class="string">"src/components/Checkout/*"</span>
+
+<span class="comment"># Waits for API and queries</span>
+<span class="prompt">$</span> pd sub payments:api,payments:queries
+<span class="output"># Receives ready signals</span>
+
+<span class="prompt">$</span> PORT=$(pd claim payments:frontend -q)
+<span class="prompt">$</span> pd note <span class="string">"Integrated with payment API on port 3101"</span></code></pre>
+
+      <h4>10:15am -- Agent 5 (Integration Tests)</h4>
+      <pre><code><span class="prompt">$</span> pd session start <span class="string">"Payment integration tests"</span> \
+  --files <span class="string">"tests/payments/*"</span>
+
+<span class="comment"># Waits for all components</span>
+<span class="prompt">$</span> pd sub payments:*
+<span class="output"># Receives ready signals from schema, api, queries, frontend</span>
+
+<span class="prompt">$</span> pd note <span class="string">"All tests passing"</span>
+<span class="prompt">$</span> pd pub payments:complete <span class="string">'{"status":"done"}'</span></code></pre>
+
+      <h3>What Happened</h3>
+      <ul>
+        <li>5 agents worked in parallel (not sequentially)</li>
+        <li>Each knew exactly what others were doing via notes</li>
+        <li>Database and API coordinated via locks and pub/sub</li>
+        <li>Frontend waited for backend readiness before even starting</li>
+        <li>Testing waited for everything to be ready</li>
+        <li><strong>Total time: 18 minutes instead of 90 minutes</strong></li>
+      </ul>
+
+      <h2 id="agent-registration">Agent Registration and Heartbeats</h2>
+      <p>For better coordination, register agents with semantic identity:</p>
+      <pre><code><span class="comment"># Agent registers with project+stack+context</span>
+<span class="prompt">$</span> pd agent register \
+  --agent frontend-builder \
+  --identity payments:web \
+  --purpose <span class="string">"Building checkout UI"</span> \
+  --type ai
+
+<span class="comment"># Agent sends periodic heartbeats</span>
+<span class="prompt">$</span> pd agent heartbeat --agent frontend-builder</code></pre>
+
+      <p>Check which agents are alive:</p>
+      <pre><code><span class="prompt">$</span> pd agents
+<span class="output">Active frontend-builder (payments:web, 30s ago)
+Active backend-builder (payments:api, 15s ago)
+Dead   database-builder (payments:db, 8m ago) [stale]</span></code></pre>
+
+      <p>When an agent dies before finishing:</p>
+      <pre><code><span class="prompt">$</span> pd salvage --project payments
+<span class="output"># Shows all dead agents in payments:* with their session notes
+# Other agents can claim their work and continue</span></code></pre>
+
+      <h2 id="sdk-pattern">JavaScript SDK Full Pattern</h2>
+      <pre><code><span class="keyword">import</span> { PortDaddy } <span class="keyword">from</span> <span class="string">'port-daddy/client'</span>;
+
+<span class="keyword">const</span> pd = <span class="keyword">new</span> PortDaddy({ agentId: <span class="string">'backend-builder'</span> });
+
+<span class="comment">// Register as an agent</span>
+<span class="keyword">await</span> pd.registerAgent({
+  name: <span class="string">'Backend Builder'</span>,
+  identity: <span class="string">'myapp:api'</span>,
+  purpose: <span class="string">'Building REST API'</span>,
+  type: <span class="string">'ai'</span>,
+});
+
+<span class="comment">// Start a session</span>
+<span class="keyword">const</span> session = <span class="keyword">await</span> pd.startSession({
+  purpose: <span class="string">'Building payment endpoints'</span>,
+  files: [<span class="string">'src/api/payments/*'</span>, <span class="string">'src/types/Payment.ts'</span>],
+});
+
+<span class="comment">// Make notes as you work</span>
+<span class="keyword">await</span> pd.note(<span class="string">'Started payment API implementation'</span>);
+
+<span class="comment">// Wait for database schema to be ready</span>
+<span class="keyword">const</span> schemaSub = pd.subscribe(<span class="string">'myapp:db'</span>);
+schemaSub.on(<span class="string">'message'</span>, <span class="keyword">async</span> (msg) =&gt; {
+  <span class="keyword">if</span> (msg.status === <span class="string">'schema-ready'</span>) {
+    <span class="keyword">await</span> pd.note(<span class="string">'Schema ready, importing types'</span>);
+  }
+});
+
+<span class="comment">// Claim exclusive access for critical operation</span>
+<span class="keyword">await</span> pd.withLock(<span class="string">'payment-config'</span>, <span class="keyword">async</span> () =&gt; {
+  <span class="keyword">await</span> initializeStripe();
+});
+
+<span class="comment">// Signal readiness</span>
+<span class="keyword">await</span> pd.publish(<span class="string">'myapp:api'</span>, {
+  status: <span class="string">'healthy'</span>,
+  port: 3101,
+});
+
+<span class="comment">// When done, end the session</span>
+<span class="keyword">await</span> pd.endSession(<span class="string">'Payment API complete'</span>);</code></pre>
+
+      <h2 id="common-patterns">Common Patterns</h2>
+
+      <h3>Pattern 1: Blocking Chain</h3>
+      <p>Agent B waits for Agent A to signal completion:</p>
+      <pre><code><span class="comment"># Agent A</span>
+<span class="prompt">$</span> pd pub build:complete <span class="string">'{"status":"ready"}'</span>
+
+<span class="comment"># Agent B</span>
+<span class="prompt">$</span> pd sub build:complete
+<span class="output"># (waits for signal before proceeding)</span></code></pre>
+
+      <h3>Pattern 2: Exclusive Access</h3>
+      <p>Multiple agents need the database, only one touches migrations at a time:</p>
+      <pre><code><span class="comment">// Each agent that touches the DB does this</span>
+<span class="keyword">await</span> pd.withLock(<span class="string">'db-schema'</span>, <span class="keyword">async</span> () =&gt; {
+  <span class="comment">// Only one agent runs this at a time</span>
+  <span class="keyword">await</span> runMigrations();
+});</code></pre>
+
+      <h3>Pattern 3: Status Board</h3>
+      <pre><code><span class="comment">// Each agent publishes status on a schedule</span>
+setInterval(() =&gt; {
+  pd.publish(<span class="string">'team:status'</span>, {
+    agent: <span class="string">'frontend-builder'</span>,
+    progress: 75,
+    blockedOn: <span class="string">'api-types'</span>,
+    eta: <span class="string">'5m'</span>,
+  });
+}, 10000);
+
+<span class="comment">// Monitoring tool subscribes</span>
+<span class="keyword">const</span> status = pd.subscribe(<span class="string">'team:*'</span>);
+status.on(<span class="string">'message'</span>, (msg) =&gt; {
+  updateProgressBoard(msg);
+});</code></pre>
+
+      <h2 id="deadlock">Preventing Agent Deadlock</h2>
+      <p>Two agents waiting on each other forever? This breaks coordination:</p>
+      <pre><code><span class="comment">// Don't do this -- both will hang forever
+// Agent A waits for Agent B</span>
+pd.sub(<span class="string">'agentB:ready'</span>)
+<span class="comment">// Agent B waits for Agent A</span>
+pd.sub(<span class="string">'agentA:ready'</span>)</code></pre>
+
+      <p>Instead, define explicit ordering and use timeouts:</p>
+      <pre><code><span class="comment">// Define explicit ordering:
+// Database -> Backend -> Frontend -> Testing</span>
+
+<span class="comment">// Use timeouts</span>
+<span class="keyword">const</span> result = <span class="keyword">await</span> Promise.race([
+  pd.waitForSignal(<span class="string">'backend:ready'</span>),
+  <span class="keyword">new</span> Promise((_, reject) =&gt;
+    setTimeout(() =&gt; reject(<span class="string">'timeout'</span>), 30000)
+  ),
+]);</code></pre>
+
+      <h2 id="whats-next">What's Next</h2>
+      <p>You've learned how to coordinate multiple agents. Now explore:</p>
+      <ol>
+        <li><a href="tunnel-magic.html">Tunneling</a> -- Share agent-built features with stakeholders</li>
+        <li><a href="monorepo-mastery.html">Monorepo Mastery</a> -- Scaling to 50 services</li>
+        <li><a href="debugging.html">Debugging</a> -- When coordination goes wrong</li>
+      </ol>
+      <p>The key insight: <strong>The bottleneck was never intelligence. It was coordination.</strong></p>
+      <p>One brilliant agent is powerful. A swarm of coordinated agents is exponentially more powerful.</p>
+
+      <div class="prev-next">
+        <a href="getting-started.html">
+          <div class="label">Previous tutorial</div>
+          <div class="title">Getting Started</div>
+        </a>
+        <a href="tunnel-magic.html" class="next">
+          <div class="label">Next tutorial</div>
+          <div class="title">Tunnel Magic</div>
+        </a>
+      </div>
+    </article>
+  </div>
+
+  <footer>
+    <div class="footer-container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a href="../" class="logo" style="color: white;">
+            <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
+            <span>Port Daddy</span>
+          </a>
+          <p>Port management, service orchestration, and agent coordination for modern development workflows.</p>
+        </div>
+        <div class="footer-column">
+          <h4>Product</h4>
+          <ul><li><a href="../#features">Features</a></li><li><a href="../mcp/">MCP Integration</a></li><li><a href="https://www.npmjs.com/package/port-daddy" target="_blank">npm Package</a></li></ul>
+        </div>
+        <div class="footer-column">
+          <h4>Resources</h4>
+          <ul><li><a href="./">Tutorials</a></li><li><a href="../docs/">Documentation</a></li><li><a href="https://github.com/curiositech/port-daddy" target="_blank">GitHub</a></li></ul>
+        </div>
+        <div class="footer-column">
+          <h4>Connect</h4>
+          <ul><li><a href="https://github.com/curiositech" target="_blank">@curiositech</a></li></ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2025 Curiositech LLC. Released under the MIT License.</p>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Debugging Port Conflicts — Port Daddy Tutorials</title>
+  <meta name="description" content="Turn 2am port conflict nightmares into 5-second diagnoses. Learn pd find, pd status, pd health, the activity log, stale service cleanup, lock debugging, SQLite forensics, and the full troubleshooting checklist.">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%9A%93</text></svg>">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/shared.css">
+</head>
+<body>
+  <nav>
+    <div class="nav-container">
+      <a href="../" class="logo">
+        <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
+        <span>Port Daddy</span>
+      </a>
+      <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Toggle navigation">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="nav-links">
+        <a href="../#features">Features</a>
+        <a href="./" class="active">Tutorials</a>
+        <a href="../mcp/">MCP</a>
+        <a href="../docs/">Docs</a>
+        <a href="https://github.com/curiositech/port-daddy" target="_blank">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <section class="page-hero">
+    <div class="page-hero-container">
+      <div class="breadcrumbs">
+        <a href="../">Home</a>
+        <span class="separator">/</span>
+        <a href="./">Tutorials</a>
+        <span class="separator">/</span>
+        <span>Debugging</span>
+      </div>
+      <h1>The Port Is Already In Use: A Horror Story</h1>
+      <p>Turn 2am <code style="font-family: var(--font-mono); background: rgba(74,124,126,0.1); padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.9em;">EADDRINUSE</code> nightmares into 5-second diagnoses with Port Daddy's debugging toolkit.</p>
+      <div class="meta">
+        <span class="meta-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          14 min read
+        </span>
+        <span class="meta-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+          Tutorial 5 of 5
+        </span>
+        <span class="meta-item">Intermediate</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="content-layout">
+    <aside class="toc">
+      <h4>On this page</h4>
+      <ul>
+        <li><a href="#the-nightmare">The 2am Nightmare</a></li>
+        <li><a href="#the-solution">The Port Daddy Solution</a></li>
+        <li><a href="#pd-find">Understanding What's Listening</a></li>
+        <li><a href="#pd-status">Full System Status</a></li>
+        <li><a href="#pd-health">Deep Diagnostics</a></li>
+        <li><a href="#activity-log">The Activity Log</a></li>
+        <li><a href="#real-scenario">Real Scenario: 2am Debugging</a></li>
+        <li><a href="#cleanup">Cleanup: Stale Services</a></li>
+        <li><a href="#lock-contention">Lock Contention</a></li>
+        <li><a href="#sqlite-forensics">SQLite Database Forensics</a></li>
+        <li><a href="#metrics">Metrics and Performance</a></li>
+        <li><a href="#session-tracking">Session Tracking</a></li>
+        <li><a href="#troubleshooting">Troubleshooting Checklist</a></li>
+      </ul>
+    </aside>
+
+    <article class="article">
+      <p>It's 2am. You're deploying a hotfix. The staging server won't start. Your terminal screams at you in red:</p>
+      <pre><code><span class="prompt">$</span> npm run dev
+<span class="output">Error: listen EADDRINUSE: address already in use :::3100
+    at Server.setupListenHandle [as _listen2] (net.js:1318:16)
+    at listenInCluster (net.js:1366:12)</span></code></pre>
+      <p>The old you reaches for <code>lsof</code>:</p>
+      <pre><code><span class="prompt">$</span> lsof -i :3100
+<span class="output">COMMAND   PID   USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
+node    48291  erich   23u  IPv6 0x1a2b3c...   0t0    TCP *:3100 (LISTEN)</span>
+
+<span class="comment"># What is PID 48291? When did it start? Which project?</span>
+<span class="comment"># Is it safe to kill? Is anyone depending on it?</span>
+<span class="comment"># You have no idea.</span>
+
+<span class="prompt">$</span> pkill -f node
+<span class="output"># You just killed 7 unrelated Node processes.
+# Your VS Code extensions are crashing.
+# Your other terminal windows are blank.
+# Your colleague's API server that was proxying through your machine is down.</span></code></pre>
+      <p>There is a better way.</p>
+
+      <h2 id="the-nightmare">The 2am Nightmare (In Detail)</h2>
+      <p>The <code>EADDRINUSE</code> error is just the symptom. The real problems are:</p>
+      <ul>
+        <li><strong>You don't know what's listening</strong> -- <code>lsof</code> shows PIDs, not purpose</li>
+        <li><strong>You don't know why it's listening</strong> -- Is it a forgotten dev server? A stale process? A different project?</li>
+        <li><strong>You don't know when it started</strong> -- Was it 5 minutes ago or 5 days ago?</li>
+        <li><strong>You don't know who started it</strong> -- Was it you? An agent? A CI runner?</li>
+        <li><strong>You can't safely kill it</strong> -- Without knowing the above, <code>kill</code> is a dice roll</li>
+      </ul>
+      <p>Port Daddy answers all five questions instantly.</p>
+
+      <h2 id="the-solution">The Port Daddy Solution</h2>
+      <p>When every service claims its port through Port Daddy, you get a complete registry of what's running, why, and when it started. Instead of <code>lsof</code> forensics, you ask Port Daddy:</p>
+      <pre><code><span class="prompt">$</span> pd find :3100
+<span class="output">myapp:api  port=3100  claimed 2h ago  healthy</span></code></pre>
+      <p>One line. You know the project (<code>myapp</code>), the stack (<code>api</code>), how long it's been running, and whether it's healthy. No PIDs, no guessing, no collateral damage.</p>
+      <p>Let's walk through every debugging tool Port Daddy gives you.</p>
+
+      <h2 id="pd-find">Understanding What's Listening: <code>pd find</code></h2>
+      <p>The <code>find</code> command is your first stop. It searches the service registry by name pattern.</p>
+
+      <h3>List All Services</h3>
+      <pre><code><span class="prompt">$</span> pd find *
+<span class="output">myapp:api          port=3100  claimed 2h ago
+myapp:web          port=3101  claimed 2h ago
+myapp:worker       port=3102  claimed 45m ago
+dashboard:next     port=3200  claimed 6h ago
+blog:gatsby        port=3300  claimed 3d ago</span></code></pre>
+
+      <h3>Pattern Matching</h3>
+      <pre><code><span class="comment"># Find all services for a specific project</span>
+<span class="prompt">$</span> pd find myapp:*
+<span class="output">myapp:api          port=3100  claimed 2h ago
+myapp:web          port=3101  claimed 2h ago
+myapp:worker       port=3102  claimed 45m ago</span>
+
+<span class="comment"># Find all API services across projects</span>
+<span class="prompt">$</span> pd find *:api
+<span class="output">myapp:api          port=3100  claimed 2h ago
+dashboard:api      port=3201  claimed 1d ago</span>
+
+<span class="comment"># Find a specific port</span>
+<span class="prompt">$</span> pd find :3100
+<span class="output">myapp:api          port=3100  claimed 2h ago</span></code></pre>
+
+      <h3>JSON Output for Scripting</h3>
+      <pre><code><span class="prompt">$</span> pd find myapp:* --json
+<span class="output">[
+  {"id":"myapp:api","port":3100,"claimedAt":"2026-03-01T00:15:00Z"},
+  {"id":"myapp:web","port":3101,"claimedAt":"2026-03-01T00:15:02Z"},
+  {"id":"myapp:worker","port":3102,"claimedAt":"2026-03-01T01:30:00Z"}
+]</span></code></pre>
+
+      <h2 id="pd-status">Full System Status: <code>pd status</code></h2>
+      <p>For a bird's eye view of everything Port Daddy is managing:</p>
+      <pre><code><span class="prompt">$</span> pd status
+<span class="output">Daemon running (pid 45821) on http://localhost:9876
+Uptime: 14h 23m
+
+Services:  5 claimed
+Locks:     1 held
+Agents:    3 active, 1 stale
+Sessions:  2 active
+Channels:  4 with subscribers</span></code></pre>
+      <p>This tells you at a glance: are things healthy, or is something stuck? Five services running is expected for your project. But if you see 47 services claimed when you only have 3 projects -- something is leaking.</p>
+
+      <h2 id="pd-health">Deep Diagnostics: <code>pd health</code></h2>
+      <p>The <code>health</code> command goes beyond "is the port claimed?" and actually checks whether the service is responding:</p>
+      <pre><code><span class="prompt">$</span> pd health
+<span class="output">myapp:api          :3100  healthy   (200 OK, 12ms)
+myapp:web          :3101  healthy   (200 OK, 45ms)
+myapp:worker       :3102  UNHEALTHY (connection refused)
+dashboard:next     :3200  healthy   (200 OK, 8ms)
+blog:gatsby        :3300  UNHEALTHY (timeout after 5000ms)</span></code></pre>
+      <p>Now you see the problem immediately: <code>myapp:worker</code> has a claimed port but nothing is listening. And <code>blog:gatsby</code> is responding but too slowly (probably frozen).</p>
+
+      <h3>Single Service Health Check</h3>
+      <pre><code><span class="prompt">$</span> pd health myapp:worker
+<span class="output">myapp:worker  :3102  UNHEALTHY
+  Status: connection refused
+  Port claimed: 45m ago
+  Last healthy: 12m ago
+  Suggestion: Process likely crashed. Release with: pd release myapp:worker</span></code></pre>
+
+      <h3>Health Check with Custom Paths</h3>
+      <p>If your services have custom health endpoints defined in <code>.portdaddyrc</code>:</p>
+      <pre><code><span class="comment"># .portdaddyrc health paths are used automatically</span>
+<span class="prompt">$</span> pd health myapp:api
+<span class="output">myapp:api  :3100  healthy
+  Endpoint: /health
+  Response: {"status":"ok","db":"connected","redis":"connected"}
+  Latency: 12ms</span></code></pre>
+
+      <h2 id="activity-log">The Activity Log: Forensic Debugging</h2>
+      <p>Port Daddy logs every operation. When something goes wrong, the activity log is your flight recorder.</p>
+
+      <h3>Recent Activity</h3>
+      <pre><code><span class="prompt">$</span> pd log
+<span class="output">2026-03-01T02:14:33Z  CLAIM    myapp:worker       port=3102
+2026-03-01T02:14:31Z  CLAIM    myapp:web          port=3101
+2026-03-01T02:14:30Z  CLAIM    myapp:api          port=3100
+2026-03-01T01:58:12Z  RELEASE  dashboard:worker   port=3202
+2026-03-01T01:45:00Z  LOCK     db-migrations      owner=agent-db
+2026-03-01T01:44:58Z  UNLOCK   db-migrations      owner=agent-db</span></code></pre>
+
+      <h3>Filter by Type</h3>
+      <pre><code><span class="comment"># Only show claims and releases</span>
+<span class="prompt">$</span> pd log --type claim,release
+
+<span class="comment"># Only show lock activity</span>
+<span class="prompt">$</span> pd log --type lock,unlock
+
+<span class="comment"># Only show errors</span>
+<span class="prompt">$</span> pd log --type error</code></pre>
+
+      <h3>Time Range Queries</h3>
+      <pre><code><span class="comment"># What happened in the last hour?</span>
+<span class="prompt">$</span> pd log --since 1h
+
+<span class="comment"># What happened between midnight and 2am?</span>
+<span class="prompt">$</span> pd log --since <span class="string">"2026-03-01T00:00:00Z"</span> --until <span class="string">"2026-03-01T02:00:00Z"</span>
+
+<span class="comment"># What happened to myapp specifically?</span>
+<span class="prompt">$</span> pd log --filter myapp:*</code></pre>
+
+      <h3>Activity Summary</h3>
+      <pre><code><span class="prompt">$</span> pd log --summary
+<span class="output">Last 24 hours:
+  Claims:    23
+  Releases:  18
+  Locks:     7
+  Unlocks:   7
+  Errors:    2
+
+  Most active: myapp:api (14 operations)
+  Longest held: blog:gatsby (3d 4h)</span></code></pre>
+
+      <h2 id="real-scenario">Real Scenario: 2am Port Debugging</h2>
+      <p>Let's walk through a realistic debugging session. Your staging deploy just failed.</p>
+
+      <h3>Step 1: What's the error?</h3>
+      <pre><code><span class="prompt">$</span> npm run dev
+<span class="output">Error: listen EADDRINUSE: address already in use :::3100</span></code></pre>
+
+      <h3>Step 2: Who has port 3100?</h3>
+      <pre><code><span class="prompt">$</span> pd find :3100
+<span class="output">myapp:api  port=3100  claimed 6h ago</span></code></pre>
+      <p>You claimed it 6 hours ago and forgot to release it before leaving for dinner.</p>
+
+      <h3>Step 3: Is it actually running?</h3>
+      <pre><code><span class="prompt">$</span> pd health myapp:api
+<span class="output">myapp:api  :3100  UNHEALTHY (connection refused)</span></code></pre>
+      <p>The port is claimed but nothing is listening -- a ghost claim. The process crashed but the claim persisted.</p>
+
+      <h3>Step 4: What happened?</h3>
+      <pre><code><span class="prompt">$</span> pd log --filter myapp:api --since 6h
+<span class="output">2026-02-28T20:14:30Z  CLAIM    myapp:api  port=3100
+2026-02-28T20:14:35Z  HEALTH   myapp:api  healthy (200 OK)
+2026-02-28T22:45:12Z  HEALTH   myapp:api  UNHEALTHY (connection refused)</span></code></pre>
+      <p>The API was healthy at 8:14pm, then died around 10:45pm. Probably your laptop went to sleep.</p>
+
+      <h3>Step 5: Release and reclaim</h3>
+      <pre><code><span class="prompt">$</span> pd release myapp:api
+<span class="output">Released myapp:api (port 3100)</span>
+
+<span class="prompt">$</span> PORT=$(pd claim myapp:api -q)
+<span class="prompt">$</span> npm run dev -- --port $PORT
+<span class="output">Server running on http://localhost:3100</span></code></pre>
+      <p>Total debugging time: 30 seconds. No <code>lsof</code>. No <code>pkill</code>. No collateral damage.</p>
+
+      <h2 id="cleanup">Cleanup: Removing Stale Services</h2>
+      <p>Over time, ghost claims accumulate -- ports claimed by processes that crashed, laptops that went to sleep, or agents that died mid-task. The <code>cleanup</code> command handles this.</p>
+
+      <h3>Preview What Would Be Cleaned</h3>
+      <pre><code><span class="prompt">$</span> pd cleanup --dry-run
+<span class="output">Would release 3 stale services:
+  blog:gatsby        port=3300  claimed 3d ago   UNHEALTHY
+  dashboard:worker   port=3202  claimed 1d ago   UNHEALTHY
+  myapp:worker       port=3102  claimed 45m ago  UNHEALTHY</span></code></pre>
+
+      <h3>Run Cleanup</h3>
+      <pre><code><span class="prompt">$</span> pd cleanup
+<span class="output">Released 3 stale services:
+  blog:gatsby        port=3300
+  dashboard:worker   port=3202
+  myapp:worker       port=3102</span></code></pre>
+
+      <h3>Aggressive Cleanup</h3>
+      <pre><code><span class="comment"># Release everything older than 1 hour that isn't healthy</span>
+<span class="prompt">$</span> pd cleanup --max-age 1h
+
+<span class="comment"># Release ALL services (nuclear option)</span>
+<span class="prompt">$</span> pd release *
+<span class="output">Released 5 services</span></code></pre>
+      <p>The <code>--dry-run</code> flag is your friend. Always preview before cleaning.</p>
+
+      <h2 id="lock-contention">Distributed Locks: Understanding Lock Contention</h2>
+      <p>When agents coordinate with locks, things can get stuck. Here's how to debug lock issues.</p>
+
+      <h3>List All Locks</h3>
+      <pre><code><span class="prompt">$</span> pd locks
+<span class="output">db-migrations    owner=agent-db      held 2m    expires in 8m
+deploy-staging   owner=agent-deploy   held 45s   expires in 4m15s</span></code></pre>
+
+      <h3>Inspect a Stuck Lock</h3>
+      <pre><code><span class="prompt">$</span> pd locks
+<span class="output">db-migrations    owner=agent-db    held 47m   expires in -37m (EXPIRED)</span></code></pre>
+      <p>That lock has been held for 47 minutes and its TTL expired 37 minutes ago. The owning agent probably died without releasing it.</p>
+
+      <h3>Force-Release a Lock</h3>
+      <pre><code><span class="comment"># Check who owns it first</span>
+<span class="prompt">$</span> pd locks --json
+<span class="output">[{"name":"db-migrations","owner":"agent-db","heldSince":"2026-03-01T01:30:00Z","ttl":600}]</span>
+
+<span class="comment"># Force-release it</span>
+<span class="prompt">$</span> pd unlock db-migrations --force
+<span class="output">Lock db-migrations force-released (was held by agent-db)</span></code></pre>
+
+      <h3>Preventing Lock Starvation</h3>
+      <p>If an agent keeps renewing a lock and other agents are starved:</p>
+      <pre><code><span class="comment"># Check lock history in activity log</span>
+<span class="prompt">$</span> pd log --type lock,unlock --filter db-migrations --since 1h
+<span class="output">2026-03-01T01:30:00Z  LOCK     db-migrations  owner=agent-db
+2026-03-01T01:35:00Z  EXTEND   db-migrations  owner=agent-db  +10m
+2026-03-01T01:40:00Z  EXTEND   db-migrations  owner=agent-db  +10m
+2026-03-01T01:45:00Z  EXTEND   db-migrations  owner=agent-db  +10m
+...</span></code></pre>
+      <p>The agent has been extending its lock every 5 minutes for an hour. It's likely stuck in a loop. Force-release the lock and investigate the agent.</p>
+
+      <h2 id="sqlite-forensics">Deep Dive: SQLite Database</h2>
+      <p>For truly deep forensics, you can query Port Daddy's SQLite database directly. This is the nuclear option -- useful when the CLI doesn't expose enough detail.</p>
+
+      <h3>Finding the Database</h3>
+      <pre><code><span class="comment"># The database lives in your project root</span>
+<span class="prompt">$</span> sqlite3 port-registry.db
+
+<span class="comment"># Or check where it is</span>
+<span class="prompt">$</span> pd config --json | grep dbPath</code></pre>
+
+      <h3>Common Forensic Queries</h3>
+      <pre><code><span class="comment"># What tables exist?</span>
+<span class="prompt">sqlite&gt;</span> .tables
+<span class="output">services          locks             agents
+sessions          session_notes     activity_log
+resurrection_queue  webhooks        messages</span>
+
+<span class="comment"># All services sorted by age</span>
+<span class="prompt">sqlite&gt;</span> SELECT id, port, createdAt
+   FROM services ORDER BY createdAt ASC;
+<span class="output">blog:gatsby|3300|2026-02-26T14:00:00Z
+dashboard:next|3200|2026-02-28T18:00:00Z
+myapp:api|3100|2026-03-01T00:15:00Z</span>
+
+<span class="comment"># Services claimed more than 24 hours ago</span>
+<span class="prompt">sqlite&gt;</span> SELECT id, port, createdAt
+   FROM services
+   WHERE createdAt &lt; datetime(<span class="string">'now'</span>, <span class="string">'-24 hours'</span>);
+
+<span class="comment"># Which agent registered most recently?</span>
+<span class="prompt">sqlite&gt;</span> SELECT id, purpose, lastHeartbeat
+   FROM agents
+   ORDER BY lastHeartbeat DESC LIMIT 5;
+
+<span class="comment"># Dead agents (no heartbeat in 20+ minutes)</span>
+<span class="prompt">sqlite&gt;</span> SELECT id, purpose, lastHeartbeat
+   FROM agents
+   WHERE lastHeartbeat &lt; datetime(<span class="string">'now'</span>, <span class="string">'-20 minutes'</span>);</code></pre>
+
+      <h3>Correlating Events</h3>
+      <pre><code><span class="comment"># What happened around the time myapp:worker died?</span>
+<span class="prompt">sqlite&gt;</span> SELECT timestamp, type, details
+   FROM activity_log
+   WHERE timestamp BETWEEN <span class="string">'2026-03-01T01:40:00Z'</span>
+     AND <span class="string">'2026-03-01T01:50:00Z'</span>
+   ORDER BY timestamp;
+<span class="output">2026-03-01T01:42:15Z|HEALTH|myapp:worker UNHEALTHY
+2026-03-01T01:42:15Z|HEALTH|myapp:api healthy
+2026-03-01T01:42:16Z|HEARTBEAT|agent-worker missed
+2026-03-01T01:44:58Z|LOCK|db-migrations acquired by agent-db</span></code></pre>
+      <p>Now you can see that the worker went unhealthy at 1:42am, missed its heartbeat, and the database agent acquired a lock shortly after -- possibly triggering a migration that the worker couldn't handle.</p>
+
+      <h2 id="metrics">Metrics and Performance Debugging</h2>
+      <p>When Port Daddy itself seems slow or unresponsive, check the metrics endpoint:</p>
+      <pre><code><span class="prompt">$</span> pd metrics
+<span class="output">Daemon Metrics
+  Uptime:           14h 23m
+  Total requests:   1,247
+  Avg response:     3.2ms
+  Peak response:    145ms
+  Active SSE:       2 connections
+  DB size:          248 KB
+  Memory:           42 MB RSS</span></code></pre>
+
+      <h3>Identifying Performance Issues</h3>
+      <pre><code><span class="prompt">$</span> pd metrics --json
+<span class="output">{
+  "uptime": 51780,
+  "requests": 1247,
+  "avgResponseMs": 3.2,
+  "peakResponseMs": 145,
+  "activeSSE": 2,
+  "dbSizeBytes": 253952,
+  "memoryRSS": 44040192,
+  "codeHash": "a1b2c3d4..."
+}</span></code></pre>
+      <p>Watch for these red flags:</p>
+      <ul>
+        <li><strong>Avg response > 50ms</strong> -- SQLite may be locked or the database is too large</li>
+        <li><strong>Active SSE > 10</strong> -- Too many subscribers; check for leaked connections</li>
+        <li><strong>DB size > 10 MB</strong> -- Activity log may need pruning</li>
+        <li><strong>Memory > 200 MB</strong> -- Possible memory leak in message queues</li>
+      </ul>
+
+      <h3>Checking the Code Hash</h3>
+      <pre><code><span class="comment"># Is the daemon running stale code?</span>
+<span class="prompt">$</span> pd version
+<span class="output">port-daddy v3.3.0
+Code hash: a1b2c3d4
+Node: v20.11.0</span>
+
+<span class="comment"># If you've updated Port Daddy but the hash is old:</span>
+<span class="prompt">$</span> pd stop && pd start
+<span class="output">Daemon restarted with fresh code</span></code></pre>
+
+      <h2 id="session-tracking">Session Tracking for Multi-Agent Debugging</h2>
+      <p>When multiple agents are working simultaneously and something goes wrong, session tracking helps you reconstruct what happened.</p>
+
+      <h3>List Active Sessions</h3>
+      <pre><code><span class="prompt">$</span> pd sessions
+<span class="output">session-a1b2  "Building checkout UI"       active  3 files claimed  12 notes
+session-c3d4  "Payment API integration"    active  5 files claimed  8 notes
+session-e5f6  "Database migrations"        completed  0 files  4 notes</span></code></pre>
+
+      <h3>Read Session Notes for Context</h3>
+      <pre><code><span class="prompt">$</span> pd notes --session session-a1b2
+<span class="output">[10:14] Started working on checkout form
+[10:22] Installed @stripe/react-stripe-js
+[10:35] CheckoutForm component complete
+[10:41] Blocked: need payment API types from session-c3d4
+[10:55] Unblocked: types available, integrating
+[11:02] ERROR: API returning 500 on /api/payments</span></code></pre>
+      <p>Now you can see exactly when the frontend agent hit the error, and that it was after the API types became available -- suggesting a bug in the API, not a coordination issue.</p>
+
+      <h3>Check File Claims for Conflicts</h3>
+      <pre><code><span class="prompt">$</span> pd sessions --files
+<span class="output">session-a1b2 claims:
+  src/components/checkout/CheckoutForm.tsx
+  src/components/checkout/PaymentStatus.tsx
+  src/hooks/usePayment.ts
+
+session-c3d4 claims:
+  src/api/payments/route.ts
+  src/api/payments/webhook.ts
+  src/types/Payment.ts
+  src/middleware/auth.ts
+  src/lib/stripe.ts</span></code></pre>
+      <p>No overlapping files -- good. If two sessions claimed the same file, that's where your merge conflict is coming from.</p>
+
+      <h3>View Dead Agent Context with Salvage</h3>
+      <pre><code><span class="prompt">$</span> pd salvage
+<span class="output">Dead agents with recoverable context:
+
+  agent-worker (died 15m ago)
+    Purpose: "Processing payment webhooks"
+    Session: session-g7h8 (4 notes)
+    Last note: "Stripe webhook handler 80% complete"
+    Files claimed: src/workers/stripe-webhook.ts
+
+  Run: pd salvage claim agent-worker</span></code></pre>
+
+      <h2 id="troubleshooting">Troubleshooting Checklist</h2>
+      <p>Quick reference for the most common problems:</p>
+
+      <h3>"I can't start my service -- port in use"</h3>
+      <pre><code><span class="comment"># 1. Check who has the port</span>
+<span class="prompt">$</span> pd find :3100
+
+<span class="comment"># 2. Check if it's actually running</span>
+<span class="prompt">$</span> pd health myapp:api
+
+<span class="comment"># 3. If unhealthy, release the ghost claim</span>
+<span class="prompt">$</span> pd release myapp:api
+
+<span class="comment"># 4. Reclaim and start</span>
+<span class="prompt">$</span> PORT=$(pd claim myapp:api -q) npm run dev -- --port $PORT</code></pre>
+
+      <h3>"Health check says healthy but my app is broken"</h3>
+      <pre><code><span class="comment"># Health checks hit your healthPath, which may return 200
+# even when the app is partially broken</span>
+
+<span class="comment"># 1. Check what endpoint is being hit</span>
+<span class="prompt">$</span> pd health myapp:api --verbose
+<span class="output">GET http://localhost:3100/health -> 200 OK (12ms)
+Response: {"status":"ok"}</span>
+
+<span class="comment"># 2. Your /health endpoint is too simple
+# Update .portdaddyrc to check dependencies:</span>
+<span class="output">{
+  "services": {
+    "api": {
+      "healthPath": "/health?deep=true"
+    }
+  }
+}</span></code></pre>
+
+      <h3>"Random ports keep appearing"</h3>
+      <pre><code><span class="comment"># Something is claiming ports outside your control</span>
+
+<span class="comment"># 1. Check activity log for unexpected claims</span>
+<span class="prompt">$</span> pd log --type claim --since 1h
+
+<span class="comment"># 2. Look for patterns</span>
+<span class="prompt">$</span> pd find *
+<span class="output"># If you see services you didn't create, an agent or
+# script may be auto-claiming ports</span>
+
+<span class="comment"># 3. Check for registered agents</span>
+<span class="prompt">$</span> pd agents
+<span class="output"># Shows all active agents with their purpose</span>
+
+<span class="comment"># 4. Clean up and investigate</span>
+<span class="prompt">$</span> pd cleanup --dry-run</code></pre>
+
+      <h3>"Lock is stuck and nothing can proceed"</h3>
+      <pre><code><span class="comment"># 1. List all locks</span>
+<span class="prompt">$</span> pd locks
+
+<span class="comment"># 2. Check if the owner is still alive</span>
+<span class="prompt">$</span> pd agents
+
+<span class="comment"># 3. If owner is dead, force-release</span>
+<span class="prompt">$</span> pd unlock db-migrations --force
+
+<span class="comment"># 4. Check lock history for repeat offenders</span>
+<span class="prompt">$</span> pd log --type lock,unlock --since 2h</code></pre>
+
+      <h3>"Daemon won't start or is unresponsive"</h3>
+      <pre><code><span class="comment"># 1. Check if it's running</span>
+<span class="prompt">$</span> pd status
+
+<span class="comment"># 2. Check if something else is on port 9876</span>
+<span class="prompt">$</span> lsof -i :9876
+
+<span class="comment"># 3. Kill any stale daemon process</span>
+<span class="prompt">$</span> pkill -f <span class="string">"port-daddy.*server"</span>
+
+<span class="comment"># 4. Restart fresh</span>
+<span class="prompt">$</span> pd start
+
+<span class="comment"># 5. If database is corrupted, check integrity</span>
+<span class="prompt">$</span> sqlite3 port-registry.db <span class="string">"PRAGMA integrity_check"</span>
+<span class="output">ok</span></code></pre>
+
+      <h3>"Agents keep dying and entering salvage"</h3>
+      <pre><code><span class="comment"># 1. Check the resurrection queue</span>
+<span class="prompt">$</span> pd salvage
+
+<span class="comment"># 2. Look at their session notes for clues</span>
+<span class="prompt">$</span> pd notes --session &lt;dead-agent-session&gt;
+
+<span class="comment"># 3. Check heartbeat patterns</span>
+<span class="prompt">$</span> pd log --type heartbeat --filter agent-worker --since 1h
+
+<span class="comment"># 4. Common causes:
+#    - Agent hit context window limit
+#    - Agent crashed on a bad API response
+#    - Machine went to sleep
+#    - Network partition broke SSE connection</span></code></pre>
+
+      <h2>The Debugging Mindset</h2>
+      <p>With Port Daddy, debugging port conflicts follows a consistent pattern:</p>
+      <ol>
+        <li><strong>Identify</strong> -- <code>pd find</code> to see what's claimed</li>
+        <li><strong>Diagnose</strong> -- <code>pd health</code> to see what's actually running</li>
+        <li><strong>Investigate</strong> -- <code>pd log</code> to see what happened and when</li>
+        <li><strong>Resolve</strong> -- <code>pd release</code> or <code>pd cleanup</code> to fix ghost claims</li>
+        <li><strong>Prevent</strong> -- <code>pd status</code> and <code>pd metrics</code> to monitor going forward</li>
+      </ol>
+      <p>The days of <code>lsof | grep | awk | xargs kill</code> are over. Port Daddy gives you semantic, timestamped, queryable records of every port operation. At 2am or 2pm, the answer is always one command away.</p>
+
+      <div class="prev-next">
+        <a href="monorepo-mastery.html">
+          <div class="label">Previous tutorial</div>
+          <div class="title">Monorepo Mastery</div>
+        </a>
+        <div></div>
+      </div>
+    </article>
+  </div>
+
+  <footer>
+    <div class="footer-container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a href="../" class="logo" style="color: white;">
+            <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
+            <span>Port Daddy</span>
+          </a>
+          <p>Port management, service orchestration, and agent coordination for modern development workflows.</p>
+        </div>
+        <div class="footer-column">
+          <h4>Product</h4>
+          <ul><li><a href="../#features">Features</a></li><li><a href="../mcp/">MCP Integration</a></li><li><a href="https://www.npmjs.com/package/port-daddy" target="_blank">npm Package</a></li></ul>
+        </div>
+        <div class="footer-column">
+          <h4>Resources</h4>
+          <ul><li><a href="./">Tutorials</a></li><li><a href="../docs/">Documentation</a></li><li><a href="https://github.com/curiositech/port-daddy" target="_blank">GitHub</a></li></ul>
+        </div>
+        <div class="footer-column">
+          <h4>Connect</h4>
+          <ul><li><a href="https://github.com/curiositech" target="_blank">@curiositech</a></li></ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2025 Curiositech LLC. Released under the MIT License.</p>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

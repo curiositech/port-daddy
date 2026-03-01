@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tutorials — Port Daddy</title>
+  <meta name="description" content="Learn Port Daddy from zero to multi-agent orchestration. Step-by-step tutorials covering installation, coordination, tunneling, monorepos, and debugging.">
+  <meta property="og:title" content="Tutorials — Port Daddy">
+  <meta property="og:description" content="Learn Port Daddy from zero to multi-agent orchestration.">
+  <meta property="og:type" content="website">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%9A%93</text></svg>">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/shared.css">
+</head>
+<body>
+  <nav>
+    <div class="nav-container">
+      <a href="../" class="logo">
+        <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
+        <span>Port Daddy</span>
+      </a>
+      <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Toggle navigation">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="nav-links">
+        <a href="../#features">Features</a>
+        <a href="./" class="active">Tutorials</a>
+        <a href="../mcp/">MCP</a>
+        <a href="../docs/">Docs</a>
+        <a href="https://github.com/curiositech/port-daddy" target="_blank">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <section class="page-hero">
+    <div class="page-hero-container">
+      <div class="breadcrumbs">
+        <a href="../">Home</a>
+        <span class="separator">/</span>
+        <span>Tutorials</span>
+      </div>
+      <h1>Learn Port Daddy</h1>
+      <p>From your first port claim to orchestrating a fleet of AI agents. Five tutorials that take you from zero to production-ready workflows.</p>
+    </div>
+  </section>
+
+  <section class="section" style="background: white; padding-top: 2rem;">
+    <div style="max-width: 800px; margin: 0 auto;">
+      <div class="card-grid" style="grid-template-columns: 1fr;">
+
+        <a href="getting-started.html" class="card">
+          <div class="card-number">01</div>
+          <h3>Your First 5 Minutes with Port Daddy</h3>
+          <p>Install Port Daddy, claim your first stable port, and never manually track port numbers again. Covers installation (npm, Homebrew, npx), the daemon, semantic naming, framework detection, and the web dashboard.</p>
+          <div class="card-meta">
+            <span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              8 min read
+            </span>
+            <span>Beginner</span>
+          </div>
+        </a>
+
+        <a href="multi-agent-orchestration.html" class="card">
+          <div class="card-number">02</div>
+          <h3>Orchestrating 5 AI Agents Without Losing Your Mind</h3>
+          <p>Coordinate multiple Claude, Cursor, and Aider agents working in parallel. Learn sessions, file claims, pub/sub messaging, distributed locks, agent registration, and the salvage system for dead agents.</p>
+          <div class="card-meta">
+            <span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              15 min read
+            </span>
+            <span>Intermediate</span>
+          </div>
+        </a>
+
+        <a href="tunnel-magic.html" class="card">
+          <div class="card-number">03</div>
+          <h3>Share Your Local Dev Server in 30 Seconds</h3>
+          <p>Make your local development server globally accessible with one command. Covers ngrok, cloudflared, and localtunnel integration, webhook testing, mobile testing, cross-team workflows, and security best practices.</p>
+          <div class="card-meta">
+            <span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              12 min read
+            </span>
+            <span>Intermediate</span>
+          </div>
+        </a>
+
+        <a href="monorepo-mastery.html" class="card">
+          <div class="card-number">04</div>
+          <h3>Port Daddy in a 50-Service Monorepo</h3>
+          <p>Start your entire stack with one command. Deep scanning, dependency ordering, health checks, color-coded logs, environment variable injection, and branch-specific configs for massive monorepos.</p>
+          <div class="card-meta">
+            <span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              14 min read
+            </span>
+            <span>Advanced</span>
+          </div>
+        </a>
+
+        <a href="debugging.html" class="card">
+          <div class="card-number">05</div>
+          <h3>The Port Is Already In Use: A Horror Story</h3>
+          <p>Turn 2am port conflict nightmares into 5-second diagnoses. Learn pd find, pd status, pd health, the activity log, stale service cleanup, lock debugging, SQLite forensics, and the full troubleshooting checklist.</p>
+          <div class="card-meta">
+            <span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              14 min read
+            </span>
+            <span>Intermediate</span>
+          </div>
+        </a>
+
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="footer-container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a href="../" class="logo" style="color: white;">
+            <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
+            <span>Port Daddy</span>
+          </a>
+          <p>Port management, service orchestration, and agent coordination for modern development workflows.</p>
+        </div>
+        <div class="footer-column">
+          <h4>Product</h4>
+          <ul><li><a href="../#features">Features</a></li><li><a href="../mcp/">MCP Integration</a></li><li><a href="https://www.npmjs.com/package/port-daddy" target="_blank">npm Package</a></li></ul>
+        </div>
+        <div class="footer-column">
+          <h4>Resources</h4>
+          <ul><li><a href="./">Tutorials</a></li><li><a href="../docs/">Documentation</a></li><li><a href="https://github.com/curiositech/port-daddy" target="_blank">GitHub</a></li></ul>
+        </div>
+        <div class="footer-column">
+          <h4>Connect</h4>
+          <ul><li><a href="https://github.com/curiositech" target="_blank">@curiositech</a></li></ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2025 Curiositech LLC. Released under the MIT License.</p>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

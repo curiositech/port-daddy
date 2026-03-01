@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation — Port Daddy</title>
+  <meta name="description" content="Everything you need to integrate Port Daddy into your development workflow. CLI reference, SDK docs, HTTP API, MCP integration, tutorials, and configuration guides.">
+  <meta property="og:title" content="Documentation — Port Daddy">
+  <meta property="og:description" content="Everything you need to integrate Port Daddy into your development workflow.">
+  <meta property="og:type" content="website">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%9A%93</text></svg>">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/shared.css">
+  <style>
+    /* Getting Started install block */
+    .getting-started {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .getting-started-intro {
+      font-size: 1.05rem;
+      color: var(--text-secondary);
+      margin-bottom: 1.5rem;
+      line-height: 1.7;
+    }
+    .install-block {
+      background: var(--navy);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 8px 30px rgba(30, 58, 95, 0.2);
+      margin-bottom: 1.5rem;
+    }
+    .install-block-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1rem;
+      background: var(--navy-light);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .install-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+    .install-dot.red { background: #c44536; }
+    .install-dot.yellow { background: #d4a017; }
+    .install-dot.green { background: #5a8f5a; }
+    .install-block-body {
+      padding: 1.25rem 1.5rem;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      line-height: 2;
+      color: rgba(255,255,255,0.9);
+    }
+    .install-line {
+      display: flex;
+      gap: 0.75rem;
+    }
+    .install-prompt {
+      color: var(--teal-light);
+      flex-shrink: 0;
+      user-select: none;
+    }
+    .install-comment {
+      color: rgba(255,255,255,0.35);
+    }
+    .getting-started-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--teal);
+      font-weight: 500;
+      font-size: 0.95rem;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .getting-started-link:hover {
+      color: var(--navy);
+    }
+    .getting-started-link svg {
+      width: 18px;
+      height: 18px;
+      transition: transform 0.2s;
+    }
+    .getting-started-link:hover svg {
+      transform: translateX(3px);
+    }
+
+    /* Docs grid section */
+    .docs-section {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    /* Quick reference section */
+    .quick-ref {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    .quick-ref-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 12px rgba(30, 58, 95, 0.06);
+      border: 1px solid var(--border);
+    }
+    .quick-ref-table thead th {
+      background: var(--navy);
+      color: white;
+      padding: 0.85rem 1.25rem;
+      text-align: left;
+      font-weight: 500;
+      font-size: 0.85rem;
+    }
+    .quick-ref-table thead th:first-child {
+      border-radius: 0;
+    }
+    .quick-ref-table thead th:last-child {
+      border-radius: 0;
+    }
+    .quick-ref-table tbody td {
+      padding: 0.7rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-secondary);
+    }
+    .quick-ref-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+    .quick-ref-table tbody tr:hover td {
+      background: var(--bg-secondary);
+    }
+    .quick-ref-table code {
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      padding: 0.15em 0.45em;
+      border-radius: 4px;
+      color: var(--navy);
+      white-space: nowrap;
+    }
+    .quick-ref-table tbody tr:hover code {
+      background: white;
+    }
+
+    /* Category row in quick reference table */
+    .quick-ref-table .category-row td {
+      background: var(--bg-secondary);
+      font-weight: 600;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--teal);
+      padding: 0.5rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* External link indicator on doc-link cards */
+    .doc-link .external-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      margin-top: 0.35rem;
+      font-size: 0.7rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .doc-link .external-indicator svg {
+      width: 11px;
+      height: 11px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation -->
+  <nav>
+    <div class="nav-container">
+      <a href="../" class="logo">
+        <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
+        <span>Port Daddy</span>
+      </a>
+      <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Toggle navigation">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="nav-links">
+        <a href="../#features">Features</a>
+        <a href="../tutorials/">Tutorials</a>
+        <a href="../mcp/">MCP</a>
+        <a href="./" class="active">Docs</a>
+        <a href="https://github.com/curiositech/port-daddy" target="_blank">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="page-hero">
+    <div class="page-hero-container">
+      <div class="breadcrumbs">
+        <a href="../">Home</a>
+        <span class="separator">/</span>
+        <span>Docs</span>
+      </div>
+      <h1>Documentation</h1>
+      <p>Everything you need to integrate Port Daddy into your development workflow.</p>
+    </div>
+  </section>
+
+  <!-- Getting Started -->
+  <section class="section" style="background: white; padding-top: 2.5rem; padding-bottom: 3rem;">
+    <div class="getting-started">
+      <span class="section-label">Getting Started</span>
+      <h2 class="section-title" style="font-size: 1.75rem; margin-bottom: 0.75rem;">Up and running in three commands</h2>
+      <p class="getting-started-intro">Install Port Daddy globally, start the daemon, and claim your first stable port. That is all it takes.</p>
+
+      <div class="install-block">
+        <div class="install-block-header">
+          <div class="install-dot red"></div>
+          <div class="install-dot yellow"></div>
+          <div class="install-dot green"></div>
+        </div>
+        <div class="install-block-body">
+          <div class="install-line"><span class="install-prompt">$</span> <span>npm install -g port-daddy</span></div>
+          <div class="install-line"><span class="install-prompt">$</span> <span>pd start</span></div>
+          <div class="install-line"><span class="install-prompt">$</span> <span>pd claim myapp -q</span></div>
+          <div class="install-line" style="margin-top: 0.25rem;"><span class="install-comment"># => 3001</span></div>
+        </div>
+      </div>
+
+      <a href="../tutorials/getting-started.html" class="getting-started-link">
+        Read the full Getting Started tutorial
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </a>
+    </div>
+  </section>
+
+  <!-- Documentation Links -->
+  <section class="section" style="padding-top: 3rem;">
+    <div class="docs-section">
+      <span class="section-label">Reference</span>
+      <h2 class="section-title" style="font-size: 1.75rem; margin-bottom: 0.5rem;">Documentation</h2>
+      <p class="section-subtitle" style="margin-bottom: 2rem;">Guides, references, and integrations for every part of Port Daddy.</p>
+
+      <div class="doc-links">
+
+        <!-- CLI Reference -->
+        <a href="https://github.com/curiositech/port-daddy#cli-reference" target="_blank" class="doc-link">
+          <div class="doc-link-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+          </div>
+          <div>
+            <h3>CLI Reference</h3>
+            <p>Complete command reference for the <code>pd</code> CLI. Every command, flag, and option.</p>
+          </div>
+        </a>
+
+        <!-- JavaScript SDK -->
+        <a href="https://github.com/curiositech/port-daddy/blob/main/docs/sdk.md" target="_blank" class="doc-link">
+          <div class="doc-link-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+          </div>
+          <div>
+            <h3>JavaScript SDK</h3>
+            <p>Type-safe SDK for Node.js applications. Claim ports, manage sessions, coordinate agents.</p>
+          </div>
+        </a>
+
+        <!-- HTTP API -->
+        <a href="https://github.com/curiositech/port-daddy#api-endpoints" target="_blank" class="doc-link">
+          <div class="doc-link-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-9 9m9-9a9 9 0 0 0-9-9m9 9H3m9 9a9 9 0 0 1-9-9m9 9c1.66 0 3-4.03 3-9s-1.34-9-3-9m0 18c-1.66 0-3-4.03-3-9s1.34-9 3-9m-9 9a9 9 0 0 1 9-9"/></svg>
+          </div>
+          <div>
+            <h3>HTTP API</h3>
+            <p>REST API reference for the daemon running on localhost:9876. Every endpoint documented.</p>
+          </div>
+        </a>
+
+        <!-- MCP Integration -->
+        <a href="../mcp/" class="doc-link">
+          <div class="doc-link-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+          </div>
+          <div>
+            <h3>MCP Integration</h3>
+            <p>Connect Port Daddy to Claude Code and Claude Desktop via the Model Context Protocol.</p>
+          </div>
+        </a>
+
+        <!-- Tutorials -->
+        <a href="../tutorials/" class="doc-link">
+          <div class="doc-link-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c0 1.1 2.7 2 6 2s6-.9 6-2v-5"/></svg>
+          </div>
+          <div>
+            <h3>Tutorials</h3>
+            <p>Step-by-step guides from your first port claim to orchestrating 50 services.</p>
+          </div>
+        </a>
+
+        <!-- Configuration -->
+        <a href="https://github.com/curiositech/port-daddy#configuration" target="_blank" class="doc-link">
+          <div class="doc-link-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1.08 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1.08H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1.08z"/></svg>
+          </div>
+          <div>
+            <h3>Configuration</h3>
+            <p>Configure Port Daddy with <code>.portdaddyrc</code>, environment variables, and daemon options.</p>
+          </div>
+        </a>
+
+        <!-- Agent Coordination -->
+        <a href="../tutorials/multi-agent-orchestration.html" class="doc-link">
+          <div class="doc-link-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
+          <div>
+            <h3>Agent Coordination</h3>
+            <p>Sessions, notes, file claims, pub/sub, locks, and the salvage system for multi-agent workflows.</p>
+          </div>
+        </a>
+
+        <!-- GitHub -->
+        <a href="https://github.com/curiositech/port-daddy" target="_blank" class="doc-link">
+          <div class="doc-link-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
+          </div>
+          <div>
+            <h3>GitHub</h3>
+            <p>Source code, issues, and contributions.</p>
+            <span class="external-indicator">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              External
+            </span>
+          </div>
+        </a>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Quick Reference -->
+  <section class="section" style="background: white; padding-top: 3rem; padding-bottom: 4rem;">
+    <div class="quick-ref">
+      <span class="section-label">Quick Reference</span>
+      <h2 class="section-title" style="font-size: 1.75rem; margin-bottom: 0.5rem;">CLI Commands</h2>
+      <p class="section-subtitle" style="margin-bottom: 2rem;">Every <code style="font-family: var(--font-mono); font-size: 0.85em; background: var(--bg-secondary); border: 1px solid var(--border); padding: 0.15em 0.4em; border-radius: 4px; color: var(--navy);">pd</code> command at a glance. All commands support <code style="font-family: var(--font-mono); font-size: 0.85em; background: var(--bg-secondary); border: 1px solid var(--border); padding: 0.15em 0.4em; border-radius: 4px; color: var(--navy);">--json</code> and <code style="font-family: var(--font-mono); font-size: 0.85em; background: var(--bg-secondary); border: 1px solid var(--border); padding: 0.15em 0.4em; border-radius: 4px; color: var(--navy);">--quiet</code> flags.</p>
+
+      <table class="quick-ref-table">
+        <thead>
+          <tr>
+            <th>Command</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Port Management -->
+          <tr class="category-row"><td colspan="2">Port Management</td></tr>
+          <tr>
+            <td><code>pd claim &lt;id&gt;</code></td>
+            <td>Claim a stable port for a service</td>
+          </tr>
+          <tr>
+            <td><code>pd release &lt;id&gt;</code></td>
+            <td>Release a claimed port</td>
+          </tr>
+          <tr>
+            <td><code>pd find [pattern]</code></td>
+            <td>Find services matching a pattern</td>
+          </tr>
+          <tr>
+            <td><code>pd status</code></td>
+            <td>Show daemon status and active services</td>
+          </tr>
+          <tr>
+            <td><code>pd health</code></td>
+            <td>Run health checks on all services</td>
+          </tr>
+
+          <!-- Orchestration -->
+          <tr class="category-row"><td colspan="2">Orchestration</td></tr>
+          <tr>
+            <td><code>pd up</code></td>
+            <td>Start all registered services</td>
+          </tr>
+          <tr>
+            <td><code>pd down</code></td>
+            <td>Stop all running services</td>
+          </tr>
+          <tr>
+            <td><code>pd scan</code></td>
+            <td>Detect frameworks and register projects</td>
+          </tr>
+
+          <!-- Sessions & Notes -->
+          <tr class="category-row"><td colspan="2">Sessions &amp; Notes</td></tr>
+          <tr>
+            <td><code>pd session start</code></td>
+            <td>Start a new coordination session</td>
+          </tr>
+          <tr>
+            <td><code>pd note &lt;text&gt;</code></td>
+            <td>Add a note to the current session</td>
+          </tr>
+
+          <!-- Locks & Messaging -->
+          <tr class="category-row"><td colspan="2">Locks &amp; Messaging</td></tr>
+          <tr>
+            <td><code>pd lock &lt;name&gt;</code></td>
+            <td>Acquire a distributed lock</td>
+          </tr>
+          <tr>
+            <td><code>pd unlock &lt;name&gt;</code></td>
+            <td>Release a distributed lock</td>
+          </tr>
+          <tr>
+            <td><code>pd pub &lt;channel&gt;</code></td>
+            <td>Publish a message to a channel</td>
+          </tr>
+          <tr>
+            <td><code>pd sub &lt;channel&gt;</code></td>
+            <td>Subscribe to a channel (SSE stream)</td>
+          </tr>
+
+          <!-- Tunnels -->
+          <tr class="category-row"><td colspan="2">Tunnels</td></tr>
+          <tr>
+            <td><code>pd tunnel start &lt;id&gt;</code></td>
+            <td>Expose a local service via public tunnel</td>
+          </tr>
+
+          <!-- Agents & Salvage -->
+          <tr class="category-row"><td colspan="2">Agents &amp; Salvage</td></tr>
+          <tr>
+            <td><code>pd agent register</code></td>
+            <td>Register an agent with heartbeats</td>
+          </tr>
+          <tr>
+            <td><code>pd salvage</code></td>
+            <td>Check for dead agents to resume</td>
+          </tr>
+
+          <!-- Dashboard -->
+          <tr class="category-row"><td colspan="2">Dashboard</td></tr>
+          <tr>
+            <td><code>pd dashboard</code></td>
+            <td>Open the web dashboard in your browser</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a href="../" class="logo" style="color: white;">
+            <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
+            <span>Port Daddy</span>
+          </a>
+          <p>Port management, service orchestration, and agent coordination for modern development workflows.</p>
+        </div>
+        <div class="footer-column">
+          <h4>Product</h4>
+          <ul><li><a href="../#features">Features</a></li><li><a href="../mcp/">MCP Integration</a></li><li><a href="https://www.npmjs.com/package/port-daddy" target="_blank">npm Package</a></li></ul>
+        </div>
+        <div class="footer-column">
+          <h4>Resources</h4>
+          <ul><li><a href="../tutorials/">Tutorials</a></li><li><a href="./">Documentation</a></li><li><a href="https://github.com/curiositech/port-daddy" target="_blank">GitHub</a></li></ul>
+        </div>
+        <div class="footer-column">
+          <h4>Connect</h4>
+          <ul><li><a href="https://github.com/curiositech" target="_blank">@curiositech</a></li></ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2025 Curiositech LLC. Released under the MIT License.</p>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

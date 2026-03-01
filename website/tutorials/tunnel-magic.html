@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tunnel Magic — Port Daddy Tutorials</title>
+  <meta name="description" content="Share your local dev server with the outside world in 30 seconds. Auto-detect ngrok, cloudflared, or localtunnel and expose services instantly.">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%9A%93</text></svg>">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/shared.css">
+</head>
+<body>
+  <nav>
+    <div class="nav-container">
+      <a href="../" class="logo">
+        <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
+        <span>Port Daddy</span>
+      </a>
+      <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Toggle navigation">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="nav-links">
+        <a href="../#features">Features</a>
+        <a href="./" class="active">Tutorials</a>
+        <a href="../mcp/">MCP</a>
+        <a href="../docs/">Docs</a>
+        <a href="https://github.com/curiositech/port-daddy" target="_blank">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <section class="page-hero">
+    <div class="page-hero-container">
+      <div class="breadcrumbs">
+        <a href="../">Home</a>
+        <span class="separator">/</span>
+        <a href="./">Tutorials</a>
+        <span class="separator">/</span>
+        <span>Tunnel Magic</span>
+      </div>
+      <h1>Share Your Local Dev Server in 30 Seconds</h1>
+      <p>Stop emailing screenshots. Give your client a live URL to the thing running on your laptop -- right now, tonight, no deploy required.</p>
+      <div class="meta">
+        <span class="meta-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          12 min read
+        </span>
+        <span class="meta-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+          Tutorial 3 of 5
+        </span>
+        <span class="meta-item">Intermediate</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="content-layout">
+    <aside class="toc">
+      <h4>On this page</h4>
+      <ul>
+        <li><a href="#why-tunnels">Why You Need Tunnels</a></li>
+        <li><a href="#how-it-works">How It Works</a></li>
+        <li><a href="#installing-provider">Installing a Tunnel Provider</a></li>
+        <li><a href="#starting-tunnel">Starting a Tunnel</a></li>
+        <li><a href="#managing-tunnels">Managing Active Tunnels</a></li>
+        <li><a href="#real-scenarios">Real Scenarios</a></li>
+        <li><a href="#sdk-integration">JavaScript SDK Integration</a></li>
+        <li><a href="#security">Security Considerations</a></li>
+        <li><a href="#troubleshooting">Troubleshooting</a></li>
+        <li><a href="#whats-next">What's Next</a></li>
+      </ul>
+    </aside>
+
+    <article class="article">
+      <p>You've claimed a stable port. Your dev server is running. Now you need someone <em>else</em> to see it -- a client across town, a webhook from Stripe, your phone on the couch. Port Daddy's tunnel integration makes that a single command.</p>
+
+      <h2 id="why-tunnels">Why You Need Tunnels</h2>
+      <p>Every developer hits these moments:</p>
+      <ul>
+        <li><strong>Client review at 11pm</strong> -- "Can you show me where we're at?" You need a URL, not a deploy pipeline.</li>
+        <li><strong>Webhook testing</strong> -- Stripe, GitHub, Twilio all need a public URL to POST to. Localhost won't cut it.</li>
+        <li><strong>Mobile testing</strong> -- Your phone can't reach <code>localhost:3100</code>. A tunnel gives it a real HTTPS URL.</li>
+        <li><strong>Cross-device testing</strong> -- Test on iPad, Android tablet, your partner's laptop. One URL, all devices.</li>
+        <li><strong>Cross-team integration</strong> -- Backend team in another timezone needs to hit your local API while you sleep.</li>
+      </ul>
+      <p>Without Port Daddy, you'd juggle separate tunnel CLIs, remember which port maps to which tunnel, and manually restart tunnels when your dev server bounces. Port Daddy unifies all of it.</p>
+
+      <h2 id="how-it-works">How It Works</h2>
+      <p>Port Daddy doesn't reinvent tunneling. It wraps the three most popular providers and manages the lifecycle for you:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Provider</th>
+            <th>Best For</th>
+            <th>Auth Required</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>ngrok</strong></td>
+            <td>Production-quality tunnels, custom domains, dashboard</td>
+            <td>Free account (optional for basic use)</td>
+          </tr>
+          <tr>
+            <td><strong>cloudflared</strong></td>
+            <td>Zero-config, no signup, fast Cloudflare network</td>
+            <td>None</td>
+          </tr>
+          <tr>
+            <td><strong>localtunnel</strong></td>
+            <td>Quick and dirty, npm-native, no binary install</td>
+            <td>None</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>When you run <code>pd tunnel start</code>, Port Daddy:</p>
+      <ol>
+        <li>Looks up the service's port from your claim</li>
+        <li>Auto-detects which providers are installed on your machine</li>
+        <li>Starts the tunnel process and captures the public URL</li>
+        <li>Stores the URL alongside the service in the registry</li>
+        <li>Monitors the tunnel process and logs activity</li>
+      </ol>
+
+      <h2 id="installing-provider">Installing a Tunnel Provider</h2>
+      <p>First, check what you already have:</p>
+      <pre><code><span class="prompt">$</span> pd tunnel providers
+<span class="output">ngrok        installed    v3.6.0
+cloudflared  installed    2024.2.1
+localtunnel  not found</span></code></pre>
+
+      <p>If nothing is installed, pick one:</p>
+
+      <h3>ngrok (Recommended)</h3>
+      <p>The gold standard. Stable URLs, a web dashboard at <code>localhost:4040</code>, request inspection, and replay.</p>
+      <pre><code><span class="comment"># macOS</span>
+<span class="prompt">$</span> brew install ngrok
+
+<span class="comment"># npm (cross-platform)</span>
+<span class="prompt">$</span> npm install -g ngrok
+
+<span class="comment"># Optional: authenticate for stable URLs</span>
+<span class="prompt">$</span> ngrok config add-authtoken YOUR_TOKEN</code></pre>
+
+      <h3>cloudflared</h3>
+      <p>Zero signup, zero config. Cloudflare's network is fast, and the URLs are temporary by default.</p>
+      <pre><code><span class="comment"># macOS</span>
+<span class="prompt">$</span> brew install cloudflare/cloudflare/cloudflared
+
+<span class="comment"># Linux</span>
+<span class="prompt">$</span> curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 \
+  -o /usr/local/bin/cloudflared
+<span class="prompt">$</span> chmod +x /usr/local/bin/cloudflared</code></pre>
+
+      <h3>localtunnel</h3>
+      <p>The npm-native option. No binary to install, just a package.</p>
+      <pre><code><span class="prompt">$</span> npm install -g localtunnel</code></pre>
+      <p>Localtunnel is the simplest to set up, but URLs change on every restart and it can be less reliable under load.</p>
+
+      <h2 id="starting-tunnel">Starting a Tunnel</h2>
+      <p>You need a claimed port first. Tunnels attach to existing services:</p>
+      <pre><code><span class="comment"># Step 1: Claim a port and start your dev server</span>
+<span class="prompt">$</span> pd claim myapp:frontend
+<span class="output">Port 3100 assigned to myapp:frontend</span>
+
+<span class="prompt">$</span> PORT=$(pd claim myapp:frontend -q) npm run dev
+
+<span class="comment"># Step 2: Open a tunnel (in another terminal)</span>
+<span class="prompt">$</span> pd tunnel start myapp:frontend
+<span class="output">Tunnel started for myapp:frontend
+Provider:  ngrok
+Public URL: https://abc123.ngrok-free.app
+Local port: 3100</span></code></pre>
+
+      <p>That's it. The URL is live. Send it to your client, paste it into a Stripe webhook config, or open it on your phone.</p>
+
+      <p>Want to use a specific provider?</p>
+      <pre><code><span class="comment"># Force cloudflared instead of the default</span>
+<span class="prompt">$</span> pd tunnel start myapp:frontend --provider cloudflared
+<span class="output">Tunnel started for myapp:frontend
+Provider:  cloudflared
+Public URL: https://random-words-here.trycloudflare.com
+Local port: 3100</span></code></pre>
+
+      <h2 id="managing-tunnels">Managing Active Tunnels</h2>
+      <p>See all active tunnels at a glance:</p>
+      <pre><code><span class="prompt">$</span> pd tunnel list
+<span class="output">SERVICE             PROVIDER     PORT   URL
+myapp:frontend      ngrok        3100   https://abc123.ngrok-free.app
+myapp:api           cloudflared  3101   https://random-words.trycloudflare.com</span></code></pre>
+
+      <p>Check a specific tunnel's status:</p>
+      <pre><code><span class="prompt">$</span> pd tunnel status myapp:frontend
+<span class="output">Service:   myapp:frontend
+Provider:  ngrok
+Port:      3100
+URL:       https://abc123.ngrok-free.app
+Status:    active
+Started:   2 minutes ago</span></code></pre>
+
+      <p>Stop a tunnel when you're done sharing:</p>
+      <pre><code><span class="prompt">$</span> pd tunnel stop myapp:frontend
+<span class="output">Tunnel stopped for myapp:frontend</span></code></pre>
+
+      <h2 id="real-scenarios">Real Scenarios</h2>
+
+      <h3>Scenario 1: Show the Client at 11pm</h3>
+      <p>Your client texts: "Can I see the new checkout flow?" You're in pajamas. No problem.</p>
+      <pre><code><span class="comment"># Your dev server is already running on its stable port</span>
+<span class="prompt">$</span> pd tunnel start myapp:frontend
+<span class="output">Public URL: https://abc123.ngrok-free.app</span>
+
+<span class="comment"># Text the URL to your client. Done.</span>
+<span class="comment"># They see your live local dev server over HTTPS.</span></code></pre>
+      <p>No deploy. No staging environment. No waiting for CI. Your laptop becomes a server for exactly as long as you need it.</p>
+
+      <h3>Scenario 2: Webhook Debugging with Stripe</h3>
+      <p>Stripe needs a public URL for webhook events. Port Daddy makes this seamless:</p>
+      <pre><code><span class="comment"># Start your API and expose it</span>
+<span class="prompt">$</span> pd claim myapp:api
+<span class="output">Port 3101 assigned to myapp:api</span>
+
+<span class="prompt">$</span> pd tunnel start myapp:api
+<span class="output">Public URL: https://def456.ngrok-free.app</span>
+
+<span class="comment"># Now configure Stripe's webhook endpoint:</span>
+<span class="comment"># https://def456.ngrok-free.app/webhooks/stripe</span>
+
+<span class="comment"># Every webhook POST from Stripe hits your local machine.</span>
+<span class="comment"># Set breakpoints, inspect payloads, debug in real time.</span></code></pre>
+      <p>If you're using ngrok, open <code>localhost:4040</code> to inspect every request and response in detail. Replay failed webhooks with a single click.</p>
+
+      <h3>Scenario 3: Mobile Testing</h3>
+      <p>Your responsive layout looks perfect in Chrome DevTools. Does it actually work on a real phone?</p>
+      <pre><code><span class="prompt">$</span> pd tunnel start myapp:frontend
+<span class="output">Public URL: https://abc123.ngrok-free.app</span>
+
+<span class="comment"># Open on your phone's browser. Test touch events,</span>
+<span class="comment"># viewport quirks, and actual mobile performance.</span>
+<span class="comment"># Changes in your editor appear live on the phone.</span></code></pre>
+      <p>Hot reload works through the tunnel. Edit a component, save, and watch it update on your phone in real time.</p>
+
+      <h3>Scenario 4: Cross-Team Integration</h3>
+      <p>The backend team needs to test against your frontend, but they're in a different timezone:</p>
+      <pre><code><span class="comment"># Expose both your frontend and API</span>
+<span class="prompt">$</span> pd tunnel start myapp:frontend
+<span class="output">Public URL: https://abc123.ngrok-free.app</span>
+
+<span class="prompt">$</span> pd tunnel start myapp:api
+<span class="output">Public URL: https://def456.ngrok-free.app</span>
+
+<span class="comment"># Share both URLs in Slack.</span>
+<span class="comment"># They hit your local services like they're deployed APIs.</span></code></pre>
+
+      <h2 id="sdk-integration">JavaScript SDK Integration</h2>
+      <p>Manage tunnels programmatically from your Node.js scripts, test harnesses, or agent workflows:</p>
+      <pre><code><span class="keyword">import</span> { PortDaddy } <span class="keyword">from</span> <span class="string">'port-daddy/client'</span>;
+
+<span class="keyword">const</span> pd = <span class="keyword">new</span> PortDaddy();
+
+<span class="comment">// Check which providers are available</span>
+<span class="keyword">const</span> providers = <span class="keyword">await</span> pd.tunnelProviders();
+console.log(providers);
+<span class="comment">// { ngrok: true, cloudflared: true, localtunnel: false }</span>
+
+<span class="comment">// Start a tunnel for a claimed service</span>
+<span class="keyword">const</span> tunnel = <span class="keyword">await</span> pd.tunnelStart(<span class="string">'myapp:frontend'</span>, <span class="string">'ngrok'</span>);
+console.log(tunnel.url);
+<span class="comment">// https://abc123.ngrok-free.app</span>
+
+<span class="comment">// Check tunnel status</span>
+<span class="keyword">const</span> status = <span class="keyword">await</span> pd.tunnelStatus(<span class="string">'myapp:frontend'</span>);
+console.log(status.status);
+<span class="comment">// "active"</span>
+
+<span class="comment">// List all active tunnels</span>
+<span class="keyword">const</span> list = <span class="keyword">await</span> pd.tunnelList();
+<span class="keyword">for</span> (<span class="keyword">const</span> t <span class="keyword">of</span> list.tunnels) {
+  console.log(<span class="string">`${t.serviceId} -> ${t.url}`</span>);
+}
+
+<span class="comment">// Stop a tunnel</span>
+<span class="keyword">await</span> pd.tunnelStop(<span class="string">'myapp:frontend'</span>);</code></pre>
+
+      <h3>Automated Test Setup</h3>
+      <p>Use tunnels in your E2E test harness to test against real webhook providers:</p>
+      <pre><code><span class="keyword">import</span> { PortDaddy } <span class="keyword">from</span> <span class="string">'port-daddy/client'</span>;
+<span class="keyword">import</span> { test, beforeAll, afterAll } <span class="keyword">from</span> <span class="string">'vitest'</span>;
+
+<span class="keyword">let</span> pd;
+<span class="keyword">let</span> tunnelUrl;
+
+beforeAll(<span class="keyword">async</span> () =&gt; {
+  pd = <span class="keyword">new</span> PortDaddy();
+
+  <span class="comment">// Claim port and start tunnel</span>
+  <span class="keyword">const</span> claim = <span class="keyword">await</span> pd.claim(<span class="string">'test:webhook-server'</span>);
+  <span class="keyword">const</span> tunnel = <span class="keyword">await</span> pd.tunnelStart(<span class="string">'test:webhook-server'</span>);
+  tunnelUrl = tunnel.url;
+
+  <span class="comment">// Register the tunnel URL with Stripe for testing</span>
+  <span class="keyword">await</span> stripe.webhookEndpoints.create({
+    url: <span class="string">`${tunnelUrl}/webhooks/stripe`</span>,
+    enabled_events: [<span class="string">'payment_intent.succeeded'</span>],
+  });
+});
+
+afterAll(<span class="keyword">async</span> () =&gt; {
+  <span class="keyword">await</span> pd.tunnelStop(<span class="string">'test:webhook-server'</span>);
+  <span class="keyword">await</span> pd.release(<span class="string">'test:webhook-server'</span>);
+});
+
+test(<span class="string">'receives Stripe webhook'</span>, <span class="keyword">async</span> () =&gt; {
+  <span class="comment">// Trigger a real Stripe test payment</span>
+  <span class="comment">// Your local server receives the webhook through the tunnel</span>
+});</code></pre>
+
+      <h2 id="security">Security Considerations</h2>
+      <p>Tunnels make your local machine reachable from the public internet. That's powerful and dangerous in equal measure. Keep these rules in mind:</p>
+
+      <h3>1. Public URLs Are Public</h3>
+      <p>Anyone with the URL can reach your dev server. Don't leave tunnels running overnight unless you intend to. Stop them when you're done:</p>
+      <pre><code><span class="prompt">$</span> pd tunnel stop myapp:frontend</code></pre>
+
+      <h3>2. Never Expose Credentials</h3>
+      <p>If your dev server has an admin panel without auth, a debug endpoint that dumps env vars, or a database UI -- those are all reachable through the tunnel. Review what your dev server exposes before opening it up.</p>
+
+      <h3>3. Audit Tunnel Activity</h3>
+      <p>Port Daddy logs all tunnel start/stop events in the activity log:</p>
+      <pre><code><span class="prompt">$</span> pd log --type tunnel
+<span class="output">2026-03-01T23:14:00Z  tunnel.start  myapp:frontend  ngrok  https://abc123.ngrok-free.app
+2026-03-01T23:47:00Z  tunnel.stop   myapp:frontend</span></code></pre>
+
+      <h3>4. Use ngrok's Built-In Protection</h3>
+      <p>ngrok supports basic auth, IP allowlists, and OAuth on its paid tiers. If you're exposing anything sensitive, consider adding a layer:</p>
+      <pre><code><span class="comment"># ngrok's native auth (outside Port Daddy)</span>
+<span class="prompt">$</span> ngrok http 3100 --basic-auth <span class="string">"user:password"</span></code></pre>
+
+      <h3>5. Rate Limiting</h3>
+      <p>Port Daddy's built-in rate limiting (100 requests/minute per IP) applies to the daemon API, not to your tunneled service. Your dev server is responsible for its own rate limiting when exposed publicly.</p>
+
+      <h2 id="troubleshooting">Troubleshooting</h2>
+
+      <h3>"Tunnel won't start"</h3>
+      <p>Most common cause: the service isn't claimed yet. Tunnels attach to existing services.</p>
+      <pre><code><span class="comment"># Check if the service exists</span>
+<span class="prompt">$</span> pd find myapp:frontend
+<span class="output">myapp:frontend  port=3100  claimed</span>
+
+<span class="comment"># If not found, claim it first</span>
+<span class="prompt">$</span> pd claim myapp:frontend
+
+<span class="comment"># Check if any provider is installed</span>
+<span class="prompt">$</span> pd tunnel providers
+<span class="output">ngrok        not found
+cloudflared  not found
+localtunnel  not found</span>
+
+<span class="comment"># Install one (ngrok recommended)</span>
+<span class="prompt">$</span> brew install ngrok</code></pre>
+
+      <h3>"502 Bad Gateway"</h3>
+      <p>The tunnel is running, but your dev server isn't. The tunnel forwards to the port, but nothing is listening there.</p>
+      <pre><code><span class="comment"># Verify your dev server is actually running</span>
+<span class="prompt">$</span> curl http://localhost:3100
+<span class="output">curl: (7) Failed to connect to localhost port 3100: Connection refused</span>
+
+<span class="comment"># Start your dev server first, then try the tunnel URL again</span>
+<span class="prompt">$</span> PORT=$(pd claim myapp:frontend -q) npm run dev</code></pre>
+
+      <h3>"Webhooks don't arrive"</h3>
+      <p>Three things to check:</p>
+      <ol>
+        <li><strong>URL is correct</strong> -- Copy the full tunnel URL including the path (<code>https://abc123.ngrok-free.app/webhooks/stripe</code>, not just the domain).</li>
+        <li><strong>Tunnel is still active</strong> -- Run <code>pd tunnel status myapp:api</code> to confirm it hasn't died.</li>
+        <li><strong>Firewall rules</strong> -- Some corporate networks block tunnel providers. Try switching providers:
+          <pre><code><span class="prompt">$</span> pd tunnel stop myapp:api
+<span class="prompt">$</span> pd tunnel start myapp:api --provider cloudflared</code></pre>
+        </li>
+      </ol>
+
+      <h3>"URL changed after restart"</h3>
+      <p>Free-tier ngrok and localtunnel generate random URLs on each start. This is expected. If you need stable URLs:</p>
+      <ul>
+        <li><strong>ngrok</strong> -- Paid plans offer reserved domains (<code>your-name.ngrok.io</code>)</li>
+        <li><strong>cloudflared</strong> -- Set up a Cloudflare Tunnel with a fixed subdomain</li>
+        <li><strong>Workaround</strong> -- Script your webhook provider to update the URL on tunnel start</li>
+      </ul>
+
+      <h2 id="whats-next">What's Next</h2>
+      <p>You can now expose any local service to the world in one command. Here's where to go from here:</p>
+      <ol>
+        <li><a href="monorepo-mastery.html">Monorepo Mastery</a> -- Manage 50 services with <code>pd scan</code> and <code>pd up</code></li>
+        <li><a href="debugging.html">Debugging</a> -- Diagnose phantom port conflicts and zombie processes</li>
+        <li><a href="../docs/">Full API Reference</a> -- Every endpoint, flag, and SDK method</li>
+      </ol>
+      <p>The tunnel is the bridge between "it works on my machine" and "here, see for yourself." Use it generously.</p>
+
+      <div class="prev-next">
+        <a href="multi-agent-orchestration.html">
+          <div class="label">Previous tutorial</div>
+          <div class="title">Multi-Agent Orchestration</div>
+        </a>
+        <a href="monorepo-mastery.html" class="next">
+          <div class="label">Next tutorial</div>
+          <div class="title">Monorepo Mastery</div>
+        </a>
+      </div>
+    </article>
+  </div>
+
+  <footer>
+    <div class="footer-container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a href="../" class="logo" style="color: white;">
+            <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
+            <span>Port Daddy</span>
+          </a>
+          <p>Port management, service orchestration, and agent coordination for modern development workflows.</p>
+        </div>
+        <div class="footer-column">
+          <h4>Product</h4>
+          <ul><li><a href="../#features">Features</a></li><li><a href="../mcp/">MCP Integration</a></li><li><a href="https://www.npmjs.com/package/port-daddy" target="_blank">npm Package</a></li></ul>
+        </div>
+        <div class="footer-column">
+          <h4>Resources</h4>
+          <ul><li><a href="./">Tutorials</a></li><li><a href="../docs/">Documentation</a></li><li><a href="https://github.com/curiositech/port-daddy" target="_blank">GitHub</a></li></ul>
+        </div>
+        <div class="footer-column">
+          <h4>Connect</h4>
+          <ul><li><a href="https://github.com/curiositech" target="_blank">@curiositech</a></li></ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2025 Curiositech LLC. Released under the MIT License.</p>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

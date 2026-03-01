@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MCP Integration — Port Daddy</title>
+  <meta name="description" content="Give Claude direct access to port management, service orchestration, and agent coordination through Port Daddy's Model Context Protocol server.">
+  <meta property="og:title" content="MCP Integration — Port Daddy">
+  <meta property="og:description" content="Give Claude direct access to port management, service orchestration, and agent coordination through the Model Context Protocol.">
+  <meta property="og:type" content="website">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%9A%93</text></svg>">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/shared.css">
+  <style>
+    /* MCP page-specific styles */
+    .mcp-intro {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .mcp-intro-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+      margin-top: 2rem;
+    }
+    .mcp-intro-item {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.5rem;
+    }
+    .mcp-intro-item h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--navy);
+      margin-bottom: 0.5rem;
+    }
+    .mcp-intro-item p {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+    .mcp-intro-icon {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--teal);
+      margin-bottom: 1rem;
+    }
+    @media (max-width: 768px) {
+      .mcp-intro-grid { grid-template-columns: 1fr; }
+    }
+
+    /* Install section */
+    .install-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      max-width: 900px;
+      margin: 2rem auto 0;
+    }
+    .install-card {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.75rem;
+    }
+    .install-card h3 {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: var(--navy);
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .install-card .install-note {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+      line-height: 1.5;
+    }
+    @media (max-width: 768px) {
+      .install-grid { grid-template-columns: 1fr; }
+    }
+
+    /* Tools section */
+    .tools-container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    /* Resources section */
+    .resource-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 1rem;
+      max-width: 900px;
+      margin: 2rem auto 0;
+    }
+    .resource-card {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+      transition: all 0.2s;
+    }
+    .resource-card:hover {
+      border-color: var(--teal-light);
+      box-shadow: 0 4px 16px rgba(30, 58, 95, 0.06);
+    }
+    .resource-uri {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--teal);
+      margin-bottom: 0.4rem;
+      word-break: break-all;
+    }
+    .resource-desc {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    /* Use cases section */
+    .use-cases {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .use-case {
+      background: var(--navy);
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+    .use-case-icon {
+      flex-shrink: 0;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      color: var(--teal-light);
+      margin-top: 0.1rem;
+    }
+    .use-case p {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: rgba(255, 255, 255, 0.9);
+      line-height: 1.6;
+    }
+
+    /* Config block comment color */
+    .config-comment {
+      color: rgba(255, 255, 255, 0.35);
+    }
+    .config-key {
+      color: #7fb069;
+    }
+    .config-string {
+      color: #d4a017;
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation -->
+  <nav>
+    <div class="nav-container">
+      <a href="../" class="logo">
+        <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
+        <span>Port Daddy</span>
+      </a>
+      <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Toggle navigation">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="nav-links">
+        <a href="../#features">Features</a>
+        <a href="../tutorials/">Tutorials</a>
+        <a href="./" class="active">MCP</a>
+        <a href="../docs/">Docs</a>
+        <a href="https://github.com/curiositech/port-daddy" target="_blank">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="page-hero">
+    <div class="page-hero-container">
+      <div class="breadcrumbs">
+        <a href="../">Home</a>
+        <span class="separator">/</span>
+        <span>MCP</span>
+      </div>
+      <h1>Claude Meets Port Daddy</h1>
+      <p>Give Claude direct access to port management, service orchestration, and agent coordination through the Model Context Protocol.</p>
+    </div>
+  </section>
+
+  <!-- What is MCP -->
+  <section class="section" style="background: white;">
+    <div class="mcp-intro">
+      <span class="section-label">What is MCP</span>
+      <h2 class="section-title">The Bridge Between Claude and Your Dev Environment</h2>
+      <p class="section-subtitle" style="margin-bottom: 0;">MCP (Model Context Protocol) is an open standard that lets AI assistants interact with external tools and data sources. Port Daddy ships a full MCP server that turns 25+ operations into tools Claude can call directly.</p>
+
+      <div class="mcp-intro-grid">
+        <div class="mcp-intro-item">
+          <div class="mcp-intro-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <h3>Native Tool Calls</h3>
+          <p>Claude calls Port Daddy tools directly instead of shelling out to the CLI. Structured inputs, typed outputs, zero parsing.</p>
+        </div>
+        <div class="mcp-intro-item">
+          <div class="mcp-intro-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
+          <h3>Multi-Agent Ready</h3>
+          <p>Every Claude session gets its own agent identity. Sessions, file claims, pub/sub, and locks all work across parallel agents.</p>
+        </div>
+        <div class="mcp-intro-item">
+          <div class="mcp-intro-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          </div>
+          <h3>Works Everywhere</h3>
+          <p>Compatible with Claude Code, Claude Desktop, and any MCP-capable client. One server, every surface.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Installation -->
+  <section class="section">
+    <div style="max-width: 900px; margin: 0 auto;">
+      <span class="section-label">Installation</span>
+      <h2 class="section-title">Two Lines to Get Started</h2>
+      <p class="section-subtitle">Add Port Daddy's MCP server to your Claude configuration. The daemon starts automatically on first use.</p>
+
+      <div class="install-grid">
+        <div class="install-card">
+          <h3>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+            Claude Code
+          </h3>
+          <p class="install-note">Add to <code style="font-family: var(--font-mono); font-size: 0.8em; background: var(--bg-secondary); border: 1px solid var(--border); padding: 0.1em 0.35em; border-radius: 3px; color: var(--navy);">.claude/settings.json</code> or project settings</p>
+          <div class="config-block">
+            <code><span class="config-comment">// .claude/settings.json</span>
+{
+  <span class="config-key">"mcpServers"</span>: {
+    <span class="config-key">"port-daddy"</span>: {
+      <span class="config-key">"command"</span>: <span class="config-string">"pd"</span>,
+      <span class="config-key">"args"</span>: [<span class="config-string">"mcp"</span>]
+    }
+  }
+}</code>
+          </div>
+        </div>
+
+        <div class="install-card">
+          <h3>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            Claude Desktop
+          </h3>
+          <p class="install-note">Add to <code style="font-family: var(--font-mono); font-size: 0.8em; background: var(--bg-secondary); border: 1px solid var(--border); padding: 0.1em 0.35em; border-radius: 3px; color: var(--navy);">claude_desktop_config.json</code></p>
+          <div class="config-block">
+            <code><span class="config-comment">// ~/Library/Application Support/Claude/claude_desktop_config.json</span>
+{
+  <span class="config-key">"mcpServers"</span>: {
+    <span class="config-key">"port-daddy"</span>: {
+      <span class="config-key">"command"</span>: <span class="config-string">"npx"</span>,
+      <span class="config-key">"args"</span>: [<span class="config-string">"port-daddy"</span>, <span class="config-string">"mcp"</span>]
+    }
+  }
+}</code>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tools -->
+  <section class="section" style="background: white;">
+    <div class="tools-container">
+      <span class="section-label">Tools</span>
+      <h2 class="section-title">25+ Tools at Claude's Fingertips</h2>
+      <p class="section-subtitle" style="margin-bottom: 2rem;">Every tool accepts structured JSON inputs and returns typed responses. No string parsing, no guessing.</p>
+
+      <!-- Port Management -->
+      <div class="tool-category">Port Management</div>
+      <div class="tool-grid">
+        <div class="tool-card">
+          <div class="tool-name">claim_port</div>
+          <div class="tool-desc">Claim a stable port for a service. Accepts a semantic identity like <code style="font-family: var(--font-mono); font-size: 0.8em; background: var(--bg-secondary); border: 1px solid var(--border); padding: 0.1em 0.3em; border-radius: 3px; color: var(--navy);">myapp:api:main</code> and returns a guaranteed-free port.</div>
+        </div>
+        <div class="tool-card">
+          <div class="tool-name">release_port</div>
+          <div class="tool-desc">Release a service and free its port assignment. The port becomes available for other services immediately.</div>
+        </div>
+        <div class="tool-card">
+          <div class="tool-name">list_services</div>
+          <div class="tool-desc">List all currently claimed services with their port assignments, timestamps, and metadata.</div>
+        </div>
+        <div class="tool-card">
+          <div class="tool-name">get_service</div>
+          <div class="tool-desc">Get detailed information about a specific service including its port, claim time, and health status.</div>
+        </div>
+      </div>
+
+      <!-- Sessions & Notes -->
+      <div class="tool-category">Sessions &amp; Notes</div>
+      <div class="tool-grid">
+        <div class="tool-card">
+          <div class="tool-name">start_session</div>
+          <div class="tool-desc">Start a coordination session with a purpose description. Returns a session ID for tracking all related notes and file claims.</div>
+        </div>
+        <div class="tool-card">
+          <div class="tool-name">end_session</div>
+          <div class="tool-desc">End an active session. Marks it as completed and releases all associated file claims.</div>
+        </div>
+        <div class="tool-card">
+          <div class="tool-name">add_note</div>
+          <div class="tool-desc">Append an immutable note to the session log. Notes are never edited or deleted -- they form an audit trail.</div>
+        </div>
+        <div class="tool-card">
+          <div class="tool-name">list_sessions</div>
+          <div class="tool-desc">List all sessions, optionally filtered by status (active, completed, abandoned).</div>
+        </div>
+        <div class="tool-card">
+          <div class="tool-name">list_notes</div>
+          <div class="tool-desc">Get recent notes across all sessions or filtered to a specific session.</div>
+        </div>
+        <div class="tool-card">
+          <div class="tool-name">claim_files</div>
+          <div class="tool-desc">Claim files for advisory conflict detection. Other agents see claimed files and can coordinate before editing.</div>
+        </div>
+      </div>
+
+      <!-- Distributed Locks -->
+      <div class="tool-category">Distributed Locks</div>
+      <div class="tool-grid">
+        <div class="tool-card">
+          <div class="tool-name">acquire_lock</div>
+          <div class="tool-desc">Acquire an exclusive named lock with automatic expiry. Prevents concurrent access to shared resources like databases or config files.</div>
+        </div>
+        <div class="tool-card">
+          <div class="tool-name">release_lock</div>
+          <div class="tool-desc">Release a lock so other agents can acquire it. Only the lock owner can release.</div>
+        </div>
+        <div class="tool-card">
+          <div class="tool-name">list_locks</div>
+          <div class="tool-desc">List all active locks with their owners, acquisition times, and TTLs.</div>
+        </div>
+      </div>
+
+      <!-- Pub/Sub Messaging -->
+      <div class="tool-category">Pub/Sub Messaging</div>
+      <div class="tool-grid">
+        <div class="tool-card">
+          <div class="tool-name">publish_message</div>
+          <div class="tool-desc">Publish a message to a named channel. All subscribers and pollers on that channel will receive it.</div>
+        </div>
+        <div class="tool-card">
+          <div class="tool-name">get_messages</div>
+          <div class="tool-desc">Read messages from a channel, optionally filtered by timestamp. Supports pagination for high-volume channels.</div>
+        </div>
+      </div>
+
+      <!-- Agent Coordination -->
+      <div class="tool-category">Agent Coordination</div>
+      <div class="tool-grid">
+        <div class="tool-card">
+          <div class="tool-name">register_agent</div>
+          <div class="tool-desc">Register an AI agent with identity, purpose, and optional worktree ID. Returns a salvage hint if dead agents exist in the same project.</div>
+        </div>
+        <div class="tool-card">
+          <div class="tool-name">agent_heartbeat</div>
+          <div class="tool-desc">Send a heartbeat to prove the agent is still alive. Agents that stop heartbeating are eventually marked dead.</div>
+        </div>
+        <div class="tool-card">
+          <div class="tool-name">list_agents</div>
+          <div class="tool-desc">List all registered agents with their status (active, stale, dead), identity, and last heartbeat time.</div>
+        </div>
+        <div class="tool-card">
+          <div class="tool-name">check_salvage</div>
+          <div class="tool-desc">Check the resurrection queue for dead agents whose work can be salvaged. Filterable by project and stack.</div>
+        </div>
+        <div class="tool-card">
+          <div class="tool-name">claim_salvage</div>
+          <div class="tool-desc">Claim a dead agent's context to continue its work. Transfers session notes and file claims to the claiming agent.</div>
+        </div>
+      </div>
+
+      <!-- Tunneling -->
+      <div class="tool-category">Tunneling</div>
+      <div class="tool-grid">
+        <div class="tool-card">
+          <div class="tool-name">start_tunnel</div>
+          <div class="tool-desc">Start a public tunnel for a claimed service. Supports ngrok, cloudflared, and localtunnel. Returns a shareable URL.</div>
+        </div>
+        <div class="tool-card">
+          <div class="tool-name">stop_tunnel</div>
+          <div class="tool-desc">Stop an active tunnel and tear down the connection. The local service continues running.</div>
+        </div>
+        <div class="tool-card">
+          <div class="tool-name">list_tunnels</div>
+          <div class="tool-desc">List all active tunnels with their public URLs, providers, and associated services.</div>
+        </div>
+      </div>
+
+      <!-- System -->
+      <div class="tool-category">System</div>
+      <div class="tool-grid">
+        <div class="tool-card">
+          <div class="tool-name">scan_project</div>
+          <div class="tool-desc">Scan a directory to detect frameworks, languages, and project structure. Registers the project for orchestration.</div>
+        </div>
+        <div class="tool-card">
+          <div class="tool-name">health_check</div>
+          <div class="tool-desc">Check the health of the daemon and all claimed services. Returns HTTP status, response times, and port availability.</div>
+        </div>
+        <div class="tool-card">
+          <div class="tool-name">daemon_status</div>
+          <div class="tool-desc">Get daemon metrics including uptime, version, code hash, memory usage, and request counts.</div>
+        </div>
+        <div class="tool-card">
+          <div class="tool-name">activity_log</div>
+          <div class="tool-desc">View the recent activity log with filtering by action type, service, and time range.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Resources -->
+  <section class="section">
+    <div style="max-width: 900px; margin: 0 auto;">
+      <span class="section-label">Resources</span>
+      <h2 class="section-title">Live Data, Always Current</h2>
+      <p class="section-subtitle">The MCP server exposes 5 read-only resources that Claude can inspect at any time. These reflect the live state of your development environment.</p>
+
+      <div class="resource-grid">
+        <div class="resource-card">
+          <div class="resource-uri">port-daddy://services</div>
+          <div class="resource-desc">All claimed services with port assignments, metadata, and health status.</div>
+        </div>
+        <div class="resource-card">
+          <div class="resource-uri">port-daddy://sessions</div>
+          <div class="resource-desc">Active coordination sessions with their notes, file claims, and participants.</div>
+        </div>
+        <div class="resource-card">
+          <div class="resource-uri">port-daddy://agents</div>
+          <div class="resource-desc">Registered AI agents with identity, status, heartbeat times, and purposes.</div>
+        </div>
+        <div class="resource-card">
+          <div class="resource-uri">port-daddy://locks</div>
+          <div class="resource-desc">Active distributed locks with owners, TTLs, and acquisition timestamps.</div>
+        </div>
+        <div class="resource-card">
+          <div class="resource-uri">port-daddy://tunnels</div>
+          <div class="resource-desc">Active tunnels with public URLs, providers, and linked service details.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Use Cases -->
+  <section class="section" style="background: white;">
+    <div class="use-cases">
+      <span class="section-label">Use Cases</span>
+      <h2 class="section-title">What You Can Say to Claude</h2>
+      <p class="section-subtitle" style="margin-bottom: 2rem;">With the MCP server connected, Claude understands port management natively. Just describe what you need.</p>
+
+      <div class="use-case">
+        <div class="use-case-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+        </div>
+        <p>"Claim port 3100 for my-api and start a session to track the work."</p>
+      </div>
+
+      <div class="use-case">
+        <div class="use-case-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <p>"Check if any agents have died and show me their session notes."</p>
+      </div>
+
+      <div class="use-case">
+        <div class="use-case-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        </div>
+        <p>"Start a tunnel for my frontend service so I can test on my phone."</p>
+      </div>
+
+      <div class="use-case">
+        <div class="use-case-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </div>
+        <p>"Lock the database-migrations resource while I run migrations."</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a href="../" class="logo" style="color: white;">
+            <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
+            <span>Port Daddy</span>
+          </a>
+          <p>Port management, service orchestration, and agent coordination for modern development workflows.</p>
+        </div>
+        <div class="footer-column">
+          <h4>Product</h4>
+          <ul><li><a href="../#features">Features</a></li><li><a href="./">MCP Integration</a></li><li><a href="https://www.npmjs.com/package/port-daddy" target="_blank">npm Package</a></li></ul>
+        </div>
+        <div class="footer-column">
+          <h4>Resources</h4>
+          <ul><li><a href="../tutorials/">Tutorials</a></li><li><a href="../docs/">Documentation</a></li><li><a href="https://github.com/curiositech/port-daddy" target="_blank">GitHub</a></li></ul>
+        </div>
+        <div class="footer-column">
+          <h4>Connect</h4>
+          <ul><li><a href="https://github.com/curiositech" target="_blank">@curiositech</a></li></ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2025 Curiositech LLC. Released under the MIT License.</p>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

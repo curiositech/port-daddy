@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Getting Started — Port Daddy Tutorials</title>
+  <meta name="description" content="Install Port Daddy, claim your first stable port, and never manually track port numbers again. A 5-minute quickstart guide.">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%9A%93</text></svg>">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/shared.css">
+</head>
+<body>
+  <nav>
+    <div class="nav-container">
+      <a href="../" class="logo">
+        <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
+        <span>Port Daddy</span>
+      </a>
+      <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Toggle navigation">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="nav-links">
+        <a href="../#features">Features</a>
+        <a href="./" class="active">Tutorials</a>
+        <a href="../mcp/">MCP</a>
+        <a href="../docs/">Docs</a>
+        <a href="https://github.com/curiositech/port-daddy" target="_blank">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <section class="page-hero">
+    <div class="page-hero-container">
+      <div class="breadcrumbs">
+        <a href="../">Home</a>
+        <span class="separator">/</span>
+        <a href="./">Tutorials</a>
+        <span class="separator">/</span>
+        <span>Getting Started</span>
+      </div>
+      <h1>Your First 5 Minutes with Port Daddy</h1>
+      <p>Welcome to the end of <code style="font-family: var(--font-mono); background: rgba(74,124,126,0.1); padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.9em;">lsof -i :3000</code> diagnostics and port conflict nightmares.</p>
+      <div class="meta">
+        <span class="meta-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          8 min read
+        </span>
+        <span class="meta-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+          Tutorial 1 of 5
+        </span>
+        <span class="meta-item">Beginner</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="content-layout">
+    <aside class="toc">
+      <h4>On this page</h4>
+      <ul>
+        <li><a href="#the-problem">The Problem You're About to Forget</a></li>
+        <li><a href="#installation">Installation</a></li>
+        <li><a href="#starting-daemon">Starting the Daemon</a></li>
+        <li><a href="#claiming-first-port">Claiming Your First Port</a></li>
+        <li><a href="#naming">How Naming Works</a></li>
+        <li><a href="#dashboard">Opening the Dashboard</a></li>
+        <li><a href="#framework-detection">Framework Detection</a></li>
+        <li><a href="#workflow">Your Workflow Now</a></li>
+        <li><a href="#releasing">Releasing Ports</a></li>
+        <li><a href="#storage">What's Stored Where</a></li>
+        <li><a href="#auto-start">Making It Auto-Start</a></li>
+        <li><a href="#troubleshooting">Troubleshooting</a></li>
+        <li><a href="#whats-next">What's Next</a></li>
+      </ul>
+    </aside>
+
+    <article class="article">
+      <p>In the next five minutes, you'll have Port Daddy running, claim your first stable port, and never manually track port numbers again.</p>
+
+      <h2 id="the-problem">The Problem You're About to Forget</h2>
+      <p>Ever done this at 9:47pm?</p>
+      <pre><code><span class="prompt">$</span> npm run dev
+<span class="output"># Error: EADDRINUSE: address already in use :::3000
+# What is on 3000?</span>
+
+<span class="prompt">$</span> lsof -i :3000
+<span class="output"># node    12453   erich   45u  IPv6 0x12abc...    0t0  TCP *:hpserver (LISTEN)
+# Is that from my last terminal window? A stray Docker container? Who knows.</span>
+
+<span class="prompt">$</span> pkill -f node
+<span class="output"># Oops, just killed the wrong process.</span></code></pre>
+      <p>You're about to throw that workflow in the recycling bin.</p>
+
+      <h2 id="installation">Installation (Choose Your Path)</h2>
+
+      <h3>Option 1: npm (Recommended)</h3>
+      <pre><code><span class="prompt">$</span> npm install -g port-daddy</code></pre>
+      <p>This installs the <code>pd</code> CLI globally and the JavaScript SDK locally when you <code>npm install port-daddy</code> in your projects.</p>
+
+      <h3>Option 2: Homebrew (macOS)</h3>
+      <pre><code><span class="prompt">$</span> brew install curiositech/port-daddy/port-daddy</code></pre>
+
+      <h3>Option 3: Use Without Installing (npx)</h3>
+      <p>You can use Port Daddy without installing:</p>
+      <pre><code><span class="prompt">$</span> PORT=$(npx port-daddy claim myapp -q)
+<span class="prompt">$</span> npm run dev -- --port $PORT</code></pre>
+      <p>The <code>--quiet/-q</code> flag returns just the port number, perfect for shell scripts and CI/CD pipelines.</p>
+
+      <h2 id="starting-daemon">Starting the Daemon</h2>
+      <p>Port Daddy runs as a background daemon on <code>localhost:9876</code>. It auto-starts on first use, but let's start it explicitly so you can see what's happening:</p>
+      <pre><code><span class="prompt">$</span> pd start
+<span class="output">Daemon listening on http://localhost:9876
+Database: /Users/erich/.port-daddy/port-registry.db</span></code></pre>
+      <p>Check that everything's working:</p>
+      <pre><code><span class="prompt">$</span> pd status
+<span class="output">Daemon running (pid 45821)
+Services: 0
+Locks: 0</span></code></pre>
+
+      <h2 id="claiming-first-port">Claiming Your First Port</h2>
+      <p>Here's the magic moment. Instead of hardcoding port 3000, you claim it:</p>
+      <pre><code><span class="prompt">$</span> pd claim myapp
+<span class="output">Port 3100 assigned to myapp</span></code></pre>
+      <p>Every time you claim <code>myapp</code> from this machine, you'll get port 3100. Not 3001, not 3847 -- always 3100. The port is deterministic based on your identity.</p>
+      <p>Now use it in your dev server:</p>
+      <pre><code><span class="prompt">$</span> PORT=$(pd claim myapp -q) npm run dev -- --port $PORT
+
+<span class="comment"># Or if your framework uses an env var:</span>
+<span class="prompt">$</span> export PORT=$(pd claim myapp -q)
+<span class="prompt">$</span> npm run dev</code></pre>
+
+      <h2 id="naming">How Naming Works</h2>
+      <p>Port Daddy uses semantic naming: <code>project:stack:context</code>. All three parts are optional.</p>
+      <pre><code><span class="comment"># Just the project</span>
+<span class="prompt">$</span> pd claim myapp
+<span class="output">--> port 3100</span>
+
+<span class="comment"># Project + stack (different components)</span>
+<span class="prompt">$</span> pd claim myapp:api
+<span class="output">--> port 3101</span>
+
+<span class="prompt">$</span> pd claim myapp:web
+<span class="output">--> port 3102</span>
+
+<span class="comment"># Project + stack + context (branches, variants)</span>
+<span class="prompt">$</span> pd claim myapp:api:feature-payments
+<span class="output">--> port 3103</span></code></pre>
+      <p>This means you can run multiple services from the same project, and each gets its own stable port. Your frontend always runs on the same port, your API on another, and if you're working on a feature branch with its own API, that gets its own port too.</p>
+      <p>Wildcards work everywhere:</p>
+      <pre><code><span class="comment"># Find all services for myapp</span>
+<span class="prompt">$</span> pd find myapp:*
+
+<span class="comment"># Release all myapp services at once</span>
+<span class="prompt">$</span> pd release myapp:*</code></pre>
+
+      <h2 id="dashboard">Opening the Dashboard</h2>
+      <p>Port Daddy includes a web dashboard showing all your claimed services, active locks, agent heartbeats, and system health.</p>
+      <pre><code><span class="prompt">$</span> pd dashboard</code></pre>
+      <p>This opens <code>http://localhost:9876</code> in your browser. You'll see:</p>
+      <ul>
+        <li><strong>Services</strong> -- All claimed ports and their identities</li>
+        <li><strong>Health</strong> -- Real-time health checks of each service</li>
+        <li><strong>Locks</strong> -- Any distributed locks currently held</li>
+        <li><strong>Activity</strong> -- Timeline of claims, releases, and coordination events</li>
+        <li><strong>Metrics</strong> -- Daemon uptime, request count, average response time</li>
+      </ul>
+      <p>The dashboard updates in real-time via WebSocket, so you're watching live events as they happen.</p>
+
+      <h2 id="framework-detection">Framework Detection Magic</h2>
+      <p>Port Daddy includes auto-detection for 60+ frameworks. Let it scan your project:</p>
+      <pre><code><span class="prompt">$</span> cd your-existing-project/
+<span class="prompt">$</span> pd scan</code></pre>
+      <p>This walks your directory tree recursively and detects:</p>
+      <ul>
+        <li><strong>Frontend</strong>: Next.js, Nuxt, SvelteKit, Remix, Astro, Vite, Vue, React, Angular</li>
+        <li><strong>Backend</strong>: Express, Fastify, Hono, NestJS, Koa, FastAPI, Flask, Django, Rails, Laravel, Spring Boot</li>
+        <li><strong>Workers</strong>: Cloudflare Workers, AWS Lambda</li>
+        <li><strong>Languages</strong>: Go, Rust, Deno, Node, Python, Java, Kotlin</li>
+        <li><strong>And 30+ more</strong></li>
+      </ul>
+      <p>After scanning, you'll get a <code>.portdaddyrc</code> file that describes your entire service architecture:</p>
+      <pre><code>{
+  <span class="string">"project"</span>: <span class="string">"myapp"</span>,
+  <span class="string">"services"</span>: {
+    <span class="string">"api"</span>: {
+      <span class="string">"cmd"</span>: <span class="string">"npm run dev -- --port ${PORT}"</span>,
+      <span class="string">"healthPath"</span>: <span class="string">"/health"</span>
+    },
+    <span class="string">"web"</span>: {
+      <span class="string">"cmd"</span>: <span class="string">"npm run dev -- --port ${PORT}"</span>,
+      <span class="string">"needs"</span>: [<span class="string">"api"</span>],
+      <span class="string">"healthPath"</span>: <span class="string">"/"</span>
+    },
+    <span class="string">"worker"</span>: {
+      <span class="string">"cmd"</span>: <span class="string">"npm run worker"</span>,
+      <span class="string">"noPort"</span>: <span class="keyword">true</span>
+    }
+  }
+}</code></pre>
+      <p>Notice: no hardcoded ports. Port Daddy assigns them deterministically from the identity hash. Your teammate on a different machine will get the same ports because the math is the same.</p>
+
+      <h2 id="workflow">Your Workflow Now</h2>
+      <p>Before Port Daddy:</p>
+      <pre><code><span class="output">1. "What port should I use?"
+2. Check the README (outdated info)
+3. Try port 3000 (already in use)
+4. Try port 3001 (blocked by Docker)
+5. Try port 3456 (finally works)
+6. Remember that 3456 is frontend, 3457 is API
+7. Commit hardcoded ports and break teammates' local dev
+8. Spend 20 minutes in Slack explaining port numbers</span></code></pre>
+      <p>After Port Daddy:</p>
+      <pre><code><span class="prompt">$</span> PORT=$(pd claim myapp:web -q) npm run dev
+<span class="output"># Done. Same port, every time. Shared with your teammates.</span></code></pre>
+
+      <h2 id="releasing">Releasing Ports</h2>
+      <p>When you're done developing, release the port so it's available again:</p>
+      <pre><code><span class="comment"># Release one service</span>
+<span class="prompt">$</span> pd release myapp:web
+
+<span class="comment"># Release all myapp services</span>
+<span class="prompt">$</span> pd release myapp:*</code></pre>
+      <p>Released ports go back into the pool. If you claim <code>myapp:web</code> again tomorrow, you'll get the same port.</p>
+
+      <h2 id="storage">What's Stored Where</h2>
+      <p>Port Daddy keeps everything in a local SQLite database:</p>
+      <pre><code><span class="comment"># View the database directly</span>
+<span class="prompt">$</span> sqlite3 ~/.port-daddy/port-registry.db
+
+<span class="comment"># List all services</span>
+<span class="prompt">$</span> sqlite3 ~/.port-daddy/port-registry.db <span class="string">"SELECT * FROM services"</span>
+
+<span class="comment"># See who claimed what and when</span>
+<span class="prompt">$</span> sqlite3 ~/.port-daddy/port-registry.db \
+  <span class="string">"SELECT id, port, createdAt FROM services ORDER BY createdAt DESC LIMIT 5"</span></code></pre>
+      <p>This persistence means your ports survive machine restarts, daemon restarts, even if you <code>cd</code> to a different project and come back hours later.</p>
+
+      <h2 id="auto-start">Making It Auto-Start</h2>
+      <p>If you want Port Daddy to start automatically when you log in:</p>
+      <pre><code><span class="comment"># macOS</span>
+<span class="prompt">$</span> pd install
+<span class="output">Created /Library/LaunchAgents/ai.curiositech.port-daddy.plist</span>
+
+<span class="comment"># Linux</span>
+<span class="prompt">$</span> pd install
+<span class="output">Created ~/.config/systemd/user/port-daddy.service</span>
+
+<span class="comment"># Remove auto-start</span>
+<span class="prompt">$</span> pd uninstall</code></pre>
+
+      <h2 id="troubleshooting">Troubleshooting Your First 5 Minutes</h2>
+
+      <h3>"Daemon won't start"</h3>
+      <p>Check if something is already listening on 9876:</p>
+      <pre><code><span class="prompt">$</span> lsof -i :9876
+
+<span class="comment"># If an old daemon is stuck:</span>
+<span class="prompt">$</span> pkill -f "port-daddy.*server"
+
+<span class="comment"># Try again:</span>
+<span class="prompt">$</span> pd start</code></pre>
+
+      <h3>"Why is my port different from a teammate's?"</h3>
+      <p>Port assignment is machine-local. If you both claim <code>myapp:api</code>, you might get 3100 and they get 3104. That's normal and good -- it means you're not fighting over the same port.</p>
+
+      <h3>"Can I request a specific port?"</h3>
+      <pre><code><span class="prompt">$</span> pd claim myapp:api --port 3000</code></pre>
+      <p>But this breaks the "stable port" contract if you move machines. Try to avoid it.</p>
+
+      <h3>"Does Port Daddy work with Docker?"</h3>
+      <p>Absolutely. If your dev server runs in a container, just claim a port outside:</p>
+      <pre><code><span class="prompt">$</span> PORT=$(pd claim myapp -q)
+<span class="prompt">$</span> docker run -p 127.0.0.1:${PORT}:3000 myapp:dev</code></pre>
+      <p>Now your container is accessible on the stable port.</p>
+
+      <h2 id="whats-next">What's Next</h2>
+      <p>You've got Port Daddy running and you understand the basics. Here's what to explore:</p>
+      <ol>
+        <li><a href="monorepo-mastery.html">Orchestration</a> -- Run your entire stack with <code>pd up</code> instead of juggling 5 terminal windows</li>
+        <li><a href="multi-agent-orchestration.html">Multi-Agent Coordination</a> -- Learn how sessions, locks, and pub/sub let you coordinate with other agents</li>
+        <li><a href="tunnel-magic.html">Tunneling</a> -- Share your local dev server with the outside world in 30 seconds</li>
+        <li><a href="debugging.html">Debugging</a> -- Use Port Daddy's tools to diagnose phantom port conflicts</li>
+      </ol>
+
+      <h2>The Big Picture</h2>
+      <p>Port Daddy replaces three separate tools:</p>
+      <ul>
+        <li><strong>Docker Compose</strong> -- Use <code>pd up/down</code> instead</li>
+        <li><strong>Manual port tracking</strong> -- Use semantic identities instead</li>
+        <li><strong>Manual coordination</strong> -- Use sessions, locks, and pub/sub instead</li>
+      </ul>
+      <p>One daemon. Many projects. Zero port conflicts.</p>
+      <p>You'll never <code>lsof -i :3000</code> again.</p>
+
+      <div class="prev-next">
+        <div></div>
+        <a href="multi-agent-orchestration.html" class="next">
+          <div class="label">Next tutorial</div>
+          <div class="title">Orchestrating 5 AI Agents</div>
+        </a>
+      </div>
+    </article>
+  </div>
+
+  <footer>
+    <div class="footer-container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a href="../" class="logo" style="color: white;">
+            <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
+            <span>Port Daddy</span>
+          </a>
+          <p>Port management, service orchestration, and agent coordination for modern development workflows.</p>
+        </div>
+        <div class="footer-column">
+          <h4>Product</h4>
+          <ul><li><a href="../#features">Features</a></li><li><a href="../mcp/">MCP Integration</a></li><li><a href="https://www.npmjs.com/package/port-daddy" target="_blank">npm Package</a></li></ul>
+        </div>
+        <div class="footer-column">
+          <h4>Resources</h4>
+          <ul><li><a href="./">Tutorials</a></li><li><a href="../docs/">Documentation</a></li><li><a href="https://github.com/curiositech/port-daddy" target="_blank">GitHub</a></li></ul>
+        </div>
+        <div class="footer-column">
+          <h4>Connect</h4>
+          <ul><li><a href="https://github.com/curiositech" target="_blank">@curiositech</a></li></ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2025 Curiositech LLC. Released under the MIT License.</p>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

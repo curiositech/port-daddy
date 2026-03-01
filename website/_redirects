@@ -1,4 +1,5 @@
 # Cloudflare Pages redirects
-# Single-page application - all routes serve index.html
+# Multipage static site — each directory has its own index.html
+# Cloudflare Pages serves index.html automatically for directory paths
 
-/* /index.html 200
+# No catch-all needed — static files are served directly
