@@ -38,7 +38,7 @@ import { createChangelog } from './lib/changelog.js';
 import { createTunnel } from './lib/tunnel.js';
 import { createDns } from './lib/dns.js';
 import { createBriefing } from './lib/briefing.js';
-import { initDatabase, resolveDbPath } from './lib/db.js';
+import { initDatabase, closeDatabase, resolveDbPath } from './lib/db.js';
 
 // Route aggregator
 import { createRoutes } from './routes/index.js';
@@ -143,6 +143,7 @@ const PORT: number = parseInt(process.env.PORT_DADDY_PORT as string, 10) || conf
 const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || '/tmp/port-daddy.sock';
 const DISABLE_TCP: boolean = process.env.PORT_DADDY_NO_TCP === '1';
 const PID_FILE: string = SOCK_PATH + '.pid';
+const PORT_FILE: string = process.env.PORT_DADDY_PORT_FILE || '/tmp/port-daddy-port';
 
 // =============================================================================
 // DUPLICATE DAEMON DETECTION — must run before database init
@@ -174,6 +175,24 @@ if (existsSync(SOCK_PATH)) {
   // Socket exists but is stale — clean it up and proceed
   try { unlinkSync(SOCK_PATH); } catch {}
   try { unlinkSync(PID_FILE); } catch {}
+}
+
+// =============================================================================
+// SLEEP DETECTION
+// =============================================================================
+// Laptops sleep. When macOS sleeps, agent heartbeats stop but the cleanup
+// interval keeps running on wake. Without a grace period, the reaper would
+// immediately mark agents as dead. We detect sleep via time gaps and pause
+// the reaper for a grace period.
+
+let lastWakeCheck: number = Date.now();
+let sleepGraceUntil: number = 0;
+const SLEEP_CHECK_INTERVAL_MS: number = 30000;
+const SLEEP_DETECTION_GAP_MS: number = 60000;
+const SLEEP_GRACE_PERIOD_MS: number = 300000;
+
+function isInSleepGracePeriod(): boolean {
+  return Date.now() < sleepGraceUntil;
 }
 
 const db: Database.Database = initDatabase({ dbPath: DB_PATH });
@@ -288,54 +307,61 @@ const systemPortsRefresh = startSystemPortsRefresh();
 // =============================================================================
 
 function cleanupStale(): ReturnType<typeof services.cleanup> {
-  // Cleanup V2 services and expired messages
+  // Service TTL + message cleanup are safe during grace period (explicit timestamps)
   const serviceResult = services.cleanup();
   messaging.cleanup();
 
-  // Check agents for staleness and queue for resurrection BEFORE cleanup deletes them
-  const allAgents = agents.list();
-  interface AgentListItem {
-    id: string;
-    name: string | null;
-    isActive: boolean;
-    lastHeartbeat: number;
-    metadata?: { purpose?: string } | null;
-  }
-  interface SessionListItem { id: string }
-  interface NoteListItem { content: string }
+  // During post-sleep grace, skip agent reaping — heartbeats couldn't be sent while asleep
+  if (isInSleepGracePeriod()) {
+    logger.info('sleep_grace_active', {
+      message: 'Skipping agent reaping during post-sleep grace period',
+      graceUntil: new Date(sleepGraceUntil).toISOString()
+    });
+  } else {
+    // Check agents for staleness and queue for resurrection BEFORE cleanup deletes them
+    const allAgents = agents.list();
+    interface AgentListItem {
+      id: string;
+      name: string | null;
+      isActive: boolean;
+      lastHeartbeat: number;
+      metadata?: { purpose?: string } | null;
+    }
+    interface SessionListItem { id: string }
+    interface NoteListItem { content: string }
 
-  for (const agent of (allAgents.agents || []) as AgentListItem[]) {
-    if (!agent.isActive) {
-      // Get agent's session and notes for resurrection context
-      const agentSessions = sessions.list({ agentId: agent.id, status: 'active' });
-      const notes: string[] = [];
-      const sessionsList = (agentSessions.sessions || []) as unknown as SessionListItem[];
-      for (const session of sessionsList) {
-        const sessionNotes = sessions.getNotes(session.id);
-        const notesList = (sessionNotes.notes || []) as unknown as NoteListItem[];
-        for (const note of notesList) {
-          notes.push(note.content);
+    for (const agent of (allAgents.agents || []) as AgentListItem[]) {
+      if (!agent.isActive) {
+        const agentSessions = sessions.list({ agentId: agent.id, status: 'active' });
+        const notes: string[] = [];
+        const sessionsList = (agentSessions.sessions || []) as unknown as SessionListItem[];
+        for (const session of sessionsList) {
+          const sessionNotes = sessions.getNotes(session.id);
+          const notesList = (sessionNotes.notes || []) as unknown as NoteListItem[];
+          for (const note of notesList) {
+            notes.push(note.content);
+          }
         }
-      }
 
-      resurrection.check({
-        id: agent.id,
-        name: agent.name || agent.id,
-        purpose: agent.metadata?.purpose,
-        sessionId: sessionsList[0]?.id,
-        lastHeartbeat: agent.lastHeartbeat,
-        notes
+        resurrection.check({
+          id: agent.id,
+          name: agent.name || agent.id,
+          purpose: agent.metadata?.purpose,
+          sessionId: sessionsList[0]?.id,
+          lastHeartbeat: agent.lastHeartbeat,
+          notes
+        });
+      }
+    }
+
+    const agentCleanup = agents.cleanup(locks);
+    if (agentCleanup.cleaned > 0) {
+      logger.info('agent_cleanup', agentCleanup);
+      activityLog.log(ActivityType.AGENT_CLEANUP, {
+        details: `cleaned ${agentCleanup.cleaned} stale agents`,
+        metadata: agentCleanup
       });
     }
-  }
-
-  const agentCleanup = agents.cleanup(locks);
-  if (agentCleanup.cleaned > 0) {
-    logger.info('agent_cleanup', agentCleanup);
-    activityLog.log(ActivityType.AGENT_CLEANUP, {
-      details: `cleaned ${agentCleanup.cleaned} stale agents`,
-      metadata: agentCleanup
-    });
   }
 
   activityLog.cleanup();
@@ -435,6 +461,21 @@ app.use((err: Error & { type?: string }, req: Request, res: Response, _next: Nex
 
 setInterval(() => cleanupStale(), config.cleanup.interval_ms);
 
+// Sleep detection loop
+setInterval(() => {
+  const now = Date.now();
+  const elapsed = now - lastWakeCheck;
+  if (elapsed > SLEEP_DETECTION_GAP_MS) {
+    sleepGraceUntil = now + SLEEP_GRACE_PERIOD_MS;
+    logger.warn('sleep_detected', {
+      message: 'System sleep detected, entering grace period',
+      gapMs: elapsed,
+      graceUntil: new Date(sleepGraceUntil).toISOString()
+    });
+  }
+  lastWakeCheck = now;
+}, SLEEP_CHECK_INTERVAL_MS);
+
 function shutdown(signal: string): void {
   logger.info('shutdown_initiated', { signal });
   try {
@@ -446,14 +487,14 @@ function shutdown(signal: string): void {
       signal, uptime: Date.now() - STARTED_AT, version: VERSION
     });
   } catch (e) {
-    // Best-effort logging during shutdown — don't let it prevent exit
     logger.error('shutdown_logging_failed', { error: (e as Error).message });
   }
   systemPortsRefresh.stop();
-  db.close();
-  // Clean up socket file and PID file
+  closeDatabase(db);
+  // Clean up socket file, PID file, and port file
   try { unlinkSync(SOCK_PATH); } catch {}
   try { unlinkSync(PID_FILE); } catch {}
+  try { unlinkSync(PORT_FILE); } catch {}
   process.exit(0);
 }
 
@@ -480,46 +521,53 @@ app.listen(SOCK_PATH, () => {
   logger.info('socket_started', { socket: SOCK_PATH, version: VERSION });
 
   // Also listen on TCP for dashboard/browser access (unless disabled)
+  // If preferred port is busy, try up to 11 consecutive ports (9876-9886)
   if (!DISABLE_TCP) {
-    const tcpServer = app.listen(PORT, config.service.host, () => {
-      logger.info('tcp_started', { port: PORT, host: config.service.host, version: VERSION });
-
-      if (!isSilent) {
-        console.log(`
+    const MAX_PORT_ATTEMPTS: number = 11;
+    function tryListenTcp(attempt: number = 0): void {
+      const tryPort: number = PORT + attempt;
+      if (attempt >= MAX_PORT_ATTEMPTS) {
+        logger.error('tcp_bind_failed', { message: `Could not bind TCP on ports ${PORT}-${PORT + MAX_PORT_ATTEMPTS - 1}` });
+        onReady();
+        if (!isSilent) {
+          console.log(`Port Daddy v${VERSION} listening on ${SOCK_PATH} (TCP unavailable: ports ${PORT}-${PORT + MAX_PORT_ATTEMPTS - 1} all in use)`);
+        }
+        return;
+      }
+      const server = app.listen(tryPort, config.service.host);
+      server.on('error', (err: NodeJS.ErrnoException) => {
+        if (err.code === 'EADDRINUSE') {
+          logger.warn('tcp_port_busy', { port: tryPort, nextAttempt: tryPort + 1 });
+          tryListenTcp(attempt + 1);
+        } else {
+          logger.error('tcp_listen_error', { port: tryPort, error: err.message });
+          onReady();
+          if (!isSilent) {
+            console.log(`Port Daddy v${VERSION} listening on ${SOCK_PATH} (TCP error: ${err.message})`);
+          }
+        }
+      });
+      server.on('listening', () => {
+        try { writeFileSync(PORT_FILE, String(tryPort), { mode: 0o644 }); } catch {}
+        logger.info('tcp_started', { port: tryPort, host: config.service.host, version: VERSION });
+        onReady();
+        if (!isSilent) {
+          const portNote: string = tryPort !== PORT ? ` (fallback from ${PORT})` : '';
+          console.log(`
   Port Daddy v${VERSION}
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   Socket:     ${SOCK_PATH}
-  Dashboard:  http://${config.service.host}:${PORT}/
+  Dashboard:  http://${config.service.host}:${tryPort}/${portNote}
   Database:   ${DB_PATH}
   Port range: ${config.ports.range_start}-${config.ports.range_end}
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  API:
-    POST   /claim             Claim port with semantic ID
-    DELETE /release           Release by ID/pattern
-    GET    /services          List services
-    POST   /msg/:channel      Publish message
-    GET    /agents            List agents
-    GET    /activity          Activity log
-    POST   /webhooks          Register webhook
-
   Ready to assign ports!
-        `);
-      }
-    });
-    // TCP is optional — don't crash the daemon if the port is busy
-    tcpServer.on('error', (err: NodeJS.ErrnoException) => {
-      if (err.code === 'EADDRINUSE') {
-        logger.warn('tcp_port_busy', { port: PORT, message: `TCP port ${PORT} in use — dashboard unavailable, socket still active` });
-        if (!isSilent) {
-          console.error(`  ⚠ TCP port ${PORT} in use — dashboard unavailable. Socket ${SOCK_PATH} is active.`);
+          `);
         }
-      } else {
-        logger.error('tcp_listen_error', { error: err.message });
-      }
-    });
-    // Call onReady regardless — socket is the primary transport
-    onReady();
+      });
+    }
+    tryListenTcp();
   } else {
     // Socket-only mode (used by ephemeral test daemons)
     onReady();

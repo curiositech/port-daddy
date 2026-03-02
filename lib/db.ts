@@ -152,6 +152,15 @@ export function initDatabase(options: InitDbOptions = {}): Database.Database {
   // WAL mode for concurrent read/write performance
   db.pragma('journal_mode = WAL');
 
+  // Verify WAL mode actually took effect (it should unless the file is locked)
+  const journalMode = db.pragma('journal_mode', { simple: true }) as string;
+  if (journalMode !== 'wal' && journalMode !== 'memory') {
+    console.warn(
+      `[port-daddy] WARNING: journal_mode is '${journalMode}', expected 'wal'. ` +
+      `Concurrent access may be degraded. Run: pd doctor --repair`
+    );
+  }
+
   // Busy timeout: wait up to 5 seconds for locks instead of failing immediately
   // This is critical for concurrent CLI invocations sharing the same DB
   db.pragma('busy_timeout = 5000');
@@ -159,10 +168,43 @@ export function initDatabase(options: InitDbOptions = {}): Database.Database {
   // Foreign key enforcement (needed for CASCADE deletes on sessions)
   db.pragma('foreign_keys = ON');
 
+  // Integrity check on real databases (skip in-memory test DBs)
+  if (!options.inMemory) {
+    try {
+      const integrityResult = db.pragma('integrity_check', { simple: true }) as string;
+      if (integrityResult !== 'ok') {
+        console.warn(
+          `[port-daddy] WARNING: SQLite integrity check failed: ${integrityResult}. ` +
+          `Database may be corrupted. Run: pd doctor --repair`
+        );
+      }
+    } catch (err) {
+      console.warn(
+        `[port-daddy] WARNING: Could not run integrity check: ${(err as Error).message}. ` +
+        `Run: pd doctor --repair`
+      );
+    }
+  }
+
   // Create core tables
   db.exec(CORE_SCHEMA_SQL);
 
   return db;
+}
+
+/**
+ * Cleanly close the database, checkpointing WAL to the main file.
+ * Call during daemon shutdown to merge WAL pages back and truncate.
+ */
+export function closeDatabase(db: Database.Database): void {
+  try {
+    db.pragma('wal_checkpoint(TRUNCATE)');
+  } catch (err) {
+    console.warn(
+      `[port-daddy] WARNING: WAL checkpoint failed during shutdown: ${(err as Error).message}`
+    );
+  }
+  db.close();
 }
 
 /**

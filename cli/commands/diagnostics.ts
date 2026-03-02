@@ -10,7 +10,7 @@ import { createHash } from 'node:crypto';
 import { spawnSync, spawn } from 'node:child_process';
 import type { SpawnSyncReturns } from 'node:child_process';
 import { status as maritimeStatus } from '../../lib/maritime.js';
-import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
+import { pdFetch, PORT_DADDY_URL, SOCK_PATH } from '../utils/fetch.js';
 import { CLIOptions, isJson } from '../types.js';
 import { separator, tableHeader } from '../utils/output.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
@@ -514,7 +514,100 @@ export async function handleDoctor(): Promise<void> {
   }
 
   // -------------------------------------------------------------------------
-  // Check 10: Shell completions
+  // SQLite integrity
+  // -------------------------------------------------------------------------
+  try {
+    const dbPath: string = join(libDir, 'port-registry.db');
+    if (existsSync(dbPath)) {
+      const Database = (await import('better-sqlite3')).default;
+      let testDb;
+      try {
+        testDb = new Database(dbPath, { readonly: true });
+        const integrityResult = testDb.pragma('integrity_check', { simple: true }) as string;
+        if (integrityResult === 'ok') {
+          check('SQLite integrity', true, 'Database passes integrity check');
+        } else {
+          criticalFail('SQLite integrity',
+            `Integrity check failed: ${integrityResult}`,
+            'Back up port-registry.db then run: pd doctor --repair');
+        }
+      } catch (dbErr) {
+        check('SQLite integrity', false,
+          `Could not open database: ${(dbErr as Error).message}`,
+          'Database may be locked or corrupted.');
+      } finally {
+        try { testDb?.close(); } catch { /* ignore */ }
+      }
+    } else {
+      check('SQLite integrity', true, 'No database file yet (will be created on first start)');
+    }
+  } catch (err: unknown) {
+    check('SQLite integrity', false, `Error: ${(err as Error).message}`);
+  }
+
+  // -------------------------------------------------------------------------
+  // Stale socket file
+  // -------------------------------------------------------------------------
+  try {
+    if (existsSync(SOCK_PATH)) {
+      if (daemonRunning) {
+        check('Socket file', true, `${SOCK_PATH} exists and daemon is responding`);
+      } else {
+        check('Socket file', false,
+          `${SOCK_PATH} exists but daemon is not responding`,
+          `Stale socket file. Remove it: rm ${SOCK_PATH}`);
+      }
+    } else {
+      check('Socket file', true, daemonRunning ? 'No socket file (daemon using TCP)' : 'No socket file (daemon not running)');
+    }
+  } catch (err: unknown) {
+    check('Socket file', false, `Error: ${(err as Error).message}`);
+  }
+
+  // -------------------------------------------------------------------------
+  // PID file staleness
+  // -------------------------------------------------------------------------
+  try {
+    const pidFilePath: string = SOCK_PATH + '.pid';
+    if (existsSync(pidFilePath)) {
+      const pidStr: string = readFileSync(pidFilePath, 'utf8').trim();
+      const pid: number = parseInt(pidStr, 10);
+      if (isNaN(pid)) {
+        check('PID file', false, `${pidFilePath} contains invalid PID: "${pidStr}"`, `Remove: rm ${pidFilePath}`);
+      } else {
+        let processAlive = false;
+        try { process.kill(pid, 0); processAlive = true; } catch { /* not running */ }
+        check('PID file', processAlive, processAlive ? `PID ${pid} is running` : `PID ${pid} is not running (stale)`,
+          processAlive ? undefined : `Remove: rm ${pidFilePath}`);
+      }
+    } else {
+      check('PID file', true, 'No PID file (normal)');
+    }
+  } catch (err: unknown) {
+    check('PID file', false, `Error: ${(err as Error).message}`);
+  }
+
+  // -------------------------------------------------------------------------
+  // Stuck lsof processes
+  // -------------------------------------------------------------------------
+  try {
+    const psResult: SpawnSyncReturns<string> = spawnSync('sh', ['-c', 'ps aux | grep "[l]sof" | wc -l'], {
+      encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], timeout: 5000
+    });
+    const lsofCount: number = parseInt((psResult.stdout || '0').trim(), 10);
+    if (lsofCount > 5) {
+      check('Stuck lsof processes', false,
+        `${lsofCount} lsof processes found (expected < 5)`,
+        'Kill them: pkill -f lsof');
+    } else {
+      check('Stuck lsof processes', true, `${lsofCount} lsof process(es) running`);
+    }
+  } catch {
+    check('Stuck lsof processes', true, 'Could not check (skipped)');
+  }
+
+  // -------------------------------------------------------------------------
+  // Shell completions
   // -------------------------------------------------------------------------
   const shell: string = process.env.SHELL || '';
   const completionsDir: string = join(libDir, 'completions');
