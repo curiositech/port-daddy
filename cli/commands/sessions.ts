@@ -20,7 +20,7 @@ export async function handleSession(
   useDirect = false
 ): Promise<void> {
   if (!subcommand) {
-    console.error('Usage: port-daddy session <start|end|done|abandon|rm|files> [args]');
+    console.error('Usage: port-daddy session <start|end|done|abandon|rm|files|phase> [args]');
     console.error('');
     console.error('Commands:');
     console.error('  start <purpose> [--files file1 file2...] [--agent AGENT_ID] [--force]');
@@ -30,6 +30,9 @@ export async function handleSession(
     console.error('  rm <id>               # Delete a session');
     console.error('  files add <paths...>  # Claim files in active session');
     console.error('  files rm <paths...>   # Release files in active session');
+    console.error('  phase <id> <phase>    # Set session phase');
+    console.error('');
+    console.error('Phases: planning, in_progress, testing, reviewing, completed, abandoned');
     process.exit(1);
   }
 
@@ -50,6 +53,8 @@ export async function handleSession(
       return sessionRemove(rest, options);
     case 'files':
       return sessionFiles(rest, options);
+    case 'phase':
+      return sessionPhase(rest, options);
     default:
       console.error(`Unknown session command: ${subcommand}`);
       console.error('Run "port-daddy session" for usage');
@@ -262,6 +267,132 @@ async function sessionFiles(rest: string[], options: CLIOptions): Promise<void> 
     } else if (!isQuiet(options)) {
       console.log(`Released ${data.filesReleased || 0} file(s) from session ${sessionId}`);
     }
+  }
+}
+
+async function sessionPhase(rest: string[], options: CLIOptions): Promise<void> {
+  const sessionId = rest[0];
+  const phase = rest[1];
+
+  if (!sessionId || !phase) {
+    console.error('Usage: port-daddy session phase <session-id> <phase>');
+    console.error('Phases: planning, in_progress, testing, reviewing, completed, abandoned');
+    process.exit(1);
+  }
+
+  const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/sessions/${encodeURIComponent(sessionId)}/phase`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phase })
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    console.error(maritimeStatus('error', (data.error as string) || 'Failed to set phase'));
+    process.exit(1);
+  }
+
+  if (isJson(options)) {
+    console.log(JSON.stringify(data, null, 2));
+  } else if (!isQuiet(options)) {
+    console.log(maritimeStatus('success', `Session ${sessionId}: ${data.previousPhase} → ${data.phase}`));
+  }
+}
+
+/**
+ * Handle `pd files` command — list all active file claims
+ */
+export async function handleFiles(options: CLIOptions): Promise<void> {
+  const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/files`);
+  const data = await res.json();
+
+  if (!res.ok) {
+    console.error(maritimeStatus('error', (data.error as string) || 'Failed to list files'));
+    process.exit(1);
+  }
+
+  if (isJson(options)) {
+    console.log(JSON.stringify(data, null, 2));
+    return;
+  }
+
+  const claims = data.claims as Array<{
+    filePath: string;
+    sessionId: string;
+    purpose: string;
+    agentId: string | null;
+    phase: string;
+    claimedAt: number;
+  }>;
+
+  if (!claims || claims.length === 0) {
+    if (!isQuiet(options)) {
+      console.log('No active file claims');
+    }
+    return;
+  }
+
+  const now = Date.now();
+  console.log('FILE'.padEnd(40) + 'SESSION'.padEnd(18) + 'AGENT'.padEnd(14) + 'PHASE'.padEnd(14) + 'AGE');
+  console.log('\u2500'.repeat(90));
+
+  for (const c of claims) {
+    const age = formatAge(now - c.claimedAt);
+    const file = c.filePath.length > 38 ? '...' + c.filePath.slice(-35) : c.filePath.padEnd(40);
+    const agent = (c.agentId || '-').slice(0, 12).padEnd(14);
+    console.log(
+      `${file}${c.sessionId.slice(0, 16).padEnd(18)}${agent}${c.phase.padEnd(14)}${age}`
+    );
+  }
+  console.log('');
+  console.log(`Total: ${claims.length} file claim(s)`);
+}
+
+/**
+ * Handle `pd who-owns <path>` command
+ */
+export async function handleWhoOwns(filePath: string | undefined, options: CLIOptions): Promise<void> {
+  if (!filePath) {
+    console.error('Usage: port-daddy who-owns <file-path>');
+    process.exit(1);
+  }
+
+  const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/files/who-owns?path=${encodeURIComponent(filePath)}`);
+  const data = await res.json();
+
+  if (!res.ok) {
+    console.error(maritimeStatus('error', (data.error as string) || 'Failed to check ownership'));
+    process.exit(1);
+  }
+
+  if (isJson(options)) {
+    console.log(JSON.stringify(data, null, 2));
+    return;
+  }
+
+  const owners = data.owners as Array<{
+    sessionId: string;
+    purpose: string;
+    agentId: string | null;
+    phase: string;
+    claimedAt: number;
+  }>;
+
+  if (isQuiet(options)) {
+    console.log(data.claimed ? 'claimed' : 'unclaimed');
+    return;
+  }
+
+  if (!owners || owners.length === 0) {
+    console.log(`${filePath}: unclaimed`);
+    return;
+  }
+
+  console.log(`${filePath}: claimed by ${owners.length} session(s)`);
+  for (const o of owners) {
+    const agent = o.agentId ? ` (agent: ${o.agentId})` : '';
+    console.log(`  ${o.sessionId}: ${o.purpose} [${o.phase}]${agent}`);
   }
 }
 

@@ -757,6 +757,7 @@
           <button class="tab" data-tab="projects"><svg class="icon"><use href="#icon-folder"/></svg>Projects<span class="tab-badge" id="badge-projects">0</span></button>
           <button class="tab" data-tab="sessions"><svg class="icon"><use href="#icon-clipboard"/></svg>Sessions<span class="tab-badge" id="badge-sessions">0</span></button>
           <button class="tab" data-tab="changelog"><svg class="icon"><use href="#icon-book"/></svg>Changelog<span class="tab-badge" id="badge-changelog">0</span></button>
+          <button class="tab" data-tab="dns"><svg class="icon"><use href="#icon-server"/></svg>DNS<span class="tab-badge" id="badge-dns">0</span></button>
           <button class="tab" data-tab="activity"><svg class="icon"><use href="#icon-activity"/></svg>Activity</button>
           <button class="tab" data-tab="config"><svg class="icon"><use href="#icon-settings"/></svg>Config</button>
         </div>
@@ -873,6 +874,14 @@
           </select>
         </div>
         <div class="activity-feed" id="changelog-feed"><div class="empty-state"><svg class="empty-state-icon"><use href="#icon-book"/></svg><div class="empty-state-text">Loading...</div></div></div>
+      </div>
+
+      <div class="tab-content" id="tab-dns">
+        <div class="tab-toolbar">
+          <button class="refresh-btn" onclick="refreshDns()" id="refresh-dns"><svg class="icon"><use href="#icon-refresh"/></svg>Refresh</button>
+          <button class="quick-btn" onclick="dnsCleanup()" title="Remove stale DNS records"><svg class="icon"><use href="#icon-trash"/></svg>Cleanup</button>
+        </div>
+        <div id="dns-list"><div class="empty-state"><svg class="empty-state-icon"><use href="#icon-server"/></svg><div class="empty-state-text">Loading DNS records...</div></div></div>
       </div>
 
       <div class="tab-content" id="tab-activity">
@@ -1766,6 +1775,85 @@
         });
       } catch (e) { console.error(e); }
     }
+    async function refreshDns() {
+      spinRefreshBtn('refresh-dns');
+      try {
+        var data = await (await fetch(API + '/dns')).json();
+        var list = document.getElementById('dns-list');
+        list.textContent = '';
+        var badge = document.getElementById('badge-dns');
+        if (badge) badge.textContent = data.count || '0';
+        if (!data.records || data.records.length === 0) {
+          var empty = document.createElement('div');
+          empty.className = 'empty-state';
+          var svgNs = 'http://www.w3.org/2000/svg';
+          var svg = document.createElementNS(svgNs, 'svg');
+          svg.setAttribute('class', 'empty-state-icon');
+          var use = document.createElementNS(svgNs, 'use');
+          use.setAttributeNS('http://www.w3.org/1999/xlink', 'href', '#icon-server');
+          svg.appendChild(use);
+          empty.appendChild(svg);
+          var t = document.createElement('div'); t.className = 'empty-state-text'; t.textContent = 'No DNS records';
+          var h = document.createElement('div'); h.className = 'empty-state-hint'; h.textContent = 'Register DNS with: pd dns register <identity> --port <n>';
+          empty.appendChild(t); empty.appendChild(h);
+          list.appendChild(empty);
+          return;
+        }
+        var table = document.createElement('table');
+        table.style.cssText = 'width:100%;border-collapse:collapse;font-size:0.9em';
+        var thead = document.createElement('thead');
+        var headTr = document.createElement('tr');
+        headTr.style.cssText = 'text-align:left;border-bottom:1px solid var(--border)';
+        ['Hostname', 'Port', 'Identity', 'Actions'].forEach(function(col) {
+          var th = document.createElement('th');
+          th.style.padding = '8px';
+          th.textContent = col;
+          headTr.appendChild(th);
+        });
+        thead.appendChild(headTr);
+        table.appendChild(thead);
+        var tbody = document.createElement('tbody');
+        data.records.forEach(function(r) {
+          var tr = document.createElement('tr');
+          tr.style.borderBottom = '1px solid var(--border)';
+          var tdHost = document.createElement('td');
+          tdHost.style.cssText = 'padding:8px;font-family:monospace;color:var(--accent)';
+          tdHost.textContent = r.hostname;
+          var tdPort = document.createElement('td');
+          tdPort.style.padding = '8px';
+          tdPort.textContent = r.port;
+          var tdId = document.createElement('td');
+          tdId.style.cssText = 'padding:8px;font-family:monospace';
+          tdId.textContent = r.identity;
+          var tdActions = document.createElement('td');
+          tdActions.style.padding = '8px';
+          var rmBtn = document.createElement('button');
+          rmBtn.className = 'quick-btn danger-btn';
+          rmBtn.style.cssText = 'padding:2px 8px;font-size:0.85em';
+          rmBtn.textContent = 'Remove';
+          rmBtn.onclick = (function(id) { return function() { dnsUnregister(id); }; })(r.identity);
+          tdActions.appendChild(rmBtn);
+          tr.appendChild(tdHost); tr.appendChild(tdPort); tr.appendChild(tdId); tr.appendChild(tdActions);
+          tbody.appendChild(tr);
+        });
+        table.appendChild(tbody);
+        list.appendChild(table);
+      } catch (e) { console.error(e); }
+    }
+    async function dnsCleanup() {
+      try {
+        var data = await (await fetch(API + '/dns/cleanup', { method: 'POST' })).json();
+        showToast('DNS cleanup: ' + (data.cleaned || 0) + ' stale record(s) removed');
+        refreshDns();
+      } catch (e) { console.error(e); showToast('DNS cleanup failed', 'error'); }
+    }
+    async function dnsUnregister(identity) {
+      try {
+        await fetch(API + '/dns/' + encodeURIComponent(identity), { method: 'DELETE' });
+        showToast('DNS record removed: ' + identity);
+        refreshDns();
+      } catch (e) { console.error(e); showToast('DNS unregister failed', 'error'); }
+    }
     async function refreshChangelog() {
       spinRefreshBtn('refresh-changelog');
       try {
@@ -2191,7 +2279,7 @@
       } catch (e) { showToast('Failed to abandon session', 'error'); }
     }
     async function refreshAll() {
-      await Promise.all([refreshHealth(), refreshVersion(), refreshServices(), refreshAgents(), refreshSalvage(), refreshLocks(), refreshChannels(), refreshWebhooks(), refreshActivity(), refreshProjects(), refreshSessions(), refreshConfig(), refreshChangelog()]);
+      await Promise.all([refreshHealth(), refreshVersion(), refreshServices(), refreshAgents(), refreshSalvage(), refreshLocks(), refreshChannels(), refreshWebhooks(), refreshActivity(), refreshProjects(), refreshSessions(), refreshConfig(), refreshChangelog(), refreshDns()]);
     }
     refreshAll();
     setInterval(refreshAll, 5000);

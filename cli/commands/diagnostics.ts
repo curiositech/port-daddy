@@ -14,6 +14,7 @@ import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import { CLIOptions, isJson } from '../types.js';
 import { separator, tableHeader } from '../utils/output.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
+import { diagnoseStartupBlockers, confirmFix } from '../utils/startup-doctor.js';
 
 // __dirname equivalent for ESM
 const __dirname = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
@@ -537,11 +538,26 @@ export async function handleDoctor(): Promise<void> {
   }
 
   // -------------------------------------------------------------------------
+  // 11. Startup blockers (stale sockets, zombie processes, port conflicts)
+  // -------------------------------------------------------------------------
+  const startupIssues = diagnoseStartupBlockers(9876);
+  if (startupIssues.length === 0 && !daemonRunning) {
+    check('Startup readiness', true, 'No blockers — daemon can start cleanly');
+  } else if (startupIssues.length === 0) {
+    // Daemon is running, no blockers
+  } else {
+    for (const issue of startupIssues) {
+      check(issue.issue, false, issue.detail,
+        issue.fixable ? 'Auto-fixable (will prompt below)' : 'Manual intervention needed');
+    }
+  }
+
+  // -------------------------------------------------------------------------
   // Output
   // -------------------------------------------------------------------------
   console.log('');
   console.log('Port Daddy Doctor');
-  console.log('\u2501'.repeat(38));
+  console.log('\u2501'.repeat(50));
 
   for (const r of results) {
     if (r.ok) {
@@ -554,8 +570,74 @@ export async function handleDoctor(): Promise<void> {
     }
   }
 
-  console.log('\u2501'.repeat(38));
+  console.log('\u2501'.repeat(50));
   console.log(`${passed}/${total} checks passed`);
+
+  // -------------------------------------------------------------------------
+  // Interactive fix phase: offer to fix each fixable issue
+  // -------------------------------------------------------------------------
+  const fixableIssues = startupIssues.filter(i => i.fixable && i.fix);
+  const fixableChecks = results.filter(r => !r.ok && r.hint);
+
+  if (fixableIssues.length > 0) {
+    console.log('');
+    console.log('Fixable issues found:');
+    console.log('');
+
+    let anyFixed = false;
+    for (const issue of fixableIssues) {
+      const accepted = await confirmFix(`Fix "${issue.issue}"? (${issue.detail})`);
+      if (accepted && issue.fix) {
+        issue.fix();
+        console.log(`  \u2713 Fixed: ${issue.issue}`);
+        anyFixed = true;
+      } else {
+        console.log(`  \u2014 Skipped: ${issue.issue}`);
+      }
+    }
+
+    // Offer to auto-fix daemon-related issues
+    if (anyFixed && !daemonRunning) {
+      console.log('');
+      const startDaemon = await confirmFix('Start the daemon now?');
+      if (startDaemon) {
+        console.log('  Starting daemon...');
+        // Import handleDaemon dynamically to avoid circular dependency
+        const { handleDaemon } = await import('./daemon.js');
+        await handleDaemon('start');
+        return;
+      }
+    }
+
+    // Offer to restart if code hash mismatch
+    if (daemonRunning) {
+      const hashMismatch = results.find(r => !r.ok && r.name === 'Code hash');
+      if (hashMismatch) {
+        console.log('');
+        const restart = await confirmFix('Restart daemon to pick up code changes?');
+        if (restart) {
+          const { handleDaemon } = await import('./daemon.js');
+          await handleDaemon('restart');
+          return;
+        }
+      }
+
+      // Offer to clean stale services
+      const staleServices = results.find(r => !r.ok && r.name === 'Stale services');
+      if (staleServices) {
+        const clean = await confirmFix('Clean up stale services?');
+        if (clean) {
+          try {
+            await pdFetch(`${PORT_DADDY_URL}/ports/cleanup`, { method: 'POST' });
+            console.log('  \u2713 Stale services cleaned');
+          } catch {
+            console.log('  \u2717 Failed to clean stale services');
+          }
+        }
+      }
+    }
+  }
+
   console.log('');
 
   if (hasCriticalFailure) {

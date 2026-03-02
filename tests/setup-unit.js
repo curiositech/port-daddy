@@ -163,6 +163,19 @@ export function createTestDb() {
     );
   `);
 
+  // V2 schema - DNS Records
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS dns_records (
+      identity TEXT PRIMARY KEY,
+      hostname TEXT NOT NULL UNIQUE,
+      port INTEGER NOT NULL,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_dns_hostname ON dns_records(hostname);
+    CREATE INDEX IF NOT EXISTS idx_dns_port ON dns_records(port);
+  `);
+
   // V2 schema - Sessions & Notes
   // NOTE: sessions.ts creates its own tables via createSessions(db).
   // We pre-create them here so tests that use createSessions don't
@@ -173,7 +186,10 @@ export function createTestDb() {
       id TEXT PRIMARY KEY,
       purpose TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'active',
+      phase TEXT DEFAULT 'in_progress',
       agent_id TEXT,
+      worktree_id TEXT,
+      identity_project TEXT,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL,
       completed_at INTEGER,
@@ -181,6 +197,7 @@ export function createTestDb() {
     );
     CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status);
     CREATE INDEX IF NOT EXISTS idx_sessions_agent ON sessions(agent_id);
+    CREATE INDEX IF NOT EXISTS idx_sessions_identity_project ON sessions(identity_project);
 
     CREATE TABLE IF NOT EXISTS session_files (
       session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,

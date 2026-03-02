@@ -28,11 +28,11 @@
       "docs": { "readme": true, "sdk": true }
     },
     "endpoints": {
-      "description": "Service endpoint URLs for discovery",
-      "cli": ["url"],
+      "description": "Service endpoint URLs and environment variable export",
+      "cli": ["url", "env"],
       "sdk": ["setEndpoint"],
       "routes": ["PUT /services/:param/endpoints/:param"],
-      "completions": ["url"],
+      "completions": ["url", "env"],
       "docs": { "readme": true, "sdk": true }
     },
     "locks": {
@@ -47,7 +47,7 @@
       "description": "Pub/sub messaging",
       "cli": ["pub", "publish", "sub", "subscribe", "channels"],
       "sdk": ["publish", "getMessages", "poll", "subscribe", "listChannels", "clearChannel"],
-      "routes": ["POST /msg/:param", "GET /msg/:param", "DELETE /msg/:param", "GET /msg/:param/poll", "GET /msg/:param/subscribe", "GET /channels"],
+      "routes": ["GET /msg", "POST /msg/:param", "GET /msg/:param", "DELETE /msg/:param", "GET /msg/:param/poll", "GET /msg/:param/subscribe", "GET /channels"],
       "completions": ["pub", "publish", "sub", "subscribe", "channels"],
       "docs": { "readme": true, "sdk": true }
     },
@@ -58,6 +58,15 @@
       "routes": ["POST /agents", "POST /agents/:param/heartbeat", "DELETE /agents/:param", "GET /agents/:param", "GET /agents"],
       "completions": ["agent", "agents"],
       "docs": { "readme": true, "sdk": true }
+    },
+    "inbox": {
+      "description": "Agent-to-agent direct messaging inbox",
+      "cli": [],
+      "sdk": [],
+      "routes": ["POST /agents/:param/inbox", "GET /agents/:param/inbox", "GET /agents/:param/inbox/stats", "PUT /agents/:param/inbox/:param/read", "PUT /agents/:param/inbox/read-all", "DELETE /agents/:param/inbox"],
+      "completions": [],
+      "docs": { "readme": false, "sdk": false },
+      "_note": "Agent inbox is fully implemented server-side; CLI/SDK/completions not yet wired"
     },
     "salvage": {
       "description": "Agent resurrection / salvage queue",
@@ -103,7 +112,7 @@
       "description": "Hierarchical changelog",
       "cli": ["changelog"],
       "sdk": [],
-      "routes": ["POST /changelog", "GET /changelog", "GET /changelog/identities"],
+      "routes": ["POST /changelog", "GET /changelog", "GET /changelog/identities", "GET /changelog/session/:param", "GET /changelog/agent/:param", "GET /changelog/:param"],
       "completions": ["changelog"],
       "docs": { "readme": true, "sdk": false },
       "_note": "SDK methods not yet implemented"
@@ -153,7 +162,7 @@
       "description": "Port management",
       "cli": ["ports"],
       "sdk": ["listActivePorts", "getSystemPorts", "cleanup"],
-      "routes": ["GET /ports/active", "GET /ports/system", "POST /ports/cleanup"],
+      "routes": ["GET /ports/active", "GET /ports/system", "POST /ports/cleanup", "POST /ports/request", "DELETE /ports/release"],
       "completions": ["ports"],
       "docs": { "readme": true, "sdk": true }
     },
@@ -183,6 +192,14 @@
       "docs": { "readme": true, "sdk": false },
       "_note": "Diagnostics are CLI-only"
     },
+    "dns": {
+      "description": "Local DNS records for services (.local hostnames)",
+      "cli": ["dns"],
+      "sdk": ["dnsRegister", "dnsUnregister", "dnsList", "dnsGet", "dnsCleanup", "dnsStatus"],
+      "routes": ["POST /dns/:param", "DELETE /dns/:param", "GET /dns", "GET /dns/status", "GET /dns/:param", "POST /dns/cleanup"],
+      "completions": ["dns"],
+      "docs": { "readme": true, "sdk": true }
+    },
     "wait": {
       "description": "Wait for services to become available",
       "cli": ["wait"],
@@ -190,6 +207,40 @@
       "routes": ["GET /wait/:param", "POST /wait"],
       "completions": ["wait"],
       "docs": { "readme": true, "sdk": true }
+    },
+    "session_phases": {
+      "description": "Session lifecycle phases (planning/in_progress/testing/reviewing/completed/abandoned)",
+      "cli": [],
+      "sdk": [],
+      "routes": ["PUT /sessions/:param/phase"],
+      "completions": [],
+      "docs": { "readme": false, "sdk": false },
+      "_note": "Phase is set via MCP tool or API, no dedicated CLI command"
+    },
+    "file_claims": {
+      "description": "Global file claim view across all sessions",
+      "cli": ["files", "who-owns"],
+      "sdk": [],
+      "routes": ["GET /files", "GET /files/who-owns"],
+      "completions": ["files", "who-owns"],
+      "docs": { "readme": false, "sdk": false }
+    },
+    "integration_signals": {
+      "description": "Integration signals via pub/sub (ready/needs)",
+      "cli": ["integration"],
+      "sdk": [],
+      "routes": [],
+      "completions": ["integration"],
+      "docs": { "readme": false, "sdk": false },
+      "_note": "Routes are messaging routes reused with integration: prefix channels"
+    },
+    "briefing": {
+      "description": "Project-local agent intelligence (.portdaddy/ briefing)",
+      "cli": ["briefing", "history"],
+      "sdk": ["generateBriefing", "getBriefing", "getProjectHistory"],
+      "routes": ["POST /briefing", "GET /briefing/:param"],
+      "completions": ["briefing", "history"],
+      "docs": { "readme": false, "sdk": false }
     }
   }
 }

@@ -96,7 +96,7 @@ set -l __pd_commands \
     'pub' 'publish' 'sub' 'subscribe' 'wait' 'lock' 'unlock' 'locks' \
     'agent' 'agents' 'log' 'activity' \
     'session' 'sessions' 'note' 'notes' \
-    'salvage' 'resurrection' 'changelog' \
+    'salvage' 'resurrection' 'changelog' 'dns' 'files' 'who-owns' 'integration' 'briefing' 'history' \
     'up' 'down' \
     'dashboard' 'channels' 'webhook' 'webhooks' 'metrics' 'config' 'health' 'ports' \
     'scan' 's' 'projects' 'p' 'doctor' 'diagnose' \
@@ -119,6 +119,7 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a url -d 'Manage service URLs (get/set/rm/list)'
     complete -c $prog -n __pd_needs_command -a env -d 'Get environment variables for a service'
     complete -c $prog -n __pd_needs_command -a tunnel -d 'Manage tunnels (start/stop/status/list)'
+    complete -c $prog -n __pd_needs_command -a dns -d 'Local DNS records for services'
 
     # Agent coordination
     complete -c $prog -n __pd_needs_command -a pub -d 'Publish a message to a channel'
@@ -150,6 +151,15 @@ for prog in port-daddy pd
 
     # Changelog
     complete -c $prog -n __pd_needs_command -a changelog -d 'Hierarchical changelog with identity-based rollup'
+
+    # File Claims & Integration
+    complete -c $prog -n __pd_needs_command -a files -d 'List all active file claims across sessions'
+    complete -c $prog -n __pd_needs_command -a who-owns -d 'Check who has claimed a specific file path'
+    complete -c $prog -n __pd_needs_command -a integration -d 'Manage integration signals (ready/needs/list)'
+
+    # Briefing & History
+    complete -c $prog -n __pd_needs_command -a briefing -d 'Generate .portdaddy/ project briefing'
+    complete -c $prog -n __pd_needs_command -a history -d 'View recent project activity'
 
     # System & Monitoring
     complete -c $prog -n __pd_needs_command -a dashboard -d 'Open web dashboard'
@@ -229,6 +239,22 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command tunnel" -x -a 'providers' -d 'Check installed providers'
     complete -c $prog -n "__pd_using_command tunnel" -l provider -d 'Tunnel provider' -x -a 'ngrok cloudflared localtunnel'
     complete -c $prog -n "__pd_using_command tunnel" -x -a '(__pd_service_ids)'
+
+    # dns subcommands
+    complete -c $prog -n "__pd_using_command dns" -x -a 'list' -d 'List DNS records'
+    complete -c $prog -n "__pd_using_command dns" -x -a 'ls' -d 'List DNS records (alias)'
+    complete -c $prog -n "__pd_using_command dns" -x -a 'register' -d 'Register a DNS record'
+    complete -c $prog -n "__pd_using_command dns" -x -a 'add' -d 'Register a DNS record (alias)'
+    complete -c $prog -n "__pd_using_command dns" -x -a 'unregister' -d 'Remove a DNS record'
+    complete -c $prog -n "__pd_using_command dns" -x -a 'rm' -d 'Remove a DNS record (alias)'
+    complete -c $prog -n "__pd_using_command dns" -x -a 'lookup' -d 'Lookup by hostname'
+    complete -c $prog -n "__pd_using_command dns" -x -a 'cleanup' -d 'Remove stale DNS records'
+    complete -c $prog -n "__pd_using_command dns" -x -a 'status' -d 'DNS system status'
+    complete -c $prog -n "__pd_using_command dns" -l port -d 'Port number' -x
+    complete -c $prog -n "__pd_using_command dns" -l hostname -d 'Custom hostname (must end in .local)' -x
+    complete -c $prog -n "__pd_using_command dns" -l pattern -d 'Filter by identity pattern' -x
+    complete -c $prog -n "__pd_using_command dns" -l limit -d 'Max records to return' -x
+    complete -c $prog -n "__pd_using_command dns" -x -a '(__pd_service_ids)'
 
     # env
     complete -c $prog -n "__pd_using_command env" -l file -d 'Write env vars to file' -r
@@ -366,6 +392,28 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command changelog" -l format -d 'Export format' -x -a 'flat tree keep-a-changelog'
     complete -c $prog -n "__pd_using_command changelog" -l since -d 'Filter by timestamp' -x
     complete -c $prog -n "__pd_using_command changelog" -x -a '(__pd_service_ids)'
+
+    # files
+    complete -c $prog -n "__pd_using_command files" -l session -d 'Filter by session ID' -x
+
+    # who-owns
+    # (takes a file path as positional argument, no special options)
+
+    # integration subcommands
+    complete -c $prog -n "__pd_using_command integration" -x -a 'ready' -d 'Signal work is ready for integration'
+    complete -c $prog -n "__pd_using_command integration" -x -a 'needs' -d 'Signal work needs something from another agent'
+    complete -c $prog -n "__pd_using_command integration" -x -a 'list' -d 'List recent integration signals'
+    complete -c $prog -n "__pd_using_command integration" -l project -d 'Filter by project name' -x
+
+    # briefing
+    complete -c $prog -n "__pd_using_command briefing" -l full -d 'Full sync with archives and activity.log'
+    complete -c $prog -n "__pd_using_command briefing" -l project -d 'Override project detection' -x
+    complete -c $prog -n "__pd_using_command briefing" -l dir -d 'Target directory' -r
+
+    # history
+    complete -c $prog -n "__pd_using_command history" -l limit -d 'Max entries' -x
+    complete -c $prog -n "__pd_using_command history" -l type -d 'Activity type' -x -a 'claim release lock unlock pub sub agent heartbeat'
+    complete -c $prog -n "__pd_using_command history" -l agent -d 'Filter by agent ID' -x -a '(__pd_agent_ids)'
 
     # -----------------------------------------------------------------------
     # Fill parity gaps for existing commands

@@ -16,8 +16,9 @@ import Database from 'better-sqlite3';
 import cors from 'cors';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { readFileSync, existsSync, readdirSync, unlinkSync } from 'fs';
+import { readFileSync, existsSync, readdirSync, unlinkSync, writeFileSync } from 'fs';
 import { createHash } from 'crypto';
+import { createConnection } from 'net';
 import winston from 'winston';
 import rateLimit from 'express-rate-limit';
 
@@ -35,13 +36,15 @@ import { createAgentInbox } from './lib/agent-inbox.js';
 import { createResurrection } from './lib/resurrection.js';
 import { createChangelog } from './lib/changelog.js';
 import { createTunnel } from './lib/tunnel.js';
+import { createDns } from './lib/dns.js';
+import { createBriefing } from './lib/briefing.js';
 import { initDatabase, resolveDbPath } from './lib/db.js';
 
 // Route aggregator
 import { createRoutes } from './routes/index.js';
 
 // Shared utilities
-import { getSystemPorts } from './shared/port-utils.js';
+import { getSystemPorts, startSystemPortsRefresh } from './shared/port-utils.js';
 
 const __dirname: string = dirname(fileURLToPath(import.meta.url));
 
@@ -139,6 +142,40 @@ const DB_PATH: string = resolveDbPath();
 const PORT: number = parseInt(process.env.PORT_DADDY_PORT as string, 10) || config.service.port;
 const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || '/tmp/port-daddy.sock';
 const DISABLE_TCP: boolean = process.env.PORT_DADDY_NO_TCP === '1';
+const PID_FILE: string = SOCK_PATH + '.pid';
+
+// =============================================================================
+// DUPLICATE DAEMON DETECTION — must run before database init
+// =============================================================================
+// If the socket exists, probe it. If a daemon is already alive, exit immediately.
+// This prevents multiple daemons stomping each other's socket and hanging.
+
+if (existsSync(SOCK_PATH)) {
+  const isAlive: boolean = await new Promise<boolean>((resolve) => {
+    const conn = createConnection({ path: SOCK_PATH }, () => {
+      // Socket accepted connection — send a minimal HTTP request
+      conn.write('GET /health HTTP/1.0\r\nHost: localhost\r\n\r\n');
+    });
+    conn.on('data', (data: Buffer) => {
+      conn.destroy();
+      resolve(data.toString().includes('"status":"ok"'));
+    });
+    conn.on('error', () => resolve(false));
+    conn.setTimeout(2000, () => { conn.destroy(); resolve(false); });
+  });
+
+  if (isAlive) {
+    // Read existing PID from pidfile if available
+    let existingPid = '?';
+    try { existingPid = readFileSync(PID_FILE, 'utf-8').trim(); } catch {}
+    console.error(`Port Daddy already running (PID ${existingPid}). Not starting a second daemon.`);
+    process.exit(0);
+  }
+  // Socket exists but is stale — clean it up and proceed
+  try { unlinkSync(SOCK_PATH); } catch {}
+  try { unlinkSync(PID_FILE); } catch {}
+}
+
 const db: Database.Database = initDatabase({ dbPath: DB_PATH });
 
 // =============================================================================
@@ -161,6 +198,9 @@ const agentInbox = createAgentInbox(db);
 const resurrection = createResurrection(db);
 const changelog = createChangelog(db);
 const tunnel = createTunnel(db);
+const dns = createDns(db);
+dns.setActivityLog(activityLog);
+const briefing = createBriefing(db, { sessions, agents, resurrection, activityLog, services, messaging });
 
 // Wire resurrection events to broadcast on the radio
 resurrection.on('agent:stale', (agent) => {
@@ -235,6 +275,13 @@ const metrics: DaemonMetrics = {
   errors: 0,
   uptime_start: Date.now()
 };
+
+// =============================================================================
+// BACKGROUND TASKS
+// =============================================================================
+
+// Populate system ports cache asynchronously (never blocks event loop)
+const systemPortsRefresh = startSystemPortsRefresh();
 
 // =============================================================================
 // CLEANUP
@@ -357,7 +404,7 @@ app.use((req: Request, res: Response, next: NextFunction): void => {
 app.use(createRoutes({
   db, logger, metrics, config,
   services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
-  agentInbox, resurrection, changelog, tunnel,
+  agentInbox, resurrection, changelog, tunnel, dns, briefing,
   VERSION, CODE_HASH, STARTED_AT, __dirname,
   cleanupStale, getSystemPorts
 }));
@@ -402,9 +449,11 @@ function shutdown(signal: string): void {
     // Best-effort logging during shutdown — don't let it prevent exit
     logger.error('shutdown_logging_failed', { error: (e as Error).message });
   }
+  systemPortsRefresh.stop();
   db.close();
-  // Clean up socket file
+  // Clean up socket file and PID file
   try { unlinkSync(SOCK_PATH); } catch {}
+  try { unlinkSync(PID_FILE); } catch {}
   process.exit(0);
 }
 
@@ -426,13 +475,14 @@ function onReady(): void {
 // Primary listener: Unix domain socket (no port needed)
 try { unlinkSync(SOCK_PATH); } catch {}
 app.listen(SOCK_PATH, () => {
+  // Write PID file so other daemons (and pd doctor) can identify us
+  try { writeFileSync(PID_FILE, String(process.pid)); } catch {}
   logger.info('socket_started', { socket: SOCK_PATH, version: VERSION });
 
   // Also listen on TCP for dashboard/browser access (unless disabled)
   if (!DISABLE_TCP) {
-    app.listen(PORT, config.service.host, () => {
+    const tcpServer = app.listen(PORT, config.service.host, () => {
       logger.info('tcp_started', { port: PORT, host: config.service.host, version: VERSION });
-      onReady();
 
       if (!isSilent) {
         console.log(`
@@ -457,6 +507,19 @@ app.listen(SOCK_PATH, () => {
         `);
       }
     });
+    // TCP is optional — don't crash the daemon if the port is busy
+    tcpServer.on('error', (err: NodeJS.ErrnoException) => {
+      if (err.code === 'EADDRINUSE') {
+        logger.warn('tcp_port_busy', { port: PORT, message: `TCP port ${PORT} in use — dashboard unavailable, socket still active` });
+        if (!isSilent) {
+          console.error(`  ⚠ TCP port ${PORT} in use — dashboard unavailable. Socket ${SOCK_PATH} is active.`);
+        }
+      } else {
+        logger.error('tcp_listen_error', { error: err.message });
+      }
+    });
+    // Call onReady regardless — socket is the primary transport
+    onReady();
   } else {
     // Socket-only mode (used by ephemeral test daemons)
     onReady();

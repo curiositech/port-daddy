@@ -40,6 +40,11 @@ export const ActivityType = {
   FILE_CLAIM: 'file.claim',
   FILE_RELEASE: 'file.release',
 
+  // DNS operations
+  DNS_REGISTER: 'dns.register',
+  DNS_UNREGISTER: 'dns.unregister',
+  DNS_CLEANUP: 'dns.cleanup',
+
   // System
   DAEMON_START: 'daemon.start',
   DAEMON_STOP: 'daemon.stop',

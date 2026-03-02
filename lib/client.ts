@@ -660,6 +660,27 @@ interface ActivityStatsResponse {
   };
 }
 
+// ──────────────────────────────────────────────────────────────
+// Briefing types
+// ──────────────────────────────────────────────────────────────
+
+/** Matches the actual POST /briefing response */
+interface BriefingGenerateResponse {
+  success: boolean;
+  briefingPath?: string;
+  files?: string[];
+  archivedSessions?: number;
+  archivedAgents?: number;
+  error?: string;
+}
+
+/** Matches the actual GET /briefing/:project response */
+interface BriefingReadResponse {
+  success: boolean;
+  briefing?: Record<string, unknown>;
+  error?: string;
+}
+
 /** Matches the actual /services/health/:id endpoint response */
 interface ServiceHealthResponse {
   success: boolean;
@@ -1889,6 +1910,95 @@ class PortDaddy {
     return this._request('DELETE', `/sessions/${sessionId}/files`, { files }) as Promise<FileReleaseResponse>;
   }
 
+  // ──────────────────────────────────────────────────────────────
+  // Session Phases
+  // ──────────────────────────────────────────────────────────────
+
+  /**
+   * Set the phase of a session.
+   * Valid phases: planning, in_progress, testing, reviewing, completed, abandoned
+   */
+  async setSessionPhase(sessionId: string, phase: string): Promise<Record<string, unknown>> {
+    return this._request('PUT', `/sessions/${sessionId}/phase`, { phase }) as Promise<Record<string, unknown>>;
+  }
+
+  // ──────────────────────────────────────────────────────────────
+  // Global File Claims
+  // ──────────────────────────────────────────────────────────────
+
+  /**
+   * List all active file claims across all sessions.
+   */
+  async listFileClaims(): Promise<Record<string, unknown>> {
+    return this._request('GET', '/files') as Promise<Record<string, unknown>>;
+  }
+
+  /**
+   * Check who owns a specific file path.
+   * Use before editing files to avoid conflicts.
+   */
+  async whoOwnsFile(filePath: string): Promise<Record<string, unknown>> {
+    return this._request('GET', `/files/who-owns?path=${encodeURIComponent(filePath)}`) as Promise<Record<string, unknown>>;
+  }
+
+  // ──────────────────────────────────────────────────────────────
+  // Integration Signals
+  // ──────────────────────────────────────────────────────────────
+
+  /**
+   * Signal that work is ready for integration.
+   * Publishes to integration:<project>:ready channel.
+   */
+  async integrationReady(identity: string, description: string): Promise<Record<string, unknown>> {
+    const project = identity.split(':')[0];
+    const channel = `integration:${project}:ready`;
+    return this._request('POST', `/msg/${encodeURIComponent(channel)}`, {
+      payload: { type: 'ready', identity, description, timestamp: Date.now() },
+      sender: identity,
+    }) as Promise<Record<string, unknown>>;
+  }
+
+  /**
+   * Signal that work needs something from another agent.
+   * Publishes to integration:<project>:needs channel.
+   */
+  async integrationNeeds(identity: string, description: string): Promise<Record<string, unknown>> {
+    const project = identity.split(':')[0];
+    const channel = `integration:${project}:needs`;
+    return this._request('POST', `/msg/${encodeURIComponent(channel)}`, {
+      payload: { type: 'needs', identity, description, timestamp: Date.now() },
+      sender: identity,
+    }) as Promise<Record<string, unknown>>;
+  }
+
+  // ──────────────────────────────────────────────────────────────
+  // Briefing — Project-local agent intelligence
+  // ──────────────────────────────────────────────────────────────
+
+  /**
+   * Generate `.portdaddy/` briefing for a project root.
+   * Writes briefing.md and briefing.json to disk.
+   */
+  async generateBriefing(projectRoot: string, options?: {
+    project?: string;
+    full?: boolean;
+  }): Promise<BriefingGenerateResponse> {
+    const body: Record<string, unknown> = { projectRoot };
+    if (options?.project) body.project = options.project;
+    if (options?.full) body.full = true;
+    return this._request('POST', '/briefing', body) as Promise<BriefingGenerateResponse>;
+  }
+
+  /**
+   * Get briefing data as JSON (no disk write).
+   */
+  async getBriefing(project: string, projectRoot?: string): Promise<BriefingReadResponse> {
+    const params = new URLSearchParams();
+    if (projectRoot) params.set('projectRoot', projectRoot);
+    const qs = params.toString();
+    return this._request('GET', `/briefing/${encodeURIComponent(project)}${qs ? '?' + qs : ''}`) as Promise<BriefingReadResponse>;
+  }
+
   /**
    * Ping the daemon. Returns true if reachable, false otherwise.
    */
@@ -1994,6 +2104,116 @@ class PortDaddy {
   async tunnelProviders(): Promise<TunnelProvidersResponse> {
     return this._request('GET', '/tunnel/providers') as Promise<TunnelProvidersResponse>;
   }
+
+  // ===========================================================================
+  // DNS
+  // ===========================================================================
+
+  /**
+   * Register a DNS record for a service identity.
+   * Maps a semantic identity to a .local hostname.
+   */
+  async dnsRegister(identity: string, options: DnsRegisterOptions): Promise<DnsRegisterResponse> {
+    return this._request('POST', `/dns/${encodeURIComponent(identity)}`, options as unknown as Record<string, unknown>) as Promise<DnsRegisterResponse>;
+  }
+
+  /**
+   * Unregister a DNS record by identity.
+   */
+  async dnsUnregister(identity: string): Promise<DnsUnregisterResponse> {
+    return this._request('DELETE', `/dns/${encodeURIComponent(identity)}`) as Promise<DnsUnregisterResponse>;
+  }
+
+  /**
+   * List DNS records, optionally filtered by pattern.
+   */
+  async dnsList(options: DnsListOptions = {}): Promise<DnsListResponse> {
+    const params = new URLSearchParams();
+    if (options.pattern) params.set('pattern', options.pattern);
+    if (options.limit) params.set('limit', String(options.limit));
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    return this._request('GET', `/dns${qs}`) as Promise<DnsListResponse>;
+  }
+
+  /**
+   * Get a DNS record by identity.
+   */
+  async dnsGet(identity: string): Promise<DnsGetResponse> {
+    return this._request('GET', `/dns/${encodeURIComponent(identity)}`) as Promise<DnsGetResponse>;
+  }
+
+  /**
+   * Remove stale DNS records (for identities with no active service).
+   */
+  async dnsCleanup(): Promise<DnsCleanupResponse> {
+    return this._request('POST', '/dns/cleanup') as Promise<DnsCleanupResponse>;
+  }
+
+  /**
+   * Get DNS system status (record count, bonjour availability).
+   */
+  async dnsStatus(): Promise<DnsStatusResponse> {
+    return this._request('GET', '/dns/status') as Promise<DnsStatusResponse>;
+  }
+}
+
+// =============================================================================
+// DNS types
+// =============================================================================
+
+interface DnsRecord {
+  identity: string;
+  hostname: string;
+  port: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+interface DnsRegisterOptions {
+  port: number;
+  hostname?: string;
+}
+
+interface DnsRegisterResponse {
+  success: boolean;
+  identity: string;
+  hostname: string;
+  port: number;
+  updated: boolean;
+  bonjourAdvertised: boolean;
+}
+
+interface DnsUnregisterResponse {
+  success: boolean;
+  identity: string;
+  hostname: string;
+}
+
+interface DnsListOptions {
+  pattern?: string;
+  limit?: number;
+}
+
+interface DnsListResponse {
+  success: boolean;
+  records: DnsRecord[];
+  count: number;
+}
+
+interface DnsGetResponse {
+  success: boolean;
+  record: DnsRecord;
+}
+
+interface DnsCleanupResponse {
+  success: boolean;
+  cleaned: number;
+}
+
+interface DnsStatusResponse {
+  success: boolean;
+  bonjourAvailable: boolean;
+  recordCount: number;
 }
 
 export { PortDaddy, PortDaddyError, ConnectionError };
@@ -2006,5 +2226,14 @@ export type {
   LockOptions,
   LockResponse,
   Subscription,
+  DnsRegisterOptions,
+  DnsRegisterResponse,
+  DnsUnregisterResponse,
+  DnsListOptions,
+  DnsListResponse,
+  DnsGetResponse,
+  DnsCleanupResponse,
+  DnsStatusResponse,
+  DnsRecord,
 };
 export default PortDaddy;

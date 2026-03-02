@@ -69,32 +69,58 @@ export async function isProcessAliveAsync(pid) {
 
 /**
  * Get all system ports that are in use (sync version)
- * Uses caching to reduce system calls.
+ * Returns cached data only — never blocks the event loop with spawnSync.
+ * The cache is populated by startSystemPortsRefresh() on an interval.
  * @returns {Array<{port: number, pid: number, command: string, user: string}>}
  */
 export function getSystemPorts() {
-  const now = Date.now();
-  if (systemPortsCache.data && (now - systemPortsCache.timestamp) < SYSTEM_PORTS_CACHE_TTL) {
-    return systemPortsCache.data;
-  }
+  return systemPortsCache.data || [];
+}
 
-  try {
-    const result = spawnSync('lsof', ['-i', '-P', '-n', '-sTCP:LISTEN'], {
-      encoding: 'utf8',
-      timeout: 5000,
-      maxBuffer: 1024 * 1024
-    });
+/**
+ * Start a background refresh loop for the system ports cache.
+ * Call once at daemon startup. Uses async spawn so it never blocks the event loop.
+ * @param {number} [intervalMs=10000] - Refresh interval in milliseconds
+ * @returns {{ stop: () => void }} Handle to stop the refresh loop
+ */
+export function startSystemPortsRefresh(intervalMs = SYSTEM_PORTS_CACHE_TTL) {
+  // Immediate first refresh
+  refreshSystemPortsAsync();
 
-    if (result.status !== 0 || !result.stdout) {
-      return systemPortsCache.data || [];
+  const timer = setInterval(() => refreshSystemPortsAsync(), intervalMs);
+  return { stop: () => clearInterval(timer) };
+}
+
+/**
+ * Async refresh of system ports cache (non-blocking)
+ */
+function refreshSystemPortsAsync() {
+  const proc = spawn('lsof', ['-i', '-P', '-n', '-sTCP:LISTEN'], {
+    stdio: ['ignore', 'pipe', 'ignore']
+  });
+
+  let stdout = '';
+  const timeout = setTimeout(() => {
+    proc.kill();
+  }, 5000);
+
+  proc.stdout.on('data', (data) => {
+    if (stdout.length < 1024 * 1024) {
+      stdout += data.toString();
     }
+  });
 
-    const ports = parseLsofOutput(result.stdout);
-    systemPortsCache = { data: ports, timestamp: now };
-    return ports;
-  } catch (err) {
-    return systemPortsCache.data || [];
-  }
+  proc.on('close', (code) => {
+    clearTimeout(timeout);
+    if (code === 0 && stdout) {
+      const ports = parseLsofOutput(stdout);
+      systemPortsCache = { data: ports, timestamp: Date.now() };
+    }
+  });
+
+  proc.on('error', () => {
+    clearTimeout(timeout);
+  });
 }
 
 /**

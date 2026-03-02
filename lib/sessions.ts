@@ -20,12 +20,18 @@ interface ActivityLogger {
 // Types
 // =============================================================================
 
+// Valid session phases — more granular than status
+const VALID_PHASES = ['planning', 'in_progress', 'testing', 'reviewing', 'completed', 'abandoned'] as const;
+type SessionPhase = typeof VALID_PHASES[number];
+
 interface SessionRow {
   id: string;
   purpose: string;
   status: string;
+  phase: string | null;
   agent_id: string | null;
   worktree_id: string | null;
+  identity_project: string | null;
   created_at: number;
   updated_at: number;
   completed_at: number | null;
@@ -50,6 +56,7 @@ interface SessionNoteRow {
 interface StartOptions {
   agentId?: string | null;
   worktreeId?: string | null;
+  project?: string | null;
   files?: string[];
   metadata?: Record<string, unknown> | null;
 }
@@ -109,8 +116,10 @@ export function createSessions(db: Database.Database) {
       id TEXT PRIMARY KEY,
       purpose TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'active',
+      phase TEXT DEFAULT 'in_progress',
       agent_id TEXT,
       worktree_id TEXT,
+      identity_project TEXT,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL,
       completed_at INTEGER,
@@ -151,12 +160,23 @@ export function createSessions(db: Database.Database) {
     if (!hasWorktreeId) {
       db.prepare("ALTER TABLE sessions ADD COLUMN worktree_id TEXT").run();
     }
+    // Migration: add phase column
+    const hasPhase = columns.some(c => c.name === 'phase');
+    if (!hasPhase) {
+      db.prepare("ALTER TABLE sessions ADD COLUMN phase TEXT DEFAULT 'in_progress'").run();
+    }
+    // Migration: add identity_project column for project-scoped queries
+    const hasIdentityProject = columns.some(c => c.name === 'identity_project');
+    if (!hasIdentityProject) {
+      db.prepare("ALTER TABLE sessions ADD COLUMN identity_project TEXT").run();
+    }
   } catch {
     // Column already exists or table doesn't exist yet
   }
 
-  // Create worktree index after migration ensures column exists
+  // Create indexes after migration ensures columns exist
   db.prepare(`CREATE INDEX IF NOT EXISTS idx_sessions_worktree ON sessions(worktree_id)`).run();
+  db.prepare(`CREATE INDEX IF NOT EXISTS idx_sessions_identity_project ON sessions(identity_project)`).run();
 
   // Enable foreign key enforcement (needed for CASCADE)
   db.pragma('foreign_keys = ON');
@@ -166,8 +186,8 @@ export function createSessions(db: Database.Database) {
     // Sessions
     getById: db.prepare('SELECT * FROM sessions WHERE id = ?'),
     insert: db.prepare(`
-      INSERT INTO sessions (id, purpose, status, agent_id, worktree_id, created_at, updated_at, completed_at, metadata)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO sessions (id, purpose, status, agent_id, worktree_id, identity_project, created_at, updated_at, completed_at, metadata)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `),
     updateStatus: db.prepare(`
       UPDATE sessions SET status = ?, updated_at = ?, completed_at = ? WHERE id = ?
@@ -218,6 +238,26 @@ export function createSessions(db: Database.Database) {
     `),
     cleanupOldAny: db.prepare(`
       DELETE FROM sessions WHERE status IN ('completed', 'abandoned') AND updated_at < ?
+    `),
+
+    // Phase
+    setPhase: db.prepare(`
+      UPDATE sessions SET phase = ?, updated_at = ? WHERE id = ?
+    `),
+
+    // Files — global view
+    listAllActiveClaims: db.prepare(`
+      SELECT sf.session_id, sf.file_path, sf.claimed_at, s.purpose, s.agent_id, s.phase
+      FROM session_files sf
+      JOIN sessions s ON s.id = sf.session_id
+      WHERE sf.released_at IS NULL AND s.status = 'active'
+      ORDER BY sf.file_path ASC
+    `),
+    getClaimOwner: db.prepare(`
+      SELECT sf.session_id, sf.file_path, sf.claimed_at, s.purpose, s.agent_id, s.phase
+      FROM session_files sf
+      JOIN sessions s ON s.id = sf.session_id
+      WHERE sf.file_path = ? AND sf.released_at IS NULL AND s.status = 'active'
     `),
 
     // Files
@@ -297,8 +337,10 @@ export function createSessions(db: Database.Database) {
       id: row.id,
       purpose: row.purpose,
       status: row.status,
+      phase: row.phase || 'in_progress',
       agentId: row.agent_id,
       worktreeId: row.worktree_id,
+      identityProject: row.identity_project,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       completedAt: row.completed_at,
@@ -360,12 +402,14 @@ export function createSessions(db: Database.Database) {
     const {
       agentId = null,
       worktreeId = null,
+      project = null,
       files = [],
       metadata = null,
     } = options;
 
     // Auto-detect worktree if not explicitly provided
     const resolvedWorktreeId = worktreeId ?? getWorktreeId() ?? null;
+    const identityProject = project || null;
 
     // Validate agentId if provided
     if (agentId !== null && typeof agentId !== 'string') {
@@ -389,6 +433,7 @@ export function createSessions(db: Database.Database) {
         'active',
         agentId,
         resolvedWorktreeId,
+        identityProject,
         now,
         now,
         null,
@@ -839,6 +884,113 @@ export function createSessions(db: Database.Database) {
   }
 
   /**
+   * Set the phase of a session
+   */
+  function setPhase(sessionId: string, phase: string) {
+    if (!sessionId || typeof sessionId !== 'string') {
+      return { success: false, error: 'sessionId must be a non-empty string', code: 'VALIDATION_ERROR' };
+    }
+    if (!phase || typeof phase !== 'string') {
+      return { success: false, error: 'phase must be a non-empty string', code: 'VALIDATION_ERROR' };
+    }
+
+    const normalizedPhase = phase.toLowerCase().trim();
+    if (!VALID_PHASES.includes(normalizedPhase as SessionPhase)) {
+      return {
+        success: false,
+        error: `Invalid phase: "${phase}". Valid phases: ${VALID_PHASES.join(', ')}`,
+        code: 'VALIDATION_ERROR'
+      };
+    }
+
+    const session = stmts.getById.get(sessionId) as SessionRow | undefined;
+    if (!session) {
+      return { success: false, error: 'session not found' };
+    }
+
+    const now = Date.now();
+    stmts.setPhase.run(normalizedPhase, now, sessionId);
+
+    // If phase is 'completed' or 'abandoned', also update session status
+    if (normalizedPhase === 'completed' || normalizedPhase === 'abandoned') {
+      stmts.updateStatus.run(normalizedPhase, now, now, sessionId);
+      stmts.releaseAllFiles.run(now, sessionId);
+    }
+
+    if (activityLog) {
+      activityLog.log(ActivityType.SESSION_NOTE, {
+        details: `Session ${sessionId} phase changed to ${normalizedPhase}`,
+        metadata: { sessionId, phase: normalizedPhase, previousPhase: session.phase || 'in_progress' } as unknown as Record<string, unknown>,
+      });
+    }
+
+    return {
+      success: true,
+      id: sessionId,
+      phase: normalizedPhase,
+      previousPhase: session.phase || 'in_progress',
+    };
+  }
+
+  /**
+   * List all active file claims across all sessions (global view)
+   */
+  function listAllActiveClaims() {
+    const rows = stmts.listAllActiveClaims.all() as Array<{
+      session_id: string;
+      file_path: string;
+      claimed_at: number;
+      purpose: string;
+      agent_id: string | null;
+      phase: string | null;
+    }>;
+
+    return {
+      success: true,
+      claims: rows.map(r => ({
+        filePath: r.file_path,
+        sessionId: r.session_id,
+        purpose: r.purpose,
+        agentId: r.agent_id,
+        phase: r.phase || 'in_progress',
+        claimedAt: r.claimed_at,
+      })),
+      count: rows.length,
+    };
+  }
+
+  /**
+   * Get who owns a specific file path
+   */
+  function getClaimOwner(filePath: string) {
+    if (!filePath || typeof filePath !== 'string') {
+      return { success: false, error: 'filePath must be a non-empty string', code: 'VALIDATION_ERROR' };
+    }
+
+    const rows = stmts.getClaimOwner.all(filePath) as Array<{
+      session_id: string;
+      file_path: string;
+      claimed_at: number;
+      purpose: string;
+      agent_id: string | null;
+      phase: string | null;
+    }>;
+
+    return {
+      success: true,
+      filePath,
+      owners: rows.map(r => ({
+        sessionId: r.session_id,
+        purpose: r.purpose,
+        agentId: r.agent_id,
+        phase: r.phase || 'in_progress',
+        claimedAt: r.claimed_at,
+      })),
+      claimed: rows.length > 0,
+    };
+  }
+
+  /**
    * Cleanup old completed/abandoned sessions
    */
   function cleanup(options: CleanupOptions = {}) {
@@ -867,6 +1019,9 @@ export function createSessions(db: Database.Database) {
     claimFiles,
     releaseFiles,
     getFileConflicts,
+    setPhase,
+    listAllActiveClaims,
+    getClaimOwner,
     list,
     get,
     cleanup,

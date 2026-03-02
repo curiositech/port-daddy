@@ -97,6 +97,12 @@ _port_daddy() {
     session sessions note notes
     # Agent Resurrection & Changelog
     salvage resurrection changelog
+    # DNS
+    dns
+    # File Claims & Integration
+    files who-owns integration
+    # Briefing & History
+    briefing history
     # System & Monitoring
     dashboard channels webhook webhooks metrics config health ports
     # Orchestration
@@ -331,6 +337,48 @@ _port_daddy() {
           local services; services="$(_pd_service_ids)"
           # shellcheck disable=SC2207
           COMPREPLY=( $(compgen -W "$services" -- "$cur") )
+          ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
+    # dns  <subcommand> [identity] [options]
+    # Subcommands: list, register, unregister, lookup, cleanup, status
+    # -----------------------------------------------------------------------
+    dns)
+      local dns_subcmds="list ls register add unregister rm remove lookup cleanup status help"
+      case "$prev" in
+        dns)
+          # First arg: subcommand
+          # shellcheck disable=SC2207
+          COMPREPLY=( $(compgen -W "$dns_subcmds" -- "$cur") )
+          ;;
+        register|add)
+          if [[ "$cur" == -* ]]; then
+            _pd_opts '--port --hostname'
+          else
+            local services; services="$(_pd_service_ids)"
+            # shellcheck disable=SC2207
+            COMPREPLY=( $(compgen -W "$services" -- "$cur") )
+          fi
+          ;;
+        unregister|rm|remove|lookup)
+          local services; services="$(_pd_service_ids)"
+          # shellcheck disable=SC2207
+          COMPREPLY=( $(compgen -W "$services" -- "$cur") )
+          ;;
+        list|ls)
+          _pd_opts '--pattern --limit --json --quiet'
+          ;;
+        cleanup|status|help)
+          _pd_opts ''
+          ;;
+        --port|--hostname|--pattern|--limit)
+          ;;
+        *)
+          if [[ "$cur" == -* ]]; then
+            _pd_opts '--port --hostname --pattern --limit --json --quiet'
+          fi
           ;;
       esac
       ;;
@@ -1030,6 +1078,98 @@ _port_daddy() {
     # -----------------------------------------------------------------------
     version|help)
       _pd_opts ''
+      ;;
+
+    # -----------------------------------------------------------------------
+    # files  [--session ID] (global file claim view)
+    # -----------------------------------------------------------------------
+    files)
+      _pd_opts '--session'
+      ;;
+
+    # -----------------------------------------------------------------------
+    # who-owns  <path>
+    # -----------------------------------------------------------------------
+    who-owns)
+      _pd_opts ''
+      ;;
+
+    # -----------------------------------------------------------------------
+    # integration  <subcommand> [identity] [--project]
+    # Subcommands: ready, needs, list
+    # -----------------------------------------------------------------------
+    integration)
+      local integration_subcmds="ready needs list"
+      local subcmd=""
+      for (( i = 1; i < cword; i++ )); do
+        local w="${words[$i]}"
+        if [[ "$w" == "integration" ]]; then
+          if (( i + 1 < cword )); then
+            subcmd="${words[$((i+1))]}"
+          fi
+          break
+        fi
+      done
+
+      if [[ -z "$subcmd" ]]; then
+        if [[ "$cur" == -* ]]; then
+          _pd_opts '--project'
+        else
+          # shellcheck disable=SC2207
+          COMPREPLY=( $(compgen -W "$integration_subcmds" -- "$cur") )
+        fi
+        return 0
+      fi
+
+      case "$subcmd" in
+        ready|needs)
+          _pd_complete_service ''
+          ;;
+        list)
+          _pd_opts '--project'
+          ;;
+        *)
+          _pd_opts '--project'
+          ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
+    # briefing  [--full] [--json] [--project NAME] [--dir PATH]
+    # -----------------------------------------------------------------------
+    briefing)
+      case "$prev" in
+        --project|--dir)
+          COMPREPLY=()  # Free-form
+          ;;
+        *)
+          _pd_opts '--full --project --dir'
+          ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
+    # history  [--limit N] [--type TYPE] [--agent ID]
+    # -----------------------------------------------------------------------
+    history)
+      case "$prev" in
+        --type)
+          # shellcheck disable=SC2207
+          COMPREPLY=( $(compgen -W \
+            "claim release lock unlock pub sub agent heartbeat" -- "$cur") )
+          ;;
+        --agent)
+          local aids; aids="$(_pd_agent_ids)"
+          # shellcheck disable=SC2207
+          COMPREPLY=( $(compgen -W "$aids" -- "$cur") )
+          ;;
+        --limit)
+          COMPREPLY=()  # Numeric
+          ;;
+        *)
+          _pd_opts '--limit --type --agent'
+          ;;
+      esac
       ;;
 
     # -----------------------------------------------------------------------

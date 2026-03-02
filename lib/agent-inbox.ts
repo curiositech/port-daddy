@@ -73,7 +73,7 @@ export function createAgentInbox(db: Database.Database) {
       SELECT * FROM agent_inbox WHERE agent_id = ? AND created_at > ? ORDER BY created_at DESC LIMIT ?
     `),
     markRead: db.prepare(`UPDATE agent_inbox SET read = 1 WHERE agent_id = ? AND id = ?`),
-    markAllRead: db.prepare(`UPDATE agent_inbox SET read = 1 WHERE agent_id = ?`),
+    markAllRead: db.prepare(`UPDATE agent_inbox SET read = 1 WHERE agent_id = ? AND read = 0`),
     clear: db.prepare(`DELETE FROM agent_inbox WHERE agent_id = ?`),
     count: db.prepare(`SELECT COUNT(*) as count FROM agent_inbox WHERE agent_id = ?`),
     countUnread: db.prepare(`SELECT COUNT(*) as count FROM agent_inbox WHERE agent_id = ? AND read = 0`),

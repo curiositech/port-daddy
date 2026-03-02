@@ -25,6 +25,8 @@ import { createInfoRoutes } from './info.js';
 import { createResurrectionRoutes } from './resurrection.js';
 import { createChangelogRoutes } from './changelog.js';
 import { createTunnelRoutes } from './tunnel.js';
+import { createDnsRoutes } from './dns.js';
+import { createBriefingRoutes } from './briefing.js';
 
 // Each route factory defines its own deps interface (e.g. ServicesRouteDeps,
 // InfoRouteDeps). Rather than duplicating those 10 interfaces here, we use a
@@ -60,6 +62,8 @@ export function createRoutes(deps: AnyDeps): Router {
   router.use(createResurrectionRoutes(deps as unknown as Parameters<typeof createResurrectionRoutes>[0]));
   router.use(createChangelogRoutes(deps as unknown as Parameters<typeof createChangelogRoutes>[0]));
   router.use(createTunnelRoutes(deps as unknown as Parameters<typeof createTunnelRoutes>[0]));
+  router.use(createDnsRoutes(deps as unknown as Parameters<typeof createDnsRoutes>[0]));
+  router.use(createBriefingRoutes(deps as unknown as Parameters<typeof createBriefingRoutes>[0]));
 
   return router;
 }

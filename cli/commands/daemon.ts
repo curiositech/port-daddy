@@ -14,6 +14,7 @@ import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import { status as maritimeStatus } from '../../lib/maritime.js';
 import { printBanner, printCompactHeader, printFarewell, WHEEL, ANCHOR, ANSI } from '../../lib/banner.js';
+import { autoFixStartupBlockers, diagnoseStartupBlockers } from '../utils/startup-doctor.js';
 
 // __dirname equivalent for ESM
 const __dirname = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
@@ -46,6 +47,36 @@ function getLocalCodeHash(): string {
 }
 
 /**
+ * Attempt to spawn the daemon and wait for it to become healthy.
+ * Returns true if the daemon started successfully, false otherwise.
+ */
+async function attemptDaemonStart(tsxBin: string, serverScript: string): Promise<boolean> {
+  const child: ChildProcess = spawn(tsxBin, [serverScript], {
+    stdio: 'ignore',
+    detached: true,
+  });
+  child.unref();
+
+  // Wait up to 3 seconds for health check
+  for (let i = 0; i < 30; i++) {
+    await new Promise<void>(r => setTimeout(r, 100));
+    try {
+      const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/health`);
+      if (res.ok) {
+        const data = await res.json();
+        console.log(maritimeStatus('success', `Daemon running on port 9876 (PID ${data.pid})`));
+        console.log('');
+        console.log(`  ${ANSI.fgGray}Dashboard:${ANSI.reset} ${ANSI.fgCyan}http://localhost:9876${ANSI.reset}`);
+        console.log(`  ${ANSI.fgGray}Try:${ANSI.reset}       pd claim myapp -q`);
+        console.log('');
+        return true;
+      }
+    } catch {}
+  }
+  return false;
+}
+
+/**
  * Handle `pd start|stop|restart|install|uninstall` command
  */
 export async function handleDaemon(action: string): Promise<void> {
@@ -69,29 +100,59 @@ export async function handleDaemon(action: string): Promise<void> {
       printBanner();
       console.log(`  ${WHEEL} Starting daemon...`);
 
-      const child: ChildProcess = spawn(tsxBin, [serverScript], {
-        stdio: 'ignore',
-        detached: true
-      });
-      child.unref();
+      // Attempt 1: Try to start normally
+      if (await attemptDaemonStart(tsxBin, serverScript)) return;
 
-      // Wait for it to be ready
-      for (let i = 0; i < 30; i++) {
-        await new Promise<void>(r => setTimeout(r, 100));
-        try {
-          const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/health`);
-          if (res.ok) {
-            const data = await res.json();
-            console.log(maritimeStatus('success', `Daemon running on port 9876 (PID ${data.pid})`));
-            console.log('');
-            console.log(`  ${ANSI.fgGray}Dashboard:${ANSI.reset} ${ANSI.fgCyan}http://localhost:9876${ANSI.reset}`);
-            console.log(`  ${ANSI.fgGray}Try:${ANSI.reset}       pd claim myapp -q`);
-            console.log('');
-            return;
-          }
-        } catch {}
+      // Attempt 1 failed — diagnose and auto-fix
+      console.log(`  ${ANSI.fgYellow}First attempt failed, diagnosing...${ANSI.reset}`);
+
+      const { fixed, issues } = autoFixStartupBlockers(9876);
+
+      if (issues.length === 0) {
+        // No obvious issues found — maybe it just needs a moment
+        console.error(maritimeStatus('error', 'Failed to start daemon (no fixable issues found)'));
+        console.log(`  ${ANSI.fgGray}Run: pd doctor${ANSI.reset}`);
+        process.exit(1);
       }
-      console.error(maritimeStatus('error', 'Failed to start daemon'));
+
+      // Report what we found and fixed
+      for (const issue of issues) {
+        if (issue.fixable) {
+          console.log(`  ${ANSI.fgYellow}Fixed:${ANSI.reset} ${issue.detail}`);
+        } else {
+          console.log(`  ${ANSI.fgRed}Blocker:${ANSI.reset} ${issue.detail}`);
+        }
+      }
+
+      if (!fixed) {
+        // Found issues but couldn't fix any of them
+        const unfixable = issues.filter(i => !i.fixable);
+        if (unfixable.length > 0) {
+          console.error(maritimeStatus('error', `Cannot start: ${unfixable[0].detail}`));
+        } else {
+          console.error(maritimeStatus('error', 'Failed to start daemon'));
+        }
+        process.exit(1);
+      }
+
+      // Give killed processes time to release resources
+      await new Promise<void>(r => setTimeout(r, 1500));
+
+      // Attempt 2: Retry after fixes
+      console.log(`  ${WHEEL} Retrying...`);
+
+      if (await attemptDaemonStart(tsxBin, serverScript)) return;
+
+      // Still failing — one more diagnostic pass in case socket needs cleanup
+      const secondPass = autoFixStartupBlockers(9876);
+      if (secondPass.fixed) {
+        await new Promise<void>(r => setTimeout(r, 1000));
+        console.log(`  ${WHEEL} Final retry...`);
+        if (await attemptDaemonStart(tsxBin, serverScript)) return;
+      }
+
+      console.error(maritimeStatus('error', 'Failed to start daemon after auto-fix'));
+      console.log(`  ${ANSI.fgGray}Run: pd doctor${ANSI.reset}`);
       process.exit(1);
       break;
     }

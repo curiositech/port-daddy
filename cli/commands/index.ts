@@ -18,3 +18,6 @@ export * from './daemon.js';
 export * from './resurrection.js';
 export * from './changelog.js';
 export * from './tunnel.js';
+export * from './dns.js';
+export * from './integration.js';
+export * from './briefing.js';

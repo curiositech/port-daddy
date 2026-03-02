@@ -45,6 +45,9 @@ interface SessionsRouteDeps {
     claimFiles(sessionId: string, files: string[]): Record<string, unknown>;
     releaseFiles(sessionId: string, files: string[]): Record<string, unknown>;
     getFileConflicts(files: string[]): Record<string, unknown>;
+    setPhase(sessionId: string, phase: string): Record<string, unknown>;
+    listAllActiveClaims(): Record<string, unknown>;
+    getClaimOwner(filePath: string): Record<string, unknown>;
     list(options?: {
       status?: string;
       agentId?: string | null;
@@ -226,6 +229,52 @@ export function createSessionsRoutes(deps: SessionsRouteDeps): Router {
     } catch (error) {
       metrics.errors++;
       logger.error('session_end_error', { error: (error as Error).message });
+      res.status(500).json({ error: 'internal server error' });
+    }
+  });
+
+  // ==========================================================================
+  // PUT /sessions/:id/phase - Set session phase
+  // ==========================================================================
+  router.put('/sessions/:id/phase', (req: Request, res: Response) => {
+    try {
+      const sessionIdParam = req.params.id;
+      const sessionId = typeof sessionIdParam === 'string' ? sessionIdParam : sessionIdParam[0];
+      const { phase } = req.body;
+
+      if (!phase || typeof phase !== 'string') {
+        return res.status(400).json({
+          success: false,
+          error: 'phase must be a non-empty string',
+          code: 'VALIDATION_ERROR'
+        });
+      }
+
+      const result = sessions.setPhase(sessionId, phase);
+
+      if (!result.success) {
+        const status = result.error === 'session not found' ? 404 : 400;
+        return res.status(status).json({ ...result, code: result.code || 'SESSION_NOT_FOUND' });
+      }
+
+      logger.info('session_phase_set', {
+        sessionId,
+        phase: result.phase,
+        previousPhase: result.previousPhase
+      });
+
+      if (activityLog?.log) {
+        activityLog.log('session_phase', {
+          details: `Session ${sessionId} phase: ${result.previousPhase} → ${result.phase}`,
+          metadata: { sessionId, phase: result.phase as string, previousPhase: result.previousPhase as string }
+        });
+      }
+
+      res.json(result);
+
+    } catch (error) {
+      metrics.errors++;
+      logger.error('session_phase_error', { error: (error as Error).message });
       res.status(500).json({ error: 'internal server error' });
     }
   });
@@ -481,6 +530,44 @@ export function createSessionsRoutes(deps: SessionsRouteDeps): Router {
     } catch (error) {
       metrics.errors++;
       logger.error('quick_note_error', { error: (error as Error).message });
+      res.status(500).json({ error: 'internal server error' });
+    }
+  });
+
+  // ==========================================================================
+  // GET /files - List all active file claims across all sessions
+  // ==========================================================================
+  router.get('/files', (_req: Request, res: Response) => {
+    try {
+      const result = sessions.listAllActiveClaims();
+      res.json(result);
+    } catch (error) {
+      metrics.errors++;
+      logger.error('files_list_error', { error: (error as Error).message });
+      res.status(500).json({ error: 'internal server error' });
+    }
+  });
+
+  // ==========================================================================
+  // GET /files/who-owns - Check who owns a specific file
+  // ==========================================================================
+  router.get('/files/who-owns', (req: Request, res: Response) => {
+    try {
+      const pathParam = req.query.path;
+      if (!pathParam || typeof pathParam !== 'string') {
+        return res.status(400).json({
+          success: false,
+          error: 'path query parameter is required',
+          code: 'VALIDATION_ERROR'
+        });
+      }
+
+      const result = sessions.getClaimOwner(pathParam);
+      res.json(result);
+
+    } catch (error) {
+      metrics.errors++;
+      logger.error('files_who_owns_error', { error: (error as Error).message });
       res.status(500).json({ error: 'internal server error' });
     }
   });

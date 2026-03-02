@@ -589,6 +589,93 @@ const TOOLS = [
     },
   },
 
+  // ── DNS ──────────────────────────────────────────────────────────────
+  {
+    name: 'dns_register',
+    description:
+      'Register a local DNS record for a service. Maps a semantic identity ' +
+      'to a friendly .local hostname (e.g. "myapp:api" -> "myapp-api.local").',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        identity: {
+          type: 'string',
+          description: 'Service identity (e.g. "myapp:api")',
+        },
+        port: {
+          type: 'number',
+          description: 'Port number for the service',
+        },
+        hostname: {
+          type: 'string',
+          description: 'Custom hostname (must end in .local, auto-generated if omitted)',
+        },
+      },
+      required: ['identity', 'port'],
+    },
+  },
+  {
+    name: 'dns_unregister',
+    description: 'Remove a DNS record for a service identity.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        identity: {
+          type: 'string',
+          description: 'Service identity to remove DNS record for',
+        },
+      },
+      required: ['identity'],
+    },
+  },
+  {
+    name: 'dns_list',
+    description: 'List all DNS records. Optionally filter by identity pattern.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        pattern: {
+          type: 'string',
+          description: 'Filter by identity pattern (supports wildcards)',
+        },
+        limit: {
+          type: 'number',
+          description: 'Maximum number of records to return',
+        },
+      },
+    },
+  },
+  {
+    name: 'dns_lookup',
+    description: 'Get DNS record for a specific service identity.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        identity: {
+          type: 'string',
+          description: 'Service identity to look up',
+        },
+      },
+      required: ['identity'],
+    },
+  },
+  {
+    name: 'dns_cleanup',
+    description: 'Remove stale DNS records for identities that no longer have active services.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {},
+    },
+  },
+  {
+    name: 'dns_status',
+    description: 'Get DNS system status including record count and Bonjour/mDNS availability.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {},
+    },
+  },
+
   // ── System ───────────────────────────────────────────────────────────
   {
     name: 'daemon_status',
@@ -614,6 +701,149 @@ const TOOLS = [
           description: 'Filter by activity type',
         },
       },
+    },
+  },
+
+  // ── Session Phases ──────────────────────────────────────────────────
+  {
+    name: 'set_session_phase',
+    description: 'Set the phase of a session. Phases: planning, in_progress, testing, reviewing, completed, abandoned.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        session_id: {
+          type: 'string',
+          description: 'Session ID to update',
+        },
+        phase: {
+          type: 'string',
+          description: 'New phase (planning, in_progress, testing, reviewing, completed, abandoned)',
+        },
+      },
+      required: ['session_id', 'phase'],
+    },
+  },
+
+  // ── File Claims (Global View) ───────────────────────────────────────
+  {
+    name: 'list_file_claims',
+    description: 'List all active file claims across all sessions. Shows which files are being worked on by which agents.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {},
+    },
+  },
+  {
+    name: 'who_owns_file',
+    description: 'Check who has claimed a specific file path. Use before editing to avoid conflicts.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        path: {
+          type: 'string',
+          description: 'File path to check ownership of',
+        },
+      },
+      required: ['path'],
+    },
+  },
+
+  // ── Integration Signals ─────────────────────────────────────────────
+  {
+    name: 'integration_ready',
+    description: 'Signal that work on an identity is ready for other agents to integrate with. Publishes to integration:<project>:ready channel.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        identity: {
+          type: 'string',
+          description: 'Service identity (e.g., myapp:api)',
+        },
+        description: {
+          type: 'string',
+          description: 'What is ready for integration',
+        },
+      },
+      required: ['identity', 'description'],
+    },
+  },
+  {
+    name: 'integration_needs',
+    description: 'Signal that work needs something from another agent. Publishes to integration:<project>:needs channel.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        identity: {
+          type: 'string',
+          description: 'Service identity (e.g., myapp:frontend)',
+        },
+        description: {
+          type: 'string',
+          description: 'What is needed from other agents',
+        },
+      },
+      required: ['identity', 'description'],
+    },
+  },
+  {
+    name: 'integration_list',
+    description: 'List recent integration signals (ready/needs) across all projects or filtered by project.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        project: {
+          type: 'string',
+          description: 'Filter by project name (optional)',
+        },
+      },
+    },
+  },
+
+  // ── Briefing ──────────────────────────────────────────────────────────
+  {
+    name: 'briefing_generate',
+    description:
+      'Generate a .portdaddy/ briefing folder for a project. Writes briefing.md and briefing.json ' +
+      'to disk. The briefing contains current project state: active sessions, agents, salvage queue, ' +
+      'file ownership map, recent activity, and integration signals. Use --full to also archive ' +
+      'completed sessions and write activity.log.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        project_root: {
+          type: 'string',
+          description: 'Absolute path to the project root directory',
+        },
+        project: {
+          type: 'string',
+          description: 'Override project name detection (optional)',
+        },
+        full: {
+          type: 'boolean',
+          description: 'Include session/agent archives and activity.log (default: false)',
+        },
+      },
+      required: ['project_root'],
+    },
+  },
+  {
+    name: 'briefing_read',
+    description:
+      'Read the current briefing for a project as JSON (no disk write). ' +
+      'Returns the same data as `pd briefing --json`.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        project: {
+          type: 'string',
+          description: 'Project name to get briefing for',
+        },
+        project_root: {
+          type: 'string',
+          description: 'Absolute path to the project root (for project detection)',
+        },
+      },
+      required: ['project'],
     },
   },
 ];
@@ -776,16 +1006,17 @@ async function handleTool(
     // ── Agents ─────────────────────────────────────────────────────────
     case 'register_agent': {
       const body: Record<string, unknown> = {
+        id: args.agent_id,
         type: (args.type as string) || 'mcp',
       };
       if (args.identity) body.identity = args.identity;
       if (args.purpose) body.purpose = args.purpose;
-      res = await POST(`/agents/${encodeURIComponent(args.agent_id as string)}`, body);
+      res = await POST('/agents', body);
       break;
     }
 
     case 'agent_heartbeat': {
-      res = await PUT(`/agents/${encodeURIComponent(args.agent_id as string)}/heartbeat`);
+      res = await POST(`/agents/${encodeURIComponent(args.agent_id as string)}/heartbeat`);
       break;
     }
 
@@ -798,14 +1029,13 @@ async function handleTool(
     // ── Salvage ────────────────────────────────────────────────────────
     case 'check_salvage': {
       const qs = args.project ? `?project=${encodeURIComponent(args.project as string)}` : '';
-      res = await GET(`/salvage${qs}`);
+      res = await GET(`/resurrection/pending${qs}`);
       break;
     }
 
     case 'claim_salvage': {
-      res = await POST('/salvage', {
-        deadAgentId: args.dead_agent_id,
-        newAgentId: args.new_agent_id,
+      res = await POST(`/resurrection/claim/${encodeURIComponent(args.dead_agent_id as string)}`, {
+        claimedBy: args.new_agent_id,
       });
       break;
     }
@@ -837,6 +1067,43 @@ async function handleTool(
       break;
     }
 
+    // ── DNS ────────────────────────────────────────────────────────────
+    case 'dns_register': {
+      const body: Record<string, unknown> = { port: args.port };
+      if (args.hostname) body.hostname = args.hostname;
+      res = await POST(`/dns/${encodeURIComponent(args.identity as string)}`, body);
+      break;
+    }
+
+    case 'dns_unregister': {
+      res = await DELETE(`/dns/${encodeURIComponent(args.identity as string)}`);
+      break;
+    }
+
+    case 'dns_list': {
+      const params = new URLSearchParams();
+      if (args.pattern) params.set('pattern', args.pattern as string);
+      if (args.limit) params.set('limit', String(args.limit));
+      const qs = params.toString() ? `?${params.toString()}` : '';
+      res = await GET(`/dns${qs}`);
+      break;
+    }
+
+    case 'dns_lookup': {
+      res = await GET(`/dns/${encodeURIComponent(args.identity as string)}`);
+      break;
+    }
+
+    case 'dns_cleanup': {
+      res = await POST('/dns/cleanup');
+      break;
+    }
+
+    case 'dns_status': {
+      res = await GET('/dns/status');
+      break;
+    }
+
     // ── System ─────────────────────────────────────────────────────────
     case 'daemon_status': {
       const [health, version, metrics] = await Promise.all([
@@ -861,6 +1128,98 @@ async function handleTool(
       if (args.type) params.set('type', args.type as string);
       const qs = params.toString() ? `?${params.toString()}` : '';
       res = await GET(`/activity${qs}`);
+      break;
+    }
+
+    // ── Session Phases ──────────────────────────────────────────────────
+    case 'set_session_phase': {
+      res = await api('PUT', `/sessions/${encodeURIComponent(args.session_id as string)}/phase`, {
+        phase: args.phase,
+      });
+      break;
+    }
+
+    // ── File Claims ─────────────────────────────────────────────────────
+    case 'list_file_claims': {
+      res = await GET('/files');
+      break;
+    }
+
+    case 'who_owns_file': {
+      res = await GET(`/files/who-owns?path=${encodeURIComponent(args.path as string)}`);
+      break;
+    }
+
+    // ── Integration Signals ─────────────────────────────────────────────
+    case 'integration_ready': {
+      const project = (args.identity as string).split(':')[0];
+      const channel = `integration:${project}:ready`;
+      res = await POST(`/msg/${encodeURIComponent(channel)}`, {
+        payload: {
+          type: 'ready',
+          identity: args.identity,
+          description: args.description,
+          timestamp: Date.now(),
+        },
+        sender: args.identity,
+      });
+      break;
+    }
+
+    case 'integration_needs': {
+      const project = (args.identity as string).split(':')[0];
+      const channel = `integration:${project}:needs`;
+      res = await POST(`/msg/${encodeURIComponent(channel)}`, {
+        payload: {
+          type: 'needs',
+          identity: args.identity,
+          description: args.description,
+          timestamp: Date.now(),
+        },
+        sender: args.identity,
+      });
+      break;
+    }
+
+    // ── Briefing ─────────────────────────────────────────────────────
+    case 'briefing_generate': {
+      const body: Record<string, unknown> = { projectRoot: args.project_root };
+      if (args.project) body.project = args.project;
+      if (args.full) body.full = true;
+      res = await POST('/briefing', body);
+      break;
+    }
+
+    case 'briefing_read': {
+      const qs = args.project_root
+        ? `?projectRoot=${encodeURIComponent(args.project_root as string)}`
+        : '';
+      res = await GET(`/briefing/${encodeURIComponent(args.project as string)}${qs}`);
+      break;
+    }
+
+    case 'integration_list': {
+      // List integration channels then fetch messages
+      const chRes = await GET('/channels');
+      const channels = (chRes.data.channels || []) as Array<{ channel: string }>;
+      const prefix = args.project ? `integration:${args.project}:` : 'integration:';
+      const integrationChannels = channels.filter(c => c.channel.startsWith(prefix));
+
+      const signals: Array<Record<string, unknown>> = [];
+      for (const ch of integrationChannels.slice(0, 20)) {
+        const msgRes = await GET(`/msg/${encodeURIComponent(ch.channel)}?limit=10`);
+        const messages = (msgRes.data.messages || []) as Array<{ payload: unknown; sender: string | null; createdAt: number }>;
+        for (const msg of messages) {
+          const payload = typeof msg.payload === 'string' ? JSON.parse(msg.payload) : msg.payload;
+          signals.push({
+            channel: ch.channel,
+            ...(payload as Record<string, unknown>),
+            sender: msg.sender,
+          });
+        }
+      }
+      signals.sort((a, b) => (b.timestamp as number || 0) - (a.timestamp as number || 0));
+      res = { status: 200, data: { success: true, signals, count: signals.length } };
       break;
     }
 
@@ -969,6 +1328,12 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => ({
       description: 'All active public tunnels',
       mimeType: 'application/json',
     },
+    {
+      uri: 'port-daddy://dns',
+      name: 'DNS Records',
+      description: 'All local DNS records mapping identities to .local hostnames',
+      mimeType: 'application/json',
+    },
   ],
 }));
 
@@ -992,6 +1357,9 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
       break;
     case 'port-daddy://tunnels':
       res = await GET('/tunnels');
+      break;
+    case 'port-daddy://dns':
+      res = await GET('/dns');
       break;
     default:
       throw new McpError(ErrorCode.InvalidRequest, `Unknown resource: ${uri}`);

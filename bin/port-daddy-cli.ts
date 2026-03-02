@@ -43,15 +43,21 @@ import {
   handleLock, handleUnlock, handleLocks,
   // Messaging
   handlePub, handleSub, handleChannels, handleWait,
-  // Sessions
-  handleSession, handleSessions, handleNote, handleNotes,
+  // Sessions & Files
+  handleSession, handleSessions, handleNote, handleNotes, handleFiles, handleWhoOwns,
   // Agents & Resurrection
   handleAgent, handleAgents,
   handleSalvage,
   // Changelog
   handleChangelog,
+  // Integration
+  handleIntegration,
+  // Briefing
+  handleBriefing, handleHistory,
   // Tunnel
   handleTunnel,
+  // DNS
+  handleDns,
   // Activity
   handleLog,
   // Webhooks
@@ -99,6 +105,9 @@ const TIER_2_COMMANDS: Set<string> = new Set([
   'up', 'down',
   'channels', 'webhook', 'webhooks',
   'metrics', 'health', 'dashboard',
+  'dns',
+  'files', 'who-owns', 'integration',
+  'briefing', 'history',
 ]);
 
 /**
@@ -430,9 +439,34 @@ Sessions & Notes:
   session abandon   End active session (abandoned)
   session rm <id>   Delete a session
   session files     Manage files in active session (add/rm)
+  session phase     Set session phase (planning/in_progress/testing/reviewing)
   sessions          List sessions (default: active only)
   note <content>    Quick note (auto-creates session if needed)
   notes [id]        View notes for session or recent across all
+
+File Claims:
+  files             List all active file claims across sessions
+  who-owns <path>   Check who has claimed a file
+
+Integration Signals:
+  integration ready <id> "desc"   Signal work is ready for integration
+  integration needs <id> "desc"   Signal work needs something from another agent
+  integration list                Show recent integration signals
+
+DNS:
+  dns list          List DNS records
+  dns register      Register a .local hostname for a service
+  dns unregister    Remove a DNS record
+  dns lookup        Lookup by hostname
+  dns cleanup       Remove stale records
+  dns status        DNS system status
+
+Briefing:
+  briefing              Generate .portdaddy/briefing.md for current project
+  briefing --full       Include session archives + activity log
+  briefing --json       Output briefing as JSON (no disk write)
+  history               View recent project activity
+  history --agent <id>  Filter to one agent
 
 Project Setup:
   scan [dir]        Deep scan project, detect all services (alias: s)
@@ -543,7 +577,9 @@ const ALL_COMMANDS: string[] = [
   'pub', 'publish', 'sub', 'subscribe', 'wait', 'lock', 'unlock', 'locks',
   'up', 'down', 'scan', 's', 'projects', 'p',
   'agent', 'agents', 'log', 'activity',
-  'session', 'sessions', 'note', 'notes',
+  'session', 'sessions', 'note', 'notes', 'files', 'who-owns', 'integration',
+  'dns',
+  'briefing', 'history',
   'dashboard', 'channels', 'webhook', 'webhooks', 'metrics', 'config', 'health', 'ports',
   'start', 'stop', 'restart', 'status', 'install', 'uninstall', 'dev', 'ci-gate',
   'doctor', 'diagnose', 'mcp', 'version', 'help'
@@ -1481,6 +1517,11 @@ async function main(): Promise<void> {
         await handleTunnel(positional[0], positional.slice(1), options);
         break;
 
+      // DNS
+      case 'dns':
+        await handleDns(positional[0], positional.slice(1), options);
+        break;
+
       // Activity log
       case 'log':
       case 'activity':
@@ -1502,6 +1543,29 @@ async function main(): Promise<void> {
 
       case 'notes':
         await handleNotes(positional[0], options);
+        break;
+
+      // File claims
+      case 'files':
+        await handleFiles(options);
+        break;
+
+      case 'who-owns':
+        await handleWhoOwns(positional[0], options);
+        break;
+
+      // Integration signals
+      case 'integration':
+        await handleIntegration(positional[0], positional.slice(1), options);
+        break;
+
+      // Briefing
+      case 'briefing':
+        await handleBriefing(options);
+        break;
+
+      case 'history':
+        await handleHistory(options);
         break;
 
       // Daemon management

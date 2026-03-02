@@ -11,20 +11,35 @@ Port Daddy eliminates the chaos of multi-agent development. No more port collisi
 
 ## The Compulsory Registration Pattern
 
-**Every agent session should start with registration.** This unlocks resurrection:
+**Every agent session should start with these steps, in order:**
 
 ```bash
-# At session start - register yourself
-pd agent register --agent claude-$(date +%s) --name "Feature Builder" --type claude-code --purpose "Implementing dark mode"
+# 0. Read the project briefing (BEFORE anything else)
+#    If .portdaddy/briefing.md exists, read it for project context.
+#    Otherwise, generate one:
+pd briefing --json            # Get structured project state
+# Or read the file directly: cat .portdaddy/briefing.md
 
-# Send heartbeats every 5 minutes (agents marked stale at 10min, dead at 20min)
-pd agent heartbeat --agent <your-id>
-
-# Check if another agent died mid-task (do this BEFORE starting new work)
+# 1. Check if another agent died mid-task (BEFORE starting new work)
 pd salvage
+
+# 2. Register yourself (unlocks resurrection if YOU die)
+pd agent register --agent claude-$(date +%s) --name "Feature Builder" --type claude-code --identity myapp:api --purpose "Implementing dark mode"
+
+# 3. Start a session with file claims
+pd session start "Implementing dark mode" --files src/theme.ts src/components/ThemeProvider.tsx
+
+# 4. Check who owns files you'll touch (BEFORE editing)
+pd who-owns src/auth.ts
+pd files                        # See all claimed files across all agents
+
+# 5. Send heartbeats every 5 minutes (agents marked stale at 10min, dead at 20min)
+pd agent heartbeat --agent <your-id>
 ```
 
 Registration is the cost of entry to resurrection. If you die, another agent can pick up your work.
+
+**Check before you edit.** Run `pd who-owns <file>` before touching any file. If someone else claimed it, coordinate first.
 
 ## Quick Reference
 
@@ -65,23 +80,61 @@ Every service gets a semantic identity. Port Daddy hashes this to a stable port.
 
 **Same identity = same port, every time.** No more "what port was that on?"
 
-### 2. Sessions Are Mutable, Notes Are Immutable
+### 2. Sessions Have Phases, Notes Are Immutable
 
-Sessions have a lifecycle:
+Sessions have a lifecycle with granular phases:
 ```
-active → completed
-active → abandoned
+status:  active → completed | abandoned
+phases:  planning → in_progress → testing → reviewing → completed | abandoned
+```
+
+Set your phase as you work:
+```bash
+pd session phase <session-id> planning      # Designing approach
+pd session phase <session-id> in_progress   # Writing code (default)
+pd session phase <session-id> testing       # Running/writing tests
+pd session phase <session-id> reviewing     # Code review
+pd session phase <session-id> completed     # Done (auto-closes session)
 ```
 
 Notes are append-only. You can never edit or delete a note. They form the permanent record of what happened. If you wrote it, it happened.
 
-**Why?** When debugging "what went wrong?", you need the full timeline. Edited notes lie.
+**Why phases?** Other agents can see "Agent X is in testing" and know not to push conflicting changes. "Agent Y is in planning" means the code isn't written yet.
 
-### 3. File Claims Are Advisory
+### 3. File Claims Are Advisory — But Check First
 
 `pd session files add src/auth.ts` doesn't lock the file. It announces your intent. Other agents see the conflict and can coordinate.
 
+**Before editing any file, always check:**
+```bash
+pd who-owns src/auth.ts          # Who claimed this file?
+pd files                          # Global view of all claimed files
+```
+
+If a file is claimed by another session, either:
+1. Coordinate via notes: `pd note "Need src/auth.ts — @other-agent please release"`
+2. Use integration signals: `pd integration needs myapp:api "Need access to auth module"`
+3. Force-claim if urgent: `pd session files add src/auth.ts --force`
+
 **Why?** Hard locks cause deadlocks. Advisory claims cause conversations.
+
+### 4. Integration Signals for Cross-Agent Coordination
+
+When your work is ready for another agent, or when you need something:
+
+```bash
+# Signal that your API is ready for the frontend agent
+pd integration ready myapp:api "Auth endpoints complete, see /api/v2/auth/*"
+
+# Signal that you need something from another agent
+pd integration needs myapp:frontend "Waiting for API auth endpoints from @api-agent"
+
+# See all integration signals
+pd integration list
+pd integration list --project myapp   # Filter by project
+```
+
+Integration signals use pub/sub under the hood (`integration:<project>:ready` / `integration:<project>:needs` channels). Other agents can subscribe to these channels for real-time notifications.
 
 ## Workflows
 
@@ -168,7 +221,7 @@ pd session done
 ```
 
 **Tier 1 (no daemon):** claim, release, find, lock, unlock, session, note, notes, status
-**Tier 2 (daemon required):** pub/sub, SSE, webhooks, orchestration (up/down)
+**Tier 2 (daemon required):** pub/sub, SSE, webhooks, orchestration (up/down), files, who-owns, integration
 
 ## Dashboard
 
@@ -183,25 +236,73 @@ Open `http://localhost:9876` for a visual overview of:
 | Situation | Action |
 |-----------|--------|
 | Starting any dev server | `pd claim <identity> -q` |
+| Starting any work session | `pd salvage` then `pd session start` |
+| Before editing any file | `pd who-owns <path>` |
 | Multi-file refactoring | `pd session start` + claim files |
+| Changing work phase | `pd session phase <id> testing` |
+| Work ready for integration | `pd integration ready <identity> "desc"` |
+| Need input from another agent | `pd integration needs <identity> "desc"` |
 | Handing off to another agent | `pd note --type handoff` |
 | Critical section (deploy, migrate) | `pd lock` |
 | Debugging "what happened?" | `pd notes` or `pd sessions` |
 | Port conflict | `pd find "*"` to see what's claimed |
+| See all active work | `pd files` and `pd sessions --all-worktrees` |
 
 ## Anti-Patterns
 
 **Don't:**
 - Use raw port numbers (`--port 3000`) — they collide
-- Edit files without checking `pd sessions --files`
+- Edit files without running `pd who-owns <path>` first
 - Forget to end sessions — stale sessions confuse future agents
 - Skip notes — your future self (or another agent) needs context
+- Start work without checking `pd salvage` first
 
 **Do:**
 - Always claim ports through Port Daddy
-- Start sessions for non-trivial work
+- Check `pd salvage` at session start (someone may have died mid-task)
+- Check `pd who-owns <file>` before editing any file
+- Start sessions for non-trivial work and claim your files
+- Update your phase as you progress (`pd session phase`)
+- Signal readiness with `pd integration ready` when done
 - Leave notes liberally — they're cheap
 - End sessions when done (even if abandoning)
+
+## Project Briefing (`.portdaddy/`)
+
+Every project can have a `.portdaddy/` directory — a living intelligence layer generated from daemon state. It tells any agent what's happening in this project right now.
+
+```bash
+# Generate the briefing (writes .portdaddy/briefing.md + briefing.json)
+pd briefing
+
+# Full sync — also archives completed sessions and writes activity.log
+pd briefing --full
+
+# JSON to stdout (no file write, good for piping)
+pd briefing --json
+
+# Override project detection
+pd briefing --project myapp
+
+# View recent project activity
+pd history
+pd history --limit 50
+pd history --agent claude-abc
+```
+
+**What's in the briefing:**
+- Active sessions and who's working on what
+- Active agents and their purposes
+- Dead agents needing salvage (with context)
+- File ownership map (who claimed which files)
+- Recent activity timeline
+- Integration signals (ready/needs)
+- Active services and ports
+
+**When to use:**
+- At session start (step 0) — read `.portdaddy/briefing.md` if it exists
+- Before starting new work — understand what's already happening
+- After completing work — run `pd briefing --full` to update for the next agent
 
 ## Worktree-Aware Development
 

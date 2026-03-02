@@ -244,6 +244,63 @@ _pd_cmd_tunnel() {
   esac
 }
 
+_pd_cmd_dns() {
+  local -a subcmds
+  subcmds=(
+    'list:list DNS records'
+    'ls:list DNS records (alias)'
+    'register:register a DNS record for a service'
+    'add:register a DNS record (alias)'
+    'unregister:remove a DNS record'
+    'rm:remove a DNS record (alias)'
+    'lookup:lookup by hostname'
+    'cleanup:remove stale DNS records'
+    'status:DNS system status'
+    'help:show help'
+  )
+
+  if (( CURRENT == 2 )); then
+    _describe 'subcommand' subcmds
+    return
+  fi
+
+  local subcmd="${words[2]}"
+  case "$subcmd" in
+    register|add)
+      _arguments \
+        '--port[port number]:port:' \
+        '--hostname[custom hostname]:hostname:' \
+        '(-j --json)'{-j,--json}'[JSON output]' \
+        '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+        '1:service identity:_pd_complete_services'
+      ;;
+    unregister|rm|remove)
+      _arguments \
+        '(-j --json)'{-j,--json}'[JSON output]' \
+        '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+        '1:service identity:_pd_complete_services'
+      ;;
+    lookup)
+      _arguments \
+        '(-j --json)'{-j,--json}'[JSON output]' \
+        '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+        '1:hostname:'
+      ;;
+    list|ls)
+      _arguments \
+        '--pattern[filter by identity pattern]:pattern:' \
+        '--limit[max records to return]:limit:' \
+        '(-j --json)'{-j,--json}'[JSON output]' \
+        '(-q --quiet)'{-q,--quiet}'[suppress output]'
+      ;;
+    cleanup|status|help)
+      _arguments \
+        '(-j --json)'{-j,--json}'[JSON output]' \
+        '(-q --quiet)'{-q,--quiet}'[suppress output]'
+      ;;
+  esac
+}
+
 _pd_cmd_env() {
   _arguments \
     '--file[write env vars to file]:file:_files' \
@@ -788,6 +845,85 @@ _pd_cmd_changelog() {
   esac
 }
 
+_pd_cmd_files() {
+  _arguments \
+    '--session[filter by session ID]:session ID:' \
+    '(-j --json)'{-j,--json}'[JSON output]' \
+    '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+    '(-h --help)'{-h,--help}'[show help]'
+}
+
+_pd_cmd_who_owns() {
+  _arguments \
+    '(-j --json)'{-j,--json}'[JSON output]' \
+    '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+    '(-h --help)'{-h,--help}'[show help]' \
+    '1:file path:_files'
+}
+
+_pd_cmd_integration() {
+  local -a integration_subcmds
+  integration_subcmds=(
+    'ready:signal that work is ready for integration'
+    'needs:signal that work needs something from another agent'
+    'list:list recent integration signals'
+  )
+
+  local state subcmd
+  _arguments -C \
+    '--project[filter by project name]:project name:' \
+    '(-j --json)'{-j,--json}'[JSON output]' \
+    '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+    '(-h --help)'{-h,--help}'[show help]' \
+    '1:subcommand:->subcommand' \
+    '*::subcommand args:->args' \
+    && return
+
+  case "$state" in
+    subcommand)
+      _describe 'integration subcommand' integration_subcmds
+      ;;
+    args)
+      subcmd="${words[1]}"
+      case "$subcmd" in
+        ready|needs)
+          _arguments \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+            '1:identity:_pd_complete_services' \
+            '2:description:'
+          ;;
+        list)
+          _arguments \
+            '--project[filter by project name]:project name:' \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[suppress output]'
+          ;;
+      esac
+      ;;
+  esac
+}
+
+_pd_cmd_briefing() {
+  _arguments \
+    '--full[full sync with session/agent archives and activity.log]' \
+    '--project[override project detection]:project name:' \
+    '--dir[target directory]:directory:_directories' \
+    '(-j --json)'{-j,--json}'[JSON output (no disk write)]' \
+    '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+    '(-h --help)'{-h,--help}'[show help]'
+}
+
+_pd_cmd_history() {
+  _arguments \
+    '--limit[max entries to return]:count:' \
+    '--type[activity type]:type:(claim release lock unlock pub sub agent heartbeat)' \
+    '--agent[filter by agent ID]:agent ID:_pd_complete_agents' \
+    '(-j --json)'{-j,--json}'[JSON output]' \
+    '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+    '(-h --help)'{-h,--help}'[show help]'
+}
+
 # ---------------------------------------------------------------------------
 # Main completion entry point
 # ---------------------------------------------------------------------------
@@ -809,6 +945,7 @@ _port_daddy() {
     'url:manage service URLs (get/set/rm/list)'
     'env:get environment variable block for a service'
     'tunnel:manage tunnels (start/stop/status/list)'
+    'dns:local DNS records for services'
     # Agent coordination
     'pub:publish a message to a channel'
     'publish:publish a message to a channel (alias for pub)'
@@ -834,6 +971,13 @@ _port_daddy() {
     'resurrection:check for dead agents (alias for salvage)'
     # Changelog
     'changelog:hierarchical changelog with identity-based rollup'
+    # File Claims & Integration
+    'files:list all active file claims across sessions'
+    'who-owns:check who has claimed a specific file path'
+    'integration:manage integration signals (ready/needs/list)'
+    # Briefing & History
+    'briefing:generate .portdaddy/ project briefing'
+    'history:view recent project activity'
     # System & Monitoring
     'dashboard:open web dashboard in browser'
     'channels:list pub/sub channels'
@@ -897,6 +1041,7 @@ _port_daddy() {
         url)                _pd_cmd_url ;;
         env)                _pd_cmd_env ;;
         tunnel)             _pd_cmd_tunnel ;;
+        dns)                _pd_cmd_dns ;;
         pub|publish)        _pd_cmd_pub ;;
         sub|subscribe)      _pd_cmd_sub ;;
         wait)               _pd_cmd_wait ;;
@@ -927,6 +1072,11 @@ _port_daddy() {
         config)                 _pd_cmd_config ;;
         health)                 _pd_cmd_health ;;
         ports)                  _pd_cmd_ports ;;
+        files)                  _pd_cmd_files ;;
+        who-owns)               _pd_cmd_who_owns ;;
+        integration)            _pd_cmd_integration ;;
+        briefing)               _pd_cmd_briefing ;;
+        history)                _pd_cmd_history ;;
         version|help)       ;;
         *)                  ;;
       esac
