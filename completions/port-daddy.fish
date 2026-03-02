@@ -337,6 +337,7 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command session" -x -a 'abandon' -d 'Abandon a session'
     complete -c $prog -n "__pd_using_command session" -x -a 'rm' -d 'Delete a session and cascade notes/files'
     complete -c $prog -n "__pd_using_command session" -x -a 'files' -d 'Manage file claims for a session'
+    complete -c $prog -n "__pd_using_command session" -x -a 'phase' -d 'Set session phase'
 
     # sessions
     complete -c $prog -n "__pd_using_command sessions" -l all -d 'Show all sessions, not just active'

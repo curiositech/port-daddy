@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Bash completion for Port Daddy v2 CLI
+# Bash completion for Port Daddy v3.4 CLI
 #
 # INSTALLATION:
 #   Option 1 — Source from your shell config:
@@ -645,7 +645,7 @@ _port_daddy() {
     # session  <subcommand> [args]
     # -----------------------------------------------------------------------
     session)
-      local session_subcommands='start end done abandon rm files'
+      local session_subcommands='start end done abandon rm files phase'
       # Find which subcommand (if any) has been typed after "session".
       local subcmd=""
       for (( i = 1; i < cword; i++ )); do
@@ -697,6 +697,20 @@ _port_daddy() {
           else
             _pd_opts ''
           fi
+          ;;
+        phase)
+          # session phase <session-id> <phase-name>
+          case "$prev" in
+            phase)
+              # First arg after phase: session ID (free-form)
+              COMPREPLY=()
+              ;;
+            *)
+              # Second arg: phase name
+              # shellcheck disable=SC2207
+              COMPREPLY=( $(compgen -W "planning in_progress testing reviewing completed abandoned" -- "$cur") )
+              ;;
+          esac
           ;;
         *)
           _pd_opts ''

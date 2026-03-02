@@ -317,6 +317,9 @@ export function createLocks(db: Database.Database) {
       ttl = MAX_TTL;
     }
 
+    // Clean expired locks first (consistent with acquire/check/list)
+    stmts.releaseExpired.run(now);
+
     const existing = stmts.get.get(name) as LockRow | undefined;
     if (!existing) {
       return { success: false, error: 'lock not held' };

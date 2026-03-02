@@ -395,8 +395,10 @@ app.use(rateLimit({
   skip: (req: Request): boolean => {
     // Skip rate limiting for health checks
     if (req.path === '/health' || req.path === '/version') return true;
-    // Skip for localhost/loopback (this is a local dev tool)
+    // Skip for Unix socket connections (no remote address = local socket)
     const ip = req.ip || req.socket.remoteAddress || '';
+    if (!ip) return true;
+    // Skip for localhost/loopback (this is a local dev tool)
     if (ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1') return true;
     return false;
   },

@@ -1,6 +1,6 @@
 #compdef port-daddy pd
 
-# Zsh completion for Port Daddy v2 CLI
+# Zsh completion for Port Daddy v3.4 CLI
 #
 # INSTALLATION:
 #   Option 1 — Fpath (recommended):
@@ -637,6 +637,7 @@ _pd_cmd_session() {
     'abandon:abandon a session'
     'rm:delete a session and cascade notes/files'
     'files:manage file claims for a session'
+    'phase:set session phase (planning/in_progress/testing/etc)'
   )
 
   local state subcmd
@@ -691,6 +692,13 @@ _pd_cmd_session() {
               _describe 'files subcommand' files_subcmds
               ;;
           esac
+          ;;
+        phase)
+          _arguments \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+            '1:session ID:' \
+            '2:phase:(planning in_progress testing reviewing completed abandoned)'
           ;;
       esac
       ;;

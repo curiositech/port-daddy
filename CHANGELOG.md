@@ -7,6 +7,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.4.0] - 2026-03-01
+
+### Added
+- **Local DNS records** (`lib/dns.ts`): Map service identities to `.local` hostnames for human-friendly URLs
+  - `pd dns register myapp:api api.myapp.local` — create a DNS record
+  - `pd dns list` — list all records; `pd dns lookup <hostname>` — resolve hostname to port
+  - `pd dns cleanup` / `pd dns status` — maintenance commands
+  - API: `POST/GET/DELETE /dns`, `GET /dns/lookup/:hostname`, `POST /dns/cleanup`, `GET /dns/status`
+  - MCP: `dns_register`, `dns_lookup`, `dns_list`, `dns_cleanup`, `dns_status` tools
+  - SDK: `dnsRegister()`, `dnsLookup()`, `dnsList()`, `dnsUnregister()`, `dnsCleanup()`, `dnsStatus()` methods
+  - 75 unit tests
+- **Briefing system** (`.portdaddy/`): Project-local agent intelligence layer
+  - `pd briefing generate` — generate a briefing from project context
+  - `pd briefing read` — read the current briefing
+  - MCP: `briefing_generate`, `briefing_read` tools
+  - 40+ unit tests
+- **Session phases**: Track session lifecycle stages (`planning`, `in_progress`, `testing`, `reviewing`, `completed`, `abandoned`)
+  - `pd session phase <session-id> <phase>` — set session phase
+  - Shell completions in bash, zsh, fish
+- **Global file claim view**: See all file claims across all sessions
+  - `pd files` — list all claimed files
+  - `pd who-owns <file>` — find which session owns a file
+- **Integration signals** via pub/sub: Coordinate readiness between agents
+  - `pd integration ready <service>` — signal a service is ready
+  - `pd integration needs <service>` — request a dependency
+  - `pd integration list` — list integration status
+- **Parity enforcement** (3 new test suites):
+  - `manifest-enforcement.test.js`: bidirectional feature-to-code parity checks
+  - `mcp-parity.test.js`: MCP tool-to-manifest route coverage
+  - `endpoint-parity.test.js`: CLI/MCP calls-to-server routes with regression guards
+
+### Changed
+- **API route consolidation**: `POST /claim` and `DELETE /release` now accept `id` in request body (no longer in URL path) for consistency with `POST /agents`
+- **Agent heartbeat**: Route is now `POST /agents/:id/heartbeat` (was incorrectly documented as PUT)
+- **Lock extend**: Now cleans expired locks before checking existence (consistent with acquire/check/list)
+- **Rate limiter**: Skip rate limiting for Unix socket connections (local-only tool)
+
+### Fixed
+- **Daemon resilience — sleep detection**: Detect macOS sleep via timestamp gaps, pause agent reaper during 5-minute grace period to prevent false-positive agent deaths
+- **TCP port fallback**: Try ports 9876–9886 if preferred port is busy; write actual port to `/tmp/port-daddy-port` for CLI discovery
+- **SQLite integrity**: Verify WAL mode on init, run `PRAGMA integrity_check` on startup, `closeDatabase()` with WAL checkpoint on clean shutdown
+- **Duplicate daemon detection**: Socket liveness probe + PID file prevents spawning multiple daemons
+- **Non-blocking system ports scan**: Replaced `spawnSync('lsof')` with async background refresh (root cause of daemon freeze when lsof hangs system-wide)
+- **Non-fatal TCP listener**: `EADDRINUSE` on port 9876 no longer crashes daemon (socket stays active)
+- **Startup self-healing diagnostics**: `pd doctor` — 4 new checks (SQLite integrity, stale socket, PID staleness, stuck lsof processes)
+- **MCP bug fixes**: `register_agent` uses `POST /agents` with id in body; `check_salvage` calls `/resurrection/pending`; `claim_salvage` calls `/resurrection/claim/:id`
+- **Agent inbox**: `markAllRead` now only updates unread rows (accurate change count)
+- **Adversarial integration tests**: Fixed 54 test failures — updated route patterns for v3.4 API, fixed hardcoded assertions, converted direct fetch calls to Unix socket helper, corrected API behavior expectations (idempotent release, lock TTL normalization, agent upsert)
+
+### Tests
+- 6 new unit test suites: `resurrection.test.js` (49), `tunnel.test.js` (29), `changelog.test.js` (54), `inbox.test.js` (48), `dns.test.js` (75), `briefing.test.js` (40+)
+- 3 new parity enforcement suites
+- Total: 1961 tests across 36 suites (all passing)
+
 ## [3.3.0] - 2026-02-27
 
 ### Added

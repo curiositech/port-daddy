@@ -214,30 +214,15 @@ Fish completions are historically the worst — double-check fish.
 
 **Update this section for every feature in progress.**
 
-### Context-Aware Salvage (Agent Resurrection)
-
-When an agent dies, other agents in the same project should be notified.
+### Context-Aware Salvage — Remaining Work
 
 | Surface | Status | Notes |
 |---------|--------|-------|
-| `lib/agents.ts` | ✅ DONE | Added identity_project/stack/context, worktree_id, purpose columns. `register()` returns salvageHint. `listStale()` filters by identity prefix. |
-| `lib/resurrection.ts` | ✅ DONE | Added identity_project/stack/context columns. `pending()` and `list()` filter by project/stack. `countByProject()` for salvage hints. |
-| `routes/agents.ts` | ✅ DONE | Accepts identity, worktreeId, purpose. Returns salvageHint. Broadcasts identity to radio. |
-| `routes/resurrection.ts` | ✅ DONE | Added `?project=` and `?stack=` filters to `/resurrection/pending` and `/resurrection`. |
-| `cli/commands/agents.ts` | ✅ DONE | Accepts `--identity`, `--purpose`, `--worktree`. Shows salvageHint notice on register. |
-| `cli/commands/resurrection.ts` | ✅ DONE | Added `--project`, `--stack` flags. Warns on `--all`. Shows identity in output. |
 | `public/index.html` | ⬜ TODO | Add "Resurrection Queue" panel showing dead agents by project |
-| `completions/*.{bash,zsh,fish}` | ⬜ TODO | Add `--identity`, `--project`, `--purpose` flags |
+| `completions/*.{bash,zsh,fish}` | ✅ DONE | `--identity`, `--project`, `--purpose` flags added in v3.3/v3.4 |
 | `lib/client.ts` | ⬜ TODO | Add identity/purpose params to register(), salvage filter to SDK |
 | `README.md` | ⬜ TODO | Document agent identity and auto-salvage notice |
-| `CHANGELOG.md` | ⬜ TODO | Add entry when feature ships |
-
-**Flow:**
-1. `pd agent register --identity myapp:api --purpose "Building auth"` → stores identity
-2. Server checks for dead agents in `myapp:*` → returns `salvageHint` in response
-3. CLI displays: "⚠️ 2 dead agent(s) in myapp:*. Run: pd salvage --project myapp"
-4. `pd salvage --project myapp` shows only dead agents in that project
-5. Dashboard shows resurrection queue prominently with project grouping
+| `CHANGELOG.md` | ✅ DONE | Entry in v3.3.0 and v3.4.0 |
 
 ## Adding New Features
 
@@ -258,8 +243,8 @@ When an agent dies, other agents in the same project should be notified.
 
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
-| `/claim/:id` | POST | Claim a port |
-| `/release/:id` | DELETE | Release a service |
+| `/claim` | POST | Claim a port (id in body) |
+| `/release` | DELETE | Release a service (id in body) |
 | `/services` | GET | List services |
 | `/services/health` | GET | Health check all services |
 | `/services/health/:id` | GET | Health check single service |
@@ -267,9 +252,14 @@ When an agent dies, other agents in the same project should be notified.
 | `/locks` | GET | List locks |
 | `/msg/:channel` | POST/GET/DELETE | Publish/get/clear messages |
 | `/channels` | GET | List pub/sub channels |
-| `/subscribe/:channel` | GET | SSE subscription |
-| `/agents/:id` | POST/DELETE | Register/unregister agent |
-| `/agents/:id/heartbeat` | PUT | Agent heartbeat |
+| `/msg/:channel/subscribe` | GET | SSE subscription |
+| `/agents` | POST/GET | Register agent (id in body) / list agents |
+| `/agents/:id` | GET/DELETE | Get/unregister agent |
+| `/agents/:id/heartbeat` | POST | Agent heartbeat |
+| `/agents/:id/inbox` | POST/GET/DELETE | Send/read/clear inbox messages |
+| `/agents/:id/inbox/stats` | GET | Inbox message stats |
+| `/agents/:id/inbox/:messageId/read` | PUT | Mark inbox message read |
+| `/agents/:id/inbox/read-all` | PUT | Mark all inbox messages read |
 | `/webhooks` | POST/GET | Create/list webhooks |
 | `/webhooks/events` | GET | List available webhook events |
 | `/webhooks/:id` | GET/PUT/DELETE | Get/update/delete webhook |
@@ -280,9 +270,16 @@ When an agent dies, other agents in the same project should be notified.
 | `/sessions/:id/notes` | POST/GET | Add/get session notes |
 | `/sessions/:id/files` | POST/DELETE/GET | Claim/release/list files |
 | `/notes` | POST/GET | Quick note / recent notes |
-| `/salvage` | GET/POST | Check salvage queue / claim dead agent |
+| `/resurrection` | GET | List resurrection queue |
+| `/resurrection/pending` | GET | Check for dead agents |
+| `/resurrection/claim/:agentId` | POST | Claim dead agent's work |
+| `/resurrection/reap` | POST | Trigger reaper |
+| `/dns` | POST/GET | Register/list DNS records |
+| `/dns/lookup/:hostname` | GET | Resolve hostname |
+| `/dns/cleanup` | POST | Clean stale DNS records |
+| `/dns/status` | GET | DNS system status |
 | `/changelog` | POST/GET | Add entry / list changelog |
-| `/changelog/identities` | GET | List all identities with changelog entries |
+| `/changelog/identities` | GET | List identities with changelog entries |
 | `/tunnel/providers` | GET | Check which tunnel providers are installed |
 | `/tunnel/:id` | POST/DELETE/GET | Start/stop/status tunnel for service |
 | `/tunnels` | GET | List all active tunnels |
