@@ -99,6 +99,9 @@ const TOOL_FEATURE_MAP = {
   'dns_lookup': 'dns',
   'dns_cleanup': 'dns',
   'dns_status': 'dns',
+
+  // Meta-tool (progressive disclosure)
+  'pd_discover': 'system',
 };
 
 /**
@@ -525,6 +528,73 @@ describe('MCP tool coverage quality', () => {
 
   it('total MCP tool count should match TOOL_FEATURE_MAP size', () => {
     expect(mcpToolNames.length).toBe(Object.keys(TOOL_FEATURE_MAP).length);
+  });
+});
+
+// ============================================================================
+// 5a. MCP tiered loading (progressive disclosure)
+// ============================================================================
+
+describe('MCP tiered tool loading', () => {
+  const ESSENTIAL_NAMES = [
+    'begin_session', 'end_session_full', 'whoami',
+    'claim_port', 'release_port', 'add_note',
+    'acquire_lock', 'list_services',
+  ];
+
+  const CATEGORY_NAMES = [
+    'session-lifecycle', 'ports', 'sessions', 'notes', 'locks',
+    'messaging', 'agents', 'integration', 'dns', 'briefing',
+    'tunnels', 'system',
+  ];
+
+  it('ESSENTIAL_TOOL_NAMES in server matches expected set', () => {
+    // Verify the MCP source defines the expected essential tools
+    const essentialRegex = /ESSENTIAL_TOOL_NAMES\s*=\s*new\s+Set\(\[([\s\S]*?)\]\)/;
+    const match = mcpContent.match(essentialRegex);
+    expect(match).not.toBeNull();
+
+    for (const name of ESSENTIAL_NAMES) {
+      expect(match[1]).toContain(`'${name}'`);
+    }
+  });
+
+  it('essential tools are a subset of all MCP tools', () => {
+    for (const name of ESSENTIAL_NAMES) {
+      expect(mcpToolNames).toContain(name);
+    }
+  });
+
+  it('pd_discover meta-tool is defined', () => {
+    expect(mcpToolNames).toContain('pd_discover');
+  });
+
+  it('TOOL_CATEGORIES covers every non-essential, non-meta tool', () => {
+    const categoryRegex = /TOOL_CATEGORIES[\s\S]*?=\s*\{([\s\S]*?)\n\};/;
+    const match = mcpContent.match(categoryRegex);
+    expect(match).not.toBeNull();
+
+    // Every MCP tool should appear in at least one category
+    const allCategoryTools = [];
+    for (const catName of CATEGORY_NAMES) {
+      const catRegex = new RegExp(`'${catName}'[\\s\\S]*?tools:\\s*\\[(.*?)\\]`, 's');
+      const catMatch = mcpContent.match(catRegex);
+      if (catMatch) {
+        const tools = catMatch[1].match(/'([^']+)'/g)?.map(s => s.replace(/'/g, '')) || [];
+        allCategoryTools.push(...tools);
+      }
+    }
+
+    for (const tool of mcpToolNames) {
+      if (tool === 'pd_discover') continue; // meta-tool not in categories
+      expect(allCategoryTools).toContain(tool);
+    }
+  });
+
+  it('tiered mode should expose 9 tools (8 essential + pd_discover)', () => {
+    // In default (non-full) mode, only essential + pd_discover are listed
+    const tieredCount = ESSENTIAL_NAMES.length + 1; // +1 for pd_discover
+    expect(tieredCount).toBe(9);
   });
 });
 

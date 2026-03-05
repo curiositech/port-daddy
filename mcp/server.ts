@@ -93,6 +93,79 @@ const PUT = (path: string, body?: Record<string, unknown>) => api('PUT', path, b
 const DELETE = (path: string, body?: Record<string, unknown>) => api('DELETE', path, body);
 
 // ---------------------------------------------------------------------------
+// Tiered tool loading — reduce context window overhead by 80%
+//
+// By default, only Essential tools (8) + pd_discover are sent to the agent.
+// Full mode (--full flag or PORT_DADDY_MCP_FULL=1) exposes all 44+ tools.
+// Agents can call pd_discover to learn about additional tools by category,
+// then call them directly — handleTool processes ALL tools regardless of tier.
+// ---------------------------------------------------------------------------
+
+const FULL_MODE = process.argv.includes('--full') || process.env.PORT_DADDY_MCP_FULL === '1';
+
+const ESSENTIAL_TOOL_NAMES = new Set([
+  'begin_session',
+  'end_session_full',
+  'whoami',
+  'claim_port',
+  'release_port',
+  'add_note',
+  'acquire_lock',
+  'list_services',
+]);
+
+const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> = {
+  'session-lifecycle': {
+    description: 'Start/end sessions, manage agent registration (sugar commands)',
+    tools: ['begin_session', 'end_session_full', 'whoami'],
+  },
+  'ports': {
+    description: 'Claim, release, and list port assignments',
+    tools: ['claim_port', 'release_port', 'list_services', 'get_service', 'health_check'],
+  },
+  'sessions': {
+    description: 'Detailed session management (start, end, phases, file claims)',
+    tools: ['start_session', 'end_session', 'list_sessions', 'set_session_phase', 'claim_files', 'list_file_claims', 'who_owns_file'],
+  },
+  'notes': {
+    description: 'Add and list session notes',
+    tools: ['add_note', 'list_notes'],
+  },
+  'locks': {
+    description: 'Distributed locks for coordinating file/resource access',
+    tools: ['acquire_lock', 'release_lock', 'list_locks'],
+  },
+  'messaging': {
+    description: 'Pub/sub messaging between agents',
+    tools: ['publish_message', 'get_messages'],
+  },
+  'agents': {
+    description: 'Agent registry, heartbeats, salvage/resurrection',
+    tools: ['register_agent', 'agent_heartbeat', 'list_agents', 'check_salvage', 'claim_salvage'],
+  },
+  'integration': {
+    description: 'Cross-agent integration signals (ready/needs)',
+    tools: ['integration_ready', 'integration_needs', 'integration_list'],
+  },
+  'dns': {
+    description: 'Local DNS for service discovery',
+    tools: ['dns_register', 'dns_unregister', 'dns_list', 'dns_lookup', 'dns_cleanup', 'dns_status'],
+  },
+  'briefing': {
+    description: 'Generate project briefing files for .portdaddy/',
+    tools: ['briefing_generate', 'briefing_read'],
+  },
+  'tunnels': {
+    description: 'Expose local services via tunnels',
+    tools: ['start_tunnel', 'stop_tunnel', 'list_tunnels'],
+  },
+  'system': {
+    description: 'Project scanning, daemon status, activity log',
+    tools: ['scan_project', 'daemon_status', 'activity_log'],
+  },
+};
+
+// ---------------------------------------------------------------------------
 // Tool definitions
 // ---------------------------------------------------------------------------
 
@@ -864,6 +937,24 @@ const TOOLS = [
       },
     },
   },
+  // ── Meta-Tool (Progressive Disclosure) ─────────────────────────────
+  {
+    name: 'pd_discover',
+    description:
+      'List available Port Daddy tool categories and their tools. ' +
+      'In default mode, only essential tools are loaded. Use this to discover ' +
+      'additional tools by category, then call them directly by name. ' +
+      'Categories: session-lifecycle, ports, sessions, notes, locks, messaging, agents, integration, dns, briefing, tunnels, system.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        category: {
+          type: 'string',
+          description: 'Category to get detailed tool info for (e.g. "dns", "agents", "locks"). Omit to list all categories.',
+        },
+      },
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -1227,6 +1318,44 @@ async function handleTool(
       break;
     }
 
+    // ── Meta-Tool (Progressive Disclosure) ──────────────────────────────
+    case 'pd_discover': {
+      const category = args.category as string | undefined;
+      if (category) {
+        const cat = TOOL_CATEGORIES[category];
+        if (!cat) {
+          return JSON.stringify({
+            error: `Unknown category: ${category}`,
+            available: Object.keys(TOOL_CATEGORIES),
+          }, null, 2);
+        }
+        // Return full tool schemas for the requested category
+        const categoryTools = TOOLS.filter(t => cat.tools.includes(t.name));
+        return JSON.stringify({
+          category,
+          description: cat.description,
+          tools: categoryTools.map(t => ({
+            name: t.name,
+            description: t.description,
+            parameters: t.inputSchema.properties,
+            required: ('required' in t.inputSchema) ? t.inputSchema.required : [],
+          })),
+          hint: 'You can now call these tools directly by name.',
+        }, null, 2);
+      }
+      // List all categories with tool counts
+      return JSON.stringify({
+        mode: FULL_MODE ? 'full (all tools exposed)' : 'tiered (essential + discover)',
+        categories: Object.entries(TOOL_CATEGORIES).map(([name, cat]) => ({
+          name,
+          description: cat.description,
+          toolCount: cat.tools.length,
+          tools: cat.tools,
+        })),
+        hint: 'Call pd_discover with a category name to get full tool schemas.',
+      }, null, 2);
+    }
+
     default:
       throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
   }
@@ -1248,6 +1377,7 @@ const server = new Server(
       'Same identity always maps to the same port — deterministic hashing.',
       'Start every session with begin_session, end with end_session_full.',
       'Check check_salvage before starting new work — another agent may have died mid-task.',
+      'Use pd_discover to find additional tools (DNS, locks, pub/sub, tunnels, etc.).',
       'File claims are advisory — they announce intent, not enforce locks.',
       'Notes are immutable — once written, they cannot be edited or deleted.',
     ].join(' '),
@@ -1260,9 +1390,11 @@ const server = new Server(
   }
 );
 
-// List tools
+// List tools — tiered by default, full with --full flag
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
-  tools: TOOLS,
+  tools: FULL_MODE
+    ? TOOLS
+    : TOOLS.filter(t => ESSENTIAL_TOOL_NAMES.has(t.name) || t.name === 'pd_discover'),
 }));
 
 // Execute tools

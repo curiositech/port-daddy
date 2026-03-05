@@ -536,6 +536,9 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'dns_lookup': 'dns',
       'dns_cleanup': 'dns',
       'dns_status': 'dns',
+
+      // Meta-tool (progressive disclosure)
+      'pd_discover': 'system',
     };
 
     const unmapped = [];
