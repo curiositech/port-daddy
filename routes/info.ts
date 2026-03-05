@@ -42,6 +42,7 @@ interface InfoRouteDeps {
   };
   services: {
     find(pattern: string, opts?: Record<string, unknown>): FindResult;
+    count(): number;
     claim(id: string, opts: Record<string, unknown>): Record<string, unknown>;
     release(id: string): Record<string, unknown>;
   };
@@ -91,10 +92,11 @@ export function createInfoRoutes(deps: InfoRouteDeps): Router {
   // =========================================================================
   router.get('/metrics', (_req: Request, res: Response) => {
     const uptime_seconds = Math.floor((Date.now() - metrics.uptime_start) / 1000);
-    const serviceResult = services.find('*');
+    // Use count() — a single SELECT COUNT(*) — instead of fetching all rows
+    const active_ports = services.count();
     res.json({
       ...metrics,
-      active_ports: serviceResult.success ? serviceResult.count : 0,
+      active_ports,
       uptime_seconds,
       uptime_formatted: formatUptime(uptime_seconds)
     });
@@ -104,12 +106,13 @@ export function createInfoRoutes(deps: InfoRouteDeps): Router {
   // GET /health
   // =========================================================================
   router.get('/health', (_req: Request, res: Response) => {
-    const serviceResult = services.find('*');
+    // Use count() — a single SELECT COUNT(*) — instead of fetching all service rows
+    const active_ports = services.count();
     res.json({
       status: 'ok',
       version: VERSION,
       uptime_seconds: Math.floor(process.uptime()),
-      active_ports: serviceResult.success ? serviceResult.count : 0,
+      active_ports,
       pid: process.pid
     });
   });

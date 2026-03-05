@@ -161,6 +161,14 @@ export function initDatabase(options: InitDbOptions = {}): Database.Database {
     );
   }
 
+  // NORMAL sync is safe in WAL mode — WAL already guarantees crash safety,
+  // and NORMAL avoids the full fsync on every commit that FULL requires.
+  db.pragma('synchronous = NORMAL');
+
+  // Checkpoint every 200 pages instead of the default 1000.
+  // Keeps the WAL file from growing unbounded between periodic cleanups.
+  db.pragma('wal_autocheckpoint = 200');
+
   // Busy timeout: wait up to 5 seconds for locks instead of failing immediately
   // This is critical for concurrent CLI invocations sharing the same DB
   db.pragma('busy_timeout = 5000');

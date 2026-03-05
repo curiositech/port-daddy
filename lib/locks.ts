@@ -69,7 +69,8 @@ export function createLocks(db: Database.Database) {
     releaseIfOwner: db.prepare('DELETE FROM locks WHERE name = ? AND owner = ?'),
     releaseExpired: db.prepare('DELETE FROM locks WHERE expires_at IS NOT NULL AND expires_at < ?'),
     list: db.prepare('SELECT * FROM locks ORDER BY acquired_at DESC'),
-    listByOwner: db.prepare('SELECT * FROM locks WHERE owner = ?')
+    listByOwner: db.prepare('SELECT * FROM locks WHERE owner = ?'),
+    extend: db.prepare('UPDATE locks SET expires_at = ? WHERE name = ?'),
   };
 
   function safeJsonParse(value: string | null): Record<string, unknown> | null {
@@ -330,7 +331,7 @@ export function createLocks(db: Database.Database) {
     }
 
     const newExpiry = now + ttl;
-    db.prepare('UPDATE locks SET expires_at = ? WHERE name = ?').run(newExpiry, name);
+    stmts.extend.run(newExpiry, name);
 
     return {
       success: true,

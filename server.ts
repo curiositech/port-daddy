@@ -320,8 +320,8 @@ function cleanupStale(): ReturnType<typeof services.cleanup> {
       graceUntil: new Date(sleepGraceUntil).toISOString()
     });
   } else {
-    // Check agents for staleness and queue for resurrection BEFORE cleanup deletes them
-    const allAgents = agents.list();
+    // Check agents for staleness and queue for resurrection BEFORE cleanup deletes them.
+    // Uses set-based queries instead of N*M nested loop for performance.
     interface AgentListItem {
       id: string;
       name: string | null;
@@ -329,27 +329,60 @@ function cleanupStale(): ReturnType<typeof services.cleanup> {
       lastHeartbeat: number;
       metadata?: { purpose?: string } | null;
     }
-    interface SessionListItem { id: string }
-    interface NoteListItem { content: string }
 
-    for (const agent of (allAgents.agents || []) as AgentListItem[]) {
-      if (!agent.isActive) {
-        const agentSessions = sessions.list({ agentId: agent.id, status: 'active' });
-        const notes: string[] = [];
-        const sessionsList = (agentSessions.sessions || []) as unknown as SessionListItem[];
-        for (const session of sessionsList) {
-          const sessionNotes = sessions.getNotes(session.id);
-          const notesList = (sessionNotes.notes || []) as unknown as NoteListItem[];
-          for (const note of notesList) {
-            notes.push(note.content);
+    const allAgents = agents.list();
+    const inactiveAgents = ((allAgents.agents || []) as AgentListItem[]).filter(a => !a.isActive);
+
+    if (inactiveAgents.length > 0) {
+      const inactiveIds = inactiveAgents.map(a => a.id);
+      const placeholders = inactiveIds.map(() => '?').join(', ');
+
+      // Fetch the most-recent active session per inactive agent in one query
+      interface AgentSessionRow { agent_id: string; session_id: string }
+      const agentSessionRows = db.prepare(`
+        SELECT agent_id, id AS session_id
+        FROM sessions
+        WHERE agent_id IN (${placeholders})
+          AND status = 'active'
+        GROUP BY agent_id
+        HAVING MAX(updated_at)
+      `).all(...inactiveIds) as AgentSessionRow[];
+
+      const agentSessionMap = new Map<string, string>(
+        agentSessionRows.map(r => [r.agent_id, r.session_id])
+      );
+
+      // Batch-fetch all notes for those sessions in one JOIN query
+      const sessionIds = agentSessionRows.map(r => r.session_id);
+      const notesBySession = new Map<string, string[]>();
+
+      if (sessionIds.length > 0) {
+        const notePlaceholders = sessionIds.map(() => '?').join(', ');
+        interface NoteRow { session_id: string; content: string }
+        const noteRows = db.prepare(`
+          SELECT session_id, content
+          FROM session_notes
+          WHERE session_id IN (${notePlaceholders})
+          ORDER BY session_id, created_at ASC
+        `).all(...sessionIds) as NoteRow[];
+
+        for (const row of noteRows) {
+          if (!notesBySession.has(row.session_id)) {
+            notesBySession.set(row.session_id, []);
           }
+          notesBySession.get(row.session_id)!.push(row.content);
         }
+      }
+
+      for (const agent of inactiveAgents) {
+        const sessionId = agentSessionMap.get(agent.id);
+        const notes = sessionId ? (notesBySession.get(sessionId) ?? []) : [];
 
         resurrection.check({
           id: agent.id,
           name: agent.name || agent.id,
           purpose: agent.metadata?.purpose,
-          sessionId: sessionsList[0]?.id,
+          sessionId,
           lastHeartbeat: agent.lastHeartbeat,
           notes
         });
@@ -371,6 +404,11 @@ function cleanupStale(): ReturnType<typeof services.cleanup> {
   sessions.cleanup();
   agentInbox.cleanup();
   resurrection.cleanup();
+
+  // Passive WAL checkpoint: flush completed WAL frames back into the main
+  // database file without blocking readers/writers. Keeps WAL size bounded
+  // between the wal_autocheckpoint=200 page threshold and manual cleanup runs.
+  db.pragma('wal_checkpoint(PASSIVE)');
 
   metrics.total_cleanups++;
   return serviceResult;
