@@ -27,6 +27,19 @@ One daemon. Many projects. Zero port conflicts.
 
 ---
 
+## Who Uses Port Daddy
+
+Port Daddy is built for multi-agent Claude Code workflows. If you run more than one AI coding agent against the same codebase — or if you have multiple services starting on overlapping ports — Port Daddy is the coordination layer that prevents chaos.
+
+Common setups:
+
+- **Solo developer, multiple projects** — stable ports that never collide across projects
+- **Single project, parallel agents** — agents each claim ports and sessions; no stepping on each other
+- **Worktree-based parallelism** — each worktree gets its own isolated port space and session scope
+- **CI/CD pipelines** — atomic port assignment prevents flaky test failures from port conflicts
+
+---
+
 ## Just Want Stable Ports?
 
 ```bash
@@ -68,6 +81,7 @@ Wildcards work everywhere: `pd find myapp:*`, `pd release *:api:*`.
 npm install -g port-daddy
 pd start                    # start the daemon (auto-starts on first use too)
 pd doctor                   # verify your environment
+pd learn                    # interactive tutorial (recommended for new users)
 ```
 
 Auto-start on login (optional):
@@ -161,9 +175,43 @@ If you *need* a specific port (e.g., OAuth callbacks to `localhost:3000`), speci
 
 ---
 
+## Port Management vs Agent Coordination
+
+Port Daddy serves two distinct audiences:
+
+| Use case | What you need | Getting started |
+|----------|--------------|-----------------|
+| **Solo developer** — stable ports across projects | `pd claim`, `pd release`, `pd up` | [Just Want Stable Ports?](#just-want-stable-ports) |
+| **Multi-agent workflows** — coordinate parallel AI agents | All of the above + sessions, notes, locks, pub/sub | This section |
+
+You do not need agent coordination for basic port management. If you are running multiple AI coding agents against the same codebase, read on.
+
 ## Agent Coordination
 
 Port Daddy includes built-in primitives for multi-agent and multi-process coordination. No external message broker required.
+
+### Sugar Commands (Recommended Starting Point)
+
+The quickest way to start coordinating is with the compound sugar commands. These handle agent registration and session management in a single call:
+
+```bash
+# Start — registers your agent + opens a session in one step
+pd begin "Implementing OAuth flow"
+
+# Log progress as you work
+pd note "Started Google OAuth integration"
+pd note "Switched to PKCE flow for SPAs" --type decision
+
+# See who you are and what session is active
+pd whoami
+
+# Finish — ends session + unregisters in one step
+pd done "OAuth complete, all tests passing"
+```
+
+If you are using the MCP server, the equivalent tools are `begin_session`, `add_note`, `whoami`, and `end_session_full`.
+
+If you want to step outside the sugar commands and control the individual operations, continue to the sections below.
 
 ### Pub/Sub Messaging
 
@@ -497,6 +545,15 @@ The skill teaches agents to claim ports with semantic identities, coordinate via
 
 `pd` is the short alias for `port-daddy`. All commands accept `--json/-j` for machine output and `--quiet/-q` for minimal output.
 
+### Quick Start (Sugar Commands)
+
+| Command | Description |
+|---------|-------------|
+| `pd begin <purpose>` | Register agent + start session in one step (`--identity project:stack:context`) |
+| `pd done [note]` | End session + unregister agent in one step |
+| `pd whoami` | Show current agent and session context |
+| `pd learn` | Interactive tutorial for new users |
+
 ### Ports & Services
 
 | Command | Description |
@@ -637,6 +694,35 @@ cp /path/to/port-daddy/completions/port-daddy.zsh ~/.zsh/completions/_port-daddy
 # Fish
 cp /path/to/port-daddy/completions/port-daddy.fish ~/.config/fish/completions/
 ```
+
+---
+
+## Feature Coverage Across Surfaces
+
+| Feature | CLI | REST API | SDK | MCP | Dashboard |
+|---------|-----|----------|-----|-----|-----------|
+| Port claim / release | Yes | Yes | Yes | Yes | Yes |
+| List services | Yes | Yes | Yes | Yes | Yes |
+| Health check | Yes | Yes | Yes | Yes | Yes |
+| Sessions (start/end) | Yes | Yes | Yes | Yes | Yes |
+| Notes | Yes | Yes | Yes | Yes | Yes |
+| File claims | Yes | Yes | Yes | Yes | Partial |
+| Distributed locks | Yes | Yes | Yes | Yes | Yes |
+| Pub/sub messaging | Yes | Yes | Yes | Yes | Partial |
+| Agent registry | Yes | Yes | Yes | Yes | Yes |
+| Agent heartbeat | Yes | Yes | Yes | Yes | No |
+| Salvage / resurrection | Yes | Yes | Yes | Yes | Yes |
+| Sugar (begin/done/whoami) | Yes | Yes | Yes | Yes | Partial |
+| DNS records | Yes | Yes | No | No | Yes |
+| Tunnels | Yes | Yes | No | Yes | Yes |
+| Webhooks | Yes | Yes | No | No | No |
+| Project scanning | Yes | Yes | No | Yes | Yes |
+| Activity log | Yes | Yes | No | Yes | Yes |
+| Changelog | Yes | Yes | No | No | No |
+| Briefing | Yes | Yes | No | No | Yes |
+| Shell completions | Bash/Zsh/Fish | — | — | — | — |
+
+This table reflects the v3.5 release. The CLI and REST API are the most complete surfaces. MCP covers the operations most relevant to AI agents. Dashboard coverage grows each release.
 
 ---
 

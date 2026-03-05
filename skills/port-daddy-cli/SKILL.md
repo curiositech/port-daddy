@@ -3,6 +3,48 @@ name: port-daddy-cli
 description: Multi-agent coordination via Port Daddy. Use when starting dev servers, coordinating with other agents, preventing file conflicts, salvaging dead agents' work, or tracking changes. Activate on "port conflict", "claim port", "coordinate agents", "start session", "leave note", "file conflict", "dev server", "salvage", "changelog".
 ---
 
+## Quick Start
+
+1. `pd begin "what I'm working on"` — registers you + starts session
+2. `pd note "progress update"` — log notes as you work
+3. `pd done` — wraps up session + unregisters
+
+## CLI to MCP Tool Mapping
+
+When using Port Daddy via MCP (e.g. Claude Code with the port-daddy MCP server), use the MCP tool names below instead of CLI commands. The behavior is identical.
+
+| CLI Command | MCP Tool | Tier |
+|-------------|----------|------|
+| `pd begin` | `begin_session` | Essential |
+| `pd done` | `end_session_full` | Essential |
+| `pd whoami` | `whoami` | Essential |
+| `pd note` | `add_note` | Essential |
+| `pd claim` | `claim_port` | Essential |
+| `pd release` | `release_port` | Essential |
+| `pd salvage` | `check_salvage` | Essential |
+| `pd session start` | `start_session` | Standard |
+| `pd session end` / `pd session done` | `end_session` | Standard |
+| `pd sessions` | `list_sessions` | Standard |
+| `pd notes` | `list_notes` | Standard |
+| `pd session files add` | `claim_files` | Standard |
+| `pd agent register` | `register_agent` | Standard |
+| `pd agent heartbeat` | `agent_heartbeat` | Standard |
+| `pd agents` | `list_agents` | Standard |
+| `pd salvage claim` | `claim_salvage` | Standard |
+| `pd lock` | `acquire_lock` | Standard |
+| `pd unlock` | `release_lock` | Standard |
+| `pd locks` | `list_locks` | Standard |
+| `pd find` | `list_services` | Standard |
+| `pd health` | `health_check` | Standard |
+| `pd status` | `daemon_status` | Standard |
+| `pd pub` | `publish_message` | Advanced |
+| `pd sub` (polling) | `get_messages` | Advanced |
+| `pd tunnel start` | `start_tunnel` | Advanced |
+| `pd tunnel stop` | `stop_tunnel` | Advanced |
+| `pd tunnel list` | `list_tunnels` | Advanced |
+| `pd scan` | `scan_project` | Advanced |
+| `pd log` | `activity_log` | Advanced |
+
 # Port Daddy — The Authoritative Port Manager
 
 **Your ports. My rules. Zero conflicts.**

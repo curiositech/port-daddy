@@ -97,13 +97,95 @@ const DELETE = (path: string, body?: Record<string, unknown>) => api('DELETE', p
 // ---------------------------------------------------------------------------
 
 const TOOLS = [
+  // ── Sugar (Compound Operations) ──────────────────────────────────────
+  {
+    name: 'begin_session',
+    description:
+      '[Essential] Register agent + start session in one atomic step. Use this at the start of every ' +
+      'coding session instead of calling register_agent and start_session separately. ' +
+      'Returns agentId, sessionId, and a salvageHint if dead agents need attention. ' +
+      'Usage: begin_session({purpose: "Building auth system", identity: "myapp:api:main"})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        purpose: {
+          type: 'string',
+          description: 'What you are working on (e.g. "Implementing OAuth flow")',
+        },
+        identity: {
+          type: 'string',
+          description: 'Semantic identity in project:stack:context format (e.g. "myapp:api:main")',
+        },
+        agent_id: {
+          type: 'string',
+          description: 'Agent ID (auto-generated if omitted)',
+        },
+        type: {
+          type: 'string',
+          description: 'Agent type (default: mcp)',
+        },
+        files: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Files to claim for this session (advisory — shows conflicts to other agents)',
+        },
+      },
+      required: ['purpose'],
+    },
+  },
+  {
+    name: 'end_session_full',
+    description:
+      '[Essential] End session + unregister agent in one step. Use this at the end of every coding ' +
+      'session instead of calling end_session and then unregistering the agent separately. ' +
+      'Usage: end_session_full({agent_id: "agent-abc123", note: "Auth complete, all tests passing"})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        agent_id: {
+          type: 'string',
+          description: 'Your agent ID (from begin_session response)',
+        },
+        session_id: {
+          type: 'string',
+          description: 'Session ID to end (auto-found from agent_id if omitted)',
+        },
+        note: {
+          type: 'string',
+          description: 'Final closing note summarizing what was accomplished',
+        },
+        status: {
+          type: 'string',
+          enum: ['completed', 'abandoned'],
+          description: 'How the session ended (default: completed)',
+        },
+      },
+    },
+  },
+  {
+    name: 'whoami',
+    description:
+      '[Essential] Show your current agent and session context. Useful for confirming your registration ' +
+      'is active and seeing which session, files, and notes are associated with your agent ID. ' +
+      'Usage: whoami({agent_id: "agent-abc123"})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        agent_id: {
+          type: 'string',
+          description: 'Your agent ID (from begin_session response)',
+        },
+      },
+    },
+  },
+
   // ── Port Management ──────────────────────────────────────────────────
   {
     name: 'claim_port',
     description:
-      'Claim a port for a service. Returns a stable, deterministic port based on the identity hash. ' +
-      'Identity format: project:stack:context (e.g. "myapp:api:main"). ' +
-      'If the service was already claimed, returns the existing port.',
+      '[Essential] Claim a port for your service. Returns a stable, deterministic port based on the ' +
+      'identity hash — same identity always gets the same port. If the service was already claimed, ' +
+      'returns the existing port. Usage: claim_port({identity: "myapp:api:main"})',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -130,8 +212,8 @@ const TOOLS = [
   {
     name: 'release_port',
     description:
-      'Release a claimed port. Supports wildcards (e.g. "myapp:*" releases all stacks). ' +
-      'Use --expired flag equivalent to only release expired services.',
+      '[Essential] Release a claimed port. Supports wildcards (e.g. "myapp:*" releases all stacks). ' +
+      'Pass expired_only: true to only release services that have expired.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -150,7 +232,7 @@ const TOOLS = [
   {
     name: 'list_services',
     description:
-      'List all claimed services with their ports, status, and metadata. ' +
+      '[Standard] List all claimed services with their ports, status, and metadata. ' +
       'Optionally filter by pattern (e.g. "myapp:*").',
     inputSchema: {
       type: 'object' as const,
@@ -164,7 +246,7 @@ const TOOLS = [
   },
   {
     name: 'get_service',
-    description: 'Get detailed information about a specific service by its identity.',
+    description: '[Standard] Get detailed information about a specific service by its identity.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -179,7 +261,7 @@ const TOOLS = [
   {
     name: 'health_check',
     description:
-      'Check health of services. With no ID, checks all services. ' +
+      '[Standard] Check health of services. With no ID, checks all services. ' +
       'With an ID, checks only that service.',
     inputSchema: {
       type: 'object' as const,
@@ -196,9 +278,9 @@ const TOOLS = [
   {
     name: 'start_session',
     description:
-      'Start a coordination session. Sessions track what an agent is working on, ' +
+      '[Standard] Start a coordination session. Sessions track what an agent is working on, ' +
       'which files it claims, and provide an audit trail via notes. ' +
-      'IMPORTANT: Always start a session when beginning work on a task.',
+      'For a single atomic call that also registers your agent, prefer begin_session instead.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -222,7 +304,8 @@ const TOOLS = [
   {
     name: 'end_session',
     description:
-      'End the current active session. Status can be "completed" (success) or "abandoned" (gave up).',
+      '[Standard] End the current active session. Status can be "completed" (success) or "abandoned" ' +
+      '(gave up). For a single atomic call that also unregisters your agent, prefer end_session_full instead.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -241,9 +324,10 @@ const TOOLS = [
   {
     name: 'add_note',
     description:
-      'Add a note to the current session or create a quick standalone note. ' +
+      '[Essential] Add a note to the current session or create a quick standalone note. ' +
       'Notes are immutable — once added, they cannot be edited or deleted. ' +
-      'Use for progress updates, decisions, blockers, or coordination messages.',
+      'Use liberally: progress updates, decisions made, blockers hit, handoffs to other agents. ' +
+      'Usage: add_note({content: "Switched to PKCE flow for SPAs", type: "decision"})',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -266,7 +350,7 @@ const TOOLS = [
   },
   {
     name: 'list_sessions',
-    description: 'List sessions. Shows active sessions by default, or all sessions with the "all" flag.',
+    description: '[Standard] List sessions. Shows active sessions by default, or all sessions with the "all" flag.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -283,7 +367,7 @@ const TOOLS = [
   },
   {
     name: 'list_notes',
-    description: 'List notes for a session, or recent notes across all sessions.',
+    description: '[Standard] List notes for a session, or recent notes across all sessions.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -301,7 +385,7 @@ const TOOLS = [
   {
     name: 'claim_files',
     description:
-      'Claim files for the active session (advisory locking). ' +
+      '[Standard] Claim files for the active session (advisory locking). ' +
       'Other agents can see which files are claimed to avoid conflicts.',
     inputSchema: {
       type: 'object' as const,
@@ -321,7 +405,7 @@ const TOOLS = [
   {
     name: 'acquire_lock',
     description:
-      'Acquire a distributed lock. Use for exclusive access to shared resources ' +
+      '[Standard] Acquire a distributed lock. Use for exclusive access to shared resources ' +
       '(e.g. database migrations, build artifacts). Locks auto-expire after TTL.',
     inputSchema: {
       type: 'object' as const,
@@ -344,7 +428,7 @@ const TOOLS = [
   },
   {
     name: 'release_lock',
-    description: 'Release a distributed lock.',
+    description: '[Standard] Release a distributed lock.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -366,7 +450,7 @@ const TOOLS = [
   },
   {
     name: 'list_locks',
-    description: 'List all active distributed locks.',
+    description: '[Standard] List all active distributed locks.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -382,7 +466,7 @@ const TOOLS = [
   {
     name: 'publish_message',
     description:
-      'Publish a message to a pub/sub channel. Other agents subscribed to the channel ' +
+      '[Advanced] Publish a message to a pub/sub channel. Other agents subscribed to the channel ' +
       'will receive it. Use for coordination, build signals, status updates.',
     inputSchema: {
       type: 'object' as const,
@@ -405,7 +489,7 @@ const TOOLS = [
   },
   {
     name: 'get_messages',
-    description: 'Get messages from a pub/sub channel.',
+    description: '[Advanced] Get messages from a pub/sub channel.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -426,9 +510,9 @@ const TOOLS = [
   {
     name: 'register_agent',
     description:
-      'Register as an agent with the Port Daddy daemon. Enables heartbeat monitoring ' +
+      '[Standard] Register as an agent with the Port Daddy daemon. Enables heartbeat monitoring ' +
       'and agent resurrection (salvage) if the agent dies. ' +
-      'IMPORTANT: Register at the start of every agent session.',
+      'For a single atomic call that also starts a session, prefer begin_session instead.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -456,7 +540,7 @@ const TOOLS = [
   {
     name: 'agent_heartbeat',
     description:
-      'Send a heartbeat to keep the agent alive in the registry. ' +
+      '[Standard] Send a heartbeat to keep the agent alive in the registry. ' +
       'Agents that stop heartbeating are marked stale (10 min) then dead (20 min). ' +
       'Dead agents enter the resurrection/salvage queue.',
     inputSchema: {
@@ -472,7 +556,7 @@ const TOOLS = [
   },
   {
     name: 'list_agents',
-    description: 'List all registered agents with their status and heartbeat info.',
+    description: '[Standard] List all registered agents with their status and heartbeat info.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -488,9 +572,11 @@ const TOOLS = [
   {
     name: 'check_salvage',
     description:
-      'Check the salvage queue for dead agents whose work can be continued. ' +
-      'When an agent dies, its session, notes, and file claims are preserved. ' +
-      'A new agent can claim the dead agent and continue its work.',
+      '[Essential] Check the salvage queue for dead agents whose work can be continued. ' +
+      'Run this at the start of every session before beginning new work — another agent may have ' +
+      'died mid-task with work you should continue. When an agent dies, its session, notes, and ' +
+      'file claims are preserved for pickup. ' +
+      'Usage: check_salvage({project: "myapp"}) to filter to your project.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -504,7 +590,7 @@ const TOOLS = [
   {
     name: 'claim_salvage',
     description:
-      'Claim a dead agent from the salvage queue to continue its work. ' +
+      '[Standard] Claim a dead agent from the salvage queue to continue its work. ' +
       'Returns the dead agent\'s session context, notes, and purpose.',
     inputSchema: {
       type: 'object' as const,
@@ -526,7 +612,7 @@ const TOOLS = [
   {
     name: 'start_tunnel',
     description:
-      'Start a public tunnel for a claimed service. Makes your local dev server ' +
+      '[Advanced] Start a public tunnel for a claimed service. Makes your local dev server ' +
       'accessible via a public URL. Requires cloudflared, ngrok, or localtunnel installed.',
     inputSchema: {
       type: 'object' as const,
@@ -546,7 +632,7 @@ const TOOLS = [
   },
   {
     name: 'stop_tunnel',
-    description: 'Stop an active tunnel for a service.',
+    description: '[Advanced] Stop an active tunnel for a service.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -560,7 +646,7 @@ const TOOLS = [
   },
   {
     name: 'list_tunnels',
-    description: 'List all active tunnels with their public URLs.',
+    description: '[Advanced] List all active tunnels with their public URLs.',
     inputSchema: {
       type: 'object' as const,
       properties: {},
@@ -571,7 +657,7 @@ const TOOLS = [
   {
     name: 'scan_project',
     description:
-      'Deep-scan a directory to detect all services, frameworks, and dependencies. ' +
+      '[Advanced] Deep-scan a directory to detect all services, frameworks, and dependencies. ' +
       'Detects 60+ frameworks (Next.js, Vite, Express, FastAPI, Django, Go, Rust, etc.). ' +
       'Can generate a .portdaddyrc configuration file.',
     inputSchema: {
@@ -593,7 +679,7 @@ const TOOLS = [
   {
     name: 'daemon_status',
     description:
-      'Check Port Daddy daemon status including version, uptime, active ports, and health.',
+      '[Standard] Check Port Daddy daemon status including version, uptime, active ports, and health.',
     inputSchema: {
       type: 'object' as const,
       properties: {},
@@ -601,7 +687,7 @@ const TOOLS = [
   },
   {
     name: 'activity_log',
-    description: 'View recent activity log entries (audit trail).',
+    description: '[Advanced] View recent activity log entries (audit trail).',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -629,6 +715,33 @@ async function handleTool(
   let res: ApiResponse;
 
   switch (name) {
+    // ── Sugar (Compound Operations) ────────────────────────────────────
+    case 'begin_session': {
+      const body: Record<string, unknown> = { purpose: args.purpose };
+      if (args.identity) body.identity = args.identity;
+      if (args.agent_id) body.agentId = args.agent_id;
+      if (args.type) body.type = args.type;
+      if (args.files) body.files = args.files;
+      res = await POST('/sugar/begin', body);
+      break;
+    }
+
+    case 'end_session_full': {
+      const body: Record<string, unknown> = {};
+      if (args.agent_id) body.agentId = args.agent_id;
+      if (args.session_id) body.sessionId = args.session_id;
+      if (args.note) body.note = args.note;
+      if (args.status) body.status = args.status;
+      res = await POST('/sugar/done', body);
+      break;
+    }
+
+    case 'whoami': {
+      const qs = args.agent_id ? `?agentId=${encodeURIComponent(args.agent_id as string)}` : '';
+      res = await GET(`/sugar/whoami${qs}`);
+      break;
+    }
+
     // ── Port Management ────────────────────────────────────────────────
     case 'claim_port': {
       const body: Record<string, unknown> = { id: args.identity };
@@ -906,13 +1019,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     // Connection refused = daemon not running
     if (err.message.includes('ECONNREFUSED')) {
+      const sugarTools = new Set(['begin_session', 'end_session_full', 'whoami']);
+      const isSugarTool = sugarTools.has(name);
       return {
         content: [
           {
             type: 'text' as const,
             text: JSON.stringify({
               error: 'Port Daddy daemon is not running',
-              hint: 'Start it with: pd start (or: npx port-daddy start)',
+              hint: isSugarTool
+                ? `Daemon may be offline. Start it with: pd daemon start (or npm run dev in the port-daddy directory)`
+                : 'Start the daemon with: pd daemon start (or: npx port-daddy start)',
               details: err.message,
             }),
           },
