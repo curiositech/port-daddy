@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.7.0] - 2026-03-04
+
+### Added
+- **Dashboard WCAG AA accessibility**: ARIA landmarks, skip-nav link, keyboard navigation,
+  modal focus traps, reduced motion support, toast live regions, SVG aria-hidden
+- **Dashboard UX overhaul**: hash routing (back button works), 15s polling with live toggle,
+  mobile responsive sidebar, daemon-offline banner, scroll overflow indicators
+- **Dashboard nautical theme**: anchor/helm logo, wave-pattern card borders, maritime labels
+  (Fleet, Salvage), signal flag status indicators, "Welcome aboard" empty-state onboarding
+- **Dashboard SSE**: real-time updates via `/dashboard/events` endpoint, falls back to polling
+- **Dashboard DNS panel**: view and manage local DNS records from the dashboard
+- **14 new MCP tools**: set_session_phase, list_file_claims, who_owns_file,
+  integration_ready, integration_needs, integration_list, briefing_generate, briefing_read,
+  dns_register, dns_unregister, dns_list, dns_lookup, dns_cleanup, dns_status (44 total)
+- **MCP instructions field**: key concepts (identities, salvage, file claims) for LLM context
+- **MCP tool tiers**: [Essential], [Standard], [Advanced] labels in tool descriptions
+- **CLI `pd help <topic>`**: focused help for sessions, locks, agents, sugar, dns, orchestration, tutorial
+- **CLI compact help**: 25-line summary replacing 196-line wall of text, sugar commands first
+- **CLI `pd learn` hint**: appears in default help, unknown command errors, first-run detection
+- **SKILL.md**: with-lock, integration signals, briefing documentation
+- Fish completions: dns, files, who-owns, integration, briefing, history, tutorial commands
+- Examples: `examples/war-room/run.sh` (3-agent pub/sub demo), `examples/ci/github-actions.yml`
+- Resource bounds: max agent inbox (1000), DNS per identity (50), notes per session (500)
+
+### Fixed
+- **MCP route bugs**: register_agent now POST /agents with body (was /agents/:id),
+  heartbeat now POST (was PUT), salvage now GET /resurrection/pending (was /salvage),
+  claim_salvage now POST /resurrection/claim/:id (was POST /salvage)
+- **Dashboard old API patterns**: /claim/:id and /release/:id updated to v3.4 body-based API
+- **Ghost CLI commands**: `b`→begin and `w`→whoami aliases now wired in the CLI parser
+- **Fish completions**: added missing commands for dns, file_claims, integration, briefing, tutorial
+
+### Changed
+- **Performance**: SQLite WAL synchronous=NORMAL (11x throughput), WAL checkpoint in cleanup,
+  4 inline statements moved to prepared, sessions index on status+updated_at,
+  N+1 endpoint queries batched, O(N^2) log cleanup → OFFSET-based, messaging LIMIT 200,
+  health endpoint COUNT(*) instead of full scan, O(N*M) cleanup loop → single JOIN
+- **Dashboard polling**: 5s → 15s default with pause during interaction
+- **CLI help**: restructured with topic maps, context-aware next-step hints
+- Version bumped to 3.7.0 across package.json, mcp-server.json, plugin.json
+- All 1870 unit tests passing across 33 suites, 105 parity tests green
+
 ## [3.6.0] - 2026-03-03
 
 ### Added
