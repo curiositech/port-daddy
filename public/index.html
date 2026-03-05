@@ -105,7 +105,7 @@
     .logo-mark:hover { transform: scale(1.05); box-shadow: 0 6px 20px rgba(74,157,158,0.5); }
     .logo-mark svg { width: 28px; height: 28px; stroke: var(--bg-dark); stroke-width: 2.5; }
     .logo-text h1 {
-      font-size: 1.8em; font-weight: 700; letter-spacing: -0.5px;
+      font-size: 1.8em; font-weight: 700; letter-spacing: 0.06em;
       background: linear-gradient(135deg, var(--accent) 0%, #7fcfcf 100%);
       -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
     }
@@ -649,9 +649,287 @@
       .quick-actions { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; }
       .container { padding: 12px 16px; }
     }
+
+    /* Skip Navigation Link (WCAG AA) */
+    .skip-link {
+      position: absolute;
+      top: -40px;
+      left: 0;
+      background: var(--accent);
+      color: var(--bg-dark);
+      padding: 8px 16px;
+      z-index: 10000;
+      transition: top 0.3s;
+      font-weight: 600;
+      border-radius: 0 0 8px 0;
+      text-decoration: none;
+      font-family: inherit;
+    }
+    .skip-link:focus {
+      top: 0;
+    }
+
+    /* Reduced Motion (WCAG AA) */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+
+    /* Nav keyboard focus styles */
+    .nav-item:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: -2px;
+      border-radius: var(--radius-sm);
+    }
+
+    /* Mobile Sidebar */
+    @media (max-width: 768px) {
+      .sidebar {
+        position: fixed;
+        left: -280px;
+        z-index: 1000;
+        transition: left 0.3s ease;
+        height: 100vh;
+      }
+      .sidebar.open { left: 0; }
+      .content { margin-left: 0; }
+    }
+    .mobile-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 999;
+    }
+    .mobile-backdrop.show { display: block; }
+    .mobile-menu-btn {
+      display: none;
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      width: 38px;
+      height: 38px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--transition-med);
+      padding: 0;
+      flex-shrink: 0;
+    }
+    .mobile-menu-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .hamburger-icon {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+    }
+    .hamburger-icon span {
+      display: block;
+      width: 18px;
+      height: 2px;
+      background: currentColor;
+      border-radius: 1px;
+    }
+    @media (max-width: 768px) {
+      .mobile-menu-btn { display: flex; }
+    }
+
+    /* Daemon-down banner */
+    .daemon-banner {
+      display: none;
+      background: rgba(224,112,112,0.12);
+      border: 1px solid rgba(224,112,112,0.3);
+      border-radius: var(--radius-sm);
+      padding: 10px 16px;
+      margin-bottom: 16px;
+      color: var(--danger);
+      font-size: 0.9em;
+      font-weight: 600;
+      text-align: center;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .daemon-banner.show { display: flex; }
+    .daemon-offline .stat-card,
+    .daemon-offline .tabs-container,
+    .daemon-offline .quick-actions { opacity: 0.5; pointer-events: auto; }
+
+    /* Table scroll indicators */
+    .table-wrap {
+      position: relative;
+      overflow-x: auto;
+    }
+    .table-wrap::before,
+    .table-wrap::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 24px;
+      pointer-events: none;
+      z-index: 10;
+      opacity: 0;
+      transition: opacity var(--transition-med);
+    }
+    .table-wrap::before {
+      left: 0;
+      background: linear-gradient(90deg, var(--bg-card), transparent);
+    }
+    .table-wrap::after {
+      right: 0;
+      background: linear-gradient(270deg, var(--bg-card), transparent);
+    }
+    .table-wrap.scroll-left::before { opacity: 1; }
+    .table-wrap.scroll-right::after { opacity: 1; }
+
+    /* Wave border decoration for cards */
+    .wave-border {
+      position: relative;
+    }
+    .wave-border::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 4'%3E%3Cpath d='M0 2 Q5 0 10 2 Q15 4 20 2' fill='none' stroke='%234a9d9e' stroke-width='0.5' opacity='0.4'/%3E%3C/svg%3E") repeat-x;
+      background-size: 20px 4px;
+    }
+
+    /* Signal flag status indicators */
+    .badge-success::before,
+    .badge-warning::before,
+    .badge-danger::before {
+      content: '';
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+    .badge-success::before { background: var(--success); }
+    .badge-warning::before { background: var(--warning); }
+    .badge-danger::before { background: var(--danger); }
+
+    /* Typography polish — nav group labels */
+    .tab { letter-spacing: 0.03em; }
+    th { letter-spacing: 0.1em; }
+
+    /* Onboarding panel */
+    .onboarding-panel {
+      grid-column: 1 / -1;
+      background: linear-gradient(135deg, var(--bg-card) 0%, rgba(74,157,158,0.08) 100%);
+      border: 1px solid var(--accent-dim);
+      border-radius: var(--radius-lg);
+      padding: 32px 28px;
+      text-align: center;
+    }
+    .onboarding-panel h2 {
+      font-size: 1.4em;
+      color: var(--accent);
+      margin-bottom: 8px;
+      letter-spacing: 0.08em;
+    }
+    .onboarding-panel .onboard-sub {
+      color: var(--text-dim);
+      font-size: 0.9em;
+      margin-bottom: 20px;
+    }
+    .onboarding-panel .onboard-cmd {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px 16px;
+      margin: 8px 4px;
+      font-size: 0.9em;
+    }
+    .onboarding-panel .onboard-cmd code { background: none; padding: 0; color: var(--accent-soft); }
+    .onboard-copy-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      width: 28px;
+      height: 28px;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--transition-med);
+      padding: 0;
+    }
+    .onboard-copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .onboarding-panel .onboard-links {
+      margin-top: 16px;
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .onboarding-panel .onboard-links a,
+    .onboarding-panel .onboard-links button {
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 0.85em;
+      padding: 6px 14px;
+      border: 1px solid var(--accent-dim);
+      border-radius: var(--radius-sm);
+      background: none;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all var(--transition-med);
+    }
+    .onboarding-panel .onboard-links a:hover,
+    .onboarding-panel .onboard-links button:hover {
+      background: var(--accent-glow);
+    }
+
+    /* Live toggle button */
+    .live-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      padding: 5px 12px;
+      border-radius: var(--radius-sm);
+      font-family: inherit;
+      font-size: 0.8em;
+      cursor: pointer;
+      transition: all var(--transition-med);
+    }
+    .live-toggle:hover { border-color: var(--accent); }
+    .live-toggle.active { border-color: var(--success); color: var(--success); }
+    .live-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--text-muted);
+    }
+    .live-toggle.active .live-dot {
+      background: var(--success);
+      animation: pulseGlow 2s infinite;
+    }
   </style>
 </head>
 <body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+  <div class="mobile-backdrop" id="mobile-backdrop"></div>
   <svg style="display:none">
     <symbol id="icon-server" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></symbol>
     <symbol id="icon-bot" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></symbol>
@@ -688,22 +966,19 @@
     <symbol id="icon-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></symbol>
   </svg>
 
-  <div class="container">
+  <div class="container" role="main" id="main-content">
+    <div class="daemon-banner" id="daemon-banner" role="alert">
+      <svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg>
+      Daemon offline — data may be stale
+    </div>
     <div class="header">
       <div class="logo">
         <div class="logo-mark">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <!-- Ship's wheel icon -->
-            <circle cx="12" cy="12" r="7"/>
-            <circle cx="12" cy="12" r="2.5"/>
-            <line x1="12" y1="5" x2="12" y2="2"/>
-            <line x1="12" y1="22" x2="12" y2="19"/>
-            <line x1="19" y1="12" x2="22" y2="12"/>
-            <line x1="2" y1="12" x2="5" y2="12"/>
-            <line x1="16.95" y1="7.05" x2="19.07" y2="4.93"/>
-            <line x1="4.93" y1="19.07" x2="7.05" y2="16.95"/>
-            <line x1="16.95" y1="16.95" x2="19.07" y2="19.07"/>
-            <line x1="4.93" y1="4.93" x2="7.05" y2="7.05"/>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+            <!-- Anchor icon -->
+            <circle cx="12" cy="5" r="3"/>
+            <line x1="12" y1="22" x2="12" y2="8"/>
+            <path d="M5 12H2a10 10 0 0 0 20 0h-3"/>
           </svg>
         </div>
         <div class="logo-text">
@@ -712,9 +987,16 @@
         </div>
       </div>
       <div class="header-right">
+        <button class="mobile-menu-btn" id="mobile-menu-btn" onclick="toggleMobileSidebar()" aria-label="Open navigation menu">
+          <div class="hamburger-icon"><span></span><span></span><span></span></div>
+        </button>
         <div class="maritime-flag" title="Signal flag: Tango (keeping clear)">
           <div style="width:32px;height:24px;background:linear-gradient(90deg,#e31b23 0 33%,#fff 33% 66%,#0047ab 66%);border-radius:2px;box-shadow:0 2px 8px rgba(0,0,0,0.3);"></div>
         </div>
+        <button class="live-toggle active" id="live-toggle" onclick="toggleLivePolling()" title="Toggle live auto-refresh">
+          <span class="live-dot"></span>
+          <span id="live-label">Live</span>
+        </button>
         <div class="status-pill" id="status-pill">
           <div class="status-dot online" id="status-dot"></div>
           <span id="status-text">Online</span>
@@ -724,45 +1006,45 @@
           <div>PID <code id="pid">-</code></div>
         </div>
         <button class="settings-btn" onclick="openSettings()" title="Settings">
-          <svg class="icon-lg"><use href="#icon-settings"/></svg>
+          <svg class="icon-lg" aria-hidden="true"><use href="#icon-settings"/></svg>
         </button>
       </div>
     </div>
 
-    <div class="stats">
-      <div class="stat-card"><svg class="stat-icon-bg icon-xl"><use href="#icon-server"/></svg><div class="value" id="stat-services">-</div><div class="label"><svg class="icon"><use href="#icon-server"/></svg>Services</div></div>
-      <div class="stat-card"><svg class="stat-icon-bg icon-xl"><use href="#icon-bot"/></svg><div class="value" id="stat-agents">-</div><div class="label"><svg class="icon"><use href="#icon-bot"/></svg>Agents</div></div>
-      <div class="stat-card"><svg class="stat-icon-bg icon-xl"><use href="#icon-lock"/></svg><div class="value" id="stat-locks">-</div><div class="label"><svg class="icon"><use href="#icon-lock"/></svg>Locks</div></div>
-      <div class="stat-card"><svg class="stat-icon-bg icon-xl"><use href="#icon-message"/></svg><div class="value" id="stat-channels">-</div><div class="label"><svg class="icon"><use href="#icon-message"/></svg>Channels</div></div>
-      <div class="stat-card"><svg class="stat-icon-bg icon-xl"><use href="#icon-webhook"/></svg><div class="value" id="stat-webhooks">-</div><div class="label"><svg class="icon"><use href="#icon-webhook"/></svg>Webhooks</div></div>
-      <div class="stat-card"><svg class="stat-icon-bg icon-xl"><use href="#icon-clock"/></svg><div class="value" id="stat-uptime">-</div><div class="label"><svg class="icon"><use href="#icon-clock"/></svg>Uptime</div></div>
+    <div class="stats" id="stats-grid">
+      <div class="stat-card wave-border"><svg class="stat-icon-bg icon-xl" aria-hidden="true"><use href="#icon-server"/></svg><div class="value" id="stat-services">-</div><div class="label"><svg class="icon" aria-hidden="true"><use href="#icon-server"/></svg>Services</div></div>
+      <div class="stat-card wave-border"><svg class="stat-icon-bg icon-xl" aria-hidden="true"><use href="#icon-bot"/></svg><div class="value" id="stat-agents">-</div><div class="label"><svg class="icon" aria-hidden="true"><use href="#icon-bot"/></svg>Agents</div></div>
+      <div class="stat-card wave-border"><svg class="stat-icon-bg icon-xl" aria-hidden="true"><use href="#icon-lock"/></svg><div class="value" id="stat-locks">-</div><div class="label"><svg class="icon" aria-hidden="true"><use href="#icon-lock"/></svg>Locks</div></div>
+      <div class="stat-card wave-border"><svg class="stat-icon-bg icon-xl" aria-hidden="true"><use href="#icon-message"/></svg><div class="value" id="stat-channels">-</div><div class="label"><svg class="icon" aria-hidden="true"><use href="#icon-message"/></svg>Channels</div></div>
+      <div class="stat-card wave-border"><svg class="stat-icon-bg icon-xl" aria-hidden="true"><use href="#icon-webhook"/></svg><div class="value" id="stat-webhooks">-</div><div class="label"><svg class="icon" aria-hidden="true"><use href="#icon-webhook"/></svg>Webhooks</div></div>
+      <div class="stat-card wave-border"><svg class="stat-icon-bg icon-xl" aria-hidden="true"><use href="#icon-clock"/></svg><div class="value" id="stat-uptime">-</div><div class="label"><svg class="icon" aria-hidden="true"><use href="#icon-clock"/></svg>Uptime</div></div>
     </div>
 
     <div class="quick-actions">
-      <button class="quick-btn accent-btn" onclick="showIntegrateModal()"><svg class="icon"><use href="#icon-code"/></svg>Integrate Into Your Stack</button>
-      <button class="quick-btn danger-btn" onclick="releaseAllServices()" title="Remove all services from Port Daddy's database (does NOT kill processes)"><svg class="icon"><use href="#icon-trash"/></svg>Release All</button>
-      <button class="quick-btn" onclick="showShortcuts()"><svg class="icon"><use href="#icon-zap"/></svg>Shortcuts</button>
+      <button class="quick-btn accent-btn" onclick="showIntegrateModal()"><svg class="icon" aria-hidden="true"><use href="#icon-code"/></svg>Integrate Into Your Stack</button>
+      <button class="quick-btn danger-btn" onclick="releaseAllServices()" title="Remove all services from Port Daddy's database (does NOT kill processes)"><svg class="icon" aria-hidden="true"><use href="#icon-trash"/></svg>Release All</button>
+      <button class="quick-btn" onclick="showShortcuts()"><svg class="icon" aria-hidden="true"><use href="#icon-zap"/></svg>Shortcuts</button>
     </div>
 
     <div class="tabs-container">
-      <div class="tabs-wrapper">
-        <div class="tabs">
-          <button class="tab active" data-tab="terminal"><svg class="icon"><use href="#icon-terminal"/></svg>Terminal</button>
-          <button class="tab" data-tab="services"><svg class="icon"><use href="#icon-server"/></svg>Services<span class="tab-badge" id="badge-services">0</span></button>
-          <button class="tab" data-tab="agents"><svg class="icon"><use href="#icon-bot"/></svg>Agents<span class="tab-badge" id="badge-agents">0</span></button>
-          <button class="tab" data-tab="salvage"><svg class="icon"><use href="#icon-anchor"/></svg>Salvage<span class="tab-badge" id="badge-salvage">0</span></button>
-          <button class="tab" data-tab="locks"><svg class="icon"><use href="#icon-lock"/></svg>Locks<span class="tab-badge" id="badge-locks">0</span></button>
-          <button class="tab" data-tab="channels"><svg class="icon"><use href="#icon-message"/></svg>Channels<span class="tab-badge" id="badge-channels">0</span></button>
-          <button class="tab" data-tab="webhooks"><svg class="icon"><use href="#icon-webhook"/></svg>Webhooks<span class="tab-badge" id="badge-webhooks">0</span></button>
-          <button class="tab" data-tab="projects"><svg class="icon"><use href="#icon-folder"/></svg>Projects<span class="tab-badge" id="badge-projects">0</span></button>
-          <button class="tab" data-tab="sessions"><svg class="icon"><use href="#icon-clipboard"/></svg>Sessions<span class="tab-badge" id="badge-sessions">0</span></button>
-          <button class="tab" data-tab="changelog"><svg class="icon"><use href="#icon-book"/></svg>Changelog<span class="tab-badge" id="badge-changelog">0</span></button>
-          <button class="tab" data-tab="activity"><svg class="icon"><use href="#icon-activity"/></svg>Activity</button>
-          <button class="tab" data-tab="config"><svg class="icon"><use href="#icon-settings"/></svg>Config</button>
+      <nav class="tabs-wrapper" role="navigation" aria-label="Main navigation">
+        <div class="tabs" role="tablist">
+          <button class="tab active" data-tab="terminal" role="tab" aria-selected="true"><svg class="icon" aria-hidden="true"><use href="#icon-terminal"/></svg>Terminal</button>
+          <button class="tab" data-tab="services" role="tab" aria-selected="false"><svg class="icon" aria-hidden="true"><use href="#icon-server"/></svg>Fleet Status<span class="tab-badge" id="badge-services">0</span></button>
+          <button class="tab" data-tab="agents" role="tab" aria-selected="false"><svg class="icon" aria-hidden="true"><use href="#icon-bot"/></svg>Agents<span class="tab-badge" id="badge-agents">0</span></button>
+          <button class="tab" data-tab="salvage" role="tab" aria-selected="false"><svg class="icon" aria-hidden="true"><use href="#icon-anchor"/></svg>Salvage<span class="tab-badge" id="badge-salvage">0</span></button>
+          <button class="tab" data-tab="locks" role="tab" aria-selected="false"><svg class="icon" aria-hidden="true"><use href="#icon-lock"/></svg>Locks<span class="tab-badge" id="badge-locks">0</span></button>
+          <button class="tab" data-tab="channels" role="tab" aria-selected="false"><svg class="icon" aria-hidden="true"><use href="#icon-message"/></svg>Channels<span class="tab-badge" id="badge-channels">0</span></button>
+          <button class="tab" data-tab="webhooks" role="tab" aria-selected="false"><svg class="icon" aria-hidden="true"><use href="#icon-webhook"/></svg>Webhooks<span class="tab-badge" id="badge-webhooks">0</span></button>
+          <button class="tab" data-tab="projects" role="tab" aria-selected="false"><svg class="icon" aria-hidden="true"><use href="#icon-folder"/></svg>Projects<span class="tab-badge" id="badge-projects">0</span></button>
+          <button class="tab" data-tab="sessions" role="tab" aria-selected="false"><svg class="icon" aria-hidden="true"><use href="#icon-clipboard"/></svg>Sessions<span class="tab-badge" id="badge-sessions">0</span></button>
+          <button class="tab" data-tab="changelog" role="tab" aria-selected="false"><svg class="icon" aria-hidden="true"><use href="#icon-book"/></svg>Changelog<span class="tab-badge" id="badge-changelog">0</span></button>
+          <button class="tab" data-tab="activity" role="tab" aria-selected="false"><svg class="icon" aria-hidden="true"><use href="#icon-activity"/></svg>Ship's Log</button>
+          <button class="tab" data-tab="config" role="tab" aria-selected="false"><svg class="icon" aria-hidden="true"><use href="#icon-settings"/></svg>Config</button>
         </div>
-      </div>
+      </nav>
 
-      <div class="tab-content active" id="tab-terminal">
+      <div class="tab-content active" id="tab-terminal" role="tabpanel">
         <div class="command-output" id="command-output" style="flex:1;max-height:600px">
           <div class="cmd-entry"><div class="cmd-entry-body" style="border-left:3px solid var(--border)"><pre><span class="text-muted">Type a command below, or try: find, scan, projects, status, tutorial</span></pre></div></div>
         </div>
@@ -776,12 +1058,12 @@
         </div>
       </div>
 
-      <div class="tab-content" id="tab-services">
+      <div class="tab-content" id="tab-services" role="tabpanel">
         <div class="tab-toolbar">
-          <button class="refresh-btn" onclick="refreshServices()" id="refresh-services"><svg class="icon"><use href="#icon-refresh"/></svg>Refresh</button>
+          <button class="refresh-btn" onclick="refreshServices()" id="refresh-services"><svg class="icon" aria-hidden="true"><use href="#icon-refresh"/></svg>Refresh</button>
           <div class="view-toggle">
-            <button class="active" onclick="setServicesView('detail', this)" title="Detailed"><svg class="icon"><use href="#icon-list"/></svg></button>
-            <button onclick="setServicesView('compact', this)" title="Compact"><svg class="icon"><use href="#icon-grid"/></svg></button>
+            <button class="active" onclick="setServicesView('detail', this)" title="Detailed"><svg class="icon" aria-hidden="true"><use href="#icon-list"/></svg></button>
+            <button onclick="setServicesView('compact', this)" title="Compact"><svg class="icon" aria-hidden="true"><use href="#icon-grid"/></svg></button>
           </div>
         </div>
         <table id="services-table">
@@ -790,17 +1072,17 @@
         </table>
       </div>
 
-      <div class="tab-content" id="tab-agents">
-        <div class="tab-toolbar"><button class="refresh-btn" onclick="refreshAgents()" id="refresh-agents"><svg class="icon"><use href="#icon-refresh"/></svg>Refresh</button></div>
+      <div class="tab-content" id="tab-agents" role="tabpanel">
+        <div class="tab-toolbar"><button class="refresh-btn" onclick="refreshAgents()" id="refresh-agents"><svg class="icon" aria-hidden="true"><use href="#icon-refresh"/></svg>Refresh</button></div>
         <table>
           <thead><tr><th>Agent ID</th><th>Type</th><th>PID</th><th>Status</th><th>Last Heartbeat</th><th>Limits</th><th></th></tr></thead>
           <tbody id="agents-body"><tr><td colspan="7" class="empty-state"><svg class="empty-state-icon"><use href="#icon-bot"/></svg><div class="empty-state-text">Loading...</div></td></tr></tbody>
         </table>
       </div>
 
-      <div class="tab-content" id="tab-salvage">
+      <div class="tab-content" id="tab-salvage" role="tabpanel">
         <div class="tab-toolbar">
-          <button class="refresh-btn" onclick="refreshSalvage()" id="refresh-salvage"><svg class="icon"><use href="#icon-refresh"/></svg>Refresh</button>
+          <button class="refresh-btn" onclick="refreshSalvage()" id="refresh-salvage"><svg class="icon" aria-hidden="true"><use href="#icon-refresh"/></svg>Refresh</button>
           <span style="flex:1"></span>
           <span class="text-muted" style="font-size:0.85em">Dead agents with unfinished work — filter by project with <code>pd salvage --project NAME</code></span>
         </div>
@@ -810,30 +1092,30 @@
         </table>
       </div>
 
-      <div class="tab-content" id="tab-locks">
-        <div class="tab-toolbar"><button class="refresh-btn" onclick="refreshLocks()" id="refresh-locks"><svg class="icon"><use href="#icon-refresh"/></svg>Refresh</button></div>
+      <div class="tab-content" id="tab-locks" role="tabpanel">
+        <div class="tab-toolbar"><button class="refresh-btn" onclick="refreshLocks()" id="refresh-locks"><svg class="icon" aria-hidden="true"><use href="#icon-refresh"/></svg>Refresh</button></div>
         <table>
           <thead><tr><th>Lock Name</th><th>Owner</th><th>PID</th><th>Acquired</th><th>Expires</th><th></th></tr></thead>
           <tbody id="locks-body"><tr><td colspan="6" class="empty-state"><svg class="empty-state-icon"><use href="#icon-lock"/></svg><div class="empty-state-text">Loading...</div></td></tr></tbody>
         </table>
       </div>
 
-      <div class="tab-content" id="tab-channels">
-        <div class="tab-toolbar"><button class="refresh-btn" onclick="refreshChannels()" id="refresh-channels"><svg class="icon"><use href="#icon-refresh"/></svg>Refresh</button></div>
+      <div class="tab-content" id="tab-channels" role="tabpanel">
+        <div class="tab-toolbar"><button class="refresh-btn" onclick="refreshChannels()" id="refresh-channels"><svg class="icon" aria-hidden="true"><use href="#icon-refresh"/></svg>Refresh</button></div>
         <div id="channels-list"><div class="empty-state"><svg class="empty-state-icon"><use href="#icon-message"/></svg><div class="empty-state-text">Loading...</div></div></div>
       </div>
 
-      <div class="tab-content" id="tab-webhooks">
-        <div class="tab-toolbar"><button class="refresh-btn" onclick="refreshWebhooks()" id="refresh-webhooks"><svg class="icon"><use href="#icon-refresh"/></svg>Refresh</button></div>
+      <div class="tab-content" id="tab-webhooks" role="tabpanel">
+        <div class="tab-toolbar"><button class="refresh-btn" onclick="refreshWebhooks()" id="refresh-webhooks"><svg class="icon" aria-hidden="true"><use href="#icon-refresh"/></svg>Refresh</button></div>
         <table>
           <thead><tr><th>Endpoint</th><th>Events</th><th>Status</th><th>Deliveries</th><th>Last Triggered</th></tr></thead>
           <tbody id="webhooks-body"><tr><td colspan="5" class="empty-state"><svg class="empty-state-icon"><use href="#icon-webhook"/></svg><div class="empty-state-text">Loading...</div></td></tr></tbody>
         </table>
       </div>
 
-      <div class="tab-content" id="tab-projects">
+      <div class="tab-content" id="tab-projects" role="tabpanel">
         <div class="tab-toolbar">
-          <button class="refresh-btn" onclick="refreshProjects()" id="refresh-projects"><svg class="icon"><use href="#icon-refresh"/></svg>Refresh</button>
+          <button class="refresh-btn" onclick="refreshProjects()" id="refresh-projects"><svg class="icon" aria-hidden="true"><use href="#icon-refresh"/></svg>Refresh</button>
         </div>
         <table>
           <thead><tr><th>Project</th><th>Type</th><th>Services</th><th>Last Scanned</th><th>Frameworks</th><th></th></tr></thead>
@@ -841,9 +1123,9 @@
         </table>
       </div>
 
-      <div class="tab-content" id="tab-sessions">
+      <div class="tab-content" id="tab-sessions" role="tabpanel">
         <div class="tab-toolbar">
-          <button class="refresh-btn" onclick="refreshSessions()" id="refresh-sessions"><svg class="icon"><use href="#icon-refresh"/></svg>Refresh</button>
+          <button class="refresh-btn" onclick="refreshSessions()" id="refresh-sessions"><svg class="icon" aria-hidden="true"><use href="#icon-refresh"/></svg>Refresh</button>
           <select class="filter-select" id="sessions-filter" onchange="refreshSessions()">
             <option value="">Active Sessions</option>
             <option value="all">All Sessions</option>
@@ -859,9 +1141,9 @@
         <div class="activity-feed" id="notes-feed"><div class="empty-state"><svg class="empty-state-icon"><use href="#icon-message"/></svg><div class="empty-state-text">No notes yet</div></div></div>
       </div>
 
-      <div class="tab-content" id="tab-changelog">
+      <div class="tab-content" id="tab-changelog" role="tabpanel">
         <div class="tab-toolbar">
-          <button class="refresh-btn" onclick="refreshChangelog()" id="refresh-changelog"><svg class="icon"><use href="#icon-refresh"/></svg>Refresh</button>
+          <button class="refresh-btn" onclick="refreshChangelog()" id="refresh-changelog"><svg class="icon" aria-hidden="true"><use href="#icon-refresh"/></svg>Refresh</button>
           <select class="filter-select" id="changelog-identity" onchange="refreshChangelog()">
             <option value="">All Identities</option>
           </select>
@@ -875,9 +1157,9 @@
         <div class="activity-feed" id="changelog-feed"><div class="empty-state"><svg class="empty-state-icon"><use href="#icon-book"/></svg><div class="empty-state-text">Loading...</div></div></div>
       </div>
 
-      <div class="tab-content" id="tab-activity">
+      <div class="tab-content" id="tab-activity" role="tabpanel">
         <div class="tab-toolbar">
-          <button class="refresh-btn" onclick="refreshActivity()" id="refresh-activity"><svg class="icon"><use href="#icon-refresh"/></svg>Refresh</button>
+          <button class="refresh-btn" onclick="refreshActivity()" id="refresh-activity"><svg class="icon" aria-hidden="true"><use href="#icon-refresh"/></svg>Refresh</button>
           <select class="filter-select" id="activity-filter" onchange="refreshActivity()">
             <option value="">All Activity</option>
             <option value="service.claim">Claims</option>
@@ -890,34 +1172,34 @@
         <div class="activity-feed" id="activity-feed"><div class="empty-state"><svg class="empty-state-icon"><use href="#icon-activity"/></svg><div class="empty-state-text">Loading...</div></div></div>
       </div>
 
-      <div class="tab-content" id="tab-config">
+      <div class="tab-content" id="tab-config" role="tabpanel">
         <h3 style="color:var(--accent);margin-bottom:16px;font-size:1.05em">Configuration Locations</h3>
         <div class="config-grid" id="config-grid">
-          <div class="config-item"><div class="config-label"><svg class="icon"><use href="#icon-folder"/></svg>Database</div><code class="config-path" id="config-db">Loading...</code><div class="config-desc">SQLite database storing all services, locks, agents, and messages</div></div>
-          <div class="config-item"><div class="config-label"><svg class="icon"><use href="#icon-folder"/></svg>Daemon PID</div><code class="config-path" id="config-pid">Loading...</code><div class="config-desc">Process ID file for the running daemon</div></div>
-          <div class="config-item"><div class="config-label"><svg class="icon"><use href="#icon-folder"/></svg>Logs</div><code class="config-path" id="config-log">Loading...</code><div class="config-desc">Daemon log output (when running as service)</div></div>
-          <div class="config-item"><div class="config-label"><svg class="icon"><use href="#icon-folder"/></svg>Installation</div><code class="config-path" id="config-install">Loading...</code><div class="config-desc">Port Daddy installation directory</div></div>
-          <div class="config-item"><div class="config-label"><svg class="icon"><use href="#icon-folder"/></svg>CLI Skill</div><code class="config-path">~/.claude/commands/port-daddy.md</code><div class="config-desc">Agentic skill file teaching Claude how to use Port Daddy</div></div>
-          <div class="config-item"><div class="config-label"><svg class="icon"><use href="#icon-settings"/></svg>Environment</div><code class="config-path">PORT_DADDY_PORT, PORT_DADDY_RANGE_START, PORT_DADDY_RANGE_END</code><div class="config-desc">Optional env vars to customize port and range</div></div>
+          <div class="config-item"><div class="config-label"><svg class="icon" aria-hidden="true"><use href="#icon-folder"/></svg>Database</div><code class="config-path" id="config-db">Loading...</code><div class="config-desc">SQLite database storing all services, locks, agents, and messages</div></div>
+          <div class="config-item"><div class="config-label"><svg class="icon" aria-hidden="true"><use href="#icon-folder"/></svg>Daemon PID</div><code class="config-path" id="config-pid">Loading...</code><div class="config-desc">Process ID file for the running daemon</div></div>
+          <div class="config-item"><div class="config-label"><svg class="icon" aria-hidden="true"><use href="#icon-folder"/></svg>Logs</div><code class="config-path" id="config-log">Loading...</code><div class="config-desc">Daemon log output (when running as service)</div></div>
+          <div class="config-item"><div class="config-label"><svg class="icon" aria-hidden="true"><use href="#icon-folder"/></svg>Installation</div><code class="config-path" id="config-install">Loading...</code><div class="config-desc">Port Daddy installation directory</div></div>
+          <div class="config-item"><div class="config-label"><svg class="icon" aria-hidden="true"><use href="#icon-folder"/></svg>CLI Skill</div><code class="config-path">~/.claude/commands/port-daddy.md</code><div class="config-desc">Agentic skill file teaching Claude how to use Port Daddy</div></div>
+          <div class="config-item"><div class="config-label"><svg class="icon" aria-hidden="true"><use href="#icon-settings"/></svg>Environment</div><code class="config-path">PORT_DADDY_PORT, PORT_DADDY_RANGE_START, PORT_DADDY_RANGE_END</code><div class="config-desc">Optional env vars to customize port and range</div></div>
         </div>
       </div>
     </div>
 
     <div class="footer">
-      <div class="farewell">⚓ Fair winds and following seas ⚓</div>
-      Auto-refreshes every 5s · <a href="https://github.com/curiositech/port-daddy">GitHub</a> · Port Daddy by <a href="https://curiositech.ai">Curiositech</a>
+      <div class="farewell" style="display:flex;align-items:center;justify-content:center;gap:8px;"><svg class="icon" aria-hidden="true" style="color:var(--accent);"><use href="#icon-anchor"/></svg> Fair winds and following seas <svg class="icon" aria-hidden="true" style="color:var(--accent);"><use href="#icon-anchor"/></svg></div>
+      Auto-refreshes every 15s · <a href="https://github.com/curiositech/port-daddy">GitHub</a> · Port Daddy by <a href="https://curiositech.ai">Curiositech</a>
     </div>
   </div>
 
-  <div class="toast-container" id="toast-container"></div>
+  <div class="toast-container" id="toast-container" role="status" aria-live="polite"></div>
 
   <div class="modal-overlay" id="modal-overlay" onclick="closeModal()">
-    <div class="modal" id="modal-content" onclick="event.stopPropagation()"></div>
+    <div class="modal" id="modal-content" role="dialog" aria-modal="true" aria-labelledby="modal-title" onclick="event.stopPropagation()"></div>
   </div>
 
   <div class="settings-overlay" id="settings-overlay" onclick="closeSettings()"></div>
   <div class="settings-panel" id="settings-panel">
-    <div class="settings-header"><h2>Settings</h2><button class="settings-close" onclick="closeSettings()"><svg class="icon-lg"><use href="#icon-x"/></svg></button></div>
+    <div class="settings-header"><h2>Settings</h2><button class="settings-close" onclick="closeSettings()" aria-label="Close settings"><svg class="icon-lg" aria-hidden="true"><use href="#icon-x"/></svg></button></div>
     <div class="settings-section">
       <h3>Auto-Launch Dashboard</h3><p>Open dashboard automatically when Port Daddy is used</p>
       <div class="setting-row"><div><div class="setting-label">Enable auto-launch</div><div class="setting-desc">Opens dashboard on first command in session</div></div><div class="toggle" id="toggle-autolaunch" onclick="toggleSetting('autolaunch')"></div></div>
@@ -956,11 +1238,18 @@
     function showToast(message, type) {
       type = type || 'info';
       var container = document.getElementById('toast-container');
+      /* Error toasts use assertive for screen readers */
+      if (type === 'error') {
+        container.setAttribute('aria-live', 'assertive');
+      } else {
+        container.setAttribute('aria-live', 'polite');
+      }
       var toast = document.createElement('div');
       toast.className = 'toast ' + type;
       var iconMap = { success: '#icon-check', error: '#icon-x', info: '#icon-zap' };
       var iconEl = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       iconEl.setAttribute('class', 'icon toast-icon');
+      iconEl.setAttribute('aria-hidden', 'true');
       iconEl.style.color = 'var(--' + type + ')';
       var use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
       use.setAttributeNS('http://www.w3.org/1999/xlink', 'href', iconMap[type] || iconMap.info);
@@ -1069,17 +1358,33 @@
       btn.classList.add('active');
     }
 
-    /* ── Tab Switching ── */
-    function switchToTab(tabName) {
-      document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+    /* ── Tab Switching with Hash Routing ── */
+    function switchToTab(tabName, updateHash) {
+      document.querySelectorAll('.tab').forEach(function(t) {
+        t.classList.remove('active');
+        t.setAttribute('aria-selected', 'false');
+      });
       document.querySelectorAll('.tab-content').forEach(function(c) { c.classList.remove('active'); });
       var tabBtn = document.querySelector('.tab[data-tab="' + tabName + '"]');
       var tabContent = document.getElementById('tab-' + tabName);
-      if (tabBtn) tabBtn.classList.add('active');
+      if (tabBtn) {
+        tabBtn.classList.add('active');
+        tabBtn.setAttribute('aria-selected', 'true');
+      }
       if (tabContent) tabContent.classList.add('active');
+      if (updateHash !== false) {
+        location.hash = '#' + tabName;
+      }
     }
     document.querySelectorAll('.tab').forEach(function(tab) {
       tab.addEventListener('click', function() { switchToTab(tab.dataset.tab); });
+    });
+    /* Hash change listener for browser back/forward */
+    window.addEventListener('hashchange', function() {
+      var hash = location.hash.replace('#', '');
+      if (hash && document.getElementById('tab-' + hash)) {
+        switchToTab(hash, false);
+      }
     });
 
     /* ── Command Definitions ── */
@@ -1476,6 +1781,7 @@
     }
 
     /* ── Refresh Functions ── */
+    var daemonOnline = true;
     async function refreshHealth() {
       try {
         var data = await (await fetch(API + '/health')).json();
@@ -1484,10 +1790,16 @@
         document.getElementById('status-text').textContent = 'Online';
         document.getElementById('status-dot').className = 'status-dot online';
         document.getElementById('status-pill').classList.add('online');
+        document.getElementById('daemon-banner').classList.remove('show');
+        document.querySelector('.container').classList.remove('daemon-offline');
+        daemonOnline = true;
       } catch(e) {
         document.getElementById('status-text').textContent = 'Offline';
         document.getElementById('status-dot').className = 'status-dot offline';
         document.getElementById('status-pill').classList.remove('online');
+        document.getElementById('daemon-banner').classList.add('show');
+        document.querySelector('.container').classList.add('daemon-offline');
+        daemonOnline = false;
       }
     }
     async function refreshVersion() {
@@ -1892,13 +2204,44 @@
       document.getElementById('command-output').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
-    /* ── Modals ── */
-    function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+    /* ── Modals with Focus Trap ── */
+    var modalTriggerEl = null;
+    function closeModal() {
+      document.getElementById('modal-overlay').classList.remove('open');
+      document.removeEventListener('keydown', trapFocusInModal);
+      if (modalTriggerEl && modalTriggerEl.focus) {
+        modalTriggerEl.focus();
+        modalTriggerEl = null;
+      }
+    }
+    function trapFocusInModal(e) {
+      if (e.key !== 'Tab') return;
+      var modal = document.getElementById('modal-content');
+      var focusable = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+      if (focusable.length === 0) return;
+      var first = focusable[0];
+      var last = focusable[focusable.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    }
     function showModal(contentEl) {
+      modalTriggerEl = document.activeElement;
       var mc = document.getElementById('modal-content');
       mc.textContent = '';
       mc.appendChild(contentEl);
+      /* Set the modal-title id on the first h3 for aria-labelledby */
+      var h3 = mc.querySelector('h3');
+      if (h3) h3.id = 'modal-title';
       document.getElementById('modal-overlay').classList.add('open');
+      /* Focus the first focusable element inside the modal */
+      var focusable = mc.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+      if (focusable.length > 0) {
+        setTimeout(function() { focusable[0].focus(); }, 50);
+      }
+      document.addEventListener('keydown', trapFocusInModal);
     }
 
     function showShortcuts() {
@@ -2192,9 +2535,183 @@
     }
     async function refreshAll() {
       await Promise.all([refreshHealth(), refreshVersion(), refreshServices(), refreshAgents(), refreshSalvage(), refreshLocks(), refreshChannels(), refreshWebhooks(), refreshActivity(), refreshProjects(), refreshSessions(), refreshConfig(), refreshChangelog()]);
+      checkOnboardingState();
     }
+
+    /* ── Onboarding Panel ── */
+    function checkOnboardingState() {
+      var statsGrid = document.getElementById('stats-grid');
+      var vals = ['stat-services', 'stat-agents', 'stat-locks', 'stat-channels', 'stat-webhooks'].map(function(id) {
+        var el = document.getElementById(id);
+        return parseInt(el.textContent) || 0;
+      });
+      var total = vals.reduce(function(a, b) { return a + b; }, 0);
+      var existing = document.getElementById('onboarding-panel');
+      if (total === 0 && daemonOnline) {
+        if (!existing) {
+          /* Hide stat cards */
+          var cards = statsGrid.querySelectorAll('.stat-card');
+          cards.forEach(function(c) { c.style.display = 'none'; });
+          /* Create onboarding panel */
+          var panel = document.createElement('div');
+          panel.className = 'onboarding-panel';
+          panel.id = 'onboarding-panel';
+          var h2 = document.createElement('h2');
+          h2.textContent = 'Welcome aboard, Captain';
+          panel.appendChild(h2);
+          var sub = document.createElement('p');
+          sub.className = 'onboard-sub';
+          sub.textContent = 'No services or agents are registered yet. Get started by claiming a port for your first service.';
+          panel.appendChild(sub);
+          /* Copyable command */
+          var cmdWrap = document.createElement('div');
+          cmdWrap.className = 'onboard-cmd';
+          var code = document.createElement('code');
+          code.textContent = 'pd claim myapp';
+          cmdWrap.appendChild(code);
+          var copyBtn = document.createElement('button');
+          copyBtn.className = 'onboard-copy-btn';
+          copyBtn.title = 'Copy to clipboard';
+          copyBtn.onclick = function() { copyCmd('pd claim myapp'); };
+          var svgNs = 'http://www.w3.org/2000/svg';
+          var svg = document.createElementNS(svgNs, 'svg');
+          svg.setAttribute('class', 'icon');
+          svg.setAttribute('aria-hidden', 'true');
+          var use = document.createElementNS(svgNs, 'use');
+          use.setAttributeNS('http://www.w3.org/1999/xlink', 'href', '#icon-copy');
+          svg.appendChild(use);
+          copyBtn.appendChild(svg);
+          cmdWrap.appendChild(copyBtn);
+          panel.appendChild(cmdWrap);
+          /* Links */
+          var links = document.createElement('div');
+          links.className = 'onboard-links';
+          var tutBtn = document.createElement('button');
+          tutBtn.textContent = 'Run pd learn tutorial';
+          tutBtn.onclick = function() { quickCommand('tutorial'); };
+          links.appendChild(tutBtn);
+          var scanBtn = document.createElement('button');
+          scanBtn.textContent = 'Scan current project';
+          scanBtn.onclick = function() { quickCommand('scan'); };
+          links.appendChild(scanBtn);
+          panel.appendChild(links);
+          statsGrid.appendChild(panel);
+        }
+      } else {
+        if (existing) {
+          existing.remove();
+          var cards2 = statsGrid.querySelectorAll('.stat-card');
+          cards2.forEach(function(c) { c.style.display = ''; });
+        }
+      }
+    }
+
+    /* ── Live Polling Toggle ── */
+    var pollingInterval = null;
+    var livePolling = localStorage.getItem('portdaddy-live') !== 'false';
+    var POLL_INTERVAL = 15000;
+
+    function startPolling() {
+      if (pollingInterval) clearInterval(pollingInterval);
+      pollingInterval = setInterval(function() {
+        if (!isUserTyping) refreshAll();
+      }, POLL_INTERVAL);
+    }
+    function stopPolling() {
+      if (pollingInterval) { clearInterval(pollingInterval); pollingInterval = null; }
+    }
+    function toggleLivePolling() {
+      livePolling = !livePolling;
+      localStorage.setItem('portdaddy-live', livePolling);
+      var btn = document.getElementById('live-toggle');
+      var label = document.getElementById('live-label');
+      if (livePolling) {
+        btn.classList.add('active');
+        label.textContent = 'Live';
+        startPolling();
+      } else {
+        btn.classList.remove('active');
+        label.textContent = 'Paused';
+        stopPolling();
+      }
+    }
+    /* Init live toggle UI */
+    (function() {
+      var btn = document.getElementById('live-toggle');
+      var label = document.getElementById('live-label');
+      if (!livePolling) {
+        btn.classList.remove('active');
+        label.textContent = 'Paused';
+      }
+    })();
+
+    /* Pause polling while user is typing in command input */
+    var isUserTyping = false;
+    var typingTimer = null;
+    document.getElementById('command-input').addEventListener('input', function() {
+      isUserTyping = true;
+      clearTimeout(typingTimer);
+      typingTimer = setTimeout(function() { isUserTyping = false; }, 3000);
+    });
+
+    /* ── Mobile Sidebar ── */
+    function toggleMobileSidebar() {
+      var sidebar = document.querySelector('.sidebar');
+      var backdrop = document.getElementById('mobile-backdrop');
+      /* This dashboard uses tabs, not a sidebar, so toggle the tabs-wrapper as mobile nav */
+      /* For this single-file dashboard, we'll use the tabs as the sidebar in mobile */
+      if (sidebar) {
+        sidebar.classList.toggle('open');
+        backdrop.classList.toggle('show');
+      }
+    }
+    document.getElementById('mobile-backdrop').addEventListener('click', function() {
+      var sidebar = document.querySelector('.sidebar');
+      if (sidebar) sidebar.classList.remove('open');
+      this.classList.remove('show');
+    });
+
+    /* ── Keyboard Navigation for Nav Items (1c) ── */
+    document.addEventListener('keydown', function(e) {
+      if ((e.key === 'Enter' || e.key === ' ') && e.target.classList && e.target.classList.contains('nav-item')) {
+        e.preventDefault();
+        e.target.click();
+      }
+      /* Also handle tab buttons with keyboard Enter for ARIA compliance */
+      if ((e.key === 'Enter' || e.key === ' ') && e.target.getAttribute('role') === 'tab') {
+        e.preventDefault();
+        e.target.click();
+      }
+    });
+
+    /* ── Table Scroll Indicators (2e) ── */
+    function initScrollIndicators() {
+      document.querySelectorAll('.table-wrap').forEach(function(wrap) {
+        function updateScroll() {
+          var sl = wrap.scrollLeft;
+          var maxScroll = wrap.scrollWidth - wrap.clientWidth;
+          wrap.classList.toggle('scroll-left', sl > 4);
+          wrap.classList.toggle('scroll-right', sl < maxScroll - 4);
+        }
+        wrap.addEventListener('scroll', updateScroll);
+        updateScroll();
+        var ro = new ResizeObserver(updateScroll);
+        ro.observe(wrap);
+      });
+    }
+    /* Run after initial render */
+    setTimeout(initScrollIndicators, 500);
+
+    /* ── Init with hash routing ── */
     refreshAll();
-    setInterval(refreshAll, 5000);
+    if (livePolling) startPolling();
+    /* Restore tab from hash */
+    (function() {
+      var hash = location.hash.replace('#', '');
+      if (hash && document.getElementById('tab-' + hash)) {
+        switchToTab(hash, false);
+      }
+    })();
   </script>
 </body>
 </html>
