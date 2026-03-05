@@ -324,6 +324,259 @@ List all available webhook event types.
 
 ---
 
+## Salvage (Agent Resurrection)
+
+### GET /resurrection/pending
+Check for dead agents with unfinished work. Returns agents that died mid-task.
+
+### GET /resurrection
+List all entries in the resurrection queue.
+
+### POST /resurrection/claim/:agentId
+Claim a dead agent's session to continue their work.
+
+**Body:** `{ "claimedBy": "new-agent-id" }`
+
+### POST /resurrection/complete/:agentId
+Mark resurrection as complete.
+
+### POST /resurrection/abandon/:agentId
+Return agent to the resurrection queue.
+
+### DELETE /resurrection/:agentId
+Remove agent from resurrection queue (reviewed/dismissed).
+
+---
+
+## Notes (Quick Notes)
+
+### POST /notes
+Add a quick note (creates implicit session if none exists).
+
+**Body:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `content` | string | yes | Note content |
+| `type` | string | no | Note type: progress, decision, blocker, question, handoff, general |
+| `agentId` | string | no | Agent ID |
+
+### GET /notes
+Get recent notes across all sessions.
+
+**Query params:** `limit`, `type`, `agentId`
+
+---
+
+## Tunnels
+
+### GET /tunnel/providers
+Check which tunnel providers are installed (ngrok, cloudflared, localtunnel).
+
+### POST /tunnel/:id
+Start a tunnel for a claimed service.
+
+**Body:** `{ "provider": "ngrok" }`
+
+### DELETE /tunnel/:id
+Stop a tunnel.
+
+### GET /tunnel/:id
+Get tunnel status.
+
+### GET /tunnels
+List all active tunnels.
+
+---
+
+## Changelog
+
+### POST /changelog
+Add a changelog entry.
+
+**Body:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `identity` | string | yes | Semantic identity of what changed |
+| `summary` | string | yes | One-line summary |
+| `type` | string | no | feature, fix, refactor, docs, chore, breaking |
+| `description` | string | no | Detailed description (markdown) |
+
+### GET /changelog
+List recent changelog entries. Query params: `identity`, `limit`, `format`.
+
+### GET /changelog/identities
+List identities with changelog entries.
+
+---
+
+## Wait (Service Readiness)
+
+### GET /wait/:id
+Wait for a service to become healthy. Blocks until service responds or timeout.
+
+**Query params:** `timeout` (ms, default 30000)
+
+### POST /wait
+Wait for multiple services.
+
+**Body:** `{ "services": ["myapp:api", "myapp:db"], "timeout": 30000 }`
+
+---
+
+## Sugar (Compound Commands)
+
+### POST /sugar/begin
+Register agent + start session atomically. Rolls back agent registration on failure.
+
+**Body:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `purpose` | string | yes | What you're working on |
+| `identity` | string | no | Semantic identity (auto-detected from package.json) |
+| `agentId` | string | no | Agent ID (auto-generated if not provided) |
+| `type` | string | no | Agent type (e.g., 'claude-code') |
+| `files` | string[] | no | Files to claim |
+| `force` | boolean | no | Force file claims even if conflicts |
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "agentId": "agent-a1b2c3d4",
+  "sessionId": "session-uuid",
+  "identity": "myapp:api",
+  "purpose": "Implementing auth",
+  "agentRegistered": true,
+  "sessionStarted": true,
+  "salvageHint": "1 dead agent(s) found in project"
+}
+```
+
+### POST /sugar/done
+End session + unregister agent atomically.
+
+**Body:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `agentId` | string | no | Agent ID (or finds by active session) |
+| `sessionId` | string | no | Session ID |
+| `note` | string | no | Final summary note |
+| `status` | string | no | 'completed' (default) or 'abandoned' |
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "agentId": "agent-a1b2c3d4",
+  "sessionId": "session-uuid",
+  "sessionStatus": "completed",
+  "agentUnregistered": true
+}
+```
+
+### GET /sugar/whoami
+Show current agent and session context.
+
+**Query params:**
+| Param | Type | Description |
+|-------|------|-------------|
+| `agentId` | string | Agent ID to look up |
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "active": true,
+  "agentId": "agent-a1b2c3d4",
+  "sessionId": "session-uuid",
+  "purpose": "Implementing auth",
+  "identity": "myapp:api",
+  "noteCount": 5,
+  "duration": "12m"
+}
+```
+
+---
+
+## DNS Records
+
+### POST /dns/:identity
+Register a DNS record for a service.
+
+**Body:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `port` | number | yes | Port number |
+
+### GET /dns/lookup/:identity
+Resolve a service identity to hostname and port.
+
+### GET /dns
+List all DNS records.
+
+### POST /dns/cleanup
+Remove stale DNS records.
+
+### GET /dns/status
+DNS system status.
+
+---
+
+## Integration Signals
+
+### POST /integration/ready/:identity
+Signal that a service is ready for integration.
+
+**Body:** `{ "message": "Auth endpoints ready" }`
+
+### POST /integration/needs/:identity
+Signal that a service needs something from another.
+
+**Body:** `{ "message": "Needs auth endpoints from API" }`
+
+### GET /integration
+List all integration signals. Optional query: `project`.
+
+---
+
+## Briefing
+
+### POST /briefing/generate
+Generate a project briefing snapshot.
+
+**Body:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `project` | string | no | Project filter |
+| `full` | boolean | no | Include archives + activity log |
+| `json` | boolean | no | Return JSON instead of writing file |
+
+### GET /briefing
+Read the current briefing.
+
+---
+
+## Sessions (Extended)
+
+### PUT /sessions/:id/phase
+Set session phase.
+
+**Body:** `{ "phase": "testing" }`
+
+Phases: `planning`, `in_progress`, `testing`, `reviewing`, `completed`, `abandoned`
+
+---
+
+## File Claims (Global)
+
+### GET /files
+List all active file claims across all sessions.
+
+### GET /files/:path
+Check who owns a specific file path.
+
+---
+
 ## Config
 
 ### GET /config

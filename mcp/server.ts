@@ -198,7 +198,7 @@ const TOOLS = [
     description:
       'Start a coordination session. Sessions track what an agent is working on, ' +
       'which files it claims, and provide an audit trail via notes. ' +
-      'IMPORTANT: Always start a session when beginning work on a task.',
+      'NOTE: Prefer begin_session for typical workflows — it registers + starts a session atomically.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -222,7 +222,8 @@ const TOOLS = [
   {
     name: 'end_session',
     description:
-      'End the current active session. Status can be "completed" (success) or "abandoned" (gave up).',
+      'End the current active session. Status can be "completed" (success) or "abandoned" (gave up). ' +
+      'NOTE: Prefer end_session_full — it also unregisters the agent atomically.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -428,7 +429,7 @@ const TOOLS = [
     description:
       'Register as an agent with the Port Daddy daemon. Enables heartbeat monitoring ' +
       'and agent resurrection (salvage) if the agent dies. ' +
-      'IMPORTANT: Register at the start of every agent session.',
+      'NOTE: Prefer begin_session for typical workflows — it registers + starts a session atomically.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -846,6 +847,95 @@ const TOOLS = [
       required: ['project'],
     },
   },
+
+  // ── Sugar (Compound Workflows) ──────────────────────────────────────
+  {
+    name: 'begin_session',
+    description:
+      'Begin a work session: register agent + start session atomically. ' +
+      'This is the recommended way to start working — it replaces the manual ' +
+      'agent register + session start ceremony. Auto-generates an agent ID if not provided. ' +
+      'Rolls back agent registration if session start fails.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        purpose: {
+          type: 'string',
+          description: 'What this session is for (e.g. "Building auth system")',
+        },
+        agent_id: {
+          type: 'string',
+          description: 'Agent ID (auto-generated if omitted)',
+        },
+        identity: {
+          type: 'string',
+          description: 'Semantic identity in project:stack:context format',
+        },
+        type: {
+          type: 'string',
+          enum: ['cli', 'sdk', 'mcp'],
+          description: 'Agent type (default: mcp)',
+        },
+        files: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Files to claim for this session (advisory locking)',
+        },
+        force: {
+          type: 'boolean',
+          description: 'Force file claims even if already claimed by another session',
+        },
+      },
+      required: ['purpose'],
+    },
+  },
+  {
+    name: 'end_session_full',
+    description:
+      'End a work session fully: end session + unregister agent atomically. ' +
+      'This is the recommended way to finish working — it replaces the manual ' +
+      'session end + agent unregister ceremony. Finds the active session automatically ' +
+      'if session_id is not provided.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        agent_id: {
+          type: 'string',
+          description: 'Agent ID (used to find active session if session_id omitted)',
+        },
+        session_id: {
+          type: 'string',
+          description: 'Session ID to end (auto-detected if omitted)',
+        },
+        note: {
+          type: 'string',
+          description: 'Final note to add before ending (e.g. "Completed auth feature")',
+        },
+        status: {
+          type: 'string',
+          enum: ['completed', 'abandoned'],
+          description: 'How the session ended (default: completed)',
+        },
+      },
+    },
+  },
+  {
+    name: 'whoami',
+    description:
+      'Show current agent/session context. Returns agent ID, session ID, purpose, ' +
+      'identity, phase, file claims, note count, and duration. ' +
+      'Use this to check your current state before starting work.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        agent_id: {
+          type: 'string',
+          description: 'Agent ID to look up (required)',
+        },
+      },
+      required: ['agent_id'],
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -1198,6 +1288,36 @@ async function handleTool(
       break;
     }
 
+    // ── Sugar (Compound Workflows) ─────────────────────────────────
+    case 'begin_session': {
+      const body: Record<string, unknown> = { purpose: args.purpose };
+      if (args.agent_id) body.agentId = args.agent_id;
+      if (args.identity) body.identity = args.identity;
+      if (args.type) body.type = args.type;
+      if (args.files) body.files = args.files;
+      if (args.force) body.force = args.force;
+      res = await POST('/sugar/begin', body);
+      break;
+    }
+
+    case 'end_session_full': {
+      const body: Record<string, unknown> = {};
+      if (args.agent_id) body.agentId = args.agent_id;
+      if (args.session_id) body.sessionId = args.session_id;
+      if (args.note) body.note = args.note;
+      if (args.status) body.status = args.status;
+      res = await POST('/sugar/done', body);
+      break;
+    }
+
+    case 'whoami': {
+      const qs = args.agent_id
+        ? `?agentId=${encodeURIComponent(args.agent_id as string)}`
+        : '';
+      res = await GET(`/sugar/whoami${qs}`);
+      break;
+    }
+
     case 'integration_list': {
       // List integration channels then fetch messages
       const chRes = await GET('/channels');
@@ -1235,12 +1355,44 @@ async function handleTool(
 // ---------------------------------------------------------------------------
 
 const server = new Server(
-  { name: 'port-daddy', version: '3.3.0' },
+  { name: 'port-daddy', version: '3.5.0' },
   {
     capabilities: {
       tools: {},
       resources: {},
     },
+    instructions: [
+      'Port Daddy is the authoritative port manager for multi-agent development.',
+      'Daemon on localhost:9876, SQLite-backed, with CLI (pd), SDK, and MCP interfaces.',
+      '',
+      '## Recommended Workflow',
+      '',
+      'Use begin_session / end_session_full for every session:',
+      '',
+      '1. begin_session — registers you as an agent + starts a session atomically.',
+      '   Pass purpose (required), identity (project:stack:context), and files you plan to touch.',
+      '   Returns agentId, sessionId, and salvageHint if dead agents exist.',
+      '',
+      '2. add_note — leave breadcrumbs as you work. Notes are immutable audit trail.',
+      '   Use type: "progress", "decision", "blocker", "question", or "handoff".',
+      '',
+      '3. end_session_full — ends session + unregisters agent atomically.',
+      '   Pass optional note for final summary.',
+      '',
+      '## Key Concepts',
+      '',
+      '- Semantic identities: project:stack:context (e.g., myapp:api:auth)',
+      '- File claims are advisory — check who_owns_file before editing contested files',
+      '- Locks auto-expire (default 5 min TTL) — use acquire_lock/release_lock for critical sections',
+      '- Dead agents enter resurrection queue — check check_salvage at session start',
+      '- claim_port returns stable ports (same identity = same port every time)',
+      '',
+      '## Anti-Patterns',
+      '',
+      '- Never hardcode port numbers — always use claim_port',
+      '- Never skip check_salvage — another agent may have died mid-task',
+      '- Never edit files without checking who_owns_file first',
+    ].join('\n'),
   }
 );
 
