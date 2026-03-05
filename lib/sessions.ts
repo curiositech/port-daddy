@@ -118,6 +118,8 @@ export function createSessions(db: Database.Database) {
     )`,
     `CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status)`,
     `CREATE INDEX IF NOT EXISTS idx_sessions_agent ON sessions(agent_id)`,
+    // Composite index for the common "list active sessions ordered by recency" query
+    `CREATE INDEX IF NOT EXISTS idx_sessions_status_updated ON sessions(status, updated_at DESC)`,
     // NOTE: idx_sessions_worktree created after migration below
 
     `CREATE TABLE IF NOT EXISTS session_files (

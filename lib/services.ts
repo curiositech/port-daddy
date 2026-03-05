@@ -80,6 +80,9 @@ export function createServices(db: Database.Database) {
       WHERE status IN ('assigned', 'running')
       ORDER BY id
     `),
+    countActive: db.prepare(`
+      SELECT COUNT(*) as count FROM services WHERE status IN ('assigned', 'running')
+    `),
     getAllPorts: db.prepare('SELECT port FROM services WHERE port IS NOT NULL'),
     insert: db.prepare(`
       INSERT INTO services (id, port, pid, cmd, cwd, status, created_at, last_seen, expires_at, restart_policy, health_url, paired_with, metadata)
@@ -111,6 +114,11 @@ export function createServices(db: Database.Database) {
     `),
     deleteEndpoint: db.prepare('DELETE FROM endpoints WHERE service_id = ? AND env = ?'),
     deleteAllEndpoints: db.prepare('DELETE FROM endpoints WHERE service_id = ?'),
+    getRunningWithPid: db.prepare(
+      "SELECT * FROM services WHERE pid IS NOT NULL AND status = 'running'"
+    ),
+    // NOTE: getEndpointsBatch is constructed dynamically per call (variable IN list).
+    // See batchGetEndpoints() helper below.
   };
 
   function safeJsonParse(value: string | null): Record<string, unknown> | null {
@@ -120,6 +128,30 @@ export function createServices(db: Database.Database) {
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Fetch endpoints for multiple service IDs in a single batched query.
+   * Returns a Map from service_id → Record<env, url>.
+   * Falls back gracefully to an empty map when ids is empty.
+   */
+  function batchGetEndpoints(ids: string[]): Map<string, Record<string, string>> {
+    if (ids.length === 0) return new Map();
+
+    // Build "WHERE service_id IN (?,?,…)" dynamically — parameter count varies
+    const placeholders = ids.map(() => '?').join(', ');
+    const rows = db.prepare(
+      `SELECT service_id, env, url FROM endpoints WHERE service_id IN (${placeholders})`
+    ).all(...ids) as EndpointRow[];
+
+    const result = new Map<string, Record<string, string>>();
+    for (const row of rows) {
+      if (!result.has(row.service_id)) {
+        result.set(row.service_id, {});
+      }
+      result.get(row.service_id)![row.env] = row.url;
+    }
+    return result;
   }
 
   /**
@@ -355,29 +387,23 @@ export function createServices(db: Database.Database) {
       services = services.slice(0, limit);
     }
 
-    // Enrich with endpoints
-    const enriched = services.map(svc => {
-      const endpoints = stmts.getEndpoints.all(svc.id) as EndpointRow[];
-      const urls: Record<string, string> = {};
-      for (const ep of endpoints) {
-        urls[ep.env] = ep.url;
-      }
+    // Enrich with endpoints — single batched query instead of N per-service queries
+    const endpointMap = batchGetEndpoints(services.map(s => s.id));
 
-      return {
-        id: svc.id,
-        port: svc.port,
-        pid: svc.pid,
-        status: svc.status,
-        cmd: svc.cmd,
-        createdAt: svc.created_at,
-        lastSeen: svc.last_seen,
-        expiresAt: svc.expires_at,
-        tunnelUrl: svc.tunnel_url,
-        pairedWith: svc.paired_with,
-        urls,
-        metadata: safeJsonParse(svc.metadata)
-      };
-    });
+    const enriched = services.map(svc => ({
+      id: svc.id,
+      port: svc.port,
+      pid: svc.pid,
+      status: svc.status,
+      cmd: svc.cmd,
+      createdAt: svc.created_at,
+      lastSeen: svc.last_seen,
+      expiresAt: svc.expires_at,
+      tunnelUrl: svc.tunnel_url,
+      pairedWith: svc.paired_with,
+      urls: endpointMap.get(svc.id) ?? {},
+      metadata: safeJsonParse(svc.metadata)
+    }));
 
     return {
       success: true,
@@ -469,6 +495,15 @@ export function createServices(db: Database.Database) {
   }
 
   /**
+   * Count active services without fetching all rows (O(1) with the index).
+   * Used by health/metrics endpoints that only need a count, not full data.
+   */
+  function count(): number {
+    const row = stmts.countActive.get() as { count: number };
+    return row.count;
+  }
+
+  /**
    * Check if a PID is still alive
    */
   function isPidAlive(pid: number): boolean {
@@ -493,9 +528,7 @@ export function createServices(db: Database.Database) {
     // 2. Remove services whose PID is no longer alive (zombie cleanup).
     // Only check services that have a PID and are in 'running' status
     // — 'assigned' services haven't started yet so no PID to check.
-    const running = db.prepare(
-      "SELECT * FROM services WHERE pid IS NOT NULL AND status = 'running'"
-    ).all() as ServiceRow[];
+    const running = stmts.getRunningWithPid.all() as ServiceRow[];
 
     for (const svc of running) {
       if (svc.pid && !isPidAlive(svc.pid)) {
@@ -513,6 +546,7 @@ export function createServices(db: Database.Database) {
     release,
     find,
     get,
+    count,
     setEndpoint,
     setStatus,
     cleanup,

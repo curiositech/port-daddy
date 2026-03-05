@@ -194,12 +194,24 @@ export function createActivityLog(db: Database.Database) {
     `),
     count: db.prepare('SELECT COUNT(*) as count FROM activity_log'),
     deleteOld: db.prepare('DELETE FROM activity_log WHERE timestamp < ?'),
-    deleteExcess: db.prepare(`
-      DELETE FROM activity_log
-      WHERE id NOT IN (
-        SELECT id FROM activity_log ORDER BY timestamp DESC LIMIT ?
-      )
-    `)
+    // Efficient excess-row pruning: find the timestamp of the Nth most-recent
+    // entry, then delete everything older than that in a single index scan.
+    // Avoids the O(N²) NOT IN (SELECT … LIMIT ?) anti-pattern.
+    getNthTimestamp: db.prepare(
+      'SELECT timestamp FROM activity_log ORDER BY timestamp DESC LIMIT 1 OFFSET ?'
+    ),
+    deleteExcessByTimestamp: db.prepare(
+      'DELETE FROM activity_log WHERE timestamp < ?'
+    ),
+    getSummaryByType: db.prepare(`
+      SELECT type, COUNT(*) as count
+      FROM activity_log
+      WHERE timestamp >= ?
+      GROUP BY type
+      ORDER BY count DESC
+    `),
+    getOldestTimestamp: db.prepare('SELECT MIN(timestamp) as oldest FROM activity_log'),
+    getNewestTimestamp: db.prepare('SELECT MAX(timestamp) as newest FROM activity_log'),
   };
 
   /**
@@ -290,13 +302,7 @@ export function createActivityLog(db: Database.Database) {
    * Get activity summary (counts by type)
    */
   function getSummary(sinceTimestamp = 0): SummaryResult {
-    const entries = db.prepare(`
-      SELECT type, COUNT(*) as count
-      FROM activity_log
-      WHERE timestamp >= ?
-      GROUP BY type
-      ORDER BY count DESC
-    `).all(sinceTimestamp) as Array<{ type: string; count: number }>;
+    const entries = stmts.getSummaryByType.all(sinceTimestamp) as Array<{ type: string; count: number }>;
 
     const total = entries.reduce((sum, e) => sum + e.count, 0);
 
@@ -318,16 +324,24 @@ export function createActivityLog(db: Database.Database) {
     const now = Date.now();
     const cutoff = now - LOG_RETENTION_MS;
 
-    // Delete old entries
+    // Delete time-expired entries
     const oldResult = stmts.deleteOld.run(cutoff);
 
-    // Delete excess entries (keep only MAX_LOG_ENTRIES)
-    const excessResult = stmts.deleteExcess.run(MAX_LOG_ENTRIES);
+    // Delete excess entries — keep only the MAX_LOG_ENTRIES most-recent rows.
+    // Strategy: find the timestamp of row #MAX_LOG_ENTRIES (0-indexed offset),
+    // then delete all rows with an earlier timestamp.  This is a single
+    // O(N log N) index scan rather than the O(N²) NOT IN … LIMIT anti-pattern.
+    let deletedExcess = 0;
+    const pivot = stmts.getNthTimestamp.get(MAX_LOG_ENTRIES) as { timestamp: number } | undefined;
+    if (pivot) {
+      const excessResult = stmts.deleteExcessByTimestamp.run(pivot.timestamp);
+      deletedExcess = excessResult.changes;
+    }
 
     return {
       deletedOld: oldResult.changes,
-      deletedExcess: excessResult.changes,
-      total: oldResult.changes + excessResult.changes
+      deletedExcess,
+      total: oldResult.changes + deletedExcess
     };
   }
 
@@ -336,8 +350,8 @@ export function createActivityLog(db: Database.Database) {
    */
   function getStats(): StatsResult {
     const countResult = stmts.count.get() as { count: number };
-    const oldest = db.prepare('SELECT MIN(timestamp) as oldest FROM activity_log').get() as { oldest: number | null };
-    const newest = db.prepare('SELECT MAX(timestamp) as newest FROM activity_log').get() as { newest: number | null };
+    const oldest = stmts.getOldestTimestamp.get() as { oldest: number | null };
+    const newest = stmts.getNewestTimestamp.get() as { newest: number | null };
 
     return {
       success: true,

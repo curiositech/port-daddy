@@ -69,6 +69,7 @@ export function createMessaging(db: Database.Database) {
       SELECT * FROM messages
       WHERE channel = ? AND id > ?
       ORDER BY created_at ASC
+      LIMIT 200
     `),
     getOne: db.prepare<[string]>(`
       SELECT * FROM messages
