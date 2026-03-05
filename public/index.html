@@ -2702,9 +2702,42 @@
     /* Run after initial render */
     setTimeout(initScrollIndicators, 500);
 
+    /* ── SSE: subscribe to /dashboard/events, fall back to polling ── */
+    var sseSource = null;
+    function connectSSE() {
+      if (!livePolling) return;
+      try {
+        sseSource = new EventSource('/dashboard/events');
+        sseSource.onmessage = function(e) {
+          try {
+            var data = JSON.parse(e.data);
+            if (data.type === 'refresh' && !isUserTyping) {
+              refreshAll();
+            }
+          } catch(err) {}
+        };
+        sseSource.onerror = function() {
+          // SSE failed, fall back to polling
+          if (sseSource) { sseSource.close(); sseSource = null; }
+          if (livePolling && !pollingInterval) startPolling();
+        };
+        // SSE connected — stop polling to avoid double refreshes
+        stopPolling();
+      } catch(err) {
+        // EventSource not supported or connection failed
+        if (livePolling) startPolling();
+      }
+    }
+
     /* ── Init with hash routing ── */
     refreshAll();
-    if (livePolling) startPolling();
+    if (livePolling) {
+      connectSSE();
+      // Fallback: if SSE didn't connect within 2s, start polling
+      setTimeout(function() {
+        if (!sseSource && livePolling && !pollingInterval) startPolling();
+      }, 2000);
+    }
     /* Restore tab from hash */
     (function() {
       var hash = location.hash.replace('#', '');

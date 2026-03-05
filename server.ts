@@ -468,6 +468,18 @@ app.use((req: Request, res: Response, next: NextFunction): void => {
   next();
 });
 
+// Broadcast dashboard updates after mutating requests
+app.use((req: Request, res: Response, next: NextFunction): void => {
+  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
+    res.on('finish', () => {
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        broadcastDashboard('refresh', { trigger: req.path });
+      }
+    });
+  }
+  next();
+});
+
 // Mount all routes via aggregator
 app.use(createRoutes({
   db, logger, metrics, config,
@@ -476,6 +488,45 @@ app.use(createRoutes({
   VERSION, CODE_HASH, STARTED_AT, __dirname,
   cleanupStale, getSystemPorts
 }));
+
+// =============================================================================
+// DASHBOARD SSE — push state changes instead of polling
+// =============================================================================
+
+const dashboardClients = new Set<Response>();
+
+app.get('/dashboard/events', (req: Request, res: Response): void => {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  });
+  res.write('data: {"type":"connected"}\n\n');
+  dashboardClients.add(res);
+  req.on('close', () => { dashboardClients.delete(res); });
+});
+
+function broadcastDashboard(event: string, data?: Record<string, unknown>): void {
+  if (dashboardClients.size === 0) return;
+  const payload = JSON.stringify({ type: event, ...data });
+  for (const client of dashboardClients) {
+    client.write(`data: ${payload}\n\n`);
+  }
+}
+
+// Broadcast on state-changing operations (hooked into cleanup cycle)
+const originalCleanup = cleanupStale;
+function cleanupStaleWithBroadcast(): ReturnType<typeof services.cleanup> {
+  const result = originalCleanup();
+  if (dashboardClients.size > 0) {
+    broadcastDashboard('refresh');
+  }
+  return result;
+}
+
+// Replace the cleanup interval to use the broadcasting version
+// (The interval is set up later in the listen callback)
 
 // Global error handler
 app.use((err: Error & { type?: string }, req: Request, res: Response, _next: NextFunction): void => {
