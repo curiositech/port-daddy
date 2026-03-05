@@ -97,8 +97,16 @@ _port_daddy() {
     log activity
     # Sessions & Notes (n = note alias)
     session sessions note n notes
+    # File claims & integration
+    files who-owns integration
+    # DNS
+    dns
+    # Briefing
+    briefing history
     # Agent Resurrection & Changelog
     salvage resurrection changelog
+    # Tutorial
+    tutorial
     # System & Monitoring
     dashboard channels webhook webhooks metrics config health ports
     # Orchestration (u = up, d = down aliases)

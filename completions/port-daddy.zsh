@@ -897,11 +897,22 @@ _port_daddy() {
     'note:add a quick note'
     'n:add a quick note (alias for note)'
     'notes:list recent notes'
+    # File claims & integration
+    'files:list all active file claims'
+    'who-owns:check who claimed a file'
+    'integration:signal work readiness between agents'
+    # DNS
+    'dns:manage local DNS records'
+    # Briefing
+    'briefing:generate project briefing'
+    'history:view recent project activity'
     # Agent Resurrection
     'salvage:check for dead agents with recoverable work'
     'resurrection:check for dead agents (alias for salvage)'
     # Changelog
     'changelog:hierarchical changelog with identity-based rollup'
+    # Interactive tutorial
+    'tutorial:interactive tutorial (alias for learn)'
     # System & Monitoring
     'dashboard:open web dashboard in browser'
     'channels:list pub/sub channels'

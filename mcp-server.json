@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "port-daddy",
-  "version": "3.5.0",
+  "version": "3.7.0",
   "description": "Authoritative port manager and multi-agent coordination for local development. 44 tools for port assignment, sessions, locks, pub/sub, agent registry, DNS, briefing, and integration signals.",
   "homepage": "https://github.com/curiositech/port-daddy",
   "repository": "https://github.com/curiositech/port-daddy",

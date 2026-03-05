@@ -1040,6 +1040,7 @@
           <button class="tab" data-tab="sessions" role="tab" aria-selected="false"><svg class="icon" aria-hidden="true"><use href="#icon-clipboard"/></svg>Sessions<span class="tab-badge" id="badge-sessions">0</span></button>
           <button class="tab" data-tab="changelog" role="tab" aria-selected="false"><svg class="icon" aria-hidden="true"><use href="#icon-book"/></svg>Changelog<span class="tab-badge" id="badge-changelog">0</span></button>
           <button class="tab" data-tab="activity" role="tab" aria-selected="false"><svg class="icon" aria-hidden="true"><use href="#icon-activity"/></svg>Ship's Log</button>
+          <button class="tab" data-tab="dns" role="tab" aria-selected="false"><svg class="icon" aria-hidden="true"><use href="#icon-anchor"/></svg>DNS<span class="tab-badge" id="badge-dns">0</span></button>
           <button class="tab" data-tab="config" role="tab" aria-selected="false"><svg class="icon" aria-hidden="true"><use href="#icon-settings"/></svg>Config</button>
         </div>
       </nav>
@@ -1170,6 +1171,13 @@
           </select>
         </div>
         <div class="activity-feed" id="activity-feed"><div class="empty-state"><svg class="empty-state-icon"><use href="#icon-activity"/></svg><div class="empty-state-text">Loading...</div></div></div>
+      </div>
+
+      <div class="tab-content" id="tab-dns" role="tabpanel">
+        <div class="section-header">
+          <button class="refresh-btn" onclick="refreshDns()" id="refresh-dns"><svg class="icon" aria-hidden="true"><use href="#icon-refresh"/></svg>Refresh</button>
+        </div>
+        <div id="dns-list"><div class="empty-state"><svg class="empty-state-icon"><use href="#icon-anchor"/></svg><div class="empty-state-text">No DNS records. Register with: pd dns register &lt;hostname&gt;</div></div></div>
       </div>
 
       <div class="tab-content" id="tab-config" role="tabpanel">
@@ -1671,8 +1679,8 @@
         throw new Error('Missing required argument.\n\nUsage: ' + verb + ' ' + info.args + (info.opts.length ? '\nOptions: ' + info.opts.join(', ') : ''));
       }
       switch (verb) {
-        case 'claim': return fetch(API + '/claim/' + opts.target, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ port: opts.port }) }).then(function(r) { return r.json(); });
-        case 'release': return fetch(API + '/release/' + opts.target, { method: 'DELETE' }).then(function(r) { return r.json(); });
+        case 'claim': return fetch(API + '/claim', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: opts.target, port: opts.port }) }).then(function(r) { return r.json(); });
+        case 'release': return fetch(API + '/release', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: opts.target }) }).then(function(r) { return r.json(); });
         case 'find': case 'ps': return fetch(opts.target ? API + '/services?pattern=' + encodeURIComponent(opts.target) : API + '/services').then(function(r) { return r.json(); });
         case 'lock': return fetch(API + '/locks/' + opts.target, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ owner: opts.owner || 'dashboard', ttl: opts.ttl }) }).then(function(r) { return r.json(); });
         case 'unlock': return fetch(API + '/locks/' + opts.target, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ owner: opts.owner || 'dashboard', force: true }) }).then(function(r) { return r.json(); });
@@ -1749,7 +1757,7 @@
     /* ── Service Actions ── */
     async function releaseService(id) {
       if (!confirm('Release ' + id + '?')) return;
-      await fetch(API + '/release/' + encodeURIComponent(id), { method: 'DELETE' });
+      await fetch(API + '/release', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id }) });
       showToast('Released ' + id, 'success');
       refreshServices();
     }
@@ -2078,6 +2086,52 @@
         });
       } catch (e) { console.error(e); }
     }
+    async function refreshDns() {
+      spinRefreshBtn('refresh-dns');
+      try {
+        var data = await (await fetch(API + '/dns')).json();
+        var list = document.getElementById('dns-list');
+        list.textContent = '';
+        var records = data.records || data.entries || [];
+        document.getElementById('badge-dns').textContent = records.length;
+        if (records.length === 0) {
+          var empty = document.createElement('div');
+          empty.className = 'empty-state';
+          var svgNs = 'http://www.w3.org/2000/svg';
+          var svg = document.createElementNS(svgNs, 'svg');
+          svg.setAttribute('class', 'empty-state-icon');
+          var use = document.createElementNS(svgNs, 'use');
+          use.setAttributeNS('http://www.w3.org/1999/xlink', 'href', '#icon-anchor');
+          svg.appendChild(use);
+          empty.appendChild(svg);
+          var t = document.createElement('div'); t.className = 'empty-state-text'; t.textContent = 'No DNS records';
+          var h = document.createElement('div'); h.className = 'empty-state-hint'; h.textContent = 'Register with: pd dns register <hostname>';
+          empty.appendChild(t); empty.appendChild(h);
+          list.appendChild(empty);
+          return;
+        }
+        var table = document.createElement('div'); table.className = 'table-wrap';
+        var tbl = document.createElement('table');
+        var thead = document.createElement('thead');
+        var hrow = document.createElement('tr');
+        ['Hostname', 'Target', 'Port', 'Service'].forEach(function(h) { var th = document.createElement('th'); th.textContent = h; hrow.appendChild(th); });
+        thead.appendChild(hrow);
+        tbl.appendChild(thead);
+        var tbody = document.createElement('tbody');
+        records.forEach(function(r) {
+          var tr = document.createElement('tr');
+          var td1 = document.createElement('td'); var c = document.createElement('code'); c.textContent = r.hostname || r.name; td1.appendChild(c);
+          var td2 = document.createElement('td'); td2.textContent = r.target || r.ip || '127.0.0.1';
+          var td3 = document.createElement('td'); td3.textContent = r.port || '-';
+          var td4 = document.createElement('td'); var sc = document.createElement('code'); sc.textContent = r.service || r.identity || '-'; td4.appendChild(sc);
+          tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3); tr.appendChild(td4);
+          tbody.appendChild(tr);
+        });
+        tbl.appendChild(tbody);
+        table.appendChild(tbl);
+        list.appendChild(table);
+      } catch (e) { console.error(e); }
+    }
     async function refreshChangelog() {
       spinRefreshBtn('refresh-changelog');
       try {
@@ -2395,7 +2449,7 @@
         var data = await (await fetch(API + '/services')).json();
         var released = 0;
         for (var i = 0; i < data.services.length; i++) {
-          await fetch(API + '/release/' + encodeURIComponent(data.services[i].id), { method: 'DELETE' });
+          await fetch(API + '/release', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: data.services[i].id }) });
           released++;
         }
         body.className = 'cmd-entry-body success-entry';

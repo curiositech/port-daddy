@@ -608,6 +608,168 @@ const TOOLS = [
     },
   },
 
+  // ── Session Phases ──────────────────────────────────────────────────
+  {
+    name: 'set_session_phase',
+    description:
+      '[Standard] Set the lifecycle phase of a session (planning, in_progress, testing, reviewing, completed, abandoned).',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        session_id: { type: 'string', description: 'Session ID' },
+        phase: {
+          type: 'string',
+          enum: ['planning', 'in_progress', 'testing', 'reviewing', 'completed', 'abandoned'],
+          description: 'Session phase',
+        },
+      },
+      required: ['session_id', 'phase'],
+    },
+  },
+
+  // ── File Claims ────────────────────────────────────────────────────
+  {
+    name: 'list_file_claims',
+    description: '[Standard] List all file claims across all active sessions.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {},
+    },
+  },
+  {
+    name: 'who_owns_file',
+    description: '[Standard] Check which session/agent owns a specific file.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        path: { type: 'string', description: 'File path to look up' },
+      },
+      required: ['path'],
+    },
+  },
+
+  // ── Integration Signals ────────────────────────────────────────────
+  {
+    name: 'integration_ready',
+    description:
+      '[Standard] Signal that your service is ready for integration. Other agents watching for this signal will be notified.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        service: { type: 'string', description: 'Service identity that is ready' },
+        payload: { type: 'object', description: 'Additional metadata about the ready state' },
+      },
+      required: ['service'],
+    },
+  },
+  {
+    name: 'integration_needs',
+    description:
+      '[Standard] Signal that you need another service to be ready before continuing.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        service: { type: 'string', description: 'Service identity you need' },
+        payload: { type: 'object', description: 'Details about what you need' },
+      },
+      required: ['service'],
+    },
+  },
+  {
+    name: 'integration_list',
+    description: '[Standard] List all integration signal channels.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {},
+    },
+  },
+
+  // ── Briefing ───────────────────────────────────────────────────────
+  {
+    name: 'briefing_generate',
+    description:
+      '[Advanced] Generate a project briefing for onboarding new agents. Captures current state of services, sessions, agents, and recent activity.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        project_root: { type: 'string', description: 'Project root directory' },
+      },
+    },
+  },
+  {
+    name: 'briefing_read',
+    description: '[Advanced] Read the most recent briefing for a project.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        project_root: { type: 'string', description: 'Project root directory' },
+      },
+    },
+  },
+
+  // ── DNS ────────────────────────────────────────────────────────────
+  {
+    name: 'dns_register',
+    description:
+      '[Advanced] Register a local DNS record (.local hostname) for a claimed service.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        hostname: { type: 'string', description: 'Hostname to register (e.g. "myapp-api")' },
+        target: { type: 'string', description: 'Target IP (default: 127.0.0.1)' },
+        port: { type: 'number', description: 'Port number' },
+        service: { type: 'string', description: 'Associated service identity' },
+      },
+      required: ['hostname'],
+    },
+  },
+  {
+    name: 'dns_unregister',
+    description: '[Advanced] Remove a local DNS record.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        hostname: { type: 'string', description: 'Hostname to unregister' },
+      },
+      required: ['hostname'],
+    },
+  },
+  {
+    name: 'dns_list',
+    description: '[Advanced] List all registered local DNS records.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {},
+    },
+  },
+  {
+    name: 'dns_lookup',
+    description: '[Advanced] Look up a specific DNS record by hostname.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        hostname: { type: 'string', description: 'Hostname to look up' },
+      },
+      required: ['hostname'],
+    },
+  },
+  {
+    name: 'dns_cleanup',
+    description: '[Advanced] Clean up stale DNS records for services that no longer exist.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {},
+    },
+  },
+  {
+    name: 'dns_status',
+    description: '[Advanced] Check DNS system status (mDNS/Bonjour availability).',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {},
+    },
+  },
+
   // ── Tunnels ──────────────────────────────────────────────────────────
   {
     name: 'start_tunnel',
@@ -889,16 +1051,17 @@ async function handleTool(
     // ── Agents ─────────────────────────────────────────────────────────
     case 'register_agent': {
       const body: Record<string, unknown> = {
+        id: args.agent_id,
         type: (args.type as string) || 'mcp',
       };
       if (args.identity) body.identity = args.identity;
       if (args.purpose) body.purpose = args.purpose;
-      res = await POST(`/agents/${encodeURIComponent(args.agent_id as string)}`, body);
+      res = await POST('/agents', body);
       break;
     }
 
     case 'agent_heartbeat': {
-      res = await PUT(`/agents/${encodeURIComponent(args.agent_id as string)}/heartbeat`);
+      res = await POST(`/agents/${encodeURIComponent(args.agent_id as string)}/heartbeat`);
       break;
     }
 
@@ -911,15 +1074,102 @@ async function handleTool(
     // ── Salvage ────────────────────────────────────────────────────────
     case 'check_salvage': {
       const qs = args.project ? `?project=${encodeURIComponent(args.project as string)}` : '';
-      res = await GET(`/salvage${qs}`);
+      res = await GET(`/resurrection/pending${qs}`);
       break;
     }
 
     case 'claim_salvage': {
-      res = await POST('/salvage', {
-        deadAgentId: args.dead_agent_id,
+      res = await POST(`/resurrection/claim/${encodeURIComponent(args.dead_agent_id as string)}`, {
         newAgentId: args.new_agent_id,
       });
+      break;
+    }
+
+    // ── Session Phases ──────────────────────────────────────────────
+    case 'set_session_phase': {
+      res = await PUT(`/sessions/${encodeURIComponent(args.session_id as string)}/phase`, {
+        phase: args.phase,
+      });
+      break;
+    }
+
+    // ── File Claims ─────────────────────────────────────────────────
+    case 'list_file_claims': {
+      res = await GET('/files');
+      break;
+    }
+
+    case 'who_owns_file': {
+      res = await GET(`/files/who-owns?path=${encodeURIComponent(args.path as string)}`);
+      break;
+    }
+
+    // ── Integration Signals ─────────────────────────────────────────
+    case 'integration_ready': {
+      const channel = `integration:ready:${args.service}`;
+      const body: Record<string, unknown> = { payload: args.payload || {} };
+      res = await POST(`/msg/${encodeURIComponent(channel)}`, body);
+      break;
+    }
+
+    case 'integration_needs': {
+      const channel = `integration:needs:${args.service}`;
+      const body: Record<string, unknown> = { payload: args.payload || {} };
+      res = await POST(`/msg/${encodeURIComponent(channel)}`, body);
+      break;
+    }
+
+    case 'integration_list': {
+      res = await GET('/channels');
+      break;
+    }
+
+    // ── Briefing ────────────────────────────────────────────────────
+    case 'briefing_generate': {
+      const body: Record<string, unknown> = {};
+      if (args.project_root) body.projectRoot = args.project_root;
+      res = await POST('/briefing', body);
+      break;
+    }
+
+    case 'briefing_read': {
+      const root = args.project_root ? encodeURIComponent(args.project_root as string) : '';
+      res = await GET(`/briefing/${root}`);
+      break;
+    }
+
+    // ── DNS ─────────────────────────────────────────────────────────
+    case 'dns_register': {
+      const body: Record<string, unknown> = {};
+      if (args.target) body.target = args.target;
+      if (args.port) body.port = args.port;
+      if (args.service) body.service = args.service;
+      res = await POST(`/dns/${encodeURIComponent(args.hostname as string)}`, body);
+      break;
+    }
+
+    case 'dns_unregister': {
+      res = await DELETE(`/dns/${encodeURIComponent(args.hostname as string)}`);
+      break;
+    }
+
+    case 'dns_list': {
+      res = await GET('/dns');
+      break;
+    }
+
+    case 'dns_lookup': {
+      res = await GET(`/dns/${encodeURIComponent(args.hostname as string)}`);
+      break;
+    }
+
+    case 'dns_cleanup': {
+      res = await POST('/dns/cleanup');
+      break;
+    }
+
+    case 'dns_status': {
+      res = await GET('/dns/status');
       break;
     }
 
@@ -989,7 +1239,19 @@ async function handleTool(
 // ---------------------------------------------------------------------------
 
 const server = new Server(
-  { name: 'port-daddy', version: '3.3.0' },
+  {
+    name: 'port-daddy',
+    version: '3.7.0',
+    instructions: [
+      'Port Daddy is the authoritative port manager for multi-agent development.',
+      'Services use semantic identities in project:stack:context format (e.g. "myapp:api:main").',
+      'Same identity always maps to the same port — deterministic hashing.',
+      'Start every session with begin_session, end with end_session_full.',
+      'Check check_salvage before starting new work — another agent may have died mid-task.',
+      'File claims are advisory — they announce intent, not enforce locks.',
+      'Notes are immutable — once written, they cannot be edited or deleted.',
+    ].join(' '),
+  },
   {
     capabilities: {
       tools: {},

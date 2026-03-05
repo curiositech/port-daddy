@@ -72,7 +72,7 @@
       "description": "Agent resurrection / salvage queue",
       "cli": ["salvage", "resurrection"],
       "sdk": ["salvage", "salvageClaim", "salvageComplete", "salvageAbandon", "salvageDismiss"],
-      "routes": ["GET /resurrection/pending", "GET /resurrection", "POST /resurrection/claim/:param", "POST /resurrection/complete/:param", "POST /resurrection/abandon/:param", "DELETE /resurrection/:param"],
+      "routes": ["GET /resurrection/pending", "GET /resurrection", "POST /resurrection/claim/:param", "POST /resurrection/complete/:param", "POST /resurrection/abandon/:param", "DELETE /resurrection/:param", "GET /salvage/pending", "GET /salvage", "POST /salvage/claim/:param", "POST /salvage/complete/:param", "POST /salvage/abandon/:param", "DELETE /salvage/:param"],
       "completions": ["salvage", "resurrection"],
       "docs": { "readme": true, "sdk": true }
     },
@@ -170,7 +170,7 @@
       "description": "System info and config",
       "cli": ["version", "metrics", "config", "dashboard"],
       "sdk": ["version", "metrics", "getConfig", "ping"],
-      "routes": ["GET /version", "GET /metrics", "GET /config"],
+      "routes": ["GET /version", "GET /metrics", "GET /config", "GET /dashboard/events"],
       "completions": ["version", "metrics", "config", "dashboard"],
       "docs": { "readme": true, "sdk": true }
     },
@@ -244,10 +244,10 @@
     },
     "sugar": {
       "description": "Compound commands for common workflows (begin/done/whoami)",
-      "cli": ["begin", "done", "whoami", "with-lock", "n", "u", "d"],
+      "cli": ["begin", "b", "done", "whoami", "w", "with-lock", "n", "u", "d"],
       "sdk": ["begin", "done", "whoami"],
       "routes": ["POST /sugar/begin", "POST /sugar/done", "GET /sugar/whoami"],
-      "completions": ["begin", "done", "whoami", "with-lock"],
+      "completions": ["begin", "b", "done", "whoami", "w", "with-lock"],
       "docs": { "readme": false, "sdk": false }
     },
     "tutorial": {

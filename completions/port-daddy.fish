@@ -102,7 +102,8 @@ set -l __pd_commands \
     'dashboard' 'channels' 'webhook' 'webhooks' 'metrics' 'config' 'health' 'ports' \
     'scan' 's' 'projects' 'p' 'doctor' 'diagnose' \
     'start' 'stop' 'restart' 'status' 'install' 'uninstall' 'dev' 'ci-gate' 'mcp' \
-    'learn' 'version' 'help'
+    'learn' 'tutorial' 'files' 'who-owns' 'integration' 'briefing' 'history' 'dns' \
+    'version' 'help'
 
 # Register each command for both `port-daddy` and `pd`
 for prog in port-daddy pd
@@ -198,6 +199,21 @@ for prog in port-daddy pd
 
     # Interactive tutorial
     complete -c $prog -n __pd_needs_command -a learn -d 'Interactive tutorial'
+    complete -c $prog -n __pd_needs_command -a tutorial -d 'Interactive tutorial (alias for learn)'
+
+    # File claims
+    complete -c $prog -n __pd_needs_command -a files -d 'List file claims across all sessions'
+    complete -c $prog -n __pd_needs_command -a who-owns -d 'Check who owns a file'
+
+    # Integration signals
+    complete -c $prog -n __pd_needs_command -a integration -d 'Integration signals (ready/needs)'
+
+    # Briefing
+    complete -c $prog -n __pd_needs_command -a briefing -d 'Generate or read project briefing'
+    complete -c $prog -n __pd_needs_command -a history -d 'View project history'
+
+    # DNS
+    complete -c $prog -n __pd_needs_command -a dns -d 'Manage local DNS records'
 
     # Info
     complete -c $prog -n __pd_needs_command -a version -d 'Print version information'

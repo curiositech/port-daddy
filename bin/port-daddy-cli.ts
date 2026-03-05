@@ -1624,6 +1624,7 @@ async function main(): Promise<void> {
 
       // Sugar commands (compound workflows)
       case 'begin':
+      case 'b':
         await handleBegin(positional[0] || (options.purpose as string) || undefined, positional.slice(1), options);
         break;
 
@@ -1632,6 +1633,7 @@ async function main(): Promise<void> {
         break;
 
       case 'whoami':
+      case 'w':
         await handleWhoami(options);
         break;
 

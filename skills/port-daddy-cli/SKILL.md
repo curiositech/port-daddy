@@ -197,6 +197,42 @@ Locks auto-expire after TTL (default 60s). Use `--wait` to block until available
 pd lock deployment --owner agent-1 --wait --timeout 30000
 ```
 
+### Run Command While Holding a Lock
+
+`pd with-lock` acquires a lock, runs a command, and releases the lock when done:
+
+```bash
+pd with-lock deployment -- npm run deploy
+pd with-lock db-migrate --ttl 120 -- npx prisma migrate deploy
+```
+
+### Integration Signals
+
+Use integration signals to coordinate readiness between agents:
+
+```bash
+# Signal that your service is ready for integration
+pd integration ready myapp:api --payload '{"port": 9234}'
+
+# Signal that you need another service
+pd integration needs myapp:frontend --payload '{"waiting_for": "myapp:api"}'
+
+# List all integration signals
+pd integration list
+```
+
+### Briefing (Project Intelligence)
+
+Generate a briefing file for onboarding new agents:
+
+```bash
+# Generate a project briefing
+pd briefing generate
+
+# Read the current briefing
+pd briefing read
+```
+
 ## Direct Mode (No Daemon)
 
 Core operations work without the daemon running:

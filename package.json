@@ -1,6 +1,6 @@
 {
   "name": "port-daddy",
-  "version": "3.5.0",
+  "version": "3.7.0",
   "description": "Authoritative port management and service orchestration for multi-agent development — port-daddy up/down, atomic assignment, pub/sub messaging, distributed locks, agent registry, and project:stack:context semantic identities",
   "main": "./dist/server.js",
   "type": "module",
