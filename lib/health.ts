@@ -7,6 +7,7 @@
 import http from 'http';
 import https from 'https';
 import type Database from 'better-sqlite3';
+import { isPrivateHost } from './utils.js';
 
 interface HealthCheckResult {
   healthy: boolean;
@@ -144,6 +145,33 @@ export function createHealth(db: Database.Database, services: ServicesLike) {
     if (!healthUrl.startsWith('http')) {
       const baseUrl = service.urls?.local || `http://localhost:${service.port}`;
       fullUrl = `${baseUrl}${healthUrl.startsWith('/') ? '' : '/'}${healthUrl}`;
+    }
+
+    // SSRF protection: when healthUrl is an absolute URL (user-supplied),
+    // block requests to cloud metadata and non-local private addresses.
+    // Relative paths like "/health" are safe — they combine with localhost:PORT.
+    if (healthUrl.startsWith('http')) {
+      try {
+        const parsed = new URL(fullUrl);
+        const host = parsed.hostname;
+        // Allow localhost/127.x (local services) but block cloud metadata,
+        // other private ranges, and internal hostnames
+        const isLocalhost = /^localhost$/i.test(host) || /^127\./.test(host) || /^::1$/.test(host);
+        if (!isLocalhost && isPrivateHost(host)) {
+          return {
+            success: true,
+            serviceId,
+            healthy: false,
+            error: 'Health URL targets a private or internal address (SSRF protection)',
+            checkedAt: Date.now()
+          };
+        }
+      } catch {
+        return {
+          success: false,
+          error: 'Invalid health URL'
+        };
+      }
     }
 
     const result = await checkUrl(fullUrl);

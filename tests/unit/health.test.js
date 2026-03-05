@@ -669,4 +669,56 @@ describe('Health Module', () => {
       expect(status.healthy).toBe(false);
     });
   });
+
+  describe('SSRF Protection', () => {
+    it('blocks health URL targeting AWS metadata endpoint', async () => {
+      services.claim('ssrf:test:meta', { health: 'http://169.254.169.254/latest/meta-data/' });
+      const result = await health.check('ssrf:test:meta');
+      expect(result.healthy).toBe(false);
+      expect(result.error).toMatch(/SSRF protection/);
+    });
+
+    it('blocks health URL targeting 10.x private network', async () => {
+      services.claim('ssrf:test:private', { health: 'http://10.0.0.1:8080/health' });
+      const result = await health.check('ssrf:test:private');
+      expect(result.healthy).toBe(false);
+      expect(result.error).toMatch(/SSRF protection/);
+    });
+
+    it('blocks health URL targeting 192.168.x private network', async () => {
+      services.claim('ssrf:test:home', { health: 'http://192.168.1.1/admin' });
+      const result = await health.check('ssrf:test:home');
+      expect(result.healthy).toBe(false);
+      expect(result.error).toMatch(/SSRF protection/);
+    });
+
+    it('blocks health URL targeting .internal hostname', async () => {
+      services.claim('ssrf:test:internal', { health: 'http://metadata.google.internal/computeMetadata/v1/' });
+      const result = await health.check('ssrf:test:internal');
+      expect(result.healthy).toBe(false);
+      expect(result.error).toMatch(/SSRF protection/);
+    });
+
+    it('allows relative health paths (combined with localhost)', async () => {
+      // Relative paths get combined with localhost:PORT — this is safe
+      services.claim('ssrf:test:local', { health: '/health' });
+      const result = await health.check('ssrf:test:local');
+      // Will fail with connection error (no server running), not SSRF error
+      expect(result.error || '').not.toMatch(/SSRF protection/);
+    });
+
+    it('allows absolute localhost health URLs', async () => {
+      services.claim('ssrf:test:localhost', { health: `http://127.0.0.1:${mockPort}/health` });
+      mockResponses.set('/health', { status: 200, body: 'OK' });
+      const result = await health.check('ssrf:test:localhost');
+      expect(result.healthy).toBe(true);
+    });
+
+    it('blocks public URL that resolves to cloud metadata', async () => {
+      services.claim('ssrf:test:cloud', { health: 'http://169.254.169.254:80/' });
+      const result = await health.check('ssrf:test:cloud');
+      expect(result.healthy).toBe(false);
+      expect(result.error).toMatch(/SSRF protection/);
+    });
+  });
 });

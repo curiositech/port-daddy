@@ -401,4 +401,40 @@ describe('edge cases', () => {
     const data = briefing.gatherData('wildcard', testDir);
     expect(data.activeServices.length).toBe(2);
   });
+
+  describe('path traversal prevention', () => {
+    test('rejects relative paths in generate()', () => {
+      const result = briefing.generate('../../../etc');
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/absolute path/);
+    });
+
+    test('rejects null bytes in generate()', () => {
+      const result = briefing.generate('/tmp/safe\0/evil');
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/invalid characters/);
+    });
+
+    test('rejects relative paths in sync()', () => {
+      const result = briefing.sync('relative/path');
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/absolute path/);
+    });
+
+    test('rejects null bytes in sync()', () => {
+      const result = briefing.sync('/tmp/ok\0/notok');
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/invalid characters/);
+    });
+
+    test('accepts valid absolute path in generate()', () => {
+      const result = briefing.generate(testDir);
+      expect(result.success).toBe(true);
+    });
+
+    test('accepts valid absolute path in sync()', () => {
+      const result = briefing.sync(testDir);
+      expect(result.success).toBe(true);
+    });
+  });
 });

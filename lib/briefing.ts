@@ -13,6 +13,7 @@ import { mkdirSync, writeFileSync, existsSync, readFileSync } from 'fs';
 import { join, resolve } from 'path';
 import { getWorktreeInfo } from './worktree.js';
 import { loadConfig } from './config.js';
+import { validateProjectRoot } from './utils.js';
 
 // =============================================================================
 // Types
@@ -449,6 +450,12 @@ export function createBriefing(db: Database.Database, deps: BriefingDeps) {
       return { success: false, error: 'projectRoot must be a non-empty string' };
     }
 
+    // Defence-in-depth: validate even if route layer already checked
+    const pathCheck = validateProjectRoot(projectRoot);
+    if (!pathCheck.ok) {
+      return { success: false, error: pathCheck.error };
+    }
+
     const resolvedRoot = resolve(projectRoot);
     const project = detectProject(resolvedRoot, options.project);
     const data = gatherData(project, resolvedRoot);
@@ -486,6 +493,12 @@ export function createBriefing(db: Database.Database, deps: BriefingDeps) {
   function sync(projectRoot: string, options: { project?: string | null; full?: boolean } = {}): SyncResult {
     if (!projectRoot || typeof projectRoot !== 'string') {
       return { success: false, error: 'projectRoot must be a non-empty string' };
+    }
+
+    // Defence-in-depth: validate even if route layer already checked
+    const pathCheck = validateProjectRoot(projectRoot);
+    if (!pathCheck.ok) {
+      return { success: false, error: pathCheck.error };
     }
 
     const resolvedRoot = resolve(projectRoot);

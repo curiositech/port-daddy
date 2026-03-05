@@ -6,6 +6,7 @@
  */
 
 import { Router, type Request, type Response } from 'express';
+import { validateProjectRoot } from '../lib/utils.js';
 
 interface BriefingRouteDeps {
   briefing: {
@@ -48,6 +49,12 @@ export function createBriefingRoutes(deps: BriefingRouteDeps): Router {
       return;
     }
 
+    const validation = validateProjectRoot(projectRoot);
+    if (!validation.ok) {
+      res.status(400).json({ success: false, error: validation.error });
+      return;
+    }
+
     try {
       if (full) {
         const result = briefing.sync(projectRoot, { project, full: true });
@@ -75,6 +82,12 @@ export function createBriefingRoutes(deps: BriefingRouteDeps): Router {
   router.get('/briefing/:project', (req: Request, res: Response): void => {
     const { project } = req.params;
     const projectRoot = (req.query.projectRoot as string) || process.cwd();
+
+    const validation = validateProjectRoot(projectRoot);
+    if (!validation.ok) {
+      res.status(400).json({ success: false, error: validation.error });
+      return;
+    }
 
     try {
       const result = briefing.generate(projectRoot, { project: project as string, writeToDisk: false });
