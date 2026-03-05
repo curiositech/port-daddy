@@ -12,20 +12,18 @@ Set Padding 20
 Set TypingSpeed 40ms
 Set PlaybackSpeed 0.8
 
-# Clean slate
+# Clean slate (hidden)
 Hide
 Type "setopt INTERACTIVE_COMMENTS"
 Enter
 Sleep 200ms
-Type "pd release myapp:api:main 2>/dev/null; pd release myapp:frontend:main 2>/dev/null; pd release myapp:db:test 2>/dev/null"
+Type "pd release myapp:api:main >/dev/null 2>&1; pd release myapp:frontend:main >/dev/null 2>&1; pd release myapp:db:test >/dev/null 2>&1"
 Enter
 Sleep 500ms
-Type "clear"
-Enter
+Ctrl+L
 Sleep 300ms
 Show
-
-Sleep 1s
+Sleep 500ms
 
 # Claim ports with semantic identities
 Type "# Claim ports - same identity always gets the same port"

@@ -12,7 +12,7 @@ Set Padding 20
 Set TypingSpeed 40ms
 Set PlaybackSpeed 0.8
 
-# Clean slate - set up a "dead" agent scenario
+# Set up a "dead" agent scenario (hidden)
 Hide
 Type "setopt INTERACTIVE_COMMENTS"
 Enter
@@ -23,7 +23,6 @@ Sleep 300ms
 Type "curl -sX DELETE http://localhost:9876/agents/agent-alice 2>/dev/null"
 Enter
 Sleep 300ms
-# Register agent, start session, add notes, then kill it
 Type `curl -sX POST http://localhost:9876/agents -H 'Content-Type: application/json' -d '{"id":"agent-alice","name":"Alice","type":"claude-code","purpose":"Refactoring auth system","identity":"myapp:auth:refactor"}' 2>/dev/null`
 Enter
 Sleep 300ms
@@ -33,20 +32,16 @@ Sleep 300ms
 Type `curl -sX POST http://localhost:9876/notes -H 'Content-Type: application/json' -d '{"content":"Split auth.ts into 3 modules, login.ts done, session.ts in progress","type":"progress"}' 2>/dev/null`
 Enter
 Sleep 300ms
-# Backdate heartbeat to make agent "dead"
 Type `sqlite3 /Users/erichowens/coding/port-daddy/port-registry.db "UPDATE agents SET lastHeartbeat = datetime('now', '-30 minutes') WHERE id = 'agent-alice'"`
 Enter
 Sleep 300ms
-# Trigger reaper
 Type "curl -sX POST http://localhost:9876/resurrection/reap 2>/dev/null"
 Enter
 Sleep 500ms
-Type "clear"
-Enter
+Ctrl+L
 Sleep 300ms
 Show
-
-Sleep 1s
+Sleep 500ms
 
 # Scene: New agent starts work, checks for dead agents first
 Type "# A new agent starts - first, check if anyone died mid-task"
