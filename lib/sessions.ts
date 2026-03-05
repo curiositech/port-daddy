@@ -11,6 +11,8 @@ import { randomBytes } from 'crypto';
 import { ActivityType } from './activity.js';
 import { getWorktreeId } from './worktree.js';
 
+const MAX_NOTES_PER_SESSION = 500;
+
 // Optional activity logger interface — injected after creation via setActivityLog()
 interface ActivityLogger {
   log(type: string, opts: { details: string; metadata: Record<string, unknown> }): void;
@@ -319,6 +321,9 @@ export function createSessions(db: Database.Database) {
       WHERE sn.created_at >= ? AND sn.type = ?
       ORDER BY sn.created_at DESC LIMIT ?
     `),
+    countNotesBySession: db.prepare(`
+      SELECT COUNT(*) as count FROM session_notes WHERE session_id = ?
+    `),
   };
 
   function safeJsonParse(value: string | null): Record<string, unknown> | null {
@@ -569,6 +574,16 @@ export function createSessions(db: Database.Database) {
     const session = stmts.getById.get(sessionId) as SessionRow | undefined;
     if (!session) {
       return { success: false, error: 'session not found' };
+    }
+
+    // Enforce max notes per session
+    const noteCount = (stmts.countNotesBySession.get(sessionId) as { count: number }).count;
+    if (noteCount >= MAX_NOTES_PER_SESSION) {
+      return {
+        success: false,
+        error: `session has reached the maximum of ${MAX_NOTES_PER_SESSION} notes`,
+        code: 'NOTES_LIMIT_EXCEEDED',
+      };
     }
 
     const now = Date.now();

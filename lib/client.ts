@@ -905,6 +905,26 @@ interface FileReleaseResponse {
   released: string[];
 }
 
+// ──────────────────────────────────────────────────────────────
+// Sugar types (begin/done/whoami)
+// ──────────────────────────────────────────────────────────────
+
+/** Matches the actual GET /sugar/whoami response — alias kept for compatibility */
+interface WhoamiResponse {
+  success: boolean;
+  active: boolean;
+  agentId?: string;
+  sessionId?: string;
+  purpose?: string;
+  identity?: string | null;
+  phase?: string;
+  files?: string[];
+  noteCount?: number;
+  startedAt?: number;
+  duration?: number;
+  hint?: string;
+}
+
 type SubscriptionEventType = 'message' | 'error' | 'connected';
 type SubscriptionHandler = (data: unknown) => void;
 
@@ -2082,7 +2102,6 @@ class PortDaddy {
       return false;
     }
   }
-
 
   // ──────────────────────────────────────────────────────────────
   // Salvage (resurrection queue)

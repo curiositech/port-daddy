@@ -184,5 +184,115 @@ export function createResurrectionRoutes(deps: ResurrectionRouteDeps): Router {
     }
   });
 
+  // ==========================================================================
+  // Backward-compatible aliases: /salvage -> /resurrection
+  // These provide a friendlier name while keeping the original routes intact.
+  // ==========================================================================
+
+  router.get('/salvage/pending', (req: Request, res: Response) => {
+    try {
+      const { project, stack } = req.query;
+      const result = resurrection.pending({
+        project: project as string | undefined,
+        stack: stack as string | undefined
+      });
+      res.json(result);
+    } catch (error) {
+      metrics.errors++;
+      logger.error('salvage_pending_failed', { error: (error as Error).message });
+      res.status(500).json({ error: 'internal server error' });
+    }
+  });
+
+  router.get('/salvage', (req: Request, res: Response) => {
+    try {
+      const { limit, project, stack } = req.query;
+      const result = resurrection.list({
+        limit: limit ? parseInt(limit as string, 10) : undefined,
+        project: project as string | undefined,
+        stack: stack as string | undefined
+      });
+      res.json(result);
+    } catch (error) {
+      metrics.errors++;
+      res.status(500).json({ error: 'internal server error' });
+    }
+  });
+
+  router.post('/salvage/claim/:agentId', (req: Request, res: Response) => {
+    try {
+      const agentId = req.params.agentId as string;
+      const result = resurrection.claim(agentId);
+
+      if (!result.success) {
+        return res.status(400).json({ error: result.error });
+      }
+
+      messaging.publish('resurrection', JSON.stringify({
+        event: 'claimed',
+        agentId,
+        claimedBy: req.body?.newAgentId || 'unknown'
+      }));
+
+      logger.info('salvage_claimed', { agentId });
+      res.json(result);
+    } catch (error) {
+      metrics.errors++;
+      logger.error('salvage_claim_failed', { error: (error as Error).message });
+      res.status(500).json({ error: 'internal server error' });
+    }
+  });
+
+  router.post('/salvage/complete/:agentId', (req: Request, res: Response) => {
+    try {
+      const oldAgentId = req.params.agentId as string;
+      const { newAgentId } = req.body;
+
+      if (!newAgentId) {
+        return res.status(400).json({ error: 'newAgentId required' });
+      }
+
+      const result = resurrection.complete(oldAgentId, newAgentId);
+
+      logger.info('salvage_complete', { oldAgentId, newAgentId });
+      res.json(result);
+    } catch (error) {
+      metrics.errors++;
+      logger.error('salvage_complete_failed', { error: (error as Error).message });
+      res.status(500).json({ error: 'internal server error' });
+    }
+  });
+
+  router.post('/salvage/abandon/:agentId', (req: Request, res: Response) => {
+    try {
+      const agentId = req.params.agentId as string;
+      const result = resurrection.abandon(agentId);
+
+      messaging.publish('resurrection', JSON.stringify({
+        event: 'abandoned',
+        agentId
+      }));
+
+      logger.info('salvage_abandoned', { agentId });
+      res.json(result);
+    } catch (error) {
+      metrics.errors++;
+      res.status(500).json({ error: 'internal server error' });
+    }
+  });
+
+  router.delete('/salvage/:agentId', (req: Request, res: Response) => {
+    try {
+      const agentId = req.params.agentId as string;
+      const result = resurrection.dismiss(agentId);
+
+      logger.info('salvage_dismissed', { agentId });
+      res.json(result);
+    } catch (error) {
+      metrics.errors++;
+      res.status(500).json({ error: 'internal server error' });
+    }
+  });
+
   return router;
 }

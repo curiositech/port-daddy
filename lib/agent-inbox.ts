@@ -42,6 +42,8 @@ interface ListOptions {
   since?: number;
 }
 
+const MAX_INBOX_MESSAGES = 1000;
+
 export function createAgentInbox(db: Database.Database) {
   // Schema
   db.exec(`
@@ -78,6 +80,11 @@ export function createAgentInbox(db: Database.Database) {
     count: db.prepare(`SELECT COUNT(*) as count FROM agent_inbox WHERE agent_id = ?`),
     countUnread: db.prepare(`SELECT COUNT(*) as count FROM agent_inbox WHERE agent_id = ? AND read = 0`),
     deleteOld: db.prepare(`DELETE FROM agent_inbox WHERE created_at < ?`),
+    deleteOldestForAgent: db.prepare(`
+      DELETE FROM agent_inbox WHERE id IN (
+        SELECT id FROM agent_inbox WHERE agent_id = ? ORDER BY created_at ASC LIMIT ?
+      )
+    `),
   };
 
   function formatMessage(row: InboxRow): InboxMessage {
@@ -94,8 +101,9 @@ export function createAgentInbox(db: Database.Database) {
 
   return {
     /**
-     * Send a message to an agent's inbox
-     * Anyone can send (you don't need to be registered)
+     * Send a message to an agent's inbox.
+     * Anyone can send (you don't need to be registered).
+     * If the inbox exceeds MAX_INBOX_MESSAGES (1000), the oldest messages are evicted.
      */
     send(agentId: string, content: string, options: SendOptions = {}) {
       if (!agentId || !content) {
@@ -106,6 +114,13 @@ export function createAgentInbox(db: Database.Database) {
       const now = Date.now();
 
       try {
+        // Evict oldest messages if inbox is at capacity
+        const currentCount = (stmts.count.get(agentId) as { count: number }).count;
+        if (currentCount >= MAX_INBOX_MESSAGES) {
+          const toDelete = currentCount - MAX_INBOX_MESSAGES + 1; // Make room for the new one
+          stmts.deleteOldestForAgent.run(agentId, toDelete);
+        }
+
         const result = stmts.send.run(agentId, from, content, type, now);
         return {
           success: true,

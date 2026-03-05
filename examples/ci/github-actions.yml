@@ -1,0 +1,187 @@
+# =============================================================================
+# Port Daddy CI Example: GitHub Actions
+#
+# Demonstrates how Port Daddy coordinates parallel test runners in CI
+# to prevent port collisions between concurrent jobs.
+#
+# Problem solved:
+#   Without coordination, parallel test jobs often collide on default ports
+#   (3000, 8080, etc.), causing flaky test failures.
+#
+# Solution:
+#   Port Daddy daemon runs as a service, each job claims a unique port,
+#   runs tests against it, and releases on completion.
+# =============================================================================
+
+name: CI with Port Daddy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────
+  # Step 1: Start daemon (runs once, shared by all jobs via artifacts)
+  # ─────────────────────────────────────────────────────────────────────────
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Port Daddy
+        run: npm install -g port-daddy
+
+      - name: Start Port Daddy daemon
+        run: |
+          port-daddy start &
+          sleep 2
+          port-daddy health
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Step 2: Parallel test jobs, each with its own port
+  # ─────────────────────────────────────────────────────────────────────────
+
+  test-api:
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm install -g port-daddy
+
+      - name: Start daemon and claim port
+        run: |
+          port-daddy start &
+          sleep 2
+          # Claim a unique port for this job
+          export TEST_PORT=$(port-daddy claim ci:api:test -q)
+          echo "TEST_PORT=$TEST_PORT" >> $GITHUB_ENV
+          echo "Claimed port $TEST_PORT for API tests"
+
+      - name: Run API tests
+        run: |
+          echo "Running API tests on port $TEST_PORT"
+          # Your test command here, e.g.:
+          # PORT=$TEST_PORT npm run test:api
+          npm run test:api -- --port $TEST_PORT
+        env:
+          PORT: ${{ env.TEST_PORT }}
+
+      - name: Release port
+        if: always()
+        run: |
+          port-daddy release ci:api:test || true
+
+  test-frontend:
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm install -g port-daddy
+
+      - name: Start daemon and claim port
+        run: |
+          port-daddy start &
+          sleep 2
+          export TEST_PORT=$(port-daddy claim ci:frontend:test -q)
+          echo "TEST_PORT=$TEST_PORT" >> $GITHUB_ENV
+          echo "Claimed port $TEST_PORT for frontend tests"
+
+      - name: Run frontend tests
+        run: |
+          echo "Running frontend tests on port $TEST_PORT"
+          # PORT=$TEST_PORT npm run test:frontend
+          npm run test:frontend -- --port $TEST_PORT
+        env:
+          PORT: ${{ env.TEST_PORT }}
+
+      - name: Release port
+        if: always()
+        run: |
+          port-daddy release ci:frontend:test || true
+
+  test-integration:
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm install -g port-daddy
+
+      - name: Start daemon and claim ports for multiple services
+        run: |
+          port-daddy start &
+          sleep 2
+          # Integration tests need both API and DB ports
+          export API_PORT=$(port-daddy claim ci:integration:api -q)
+          export DB_PORT=$(port-daddy claim ci:integration:db -q)
+          echo "API_PORT=$API_PORT" >> $GITHUB_ENV
+          echo "DB_PORT=$DB_PORT" >> $GITHUB_ENV
+          echo "Claimed API port $API_PORT and DB port $DB_PORT"
+
+      - name: Run integration tests
+        run: |
+          echo "Running integration tests (API=$API_PORT, DB=$DB_PORT)"
+          # API_PORT=$API_PORT DB_PORT=$DB_PORT npm run test:integration
+          npm run test:integration
+        env:
+          API_PORT: ${{ env.API_PORT }}
+          DB_PORT: ${{ env.DB_PORT }}
+
+      - name: Release ports
+        if: always()
+        run: |
+          port-daddy release "ci:integration:*" || true
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Step 3: Cleanup (always runs, even on failure)
+  # ─────────────────────────────────────────────────────────────────────────
+
+  cleanup:
+    runs-on: ubuntu-latest
+    needs: [test-api, test-frontend, test-integration]
+    if: always()
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Port Daddy
+        run: npm install -g port-daddy
+
+      - name: Cleanup all CI ports
+        run: |
+          port-daddy start &
+          sleep 2
+          # Release any remaining CI ports (in case jobs crashed)
+          port-daddy release "ci:*" || true
+          port-daddy cleanup || true
+          echo "CI ports cleaned up"

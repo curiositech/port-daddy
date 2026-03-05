@@ -10,6 +10,7 @@ import { parseExpires } from './utils.js';
 
 const DEFAULT_RANGE: [number, number] = [3100, 9999];
 const RESERVED_PORTS = new Set([8080, 8000, 9876]);
+const MAX_SERVICES_PER_IDENTITY_PREFIX = 20;
 
 interface ServiceRow {
   id: string;
@@ -105,6 +106,8 @@ export function createServices(db: Database.Database) {
     deleteById: db.prepare('DELETE FROM services WHERE id = ?'),
     deleteByPattern: db.prepare('DELETE FROM services WHERE id LIKE ?'),
     deleteExpired: db.prepare('DELETE FROM services WHERE expires_at IS NOT NULL AND expires_at < ?'),
+
+    countByPrefix: db.prepare("SELECT COUNT(*) as count FROM services WHERE id LIKE ? ESCAPE '\\'"),
 
     // Endpoints
     getEndpoints: db.prepare('SELECT * FROM endpoints WHERE service_id = ?'),
@@ -227,6 +230,20 @@ export function createServices(db: Database.Database) {
         existing: true,
         message: 'reusing existing service'
       };
+    }
+
+    // Enforce max services per identity prefix (first segment before ':')
+    const identityPrefix = parsed.normalized.split(':')[0];
+    if (identityPrefix) {
+      const prefixPattern = identityPrefix.replace(/[%_]/g, '\\$&') + ':%';
+      const prefixCount = (stmts.countByPrefix.get(prefixPattern) as { count: number }).count;
+      if (prefixCount >= MAX_SERVICES_PER_IDENTITY_PREFIX) {
+        return {
+          success: false,
+          error: `identity prefix "${identityPrefix}" has reached the maximum of ${MAX_SERVICES_PER_IDENTITY_PREFIX} services`,
+          code: 'SERVICES_LIMIT_EXCEEDED',
+        };
+      }
     }
 
     // Find a port
