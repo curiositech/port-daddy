@@ -29,6 +29,8 @@
     "test:ci": "npm test",
     "typecheck": "tsc --noEmit",
     "parity": "tsx scripts/check-parity.ts",
+    "preversion": "npm run parity && npm test -- --no-coverage",
+    "postversion": "tsx scripts/sync-version.ts && git add .claude-plugin/plugin.json mcp-server.json mcp/server.ts && git commit --amend --no-edit",
     "build": "tsc",
     "prepublishOnly": "npm run build"
   },

@@ -62,6 +62,12 @@ interface ExtractedSurfaces {
   sdkDocs: {
     methods: Set<string>;
   };
+  mcpTools: Set<string>;
+  skillMd: {
+    cliCommands: Set<string>;
+    mcpTools: Set<string>;
+  };
+  dashboard: Set<string>;
 }
 
 interface FeatureReport {
@@ -239,6 +245,63 @@ function extractSdkDocsMethods(): Set<string> {
   return methods;
 }
 
+function extractMcpTools(): Set<string> {
+  const mcpContent = readFileSync(join(ROOT, 'mcp', 'server.ts'), 'utf-8');
+  const tools = new Set<string>();
+  const pattern = /^\s+name:\s*['"](\w+)['"]/gm;
+  let match;
+  while ((match = pattern.exec(mcpContent)) !== null) {
+    const name = match[1];
+    if (name !== 'port-daddy' && !name.startsWith('Active') && !name.startsWith('Registered')) {
+      tools.add(name);
+    }
+  }
+  return tools;
+}
+
+function extractSkillMdCliCommands(): Set<string> {
+  const skillPath = join(ROOT, 'skills', 'port-daddy-cli', 'SKILL.md');
+  if (!existsSync(skillPath)) return new Set();
+  const content = readFileSync(skillPath, 'utf-8');
+  const commands = new Set<string>();
+  const pattern = /`pd\s+([\w-]+)/g;
+  let match;
+  while ((match = pattern.exec(content)) !== null) {
+    commands.add(match[1]);
+  }
+  return commands;
+}
+
+function extractSkillMdMcpTools(): Set<string> {
+  const skillPath = join(ROOT, 'skills', 'port-daddy-cli', 'SKILL.md');
+  if (!existsSync(skillPath)) return new Set();
+  const content = readFileSync(skillPath, 'utf-8');
+  const tools = new Set<string>();
+  const pattern = /`(\w+_\w+)`/g;
+  let match;
+  while ((match = pattern.exec(content)) !== null) {
+    tools.add(match[1]);
+  }
+  const singlePattern = /\|\s*`(whoami|pd_discover)`/g;
+  while ((match = singlePattern.exec(content)) !== null) {
+    tools.add(match[1]);
+  }
+  return tools;
+}
+
+function extractDashboardEndpoints(): Set<string> {
+  const dashboardPath = join(ROOT, 'public', 'index.html');
+  if (!existsSync(dashboardPath)) return new Set();
+  const content = readFileSync(dashboardPath, 'utf-8');
+  const endpoints = new Set<string>();
+  const pattern = /fetch\(['"`]\/([^'"`$]+)/g;
+  let match;
+  while ((match = pattern.exec(content)) !== null) {
+    endpoints.add('/' + match[1].split('?')[0].replace(/\/+$/, ''));
+  }
+  return endpoints;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Validation
 // ═══════════════════════════════════════════════════════════════════════════
@@ -307,6 +370,42 @@ function validateFeature(
 // Main
 // ═══════════════════════════════════════════════════════════════════════════
 
+function checkVersionConsistency(): string[] {
+  const issues: string[] = [];
+  const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf-8'));
+  const pkgVersion = pkg.version;
+
+  // Check plugin.json
+  const pluginPath = join(ROOT, '.claude-plugin', 'plugin.json');
+  if (existsSync(pluginPath)) {
+    const plugin = JSON.parse(readFileSync(pluginPath, 'utf-8'));
+    if (plugin.version !== pkgVersion) {
+      issues.push(`.claude-plugin/plugin.json version "${plugin.version}" != package.json "${pkgVersion}"`);
+    }
+  }
+
+  // Check mcp-server.json
+  const mcpJsonPath = join(ROOT, 'mcp-server.json');
+  if (existsSync(mcpJsonPath)) {
+    const mcpJson = JSON.parse(readFileSync(mcpJsonPath, 'utf-8'));
+    if (mcpJson.version !== pkgVersion) {
+      issues.push(`mcp-server.json version "${mcpJson.version}" != package.json "${pkgVersion}"`);
+    }
+  }
+
+  // Check MCP server.ts
+  const mcpServerPath = join(ROOT, 'mcp', 'server.ts');
+  if (existsSync(mcpServerPath)) {
+    const content = readFileSync(mcpServerPath, 'utf-8');
+    const versionMatch = content.match(/version:\s*['"]([^'"]+)['"]/);
+    if (versionMatch && versionMatch[1] !== pkgVersion) {
+      issues.push(`mcp/server.ts version "${versionMatch[1]}" != package.json "${pkgVersion}"`);
+    }
+  }
+
+  return issues;
+}
+
 function main() {
   console.log(`\n${BOLD}${CYAN}═══ Port Daddy Parity Checker ═══${RESET}\n`);
 
@@ -341,11 +440,21 @@ function main() {
     sdkDocs: {
       methods: extractSdkDocsMethods(),
     },
+    mcpTools: extractMcpTools(),
+    skillMd: {
+      cliCommands: extractSkillMdCliCommands(),
+      mcpTools: extractSkillMdMcpTools(),
+    },
+    dashboard: extractDashboardEndpoints(),
   };
 
   console.log(`  CLI commands:     ${surfaces.cliCommands.size}`);
   console.log(`  SDK methods:      ${surfaces.sdkMethods.size}`);
   console.log(`  HTTP routes:      ${surfaces.routes.size}`);
+  console.log(`  MCP tools:        ${surfaces.mcpTools.size}`);
+  console.log(`  SKILL.md CLI:     ${surfaces.skillMd.cliCommands.size}`);
+  console.log(`  SKILL.md MCP:     ${surfaces.skillMd.mcpTools.size}`);
+  console.log(`  Dashboard:        ${surfaces.dashboard.size} endpoints`);
   console.log(`  Bash completions: ${surfaces.completions.bash.size}`);
   console.log(`  Zsh completions:  ${surfaces.completions.zsh.size}`);
   console.log(`  Fish completions: ${surfaces.completions.fish.size}`);
@@ -388,6 +497,21 @@ function main() {
   }
 
   console.log();
+
+  // Version consistency check
+  const versionIssues = checkVersionConsistency();
+  if (versionIssues.length > 0) {
+    console.log(`${RED}${BOLD}Version Consistency:${RESET}`);
+    for (const issue of versionIssues) {
+      console.log(`  ${RED}✗${RESET} ${issue}`);
+      totalIssues++;
+    }
+    console.log();
+  } else {
+    const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf-8'));
+    console.log(`${GREEN}✓${RESET} Version consistency: all files at v${pkg.version}`);
+    console.log();
+  }
 
   // Summary
   if (totalIssues === 0) {
