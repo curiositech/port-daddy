@@ -51,6 +51,15 @@ export interface CLIOptions {
   file?: string;
   system?: boolean;
 
+  // Text content flags (flag alternatives for positional args)
+  purpose?: string;
+  note?: string;
+  content?: string;
+  message?: string;
+  description?: string;
+  identity?: string;
+  session?: string;
+
   // Messaging flags
   sender?: string;
 

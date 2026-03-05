@@ -27,6 +27,7 @@ import { createChangelogRoutes } from './changelog.js';
 import { createTunnelRoutes } from './tunnel.js';
 import { createDnsRoutes } from './dns.js';
 import { createBriefingRoutes } from './briefing.js';
+import { createSugarRoutes } from './sugar.js';
 
 // Each route factory defines its own deps interface (e.g. ServicesRouteDeps,
 // InfoRouteDeps). Rather than duplicating those 10 interfaces here, we use a
@@ -48,12 +49,15 @@ export function createRoutes(deps: AnyDeps): Router {
   // Info routes first (health/version are high-frequency, low-latency)
   router.use(createInfoRoutes(deps as unknown as Parameters<typeof createInfoRoutes>[0]));
 
+  // Health routes BEFORE services (health routes are more specific: /services/health/:id)
+  // Must come before the generic /services/:id catch-all
+  router.use(createHealthRoutes(deps as unknown as Parameters<typeof createHealthRoutes>[0]));
+
   // V2 API routes
   router.use(createServicesRoutes(deps as unknown as Parameters<typeof createServicesRoutes>[0]));
   router.use(createMessagingRoutes(deps as unknown as Parameters<typeof createMessagingRoutes>[0]));
   router.use(createLocksRoutes(deps as unknown as Parameters<typeof createLocksRoutes>[0]));
   router.use(createAgentsRoutes(deps as unknown as Parameters<typeof createAgentsRoutes>[0]));
-  router.use(createHealthRoutes(deps as unknown as Parameters<typeof createHealthRoutes>[0]));
   router.use(createActivityRoutes(deps as unknown as Parameters<typeof createActivityRoutes>[0]));
   router.use(createWebhooksRoutes(deps as unknown as Parameters<typeof createWebhooksRoutes>[0]));
   router.use(createConfigRoutes(deps as unknown as Parameters<typeof createConfigRoutes>[0]));
@@ -64,6 +68,7 @@ export function createRoutes(deps: AnyDeps): Router {
   router.use(createTunnelRoutes(deps as unknown as Parameters<typeof createTunnelRoutes>[0]));
   router.use(createDnsRoutes(deps as unknown as Parameters<typeof createDnsRoutes>[0]));
   router.use(createBriefingRoutes(deps as unknown as Parameters<typeof createBriefingRoutes>[0]));
+  router.use(createSugarRoutes(deps as unknown as Parameters<typeof createSugarRoutes>[0]));
 
   return router;
 }

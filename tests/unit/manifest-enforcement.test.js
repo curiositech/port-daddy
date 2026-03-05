@@ -356,6 +356,8 @@ describe('CLI --> Manifest (no undocumented CLI commands)', () => {
     // independent manifest entries.
     const metaCommands = new Set([
       'help', 'version', '--help', '-h', '--version', '-V', '--json', '-j', '--quiet', '-q',
+      // Short flag characters (from shortFlags map, not commands)
+      'p', 'e', 'P', 'n', 'c', 'm', 'd', 't', 'i', 'a', 's', 'o', 'f',
       // Session subcommands: handled inside `case 'session':` dispatch
       'start', 'end', 'done', 'abandon', 'rm',
       // Ports subcommands: 'cleanup' is handled inside `case 'ports':`
@@ -521,6 +523,11 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       // Briefing
       'briefing_generate': 'briefing',
       'briefing_read': 'briefing',
+
+      // Sugar (Compound Workflows)
+      'begin_session': 'sugar',
+      'end_session_full': 'sugar',
+      'whoami': 'sugar',
 
       // DNS
       'dns_register': 'dns',

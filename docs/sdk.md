@@ -99,6 +99,155 @@ await pd.removeSession(session.id);
 
 ---
 
+## Sugar (Compound Operations)
+
+Sugar methods combine multiple coordination steps into single atomic calls. Use these instead of the individual `register`, `startSession`, `endSession`, and `unregister` methods for the standard agent lifecycle.
+
+### `pd.begin(options)`
+
+Register an agent and start a session in one call. Writes context to `.portdaddy/current.json` for use by subsequent `whoami` and `done` calls.
+
+```javascript
+const { agentId, sessionId } = await pd.begin({
+  purpose: 'Implementing user auth',
+  identity: 'myapp:backend:feature-auth',
+  type: 'claude',
+  files: ['src/auth/*', 'src/middleware/auth.ts'],
+});
+
+console.log(agentId);   // e.g. "agent-a1b2c3"
+console.log(sessionId); // e.g. "session-d4e5f6"
+```
+
+**Options:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `purpose` | string | yes | Human-readable description of what this agent is doing |
+| `identity` | string | no | Semantic identity in `project:stack:context` format |
+| `agentId` | string | no | Explicit agent ID (auto-generated if omitted) |
+| `type` | string | no | Agent type: `cli`, `claude`, `ci`, `sdk`, etc. |
+| `files` | string[] | no | File paths to claim at session start |
+| `force` | boolean | no | Claim files even if another session has them |
+
+**Returns:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `success` | boolean | Whether the operation succeeded |
+| `agentId` | string | The registered agent ID |
+| `sessionId` | string | The started session ID |
+| `identity` | string | Resolved identity string |
+| `purpose` | string | Echo of the purpose |
+| `agentRegistered` | boolean | Whether agent registration succeeded |
+| `sessionStarted` | boolean | Whether session creation succeeded |
+| `salvageHint` | string \| undefined | Message if dead agents were found in the same project |
+
+### `pd.done(options?)`
+
+End the current session and unregister the agent atomically. Reads from `.portdaddy/current.json` if `agentId` and `sessionId` are not provided.
+
+```javascript
+// Minimal — uses context from current.json
+await pd.done();
+
+// With a closing note
+await pd.done({ note: 'Auth system complete, all tests passing' });
+
+// Explicit IDs (if not using current.json)
+await pd.done({
+  agentId: 'agent-a1b2c3',
+  sessionId: 'session-d4e5f6',
+  note: 'Partial — ran out of context',
+  status: 'abandoned',
+});
+```
+
+**Options:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `agentId` | string | no | Agent to unregister (default: from `current.json`) |
+| `sessionId` | string | no | Session to end (default: from `current.json`) |
+| `note` | string | no | Closing note attached to the session |
+| `status` | string | no | `'completed'` (default) or `'abandoned'` |
+
+**Returns:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `success` | boolean | Whether the operation succeeded |
+| `agentId` | string | The unregistered agent ID |
+| `sessionId` | string | The ended session ID |
+| `sessionStatus` | string | Final session status |
+| `agentUnregistered` | boolean | Whether agent unregistration succeeded |
+
+### `pd.whoami(agentId?)`
+
+Return the current agent and session context without making changes. Reads from `.portdaddy/current.json` if `agentId` is not provided.
+
+```javascript
+// Uses current.json context
+const ctx = await pd.whoami();
+
+// Explicit agent ID
+const ctx = await pd.whoami('agent-a1b2c3');
+
+if (ctx.active) {
+  console.log(`Running as ${ctx.agentId}`);
+  console.log(`Session: ${ctx.sessionId}`);
+  console.log(`Purpose: ${ctx.purpose}`);
+  console.log(`Duration: ${ctx.duration}`);  // e.g. "12m"
+  console.log(`Notes: ${ctx.noteCount}`);
+} else {
+  console.log('No active session');
+}
+```
+
+**Returns:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `success` | boolean | Whether the lookup succeeded |
+| `active` | boolean | Whether an active agent/session was found |
+| `agentId` | string \| undefined | The agent ID |
+| `sessionId` | string \| undefined | The session ID |
+| `purpose` | string \| undefined | What the agent is doing |
+| `identity` | string \| undefined | Semantic identity |
+| `noteCount` | number \| undefined | Number of notes in the session |
+| `duration` | string \| undefined | Time since session started (human-readable) |
+
+### Full lifecycle example
+
+```javascript
+import { PortDaddy } from 'port-daddy/client';
+const pd = new PortDaddy();
+
+// Begin — one call replaces register + startSession + startHeartbeat
+const { agentId, sessionId, salvageHint } = await pd.begin({
+  purpose: 'Implementing user auth',
+  identity: 'myapp:backend:feature-auth',
+  files: ['src/auth/*'],
+});
+
+if (salvageHint) {
+  console.warn(salvageHint); // dead agents in same project
+}
+
+// Check context mid-task
+const ctx = await pd.whoami(agentId);
+console.log(`${ctx.duration} elapsed, ${ctx.noteCount} notes`);
+
+// Add notes as you work
+await pd.note('JWT middleware created');
+await pd.note('Refresh token rotation complete', { type: 'commit' });
+
+// Done — one call replaces endSession + unregister + hb.stop()
+await pd.done({ agentId, note: 'Auth system complete' });
+```
+
+---
+
 ## Pub/Sub Messaging
 
 ```javascript

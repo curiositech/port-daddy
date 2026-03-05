@@ -21,3 +21,5 @@ export * from './tunnel.js';
 export * from './dns.js';
 export * from './integration.js';
 export * from './briefing.js';
+export * from './sugar.js';
+export * from './tutorial.js';

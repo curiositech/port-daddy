@@ -97,6 +97,7 @@ set -l __pd_commands \
     'agent' 'agents' 'log' 'activity' \
     'session' 'sessions' 'note' 'notes' \
     'salvage' 'resurrection' 'changelog' 'dns' 'files' 'who-owns' 'integration' 'briefing' 'history' \
+    'begin' 'done' 'whoami' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' \
     'up' 'down' \
     'dashboard' 'channels' 'webhook' 'webhooks' 'metrics' 'config' 'health' 'ports' \
     'scan' 's' 'projects' 'p' 'doctor' 'diagnose' \
@@ -194,6 +195,19 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a ci-gate -d 'Exit non-zero if daemon is stale'
     complete -c $prog -n __pd_needs_command -a mcp -d 'Start MCP server for Claude Code'
 
+    # Sugar (compound commands)
+    complete -c $prog -n __pd_needs_command -a begin -d 'Begin a work session (register + start)'
+    complete -c $prog -n __pd_needs_command -a done -d 'End a work session (end + unregister)'
+    complete -c $prog -n __pd_needs_command -a whoami -d 'Show current agent/session context'
+    complete -c $prog -n __pd_needs_command -a with-lock -d 'Run a command while holding a lock'
+    complete -c $prog -n __pd_needs_command -a n -d 'Add a quick note (alias for note)'
+    complete -c $prog -n __pd_needs_command -a u -d 'Start all services (alias for up)'
+    complete -c $prog -n __pd_needs_command -a d -d 'Stop all services (alias for down)'
+
+    # Tutorial
+    complete -c $prog -n __pd_needs_command -a learn -d 'Interactive tutorial — learn Port Daddy step by step'
+    complete -c $prog -n __pd_needs_command -a tutorial -d 'Interactive tutorial (alias for learn)'
+
     # Info
     complete -c $prog -n __pd_needs_command -a version -d 'Print version information'
     complete -c $prog -n __pd_needs_command -a help -d 'Show help'
@@ -261,6 +275,7 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command env" -x -a '(__pd_service_ids)'
 
     # pub / publish
+    complete -c $prog -n "__pd_using_command pub publish" -s m -l message -d 'Message payload (JSON or text)' -x
     complete -c $prog -n "__pd_using_command pub publish" -l sender -d 'Sender agent ID' -x -a '(__pd_agent_ids)'
     complete -c $prog -n "__pd_using_command pub publish" -x -a '(__pd_channels)'
 
@@ -338,6 +353,9 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command session" -x -a 'rm' -d 'Delete a session and cascade notes/files'
     complete -c $prog -n "__pd_using_command session" -x -a 'files' -d 'Manage file claims for a session'
     complete -c $prog -n "__pd_using_command session" -x -a 'phase' -d 'Set session phase'
+    complete -c $prog -n "__pd_using_command session" -s P -l purpose -d 'Session purpose' -x
+    complete -c $prog -n "__pd_using_command session" -s n -l note -d 'Handoff note' -x
+    complete -c $prog -n "__pd_using_command session" -s a -l agent -d 'Agent ID' -x -a '(__pd_agent_ids)'
 
     # sessions
     complete -c $prog -n "__pd_using_command sessions" -l all -d 'Show all sessions, not just active'
@@ -345,7 +363,8 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command sessions" -l files -d 'Include file claims'
 
     # note
-    complete -c $prog -n "__pd_using_command note" -l type -d 'Note type' -x -a 'note handoff commit warning'
+    complete -c $prog -n "__pd_using_command note" -s c -l content -d 'Note content' -x
+    complete -c $prog -n "__pd_using_command note" -s t -l type -d 'Note type' -x -a 'general progress decision blocker question handoff'
 
     # notes
     complete -c $prog -n "__pd_using_command notes" -l limit -d 'Max entries' -x
@@ -404,6 +423,7 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command integration" -x -a 'ready' -d 'Signal work is ready for integration'
     complete -c $prog -n "__pd_using_command integration" -x -a 'needs' -d 'Signal work needs something from another agent'
     complete -c $prog -n "__pd_using_command integration" -x -a 'list' -d 'List recent integration signals'
+    complete -c $prog -n "__pd_using_command integration" -s d -l description -d 'Signal description' -x
     complete -c $prog -n "__pd_using_command integration" -l project -d 'Filter by project name' -x
 
     # briefing
@@ -442,4 +462,30 @@ for prog in port-daddy pd
     # down (no extra options but needs consistency)
 
     # doctor / diagnose (already handled by command registration)
+
+    # begin
+    complete -c $prog -n "__pd_using_command begin" -s P -l purpose -d 'What you are working on' -x
+    complete -c $prog -n "__pd_using_command begin" -s i -l identity -d 'Semantic identity (project:stack:context)' -x
+    complete -c $prog -n "__pd_using_command begin" -s a -l agent -d 'Agent ID (auto-generated if omitted)' -x
+    complete -c $prog -n "__pd_using_command begin" -s t -l type -d 'Agent type' -x -a 'cli sdk mcp'
+    complete -c $prog -n "__pd_using_command begin" -l files -d 'Files to claim' -r
+    complete -c $prog -n "__pd_using_command begin" -s f -l force -d 'Force file claims even if already claimed'
+
+    # done
+    complete -c $prog -n "__pd_using_command done" -s n -l note -d 'Final note' -x
+    complete -c $prog -n "__pd_using_command done" -s a -l agent -d 'Agent ID' -x -a '(__pd_agent_ids)'
+    complete -c $prog -n "__pd_using_command done" -l session -d 'Session ID' -x
+    complete -c $prog -n "__pd_using_command done" -s s -l status -d 'Session end status' -x -a 'completed abandoned'
+
+    # whoami
+    complete -c $prog -n "__pd_using_command whoami" -l agent -d 'Agent ID' -x -a '(__pd_agent_ids)'
+
+    # with-lock
+    complete -c $prog -n "__pd_using_command with-lock" -l ttl -d 'Lock TTL in milliseconds' -x
+    complete -c $prog -n "__pd_using_command with-lock" -l owner -d 'Lock owner' -x
+    complete -c $prog -n "__pd_using_command with-lock" -x -a '(__pd_lock_names)'
+
+    # n (alias for note)
+    complete -c $prog -n "__pd_using_command n" -s c -l content -d 'Note content' -x
+    complete -c $prog -n "__pd_using_command n" -s t -l type -d 'Note type' -x -a 'general progress decision blocker question handoff'
 end

@@ -8,6 +8,7 @@ import { status as maritimeStatus } from '../../lib/maritime.js';
 import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import { CLIOptions, isQuiet, isJson } from '../types.js';
 import { getDirectSessions } from '../utils/direct-db.js';
+import { canPrompt, promptText, promptSelect } from '../utils/prompt.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 
 /**
@@ -63,9 +64,16 @@ export async function handleSession(
 }
 
 async function sessionStart(rest: string[], options: CLIOptions): Promise<void> {
-  const purpose = rest[0];
-  if (!purpose) {
-    console.error('Usage: port-daddy session start <purpose> [--files file1 file2...] [--agent AGENT_ID] [--force]');
+  let purpose: string | undefined = rest[0] || (options.purpose as string) || undefined;
+
+  if (!purpose && canPrompt()) {
+    purpose = await promptText({ label: 'Session purpose:', required: true }) || undefined;
+    if (!purpose) {
+      console.error('Purpose is required');
+      process.exit(1);
+    }
+  } else if (!purpose) {
+    console.error('Usage: port-daddy session start <purpose> [--purpose "text"] [-P "text"]');
     process.exit(1);
   }
 
@@ -129,7 +137,7 @@ async function sessionStart(rest: string[], options: CLIOptions): Promise<void> 
 }
 
 async function sessionEnd(rest: string[], options: CLIOptions, status: string): Promise<void> {
-  const note = rest[0];
+  const note = rest[0] || (options.note as string) || undefined;
 
   // Find active session first
   const listRes: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/sessions?status=active&limit=1`);
@@ -524,8 +532,31 @@ export async function handleSessions(options: CLIOptions): Promise<void> {
  * Handle `pd note <content>` command
  */
 export async function handleNote(content: string | undefined, options: CLIOptions): Promise<void> {
-  if (!content) {
-    console.error('Usage: port-daddy note <content> [--type TYPE]');
+  // Flag alternative: --content "text" or -c "text"
+  content = content || (options.content as string) || undefined;
+
+  if (!content && canPrompt()) {
+    content = await promptText({ label: 'Note content:', required: true }) || undefined;
+    if (!content) {
+      console.error('Note content is required');
+      process.exit(1);
+    }
+    if (!options.type) {
+      const type = await promptSelect({
+        label: 'Note type?',
+        choices: [
+          { value: 'general', label: 'General note' },
+          { value: 'progress', label: 'Progress update' },
+          { value: 'decision', label: 'Decision made' },
+          { value: 'blocker', label: 'Something blocking' },
+          { value: 'question', label: 'Need input' },
+        ],
+        default: 'general',
+      });
+      if (type) options.type = type;
+    }
+  } else if (!content) {
+    console.error('Usage: port-daddy note <content> [--content "text"] [-c "text"] [--type TYPE]');
     process.exit(1);
   }
 

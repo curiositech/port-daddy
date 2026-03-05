@@ -87,6 +87,11 @@ const TOOL_FEATURE_MAP = {
   'briefing_generate': 'briefing',
   'briefing_read': 'briefing',
 
+  // Sugar (Compound Workflows)
+  'begin_session': 'sugar',
+  'end_session_full': 'sugar',
+  'whoami': 'sugar',
+
   // DNS
   'dns_register': 'dns',
   'dns_unregister': 'dns',

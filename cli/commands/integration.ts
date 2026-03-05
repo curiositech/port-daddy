@@ -51,10 +51,11 @@ export async function handleIntegration(
 
 async function integrationSignal(type: 'ready' | 'needs', rest: string[], options: CLIOptions): Promise<void> {
   const identity = rest[0];
-  const description = rest.slice(1).join(' ');
+  const description = rest.slice(1).join(' ') || (options.description as string) || '';
 
   if (!identity || !description) {
     console.error(`Usage: port-daddy integration ${type} <identity> "description"`);
+    console.error(`       port-daddy integration ${type} <identity> --description "description"`);
     process.exit(1);
   }
 

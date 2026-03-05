@@ -33,13 +33,23 @@ lib/
   health.ts         # Health check utilities
   client.ts         # JavaScript SDK (PortDaddy class)
   log-prefix.ts     # Color-coded log prefixes for orchestrator
+  sugar.ts          # Compound operations (begin/done/whoami)
   utils.ts          # Common utilities
 routes/
   index.ts          # Route registration
   projects.ts       # /scan, /projects endpoints
   sessions.ts       # /sessions, /notes endpoints
+  sugar.ts          # /sugar/begin, /sugar/done, /sugar/whoami endpoints
 bin/
   port-daddy-cli.ts # CLI entry point
+cli/
+  commands/
+    sugar.ts        # begin, done, whoami, with-lock CLI commands
+    tutorial.ts     # pd learn interactive tutorial
+  utils/
+    prompt.ts       # Maritime interactive prompting (readline-based)
+    fetch.ts        # Daemon connection (socket/TCP with port file)
+    output.ts       # Terminal output helpers
 public/
   index.html        # Dashboard UI
 completions/
@@ -198,6 +208,8 @@ When adding ANY new command, endpoint, or operation, verify it exists in ALL of:
 | CLAUDE.md | `CLAUDE.md` | varies |
 | CHANGELOG.md | `CHANGELOG.md` | must update per release |
 
+**v3.5 sugar commands** (`begin`, `done`, `whoami`, `with-lock`, aliases `n`/`u`/`d`) are implemented across CLI (`cli/commands/sugar.ts`), SDK (`lib/client.ts`), REST (`routes/sugar.ts`), and MCP. **v3.6** added named flag alternatives (`-P`, `-n`, `-c`, `-m`, `-d`, `-t`, `-i`, `-a`, `-s`, `-o`, `-f`), interactive mode (TTY prompting), and `pd learn` tutorial. Distribution freshness tests (`tests/unit/distribution-freshness.test.js`) enforce parity automatically — run them after any surface change.
+
 **Parity checklist for every new feature:**
 1. API route exists and tested
 2. CLI command exists with `--quiet/-q` and `--json/-j` flags
@@ -297,3 +309,6 @@ Fish completions are historically the worst — double-check fish.
 | `/ports/cleanup` | POST | Release stale ports |
 | `/health` | GET | Daemon health check |
 | `/version` | GET | Version and code hash |
+| `/sugar/begin` | POST | Register agent + start session atomically |
+| `/sugar/done` | POST | End session + unregister agent atomically |
+| `/sugar/whoami` | GET | Show current agent/session context |

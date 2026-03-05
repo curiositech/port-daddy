@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.6.0] - 2026-03-03
+
+### Added
+- **Named flag alternatives** for all text-accepting commands — no more guessing positional args
+  - `pd begin --purpose "text"` / `-P "text"` (also `--identity`/`-i`, `--type`/`-t`, `--agent`/`-a`)
+  - `pd done --note "text"` / `-n "text"` (also `--status`/`-s`)
+  - `pd note --content "text"` / `-c "text"` (also `--type`/`-t`)
+  - `pd pub <ch> --message "text"` / `-m "text"`
+  - `pd session start --purpose "text"` / `-P "text"`
+  - `pd integration ready <id> --description "text"` / `-d "text"`
+- **Interactive mode** — run any sugar command with no args in a TTY and get maritime-themed prompts
+  - `pd begin` → wizard for purpose, identity, file claims
+  - `pd done` → prompts for final note and status
+  - `pd note` / `pd n` → prompts for content and note type
+  - Auto-skipped in CI, non-TTY, and `PORT_DADDY_NON_INTERACTIVE` environments
+- **`pd learn`** — Interactive tutorial that teaches Port Daddy using real daemon commands (8 lessons)
+- **Dynamic port resolution** — CLI reads `/tmp/port-daddy-port` instead of hardcoding port 9876
+
+### Changed
+- All positional text args remain backward-compatible — flags are a new alternative, not a replacement
+- Shell completions updated in all three shells (bash, zsh, fish) with new flags and `learn` command
+- 11 new CLI integration tests for flag alternatives and backward compatibility
+
+## [3.5.0] - 2026-03-02
+
+### Added
+- `pd begin` — Register agent + start session in one command (replaces 3-command ceremony)
+- `pd done` — End session + unregister agent atomically
+- `pd whoami` — Show current agent and session context
+- `pd with-lock <name> <cmd>` — Execute command under distributed lock with auto-release
+- CLI aliases: `n` (note), `u` (up), `d` (down)
+- Sugar REST endpoints: `POST /sugar/begin`, `POST /sugar/done`, `GET /sugar/whoami`
+- SDK methods: `pd.begin()`, `pd.done()`, `pd.whoami()`
+- MCP tools: `begin_session`, `end_session_full`, `whoami`
+- Dashboard redesigned: sidebar navigation, glassmorphism theme, 3 new panels
+- Distribution freshness tests (51 tests ensuring all surfaces stay in sync)
+
+### Changed
+- Dashboard reduced from 2287 to 371 lines with modern glassmorphism design
+- Agent sessions now use `.portdaddy/current.json` for local context tracking
+
 ## [3.4.0] - 2026-03-01
 
 ### Added

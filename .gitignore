@@ -33,5 +33,6 @@ plans/
 .CLAUDE_LOCK
 .CLAUDE_NOTES.md
 .portdaddyrc
+.portdaddy/
 *.strategy.md
 *.internal.md

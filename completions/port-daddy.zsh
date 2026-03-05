@@ -1,6 +1,6 @@
 #compdef port-daddy pd
 
-# Zsh completion for Port Daddy v3.4 CLI
+# Zsh completion for Port Daddy v3.6 CLI
 #
 # INSTALLATION:
 #   Option 1 — Fpath (recommended):
@@ -312,6 +312,7 @@ _pd_cmd_env() {
 
 _pd_cmd_pub() {
   _arguments \
+    '(-m --message)'{-m,--message}'[message payload]:message:' \
     '--sender[sender agent ID]:agent ID:_pd_complete_agents' \
     '(-j --json)'{-j,--json}'[JSON output]' \
     '(-q --quiet)'{-q,--quiet}'[suppress output]' \
@@ -658,14 +659,15 @@ _pd_cmd_session() {
       case "$subcmd" in
         start)
           _arguments \
-            '--agent[agent ID]:agent ID:_pd_complete_agents' \
+            '(-P --purpose)'{-P,--purpose}'[session purpose]:purpose:' \
+            '(-a --agent)'{-a,--agent}'[agent ID]:agent ID:_pd_complete_agents' \
             '(-j --json)'{-j,--json}'[JSON output]' \
             '(-q --quiet)'{-q,--quiet}'[suppress output]' \
             '1:purpose:'
           ;;
         end|done)
           _arguments \
-            '--note[handoff note]:note:' \
+            '(-n --note)'{-n,--note}'[handoff note]:note:' \
             '(-j --json)'{-j,--json}'[JSON output]' \
             '(-q --quiet)'{-q,--quiet}'[suppress output]' \
             '1:session ID:'
@@ -717,7 +719,8 @@ _pd_cmd_sessions() {
 
 _pd_cmd_note() {
   _arguments \
-    '--type[note type]:type:(note handoff commit warning)' \
+    '(-c --content)'{-c,--content}'[note content]:content:' \
+    '(-t --type)'{-t,--type}'[note type]:type:(general progress decision blocker question handoff)' \
     '(-j --json)'{-j,--json}'[JSON output]' \
     '(-q --quiet)'{-q,--quiet}'[suppress output]' \
     '(-h --help)'{-h,--help}'[show help]' \
@@ -896,6 +899,7 @@ _pd_cmd_integration() {
       case "$subcmd" in
         ready|needs)
           _arguments \
+            '(-d --description)'{-d,--description}'[signal description]:description:' \
             '(-j --json)'{-j,--json}'[JSON output]' \
             '(-q --quiet)'{-q,--quiet}'[suppress output]' \
             '1:identity:_pd_complete_services' \
@@ -919,6 +923,56 @@ _pd_cmd_briefing() {
     '--dir[target directory]:directory:_directories' \
     '(-j --json)'{-j,--json}'[JSON output (no disk write)]' \
     '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+    '(-h --help)'{-h,--help}'[show help]'
+}
+
+_pd_cmd_begin() {
+  _arguments \
+    '(-P --purpose)'{-P,--purpose}'[what you are working on]:purpose:' \
+    '(-i --identity)'{-i,--identity}'[semantic identity (project:stack:context)]:identity:_pd_complete_services' \
+    '(-a --agent)'{-a,--agent}'[agent ID (auto-generated if omitted)]:agent ID:' \
+    '(-t --type)'{-t,--type}'[agent type]:type:(cli sdk mcp)' \
+    '--files[files to claim]:file:_files' \
+    '(-f --force)'{-f,--force}'[force file claims even if already claimed]' \
+    '(-j --json)'{-j,--json}'[JSON output]' \
+    '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+    '(-h --help)'{-h,--help}'[show help]' \
+    '1:purpose:'
+}
+
+_pd_cmd_done() {
+  _arguments \
+    '(-n --note)'{-n,--note}'[final note]:note:' \
+    '(-a --agent)'{-a,--agent}'[agent ID]:agent ID:_pd_complete_agents' \
+    '--session[session ID]:session ID:' \
+    '(-s --status)'{-s,--status}'[session end status]:status:(completed abandoned)' \
+    '(-j --json)'{-j,--json}'[JSON output]' \
+    '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+    '(-h --help)'{-h,--help}'[show help]' \
+    '1:note:'
+}
+
+_pd_cmd_whoami() {
+  _arguments \
+    '--agent[agent ID]:agent ID:_pd_complete_agents' \
+    '(-j --json)'{-j,--json}'[JSON output]' \
+    '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+    '(-h --help)'{-h,--help}'[show help]'
+}
+
+_pd_cmd_with_lock() {
+  _arguments \
+    '--ttl[lock TTL in milliseconds]:milliseconds:' \
+    '--owner[lock owner]:owner:' \
+    '(-j --json)'{-j,--json}'[JSON output]' \
+    '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+    '(-h --help)'{-h,--help}'[show help]' \
+    '1:lock name:_pd_complete_locks' \
+    '*:command:'
+}
+
+_pd_cmd_learn() {
+  _arguments \
     '(-h --help)'{-h,--help}'[show help]'
 }
 
@@ -983,6 +1037,17 @@ _port_daddy() {
     'files:list all active file claims across sessions'
     'who-owns:check who has claimed a specific file path'
     'integration:manage integration signals (ready/needs/list)'
+    # Sugar (compound commands)
+    'begin:begin a work session (register agent + start session)'
+    'done:end a work session (end session + unregister agent)'
+    'whoami:show current agent/session context'
+    'with-lock:run a command while holding a lock'
+    'n:add a quick note (alias for note)'
+    'u:start all services (alias for up)'
+    'd:stop all services (alias for down)'
+    # Tutorial
+    'learn:interactive tutorial — learn Port Daddy step by step'
+    'tutorial:interactive tutorial (alias for learn)'
     # Briefing & History
     'briefing:generate .portdaddy/ project briefing'
     'history:view recent project activity'
@@ -1085,6 +1150,14 @@ _port_daddy() {
         integration)            _pd_cmd_integration ;;
         briefing)               _pd_cmd_briefing ;;
         history)                _pd_cmd_history ;;
+        begin)                  _pd_cmd_begin ;;
+        done)                   _pd_cmd_done ;;
+        whoami)                 _pd_cmd_whoami ;;
+        with-lock)              _pd_cmd_with_lock ;;
+        n)                      _pd_cmd_note ;;
+        u)                      _pd_cmd_up ;;
+        d)                      _pd_cmd_down ;;
+        learn|tutorial)         _pd_cmd_learn ;;
         version|help)       ;;
         *)                  ;;
       esac

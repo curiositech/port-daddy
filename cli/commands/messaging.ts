@@ -11,14 +11,26 @@ import { pdFetch, PORT_DADDY_URL, resolveTarget } from '../utils/fetch.js';
 import type { ConnectionTarget, PdFetchResponse } from '../utils/fetch.js';
 import { CLIOptions, isQuiet, isJson } from '../types.js';
 import { separator, tableHeader, relativeTime } from '../utils/output.js';
+import { canPrompt, promptText } from '../utils/prompt.js';
 
 /**
  * Handle `pd pub <channel> <message>` command
  */
 export async function handlePub(channel: string | undefined, message: string | undefined, options: CLIOptions): Promise<void> {
   if (!channel) {
-    console.error('Usage: port-daddy pub <channel> <message>');
+    console.error('Usage: port-daddy pub <channel> <message> [--message "text"] [-m "text"]');
     process.exit(1);
+  }
+
+  // Flag alternative: --message "text" or -m "text"
+  message = message || (options.message as string) || undefined;
+
+  if (!message && canPrompt()) {
+    message = await promptText({ label: 'Message payload (JSON or text):', required: true }) || undefined;
+    if (!message) {
+      console.error('Message is required');
+      process.exit(1);
+    }
   }
 
   let payload: unknown;

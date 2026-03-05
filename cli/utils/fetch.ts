@@ -7,11 +7,12 @@
 
 import http from 'node:http';
 import type { IncomingMessage, ClientRequest } from 'node:http';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 
 // Default Unix socket path — the primary transport for CLI->daemon communication.
 const DEFAULT_SOCK: string = '/tmp/port-daddy.sock';
 const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || DEFAULT_SOCK;
+const PORT_FILE: string = process.env.PORT_DADDY_PORT_FILE || '/tmp/port-daddy-port';
 const PORT_DADDY_URL: string = process.env.PORT_DADDY_URL || 'http://localhost:9876';
 
 export { PORT_DADDY_URL, SOCK_PATH };
@@ -37,6 +38,21 @@ export interface FetchOptions {
 }
 
 /**
+ * Read actual daemon port from port file (daemon writes this on startup).
+ * Falls back to 9876 if file doesn't exist or can't be read.
+ */
+function readPortFile(): number {
+  try {
+    const raw = readFileSync(PORT_FILE, 'utf-8').trim();
+    const port = parseInt(raw, 10);
+    if (Number.isInteger(port) && port >= 1024 && port <= 65535) {
+      return port;
+    }
+  } catch {}
+  return 9876;
+}
+
+/**
  * Resolve connection target: Unix socket or TCP.
  */
 export function resolveTarget(): ConnectionTarget {
@@ -49,8 +65,16 @@ export function resolveTarget(): ConnectionTarget {
   if (existsSync(SOCK_PATH)) {
     return { socketPath: SOCK_PATH };
   }
-  // Fallback to TCP
-  return { host: 'localhost', port: 9876 };
+  // Fallback to TCP — read actual port from port file
+  return { host: 'localhost', port: readPortFile() };
+}
+
+/**
+ * Get the daemon's display URL (for status messages, dashboard links, etc.)
+ */
+export function getDaemonUrl(): string {
+  if (process.env.PORT_DADDY_URL) return process.env.PORT_DADDY_URL;
+  return `http://localhost:${readPortFile()}`;
 }
 
 /**

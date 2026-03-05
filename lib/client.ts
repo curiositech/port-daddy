@@ -1999,6 +1999,78 @@ class PortDaddy {
     return this._request('GET', `/briefing/${encodeURIComponent(project)}${qs ? '?' + qs : ''}`) as Promise<BriefingReadResponse>;
   }
 
+  // ===========================================================================
+  // Sugar -- Compound commands for common workflows
+  // ===========================================================================
+
+  /**
+   * Begin a work session: register agent + start session atomically.
+   * Auto-generates an agent ID if `agentId` is not set on the client.
+   *
+   * @example
+   * const pd = new PortDaddy({ agentId: 'my-agent' });
+   * const { sessionId } = await pd.begin('Building auth system', {
+   *   identity: 'myapp:api:auth',
+   *   files: ['src/auth.ts', 'src/middleware.ts'],
+   * });
+   */
+  async begin(purpose: string, options: BeginSugarOptions = {}): Promise<BeginSugarResponse> {
+    const body: Record<string, unknown> = { purpose };
+    if (this.agentId) body.agentId = this.agentId;
+    if (options.agentId) body.agentId = options.agentId;
+    if (options.identity) body.identity = options.identity;
+    if (options.type) body.type = options.type;
+    if (options.files) body.files = options.files;
+    if (options.force) body.force = options.force;
+    if (options.metadata) body.metadata = options.metadata;
+
+    const result = await this._request('POST', '/sugar/begin', body) as BeginSugarResponse;
+
+    // Update client's agentId from server response for subsequent calls
+    if (result.agentId && !this.agentId) {
+      this.agentId = result.agentId;
+    }
+
+    return result;
+  }
+
+  /**
+   * End a work session: end session + unregister agent atomically.
+   *
+   * @example
+   * await pd.done('Completed auth implementation');
+   */
+  async done(note?: string, options: DoneSugarOptions = {}): Promise<DoneSugarResponse> {
+    const body: Record<string, unknown> = {};
+    if (this.agentId) body.agentId = this.agentId;
+    if (options.agentId) body.agentId = options.agentId;
+    if (options.sessionId) body.sessionId = options.sessionId;
+    if (note) body.note = note;
+    if (options.status) body.status = options.status;
+
+    const result = await this._request('POST', '/sugar/done', body) as DoneSugarResponse;
+
+    // Clear agentId since we just unregistered
+    if (result.agentUnregistered) {
+      this.agentId = undefined;
+    }
+
+    return result;
+  }
+
+  /**
+   * Show current agent/session context.
+   *
+   * @example
+   * const ctx = await pd.whoami();
+   * if (ctx.active) console.log(`Working on: ${ctx.purpose}`);
+   */
+  async whoami(agentId?: string): Promise<WhoamiSugarResponse> {
+    const id = agentId || this.agentId;
+    const qs = id ? `?agentId=${encodeURIComponent(id)}` : '';
+    return this._request('GET', `/sugar/whoami${qs}`) as Promise<WhoamiSugarResponse>;
+  }
+
   /**
    * Ping the daemon. Returns true if reachable, false otherwise.
    */
@@ -2216,6 +2288,63 @@ interface DnsStatusResponse {
   recordCount: number;
 }
 
+// =============================================================================
+// Sugar types
+// =============================================================================
+
+interface BeginSugarOptions {
+  agentId?: string;
+  identity?: string;
+  type?: string;
+  files?: string[];
+  force?: boolean;
+  metadata?: Record<string, unknown>;
+}
+
+interface BeginSugarResponse {
+  success: boolean;
+  agentId: string;
+  sessionId: string;
+  identity: string | null;
+  purpose: string;
+  agentRegistered: boolean;
+  sessionStarted: boolean;
+  fileClaims?: string[];
+  fileConflicts?: Array<{ filePath: string; sessionId: string }>;
+  salvageHint?: string;
+}
+
+interface DoneSugarOptions {
+  agentId?: string;
+  sessionId?: string;
+  status?: string;
+}
+
+interface DoneSugarResponse {
+  success: boolean;
+  agentId: string | null;
+  sessionId: string;
+  sessionStatus: string;
+  agentUnregistered: boolean;
+  notesCount: number;
+  finalNote: boolean;
+}
+
+interface WhoamiSugarResponse {
+  success: boolean;
+  active: boolean;
+  agentId?: string;
+  sessionId?: string;
+  purpose?: string;
+  identity?: string | null;
+  phase?: string;
+  files?: string[];
+  noteCount?: number;
+  startedAt?: number;
+  duration?: number;
+  hint?: string;
+}
+
 export { PortDaddy, PortDaddyError, ConnectionError };
 export type {
   WaitResponse,
@@ -2235,5 +2364,10 @@ export type {
   DnsCleanupResponse,
   DnsStatusResponse,
   DnsRecord,
+  BeginSugarOptions,
+  BeginSugarResponse,
+  DoneSugarOptions,
+  DoneSugarResponse,
+  WhoamiSugarResponse,
 };
 export default PortDaddy;

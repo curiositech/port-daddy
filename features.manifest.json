@@ -241,6 +241,22 @@
       "routes": ["POST /briefing", "GET /briefing/:param"],
       "completions": ["briefing", "history"],
       "docs": { "readme": false, "sdk": false }
+    },
+    "sugar": {
+      "description": "Compound commands for common workflows (begin/done/whoami)",
+      "cli": ["begin", "done", "whoami", "with-lock", "n", "u", "d"],
+      "sdk": ["begin", "done", "whoami"],
+      "routes": ["POST /sugar/begin", "POST /sugar/done", "GET /sugar/whoami"],
+      "completions": ["begin", "done", "whoami", "with-lock"],
+      "docs": { "readme": false, "sdk": false }
+    },
+    "tutorial": {
+      "description": "Interactive tutorial — learn Port Daddy step by step",
+      "cli": ["learn", "tutorial"],
+      "sdk": [],
+      "routes": [],
+      "completions": ["learn", "tutorial"],
+      "docs": { "readme": false, "sdk": false }
     }
   }
 }

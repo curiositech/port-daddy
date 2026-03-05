@@ -172,22 +172,32 @@ describe('CLI Integration Tests', () => {
     beforeAll(() => {
       html = readFileSync(join(import.meta.dirname, '../../public/index.html'), 'utf8');
 
-      const commandsStart = html.indexOf('var COMMANDS = {');
-      if (commandsStart !== -1) {
+      // Parse COMMANDS — supports both old object format and new array format
+      const oldStart = html.indexOf('var COMMANDS = {');
+      if (oldStart !== -1) {
         let depth = 0;
-        let end = commandsStart;
-        for (let i = commandsStart; i < html.length; i++) {
+        let end = oldStart;
+        for (let i = oldStart; i < html.length; i++) {
           if (html[i] === '{') depth++;
           if (html[i] === '}') { depth--; if (depth === 0) { end = i; break; } }
         }
-        const block = html.slice(commandsStart, end + 1);
+        const block = html.slice(oldStart, end + 1);
         const keyMatches = block.match(/^\s+(\w+)\s*:/gm);
         dashboardCommands = keyMatches
           ? keyMatches.map(m => m.trim().replace(/:$/, ''))
           : [];
+      } else {
+        // New array format: const COMMANDS=[{cmd:'claim',...},...]
+        const arrayMatch = html.match(/(?:const|var)\s+COMMANDS\s*=\s*\[([^\]]+)\]/);
+        if (arrayMatch) {
+          const cmdMatches = arrayMatch[1].match(/cmd\s*:\s*'([^']+)'/g);
+          dashboardCommands = cmdMatches
+            ? cmdMatches.map(m => m.replace(/cmd\s*:\s*'/, '').replace(/'$/, ''))
+            : [];
+        }
       }
 
-      const cliOnlyMatch = html.match(/var CLI_ONLY\s*=\s*\[([^\]]+)\]/);
+      const cliOnlyMatch = html.match(/(?:const|var)\s+CLI_ONLY\s*=\s*\[([^\]]+)\]/);
       cliOnlyCommands = cliOnlyMatch
         ? cliOnlyMatch[1].match(/'(\w[\w-]*)'/g).map(m => m.replace(/'/g, ''))
         : [];
@@ -466,6 +476,178 @@ describe('CLI Integration Tests', () => {
       runCli(['session', 'rm', activeId]);
       runCli(['session', 'rm', completedId]);
       runCli(['session', 'rm', abandonedId]);
+    });
+  });
+
+  // =========================================================================
+  // Flag Alternatives (v3.6)
+  // =========================================================================
+  describe('Flag Alternatives (v3.6)', () => {
+    test('pd begin --purpose works as flag alternative to positional', () => {
+      const result = runCli(['begin', '--purpose', 'Flag alternative test', '-q']);
+      expect(result.success).toBe(true);
+      expect(result.stdout).toBeTruthy(); // agent ID in quiet mode
+
+      // Cleanup
+      const agentId = result.stdout.trim();
+      runCli(['done', '--agent', agentId]);
+    });
+
+    test('pd begin -P works as short flag', () => {
+      const result = runCli(['begin', '-P', 'Short flag test', '-q']);
+      expect(result.success).toBe(true);
+      expect(result.stdout).toBeTruthy();
+
+      const agentId = result.stdout.trim();
+      runCli(['done', '--agent', agentId]);
+    });
+
+    test('pd begin --purpose --identity --type all work together', () => {
+      const result = runCli([
+        'begin',
+        '--purpose', 'Multi-flag test',
+        '--identity', 'test:cli:flags',
+        '--type', 'cli',
+        '--json',
+      ]);
+      expect(result.success).toBe(true);
+
+      const data = JSON.parse(result.stdout);
+      expect(data.success).toBe(true);
+      expect(data.purpose).toBe('Multi-flag test');
+      expect(data.identity).toBe('test:cli:flags');
+
+      // Cleanup
+      runCli(['done', '--agent', data.agentId]);
+    });
+
+    test('pd done --note works as flag alternative', () => {
+      const beginResult = runCli(['begin', '-P', 'Done flag test', '-q']);
+      const agentId = beginResult.stdout.trim();
+
+      const result = runCli(['done', '--note', 'Finished via flag', '--agent', agentId, '--json']);
+      expect(result.success).toBe(true);
+
+      const data = JSON.parse(result.stdout);
+      expect(data.success).toBe(true);
+      expect(data.finalNote).toBe(true);
+    });
+
+    test('pd done -n works as short flag for note', () => {
+      const beginResult = runCli(['begin', '-P', 'Done short flag test', '-q']);
+      const agentId = beginResult.stdout.trim();
+
+      const result = runCli(['done', '-n', 'Short flag note', '--agent', agentId, '--json']);
+      expect(result.success).toBe(true);
+
+      const data = JSON.parse(result.stdout);
+      expect(data.success).toBe(true);
+    });
+
+    test('pd done --status works as flag alternative', () => {
+      const beginResult = runCli(['begin', '-P', 'Status flag test', '-q']);
+      const agentId = beginResult.stdout.trim();
+
+      const result = runCli(['done', '--status', 'abandoned', '--agent', agentId, '--json']);
+      expect(result.success).toBe(true);
+
+      const data = JSON.parse(result.stdout);
+      expect(data.success).toBe(true);
+      expect(data.sessionStatus).toBe('abandoned');
+    });
+
+    test('pd session start --purpose works as flag alternative', () => {
+      const result = runCli(['session', 'start', '--purpose', 'Session flag test', '--json']);
+      expect(result.success).toBe(true);
+
+      const data = JSON.parse(result.stdout);
+      expect(data.success).toBe(true);
+      expect(data.purpose).toBe('Session flag test');
+
+      // Cleanup
+      runCli(['session', 'rm', data.id]);
+    });
+
+    test('pd note --content works as flag alternative', () => {
+      // Start a session first
+      const sessionResult = runCli(['session', 'start', 'Note flag test', '--json']);
+      const sessionData = JSON.parse(sessionResult.stdout);
+
+      const result = runCli(['note', '--content', 'Flag note content', '--json']);
+      expect(result.success).toBe(true);
+
+      const data = JSON.parse(result.stdout);
+      expect(data.success).toBe(true);
+
+      // Cleanup
+      runCli(['session', 'rm', sessionData.id]);
+    });
+
+    test('pd note -c works as short flag for content', () => {
+      const sessionResult = runCli(['session', 'start', 'Short note test', '--json']);
+      const sessionData = JSON.parse(sessionResult.stdout);
+
+      const result = runCli(['note', '-c', 'Short flag content', '--json']);
+      expect(result.success).toBe(true);
+
+      const data = JSON.parse(result.stdout);
+      expect(data.success).toBe(true);
+
+      runCli(['session', 'rm', sessionData.id]);
+    });
+
+    test('positional args still work (backward compat)', () => {
+      // Positional purpose
+      const result = runCli(['begin', 'Positional purpose', '-q']);
+      expect(result.success).toBe(true);
+      expect(result.stdout).toBeTruthy();
+
+      const agentId = result.stdout.trim();
+
+      // Positional note on done
+      const doneResult = runCli(['done', 'Positional note', '--agent', agentId, '--json']);
+      expect(doneResult.success).toBe(true);
+
+      const data = JSON.parse(doneResult.stdout);
+      expect(data.success).toBe(true);
+    });
+
+    test('non-interactive mode shows usage when no args', () => {
+      // Without TTY, CLI should show usage and fail (not hang waiting for input)
+      // runCli spawns without a TTY, so canPrompt() returns false
+      const result = runCli(['begin']);
+      // Should fail with usage info, not hang waiting for input
+      expect(result.success).toBe(false);
+      expect(result.stderr).toContain('Usage');
+    });
+  });
+
+  describe('Unknown Command Handling', () => {
+    test('unknown command shows error', () => {
+      const result = runCli(['boguscmd']);
+      expect(result.success).toBe(false);
+      expect(result.stderr).toContain('Unknown command');
+    });
+
+    test('misspelled command suggests correction', () => {
+      const result = runCli(['cliam']); // close to "claim"
+      expect(result.success).toBe(false);
+      expect(result.stderr).toContain('Did you mean');
+    });
+
+    test('semantic identity (with colon) still claims a port', () => {
+      const id = `test:unknown-dispatch:${Date.now()}`;
+      const result = runCli([id, '-q']);
+      expect(result.success).toBe(true);
+      expect(result.stdout.trim()).toMatch(/^\d+$/);
+      // Cleanup
+      runCli(['release', id]);
+    });
+
+    test('bare word without colon does NOT claim a port', () => {
+      const result = runCli(['notacommand']);
+      expect(result.success).toBe(false);
+      expect(result.stderr).toContain('Unknown command');
     });
   });
 });

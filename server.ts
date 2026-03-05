@@ -38,6 +38,7 @@ import { createChangelog } from './lib/changelog.js';
 import { createTunnel } from './lib/tunnel.js';
 import { createDns } from './lib/dns.js';
 import { createBriefing } from './lib/briefing.js';
+import { createSugar } from './lib/sugar.js';
 import { initDatabase, closeDatabase, resolveDbPath } from './lib/db.js';
 
 // Route aggregator
@@ -220,6 +221,7 @@ const tunnel = createTunnel(db);
 const dns = createDns(db);
 dns.setActivityLog(activityLog);
 const briefing = createBriefing(db, { sessions, agents, resurrection, activityLog, services, messaging });
+const sugar = createSugar({ agents, sessions, activityLog });
 
 // Wire resurrection events to broadcast on the radio
 resurrection.on('agent:stale', (agent) => {
@@ -432,7 +434,7 @@ app.use((req: Request, res: Response, next: NextFunction): void => {
 app.use(createRoutes({
   db, logger, metrics, config,
   services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
-  agentInbox, resurrection, changelog, tunnel, dns, briefing,
+  agentInbox, resurrection, changelog, tunnel, dns, briefing, sugar,
   VERSION, CODE_HASH, STARTED_AT, __dirname,
   cleanupStale, getSystemPorts
 }));

@@ -54,6 +54,10 @@ import {
   handleIntegration,
   // Briefing
   handleBriefing, handleHistory,
+  // Sugar (compound commands)
+  handleBegin, handleDone, handleWhoami, handleWithLock,
+  // Tutorial
+  handleLearn,
   // Tunnel
   handleTunnel,
   // DNS
@@ -108,6 +112,7 @@ const TIER_2_COMMANDS: Set<string> = new Set([
   'dns',
   'files', 'who-owns', 'integration',
   'briefing', 'history',
+  'begin', 'done', 'whoami', 'with-lock',
 ]);
 
 /**
@@ -468,6 +473,15 @@ Briefing:
   history               View recent project activity
   history --agent <id>  Filter to one agent
 
+Quick Start (Sugar Commands):
+  begin <purpose>       Register agent + start session (alias for agent register + session start)
+  done ["note"]         End session + unregister agent (alias for session end + agent unregister)
+  whoami                Show current agent/session context
+  with-lock <n> <cmd>   Run command while holding a lock (auto-release on exit)
+  n <content>           Alias for 'note' (quick note)
+  u [options]           Alias for 'up' (start services)
+  d                     Alias for 'down' (stop services)
+
 Project Setup:
   scan [dir]        Deep scan project, detect all services (alias: s)
   projects          List all registered projects (alias: p)
@@ -481,6 +495,9 @@ System & Monitoring:
   health [id]       Check service health (all or by ID)
   ports             List active port assignments
   ports cleanup     Release stale port assignments
+
+Tutorial:
+  learn             Interactive tutorial — learn Port Daddy by doing
 
 Daemon Management:
   start             Start the Port Daddy daemon
@@ -508,11 +525,19 @@ Options:
   -e, --env <name>    Environment: local, tunnel, dev, staging, prod
   -j, --json          Output as JSON
   -q, --quiet         Minimal output (just the value)
+  -P, --purpose <s>   Purpose text (begin, session start)
+  -n, --note <s>      Note text (done, session end)
+  -c, --content <s>   Content text (note, n)
+  -m, --message <s>   Message text (pub)
+  -d, --description <s> Description text (integration ready/needs)
+  -t, --type <s>      Type (agent, note, session)
+  -i, --identity <s>  Service identity (begin)
+  -a, --agent <id>    Agent ID for registration/heartbeat
+  -s, --status <s>    Status filter (sessions, done)
+  -o, --owner <id>    Lock owner identifier
+  -f, --force         Force operation
   --timeout <ms>      Wait timeout (default: 60000)
   --ttl <ms>          Lock time-to-live (default: 300000)
-  --owner <id>        Lock owner identifier
-  --agent <id>        Agent ID for registration/heartbeat
-  --type <type>       Agent type (cli, sdk, mcp)
   --limit <n>         Limit results (log command)
   --active            Show only active agents
   --from <ts>         Start of time range (log, ISO or epoch)
@@ -523,6 +548,8 @@ Options:
   --branch            Use git branch as context in identity (up/scan)
   --dry-run           Preview scan results without saving config (scan)
   --dir <path>        Target directory (scan)
+
+  Most commands support interactive mode — run with no args for prompts.
 
 Note: Quote wildcards to prevent shell expansion:
   port-daddy find 'myapp:*'      # Correct
@@ -582,7 +609,9 @@ const ALL_COMMANDS: string[] = [
   'briefing', 'history',
   'dashboard', 'channels', 'webhook', 'webhooks', 'metrics', 'config', 'health', 'ports',
   'start', 'stop', 'restart', 'status', 'install', 'uninstall', 'dev', 'ci-gate',
-  'doctor', 'diagnose', 'mcp', 'version', 'help'
+  'doctor', 'diagnose', 'mcp', 'version', 'help',
+  'begin', 'done', 'whoami', 'with-lock', 'n', 'u', 'd',
+  'learn', 'tutorial'
 ];
 
 /** Simple Levenshtein distance for short strings */
@@ -1000,9 +1029,9 @@ async function executeDirectMode(
 
       switch (subcommand) {
         case 'start': {
-          const purpose = rest[0];
+          const purpose = rest[0] || (options.purpose as string) || undefined;
           if (!purpose) {
-            console.error('Usage: port-daddy session start <purpose> [--agent AGENT_ID] [--force]');
+            console.error('Usage: port-daddy session start <purpose> [--purpose "text"] [--agent ID] [--force]');
             process.exit(1);
           }
 
@@ -1041,7 +1070,7 @@ async function executeDirectMode(
 
         case 'end':
         case 'done': {
-          const note = rest[0];
+          const note = rest[0] || (options.note as string) || undefined;
           const status = (options.status as string) || 'completed';
 
           // Find active session
@@ -1237,9 +1266,9 @@ async function executeDirectMode(
     }
 
     case 'note': {
-      const content = positional[0];
+      const content = positional[0] || (options.content as string) || undefined;
       if (!content) {
-        console.error('Usage: port-daddy note <content> [--type TYPE]');
+        console.error('Usage: port-daddy note <content> [--content "text"] [-c "text"] [--type TYPE]');
         process.exit(1);
       }
 
@@ -1342,8 +1371,22 @@ async function main(): Promise<void> {
     e: 'env',
     j: 'json',
     q: 'quiet',
-    h: 'help'
+    h: 'help',
+    P: 'purpose',
+    n: 'note',
+    c: 'content',
+    m: 'message',
+    d: 'description',
+    t: 'type',
+    i: 'identity',
+    a: 'agent',
+    s: 'status',
+    o: 'owner',
+    f: 'force',
   };
+
+  // Flags that expect a value (vs boolean flags like -q, -j, -f)
+  const valueFlags = new Set(['p', 'e', 'P', 'n', 'c', 'm', 'd', 't', 'i', 'a', 's', 'o']);
 
   for (let i = 1; i < args.length; i++) {
     const arg: string = args[i];
@@ -1358,7 +1401,14 @@ async function main(): Promise<void> {
       } else {
         const key: string = arg.slice(2);
         const next: string | undefined = args[i + 1];
-        if (next && !next.startsWith('-')) {
+        // Boolean flags never consume the next token; everything else does.
+        // NOTE: Uses array (not Set) to avoid matching the tierPattern regex in manifest-enforcement tests
+        const booleanLongFlags = [
+          'json', 'quiet', 'force', 'help', 'active', 'system', 'export',
+          'branch', 'no-health', 'dry-run', 'direct', 'shell', 'expired',
+          'all', 'all-worktrees', 'aw', 'full', 'pair', 'version',
+        ];
+        if (!booleanLongFlags.includes(key) && next && !next.startsWith('-')) {
           options[key] = next;
           i++;
         } else {
@@ -1381,8 +1431,7 @@ async function main(): Promise<void> {
         const longKey: string = shortFlags[flagPart] || flagPart;
         const next: string | undefined = args[i + 1];
         // Check if this flag expects a value
-        const expectsValue: boolean = ['p', 'e'].includes(flagPart);
-        if (expectsValue && next && !next.startsWith('-')) {
+        if (valueFlags.has(flagPart) && next && !next.startsWith('-')) {
           options[longKey] = next;
           i++;
         } else {
@@ -1448,7 +1497,7 @@ async function main(): Promise<void> {
       // Agent coordination
       case 'pub':
       case 'publish':
-        await handlePub(positional[0], positional.slice(1).join(' ') || (options.message as string | undefined), options);
+        await handlePub(positional[0], positional.slice(1).join(' ') || (options.message as string) || undefined, options);
         break;
 
       case 'sub':
@@ -1538,7 +1587,7 @@ async function main(): Promise<void> {
         break;
 
       case 'note':
-        await handleNote(positional[0], options);
+        await handleNote(positional[0] || (options.content as string) || undefined, options);
         break;
 
       case 'notes':
@@ -1566,6 +1615,36 @@ async function main(): Promise<void> {
 
       case 'history':
         await handleHistory(options);
+        break;
+
+      // Sugar commands (compound workflows)
+      case 'begin':
+        await handleBegin(positional[0] || (options.purpose as string) || undefined, positional.slice(1), options);
+        break;
+
+      case 'done':
+        await handleDone(positional[0] || (options.note as string) || undefined, options);
+        break;
+
+      case 'whoami':
+        await handleWhoami(options);
+        break;
+
+      case 'with-lock':
+        await handleWithLock(positional[0], positional.slice(1), options);
+        break;
+
+      // Aliases
+      case 'n':
+        await handleNote(positional[0] || (options.content as string) || undefined, options);
+        break;
+
+      case 'u':
+        await handleUp(positional, options);
+        break;
+
+      case 'd':
+        await handleDown(options);
         break;
 
       // Daemon management
@@ -1640,6 +1719,11 @@ async function main(): Promise<void> {
         await handlePorts(positional[0], options);
         break;
 
+      case 'learn':
+      case 'tutorial':
+        await handleLearn();
+        break;
+
       case 'mcp': {
         // Launch MCP server (stdio transport for Claude Code / Desktop)
         const { spawn } = await import('node:child_process');
@@ -1664,8 +1748,8 @@ async function main(): Promise<void> {
           console.error('Run "port-daddy help" for usage');
           process.exit(1);
         }
-        // If it looks like a semantic identity (contains : or is alphanumeric), treat as claim
-        if (command.includes(':') || command.match(/^[a-zA-Z][a-zA-Z0-9._-]*$/)) {
+        // Only fall through to claim for semantic identities (must contain ':')
+        if (command.includes(':')) {
           await handleClaim(command, options);
         } else {
           console.error(`Unknown command: ${command}`);

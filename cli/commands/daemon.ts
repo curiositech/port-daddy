@@ -10,7 +10,7 @@ import type { FSWatcher } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
 import type { ChildProcess, SpawnSyncReturns } from 'node:child_process';
-import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
+import { pdFetch, PORT_DADDY_URL, getDaemonUrl } from '../utils/fetch.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import { status as maritimeStatus } from '../../lib/maritime.js';
 import { printBanner, printCompactHeader, printFarewell, WHEEL, ANCHOR, ANSI } from '../../lib/banner.js';
@@ -64,9 +64,10 @@ async function attemptDaemonStart(tsxBin: string, serverScript: string): Promise
       const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/health`);
       if (res.ok) {
         const data = await res.json();
-        console.log(maritimeStatus('success', `Daemon running on port 9876 (PID ${data.pid})`));
+        const daemonUrl = getDaemonUrl();
+        console.log(maritimeStatus('success', `Daemon running at ${daemonUrl} (PID ${data.pid})`));
         console.log('');
-        console.log(`  ${ANSI.fgGray}Dashboard:${ANSI.reset} ${ANSI.fgCyan}http://localhost:9876${ANSI.reset}`);
+        console.log(`  ${ANSI.fgGray}Dashboard:${ANSI.reset} ${ANSI.fgCyan}${daemonUrl}${ANSI.reset}`);
         console.log(`  ${ANSI.fgGray}Try:${ANSI.reset}       pd claim myapp -q`);
         console.log('');
         return true;

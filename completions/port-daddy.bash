@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Bash completion for Port Daddy v3.4 CLI
+# Bash completion for Port Daddy v3.6 CLI
 #
 # INSTALLATION:
 #   Option 1 — Source from your shell config:
@@ -101,6 +101,8 @@ _port_daddy() {
     dns
     # File Claims & Integration
     files who-owns integration
+    # Sugar (compound commands)
+    begin done whoami with-lock n u d learn tutorial
     # Briefing & History
     briefing history
     # System & Monitoring
@@ -391,7 +393,7 @@ _port_daddy() {
         pub|publish)
           # First arg: channel name
           if [[ "$cur" == -* ]]; then
-            _pd_opts '--sender'
+            _pd_opts '--message -m --sender'
           else
             local channels; channels="$(_pd_channels)"
             # shellcheck disable=SC2207
@@ -404,7 +406,7 @@ _port_daddy() {
           COMPREPLY=( $(compgen -W "$aids" -- "$cur") )
           ;;
         *)
-          _pd_opts '--sender'
+          _pd_opts '--message -m --sender'
           ;;
       esac
       ;;
@@ -672,10 +674,10 @@ _port_daddy() {
 
       case "$subcmd" in
         start)
-          _pd_opts '--agent'
+          _pd_opts '--purpose -P --agent -a --files --force'
           ;;
         end|done)
-          _pd_opts '--note'
+          _pd_opts '--note -n --status -s'
           ;;
         abandon|rm)
           _pd_opts ''
@@ -743,7 +745,7 @@ _port_daddy() {
           COMPREPLY=( $(compgen -W "note handoff commit warning" -- "$cur") )
           ;;
         *)
-          _pd_opts '--type'
+          _pd_opts '--content -c --type -t'
           ;;
       esac
       ;;
@@ -1137,7 +1139,7 @@ _port_daddy() {
 
       case "$subcmd" in
         ready|needs)
-          _pd_complete_service ''
+          _pd_complete_service '--description -d'
           ;;
         list)
           _pd_opts '--project'
@@ -1187,6 +1189,128 @@ _port_daddy() {
       ;;
 
     # -----------------------------------------------------------------------
+    # begin  <purpose> [--identity ID] [--agent ID] [--files f1 f2...]
+    #                  [--type TYPE] [--force]
+    # -----------------------------------------------------------------------
+    begin)
+      case "$prev" in
+        --identity|--agent)
+          COMPREPLY=()  # Free-form
+          ;;
+        --type)
+          # shellcheck disable=SC2207
+          COMPREPLY=( $(compgen -W "cli sdk mcp" -- "$cur") )
+          ;;
+        --files)
+          # File paths
+          # shellcheck disable=SC2207
+          COMPREPLY=( $(compgen -f -- "$cur") )
+          ;;
+        *)
+          _pd_opts '--purpose -P --identity -i --agent -a --type -t --files --force'
+          ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
+    # done  ["note"] [--agent ID] [--session ID] [--status STATUS]
+    # -----------------------------------------------------------------------
+    done)
+      case "$prev" in
+        --agent|--session)
+          COMPREPLY=()  # Free-form
+          ;;
+        --status)
+          # shellcheck disable=SC2207
+          COMPREPLY=( $(compgen -W "completed abandoned" -- "$cur") )
+          ;;
+        *)
+          _pd_opts '--note -n --agent -a --session --status -s'
+          ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
+    # whoami  [--agent ID]
+    # -----------------------------------------------------------------------
+    whoami)
+      case "$prev" in
+        --agent)
+          local aids; aids="$(_pd_agent_ids)"
+          # shellcheck disable=SC2207
+          COMPREPLY=( $(compgen -W "$aids" -- "$cur") )
+          ;;
+        *)
+          _pd_opts '--agent'
+          ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
+    # with-lock  <name> <command...> [--ttl N] [--owner ID]
+    # -----------------------------------------------------------------------
+    with-lock)
+      case "$prev" in
+        with-lock)
+          if [[ "$cur" == -* ]]; then
+            _pd_opts '--ttl --owner'
+          else
+            local lnames; lnames="$(_pd_lock_names)"
+            # shellcheck disable=SC2207
+            COMPREPLY=( $(compgen -W "$lnames" -- "$cur") )
+          fi
+          ;;
+        --owner)
+          local aids; aids="$(_pd_agent_ids)"
+          # shellcheck disable=SC2207
+          COMPREPLY=( $(compgen -W "$aids" -- "$cur") )
+          ;;
+        *) _pd_opts '--ttl --owner' ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
+    # n (alias for note), u (alias for up), d (alias for down)
+    # -----------------------------------------------------------------------
+    n)
+      case "$prev" in
+        --type)
+          # shellcheck disable=SC2207
+          COMPREPLY=( $(compgen -W "note handoff commit warning" -- "$cur") )
+          ;;
+        *)
+          _pd_opts '--content -c --type -t'
+          ;;
+      esac
+      ;;
+
+    u)
+      case "$prev" in
+        --service|--timeout)
+          COMPREPLY=()  # Free-form
+          ;;
+        --dir)
+          # shellcheck disable=SC2207
+          COMPREPLY=( $(compgen -d -- "$cur") )
+          ;;
+        *)
+          _pd_opts '--service --no-health --branch --timeout --dir'
+          ;;
+      esac
+      ;;
+
+    d)
+      _pd_opts ''
+      ;;
+
+    # -----------------------------------------------------------------------
+    # -----------------------------------------------------------------------
+    # learn / tutorial (interactive tutorial)
+    # -----------------------------------------------------------------------
+    learn|tutorial)
+      _pd_opts ""
+      ;;
+
     # Unknown command: fall back to global options only.
     # -----------------------------------------------------------------------
     *)
