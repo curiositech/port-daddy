@@ -9,9 +9,19 @@ description: Multi-agent coordination via Port Daddy. Use when starting dev serv
 2. `pd note "progress update"` — log notes as you work
 3. `pd done` — wraps up session + unregisters
 
-## CLI to MCP Tool Mapping
+## MCP Progressive Disclosure
 
-When using Port Daddy via MCP (e.g. Claude Code with the port-daddy MCP server), use the MCP tool names below instead of CLI commands. The behavior is identical.
+The MCP server uses **tiered tool loading** to keep context windows lean. By default, only 9 tools are exposed:
+
+**Essential (always loaded):** `begin_session`, `end_session_full`, `whoami`, `claim_port`, `release_port`, `add_note`, `acquire_lock`, `list_services`, `pd_discover`
+
+**To access more tools:** Call `pd_discover` with a category name (e.g. `pd_discover({category: "dns"})`) to see full schemas, then call those tools directly.
+
+**Categories:** session-lifecycle, ports, sessions, notes, locks, messaging, agents, integration, dns, briefing, tunnels, system
+
+**Full mode:** Pass `--full` to `pd mcp` or set `PORT_DADDY_MCP_FULL=1` to load all 45 tools.
+
+## CLI to MCP Tool Mapping
 
 | CLI Command | MCP Tool | Tier |
 |-------------|----------|------|
@@ -21,9 +31,12 @@ When using Port Daddy via MCP (e.g. Claude Code with the port-daddy MCP server),
 | `pd note` | `add_note` | Essential |
 | `pd claim` | `claim_port` | Essential |
 | `pd release` | `release_port` | Essential |
-| `pd salvage` | `check_salvage` | Essential |
+| `pd lock` | `acquire_lock` | Essential |
+| `pd find` | `list_services` | Essential |
+| — | `pd_discover` | Essential (meta) |
+| `pd salvage` | `check_salvage` | Standard |
 | `pd session start` | `start_session` | Standard |
-| `pd session end` / `pd session done` | `end_session` | Standard |
+| `pd session end` | `end_session` | Standard |
 | `pd sessions` | `list_sessions` | Standard |
 | `pd notes` | `list_notes` | Standard |
 | `pd session files add` | `claim_files` | Standard |
@@ -31,10 +44,8 @@ When using Port Daddy via MCP (e.g. Claude Code with the port-daddy MCP server),
 | `pd agent heartbeat` | `agent_heartbeat` | Standard |
 | `pd agents` | `list_agents` | Standard |
 | `pd salvage claim` | `claim_salvage` | Standard |
-| `pd lock` | `acquire_lock` | Standard |
 | `pd unlock` | `release_lock` | Standard |
 | `pd locks` | `list_locks` | Standard |
-| `pd find` | `list_services` | Standard |
 | `pd health` | `health_check` | Standard |
 | `pd status` | `daemon_status` | Standard |
 | `pd pub` | `publish_message` | Advanced |
