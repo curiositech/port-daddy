@@ -1,8 +1,24 @@
-I now have a thorough understanding of the product across all its surfaces. Here is the comprehensive analysis.
+# Port Daddy Product Appeal Analysis
+
+**Date**: 2026-03-06
+**Scope**: Dashboard UI, CLI, README, MCP — full appeal surface audit
+**Methodology**: Desirability Triangle, 5-Second Test, Objection Mapping
+**Companion report**: `ux-friction-analysis-v2.md` (friction/usability)
 
 ---
 
-# Port Daddy Product Appeal Analysis
+## Critical Finding: Dashboard Was Dead on Arrival
+
+During this analysis, we discovered a **CRITICAL JavaScript bug** that rendered the dashboard completely non-functional for all users:
+
+- `Cannot access 'cmdInput' before initialization` — line 496 referenced a `const` declared on line 540 (Temporal Dead Zone)
+- This killed the **entire** `<script>` block, preventing `refreshAll()` from ever executing
+- Result: every stat card showed "0", every table showed "No data", connection indicator stuck on "Connecting..."
+- **Every user who opened the dashboard saw a beautiful ghost town**
+
+This was fixed by replacing the early `cmdInput` reference with `document.getElementById('cmd-input')`. The dashboard now loads data correctly.
+
+**Implication for appeal**: An unknown number of users have seen a broken dashboard as their first impression of Port Daddy. This is the single highest-impact finding in this report.
 
 ## 1. Target Personas
 
@@ -194,6 +210,41 @@ The nautical theme runs deep through Port Daddy:
 
 **Overall Product Appeal: 6.8/10**
 
-Port Daddy is a genuinely innovative product solving a real problem that almost nobody else is addressing directly (multi-agent coordination for AI coding workflows). The engineering is deep -- 2063 tests, parity enforcement across 10 surfaces, a full maritime design system, and a thoughtful module architecture. The core insight (that the bottleneck in AI-assisted development is coordination, not intelligence) is prescient and will only become more relevant.
+Port Daddy is a genuinely innovative product solving a real problem that almost nobody else is addressing directly (multi-agent coordination for AI coding workflows). The engineering is deep -- 2149 tests, parity enforcement across 10 surfaces, a full maritime design system, and a thoughtful module architecture. The core insight (that the bottleneck in AI-assisted development is coordination, not intelligence) is prescient and will only become more relevant.
 
 The gap between the product's engineering quality and its market appeal is the primary finding of this analysis. The product is better built than it is marketed. The recommendations above aim to close that gap by reducing cognitive overhead for new users, strengthening first impressions (especially the dashboard empty state), and converting the impressive technical foundation into visible trust signals that match the product's actual maturity.
+
+---
+
+## Appendix: Dashboard Visual Identity Deep-Dive (Post-Fix)
+
+With the TDZ bug fixed, the dashboard now loads data correctly. Here is the visual assessment of the working dashboard:
+
+### What Works
+
+1. **Glassmorphism aesthetic** — The dark blue + cyan accent scheme reads "sophisticated developer tool." The translucent card backgrounds and subtle borders create depth without clutter.
+2. **Stat cards** — When populated (38 services, 23 channels, 18 sessions), they provide immediate orientation. The cyan/amber/purple color coding helps differentiation.
+3. **Activity feed** — Real-time event log with type-colored icons creates a sense of aliveness. "claimed port 3131", "Agent began: Demo session 3" — these tell a story.
+4. **Services table** — Clean columns (ID, Port, Status, PID, URL, Age) with "Release" action buttons. Functional and information-dense in a good way.
+5. **Navigation badge counts** — Services (38), Agents (6), Sessions (18), Channels (23) in the sidebar give at-a-glance state.
+
+### What Doesn't Work
+
+1. **Logo** — Generic blue circle. Not nautical, not memorable, not distinctive.
+2. **"Daemon Dashboard" subtitle** — Cold, technical. Doesn't match the personality of "Port Daddy."
+3. **15 nav items visible simultaneously** — Overwhelming for first visit. No progressive disclosure.
+4. **Empty panels are dead ends** — "No agents registered" with no CTA, no guidance, no copy-to-clipboard command.
+5. **No nautical visual DNA** — The name is nautical, the CLI is nautical, but the dashboard could belong to any dark-theme admin panel. No anchors, no waves, no signal flags, no maritime typography.
+6. **Connection indicator** — "Online" in footer is easy to miss. When SSE fails, there's no prominent status indicator.
+
+### Recommended Visual Direction: Naval Command Center
+
+Not pirate kitsch. Think military radar room meets modern DevOps dashboard:
+
+- **Logo**: Anchor or helm icon in cyan, clean vector lines
+- **Subtitle**: "Harbor Control" or just drop it entirely
+- **Stat card labels**: "Fleet" (services), "Crew" (agents), "Moorings" (locks)
+- **Empty states**: "No crew aboard — start an agent: `pd begin`" with copy button
+- **Wave accents**: Subtle SVG wave pattern on card bottom borders
+- **Signal flags**: Small colored blocks next to status badges (maritime.ts already has these)
+- **Progressive disclosure**: Default 5 panels, "Show all" toggle for the other 10
