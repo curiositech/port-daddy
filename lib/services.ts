@@ -102,9 +102,12 @@ export function createServices(db: Database.Database) {
     deleteById: db.prepare('DELETE FROM services WHERE id = ?'),
     deleteByPattern: db.prepare('DELETE FROM services WHERE id LIKE ?'),
     deleteExpired: db.prepare('DELETE FROM services WHERE expires_at IS NOT NULL AND expires_at < ?'),
+    getRunningWithPid: db.prepare("SELECT * FROM services WHERE pid IS NOT NULL AND status = 'running'"),
+    countActive: db.prepare("SELECT COUNT(*) as count FROM services WHERE status IN ('assigned', 'running')"),
 
     // Endpoints
     getEndpoints: db.prepare('SELECT * FROM endpoints WHERE service_id = ?'),
+    getAllEndpoints: db.prepare('SELECT * FROM endpoints'),
     setEndpoint: db.prepare(`
       INSERT OR REPLACE INTO endpoints (service_id, env, url, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?)
@@ -355,29 +358,35 @@ export function createServices(db: Database.Database) {
       services = services.slice(0, limit);
     }
 
-    // Enrich with endpoints
-    const enriched = services.map(svc => {
-      const endpoints = stmts.getEndpoints.all(svc.id) as EndpointRow[];
-      const urls: Record<string, string> = {};
-      for (const ep of endpoints) {
-        urls[ep.env] = ep.url;
+    // Batch-load all endpoints to avoid N+1 queries.
+    // For small N (<= 3) this does slightly more work, but for typical list
+    // operations it eliminates N individual SELECT calls.
+    const serviceIds = new Set(services.map(svc => svc.id));
+    const allEndpoints = stmts.getAllEndpoints.all() as EndpointRow[];
+    const endpointMap = new Map<string, Record<string, string>>();
+    for (const ep of allEndpoints) {
+      if (serviceIds.has(ep.service_id)) {
+        if (!endpointMap.has(ep.service_id)) {
+          endpointMap.set(ep.service_id, {});
+        }
+        endpointMap.get(ep.service_id)![ep.env] = ep.url;
       }
+    }
 
-      return {
-        id: svc.id,
-        port: svc.port,
-        pid: svc.pid,
-        status: svc.status,
-        cmd: svc.cmd,
-        createdAt: svc.created_at,
-        lastSeen: svc.last_seen,
-        expiresAt: svc.expires_at,
-        tunnelUrl: svc.tunnel_url,
-        pairedWith: svc.paired_with,
-        urls,
-        metadata: safeJsonParse(svc.metadata)
-      };
-    });
+    const enriched = services.map(svc => ({
+      id: svc.id,
+      port: svc.port,
+      pid: svc.pid,
+      status: svc.status,
+      cmd: svc.cmd,
+      createdAt: svc.created_at,
+      lastSeen: svc.last_seen,
+      expiresAt: svc.expires_at,
+      tunnelUrl: svc.tunnel_url,
+      pairedWith: svc.paired_with,
+      urls: endpointMap.get(svc.id) || {},
+      metadata: safeJsonParse(svc.metadata)
+    }));
 
     return {
       success: true,
@@ -493,9 +502,7 @@ export function createServices(db: Database.Database) {
     // 2. Remove services whose PID is no longer alive (zombie cleanup).
     // Only check services that have a PID and are in 'running' status
     // — 'assigned' services haven't started yet so no PID to check.
-    const running = db.prepare(
-      "SELECT * FROM services WHERE pid IS NOT NULL AND status = 'running'"
-    ).all() as ServiceRow[];
+    const running = stmts.getRunningWithPid.all() as ServiceRow[];
 
     for (const svc of running) {
       if (svc.pid && !isPidAlive(svc.pid)) {
@@ -508,6 +515,15 @@ export function createServices(db: Database.Database) {
     return { cleaned };
   }
 
+  /**
+   * Get count of active services without loading full rows.
+   * Much cheaper than find('*') when only the count is needed.
+   */
+  function countActive(): number {
+    const result = stmts.countActive.get() as { count: number };
+    return result.count;
+  }
+
   return {
     claim,
     release,
@@ -516,6 +532,7 @@ export function createServices(db: Database.Database) {
     setEndpoint,
     setStatus,
     cleanup,
-    findAvailablePort
+    findAvailablePort,
+    countActive
   };
 }

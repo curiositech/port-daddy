@@ -152,6 +152,14 @@ export function initDatabase(options: InitDbOptions = {}): Database.Database {
   // WAL mode for concurrent read/write performance
   db.pragma('journal_mode = WAL');
 
+  // Reduce fsync calls: NORMAL is safe with WAL (data survives process crash,
+  // only at risk during OS crash — acceptable for a local dev tool)
+  db.pragma('synchronous = NORMAL');
+
+  // Checkpoint WAL more frequently (default 1000 pages ≈ 4MB).
+  // 200 pages ≈ 800KB keeps WAL compact and prevents unbounded growth.
+  db.pragma('wal_autocheckpoint = 200');
+
   // Busy timeout: wait up to 5 seconds for locks instead of failing immediately
   // This is critical for concurrent CLI invocations sharing the same DB
   db.pragma('busy_timeout = 5000');

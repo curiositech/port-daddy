@@ -245,7 +245,9 @@ function cleanupStale(): ReturnType<typeof services.cleanup> {
   const serviceResult = services.cleanup();
   messaging.cleanup();
 
-  // Check agents for staleness and queue for resurrection BEFORE cleanup deletes them
+  // Check agents for staleness and queue for resurrection BEFORE cleanup deletes them.
+  // Uses a single JOIN query to batch-load session notes for all inactive agents,
+  // replacing the previous O(agents * sessions * notes) nested loop.
   const allAgents = agents.list();
   interface AgentListItem {
     id: string;
@@ -254,30 +256,50 @@ function cleanupStale(): ReturnType<typeof services.cleanup> {
     lastHeartbeat: number;
     metadata?: { purpose?: string } | null;
   }
-  interface SessionListItem { id: string }
-  interface NoteListItem { content: string }
 
-  for (const agent of (allAgents.agents || []) as AgentListItem[]) {
-    if (!agent.isActive) {
-      // Get agent's session and notes for resurrection context
-      const agentSessions = sessions.list({ agentId: agent.id, status: 'active' });
-      const notes: string[] = [];
-      const sessionsList = (agentSessions.sessions || []) as unknown as SessionListItem[];
-      for (const session of sessionsList) {
-        const sessionNotes = sessions.getNotes(session.id);
-        const notesList = (sessionNotes.notes || []) as unknown as NoteListItem[];
-        for (const note of notesList) {
-          notes.push(note.content);
-        }
+  const inactiveAgents = ((allAgents.agents || []) as AgentListItem[]).filter(a => !a.isActive);
+
+  if (inactiveAgents.length > 0) {
+    // Batch-load all active sessions and their notes for inactive agents in one query.
+    // This replaces N+1 queries (list sessions per agent, then notes per session)
+    // with a single JOIN.
+    interface AgentSessionNoteRow {
+      agent_id: string;
+      session_id: string;
+      note_content: string | null;
+    }
+
+    const placeholders = inactiveAgents.map(() => '?').join(',');
+    const agentIds = inactiveAgents.map(a => a.id);
+    const batchQuery = db.prepare(`
+      SELECT s.agent_id, s.id as session_id, sn.content as note_content
+      FROM sessions s
+      LEFT JOIN session_notes sn ON sn.session_id = s.id
+      WHERE s.status = 'active' AND s.agent_id IN (${placeholders})
+      ORDER BY s.agent_id, s.updated_at DESC, sn.created_at ASC
+    `);
+    const rows = batchQuery.all(...agentIds) as AgentSessionNoteRow[];
+
+    // Build lookup: agentId -> { sessionId, notes }
+    const agentContextMap = new Map<string, { sessionId: string; notes: string[] }>();
+    for (const row of rows) {
+      if (!agentContextMap.has(row.agent_id)) {
+        agentContextMap.set(row.agent_id, { sessionId: row.session_id, notes: [] });
       }
+      if (row.note_content) {
+        agentContextMap.get(row.agent_id)!.notes.push(row.note_content);
+      }
+    }
 
+    for (const agent of inactiveAgents) {
+      const context = agentContextMap.get(agent.id);
       resurrection.check({
         id: agent.id,
         name: agent.name || agent.id,
         purpose: agent.metadata?.purpose,
-        sessionId: sessionsList[0]?.id,
+        sessionId: context?.sessionId,
         lastHeartbeat: agent.lastHeartbeat,
-        notes
+        notes: context?.notes || []
       });
     }
   }
@@ -296,6 +318,10 @@ function cleanupStale(): ReturnType<typeof services.cleanup> {
   sessions.cleanup();
   agentInbox.cleanup();
   resurrection.cleanup();
+
+  // Passive WAL checkpoint: transfers pages from WAL to main DB without blocking
+  // readers. Prevents WAL from growing unbounded between autocheckpoints.
+  db.pragma('wal_checkpoint(PASSIVE)');
 
   metrics.total_cleanups++;
   return serviceResult;

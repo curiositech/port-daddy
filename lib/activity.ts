@@ -193,11 +193,20 @@ export function createActivityLog(db: Database.Database) {
       LIMIT ?
     `),
     count: db.prepare('SELECT COUNT(*) as count FROM activity_log'),
+    oldest: db.prepare('SELECT MIN(timestamp) as oldest FROM activity_log'),
+    newest: db.prepare('SELECT MAX(timestamp) as newest FROM activity_log'),
+    summary: db.prepare(`
+      SELECT type, COUNT(*) as count
+      FROM activity_log
+      WHERE timestamp >= ?
+      GROUP BY type
+      ORDER BY count DESC
+    `),
     deleteOld: db.prepare('DELETE FROM activity_log WHERE timestamp < ?'),
     deleteExcess: db.prepare(`
       DELETE FROM activity_log
-      WHERE id NOT IN (
-        SELECT id FROM activity_log ORDER BY timestamp DESC LIMIT ?
+      WHERE timestamp < (
+        SELECT timestamp FROM activity_log ORDER BY timestamp DESC LIMIT 1 OFFSET ?
       )
     `)
   };
@@ -290,13 +299,7 @@ export function createActivityLog(db: Database.Database) {
    * Get activity summary (counts by type)
    */
   function getSummary(sinceTimestamp = 0): SummaryResult {
-    const entries = db.prepare(`
-      SELECT type, COUNT(*) as count
-      FROM activity_log
-      WHERE timestamp >= ?
-      GROUP BY type
-      ORDER BY count DESC
-    `).all(sinceTimestamp) as Array<{ type: string; count: number }>;
+    const entries = stmts.summary.all(sinceTimestamp) as Array<{ type: string; count: number }>;
 
     const total = entries.reduce((sum, e) => sum + e.count, 0);
 
@@ -336,8 +339,8 @@ export function createActivityLog(db: Database.Database) {
    */
   function getStats(): StatsResult {
     const countResult = stmts.count.get() as { count: number };
-    const oldest = db.prepare('SELECT MIN(timestamp) as oldest FROM activity_log').get() as { oldest: number | null };
-    const newest = db.prepare('SELECT MAX(timestamp) as newest FROM activity_log').get() as { newest: number | null };
+    const oldest = stmts.oldest.get() as { oldest: number | null };
+    const newest = stmts.newest.get() as { newest: number | null };
 
     return {
       success: true,

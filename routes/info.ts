@@ -44,6 +44,7 @@ interface InfoRouteDeps {
     find(pattern: string, opts?: Record<string, unknown>): FindResult;
     claim(id: string, opts: Record<string, unknown>): Record<string, unknown>;
     release(id: string): Record<string, unknown>;
+    countActive(): number;
   };
   config: {
     ports: {
@@ -91,10 +92,9 @@ export function createInfoRoutes(deps: InfoRouteDeps): Router {
   // =========================================================================
   router.get('/metrics', (_req: Request, res: Response) => {
     const uptime_seconds = Math.floor((Date.now() - metrics.uptime_start) / 1000);
-    const serviceResult = services.find('*');
     res.json({
       ...metrics,
-      active_ports: serviceResult.success ? serviceResult.count : 0,
+      active_ports: services.countActive(),
       uptime_seconds,
       uptime_formatted: formatUptime(uptime_seconds)
     });
@@ -104,12 +104,11 @@ export function createInfoRoutes(deps: InfoRouteDeps): Router {
   // GET /health
   // =========================================================================
   router.get('/health', (_req: Request, res: Response) => {
-    const serviceResult = services.find('*');
     res.json({
       status: 'ok',
       version: VERSION,
       uptime_seconds: Math.floor(process.uptime()),
-      active_ports: serviceResult.success ? serviceResult.count : 0,
+      active_ports: services.countActive(),
       pid: process.pid
     });
   });
