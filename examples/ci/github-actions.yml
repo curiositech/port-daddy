@@ -1,0 +1,171 @@
+# =============================================================================
+# GitHub Actions: Parallel Test Shards with Port Daddy
+# =============================================================================
+#
+# Uses Port Daddy to coordinate parallel test runners, ensuring each shard
+# gets a unique port for its test server. This prevents port conflicts that
+# commonly occur when running integration tests in parallel.
+#
+# Key concepts:
+#   - Each shard registers as an agent with a unique identity
+#   - Port Daddy assigns unique ports atomically (no race conditions)
+#   - Session notes record test results for debugging failed runs
+#   - Cleanup runs even if tests fail
+#
+# =============================================================================
+
+name: Tests (Parallel Shards)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Prevent parallel CI runs from colliding
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      # Run all shards even if one fails (collect full results)
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+        total-shards: [3]
+
+    steps:
+      # -----------------------------------------------------------------------
+      # Setup
+      # -----------------------------------------------------------------------
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # -----------------------------------------------------------------------
+      # Install and start Port Daddy
+      # -----------------------------------------------------------------------
+      - name: Install Port Daddy
+        run: npm install -g port-daddy
+
+      - name: Start Port Daddy daemon
+        run: |
+          # Start the daemon in the background
+          pd start &
+
+          # Wait for the daemon to be ready
+          for i in $(seq 1 10); do
+            if pd status >/dev/null 2>&1; then
+              echo "Port Daddy is ready"
+              break
+            fi
+            echo "Waiting for Port Daddy... ($i/10)"
+            sleep 1
+          done
+
+      # -----------------------------------------------------------------------
+      # Register this shard as an agent
+      # -----------------------------------------------------------------------
+      - name: Register test shard
+        run: |
+          # Each shard registers with a unique identity
+          # Identity format: project:stack:context
+          #   project = repo name
+          #   stack = "test"
+          #   context = shard number + run ID for uniqueness
+          AGENT_ID="shard-${{ matrix.shard }}-${{ github.run_id }}"
+          IDENTITY="${{ github.event.repository.name }}:test:shard-${{ matrix.shard }}"
+          PURPOSE="Test shard ${{ matrix.shard }}/${{ matrix.total-shards }} for ${{ github.sha }}"
+
+          pd begin \
+            --agent "$AGENT_ID" \
+            --identity "$IDENTITY" \
+            --purpose "$PURPOSE" \
+            --quiet
+
+          # Store the agent ID for later steps
+          echo "AGENT_ID=$AGENT_ID" >> "$GITHUB_ENV"
+          echo "IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+
+      # -----------------------------------------------------------------------
+      # Claim a port for this shard's test server
+      # -----------------------------------------------------------------------
+      - name: Claim test port
+        run: |
+          # Claim a unique port for this shard
+          # Port Daddy guarantees no two shards get the same port
+          PORT=$(pd claim "${IDENTITY}:server" --quiet)
+
+          echo "Shard ${{ matrix.shard }} claimed port: $PORT"
+          echo "TEST_PORT=$PORT" >> "$GITHUB_ENV"
+
+          # Record the port assignment as a session note
+          pd note "Claimed port $PORT for test server" --agent "$AGENT_ID"
+
+      # -----------------------------------------------------------------------
+      # Run tests with the assigned port
+      # -----------------------------------------------------------------------
+      - name: Run test shard
+        run: |
+          # Pass the unique port to the test runner
+          # Each shard runs a different subset of tests
+          TEST_PORT=${{ env.TEST_PORT }} \
+          npx jest \
+            --shard=${{ matrix.shard }}/${{ matrix.total-shards }} \
+            --ci \
+            --forceExit \
+            --detectOpenHandles \
+            2>&1 | tee test-output.txt
+
+          # Record test results as a note for debugging
+          RESULT=$(tail -5 test-output.txt | tr '\n' ' ')
+          pd note "Test results: $RESULT" --agent "$AGENT_ID"
+
+      # -----------------------------------------------------------------------
+      # Cleanup: release port and end session (runs even if tests fail)
+      # -----------------------------------------------------------------------
+      - name: Cleanup
+        if: always()
+        run: |
+          # Release the claimed port
+          pd release "${IDENTITY}:server" --quiet 2>/dev/null || true
+
+          # End the session with a summary
+          if [ "${{ job.status }}" = "success" ]; then
+            SUMMARY="Shard ${{ matrix.shard }} passed"
+          else
+            SUMMARY="Shard ${{ matrix.shard }} failed"
+          fi
+
+          pd done \
+            --agent "$AGENT_ID" \
+            --summary "$SUMMARY" \
+            --quiet 2>/dev/null || true
+
+  # ---------------------------------------------------------------------------
+  # Aggregate results from all shards
+  # ---------------------------------------------------------------------------
+  results:
+    needs: test
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check shard results
+        run: |
+          if [ "${{ needs.test.result }}" = "success" ]; then
+            echo "All test shards passed"
+          else
+            echo "Some test shards failed"
+            exit 1
+          fi

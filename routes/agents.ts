@@ -259,7 +259,8 @@ export function createAgentsRoutes(deps: AgentsRouteDeps): Router {
       const result = agentInbox.send(agentId, content, { from, type });
 
       if (!result.success) {
-        return res.status(400).json({ error: result.error });
+        const statusCode = (result as Record<string, unknown>).code === 'RESOURCE_LIMIT' ? 429 : 400;
+        return res.status(statusCode).json({ error: result.error, code: (result as Record<string, unknown>).code });
       }
 
       // Broadcast that a message was received

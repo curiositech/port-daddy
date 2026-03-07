@@ -1,8 +1,11 @@
 /**
- * Resurrection Routes
+ * Salvage Routes (formerly "Resurrection")
  *
  * Agent self-healing system routes for discovering and reclaiming
  * work from stale or dead agents.
+ *
+ * Primary routes: /salvage/*
+ * Deprecated aliases: /resurrection/* (backward-compatible)
  */
 
 import { Router } from 'express';
@@ -47,17 +50,17 @@ interface ResurrectionRouteDeps {
 }
 
 /**
- * Create resurrection routes
+ * Create salvage routes (with /resurrection backward-compatible aliases)
  */
 export function createResurrectionRoutes(deps: ResurrectionRouteDeps): Router {
   const { logger, metrics, resurrection, messaging } = deps;
   const router = Router();
 
-  // ==========================================================================
-  // GET /resurrection/pending - List agents pending resurrection
-  // Filter by ?project= and/or ?stack= for context-aware salvage
-  // ==========================================================================
-  router.get('/resurrection/pending', (req: Request, res: Response) => {
+  // --------------------------------------------------------------------------
+  // Route handlers (shared between /salvage and /resurrection paths)
+  // --------------------------------------------------------------------------
+
+  function handlePending(req: Request, res: Response) {
     try {
       const { project, stack } = req.query;
       const result = resurrection.pending({
@@ -67,16 +70,12 @@ export function createResurrectionRoutes(deps: ResurrectionRouteDeps): Router {
       res.json(result);
     } catch (error) {
       metrics.errors++;
-      logger.error('resurrection_pending_failed', { error: (error as Error).message });
+      logger.error('salvage_pending_failed', { error: (error as Error).message });
       res.status(500).json({ error: 'internal server error' });
     }
-  });
+  }
 
-  // ==========================================================================
-  // GET /resurrection - List all resurrection queue entries
-  // Filter by ?project= and/or ?stack= for context-aware salvage
-  // ==========================================================================
-  router.get('/resurrection', (req: Request, res: Response) => {
+  function handleList(req: Request, res: Response) {
     try {
       const { limit, project, stack } = req.query;
       const result = resurrection.list({
@@ -89,12 +88,9 @@ export function createResurrectionRoutes(deps: ResurrectionRouteDeps): Router {
       metrics.errors++;
       res.status(500).json({ error: 'internal server error' });
     }
-  });
+  }
 
-  // ==========================================================================
-  // POST /resurrection/claim/:agentId - Claim an agent for resurrection
-  // ==========================================================================
-  router.post('/resurrection/claim/:agentId', (req: Request, res: Response) => {
+  function handleClaim(req: Request, res: Response) {
     try {
       const agentId = req.params.agentId as string;
       const result = resurrection.claim(agentId);
@@ -103,27 +99,24 @@ export function createResurrectionRoutes(deps: ResurrectionRouteDeps): Router {
         return res.status(400).json({ error: result.error });
       }
 
-      // Broadcast that this agent is being resurrected
-      messaging.publish('resurrection', JSON.stringify({
+      // Broadcast that this agent is being salvaged
+      messaging.publish('salvage', JSON.stringify({
         event: 'claimed',
         agentId,
         claimedBy: req.body?.newAgentId || 'unknown'
       }));
 
-      logger.info('resurrection_claimed', { agentId });
+      logger.info('salvage_claimed', { agentId });
       res.json(result);
 
     } catch (error) {
       metrics.errors++;
-      logger.error('resurrection_claim_failed', { error: (error as Error).message });
+      logger.error('salvage_claim_failed', { error: (error as Error).message });
       res.status(500).json({ error: 'internal server error' });
     }
-  });
+  }
 
-  // ==========================================================================
-  // POST /resurrection/complete/:agentId - Mark resurrection as complete
-  // ==========================================================================
-  router.post('/resurrection/complete/:agentId', (req: Request, res: Response) => {
+  function handleComplete(req: Request, res: Response) {
     try {
       const oldAgentId = req.params.agentId as string;
       const { newAgentId } = req.body;
@@ -134,55 +127,74 @@ export function createResurrectionRoutes(deps: ResurrectionRouteDeps): Router {
 
       const result = resurrection.complete(oldAgentId, newAgentId);
 
-      logger.info('resurrection_complete', { oldAgentId, newAgentId });
+      logger.info('salvage_complete', { oldAgentId, newAgentId });
       res.json(result);
 
     } catch (error) {
       metrics.errors++;
-      logger.error('resurrection_complete_failed', { error: (error as Error).message });
+      logger.error('salvage_complete_failed', { error: (error as Error).message });
       res.status(500).json({ error: 'internal server error' });
     }
-  });
+  }
 
-  // ==========================================================================
-  // POST /resurrection/abandon/:agentId - Abandon a resurrection attempt
-  // ==========================================================================
-  router.post('/resurrection/abandon/:agentId', (req: Request, res: Response) => {
+  function handleAbandon(req: Request, res: Response) {
     try {
       const agentId = req.params.agentId as string;
       const result = resurrection.abandon(agentId);
 
       // Broadcast that the agent is back in the queue
-      messaging.publish('resurrection', JSON.stringify({
+      messaging.publish('salvage', JSON.stringify({
         event: 'abandoned',
         agentId
       }));
 
-      logger.info('resurrection_abandoned', { agentId });
+      logger.info('salvage_abandoned', { agentId });
       res.json(result);
 
     } catch (error) {
       metrics.errors++;
       res.status(500).json({ error: 'internal server error' });
     }
-  });
+  }
 
-  // ==========================================================================
-  // DELETE /resurrection/:agentId - Dismiss an agent from the queue
-  // ==========================================================================
-  router.delete('/resurrection/:agentId', (req: Request, res: Response) => {
+  function handleDismiss(req: Request, res: Response) {
     try {
       const agentId = req.params.agentId as string;
       const result = resurrection.dismiss(agentId);
 
-      logger.info('resurrection_dismissed', { agentId });
+      logger.info('salvage_dismissed', { agentId });
       res.json(result);
 
     } catch (error) {
       metrics.errors++;
       res.status(500).json({ error: 'internal server error' });
     }
-  });
+  }
+
+  // ==========================================================================
+  // PRIMARY ROUTES: /salvage/*
+  // ==========================================================================
+  router.get('/salvage/pending', handlePending);
+  router.get('/salvage', handleList);
+  router.post('/salvage/claim/:agentId', handleClaim);
+  router.post('/salvage/complete/:agentId', handleComplete);
+  router.post('/salvage/abandon/:agentId', handleAbandon);
+  router.delete('/salvage/:agentId', handleDismiss);
+
+  // ==========================================================================
+  // DEPRECATED ALIASES: /resurrection/* (backward-compatible)
+  // ==========================================================================
+  router.get('/resurrection/pending', handlePending);
+  router.get('/resurrection', handleList);
+  router.post('/resurrection/claim/:agentId', handleClaim);
+  router.post('/resurrection/complete/:agentId', handleComplete);
+  router.post('/resurrection/abandon/:agentId', handleAbandon);
+  router.delete('/resurrection/:agentId', handleDismiss);
+
+  // Also support POST /resurrection/reap as an alias for pending check
+  // (some older clients call this to trigger the reaper)
+  router.post('/resurrection/reap', handlePending);
+  router.post('/salvage/reap', handlePending);
 
   return router;
 }

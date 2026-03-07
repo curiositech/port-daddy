@@ -7,9 +7,11 @@
  */
 
 import type Database from 'better-sqlite3';
-import { randomBytes } from 'crypto';
+import { randomUUID } from 'crypto';
 import { ActivityType } from './activity.js';
 import { getWorktreeId } from './worktree.js';
+
+const MAX_NOTES_PER_SESSION = 500;
 
 // Optional activity logger interface — injected after creation via setActivityLog()
 interface ActivityLogger {
@@ -277,6 +279,9 @@ export function createSessions(db: Database.Database) {
       WHERE sn.created_at >= ? AND sn.type = ?
       ORDER BY sn.created_at DESC LIMIT ?
     `),
+    countNotesBySession: db.prepare(`
+      SELECT COUNT(*) as count FROM session_notes WHERE session_id = ?
+    `),
   };
 
   function safeJsonParse(value: string | null): Record<string, unknown> | null {
@@ -289,7 +294,7 @@ export function createSessions(db: Database.Database) {
   }
 
   function generateSessionId(): string {
-    return 'session-' + randomBytes(4).toString('hex');
+    return 'session-' + randomUUID();
   }
 
   function formatSession(row: SessionRow) {
@@ -522,6 +527,16 @@ export function createSessions(db: Database.Database) {
     const session = stmts.getById.get(sessionId) as SessionRow | undefined;
     if (!session) {
       return { success: false, error: 'session not found' };
+    }
+
+    // Enforce notes-per-session limit
+    const noteCount = (stmts.countNotesBySession.get(sessionId) as { count: number }).count;
+    if (noteCount >= MAX_NOTES_PER_SESSION) {
+      return {
+        success: false,
+        error: `Session note limit reached (${MAX_NOTES_PER_SESSION} notes). End this session and start a new one.`,
+        code: 'RESOURCE_LIMIT',
+      };
     }
 
     const now = Date.now();

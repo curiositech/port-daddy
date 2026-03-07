@@ -135,7 +135,7 @@ pd agent register --agent test-123 --purpose "Testing resurrection"
 sqlite3 port-registry.db "UPDATE agents SET lastHeartbeat = datetime('now', '-30 minutes') WHERE id = 'test-123'"
 
 # Trigger the reaper to move dead agents to resurrection queue
-curl -X POST http://localhost:9876/resurrection/reap
+curl -X POST http://localhost:9876/salvage/reap
 
 # Check salvage queue
 pd salvage
@@ -214,7 +214,7 @@ Fish completions are historically the worst — double-check fish.
 
 **Update this section for every feature in progress.**
 
-### Context-Aware Salvage (Agent Resurrection)
+### Context-Aware Salvage
 
 When an agent dies, other agents in the same project should be notified.
 
@@ -223,10 +223,10 @@ When an agent dies, other agents in the same project should be notified.
 | `lib/agents.ts` | ✅ DONE | Added identity_project/stack/context, worktree_id, purpose columns. `register()` returns salvageHint. `listStale()` filters by identity prefix. |
 | `lib/resurrection.ts` | ✅ DONE | Added identity_project/stack/context columns. `pending()` and `list()` filter by project/stack. `countByProject()` for salvage hints. |
 | `routes/agents.ts` | ✅ DONE | Accepts identity, worktreeId, purpose. Returns salvageHint. Broadcasts identity to radio. |
-| `routes/resurrection.ts` | ✅ DONE | Added `?project=` and `?stack=` filters to `/resurrection/pending` and `/resurrection`. |
+| `routes/resurrection.ts` | ✅ DONE | `/salvage/*` as primary routes, `/resurrection/*` as deprecated aliases. |
 | `cli/commands/agents.ts` | ✅ DONE | Accepts `--identity`, `--purpose`, `--worktree`. Shows salvageHint notice on register. |
-| `cli/commands/resurrection.ts` | ✅ DONE | Added `--project`, `--stack` flags. Warns on `--all`. Shows identity in output. |
-| `public/index.html` | ⬜ TODO | Add "Resurrection Queue" panel showing dead agents by project |
+| `cli/commands/resurrection.ts` | ✅ DONE | Uses `/salvage/*` routes. Maritime labels paired with standard terms. |
+| `public/index.html` | ⬜ TODO | Add "Salvage Queue" panel showing dead agents by project |
 | `completions/*.{bash,zsh,fish}` | ⬜ TODO | Add `--identity`, `--project`, `--purpose` flags |
 | `lib/client.ts` | ⬜ TODO | Add identity/purpose params to register(), salvage filter to SDK |
 | `README.md` | ⬜ TODO | Document agent identity and auto-salvage notice |
@@ -280,7 +280,13 @@ When an agent dies, other agents in the same project should be notified.
 | `/sessions/:id/notes` | POST/GET | Add/get session notes |
 | `/sessions/:id/files` | POST/DELETE/GET | Claim/release/list files |
 | `/notes` | POST/GET | Quick note / recent notes |
-| `/salvage` | GET/POST | Check salvage queue / claim dead agent |
+| `/salvage` | GET | List salvage queue entries |
+| `/salvage/pending` | GET | List agents pending salvage |
+| `/salvage/claim/:agentId` | POST | Claim dead agent's work |
+| `/salvage/complete/:agentId` | POST | Mark salvage complete |
+| `/salvage/abandon/:agentId` | POST | Return agent to queue |
+| `/salvage/:agentId` | DELETE | Dismiss agent from queue |
+| `/resurrection/*` | * | Deprecated aliases for /salvage/* |
 | `/changelog` | POST/GET | Add entry / list changelog |
 | `/changelog/identities` | GET | List all identities with changelog entries |
 | `/tunnel/providers` | GET | Check which tunnel providers are installed |

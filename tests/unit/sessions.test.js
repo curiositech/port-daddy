@@ -35,7 +35,7 @@ describe('Sessions Module', () => {
       const result = sessions.start('Build feature X');
 
       expect(result.success).toBe(true);
-      expect(result.id).toMatch(/^session-[0-9a-f]{8}$/);
+      expect(result.id).toMatch(/^session-[0-9a-f-]+$/);
       expect(result.purpose).toBe('Build feature X');
       expect(result.status).toBe('active');
     });

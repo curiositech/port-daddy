@@ -36,9 +36,9 @@ export async function handleSalvage(subcommand: string | undefined, args: string
     console.error('Salvage work from dead/stale agents');
     console.error('');
     console.error('Subcommands:');
-    console.error('  (none)                          Show pending resurrections (filtered by --project)');
+    console.error('  (none)                          Show agents awaiting salvage (filtered by --project)');
     console.error('  claim <agent-id>                Claim an agent\'s work');
-    console.error('  complete <old-id> <new-id>      Mark resurrection complete');
+    console.error('  complete <old-id> <new-id>      Mark salvage complete');
     console.error('  abandon <agent-id>              Return agent to queue');
     console.error('  dismiss <agent-id>              Remove from queue (reviewed)');
     console.error('');
@@ -60,7 +60,7 @@ export async function handleSalvage(subcommand: string | undefined, args: string
         process.exit(1);
       }
 
-      const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/resurrection/claim/${encodeURIComponent(agentId)}`, {
+      const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/salvage/claim/${encodeURIComponent(agentId)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ newAgentId: options.agent || `cli-${process.pid}` })
@@ -77,7 +77,7 @@ export async function handleSalvage(subcommand: string | undefined, args: string
         return;
       }
 
-      console.log(maritimeStatus('success', `Claimed ${agentId} for resurrection`));
+      console.log(maritimeStatus('success', `Claimed ${agentId} for salvage`));
       const context = data.context as { sessionId?: string; purpose?: string; notes?: string[] } | undefined;
       if (context) {
         console.log('');
@@ -103,7 +103,7 @@ export async function handleSalvage(subcommand: string | undefined, args: string
         process.exit(1);
       }
 
-      const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/resurrection/complete/${encodeURIComponent(oldAgentId)}`, {
+      const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/salvage/complete/${encodeURIComponent(oldAgentId)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ newAgentId })
@@ -111,14 +111,14 @@ export async function handleSalvage(subcommand: string | undefined, args: string
       const data = await res.json();
 
       if (!res.ok) {
-        console.error(maritimeStatus('error', (data.error as string) || 'Failed to complete resurrection'));
+        console.error(maritimeStatus('error', (data.error as string) || 'Failed to complete salvage'));
         process.exit(1);
       }
 
       if (isJson(options)) {
         console.log(JSON.stringify(data, null, 2));
       } else {
-        console.log(maritimeStatus('success', `Resurrection complete: ${oldAgentId} -> ${newAgentId}`));
+        console.log(maritimeStatus('success', `Salvage complete: ${oldAgentId} -> ${newAgentId}`));
       }
       break;
     }
@@ -130,20 +130,20 @@ export async function handleSalvage(subcommand: string | undefined, args: string
         process.exit(1);
       }
 
-      const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/resurrection/abandon/${encodeURIComponent(agentId)}`, {
+      const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/salvage/abandon/${encodeURIComponent(agentId)}`, {
         method: 'POST'
       });
       const data = await res.json();
 
       if (!res.ok) {
-        console.error(maritimeStatus('error', (data.error as string) || 'Failed to abandon resurrection'));
+        console.error(maritimeStatus('error', (data.error as string) || 'Failed to abandon salvage'));
         process.exit(1);
       }
 
       if (isJson(options)) {
         console.log(JSON.stringify(data, null, 2));
       } else {
-        console.log(`Returned ${agentId} to resurrection queue`);
+        console.log(`Returned ${agentId} to salvage queue`);
       }
       break;
     }
@@ -155,7 +155,7 @@ export async function handleSalvage(subcommand: string | undefined, args: string
         process.exit(1);
       }
 
-      const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/resurrection/${encodeURIComponent(agentId)}`, {
+      const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/salvage/${encodeURIComponent(agentId)}`, {
         method: 'DELETE'
       });
       const data = await res.json();
@@ -168,14 +168,14 @@ export async function handleSalvage(subcommand: string | undefined, args: string
       if (isJson(options)) {
         console.log(JSON.stringify(data, null, 2));
       } else {
-        console.log(`Dismissed ${agentId} from resurrection queue`);
+        console.log(`Dismissed ${agentId} from salvage queue`);
       }
       break;
     }
 
     default: {
       // List pending resurrections - filter by project unless --all
-      const endpoint = options.all ? '/resurrection' : '/resurrection/pending';
+      const endpoint = options.all ? '/salvage' : '/salvage/pending';
       const params = new URLSearchParams();
       if (options.limit) params.append('limit', String(options.limit));
       if (options.project) params.append('project', options.project as string);
@@ -191,7 +191,7 @@ export async function handleSalvage(subcommand: string | undefined, args: string
       const data = await res.json();
 
       if (!res.ok) {
-        console.error(maritimeStatus('error', (data.error as string) || 'Failed to list resurrections'));
+        console.error(maritimeStatus('error', (data.error as string) || 'Failed to list salvage queue'));
         process.exit(1);
       }
 
@@ -205,7 +205,7 @@ export async function handleSalvage(subcommand: string | undefined, args: string
       if (agents.length === 0) {
         if (!isQuiet(options)) {
           const scope = options.project ? `${options.project}:*` : 'any project';
-          console.log(maritimeStatus('ready', `No agents awaiting resurrection in ${scope}`));
+          console.log(maritimeStatus('ready', `No agents awaiting salvage in ${scope}`));
         }
         return;
       }
@@ -251,7 +251,7 @@ export async function handleSalvage(subcommand: string | undefined, args: string
       }
 
       const filterNote = data.filtered ? ' (filtered)' : '';
-      console.log(`${data.count} agent(s) in resurrection queue${filterNote}`);
+      console.log(`${data.count} agent(s) in salvage queue${filterNote}`);
     }
   }
 }

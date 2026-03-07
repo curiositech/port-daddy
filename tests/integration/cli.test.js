@@ -328,12 +328,12 @@ describe('CLI Integration Tests', () => {
       const result = runCli(['session', 'start', 'Bug regression test']);
       expect(result.success).toBe(true);
       expect(result.stdout).not.toContain('undefined');
-      expect(result.stdout).toMatch(/session-[a-f0-9]+/);
+      expect(result.stdout).toMatch(/session-[a-f0-9-]+/);
 
       // Also test -q returns just the ID
       const quietResult = runCli(['session', 'start', 'Quiet test', '-q']);
       expect(quietResult.success).toBe(true);
-      expect(quietResult.stdout).toMatch(/^session-[a-f0-9]+$/);
+      expect(quietResult.stdout).toMatch(/^session-[a-f0-9-]+$/);
       expect(quietResult.stdout).not.toBe('undefined');
     });
 
@@ -413,7 +413,7 @@ describe('CLI Integration Tests', () => {
       let data;
       expect(() => { data = JSON.parse(result.stdout); }).not.toThrow();
       expect(data.success).toBe(true);
-      expect(data.id).toMatch(/^session-[a-f0-9]+$/);
+      expect(data.id).toMatch(/^session-[a-f0-9-]+$/);
       expect(data.purpose).toBe('Bug 15 test');
 
       // Should NOT contain ANSI escape codes

@@ -561,7 +561,7 @@ The skill teaches agents to claim ports with semantic identities, coordinate via
 | `pd agents` | List all registered agents |
 | `pd salvage` | Check for dead agents (`--project`, `--stack`, `--all`, `--limit`) |
 | `pd salvage claim <id>` | Claim a dead agent's session |
-| `pd salvage complete <old> <new>` | Mark resurrection complete |
+| `pd salvage complete <old> <new>` | Mark salvage complete |
 | `pd salvage abandon <id>` | Return agent to queue |
 | `pd salvage dismiss <id>` | Remove from queue (reviewed) |
 

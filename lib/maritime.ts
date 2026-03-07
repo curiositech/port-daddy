@@ -330,7 +330,23 @@ export function formatRadioMessage(msg: RadioMessage): string {
 }
 
 /**
- * Format a status line with signal flag
+ * Maritime-to-standard label pairing
+ *
+ * Each status type has a maritime term paired with a standard developer term
+ * so output is readable by both maritime-theme fans AND people who just want
+ * clear status indicators.
+ */
+const STATUS_LABELS: Record<string, string> = {
+  success: 'ROGER — Done',
+  error:   'NEGATIVE — Error',
+  ready:   'KILO — Ready',
+  warning: 'HAIL — Warning',
+  help:    'MAYDAY — Critical',
+  stop:    'LIMA — Blocked',
+};
+
+/**
+ * Format a status line with signal flag and paired maritime/standard label
  */
 export function status(
   type: 'success' | 'error' | 'ready' | 'warning' | 'help' | 'stop',
@@ -354,8 +370,12 @@ export function status(
     stop: ANSI.fgYellow,
   };
 
-  return `${flag(flagMap[type])} ${colorMap[type]}${message}${ANSI.reset}`;
+  const label = STATUS_LABELS[type];
+  return `${flag(flagMap[type])} ${ANSI.bold}${colorMap[type]}${label}${ANSI.reset} ${colorMap[type]}${message}${ANSI.reset}`;
 }
+
+// Export for testing
+export { STATUS_LABELS };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Channel Naming (Maritime Style)
@@ -429,7 +449,7 @@ export function demo(): void {
   console.log(`  ${status('error', 'Lock acquisition failed')}`);
   console.log(`  ${status('ready', 'Agent standing by')}`);
   console.log(`  ${status('warning', 'Conflict detected on src/api/users.ts')}`);
-  console.log(`  ${status('help', 'MAYDAY: Unhandled exception in production')}`);
+  console.log(`  ${status('help', 'Unhandled exception in production')}`);
   console.log(`  ${status('stop', 'Deployment halted - tests failing')}`);
 
   console.log('\n╔═══════════════════════════════════════════════════════════════╗');
