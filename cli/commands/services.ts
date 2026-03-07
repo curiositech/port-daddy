@@ -57,7 +57,8 @@ export async function handleClaim(id: string | undefined, options: CLIOptions): 
       console.error('  Tip: Run from a directory with package.json for auto-detection');
       process.exit(1);
     }
-    if (IS_TTY) console.error(`Auto-detected identity: ${id}`);
+    // Always show auto-detected identity on stderr (including non-interactive/piped mode)
+    if (!isQuiet(options)) console.error(`Auto-detected identity: ${id}`);
   }
 
   const body: Record<string, unknown> = { id };
@@ -405,7 +406,8 @@ export function handleClaimDirect(id: string | undefined, options: CLIOptions): 
       console.error('  Tip: Run from a directory with package.json for auto-detection');
       process.exit(1);
     }
-    if (IS_TTY) console.error(`Auto-detected identity: ${id}`);
+    // Always show auto-detected identity on stderr (including non-interactive/piped mode)
+    if (!isQuiet(options)) console.error(`Auto-detected identity: ${id}`);
   }
 
   const services = getDirectServices();
