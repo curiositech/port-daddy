@@ -6,15 +6,14 @@
   <title>Monorepo Mastery — Port Daddy Tutorials</title>
   <meta name="description" content="Orchestrate a 50-service monorepo with pd scan, pd up, dependency ordering, health checks, color-coded logs, and branch-specific configs.">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%9A%93</text></svg>">
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../css/shared.css">
 </head>
 <body>
-  <nav>
-    <div class="nav-container">
-      <a href="../" class="logo">
-        <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
-        <span>Port Daddy</span>
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="../" class="nav-brand">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
+        Port Daddy
       </a>
       <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Toggle navigation">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
@@ -22,7 +21,6 @@
       <div class="nav-links">
         <a href="../#features">Features</a>
         <a href="./" class="active">Tutorials</a>
-        <a href="../mcp/">MCP</a>
         <a href="../docs/">Docs</a>
         <a href="https://github.com/curiositech/port-daddy" target="_blank">GitHub</a>
       </div>
@@ -47,7 +45,7 @@
         </span>
         <span class="meta-item">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-          Tutorial 4 of 5
+          Tutorial 4 of 8
         </span>
         <span class="meta-item">Advanced</span>
       </div>
@@ -638,29 +636,8 @@ Starting 16 services...</span></code></pre>
 
   <footer>
     <div class="footer-container">
-      <div class="footer-grid">
-        <div class="footer-brand">
-          <a href="../" class="logo" style="color: white;">
-            <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
-            <span>Port Daddy</span>
-          </a>
-          <p>Port management, service orchestration, and agent coordination for modern development workflows.</p>
-        </div>
-        <div class="footer-column">
-          <h4>Product</h4>
-          <ul><li><a href="../#features">Features</a></li><li><a href="../mcp/">MCP Integration</a></li><li><a href="https://www.npmjs.com/package/port-daddy" target="_blank">npm Package</a></li></ul>
-        </div>
-        <div class="footer-column">
-          <h4>Resources</h4>
-          <ul><li><a href="./">Tutorials</a></li><li><a href="../docs/">Documentation</a></li><li><a href="https://github.com/curiositech/port-daddy" target="_blank">GitHub</a></li></ul>
-        </div>
-        <div class="footer-column">
-          <h4>Connect</h4>
-          <ul><li><a href="https://github.com/curiositech" target="_blank">@curiositech</a></li></ul>
-        </div>
-      </div>
       <div class="footer-bottom">
-        <p>&copy; 2025–2026 Curiositech LLC. Released under the MIT License.</p>
+        <p>&copy; 2025-2026 Curiositech LLC. Released under the MIT License.</p>
       </div>
     </div>
   </footer>

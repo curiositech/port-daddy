@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DNS Resolution -- Port Daddy Tutorials</title>
+  <meta name="description" content="Access your dev services by hostname instead of port numbers. Learn DNS registration, /etc/hosts integration, and SDK usage.">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%9A%93</text></svg>">
+  <link rel="stylesheet" href="../css/shared.css">
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="../" class="nav-brand">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
+        Port Daddy
+      </a>
+      <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Toggle navigation">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="nav-links">
+        <a href="../#features">Features</a>
+        <a href="./" class="active">Tutorials</a>
+        <a href="../docs/">Docs</a>
+        <a href="https://github.com/curiositech/port-daddy" target="_blank">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <section class="page-hero">
+    <div class="page-hero-container">
+      <div class="breadcrumbs">
+        <a href="../">Home</a>
+        <span class="separator">/</span>
+        <a href="./">Tutorials</a>
+        <span class="separator">/</span>
+        <span>DNS Resolution</span>
+      </div>
+      <h1>DNS Resolution</h1>
+      <p>Access your dev services by hostname instead of port numbers. Map <code style="font-family: var(--font-mono); background: rgba(0,102,204,0.08); padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.9em; border: none;">myapp-api.local</code> to your service with zero configuration.</p>
+      <div class="meta">
+        <span class="meta-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          10 min read
+        </span>
+        <span class="meta-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+          Tutorial 6 of 8
+        </span>
+        <span class="meta-item">Intermediate</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="content-layout">
+    <aside class="toc">
+      <h4>On this page</h4>
+      <ul>
+        <li><a href="#register">Register DNS Records</a></li>
+        <li><a href="#etc-hosts">Enable /etc/hosts Resolution</a></li>
+        <li><a href="#teardown">Teardown</a></li>
+        <li><a href="#sdk">SDK Usage</a></li>
+      </ul>
+    </aside>
+
+    <article class="article">
+      <p>Port Daddy can register DNS records for your services and optionally write them to <code>/etc/hosts</code> for OS-level resolution. This means you can access <code>myapp-api.local</code> in your browser instead of remembering <code>localhost:3100</code>.</p>
+
+      <h2 id="register">Register DNS Records</h2>
+      <p>When claiming a port, add <code>--dns</code> to auto-register a DNS record:</p>
+      <pre><code><span class="prompt">$</span> pd claim myapp:api --dns
+<span class="output">Port 3100 assigned to myapp:api
+DNS: myapp-api.local</span></code></pre>
+
+      <p>Or register DNS separately:</p>
+      <pre><code><span class="prompt">$</span> pd dns register myapp:api --hostname api.local
+<span class="prompt">$</span> pd dns list
+<span class="prompt">$</span> pd dns status</code></pre>
+
+      <h2 id="etc-hosts">Enable /etc/hosts Resolution</h2>
+      <p>For OS-level resolution (so browsers and <code>curl</code> can use hostnames):</p>
+      <pre><code><span class="prompt">$</span> sudo pd dns setup     <span class="comment"># adds managed section to /etc/hosts</span>
+<span class="prompt">$</span> pd dns sync           <span class="comment"># writes current DNS records</span>
+<span class="prompt">$</span> pd dns status         <span class="comment"># verify resolver is active</span></code></pre>
+
+      <p>Port Daddy adds a clearly marked section to <code>/etc/hosts</code>:</p>
+      <pre><code><span class="comment"># === PORT DADDY DNS (managed, do not edit) ===</span>
+127.0.0.1  myapp-api.local
+127.0.0.1  myapp-web.local
+<span class="comment"># === END PORT DADDY DNS ===</span></code></pre>
+
+      <h2 id="teardown">Teardown</h2>
+      <pre><code><span class="prompt">$</span> sudo pd dns teardown  <span class="comment"># removes entries from /etc/hosts</span></code></pre>
+      <p>A backup of <code>/etc/hosts</code> is created automatically before any modifications.</p>
+
+      <h2 id="sdk">SDK Usage</h2>
+      <pre><code><span class="keyword">const</span> pd = <span class="keyword">new</span> PortDaddy();
+<span class="keyword">await</span> pd.dnsRegister(<span class="string">'myapp:api'</span>, { hostname: <span class="string">'api.local'</span> });
+<span class="keyword">const</span> records = <span class="keyword">await</span> pd.dnsList();
+<span class="keyword">await</span> pd.dnsSetup();   <span class="comment">// requires sudo</span>
+<span class="keyword">await</span> pd.dnsSync();</code></pre>
+
+      <div class="prev-next">
+        <a href="debugging.html">
+          <div class="label">Previous tutorial</div>
+          <div class="title">Debugging with Port Daddy</div>
+        </a>
+        <a href="sugar-commands.html" class="next">
+          <div class="label">Next tutorial</div>
+          <div class="title">Sugar Commands</div>
+        </a>
+      </div>
+    </article>
+  </div>
+
+  <footer>
+    <div class="footer-container">
+      <div class="footer-bottom">
+        <p>&copy; 2025-2026 Curiositech LLC. Released under the MIT License.</p>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

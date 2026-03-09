@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sugar Commands -- Port Daddy Tutorials</title>
+  <meta name="description" content="One-line agent lifecycle with begin, done, and whoami. The fastest way to start and end Port Daddy work sessions.">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%9A%93</text></svg>">
+  <link rel="stylesheet" href="../css/shared.css">
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="../" class="nav-brand">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
+        Port Daddy
+      </a>
+      <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Toggle navigation">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="nav-links">
+        <a href="../#features">Features</a>
+        <a href="./" class="active">Tutorials</a>
+        <a href="../docs/">Docs</a>
+        <a href="https://github.com/curiositech/port-daddy" target="_blank">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <section class="page-hero">
+    <div class="page-hero-container">
+      <div class="breadcrumbs">
+        <a href="../">Home</a>
+        <span class="separator">/</span>
+        <a href="./">Tutorials</a>
+        <span class="separator">/</span>
+        <span>Sugar Commands</span>
+      </div>
+      <h1>Sugar Commands</h1>
+      <p>One-line agent lifecycle with <code style="font-family: var(--font-mono); background: rgba(0,102,204,0.08); padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.9em; border: none;">begin</code>, <code style="font-family: var(--font-mono); background: rgba(0,102,204,0.08); padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.9em; border: none;">done</code>, and <code style="font-family: var(--font-mono); background: rgba(0,102,204,0.08); padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.9em; border: none;">whoami</code>. The recommended way to use Port Daddy.</p>
+      <div class="meta">
+        <span class="meta-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          6 min read
+        </span>
+        <span class="meta-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+          Tutorial 7 of 8
+        </span>
+        <span class="meta-item">Beginner</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="content-layout">
+    <aside class="toc">
+      <h4>On this page</h4>
+      <ul>
+        <li><a href="#begin">begin -- Start Everything</a></li>
+        <li><a href="#done">done -- End Everything</a></li>
+        <li><a href="#whoami">whoami -- Check Context</a></li>
+        <li><a href="#with-lock">with-lock -- Run Under Lock</a></li>
+        <li><a href="#sdk">SDK Equivalent</a></li>
+      </ul>
+    </aside>
+
+    <article class="article">
+      <p>Sugar commands combine multiple operations into single calls -- the recommended way to start and end agent work sessions.</p>
+
+      <h2 id="begin">begin -- Start Everything</h2>
+      <pre><code><span class="prompt">$</span> pd begin <span class="string">"Building auth system"</span>
+<span class="output">Agent registered: agent-a1b2c3
+Session started: sess-d4e5f6
+Context saved to .portdaddy/current.json</span></code></pre>
+
+      <p>This single command:</p>
+      <ol>
+        <li>Registers you as an agent</li>
+        <li>Starts a new session</li>
+        <li>Writes context to <code>.portdaddy/current.json</code></li>
+      </ol>
+
+      <h2 id="done">done -- End Everything</h2>
+      <pre><code><span class="prompt">$</span> pd done <span class="string">"Auth complete, tests passing"</span>
+<span class="output">Session ended with note
+Agent unregistered
+Context cleaned up</span></code></pre>
+
+      <p>This:</p>
+      <ol>
+        <li>Ends the active session with a closing note</li>
+        <li>Unregisters the agent</li>
+        <li>Cleans up <code>.portdaddy/current.json</code></li>
+      </ol>
+
+      <h2 id="whoami">whoami -- Check Context</h2>
+      <pre><code><span class="prompt">$</span> pd whoami
+<span class="output">Agent:   agent-a1b2c3
+Session: sess-d4e5f6
+Purpose: Building auth system
+Files:   src/auth.ts, src/middleware.ts</span></code></pre>
+
+      <p>Shows your current agent ID, session ID, purpose, and claimed files.</p>
+
+      <h2 id="with-lock">with-lock -- Run Under Lock</h2>
+      <pre><code><span class="prompt">$</span> pd with-lock db-migrations -- npm run migrate
+<span class="output">Lock acquired: db-migrations
+Running: npm run migrate
+...
+Lock released: db-migrations</span></code></pre>
+
+      <p>Acquires a lock, runs the command, releases on completion (even on failure).</p>
+
+      <h2 id="sdk">SDK Equivalent</h2>
+      <pre><code><span class="keyword">const</span> pd = <span class="keyword">new</span> PortDaddy();
+<span class="keyword">const</span> { agentId, sessionId } = <span class="keyword">await</span> pd.begin({ purpose: <span class="string">'Building auth'</span> });
+<span class="comment">// ... do work ...</span>
+<span class="keyword">await</span> pd.done({ note: <span class="string">'Auth complete'</span> });</code></pre>
+
+      <div class="prev-next">
+        <a href="dns-resolver.html">
+          <div class="label">Previous tutorial</div>
+          <div class="title">DNS Resolution</div>
+        </a>
+        <a href="session-phases.html" class="next">
+          <div class="label">Next tutorial</div>
+          <div class="title">Session Phases & Integration</div>
+        </a>
+      </div>
+    </article>
+  </div>
+
+  <footer>
+    <div class="footer-container">
+      <div class="footer-bottom">
+        <p>&copy; 2025-2026 Curiositech LLC. Released under the MIT License.</p>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

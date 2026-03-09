@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Session Phases & Integration -- Port Daddy Tutorials</title>
+  <meta name="description" content="Track progress and coordinate between agents with session phases, integration signals, and project briefings.">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%9A%93</text></svg>">
+  <link rel="stylesheet" href="../css/shared.css">
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="../" class="nav-brand">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
+        Port Daddy
+      </a>
+      <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Toggle navigation">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="nav-links">
+        <a href="../#features">Features</a>
+        <a href="./" class="active">Tutorials</a>
+        <a href="../docs/">Docs</a>
+        <a href="https://github.com/curiositech/port-daddy" target="_blank">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <section class="page-hero">
+    <div class="page-hero-container">
+      <div class="breadcrumbs">
+        <a href="../">Home</a>
+        <span class="separator">/</span>
+        <a href="./">Tutorials</a>
+        <span class="separator">/</span>
+        <span>Session Phases</span>
+      </div>
+      <h1>Session Phases & Integration</h1>
+      <p>Track progress and coordinate between agents with structured phases, integration signals, and project briefings.</p>
+      <div class="meta">
+        <span class="meta-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          12 min read
+        </span>
+        <span class="meta-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+          Tutorial 8 of 8
+        </span>
+        <span class="meta-item">Advanced</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="content-layout">
+    <aside class="toc">
+      <h4>On this page</h4>
+      <ul>
+        <li><a href="#phases">The 6 Phases</a></li>
+        <li><a href="#signals">Integration Signals</a></li>
+        <li><a href="#liveness">Agent Liveness</a></li>
+        <li><a href="#briefings">Project Briefings</a></li>
+      </ul>
+    </aside>
+
+    <article class="article">
+
+      <h2 id="phases">The 6 Phases</h2>
+      <p>Sessions progress through structured phases:</p>
+
+      <table>
+        <thead><tr><th>Phase</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td><code>setup</code></td><td>Claiming files, reading context</td></tr>
+          <tr><td><code>planning</code></td><td>Deciding approach</td></tr>
+          <tr><td><code>implementing</code></td><td>Writing code</td></tr>
+          <tr><td><code>testing</code></td><td>Running tests</td></tr>
+          <tr><td><code>reviewing</code></td><td>Code review</td></tr>
+          <tr><td><code>cleanup</code></td><td>Releasing resources</td></tr>
+        </tbody>
+      </table>
+
+      <pre><code><span class="prompt">$</span> pd session phase my-session implementing
+<span class="prompt">$</span> pd session phase my-session testing</code></pre>
+
+      <p>Phases only move forward -- no going back to previous phases. This gives other agents a clear signal about where you are in your workflow.</p>
+
+      <h2 id="signals">Integration Signals</h2>
+      <p>Agents can declare what they've completed and what they need:</p>
+
+      <pre><code><span class="comment"># Agent A finishes the API</span>
+<span class="prompt">$</span> pd integration ready my-session api
+
+<span class="comment"># Agent B declares it needs the API</span>
+<span class="prompt">$</span> pd integration needs my-session api
+<span class="output">Already ready! Agent B can proceed immediately.</span></code></pre>
+
+      <p>Integration signals solve the classic coordination problem: "Is the API ready yet?" Instead of polling or asking in Slack, agents declare dependencies and get instant answers.</p>
+
+      <h2 id="liveness">Agent Liveness</h2>
+      <p>The daemon monitors agent health with progressive degradation:</p>
+      <ul>
+        <li><strong>Heartbeat</strong>: Agents ping every 5 minutes</li>
+        <li><strong>Stale</strong>: No heartbeat for 10 minutes</li>
+        <li><strong>Dead</strong>: No heartbeat for 20 minutes -- enters salvage queue</li>
+        <li><strong>Adaptive reaper</strong>: Adjusts thresholds based on system load</li>
+      </ul>
+
+      <p>When an agent dies, its work is preserved. Another agent can pick up where it left off:</p>
+      <pre><code><span class="prompt">$</span> pd salvage --project myapp
+<span class="output">1 dead agent(s) in myapp:*
+
+Agent: agent-abc123
+Purpose: Building auth system
+Phase: implementing
+Notes: 3 note(s)
+Files: src/auth.ts, src/middleware.ts</span>
+
+<span class="prompt">$</span> pd salvage claim agent-abc123</code></pre>
+
+      <h2 id="briefings">Project Briefings</h2>
+      <p>Get a summary of everything happening in a project:</p>
+
+      <pre><code><span class="prompt">$</span> pd briefing myproject
+<span class="output">Project: myproject
+Active agents: 2
+Sessions: 3 (2 active, 1 completed)
+
+Agent agent-a1b2c3 (implementing)
+  Purpose: Building auth system
+  Files: src/auth.ts
+
+Agent agent-d4e5f6 (testing)
+  Purpose: Adding API tests
+  Files: tests/api.test.ts
+
+Integration signals:
+  auth-api: READY (by agent-a1b2c3)
+  database: NEEDED (by agent-d4e5f6)
+
+Dead agents needing salvage: 0</span></code></pre>
+
+      <p>Shows: active agents, sessions with phases, integration signals, recent notes, and any dead agents needing salvage.</p>
+
+      <div class="prev-next">
+        <a href="sugar-commands.html">
+          <div class="label">Previous tutorial</div>
+          <div class="title">Sugar Commands</div>
+        </a>
+        <div></div>
+      </div>
+    </article>
+  </div>
+
+  <footer>
+    <div class="footer-container">
+      <div class="footer-bottom">
+        <p>&copy; 2025-2026 Curiositech LLC. Released under the MIT License.</p>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>
