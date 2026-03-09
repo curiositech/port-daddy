@@ -1,0 +1,1209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Port Daddy — Design Direction Mockups</title>
+<style>
+/* ============================================================
+   Page chrome (not part of any theme)
+   ============================================================ */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: system-ui, sans-serif;
+  background: #111;
+  color: #ccc;
+  padding: 40px 20px;
+}
+
+h1.page-title {
+  text-align: center;
+  font-size: 28px;
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  margin-bottom: 8px;
+  color: #fff;
+}
+
+p.page-sub {
+  text-align: center;
+  font-size: 14px;
+  color: #888;
+  margin-bottom: 48px;
+}
+
+.mockup-section {
+  max-width: 1100px;
+  margin: 0 auto 64px auto;
+}
+
+.mockup-label {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #888;
+  margin-bottom: 6px;
+}
+
+.mockup-name {
+  font-size: 22px;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.mockup-vibe {
+  font-size: 14px;
+  color: #999;
+  margin-bottom: 4px;
+}
+
+.mockup-ref {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 16px;
+  font-style: italic;
+}
+
+.mockup-frame {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 32px rgba(0,0,0,0.5);
+}
+
+/* ============================================================
+   OPTION 1: Admiralty Chart
+   ============================================================ */
+.admiralty {
+  --bg: #FAF8F5;
+  --card: #FFFFFF;
+  --text: #2C2825;
+  --text2: #7A7570;
+  --text3: #B0AAA2;
+  --accent: #1B5E7B;
+  --brass: #C4873B;
+  --success: #2D8659;
+  --warning: #C9922E;
+  --danger: #C4403A;
+  --border: #E5E0D8;
+  --sidebar-bg: #F3F0EB;
+
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', system-ui, sans-serif;
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  min-height: 520px;
+}
+
+.admiralty .sidebar {
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--border);
+  padding: 20px 0;
+}
+
+.admiralty .sidebar .logo {
+  padding: 0 20px 20px;
+  font-family: 'Georgia', serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admiralty .sidebar .logo svg {
+  width: 22px;
+  height: 22px;
+}
+
+.admiralty .sidebar nav a {
+  display: block;
+  padding: 7px 20px;
+  font-size: 13px;
+  color: var(--text2);
+  text-decoration: none;
+  border-left: 3px solid transparent;
+}
+
+.admiralty .sidebar nav a.active {
+  color: var(--accent);
+  border-left-color: var(--accent);
+  background: rgba(27, 94, 123, 0.06);
+  font-weight: 500;
+}
+
+.admiralty .main {
+  padding: 24px 28px;
+  background: var(--bg);
+  /* Faint contour lines */
+  background-image:
+    radial-gradient(ellipse 600px 400px at 70% 30%, rgba(27,94,123,0.03), transparent),
+    radial-gradient(ellipse 400px 300px at 30% 70%, rgba(196,135,59,0.02), transparent);
+}
+
+.admiralty .main h2 {
+  font-family: 'Georgia', serif;
+  font-size: 20px;
+  font-weight: 400;
+  color: var(--text);
+  margin-bottom: 20px;
+}
+
+.admiralty .stats-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.admiralty .stat-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  flex: 1;
+  border-left: 3px solid var(--accent);
+}
+
+.admiralty .stat-card.green { border-left-color: var(--success); }
+.admiralty .stat-card.brass { border-left-color: var(--brass); }
+.admiralty .stat-card.red { border-left-color: var(--danger); }
+
+.admiralty .stat-card .val {
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.admiralty .stat-card .label {
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text3);
+  margin-top: 2px;
+}
+
+.admiralty .cards-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.admiralty .card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  border-left: 3px solid var(--accent);
+}
+
+.admiralty .card.green-bar { border-left-color: var(--success); }
+.admiralty .card.brass-bar { border-left-color: var(--brass); }
+
+.admiralty .card-title {
+  padding: 14px 16px 10px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text2);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.admiralty .card-title::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background: var(--brass);
+  transform: rotate(45deg);
+}
+
+.admiralty table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.admiralty thead th {
+  text-align: left;
+  padding: 6px 16px;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text3);
+  border-bottom: 1px solid var(--border);
+}
+
+.admiralty tbody td {
+  padding: 8px 16px;
+  border-bottom: 1px solid #F0ECE6;
+  color: var(--text);
+}
+
+.admiralty .identity { font-family: 'Courier New', monospace; font-size: 12px; color: var(--accent); }
+.admiralty .port { font-family: 'Courier New', monospace; color: var(--brass); font-weight: 600; }
+.admiralty .status-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-right: 5px;
+}
+.admiralty .status-dot.green { background: var(--success); }
+.admiralty .status-dot.amber { background: var(--warning); }
+.admiralty .status-dot.red { background: var(--danger); }
+
+/* ============================================================
+   OPTION 2: Harbor Master
+   ============================================================ */
+.harbor {
+  --bg: #F5F2ED;
+  --card: #FFFEFA;
+  --text: #33302B;
+  --text2: #6E685E;
+  --text3: #A39D93;
+  --green: #2E6B4F;
+  --brass: #B8860B;
+  --blue: #4A6FA5;
+  --danger: #B84233;
+  --warning: #C08B2E;
+  --border: #DDD7CC;
+  --sidebar-bg: #EDE9E2;
+
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Trebuchet MS', system-ui, sans-serif;
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  min-height: 520px;
+}
+
+.harbor .sidebar {
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--border);
+  padding: 20px 0;
+}
+
+.harbor .sidebar .logo {
+  padding: 0 20px 20px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--green);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.harbor .sidebar nav {
+  padding: 0 12px;
+}
+
+.harbor .sidebar .nav-section {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 12px 8px 4px;
+  border-left: 2px solid var(--brass);
+  margin-left: 4px;
+}
+
+.harbor .sidebar nav a {
+  display: block;
+  padding: 6px 8px 6px 14px;
+  font-size: 13px;
+  color: var(--text2);
+  text-decoration: none;
+  border-radius: 6px;
+}
+
+.harbor .sidebar nav a.active {
+  background: var(--card);
+  color: var(--green);
+  font-weight: 600;
+}
+
+.harbor .main {
+  padding: 24px 28px;
+}
+
+.harbor .main h2 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 20px;
+}
+
+.harbor .gauges {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.harbor .gauge {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 24px;
+  flex: 1;
+  text-align: center;
+  /* subtle texture */
+  background-image: url("data:image/svg+xml,%3Csvg width='4' height='4' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='1' height='1' fill='%23000' opacity='0.02'/%3E%3C/svg%3E");
+}
+
+.harbor .gauge .val {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.harbor .gauge .label {
+  font-size: 11px;
+  color: var(--text3);
+  margin-top: 2px;
+}
+
+.harbor .gauge .indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-top: 6px;
+}
+
+.harbor .gauge .indicator.green { background: var(--green); }
+.harbor .gauge .indicator.brass { background: var(--brass); }
+
+.harbor .cards-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.harbor .card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background-image: url("data:image/svg+xml,%3Csvg width='4' height='4' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='1' height='1' fill='%23000' opacity='0.015'/%3E%3C/svg%3E");
+}
+
+.harbor .card-title {
+  padding: 14px 16px 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.harbor .card-title .sq {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: var(--brass);
+  border-radius: 2px;
+}
+
+.harbor table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.harbor thead th {
+  text-align: left;
+  padding: 6px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text3);
+  border-bottom: 1px solid var(--border);
+}
+
+.harbor tbody tr:nth-child(even) { background: rgba(0,0,0,0.015); }
+
+.harbor tbody td {
+  padding: 9px 16px;
+  color: var(--text);
+}
+
+.harbor .identity { font-family: 'Courier New', monospace; font-size: 12px; color: var(--green); }
+.harbor .port { font-family: 'Courier New', monospace; color: var(--brass); font-weight: 600; }
+.harbor .btn {
+  display: inline-block;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--text2);
+  background: transparent;
+  cursor: pointer;
+}
+.harbor .btn-primary {
+  background: var(--green);
+  color: #fff;
+  border-color: var(--green);
+}
+
+/* ============================================================
+   OPTION 3: Signal Tower
+   ============================================================ */
+.signal {
+  --bg: #FAFAFA;
+  --card: #FFFFFF;
+  --text: #111113;
+  --text2: #6B6B76;
+  --text3: #9D9DA7;
+  --blue: #0066CC;
+  --green: #18794E;
+  --amber: #E5A000;
+  --red: #CD2B31;
+  --purple: #6E56CF;
+  --border: #E8E8EC;
+  --hover: #F5F5F7;
+
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', system-ui, sans-serif;
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  min-height: 520px;
+}
+
+.signal .sidebar {
+  background: var(--card);
+  border-right: 1px solid var(--border);
+  padding: 12px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.signal .sidebar .logo-icon {
+  width: 28px;
+  height: 28px;
+  margin-bottom: 12px;
+}
+
+.signal .sidebar .nav-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  color: var(--text3);
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.signal .sidebar .nav-icon.active {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.signal .main {
+  padding: 0;
+}
+
+.signal .topbar {
+  display: flex;
+  align-items: center;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--border);
+  gap: 16px;
+}
+
+.signal .topbar h2 {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.signal .cmd-k {
+  flex: 1;
+  max-width: 400px;
+  margin: 0 auto;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: 13px;
+  color: var(--text3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.signal .cmd-k kbd {
+  font-size: 11px;
+  padding: 1px 5px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--card);
+  color: var(--text3);
+  font-family: inherit;
+}
+
+.signal .content {
+  padding: 20px 24px;
+}
+
+.signal .stats-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.signal .stat {
+  flex: 1;
+}
+
+.signal .stat .val {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.signal .stat .label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.signal .cards-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.signal .card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.signal .card-strip {
+  height: 3px;
+}
+.signal .card-strip.blue { background: var(--blue); }
+.signal .card-strip.green { background: var(--green); }
+.signal .card-strip.amber { background: var(--amber); }
+.signal .card-strip.purple { background: var(--purple); }
+
+/* Signal flag strips */
+.signal .card-strip.flag-kilo {
+  background: linear-gradient(90deg, #FFD700 50%, #0066CC 50%);
+}
+.signal .card-strip.flag-uniform {
+  background: linear-gradient(90deg, #CD2B31 33%, #FFFFFF 33%, #FFFFFF 66%, #CD2B31 66%);
+}
+
+.signal .card-title {
+  padding: 12px 14px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text2);
+}
+
+.signal table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.signal thead th {
+  text-align: left;
+  padding: 4px 14px;
+  font-size: 11px;
+  color: var(--text3);
+  font-weight: 500;
+}
+
+.signal tbody td {
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+
+.signal tbody tr:hover { background: var(--hover); }
+
+.signal .identity { font-family: 'SF Mono', 'Courier New', monospace; font-size: 12px; color: var(--blue); }
+.signal .port { font-family: 'SF Mono', 'Courier New', monospace; font-weight: 500; }
+.signal .dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 5px;
+}
+.signal .dot.green { background: var(--green); }
+.signal .dot.amber { background: var(--amber); }
+.signal .dot.red { background: var(--red); }
+
+/* ============================================================
+   OPTION 4: Tidal Ink
+   ============================================================ */
+.tidal {
+  --bg: #FFFFF8;
+  --text: #1A1A1A;
+  --text2: #555555;
+  --text3: #999999;
+  --prussian: #1A4B6E;
+  --sienna: #9B5A2E;
+  --verdigris: #2E7D6F;
+  --umber: #B8860B;
+  --oxblood: #8B2500;
+  --highlight: #FFF3CD;
+  --border: #D4CFC5;
+
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Georgia', serif;
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  min-height: 520px;
+}
+
+.tidal .sidebar {
+  border-right: 1px solid var(--border);
+  padding: 24px 0;
+}
+
+.tidal .sidebar .logo {
+  padding: 0 24px 24px;
+  font-family: 'Georgia', serif;
+  font-size: 18px;
+  font-style: italic;
+  color: var(--prussian);
+}
+
+.tidal .sidebar nav a {
+  display: block;
+  padding: 6px 24px;
+  font-family: 'Helvetica Neue', system-ui, sans-serif;
+  font-size: 13px;
+  color: var(--text2);
+  text-decoration: none;
+}
+
+.tidal .sidebar nav a.active {
+  color: var(--prussian);
+  font-weight: 600;
+}
+
+.tidal .sidebar .section-label {
+  font-family: 'Georgia', serif;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--text3);
+  padding: 16px 24px 4px;
+}
+
+.tidal .main {
+  padding: 32px 36px;
+}
+
+.tidal .main h2 {
+  font-family: 'Georgia', serif;
+  font-size: 24px;
+  font-weight: 400;
+  font-style: italic;
+  color: var(--text);
+  margin-bottom: 24px;
+}
+
+.tidal .journal-stats {
+  display: flex;
+  gap: 48px;
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tidal .journal-stat .val {
+  font-family: 'Georgia', serif;
+  font-size: 36px;
+  font-weight: 400;
+  color: var(--prussian);
+}
+
+.tidal .journal-stat .label {
+  font-family: 'Helvetica Neue', system-ui, sans-serif;
+  font-size: 12px;
+  font-style: italic;
+  color: var(--text3);
+}
+
+.tidal .cards-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+}
+
+.tidal .card {
+  /* Borderless — defined by whitespace */
+}
+
+.tidal .card-title {
+  font-family: 'Georgia', serif;
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--text);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 12px;
+}
+
+.tidal table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Helvetica Neue', system-ui, sans-serif;
+  font-size: 13px;
+}
+
+.tidal thead th {
+  text-align: left;
+  padding: 4px 0;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--text3);
+  font-weight: 400;
+  border-bottom: 1px solid var(--border);
+}
+
+.tidal tbody td {
+  padding: 10px 0 10px;
+  border-bottom: 1px solid #EDE8E0;
+  color: var(--text);
+}
+
+.tidal tbody tr:hover { background: var(--highlight); }
+
+.tidal .identity {
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  color: var(--prussian);
+}
+
+.tidal .port {
+  font-family: 'Courier New', monospace;
+  color: var(--sienna);
+  font-weight: 600;
+}
+
+.tidal .status-mark { margin-right: 4px; }
+.tidal .status-mark.active { color: var(--verdigris); }
+.tidal .status-mark.stale { color: var(--umber); }
+.tidal .status-mark.dead { color: var(--oxblood); }
+
+.tidal .empty-state {
+  font-family: 'Georgia', serif;
+  font-style: italic;
+  color: var(--text3);
+  padding: 20px 0;
+  font-size: 13px;
+}
+</style>
+</head>
+<body>
+
+<h1 class="page-title">Port Daddy &mdash; Design Directions</h1>
+<p class="page-sub">Four options for dashboard + portdaddy.dev. Same data, different personality.</p>
+
+<!-- ================================================================
+     OPTION 1: Admiralty Chart
+     ================================================================ -->
+<div class="mockup-section">
+  <div class="mockup-label">Option 1</div>
+  <div class="mockup-name">Admiralty Chart</div>
+  <div class="mockup-vibe">Precise. Institutional. Authoritative.</div>
+  <div class="mockup-ref">Reference: Stripe docs, nautical cartography</div>
+  <div class="mockup-frame">
+    <div class="admiralty">
+      <div class="sidebar">
+        <div class="logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="2" x2="12" y2="22"/>
+            <line x1="2" y1="12" x2="22" y2="12"/>
+            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+            <line x1="19.07" y1="4.93" x2="4.93" y2="19.07"/>
+          </svg>
+          Port Daddy
+        </div>
+        <nav>
+          <a class="active">Overview</a>
+          <a>Services</a>
+          <a>Agents</a>
+          <a>Sessions</a>
+          <a>DNS</a>
+          <a>Locks</a>
+          <a>Messaging</a>
+          <a>Activity</a>
+          <a>Salvage</a>
+        </nav>
+      </div>
+      <div class="main">
+        <h2>Overview</h2>
+        <div class="stats-row">
+          <div class="stat-card green">
+            <div class="val">15</div>
+            <div class="label">Active Services</div>
+          </div>
+          <div class="stat-card">
+            <div class="val">4</div>
+            <div class="label">Registered Agents</div>
+          </div>
+          <div class="stat-card brass">
+            <div class="val">7</div>
+            <div class="label">Open Sessions</div>
+          </div>
+          <div class="stat-card red">
+            <div class="val">0</div>
+            <div class="label">Conflicts</div>
+          </div>
+        </div>
+        <div class="cards-grid">
+          <div class="card green-bar">
+            <div class="card-title">Services</div>
+            <table>
+              <thead><tr><th>Identity</th><th>Port</th><th>Status</th></tr></thead>
+              <tbody>
+                <tr><td class="identity">myapp:api:main</td><td class="port">3101</td><td><span class="status-dot green"></span>active</td></tr>
+                <tr><td class="identity">myapp:web:main</td><td class="port">3102</td><td><span class="status-dot green"></span>active</td></tr>
+                <tr><td class="identity">myapp:worker:bg</td><td class="port">3103</td><td><span class="status-dot amber"></span>stale</td></tr>
+                <tr><td class="identity">auth:redis</td><td class="port">6379</td><td><span class="status-dot green"></span>active</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="card brass-bar">
+            <div class="card-title">Sessions</div>
+            <table>
+              <thead><tr><th>Purpose</th><th>Agent</th><th>Phase</th></tr></thead>
+              <tbody>
+                <tr><td>Building auth system</td><td class="identity">agent-a3f2</td><td>in_progress</td></tr>
+                <tr><td>Fixing CSS layout</td><td class="identity">agent-b7c1</td><td>testing</td></tr>
+                <tr><td>Database migration</td><td class="identity">agent-d4e9</td><td>planning</td></tr>
+                <tr><td>API rate limiting</td><td class="identity">agent-f1a0</td><td>reviewing</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================
+     OPTION 2: Harbor Master
+     ================================================================ -->
+<div class="mockup-section">
+  <div class="mockup-label">Option 2</div>
+  <div class="mockup-name">Harbor Master</div>
+  <div class="mockup-vibe">Warm. Structured. Reliable.</div>
+  <div class="mockup-ref">Reference: Linear app, mid-century control rooms</div>
+  <div class="mockup-frame">
+    <div class="harbor">
+      <div class="sidebar">
+        <div class="logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+            <path d="M12 2v7M8 9h8M6 13c0 3.3 2.7 6 6 6s6-2.7 6-6"/>
+            <line x1="12" y1="19" x2="12" y2="22"/>
+            <line x1="8" y1="22" x2="16" y2="22"/>
+          </svg>
+          Port Daddy
+        </div>
+        <nav>
+          <div class="nav-section">Fleet</div>
+          <a class="active">Dashboard</a>
+          <a>Services</a>
+          <a>Agents</a>
+          <div class="nav-section">Coordination</div>
+          <a>Sessions</a>
+          <a>Locks</a>
+          <a>Messaging</a>
+          <div class="nav-section">Systems</div>
+          <a>DNS</a>
+          <a>Activity</a>
+          <a>Salvage</a>
+        </nav>
+      </div>
+      <div class="main">
+        <h2>Dashboard</h2>
+        <div class="gauges">
+          <div class="gauge">
+            <div class="val">15</div>
+            <div class="label">Services</div>
+            <div class="indicator green"></div>
+          </div>
+          <div class="gauge">
+            <div class="val">4</div>
+            <div class="label">Agents</div>
+            <div class="indicator green"></div>
+          </div>
+          <div class="gauge">
+            <div class="val">7</div>
+            <div class="label">Sessions</div>
+            <div class="indicator brass"></div>
+          </div>
+          <div class="gauge">
+            <div class="val">0</div>
+            <div class="label">Conflicts</div>
+            <div class="indicator green"></div>
+          </div>
+          <div class="gauge">
+            <div class="val">3</div>
+            <div class="label">DNS Records</div>
+            <div class="indicator green"></div>
+          </div>
+        </div>
+        <div class="cards-grid">
+          <div class="card">
+            <div class="card-title"><span class="sq"></span> Services</div>
+            <table>
+              <thead><tr><th>Identity</th><th>Port</th><th>Status</th></tr></thead>
+              <tbody>
+                <tr><td class="identity">myapp:api:main</td><td class="port">3101</td><td>active</td></tr>
+                <tr><td class="identity">myapp:web:main</td><td class="port">3102</td><td>active</td></tr>
+                <tr><td class="identity">myapp:worker:bg</td><td class="port">3103</td><td>stale</td></tr>
+                <tr><td class="identity">auth:redis</td><td class="port">6379</td><td>active</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="card">
+            <div class="card-title"><span class="sq"></span> Active Sessions</div>
+            <table>
+              <thead><tr><th>Purpose</th><th>Agent</th><th>Phase</th></tr></thead>
+              <tbody>
+                <tr><td>Building auth system</td><td class="identity">agent-a3f2</td><td>in_progress</td></tr>
+                <tr><td>Fixing CSS layout</td><td class="identity">agent-b7c1</td><td>testing</td></tr>
+                <tr><td>Database migration</td><td class="identity">agent-d4e9</td><td>planning</td></tr>
+                <tr><td>API rate limiting</td><td class="identity">agent-f1a0</td><td>reviewing</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================
+     OPTION 3: Signal Tower
+     ================================================================ -->
+<div class="mockup-section">
+  <div class="mockup-label">Option 3</div>
+  <div class="mockup-name">Signal Tower</div>
+  <div class="mockup-vibe">Bold. Systematic. High-contrast.</div>
+  <div class="mockup-ref">Reference: Vercel dashboard, Linear, Swiss design</div>
+  <div class="mockup-frame">
+    <div class="signal">
+      <div class="sidebar">
+        <div class="logo-icon">
+          <svg viewBox="0 0 28 28" fill="none" stroke="#0066CC" stroke-width="2" width="28" height="28">
+            <line x1="14" y1="4" x2="14" y2="24"/>
+            <path d="M8 8 Q14 4 20 8" stroke-width="1.5"/>
+            <path d="M6 12 Q14 7 22 12" stroke-width="1.2" opacity="0.5"/>
+            <path d="M4 16 Q14 10 24 16" stroke-width="1" opacity="0.3"/>
+          </svg>
+        </div>
+        <div class="nav-icon active" title="Overview">&#9632;</div>
+        <div class="nav-icon" title="Services">&#9654;</div>
+        <div class="nav-icon" title="Agents">&#9670;</div>
+        <div class="nav-icon" title="Sessions">&#9644;</div>
+        <div class="nav-icon" title="DNS">&#9673;</div>
+        <div class="nav-icon" title="Locks">&#9638;</div>
+      </div>
+      <div class="main">
+        <div class="topbar">
+          <h2>Overview</h2>
+          <div class="cmd-k">
+            <span>Signal a command...</span>
+            <kbd>&#8984;K</kbd>
+          </div>
+        </div>
+        <div class="content">
+          <div class="stats-row">
+            <div class="stat">
+              <div class="val">15</div>
+              <div class="label">Services</div>
+            </div>
+            <div class="stat">
+              <div class="val">4</div>
+              <div class="label">Agents</div>
+            </div>
+            <div class="stat">
+              <div class="val">7</div>
+              <div class="label">Sessions</div>
+            </div>
+            <div class="stat">
+              <div class="val">0</div>
+              <div class="label">Conflicts</div>
+            </div>
+            <div class="stat">
+              <div class="val">3</div>
+              <div class="label">DNS</div>
+            </div>
+            <div class="stat">
+              <div class="val">2</div>
+              <div class="label">Locks</div>
+            </div>
+          </div>
+          <div class="cards-grid">
+            <div class="card">
+              <div class="card-strip flag-kilo"></div>
+              <div class="card-title">Services</div>
+              <table>
+                <thead><tr><th>Identity</th><th>Port</th><th>Status</th></tr></thead>
+                <tbody>
+                  <tr><td class="identity">myapp:api:main</td><td class="port">3101</td><td><span class="dot green"></span>active</td></tr>
+                  <tr><td class="identity">myapp:web:main</td><td class="port">3102</td><td><span class="dot green"></span>active</td></tr>
+                  <tr><td class="identity">myapp:worker:bg</td><td class="port">3103</td><td><span class="dot amber"></span>stale</td></tr>
+                  <tr><td class="identity">auth:redis</td><td class="port">6379</td><td><span class="dot green"></span>active</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="card">
+              <div class="card-strip purple"></div>
+              <div class="card-title">Agents</div>
+              <table>
+                <thead><tr><th>ID</th><th>Purpose</th><th>Status</th></tr></thead>
+                <tbody>
+                  <tr><td class="identity">agent-a3f2</td><td>Building auth</td><td><span class="dot green"></span>alive</td></tr>
+                  <tr><td class="identity">agent-b7c1</td><td>CSS fixes</td><td><span class="dot green"></span>alive</td></tr>
+                  <tr><td class="identity">agent-d4e9</td><td>DB migration</td><td><span class="dot amber"></span>stale</td></tr>
+                  <tr><td class="identity">agent-f1a0</td><td>Rate limiting</td><td><span class="dot green"></span>alive</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="card">
+              <div class="card-strip green"></div>
+              <div class="card-title">Sessions</div>
+              <table>
+                <thead><tr><th>Purpose</th><th>Phase</th><th>Notes</th></tr></thead>
+                <tbody>
+                  <tr><td>Building auth system</td><td>in_progress</td><td>4</td></tr>
+                  <tr><td>Fixing CSS layout</td><td>testing</td><td>2</td></tr>
+                  <tr><td>Database migration</td><td>planning</td><td>1</td></tr>
+                  <tr><td>API rate limiting</td><td>reviewing</td><td>6</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="card">
+              <div class="card-strip blue"></div>
+              <div class="card-title">DNS Records</div>
+              <table>
+                <thead><tr><th>Hostname</th><th>Port</th><th>Identity</th></tr></thead>
+                <tbody>
+                  <tr><td class="identity">myapp-api.local</td><td class="port">3101</td><td>myapp:api</td></tr>
+                  <tr><td class="identity">myapp-web.local</td><td class="port">3102</td><td>myapp:web</td></tr>
+                  <tr><td class="identity">auth-redis.local</td><td class="port">6379</td><td>auth:redis</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================
+     OPTION 4: Tidal Ink
+     ================================================================ -->
+<div class="mockup-section">
+  <div class="mockup-label">Option 4</div>
+  <div class="mockup-name">Tidal Ink</div>
+  <div class="mockup-vibe">Editorial. Expressive. Rich.</div>
+  <div class="mockup-ref">Reference: Notion, iA Writer, maritime journals</div>
+  <div class="mockup-frame">
+    <div class="tidal">
+      <div class="sidebar">
+        <div class="logo">Port Daddy</div>
+        <nav>
+          <div class="section-label">Fleet</div>
+          <a class="active">Captain's Log</a>
+          <a>Services</a>
+          <a>Agents</a>
+          <div class="section-label">Voyages</div>
+          <a>Sessions</a>
+          <a>Notes</a>
+          <a>File Claims</a>
+          <div class="section-label">Systems</div>
+          <a>DNS</a>
+          <a>Locks</a>
+          <a>Channels</a>
+          <a>Activity</a>
+          <a>Salvage</a>
+        </nav>
+      </div>
+      <div class="main">
+        <h2>Captain's Log</h2>
+        <div class="journal-stats">
+          <div class="journal-stat">
+            <div class="val">15</div>
+            <div class="label">services under management</div>
+          </div>
+          <div class="journal-stat">
+            <div class="val">4</div>
+            <div class="label">agents currently active</div>
+          </div>
+          <div class="journal-stat">
+            <div class="val">7</div>
+            <div class="label">sessions in the log</div>
+          </div>
+          <div class="journal-stat">
+            <div class="val">0</div>
+            <div class="label">conflicts recorded</div>
+          </div>
+        </div>
+        <div class="cards-grid">
+          <div class="card">
+            <div class="card-title">Services</div>
+            <table>
+              <thead><tr><th>Identity</th><th>Port</th><th>Status</th></tr></thead>
+              <tbody>
+                <tr><td class="identity">myapp:api:main</td><td class="port">3101</td><td><span class="status-mark active">&#9632;</span> active</td></tr>
+                <tr><td class="identity">myapp:web:main</td><td class="port">3102</td><td><span class="status-mark active">&#9632;</span> active</td></tr>
+                <tr><td class="identity">myapp:worker:bg</td><td class="port">3103</td><td><span class="status-mark stale">&#9633;</span> stale</td></tr>
+                <tr><td class="identity">auth:redis</td><td class="port">6379</td><td><span class="status-mark active">&#9632;</span> active</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="card">
+            <div class="card-title">Voyages</div>
+            <table>
+              <thead><tr><th>Purpose</th><th>Captain</th><th>Phase</th></tr></thead>
+              <tbody>
+                <tr><td>Building auth system</td><td class="identity">agent-a3f2</td><td>in_progress</td></tr>
+                <tr><td>Fixing CSS layout</td><td class="identity">agent-b7c1</td><td>testing</td></tr>
+                <tr><td>Database migration</td><td class="identity">agent-d4e9</td><td>planning</td></tr>
+              </tbody>
+            </table>
+            <div class="empty-state">"A smooth sea never made a skilled sailor."</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Port Daddy — Extended Design Mockups</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: system-ui, sans-serif; background: #111; color: #ccc; padding: 40px 20px; }
+h1.pt { text-align: center; font-size: 28px; font-weight: 300; color: #fff; margin-bottom: 8px; }
+p.ps { text-align: center; font-size: 14px; color: #888; margin-bottom: 48px; }
+.section { max-width: 1100px; margin: 0 auto 72px; }
+.section-header { font-size: 24px; font-weight: 600; color: #fff; margin-bottom: 4px; }
+.section-sub { font-size: 13px; color: #666; margin-bottom: 24px; }
+.label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #888; margin-bottom: 8px; }
+.frame { border-radius: 12px; overflow: hidden; box-shadow: 0 4px 32px rgba(0,0,0,0.5); margin-bottom: 32px; }
+
+/* =================================================================
+   SHARED HERO STRUCTURE
+   ================================================================= */
+.hero { min-height: 420px; padding: 60px 48px; }
+.hero h1 { margin-bottom: 16px; }
+.hero .sub { margin-bottom: 32px; max-width: 560px; }
+.hero .terminal {
+  border-radius: 8px;
+  padding: 20px 24px;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.8;
+  max-width: 560px;
+}
+.hero .terminal .prompt { opacity: 0.5; }
+.hero .terminal .cmd { font-weight: 600; }
+
+/* SHARED TUTORIAL STRUCTURE */
+.tut-page { min-height: 480px; display: grid; grid-template-columns: 220px 1fr; }
+.tut-sidebar { padding: 24px 0; }
+.tut-sidebar .back { display: block; padding: 8px 20px; font-size: 12px; text-decoration: none; margin-bottom: 16px; }
+.tut-sidebar .toc { list-style: none; padding: 0; }
+.tut-sidebar .toc li { padding: 6px 20px; font-size: 13px; }
+.tut-sidebar .toc li.active { font-weight: 600; }
+.tut-main { padding: 32px 40px; }
+.tut-main .meta { font-size: 12px; margin-bottom: 8px; }
+.tut-main h1 { font-size: 28px; margin-bottom: 8px; }
+.tut-main .desc { font-size: 15px; margin-bottom: 24px; line-height: 1.5; }
+.tut-main h2 { font-size: 18px; margin: 24px 0 12px; }
+.tut-main p { font-size: 14px; line-height: 1.6; margin-bottom: 12px; }
+.tut-main pre {
+  border-radius: 6px;
+  padding: 16px 20px;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-x: auto;
+  margin-bottom: 16px;
+}
+
+/* SHARED DOCS STRUCTURE */
+.docs-page { min-height: 480px; display: grid; grid-template-columns: 220px 1fr; }
+.docs-sidebar { padding: 24px 0; }
+.docs-sidebar h3 { padding: 0 20px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+.docs-sidebar a { display: block; padding: 5px 20px; font-size: 13px; text-decoration: none; }
+.docs-main { padding: 32px 40px; }
+.docs-main h1 { font-size: 28px; margin-bottom: 16px; }
+.docs-main h2 { font-size: 18px; margin: 24px 0 8px; }
+.docs-main p { font-size: 14px; line-height: 1.6; margin-bottom: 12px; }
+.docs-main pre {
+  border-radius: 6px;
+  padding: 16px 20px;
+  font-size: 13px;
+  font-family: 'Courier New', monospace;
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+.docs-main table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 16px; }
+.docs-main th { text-align: left; padding: 8px 12px; font-weight: 600; }
+.docs-main td { padding: 8px 12px; }
+
+/* =================================================================
+   1. ADMIRALTY CHART
+   ================================================================= */
+.adm-hero {
+  background: #FAF8F5;
+  background-image: radial-gradient(ellipse 600px 400px at 70% 30%, rgba(27,94,123,0.04), transparent);
+  color: #2C2825;
+}
+.adm-hero h1 { font-family: Georgia, serif; font-size: 42px; font-weight: 400; color: #2C2825; }
+.adm-hero h1 span { color: #1B5E7B; }
+.adm-hero .sub { color: #7A7570; font-size: 17px; }
+.adm-hero .terminal { background: #fff; border: 1px solid #E5E0D8; }
+.adm-hero .terminal .cmd { color: #1B5E7B; }
+.adm-hero .terminal .val { color: #C4873B; }
+.adm-hero .terminal .ok { color: #2D8659; }
+
+.adm-tut { background: #FAF8F5; color: #2C2825; }
+.adm-tut .tut-sidebar { background: #F3F0EB; border-right: 1px solid #E5E0D8; }
+.adm-tut .tut-sidebar .back { color: #1B5E7B; }
+.adm-tut .tut-sidebar .toc li { color: #7A7570; }
+.adm-tut .tut-sidebar .toc li.active { color: #1B5E7B; border-left: 3px solid #1B5E7B; padding-left: 17px; }
+.adm-tut .tut-main .meta { color: #B0AAA2; }
+.adm-tut .tut-main h1 { font-family: Georgia, serif; font-weight: 400; color: #2C2825; }
+.adm-tut .tut-main .desc { color: #7A7570; }
+.adm-tut .tut-main h2 { font-family: Georgia, serif; font-weight: 400; }
+.adm-tut .tut-main pre { background: #fff; border: 1px solid #E5E0D8; color: #2C2825; }
+
+.adm-docs { background: #FAF8F5; color: #2C2825; }
+.adm-docs .docs-sidebar { background: #F3F0EB; border-right: 1px solid #E5E0D8; }
+.adm-docs .docs-sidebar h3 { color: #B0AAA2; }
+.adm-docs .docs-sidebar a { color: #7A7570; }
+.adm-docs .docs-sidebar a.active { color: #1B5E7B; font-weight: 600; }
+.adm-docs .docs-main h1 { font-family: Georgia, serif; font-weight: 400; }
+.adm-docs .docs-main h2 { font-family: Georgia, serif; font-weight: 400; }
+.adm-docs .docs-main pre { background: #fff; border: 1px solid #E5E0D8; }
+.adm-docs .docs-main th { border-bottom: 2px solid #E5E0D8; color: #7A7570; }
+.adm-docs .docs-main td { border-bottom: 1px solid #F0ECE6; }
+.adm-docs .docs-main code { color: #1B5E7B; font-family: 'Courier New', monospace; }
+
+/* Dark mode */
+.adm-dark { background: #1C1E24; color: #E0DDD8; }
+.adm-dark h1, .adm-dark h2 { color: #E0DDD8; }
+.adm-dark h1 span { color: #5EAAC0; }
+.adm-dark .sub { color: #9A9590; }
+.adm-dark .terminal { background: #252830; border-color: #353840; color: #E0DDD8; }
+.adm-dark .terminal .cmd { color: #5EAAC0; }
+.adm-dark .terminal .val { color: #D4A850; }
+.adm-dark .terminal .ok { color: #6DD194; }
+
+/* =================================================================
+   2. HARBOR MASTER
+   ================================================================= */
+.hm-hero {
+  background: #F5F2ED;
+  color: #33302B;
+}
+.hm-hero h1 { font-family: 'Trebuchet MS', sans-serif; font-size: 40px; font-weight: 700; }
+.hm-hero h1 span { color: #2E6B4F; }
+.hm-hero .sub { color: #6E685E; font-size: 17px; }
+.hm-hero .terminal { background: #FFFEFA; border: 1px solid #DDD7CC; border-radius: 12px; }
+.hm-hero .terminal .cmd { color: #2E6B4F; }
+.hm-hero .terminal .val { color: #B8860B; }
+.hm-hero .terminal .ok { color: #3D8B5E; }
+
+.hm-tut { background: #F5F2ED; color: #33302B; }
+.hm-tut .tut-sidebar { background: #EDE9E2; border-right: 1px solid #DDD7CC; }
+.hm-tut .tut-sidebar .back { color: #2E6B4F; }
+.hm-tut .tut-sidebar .toc li { color: #6E685E; }
+.hm-tut .tut-sidebar .toc li.active { color: #2E6B4F; font-weight: 700; border-left: 2px solid #B8860B; padding-left: 18px; }
+.hm-tut .tut-main .meta { color: #A39D93; }
+.hm-tut .tut-main h1 { font-weight: 700; }
+.hm-tut .tut-main .desc { color: #6E685E; }
+.hm-tut .tut-main pre { background: #FFFEFA; border: 1px solid #DDD7CC; border-radius: 10px; }
+
+.hm-docs { background: #F5F2ED; color: #33302B; }
+.hm-docs .docs-sidebar { background: #EDE9E2; border-right: 1px solid #DDD7CC; }
+.hm-docs .docs-sidebar h3 { color: #A39D93; }
+.hm-docs .docs-sidebar a { color: #6E685E; }
+.hm-docs .docs-sidebar a.active { color: #2E6B4F; font-weight: 600; background: #FFFEFA; border-radius: 6px; margin: 0 8px; padding: 5px 12px; }
+.hm-docs .docs-main h1, .hm-docs .docs-main h2 { font-weight: 700; }
+.hm-docs .docs-main pre { background: #FFFEFA; border: 1px solid #DDD7CC; border-radius: 10px; }
+.hm-docs .docs-main th { border-bottom: 2px solid #DDD7CC; color: #6E685E; }
+.hm-docs .docs-main td { border-bottom: 1px solid #E8E3DA; }
+.hm-docs .docs-main code { color: #2E6B4F; font-family: 'Courier New', monospace; }
+
+.hm-dark { background: #1A1D21; color: #E0DDD8; }
+.hm-dark h1, .hm-dark h2 { color: #E0DDD8; }
+.hm-dark h1 span { color: #4DB87A; }
+.hm-dark .sub { color: #9A9590; }
+.hm-dark .terminal { background: #24272D; border-color: #3A3D44; color: #E0DDD8; }
+.hm-dark .terminal .cmd { color: #4DB87A; }
+.hm-dark .terminal .val { color: #D4A03C; }
+
+/* =================================================================
+   3. SIGNAL TOWER
+   ================================================================= */
+.st-hero {
+  background: #FFFFFF;
+  color: #111113;
+}
+.st-hero h1 { font-family: system-ui, sans-serif; font-size: 48px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; }
+.st-hero h1 span { color: #0066CC; }
+.st-hero .sub { color: #6B6B76; font-size: 17px; }
+.st-hero .flags { display: flex; gap: 24px; margin-bottom: 28px; }
+.st-hero .flag-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #6B6B76; }
+.st-hero .flag-bar { width: 32px; height: 3px; border-radius: 1px; }
+.st-hero .terminal { background: #111113; color: #E8E8EC; border: none; }
+.st-hero .terminal .cmd { color: #58B4FF; }
+.st-hero .terminal .val { color: #E5A000; }
+.st-hero .terminal .ok { color: #3DC47E; }
+
+.st-tut { background: #FAFAFA; color: #111113; }
+.st-tut .tut-sidebar { background: #FFFFFF; border-right: 1px solid #E8E8EC; }
+.st-tut .tut-sidebar .back { color: #0066CC; }
+.st-tut .tut-sidebar .toc li { color: #6B6B76; }
+.st-tut .tut-sidebar .toc li.active { color: #111113; font-weight: 600; border-left: 2px solid #0066CC; padding-left: 18px; }
+.st-tut .tut-main .meta { color: #9D9DA7; }
+.st-tut .tut-main h1 { font-weight: 600; letter-spacing: -0.01em; }
+.st-tut .tut-main .desc { color: #6B6B76; }
+.st-tut .tut-main pre { background: #111113; color: #E8E8EC; }
+
+.st-docs { background: #FAFAFA; color: #111113; }
+.st-docs .docs-sidebar { background: #FFFFFF; border-right: 1px solid #E8E8EC; }
+.st-docs .docs-sidebar h3 { color: #9D9DA7; }
+.st-docs .docs-sidebar a { color: #6B6B76; }
+.st-docs .docs-sidebar a.active { color: #111113; font-weight: 600; }
+.st-docs .docs-main h1, .st-docs .docs-main h2 { font-weight: 600; letter-spacing: -0.01em; }
+.st-docs .docs-main pre { background: #111113; color: #E8E8EC; }
+.st-docs .docs-main th { border-bottom: 2px solid #E8E8EC; color: #6B6B76; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+.st-docs .docs-main td { border-bottom: 1px solid #E8E8EC; }
+.st-docs .docs-main code { color: #0066CC; font-family: 'SF Mono', 'Courier New', monospace; }
+
+.st-dark { background: #111113; color: #E8E8EC; }
+.st-dark h1, .st-dark h2 { color: #E8E8EC; }
+.st-dark .sub { color: #6B6B76; }
+.st-dark .terminal { background: #1C1C1F; border: 1px solid #2C2C31; }
+.st-dark .flags .flag-item { color: #9D9DA7; }
+
+/* =================================================================
+   4. TIDAL INK
+   ================================================================= */
+.ti-hero {
+  background: #FFFFF8;
+  color: #1A1A1A;
+}
+.ti-hero h1 { font-family: Georgia, serif; font-size: 48px; font-weight: 400; line-height: 1.15; }
+.ti-hero h1 span { color: #1A4B6E; }
+.ti-hero .sub { color: #555; font-size: 17px; font-family: 'Helvetica Neue', sans-serif; max-width: 520px; }
+.ti-hero .journal-card {
+  border: 1px solid #D4CFC5;
+  border-radius: 4px;
+  padding: 24px;
+  max-width: 400px;
+  font-family: 'Helvetica Neue', sans-serif;
+  font-size: 13px;
+  line-height: 1.8;
+  color: #555;
+}
+.ti-hero .journal-card .voyage-title { font-family: Georgia, serif; font-size: 16px; color: #1A1A1A; margin-bottom: 8px; }
+.ti-hero .journal-card .note-time { font-style: italic; color: #999; }
+
+.ti-tut { background: #FFFFF8; color: #1A1A1A; }
+.ti-tut .tut-sidebar { border-right: 1px solid #D4CFC5; }
+.ti-tut .tut-sidebar .back { color: #1A4B6E; font-family: Georgia, serif; font-style: italic; }
+.ti-tut .tut-sidebar .toc li { font-family: 'Helvetica Neue', sans-serif; color: #555; }
+.ti-tut .tut-sidebar .toc li.active { color: #1A4B6E; font-weight: 600; }
+.ti-tut .tut-main .meta { color: #999; font-style: italic; font-family: 'Helvetica Neue', sans-serif; }
+.ti-tut .tut-main h1 { font-family: Georgia, serif; font-weight: 400; }
+.ti-tut .tut-main .desc { color: #555; font-family: 'Helvetica Neue', sans-serif; }
+.ti-tut .tut-main h2 { font-family: Georgia, serif; font-weight: 400; }
+.ti-tut .tut-main p { font-family: 'Helvetica Neue', sans-serif; }
+.ti-tut .tut-main pre { background: #FFFFF8; border: 1px solid #D4CFC5; color: #1A1A1A; }
+
+.ti-docs { background: #FFFFF8; color: #1A1A1A; }
+.ti-docs .docs-sidebar { border-right: 1px solid #D4CFC5; }
+.ti-docs .docs-sidebar h3 { font-family: Georgia, serif; font-style: italic; color: #999; font-weight: 400; text-transform: none; letter-spacing: 0; }
+.ti-docs .docs-sidebar a { font-family: 'Helvetica Neue', sans-serif; color: #555; }
+.ti-docs .docs-sidebar a.active { color: #1A4B6E; font-weight: 600; }
+.ti-docs .docs-main h1 { font-family: Georgia, serif; font-weight: 400; }
+.ti-docs .docs-main h2 { font-family: Georgia, serif; font-weight: 400; font-style: italic; }
+.ti-docs .docs-main p { font-family: 'Helvetica Neue', sans-serif; }
+.ti-docs .docs-main pre { background: #FFFFF8; border: 1px solid #D4CFC5; }
+.ti-docs .docs-main th { font-family: 'Helvetica Neue', sans-serif; font-style: italic; font-weight: 400; border-bottom: 1px solid #D4CFC5; color: #999; }
+.ti-docs .docs-main td { font-family: 'Helvetica Neue', sans-serif; border-bottom: 1px solid #EDE8E0; }
+.ti-docs .docs-main code { color: #1A4B6E; }
+
+.ti-dark { background: #191919; color: #D4CFC5; }
+.ti-dark h1, .ti-dark h2 { color: #D4CFC5; }
+.ti-dark h1 span { color: #7BAACC; }
+.ti-dark .sub { color: #888; }
+.ti-dark .journal-card { background: #222; border-color: #333; color: #999; }
+.ti-dark .journal-card .voyage-title { color: #D4CFC5; }
+</style>
+</head>
+<body>
+
+<h1 class="pt">Port Daddy — Extended Design Mockups</h1>
+<p class="ps">Hero pages, tutorial pages, docs pages, and dark mode variants for each direction.</p>
+
+<!-- =================================================================
+     ADMIRALTY CHART
+     ================================================================= -->
+<div class="section">
+  <div class="section-header">1. Admiralty Chart</div>
+  <div class="section-sub">Precise. Institutional. Authoritative. &mdash; Stripe docs energy.</div>
+
+  <div class="label">Hero / Landing Page</div>
+  <div class="frame">
+    <div class="hero adm-hero">
+      <h1>Your ports. <span>My rules.</span><br>Zero conflicts.</h1>
+      <div class="sub">The authoritative port manager for multi-agent development. Stable ports, stack orchestration, and AI agent coordination in one daemon.</div>
+      <div class="terminal">
+        <div><span class="prompt">$ </span><span class="cmd">pd claim myapp:api</span>       <span class="val">port 3101</span></div>
+        <div><span class="prompt">$ </span><span class="cmd">pd claim myapp:web</span>       <span class="val">port 3102</span></div>
+        <div><span class="prompt">$ </span><span class="cmd">pd up</span>                    <span class="ok">3 services started</span></div>
+        <div><span class="prompt">$ </span><span class="cmd">pd dns setup</span>             <span class="ok">resolver initialized</span></div>
+        <div><span class="prompt">$ </span>curl http://<span class="cmd">myapp-api.local</span>:3101/health  <span class="ok">200 OK</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="label">Tutorial Page</div>
+  <div class="frame">
+    <div class="tut-page adm-tut">
+      <div class="tut-sidebar">
+        <a class="back">&larr; All Tutorials</a>
+        <ul class="toc">
+          <li class="active">1. Setup</li>
+          <li>2. Claiming Ports</li>
+          <li>3. DNS Resolution</li>
+          <li>4. Stack Orchestration</li>
+          <li>5. Agent Coordination</li>
+          <li>6. Session Phases</li>
+        </ul>
+      </div>
+      <div class="tut-main">
+        <div class="meta">Tutorial &middot; 10 min &middot; Beginner</div>
+        <h1>Getting Started with Port Daddy</h1>
+        <div class="desc">Learn how to claim stable ports, register DNS hostnames, and orchestrate your development stack with a single daemon.</div>
+        <h2>Prerequisites</h2>
+        <p>Port Daddy requires Node.js 18+ and runs on macOS, Linux, and WSL. Install it globally:</p>
+        <pre>npm install -g port-daddy
+pd start
+pd status</pre>
+        <h2>Your First Port Claim</h2>
+        <p>Port Daddy uses semantic identities in <code>project:stack:context</code> format. The same identity always maps to the same port:</p>
+        <pre>pd claim myapp:api       # Always gets port 3101
+pd claim myapp:api       # Idempotent — same port again
+pd find myapp:api        # Shows port, status, uptime</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="label">SDK Documentation Page</div>
+  <div class="frame">
+    <div class="docs-page adm-docs">
+      <div class="docs-sidebar">
+        <h3>SDK Reference</h3>
+        <a class="active">DNS</a>
+        <a>Services</a>
+        <a>Sessions</a>
+        <a>Agents</a>
+        <a>Locks</a>
+        <a>Messaging</a>
+        <a>Webhooks</a>
+        <h3>Guides</h3>
+        <a>Getting Started</a>
+        <a>Multi-Agent</a>
+        <a>Orchestration</a>
+      </div>
+      <div class="docs-main">
+        <h1>DNS &mdash; SDK Reference</h1>
+        <p>Register <code>.local</code> hostnames for services and optionally resolve them at the OS level via <code>/etc/hosts</code>.</p>
+        <h2>Register a DNS Record</h2>
+        <pre>const result = await pd.dnsRegister('myapp:api', { port: 3101 });
+// { hostname: 'myapp-api.local', port: 3101, updated: false }</pre>
+        <h2>Methods</h2>
+        <table>
+          <thead><tr><th>Method</th><th>Description</th><th>Returns</th></tr></thead>
+          <tbody>
+            <tr><td><code>dnsRegister(id, opts)</code></td><td>Register a DNS record</td><td>DnsRegisterResponse</td></tr>
+            <tr><td><code>dnsUnregister(id)</code></td><td>Remove a DNS record</td><td>DnsUnregisterResponse</td></tr>
+            <tr><td><code>dnsSetup()</code></td><td>Init /etc/hosts section</td><td>DnsSetupResponse</td></tr>
+            <tr><td><code>dnsTeardown()</code></td><td>Remove /etc/hosts section</td><td>DnsTeardownResponse</td></tr>
+            <tr><td><code>dnsSync()</code></td><td>Rebuild from registry</td><td>DnsSyncResponse</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="label">Dark Mode Variant</div>
+  <div class="frame">
+    <div class="hero adm-hero adm-dark">
+      <h1>Your ports. <span>My rules.</span><br>Zero conflicts.</h1>
+      <div class="sub">The authoritative port manager for multi-agent development.</div>
+      <div class="terminal">
+        <div><span class="prompt">$ </span><span class="cmd">pd begin</span> "Building auth" <span class="ok">session started</span></div>
+        <div><span class="prompt">$ </span><span class="cmd">pd dns register myapp:api</span> --resolve <span class="val">myapp-api.local</span></div>
+        <div><span class="prompt">$ </span><span class="cmd">pd done</span> "Auth complete" <span class="ok">session ended</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =================================================================
+     HARBOR MASTER
+     ================================================================= -->
+<div class="section">
+  <div class="section-header">2. Harbor Master</div>
+  <div class="section-sub">Warm. Structured. Reliable. &mdash; Linear app energy.</div>
+
+  <div class="label">Hero / Landing Page</div>
+  <div class="frame">
+    <div class="hero hm-hero">
+      <h1>Every port <span>accounted for.</span></h1>
+      <div class="sub">Port Daddy manages your dev server ports, starts your stack, and coordinates AI agents. One daemon. Many projects. Zero conflicts.</div>
+      <div class="terminal">
+        <div><span class="prompt">$ </span><span class="cmd">pd claim myapp:api</span>     <span class="val">port 3101</span></div>
+        <div><span class="prompt">$ </span><span class="cmd">pd claim myapp:web</span>     <span class="val">port 3102</span></div>
+        <div><span class="prompt">$ </span><span class="cmd">pd up</span>                  <span class="ok">api, web, worker started</span></div>
+        <div><span class="prompt">$ </span><span class="cmd">pd begin</span> "Fix auth"    <span class="ok">session-a3f2 started</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="label">Tutorial Page</div>
+  <div class="frame">
+    <div class="tut-page hm-tut">
+      <div class="tut-sidebar">
+        <a class="back">&larr; Tutorials</a>
+        <ul class="toc">
+          <li class="active">1. Install & Verify</li>
+          <li>2. Semantic Identities</li>
+          <li>3. DNS Hostnames</li>
+          <li>4. Agent Sessions</li>
+          <li>5. Distributed Locks</li>
+          <li>6. Service Orchestration</li>
+        </ul>
+      </div>
+      <div class="tut-main">
+        <div class="meta">Tutorial &middot; 15 min &middot; Beginner</div>
+        <h1>Getting Started</h1>
+        <div class="desc">Set up Port Daddy, claim your first ports, and learn the naming system that makes ports deterministic.</div>
+        <h2>Installation</h2>
+        <p>Port Daddy is a single npm package. Install it globally and start the daemon:</p>
+        <pre>npm install -g port-daddy
+pd start
+pd status    # verify the daemon is running</pre>
+        <h2>The Naming System</h2>
+        <p>Identities follow <code>project:stack:context</code> format. The same identity always gets the same port.</p>
+        <pre>pd claim myapp:api        # deterministic port
+pd claim myapp:api        # same port, idempotent
+pd claim myapp:api:test   # different context, different port</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="label">SDK Documentation Page</div>
+  <div class="frame">
+    <div class="docs-page hm-docs">
+      <div class="docs-sidebar">
+        <h3>Reference</h3>
+        <a class="active">DNS</a>
+        <a>Services</a>
+        <a>Sessions</a>
+        <a>Agents</a>
+        <a>Locks</a>
+        <a>Messaging</a>
+        <h3>Guides</h3>
+        <a>Quick Start</a>
+        <a>Multi-Agent</a>
+        <a>Orchestration</a>
+      </div>
+      <div class="docs-main">
+        <h1>DNS</h1>
+        <p>Map semantic identities to <code>.local</code> hostnames. Optionally resolve at the OS level.</p>
+        <h2>Register</h2>
+        <pre>const result = await pd.dnsRegister('myapp:api', { port: 3101 });
+console.log(result.hostname); // 'myapp-api.local'</pre>
+        <h2>Methods</h2>
+        <table>
+          <thead><tr><th>Method</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>dnsRegister(id, opts)</code></td><td>Register a .local hostname</td></tr>
+            <tr><td><code>dnsUnregister(id)</code></td><td>Remove a hostname</td></tr>
+            <tr><td><code>dnsSetup()</code></td><td>Init /etc/hosts resolver</td></tr>
+            <tr><td><code>dnsTeardown()</code></td><td>Remove resolver</td></tr>
+            <tr><td><code>dnsSync()</code></td><td>Rebuild /etc/hosts from registry</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="label">Dark Mode Variant</div>
+  <div class="frame">
+    <div class="hero hm-hero hm-dark">
+      <h1>Every port <span>accounted for.</span></h1>
+      <div class="sub">One daemon. Many projects. Zero conflicts.</div>
+      <div class="terminal">
+        <div><span class="prompt">$ </span><span class="cmd">pd begin</span> "Database migration" <span class="ok">session started</span></div>
+        <div><span class="prompt">$ </span><span class="cmd">pd with-lock</span> db-migrations npm run migrate <span class="ok">locked</span></div>
+        <div><span class="prompt">$ </span><span class="cmd">pd done</span> "Migrations complete"</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =================================================================
+     SIGNAL TOWER
+     ================================================================= -->
+<div class="section">
+  <div class="section-header">3. Signal Tower</div>
+  <div class="section-sub">Bold. Systematic. High-contrast. &mdash; Vercel dashboard energy.</div>
+
+  <div class="label">Hero / Landing Page</div>
+  <div class="frame">
+    <div class="hero st-hero">
+      <h1>Port management<br>for the <span>multi-agent era.</span></h1>
+      <div class="sub">Stable ports. Stack orchestration. Agent coordination. One daemon.</div>
+      <div class="flags">
+        <div class="flag-item"><div class="flag-bar" style="background: linear-gradient(90deg, #0066CC 50%, #fff 50%)"></div> Claim</div>
+        <div class="flag-item"><div class="flag-bar" style="background: linear-gradient(90deg, #E5A000 50%, #0066CC 50%)"></div> Coordinate</div>
+        <div class="flag-item"><div class="flag-bar" style="background: linear-gradient(90deg, #CD2B31 33%, #fff 33% 66%, #CD2B31 66%)"></div> Recover</div>
+        <div class="flag-item"><div class="flag-bar" style="background: #18794E"></div> Deploy</div>
+      </div>
+      <div class="terminal">
+        <div><span class="prompt">$ </span><span class="cmd">pd begin</span> --purpose "Building auth"</div>
+        <div>  <span class="ok">session-a3f2 started</span>  |  <span class="val">port 3101</span> claimed</div>
+        <div></div>
+        <div><span class="prompt">$ </span><span class="cmd">pd up</span></div>
+        <div>  api     <span class="ok">:3101  [ready]</span></div>
+        <div>  web     <span class="ok">:3102  [ready]</span></div>
+        <div>  worker  <span class="ok">:3103  [ready]</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="label">Tutorial Page</div>
+  <div class="frame">
+    <div class="tut-page st-tut">
+      <div class="tut-sidebar">
+        <a class="back">&larr; Tutorials</a>
+        <ul class="toc">
+          <li class="active">1. Quick Start</li>
+          <li>2. DNS Resolution</li>
+          <li>3. Agent Sessions</li>
+          <li>4. Distributed Locks</li>
+          <li>5. Service Orchestration</li>
+          <li>6. Session Phases</li>
+        </ul>
+      </div>
+      <div class="tut-main">
+        <div class="meta">TUTORIAL &middot; 10 MIN &middot; BEGINNER</div>
+        <h1>Quick Start</h1>
+        <div class="desc">Install Port Daddy, claim your first port, and register a DNS hostname in under 5 minutes.</div>
+        <h2>Install</h2>
+        <p>One global package. One daemon. Works everywhere Node.js runs.</p>
+        <pre>npm install -g port-daddy
+pd start
+pd health</pre>
+        <h2>Claim a Port</h2>
+        <p>Identities are <code>project:stack:context</code>. Same identity = same port, every time.</p>
+        <pre>pd claim myapp:api          # port 3101
+pd claim myapp:api          # still 3101 — idempotent
+pd dns register myapp:api --resolve   # myapp-api.local</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="label">SDK Documentation Page</div>
+  <div class="frame">
+    <div class="docs-page st-docs">
+      <div class="docs-sidebar">
+        <h3>SDK</h3>
+        <a class="active">DNS</a>
+        <a>Services</a>
+        <a>Sessions</a>
+        <a>Agents</a>
+        <a>Locks</a>
+        <a>Pub/Sub</a>
+        <a>Tunnels</a>
+        <h3>Guides</h3>
+        <a>Quick Start</a>
+        <a>War Room</a>
+      </div>
+      <div class="docs-main">
+        <h1>DNS</h1>
+        <p>Map <code>project:stack</code> identities to <code>.local</code> hostnames. Resolve at the OS level with the /etc/hosts integration.</p>
+        <h2>Register</h2>
+        <pre>const result = await pd.dnsRegister('myapp:api', { port: 3101 })
+// { hostname: 'myapp-api.local', port: 3101 }</pre>
+        <h2>API</h2>
+        <table>
+          <thead><tr><th>Method</th><th>Route</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>dnsRegister()</code></td><td>POST /dns/:id</td><td>Register hostname</td></tr>
+            <tr><td><code>dnsSetup()</code></td><td>POST /dns/setup</td><td>Init /etc/hosts</td></tr>
+            <tr><td><code>dnsSync()</code></td><td>POST /dns/sync</td><td>Rebuild from registry</td></tr>
+            <tr><td><code>dnsTeardown()</code></td><td>POST /dns/teardown</td><td>Remove section</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="label">Dark Mode Variant</div>
+  <div class="frame">
+    <div class="hero st-hero st-dark">
+      <h1>Port management<br>for the <span>multi-agent era.</span></h1>
+      <div class="sub">Stable ports. Stack orchestration. Agent coordination. One daemon.</div>
+      <div class="flags">
+        <div class="flag-item"><div class="flag-bar" style="background: linear-gradient(90deg, #58B4FF 50%, #2C2C31 50%)"></div> Claim</div>
+        <div class="flag-item"><div class="flag-bar" style="background: linear-gradient(90deg, #E5A000 50%, #58B4FF 50%)"></div> Coordinate</div>
+        <div class="flag-item"><div class="flag-bar" style="background: linear-gradient(90deg, #CD2B31 33%, #2C2C31 33% 66%, #CD2B31 66%)"></div> Recover</div>
+        <div class="flag-item"><div class="flag-bar" style="background: #3DC47E"></div> Deploy</div>
+      </div>
+      <div class="terminal">
+        <div><span class="prompt">$ </span><span class="cmd">pd salvage</span></div>
+        <div>  agent-d4e9  <span class="val">DB migration</span>  dead 22m ago</div>
+        <div><span class="prompt">$ </span><span class="cmd">pd salvage claim</span> agent-d4e9  <span class="ok">claimed</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =================================================================
+     TIDAL INK
+     ================================================================= -->
+<div class="section">
+  <div class="section-header">4. Tidal Ink</div>
+  <div class="section-sub">Editorial. Expressive. Rich. &mdash; Notion / iA Writer energy.</div>
+
+  <div class="label">Hero / Landing Page</div>
+  <div class="frame">
+    <div class="hero ti-hero">
+      <h1>One daemon.<br>Many projects.<br><span>Zero conflicts.</span></h1>
+      <div class="sub">Port Daddy is the authoritative port manager for multi-agent development. It assigns stable ports, orchestrates your stack, and keeps AI coding agents from stepping on each other.</div>
+      <div class="journal-card">
+        <div class="voyage-title">Voyage session-a3f2</div>
+        Captain: dashboard-alpha<br>
+        Purpose: Building authentication system<br>
+        Phase: in_progress &middot; Duration: 4m 31s<br><br>
+        <span class="note-time">12:11:24</span> &mdash; Claimed myapp:api on port 3101<br>
+        <span class="note-time">12:11:25</span> &mdash; DNS registered: myapp-api.local<br>
+        <span class="note-time">12:15:55</span> &mdash; "Auth middleware complete, tests passing"
+      </div>
+    </div>
+  </div>
+
+  <div class="label">Tutorial Page</div>
+  <div class="frame">
+    <div class="tut-page ti-tut">
+      <div class="tut-sidebar">
+        <a class="back">&larr; All Tutorials</a>
+        <ul class="toc">
+          <li class="active">1. First Voyage</li>
+          <li>2. The Naming System</li>
+          <li>3. Local DNS</li>
+          <li>4. Orchestrating a Fleet</li>
+          <li>5. Coordination Patterns</li>
+          <li>6. Session Phases</li>
+        </ul>
+      </div>
+      <div class="tut-main">
+        <div class="meta">Tutorial &middot; 10 min &middot; Beginner</div>
+        <h1>First Voyage</h1>
+        <div class="desc">Install Port Daddy, claim your first port, and understand why the same identity always maps to the same port.</div>
+        <h2>Setting Sail</h2>
+        <p>Port Daddy is a single npm package that runs as a local daemon. Install it and start the daemon:</p>
+        <pre>npm install -g port-daddy
+pd start
+pd status</pre>
+        <h2>Your First Claim</h2>
+        <p>Every service gets a semantic identity. The identity determines the port &mdash; deterministically, every time:</p>
+        <pre>pd claim myapp:api       # port 3101, always
+pd claim myapp:web       # port 3102, always
+pd find myapp:*          # list your fleet</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="label">SDK Documentation Page</div>
+  <div class="frame">
+    <div class="docs-page ti-docs">
+      <div class="docs-sidebar">
+        <h3>Reference</h3>
+        <a class="active">DNS</a>
+        <a>Services</a>
+        <a>Sessions</a>
+        <a>Agents</a>
+        <a>Locks</a>
+        <a>Channels</a>
+        <h3>Guides</h3>
+        <a>Getting Started</a>
+        <a>The War Room</a>
+        <a>Orchestration</a>
+      </div>
+      <div class="docs-main">
+        <h1>DNS</h1>
+        <p>Map semantic identities to <code>.local</code> hostnames. Optionally resolve them at the OS level through <code>/etc/hosts</code>.</p>
+        <h2>Registering a Record</h2>
+        <pre>const result = await pd.dnsRegister('myapp:api', { port: 3101 });
+// hostname: 'myapp-api.local'</pre>
+        <h2>Available Methods</h2>
+        <table>
+          <thead><tr><th>Method</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><td><code>dnsRegister(id, opts)</code></td><td>Map an identity to a .local hostname</td></tr>
+            <tr><td><code>dnsUnregister(id)</code></td><td>Remove the mapping</td></tr>
+            <tr><td><code>dnsSetup()</code></td><td>Initialize the /etc/hosts managed section</td></tr>
+            <tr><td><code>dnsTeardown()</code></td><td>Remove the managed section entirely</td></tr>
+            <tr><td><code>dnsSync()</code></td><td>Rebuild /etc/hosts from the DNS registry</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="label">Dark Mode ("Lamplight")</div>
+  <div class="frame">
+    <div class="hero ti-hero ti-dark">
+      <h1>One daemon.<br>Many projects.<br><span>Zero conflicts.</span></h1>
+      <div class="sub">Port Daddy assigns stable ports, orchestrates your stack, and keeps AI coding agents from stepping on each other.</div>
+      <div class="journal-card">
+        <div class="voyage-title">Voyage session-b7c1</div>
+        Captain: css-fixer<br>
+        Purpose: Fixing responsive layout<br>
+        Phase: testing &middot; Duration: 12m 8s<br><br>
+        <span class="note-time">14:22:01</span> &mdash; "Flexbox grid replacing float layout"<br>
+        <span class="note-time">14:34:09</span> &mdash; "All breakpoints verified, tests green"
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
