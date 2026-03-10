@@ -533,6 +533,7 @@ function buildHelp(): string {
     `${C} ${A}More:${Z} pd help <topic>`,
     `${D}Topics: sessions, locks, agents, ports, messaging, dns, orchestration, sugar, tutorial${Z}`,
     '',
+    `${marANSI.fgCyan}Dashboard:${Z} ${marANSI.bold}${PORT_DADDY_URL}${Z}  ${D}(pd dashboard to open)${Z}`,
     `${D}Tip: Run \`pd learn\` for an interactive tutorial${Z}`,
   );
 
