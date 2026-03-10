@@ -248,6 +248,26 @@ export function suggestNames(
     };
   }
 
+  // Disambiguate colliding identities using service name as context.
+  // e.g. two Cloudflare Workers both getting :worker:main → :worker:redirect + :worker:reminders
+  const seen = new Map<string, string[]>();
+  for (const [name, s] of Object.entries(suggestions)) {
+    if (!seen.has(s.full)) seen.set(s.full, []);
+    seen.get(s.full)!.push(name);
+  }
+  for (const names of seen.values()) {
+    if (names.length > 1) {
+      for (const name of names) {
+        const svcContext = name.replace(/[^a-z0-9-]/gi, '-').toLowerCase();
+        suggestions[name] = {
+          ...suggestions[name],
+          context: svcContext,
+          full: `${suggestions[name].project}:${suggestions[name].stack}:${svcContext}`
+        };
+      }
+    }
+  }
+
   return suggestions;
 }
 

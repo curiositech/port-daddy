@@ -240,13 +240,24 @@ resurrection.on('agent:stale', (agent) => {
 });
 
 resurrection.on('agent:dead', (agent) => {
+  // Zombie protocol: abandon any active sessions owned by this dead agent.
+  const zombied = sessions.abandonByAgent(agent.id);
+  if (zombied > 0) {
+    logger.warn('zombie_sessions_abandoned', { agentId: agent.id, count: zombied });
+    activityLog.log(ActivityType.SESSION_END, {
+      details: `Zombie protocol: ${zombied} active session(s) abandoned — agent ${agent.name || agent.id} is dead`,
+      metadata: { agentId: agent.id, zombied }
+    });
+  }
+
   messaging.publish('resurrection', JSON.stringify({
     event: 'dead',
     agentId: agent.id,
     name: agent.name,
     purpose: agent.purpose,
     lastHeartbeat: agent.lastHeartbeat,
-    staleSince: agent.staleSince
+    staleSince: agent.staleSince,
+    zombiedSessions: zombied
   }));
   // Also broadcast on general agent channel
   messaging.publish('agents', JSON.stringify({

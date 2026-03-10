@@ -251,6 +251,10 @@ export function createSessions(db: Database.Database) {
     updateStatus: db.prepare(`
       UPDATE sessions SET status = ?, updated_at = ?, completed_at = ? WHERE id = ?
     `),
+    abandonActiveByAgent: db.prepare(`
+      UPDATE sessions SET status = 'abandoned', updated_at = ?, completed_at = ?
+      WHERE status = 'active' AND agent_id = ?
+    `),
     deleteById: db.prepare('DELETE FROM sessions WHERE id = ?'),
     listActive: db.prepare(`
       SELECT * FROM sessions WHERE status = 'active' ORDER BY updated_at DESC LIMIT ?
@@ -631,6 +635,16 @@ export function createSessions(db: Database.Database) {
    */
   function abandon(sessionId: string) {
     return end(sessionId, { status: 'abandoned' });
+  }
+
+  /**
+   * Zombie protocol: abandon all active sessions owned by a dead agent.
+   * Called when the resurrection reaper marks an agent as dead.
+   */
+  function abandonByAgent(agentId: string): number {
+    const now = Date.now();
+    const result = stmts.abandonActiveByAgent.run(now, now, agentId);
+    return result.changes;
   }
 
   /**
@@ -1234,6 +1248,7 @@ export function createSessions(db: Database.Database) {
     start,
     end,
     abandon,
+    abandonByAgent,
     remove,
     addNote,
     quickNote,
