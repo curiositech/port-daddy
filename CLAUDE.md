@@ -56,10 +56,24 @@ examples/
   agent-coordination.js  # Multi-agent example
 ```
 
+## Always-On Daemon
+
+The Port Daddy daemon is installed as a launchd service and MUST always be running.
+It auto-starts on login. Before any session, verify:
+
+```bash
+pd status                          # must show "running"
+launchctl list | grep portdaddy    # must show com.portdaddy.daemon
+```
+
+If not running: `pd start`. If not installed: `pd install`.
+
+This project dogfoods Port Daddy for all coordination — the daemon being down is a blocker, not a deferral reason.
+
 ## Development
 
 ```bash
-# Start in development mode
+# Start in development mode (use when iterating on server.ts — restarts on change)
 npm run dev
 
 # Run tests (restarts daemon with fresh code)
