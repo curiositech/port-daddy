@@ -12,38 +12,37 @@
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%9A%93</text></svg>">
   <link rel="stylesheet" href="css/shared.css">
   <style>
-    /* Hero — full-width, install-CTA centered */
-    .hero {
-      padding: 7rem 1.5rem 5rem;
-      text-align: center;
+    /* Hero — 2-column grid: text+CTA left, GIF right */
+    .hero { padding: 5.5rem 1.5rem 4rem; }
+    .hero-grid {
+      max-width: 1200px; margin: 0 auto;
+      display: grid; grid-template-columns: 1fr 1.2fr;
+      gap: 4rem; align-items: center;
     }
-    .hero-inner { max-width: 680px; margin: 0 auto; }
+    @media (max-width: 940px) {
+      .hero-grid { grid-template-columns: 1fr; gap: 3rem; }
+    }
     .hero h1 {
-      font-size: 4rem; font-weight: 800;
-      letter-spacing: -0.05em; line-height: 1.05;
-      margin-bottom: 1.25rem;
+      font-size: 3.4rem; font-weight: 800;
+      letter-spacing: -0.045em; line-height: 1.1;
+      margin-bottom: 1.1rem;
     }
+    @media (max-width: 640px) { .hero h1 { font-size: 2.4rem; } }
     .hero-desc {
-      font-size: 1.15rem; color: var(--text-muted);
-      line-height: 1.7; margin-bottom: 2.5rem;
-      max-width: 560px; margin-left: auto; margin-right: auto;
+      font-size: 1.05rem; color: var(--text-muted);
+      line-height: 1.7; margin-bottom: 2rem; max-width: 520px;
     }
-    .hero-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; justify-content: center; margin-top: 1.5rem; }
+    .hero-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }
 
     /* Signal flag strips */
-    .signal-flags { display: flex; gap: 0; margin-bottom: 2rem; justify-content: center; }
-    .signal-flags .sf {
-      height: 5px; width: 48px;
-    }
+    .signal-flags { display: flex; gap: 0; margin-bottom: 1.75rem; }
+    .signal-flags .sf { height: 4px; width: 40px; }
 
-    /* ── Install CTA ── */
+    /* ── Quickstart CTA ── */
     .install-hero {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 1.5rem;
-      max-width: 540px;
-      margin: 0 auto 1.25rem;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 1.25rem;
+      max-width: 520px; margin-bottom: 1.5rem;
       box-shadow: 0 4px 24px rgba(0,0,0,0.06);
     }
     .install-tabs {
@@ -52,14 +51,13 @@
       width: fit-content;
     }
     .install-tab {
-      padding: 0.3rem 0.8rem; border-radius: 6px; border: none;
+      padding: 0.3rem 0.75rem; border-radius: 6px; border: none;
       background: transparent; color: var(--text-muted);
-      font-family: var(--font-mono); font-size: 0.8rem;
+      font-family: var(--font-mono); font-size: 0.78rem;
       cursor: pointer; transition: background 0.12s, color 0.12s;
     }
     .install-tab.active {
-      background: var(--bg-card);
-      color: var(--text);
+      background: var(--bg-card); color: var(--text);
       box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
     .install-cmd-wrap {
@@ -68,10 +66,9 @@
       border-radius: 8px; padding: 0.6rem 0.75rem 0.6rem 1rem;
     }
     .install-cmd {
-      flex: 1; font-family: var(--font-mono); font-size: 1.05rem;
+      flex: 1; font-family: var(--font-mono); font-size: 1rem;
       color: var(--text); background: none; border: none;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-      font-weight: 500;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500;
     }
     .install-cmd .cmd-prefix { color: var(--text-muted); user-select: none; }
     .copy-btn {
@@ -90,27 +87,25 @@
     .copy-btn.copied .icon-check { display: block; }
     .copy-btn .copy-label::after { content: 'Copy'; }
     .copy-btn.copied .copy-label::after { content: 'Copied!'; }
+    /* Agent Skill panel */
+    .agent-skill-panel {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; padding: 0.75rem 1rem;
+    }
+    .agent-skill-panel p { font-size: 0.8rem; color: var(--text-muted); margin: 0 0 0.5rem; }
+    .agent-skill-panel pre {
+      margin: 0; background: none; border: none; padding: 0;
+      font-family: var(--font-mono); font-size: 0.875rem; color: var(--text);
+    }
     .install-includes {
-      margin: 0.75rem 0 0; font-size: 0.8rem; color: var(--text-muted);
-      text-align: center;
+      margin: 0.75rem 0 0; font-size: 0.78rem; color: var(--text-muted);
     }
     .install-includes strong { color: var(--text); }
 
-    /* See It In Action — GIF demos */
-    .demos {
-      padding: 5rem 1.5rem;
-      background: var(--bg-card);
-      border-top: 1px solid var(--border);
-      border-bottom: 1px solid var(--border);
-    }
-    .demos-inner { max-width: 1100px; margin: 0 auto; }
-    .demos-header { margin-bottom: 2.5rem; text-align: center; }
-
-    /* GIF Slider */
-    .hero-slider { display: flex; flex-direction: column; gap: 0.875rem; max-width: 900px; margin: 0 auto; }
+    /* Hero right — GIF slider */
+    .hero-slider { display: flex; flex-direction: column; gap: 0.875rem; }
     .slider-window {
-      border-radius: 10px; overflow: hidden;
-      border: 1px solid #2C2C31;
+      border-radius: 10px; overflow: hidden; border: 1px solid #2C2C31;
       box-shadow: 0 16px 48px rgba(0,0,0,0.3);
     }
     .slider-bar {
@@ -123,8 +118,7 @@
     .slider-dot.y { background: #d4a017; }
     .slider-dot.g { background: #5a8f5a; }
     .slider-bar-label {
-      font-family: var(--font-mono); font-size: 0.68rem;
-      color: #6B6B76; margin-left: auto;
+      font-family: var(--font-mono); font-size: 0.68rem; color: #6B6B76; margin-left: auto;
     }
     .slider-track { background: #111113; }
     .slider-track img { width: 100%; display: none; }
@@ -141,9 +135,8 @@
     .slider-btn svg { width: 13px; height: 13px; }
     .slider-pips { display: flex; gap: 5px; flex: 1; justify-content: center; }
     .slider-pip {
-      width: 6px; height: 6px; border-radius: 50%;
-      background: var(--border); border: none; cursor: pointer;
-      padding: 0; transition: background 0.15s;
+      width: 6px; height: 6px; border-radius: 50%; background: var(--border);
+      border: none; cursor: pointer; padding: 0; transition: background 0.15s;
     }
     .slider-pip.active { background: var(--blue); width: 18px; border-radius: 3px; }
     .slider-caption {
@@ -152,21 +145,11 @@
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
 
-    @media (max-width: 640px) {
-      .hero h1 { font-size: 2.75rem; }
-      .install-cmd { font-size: 0.9rem; }
-    }
-
     /* Features */
-    .features {
-      padding: 5rem 1.5rem;
-      max-width: 1200px; margin: 0 auto;
-    }
+    .features { padding: 5rem 1.5rem; max-width: 1200px; margin: 0 auto; }
     .features-header { margin-bottom: 3rem; }
     .features-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-      gap: 1.5rem;
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.5rem;
     }
     .feature-card {
       background: var(--bg-card); border: 1px solid var(--border);
@@ -174,77 +157,29 @@
       overflow: hidden; transition: all 0.2s ease;
     }
     .feature-card:hover {
-      border-color: var(--border);
-      box-shadow: 0 4px 16px rgba(0,0,0,0.06);
-      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.06); transform: translateY(-2px);
     }
     .feature-card-body { padding: 1.5rem; }
     .feature-card h3 { margin-bottom: 0.5rem; font-size: 1.1rem; }
     .feature-card p { color: var(--text-muted); font-size: 0.875rem; line-height: 1.6; margin: 0; }
     .feature-card code {
-      display: inline-block; margin-top: 0.75rem;
-      font-size: 0.8rem; padding: 0.25rem 0.5rem;
+      display: inline-block; margin-top: 0.75rem; font-size: 0.8rem; padding: 0.25rem 0.5rem;
     }
-
-    /* Demo Section */
-    .demos {
-      padding: 5rem 1.5rem;
-      background: var(--bg-card);
-      border-top: 1px solid var(--border);
-      border-bottom: 1px solid var(--border);
-    }
-    .demos-inner { max-width: 1100px; margin: 0 auto; }
-    .demos-header { margin-bottom: 2.5rem; }
-    .demo-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 2rem;
-    }
-    @media (max-width: 900px) { .demo-grid { grid-template-columns: 1fr; } }
-    .demo-card { display: flex; flex-direction: column; gap: 0.75rem; }
-    .demo-label {
-      font-family: var(--font-display); font-weight: 600; font-size: 1rem;
-      color: var(--text);
-    }
-    .demo-desc { font-size: 0.875rem; color: var(--text-muted); line-height: 1.5; margin: 0; }
-    .demo-screen {
-      border-radius: 10px; overflow: hidden;
-      border: 1px solid var(--border);
-      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
-      background: #1a1b26;
-    }
-    .demo-screen-bar {
-      background: #13141f; padding: 0.5rem 0.75rem;
-      display: flex; align-items: center; gap: 0.4rem;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
-    }
-    .demo-dot { width: 10px; height: 10px; border-radius: 50%; }
-    .demo-dot.r { background: #c44536; }
-    .demo-dot.y { background: #d4a017; }
-    .demo-dot.g { background: #5a8f5a; }
-    .demo-screen img { width: 100%; display: block; }
 
     /* Quick Start */
-    .quick-start {
-      padding: 5rem 1.5rem;
-      max-width: 800px; margin: 0 auto;
-    }
+    .quick-start { padding: 5rem 1.5rem; max-width: 800px; margin: 0 auto; }
     .quick-start h2 { margin-bottom: 2rem; }
     .install-steps { display: flex; flex-direction: column; gap: 1.5rem; }
-    .install-step {
-      display: flex; gap: 1rem; align-items: flex-start;
-    }
+    .install-step { display: flex; gap: 1rem; align-items: flex-start; }
     .step-num {
       display: flex; align-items: center; justify-content: center;
       width: 28px; height: 28px; flex-shrink: 0;
       background: var(--text); color: var(--bg);
-      border-radius: 6px; font-weight: 600; font-size: 0.8rem;
-      font-family: var(--font-display);
+      border-radius: 6px; font-weight: 600; font-size: 0.8rem; font-family: var(--font-display);
     }
     .step-content { flex: 1; }
     .step-content h4 { margin-bottom: 0.5rem; }
     .step-content p { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.75rem; }
-
   </style>
 </head>
 <body>
@@ -272,77 +207,81 @@
 
   <main>
     <section class="hero">
-      <div class="hero-inner">
-        <div class="signal-flags">
-          <span class="sf" style="background:#0066CC;"></span>
-          <span class="sf" style="background:#18794E;"></span>
-          <span class="sf" style="background:#E5A000;"></span>
-          <span class="sf" style="background:#CD2B31;"></span>
-          <span class="sf" style="background:#6E56CF;"></span>
-        </div>
+      <div class="hero-grid">
 
-        <h1>Your ports.<br>My rules.<br>Zero conflicts.</h1>
-        <p class="hero-desc">Port Daddy is the authoritative port manager for multi-agent development. Stable ports, agent coordination, pub/sub messaging, and dead-agent salvage — all from one daemon.</p>
-
-        <!-- BIG INSTALL CTA -->
-        <div class="install-hero">
-          <div class="install-tabs">
-            <button class="install-tab active" data-cmd="npm install -g port-daddy" onclick="switchTab(this)">npm</button>
-            <button class="install-tab" data-cmd="npx port-daddy" onclick="switchTab(this)">npx</button>
+        <!-- LEFT: Text + Quickstart -->
+        <div class="hero-left">
+          <div class="signal-flags">
+            <span class="sf" style="background:#0066CC;"></span>
+            <span class="sf" style="background:#18794E;"></span>
+            <span class="sf" style="background:#E5A000;"></span>
+            <span class="sf" style="background:#CD2B31;"></span>
+            <span class="sf" style="background:#6E56CF;"></span>
           </div>
-          <div class="install-cmd-wrap">
-            <code class="install-cmd"><span class="cmd-prefix">$ </span><span id="install-cmd-text">npm install -g port-daddy</span></code>
-            <button class="copy-btn" id="copy-btn" onclick="copyInstall()" aria-label="Copy install command">
-              <svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-              <svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              <span class="copy-label"></span>
-            </button>
-          </div>
-          <p class="install-includes">Installs <strong>CLI</strong>, <strong>MCP server</strong>, and <strong>Claude Code skills</strong> — ready to use immediately.</p>
-        </div>
 
-        <div class="hero-actions">
-          <a href="tutorials/getting-started.html" class="btn btn-primary">Get Started</a>
-          <a href="https://github.com/curiositech/port-daddy" target="_blank" class="btn">View on GitHub</a>
-        </div>
-      </div>
-    </section>
+          <h1>Port Daddy Makes<br>Agents Behave Well</h1>
+          <p class="hero-desc">No more port 3000 dogpiles, no more forgotten agents in worktrees. Port Daddy is the authoritative port manager for multi-agent development. Stable ports, agent coordination, pub/sub messaging, and dead-agent salvage — all from one daemon.</p>
 
-    <!-- See It In Action -->
-    <section class="demos" id="demos">
-      <div class="demos-inner">
-        <div class="demos-header">
-          <div class="section-label">See It In Action</div>
-          <h2 class="section-title">Real commands. Real output.</h2>
-          <p class="section-subtitle">Every frame is captured from a live Port Daddy daemon — no fake terminals.</p>
-        </div>
-        <div class="hero-slider">
-          <div class="slider-window">
-            <div class="slider-bar">
-              <div class="slider-dot r"></div>
-              <div class="slider-dot y"></div>
-              <div class="slider-dot g"></div>
-              <span class="slider-bar-label" id="slider-label">1 / 2</span>
+          <!-- Quickstart CTA -->
+          <div class="install-hero">
+            <div class="install-tabs">
+              <button class="install-tab active" data-cmd="npm install -g port-daddy" onclick="switchTab(this)">npm</button>
+              <button class="install-tab" data-cmd="npx port-daddy" onclick="switchTab(this)">npx</button>
+              <button class="install-tab" data-cmd="brew install port-daddy" onclick="switchTab(this)">brew</button>
+              <button class="install-tab" data-tab-type="agent" onclick="switchTab(this)">Agent Skill</button>
             </div>
-            <div class="slider-track">
-              <img src="img/demo-fleet.gif" class="active" alt="pd claim, pd find, pd ps demo" width="1000" height="600">
-              <img src="img/demo-agents.gif" alt="pd begin, pub/sub, salvage, lock demo" width="1000" height="600">
+            <div class="install-cmd-wrap" id="install-wrap">
+              <code class="install-cmd"><span class="cmd-prefix">$ </span><span id="install-cmd-text">npm install -g port-daddy</span></code>
+              <button class="copy-btn" id="copy-btn" onclick="copyInstall()" aria-label="Copy install command">
+                <svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                <svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                <span class="copy-label"></span>
+              </button>
             </div>
+            <div class="agent-skill-panel" id="agent-skill-panel" style="display:none;">
+              <p>After install, wire Port Daddy into your Claude Code sessions:</p>
+              <pre><code>pd mcp install --scope user</code></pre>
+            </div>
+            <p class="install-includes">Includes <strong>CLI</strong>, <strong>daemon</strong>, <strong>MCP server</strong>, and <strong>shell completions</strong>.</p>
           </div>
-          <div class="slider-controls">
-            <button class="slider-btn" id="slider-prev" aria-label="Previous demo">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-            </button>
-            <div class="slider-pips">
-              <button class="slider-pip active" aria-label="Demo 1"></button>
-              <button class="slider-pip" aria-label="Demo 2"></button>
-            </div>
-            <button class="slider-btn" id="slider-next" aria-label="Next demo">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
-            <span class="slider-caption" id="slider-caption">pd claim · pd find · pd ps — stable ports, zero conflicts</span>
+
+          <div class="hero-actions">
+            <a href="tutorials/getting-started.html" class="btn btn-primary">Get Started</a>
+            <a href="https://github.com/curiositech/port-daddy" target="_blank" class="btn">View on GitHub</a>
           </div>
         </div>
+
+        <!-- RIGHT: GIF Slider -->
+        <div class="hero-right">
+          <div class="hero-slider">
+            <div class="slider-window">
+              <div class="slider-bar">
+                <div class="slider-dot r"></div>
+                <div class="slider-dot y"></div>
+                <div class="slider-dot g"></div>
+                <span class="slider-bar-label" id="slider-label">1 / 2</span>
+              </div>
+              <div class="slider-track">
+                <img src="img/demo-fleet.gif" class="active" alt="pd claim, pd find, pd ps demo" width="1000" height="600">
+                <img src="img/demo-agents.gif" alt="pd begin, pub/sub, salvage, lock demo" width="1000" height="600">
+              </div>
+            </div>
+            <div class="slider-controls">
+              <button class="slider-btn" id="slider-prev" aria-label="Previous demo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
+              <div class="slider-pips">
+                <button class="slider-pip active" aria-label="Demo 1"></button>
+                <button class="slider-pip" aria-label="Demo 2"></button>
+              </div>
+              <button class="slider-btn" id="slider-next" aria-label="Next demo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+              <span class="slider-caption" id="slider-caption">pd claim · pd find · pd ps — stable ports, zero conflicts</span>
+            </div>
+          </div>
+        </div>
+
       </div>
     </section>
 
@@ -435,17 +374,23 @@
   </footer>
   <script src="js/theme.js"></script>
   <script>
-    // ── Install CTA ──────────────────────────────────────────────────────────
+    // ── Quickstart CTA ───────────────────────────────────────────────────────
     function switchTab(btn) {
       document.querySelectorAll('.install-tab').forEach(function(t) { t.classList.remove('active'); });
       btn.classList.add('active');
-      document.getElementById('install-cmd-text').textContent = btn.getAttribute('data-cmd');
-      document.getElementById('copy-btn').classList.remove('copied');
+      var isAgent = btn.getAttribute('data-tab-type') === 'agent';
+      document.getElementById('install-wrap').style.display = isAgent ? 'none' : '';
+      document.getElementById('agent-skill-panel').style.display = isAgent ? '' : 'none';
+      if (!isAgent) {
+        document.getElementById('install-cmd-text').textContent = btn.getAttribute('data-cmd');
+        document.getElementById('copy-btn').classList.remove('copied');
+      }
     }
 
     function copyInstall() {
       var activeTab = document.querySelector('.install-tab.active');
       var cmd = activeTab.getAttribute('data-cmd');
+      if (!cmd) return;
       navigator.clipboard.writeText(cmd).then(function() {
         var btn = document.getElementById('copy-btn');
         btn.classList.add('copied');

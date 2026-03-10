@@ -1784,16 +1784,20 @@ async function handleTool(
       }
       if (args.expires) body.expires = args.expires;
       res = await POST('/claim', body);
-      // Warn the agent if the assigned port is already occupied by another process
+      // Augment successful claim responses
       if (res.status >= 200 && res.status < 300 && res.data && typeof res.data === 'object') {
         const data = res.data as Record<string, unknown>;
         const assignedPort = data.port as number | undefined;
         if (assignedPort) {
+          // Warn if the port is already occupied by another process
           const occupied = await isPortInUse(assignedPort);
           if (occupied) {
             data.warning = `⚠️  Port ${assignedPort} is already in use by another process. Stop that process before starting your service, or release this port and claim a different one.`;
           }
         }
+        // Nudge toward begin_session — makes this work recoverable via the salvage queue
+        const identity = (args.identity as string) || '';
+        data.session_nudge = `Port claimed. Start a session to make your work recoverable:\n  begin_session({ identity: '${identity}', purpose: 'Brief description of what you are building' })\nIf you are interrupted or crash, the next agent can resume from the salvage queue.`;
       }
       break;
     }
