@@ -202,6 +202,21 @@ Get info about an agent.
 ### GET /agents
 List all agents. Optional query param: `active=true`.
 
+### POST /agents/:id/inbox
+Send a message to an agent's inbox. Body: `{ content, from?, type? }`.
+
+### GET /agents/:id/inbox
+Read inbox messages. Query: `?unread=true&limit=50`.
+
+### GET /agents/:id/inbox/stats
+Inbox stats: total and unread message counts.
+
+### PUT /agents/:id/inbox/read-all
+Mark all inbox messages as read.
+
+### DELETE /agents/:id/inbox
+Clear all inbox messages.
+
 ---
 
 ## Webhooks

@@ -2432,6 +2432,16 @@ class PortDaddy {
   async dnsResolverStatus(): Promise<DnsResolverStatusResponse> {
     return this._request('GET', '/dns/resolver') as Promise<DnsResolverStatusResponse>;
   }
+
+  /** Alias for dnsUnregister (remove a DNS record). */
+  async dnsRemove(identity: string): Promise<DnsUnregisterResponse> {
+    return this.dnsUnregister(identity);
+  }
+
+  /** Alias for dnsResolverStatus (get resolver config). */
+  async dnsResolver(): Promise<DnsResolverStatusResponse> {
+    return this.dnsResolverStatus();
+  }
 }
 
 // =============================================================================

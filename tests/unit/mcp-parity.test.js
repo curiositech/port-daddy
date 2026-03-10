@@ -103,6 +103,71 @@ const TOOL_FEATURE_MAP = {
   'dns_teardown': 'dns',
   'dns_sync': 'dns',
 
+  // Ports (extended)
+  'list_active_ports': 'ports',
+  'list_system_ports': 'ports',
+  'cleanup_ports': 'ports',
+
+  // Sessions (extended)
+  'get_session': 'sessions',
+  'delete_session': 'sessions',
+  'release_files': 'sessions',
+
+  // Messaging (extended)
+  'list_channels': 'messaging',
+  'clear_channel': 'messaging',
+
+  // Agents (extended)
+  'unregister_agent': 'agents',
+  'get_agent': 'agents',
+
+  // Salvage (extended)
+  'salvage_complete': 'salvage',
+  'salvage_abandon': 'salvage',
+  'salvage_dismiss': 'salvage',
+
+  // Inbox
+  'inbox_send': 'inbox',
+  'inbox_read': 'inbox',
+  'inbox_stats': 'inbox',
+  'inbox_mark_read': 'inbox',
+  'inbox_mark_all_read': 'inbox',
+  'inbox_clear': 'inbox',
+
+  // Webhooks
+  'webhook_add': 'webhooks',
+  'webhook_list': 'webhooks',
+  'webhook_events': 'webhooks',
+  'webhook_get': 'webhooks',
+  'webhook_update': 'webhooks',
+  'webhook_remove': 'webhooks',
+  'webhook_test': 'webhooks',
+  'webhook_deliveries': 'webhooks',
+
+  // Projects
+  'list_projects': 'projects',
+  'get_project': 'projects',
+  'delete_project': 'projects',
+
+  // Changelog
+  'changelog_add': 'changelog',
+  'changelog_list': 'changelog',
+  'changelog_get': 'changelog',
+  'changelog_identities': 'changelog',
+  'changelog_by_session': 'changelog',
+  'changelog_by_agent': 'changelog',
+
+  // Activity (extended)
+  'activity_summary': 'activity',
+  'activity_stats': 'activity',
+  'activity_range': 'activity',
+
+  // System (extended)
+  'get_version': 'system',
+  'get_metrics': 'system',
+  'get_config': 'system',
+  'wait_for_service': 'wait',
+
   // Meta-tool (progressive disclosure)
   'pd_discover': 'system',
 };
@@ -115,13 +180,7 @@ const MCP_EXEMPT_FEATURES = new Set([
   'orchestration',  // CLI-only (up/down)
   'daemon',         // CLI-only (start/stop/restart)
   'diagnostics',    // CLI-only (doctor/diagnose/ci-gate)
-  'inbox',          // Server-side only, not yet wired to MCP
   'endpoints',      // Sub-feature of services, managed via claim
-  'changelog',      // Not yet exposed via MCP
-  'projects',       // Accessed via scan_project indirectly
-  'ports',          // Legacy routes, covered by claim/release/services
-  'wait',           // Covered by health_check conceptually
-  'webhooks',       // CLI-only webhook management, not exposed via MCP
 ]);
 
 // ============================================================================
@@ -547,8 +606,8 @@ describe('MCP tiered tool loading', () => {
 
   const CATEGORY_NAMES = [
     'session-lifecycle', 'ports', 'sessions', 'notes', 'locks',
-    'messaging', 'agents', 'integration', 'dns', 'briefing',
-    'tunnels', 'system',
+    'messaging', 'agents', 'inbox', 'webhooks', 'integration', 'dns', 'briefing',
+    'tunnels', 'projects', 'changelog', 'activity', 'system',
   ];
 
   it('ESSENTIAL_TOOL_NAMES in server matches expected set', () => {

@@ -541,7 +541,7 @@ The dashboard uses a glassmorphism dark theme with a collapsible sidebar. Screen
 
 ---
 
-## Session Phases
+## Session Phases (`session_phases`)
 
 Sessions progress through 6 phases for structured workflow tracking:
 

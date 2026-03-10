@@ -557,12 +557,12 @@ const config = await pd.dnsResolver();
 ## Briefing
 
 ```typescript
-// Get project briefing
-const briefing = await pd.briefing('myapp');
-// { project: 'myapp', agents: [...], sessions: [...], signals: [...], notes: [...] }
+// Generate briefing for a project (writes .portdaddy/briefing.md)
+const result = await pd.generateBriefing('/path/to/project');
 
-// Create a briefing entry
-await pd.createBriefing({ project: 'myapp', content: 'Sprint 3 focus: auth system' });
+// Get briefing data as JSON
+const briefing = await pd.getBriefing('myapp');
+// { project: 'myapp', agents: [...], sessions: [...], signals: [...], notes: [...] }
 ```
 
 ---
