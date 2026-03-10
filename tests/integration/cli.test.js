@@ -187,10 +187,16 @@ describe('CLI Integration Tests', () => {
           ? keyMatches.map(m => m.trim().replace(/:$/, ''))
           : [];
       } else {
-        // New array format: const COMMANDS=[{cmd:'claim',...},...]
-        const arrayMatch = html.match(/(?:const|var)\s+COMMANDS\s*=\s*\[([^\]]+)\]/);
-        if (arrayMatch) {
-          const cmdMatches = arrayMatch[1].match(/cmd\s*:\s*'([^']+)'/g);
+        // New array format: var COMMANDS=[{cmd:'claim',...},...]
+        const arrayStart = html.indexOf('var COMMANDS = [');
+        if (arrayStart !== -1) {
+          let depth = 0, end = arrayStart;
+          for (let i = arrayStart; i < html.length; i++) {
+            if (html[i] === '[') depth++;
+            if (html[i] === ']') { depth--; if (depth === 0) { end = i; break; } }
+          }
+          const block = html.slice(arrayStart, end + 1);
+          const cmdMatches = block.match(/cmd\s*:\s*'([^']+)'/g);
           dashboardCommands = cmdMatches
             ? cmdMatches.map(m => m.replace(/cmd\s*:\s*'/, '').replace(/'$/, ''))
             : [];

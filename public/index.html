@@ -1549,10 +1549,12 @@
     }
     function closeTerminal() { document.getElementById('terminal-drawer').style.display = 'none'; }
 
-    var CLI_ONLY = ['begin', 'done', 'whoami', 'with-lock', 'cleanup', 'doctor', 'version', 'install-completions', 'up', 'down'];
+    var CLI_ONLY = ['begin', 'done', 'whoami', 'with-lock', 'cleanup', 'doctor', 'version', 'install-completions', 'up', 'down', 'start', 'stop', 'restart', 'install', 'uninstall', 'dev', 'ci-gate'];
     var COMMANDS = [
       { cmd: 'claim', hint: 'claim <id>' }, { cmd: 'release', hint: 'release <id>' },
-      { cmd: 'find', hint: 'find [pattern]' }, { cmd: 'lock', hint: 'lock <name>' },
+      { cmd: 'find', hint: 'find [pattern]' }, { cmd: 'ps', hint: 'ps [pattern]' },
+      { cmd: 'pub', hint: 'pub <channel> <msg>' }, { cmd: 'scan', hint: 'scan' },
+      { cmd: 'activity', hint: 'activity' }, { cmd: 'lock', hint: 'lock <name>' },
       { cmd: 'unlock', hint: 'unlock <name>' }, { cmd: 'locks', hint: 'locks' },
       { cmd: 'agents', hint: 'agents' }, { cmd: 'log', hint: 'log [limit]' },
       { cmd: 'status', hint: 'status' }, { cmd: 'channels', hint: 'channels' },

@@ -1870,8 +1870,8 @@ async function main(): Promise<void> {
           console.error('Tip: Run `pd learn` for an interactive tutorial');
           process.exit(1);
         }
-        // If it looks like a semantic identity (contains : or is alphanumeric), treat as claim
-        if (command.includes(':') || command.match(/^[a-zA-Z][a-zA-Z0-9._-]*$/)) {
+        // Only treat as a claim if it's a semantic identity (must contain : for project:stack:context format)
+        if (command.includes(':')) {
           await handleClaim(command, options);
         } else {
           console.error(`Unknown command: ${command}`);
