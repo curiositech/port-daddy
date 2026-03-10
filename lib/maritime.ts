@@ -58,10 +58,23 @@
  */
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Color support detection
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * True when color output is appropriate.
+ * Respects NO_COLOR env var (https://no-color.org/) and non-TTY stdout.
+ */
+export const COLOR_ENABLED: boolean =
+  !process.env.NO_COLOR &&
+  !process.env.CI_NO_COLOR &&
+  (process.stdout.isTTY === true || process.env.FORCE_COLOR !== undefined);
+
+// ─────────────────────────────────────────────────────────────────────────────
 // ANSI Escape Codes
 // ─────────────────────────────────────────────────────────────────────────────
 
-const ANSI = {
+const _ANSI_RAW = {
   reset: '\x1b[0m',
   // Backgrounds for signal flags
   bgBlue: '\x1b[44m',
@@ -82,6 +95,19 @@ const ANSI = {
   bold: '\x1b[1m',
   dim: '\x1b[2m',
 };
+
+// Strip all ANSI codes when color is disabled
+function _c(code: string): string {
+  return COLOR_ENABLED ? code : '';
+}
+
+// Proxy: same keys as _ANSI_RAW but strips codes when no color
+const ANSI = new Proxy(_ANSI_RAW, {
+  get(target, prop: string) {
+    return COLOR_ENABLED ? (target as Record<string, string>)[prop] : '';
+  },
+}) as typeof _ANSI_RAW;
+void _c; // suppress unused warning
 
 // Export ANSI for direct use
 export { ANSI };
