@@ -91,6 +91,44 @@
       font-size: 0.8rem; padding: 0.25rem 0.5rem;
     }
 
+    /* Demo Section */
+    .demos {
+      padding: 5rem 1.5rem;
+      background: var(--bg-card);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .demos-inner { max-width: 1100px; margin: 0 auto; }
+    .demos-header { margin-bottom: 2.5rem; }
+    .demo-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+    }
+    @media (max-width: 900px) { .demo-grid { grid-template-columns: 1fr; } }
+    .demo-card { display: flex; flex-direction: column; gap: 0.75rem; }
+    .demo-label {
+      font-family: var(--font-display); font-weight: 600; font-size: 1rem;
+      color: var(--text);
+    }
+    .demo-desc { font-size: 0.875rem; color: var(--text-muted); line-height: 1.5; margin: 0; }
+    .demo-screen {
+      border-radius: 10px; overflow: hidden;
+      border: 1px solid var(--border);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+      background: #1a1b26;
+    }
+    .demo-screen-bar {
+      background: #13141f; padding: 0.5rem 0.75rem;
+      display: flex; align-items: center; gap: 0.4rem;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .demo-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .demo-dot.r { background: #c44536; }
+    .demo-dot.y { background: #d4a017; }
+    .demo-dot.g { background: #5a8f5a; }
+    .demo-screen img { width: 100%; display: block; }
+
     /* Quick Start */
     .quick-start {
       padding: 5rem 1.5rem;
@@ -225,6 +263,43 @@
             <h3>Live Dashboard</h3>
             <p>15-panel dashboard at localhost:9876. Services, agents, sessions, locks, activity -- all live-updating.</p>
             <code>pd dashboard</code>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Live Demos -->
+    <section class="demos" id="demos">
+      <div class="demos-inner">
+        <div class="demos-header">
+          <div class="section-label">See It In Action</div>
+          <h2 class="section-title">Real commands. Real output.</h2>
+          <p class="section-subtitle">No mocks. These recordings run against a live Port Daddy daemon.</p>
+        </div>
+        <div class="demo-grid">
+          <div class="demo-card">
+            <div class="demo-label">Stable ports across your whole stack</div>
+            <p class="demo-desc">Claim once, same port forever. No more <code>EADDRINUSE</code> at 2am.</p>
+            <div class="demo-screen">
+              <div class="demo-screen-bar">
+                <div class="demo-dot r"></div>
+                <div class="demo-dot y"></div>
+                <div class="demo-dot g"></div>
+              </div>
+              <img src="img/demo-fleet.gif" alt="pd claim and pd find demo" loading="lazy" width="1000" height="560">
+            </div>
+          </div>
+          <div class="demo-card">
+            <div class="demo-label">Multi-agent coordination, built in</div>
+            <p class="demo-desc">Sessions, notes, pub/sub, locks, and dead-agent salvage — all from the CLI.</p>
+            <div class="demo-screen">
+              <div class="demo-screen-bar">
+                <div class="demo-dot r"></div>
+                <div class="demo-dot y"></div>
+                <div class="demo-dot g"></div>
+              </div>
+              <img src="img/demo-agents.gif" alt="pd begin, pd pub, pd salvage, pd lock demo" loading="lazy" width="1000" height="560">
+            </div>
           </div>
         </div>
       </div>
