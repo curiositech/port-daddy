@@ -1,0 +1,2193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API Reference — Port Daddy</title>
+  <meta name="description" content="Complete HTTP API reference for Port Daddy v3.5. All endpoints documented with request bodies, response shapes, and curl examples.">
+  <meta property="og:title" content="API Reference — Port Daddy">
+  <meta property="og:description" content="Complete HTTP API reference for Port Daddy v3.5. Every endpoint documented with curl examples.">
+  <meta property="og:type" content="website">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%9A%93</text></svg>">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/shared.css">
+  <style>
+    /* ── API Reference Layout ─────────────────────────────────── */
+    .api-layout {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 5rem;
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      gap: 3rem;
+      align-items: start;
+    }
+
+    /* ── Sidebar ──────────────────────────────────────────────── */
+    .api-sidebar {
+      position: sticky;
+      top: 5rem;
+      align-self: start;
+      max-height: calc(100vh - 7rem);
+      overflow-y: auto;
+      padding-right: 0.5rem;
+    }
+    .api-sidebar h4 {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-bottom: 0.75rem;
+      padding-left: 0.5rem;
+    }
+    .api-sidebar nav {
+      border-left: 2px solid var(--border);
+      padding-left: 0.75rem;
+    }
+    .api-sidebar a {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.3rem 0.25rem;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      line-height: 1.4;
+      border-radius: 3px;
+      transition: color 0.15s;
+    }
+    .api-sidebar a:hover { color: var(--text); text-decoration: none; }
+    .api-sidebar a.active { color: var(--blue); font-weight: 500; }
+    .api-sidebar .sidebar-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: var(--border);
+    }
+    .api-sidebar a:hover .sidebar-dot { background: var(--text-muted); }
+    .api-sidebar a.active .sidebar-dot { background: var(--blue); }
+
+    /* ── Search ───────────────────────────────────────────────── */
+    .api-search-wrap {
+      margin-bottom: 2.5rem;
+    }
+    #api-search {
+      width: 100%;
+      padding: 0.65rem 1rem 0.65rem 2.75rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-family: var(--font-body);
+      font-size: 0.875rem;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236B6B76' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: 0.85rem center;
+    }
+    #api-search:focus { border-color: var(--blue); }
+    #api-search::placeholder { color: var(--text-muted); }
+    #search-count {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+      min-height: 1.2em;
+    }
+
+    /* ── Base URL notice ──────────────────────────────────────── */
+    .base-url-notice {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      margin-bottom: 2.5rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem 1.5rem;
+      align-items: center;
+      font-size: 0.85rem;
+    }
+    .base-url-notice .label {
+      font-weight: 600;
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .base-url-notice code {
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      color: var(--blue);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 0.2em 0.5em;
+      border-radius: 4px;
+    }
+    .base-url-divider {
+      color: var(--border);
+      font-size: 1rem;
+    }
+
+    /* ── API Section ──────────────────────────────────────────── */
+    .api-section {
+      margin-bottom: 3.5rem;
+    }
+    .api-section-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 2px solid var(--border);
+    }
+    .api-section-header h2 {
+      font-family: var(--font-display);
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .api-section-count {
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 0.15em 0.5em;
+      border-radius: 100px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    /* ── Endpoint card ────────────────────────────────────────── */
+    .endpoint {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: 1.25rem;
+      transition: border-color 0.15s;
+    }
+    .endpoint:hover { border-color: rgba(0,102,204,0.3); }
+
+    .endpoint-header {
+      padding: 1rem 1.25rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      border-bottom: 1px solid var(--border);
+    }
+    .endpoint-title-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      flex: 1;
+    }
+    .endpoint-desc {
+      width: 100%;
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      margin-top: 0.35rem;
+      line-height: 1.5;
+    }
+
+    .endpoint-body {
+      padding: 1.25rem;
+    }
+
+    /* Method/path display */
+    .path {
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    /* Method badges */
+    .method {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.2em 0.6em;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+    .method-get    { background: rgba(0,102,204,0.1);   color: #0066CC; border: 1px solid rgba(0,102,204,0.2);  }
+    .method-post   { background: rgba(24,121,78,0.1);   color: #18794E; border: 1px solid rgba(24,121,78,0.2);  }
+    .method-put    { background: rgba(229,160,0,0.1);   color: #B8820A; border: 1px solid rgba(229,160,0,0.2);  }
+    .method-delete { background: rgba(205,43,49,0.1);   color: #CD2B31; border: 1px solid rgba(205,43,49,0.2);  }
+    .method-sse    { background: rgba(110,86,207,0.1);  color: #6E56CF; border: 1px solid rgba(110,86,207,0.2); }
+
+    /* Endpoint left-border color by method */
+    .endpoint-get    { border-left: 3px solid #0066CC; }
+    .endpoint-post   { border-left: 3px solid #18794E; }
+    .endpoint-put    { border-left: 3px solid #E5A000; }
+    .endpoint-delete { border-left: 3px solid #CD2B31; }
+    .endpoint-sse    { border-left: 3px solid #6E56CF; }
+
+    /* h4 inside endpoint body */
+    .endpoint-body h4 {
+      font-family: var(--font-display);
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+      margin-top: 1.25rem;
+    }
+    .endpoint-body h4:first-child { margin-top: 0; }
+
+    /* Code blocks inside endpoint body */
+    .endpoint-body pre {
+      background: #111113;
+      border: 1px solid #2C2C31;
+      border-radius: var(--radius);
+      padding: 0.875rem 1rem;
+      overflow-x: auto;
+      margin-bottom: 0;
+      margin-top: 0;
+    }
+    .endpoint-body pre code {
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      line-height: 1.7;
+      color: #E8E8EC;
+      background: none;
+      border: none;
+      padding: 0;
+      border-radius: 0;
+    }
+    .endpoint-body pre .comment { color: #6B6B76; }
+    .endpoint-body pre .key     { color: #18794E; }
+    .endpoint-body pre .string  { color: #E5A000; }
+    .endpoint-body pre .num     { color: #0066CC; }
+    .endpoint-body pre .prompt  { color: #6E56CF; user-select: none; }
+
+    /* Query param table */
+    .param-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+      margin-top: 0;
+    }
+    .param-table th {
+      background: var(--bg);
+      color: var(--text-muted);
+      padding: 0.45rem 0.75rem;
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      border-bottom: 1px solid var(--border);
+    }
+    .param-table td {
+      padding: 0.5rem 0.75rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-muted);
+      vertical-align: top;
+    }
+    .param-table tr:last-child td { border-bottom: none; }
+    .param-table code {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 0.1em 0.35em;
+      border-radius: 3px;
+      color: var(--text);
+    }
+    .param-optional {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    /* Deprecated badge */
+    .badge-deprecated {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.15em 0.5em;
+      font-size: 0.68rem;
+      font-weight: 600;
+      background: rgba(229,160,0,0.1);
+      color: #B8820A;
+      border: 1px solid rgba(229,160,0,0.25);
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .badge-sse {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.15em 0.5em;
+      font-size: 0.68rem;
+      font-weight: 600;
+      background: rgba(110,86,207,0.1);
+      color: #6E56CF;
+      border: 1px solid rgba(110,86,207,0.2);
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    /* No-results state */
+    #no-results {
+      display: none;
+      text-align: center;
+      padding: 4rem 2rem;
+      color: var(--text-muted);
+    }
+    #no-results h3 { color: var(--text); margin-bottom: 0.5rem; }
+
+    /* Scrollbar for sidebar */
+    .api-sidebar::-webkit-scrollbar { width: 4px; }
+    .api-sidebar::-webkit-scrollbar-track { background: transparent; }
+    .api-sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    @media (max-width: 900px) {
+      .api-layout {
+        grid-template-columns: 1fr;
+      }
+      .api-sidebar {
+        position: static;
+        max-height: none;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 1.5rem;
+        margin-bottom: 0.5rem;
+        overflow: visible;
+      }
+      .api-sidebar nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.25rem 0;
+        border-left: none;
+        padding-left: 0;
+      }
+      .api-sidebar a { font-size: 0.78rem; padding: 0.25rem 0.5rem; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="../" class="nav-brand">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
+        Port Daddy
+      </a>
+      <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Toggle navigation">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="nav-links">
+        <a href="../#features">Features</a>
+        <a href="../tutorials/">Tutorials</a>
+        <a href="../mcp/">MCP</a>
+        <a href="./" class="active">Docs</a>
+        <a href="https://github.com/curiositech/port-daddy" target="_blank">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="page-hero">
+    <div class="page-hero-container">
+      <div class="breadcrumbs">
+        <a href="../">Home</a>
+        <span class="separator">/</span>
+        <a href="./">Docs</a>
+        <span class="separator">/</span>
+        <span>API Reference</span>
+      </div>
+      <h1>API Reference</h1>
+      <p>Complete HTTP API reference for Port Daddy v3.5. All endpoints accept and return JSON. Base URL: <code style="font-size: 0.85em;">http://localhost:9876</code></p>
+    </div>
+  </section>
+
+  <!-- Main layout -->
+  <div class="api-layout">
+
+    <!-- Sidebar -->
+    <aside class="api-sidebar" id="api-sidebar">
+      <h4>Sections</h4>
+      <nav>
+        <a href="#port-management"><span class="sidebar-dot"></span>Port Management</a>
+        <a href="#sessions-notes"><span class="sidebar-dot"></span>Sessions &amp; Notes</a>
+        <a href="#agents"><span class="sidebar-dot"></span>Agents</a>
+        <a href="#locks"><span class="sidebar-dot"></span>Locks</a>
+        <a href="#messaging"><span class="sidebar-dot"></span>Messaging</a>
+        <a href="#dns"><span class="sidebar-dot"></span>DNS</a>
+        <a href="#tunnels"><span class="sidebar-dot"></span>Tunnels</a>
+        <a href="#webhooks"><span class="sidebar-dot"></span>Webhooks</a>
+        <a href="#salvage"><span class="sidebar-dot"></span>Salvage</a>
+        <a href="#sugar"><span class="sidebar-dot"></span>Sugar</a>
+        <a href="#system"><span class="sidebar-dot"></span>System</a>
+      </nav>
+    </aside>
+
+    <!-- Main content -->
+    <main id="api-main">
+
+      <!-- Base URL + links -->
+      <div class="base-url-notice">
+        <span class="label">Base URL</span>
+        <code>http://localhost:9876</code>
+        <span class="base-url-divider">|</span>
+        <span class="label">Unix Socket</span>
+        <code>/tmp/port-daddy.sock</code>
+        <span class="base-url-divider">|</span>
+        <a href="https://github.com/curiositech/port-daddy/blob/main/docs/sdk.md" target="_blank" style="font-size: 0.82rem; color: var(--blue);">SDK Reference</a>
+      </div>
+
+      <!-- Search -->
+      <div class="api-search-wrap">
+        <input type="text" id="api-search" placeholder="Search endpoints by path or description..." oninput="filterEndpoints(this.value)" autocomplete="off" spellcheck="false">
+        <div id="search-count"></div>
+      </div>
+
+      <div id="no-results">
+        <h3>No endpoints match</h3>
+        <p>Try a shorter search term or clear the search to browse all endpoints.</p>
+      </div>
+
+      <!-- ── Port Management ──────────────────────────────── -->
+      <section class="api-section" id="port-management">
+        <div class="api-section-header">
+          <h2>Port Management</h2>
+          <span class="api-section-count">9 endpoints</span>
+        </div>
+
+        <div class="endpoint endpoint-post" id="ep-post-claim">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-post">POST</span>
+              <span class="path">/claim</span>
+            </div>
+            <p class="endpoint-desc">Claim a stable port for a service identity. Re-claiming an existing identity returns the same port (idempotent). Port assignment is atomic — no two services will receive the same port.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Request Body</h4>
+            <pre><code>{
+  <span class="key">"id"</span>: <span class="string">"myapp:api"</span>,          <span class="comment">// required — semantic identity</span>
+  <span class="key">"port"</span>: <span class="num">3000</span>,             <span class="comment">// optional — request a specific port</span>
+  <span class="key">"range"</span>: [<span class="num">3000</span>, <span class="num">3999</span>],   <span class="comment">// optional — restrict to port range</span>
+  <span class="key">"expires"</span>: <span class="num">3600000</span>,      <span class="comment">// optional — TTL in ms</span>
+  <span class="key">"cmd"</span>: <span class="string">"npm start"</span>,      <span class="comment">// optional — start command for orchestration</span>
+  <span class="key">"cwd"</span>: <span class="string">"/path/to/app"</span>   <span class="comment">// optional — working directory</span>
+}</code></pre>
+            <h4>Response</h4>
+            <pre><code>{
+  <span class="key">"success"</span>: <span class="num">true</span>,
+  <span class="key">"id"</span>: <span class="string">"myapp:api"</span>,
+  <span class="key">"port"</span>: <span class="num">3001</span>,
+  <span class="key">"assigned"</span>: <span class="num">true</span>       <span class="comment">// false if re-claim of existing port</span>
+}</code></pre>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s -X POST http://localhost:9876/claim \
+    -H "Content-Type: application/json" \
+    -d '{"id": "myapp:api"}'</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-delete" id="ep-delete-release">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-delete">DELETE</span>
+              <span class="path">/release</span>
+            </div>
+            <p class="endpoint-desc">Release a port claim. Releasing a non-existent service returns 200 with <code>released: 0</code> (idempotent).</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Request Body</h4>
+            <pre><code>{
+  <span class="key">"id"</span>: <span class="string">"myapp:api"</span>    <span class="comment">// required</span>
+}</code></pre>
+            <h4>Response</h4>
+            <pre><code>{
+  <span class="key">"success"</span>: <span class="num">true</span>,
+  <span class="key">"id"</span>: <span class="string">"myapp:api"</span>,
+  <span class="key">"released"</span>: <span class="num">1</span>       <span class="comment">// 0 if not found</span>
+}</code></pre>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s -X DELETE http://localhost:9876/release \
+    -H "Content-Type: application/json" \
+    -d '{"id": "myapp:api"}'</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-get" id="ep-get-services">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-get">GET</span>
+              <span class="path">/services</span>
+            </div>
+            <p class="endpoint-desc">List all registered services. Optionally filter by project or stack using the <code>project</code> and <code>stack</code> query parameters.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Query Parameters</h4>
+            <table class="param-table">
+              <thead><tr><th>Param</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td><code>project</code></td><td>Filter by project prefix (e.g. <code>myapp</code>) <span class="param-optional">optional</span></td></tr>
+                <tr><td><code>stack</code></td><td>Filter by stack segment (e.g. <code>api</code>) <span class="param-optional">optional</span></td></tr>
+              </tbody>
+            </table>
+            <h4>Response</h4>
+            <pre><code>{
+  <span class="key">"services"</span>: [
+    { <span class="key">"id"</span>: <span class="string">"myapp:api"</span>, <span class="key">"port"</span>: <span class="num">3001</span>, <span class="key">"lastSeen"</span>: <span class="string">"2026-03-10T12:00:00Z"</span> },
+    { <span class="key">"id"</span>: <span class="string">"myapp:frontend"</span>, <span class="key">"port"</span>: <span class="num">3002</span>, <span class="key">"lastSeen"</span>: <span class="string">"2026-03-10T12:00:00Z"</span> }
+  ]
+}</code></pre>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s http://localhost:9876/services?project=myapp</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-get" id="ep-get-services-id">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-get">GET</span>
+              <span class="path">/services/:id</span>
+            </div>
+            <p class="endpoint-desc">Get a specific service by its identity. Returns 404 if not found.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Response</h4>
+            <pre><code>{
+  <span class="key">"id"</span>: <span class="string">"myapp:api"</span>,
+  <span class="key">"port"</span>: <span class="num">3001</span>,
+  <span class="key">"cmd"</span>: <span class="string">"npm start"</span>,
+  <span class="key">"cwd"</span>: <span class="string">"/home/user/myapp"</span>,
+  <span class="key">"lastSeen"</span>: <span class="string">"2026-03-10T12:00:00Z"</span>
+}</code></pre>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s http://localhost:9876/services/myapp:api</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-get" id="ep-get-ports-active">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-get">GET</span>
+              <span class="path">/ports/active</span>
+            </div>
+            <p class="endpoint-desc">List all active port assignments with metadata.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Response</h4>
+            <pre><code>{
+  <span class="key">"ports"</span>: [
+    { <span class="key">"port"</span>: <span class="num">3001</span>, <span class="key">"id"</span>: <span class="string">"myapp:api"</span>, <span class="key">"expires"</span>: <span class="num">1741700000</span> }
+  ]
+}</code></pre>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s http://localhost:9876/ports/active</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-get" id="ep-get-ports-system">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-get">GET</span>
+              <span class="path">/ports/system</span>
+            </div>
+            <p class="endpoint-desc">List well-known system port reservations (ports 0–1023 and common app ports).</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s http://localhost:9876/ports/system</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-post" id="ep-post-ports-cleanup">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-post">POST</span>
+              <span class="path">/ports/cleanup</span>
+            </div>
+            <p class="endpoint-desc">Release stale port claims — services that have not sent a heartbeat within their TTL window.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Response</h4>
+            <pre><code>{
+  <span class="key">"released"</span>: <span class="num">3</span>,
+  <span class="key">"ids"</span>: [<span class="string">"old-service:api"</span>, <span class="string">"stale:worker"</span>]
+}</code></pre>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s -X POST http://localhost:9876/ports/cleanup</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-get" id="ep-get-wait-id">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-get">GET</span>
+              <span class="path">/wait/:id</span>
+            </div>
+            <p class="endpoint-desc">Wait (long-poll) until a service becomes available. Useful for startup sequencing — blocks until the service registers its port claim.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Query Parameters</h4>
+            <table class="param-table">
+              <thead><tr><th>Param</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td><code>timeout</code></td><td>Max wait in ms (default: 30000) <span class="param-optional">optional</span></td></tr>
+              </tbody>
+            </table>
+            <h4>Response</h4>
+            <pre><code>{
+  <span class="key">"id"</span>: <span class="string">"myapp:api"</span>,
+  <span class="key">"port"</span>: <span class="num">3001</span>,
+  <span class="key">"waited"</span>: <span class="num">1240</span>    <span class="comment">// ms waited</span>
+}</code></pre>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s "http://localhost:9876/wait/myapp:api?timeout=10000"</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-post" id="ep-post-wait">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-post">POST</span>
+              <span class="path">/wait</span>
+            </div>
+            <p class="endpoint-desc">Wait for multiple services to become available. Returns when all listed services have claimed a port or the timeout expires.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Request Body</h4>
+            <pre><code>{
+  <span class="key">"ids"</span>: [<span class="string">"myapp:api"</span>, <span class="string">"myapp:db"</span>],
+  <span class="key">"timeout"</span>: <span class="num">30000</span>
+}</code></pre>
+            <h4>Response</h4>
+            <pre><code>{
+  <span class="key">"all"</span>: <span class="num">true</span>,
+  <span class="key">"services"</span>: [
+    { <span class="key">"id"</span>: <span class="string">"myapp:api"</span>, <span class="key">"port"</span>: <span class="num">3001</span>, <span class="key">"ready"</span>: <span class="num">true</span> },
+    { <span class="key">"id"</span>: <span class="string">"myapp:db"</span>, <span class="key">"port"</span>: <span class="num">5432</span>, <span class="key">"ready"</span>: <span class="num">true</span> }
+  ]
+}</code></pre>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s -X POST http://localhost:9876/wait \
+    -H "Content-Type: application/json" \
+    -d '{"ids": ["myapp:api", "myapp:db"]}'</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Sessions & Notes ─────────────────────────────── -->
+      <section class="api-section" id="sessions-notes">
+        <div class="api-section-header">
+          <h2>Sessions &amp; Notes</h2>
+          <span class="api-section-count">12 endpoints</span>
+        </div>
+
+        <div class="endpoint endpoint-post" id="ep-post-sessions">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-post">POST</span>
+              <span class="path">/sessions</span>
+            </div>
+            <p class="endpoint-desc">Start a new coordination session. Sessions are the primary unit of multi-agent work tracking. Notes added to a session form an immutable audit trail.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Request Body</h4>
+            <pre><code>{
+  <span class="key">"purpose"</span>: <span class="string">"Building auth system"</span>,  <span class="comment">// required</span>
+  <span class="key">"agentId"</span>: <span class="string">"agent-abc123"</span>,          <span class="comment">// optional</span>
+  <span class="key">"identity"</span>: <span class="string">"myapp:api"</span>,            <span class="comment">// optional — semantic identity</span>
+  <span class="key">"type"</span>: <span class="string">"work"</span>,                    <span class="comment">// optional — work | review | debug</span>
+  <span class="key">"phase"</span>: <span class="string">"planning"</span>               <span class="comment">// optional — initial phase label</span>
+}</code></pre>
+            <h4>Response</h4>
+            <pre><code>{
+  <span class="key">"id"</span>: <span class="string">"sess-d4e5f6"</span>,
+  <span class="key">"purpose"</span>: <span class="string">"Building auth system"</span>,
+  <span class="key">"status"</span>: <span class="string">"active"</span>,
+  <span class="key">"createdAt"</span>: <span class="string">"2026-03-10T12:00:00Z"</span>
+}</code></pre>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s -X POST http://localhost:9876/sessions \
+    -H "Content-Type: application/json" \
+    -d '{"purpose": "Building auth system"}'</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-get" id="ep-get-sessions">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-get">GET</span>
+              <span class="path">/sessions</span>
+            </div>
+            <p class="endpoint-desc">List sessions, optionally filtered by status or agent.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Query Parameters</h4>
+            <table class="param-table">
+              <thead><tr><th>Param</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td><code>status</code></td><td><code>active</code> | <code>completed</code> | <code>abandoned</code> <span class="param-optional">optional</span></td></tr>
+                <tr><td><code>agent</code></td><td>Filter by agent ID <span class="param-optional">optional</span></td></tr>
+                <tr><td><code>limit</code></td><td>Max results (default: 50) <span class="param-optional">optional</span></td></tr>
+              </tbody>
+            </table>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s "http://localhost:9876/sessions?status=active"</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-get" id="ep-get-sessions-id">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-get">GET</span>
+              <span class="path">/sessions/:id</span>
+            </div>
+            <p class="endpoint-desc">Get full session details including notes and file claims.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s http://localhost:9876/sessions/sess-d4e5f6</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-put" id="ep-put-sessions-id">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-put">PUT</span>
+              <span class="path">/sessions/:id</span>
+            </div>
+            <p class="endpoint-desc">Update a session — mark it completed, abandoned, or update metadata.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Request Body</h4>
+            <pre><code>{
+  <span class="key">"status"</span>: <span class="string">"completed"</span>,   <span class="comment">// completed | abandoned | active</span>
+  <span class="key">"phase"</span>: <span class="string">"done"</span>
+}</code></pre>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s -X PUT http://localhost:9876/sessions/sess-d4e5f6 \
+    -H "Content-Type: application/json" \
+    -d '{"status": "completed"}'</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-delete" id="ep-delete-sessions-id">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-delete">DELETE</span>
+              <span class="path">/sessions/:id</span>
+            </div>
+            <p class="endpoint-desc">Delete a session and cascade-delete its notes and file claims.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s -X DELETE http://localhost:9876/sessions/sess-d4e5f6</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-put" id="ep-put-sessions-phase">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-put">PUT</span>
+              <span class="path">/sessions/:id/phase</span>
+            </div>
+            <p class="endpoint-desc">Advance a session to a new named phase. Phases are free-form strings — common values are <code>planning</code>, <code>implementation</code>, <code>review</code>, <code>done</code>.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Request Body</h4>
+            <pre><code>{
+  <span class="key">"phase"</span>: <span class="string">"implementation"</span>
+}</code></pre>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s -X PUT http://localhost:9876/sessions/sess-d4e5f6/phase \
+    -H "Content-Type: application/json" \
+    -d '{"phase": "implementation"}'</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-post" id="ep-post-sessions-notes">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-post">POST</span>
+              <span class="path">/sessions/:id/notes</span>
+            </div>
+            <p class="endpoint-desc">Add an immutable note to a session. Notes cannot be edited or deleted individually — they form a permanent audit trail.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Request Body</h4>
+            <pre><code>{
+  <span class="key">"content"</span>: <span class="string">"Auth middleware implemented, tests passing"</span>,
+  <span class="key">"type"</span>: <span class="string">"progress"</span>    <span class="comment">// progress | decision | blocker | handoff</span>
+}</code></pre>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s -X POST http://localhost:9876/sessions/sess-d4e5f6/notes \
+    -H "Content-Type: application/json" \
+    -d '{"content": "Auth middleware done", "type": "progress"}'</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-get" id="ep-get-sessions-notes">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-get">GET</span>
+              <span class="path">/sessions/:id/notes</span>
+            </div>
+            <p class="endpoint-desc">Get all notes for a session in chronological order.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s http://localhost:9876/sessions/sess-d4e5f6/notes</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-post" id="ep-post-sessions-files">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-post">POST</span>
+              <span class="path">/sessions/:id/files</span>
+            </div>
+            <p class="endpoint-desc">Claim files for this session. File claims are advisory — they provide conflict detection warnings but are not enforced locks.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Request Body</h4>
+            <pre><code>{
+  <span class="key">"files"</span>: [<span class="string">"src/auth.ts"</span>, <span class="string">"src/middleware.ts"</span>]
+}</code></pre>
+            <h4>Response</h4>
+            <pre><code>{
+  <span class="key">"claimed"</span>: [<span class="string">"src/auth.ts"</span>, <span class="string">"src/middleware.ts"</span>],
+  <span class="key">"conflicts"</span>: []    <span class="comment">// files claimed by another active session</span>
+}</code></pre>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s -X POST http://localhost:9876/sessions/sess-d4e5f6/files \
+    -H "Content-Type: application/json" \
+    -d '{"files": ["src/auth.ts"]}'</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-delete" id="ep-delete-sessions-files">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-delete">DELETE</span>
+              <span class="path">/sessions/:id/files</span>
+            </div>
+            <p class="endpoint-desc">Release file claims for this session.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Request Body</h4>
+            <pre><code>{
+  <span class="key">"files"</span>: [<span class="string">"src/auth.ts"</span>]    <span class="comment">// omit to release all files</span>
+}</code></pre>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s -X DELETE http://localhost:9876/sessions/sess-d4e5f6/files \
+    -H "Content-Type: application/json" \
+    -d '{"files": ["src/auth.ts"]}'</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-post" id="ep-post-notes">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-post">POST</span>
+              <span class="path">/notes</span>
+            </div>
+            <p class="endpoint-desc">Quick note — adds a note without an explicit session. Creates an implicit session if none exists. Useful for lightweight logging without session management.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Request Body</h4>
+            <pre><code>{
+  <span class="key">"content"</span>: <span class="string">"Fixed the CSS bug in the nav"</span>,
+  <span class="key">"type"</span>: <span class="string">"progress"</span>
+}</code></pre>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s -X POST http://localhost:9876/notes \
+    -H "Content-Type: application/json" \
+    -d '{"content": "Fixed nav bug"}'</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-get" id="ep-get-notes">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-get">GET</span>
+              <span class="path">/notes</span>
+            </div>
+            <p class="endpoint-desc">Get recent notes across all sessions.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Query Parameters</h4>
+            <table class="param-table">
+              <thead><tr><th>Param</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td><code>limit</code></td><td>Max results (default: 20) <span class="param-optional">optional</span></td></tr>
+                <tr><td><code>type</code></td><td>Filter by note type <span class="param-optional">optional</span></td></tr>
+              </tbody>
+            </table>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s "http://localhost:9876/notes?limit=10&type=progress"</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Agents ───────────────────────────────────────── -->
+      <section class="api-section" id="agents">
+        <div class="api-section-header">
+          <h2>Agents</h2>
+          <span class="api-section-count">8 endpoints</span>
+        </div>
+
+        <div class="endpoint endpoint-post" id="ep-post-agents">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-post">POST</span>
+              <span class="path">/agents</span>
+            </div>
+            <p class="endpoint-desc">Register an agent. The daemon tracks heartbeats — agents that stop heartbeating become stale (10 min) and then dead (20 min), entering the salvage queue.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Request Body</h4>
+            <pre><code>{
+  <span class="key">"id"</span>: <span class="string">"agent-abc123"</span>,         <span class="comment">// required</span>
+  <span class="key">"identity"</span>: <span class="string">"myapp:api"</span>,     <span class="comment">// optional — project:stack:context</span>
+  <span class="key">"purpose"</span>: <span class="string">"Building auth"</span>, <span class="comment">// optional — human-readable task</span>
+  <span class="key">"worktreeId"</span>: <span class="string">"wt-xyz"</span>      <span class="comment">// optional — git worktree ID</span>
+}</code></pre>
+            <h4>Response</h4>
+            <pre><code>{
+  <span class="key">"id"</span>: <span class="string">"agent-abc123"</span>,
+  <span class="key">"registered"</span>: <span class="num">true</span>,
+  <span class="key">"salvageHint"</span>: {           <span class="comment">// present if dead agents in same project</span>
+    <span class="key">"count"</span>: <span class="num">2</span>,
+    <span class="key">"project"</span>: <span class="string">"myapp"</span>
+  }
+}</code></pre>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s -X POST http://localhost:9876/agents \
+    -H "Content-Type: application/json" \
+    -d '{"id": "agent-abc123", "identity": "myapp:api", "purpose": "Building auth"}'</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-post" id="ep-post-agents-heartbeat">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-post">POST</span>
+              <span class="path">/agents/:id/heartbeat</span>
+            </div>
+            <p class="endpoint-desc">Send a heartbeat to keep the agent alive. Recommended every 5 minutes. Missing heartbeats for 10 minutes marks the agent stale; 20 minutes marks it dead.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Response</h4>
+            <pre><code>{
+  <span class="key">"id"</span>: <span class="string">"agent-abc123"</span>,
+  <span class="key">"alive"</span>: <span class="num">true</span>,
+  <span class="key">"lastHeartbeat"</span>: <span class="string">"2026-03-10T12:05:00Z"</span>
+}</code></pre>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s -X POST http://localhost:9876/agents/agent-abc123/heartbeat</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-delete" id="ep-delete-agents-id">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-delete">DELETE</span>
+              <span class="path">/agents/:id</span>
+            </div>
+            <p class="endpoint-desc">Unregister an agent. Call this when your agent finishes its work.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s -X DELETE http://localhost:9876/agents/agent-abc123</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-get" id="ep-get-agents-id">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-get">GET</span>
+              <span class="path">/agents/:id</span>
+            </div>
+            <p class="endpoint-desc">Get details for a specific agent including status and last heartbeat time.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s http://localhost:9876/agents/agent-abc123</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-get" id="ep-get-agents">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-get">GET</span>
+              <span class="path">/agents</span>
+            </div>
+            <p class="endpoint-desc">List all registered agents with their current status.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Query Parameters</h4>
+            <table class="param-table">
+              <thead><tr><th>Param</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td><code>status</code></td><td><code>active</code> | <code>stale</code> | <code>dead</code> <span class="param-optional">optional</span></td></tr>
+              </tbody>
+            </table>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s "http://localhost:9876/agents?status=active"</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-post" id="ep-post-agents-inbox">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-post">POST</span>
+              <span class="path">/agents/:id/inbox</span>
+            </div>
+            <p class="endpoint-desc">Send a direct message to an agent's inbox. Messages persist until the agent reads them.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Request Body</h4>
+            <pre><code>{
+  <span class="key">"content"</span>: <span class="string">"Your PR is approved"</span>,
+  <span class="key">"from"</span>: <span class="string">"agent-reviewer"</span>
+}</code></pre>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s -X POST http://localhost:9876/agents/agent-abc123/inbox \
+    -H "Content-Type: application/json" \
+    -d '{"content": "Build complete", "from": "ci-agent"}'</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-get" id="ep-get-agents-inbox">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-get">GET</span>
+              <span class="path">/agents/:id/inbox</span>
+            </div>
+            <p class="endpoint-desc">List messages in an agent's inbox.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s http://localhost:9876/agents/agent-abc123/inbox</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-delete" id="ep-delete-agents-inbox">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-delete">DELETE</span>
+              <span class="path">/agents/:id/inbox</span>
+            </div>
+            <p class="endpoint-desc">Clear all messages from an agent's inbox.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s -X DELETE http://localhost:9876/agents/agent-abc123/inbox</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Locks ────────────────────────────────────────── -->
+      <section class="api-section" id="locks">
+        <div class="api-section-header">
+          <h2>Locks</h2>
+          <span class="api-section-count">5 endpoints</span>
+        </div>
+
+        <div class="endpoint endpoint-post" id="ep-post-locks">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-post">POST</span>
+              <span class="path">/locks/:name</span>
+            </div>
+            <p class="endpoint-desc">Acquire a named distributed lock. Returns 409 if the lock is already held. Locks have a TTL and auto-expire if not extended.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Request Body</h4>
+            <pre><code>{
+  <span class="key">"holder"</span>: <span class="string">"agent-abc123"</span>,   <span class="comment">// required — who holds the lock</span>
+  <span class="key">"ttl"</span>: <span class="num">300000</span>             <span class="comment">// optional — TTL in ms (default: 300000 = 5 min)</span>
+}</code></pre>
+            <h4>Response (200 — acquired)</h4>
+            <pre><code>{
+  <span class="key">"acquired"</span>: <span class="num">true</span>,
+  <span class="key">"name"</span>: <span class="string">"db-migrations"</span>,
+  <span class="key">"holder"</span>: <span class="string">"agent-abc123"</span>,
+  <span class="key">"expiresAt"</span>: <span class="string">"2026-03-10T12:10:00Z"</span>
+}</code></pre>
+            <h4>Response (409 — already held)</h4>
+            <pre><code>{
+  <span class="key">"acquired"</span>: <span class="num">false</span>,
+  <span class="key">"holder"</span>: <span class="string">"agent-xyz789"</span>,
+  <span class="key">"expiresAt"</span>: <span class="string">"2026-03-10T12:08:00Z"</span>
+}</code></pre>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s -X POST http://localhost:9876/locks/db-migrations \
+    -H "Content-Type: application/json" \
+    -d '{"holder": "agent-abc123"}'</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-put" id="ep-put-locks">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-put">PUT</span>
+              <span class="path">/locks/:name</span>
+            </div>
+            <p class="endpoint-desc">Extend a lock's TTL. Only the current holder can extend. Returns 403 if called by a different holder.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Request Body</h4>
+            <pre><code>{
+  <span class="key">"holder"</span>: <span class="string">"agent-abc123"</span>,
+  <span class="key">"ttl"</span>: <span class="num">300000</span>
+}</code></pre>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s -X PUT http://localhost:9876/locks/db-migrations \
+    -H "Content-Type: application/json" \
+    -d '{"holder": "agent-abc123", "ttl": 300000}'</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-delete" id="ep-delete-locks">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-delete">DELETE</span>
+              <span class="path">/locks/:name</span>
+            </div>
+            <p class="endpoint-desc">Release a lock. Only the holder can release. Pass the holder in the request body.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Request Body</h4>
+            <pre><code>{
+  <span class="key">"holder"</span>: <span class="string">"agent-abc123"</span>
+}</code></pre>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s -X DELETE http://localhost:9876/locks/db-migrations \
+    -H "Content-Type: application/json" \
+    -d '{"holder": "agent-abc123"}'</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-get" id="ep-get-locks-name">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-get">GET</span>
+              <span class="path">/locks/:name</span>
+            </div>
+            <p class="endpoint-desc">Check the current status of a named lock.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s http://localhost:9876/locks/db-migrations</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-get" id="ep-get-locks">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-get">GET</span>
+              <span class="path">/locks</span>
+            </div>
+            <p class="endpoint-desc">List all currently held locks.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s http://localhost:9876/locks</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Messaging ────────────────────────────────────── -->
+      <section class="api-section" id="messaging">
+        <div class="api-section-header">
+          <h2>Messaging</h2>
+          <span class="api-section-count">6 endpoints</span>
+        </div>
+
+        <div class="endpoint endpoint-post" id="ep-post-msg">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-post">POST</span>
+              <span class="path">/msg/:channel</span>
+            </div>
+            <p class="endpoint-desc">Publish a message to a channel. Messages are stored and can be retrieved later. Delivery also broadcasts to SSE subscribers in real time.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Request Body</h4>
+            <pre><code>{
+  <span class="key">"content"</span>: <span class="string">"Build complete"</span>,
+  <span class="key">"metadata"</span>: { <span class="key">"buildId"</span>: <span class="string">"build-42"</span> }   <span class="comment">// optional</span>
+}</code></pre>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s -X POST http://localhost:9876/msg/builds \
+    -H "Content-Type: application/json" \
+    -d '{"content": "Build complete"}'</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-get" id="ep-get-msg">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-get">GET</span>
+              <span class="path">/msg/:channel</span>
+            </div>
+            <p class="endpoint-desc">Get messages from a channel. Optionally paginate with <code>since</code> and <code>limit</code>.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Query Parameters</h4>
+            <table class="param-table">
+              <thead><tr><th>Param</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td><code>limit</code></td><td>Max messages to return (default: 50) <span class="param-optional">optional</span></td></tr>
+                <tr><td><code>since</code></td><td>ISO timestamp — only return messages after this time <span class="param-optional">optional</span></td></tr>
+              </tbody>
+            </table>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s "http://localhost:9876/msg/builds?limit=10"</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-delete" id="ep-delete-msg">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-delete">DELETE</span>
+              <span class="path">/msg/:channel</span>
+            </div>
+            <p class="endpoint-desc">Clear all messages from a channel.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s -X DELETE http://localhost:9876/msg/builds</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-get" id="ep-get-msg-poll">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-get">GET</span>
+              <span class="path">/msg/:channel/poll</span>
+            </div>
+            <p class="endpoint-desc">Long-poll for new messages. Blocks until a new message arrives or the timeout expires. Use for lightweight event-driven coordination without SSE.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Query Parameters</h4>
+            <table class="param-table">
+              <thead><tr><th>Param</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td><code>since</code></td><td>ISO timestamp — wait for messages after this time <span class="param-optional">optional</span></td></tr>
+                <tr><td><code>timeout</code></td><td>Max wait in ms (default: 30000) <span class="param-optional">optional</span></td></tr>
+              </tbody>
+            </table>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s "http://localhost:9876/msg/builds/poll?timeout=10000"</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-sse" id="ep-get-msg-subscribe">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-sse">SSE</span>
+              <span class="path">/msg/:channel/subscribe</span>
+              <span class="badge-sse">Server-Sent Events</span>
+            </div>
+            <p class="endpoint-desc">Subscribe to a channel via Server-Sent Events. Keeps a persistent connection open and pushes new messages as they arrive. Max 10 concurrent SSE connections per IP.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Event Format</h4>
+            <pre><code>data: {"id": "msg-001", "content": "Build complete", "timestamp": "2026-03-10T12:00:00Z"}
+
+data: {"id": "msg-002", "content": "Tests passed"}</code></pre>
+            <h4>JavaScript Example</h4>
+            <pre><code><span class="key">const</span> es = <span class="key">new</span> EventSource(<span class="string">'http://localhost:9876/msg/builds/subscribe'</span>);
+es.onmessage = (e) => console.log(JSON.parse(e.data));</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-get" id="ep-get-channels">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-get">GET</span>
+              <span class="path">/channels</span>
+            </div>
+            <p class="endpoint-desc">List all pub/sub channels that have messages or active subscribers.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s http://localhost:9876/channels</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── DNS ─────────────────────────────────────────── -->
+      <section class="api-section" id="dns">
+        <div class="api-section-header">
+          <h2>DNS</h2>
+          <span class="api-section-count">8 endpoints</span>
+        </div>
+
+        <div class="endpoint endpoint-post" id="ep-post-dns">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-post">POST</span>
+              <span class="path">/dns/:id</span>
+            </div>
+            <p class="endpoint-desc">Register a DNS hostname for a service. Port Daddy manages an <code>/etc/hosts</code> section to resolve local hostnames.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Request Body</h4>
+            <pre><code>{
+  <span class="key">"hostname"</span>: <span class="string">"myapp.local"</span>   <span class="comment">// optional — defaults to {id}.local</span>
+}</code></pre>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s -X POST http://localhost:9876/dns/myapp:api \
+    -H "Content-Type: application/json" \
+    -d '{"hostname": "myapp-api.local"}'</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-get" id="ep-get-dns">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-get">GET</span>
+              <span class="path">/dns</span>
+            </div>
+            <p class="endpoint-desc">List all registered DNS records.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s http://localhost:9876/dns</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-get" id="ep-get-dns-id">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-get">GET</span>
+              <span class="path">/dns/:id</span>
+            </div>
+            <p class="endpoint-desc">Get the DNS record for a specific service.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s http://localhost:9876/dns/myapp:api</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-delete" id="ep-delete-dns">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-delete">DELETE</span>
+              <span class="path">/dns/:id</span>
+            </div>
+            <p class="endpoint-desc">Remove a DNS record for a service.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s -X DELETE http://localhost:9876/dns/myapp:api</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-get" id="ep-get-dns-status">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-get">GET</span>
+              <span class="path">/dns/status</span>
+            </div>
+            <p class="endpoint-desc">Check the DNS resolver status — whether the managed <code>/etc/hosts</code> section is active.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s http://localhost:9876/dns/status</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-post" id="ep-post-dns-setup">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-post">POST</span>
+              <span class="path">/dns/setup</span>
+            </div>
+            <p class="endpoint-desc">Install the Port Daddy managed section in <code>/etc/hosts</code>. Requires sudo — the daemon must have been started with appropriate privileges.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s -X POST http://localhost:9876/dns/setup</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-post" id="ep-post-dns-sync">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-post">POST</span>
+              <span class="path">/dns/sync</span>
+            </div>
+            <p class="endpoint-desc">Sync all DNS records to <code>/etc/hosts</code>. Call after registering multiple records to apply them in one write.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s -X POST http://localhost:9876/dns/sync</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-post" id="ep-post-dns-teardown">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-post">POST</span>
+              <span class="path">/dns/teardown</span>
+            </div>
+            <p class="endpoint-desc">Remove the Port Daddy managed section from <code>/etc/hosts</code>, restoring it to its original state.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s -X POST http://localhost:9876/dns/teardown</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Tunnels ──────────────────────────────────────── -->
+      <section class="api-section" id="tunnels">
+        <div class="api-section-header">
+          <h2>Tunnels</h2>
+          <span class="api-section-count">4 endpoints</span>
+        </div>
+
+        <div class="endpoint endpoint-get" id="ep-get-tunnel-providers">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-get">GET</span>
+              <span class="path">/tunnel/providers</span>
+            </div>
+            <p class="endpoint-desc">Check which tunnel providers are installed on the system. Supported: ngrok, cloudflared, localtunnel, bore.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Response</h4>
+            <pre><code>{
+  <span class="key">"providers"</span>: {
+    <span class="key">"ngrok"</span>:        { <span class="key">"installed"</span>: <span class="num">true</span>,  <span class="key">"path"</span>: <span class="string">"/usr/local/bin/ngrok"</span> },
+    <span class="key">"cloudflared"</span>: { <span class="key">"installed"</span>: <span class="num">false</span> },
+    <span class="key">"localtunnel"</span>: { <span class="key">"installed"</span>: <span class="num">true</span>,  <span class="key">"path"</span>: <span class="string">"/usr/local/bin/lt"</span> },
+    <span class="key">"bore"</span>:         { <span class="key">"installed"</span>: <span class="num">false</span> }
+  }
+}</code></pre>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s http://localhost:9876/tunnel/providers</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-post" id="ep-post-tunnel-id">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-post">POST</span>
+              <span class="path">/tunnel/:id</span>
+            </div>
+            <p class="endpoint-desc">Start a public tunnel for a registered service. Returns the public URL.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Request Body</h4>
+            <pre><code>{
+  <span class="key">"provider"</span>: <span class="string">"ngrok"</span>   <span class="comment">// optional — auto-selects if omitted</span>
+}</code></pre>
+            <h4>Response</h4>
+            <pre><code>{
+  <span class="key">"id"</span>: <span class="string">"myapp:api"</span>,
+  <span class="key">"url"</span>: <span class="string">"https://abc123.ngrok.io"</span>,
+  <span class="key">"provider"</span>: <span class="string">"ngrok"</span>,
+  <span class="key">"port"</span>: <span class="num">3001</span>
+}</code></pre>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s -X POST http://localhost:9876/tunnel/myapp:api</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-delete" id="ep-delete-tunnel-id">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-delete">DELETE</span>
+              <span class="path">/tunnel/:id</span>
+            </div>
+            <p class="endpoint-desc">Stop a running tunnel for a service.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s -X DELETE http://localhost:9876/tunnel/myapp:api</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-get" id="ep-get-tunnels">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-get">GET</span>
+              <span class="path">/tunnels</span>
+            </div>
+            <p class="endpoint-desc">List all active tunnels with their public URLs and provider info.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s http://localhost:9876/tunnels</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Webhooks ─────────────────────────────────────── -->
+      <section class="api-section" id="webhooks">
+        <div class="api-section-header">
+          <h2>Webhooks</h2>
+          <span class="api-section-count">8 endpoints</span>
+        </div>
+
+        <div class="endpoint endpoint-post" id="ep-post-webhooks">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-post">POST</span>
+              <span class="path">/webhooks</span>
+            </div>
+            <p class="endpoint-desc">Create a webhook subscription. Payloads are HMAC-signed with the secret (SHA-256). Private IP URLs are rejected to prevent SSRF.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Request Body</h4>
+            <pre><code>{
+  <span class="key">"url"</span>: <span class="string">"https://example.com/webhook"</span>,   <span class="comment">// required</span>
+  <span class="key">"events"</span>: [<span class="string">"port.claimed"</span>, <span class="string">"agent.died"</span>], <span class="comment">// required</span>
+  <span class="key">"secret"</span>: <span class="string">"my-hmac-secret"</span>               <span class="comment">// optional</span>
+}</code></pre>
+            <h4>Response</h4>
+            <pre><code>{
+  <span class="key">"id"</span>: <span class="string">"wh-abc123"</span>,
+  <span class="key">"url"</span>: <span class="string">"https://example.com/webhook"</span>,
+  <span class="key">"events"</span>: [<span class="string">"port.claimed"</span>, <span class="string">"agent.died"</span>],
+  <span class="key">"createdAt"</span>: <span class="string">"2026-03-10T12:00:00Z"</span>
+}</code></pre>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s -X POST http://localhost:9876/webhooks \
+    -H "Content-Type: application/json" \
+    -d '{"url": "https://example.com/wh", "events": ["port.claimed"]}'</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-get" id="ep-get-webhooks">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-get">GET</span>
+              <span class="path">/webhooks</span>
+            </div>
+            <p class="endpoint-desc">List all webhook subscriptions.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s http://localhost:9876/webhooks</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-get" id="ep-get-webhooks-events">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-get">GET</span>
+              <span class="path">/webhooks/events</span>
+            </div>
+            <p class="endpoint-desc">List all available webhook event types you can subscribe to.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Response (partial)</h4>
+            <pre><code>{
+  <span class="key">"events"</span>: [
+    <span class="string">"port.claimed"</span>, <span class="string">"port.released"</span>,
+    <span class="string">"agent.registered"</span>, <span class="string">"agent.died"</span>,
+    <span class="string">"session.started"</span>, <span class="string">"session.completed"</span>,
+    <span class="string">"lock.acquired"</span>, <span class="string">"lock.released"</span>
+  ]
+}</code></pre>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s http://localhost:9876/webhooks/events</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-get" id="ep-get-webhooks-id">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-get">GET</span>
+              <span class="path">/webhooks/:id</span>
+            </div>
+            <p class="endpoint-desc">Get a specific webhook by ID.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s http://localhost:9876/webhooks/wh-abc123</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-put" id="ep-put-webhooks-id">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-put">PUT</span>
+              <span class="path">/webhooks/:id</span>
+            </div>
+            <p class="endpoint-desc">Update a webhook — change the URL, events, or secret.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Request Body</h4>
+            <pre><code>{
+  <span class="key">"events"</span>: [<span class="string">"port.claimed"</span>, <span class="string">"agent.died"</span>, <span class="string">"session.completed"</span>]
+}</code></pre>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s -X PUT http://localhost:9876/webhooks/wh-abc123 \
+    -H "Content-Type: application/json" \
+    -d '{"events": ["port.claimed"]}'</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-delete" id="ep-delete-webhooks-id">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-delete">DELETE</span>
+              <span class="path">/webhooks/:id</span>
+            </div>
+            <p class="endpoint-desc">Delete a webhook subscription.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s -X DELETE http://localhost:9876/webhooks/wh-abc123</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-post" id="ep-post-webhooks-test">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-post">POST</span>
+              <span class="path">/webhooks/:id/test</span>
+            </div>
+            <p class="endpoint-desc">Send a test delivery to verify your endpoint is receiving correctly.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s -X POST http://localhost:9876/webhooks/wh-abc123/test</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-get" id="ep-get-webhooks-deliveries">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-get">GET</span>
+              <span class="path">/webhooks/:id/deliveries</span>
+            </div>
+            <p class="endpoint-desc">List recent delivery attempts for a webhook, including status codes and response bodies.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s http://localhost:9876/webhooks/wh-abc123/deliveries</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Salvage ──────────────────────────────────────── -->
+      <section class="api-section" id="salvage">
+        <div class="api-section-header">
+          <h2>Salvage</h2>
+          <span class="api-section-count">6 endpoints</span>
+        </div>
+
+        <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 1.5rem; line-height: 1.7;">
+          When an agent dies (heartbeat timeout), its work enters the salvage queue. Another agent can claim the dead agent's context and continue the work. The deprecated <code>/resurrection/*</code> aliases still work but point to these routes.
+        </p>
+
+        <div class="endpoint endpoint-get" id="ep-get-salvage">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-get">GET</span>
+              <span class="path">/salvage</span>
+            </div>
+            <p class="endpoint-desc">List all entries in the salvage queue — dead agents whose work can be claimed.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Query Parameters</h4>
+            <table class="param-table">
+              <thead><tr><th>Param</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td><code>project</code></td><td>Filter by project prefix <span class="param-optional">optional</span></td></tr>
+                <tr><td><code>stack</code></td><td>Filter by stack segment <span class="param-optional">optional</span></td></tr>
+              </tbody>
+            </table>
+            <h4>Response</h4>
+            <pre><code>{
+  <span class="key">"queue"</span>: [
+    {
+      <span class="key">"agentId"</span>: <span class="string">"agent-old123"</span>,
+      <span class="key">"identity"</span>: <span class="string">"myapp:api"</span>,
+      <span class="key">"purpose"</span>: <span class="string">"Building auth"</span>,
+      <span class="key">"diedAt"</span>: <span class="string">"2026-03-10T11:00:00Z"</span>,
+      <span class="key">"status"</span>: <span class="string">"pending"</span>
+    }
+  ]
+}</code></pre>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s "http://localhost:9876/salvage?project=myapp"</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-get" id="ep-get-salvage-pending">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-get">GET</span>
+              <span class="path">/salvage/pending</span>
+            </div>
+            <p class="endpoint-desc">List agents actively pending salvage (not yet claimed, not yet dismissed).</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s http://localhost:9876/salvage/pending</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-post" id="ep-post-salvage-claim">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-post">POST</span>
+              <span class="path">/salvage/claim/:agentId</span>
+            </div>
+            <p class="endpoint-desc">Claim a dead agent's work. Returns the dead agent's sessions and notes so you can continue where it left off.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Request Body</h4>
+            <pre><code>{
+  <span class="key">"rescuerId"</span>: <span class="string">"agent-new456"</span>   <span class="comment">// optional — your agent ID</span>
+}</code></pre>
+            <h4>Response</h4>
+            <pre><code>{
+  <span class="key">"claimed"</span>: <span class="num">true</span>,
+  <span class="key">"deadAgent"</span>: {
+    <span class="key">"id"</span>: <span class="string">"agent-old123"</span>,
+    <span class="key">"purpose"</span>: <span class="string">"Building auth"</span>,
+    <span class="key">"sessions"</span>: [{ <span class="key">"id"</span>: <span class="string">"sess-xyz"</span>, <span class="key">"notes"</span>: [...] }]
+  }
+}</code></pre>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s -X POST http://localhost:9876/salvage/claim/agent-old123 \
+    -H "Content-Type: application/json" \
+    -d '{"rescuerId": "agent-new456"}'</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-post" id="ep-post-salvage-complete">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-post">POST</span>
+              <span class="path">/salvage/complete/:agentId</span>
+            </div>
+            <p class="endpoint-desc">Mark salvage complete — the dead agent's work has been finished. Removes the entry from the queue.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s -X POST http://localhost:9876/salvage/complete/agent-old123</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-post" id="ep-post-salvage-abandon">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-post">POST</span>
+              <span class="path">/salvage/abandon/:agentId</span>
+            </div>
+            <p class="endpoint-desc">Return a claimed agent back to the salvage queue for another agent to pick up.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s -X POST http://localhost:9876/salvage/abandon/agent-old123</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-delete" id="ep-delete-salvage">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-delete">DELETE</span>
+              <span class="path">/salvage/:agentId</span>
+            </div>
+            <p class="endpoint-desc">Dismiss a dead agent from the salvage queue without claiming its work.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s -X DELETE http://localhost:9876/salvage/agent-old123</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Sugar ────────────────────────────────────────── -->
+      <section class="api-section" id="sugar">
+        <div class="api-section-header">
+          <h2>Sugar</h2>
+          <span class="api-section-count">3 endpoints</span>
+        </div>
+
+        <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 1.5rem; line-height: 1.7;">
+          Sugar endpoints compose multiple operations into single atomic calls. They are the recommended way to start and end agent work sessions — equivalent to <code>pd begin</code> and <code>pd done</code> in the CLI.
+        </p>
+
+        <div class="endpoint endpoint-post" id="ep-post-sugar-begin">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-post">POST</span>
+              <span class="path">/sugar/begin</span>
+            </div>
+            <p class="endpoint-desc">Register an agent and start a session atomically. Equivalent to calling <code>POST /agents</code> then <code>POST /sessions</code>.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Request Body</h4>
+            <pre><code>{
+  <span class="key">"identity"</span>: <span class="string">"myapp:api"</span>,          <span class="comment">// required</span>
+  <span class="key">"purpose"</span>: <span class="string">"Building auth system"</span>, <span class="comment">// required</span>
+  <span class="key">"agentId"</span>: <span class="string">"agent-abc123"</span>         <span class="comment">// optional — auto-generated if omitted</span>
+}</code></pre>
+            <h4>Response</h4>
+            <pre><code>{
+  <span class="key">"agentId"</span>: <span class="string">"agent-abc123"</span>,
+  <span class="key">"sessionId"</span>: <span class="string">"sess-d4e5f6"</span>,
+  <span class="key">"identity"</span>: <span class="string">"myapp:api"</span>,
+  <span class="key">"salvageHint"</span>: <span class="num">null</span>    <span class="comment">// non-null if dead agents found in project</span>
+}</code></pre>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s -X POST http://localhost:9876/sugar/begin \
+    -H "Content-Type: application/json" \
+    -d '{"identity": "myapp:api", "purpose": "Building auth system"}'</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-post" id="ep-post-sugar-done">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-post">POST</span>
+              <span class="path">/sugar/done</span>
+            </div>
+            <p class="endpoint-desc">End the session and unregister the agent atomically. Adds a closing note if provided. Falls back to finding any active session if agentId is not specified.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Request Body</h4>
+            <pre><code>{
+  <span class="key">"agentId"</span>: <span class="string">"agent-abc123"</span>,   <span class="comment">// optional — use context if omitted</span>
+  <span class="key">"note"</span>: <span class="string">"Auth complete, tests passing"</span>  <span class="comment">// optional closing note</span>
+}</code></pre>
+            <h4>Response</h4>
+            <pre><code>{
+  <span class="key">"agentId"</span>: <span class="string">"agent-abc123"</span>,
+  <span class="key">"sessionId"</span>: <span class="string">"sess-d4e5f6"</span>,
+  <span class="key">"ended"</span>: <span class="num">true</span>
+}</code></pre>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s -X POST http://localhost:9876/sugar/done \
+    -H "Content-Type: application/json" \
+    -d '{"agentId": "agent-abc123", "note": "Auth complete"}'</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-get" id="ep-get-sugar-whoami">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-get">GET</span>
+              <span class="path">/sugar/whoami</span>
+            </div>
+            <p class="endpoint-desc">Get the current agent and session context. Reads from <code>.portdaddy/current.json</code> in the working directory if present.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Response</h4>
+            <pre><code>{
+  <span class="key">"agentId"</span>: <span class="string">"agent-abc123"</span>,
+  <span class="key">"sessionId"</span>: <span class="string">"sess-d4e5f6"</span>,
+  <span class="key">"identity"</span>: <span class="string">"myapp:api"</span>,
+  <span class="key">"purpose"</span>: <span class="string">"Building auth system"</span>,
+  <span class="key">"files"</span>: [<span class="string">"src/auth.ts"</span>]
+}</code></pre>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s http://localhost:9876/sugar/whoami</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── System ────────────────────────────────────────── -->
+      <section class="api-section" id="system">
+        <div class="api-section-header">
+          <h2>System</h2>
+          <span class="api-section-count">8 endpoints</span>
+        </div>
+
+        <div class="endpoint endpoint-get" id="ep-get-health">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-get">GET</span>
+              <span class="path">/health</span>
+            </div>
+            <p class="endpoint-desc">Daemon health check. Returns 200 when healthy. Checks SQLite connectivity and core subsystem availability.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Response</h4>
+            <pre><code>{
+  <span class="key">"status"</span>: <span class="string">"ok"</span>,
+  <span class="key">"uptime"</span>: <span class="num">3600</span>,
+  <span class="key">"db"</span>: <span class="string">"ok"</span>,
+  <span class="key">"version"</span>: <span class="string">"3.5.0"</span>
+}</code></pre>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s http://localhost:9876/health</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-get" id="ep-get-version">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-get">GET</span>
+              <span class="path">/version</span>
+            </div>
+            <p class="endpoint-desc">Get daemon version and a code hash of all source files — useful for detecting stale daemon instances during development.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Response</h4>
+            <pre><code>{
+  <span class="key">"version"</span>: <span class="string">"3.5.0"</span>,
+  <span class="key">"codeHash"</span>: <span class="string">"a1b2c3d4"</span>,
+  <span class="key">"builtAt"</span>: <span class="string">"2026-03-10T00:00:00Z"</span>
+}</code></pre>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s http://localhost:9876/version</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-get" id="ep-get-metrics">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-get">GET</span>
+              <span class="path">/metrics</span>
+            </div>
+            <p class="endpoint-desc">Daemon metrics — request counts, active connections, queue depths, and performance stats.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s http://localhost:9876/metrics</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-get" id="ep-get-config">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-get">GET</span>
+              <span class="path">/config</span>
+            </div>
+            <p class="endpoint-desc">Get the resolved daemon configuration — merged from <code>.portdaddyrc</code>, environment variables, and defaults.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s http://localhost:9876/config</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-get" id="ep-get-activity">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-get">GET</span>
+              <span class="path">/activity</span>
+            </div>
+            <p class="endpoint-desc">Get the activity log — an append-only audit trail of all daemon events.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Query Parameters</h4>
+            <table class="param-table">
+              <thead><tr><th>Param</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td><code>limit</code></td><td>Max entries (default: 100) <span class="param-optional">optional</span></td></tr>
+                <tr><td><code>type</code></td><td>Filter by event type <span class="param-optional">optional</span></td></tr>
+              </tbody>
+            </table>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s "http://localhost:9876/activity?limit=20"</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-get" id="ep-get-activity-summary">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-get">GET</span>
+              <span class="path">/activity/summary</span>
+            </div>
+            <p class="endpoint-desc">Get activity counts grouped by event type — useful for monitoring and dashboards.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s http://localhost:9876/activity/summary</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-get" id="ep-get-activity-range">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-get">GET</span>
+              <span class="path">/activity/range</span>
+            </div>
+            <p class="endpoint-desc">Get activity within a specific time window.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Query Parameters</h4>
+            <table class="param-table">
+              <thead><tr><th>Param</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td><code>from</code></td><td>ISO timestamp — start of range <span class="param-optional">optional</span></td></tr>
+                <tr><td><code>to</code></td><td>ISO timestamp — end of range <span class="param-optional">optional</span></td></tr>
+              </tbody>
+            </table>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s "http://localhost:9876/activity/range?from=2026-03-10T00:00:00Z"</code></pre>
+          </div>
+        </div>
+
+        <div class="endpoint endpoint-get" id="ep-get-launch-hints">
+          <div class="endpoint-header">
+            <div class="endpoint-title-row">
+              <span class="method method-get">GET</span>
+              <span class="path">/launch-hints</span>
+            </div>
+            <p class="endpoint-desc">Context-aware startup hints — returns nudges based on project state, such as salvage queue depth, stale services, or onboarding suggestions for new projects.</p>
+          </div>
+          <div class="endpoint-body">
+            <h4>Response</h4>
+            <pre><code>{
+  <span class="key">"hints"</span>: [
+    {
+      <span class="key">"type"</span>: <span class="string">"salvage"</span>,
+      <span class="key">"message"</span>: <span class="string">"2 dead agents in myapp:*"</span>,
+      <span class="key">"action"</span>: <span class="string">"pd salvage --project myapp"</span>
+    }
+  ]
+}</code></pre>
+            <h4>curl Example</h4>
+            <pre><code><span class="prompt">$</span> curl -s http://localhost:9876/launch-hints</code></pre>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a href="../" class="nav-brand" style="text-decoration: none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;stroke:var(--blue);flex-shrink:0;"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
+            <span>Port Daddy</span>
+          </a>
+          <p>Port management, service orchestration, and agent coordination for modern development workflows.</p>
+        </div>
+        <div class="footer-column">
+          <h4>Docs</h4>
+          <ul>
+            <li><a href="./">Documentation</a></li>
+            <li><a href="api.html">API Reference</a></li>
+            <li><a href="https://github.com/curiositech/port-daddy/blob/main/docs/sdk.md" target="_blank">SDK Reference</a></li>
+          </ul>
+        </div>
+        <div class="footer-column">
+          <h4>Resources</h4>
+          <ul>
+            <li><a href="../tutorials/">Tutorials</a></li>
+            <li><a href="../mcp/">MCP Integration</a></li>
+            <li><a href="https://github.com/curiositech/port-daddy" target="_blank">GitHub</a></li>
+          </ul>
+        </div>
+        <div class="footer-column">
+          <h4>Connect</h4>
+          <ul><li><a href="https://github.com/curiositech" target="_blank">@curiositech</a></li></ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2025-2026 Curiositech LLC. Released under the MIT License.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // ── Endpoint search ────────────────────────────────────────────
+    function filterEndpoints(query) {
+      const q = query.trim().toLowerCase();
+      const endpoints = document.querySelectorAll('.endpoint');
+      const sections = document.querySelectorAll('.api-section');
+      const noResults = document.getElementById('no-results');
+      const countEl = document.getElementById('search-count');
+
+      let visible = 0;
+
+      endpoints.forEach(function(ep) {
+        if (!q) {
+          ep.style.display = '';
+          visible++;
+          return;
+        }
+        const path = ep.querySelector('.path');
+        const desc = ep.querySelector('.endpoint-desc');
+        const pathText = path ? path.textContent.toLowerCase() : '';
+        const descText = desc ? desc.textContent.toLowerCase() : '';
+        const match = pathText.indexOf(q) !== -1 || descText.indexOf(q) !== -1;
+        ep.style.display = match ? '' : 'none';
+        if (match) visible++;
+      });
+
+      // Hide sections where all endpoints are hidden
+      sections.forEach(function(section) {
+        const sectionEndpoints = section.querySelectorAll('.endpoint');
+        let sectionVisible = 0;
+        sectionEndpoints.forEach(function(ep) {
+          if (ep.style.display !== 'none') sectionVisible++;
+        });
+        section.style.display = sectionVisible > 0 ? '' : 'none';
+      });
+
+      if (q) {
+        noResults.style.display = visible === 0 ? 'block' : 'none';
+        countEl.textContent = visible === 1
+          ? '1 endpoint'
+          : visible + ' endpoints';
+      } else {
+        noResults.style.display = 'none';
+        countEl.textContent = '';
+      }
+    }
+
+    // ── Sidebar active-link tracking on scroll ────────────────────
+    (function() {
+      var sectionIds = [
+        'port-management', 'sessions-notes', 'agents', 'locks',
+        'messaging', 'dns', 'tunnels', 'webhooks', 'salvage', 'sugar', 'system'
+      ];
+
+      function updateActive() {
+        var scrollY = window.scrollY + 120;
+        var current = sectionIds[0];
+
+        sectionIds.forEach(function(id) {
+          var el = document.getElementById(id);
+          if (el && el.getBoundingClientRect().top + window.scrollY <= scrollY) {
+            current = id;
+          }
+        });
+
+        document.querySelectorAll('.api-sidebar a').forEach(function(a) {
+          var href = a.getAttribute('href');
+          if (href === '#' + current) {
+            a.classList.add('active');
+          } else {
+            a.classList.remove('active');
+          }
+        });
+      }
+
+      window.addEventListener('scroll', updateActive, { passive: true });
+      updateActive();
+    })();
+  </script>
+</body>
+</html>
