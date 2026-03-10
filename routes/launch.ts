@@ -120,6 +120,7 @@ export function createLaunchHintsRoutes(deps: LaunchRouteDeps): Router {
         success: true,
         projectName,
         isNewFolder,
+        uncharted_waters: isNewFolder,
         salvage: {
           total: totalSalvage.count,
           inProject: projectSalvage.count,

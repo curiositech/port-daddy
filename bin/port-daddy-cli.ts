@@ -210,10 +210,11 @@ function relativeTime(ms: number): string {
 function printLaunchHints(hints: {
   projectName?: string;
   isNewFolder?: boolean;
+  uncharted_waters?: boolean;
   salvage?: { total: number; inProject: number; recent: Array<{ id: string; purpose?: string | null; identity?: string | null; minutesAgo?: number | null }> };
   nudges?: Array<{ type: string; message: string; cmd: string }>;
 }): void {
-  const { salvage, nudges, isNewFolder, projectName } = hints;
+  const { salvage, nudges, isNewFolder, uncharted_waters, projectName } = hints;
   if (!salvage && !nudges?.length) return;
 
   const inProject = salvage?.inProject ?? 0;
@@ -235,9 +236,35 @@ function printLaunchHints(hints: {
     printed = true;
   }
 
-  if (isNewFolder) {
+  if (isNewFolder || uncharted_waters) {
     if (printed) console.error('');
-    console.error(marANSI.fgCyan + '  New folder' + marANSI.reset + marANSI.fgGray + ' — run pd scan to register your services' + marANSI.reset);
+
+    // Compass rose + dramatic header
+    const line = marANSI.fgGray + '\u2500'.repeat(55) + marANSI.reset;
+    const compassRose = [
+      '       ' + marANSI.fgCyan + marANSI.bold + '   N   ' + marANSI.reset,
+      '       ' + marANSI.fgCyan + '   |   ' + marANSI.reset,
+      '       ' + marANSI.fgCyan + 'W \u2500\u2022\u2500 E' + marANSI.reset,
+      '       ' + marANSI.fgCyan + '   |   ' + marANSI.reset,
+      '       ' + marANSI.fgCyan + '   S   ' + marANSI.reset,
+    ];
+    const header = marANSI.bold + marANSI.fgCyan + '\u2693  UNCHARTED WATERS' + marANSI.reset;
+    const folderLine = projectName
+      ? marANSI.fgGray + `   Port Daddy hasn't seen ` + marANSI.fgWhite + projectName + marANSI.fgGray + ' before.' + marANSI.reset
+      : marANSI.fgGray + '   Port Daddy hasn\'t seen this folder before.' + marANSI.reset;
+
+    console.error('');
+    console.error(line);
+    compassRose.forEach(l => console.error(l));
+    console.error('');
+    console.error('  ' + header);
+    console.error(folderLine);
+    console.error('');
+    console.error(marANSI.fgGray + '   Offer:' + marANSI.reset);
+    console.error(marANSI.fgCyan + '   \u25b8 pd scan' + marANSI.reset + marANSI.fgGray + '         \u2014 detect all services in this project' + marANSI.reset);
+    console.error(marANSI.fgCyan + '   \u25b8 pd learn' + marANSI.reset + marANSI.fgGray + '        \u2014 interactive tutorial (5 min)' + marANSI.reset);
+    console.error(marANSI.fgCyan + '   \u25b8 pd mcp install' + marANSI.reset + marANSI.fgGray + '   \u2014 add to your AI agent\'s MCP config' + marANSI.reset);
+    console.error(line);
     printed = true;
   }
 
