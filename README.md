@@ -180,6 +180,50 @@ pd done "Auth complete, tests passing"  # end session + unregister
 
 These compose `agent register` + `session start` and `session end` + `agent unregister` atomically. Use `pd whoami` to check your current context.
 
+### Agent Inbox
+
+Every registered agent gets a personal inbox. Any caller can send; only registered agents can receive. Use DMs when you need targeted, persistent messaging rather than broadcast pub/sub.
+
+```bash
+# Send a message to another agent
+pd inbox send agent-bob "Schema migration ready for your review"
+
+# Read your inbox (unread messages)
+pd inbox
+
+# Inbox stats
+pd inbox stats
+
+# Mark all messages read
+pd inbox read-all
+
+# Clear inbox
+pd inbox clear
+```
+
+Using the SDK:
+
+```javascript
+// Send a direct message
+await pd.inboxSend('agent-bob', 'Migrations complete, ready for review', {
+  from: 'agent-alice',
+  type: 'handoff',
+});
+
+// Read unread messages
+const { messages } = await pd.inboxList('agent-bob', { unreadOnly: true });
+for (const msg of messages) {
+  console.log(`[${msg.type}] From ${msg.from ?? 'system'}: ${msg.content}`);
+  await pd.inboxMarkRead('agent-bob', msg.id);
+}
+
+// Stats and housekeeping
+const { total, unread } = await pd.inboxStats('agent-bob');
+await pd.inboxClear('agent-bob');
+```
+
+**Inbox vs pub/sub:** Use the inbox for targeted, persistent messages between specific agents (handoffs, blockers, task results). Use pub/sub for broadcast signals that any subscriber can hear. Inbox messages survive until read or cleared; pub/sub messages are ephemeral.
+
 ### Pub/Sub Messaging
 
 ```bash
@@ -353,6 +397,28 @@ Changes roll up automatically:
 | `docs` | Documentation updates |
 | `chore` | Maintenance tasks |
 | `breaking` | Breaking changes |
+
+### Changelog SDK
+
+The JavaScript SDK exposes the same changelog operations:
+
+```javascript
+// Log what was accomplished
+await pd.addChangelog({
+  identity: 'myapp:api',
+  summary: 'Auth complete',
+  type: 'feature',
+});
+
+// List recent entries
+const { entries } = await pd.listChangelog({ limit: 10 });
+
+// Filter by identity and all children
+const { entries } = await pd.listChangelogTree('myapp:api');
+
+// All tracked identities
+const { identities } = await pd.changelogIdentities();
+```
 
 ---
 
@@ -871,6 +937,9 @@ GET    /msg/:channel/subscribe  GET    /channels
 POST   /agents                  GET    /agents
 GET    /agents/:id              DELETE /agents/:id
 POST   /agents/:id/heartbeat
+POST   /agents/:id/inbox        GET    /agents/:id/inbox
+GET    /agents/:id/inbox/stats  PUT    /agents/:id/inbox/read-all
+DELETE /agents/:id/inbox
 GET    /resurrection            GET    /resurrection/pending
 POST   /resurrection/claim/:id  POST   /resurrection/reap
 POST   /dns                     GET    /dns
@@ -902,6 +971,16 @@ POST   /agents/:id/inbox        GET    /agents/:id/inbox
 DELETE /agents/:id/inbox        GET    /agents/:id/inbox/stats
 GET    /wait/:id
 ```
+
+**Agent Inbox Routes:**
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/agents/:id/inbox` | POST | Send message to agent inbox |
+| `/agents/:id/inbox` | GET | Read inbox (`?unread=true&limit=50`) |
+| `/agents/:id/inbox/stats` | GET | Inbox stats (total, unread) |
+| `/agents/:id/inbox/read-all` | PUT | Mark all messages read |
+| `/agents/:id/inbox` | DELETE | Clear inbox |
 
 ---
 

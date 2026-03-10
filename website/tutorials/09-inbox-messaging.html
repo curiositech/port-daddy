@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agent Inbox — Port Daddy Tutorials</title>
+  <meta name="description" content="Every registered agent gets a personal inbox. Send targeted direct messages between agents, coordinate handoffs, and process task results without broadcasting to every subscriber.">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%9A%93</text></svg>">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/shared.css">
+  <style>
+    .step-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+    .step-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      background: #E5A000;
+      color: white;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 0.75rem;
+      flex-shrink: 0;
+    }
+    .step-header h3 {
+      margin: 0;
+    }
+    .callout {
+      background: rgba(229, 160, 0, 0.08);
+      border-left: 3px solid #E5A000;
+      padding: 0.85rem 1.1rem;
+      border-radius: 0 6px 6px 0;
+      margin: 1.25rem 0;
+    }
+    .callout strong { color: #B37800; }
+    .comparison-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      margin: 1rem 0;
+    }
+    .comparison-table th {
+      background: #1e3a5f;
+      color: white;
+      padding: 0.6rem 0.85rem;
+      text-align: left;
+      font-weight: 600;
+    }
+    .comparison-table td {
+      padding: 0.55rem 0.85rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    .comparison-table tr:last-child td { border-bottom: none; }
+    .comparison-table tr:nth-child(even) td { background: var(--bg-secondary); }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="nav-container">
+      <a href="../" class="logo">
+        <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
+        <span>Port Daddy</span>
+      </a>
+      <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Toggle navigation">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="nav-links">
+        <a href="../#features">Features</a>
+        <a href="./" class="active">Tutorials</a>
+        <a href="../mcp/">MCP</a>
+        <a href="../docs/">Docs</a>
+        <a href="https://github.com/curiositech/port-daddy" target="_blank">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <section class="page-hero">
+    <div class="page-hero-container">
+      <div class="breadcrumbs">
+        <a href="../">Home</a>
+        <span class="separator">/</span>
+        <a href="./">Tutorials</a>
+        <span class="separator">/</span>
+        <span>Agent Inbox</span>
+      </div>
+      <h1>Agent Inbox: Direct Messaging</h1>
+      <p>Give every agent a personal message queue. Send targeted handoffs, alerts, and task results directly to the agent that needs them — without broadcasting to everyone.</p>
+      <div class="meta">
+        <span class="meta-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          8 min read
+        </span>
+        <span class="meta-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+          Tutorial 9 of 9
+        </span>
+        <span class="meta-item">Intermediate</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="content-layout">
+    <aside class="toc">
+      <h4>On this page</h4>
+      <ul>
+        <li><a href="#what-is-inbox">What the Inbox Is</a></li>
+        <li><a href="#registration">Registration as Address</a></li>
+        <li><a href="#sending">Sending Messages</a></li>
+        <li><a href="#reading">Reading Your Inbox</a></li>
+        <li><a href="#stats-and-clear">Stats, Mark Read, Clear</a></li>
+        <li><a href="#polling">Polling Pattern</a></li>
+        <li><a href="#workflow">Real Workflow: Migration Handoff</a></li>
+        <li><a href="#inbox-vs-pubsub">Inbox vs Pub/Sub</a></li>
+        <li><a href="#limits">Limits</a></li>
+        <li><a href="#whats-next">What's Next</a></li>
+      </ul>
+    </aside>
+
+    <article class="article">
+      <p>You've got four agents running in parallel — one building an API, one running tests, one applying migrations, one updating docs. Pub/sub is great for broadcasting "I'm done." But sometimes you need to tell one specific agent something private: <em>"The schema changed. Update your types before running the next test suite."</em></p>
+      <p>That's the inbox.</p>
+
+      <h2 id="what-is-inbox">What the Inbox Is</h2>
+      <p>Every registered agent gets a personal message queue. Any caller can deliver a message; only the named recipient reads it. Messages are <strong>persistent</strong> — they wait in the inbox until read or cleared.</p>
+      <pre><code><span class="comment"># pub/sub channel — everyone subscribed hears it</span>
+<span class="prompt">$</span> pd pub build:api <span class="string">'{"status":"done"}'</span>
+
+<span class="comment"># agent inbox — only agent-bob receives it</span>
+<span class="prompt">$</span> pd inbox send agent-bob <span class="string">"Schema migration complete, ready for review"</span></code></pre>
+
+      <div class="callout">
+        <strong>Inbox vs pub/sub at a glance:</strong> pub/sub delivers to current subscribers in real-time (ephemeral). The inbox holds messages until the recipient explicitly reads or clears them (persistent). Use the inbox when the message matters even if the recipient isn't listening right now.
+      </div>
+
+      <h2 id="registration">Registration is the Inbox Address</h2>
+      <p>The inbox exists as long as the agent is registered. When you register an agent, you create its delivery address:</p>
+      <pre><code><span class="comment"># Register yourself — this creates your inbox</span>
+<span class="prompt">$</span> pd agent register --agent my-agent \
+    --purpose <span class="string">"Building the payment API"</span>
+
+<span class="comment"># Now any caller can message you:</span>
+<span class="prompt">$</span> pd inbox send my-agent <span class="string">"Hey, the Stripe webhook secret changed"</span></code></pre>
+      <p>Using the SDK:</p>
+      <pre><code><span class="keyword">const</span> pd = <span class="keyword">new</span> PortDaddy({ agentId: <span class="string">'my-agent'</span> });
+<span class="keyword">await</span> pd.register({ type: <span class="string">'ci'</span>, purpose: <span class="string">'Building the payment API'</span> });
+<span class="comment">// Inbox is live at: POST /agents/my-agent/inbox</span></code></pre>
+
+      <h2 id="sending">Sending Messages</h2>
+
+      <div class="step-header">
+        <div class="step-badge">CLI</div>
+        <h3>Send from the terminal</h3>
+      </div>
+      <pre><code><span class="prompt">$</span> pd inbox send agent-bob <span class="string">"Schema migration complete, ready for review"</span></code></pre>
+
+      <div class="step-header" style="margin-top: 1.5rem;">
+        <div class="step-badge">API</div>
+        <h3>Send via HTTP</h3>
+      </div>
+      <pre><code>curl -X POST http://localhost:9876/agents/agent-bob/inbox \
+  -H <span class="string">'Content-Type: application/json'</span> \
+  -d <span class="string">'{"content":"Schema migration complete","from":"agent-alice","type":"handoff"}'</span></code></pre>
+
+      <div class="step-header" style="margin-top: 1.5rem;">
+        <div class="step-badge">SDK</div>
+        <h3>Send from JavaScript</h3>
+      </div>
+      <pre><code><span class="keyword">await</span> pd.inboxSend(<span class="string">'agent-bob'</span>, <span class="string">'Schema migration complete'</span>, {
+  from: <span class="string">'agent-alice'</span>,
+  type: <span class="string">'handoff'</span>,
+});</code></pre>
+
+      <p><strong>Message types</strong> are free-form strings. Common conventions:</p>
+      <ul>
+        <li><code>message</code> — general note</li>
+        <li><code>handoff</code> — "I finished X, you can proceed with Y"</li>
+        <li><code>alert</code> — something needs attention</li>
+        <li><code>result</code> — output of a completed task</li>
+      </ul>
+
+      <h2 id="reading">Reading Your Inbox</h2>
+
+      <h3>CLI</h3>
+      <pre><code><span class="comment"># Read all messages</span>
+<span class="prompt">$</span> pd inbox
+<span class="output">[09:42:15] [handoff] agent-alice: Schema migration complete, ready for review
+[09:38:02] [alert]   system: Lock db-migrations held >30m</span>
+
+<span class="comment"># Unread only (useful for polling scripts)</span>
+<span class="prompt">$</span> pd inbox --unread</code></pre>
+
+      <h3>SDK</h3>
+      <pre><code><span class="comment">// All messages</span>
+<span class="keyword">const</span> { messages } = <span class="keyword">await</span> pd.inboxList(<span class="string">'my-agent'</span>);
+
+<span class="comment">// Unread only</span>
+<span class="keyword">const</span> { messages } = <span class="keyword">await</span> pd.inboxList(<span class="string">'my-agent'</span>, { unreadOnly: <span class="keyword">true</span> });
+
+<span class="comment">// Paginated</span>
+<span class="keyword">const</span> { messages } = <span class="keyword">await</span> pd.inboxList(<span class="string">'my-agent'</span>, { limit: 20, since: <span class="string">'2026-01-01T00:00:00Z'</span> });
+
+<span class="comment">// Print messages</span>
+<span class="keyword">for</span> (<span class="keyword">const</span> msg <span class="keyword">of</span> messages) {
+  <span class="keyword">const</span> ts = <span class="keyword">new</span> Date(msg.createdAt).toISOString().slice(11, 19);
+  console.log(<span class="string">`[${ts}] [${msg.type}] ${msg.from ?? 'system'}: ${msg.content}`</span>);
+}</code></pre>
+      <p><strong>InboxMessage shape:</strong></p>
+      <pre><code><span class="keyword">interface</span> InboxMessage {
+  id: <span class="keyword">string</span>;
+  agentId: <span class="keyword">string</span>;     <span class="comment">// recipient</span>
+  from?: <span class="keyword">string</span>;       <span class="comment">// sender (optional, free-form)</span>
+  content: <span class="keyword">string</span>;
+  type: <span class="keyword">string</span>;
+  read: <span class="keyword">boolean</span>;
+  createdAt: <span class="keyword">string</span>;   <span class="comment">// ISO 8601</span>
+}</code></pre>
+
+      <h2 id="stats-and-clear">Stats, Mark Read, Clear</h2>
+      <h3>CLI</h3>
+      <pre><code><span class="comment"># Stats</span>
+<span class="prompt">$</span> pd inbox stats
+<span class="output">Total: 5  Unread: 2</span>
+
+<span class="comment"># Mark all read</span>
+<span class="prompt">$</span> pd inbox read-all
+
+<span class="comment"># Clear inbox</span>
+<span class="prompt">$</span> pd inbox clear</code></pre>
+
+      <h3>SDK</h3>
+      <pre><code><span class="comment">// Stats</span>
+<span class="keyword">const</span> { total, unread } = <span class="keyword">await</span> pd.inboxStats(<span class="string">'my-agent'</span>);
+console.log(<span class="string">`${unread} unread of ${total} total`</span>);
+
+<span class="comment">// Mark a single message read</span>
+<span class="keyword">await</span> pd.inboxMarkRead(<span class="string">'my-agent'</span>, messageId);
+
+<span class="comment">// Mark all read</span>
+<span class="keyword">await</span> pd.inboxMarkAllRead(<span class="string">'my-agent'</span>);
+
+<span class="comment">// Clear inbox — returns count of deleted messages</span>
+<span class="keyword">const</span> { deleted } = <span class="keyword">await</span> pd.inboxClear(<span class="string">'my-agent'</span>);
+console.log(<span class="string">`Cleared ${deleted} messages`</span>);</code></pre>
+
+      <h2 id="polling">Polling Pattern</h2>
+      <p>Agents typically poll for new messages at a regular interval. There is no push/SSE for inbox — poll with <code>unreadOnly: true</code> to only wake on new messages:</p>
+      <pre><code><span class="keyword">async function</span> poll(): <span class="keyword">Promise</span>&lt;<span class="keyword">void</span>&gt; {
+  <span class="keyword">const</span> { messages } = <span class="keyword">await</span> pd.inboxList(<span class="string">'my-agent'</span>, { unreadOnly: <span class="keyword">true</span> });
+  <span class="keyword">for</span> (<span class="keyword">const</span> msg <span class="keyword">of</span> messages) {
+    console.log(<span class="string">`[${msg.type}] ${msg.from ?? 'system'}: ${msg.content}`</span>);
+    <span class="keyword">await</span> pd.inboxMarkRead(<span class="string">'my-agent'</span>, msg.id);
+  }
+}
+
+<span class="comment">// Check every 10 seconds</span>
+setInterval(poll, 10_000);
+poll();</code></pre>
+      <p>See <code>examples/inbox/inbox-monitor.ts</code> for a complete standalone monitor.</p>
+
+      <h2 id="workflow">Real Workflow: Migration Handoff</h2>
+      <p>Here is a four-agent workflow where the database agent signals the API agent after migrations complete.</p>
+
+      <div class="step-header">
+        <div class="step-badge" style="background: #E5A000;">1</div>
+        <h3>db-agent runs migrations, sends handoff</h3>
+      </div>
+      <pre><code><span class="comment"># db-agent</span>
+<span class="prompt">$</span> pd session start <span class="string">"Database migrations"</span> --files db/migrations/*
+<span class="prompt">$</span> npx prisma migrate dev
+<span class="prompt">$</span> pd inbox send api-agent \
+    <span class="string">"Migrations complete. New tables: payments, refunds."</span> \
+    --from db-agent --type handoff
+<span class="prompt">$</span> pd note <span class="string">"Migrations deployed, api-agent signaled"</span>
+<span class="prompt">$</span> pd session done <span class="string">"Migrations complete"</span></code></pre>
+
+      <div class="step-header" style="margin-top: 1.5rem;">
+        <div class="step-badge" style="background: #E5A000;">2</div>
+        <h3>api-agent polls inbox, proceeds on handoff</h3>
+      </div>
+      <pre><code><span class="keyword">async function</span> waitForMigrations(): <span class="keyword">Promise</span>&lt;<span class="keyword">void</span>&gt; {
+  <span class="keyword">while</span> (<span class="keyword">true</span>) {
+    <span class="keyword">const</span> { messages } = <span class="keyword">await</span> pd.inboxList(<span class="string">'api-agent'</span>, { unreadOnly: <span class="keyword">true</span> });
+    <span class="keyword">const</span> handoff = messages.find(
+      (m) =&gt; m.from === <span class="string">'db-agent'</span> &amp;&amp; m.type === <span class="string">'handoff'</span>
+    );
+    <span class="keyword">if</span> (handoff) {
+      console.log(<span class="string">'Got handoff:'</span>, handoff.content);
+      <span class="keyword">await</span> pd.inboxMarkRead(<span class="string">'api-agent'</span>, handoff.id);
+      <span class="keyword">break</span>;
+    }
+    <span class="keyword">await new</span> <span class="keyword">Promise</span>((r) =&gt; setTimeout(r, 3_000));
+  }
+}
+
+<span class="keyword">await</span> waitForMigrations();
+<span class="comment">// Safe to start the API now</span></code></pre>
+
+      <h2 id="inbox-vs-pubsub">Inbox vs Pub/Sub: Choosing the Right Tool</h2>
+      <table class="comparison-table">
+        <thead>
+          <tr>
+            <th>Situation</th>
+            <th>Use</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Tell one specific agent something</td>
+            <td><strong>Inbox</strong></td>
+          </tr>
+          <tr>
+            <td>Signal all subscribers that the build is ready</td>
+            <td><strong>Pub/Sub</strong></td>
+          </tr>
+          <tr>
+            <td>Deliver a task result that must not be lost</td>
+            <td><strong>Inbox</strong></td>
+          </tr>
+          <tr>
+            <td>Broadcast status to a monitoring dashboard</td>
+            <td><strong>Pub/Sub</strong></td>
+          </tr>
+          <tr>
+            <td>Handoff context from one agent to another</td>
+            <td><strong>Inbox</strong></td>
+          </tr>
+          <tr>
+            <td>Coordinate across an unknown number of agents</td>
+            <td><strong>Pub/Sub</strong></td>
+          </tr>
+        </tbody>
+      </table>
+      <p>The inbox is <strong>persistent</strong> — messages wait until retrieved. Pub/sub is <strong>ephemeral</strong> — only current subscribers receive messages at publish time.</p>
+
+      <h2 id="limits">Inbox Limits</h2>
+      <ul>
+        <li><strong>1000 messages</strong> per agent inbox. The oldest messages are dropped when the limit is reached.</li>
+        <li>Messages have no TTL — they remain until read or explicitly cleared with <code>inboxClear()</code>.</li>
+        <li>There is no SSE/push notification for inbox messages. Poll with <code>inboxList({ unreadOnly: true })</code>.</li>
+      </ul>
+
+      <h2 id="whats-next">What's Next</h2>
+      <ul>
+        <li><code>examples/inbox/agent-dm.sh</code> — Shell script walkthrough of the full inbox lifecycle</li>
+        <li><code>examples/inbox/inbox-monitor.ts</code> — TypeScript polling monitor you can run right now</li>
+        <li><a href="multi-agent-orchestration.html">Multi-Agent Orchestration tutorial</a> — Sessions, pub/sub, and locks in depth</li>
+        <li><a href="../docs/">SDK Reference</a> — Full method signatures and type definitions</li>
+      </ul>
+
+      <div class="prev-next">
+        <a href="debugging.html">
+          <div class="label">Previous tutorial</div>
+          <div class="title">Debugging Port Conflicts</div>
+        </a>
+        <div></div>
+      </div>
+    </article>
+  </div>
+
+  <footer>
+    <div class="footer-container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a href="../" class="logo" style="color: white;">
+            <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
+            <span>Port Daddy</span>
+          </a>
+          <p>Port management, service orchestration, and agent coordination for modern development workflows.</p>
+        </div>
+        <div class="footer-column">
+          <h4>Product</h4>
+          <ul><li><a href="../#features">Features</a></li><li><a href="../mcp/">MCP Integration</a></li><li><a href="https://www.npmjs.com/package/port-daddy" target="_blank">npm Package</a></li></ul>
+        </div>
+        <div class="footer-column">
+          <h4>Resources</h4>
+          <ul><li><a href="./">Tutorials</a></li><li><a href="../docs/">Documentation</a></li><li><a href="https://github.com/curiositech/port-daddy" target="_blank">GitHub</a></li></ul>
+        </div>
+        <div class="footer-column">
+          <h4>Connect</h4>
+          <ul><li><a href="https://github.com/curiositech" target="_blank">@curiositech</a></li></ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2025–2026 Curiositech LLC. Released under the MIT License.</p>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

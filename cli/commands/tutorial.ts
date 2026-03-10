@@ -19,6 +19,8 @@ interface TutorialState {
   agentId: string | null;
   dnsIdentity?: string;
   lockName?: string;
+  inboxSenderAgent?: string;
+  inboxReceiverAgent?: string;
 }
 
 // Mutable state — reset at the start of each handleLearn() invocation
@@ -34,6 +36,8 @@ function resetState(): void {
   state.agentId = null;
   state.dnsIdentity = undefined;
   state.lockName = undefined;
+  state.inboxSenderAgent = undefined;
+  state.inboxReceiverAgent = undefined;
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -558,6 +562,64 @@ async function lesson12Phases(): Promise<void> {
   await pressEnter();
 }
 
+async function lesson13Inbox(): Promise<void> {
+  lessonHeader(13, 'Agent Inbox — Direct Messaging');
+
+  process.stderr.write(`  Every registered agent has a personal inbox.\n`);
+  process.stderr.write(`  Use it for targeted handoffs; use pub/sub for broadcasts.\n\n`);
+
+  const ts = Date.now();
+  const aliceId = `tutorial-alice-${ts}`;
+  const bobId   = `tutorial-bob-${ts}`;
+  state.inboxSenderAgent   = aliceId;
+  state.inboxReceiverAgent = bobId;
+
+  // Register two agents
+  await pdFetch('/agents', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: aliceId, type: 'tutorial', purpose: 'Inbox demo sender' }),
+  }).catch(() => {});
+  await pdFetch('/agents', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: bobId, type: 'tutorial', purpose: 'Inbox demo receiver' }),
+  }).catch(() => {});
+  process.stderr.write(`  Registered agents: ${aliceId} and ${bobId}\n\n`);
+
+  // Alice sends Bob a message
+  process.stderr.write(`  ${ANSI.fgCyan}Alice → Bob:${ANSI.reset} "Migrations complete, ready for review"\n`);
+  await pdFetch(`/agents/${encodeURIComponent(bobId)}/inbox`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content: 'Migrations complete, ready for review', from: aliceId, type: 'handoff' }),
+  }).catch(() => {});
+
+  // Bob checks stats
+  const statsResp = await pdFetch(`/agents/${encodeURIComponent(bobId)}/inbox/stats`).catch(() => ({ ok: false, data: {} }));
+  const stats = statsResp.data as { total?: number; unread?: number };
+  process.stderr.write(`  Bob's inbox: total=${stats?.total ?? '?'}, unread=${stats?.unread ?? '?'}\n\n`);
+
+  // Bob reads
+  const readResp = await pdFetch(`/agents/${encodeURIComponent(bobId)}/inbox`).catch(() => ({ ok: false, data: {} }));
+  const inbox = readResp.data as { messages?: Array<{ from?: string; content: string; type: string }> };
+  for (const msg of (inbox?.messages ?? [])) {
+    process.stderr.write(`  ${ANSI.fgGreen}[${msg.type}]${ANSI.reset} From ${msg.from ?? 'unknown'}: ${msg.content}\n`);
+  }
+
+  // Mark all read and clear
+  await pdFetch(`/agents/${encodeURIComponent(bobId)}/inbox/read-all`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: '{}',
+  }).catch(() => {});
+  await pdFetch(`/agents/${encodeURIComponent(bobId)}/inbox`, { method: 'DELETE' }).catch(() => {});
+  process.stderr.write(`\n  Inbox cleared.\n\n`);
+
+  process.stderr.write(`  CLI: ${ANSI.fgCyan}pd inbox list <agentId>${ANSI.reset}\n`);
+  process.stderr.write(`       ${ANSI.fgCyan}pd inbox send <agentId> "message"${ANSI.reset}\n`);
+
+  await pressEnter();
+}
+
 async function summary(): Promise<void> {
   process.stderr.write(`\n${'─'.repeat(4)} Tutorial Complete! ${'─'.repeat(43)}\n\n`);
 
@@ -578,6 +640,7 @@ async function summary(): Promise<void> {
     `${ANSI.fgGreen}\u2713${ANSI.reset} Lesson 10: Stack orchestration with .portdaddyrc`,
     `${ANSI.fgGreen}\u2713${ANSI.reset} Lesson 11: Distributed locks for exclusive access`,
     `${ANSI.fgGreen}\u2713${ANSI.reset} Lesson 12: Session phases and integration signals`,
+    `${ANSI.fgGreen}\u2713${ANSI.reset} Lesson 13: Agent inbox — direct messaging`,
   ]);
 
   process.stderr.write('\n');
@@ -655,6 +718,19 @@ async function cleanup(): Promise<void> {
       });
     } catch {}
   }
+
+  // Clean up inbox agents from lesson 13
+  if (state.inboxReceiverAgent) {
+    try {
+      await pdFetch(`/agents/${encodeURIComponent(state.inboxReceiverAgent)}/inbox`, { method: 'DELETE' });
+      await pdFetch(`/agents/${encodeURIComponent(state.inboxReceiverAgent)}`, { method: 'DELETE' });
+    } catch {}
+  }
+  if (state.inboxSenderAgent) {
+    try {
+      await pdFetch(`/agents/${encodeURIComponent(state.inboxSenderAgent)}`, { method: 'DELETE' });
+    } catch {}
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -696,6 +772,7 @@ export async function handleLearn(): Promise<void> {
   await lesson10Orchestration();
   await lesson11Locks();
   await lesson12Phases();
+  await lesson13Inbox();
   await summary();
 
   // Clean up tutorial ports (session already ended in lesson 8)
