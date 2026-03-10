@@ -133,48 +133,13 @@
         <a href="tutorials/">Tutorials</a>
         <a href="docs/">Docs</a>
         <a href="https://github.com/curiositech/port-daddy" target="_blank">GitHub</a>
-        <label class="theme-switch" aria-label="Toggle dark mode">
-          <input type="checkbox" class="theme-switch__checkbox" id="theme-toggle">
-          <div class="theme-switch__container">
-            <div class="theme-switch__clouds"></div>
-            <div class="theme-switch__stars-container">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 144 55" fill="none">
-                <path fill-rule="evenodd" clip-rule="evenodd" d="M135.831 3.00688C135.055 3.85027 134.111 4.29946 133.167 4.29946C132.223 4.29946 131.279 3.85027 130.503 3.00688C129.726 2.16348 128.782 1.71429 127.838 1.71429C126.894 1.71429 125.95 2.16348 125.174 3.00688C124.397 3.85027 123.453 4.29946 122.509 4.29946C121.565 4.29946 120.621 3.85027 119.845 3.00688C119.068 2.16348 118.124 1.71429 117.18 1.71429C116.237 1.71429 115.293 2.16348 114.516 3.00688C113.74 3.85027 112.796 4.29946 111.852 4.29946C110.908 4.29946 109.964 3.85027 109.187 3.00688C108.411 2.16348 107.467 1.71429 106.523 1.71429C105.579 1.71429 104.635 2.16348 103.859 3.00688C103.082 3.85027 102.138 4.29946 101.194 4.29946C100.25 4.29946 99.3064 3.85027 98.5298 3.00688C97.7532 2.16348 96.8093 1.71429 95.8654 1.71429C94.9215 1.71429 93.9776 2.16348 93.201 3.00688C92.4244 3.85027 91.4805 4.29946 90.5366 4.29946C89.5927 4.29946 88.6488 3.85027 87.8722 3.00688C87.0956 2.16348 86.1517 1.71429 85.2078 1.71429C84.2639 1.71429 83.32 2.16348 82.5434 3.00688C81.7668 3.85027 80.8229 4.29946 79.879 4.29946C78.9351 4.29946 77.9912 3.85027 77.2146 3.00688C76.438 2.16348 75.4941 1.71429 74.5502 1.71429C73.6063 1.71429 72.6624 2.16348 71.8858 3.00688C71.1092 3.85027 70.1653 4.29946 69.2214 4.29946C68.2775 4.29946 67.3336 3.85027 66.557 3.00688C65.7804 2.16348 64.8365 1.71429 63.8926 1.71429C62.9487 1.71429 62.0048 2.16348 61.2282 3.00688C60.4516 3.85027 59.5077 4.29946 58.5638 4.29946C57.6199 4.29946 56.676 3.85027 55.8994 3.00688C55.1228 2.16348 54.1789 1.71429 53.235 1.71429C52.2911 1.71429 51.3472 2.16348 50.5706 3.00688C49.794 3.85027 48.8501 4.29946 47.9062 4.29946C46.9623 4.29946 46.0184 3.85027 45.2418 3.00688C44.4652 2.16348 43.5213 1.71429 42.5774 1.71429C41.6335 1.71429 40.6896 2.16348 39.913 3.00688C39.1364 3.85027 38.1925 4.29946 37.2486 4.29946C36.3047 4.29946 35.3608 3.85027 34.5842 3.00688C33.8076 2.16348 32.8637 1.71429 31.9198 1.71429C30.9759 1.71429 30.032 2.16348 29.2554 3.00688C28.4788 3.85027 27.5349 4.29946 26.591 4.29946C25.6471 4.29946 24.7032 3.85027 23.9266 3.00688C23.15 2.16348 22.2061 1.71429 21.2622 1.71429C20.3183 1.71429 19.3744 2.16348 18.5978 3.00688C17.8212 3.85027 16.8773 4.29946 15.9334 4.29946C14.9895 4.29946 14.0456 3.85027 13.269 3.00688C12.4924 2.16348 11.5485 1.71429 10.6046 1.71429C9.66067 1.71429 8.71677 2.16348 7.94018 3.00688C7.16358 3.85027 6.21968 4.29946 5.27578 4.29946C4.33188 4.29946 3.38798 3.85027 2.61138 3.00688" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-              </svg>
-            </div>
-            <div class="theme-switch__circle-container">
-              <div class="theme-switch__sun-moon-container">
-                <div class="theme-switch__moon">
-                  <div class="theme-switch__spot"></div>
-                  <div class="theme-switch__spot"></div>
-                  <div class="theme-switch__spot"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </label>
+        <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
       </div>
     </div>
   </nav>
-  <script>
-    (function() {
-      var saved = localStorage.getItem('pd-theme');
-      var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      var isDark = saved ? saved === 'dark' : prefersDark;
-      if (isDark) document.documentElement.setAttribute('data-theme', 'dark');
-      window.addEventListener('DOMContentLoaded', function() {
-        var toggle = document.getElementById('theme-toggle');
-        if (toggle) {
-          toggle.checked = isDark;
-          toggle.addEventListener('change', function() {
-            var dark = toggle.checked;
-            document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
-            localStorage.setItem('pd-theme', dark ? 'dark' : 'light');
-          });
-        }
-      });
-    })();
-  </script>
 
   <main>
     <section class="hero">
@@ -306,5 +271,6 @@
       </div>
     </div>
   </footer>
+  <script src="js/theme.js"></script>
 </body>
 </html>
