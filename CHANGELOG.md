@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`pd spawn` — AI Agent Launcher**: Launch local or cloud AI agents with Port Daddy coordination auto-wired
+  - Backends: `ollama` (local daemon), `claude` (Anthropic SDK direct), `gemini` (Google Generative AI), `aider` (subprocess, git-native), `custom` (shell command)
+  - All spawned agents auto-register, send heartbeats, start sessions, and enter salvage queue on crash
+  - `pd spawn -- <task>`, `pd spawned`, `pd spawn kill <id>` CLI commands
+  - SDK: `pd.spawn()`, `pd.listSpawned()`, `pd.killSpawned()`
+  - API: `POST /spawn`, `GET /spawn`, `DELETE /spawn/:id`
+- **`pd watch` — Ambient Agent Kernel**: React to pub/sub messages without polling
+  - `pd watch <channel> --exec <script>` runs script on each message
+  - Script receives `PD_MESSAGE`, `PD_MESSAGE_CONTENT`, `PD_CHANNEL`, `PD_TIMESTAMP` env vars
+  - Auto-reconnects on SSE disconnect (2s backoff)
+  - Foundation for always-on agents triggered by channel events
+- **"Uncharted Waters" first-launch**: When Port Daddy sees a new folder for the first time, shows a compass rose ASCII banner with three offered commands (`pd scan`, `pd learn`, `pd mcp install`)
+  - `isNewFolder` / `uncharted_waters` fields added to `GET /launch-hints` response
+- **Research reports** (`research/`): Multi-agent patterns (MCP/A2A/ACP protocols, 10 archetypes, swarm patterns), local LLM cost analysis, docs audit
+- **Interactive synthesis report** (`research/synthesis.html`): Annotated findings with cost calculator, CSS pheromone trail animation, agent archetype cards
+- **Website docs overhaul**:
+  - Tutorial 06 (DNS Resolver): 129 → 398 lines — full walkthrough, SDK examples, troubleshooting
+  - Tutorial 08 (Session Phases): 168 → 498 lines — SVG phase diagram, decision table, integration signals workflow
+  - `website/docs/api.html`: New full API reference — 64 endpoints, request/response schemas, curl examples, vanilla JS search
+  - `website/docs/index.html`: Docs home with quick links and Concepts section (identities, salvage, agent coordination)
+
 ## [3.7.0] - 2026-03-04
 
 ### Added

@@ -650,6 +650,99 @@ These are the recommended way to start and end work. They handle cleanup automat
 
 ---
 
+## pd spawn — AI Agent Launcher
+
+Launch AI agents (local or cloud) with Port Daddy coordination auto-wired. All backends automatically register with the daemon, send heartbeats, and enter the salvage queue if they crash.
+
+```bash
+# Spawn a local Ollama agent (requires: ollama serve)
+pd spawn --backend ollama --model llama3 --identity myapp:coder --purpose "Refactor auth" -- "Fix the login bug in src/auth.ts"
+
+# Spawn using the Claude SDK (NOT the claude CLI — no subprocess overhead)
+pd spawn --backend claude --model claude-haiku-4-5-20251001 --identity myapp:reviewer -- "Review PR #42 for security issues"
+
+# Spawn with Aider (git-native coding agent, real subprocess)
+pd spawn --backend aider --model gemini/gemini-flash --identity myapp:refactor -- src/auth.ts src/middleware.ts
+
+# Spawn a custom command
+pd spawn --backend custom --identity tools:formatter -- "npx prettier --write src/"
+
+# List running spawned agents
+pd spawned
+
+# Kill a spawned agent
+pd spawn kill <agentId>
+```
+
+### Backends
+
+| Backend | Description | Notes |
+|---------|-------------|-------|
+| `ollama` | Local Ollama daemon | Requires `ollama serve`. HTTP to `localhost:11434`. |
+| `claude` | Anthropic SDK direct | Uses `@anthropic-ai/sdk`. Do NOT use `claude` CLI subprocess — 7x token overhead. |
+| `gemini` | Google Generative AI | Free tier available. Gemini Flash default. |
+| `aider` | Aider subprocess | Git-native, commit-per-step. Stdout captured as PD notes. |
+| `custom` | Shell command | Generic wrapper. Task passed as first argument. |
+
+### Auto-wired coordination
+
+Every spawned agent automatically:
+- Registers with PD (`pd agent register --identity ... --purpose ...`)
+- Starts a session (`pd begin`)
+- Sends heartbeats every 30 seconds
+- On exit: ends session (`pd done`)
+- On crash: enters salvage queue after 10 minutes
+
+```bash
+# After spawning, see the agent in the registry
+pd agents
+
+# If it crashes, salvage its session
+pd salvage
+```
+
+---
+
+## pd watch — Ambient Agent Kernel
+
+Run a script whenever a message arrives on a pub/sub channel. The `--exec` script runs as a subprocess with the message available in the environment.
+
+```bash
+# Fire a script every time something publishes to "build-results"
+pd watch build-results --exec ./handle-build.sh
+
+# The script receives:
+#   PD_MESSAGE         — raw message string
+#   PD_MESSAGE_CONTENT — parsed content (same as PD_MESSAGE for plain strings)
+#   PD_CHANNEL         — channel name
+#   PD_TIMESTAMP       — ISO 8601 timestamp
+
+# Example handler
+cat handle-build.sh
+# #!/bin/bash
+# echo "Build event: $PD_MESSAGE_CONTENT"
+# if [[ "$PD_MESSAGE_CONTENT" == *"failed"* ]]; then
+#   pd pub alerts "Build failed — paging on-call"
+# fi
+
+# The watch command auto-reconnects on SSE disconnect (2s backoff)
+# Press Ctrl+C to stop watching
+```
+
+### Always-on agents
+
+Combine `pd spawn` + `pd watch` for ambient agents that act without human prompting:
+
+```bash
+# Publish a message to trigger spawned agents
+pd pub code-review '{"pr": 42, "files": ["src/auth.ts"]}'
+
+# An always-on watcher spawns a reviewer agent for each PR event
+pd watch code-review --exec ./spawn-reviewer.sh
+```
+
+---
+
 ## When NOT to Use Port Daddy
 
 Be honest with yourself:
@@ -836,6 +929,15 @@ Aliases: `pd n` = `pd note`, `pd u` = `pd up`, `pd d` = `pd down`.
 | `pd salvage complete <old> <new>` | Mark resurrection complete |
 | `pd salvage abandon <id>` | Return agent to queue |
 | `pd salvage dismiss <id>` | Remove from queue (reviewed) |
+
+### Spawning Agents
+
+| Command | Description |
+|---------|-------------|
+| `pd spawn -- <task>` | Launch an AI agent (`--backend ollama\|claude\|gemini\|aider\|custom`, `--model`, `--identity`, `--purpose`) |
+| `pd spawned` | List active spawned agents |
+| `pd spawn kill <id>` | Kill a spawned agent |
+| `pd watch <channel>` | Subscribe to channel and run `--exec <script>` on each message |
 
 ### Webhooks
 

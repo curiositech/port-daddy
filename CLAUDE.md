@@ -225,8 +225,8 @@ Fish completions are historically the worst — double-check fish.
 | `features.manifest.json` | ✅ DONE | spawn + watch entries added |
 | `completions/*.{bash,zsh,fish}` | ✅ DONE | spawn, spawned, watch in all 3 shells |
 | `lib/client.ts` | ✅ DONE | spawn(), listSpawned(), killSpawned() + typed interfaces |
-| `README.md` | ⬜ TODO | Document pd spawn + pd watch |
-| `CHANGELOG.md` | ⬜ TODO | Add entry for next release |
+| `README.md` | ✅ DONE | pd spawn + pd watch sections added, CLI reference table added |
+| `CHANGELOG.md` | ✅ DONE | [Unreleased] entry added |
 
 **CLI syntax:**
 ```bash
