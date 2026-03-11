@@ -71,8 +71,8 @@ export function Hero() {
               className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight"
               style={{ color: 'var(--text-primary)', lineHeight: 1.1 }}
             >
-              Port Daddy Makes<br />
-              <span style={{ color: 'var(--brand-primary)' }}>Agents Behave Well</span>
+              Port Authority<br />
+              <span style={{ color: 'var(--brand-primary)' }}>for AI Agents</span>
             </motion.h1>
 
             <motion.p
