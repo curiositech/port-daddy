@@ -26,7 +26,7 @@ body {
 
 /* ─── Typography defaults ─────────────────────────────────────────────────── */
 h1, h2, h3, h4, h5, h6 {
-  font-family: var(--p-font-sans);
+  font-family: var(--p-font-display);
   font-weight: 700;
   line-height: 1.2;
   margin: 0;

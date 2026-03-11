@@ -212,7 +212,7 @@ export function Features() {
                     </h3>
                     {feature.badge && (
                       <span
-                        className="text-xs font-mono px-1.5 py-0.5 rounded shrink-0"
+                        className="text-xs font-medium px-1.5 py-0.5 rounded shrink-0"
                         style={{
                           background: 'var(--badge-teal-bg)',
                           color: 'var(--badge-teal-text)',

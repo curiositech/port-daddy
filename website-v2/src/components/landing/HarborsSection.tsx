@@ -138,24 +138,24 @@ export function HarborsSection() {
           >
             <Badge variant="teal" className="mb-4">New in v3.5</Badge>
             <h2
-              className="text-3xl sm:text-4xl font-bold mb-6"
+              className="text-3xl sm:text-4xl font-bold mb-4"
               style={{ color: 'var(--text-primary)' }}
             >
               Harbors: permission<br />namespaces for agents
             </h2>
-            <p className="text-lg mb-6" style={{ color: 'var(--text-secondary)', lineHeight: 1.7 }}>
+            <p className="text-base mb-4" style={{ color: 'var(--text-secondary)', lineHeight: 1.65 }}>
               A <strong style={{ color: 'var(--text-primary)' }}>harbor</strong> is a named workspace with controlled entry.
               Agents that enter a harbor receive a signed capability token — a short-lived JWT that
               proves exactly what they're allowed to do inside it.
             </p>
-            <p className="text-base mb-8" style={{ color: 'var(--text-secondary)', lineHeight: 1.7 }}>
+            <p className="text-base mb-6" style={{ color: 'var(--text-secondary)', lineHeight: 1.65 }}>
               Tunnels, file claims, pub/sub channels, and locks can all be scoped to a harbor.
               An agent without a token for <code style={{ color: 'var(--text-code)', background: 'var(--bg-overlay)', padding: '1px 5px', borderRadius: 4 }}>myapp:security-review</code> can't
               touch anything inside it — even if it claims the right identity.
             </p>
 
             {/* Capability pills */}
-            <div className="mb-8">
+            <div className="mb-6">
               <p className="text-xs font-medium uppercase tracking-widest mb-3" style={{ color: 'var(--text-muted)' }}>
                 Capability scopes
               </p>
