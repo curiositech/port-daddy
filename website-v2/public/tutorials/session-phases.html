@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Session Phases &amp; Integration -- Port Daddy Tutorials</title>
+  <meta name="description" content="Track progress and coordinate between agents with session phases, integration signals, and project briefings.">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%9A%93</text></svg>">
+  <link rel="stylesheet" href="../css/shared.css">
+  <style>
+    .callout {
+      background: rgba(0, 102, 204, 0.06);
+      border-left: 3px solid #0066CC;
+      padding: 0.85rem 1.1rem;
+      border-radius: 0 6px 6px 0;
+      margin: 1.25rem 0;
+    }
+    .callout strong { color: #0052a3; }
+    .callout-warning {
+      background: rgba(229, 160, 0, 0.08);
+      border-left: 3px solid #E5A000;
+      padding: 0.85rem 1.1rem;
+      border-radius: 0 6px 6px 0;
+      margin: 1.25rem 0;
+    }
+    .callout-warning strong { color: #B37800; }
+    .callout-tip {
+      background: rgba(24, 121, 78, 0.07);
+      border-left: 3px solid #18794E;
+      padding: 0.85rem 1.1rem;
+      border-radius: 0 6px 6px 0;
+      margin: 1.25rem 0;
+    }
+    .callout-tip strong { color: #18794E; }
+    .phase-diagram {
+      background: #111113;
+      border: 1px solid #2C2C31;
+      border-radius: 8px;
+      padding: 1.5rem 1rem;
+      margin: 1.5rem 0;
+      overflow-x: auto;
+    }
+    .decision-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin: 1.5rem 0;
+    }
+    .decision-box h4 {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+    }
+    .decision-item {
+      display: flex;
+      gap: 0.75rem;
+      padding: 0.6rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.9rem;
+    }
+    .decision-item:last-child { border-bottom: none; }
+    .decision-phase {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: #0066CC;
+      background: rgba(0,102,204,0.08);
+      padding: 0.15em 0.5em;
+      border-radius: 4px;
+      white-space: nowrap;
+      align-self: flex-start;
+      margin-top: 0.1rem;
+    }
+    .decision-desc {
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    .decision-phase.abandoned {
+      color: #CD2B31;
+      background: rgba(205,43,49,0.08);
+    }
+    .decision-phase.completed {
+      color: #18794E;
+      background: rgba(24,121,78,0.1);
+    }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="../" class="nav-brand">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
+        Port Daddy
+      </a>
+      <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Toggle navigation">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="nav-links">
+        <a href="../#features">Features</a>
+        <a href="./" class="active">Tutorials</a>
+        <a href="../docs/">Docs</a>
+        <a href="https://github.com/curiositech/port-daddy" target="_blank">GitHub</a>
+        <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <section class="page-hero">
+    <div class="page-hero-container">
+      <div class="breadcrumbs">
+        <a href="../">Home</a>
+        <span class="separator">/</span>
+        <a href="./">Tutorials</a>
+        <span class="separator">/</span>
+        <span>Session Phases</span>
+      </div>
+      <h1>Session Phases &amp; Integration</h1>
+      <p>Track agent progress and coordinate service startup with structured phases and integration signals. Like PR status labels, but for running agent work.</p>
+      <div class="meta">
+        <span class="meta-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          12 min read
+        </span>
+        <span class="meta-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+          Tutorial 8 of 9
+        </span>
+        <span class="meta-item">Advanced</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="content-layout">
+    <aside class="toc">
+      <h4>On this page</h4>
+      <ul>
+        <li><a href="#what-are-phases">What are session phases?</a></li>
+        <li><a href="#phases">The 6 phases</a></li>
+        <li><a href="#start">Starting with a phase</a></li>
+        <li><a href="#advance">Advancing through phases</a></li>
+        <li><a href="#integration">Integration signals</a></li>
+        <li><a href="#history">Viewing session history</a></li>
+        <li><a href="#sdk">SDK usage</a></li>
+        <li><a href="#decision">When to use each phase</a></li>
+      </ul>
+    </aside>
+
+    <article class="article">
+
+      <h2 id="what-are-phases">What are session phases?</h2>
+
+      <p>Sessions have a lifecycle. Phases let agents communicate their current state -- to other agents, to humans watching the dashboard, and to the salvage system if something goes wrong.</p>
+
+      <p>Think of phases like status labels on a pull request: <em>In Review</em>, <em>Changes Requested</em>, <em>Merged</em>. They don't enforce anything. They're a shared signal that answers the question "where are you in your work right now?" without requiring a dedicated communication channel.</p>
+
+      <p>Phases also feed the salvage system. When an agent dies and another agent picks up its work, the phase tells the rescuer exactly where the previous agent stopped. An agent with phase <code>testing</code> died while running tests -- the rescuer knows to look at test output, not at the implementation.</p>
+
+      <h2 id="phases">The 6 Phases</h2>
+
+      <p>Sessions can be in one of six phases. They flow roughly left to right, with <code>abandoned</code> as an escape hatch from anywhere:</p>
+
+      <div class="phase-diagram">
+        <svg viewBox="0 0 620 120" xmlns="http://www.w3.org/2000/svg" style="width: 100%; max-width: 620px; display: block; margin: 0 auto;">
+          <!-- Main flow boxes -->
+          <rect x="10" y="30" width="90" height="36" rx="6" fill="#1C1C1F" stroke="#2C2C31" stroke-width="1.5"/>
+          <text x="55" y="52" text-anchor="middle" fill="#E8E8EC" font-family="monospace" font-size="11">planning</text>
+
+          <rect x="130" y="30" width="90" height="36" rx="6" fill="#1C1C1F" stroke="#2C2C31" stroke-width="1.5"/>
+          <text x="175" y="52" text-anchor="middle" fill="#E8E8EC" font-family="monospace" font-size="11">in_progress</text>
+
+          <rect x="250" y="30" width="90" height="36" rx="6" fill="#1C1C1F" stroke="#2C2C31" stroke-width="1.5"/>
+          <text x="295" y="52" text-anchor="middle" fill="#E8E8EC" font-family="monospace" font-size="11">testing</text>
+
+          <rect x="370" y="30" width="90" height="36" rx="6" fill="#1C1C1F" stroke="#2C2C31" stroke-width="1.5"/>
+          <text x="415" y="52" text-anchor="middle" fill="#E8E8EC" font-family="monospace" font-size="11">reviewing</text>
+
+          <rect x="490" y="30" width="90" height="36" rx="6" fill="#18794E" stroke="#18794E" stroke-width="1.5"/>
+          <text x="535" y="52" text-anchor="middle" fill="#fff" font-family="monospace" font-size="11">completed</text>
+
+          <!-- Arrows between main phases -->
+          <line x1="100" y1="48" x2="128" y2="48" stroke="#6B6B76" stroke-width="1.5" marker-end="url(#arrow)"/>
+          <line x1="220" y1="48" x2="248" y2="48" stroke="#6B6B76" stroke-width="1.5" marker-end="url(#arrow)"/>
+          <line x1="340" y1="48" x2="368" y2="48" stroke="#6B6B76" stroke-width="1.5" marker-end="url(#arrow)"/>
+          <line x1="460" y1="48" x2="488" y2="48" stroke="#6B6B76" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+          <!-- Abandoned box below in_progress -->
+          <rect x="130" y="82" width="90" height="30" rx="6" fill="#1C1C1F" stroke="#CD2B31" stroke-width="1.5"/>
+          <text x="175" y="101" text-anchor="middle" fill="#CD2B31" font-family="monospace" font-size="11">abandoned</text>
+
+          <!-- Arrow from in_progress down to abandoned -->
+          <line x1="175" y1="66" x2="175" y2="80" stroke="#CD2B31" stroke-width="1.5" stroke-dasharray="3 2" marker-end="url(#arrow-red)"/>
+
+          <!-- Arrowhead markers -->
+          <defs>
+            <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L8,3 z" fill="#6B6B76"/>
+            </marker>
+            <marker id="arrow-red" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L8,3 z" fill="#CD2B31"/>
+            </marker>
+          </defs>
+        </svg>
+      </div>
+
+      <table>
+        <thead>
+          <tr><th>Phase</th><th>When to use it</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>planning</code></td>
+            <td>Designing the approach, writing specs, deciding which files to touch</td>
+          </tr>
+          <tr>
+            <td><code>in_progress</code></td>
+            <td>Actively writing code, making changes, executing the plan</td>
+          </tr>
+          <tr>
+            <td><code>testing</code></td>
+            <td>Running the test suite, fixing failures, verifying behavior</td>
+          </tr>
+          <tr>
+            <td><code>reviewing</code></td>
+            <td>Code review in progress, waiting for human approval or another agent's critique</td>
+          </tr>
+          <tr>
+            <td><code>completed</code></td>
+            <td>Work merged or definitively done -- set automatically by <code>pd done</code></td>
+          </tr>
+          <tr>
+            <td><code>abandoned</code></td>
+            <td>Work stopped due to a blocker -- triggers salvage so another agent can continue</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 id="start">Starting a Session with a Phase</h2>
+
+      <p>Pass <code>--phase</code> to <code>pd begin</code> to start directly in a specific phase. The default is <code>planning</code> if you omit it.</p>
+
+      <pre><code><span class="comment"># Start in planning phase (default)</span>
+<span class="prompt">$</span> pd begin --identity myapp:feature-auth --purpose <span class="string">"Add JWT auth"</span> --phase planning
+<span class="output">Agent registered: agent-a1b2c3
+Session started: sess-d4e5f6 [planning]
+Context saved to .portdaddy/current.json</span></code></pre>
+
+      <pre><code><span class="comment"># Jump straight to in_progress if you already know what you're doing</span>
+<span class="prompt">$</span> pd begin --identity myapp:bugfix-timeout --purpose <span class="string">"Fix connection timeout"</span> --phase in_progress
+<span class="output">Agent registered: agent-b2c3d4
+Session started: sess-e5f6a7 [in_progress]
+Context saved to .portdaddy/current.json</span></code></pre>
+
+      <div class="callout">
+        <strong>Identity matters for salvage.</strong> The <code>--identity</code> flag tells Port Daddy which project and stack you're working on. When another agent in the same project runs <code>pd salvage</code>, they'll see your session and know what you were doing.
+      </div>
+
+      <h2 id="advance">Advancing Through Phases</h2>
+
+      <p>Update the phase as your work progresses. This keeps other agents and humans informed of exactly where you are.</p>
+
+      <pre><code><span class="comment"># Done planning, starting to code</span>
+<span class="prompt">$</span> pd session update sess-d4e5f6 --phase in_progress
+<span class="output">Session sess-d4e5f6 updated: planning -&gt; in_progress</span>
+
+<span class="comment"># Coding done, running tests</span>
+<span class="prompt">$</span> pd session update sess-d4e5f6 --phase testing
+<span class="output">Session sess-d4e5f6 updated: in_progress -&gt; testing</span>
+
+<span class="comment"># Tests pass, requesting review</span>
+<span class="prompt">$</span> pd session update sess-d4e5f6 --phase reviewing
+<span class="output">Session sess-d4e5f6 updated: testing -&gt; reviewing</span>
+
+<span class="comment"># Merged! pd done marks it completed automatically</span>
+<span class="prompt">$</span> pd done <span class="string">"Auth merged, all tests green"</span>
+<span class="output">Session ended: sess-d4e5f6 [completed]
+Agent unregistered
+Context cleaned up</span></code></pre>
+
+      <p>You can also update the phase via the HTTP API directly -- useful when automating from CI or a shell script:</p>
+
+      <pre><code><span class="prompt">$</span> curl -X PUT http://localhost:9876/sessions/sess-d4e5f6 \
+    -H <span class="string">"Content-Type: application/json"</span> \
+    -d <span class="string">'{"phase": "testing"}'</span>
+<span class="output">{"id":"sess-d4e5f6","phase":"testing","updatedAt":"2026-03-10T..."}</span></code></pre>
+
+      <h3>Abandoning a session</h3>
+
+      <p>If you hit a blocker and can't continue, mark the session as abandoned. This places it in the salvage queue so another agent can pick it up with full context.</p>
+
+      <pre><code><span class="prompt">$</span> pd session update sess-d4e5f6 --phase abandoned
+<span class="output">Session sess-d4e5f6 marked as abandoned
+Entering salvage queue...</span>
+
+<span class="comment"># Another agent sees it</span>
+<span class="prompt">$</span> pd salvage --project myapp
+<span class="output">1 session(s) needing salvage in myapp:*
+
+Session: sess-d4e5f6
+Agent:   agent-a1b2c3 (dead)
+Phase:   abandoned
+Purpose: Add JWT auth
+Notes:   4 note(s)
+Files:   src/auth.ts, src/middleware.ts</span></code></pre>
+
+      <div class="callout-warning">
+        <strong>Abandoned is not the same as completed.</strong> Use <code>abandoned</code> when you've stopped due to a blocker and want another agent to continue. Use <code>completed</code> (via <code>pd done</code>) when the work is actually done.
+      </div>
+
+      <h2 id="integration">Integration Signals</h2>
+
+      <p>Integration signals solve the startup coordination problem: "Is service X ready yet?" Instead of polling <code>/health</code> endpoints in a loop or hardcoding <code>sleep 5</code> in your startup scripts, services declare when they're ready and waiters block until that signal arrives.</p>
+
+      <h3>The basic pattern</h3>
+
+      <pre><code><span class="comment"># auth-service signals it's ready</span>
+<span class="prompt">$</span> pd integration ready auth-service
+<span class="output">Signal broadcast: auth-service is ready</span>
+
+<span class="comment"># api-service blocks until auth-service is ready</span>
+<span class="prompt">$</span> pd integration wait auth-service
+<span class="output">Waiting for auth-service...
+auth-service is ready!</span></code></pre>
+
+      <p>If <code>auth-service</code> is already ready when <code>wait</code> is called, it returns immediately:</p>
+
+      <pre><code><span class="prompt">$</span> pd integration wait auth-service
+<span class="output">auth-service is already ready. Proceeding immediately.</span></code></pre>
+
+      <h3>Coordinating a multi-service startup</h3>
+
+      <p>Here's a real pattern for a three-service app where the API depends on auth and the frontend depends on the API:</p>
+
+      <pre><code><span class="comment"># auth-service/start.sh</span>
+node src/auth-server.js &amp;
+<span class="comment"># Wait for the server to bind and pass health check</span>
+until curl -sf http://localhost:3100/health &gt;/dev/null; <span class="keyword">do</span> sleep 0.5; <span class="keyword">done</span>
+pd integration ready auth-service
+
+<span class="comment"># api-service/start.sh</span>
+pd integration wait auth-service  <span class="comment"># blocks until auth is up</span>
+node src/api-server.js &amp;
+until curl -sf http://localhost:3101/health &gt;/dev/null; <span class="keyword">do</span> sleep 0.5; <span class="keyword">done</span>
+pd integration ready api-service
+
+<span class="comment"># frontend/start.sh</span>
+pd integration wait api-service   <span class="comment"># blocks until API is up</span>
+npm run dev</code></pre>
+
+      <p>Each service declares its own readiness after confirming its health endpoint passes. Downstream services wait on the upstream signal. No sleep timers, no race conditions.</p>
+
+      <h3>Using integration with sessions</h3>
+
+      <p>Integration signals work well alongside session phases. An agent can advance to <code>in_progress</code> and then block on a dependency before doing its work:</p>
+
+      <pre><code><span class="prompt">$</span> pd begin --identity myapp:api --purpose <span class="string">"Build API endpoints"</span> --phase planning
+<span class="prompt">$</span> pd session update sess-d4e5f6 --phase in_progress
+
+<span class="comment"># Wait for the database migration agent to finish</span>
+<span class="prompt">$</span> pd integration wait myapp-db-migrated
+<span class="output">Waiting for myapp-db-migrated...
+myapp-db-migrated is ready!</span>
+
+<span class="comment"># Now do the actual API work</span>
+<span class="prompt">$</span> pd session update sess-d4e5f6 --phase testing
+<span class="prompt">$</span> pd done <span class="string">"API endpoints complete"</span></code></pre>
+
+      <h2 id="history">Viewing Session History</h2>
+
+      <p>Several commands let you inspect active and past sessions:</p>
+
+      <pre><code><span class="comment"># List all active sessions</span>
+<span class="prompt">$</span> pd sessions
+<span class="output">SESSION       AGENT          PHASE        PURPOSE
+sess-d4e5f6   agent-a1b2c3   reviewing    Add JWT auth
+sess-e5f6a7   agent-b2c3d4   testing      Fix connection timeout</span>
+
+<span class="comment"># Details and notes for a specific session</span>
+<span class="prompt">$</span> pd session sess-d4e5f6
+<span class="output">Session: sess-d4e5f6
+Agent:   agent-a1b2c3
+Phase:   reviewing
+Purpose: Add JWT auth
+Files:   src/auth.ts, src/middleware.ts
+
+Notes:
+  [10:14] planning: Decided to use jose library for JWT
+  [10:31] in_progress: Auth route working, token generation done
+  [11:02] testing: All 24 tests passing
+  [11:15] reviewing: PR opened, waiting for review</span>
+
+<span class="comment"># Full project history</span>
+<span class="prompt">$</span> pd history
+<span class="output">Showing last 20 events for current project
+
+  10:14  sess-d4e5f6  phase:planning     Add JWT auth
+  10:31  sess-d4e5f6  phase:in_progress  Add JWT auth
+  11:02  sess-d4e5f6  phase:testing      Add JWT auth
+  11:15  sess-d4e5f6  phase:reviewing    Add JWT auth
+  09:55  sess-e5f6a7  phase:in_progress  Fix connection timeout
+  11:30  sess-e5f6a7  phase:testing      Fix connection timeout</span></code></pre>
+
+      <p>The history view is useful when picking up salvaged work -- you can see exactly what phase transitions happened and reconstruct the previous agent's progress.</p>
+
+      <h2 id="sdk">SDK Usage</h2>
+
+      <p>All phase and integration operations are available in the JavaScript SDK:</p>
+
+      <pre><code><span class="keyword">const</span> pd = <span class="keyword">new</span> PortDaddy();
+
+<span class="comment">// Start session with a phase</span>
+<span class="keyword">const</span> { sessionId } = <span class="keyword">await</span> pd.begin({
+  identity: <span class="string">'myapp:feature-auth'</span>,
+  purpose: <span class="string">'Add JWT authentication'</span>,
+  phase: <span class="string">'planning'</span>,
+});
+
+<span class="comment">// Advance through phases</span>
+<span class="keyword">await</span> pd.updateSession(sessionId, { phase: <span class="string">'in_progress'</span> });
+<span class="keyword">await</span> pd.updateSession(sessionId, { phase: <span class="string">'testing'</span> });
+
+<span class="comment">// Signal that a dependency is ready</span>
+<span class="keyword">await</span> pd.publish(<span class="string">'integration:ready:auth-service'</span>, { ready: <span class="keyword">true</span> });
+
+<span class="comment">// Wait for a dependency (resolves immediately if already signaled)</span>
+<span class="keyword">await</span> pd.integrationWait(<span class="string">'auth-service'</span>);
+
+<span class="comment">// List sessions (optionally filter by phase)</span>
+<span class="keyword">const</span> testing = <span class="keyword">await</span> pd.listSessions({ phase: <span class="string">'testing'</span> });
+
+<span class="comment">// End session -- marks completed automatically</span>
+<span class="keyword">await</span> pd.done({ sessionId, note: <span class="string">'Auth merged, all tests green'</span> });
+
+<span class="comment">// Abandon if you hit a blocker</span>
+<span class="keyword">await</span> pd.updateSession(sessionId, { phase: <span class="string">'abandoned'</span> });</code></pre>
+
+      <h2 id="decision">When to Use Each Phase</h2>
+
+      <div class="decision-box">
+        <h4>Phase selection guide</h4>
+        <div class="decision-item">
+          <span class="decision-phase">planning</span>
+          <span class="decision-desc">You're writing a design doc, deciding which files to change, or figuring out the approach. No code has been modified yet.</span>
+        </div>
+        <div class="decision-item">
+          <span class="decision-phase">in_progress</span>
+          <span class="decision-desc">You've started making changes. Files are claimed, code is being written, the plan is executing.</span>
+        </div>
+        <div class="decision-item">
+          <span class="decision-phase">testing</span>
+          <span class="decision-desc">Implementation is done. You're running the test suite, fixing failing tests, checking behavior with curl or a browser.</span>
+        </div>
+        <div class="decision-item">
+          <span class="decision-phase">reviewing</span>
+          <span class="decision-desc">Code is working and tested. You've opened a PR, or you're waiting for a human or another agent to review your changes before merging.</span>
+        </div>
+        <div class="decision-item">
+          <span class="decision-phase completed">completed</span>
+          <span class="decision-desc">Your PR is merged, or the task is definitively done and won't be revisited. Set automatically by <code>pd done</code>.</span>
+        </div>
+        <div class="decision-item">
+          <span class="decision-phase abandoned">abandoned</span>
+          <span class="decision-desc">You've hit a blocker you can't resolve -- missing context, access issue, or the task needs a different approach. Use this so another agent can salvage your work with full context about where you stopped.</span>
+        </div>
+      </div>
+
+      <div class="callout-tip">
+        <strong>Keep phases updated as you go.</strong> A session stuck in <code>planning</code> while the agent is actually running tests is misleading to other agents. Update the phase when your work changes character -- it takes one command and makes the salvage system dramatically more useful.
+      </div>
+
+      <div class="prev-next">
+        <a href="debugging.html">
+          <div class="label">Previous tutorial</div>
+          <div class="title">Debugging with Port Daddy</div>
+        </a>
+        <a href="09-inbox-messaging.html" class="next">
+          <div class="label">Next tutorial</div>
+          <div class="title">Inbox &amp; Direct Messaging</div>
+        </a>
+      </div>
+    </article>
+  </div>
+
+  <footer>
+    <div class="footer-container">
+      <div class="footer-bottom">
+        <p>&copy; 2025-2026 Curiositech LLC. Released under the MIT License.</p>
+      </div>
+    </div>
+  </footer>
+  <script src="../js/theme.js"></script>
+</body>
+</html>

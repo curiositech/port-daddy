@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>pd watch -- Port Daddy Tutorials</title>
+  <meta name="description" content="Build always-on agent triggers with pd watch. Subscribe to a pub/sub channel and execute a script on every message — the ambient agent primitive.">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%9A%93</text></svg>">
+  <link rel="stylesheet" href="../css/shared.css">
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="../" class="nav-brand">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
+        Port Daddy
+      </a>
+      <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Toggle navigation">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="nav-links">
+        <a href="../#features">Features</a>
+        <a href="./" class="active">Tutorials</a>
+        <a href="../docs/">Docs</a>
+        <a href="https://github.com/curiositech/port-daddy" target="_blank">GitHub</a>
+        <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <section class="page-hero">
+    <div class="page-hero-container">
+      <div class="breadcrumbs">
+        <a href="../">Home</a>
+        <span class="separator">/</span>
+        <a href="./">Tutorials</a>
+        <span class="separator">/</span>
+        <span>pd watch</span>
+      </div>
+      <h1>pd watch</h1>
+      <p>Subscribe to a pub/sub channel and execute a script on every message. The primitive that makes AI agents always-on.</p>
+      <div class="meta">
+        <span class="meta-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          6 min read
+        </span>
+        <span class="meta-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+          Tutorial 10 of 12
+        </span>
+        <span class="meta-item">Intermediate</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="content-layout">
+    <aside class="toc">
+      <h4>On this page</h4>
+      <ul>
+        <li><a href="#what-it-does">What pd watch Does</a></li>
+        <li><a href="#basic-usage">Basic Usage</a></li>
+        <li><a href="#env-vars">Environment Variables</a></li>
+        <li><a href="#real-world">Real-World Pattern</a></li>
+        <li><a href="#reconnect">Auto-Reconnect</a></li>
+        <li><a href="#sdk">SDK Equivalent</a></li>
+      </ul>
+    </aside>
+
+    <article class="article">
+      <p><code style="font-family: var(--font-mono); background: rgba(0,102,204,0.08); padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.9em;">pd watch</code> turns any script into an ambient agent trigger. It opens a persistent SSE connection to a Port Daddy pub/sub channel and executes a shell command on every message — no polling, no cron jobs, no manual wiring.</p>
+
+      <h2 id="what-it-does">What pd watch Does</h2>
+      <p><code>pd watch</code> subscribes to a channel over Server-Sent Events. When a message arrives, it sets environment variables and execs your script. When Port Daddy restarts or the connection drops, <code>pd watch</code> reconnects automatically with exponential backoff.</p>
+
+      <p>This is the "always-on agent" primitive. A watcher is a lightweight persistent process — not a daemon, just a process that runs a script every time something happens. You can have as many watchers as you have scripts.</p>
+
+      <h2 id="basic-usage">Basic Usage</h2>
+      <pre><code><span class="prompt">$</span> pd watch build-results --exec <span class="string">'./analyze.sh'</span>
+<span class="output">Watching channel: build-results
+Connected. Waiting for messages...</span>
+
+<span class="comment"># In another terminal, publish a message:</span>
+<span class="prompt">$</span> pd msg build-results publish <span class="string">'{"status":"failed","job":"test-suite"}'</span>
+
+<span class="comment"># Back in the watcher terminal:</span>
+<span class="output">Message received on build-results
+Running: ./analyze.sh
+Exit code: 0</span></code></pre>
+
+      <p>The <code>--exec</code> flag is a shell command string. It can be any executable: a bash script, a Python script, a Node.js process, or even a direct <code>curl</code> call to another service.</p>
+
+      <h2 id="env-vars">Environment Variables</h2>
+      <p>When your script runs, Port Daddy sets these environment variables:</p>
+
+      <pre><code><span class="comment"># Inside your --exec script, these are available:</span>
+<span class="output">PD_CHANNEL=build-results        # Which channel fired
+PD_MESSAGE={"status":"failed"}  # Full JSON message content
+PD_MESSAGE_CONTENT={"status":"failed"}  # Alias for PD_MESSAGE
+PD_TIMESTAMP=2026-03-11T08:23:41.000Z  # ISO 8601 timestamp</span></code></pre>
+
+      <p>Your script can parse <code>PD_MESSAGE</code> with <code>jq</code>, Python's <code>json</code>, or Node's <code>JSON.parse</code>. The message is whatever was published to the channel.</p>
+
+      <pre><code><span class="comment"># analyze.sh — reads PD_MESSAGE, routes to the right handler</span>
+<span class="prompt">#!/bin/bash</span>
+STATUS=$(echo "<span class="string">$PD_MESSAGE</span>" | jq -r .status)
+
+<span class="keyword">if</span> [ "<span class="string">$STATUS</span>" = "failed" ]; then
+  echo <span class="string">"Build failed — filing issue"</span>
+  gh issue create --title <span class="string">"Build failed: $(echo $PD_MESSAGE | jq -r .job)"</span>
+<span class="keyword">fi</span></code></pre>
+
+      <h2 id="real-world">Real-World Pattern: CI Notifier</h2>
+      <p>Here's a full pattern: a CI system publishes build results to a channel, and a watcher agent automatically creates GitHub issues on failures and posts Slack messages on success.</p>
+
+      <pre><code><span class="comment"># Start the watcher (runs forever, reconnects on disconnect)</span>
+<span class="prompt">$</span> pd watch ci-results --exec <span class="string">'./ci-notifier.sh'</span> &
+
+<span class="comment"># ci-notifier.sh</span>
+STATUS=$(echo <span class="string">"$PD_MESSAGE"</span> | jq -r .status)
+BRANCH=$(echo <span class="string">"$PD_MESSAGE"</span> | jq -r .branch)
+JOB=$(echo <span class="string">"$PD_MESSAGE"</span> | jq -r .job)
+
+<span class="keyword">if</span> [ <span class="string">"$STATUS"</span> = "failed" ]; then
+  gh issue create \
+    --title <span class="string">"CI failure: $JOB on $BRANCH"</span> \
+    --body <span class="string">"$PD_MESSAGE"</span>
+<span class="keyword">elif</span> [ <span class="string">"$STATUS"</span> = "passed" ]; then
+  curl -s -X POST <span class="string">"$SLACK_WEBHOOK"</span> \
+    -d <span class="string">"{\"text\":\"Build passed: $BRANCH ($JOB)\"}"</span>
+<span class="keyword">fi</span>
+
+<span class="comment"># From CI, publish results:</span>
+<span class="prompt">$</span> pd msg ci-results publish \
+  <span class="string">'{"status":"failed","job":"test-suite","branch":"feature-auth"}'</span></code></pre>
+
+      <h2 id="reconnect">Auto-Reconnect</h2>
+      <p>The SSE connection will eventually drop — Port Daddy restarts, network blips, macOS wakes from sleep. <code>pd watch</code> handles this automatically:</p>
+
+      <pre><code><span class="output">Watching channel: ci-results
+Connected. Waiting for messages...
+Message received. Running: ./ci-notifier.sh
+
+[Connection lost]
+Reconnecting in 1s...
+Reconnecting in 2s...
+Reconnecting in 4s...
+Connected. Waiting for messages...</span></code></pre>
+
+      <p>Backoff is exponential (1s, 2s, 4s, 8s...) with a maximum delay of 30 seconds. The watcher will keep trying indefinitely until the connection is restored.</p>
+
+      <h2 id="sdk">SDK Equivalent</h2>
+      <pre><code><span class="keyword">import</span> { PortDaddy } <span class="keyword">from</span> <span class="string">'port-daddy'</span>;
+<span class="keyword">import</span> { execSync } <span class="keyword">from</span> <span class="string">'child_process'</span>;
+
+<span class="keyword">const</span> pd = <span class="keyword">new</span> PortDaddy();
+
+<span class="comment">// Watch a channel and handle messages in-process</span>
+<span class="keyword">for await</span> (<span class="keyword">const</span> message <span class="keyword">of</span> pd.watch(<span class="string">'ci-results'</span>)) {
+  <span class="keyword">const</span> data = JSON.parse(message.content);
+  <span class="keyword">if</span> (data.status === <span class="string">'failed'</span>) {
+    <span class="comment">// Run your handler directly in Node.js</span>
+    <span class="keyword">await</span> handleFailure(data);
+  }
+}</code></pre>
+
+      <div class="prev-next">
+        <a href="inbox.html">
+          <div class="label">Previous tutorial</div>
+          <div class="title">Inbox Messaging</div>
+        </a>
+        <a href="pd-spawn.html" class="next">
+          <div class="label">Next tutorial</div>
+          <div class="title">pd spawn</div>
+        </a>
+      </div>
+    </article>
+  </div>
+
+  <footer>
+    <div class="footer-container">
+      <div class="footer-bottom">
+        <p>&copy; 2025-2026 Curiositech LLC. Released under the MIT License.</p>
+      </div>
+    </div>
+  </footer>
+  <script src="../js/theme.js"></script>
+</body>
+</html>

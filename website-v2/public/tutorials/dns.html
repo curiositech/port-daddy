@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DNS Resolution -- Port Daddy Tutorials</title>
+  <meta name="description" content="Access your dev services by hostname instead of port numbers. Learn DNS registration, /etc/hosts integration, and SDK usage.">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%9A%93</text></svg>">
+  <link rel="stylesheet" href="../css/shared.css">
+  <style>
+    .callout {
+      background: rgba(0, 102, 204, 0.06);
+      border-left: 3px solid #0066CC;
+      padding: 0.85rem 1.1rem;
+      border-radius: 0 6px 6px 0;
+      margin: 1.25rem 0;
+    }
+    .callout strong { color: #0052a3; }
+    .callout-warning {
+      background: rgba(229, 160, 0, 0.08);
+      border-left: 3px solid #E5A000;
+      padding: 0.85rem 1.1rem;
+      border-radius: 0 6px 6px 0;
+      margin: 1.25rem 0;
+    }
+    .callout-warning strong { color: #B37800; }
+    .callout-success {
+      background: rgba(24, 121, 78, 0.07);
+      border-left: 3px solid #18794E;
+      padding: 0.85rem 1.1rem;
+      border-radius: 0 6px 6px 0;
+      margin: 1.25rem 0;
+    }
+    .callout-success strong { color: #18794E; }
+    .step-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      background: #0066CC;
+      color: white;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 0.75rem;
+      flex-shrink: 0;
+      margin-right: 0.6rem;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="../" class="nav-brand">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
+        Port Daddy
+      </a>
+      <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Toggle navigation">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="nav-links">
+        <a href="../#features">Features</a>
+        <a href="./" class="active">Tutorials</a>
+        <a href="../docs/">Docs</a>
+        <a href="https://github.com/curiositech/port-daddy" target="_blank">GitHub</a>
+        <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <section class="page-hero">
+    <div class="page-hero-container">
+      <div class="breadcrumbs">
+        <a href="../">Home</a>
+        <span class="separator">/</span>
+        <a href="./">Tutorials</a>
+        <span class="separator">/</span>
+        <span>DNS Resolution</span>
+      </div>
+      <h1>DNS Resolution</h1>
+      <p>Access your dev services by hostname instead of port numbers. Map <code style="font-family: var(--font-mono); background: rgba(0,102,204,0.08); padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.9em; border: none;">myapp-api.local</code> to your running service with a single command.</p>
+      <div class="meta">
+        <span class="meta-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          10 min read
+        </span>
+        <span class="meta-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+          Tutorial 6 of 9
+        </span>
+        <span class="meta-item">Intermediate</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="content-layout">
+    <aside class="toc">
+      <h4>On this page</h4>
+      <ul>
+        <li><a href="#what-is-dns">What is Port Daddy DNS?</a></li>
+        <li><a href="#prerequisites">Prerequisites</a></li>
+        <li><a href="#register">Register Your First Record</a></li>
+        <li><a href="#multiple">Register Multiple Services</a></li>
+        <li><a href="#etc-hosts">Enable /etc/hosts Resolution</a></li>
+        <li><a href="#status">Check DNS Status</a></li>
+        <li><a href="#sdk">SDK Usage</a></li>
+        <li><a href="#troubleshooting">Troubleshooting</a></li>
+        <li><a href="#teardown">Cleanup</a></li>
+      </ul>
+    </aside>
+
+    <article class="article">
+
+      <h2 id="what-is-dns">What is Port Daddy DNS?</h2>
+
+      <p>Port Daddy maintains a local DNS registry that maps semantic service identities to hostnames. Instead of remembering that your API is on <code>localhost:3100</code> and your frontend on <code>localhost:5173</code>, you register each service with a hostname and access them by name.</p>
+
+      <p>The registry lives in the Port Daddy daemon and can optionally write to your operating system's <code>/etc/hosts</code> file. Once that's done, any tool on your machine -- curl, your browser, other services -- can reach <code>myapp-api.local</code> without knowing the port number.</p>
+
+      <p>This is especially useful in multi-service and multi-agent workflows where services depend on each other by address. Agents can hardcode <code>http://myapp-api.local</code> instead of passing port numbers through environment variables.</p>
+
+      <h2 id="prerequisites">Prerequisites</h2>
+
+      <p>You'll need Port Daddy installed and the daemon running. If you haven't done this yet, see the <a href="getting-started.html">Getting Started</a> tutorial.</p>
+
+      <pre><code><span class="comment"># Check that the daemon is running</span>
+<span class="prompt">$</span> pd status
+<span class="output">Port Daddy daemon running on localhost:9876
+Uptime: 2h 14m</span></code></pre>
+
+      <p>If the daemon isn't running, start it:</p>
+
+      <pre><code><span class="prompt">$</span> pd start
+<span class="output">Port Daddy daemon started on localhost:9876</span></code></pre>
+
+      <h2 id="register">Register Your First DNS Record</h2>
+
+      <p>The simplest way to register a DNS record is to add <code>--dns</code> when claiming a port. Port Daddy derives a hostname from the service identity automatically.</p>
+
+      <pre><code><span class="prompt">$</span> pd claim myapp:api --dns
+<span class="output">Port 3100 assigned to myapp:api
+DNS: myapp-api.local</span></code></pre>
+
+      <p>The derived hostname replaces colons with hyphens and appends <code>.local</code>. So <code>myapp:api</code> becomes <code>myapp-api.local</code>.</p>
+
+      <p>You can also register a DNS record separately from port claiming, and supply a custom hostname:</p>
+
+      <pre><code><span class="prompt">$</span> pd dns register myapp:api --hostname myapp-api.local
+<span class="output">DNS record registered: myapp-api.local -&gt; 127.0.0.1:3100 (myapp:api)</span></code></pre>
+
+      <p>Verify the record was stored:</p>
+
+      <pre><code><span class="prompt">$</span> pd dns list
+<span class="output">HOSTNAME               ADDRESS          SERVICE
+myapp-api.local        127.0.0.1:3100   myapp:api</span></code></pre>
+
+      <div class="callout">
+        <strong>Note:</strong> DNS records in Port Daddy's registry are separate from OS-level resolution. The record is stored in the daemon, but your browser and curl won't use it until you run <code>pd dns sync</code> (covered below).
+      </div>
+
+      <h2 id="multiple">Register Multiple Services</h2>
+
+      <p>For a typical web application with a backend API, frontend, and background job runner, you'd register all three at once:</p>
+
+      <pre><code><span class="prompt">$</span> pd claim myapp:api --dns
+<span class="output">Port 3100 assigned to myapp:api
+DNS: myapp-api.local</span>
+
+<span class="prompt">$</span> pd claim myapp:frontend --dns
+<span class="output">Port 3101 assigned to myapp:frontend
+DNS: myapp-frontend.local</span>
+
+<span class="prompt">$</span> pd claim myapp:jobs --dns
+<span class="output">Port 3102 assigned to myapp:jobs
+DNS: myapp-jobs.local</span></code></pre>
+
+      <p>Now check the registry:</p>
+
+      <pre><code><span class="prompt">$</span> pd dns list
+<span class="output">HOSTNAME                  ADDRESS          SERVICE
+myapp-api.local           127.0.0.1:3100   myapp:api
+myapp-frontend.local      127.0.0.1:3101   myapp:frontend
+myapp-jobs.local          127.0.0.1:3102   myapp:jobs</span></code></pre>
+
+      <p>All three services are now registered. The port assignments are stable -- if another agent or process calls <code>pd claim myapp:api</code>, it gets back port 3100 again. The DNS entry stays consistent.</p>
+
+      <h2 id="etc-hosts">Enable OS-Level Resolution with /etc/hosts</h2>
+
+      <p>Port Daddy's internal registry isn't visible to your OS by default. To make hostnames like <code>myapp-api.local</code> work in curl, your browser, and other services, you need to write them to <code>/etc/hosts</code>.</p>
+
+      <p>Port Daddy manages a clearly delimited section of <code>/etc/hosts</code> and never touches the rest of the file.</p>
+
+      <h3>Step 1: Set up the managed section</h3>
+
+      <p>This adds Port Daddy's managed block to <code>/etc/hosts</code>. It requires <code>sudo</code> because <code>/etc/hosts</code> is root-owned.</p>
+
+      <pre><code><span class="prompt">$</span> sudo pd dns setup
+<span class="output">Backup created: /etc/hosts.portdaddy-backup-1741654320
+Port Daddy section added to /etc/hosts</span></code></pre>
+
+      <h3>Step 2: Sync DNS records to /etc/hosts</h3>
+
+      <pre><code><span class="prompt">$</span> pd dns sync
+<span class="output">Synced 3 record(s) to /etc/hosts
+  myapp-api.local
+  myapp-frontend.local
+  myapp-jobs.local</span></code></pre>
+
+      <p>This command does not require sudo -- Port Daddy only writes within its own managed section.</p>
+
+      <h3>Step 3: Verify</h3>
+
+      <pre><code><span class="prompt">$</span> pd dns status
+<span class="output">DNS registry: 3 record(s)
+/etc/hosts: synced (3 entries)
+Last sync: just now</span></code></pre>
+
+      <h3>What /etc/hosts looks like before and after</h3>
+
+      <p><strong>Before:</strong></p>
+
+      <pre><code>127.0.0.1   localhost
+255.255.255.255  broadcasthost
+::1         localhost</code></pre>
+
+      <p><strong>After:</strong></p>
+
+      <pre><code>127.0.0.1   localhost
+255.255.255.255  broadcasthost
+::1         localhost
+<span class="comment"># === PORT DADDY DNS (managed, do not edit) ===</span>
+127.0.0.1   myapp-api.local
+127.0.0.1   myapp-frontend.local
+127.0.0.1   myapp-jobs.local
+<span class="comment"># === END PORT DADDY DNS ===</span></code></pre>
+
+      <div class="callout-warning">
+        <strong>Do not edit the managed section by hand.</strong> Any changes between the Port Daddy markers will be overwritten the next time <code>pd dns sync</code> runs.
+      </div>
+
+      <h3>Test it with curl</h3>
+
+      <pre><code><span class="prompt">$</span> curl http://myapp-api.local:3100/health
+<span class="output">{"status":"ok","service":"myapp:api"}</span></code></pre>
+
+      <div class="callout-success">
+        <strong>It works.</strong> Your service is now accessible by hostname from any tool on your machine. Other services in the same project can call <code>http://myapp-api.local:3100</code> instead of hard-coding a port number.
+      </div>
+
+      <h2 id="status">Check DNS Status</h2>
+
+      <p>Two commands give you visibility into the DNS state:</p>
+
+      <pre><code><span class="prompt">$</span> pd dns status
+<span class="output">DNS registry: 3 record(s)
+/etc/hosts: synced (3 entries)
+Last sync: 4 minutes ago</span>
+
+<span class="prompt">$</span> pd dns resolver
+<span class="output">Resolver mode: /etc/hosts
+Managed section: present
+Records in registry: 3
+Records synced to /etc/hosts: 3
+Drift: none</span></code></pre>
+
+      <p><code>pd dns resolver</code> tells you whether the registry and <code>/etc/hosts</code> are in sync. If you see drift (records in the registry not in <code>/etc/hosts</code>), run <code>pd dns sync</code> to reconcile.</p>
+
+      <h2 id="sdk">SDK Usage</h2>
+
+      <p>All DNS operations are available in the JavaScript SDK for use in agent code and scripts:</p>
+
+      <pre><code><span class="keyword">const</span> pd = <span class="keyword">new</span> PortDaddy();
+
+<span class="comment">// Claim a port with DNS registration in one call</span>
+<span class="keyword">const</span> { port } = <span class="keyword">await</span> pd.claim(<span class="string">'myapp:api'</span>);
+<span class="keyword">await</span> pd.dnsRegister(<span class="string">'myapp:api'</span>, { hostname: <span class="string">'myapp-api.local'</span> });
+
+<span class="comment">// List all registered DNS records</span>
+<span class="keyword">const</span> records = <span class="keyword">await</span> pd.dnsList();
+<span class="comment">// [{ hostname: 'myapp-api.local', address: '127.0.0.1', port: 3100, service: 'myapp:api' }]</span>
+
+<span class="comment">// Set up the /etc/hosts managed section (requires sudo context)</span>
+<span class="keyword">await</span> pd.dnsSetup();
+
+<span class="comment">// Write registry to /etc/hosts</span>
+<span class="keyword">await</span> pd.dnsSync();
+
+<span class="comment">// Check current status</span>
+<span class="keyword">const</span> status = <span class="keyword">await</span> pd.dnsStatus();
+<span class="comment">// { records: 3, synced: 3, lastSync: '2026-03-10T...' }</span>
+
+<span class="comment">// Remove a record</span>
+<span class="keyword">await</span> pd.dnsRemove(<span class="string">'myapp:api'</span>);</code></pre>
+
+      <p>The SDK is useful when you want DNS registration to be part of your service startup script. Register the hostname, claim the port, then signal other agents that the service is ready.</p>
+
+      <h2 id="troubleshooting">Troubleshooting</h2>
+
+      <h3>Permission error when running pd dns setup</h3>
+
+      <pre><code><span class="prompt">$</span> pd dns setup
+<span class="output">Error: permission denied writing to /etc/hosts
+Hint: run with sudo: sudo pd dns setup</span></code></pre>
+
+      <p><code>/etc/hosts</code> is owned by root on macOS and Linux. The <code>setup</code> command needs sudo once to create the managed section. After that, <code>pd dns sync</code> can update the section without sudo because Port Daddy manages write access to its own block.</p>
+
+      <h3>Hostname conflict -- record already exists</h3>
+
+      <pre><code><span class="prompt">$</span> pd dns register myapp:api --hostname myapp-api.local
+<span class="output">Error: hostname myapp-api.local is already registered (by myapp:api-v2)</span></code></pre>
+
+      <p>Remove the conflicting record first, then re-register:</p>
+
+      <pre><code><span class="prompt">$</span> pd dns remove myapp-api.local
+<span class="output">Record removed: myapp-api.local</span>
+
+<span class="prompt">$</span> pd dns register myapp:api --hostname myapp-api.local
+<span class="output">DNS record registered: myapp-api.local -&gt; 127.0.0.1:3100 (myapp:api)</span></code></pre>
+
+      <h3>Hostname not resolving in browser after sync</h3>
+
+      <p>Browsers cache DNS responses. After running <code>pd dns sync</code>, if a hostname still doesn't resolve in your browser:</p>
+
+      <ol>
+        <li>Verify the entry is in <code>/etc/hosts</code>: <code>grep -A 10 "PORT DADDY" /etc/hosts</code></li>
+        <li>Restart your browser completely (quit and reopen, not just a new tab)</li>
+        <li>On macOS, flush the DNS cache: <code>sudo dscacheutil -flushcache && sudo killall -HUP mDNSResponder</code></li>
+      </ol>
+
+      <h3>Drift between registry and /etc/hosts</h3>
+
+      <pre><code><span class="prompt">$</span> pd dns resolver
+<span class="output">Drift detected: 2 record(s) in registry not in /etc/hosts</span>
+
+<span class="prompt">$</span> pd dns sync
+<span class="output">Synced 2 new record(s) to /etc/hosts</span></code></pre>
+
+      <p>Drift happens when you register new DNS records after the last sync. Running <code>pd dns sync</code> always brings them back into agreement.</p>
+
+      <h3>Verify /etc/hosts entries directly</h3>
+
+      <pre><code><span class="prompt">$</span> grep -A 20 <span class="string">"PORT DADDY"</span> /etc/hosts
+<span class="output"># === PORT DADDY DNS (managed, do not edit) ===
+127.0.0.1   myapp-api.local
+127.0.0.1   myapp-frontend.local
+127.0.0.1   myapp-jobs.local
+# === END PORT DADDY DNS ===</span></code></pre>
+
+      <h2 id="teardown">Cleanup</h2>
+
+      <p>When you're done with a project or want to remove DNS records:</p>
+
+      <pre><code><span class="comment"># Remove one specific record from the registry</span>
+<span class="prompt">$</span> pd dns remove myapp:api
+<span class="output">Record removed: myapp-api.local (myapp:api)</span>
+
+<span class="comment"># Sync the change to /etc/hosts</span>
+<span class="prompt">$</span> pd dns sync
+<span class="output">Synced 2 record(s) to /etc/hosts (1 removed)</span>
+
+<span class="comment"># Or remove everything: all records + the managed /etc/hosts section</span>
+<span class="prompt">$</span> sudo pd dns teardown
+<span class="output">Backup created: /etc/hosts.portdaddy-backup-1741654987
+Port Daddy section removed from /etc/hosts
+3 DNS records cleared from registry</span></code></pre>
+
+      <p>A backup of <code>/etc/hosts</code> is created automatically before any modifications. The backup filename includes a timestamp so you can restore a specific version if needed:</p>
+
+      <pre><code><span class="comment"># Restore from backup if something went wrong</span>
+<span class="prompt">$</span> sudo cp /etc/hosts.portdaddy-backup-1741654987 /etc/hosts</code></pre>
+
+      <div class="prev-next">
+        <a href="tunnel-magic.html">
+          <div class="label">Previous tutorial</div>
+          <div class="title">Tunnel Magic</div>
+        </a>
+        <a href="debugging.html" class="next">
+          <div class="label">Next tutorial</div>
+          <div class="title">Debugging with Port Daddy</div>
+        </a>
+      </div>
+    </article>
+  </div>
+
+  <footer>
+    <div class="footer-container">
+      <div class="footer-bottom">
+        <p>&copy; 2025-2026 Curiositech LLC. Released under the MIT License.</p>
+      </div>
+    </div>
+  </footer>
+  <script src="../js/theme.js"></script>
+</body>
+</html>

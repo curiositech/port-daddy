@@ -70,7 +70,7 @@ export function DemoGallery() {
 
   return (
     <section
-      className="py-24 px-4 sm:px-6 lg:px-8 relative overflow-hidden"
+      className="py-10 px-4 sm:px-6 lg:px-8 relative overflow-hidden"
       style={{
         background:
           'linear-gradient(180deg, var(--bg-base) 0%, var(--bg-surface) 50%, var(--bg-base) 100%)',

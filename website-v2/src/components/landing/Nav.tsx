@@ -3,7 +3,6 @@ import { motion } from 'framer-motion'
 import { Link, useLocation } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { useTheme } from '@/lib/theme'
-import { PortDaddyAnchor } from '@/components/PortDaddyMark'
 
 function SunIcon() {
   return (
@@ -23,15 +22,16 @@ function MoonIcon() {
 }
 
 const NAV_LINKS = [
+  { label: 'Claude Code', href: '/mcp', internal: true },
   { label: 'Docs', href: '/docs', internal: true },
   { label: 'Tutorials', href: '/tutorials', internal: true },
-  { label: 'Examples', href: '/examples', internal: true },
   { label: 'GitHub', href: 'https://github.com/erichowens/port-daddy', external: true },
 ]
 
 export function Nav() {
   const [scrolled, setScrolled] = React.useState(false)
   const [mobileOpen, setMobileOpen] = React.useState(false)
+  const [heroVisible, setHeroVisible] = React.useState(true)
   const { theme, toggle } = useTheme()
   const location = useLocation()
 
@@ -40,6 +40,17 @@ export function Nav() {
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
+
+  React.useEffect(() => {
+    const hero = document.getElementById('hero')
+    if (!hero) return
+    const observer = new IntersectionObserver(
+      ([entry]) => setHeroVisible(entry.isIntersecting),
+      { threshold: 0.05 }
+    )
+    observer.observe(hero)
+    return () => observer.disconnect()
+  }, [location.pathname])
 
   // Close mobile menu on route change
   React.useEffect(() => {
@@ -67,13 +78,19 @@ export function Nav() {
         style={{ height: 'var(--nav-height)' }}
       >
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-2 no-underline">
-          <PortDaddyAnchor size={28} style={{ color: 'var(--brand-primary)', flexShrink: 0 }} />
+        <Link to="/" className="flex items-center gap-2.5 no-underline">
+          {!heroVisible && (
+            <img
+              src={theme === 'dark' ? '/pd_logo_darkmode.svg' : '/pd_logo.svg'}
+              alt="Port Daddy"
+              style={{ height: '36px', width: 'auto', display: 'block' }}
+            />
+          )}
           <span
-            className="font-mono font-bold text-xl"
-            style={{ color: 'var(--brand-primary)' }}
+            className="font-bold text-base tracking-tight"
+            style={{ color: 'var(--text-primary)', fontFamily: 'var(--p-font-display)' }}
           >
-            port-daddy
+            Port Daddy
           </span>
         </Link>
 

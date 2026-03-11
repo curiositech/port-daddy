@@ -10,124 +10,52 @@ const CAPABILITIES = [
   { cap: 'file:claim', color: 'var(--p-green-300)', bg: 'rgba(34,197,94,0.10)' },
 ]
 
-function HarborDiagram() {
+function CodeStep({ label, lines, delay = 0 }: { label: string; lines: Array<{ type: 'prompt' | 'output' | 'comment' | 'error'; text: string }>; delay?: number }) {
   return (
-    <svg viewBox="0 0 480 320" className="w-full max-w-lg" style={{ overflow: 'visible' }}>
-      {/* Harbor boundary */}
-      <ellipse
-        cx="240" cy="160" rx="170" ry="120"
-        fill="rgba(58,173,173,0.04)"
-        stroke="var(--p-teal-600)"
-        strokeWidth="1.5"
-        strokeDasharray="6 4"
-      />
-
-      {/* Harbor label */}
-      <text x="240" y="52" textAnchor="middle" fontSize="11" fontFamily="monospace" fill="var(--p-teal-400)" fontWeight="600">
-        harbor: myapp:security-review
-      </text>
-
-      {/* Center hub — the capability token */}
-      <circle cx="240" cy="160" r="36" fill="var(--bg-overlay)" stroke="var(--brand-primary)" strokeWidth="1.5" />
-      <text x="240" y="155" textAnchor="middle" fontSize="9" fontFamily="monospace" fill="var(--brand-primary)" fontWeight="700">HARBOR</text>
-      <text x="240" y="168" textAnchor="middle" fontSize="9" fontFamily="monospace" fill="var(--text-muted)">TOKEN</text>
-
-      {/* Agent 1 — entering */}
-      <circle cx="72" cy="120" r="22" fill="var(--bg-surface)" stroke="var(--p-teal-500)" strokeWidth="1.5" />
-      <text x="72" y="116" textAnchor="middle" fontSize="8" fontFamily="monospace" fill="var(--p-teal-300)">agent</text>
-      <text x="72" y="128" textAnchor="middle" fontSize="8" fontFamily="monospace" fill="var(--text-muted)">reviewer</text>
-      {/* Arrow from agent1 to center */}
-      <motion.line
-        x1="94" y1="128" x2="204" y2="152"
-        stroke="var(--p-teal-500)" strokeWidth="1.5" strokeLinecap="round"
-        initial={{ pathLength: 0, opacity: 0 }}
-        whileInView={{ pathLength: 1, opacity: 1 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.6, delay: 0.3 }}
-      />
-      <polygon points="204,152 195,145 200,156" fill="var(--p-teal-500)" />
-
-      {/* Agent 2 — entering */}
-      <circle cx="72" cy="200" r="22" fill="var(--bg-surface)" stroke="var(--p-teal-500)" strokeWidth="1.5" />
-      <text x="72" y="196" textAnchor="middle" fontSize="8" fontFamily="monospace" fill="var(--p-teal-300)">agent</text>
-      <text x="72" y="208" textAnchor="middle" fontSize="8" fontFamily="monospace" fill="var(--text-muted)">scanner</text>
-      <motion.line
-        x1="94" y1="192" x2="204" y2="164"
-        stroke="var(--p-teal-500)" strokeWidth="1.5" strokeLinecap="round"
-        initial={{ pathLength: 0, opacity: 0 }}
-        whileInView={{ pathLength: 1, opacity: 1 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.6, delay: 0.5 }}
-      />
-      <polygon points="204,164 196,156 200,167" fill="var(--p-teal-500)" />
-
-      {/* Rejected agent */}
-      <circle cx="72" cy="280" r="22" fill="var(--bg-surface)" stroke="var(--p-red-400)" strokeWidth="1.5" strokeDasharray="4 3" />
-      <text x="72" y="276" textAnchor="middle" fontSize="8" fontFamily="monospace" fill="var(--p-red-400)">agent</text>
-      <text x="72" y="288" textAnchor="middle" fontSize="8" fontFamily="monospace" fill="var(--text-muted)">unknown</text>
-      {/* X mark */}
-      <line x1="110" y1="268" x2="140" y2="258" stroke="var(--p-red-400)" strokeWidth="1.5" />
-      <line x1="112" y1="256" x2="140" y2="268" stroke="var(--p-red-400)" strokeWidth="1.5" />
-      <text x="150" y="265" fontSize="9" fontFamily="monospace" fill="var(--p-red-400)">denied</text>
-
-      {/* Scoped capabilities radiating right */}
-      {[
-        { label: 'code:read', x: 360, y: 90 },
-        { label: 'notes:write', x: 400, y: 135 },
-        { label: 'tunnel:create', x: 415, y: 182 },
-        { label: 'msg:publish', x: 395, y: 228 },
-      ].map(({ label, x, y }, i) => (
-        <g key={label}>
-          <motion.line
-            x1="276" y1="160" x2={x - 52} y2={y}
-            stroke="var(--border-default)" strokeWidth="1" strokeDasharray="3 3"
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.3, delay: 0.7 + i * 0.1 }}
-          />
-          <motion.rect
-            x={x - 52} y={y - 10} width={90} height={20} rx={4}
-            fill="var(--bg-overlay)" stroke="var(--border-subtle)" strokeWidth="1"
-            initial={{ opacity: 0, x: 10 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.3, delay: 0.7 + i * 0.1 }}
-          />
-          <motion.text
-            x={x - 7} y={y + 4}
-            textAnchor="middle" fontSize="8" fontFamily="monospace" fill="var(--p-teal-300)"
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.3, delay: 0.8 + i * 0.1 }}
-          >
-            {label}
-          </motion.text>
-        </g>
-      ))}
-
-      {/* Expiry ring pulse */}
-      <motion.circle
-        cx="240" cy="160" r="170"
-        fill="none" stroke="var(--p-teal-600)" strokeWidth="1"
-        initial={{ opacity: 0.4, scale: 0.98 }}
-        animate={{ opacity: 0, scale: 1.06 }}
-        transition={{ duration: 2.5, repeat: Infinity, ease: 'easeOut', delay: 1 }}
-        style={{ transformOrigin: '240px 160px' }}
-      />
-    </svg>
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.4, delay }}
+      className="rounded-xl overflow-hidden"
+      style={{ border: '1px solid var(--border-default)' }}
+    >
+      <div
+        className="px-4 py-2"
+        style={{ background: 'var(--codeblock-header-bg)', borderBottom: '1px solid var(--border-subtle)' }}
+      >
+        <span className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>{label}</span>
+      </div>
+      <div className="p-4 font-mono text-sm leading-relaxed" style={{ background: 'var(--codeblock-bg)' }}>
+        {lines.map((line, i) => (
+          <div key={i} className={i > 0 && lines[i - 1].type === 'prompt' && line.type !== 'prompt' ? 'mt-0' : i > 0 ? '' : ''}>
+            {line.type === 'prompt' ? (
+              <span>
+                <span style={{ color: 'var(--code-prompt)' }}>$ </span>
+                <span style={{ color: 'var(--text-primary)' }}>{line.text}</span>
+              </span>
+            ) : line.type === 'comment' ? (
+              <span style={{ color: 'var(--code-comment)' }}>{line.text}</span>
+            ) : line.type === 'error' ? (
+              <span style={{ color: 'var(--p-red-400)' }}>{line.text}</span>
+            ) : (
+              <span style={{ color: 'var(--code-output)' }}>{line.text}</span>
+            )}
+          </div>
+        ))}
+      </div>
+    </motion.div>
   )
 }
 
 export function HarborsSection() {
   return (
     <section
-      className="py-24 px-4 sm:px-6 lg:px-8"
+      className="py-10 px-4 sm:px-6 lg:px-8"
       style={{ background: 'var(--bg-surface)', borderTop: '1px solid var(--border-subtle)', borderBottom: '1px solid var(--border-subtle)' }}
     >
       <div className="max-w-7xl mx-auto">
-        <div className="grid lg:grid-cols-2 gap-16 items-center">
+        <div className="grid lg:grid-cols-2 gap-10 items-start">
 
           {/* Left: explanation */}
           <motion.div
@@ -201,20 +129,43 @@ export function HarborsSection() {
             </div>
           </motion.div>
 
-          {/* Right: diagram */}
-          <motion.div
-            initial={{ opacity: 0, x: 24 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.15 }}
-            className="flex justify-center"
-          >
-            <HarborDiagram />
-          </motion.div>
+          {/* Right: code steps */}
+          <div className="flex flex-col gap-4">
+            <CodeStep
+              label="1 · Create a harbor with capabilities"
+              delay={0.1}
+              lines={[
+                { type: 'prompt', text: 'pd harbor create myapp:security-review \\' },
+                { type: 'prompt', text: '    --cap "code:read,notes:write,lock:acquire"' },
+                { type: 'output', text: 'Harbor created · 3 capabilities · active' },
+              ]}
+            />
+            <CodeStep
+              label="2 · Issue a scoped token to an agent"
+              delay={0.2}
+              lines={[
+                { type: 'prompt', text: 'pd harbor enter myapp:security-review --ttl 2h' },
+                { type: 'output', text: 'token: eyJhbGciOiJIUzI1NiJ9... (expires 2h)' },
+                { type: 'output', text: 'caps:  code:read, notes:write, lock:acquire' },
+              ]}
+            />
+            <CodeStep
+              label="3 · Unauthorized agent blocked"
+              delay={0.3}
+              lines={[
+                { type: 'comment', text: '# Agent without a harbor token' },
+                { type: 'prompt', text: 'pd msg security-alerts publish "vuln found"' },
+                { type: 'error', text: 'Error: token missing capability msg:publish' },
+                { type: 'comment', text: '# Token holder can proceed' },
+                { type: 'prompt', text: 'PD_HARBOR_TOKEN=eyJ... pd lock acquire scan' },
+                { type: 'output', text: 'Lock acquired · expires 5m' },
+              ]}
+            />
+          </div>
         </div>
 
         {/* Bottom: three properties */}
-        <div className="grid sm:grid-cols-3 gap-6 mt-16 pt-12" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+        <div className="grid sm:grid-cols-3 gap-6 mt-10 pt-8" style={{ borderTop: '1px solid var(--border-subtle)' }}>
           {[
             {
               title: 'HMAC-signed tokens',

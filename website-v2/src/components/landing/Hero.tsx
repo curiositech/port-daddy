@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import * as Tabs from '@radix-ui/react-tabs'
+import { useTheme } from '@/lib/theme'
 
 const RAINBOW_SEGMENTS = [
   '#4285f4', // blue
@@ -120,9 +121,11 @@ const BADGE_COLORS: Record<string, { bg: string; text: string }> = {
 export function Hero() {
   const [activeTab, setActiveTab] = React.useState('brew')
   const [activePanel, setActivePanel] = React.useState<'changelog' | 'tutorials'>('changelog')
+  const { theme } = useTheme()
 
   return (
     <section
+      id="hero"
       className="relative min-h-screen flex flex-col justify-center overflow-hidden"
       style={{ paddingTop: 'var(--nav-height)' }}
     >
@@ -134,11 +137,20 @@ export function Hero() {
         }}
       />
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-28">
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-start">
 
           {/* Left column — text */}
           <div className="flex flex-col gap-6">
+            {/* Logo */}
+            <motion.div {...fadeUp} transition={{ duration: 0.4 }}>
+              <img
+                src={theme === 'dark' ? '/pd_logo_darkmode.svg' : '/pd_logo.svg'}
+                alt="Port Daddy"
+                style={{ height: '288px', width: 'auto' }}
+              />
+            </motion.div>
+
             {/* Rainbow accent bar */}
             <motion.div {...fadeUp} transition={{ duration: 0.5 }}>
               <div className="flex gap-0 mb-1" style={{ height: '4px', width: '200px', borderRadius: '2px', overflow: 'hidden' }}>

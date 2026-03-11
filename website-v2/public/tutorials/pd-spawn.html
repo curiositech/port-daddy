@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>pd spawn -- Port Daddy Tutorials</title>
+  <meta name="description" content="Launch AI agents (Ollama, Claude, Aider, Gemini) from the command line with Port Daddy coordination auto-wired. Heartbeats, notes, and salvage — included.">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%9A%93</text></svg>">
+  <link rel="stylesheet" href="../css/shared.css">
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="../" class="nav-brand">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
+        Port Daddy
+      </a>
+      <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Toggle navigation">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="nav-links">
+        <a href="../#features">Features</a>
+        <a href="./" class="active">Tutorials</a>
+        <a href="../docs/">Docs</a>
+        <a href="https://github.com/curiositech/port-daddy" target="_blank">GitHub</a>
+        <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <section class="page-hero">
+    <div class="page-hero-container">
+      <div class="breadcrumbs">
+        <a href="../">Home</a>
+        <span class="separator">/</span>
+        <a href="./">Tutorials</a>
+        <span class="separator">/</span>
+        <span>pd spawn</span>
+      </div>
+      <h1>pd spawn</h1>
+      <p>Launch Ollama, Claude, Aider, and Gemini agents from one command. Port Daddy coordination — sessions, heartbeats, notes, salvage — is auto-wired.</p>
+      <div class="meta">
+        <span class="meta-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          7 min read
+        </span>
+        <span class="meta-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+          Tutorial 11 of 12
+        </span>
+        <span class="meta-item">Intermediate</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="content-layout">
+    <aside class="toc">
+      <h4>On this page</h4>
+      <ul>
+        <li><a href="#what-it-does">What pd spawn Does</a></li>
+        <li><a href="#quick-start">Quick Start (Ollama)</a></li>
+        <li><a href="#backends">Backends</a></li>
+        <li><a href="#coordination">Coordination Auto-Wired</a></li>
+        <li><a href="#managing">Managing Agents</a></li>
+        <li><a href="#sdk">SDK Equivalent</a></li>
+      </ul>
+    </aside>
+
+    <article class="article">
+      <p><code style="font-family: var(--font-mono); background: rgba(0,102,204,0.08); padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.9em;">pd spawn</code> launches AI agents (Ollama, Claude API, Aider, Gemini, or any custom subprocess) with Port Daddy coordination pre-wired. The spawned agent is registered as a Port Daddy agent, sends heartbeats automatically, logs its responses as notes, and enters the salvage queue if it crashes.</p>
+
+      <h2 id="what-it-does">What pd spawn Does</h2>
+      <p>Without <code>pd spawn</code>, integrating an AI agent into Port Daddy requires manual calls: register the agent, start a session, send heartbeats in a loop, write notes, end the session on completion. <code>pd spawn</code> does all of this for you.</p>
+
+      <p>The agent you spawn becomes a full Port Daddy citizen: it appears in the dashboard, its output becomes queryable notes, other agents can pub/sub with it, and if it dies unexpectedly its last note becomes its salvage context.</p>
+
+      <h2 id="quick-start">Quick Start — Ollama</h2>
+      <p>Spawn a local Ollama agent to perform a coding task:</p>
+
+      <pre><code><span class="comment"># Prerequisite: Ollama must be running (ollama serve)</span>
+<span class="prompt">$</span> pd spawn \
+    --backend ollama \
+    --model llama3.2:8b \
+    --identity myapp:coder \
+    --purpose <span class="string">"Refactor auth module"</span> \
+    -- <span class="string">"Fix the login bug in src/auth.ts"</span>
+
+<span class="output">Agent spawned: agent-a1b2c3
+Backend:  ollama (llama3.2:8b)
+Identity: myapp:coder
+Session:  sess-d4e5f6
+Heartbeat: every 30s
+
+[llama3.2:8b] Analyzing src/auth.ts...
+[llama3.2:8b] Found issue: session token not invalidated on logout.
+[llama3.2:8b] Fix: call destroySession() in the logout handler.
+Agent done: sess-d4e5f6 ended</span></code></pre>
+
+      <p>The <code>--</code> separator marks the end of <code>pd spawn</code> flags. Everything after it is the prompt sent to the agent.</p>
+
+      <h2 id="backends">Backends</h2>
+      <p>Five backends are supported. Each is tuned for its runtime:</p>
+
+      <pre><code><span class="comment"># Ollama — local inference, uses HTTP to port 11434</span>
+<span class="prompt">$</span> pd spawn --backend ollama --model llama3.2:8b \
+    --identity myapp:coder -- <span class="string">"Review src/auth.ts"</span>
+
+<span class="comment"># Claude API — uses @anthropic-ai/sdk directly (not the CLI)</span>
+<span class="prompt">$</span> pd spawn --backend claude --model claude-haiku-4-5 \
+    --identity myapp:reviewer -- <span class="string">"Review PR for security issues"</span>
+
+<span class="comment"># Gemini — uses @google/generative-ai</span>
+<span class="prompt">$</span> pd spawn --backend gemini --model gemini-flash \
+    --identity myapp:analyst -- <span class="string">"Summarize the test failures"</span>
+
+<span class="comment"># Aider — git-native coding agent, wraps stdout as PD notes</span>
+<span class="prompt">$</span> pd spawn --backend aider --model gpt-4o \
+    --identity myapp:writer -- src/auth.ts src/middleware.ts
+
+<span class="comment"># Custom — any subprocess, stdout becomes PD notes</span>
+<span class="prompt">$</span> pd spawn --backend custom \
+    --identity myapp:worker -- python3 ./process.py</code></pre>
+
+      <h2 id="coordination">Coordination Auto-Wired</h2>
+      <p>Every spawned agent automatically gets:</p>
+      <ol>
+        <li>An agent registration with the identity you specify</li>
+        <li>A Port Daddy session opened with the purpose you specify</li>
+        <li>Heartbeats sent every 30 seconds</li>
+        <li>Each LLM response chunk added as an immutable note</li>
+        <li>Session ended cleanly when the agent completes</li>
+        <li>Resurrection queue entry if the agent crashes unexpectedly</li>
+      </ol>
+
+      <p>Other agents can see spawned agents in <code>pd salvage</code>, read their notes, and pick up where they left off if they crash.</p>
+
+      <h2 id="managing">Managing Agents</h2>
+      <pre><code><span class="comment"># See all running spawned agents</span>
+<span class="prompt">$</span> pd spawned
+<span class="output">AGENT ID      BACKEND   MODEL           IDENTITY       STATUS
+agent-a1b2c3  ollama    llama3.2:8b     myapp:coder    running
+agent-b2c3d4  claude    haiku-4-5       myapp:review   running</span>
+
+<span class="comment"># Get JSON output for scripting</span>
+<span class="prompt">$</span> pd spawned --json
+
+<span class="comment"># Stop a specific agent</span>
+<span class="prompt">$</span> pd spawn kill agent-a1b2c3
+<span class="output">Agent agent-a1b2c3 stopped. Session ended.</span></code></pre>
+
+      <h2 id="sdk">SDK Equivalent</h2>
+      <pre><code><span class="keyword">import</span> { PortDaddy } <span class="keyword">from</span> <span class="string">'port-daddy'</span>;
+
+<span class="keyword">const</span> pd = <span class="keyword">new</span> PortDaddy();
+
+<span class="comment">// Spawn an Ollama agent</span>
+<span class="keyword">const</span> agent = <span class="keyword">await</span> pd.spawn({
+  backend: <span class="string">'ollama'</span>,
+  model: <span class="string">'llama3.2:8b'</span>,
+  identity: <span class="string">'myapp:coder'</span>,
+  purpose: <span class="string">'Refactor auth module'</span>,
+  prompt: <span class="string">'Fix the login bug in src/auth.ts'</span>,
+});
+
+<span class="comment">// Stream output as it arrives</span>
+agent.on(<span class="string">'output'</span>, (chunk) => console.log(chunk));
+agent.on(<span class="string">'done'</span>, () => console.log(<span class="string">'Agent finished'</span>));
+
+<span class="comment">// Or await completion</span>
+<span class="keyword">const</span> result = <span class="keyword">await</span> agent.wait();
+console.log(result.notes);</code></pre>
+
+      <div class="prev-next">
+        <a href="pd-watch.html">
+          <div class="label">Previous tutorial</div>
+          <div class="title">pd watch</div>
+        </a>
+        <a href="harbors.html" class="next">
+          <div class="label">Next tutorial</div>
+          <div class="title">Harbors</div>
+        </a>
+      </div>
+    </article>
+  </div>
+
+  <footer>
+    <div class="footer-container">
+      <div class="footer-bottom">
+        <p>&copy; 2025-2026 Curiositech LLC. Released under the MIT License.</p>
+      </div>
+    </div>
+  </footer>
+  <script src="../js/theme.js"></script>
+</body>
+</html>

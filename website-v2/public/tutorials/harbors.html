@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Harbors -- Port Daddy Tutorials</title>
+  <meta name="description" content="Create permission namespaces for agents using HMAC-signed capability tokens. Scope port claims, locks, messages, and tunnels to a harbor.">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%9A%93</text></svg>">
+  <link rel="stylesheet" href="../css/shared.css">
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="../" class="nav-brand">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
+        Port Daddy
+      </a>
+      <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Toggle navigation">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="nav-links">
+        <a href="../#features">Features</a>
+        <a href="./" class="active">Tutorials</a>
+        <a href="../docs/">Docs</a>
+        <a href="https://github.com/curiositech/port-daddy" target="_blank">GitHub</a>
+        <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <section class="page-hero">
+    <div class="page-hero-container">
+      <div class="breadcrumbs">
+        <a href="../">Home</a>
+        <span class="separator">/</span>
+        <a href="./">Tutorials</a>
+        <span class="separator">/</span>
+        <span>Harbors</span>
+      </div>
+      <h1>Harbors</h1>
+      <p>Permission namespaces for multi-agent systems. Issue HMAC-signed capability tokens so agents can only touch what they're supposed to touch.</p>
+      <div class="meta">
+        <span class="meta-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          8 min read
+        </span>
+        <span class="meta-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+          Tutorial 12 of 12
+        </span>
+        <span class="meta-item">Advanced</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="content-layout">
+    <aside class="toc">
+      <h4>On this page</h4>
+      <ul>
+        <li><a href="#what-are-harbors">What Are Harbors?</a></li>
+        <li><a href="#creating">Creating a Harbor</a></li>
+        <li><a href="#issuing-tokens">Issuing Tokens</a></li>
+        <li><a href="#capabilities">Capability Reference</a></li>
+        <li><a href="#scoping">Scoping Operations</a></li>
+        <li><a href="#sdk">SDK Equivalent</a></li>
+      </ul>
+    </aside>
+
+    <article class="article">
+      <p>Harbors are the answer to "what happens when you have 20 agents running and one rogue agent starts claiming ports it shouldn't?" They provide cryptographic permission boundaries: agents without a valid harbor token simply can't perform operations outside their scope.</p>
+
+      <h2 id="what-are-harbors">What Are Harbors?</h2>
+      <p>A harbor is a named permission namespace. When you create a harbor, you define what operations are allowed inside it. When you issue a capability token for that harbor, any agent holding that token can perform those operations — and only those operations — within the harbor's scope.</p>
+
+      <p>Tokens are HMAC-signed JWTs (HS256) with embedded JTI identifiers. Every grant is written to the audit trail. Tokens expire by default after 1 hour, but you can set any TTL.</p>
+
+      <pre><code><span class="comment"># The mental model:</span>
+<span class="comment">#</span>
+<span class="comment">#   Harbor = Permission Boundary</span>
+<span class="comment">#   Token  = Proof of permission, time-limited, signed</span>
+<span class="comment">#   Agent  = Must present token to perform scoped operations</span>
+<span class="comment">#</span>
+<span class="comment"># An agent WITHOUT a harbor token is unrestricted (default behavior).</span>
+<span class="comment"># An agent WITH a harbor token can ONLY do what the token permits.</span></code></pre>
+
+      <h2 id="creating">Creating a Harbor</h2>
+      <pre><code><span class="comment"># Create a harbor for the security review workflow</span>
+<span class="prompt">$</span> pd harbor create myapp:security-review \
+    --capabilities <span class="string">"code:read,notes:write,locks:acquire"</span>
+
+<span class="output">Harbor created: myapp:security-review
+Capabilities: code:read, notes:write, locks:acquire
+Status: active</span>
+
+<span class="comment"># List all harbors</span>
+<span class="prompt">$</span> pd harbors
+<span class="output">HARBOR                  CAPABILITIES                        AGENTS
+myapp:security-review   code:read,notes:write,locks:acquire  0
+myapp:deploy            ports:claim,tunnels:start             1</span></code></pre>
+
+      <h2 id="issuing-tokens">Issuing Tokens</h2>
+      <pre><code><span class="comment"># Issue a token for a specific agent identity</span>
+<span class="prompt">$</span> pd harbor token myapp:security-review \
+    --for myapp:reviewer \
+    --ttl 2h
+
+<span class="output">Token issued (expires in 2h):
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+Audit entry written:
+  harbor: myapp:security-review
+  agent:  myapp:reviewer
+  caps:   code:read,notes:write,locks:acquire
+  jti:    tok-a1b2c3d4
+  exp:    2026-03-11T10:23:41.000Z</span>
+
+<span class="comment"># Pass the token to the agent via environment variable</span>
+<span class="prompt">$</span> PD_HARBOR_TOKEN=eyJhbGci... \
+    pd spawn --backend claude --model claude-haiku-4-5 \
+    --identity myapp:reviewer \
+    -- <span class="string">"Review src/auth.ts for security vulnerabilities"</span></code></pre>
+
+      <h2 id="capabilities">Capability Reference</h2>
+      <p>These are the scoped capabilities you can grant in a harbor token:</p>
+
+      <pre><code><span class="comment"># Port operations</span>
+ports:claim       <span class="comment"># pd claim — assign a port</span>
+ports:release     <span class="comment"># pd release — free a port</span>
+
+<span class="comment"># Note and session operations</span>
+notes:write       <span class="comment"># pd note — add session notes</span>
+sessions:read     <span class="comment"># pd sessions — list sessions</span>
+
+<span class="comment"># Distributed locks</span>
+locks:acquire     <span class="comment"># pd lock acquire</span>
+locks:release     <span class="comment"># pd lock release</span>
+
+<span class="comment"># Pub/sub messaging</span>
+messages:publish  <span class="comment"># pd msg publish</span>
+messages:read     <span class="comment"># pd msg get</span>
+
+<span class="comment"># Tunnel management</span>
+tunnels:start     <span class="comment"># pd tunnel start</span>
+tunnels:stop      <span class="comment"># pd tunnel stop</span>
+
+<span class="comment"># Catch-all for reading code (advisory, not enforced at FS level)</span>
+code:read         <span class="comment"># Signals this agent is allowed to read code</span></code></pre>
+
+      <h2 id="scoping">Scoping Operations</h2>
+      <p>When an agent presents a harbor token, every operation it performs is automatically scoped to that harbor's audit trail. Other agents and the dashboard can filter by harbor to see exactly what each scoped agent did.</p>
+
+      <pre><code><span class="comment"># As an agent with a harbor token, all operations are scoped:</span>
+<span class="prompt">$</span> PD_HARBOR_TOKEN=eyJhbGci... pd note <span class="string">"Found XSS in /api/search"</span>
+<span class="output">Note added (harbor: myapp:security-review)
+  session: sess-d4e5f6
+  harbor:  myapp:security-review
+  content: Found XSS in /api/search</span>
+
+<span class="comment"># Attempting an operation outside the token's capabilities fails:</span>
+<span class="prompt">$</span> PD_HARBOR_TOKEN=eyJhbGci... pd msg deploy-queue publish <span class="string">"deploy now"</span>
+<span class="output">Error: Harbor token for myapp:security-review does not include messages:publish</span>
+
+<span class="comment"># Revoking a token (by JTI)</span>
+<span class="prompt">$</span> pd harbor revoke tok-a1b2c3d4
+<span class="output">Token tok-a1b2c3d4 revoked. Audit entry written.</span></code></pre>
+
+      <h2 id="sdk">SDK Equivalent</h2>
+      <pre><code><span class="keyword">import</span> { PortDaddy } <span class="keyword">from</span> <span class="string">'port-daddy'</span>;
+
+<span class="keyword">const</span> pd = <span class="keyword">new</span> PortDaddy();
+
+<span class="comment">// Create a harbor</span>
+<span class="keyword">await</span> pd.createHarbor({
+  name: <span class="string">'myapp:security-review'</span>,
+  capabilities: [<span class="string">'code:read'</span>, <span class="string">'notes:write'</span>, <span class="string">'locks:acquire'</span>],
+});
+
+<span class="comment">// Issue a capability token</span>
+<span class="keyword">const</span> token = <span class="keyword">await</span> pd.issueHarborToken({
+  harbor: <span class="string">'myapp:security-review'</span>,
+  forAgent: <span class="string">'myapp:reviewer'</span>,
+  ttl: <span class="string">'2h'</span>,
+});
+
+<span class="comment">// The spawned agent receives the token and is automatically scoped</span>
+<span class="keyword">const</span> agent = <span class="keyword">await</span> pd.spawn({
+  backend: <span class="string">'claude'</span>,
+  model: <span class="string">'claude-haiku-4-5'</span>,
+  identity: <span class="string">'myapp:reviewer'</span>,
+  harborToken: token,
+  prompt: <span class="string">'Review src/auth.ts for security vulnerabilities'</span>,
+});
+
+<span class="keyword">await</span> agent.wait();</code></pre>
+
+      <div class="prev-next">
+        <a href="pd-spawn.html">
+          <div class="label">Previous tutorial</div>
+          <div class="title">pd spawn</div>
+        </a>
+        <a href="./">
+          <div class="label">All tutorials</div>
+          <div class="title">Back to Tutorials</div>
+        </a>
+      </div>
+    </article>
+  </div>
+
+  <footer>
+    <div class="footer-container">
+      <div class="footer-bottom">
+        <p>&copy; 2025-2026 Curiositech LLC. Released under the MIT License.</p>
+      </div>
+    </div>
+  </footer>
+  <script src="../js/theme.js"></script>
+</body>
+</html>

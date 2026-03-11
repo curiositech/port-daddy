@@ -210,13 +210,13 @@
   --interactive-active: rgba(30, 107, 107, 0.10);
   --interactive-focus:  rgba(30, 107, 107, 0.2);
 
-  --code-bg:       var(--p-neutral-900);
+  --code-bg:       #f6f8fa;
   --code-border:   var(--border-subtle);
-  --code-prompt:   var(--p-teal-400);
-  --code-output:   var(--p-neutral-300);
-  --code-comment:  var(--p-neutral-500);
-  --code-string:   var(--p-amber-300);
-  --code-keyword:  var(--p-teal-300);
+  --code-prompt:   var(--p-teal-700);
+  --code-output:   #24292e;
+  --code-comment:  #6a737d;
+  --code-string:   #032f62;
+  --code-keyword:  var(--p-teal-700);
 }
 
 

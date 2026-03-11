@@ -63,7 +63,7 @@ const STEPS: Step[] = [
 export function HowItWorks() {
   return (
     <section
-      className="py-24 px-4 sm:px-6 lg:px-8"
+      className="py-8 px-4 sm:px-6 lg:px-8"
       style={{ background: 'var(--bg-surface)' }}
     >
       <div className="max-w-7xl mx-auto">
@@ -72,7 +72,7 @@ export function HowItWorks() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
-          className="text-center mb-16"
+          className="text-center mb-10"
         >
           <h2 className="text-3xl sm:text-4xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
             Three commands to coordinate anything
