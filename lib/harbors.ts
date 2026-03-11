@@ -92,11 +92,21 @@ export function createHarbors(db: Database.Database) {
     );
 
     CREATE INDEX IF NOT EXISTS idx_harbor_members_agent ON harbor_members(agent_id);
+
+    -- Partial index: only non-null expires_at rows — supports deleteExpired query
+    CREATE INDEX IF NOT EXISTS idx_harbors_expires ON harbors(expires_at)
+      WHERE expires_at IS NOT NULL;
+
+    -- Supports ORDER BY created_at DESC in list() / listAll query
+    CREATE INDEX IF NOT EXISTS idx_harbors_created ON harbors(created_at);
   `);
 
   const stmts = {
+    // INSERT OR IGNORE: routes enforce uniqueness (409 if exists), so conflicts only
+    // occur in races. OR IGNORE means the loser silently no-ops rather than
+    // CASCADE-deleting all harbor members as OR REPLACE would.
     insert: db.prepare(`
-      INSERT OR REPLACE INTO harbors (name, capabilities, channels, agent_patterns, created_at, expires_at, metadata)
+      INSERT OR IGNORE INTO harbors (name, capabilities, channels, agent_patterns, created_at, expires_at, metadata)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `),
     getByName: db.prepare('SELECT * FROM harbors WHERE name = ?'),
