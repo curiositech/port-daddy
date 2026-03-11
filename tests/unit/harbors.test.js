@@ -10,6 +10,7 @@
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { createTestDb } from '../setup-unit.js';
 import { createHarbors } from '../../lib/harbors.js';
+import { createHarborTokens } from '../../lib/harbor-tokens.js';
 
 describe('Harbors Module', () => {
   let db;
@@ -513,6 +514,101 @@ describe('Harbors Module', () => {
       }
       const memberships = harbors.memberships('prolific-agent');
       expect(memberships.length).toBe(10);
+    });
+  });
+
+  // ─── Harbor Card (JWT) Integration ────────────────────────────────────────
+
+  describe('harbor_card integration (7 tests)', () => {
+    it('enter() returns no harbor_card when harborTokens not wired', () => {
+      harbors.create('myapp:no-tokens');
+      const result = harbors.enter('myapp:no-tokens', 'agent-1');
+      expect(result.success).toBe(true);
+      expect(result.harborCard).toBeUndefined();
+    });
+
+    it('enter() returns harbor_card when harborTokens is wired', async () => {
+      const ht = createHarborTokens(db);
+      await ht.initDaemonIdentity();
+      const harborsWithTokens = createHarbors(db, { harborTokens: ht });
+      harborsWithTokens.create('myapp:with-tokens');
+
+      const result = await harborsWithTokens.enter('myapp:with-tokens', 'agent-jwt-1', {
+        capabilities: ['code:read'],
+      });
+
+      expect(result.success).toBe(true);
+      expect(typeof result.harborCard).toBe('string');
+      // Should be a 3-part JWT
+      expect(result.harborCard.split('.').length).toBe(3);
+    });
+
+    it('harbor_card audience matches the harbor name', async () => {
+      const ht = createHarborTokens(db);
+      await ht.initDaemonIdentity();
+      const harborsWithTokens = createHarbors(db, { harborTokens: ht });
+      harborsWithTokens.create('myapp:audience-test');
+
+      const result = await harborsWithTokens.enter('myapp:audience-test', 'agent-aud', {
+        capabilities: [],
+      });
+
+      const payload = JSON.parse(Buffer.from(result.harborCard.split('.')[1], 'base64url').toString());
+      expect(payload.aud).toBe('myapp:audience-test');
+    });
+
+    it('harbor_card subject matches agentId', async () => {
+      const ht = createHarborTokens(db);
+      await ht.initDaemonIdentity();
+      const harborsWithTokens = createHarbors(db, { harborTokens: ht });
+      harborsWithTokens.create('myapp:sub-test');
+
+      const result = await harborsWithTokens.enter('myapp:sub-test', 'specific-agent-42', {
+        capabilities: ['notes:write'],
+      });
+
+      const payload = JSON.parse(Buffer.from(result.harborCard.split('.')[1], 'base64url').toString());
+      expect(payload.sub).toBe('specific-agent-42');
+    });
+
+    it('harbor_card capabilities match declared capabilities', async () => {
+      const ht = createHarborTokens(db);
+      await ht.initDaemonIdentity();
+      const harborsWithTokens = createHarbors(db, { harborTokens: ht });
+      harborsWithTokens.create('myapp:cap-test');
+      const caps = ['code:read', 'security:scan'];
+
+      const result = await harborsWithTokens.enter('myapp:cap-test', 'cap-agent', { capabilities: caps });
+
+      const payload = JSON.parse(Buffer.from(result.harborCard.split('.')[1], 'base64url').toString());
+      expect(payload.cap).toEqual(caps);
+    });
+
+    it('harbor_card is verifiable by the same harborTokens instance', async () => {
+      const ht = createHarborTokens(db);
+      await ht.initDaemonIdentity();
+      const harborsWithTokens = createHarbors(db, { harborTokens: ht });
+      harborsWithTokens.create('myapp:verify-round-trip');
+
+      const result = await harborsWithTokens.enter('myapp:verify-round-trip', 'round-trip-agent', {
+        capabilities: ['deploy'],
+      });
+
+      const verified = await ht.verifyHarborCard(result.harborCard, 'myapp:verify-round-trip');
+      expect(verified).not.toBeNull();
+      expect(verified.sub).toBe('round-trip-agent');
+    });
+
+    it('enter() still returns non-null harbor when harborTokens is wired', async () => {
+      const ht = createHarborTokens(db);
+      await ht.initDaemonIdentity();
+      const harborsWithTokens = createHarbors(db, { harborTokens: ht });
+      harborsWithTokens.create('myapp:harbor-present');
+
+      const result = await harborsWithTokens.enter('myapp:harbor-present', 'agent-x', {});
+
+      expect(result.harbor).toBeDefined();
+      expect(result.harbor.name).toBe('myapp:harbor-present');
     });
   });
 });

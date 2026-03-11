@@ -15,6 +15,7 @@
  */
 
 import type Database from 'better-sqlite3';
+import type { HarborTokens } from './harbor-tokens.js';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -69,7 +70,11 @@ export interface EnterHarborOptions {
 
 // ─── Module ──────────────────────────────────────────────────────────────────
 
-export function createHarbors(db: Database.Database) {
+export interface HarborsDeps {
+  harborTokens?: HarborTokens;
+}
+
+export function createHarbors(db: Database.Database, deps: HarborsDeps = {}) {
   // Schema
   db.exec(`
     CREATE TABLE IF NOT EXISTS harbors (
@@ -206,8 +211,12 @@ export function createHarbors(db: Database.Database) {
 
     /**
      * Agent enters a harbor, declaring capabilities.
+     *
+     * If `harborTokens` is provided in deps, issues a signed JWT harbor card
+     * and returns it as `harborCard`. The card proves the agent's authorization
+     * to operate within this harbor during its TTL.
      */
-    enter(harborName: string, agentId: string, options: EnterHarborOptions = {}): { success: boolean; harbor?: Harbor; error?: string } {
+    async enter(harborName: string, agentId: string, options: EnterHarborOptions = {}): Promise<{ success: boolean; harbor?: Harbor; harborCard?: string; error?: string }> {
       if (!agentId || typeof agentId !== 'string') return { success: false, error: 'agentId required' };
 
       const row = stmts.getByName.get(harborName) as HarborRow | undefined;
@@ -227,7 +236,20 @@ export function createHarbors(db: Database.Database) {
       );
 
       const members = stmts.listMembers.all(harborName) as HarborMemberRow[];
-      return { success: true, harbor: parseHarbor(row, members) };
+      const harbor = parseHarbor(row, members);
+
+      // Issue harbor card if harborTokens is wired
+      if (deps.harborTokens) {
+        const harborCard = await deps.harborTokens.issueHarborCard({
+          agentId,
+          harborName,
+          capabilities: options.capabilities ?? [],
+          lastHeartbeat: Date.now(),
+        });
+        return { success: true, harbor, harborCard };
+      }
+
+      return { success: true, harbor };
     },
 
     /**
