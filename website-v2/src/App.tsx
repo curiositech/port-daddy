@@ -1,35 +1,46 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
 import './App.css'
+import { Nav } from '@/components/landing/Nav'
+import { Hero } from '@/components/landing/Hero'
+import { Features } from '@/components/landing/Features'
 
-function App() {
-  const [count, setCount] = useState(0)
-
+function Footer() {
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+    <footer
+      className="py-12 px-4 sm:px-6 lg:px-8 border-t"
+      style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-base)' }}
+    >
+      <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-2">
+          <span className="font-mono font-bold" style={{ color: 'var(--brand-primary)' }}>
+            ⚓ port-daddy
+          </span>
+          <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
+            v3.5.0 · MIT License
+          </span>
+        </div>
+        <div className="flex items-center gap-6 text-sm" style={{ color: 'var(--text-muted)' }}>
+          <a href="https://github.com/erichowens/port-daddy" target="_blank" rel="noopener noreferrer"
+            className="hover:text-[var(--text-primary)] transition-colors">GitHub</a>
+          <a href="#docs" className="hover:text-[var(--text-primary)] transition-colors">Docs</a>
+          <a href="#tutorials" className="hover:text-[var(--text-primary)] transition-colors">Tutorials</a>
+        </div>
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+    </footer>
   )
 }
 
-export default App
+export default function App() {
+  return (
+    <div
+      className="min-h-screen flex flex-col"
+      style={{ background: 'var(--bg-base)', color: 'var(--text-primary)' }}
+    >
+      <Nav />
+      <main className="flex-1">
+        <Hero />
+        <Features />
+      </main>
+      <Footer />
+    </div>
+  )
+}

@@ -1,0 +1,278 @@
+/**
+ * Port Daddy — Triple Semantic Token System
+ *
+ * Layer 1: Primitives  (raw values, never used directly in components)
+ * Layer 2: Semantics   (contextual meaning, used by components)
+ * Layer 3: Components  (component-specific aliases, optional)
+ *
+ * Maritime theme: deep navy, teal signal, cream highlight
+ */
+
+/* ─── Layer 1: Primitives ───────────────────────────────────────────────────── */
+:root {
+  /* Color scale — Navy */
+  --p-navy-950: #070b14;
+  --p-navy-900: #0d1526;
+  --p-navy-800: #131e38;
+  --p-navy-700: #1a2a4f;
+  --p-navy-600: #243564;
+  --p-navy-500: #2e4280;
+  --p-navy-400: #4a63a8;
+  --p-navy-300: #7090cc;
+  --p-navy-200: #a8bde8;
+  --p-navy-100: #d6e1f5;
+  --p-navy-50:  #eef3fb;
+
+  /* Color scale — Teal (signal) */
+  --p-teal-900: #0a2525;
+  --p-teal-800: #0f3535;
+  --p-teal-700: #164d4d;
+  --p-teal-600: #1e6b6b;
+  --p-teal-500: #2a8a8a;
+  --p-teal-400: #3aadad;
+  --p-teal-300: #56cccc;
+  --p-teal-200: #86e4e4;
+  --p-teal-100: #c3f0f0;
+  --p-teal-50:  #edfafa;
+
+  /* Color scale — Amber (warning / highlight) */
+  --p-amber-600: #d97706;
+  --p-amber-500: #f59e0b;
+  --p-amber-400: #fbbf24;
+  --p-amber-300: #fcd34d;
+  --p-amber-100: #fef3c7;
+
+  /* Color scale — Red (danger) */
+  --p-red-600:  #dc2626;
+  --p-red-500:  #ef4444;
+  --p-red-300:  #fca5a5;
+
+  /* Color scale — Green (success) */
+  --p-green-600: #16a34a;
+  --p-green-500: #22c55e;
+  --p-green-300: #86efac;
+
+  /* Color scale — Neutral */
+  --p-neutral-950: #030712;
+  --p-neutral-900: #111827;
+  --p-neutral-800: #1f2937;
+  --p-neutral-700: #374151;
+  --p-neutral-600: #4b5563;
+  --p-neutral-500: #6b7280;
+  --p-neutral-400: #9ca3af;
+  --p-neutral-300: #d1d5db;
+  --p-neutral-200: #e5e7eb;
+  --p-neutral-100: #f3f4f6;
+  --p-neutral-50:  #f9fafb;
+  --p-white:        #ffffff;
+
+  /* Typography */
+  --p-font-mono: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', ui-monospace, monospace;
+  --p-font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* Type scale */
+  --p-text-xs:   0.75rem;   /* 12px */
+  --p-text-sm:   0.875rem;  /* 14px */
+  --p-text-base: 1rem;      /* 16px */
+  --p-text-lg:   1.125rem;  /* 18px */
+  --p-text-xl:   1.25rem;   /* 20px */
+  --p-text-2xl:  1.5rem;    /* 24px */
+  --p-text-3xl:  1.875rem;  /* 30px */
+  --p-text-4xl:  2.25rem;   /* 36px */
+  --p-text-5xl:  3rem;      /* 48px */
+  --p-text-6xl:  3.75rem;   /* 60px */
+  --p-text-7xl:  4.5rem;    /* 72px */
+
+  /* Border radius */
+  --p-radius-sm:  4px;
+  --p-radius-md:  8px;
+  --p-radius-lg:  12px;
+  --p-radius-xl:  16px;
+  --p-radius-2xl: 24px;
+  --p-radius-full: 9999px;
+
+  /* Spacing */
+  --p-space-1:  0.25rem;
+  --p-space-2:  0.5rem;
+  --p-space-3:  0.75rem;
+  --p-space-4:  1rem;
+  --p-space-5:  1.25rem;
+  --p-space-6:  1.5rem;
+  --p-space-8:  2rem;
+  --p-space-10: 2.5rem;
+  --p-space-12: 3rem;
+  --p-space-16: 4rem;
+  --p-space-20: 5rem;
+  --p-space-24: 6rem;
+
+  /* Shadows */
+  --p-shadow-sm:  0 1px 2px rgba(0,0,0,0.05);
+  --p-shadow-md:  0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);
+  --p-shadow-lg:  0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1);
+  --p-shadow-xl:  0 20px 25px -5px rgba(0,0,0,0.2), 0 8px 10px -6px rgba(0,0,0,0.2);
+  --p-shadow-glow-teal: 0 0 24px rgba(58, 173, 173, 0.25);
+  --p-shadow-glow-navy: 0 0 32px rgba(19, 30, 56, 0.6);
+
+  /* Transitions */
+  --p-transition-fast:   100ms ease;
+  --p-transition-base:   160ms ease;
+  --p-transition-slow:   280ms ease;
+  --p-transition-spring: 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+
+/* ─── Layer 2: Semantic Tokens — DARK (default) ──────────────────────────── */
+:root,
+[data-theme="dark"] {
+  /* Backgrounds */
+  --bg-base:       var(--p-navy-950);
+  --bg-surface:    var(--p-navy-900);
+  --bg-overlay:    var(--p-navy-800);
+  --bg-elevated:   var(--p-navy-700);
+  --bg-glass:      rgba(13, 21, 38, 0.85);
+  --bg-glass-teal: rgba(30, 107, 107, 0.12);
+
+  /* Borders */
+  --border-subtle:  rgba(255,255,255,0.06);
+  --border-default: rgba(255,255,255,0.10);
+  --border-strong:  rgba(255,255,255,0.18);
+  --border-focus:   var(--p-teal-400);
+
+  /* Text */
+  --text-primary:   var(--p-white);
+  --text-secondary: var(--p-navy-200);
+  --text-muted:     var(--p-navy-300);
+  --text-disabled:  var(--p-navy-400);
+  --text-inverse:   var(--p-navy-950);
+  --text-code:      var(--p-teal-300);
+
+  /* Brand */
+  --brand-primary:    var(--p-teal-400);
+  --brand-secondary:  var(--p-teal-300);
+  --brand-dim:        var(--p-teal-700);
+  --brand-glow:       var(--p-shadow-glow-teal);
+
+  /* Status */
+  --status-success:  var(--p-green-400);
+  --status-warning:  var(--p-amber-400);
+  --status-danger:   var(--p-red-500);
+  --status-info:     var(--p-navy-300);
+
+  /* Interactive */
+  --interactive-hover:  rgba(58, 173, 173, 0.08);
+  --interactive-active: rgba(58, 173, 173, 0.15);
+  --interactive-focus:  rgba(58, 173, 173, 0.3);
+
+  /* Code / Terminal */
+  --code-bg:       var(--p-navy-950);
+  --code-border:   var(--border-subtle);
+  --code-prompt:   var(--p-teal-400);
+  --code-output:   var(--p-navy-200);
+  --code-comment:  var(--p-navy-400);
+  --code-string:   var(--p-amber-300);
+  --code-keyword:  var(--p-teal-300);
+}
+
+
+/* ─── Layer 2: Semantic Tokens — LIGHT ───────────────────────────────────── */
+[data-theme="light"] {
+  --bg-base:       var(--p-neutral-50);
+  --bg-surface:    var(--p-white);
+  --bg-overlay:    var(--p-neutral-100);
+  --bg-elevated:   var(--p-white);
+  --bg-glass:      rgba(255, 255, 255, 0.85);
+  --bg-glass-teal: rgba(30, 107, 107, 0.05);
+
+  --border-subtle:  rgba(0,0,0,0.06);
+  --border-default: rgba(0,0,0,0.10);
+  --border-strong:  rgba(0,0,0,0.18);
+  --border-focus:   var(--p-teal-500);
+
+  --text-primary:   var(--p-navy-900);
+  --text-secondary: var(--p-navy-700);
+  --text-muted:     var(--p-neutral-500);
+  --text-disabled:  var(--p-neutral-400);
+  --text-inverse:   var(--p-white);
+  --text-code:      var(--p-teal-700);
+
+  --brand-primary:   var(--p-teal-600);
+  --brand-secondary: var(--p-teal-500);
+  --brand-dim:       var(--p-teal-100);
+  --brand-glow:      none;
+
+  --status-success:  var(--p-green-600);
+  --status-warning:  var(--p-amber-600);
+  --status-danger:   var(--p-red-600);
+  --status-info:     var(--p-navy-600);
+
+  --interactive-hover:  rgba(30, 107, 107, 0.05);
+  --interactive-active: rgba(30, 107, 107, 0.10);
+  --interactive-focus:  rgba(30, 107, 107, 0.2);
+
+  --code-bg:       var(--p-neutral-900);
+  --code-border:   var(--border-subtle);
+  --code-prompt:   var(--p-teal-400);
+  --code-output:   var(--p-neutral-300);
+  --code-comment:  var(--p-neutral-500);
+  --code-string:   var(--p-amber-300);
+  --code-keyword:  var(--p-teal-300);
+}
+
+
+/* ─── Layer 3: Component Tokens ──────────────────────────────────────────── */
+:root {
+  /* Button — Primary */
+  --btn-primary-bg:          var(--p-teal-500);
+  --btn-primary-bg-hover:    var(--p-teal-400);
+  --btn-primary-text:        var(--p-white);
+  --btn-primary-border:      transparent;
+  --btn-primary-shadow:      0 0 16px rgba(42, 138, 138, 0.4);
+
+  /* Button — Ghost */
+  --btn-ghost-bg:            transparent;
+  --btn-ghost-bg-hover:      var(--interactive-hover);
+  --btn-ghost-text:          var(--text-secondary);
+  --btn-ghost-border:        var(--border-default);
+
+  /* Button — Code */
+  --btn-code-bg:             var(--bg-overlay);
+  --btn-code-bg-hover:       var(--bg-elevated);
+  --btn-code-text:           var(--text-primary);
+
+  /* Card */
+  --card-bg:                 var(--bg-surface);
+  --card-border:             var(--border-default);
+  --card-radius:             var(--p-radius-xl);
+  --card-shadow:             var(--p-shadow-lg);
+
+  /* Glass card */
+  --glass-card-bg:           var(--bg-glass);
+  --glass-card-border:       var(--border-subtle);
+  --glass-card-blur:         16px;
+
+  /* Nav */
+  --nav-bg:                  var(--bg-glass);
+  --nav-border:              var(--border-subtle);
+  --nav-height:              64px;
+
+  /* Code block */
+  --codeblock-bg:            var(--code-bg);
+  --codeblock-border:        var(--border-subtle);
+  --codeblock-radius:        var(--p-radius-lg);
+  --codeblock-header-bg:     rgba(255,255,255,0.04);
+
+  /* Badge */
+  --badge-teal-bg:           rgba(58, 173, 173, 0.15);
+  --badge-teal-text:         var(--p-teal-300);
+  --badge-teal-border:       rgba(58, 173, 173, 0.25);
+  --badge-amber-bg:          rgba(251, 191, 36, 0.12);
+  --badge-amber-text:        var(--p-amber-300);
+  --badge-green-bg:          rgba(34, 197, 94, 0.12);
+  --badge-green-text:        var(--p-green-300);
+
+  /* Harbor viz */
+  --harbor-bg:               var(--bg-overlay);
+  --harbor-border:           var(--p-teal-700);
+  --harbor-glow:             var(--p-shadow-glow-teal);
+  --harbor-agent-dot:        var(--p-teal-400);
+}
