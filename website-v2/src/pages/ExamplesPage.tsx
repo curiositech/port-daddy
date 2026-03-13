@@ -2,7 +2,7 @@ import * as React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
 import { Link } from 'react-router-dom'
-import { Code, Search, Network, Shield, Cpu, Zap, Share2, Terminal, ArrowRight, Sparkles, Box, Globe, MessageSquare, RefreshCw, Layers, FileText, DollarSign, Activity } from 'lucide-react'
+import { Code, Search, Network, Shield, Cpu, Zap, Share2, Terminal, ArrowRight, Sparkles, Box, Globe, MessageSquare, RefreshCw, Layers, FileText, DollarSign, Activity, Users, Database, Lock, Key } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
 
 interface Example {
@@ -115,6 +115,30 @@ const EXAMPLES: Example[] = [
     ],
     icon: DollarSign,
     color: 'var(--p-green-400)'
+  },
+  {
+    id: 'distributed-memory',
+    title: 'Shared Embedding Memory',
+    category: 'Data',
+    difficulty: 'Intermediate',
+    description: 'Provide a global K/V store for your swarm, optimized for vector embeddings and shared context across agent families.',
+    what: [
+      'Agents store context via pd memory',
+      'Shared vector embeddings for RAG',
+      'Locks prevent concurrent memory writes',
+      'Timeline audit of all state changes'
+    ],
+    code: [
+      '# Store shared context',
+      'pd memory store swarm:context \\',
+      '  --value "current_goal: refactor_auth"',
+      '',
+      '# Retrieve from another agent',
+      'pd memory get swarm:context',
+      '# → "current_goal: refactor_auth"'
+    ],
+    icon: Database,
+    color: 'var(--p-purple-400)'
   }
 ]
 
@@ -247,10 +271,10 @@ export function ExamplesPage() {
 
            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 w-full max-w-6xl">
               {[
-                { label: 'Atomic Identity', icon: Anchor },
-                { label: 'Swarm Radio', icon: Zap },
-                { label: 'Harbor Scopes', icon: Shield },
-                { label: 'P2P Tunneling', icon: Globe }
+                { title: 'Atomic Identity', icon: Anchor },
+                { title: 'Swarm Radio', icon: Zap },
+                { title: 'Harbor Scopes', icon: Shield },
+                { title: 'P2P Tunneling', icon: Globe }
               ].map((item, i) => (
                 <div key={i} className="p-8 rounded-[40px] bg-[var(--bg-overlay)] border border-[var(--border-subtle)] flex flex-col items-center gap-4">
                    <item.icon size={24} className="text-[var(--brand-primary)]" />
