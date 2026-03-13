@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Badge } from '@/components/ui/Badge'
-import { Globe, Shield, Zap, Terminal, Share2, Network, Lock, Activity } from 'lucide-react'
+import { Globe, Shield, Zap, Share2, Network, Lock, Activity } from 'lucide-react'
 
 export function Tunnel() {
   return (

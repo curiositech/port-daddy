@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Badge } from '@/components/ui/Badge'
-import { Eye, Zap, Activity, Terminal, Shield, Globe, Share2, Search, RefreshCw, Layers } from 'lucide-react'
+import { Eye, Zap, Activity, Terminal, Shield, Share2, RefreshCw, Layers } from 'lucide-react'
 
 export function Watch() {
   return (

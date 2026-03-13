@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Badge } from '@/components/ui/Badge'
-import { Share2, FileCode, MessageSquare, Terminal, Zap, Shield, Activity, Users } from 'lucide-react'
+import { Share2, FileCode, MessageSquare, Activity, Users } from 'lucide-react'
 
 export function MultiAgentOrchestration() {
   return (

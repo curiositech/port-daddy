@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Badge } from '@/components/ui/Badge'
-import { Globe, Shield, Zap, Terminal, Share2, Network, Anchor, Cpu, Activity, Sparkles } from 'lucide-react'
+import { Globe, Shield, Terminal, Network, Anchor, Cpu, Activity, Sparkles } from 'lucide-react'
 
 export function RemoteHarbors() {
   return (

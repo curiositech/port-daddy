@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Badge } from '@/components/ui/Badge'
-import { Cpu, Zap, Activity, Terminal, Shield, Globe, Share2, Rocket, RefreshCw } from 'lucide-react'
+import { Cpu, Zap, Activity, Shield, Share2, Rocket, RefreshCw } from 'lucide-react'
 
 export function Spawn() {
   return (

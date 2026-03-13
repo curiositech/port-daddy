@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Badge } from '@/components/ui/Badge'
-import { Activity, Zap, Terminal, Shield, Globe, Share2, Layers, RefreshCw, CheckCircle2 } from 'lucide-react'
+import { Activity, Zap, Shield, Layers, RefreshCw, CheckCircle2 } from 'lucide-react'
 
 export function SessionPhases() {
   return (

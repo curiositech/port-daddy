@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Badge } from '@/components/ui/Badge'
-import { Zap, Share2, Activity, Terminal, Shield, Globe, Layers, RefreshCw, ArrowDown } from 'lucide-react'
+import { Zap, Share2, Activity, Terminal, Shield, Layers, RefreshCw, ArrowDown } from 'lucide-react'
 
 export function Pipelines() {
   return (

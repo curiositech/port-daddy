@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Badge } from '@/components/ui/Badge'
-import { History, Clock, Activity, Terminal, Shield, Zap, Search, Database } from 'lucide-react'
+import { History, Activity, Zap, Search, Database } from 'lucide-react'
 
 export function TimeTravel() {
   return (
