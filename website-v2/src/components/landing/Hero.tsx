@@ -1,11 +1,11 @@
 import * as React from 'react'
-import { motion, useScroll, useTransform } from 'framer-motion'
+import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import * as Tabs from '@radix-ui/react-tabs'
 import { useTheme } from '@/lib/theme'
-import { Copy, Check, Terminal, Zap, Shield, History } from 'lucide-react'
+import { Copy, Check, Terminal, Zap, Shield, History, Sparkles, ArrowRight, Play } from 'lucide-react'
 import { MaritimeSignalRow } from '@/components/viz/MaritimeFlags'
 
 const RAINBOW_SEGMENTS = [
@@ -37,159 +37,168 @@ const CHANGELOG_ITEMS = [
   { version: 'v3.7.0', label: 'Timeline', badge: 'new', text: 'Unified Swarm Radio merging infra logs and agent notes.', color: 'var(--p-blue-400)', icon: History },
 ]
 
-const INSTALL_TABS = [
-  { id: 'brew', label: 'Homebrew', commands: ['brew tap erichowens/port-daddy', 'brew install port-daddy'], full: 'brew tap erichowens/port-daddy && brew install port-daddy' },
-  { id: 'npm', label: 'npm / npx', commands: ['npm install -g port-daddy'], full: 'npm install -g port-daddy' },
-]
-
 const fadeUp = {
-  initial: { opacity: 0, y: 24 },
+  initial: { opacity: 0, y: 32 },
   animate: { opacity: 1, y: 0 },
 }
 
 export function Hero() {
   const [activeTab, setActiveTab] = React.useState('brew')
-  const [activePanel, setActivePanel] = React.useState<'changelog' | 'tutorials'>('changelog')
   const { theme } = useTheme()
   const { scrollY } = useScroll()
   
   const y1 = useTransform(scrollY, [0, 500], [0, 200])
-  const rotate = useTransform(scrollY, [0, 1000], [0, 45])
+  const opacity = useTransform(scrollY, [0, 300], [1, 0])
 
   return (
     <motion.section
       id="hero"
-      className="relative min-h-screen flex flex-col justify-center overflow-hidden py-24 font-sans"
-      style={{ paddingTop: 'calc(var(--nav-height) + 4rem)' }}
+      className="relative min-h-screen flex flex-col justify-center overflow-hidden py-32 font-sans selection:bg-[var(--brand-primary)] selection:text-white"
     >
-      {/* Background elements */}
+      {/* Ideogram Background Art */}
       <motion.div 
-        style={{ y: y1, rotate }}
-        className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] rounded-full blur-[120px] pointer-events-none opacity-20"
-        animate={{ scale: [1, 1.1, 1] }}
-        transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
+        style={{ y: y1, opacity }}
+        className="absolute inset-0 z-0 pointer-events-none"
+      >
+        <motion.div className="absolute inset-0 bg-gradient-to-b from-transparent via-[var(--bg-base)] to-[var(--bg-base)] z-10" />
+        <motion.img 
+          src="/assets/port_daddy_cover_art.webp" 
+          className="w-full h-full object-cover opacity-20 scale-110 blur-sm"
+          initial={{ scale: 1.2, opacity: 0 }}
+          animate={{ scale: 1, opacity: 0.2 }}
+          transition={{ duration: 2, ease: "easeOut" }}
+        />
+      </motion.div>
+
+      {/* Floating Blobs */}
+      <motion.div 
+        className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] rounded-full blur-[120px] pointer-events-none opacity-20 z-0"
+        animate={{ scale: [1, 1.1, 1], rotate: [0, 45, 0] }}
+        transition={{ duration: 15, repeat: Infinity, ease: 'easeInOut' }}
       >
         <motion.div className="w-full h-full" style={{ background: 'radial-gradient(circle, var(--p-teal-500) 0%, transparent 70%)' }} />
       </motion.div>
 
-      <motion.div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 font-sans">
-        <motion.div className="flex flex-col items-center text-center gap-8 mb-20 font-sans">
+      <motion.div className="relative z-20 max-w-7xl mx-auto px-6 sm:px-8 lg:px-10 font-sans">
+        <motion.div className="flex flex-col items-center text-center gap-12 mb-24 font-sans">
 
-          <motion.div {...fadeUp} transition={{ duration: 0.5 }} className="flex flex-col items-center gap-6 relative">
-             <motion.div className="absolute -top-12 left-1/2 -translate-x-1/2 flex gap-4 items-center">
-                <MaritimeSignalRow size={32} />
+          <motion.div 
+            initial="initial"
+            animate="animate"
+            variants={fadeUp}
+            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+            className="flex flex-col items-center gap-8 relative"
+          >
+             <motion.div className="absolute -top-16 left-1/2 -translate-x-1/2 flex gap-6 items-center">
+                <MaritimeSignalRow size={40} />
              </motion.div>
-            <motion.img
-              src={theme === 'dark' ? '/pd_logo_darkmode.svg' : '/pd_logo.svg'}
-              alt="Port Daddy"
-              style={{ height: '240px', width: 'auto' }}
-              animate={{ y: [0, -10, 0], rotate: [0, -1, 1, 0] }}
-              transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
-            />
-            <motion.div className="flex flex-col items-center font-sans">
-              <motion.div className="flex gap-0 mb-4 h-1 w-[220px] rounded-full overflow-hidden opacity-80">
+            
+            <motion.div className="relative group">
+               <motion.div 
+                 className="absolute inset-0 blur-3xl opacity-20 group-hover:opacity-40 transition-opacity"
+                 style={{ background: 'var(--brand-primary)' }}
+                 animate={{ scale: [1, 1.2, 1] }}
+                 transition={{ duration: 4, repeat: Infinity }}
+               />
+               <motion.img
+                src={theme === 'dark' ? '/pd_logo_darkmode.svg' : '/pd_logo.svg'}
+                alt="Port Daddy"
+                className="relative h-[280px] w-auto drop-shadow-2xl"
+                animate={{ y: [0, -12, 0], rotate: [0, -2, 2, 0] }}
+                transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+              />
+            </motion.div>
+
+            <motion.div className="flex flex-col items-center gap-6">
+              <motion.div className="flex gap-0 h-1.5 w-[280px] rounded-full overflow-hidden shadow-xl">
                 {RAINBOW_SEGMENTS.map((color, i) => (
-                  <motion.div key={i} className="flex-1" style={{ background: color }} />
+                  <motion.div 
+                    key={i} 
+                    className="flex-1" 
+                    style={{ background: color }}
+                    animate={{ opacity: [0.6, 1, 0.6] }}
+                    transition={{ duration: 2, delay: i * 0.1, repeat: Infinity }}
+                  />
                 ))}
               </motion.div>
-              <motion.div className="flex gap-3 items-center font-sans">
-                <Badge variant="teal" className="px-4 py-1.5 text-[10px] font-black uppercase tracking-widest font-sans">v3.7.0 · The Control Plane</Badge>
-                <motion.div className="flex items-center gap-2 px-3 py-1 rounded-full bg-[rgba(58,173,173,0.1)] border border-[rgba(58,173,173,0.2)] font-sans">
-                  <motion.div className="w-2 h-2 rounded-full bg-[var(--p-teal-400)] pulse-active" />
-                  <motion.span className="text-[10px] font-black uppercase tracking-widest text-[var(--p-teal-300)] font-sans">DNS Active</motion.span>
+              
+              <motion.div className="flex flex-wrap justify-center gap-4 items-center">
+                <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-[0.2em] font-sans shadow-xl">v3.7.0 · The Control Plane</Badge>
+                <motion.div className="flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-[rgba(58,173,173,0.1)] border border-[rgba(58,173,173,0.2)]">
+                  <motion.div className="w-2.5 h-2.5 rounded-full bg-[var(--p-teal-400)] shadow-[0_0_12px_var(--p-teal-400)] pulse-active" />
+                  <motion.span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--p-teal-300)] font-sans">Harbors Active</motion.span>
                 </motion.div>
               </motion.div>
             </motion.div>
-          </motion.div>
 
-          <motion.div {...fadeUp} transition={{ duration: 0.6, delay: 0.1 }} className="max-w-4xl mx-auto font-sans">
-            <motion.h1 className="text-5xl sm:text-7xl lg:text-8xl font-bold tracking-tight mb-8 font-display" style={{ color: 'var(--text-primary)', lineHeight: 1.05 }}>
-              Port Authority <br />
-              <motion.span className="relative inline-block">
-                <motion.span className="text-[var(--brand-primary)]">for AI Agents</motion.span>
-                <motion.span className="absolute bottom-2 left-0 h-1 bg-[var(--brand-primary)] opacity-30 w-full" initial={{ width: 0 }} whileInView={{ width: '100%' }} transition={{ duration: 1, delay: 1.2 }} />
-              </motion.span>
-            </motion.h1>
-            <motion.p className="text-xl sm:text-2xl mx-auto leading-relaxed font-sans max-w-[850px]" style={{ color: 'var(--text-secondary)' }}>
-              The unified orchestration layer for autonomous AI agent workflows. 
-              Atomic port assignment, session coordination, and automatic salvage.
-            </motion.p>
-          </motion.div>
-
-          <motion.div {...fadeUp} transition={{ duration: 0.5, delay: 0.2 }} className="flex flex-col items-center gap-10 font-sans">
-            <motion.div className="flex flex-wrap justify-center gap-5 font-sans">
-              <Button size="lg" className="px-10 py-7 text-lg shadow-2xl relative overflow-hidden group font-sans" onClick={() => document.getElementById('install')?.scrollIntoView({ behavior: 'smooth' })}>
-                <motion.span className="relative z-10">Get Started</motion.span>
-              </Button>
-              <Link to="/docs" className="no-underline font-sans">
-                <Button variant="ghost" size="lg" className="px-10 py-7 text-lg font-sans">Read the Docs</Button>
-              </Link>
+            <motion.div className="space-y-6 max-w-4xl">
+               <motion.h1 
+                 className="text-7xl sm:text-9xl font-bold tracking-tight font-display leading-[0.9]"
+                 style={{ color: 'var(--text-primary)' }}
+               >
+                 Port Authority for <motion.span className="text-[var(--brand-primary)]">AI Swarms.</motion.span>
+               </motion.h1>
+               <motion.p 
+                 className="text-2xl sm:text-3xl font-medium leading-relaxed opacity-70 max-w-3xl mx-auto"
+                 style={{ color: 'var(--text-secondary)' }}
+               >
+                 Atomic port assignment, semantic DNS, and cryptographic harbors for multi-agent coordination.
+               </motion.p>
             </motion.div>
-            
-            <motion.div className="flex flex-wrap justify-center gap-12 px-10 py-6 rounded-[32px] backdrop-blur-xl bg-[var(--bg-glass)] border border-[var(--border-subtle)] shadow-2xl font-sans">
-              {[
-                { num: '3,700+', label: 'tests passing' },
-                { num: '60+', label: 'frameworks' },
-                { num: '∞', label: 'possibilities' },
-              ].map((stat, i) => (
-                <motion.div key={stat.label} className="text-center group font-sans" initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 + (i * 0.1) }}>
-                  <motion.div className="text-3xl font-bold font-mono group-hover:scale-110 transition-transform text-[var(--brand-primary)] tracking-tighter font-mono">{stat.num}</motion.div>
-                  <motion.div className="text-[10px] font-black uppercase tracking-[0.2em] mt-2 opacity-60 font-sans text-[var(--text-muted)]">{stat.label}</motion.div>
-                </motion.div>
-              ))}
+
+            <motion.div className="flex flex-wrap justify-center gap-6 mt-6">
+               <Link to="/tutorials/getting-started" className="no-underline">
+                 <motion.button 
+                   className="px-12 py-6 rounded-full bg-[var(--brand-primary)] text-[var(--bg-base)] font-black text-xl shadow-[0_24px_48px_rgba(58,173,173,0.3)] flex items-center gap-3 transition-all"
+                   whileHover={{ scale: 1.05, y: -4, boxShadow: '0 32px 64px rgba(58,173,173,0.4)' }}
+                   whileTap={{ scale: 0.95 }}
+                 >
+                   LAUNCH YOUR SWARM
+                   <ArrowRight size={24} />
+                 </motion.button>
+               </Link>
+               <Link to="/docs" className="no-underline">
+                 <motion.button 
+                   className="px-12 py-6 rounded-full bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border-strong)] font-black text-xl flex items-center gap-3 transition-all"
+                   whileHover={{ scale: 1.05, y: -4, background: 'var(--interactive-hover)' }}
+                   whileTap={{ scale: 0.95 }}
+                 >
+                   DOCUMENTATION
+                 </motion.button>
+               </Link>
             </motion.div>
           </motion.div>
         </motion.div>
 
-        <motion.div className="grid lg:grid-cols-2 gap-16 max-w-6xl mx-auto pt-10 font-sans">
-          <motion.div {...fadeUp} transition={{ duration: 0.5, delay: 0.3 }} id="install" className="flex flex-col font-sans">
-            <motion.h3 className="text-xl font-bold font-display flex items-center gap-2 mb-6" style={{ color: 'var(--text-primary)' }}>
-              <Terminal size={20} className="text-[var(--brand-primary)]" />
-              Quick Install
-            </motion.h3>
-            <Tabs.Root value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col font-sans">
-              <Tabs.List className="flex gap-1 p-1.5 rounded-2xl mb-4 bg-[var(--bg-overlay)] border border-[var(--border-subtle)] font-sans shadow-inner">
-                {INSTALL_TABS.map(tab => (
-                  <Tabs.Trigger key={tab.id} value={tab.id} className={`flex-1 px-4 py-2.5 text-xs font-black uppercase tracking-widest rounded-xl transition-all font-sans ${activeTab === tab.id ? 'bg-[var(--bg-surface)] text-[var(--brand-primary)] shadow-lg' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}>
-                    {tab.label}
-                  </Tabs.Trigger>
-                ))}
-              </Tabs.List>
-              {INSTALL_TABS.map(tab => (
-                <Tabs.Content key={tab.id} value={tab.id} className="flex-1 font-sans">
-                  <motion.div className="rounded-3xl p-8 font-mono text-[13px] h-full relative group shadow-inner bg-[var(--code-bg)] border border-[var(--border-default)]">
-                    <CopyButton text={tab.full} className="absolute top-4 right-4 opacity-0 group-hover:opacity-100" />
-                    {tab.commands.map((cmd, i) => (
-                      <motion.div key={i} className="leading-relaxed mb-1.5 flex gap-3 font-mono">
-                        <motion.span className="opacity-40 select-none text-[var(--code-prompt)] font-mono">$</motion.span>
-                        <motion.span className="text-[var(--text-primary)] font-mono">{cmd}</motion.span>
-                      </motion.div>
-                    ))}
-                  </motion.div>
-                </Tabs.Content>
-              ))}
-            </Tabs.Root>
-          </motion.div>
-
-          <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.4 }} className="flex flex-col font-sans">
-            <motion.div className="flex gap-2 mb-6 font-sans">
-              <motion.button onClick={() => setActivePanel('changelog')} className={`text-[10px] font-black uppercase tracking-widest px-6 py-3 rounded-2xl transition-all font-sans border ${activePanel === 'changelog' ? 'bg-[var(--bg-overlay)] text-[var(--text-primary)] border-[var(--border-default)] shadow-sm' : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}>
-                What's New in v3.7.0
-              </motion.button>
+        {/* Quick Changelog / Info Panel */}
+        <motion.div 
+          className="grid sm:grid-cols-3 gap-8 mt-12"
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1, delay: 0.4 }}
+        >
+          {CHANGELOG_ITEMS.map((item, i) => (
+            <motion.div 
+              key={i}
+              className="p-10 rounded-[40px] border transition-all duration-300 hover:border-[var(--brand-primary)] group"
+              style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}
+              whileHover={{ y: -8 }}
+            >
+              <motion.div 
+                className="w-12 h-12 rounded-2xl flex items-center justify-center mb-6 transition-colors"
+                style={{ background: `${item.color}15` }}
+              >
+                <item.icon size={24} style={{ color: item.color }} />
+              </motion.div>
+              <motion.div className="flex items-center gap-3 mb-4">
+                <Badge variant="teal" className="text-[8px] font-black uppercase tracking-widest">{item.badge}</Badge>
+                <motion.span className="text-[10px] font-black uppercase tracking-widest opacity-40 group-hover:opacity-60 transition-opacity">{item.label}</motion.span>
+              </motion.div>
+              <motion.p className="text-lg font-medium leading-snug m-0 opacity-80 group-hover:opacity-100 transition-opacity">
+                {item.text}
+              </motion.p>
             </motion.div>
-            <motion.div className="flex-1 flex flex-col gap-3 font-sans">
-              {CHANGELOG_ITEMS.map((item) => (
-                <motion.div key={item.label} className="rounded-3xl p-6 bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:bg-[var(--interactive-hover)] transition-all font-sans shadow-sm hover:shadow-xl group">
-                  <motion.div className="flex items-center gap-4 mb-3 font-sans">
-                    <motion.div className="p-2 rounded-xl bg-[var(--bg-overlay)] text-[var(--brand-primary)] group-hover:bg-[var(--brand-primary)] group-hover:text-white transition-colors"><item.icon size={18} /></motion.div>
-                    <motion.span className="text-lg font-bold font-display">{item.label}</motion.span>
-                    <Badge variant="teal" className="ml-auto font-sans">new</Badge>
-                  </motion.div>
-                  <motion.p className="text-sm font-sans leading-relaxed text-[var(--text-secondary)]">{item.text}</motion.p>
-                </motion.div>
-              ))}
-            </motion.div>
-          </motion.div>
+          ))}
         </motion.div>
       </motion.div>
     </motion.section>
