@@ -9,7 +9,7 @@ export function Pipelines() {
     <TutorialLayout
       title="Reactive Pipelines"
       description="Turn your harbor into an event-driven DAG. Learn to define rules that automatically spawn agents, trigger scripts, or re-route traffic based on swarm signals."
-      number="07"
+      number="08"
       total="16"
       level="Advanced"
       readTime="12 min read"
@@ -122,7 +122,7 @@ export function Pipelines() {
            <p className="text-xl max-w-xl opacity-70">
              Unlike rigid JSON pipelines, Port Daddy DAGs are <strong>state-aware</strong>. The orchestrator checks if the harbor is healthy before spawning new nodes, ensuring your swarm doesn't runaway during a system failure.
            </p>
-           <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--p-teal-400)]">
+           <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-primary)]">
               <Shield size={14} className="animate-pulse" />
               Anchor Protocol v4 Verified
            </div>
