@@ -68,37 +68,37 @@ function ToolCard({ tool }: { tool: any }) {
 
   return (
     <motion.div 
-      className="p-10 rounded-[56px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-10 group hover:border-[var(--border-strong)] transition-all shadow-2xl relative overflow-hidden"
+      className="p-12 rounded-[64px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-10 group hover:border-[var(--border-strong)] transition-all shadow-2xl relative overflow-hidden flex flex-col items-center text-center"
       whileHover={{ y: -8 }}
     >
-       <motion.div className="absolute top-0 right-0 p-10 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity">
-          <tool.icon size={120} />
-       </motion.div>
+       <div className="absolute top-0 right-0 p-10 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity">
+          <tool.icon size={160} />
+       </div>
 
-       <motion.div className="flex items-center gap-6 relative z-10">
+       <div className="flex flex-col items-center gap-6 relative z-10">
           <motion.div 
-            className="w-16 h-16 rounded-[24px] flex items-center justify-center border shadow-lg"
+            className="w-20 h-20 rounded-[32px] flex items-center justify-center border shadow-lg"
             style={{ background: `${tool.color}10`, borderColor: `${tool.color}20` }}
           >
-             <tool.icon size={32} style={{ color: tool.color }} />
+             <tool.icon size={40} style={{ color: tool.color }} />
           </motion.div>
-          <motion.div className="space-y-1">
-             <code className="text-xl font-black font-mono" style={{ color: tool.color }}>{tool.name}</code>
-             <Badge variant="teal" className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5">Essential</Badge>
-          </motion.div>
-       </motion.div>
+          <div className="space-y-2 flex flex-col items-center">
+             <code className="text-2xl font-black font-mono" style={{ color: tool.color }}>{tool.name}</code>
+             <Badge variant="teal" className="px-3 py-1 text-[8px] font-black uppercase tracking-widest shadow-sm">Essential Primitive</Badge>
+          </div>
+       </div>
 
        <motion.p className="text-xl leading-relaxed opacity-70 m-0 relative z-10 font-medium max-w-sm">
           {tool.description}
        </motion.p>
        
-       <motion.div className="relative rounded-[32px] bg-[var(--bg-overlay)] p-8 font-mono text-xs overflow-hidden group-hover:bg-[var(--interactive-active)] transition-colors border border-[var(--border-subtle)]">
-          <motion.div className="flex items-start justify-between gap-6">
+       <motion.div className="w-full relative rounded-[40px] bg-[var(--bg-overlay)] p-10 font-mono text-sm overflow-hidden group-hover:bg-[var(--interactive-active)] transition-colors border border-[var(--border-subtle)] text-left">
+          <div className="flex items-start justify-between gap-8">
              <pre className="opacity-60 m-0 leading-relaxed overflow-x-auto whitespace-pre-wrap">{tool.example}</pre>
              <button onClick={handleCopy} className="shrink-0 text-[var(--brand-primary)] opacity-40 hover:opacity-100 transition-opacity pt-1">
-                {copied ? <Check size={16} /> : <Copy size={16} />}
+                {copied ? <Check size={20} /> : <Copy size={20} />}
              </button>
-          </motion.div>
+          </div>
        </motion.div>
     </motion.div>
   )
@@ -124,24 +124,28 @@ export default function MCPPage() {
       />
 
       {/* Hero Section */}
-      <motion.section className="py-32 px-6 sm:px-8 lg:px-10 border-b relative overflow-hidden" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}>
+      <motion.section 
+        className="py-48 px-6 sm:px-8 lg:px-10 border-b relative overflow-hidden flex flex-col items-center justify-center text-center" 
+        style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}
+      >
         <motion.div 
-          className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full blur-[140px] opacity-[0.1] pointer-events-none" 
+          className="absolute top-0 right-0 w-[800px] h-[800px] rounded-full blur-[160px] opacity-[0.1] pointer-events-none" 
           style={{ background: 'radial-gradient(circle, var(--brand-primary) 0%, transparent 70%)' }} 
         />
         
-        <motion.div className="max-w-7xl mx-auto text-center relative z-10 flex flex-col items-center gap-10">
-           <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-[0.25em] shadow-xl">Model Context Protocol</Badge>
+        <div className="max-w-5xl mx-auto relative z-10 flex flex-col items-center gap-12">
+           <Badge variant="teal" className="px-8 py-3 text-[10px] font-black uppercase tracking-[0.25em] shadow-xl">Model Context Protocol</Badge>
            <motion.h1 
-             className="text-6xl sm:text-9xl font-black tracking-tighter font-display leading-[0.9]"
+             className="text-7xl sm:text-9xl font-black tracking-tighter font-display leading-[0.85] m-0"
              initial={{ opacity: 0, y: 32 }}
              animate={{ opacity: 1, y: 0 }}
              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
            >
-             Context is <motion.span className="text-[var(--brand-primary)]">Coordination.</motion.span>
+             Context is <br />
+             <span className="text-[var(--brand-primary)]">Coordination.</span>
            </motion.h1>
            <motion.p 
-             className="text-2xl sm:text-3xl max-w-3xl leading-relaxed opacity-70 font-medium"
+             className="text-2xl sm:text-4xl max-w-4xl leading-relaxed opacity-70 font-medium"
              initial={{ opacity: 0, y: 20 }}
              animate={{ opacity: 1, y: 0 }}
              transition={{ duration: 0.8, delay: 0.1 }}
@@ -149,117 +153,123 @@ export default function MCPPage() {
              60+ production-grade tools across 17 categories. One install command to give your agents the infrastructure they deserve.
            </motion.p>
 
-           <motion.div className="flex flex-col items-center gap-6 pt-10">
-              <motion.div className="inline-flex items-center gap-4 px-10 py-6 rounded-full bg-[var(--bg-overlay)] border border-[var(--border-strong)] font-mono text-lg shadow-2xl">
-                 <Terminal size={24} className="text-[var(--brand-primary)]" />
-                 <motion.span className="font-bold">pd mcp install</motion.span>
-                 <motion.div className="h-6 w-[1px] bg-[var(--border-strong)]" />
-                 <motion.span className="text-xs font-black uppercase tracking-widest opacity-40">One Command</motion.span>
+           <div className="flex flex-col items-center gap-8 pt-12 w-full">
+              <motion.div 
+                className="inline-flex flex-col sm:flex-row items-center gap-6 px-12 py-8 rounded-[48px] bg-[var(--bg-overlay)] border border-[var(--border-strong)] font-mono text-xl shadow-2xl relative overflow-hidden group"
+                whileHover={{ scale: 1.02 }}
+              >
+                 <div className="absolute inset-0 bg-gradient-to-r from-[var(--brand-primary)]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                 <div className="flex items-center gap-4 relative z-10">
+                    <Terminal size={32} className="text-[var(--brand-primary)]" />
+                    <span className="font-black tracking-tight">pd mcp install</span>
+                 </div>
+                 <div className="h-8 w-[1px] bg-[var(--border-strong)] hidden sm:block relative z-10" />
+                 <motion.span className="text-xs font-black uppercase tracking-widest opacity-40 relative z-10">One Handshake</motion.span>
               </motion.div>
-              <motion.p className="text-[10px] font-black uppercase tracking-[0.25em] opacity-40">Supports Claude Code, Cursor, and Continue.dev</motion.p>
-           </motion.div>
-        </motion.div>
+              <motion.p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-30 m-0">Supports Claude Code, Cursor, and Continue.dev</motion.p>
+           </div>
+        </div>
       </motion.section>
 
       {/* Main Content */}
-      <motion.main className="flex-1 py-32 px-6 sm:px-8 lg:px-10 max-w-7xl mx-auto w-full font-sans">
+      <motion.main className="flex-1 py-48 px-6 sm:px-8 lg:px-10 max-w-7xl mx-auto w-full font-sans flex flex-col items-center">
         
         {/* Progressive Disclosure */}
-        <section className="mb-48 space-y-16">
-           <motion.div className="flex flex-col md:flex-row md:items-end justify-between gap-8 border-b border-[var(--border-subtle)] pb-12">
-              <motion.div className="max-w-2xl space-y-6">
-                 <motion.div className="flex items-center gap-4">
-                    <motion.div className="w-14 h-14 rounded-2xl flex items-center justify-center border shadow-lg bg-[var(--p-teal-500)]/10 border-[var(--p-teal-500)]/20">
-                       <Layers size={28} className="text-[var(--p-teal-400)]" />
-                    </motion.div>
-                    <motion.h2 className="text-4xl sm:text-6xl font-display font-black tracking-tight m-0">Progressive Disclosure.</motion.h2>
+        <section className="mb-64 space-y-24 w-full flex flex-col items-center">
+           <div className="flex flex-col items-center text-center gap-10 border-b border-[var(--border-subtle)] pb-20 w-full max-w-4xl">
+              <Badge variant="neutral" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest shadow-md">Agent Experience (AX)</Badge>
+              <div className="flex flex-col items-center gap-8">
+                 <motion.div className="w-20 h-20 rounded-3xl flex items-center justify-center border shadow-2xl bg-[var(--p-teal-500)]/10 border-[var(--p-teal-500)]/20">
+                    <Layers size={40} className="text-[var(--p-teal-400)]" />
                  </motion.div>
-                 <motion.p className="text-xl leading-relaxed opacity-60 m-0 font-medium">
-                    Agents shouldn't be overwhelmed by complexity. Port Daddy exposes <strong>8 essential tools</strong> by default. Call <code>pd_discover()</code> to unlock advanced categories as the task requires.
-                 </motion.p>
-              </motion.div>
-              <Badge variant="neutral" className="px-4 py-1.5 text-[8px] font-black uppercase tracking-widest bg-[var(--bg-overlay)]">Agent Experience (AX)</Badge>
-           </motion.div>
+                 <motion.h2 className="text-5xl sm:text-8xl font-display font-black tracking-tighter m-0 leading-[0.95]">Progressive Disclosure.</motion.h2>
+              </div>
+              <motion.p className="text-2xl leading-relaxed opacity-70 m-0 font-medium max-w-3xl mx-auto">
+                 Agents shouldn't be overwhelmed by complexity. Port Daddy exposes <strong>8 essential tools</strong> by default. Call <code>pd_discover()</code> to unlock advanced categories as the task requires.
+              </motion.p>
+           </div>
 
-           <motion.div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-12 w-full">
               {CATEGORIES.map((cat, i) => (
                 <motion.div 
                   key={cat.id}
-                  className="p-8 rounded-[40px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-6 group hover:border-[var(--brand-primary)] transition-all"
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
+                  className="p-10 rounded-[56px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-8 group hover:border-[var(--brand-primary)] transition-all text-center flex flex-col items-center shadow-xl"
+                  initial={{ opacity: 0, y: 32 }}
+                  whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.05 }}
                 >
-                   <motion.div className="flex items-center justify-between">
-                      <motion.div className="w-12 h-12 rounded-2xl bg-[var(--bg-overlay)] flex items-center justify-center border border-[var(--border-subtle)] group-hover:scale-110 transition-transform">
-                         <cat.icon size={24} className="text-[var(--brand-primary)] opacity-40 group-hover:opacity-100 transition-opacity" />
+                   <div className="flex flex-col items-center gap-6">
+                      <motion.div className="w-16 h-16 rounded-[24px] bg-[var(--bg-overlay)] flex items-center justify-center border border-[var(--border-subtle)] group-hover:scale-110 transition-transform shadow-inner">
+                         <cat.icon size={32} className="text-[var(--brand-primary)] opacity-40 group-hover:opacity-100 transition-opacity" />
                       </motion.div>
-                      <Badge variant="neutral" className="text-[8px] font-black uppercase tracking-widest opacity-40">{cat.count} Tools</Badge>
-                   </motion.div>
-                   <motion.h3 className="m-0 text-xl font-display font-black">{cat.label}</motion.h3>
+                      <Badge variant="neutral" className="px-3 py-1 text-[8px] font-black uppercase tracking-widest opacity-40 shadow-sm">{cat.count} Tools</Badge>
+                   </div>
+                   <motion.h3 className="m-0 text-2xl font-display font-black leading-tight">{cat.label}</motion.h3>
                 </motion.div>
               ))}
-           </motion.div>
+           </div>
         </section>
 
         {/* Essential 8 Tools */}
-        <section className="space-y-16">
-           <motion.div className="flex flex-col md:flex-row md:items-end justify-between gap-8 border-b border-[var(--border-subtle)] pb-12">
-              <motion.div className="max-w-2xl space-y-6">
-                 <motion.div className="flex items-center gap-4">
-                    <motion.div className="w-14 h-14 rounded-2xl flex items-center justify-center border shadow-lg bg-[var(--brand-primary)]/10 border-[var(--brand-primary)]/20">
-                       <Zap size={28} className="text-[var(--brand-primary)]" />
-                    </motion.div>
-                    <motion.h2 className="text-4xl sm:text-6xl font-display font-black tracking-tight m-0">The Essential Set.</motion.h2>
-                 </motion.div>
-                 <motion.p className="text-xl leading-relaxed opacity-60 m-0 font-medium">
-                    The primitives every agent needs to be a productive member of the swarm. Optimized for context window efficiency and low latency.
-                 </motion.p>
-              </motion.div>
-           </motion.div>
+        <section className="space-y-24 w-full flex flex-col items-center">
+           <div className="flex flex-col items-center text-center gap-10 border-b border-[var(--border-subtle)] pb-20 w-full max-w-4xl">
+              <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest shadow-md">The Standard Library</Badge>
+              <div className="flex flex-col items-center gap-8">
+                 <motion.div className="w-20 h-20 rounded-3xl flex items-center justify-center border shadow-2xl bg-[var(--brand-primary)]/10 border-[var(--brand-primary)]/20">
+                    <Zap size={40} className="text-[var(--brand-primary)]" />
+                 </div>
+                 <motion.h2 className="text-5xl sm:text-8xl font-display font-black tracking-tighter m-0 leading-[0.95]">The Essential Set.</motion.h2>
+              </div>
+              <motion.p className="text-2xl leading-relaxed opacity-70 m-0 font-medium max-w-3xl mx-auto">
+                 The primitives every agent needs to be a productive member of the swarm. Optimized for context window efficiency and sub-50ms latency.
+              </motion.p>
+           </div>
 
-           <motion.div className="grid lg:grid-cols-2 gap-10">
-              {ESSENTIAL_TOOLS.map((tool) => (
+           <div className="grid lg:grid-cols-2 gap-16 w-full">
+              {ESSENTIAL_TOOLS.map((tool, i) => (
                 <ToolCard key={tool.name} tool={tool} />
               ))}
-           </motion.div>
+           </div>
         </section>
 
         {/* Vision Callout */}
         <motion.div 
-          className="mt-48 p-20 rounded-[80px] border border-dashed border-[var(--brand-primary)] bg-gradient-to-br from-[var(--bg-surface)] to-[var(--bg-base)] flex flex-col items-center text-center gap-12 relative overflow-hidden"
+          className="mt-64 p-24 rounded-[100px] border border-dashed border-[var(--brand-primary)] bg-gradient-to-br from-[var(--bg-surface)] to-[var(--bg-base)] flex flex-col items-center text-center gap-16 relative overflow-hidden w-full shadow-2xl"
           initial={{ opacity: 0, scale: 0.98 }}
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
         >
-           <motion.div className="absolute top-0 right-0 p-10 opacity-[0.02] pointer-events-none">
-              <Cpu size={600} />
-           </motion.div>
+           <div className="absolute top-0 right-0 p-10 opacity-[0.02] pointer-events-none">
+              <Cpu size={800} />
+           </div>
            
-           <motion.div className="space-y-6 max-w-3xl relative z-10">
-              <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest shadow-xl">Model Optimization</Badge>
-              <motion.h3 className="text-4xl sm:text-7xl font-display font-black tracking-tight leading-[0.95]" style={{ color: 'var(--text-primary)' }}>
-                Built for <motion.span className="text-[var(--p-teal-400)]">Intelligence.</motion.span>
+           <div className="space-y-10 max-w-4xl relative z-10 flex flex-col items-center">
+              <Badge variant="teal" className="px-8 py-3 text-[10px] font-black uppercase tracking-widest shadow-2xl">Model Optimization</Badge>
+              <motion.h3 className="text-5xl sm:text-8xl font-display font-black tracking-tight leading-[0.95] m-0" style={{ color: 'var(--text-primary)' }}>
+                Built for <br />
+                <span className="text-[var(--p-teal-400)]">Intelligence.</span>
               </motion.h3>
-              <motion.p className="text-2xl leading-relaxed opacity-70">
+              <motion.p className="text-2xl sm:text-3xl leading-relaxed opacity-70 max-w-3xl mx-auto">
                 The Port Daddy MCP server isn't just a collection of APIs. It's a structured ontology designed to teach your models how to coordinate. We use precise descriptions and high-fidelity examples to ensure the model chooses the right primitive every time.
               </motion.p>
-           </motion.div>
+           </div>
 
-           <motion.div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 w-full">
+           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-10 w-full max-w-6xl relative z-10">
               {[
-                { label: 'Sub-50ms Latency', icon: Zap },
-                { label: 'Token Efficient', icon: Shield },
+                { label: 'Token Efficient', icon: Zap },
+                { label: 'Latency Aware', icon: Activity },
                 { label: 'Auto-Discovery', icon: Search },
                 { label: 'Secure Handshake', icon: Lock }
               ].map((item, i) => (
-                <motion.div key={i} className="p-8 rounded-[40px] bg-[var(--bg-overlay)] border border-[var(--border-subtle)] flex flex-col items-center gap-4">
-                   <item.icon size={24} className="text-[var(--brand-primary)]" />
-                   <motion.span className="text-[10px] font-black uppercase tracking-widest opacity-60">{item.label}</motion.span>
+                <motion.div key={i} className="p-10 rounded-[48px] bg-[var(--bg-overlay)] border border-[var(--border-subtle)] flex flex-col items-center gap-6 group hover:border-[var(--brand-primary)] transition-all shadow-xl">
+                   <motion.div className="w-14 h-14 rounded-2xl bg-[var(--bg-surface)] flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                      <item.icon size={28} className="text-[var(--brand-primary)]" />
+                   </motion.div>
+                   <motion.span className="text-[10px] font-black uppercase tracking-[0.25em] opacity-40 group-hover:opacity-100 transition-opacity text-center">{item.label}</motion.span>
                 </motion.div>
               ))}
-           </motion.div>
+           </div>
         </motion.div>
       </motion.main>
 
@@ -267,3 +277,5 @@ export default function MCPPage() {
     </motion.div>
   )
 }
+
+import { Activity } from 'lucide-react'
