@@ -12,4 +12,5 @@ chrono = "0.4"
 thiserror = "1.0"
 
 [dev-dependencies]
-proptest = "1.4" # The "Smoke Prover" (Property-based testing)
+kani = "0.67" # Updated version matching the installed verifier
+proptest = "1.4"
