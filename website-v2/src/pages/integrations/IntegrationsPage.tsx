@@ -1,8 +1,7 @@
 import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
-import { Card, CardContent } from '@/components/ui/Card'
 import { Link } from 'react-router-dom'
-import { Boxes, ChevronRight, Puzzle, Sparkles, Cpu, Zap, Globe, Shield, Terminal, MessageSquare, Anchor } from 'lucide-react'
+import { Boxes, ChevronRight, Puzzle, Sparkles, Zap, Globe, Shield, Terminal, MessageSquare, Anchor } from 'lucide-react'
 import { INTEGRATIONS } from '@/data/integrations'
 import { Footer } from '@/components/layout/Footer'
 

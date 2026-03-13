@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Badge } from '@/components/ui/Badge'
-import { Search, Activity, Terminal, Shield, Zap, AlertTriangle, RefreshCw, ChevronRight } from 'lucide-react'
+import { Search, Activity, Shield, Zap, AlertTriangle, RefreshCw, ChevronRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 export function Debugging() {

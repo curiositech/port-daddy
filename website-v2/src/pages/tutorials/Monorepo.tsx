@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Badge } from '@/components/ui/Badge'
-import { Box, Layers, Zap, Terminal, Globe, Shield, Activity, Anchor, ArrowRight } from 'lucide-react'
+import { Box, Layers, Zap, Globe, Shield, Activity, Anchor, ArrowRight } from 'lucide-react'
 
 export function Monorepo() {
   return (

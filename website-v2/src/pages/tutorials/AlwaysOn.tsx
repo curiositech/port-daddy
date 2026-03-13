@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Badge } from '@/components/ui/Badge'
-import { Cpu, Zap, Activity, Terminal, RefreshCw, Shield, Globe, Share2 } from 'lucide-react'
+import { Cpu, Zap, Activity, Terminal, RefreshCw, Globe, Share2 } from 'lucide-react'
 
 export function AlwaysOn() {
   return (

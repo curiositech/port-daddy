@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Badge } from '@/components/ui/Badge'
-import { MessageSquare, Zap, Terminal, Shield, Globe, Share2, Mail, Send, Activity } from 'lucide-react'
+import { MessageSquare, Zap, Terminal, Shield, Mail, Send, Activity } from 'lucide-react'
 
 export function Inbox() {
   return (

@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Badge } from '@/components/ui/Badge'
-import { Layout, Activity, Zap, Terminal, Shield, Globe, Share2, Search, Heart } from 'lucide-react'
+import { Layout, Activity, Zap, Terminal, Globe, Share2, Heart } from 'lucide-react'
 
 export function Dashboard() {
   return (

@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Badge } from '@/components/ui/Badge'
-import { Globe, Search, Zap, Terminal, Shield, Network, Anchor, Activity } from 'lucide-react'
+import { Globe, Search, Zap, Shield, Network, Anchor, Activity } from 'lucide-react'
 
 export function DNSResolver() {
   return (

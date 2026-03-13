@@ -3,7 +3,7 @@ import { useParams, Link, Navigate } from 'react-router-dom'
 import { Badge } from '@/components/ui/Badge'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { INTEGRATIONS } from '@/data/integrations'
-import { ChevronLeft, Puzzle, CheckCircle2, Zap, Shield, Rocket, Cpu, Terminal, Sparkles, Globe, MessageSquare, ArrowRight, Info, Activity, BookOpen } from 'lucide-react'
+import { ChevronLeft, Puzzle, CheckCircle2, Rocket, Terminal, Sparkles, ArrowRight, Info, BookOpen } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
 
 export function IntegrationPage() {
