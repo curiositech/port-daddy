@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Link } from 'react-router-dom'
-import { BookOpen, Clock, ChevronRight, Play, Zap, Shield, Globe, Terminal, Sparkles, Anchor } from 'lucide-react'
+import { BookOpen, Clock, ChevronRight, Play, Zap, Shield, Globe, Terminal, Sparkles, Anchor, Activity, Share2, Layers, Cpu, Search, RefreshCw, Box, Lock, Activity as ActivityIcon } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
 
 interface Tutorial {
@@ -14,6 +14,7 @@ interface Tutorial {
   time: string
   tags: string[]
   href: string
+  icon: any
 }
 
 const TUTORIALS: Tutorial[] = [
@@ -26,6 +27,7 @@ const TUTORIALS: Tutorial[] = [
     time: '5 min',
     tags: ['CLI', 'Identity', 'Basics'],
     href: '/tutorials/getting-started',
+    icon: Sparkles
   },
   {
     slug: 'multi-agent',
@@ -36,6 +38,7 @@ const TUTORIALS: Tutorial[] = [
     time: '12 min',
     tags: ['Sessions', 'Radio', 'Files'],
     href: '/tutorials/multi-agent',
+    icon: Share2
   },
   {
     slug: 'harbors',
@@ -46,36 +49,150 @@ const TUTORIALS: Tutorial[] = [
     time: '15 min',
     tags: ['Security', 'JWT', 'Harbors'],
     href: '/tutorials/harbors',
+    icon: Shield
+  },
+  {
+    slug: 'monorepo',
+    number: '04',
+    title: 'Fleet Management',
+    description: 'Scan your entire monorepo, assign ports atomically, and start the full service mesh with one command.',
+    level: 'intermediate',
+    time: '10 min',
+    tags: ['Scan', 'Orchestration', 'Mesh'],
+    href: '/tutorials/monorepo',
+    icon: Box
+  },
+  {
+    slug: 'debugging',
+    number: '05',
+    title: 'Conflict Detection',
+    description: 'Diagnose 2am EADDRINUSE errors in seconds using the semantic port registry.',
+    level: 'intermediate',
+    time: '14 min',
+    tags: ['Health', 'Audit', 'Registry'],
+    href: '/tutorials/debugging',
+    icon: Search
+  },
+  {
+    slug: 'tunnel',
+    number: '06',
+    title: 'P2P Tunnels',
+    description: 'Link two daemons across the internet to create a secure, shared service mesh using Noise Protocol.',
+    level: 'advanced',
+    time: '20 min',
+    tags: ['Network', 'P2P', 'Noise'],
+    href: '/tutorials/tunnel',
+    icon: Globe
+  },
+  {
+    slug: 'time-travel',
+    number: '07',
+    title: 'Time-Travel Debugging',
+    description: 'Scrub through the history of your swarm. Correlate infrastructure events with agent notes.',
+    level: 'intermediate',
+    time: '8 min',
+    tags: ['Timeline', 'Audit', 'Radio'],
+    href: '/tutorials/time-travel',
+    icon: History
+  },
+  {
+    slug: 'pipelines',
+    number: '08',
+    title: 'Reactive Pipelines',
+    description: 'Turn your harbor into an event-driven DAG. Auto-spawn agents based on swarm signals.',
+    level: 'advanced',
+    time: '12 min',
+    tags: ['Automation', 'DAG', 'Signals'],
+    href: '/tutorials/pipelines',
+    icon: Layers
+  },
+  {
+    slug: 'dashboard',
+    number: '09',
+    title: 'Visual Control Plane',
+    description: 'Visualize your swarm. Live network graphs, lock contention, and real-time telemetry.',
+    level: 'beginner',
+    time: '5 min',
+    tags: ['HUD', 'Live', 'Graphs'],
+    href: '/tutorials/dashboard',
+    icon: ActivityIcon
+  },
+  {
+    slug: 'dns',
+    number: '10',
+    title: 'Identity Discovery',
+    description: 'Resolve services by semantic hostname instead of port numbers with zero configuration.',
+    level: 'intermediate',
+    time: '8 min',
+    tags: ['DNS', 'Local', 'Hosts'],
+    href: '/tutorials/dns',
+    icon: Network
+  },
+  {
+    slug: 'inbox',
+    number: '11',
+    title: 'Agent Inboxes',
+    description: 'Direct agent-to-agent messaging with structured JSON payloads and real-time streams.',
+    level: 'intermediate',
+    time: '10 min',
+    tags: ['Inbox', 'Messaging', 'SSE'],
+    href: '/tutorials/inbox',
+    icon: Mail
+  },
+  {
+    slug: 'spawn',
+    number: '12',
+    title: 'Swarm Bootstrapping',
+    description: 'Launch agent fleets with Port Daddy coordination auto-wired. Heartbeats and telemetry included.',
+    level: 'advanced',
+    time: '15 min',
+    tags: ['Spawn', 'Fleet', 'Telemetry'],
+    href: '/tutorials/spawn',
+    icon: Cpu
   },
   {
     slug: 'always-on',
-    number: '04',
+    number: '13',
     title: 'Always-On Avatars',
-    description: 'Deploy persistent agent processes that live in the background and respond to global swarm signals.',
+    description: 'Deploy persistent background processes that respond to global signals 24/7.',
     level: 'intermediate',
     time: '10 min',
     tags: ['Avatars', 'Processes', 'BG'],
     href: '/tutorials/always-on',
+    icon: RefreshCw
   },
   {
-    slug: 'tunnel',
-    number: '05',
-    title: 'P2P Tunnels',
-    description: 'Link two daemons across the internet to create a secure, shared service mesh for your agents.',
+    slug: 'session-phases',
+    number: '14',
+    title: 'Session State Machine',
+    description: 'Drive agents through planning -> coding -> reviewing with phase-aware handoffs.',
     level: 'advanced',
-    time: '20 min',
-    tags: ['P2P', 'Noise', 'Network'],
-    href: '/tutorials/tunnel',
+    time: '15 min',
+    tags: ['Phases', 'State', 'Lifecycle'],
+    href: '/tutorials/session-phases',
+    icon: RefreshCw
   },
   {
-    slug: 'time-travel',
-    number: '06',
-    title: 'Time-Travel Debugging',
-    description: 'Use the unified Swarm Radio timeline to debug complex inter-agent race conditions.',
-    level: 'intermediate',
-    time: '8 min',
-    tags: ['Timeline', 'Debug', 'Radio'],
-    href: '/tutorials/time-travel',
+    slug: 'sugar',
+    number: '15',
+    title: 'Sugar Commands',
+    description: 'Learn the high-level wrappers that make coordination invisible and friction-free.',
+    level: 'beginner',
+    time: '5 min',
+    tags: ['CLI', 'Wrappers', 'Productivity'],
+    href: '/tutorials/sugar',
+    icon: Zap
+  },
+  {
+    slug: 'remote-harbors',
+    number: '16',
+    title: 'Multiplayer Localhost',
+    description: 'Link remote agent clusters and GPU-powered harbors across the global mesh.',
+    level: 'advanced',
+    time: '15 min',
+    tags: ['Global', 'Mesh', 'GPU'],
+    href: '/tutorials/remote-harbors',
+    icon: Globe
   }
 ]
 
@@ -87,7 +204,10 @@ export default function TutorialsPage() {
       className="min-h-screen bg-[var(--bg-base)] flex flex-col pt-[var(--nav-height)] font-sans selection:bg-[var(--brand-primary)] selection:text-white"
     >
       {/* Hero Section */}
-      <motion.section className="py-32 px-6 sm:px-8 lg:px-10 border-b relative overflow-hidden" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}>
+      <motion.section 
+        className="py-32 px-6 sm:px-8 lg:px-10 border-b relative overflow-hidden" 
+        style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}
+      >
         <motion.div 
           className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full blur-[140px] opacity-[0.1] pointer-events-none" 
           style={{ background: 'radial-gradient(circle, var(--brand-primary) 0%, transparent 70%)' }} 
@@ -110,20 +230,21 @@ export default function TutorialsPage() {
              animate={{ opacity: 1, y: 0 }}
              transition={{ duration: 0.8, delay: 0.1 }}
            >
-             From your first port claim to production-grade P2P harbors. Learn to orchestrate the next generation of AI.
+             From your first port claim to production-grade P2P harbors. Learn to orchestrate the next generation of AI with high-fidelity, verified code.
            </motion.p>
         </div>
       </motion.section>
 
-      {/* Grid Section */}
-      <motion.main className="flex-1 py-24 px-6 sm:px-8 lg:px-10 max-w-7xl mx-auto w-full font-sans">
+      {/* Tutorials Grid */}
+      <motion.main className="flex-1 py-32 px-6 sm:px-8 lg:px-10 max-w-7xl mx-auto w-full font-sans">
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-10">
           {TUTORIALS.map((tutorial, i) => (
             <motion.div
               key={tutorial.slug}
               initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: i * 0.05 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: i * 0.03 }}
               className="group"
             >
               <Link to={tutorial.href} className="no-underline block h-full">
@@ -134,7 +255,7 @@ export default function TutorialsPage() {
                 >
                   <div className="w-full flex justify-between items-start">
                      <div className="w-16 h-16 rounded-[24px] bg-[var(--interactive-active)] flex items-center justify-center border border-[var(--border-subtle)] group-hover:scale-110 transition-transform">
-                        <span className="text-xl font-display font-black text-[var(--brand-primary)]">{tutorial.number}</span>
+                        <tutorial.icon size={28} className="text-[var(--brand-primary)]" />
                      </div>
                      <Badge variant={tutorial.level === 'beginner' ? 'teal' : tutorial.level === 'intermediate' ? 'amber' : 'neutral'} className="text-[8px] font-black uppercase tracking-widest px-3 py-1">
                         {tutorial.level}
@@ -142,9 +263,12 @@ export default function TutorialsPage() {
                   </div>
 
                   <div className="space-y-4 flex-1">
-                    <h3 className="m-0 text-3xl font-display font-black leading-tight text-[var(--text-primary)]">
-                      {tutorial.title}
-                    </h3>
+                    <div className="flex items-center gap-3">
+                       <span className="text-xl font-display font-black opacity-20">{tutorial.number}</span>
+                       <h3 className="m-0 text-2xl font-display font-black leading-tight text-[var(--text-primary)]">
+                         {tutorial.title}
+                       </h3>
+                    </div>
                     <p className="m-0 text-base opacity-60 leading-relaxed group-hover:opacity-100 transition-opacity">
                       {tutorial.description}
                     </p>
@@ -171,7 +295,7 @@ export default function TutorialsPage() {
           ))}
         </div>
 
-        {/* Impressively long additional info */}
+        {/* Vision Callout */}
         <motion.div 
           className="mt-32 p-20 rounded-[80px] border border-dashed border-[var(--border-strong)] bg-gradient-to-br from-[var(--bg-surface)] to-[var(--bg-base)] flex flex-col items-center text-center gap-12 relative overflow-hidden"
           initial={{ opacity: 0, scale: 0.98 }}
@@ -185,19 +309,19 @@ export default function TutorialsPage() {
            <div className="space-y-6 max-w-3xl relative z-10">
               <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest shadow-xl">Automated Verification</Badge>
               <h3 className="text-4xl sm:text-7xl font-display font-black tracking-tight leading-[0.95]" style={{ color: 'var(--text-primary)' }}>
-                Certified <span className="text-[var(--p-teal-400)]">Integrations.</span>
+                Certified <span className="text-[var(--p-teal-400)]">Academy.</span>
               </h3>
               <p className="text-2xl leading-relaxed opacity-70">
-                Every tutorial in the Academy is backed by a headless Playwright integration test. When we update the Port Daddy core, we run the Academy. If a tutorial fails, the build fails. You are learning from working, verified code.
+                Every lesson in the Port Daddy Academy is backed by an automated verification service. We use Playwright and VHS to record live CLI sessions and ensure that the code you learn today will work in your harbor tomorrow.
               </p>
            </div>
 
-           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 w-full">
+           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 w-full max-w-5xl">
               {[
                 { label: 'VHS Recorded', icon: Play },
-                { label: 'LangChain Ready', icon: Sparkles },
-                { label: 'CrewAI Tested', icon: Globe },
-                { label: 'CI/CD Verified', icon: Shield }
+                { label: 'Playwright Verified', icon: Shield },
+                { label: 'LangChain Tested', icon: Sparkles },
+                { label: 'Continuous CI', icon: Zap }
               ].map((item, i) => (
                 <div key={i} className="p-8 rounded-[40px] bg-[var(--bg-overlay)] border border-[var(--border-subtle)] flex flex-col items-center gap-4">
                    <item.icon size={24} className="text-[var(--brand-primary)]" />
