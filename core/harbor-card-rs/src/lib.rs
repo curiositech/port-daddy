@@ -46,7 +46,7 @@ impl HarborCardVerifier {
     /// 3. Current time is before 'exp'.
     pub fn verify(&self, token: &str, now_ts: i64) -> Result<HarborCardClaims, HarborError> {
         let parts: Vec<&str> = token.split('.').collect();
-        if parts.length() != 3 {
+        if parts.len() != 3 {
             return Err(HarborError::Malformed);
         }
 
@@ -83,10 +83,11 @@ impl HarborCardVerifier {
 
 #[cfg(kani)]
 #[kani::proof]
-fn check_verify_bounds() {
-    // Kani will prove that the string splitting and base64 decoding 
-    // never result in out-of-bounds access or panic.
+fn check_verify_no_panic() {
     let verifier = HarborCardVerifier::new([0u8; 32]).unwrap();
-    let token = kani::any_str::<128>(); // Symbolic string of length 128
-    let _ = verifier.verify(&token, 0);
+    // Use a fixed length byte array and convert to str safely
+    let bytes: [u8; 64] = kani::any();
+    if let Ok(token) = std::str::from_utf8(&bytes) {
+        let _ = verifier.verify(token, 0);
+    }
 }

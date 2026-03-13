@@ -2,37 +2,42 @@ export interface Blueprint {
   id: string;
   title: string;
   description: string;
-  hero: string;
+  hero: 'pipeline' | 'research' | 'multiplayer' | 'ops' | 'swarm' | 'remote';
   templatePath: string;
+  tags: string[];
 }
 
 export const BLUEPRINTS: Blueprint[] = [
   {
+    id: 'langchain-lighthouse',
+    title: 'LangChain Lighthouse',
+    description: 'A multi-tool LangChain swarm that uses Port Daddy for universal discovery and state persistence.',
+    hero: 'swarm',
+    templatePath: 'templates/langchain-lighthouse',
+    tags: ['LangChain', 'Discovery', 'Always-On']
+  },
+  {
+    id: 'crewai-harbor',
+    title: 'CrewAI Secure Harbor',
+    description: 'A hierarchical CrewAI team with cryptographically scoped permissions for each crew member.',
+    hero: 'remote',
+    templatePath: 'templates/crewai-harbor',
+    tags: ['CrewAI', 'Security', 'Harbors']
+  },
+  {
     id: 'ai-ci-pipeline',
-    title: 'Autonomous CI/CD',
-    description: 'A self-healing build pipeline that spawns Debugger agents on test failure.',
+    title: 'Self-Healing CI/CD',
+    description: 'A build pipeline that automatically spawns Debugger agents to fix broken tests in background harbors.',
     hero: 'pipeline',
     templatePath: 'templates/ai-ci-pipeline',
+    tags: ['SRE', 'Automation', 'Salvage']
   },
   {
     id: 'swarm-researcher',
-    title: 'Deep Research Swarm',
-    description: 'Coordinated web scraping and synthesis using distributed locks and inboxes.',
+    title: 'Research Triad',
+    description: 'Coordinated web scraping, synthesis, and reporting agents using distributed locks and shared memory.',
     hero: 'research',
     templatePath: 'templates/swarm-researcher',
-  },
-  {
-    id: 'multiplayer-dev-env',
-    title: 'Multiplayer Localhost',
-    description: 'Link multiple developers laptops into a single shared service mesh via Lighthouses.',
-    hero: 'multiplayer',
-    templatePath: 'templates/multiplayer-dev-env',
-  },
-  {
-    id: 'event-driven-ops',
-    title: 'Autonomous SRE',
-    description: 'An operations swarm that responds to production incidents via webhooks and auto-rollbacks.',
-    hero: 'ops',
-    templatePath: 'templates/event-driven-ops',
+    tags: ['Research', 'Locks', 'Memory']
   }
 ];

@@ -12,5 +12,4 @@ chrono = "0.4"
 thiserror = "1.0"
 
 [dev-dependencies]
-kani = "0.67" # Updated version matching the installed verifier
 proptest = "1.4"
