@@ -12,4 +12,4 @@ chrono = "0.4"
 thiserror = "1.0"
 
 [dev-dependencies]
-kani = "0.45" # For formal verification
+proptest = "1.4" # The "Smoke Prover" (Property-based testing)

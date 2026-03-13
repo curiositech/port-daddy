@@ -1,5 +1,7 @@
 import * as React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { Badge } from '@/components/ui/Badge'
+import { Play, Shield, Zap, Terminal, ExternalLink, Activity } from 'lucide-react'
 
 interface Demo {
   id: string
@@ -23,9 +25,9 @@ const DEMOS: Demo[] = [
     description:
       'Watch two agents register, claim files, exchange notes, then one agent dies mid-task. Port Daddy preserves its work — the second agent salvages and continues exactly where it left off.',
     stats: [
-      { value: '0ms', label: 'coordination overhead' },
-      { value: '100%', label: 'work preserved on crash' },
-      { value: '∞', label: 'agents supported' },
+      { value: '0ms', label: 'overhead' },
+      { value: '100%', label: 'persistence' },
+      { value: '∞', label: 'scale' },
     ],
   },
   {
@@ -38,223 +40,130 @@ const DEMOS: Demo[] = [
     description:
       'Port Daddy scans a monorepo, detects 12 services, assigns ports atomically, and starts them all with a single command. No conflicts. No hardcoded ports. No race conditions.',
     stats: [
-      { value: '60+', label: 'frameworks auto-detected' },
-      { value: '< 50ms', label: 'port assignment latency' },
-      { value: 'SQLite', label: 'backed, survives restarts' },
+      { value: '60+', label: 'frameworks' },
+      { value: '< 50ms', label: 'latency' },
+      { value: 'SQLite', label: 'backed' },
     ],
   },
 ]
 
-const BADGE_STYLES = {
-  teal: {
-    background: 'var(--badge-teal-bg)',
-    color: 'var(--badge-teal-text)',
-    border: '1px solid var(--badge-teal-border)',
-  },
-  amber: {
-    background: 'var(--badge-amber-bg)',
-    color: 'var(--badge-amber-text)',
-    border: '1px solid rgba(251, 191, 36, 0.25)',
-  },
-}
-
 export function DemoGallery() {
-  const [active, setActive] = React.useState(0)
-  const demo = DEMOS[active]
-
-  // Auto-cycle every 12s
-  React.useEffect(() => {
-    const t = setInterval(() => setActive(i => (i + 1) % DEMOS.length), 12000)
-    return () => clearInterval(t)
-  }, [])
+  const [activeId, setActiveTab] = React.useState(DEMOS[0].id)
+  const activeDemo = DEMOS.find((d) => d.id === activeId)!
 
   return (
-    <section
-      className="py-10 px-4 sm:px-6 lg:px-8 relative overflow-hidden"
-      style={{
-        background:
-          'linear-gradient(180deg, var(--bg-base) 0%, var(--bg-surface) 50%, var(--bg-base) 100%)',
-      }}
+    <motion.section 
+      id="demo" 
+      className="py-32 px-4 sm:px-6 lg:px-8 font-sans relative overflow-hidden"
+      initial={{ opacity: 0 }}
+      whileInView={{ opacity: 1 }}
+      viewport={{ once: true }}
     >
-      {/* Subtle glow behind the terminal */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background:
-            'radial-gradient(ellipse 60% 40% at 50% 50%, rgba(30,107,107,0.12) 0%, transparent 70%)',
-        }}
-      />
-
-      <div className="relative max-w-7xl mx-auto">
-        {/* Section header */}
+      <motion.div className="max-w-7xl mx-auto font-sans">
         <motion.div
-          initial={{ opacity: 0, y: 24 }}
+          initial={{ opacity: 0, y: 32 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.5 }}
-          className="text-center mb-12"
+          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+          className="text-center mb-24"
         >
-          <h2 className="text-3xl sm:text-4xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
-            See it in action
-          </h2>
-          <p className="text-lg max-w-xl mx-auto" style={{ color: 'var(--text-secondary)' }}>
-            Real terminal recordings. No cuts, no staging.
-          </p>
+          <Badge variant="teal" className="mb-10 px-6 py-2 text-[10px] font-black uppercase tracking-[0.25em] shadow-xl">The Evidence</Badge>
+          <motion.h2 className="text-5xl sm:text-8xl font-bold font-display tracking-tight leading-[0.95] mb-10" style={{ color: 'var(--text-primary)' }}>
+            Proof of <motion.span className="text-[var(--brand-primary)]">Coordination.</motion.span>
+          </motion.h2>
+          <motion.p className="text-xl sm:text-2xl max-w-4xl mx-auto leading-relaxed opacity-70" style={{ color: 'var(--text-secondary)' }}>
+            These aren't mockups. These are <strong>VHS recordings</strong> of the Port Daddy CLI managing live agent swarms.
+          </motion.p>
         </motion.div>
 
-        {/* Tab selector */}
-        <div className="flex justify-center gap-3 mb-8">
-          {DEMOS.map((d, i) => (
-            <button
-              key={d.id}
-              onClick={() => setActive(i)}
-              className="px-4 py-2 rounded-full text-sm font-medium transition-all"
-              style={{
-                background: active === i ? 'var(--bg-overlay)' : 'transparent',
-                color: active === i ? 'var(--text-primary)' : 'var(--text-muted)',
-                border: '1px solid',
-                borderColor: active === i ? 'var(--border-default)' : 'transparent',
-              }}
-            >
-              {d.title}
-            </button>
-          ))}
-        </div>
-
-        {/* Main layout */}
-        <div className="grid lg:grid-cols-5 gap-8 items-start">
-          {/* GIF — takes 3 of 5 columns */}
-          <div className="lg:col-span-3">
-            <AnimatePresence mode="wait">
-              <motion.div
+        <div className="grid lg:grid-cols-12 gap-12 items-start">
+          {/* Controls */}
+          <div className="lg:col-span-4 space-y-6">
+            {DEMOS.map((demo) => (
+              <motion.button
                 key={demo.id}
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.97 }}
-                transition={{ duration: 0.3 }}
-                className="rounded-xl overflow-hidden"
-                style={{
-                  border: '1px solid var(--border-default)',
-                  boxShadow: '0 0 60px rgba(58, 173, 173, 0.12), var(--p-shadow-xl)',
+                onClick={() => setActiveTab(demo.id)}
+                className="w-full text-left p-10 rounded-[40px] border transition-all duration-[var(--p-transition-spring)] relative group overflow-hidden"
+                style={{ 
+                  borderColor: activeId === demo.id ? 'var(--brand-primary)' : 'var(--border-subtle)',
+                  background: activeId === demo.id ? 'var(--bg-surface)' : 'transparent',
+                  boxShadow: activeId === demo.id ? '0 32px 64px -12px rgba(58,173,173,0.15)' : 'none'
                 }}
+                whileHover={{ scale: activeId === demo.id ? 1 : 1.02 }}
               >
-                {/* Terminal chrome */}
-                <div
-                  className="flex items-center gap-3 px-4 py-3"
-                  style={{
-                    background: 'var(--codeblock-header-bg)',
-                    borderBottom: '1px solid var(--border-subtle)',
-                  }}
-                >
-                  <div className="flex gap-1.5">
-                    <span className="w-3 h-3 rounded-full" style={{ background: 'var(--p-red-500)', opacity: 0.7 }} />
-                    <span className="w-3 h-3 rounded-full" style={{ background: 'var(--p-amber-500)', opacity: 0.7 }} />
-                    <span className="w-3 h-3 rounded-full" style={{ background: 'var(--p-green-500)', opacity: 0.7 }} />
-                  </div>
-                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                    {demo.subtitle}
-                  </span>
-                  {/* Progress bar */}
-                  <div className="flex-1 ml-2">
-                    <ProgressBar key={demo.id} duration={12000} />
-                  </div>
+                <div className="flex items-center justify-between mb-6">
+                   <Badge variant={demo.badgeColor === 'teal' ? 'teal' : 'amber'} className="text-[8px] font-black uppercase tracking-widest px-3 py-1">
+                     {demo.badge}
+                   </Badge>
+                   <Play size={14} className={activeId === demo.id ? 'text-[var(--brand-primary)]' : 'opacity-20'} />
                 </div>
-
-                {/* GIF */}
-                <div style={{ background: 'var(--bg-base)' }}>
-                  <img
-                    src={demo.gif}
-                    alt={demo.title}
-                    className="w-full block"
-                    style={{ maxHeight: '480px', objectFit: 'contain' }}
+                <h3 className="text-2xl font-display font-black mb-2" style={{ color: activeId === demo.id ? 'var(--text-primary)' : 'var(--text-secondary)' }}>{demo.title}</h3>
+                <p className="text-sm opacity-60 m-0 leading-relaxed">{demo.subtitle}</p>
+                
+                {activeId === demo.id && (
+                  <motion.div 
+                    layoutId="active-pill"
+                    className="absolute left-0 top-1/4 bottom-1/4 w-1 bg-[var(--brand-primary)] rounded-full"
                   />
-                </div>
-              </motion.div>
-            </AnimatePresence>
+                )}
+              </motion.button>
+            ))}
+
+            <div className="p-10 rounded-[40px] border border-dashed border-[var(--border-subtle)] bg-[var(--bg-overlay)] opacity-60">
+               <div className="flex items-center gap-3 mb-4 text-[var(--brand-primary)]">
+                  <Activity size={18} />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Automation Active</span>
+               </div>
+               <p className="text-sm m-0 leading-relaxed">Our automated screenshot service verifies these tutorials on every commit using Playwright + VHS.</p>
+            </div>
           </div>
 
-          {/* Copy — takes 2 of 5 columns */}
-          <div className="lg:col-span-2 flex flex-col justify-center gap-6">
+          {/* Visual Display */}
+          <div className="lg:col-span-8">
             <AnimatePresence mode="wait">
               <motion.div
-                key={demo.id + '-copy'}
-                initial={{ opacity: 0, x: 12 }}
+                key={activeId}
+                initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -12 }}
-                transition={{ duration: 0.3 }}
-                className="flex flex-col gap-5"
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                className="space-y-10"
               >
-                <span
-                  className="text-xs font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full w-fit"
-                  style={BADGE_STYLES[demo.badgeColor]}
-                >
-                  {demo.badge}
-                </span>
-
-                <h3 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
-                  {demo.title}
-                </h3>
-
-                <p style={{ color: 'var(--text-secondary)', lineHeight: 1.7 }}>
-                  {demo.description}
-                </p>
-
-                {/* Stats */}
-                <div className="grid grid-cols-3 gap-3">
-                  {demo.stats.map(s => (
-                    <div
-                      key={s.label}
-                      className="rounded-lg p-3 text-center"
-                      style={{ background: 'var(--bg-overlay)', border: '1px solid var(--border-subtle)' }}
-                    >
-                      <div
-                        className="text-base font-bold font-mono"
-                        style={{ color: 'var(--brand-primary)' }}
-                      >
-                        {s.value}
+                <div className="relative rounded-[60px] overflow-hidden border-4 border-[var(--border-strong)] shadow-2xl group">
+                   <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg-base)] via-transparent to-transparent opacity-40 z-10" />
+                   <img 
+                     src={activeDemo.gif} 
+                     alt={activeDemo.title}
+                     className="w-full h-auto relative z-0 scale-100 group-hover:scale-[1.02] transition-transform duration-[2s]"
+                   />
+                   <div className="absolute bottom-10 left-10 right-10 z-20 flex justify-between items-center">
+                      <div className="flex items-center gap-4">
+                         <div className="w-3 h-3 rounded-full bg-[var(--status-success)] pulse-active shadow-[0_0_12px_var(--status-success)]" />
+                         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white drop-shadow-md">Live CLI Recording</span>
                       </div>
-                      <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                        {s.label}
-                      </div>
-                    </div>
-                  ))}
+                      <ExternalLink size={16} className="text-white opacity-40" />
+                   </div>
                 </div>
 
-                {/* Dot nav */}
-                <div className="flex gap-2">
-                  {DEMOS.map((_, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setActive(i)}
-                      className="rounded-full transition-all"
-                      style={{
-                        width: active === i ? '24px' : '8px',
-                        height: '8px',
-                        background: active === i ? 'var(--brand-primary)' : 'var(--border-default)',
-                      }}
-                      aria-label={`Demo ${i + 1}`}
-                    />
-                  ))}
+                <div className="grid sm:grid-cols-3 gap-8">
+                   {activeDemo.stats.map((stat, i) => (
+                     <div key={i} className="p-8 rounded-[32px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-center">
+                        <div className="text-3xl font-display font-black text-[var(--brand-primary)] mb-1">{stat.value}</div>
+                        <div className="text-[10px] font-black uppercase tracking-widest opacity-40">{stat.label}</div>
+                     </div>
+                   ))}
+                </div>
+
+                <div className="p-10 rounded-[40px] bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+                   <p className="text-xl leading-relaxed opacity-80 m-0">
+                     {activeDemo.description}
+                   </p>
                 </div>
               </motion.div>
             </AnimatePresence>
           </div>
         </div>
-      </div>
-    </section>
-  )
-}
-
-function ProgressBar({ duration }: { duration: number }) {
-  return (
-    <div className="h-0.5 rounded-full overflow-hidden" style={{ background: 'var(--border-subtle)' }}>
-      <motion.div
-        className="h-full rounded-full"
-        style={{ background: 'var(--brand-primary)' }}
-        initial={{ width: '0%' }}
-        animate={{ width: '100%' }}
-        transition={{ duration: duration / 1000, ease: 'linear' }}
-      />
-    </div>
+      </motion.div>
+    </motion.section>
   )
 }
