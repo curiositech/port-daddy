@@ -1,7 +1,9 @@
 import * as React from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
 import { Link } from 'react-router-dom'
+import { Code, Search, Network, Shield, Cpu, Zap, Share2, Terminal, ArrowRight, Sparkles, Box, Globe, MessageSquare } from 'lucide-react'
+import { Footer } from '@/components/layout/Footer'
 
 interface Example {
   id: string
@@ -11,407 +13,235 @@ interface Example {
   description: string
   what: string[]
   code: string[]
-  badge: 'teal' | 'amber' | 'green'
+  icon: any
+  color: string
 }
 
 const EXAMPLES: Example[] = [
   {
-    id: 'multi-agent-coding',
-    title: 'Multi-Agent Coding Session',
-    category: 'Coordination',
+    id: 'langchain-discovery',
+    title: 'LangChain Tool Discovery',
+    category: 'Integrations',
     difficulty: 'Beginner',
-    description: 'Two Claude Code agents work on the same repo without stepping on each other. Agent A owns auth, Agent B owns the API — Port Daddy prevents conflicts.',
+    description: 'Wrap your agents in a Port Daddy lighthouse so they can find each other via semantic DNS instead of fragile, hardcoded ports.',
     what: [
-      'Each agent registers with a semantic identity',
-      'File claims prevent simultaneous edits',
-      'Notes let agents leave messages for each other',
-      'If one agent crashes, the other can salvage its work',
+      'Agent A claims identity swarm:analyst',
+      'LangChain Tool resolves address via pd dns',
+      'Zero reconfiguration if service moves ports',
+      'Works across local and remote harbors'
     ],
     code: [
-      '# Agent A: auth refactor',
-      'pd begin --identity myapp:auth --purpose "Refactor login flow"',
-      'pd session files claim $SESSION src/auth/ src/middleware/',
+      '# Agent A: Claim identity',
+      'pd claim swarm:analyst',
       '',
-      '# Agent B: API routes (separate terminal)',
-      'pd begin --identity myapp:api --purpose "Add pagination to /users"',
-      'pd session files claim $SESSION src/routes/ src/controllers/',
+      '# Agent B: Discover via DNS',
+      'curl http://$(pd dns resolve swarm:analyst)/health',
       '',
-      '# Agents communicate via notes',
-      'pd note "Auth middleware updated — JWT shape changed" --type milestone',
+      '# Response:',
+      '{"status": "online", "port": 3102}'
     ],
-    badge: 'teal',
+    icon: Sparkles,
+    color: 'var(--p-teal-400)'
   },
   {
-    id: 'fleet-management',
-    title: 'Multi-Service Dev Environment',
-    category: 'Port Management',
-    difficulty: 'Beginner',
-    description: 'Start a full microservices stack with zero port collisions. Port Daddy assigns ports atomically and keeps them consistent across restarts.',
-    what: [
-      'Scan a monorepo to detect all services',
-      'Claim ports for each service with deterministic assignment',
-      'All agents resolve service addresses via DNS names',
-      'Ports survive daemon restarts — no reconfiguration needed',
-    ],
-    code: [
-      '# Auto-detect all services in the monorepo',
-      'pd scan ./services',
-      '',
-      '# Bring everything up',
-      'pd up',
-      '',
-      '# Services can find each other by name',
-      'curl http://$(pd dns resolve myapp-api)/health',
-      '',
-      '# Or in code:',
-      "const port = await pd.claim('myapp:api')",
-      "const db   = await pd.claim('myapp:postgres')",
-    ],
-    badge: 'teal',
-  },
-  {
-    id: 'spawn-ai-fleet',
-    title: 'Spawn an AI Agent Fleet',
-    category: 'Agent Orchestration',
+    id: 'crewai-harbors',
+    title: 'Secure CrewAI Harbors',
+    category: 'Security',
     difficulty: 'Intermediate',
-    description: 'Launch 4 specialized agents — a planner, a coder, a reviewer, and a tester — and have them coordinate through Port Daddy pub/sub.',
+    description: 'Enforce cryptographic boundaries for your CrewAI members. Each agent gets a scoped token that strictly limits their system access.',
     what: [
-      'pd spawn launches agents with coordination pre-wired',
-      'Agents publish results to typed channels',
-      'Orchestrator subscribes and routes work to next agent',
-      'All agent output preserved as session notes',
+      'Create a harbor with specific capabilities',
+      'Issue HMAC-signed JWTs to crew members',
+      'Daemon rejects unauthorized file/port claims',
+      'Auto-expiry prevents permission rot'
     ],
     code: [
-      '# Launch a planner agent',
-      'pd spawn --backend claude --model claude-haiku-4-5 \\',
-      '  --identity myapp:planner \\',
-      '  --purpose "Break issue #42 into tasks" \\',
-      '  -- "Analyze the auth bug and write a task list"',
+      '# Create harbor for coding crew',
+      'pd harbor create my-crew:coding \\',
+      '  --cap "code:write,file:claim" \\',
+      '  --ttl 1h',
       '',
-      '# Launch a coding agent against the plan',
-      'pd spawn --backend aider --model gemini/gemini-flash \\',
-      '  --identity myapp:coder \\',
-      '  -- src/auth/login.ts',
-      '',
-      '# Watch for results',
-      'pd watch myapp:coder:done --exec ./scripts/run-tests.sh',
+      '# Members enter harbor to get tokens',
+      'pd harbor enter my-crew:coding',
+      '# → [pd] Identity Verified. Token Issued.'
     ],
-    badge: 'amber',
+    icon: Shield,
+    color: 'var(--p-amber-400)'
   },
   {
-    id: 'always-on-trigger',
-    title: 'Always-On Agent Trigger',
-    category: 'Automation',
-    difficulty: 'Intermediate',
-    description: 'pd watch creates a persistent listener on any pub/sub channel. When a message arrives, it fires your script — no polling, no cronjob, no custom server.',
-    what: [
-      'SSE connection to Port Daddy pub/sub',
-      'Script receives message as $PD_MESSAGE env var',
-      'Auto-reconnects on disconnect',
-      'Combine with webhooks for external triggers',
-    ],
-    code: [
-      '# Run tests whenever a "build:done" message arrives',
-      'pd watch build:done --exec ./scripts/run-tests.sh',
-      '',
-      '# Deploy when tests pass',
-      'pd watch tests:passed --exec ./scripts/deploy.sh',
-      '',
-      '# Chain: CI publishes, watch fires, deploy runs',
-      "pd msg build:done publish '{\"sha\": \"abc123\"}'",
-      '',
-      '# The script receives:',
-      '# $PD_MESSAGE = {"sha": "abc123"}',
-      '# $PD_CHANNEL = "build:done"',
-    ],
-    badge: 'green',
-  },
-  {
-    id: 'harbors-security-review',
-    title: 'Scoped Security Review Harbor',
-    category: 'Harbors',
+    id: 'self-healing-infra',
+    title: 'Self-Healing Infra Swarm',
+    category: 'Resilience',
     difficulty: 'Advanced',
-    description: 'A security team gets scoped access to a codebase review. Agents inside the harbor can read code and write notes, but cannot create tunnels or modify files.',
+    description: 'Orchestrate background agents that monitor infrastructure and automatically salvage work from crashed processes.',
     what: [
-      'Harbor defines allowed capabilities as a list',
-      'Agents receive HMAC-signed JWT on entry',
-      'All harbor operations verified against token',
-      'Token expires after 2 hours — no orphaned permissions',
+      'Persistent "Avatar" agents live in harbors',
+      'Crashes trigger automatic work escrow',
+      'Resurrection queue preserves session state',
+      'Swarm Radio signals replacement spawns'
     ],
     code: [
-      '# Create the harbor with scoped capabilities',
-      'pd harbor create myapp:security-review \\',
-      '  --cap "code:read,notes:write,lock:acquire" \\',
-      '  --ttl 2h',
+      '# Spawn always-on avatar',
+      'pd spawn --avatar --identity infra:monitor',
       '',
-      '# Reviewer agent enters the harbor',
-      'pd harbor enter myapp:security-review',
-      '# → token: eyJhbGciOiJIUzI1NiJ9... (expires 2h)',
-      '',
-      '# Spawn the review agent with the token',
-      'pd spawn --backend claude --model claude-sonnet-4-6 \\',
-      '  --identity myapp:reviewer \\',
-      '  --harbor myapp:security-review \\',
-      '  -- "Review src/auth/ for security vulnerabilities"',
+      '# Watch for crash events',
+      'pd watch swarm:events \\',
+      '  --filter "type == agent_crash" \\',
+      '  --exec "./scripts/respawn.sh"',
     ],
-    badge: 'teal',
-  },
-  {
-    id: 'distributed-lock',
-    title: 'Distributed Lock for Migrations',
-    category: 'Locks',
-    difficulty: 'Beginner',
-    description: 'Run database migrations safely when multiple agents could try to migrate simultaneously. The first agent wins, others wait or skip.',
-    what: [
-      'Atomic lock acquisition — only one holder at a time',
-      'TTL prevents orphaned locks from dead agents',
-      'with-lock CLI helper for clean shell scripts',
-      'Lock owner tracks which agent holds it',
-    ],
-    code: [
-      '# Wrap any command in a distributed lock',
-      'pd with-lock db-migration -- npm run migrate',
-      '',
-      '# Manual lock + unlock',
-      'pd lock acquire db-migration --ttl 300',
-      'npm run migrate',
-      'pd lock release db-migration',
-      '',
-      '# In agent code:',
-      "const lock = await pd.lock('db-migration', { ttl: 300000 })",
-      'if (lock.acquired) {',
-      '  await runMigration()',
-      '  await lock.release()',
-      '}',
-    ],
-    badge: 'amber',
-  },
+    icon: RefreshCw,
+    color: 'var(--p-blue-400)'
+  }
 ]
 
-const DIFFICULTY_COLORS: Record<string, { bg: string; text: string }> = {
-  Beginner:     { bg: 'rgba(34,197,94,0.12)',   text: 'var(--p-green-300)' },
-  Intermediate: { bg: 'rgba(251,191,36,0.12)',  text: 'var(--p-amber-300)' },
-  Advanced:     { bg: 'rgba(58,173,173,0.15)',  text: 'var(--p-teal-300)' },
-}
-
-const CATEGORIES = ['All', ...new Set(EXAMPLES.map(e => e.category))]
+import { RefreshCw } from 'lucide-react'
 
 export function ExamplesPage() {
-  const [activeCategory, setActiveCategory] = React.useState('All')
-  const [openId, setOpenId] = React.useState<string | null>(null)
-
-  const filtered = activeCategory === 'All'
-    ? EXAMPLES
-    : EXAMPLES.filter(e => e.category === activeCategory)
-
   return (
-    <div
-      className="min-h-screen"
-      style={{ background: 'var(--bg-base)', color: 'var(--text-primary)', paddingTop: 'var(--nav-height)' }}
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="min-h-screen bg-[var(--bg-base)] flex flex-col pt-[var(--nav-height)] font-sans selection:bg-[var(--brand-primary)] selection:text-white"
     >
-      {/* Header */}
-      <div
-        className="py-16 px-4 sm:px-6 lg:px-8 border-b"
+      {/* Hero Section */}
+      <motion.section 
+        className="py-32 px-6 sm:px-8 lg:px-10 border-b relative overflow-hidden" 
         style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}
       >
-        <div className="max-w-5xl mx-auto">
-          <Link to="/" className="text-sm mb-6 inline-flex items-center gap-2 transition-colors"
-            style={{ color: 'var(--text-muted)', textDecoration: 'none', fontFamily: 'var(--p-font-mono)' }}>
-            ← back to port-daddy
-          </Link>
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-            <Badge variant="teal" className="mb-4">Use Cases</Badge>
-            <h1
-              className="text-4xl font-bold mb-4"
-              style={{ color: 'var(--text-primary)', fontFamily: 'var(--p-font-display)' }}
-            >
-              What you can build
-            </h1>
-            <p className="text-xl max-w-2xl" style={{ color: 'var(--text-secondary)' }}>
-              Real patterns, real commands. Copy-paste into your terminal.
-            </p>
-          </motion.div>
+        <motion.div 
+          className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full blur-[140px] opacity-[0.1] pointer-events-none" 
+          style={{ background: 'radial-gradient(circle, var(--brand-primary) 0%, transparent 70%)' }} 
+        />
+        
+        <div className="max-w-7xl mx-auto text-center relative z-10 flex flex-col items-center gap-10">
+           <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-[0.25em] shadow-xl">Code Blueprints</Badge>
+           <motion.h1 
+             className="text-6xl sm:text-9xl font-black tracking-tighter font-display leading-[0.9]"
+             initial={{ opacity: 0, y: 32 }}
+             animate={{ opacity: 1, y: 0 }}
+             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+           >
+             Working <br />
+             <span className="text-[var(--brand-primary)]">Coordination.</span>
+           </motion.h1>
+           <motion.p 
+             className="text-2xl sm:text-3xl max-w-3xl leading-relaxed opacity-70 font-medium"
+             initial={{ opacity: 0, y: 20 }}
+             animate={{ opacity: 1, y: 0 }}
+             transition={{ duration: 0.8, delay: 0.1 }}
+           >
+             Don't guess how to coordinate. Use these production-ready patterns for LangChain, CrewAI, and custom agent swarms.
+           </motion.p>
         </div>
-      </div>
+      </motion.section>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        {/* Category filter */}
-        <div className="flex flex-wrap gap-2 mb-8">
-          {CATEGORIES.map(cat => (
-            <button
-              key={cat}
-              onClick={() => setActiveCategory(cat)}
-              className="px-3 py-1.5 rounded-full text-xs font-medium transition-all"
-              style={{
-                background: activeCategory === cat ? 'var(--brand-primary)' : 'var(--bg-overlay)',
-                color: activeCategory === cat ? '#0a0a0a' : 'var(--text-muted)',
-                border: '1px solid transparent',
-              }}
+      {/* Examples Feed */}
+      <motion.main className="flex-1 py-24 px-6 sm:px-8 lg:px-10 max-w-7xl mx-auto w-full font-sans">
+        <div className="grid gap-16">
+          {EXAMPLES.map((ex, i) => (
+            <motion.div
+              key={ex.id}
+              initial={{ opacity: 0, y: 32 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.7, delay: i * 0.1, ease: [0.16, 1, 0.3, 1] }}
+              className="group"
             >
-              {cat}
-            </button>
+              <motion.div 
+                className="p-12 rounded-[64px] border transition-all duration-500 flex flex-col lg:flex-row gap-16 items-center"
+                style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-surface)' }}
+                whileHover={{ borderColor: ex.color, boxShadow: `0 40px 80px -20px ${ex.color}10` }}
+              >
+                <div className="flex-1 space-y-10">
+                   <div className="flex items-center gap-6">
+                      <div 
+                        className="w-20 h-20 rounded-[32px] flex items-center justify-center border transition-transform group-hover:scale-110 duration-500"
+                        style={{ background: `${ex.color}10`, borderColor: `${ex.color}20` }}
+                      >
+                        <ex.icon size={40} style={{ color: ex.color }} />
+                      </div>
+                      <div className="space-y-2">
+                         <div className="flex items-center gap-3">
+                            <Badge variant="neutral" className="text-[8px] font-black uppercase tracking-widest">{ex.category}</Badge>
+                            <div className="h-1 w-1 rounded-full bg-[var(--border-strong)]" />
+                            <span className="text-[10px] font-black uppercase tracking-widest opacity-40">{ex.difficulty}</span>
+                         </div>
+                         <h2 className="m-0 text-4xl font-display font-black leading-tight text-[var(--text-primary)]">{ex.title}</h2>
+                      </div>
+                   </div>
+
+                   <p className="text-xl leading-relaxed opacity-70 m-0">{ex.description}</p>
+
+                   <div className="grid sm:grid-cols-2 gap-6">
+                      {ex.what.map((point, j) => (
+                        <div key={j} className="flex items-start gap-3">
+                           <div className="mt-1.5 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: ex.color }} />
+                           <p className="text-sm opacity-60 m-0 leading-relaxed font-medium">{point}</p>
+                        </div>
+                      ))}
+                   </div>
+                </div>
+
+                <div className="flex-1 w-full relative">
+                   <div className="absolute inset-0 blur-3xl opacity-[0.03] pointer-events-none" style={{ background: ex.color }} />
+                   <div className="relative p-10 rounded-[48px] bg-[var(--bg-overlay)] border border-[var(--border-subtle)] group-hover:border-[var(--border-strong)] transition-colors shadow-2xl font-mono text-sm leading-relaxed overflow-hidden">
+                      <div className="absolute top-0 right-0 p-6 opacity-10">
+                         <Terminal size={20} />
+                      </div>
+                      {ex.code.map((line, j) => (
+                        <div key={j} className={line.startsWith('#') ? 'text-[var(--code-comment)] mb-2' : line.startsWith('pd') || line.startsWith('curl') ? 'text-[var(--text-primary)] font-bold mb-1' : 'opacity-40'}>
+                          {line.startsWith('pd') || line.startsWith('curl') ? (
+                            <span><span style={{ color: 'var(--brand-primary)' }}>$</span> {line}</span>
+                          ) : line}
+                        </div>
+                      ))}
+                   </div>
+                </div>
+              </motion.div>
+            </motion.div>
           ))}
         </div>
 
-        {/* Example cards */}
-        <div className="flex flex-col gap-4">
-          {filtered.map((ex, i) => {
-            const isOpen = openId === ex.id
-            const diff = DIFFICULTY_COLORS[ex.difficulty]
-            return (
-              <motion.div
-                key={ex.id}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: i * 0.05 }}
-                className="rounded-xl overflow-hidden"
-                style={{ border: '1px solid var(--border-default)' }}
-              >
-                {/* Card header */}
-                <button
-                  className="w-full text-left px-6 py-5 flex items-start gap-4 transition-colors"
-                  style={{ background: 'var(--bg-surface)' }}
-                  onClick={() => setOpenId(isOpen ? null : ex.id)}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--interactive-hover)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'var(--bg-surface)')}
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2 mb-2">
-                      <span className="text-xs font-medium px-2 py-0.5 rounded"
-                        style={{ background: 'var(--bg-overlay)', color: 'var(--text-muted)' }}>
-                        {ex.category}
-                      </span>
-                      <span className="text-xs font-medium px-2 py-0.5 rounded"
-                        style={{ background: diff.bg, color: diff.text }}>
-                        {ex.difficulty}
-                      </span>
-                    </div>
-                    <h3 className="text-base font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
-                      {ex.title}
-                    </h3>
-                    <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                      {ex.description}
-                    </p>
-                  </div>
-                  <span
-                    className="text-lg flex-shrink-0 mt-0.5 transition-transform"
-                    style={{
-                      color: 'var(--text-muted)',
-                      transform: isOpen ? 'rotate(180deg)' : 'none',
-                    }}
-                  >
-                    ▾
-                  </span>
-                </button>
-
-                {/* Expanded body */}
-                {isOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <div
-                      className="px-6 py-5 grid lg:grid-cols-2 gap-6"
-                      style={{ background: 'var(--bg-base)', borderTop: '1px solid var(--border-subtle)' }}
-                    >
-                      {/* What happens */}
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-widest mb-3"
-                          style={{ color: 'var(--text-muted)' }}>
-                          How it works
-                        </p>
-                        <ul className="flex flex-col gap-2">
-                          {ex.what.map((point, j) => (
-                            <li key={j} className="flex gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
-                              <span style={{ color: 'var(--brand-primary)', flexShrink: 0 }}>→</span>
-                              {point}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-
-                      {/* Code */}
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-widest mb-3"
-                          style={{ color: 'var(--text-muted)' }}>
-                          Commands
-                        </p>
-                        <div
-                          className="rounded-xl p-4 font-mono text-xs leading-relaxed overflow-x-auto"
-                          style={{
-                            background: 'var(--code-bg)',
-                            border: '1px solid var(--border-default)',
-                          }}
-                        >
-                          {ex.code.map((line, j) => (
-                            <div key={j}>
-                              {line === '' ? (
-                                <br />
-                              ) : line.startsWith('#') ? (
-                                <span style={{ color: 'var(--code-comment)' }}>{line}</span>
-                              ) : line.startsWith('pd') || line.startsWith('curl') || line.startsWith('npm') ? (
-                                <span>
-                                  <span style={{ color: 'var(--code-prompt)' }}>$ </span>
-                                  <span style={{ color: 'var(--text-primary)' }}>{line}</span>
-                                </span>
-                              ) : line.startsWith('  ') || line.startsWith('const') || line.startsWith('if') || line.startsWith('}') || line.startsWith('await') ? (
-                                <span style={{ color: 'var(--text-secondary)' }}>{line}</span>
-                              ) : line.startsWith('#') ? (
-                                <span style={{ color: 'var(--code-comment)' }}>{line}</span>
-                              ) : (
-                                <span style={{ color: 'var(--code-output)' }}>{line}</span>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-              </motion.div>
-            )
-          })}
-        </div>
-
-        {/* Bottom CTA */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
+        {/* Impressively long additional info */}
+        <motion.div 
+          className="mt-32 p-20 rounded-[80px] border border-dashed border-[var(--border-strong)] bg-gradient-to-br from-[var(--bg-surface)] to-[var(--bg-base)] flex flex-col items-center text-center gap-12 relative overflow-hidden"
+          initial={{ opacity: 0, scale: 0.98 }}
+          whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.5 }}
-          className="mt-16 text-center"
         >
-          <p className="text-lg mb-4" style={{ color: 'var(--text-secondary)' }}>
-            Ready to get started?
-          </p>
-          <div className="flex flex-wrap gap-4 justify-center">
-            <Link to="/tutorials" style={{ textDecoration: 'none' }}>
-              <button
-                className="px-6 py-3 rounded-xl font-medium text-sm transition-all"
-                style={{
-                  background: 'var(--brand-primary)',
-                  color: '#0a0a0a',
-                }}
-              >
-                Step-by-step tutorials
-              </button>
-            </Link>
-            <Link to="/docs" style={{ textDecoration: 'none' }}>
-              <button
-                className="px-6 py-3 rounded-xl font-medium text-sm transition-all"
-                style={{
-                  background: 'var(--bg-overlay)',
-                  color: 'var(--text-secondary)',
-                  border: '1px solid var(--border-default)',
-                }}
-              >
-                Full API reference
-              </button>
-            </Link>
-          </div>
+           <div className="absolute top-0 right-0 p-10 opacity-[0.02] pointer-events-none">
+              <Share2 size={600} />
+           </div>
+           
+           <div className="space-y-6 max-w-3xl relative z-10">
+              <Badge variant="amber" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest shadow-xl">Architectural Pattern</Badge>
+              <h3 className="text-4xl sm:text-7xl font-display font-black tracking-tight leading-[0.95]" style={{ color: 'var(--text-primary)' }}>
+                One Mesh. <span className="text-[var(--p-amber-400)]">Any Agent.</span>
+              </h3>
+              <p className="text-2xl leading-relaxed opacity-70">
+                These examples show how Port Daddy bridges the gap between high-level agent frameworks and low-level infrastructure. Whether you are scaling to 100 agents or building your first background avatar, the primitives remain the same.
+              </p>
+           </div>
+
+           <div className="grid sm:grid-cols-3 gap-8 w-full max-w-5xl">
+              {[
+                { title: 'Swarm Radio', desc: 'Real-time inter-agent signaling.', icon: MessageSquare },
+                { title: 'Semantic DNS', desc: 'Identity-based service discovery.', icon: Globe },
+                { title: 'Harbor Cards', desc: 'Cryptographic permission tokens.', icon: Shield }
+              ].map((item, i) => (
+                <div key={i} className="p-8 rounded-[40px] bg-[var(--bg-overlay)] border border-[var(--border-subtle)] text-center space-y-4">
+                   <div className="w-12 h-12 rounded-2xl bg-[var(--brand-primary)]/10 flex items-center justify-center mx-auto">
+                      <item.icon size={24} className="text-[var(--brand-primary)]" />
+                   </div>
+                   <h4 className="m-0 text-xl font-display font-black leading-tight">{item.title}</h4>
+                   <p className="text-sm opacity-60 m-0 leading-relaxed">{item.desc}</p>
+                </div>
+              ))}
+           </div>
         </motion.div>
-      </div>
-    </div>
+      </motion.main>
+
+      <Footer />
+    </motion.div>
   )
 }
