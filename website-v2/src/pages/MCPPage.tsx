@@ -1,667 +1,269 @@
 import * as React from 'react'
-import { motion } from 'framer-motion'
+import { motion, useScroll, useSpring } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
+import { Terminal, Shield, Zap, History, Anchor, Search, Cpu, Globe, Share2, ArrowRight, MessageSquare, Box, Lock, Activity, BookOpen, ChevronRight, Copy, Check, Info, Rocket, Heart, Layers, Mail, Send, RefreshCw } from 'lucide-react'
+import { Footer } from '@/components/layout/Footer'
 
 /* ─── Data ─────────────────────────────────────────────────────────────────── */
 
 const ESSENTIAL_TOOLS = [
   {
     name: 'begin_session',
-    description: 'Register as an agent, start a session, claim files — one call.',
+    description: 'The agent entry point. Registers identity, starts a work venture, and claims initial files in one atomic handshake.',
+    icon: Rocket,
+    color: 'var(--p-teal-400)',
     example: `await begin_session({
-  purpose: "Implementing OAuth flow",
-  identity: "myapp:api:main",
-  files: ["src/auth.ts"]
-})`,
-  },
-  {
-    name: 'end_session_full',
-    description: 'Close out gracefully: final note, mark session complete, unregister agent.',
-    example: `await end_session_full({
-  agent_id: agentId,
-  closing_note: "Implemented OAuth, all tests pass"
+  purpose: "Refactoring the auth middleware",
+  identity: "myapp:api:auth",
+  files: ["src/middleware/auth.ts"]
 })`,
   },
   {
     name: 'claim_port',
-    description: 'Get a deterministic, collision-free port for your service.',
+    description: 'Deterministic port assignment. Ensures semantic identities always map to the same port across restarts.',
+    icon: Anchor,
+    color: 'var(--p-blue-400)',
     example: `const { port } = await claim_port({
-  id: "myapp:api:main"
+  identity: "myapp:api:main"
 })
-// → always returns port 3001 for this identity`,
-  },
-  {
-    name: 'acquire_lock',
-    description: 'Take a distributed lock before touching shared resources.',
-    example: `await acquire_lock({
-  name: "db-migration",
-  ttl: 60000
-})`,
+// → Port 3102 (Always assigned to this identity)`,
   },
   {
     name: 'add_note',
-    description: 'Leave an immutable, timestamped note for other agents.',
+    description: 'The immutable swarm ledger. Leave timestamped context for other agents or the human harbormaster.',
+    icon: MessageSquare,
+    color: 'var(--p-amber-400)',
     example: `await add_note({
-  content: "Auth module refactored — JWT flow simplified",
-  type: "progress"
+  content: "Middleware updated. JWT shape changed.",
+  type: "decision"
 })`,
   },
   {
     name: 'check_salvage',
-    description: 'Before starting work, check if a previous agent left tasks unfinished.',
+    description: 'Self-healing discovery. Identify work escrowed from dead or crashed agents in your harbor.',
+    icon: RefreshCw,
+    color: 'var(--p-purple-400)',
     example: `const { pending } = await check_salvage({
   identity_prefix: "myapp"
-})
-// Returns work to continue from dead agents`,
-  },
-  {
-    name: 'whoami',
-    description: 'Get your current session context: agent ID, active session, recent notes.',
-    example: `const ctx = await whoami({ agent_id: agentId })
-// → { agent, session, recentNotes, fileClaims }`,
-  },
-  {
-    name: 'pd_discover',
-    description: 'Reveal more tools: messaging, locks, DNS, tunnels, webhooks, and 9 more categories.',
-    example: `// Call this to unlock advanced tools
-await pd_discover()
-// Enables: publish_message, dns_register, start_tunnel, ...`,
-  },
-]
-
-const ALL_CATEGORIES = [
-  {
-    id: 'session-lifecycle',
-    label: 'Session Lifecycle',
-    color: 'var(--p-teal-400)',
-    bg: 'rgba(58,173,173,0.08)',
-    border: 'rgba(58,173,173,0.20)',
-    tools: ['begin_session', 'end_session_full', 'whoami'],
-    description: 'Start/end sessions, agent registration — the three commands every agent calls.',
-  },
-  {
-    id: 'ports',
-    label: 'Ports',
-    color: 'var(--p-amber-400)',
-    bg: 'rgba(251,191,36,0.08)',
-    border: 'rgba(251,191,36,0.20)',
-    tools: ['claim_port', 'release_port', 'list_services', 'get_service', 'health_check', 'list_active_ports', 'list_system_ports', 'cleanup_ports'],
-    description: 'Atomic port assignment, health checks, and service listing.',
-  },
-  {
-    id: 'sessions',
-    label: 'Sessions',
-    color: 'var(--p-teal-300)',
-    bg: 'rgba(58,173,173,0.08)',
-    border: 'rgba(58,173,173,0.20)',
-    tools: ['start_session', 'end_session', 'get_session', 'delete_session', 'list_sessions', 'set_session_phase', 'claim_files', 'release_files', 'list_file_claims', 'who_owns_file'],
-    description: 'Detailed session management including phases and advisory file claims.',
-  },
-  {
-    id: 'notes',
-    label: 'Notes',
-    color: 'var(--p-green-400)',
-    bg: 'rgba(34,197,94,0.08)',
-    border: 'rgba(34,197,94,0.20)',
-    tools: ['add_note', 'list_notes'],
-    description: 'Immutable, append-only audit trail for agent coordination.',
-  },
-  {
-    id: 'locks',
-    label: 'Locks',
-    color: 'var(--p-amber-300)',
-    bg: 'rgba(251,191,36,0.08)',
-    border: 'rgba(251,191,36,0.20)',
-    tools: ['acquire_lock', 'release_lock', 'list_locks'],
-    description: 'Distributed locks with TTL for safe concurrent file access.',
-  },
-  {
-    id: 'messaging',
-    label: 'Messaging',
-    color: '#a78bfa',
-    bg: 'rgba(167,139,250,0.08)',
-    border: 'rgba(167,139,250,0.20)',
-    tools: ['publish_message', 'get_messages', 'list_channels', 'clear_channel'],
-    description: 'Pub/sub channels for broadcasting between agents.',
-  },
-  {
-    id: 'agents',
-    label: 'Agents',
-    color: 'var(--p-teal-300)',
-    bg: 'rgba(58,173,173,0.08)',
-    border: 'rgba(58,173,173,0.20)',
-    tools: ['register_agent', 'agent_heartbeat', 'unregister_agent', 'get_agent', 'list_agents', 'check_salvage', 'claim_salvage', 'salvage_complete', 'salvage_abandon', 'salvage_dismiss'],
-    description: 'Agent registry, heartbeats, and the full salvage/resurrection lifecycle.',
-  },
-  {
-    id: 'inbox',
-    label: 'Inbox',
-    color: 'var(--p-amber-400)',
-    bg: 'rgba(251,191,36,0.08)',
-    border: 'rgba(251,191,36,0.20)',
-    tools: ['inbox_send', 'inbox_read', 'inbox_stats', 'inbox_mark_read', 'inbox_mark_all_read', 'inbox_clear'],
-    description: 'Direct agent-to-agent messaging, like an email inbox for agents.',
-  },
-  {
-    id: 'webhooks',
-    label: 'Webhooks',
-    color: '#f472b6',
-    bg: 'rgba(244,114,182,0.08)',
-    border: 'rgba(244,114,182,0.20)',
-    tools: ['webhook_add', 'webhook_list', 'webhook_events', 'webhook_get', 'webhook_update', 'webhook_remove', 'webhook_test', 'webhook_deliveries'],
-    description: 'Register webhooks to get notified when events fire in Port Daddy.',
-  },
-  {
-    id: 'integration',
-    label: 'Integration',
-    color: 'var(--p-green-400)',
-    bg: 'rgba(34,197,94,0.08)',
-    border: 'rgba(34,197,94,0.20)',
-    tools: ['integration_ready', 'integration_needs', 'integration_list'],
-    description: 'Cross-agent signals: broadcast "auth service is ready" or "frontend needs API".',
-  },
-  {
-    id: 'dns',
-    label: 'DNS',
-    color: 'var(--p-teal-400)',
-    bg: 'rgba(58,173,173,0.08)',
-    border: 'rgba(58,173,173,0.20)',
-    tools: ['dns_register', 'dns_unregister', 'dns_list', 'dns_lookup', 'dns_cleanup', 'dns_status', 'dns_setup', 'dns_teardown', 'dns_sync'],
-    description: 'Register hostnames like myapp-api.local that resolve without /etc/hosts hacks.',
-  },
-  {
-    id: 'briefing',
-    label: 'Briefing',
-    color: '#a78bfa',
-    bg: 'rgba(167,139,250,0.08)',
-    border: 'rgba(167,139,250,0.20)',
-    tools: ['briefing_generate', 'briefing_read'],
-    description: 'Generate .portdaddy/briefing.md — instant context for any agent joining a project.',
-  },
-  {
-    id: 'tunnels',
-    label: 'Tunnels',
-    color: 'var(--p-amber-300)',
-    bg: 'rgba(251,191,36,0.08)',
-    border: 'rgba(251,191,36,0.20)',
-    tools: ['start_tunnel', 'stop_tunnel', 'list_tunnels'],
-    description: 'Expose local services over ngrok/cloudflared. Agents can share endpoints with each other.',
-  },
-  {
-    id: 'projects',
-    label: 'Projects',
-    color: 'var(--p-green-300)',
-    bg: 'rgba(34,197,94,0.08)',
-    border: 'rgba(34,197,94,0.20)',
-    tools: ['scan_project', 'list_projects', 'get_project', 'delete_project'],
-    description: 'Auto-detect and register monorepo projects. Agents can discover the full service mesh.',
-  },
-  {
-    id: 'changelog',
-    label: 'Changelog',
-    color: '#f472b6',
-    bg: 'rgba(244,114,182,0.08)',
-    border: 'rgba(244,114,182,0.20)',
-    tools: ['changelog_add', 'changelog_list', 'changelog_get', 'changelog_identities', 'changelog_by_session', 'changelog_by_agent'],
-    description: 'Per-agent, per-session change history. Rollup to project-level changelog automatically.',
-  },
-  {
-    id: 'activity',
-    label: 'Activity',
-    color: 'var(--p-teal-300)',
-    bg: 'rgba(58,173,173,0.08)',
-    border: 'rgba(58,173,173,0.20)',
-    tools: ['activity_log', 'activity_summary', 'activity_stats', 'activity_range'],
-    description: 'Full audit trail of all port claims, sessions, notes, and coordination events.',
-  },
-  {
-    id: 'system',
-    label: 'System',
-    color: 'var(--text-muted)',
-    bg: 'rgba(255,255,255,0.04)',
-    border: 'rgba(255,255,255,0.10)',
-    tools: ['daemon_status', 'get_version', 'get_metrics', 'get_config', 'wait_for_service', 'get_launch_hints'],
-    description: 'Daemon health, version, metrics, config, and context-aware startup hints.',
-  },
-]
-
-const CONFIG_EXAMPLES = [
-  {
-    label: 'Claude Code',
-    file: '~/.claude/settings.json',
-    code: `{
-  "mcpServers": {
-    "port-daddy": {
-      "command": "npx",
-      "args": ["port-daddy", "mcp"]
-    }
+})`,
   }
-}`,
-  },
-  {
-    label: 'Claude Desktop',
-    file: '~/Library/Application Support/Claude/claude_desktop_config.json',
-    code: `{
-  "mcpServers": {
-    "port-daddy": {
-      "command": "npx",
-      "args": ["port-daddy", "mcp"]
-    }
-  }
-}`,
-  },
-  {
-    label: 'Or use the installer',
-    file: 'Terminal',
-    code: `# One-command install to Claude Code
-pd mcp install
-
-# Scoped to project only
-pd mcp install --scope project`,
-  },
 ]
 
-/* ─── Component ─────────────────────────────────────────────────────────────── */
+const CATEGORIES = [
+  { id: 'ports', label: 'Atomic Ports', icon: Anchor, color: 'var(--p-blue-400)', count: 8 },
+  { id: 'security', label: 'Cryptographic Harbors', icon: Shield, color: 'var(--p-teal-400)', count: 12 },
+  { id: 'radio', label: 'Swarm Radio', icon: Zap, color: 'var(--p-amber-400)', count: 6 },
+  { id: 'inbox', label: 'Agent Inboxes', icon: Mail, color: 'var(--p-purple-400)', count: 5 },
+  { id: 'mesh', label: 'Global Mesh', icon: Globe, count: 9 },
+  { id: 'audit', label: 'Immutable Audit', icon: History, count: 7 }
+]
 
-function CodeBlock({ code, label }: { code: string; label?: string }) {
-  return (
-    <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-default)' }}>
-      {label && (
-        <div className="px-4 py-2" style={{ background: 'var(--codeblock-header-bg)', borderBottom: '1px solid var(--border-subtle)' }}>
-          <span className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>{label}</span>
-        </div>
-      )}
-      <pre className="p-4 font-mono text-sm overflow-x-auto leading-relaxed m-0"
-        style={{ background: 'var(--codeblock-bg)', color: 'var(--text-primary)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-        {code}
-      </pre>
-    </div>
-  )
-}
+function ToolCard({ tool }: { tool: any }) {
+  const [copied, setCopied] = React.useState(false)
+  const handleCopy = () => {
+    navigator.clipboard.writeText(tool.example)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
-function InlineCode({ children }: { children: string }) {
   return (
-    <code
-      className="font-mono text-xs px-1.5 py-0.5 rounded"
-      style={{ background: 'var(--bg-overlay)', color: 'var(--text-code)', border: '1px solid var(--border-subtle)' }}
+    <motion.div 
+      className="p-10 rounded-[56px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-10 group hover:border-[var(--border-strong)] transition-all shadow-2xl relative overflow-hidden"
+      whileHover={{ y: -8 }}
     >
-      {children}
-    </code>
+       <div className="absolute top-0 right-0 p-10 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity">
+          <tool.icon size={120} />
+       </div>
+
+       <div className="flex items-center gap-6 relative z-10">
+          <div 
+            className="w-16 h-16 rounded-[24px] flex items-center justify-center border shadow-lg"
+            style={{ background: `${tool.color}10`, borderColor: `${tool.color}20` }}
+          >
+             <tool.icon size={32} style={{ color: tool.color }} />
+          </div>
+          <div className="space-y-1">
+             <code className="text-xl font-black font-mono" style={{ color: tool.color }}>{tool.name}</code>
+             <Badge variant="teal" className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5">Essential</Badge>
+          </div>
+       </div>
+
+       <p className="text-xl leading-relaxed opacity-70 m-0 relative z-10 font-medium max-w-sm">
+          {tool.description}
+       </p>
+       
+       <div className="relative rounded-[32px] bg-[var(--bg-overlay)] p-8 font-mono text-xs overflow-hidden group-hover:bg-[var(--interactive-active)] transition-colors border border-[var(--border-subtle)]">
+          <div className="flex items-start justify-between gap-6">
+             <pre className="opacity-60 m-0 leading-relaxed overflow-x-auto whitespace-pre-wrap">{tool.example}</pre>
+             <button onClick={handleCopy} className="shrink-0 text-[var(--brand-primary)] opacity-40 hover:opacity-100 transition-opacity pt-1">
+                {copied ? <Check size={16} /> : <Copy size={16} />}
+             </button>
+          </div>
+       </div>
+    </motion.div>
   )
 }
 
-function ToolChip({ name }: { name: string }) {
+export default function MCPPage() {
+  const { scrollYProgress } = useScroll()
+  const scaleX = useSpring(scrollYProgress, {
+    stiffness: 100,
+    damping: 30,
+    restDelta: 0.001
+  })
+
   return (
-    <span
-      className="inline-block font-mono text-xs px-2 py-0.5 rounded"
-      style={{ background: 'var(--bg-overlay)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="min-h-screen bg-[var(--bg-base)] flex flex-col pt-[var(--nav-height)] font-sans selection:bg-[var(--brand-primary)] selection:text-white"
     >
-      {name}
-    </span>
-  )
-}
+      <motion.div
+        className="fixed top-0 left-0 right-0 h-1 bg-[var(--brand-primary)] z-[100] origin-left shadow-[0_0_12px_rgba(58,173,173,0.5)]"
+        style={{ scaleX, top: 'var(--nav-height)' }}
+      />
 
-export function MCPPage() {
-  const [activeConfig, setActiveConfig] = React.useState(0)
-  const [expandedTool, setExpandedTool] = React.useState<string | null>(null)
-
-  const totalTools = ALL_CATEGORIES.reduce((n, c) => n + c.tools.length, 0) + 1 // +1 for pd_discover
-
-  return (
-    <div style={{ paddingTop: 'var(--nav-height)', background: 'var(--bg-base)', minHeight: '100vh' }}>
-
-      {/* ── Hero ── */}
-      <section
-        className="relative py-16 px-4 sm:px-6 lg:px-8 overflow-hidden"
-        style={{ borderBottom: '1px solid var(--border-subtle)' }}
-      >
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{ background: 'radial-gradient(ellipse 70% 50% at 50% 0%, rgba(30,107,107,0.18) 0%, transparent 70%)' }}
+      {/* Hero Section */}
+      <motion.section className="py-32 px-6 sm:px-8 lg:px-10 border-b relative overflow-hidden" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}>
+        <motion.div 
+          className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full blur-[140px] opacity-[0.1] pointer-events-none" 
+          style={{ background: 'radial-gradient(circle, var(--brand-primary) 0%, transparent 70%)' }} 
         />
-        <div className="relative max-w-4xl mx-auto text-center">
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-            <Badge variant="teal" className="mb-4">MCP · Model Context Protocol</Badge>
-            <h1
-              className="text-4xl sm:text-5xl font-bold mb-4"
-              style={{ color: 'var(--text-primary)', lineHeight: 1.1, fontFamily: 'var(--p-font-display)' }}
-            >
-              Claude Code Integration
-            </h1>
-            <p className="text-lg max-w-2xl mx-auto mb-8" style={{ color: 'var(--text-secondary)' }}>
-              {totalTools} tools across 17 categories — port management, agent coordination, distributed
-              locks, pub/sub, DNS, tunnels, and more. One install command.
-            </p>
+        
+        <div className="max-w-7xl mx-auto text-center relative z-10 flex flex-col items-center gap-10">
+           <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-[0.25em] shadow-xl">Model Context Protocol</Badge>
+           <motion.h1 
+             className="text-6xl sm:text-9xl font-black tracking-tighter font-display leading-[0.9]"
+             initial={{ opacity: 0, y: 32 }}
+             animate={{ opacity: 1, y: 0 }}
+             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+           >
+             Context is <span className="text-[var(--brand-primary)]">Coordination.</span>
+           </motion.h1>
+           <motion.p 
+             className="text-2xl sm:text-3xl max-w-3xl leading-relaxed opacity-70 font-medium"
+             initial={{ opacity: 0, y: 20 }}
+             animate={{ opacity: 1, y: 0 }}
+             transition={{ duration: 0.8, delay: 0.1 }}
+           >
+             60+ production-grade tools across 17 categories. One install command to give your agents the infrastructure they deserve.
+           </motion.p>
 
-            {/* Install command */}
-            <div
-              className="inline-flex items-center gap-3 rounded-xl px-6 py-4 font-mono text-base mx-auto"
-              style={{ background: 'var(--codeblock-bg)', border: '1px solid var(--border-default)' }}
-            >
-              <span style={{ color: 'var(--code-prompt)' }}>$</span>
-              <span style={{ color: 'var(--text-primary)' }}>pd mcp install</span>
-              <span
-                className="text-xs px-2 py-0.5 rounded-full ml-2"
-                style={{ background: 'rgba(58,173,173,0.15)', color: 'var(--p-teal-300)' }}
-              >
-                one command
-              </span>
-            </div>
-          </motion.div>
+           <div className="flex flex-col items-center gap-6 pt-10">
+              <div className="inline-flex items-center gap-4 px-10 py-6 rounded-full bg-[var(--bg-overlay)] border border-[var(--border-strong)] font-mono text-lg shadow-2xl">
+                 <Terminal size={24} className="text-[var(--brand-primary)]" />
+                 <span className="font-bold">pd mcp install</span>
+                 <div className="h-6 w-[1px] bg-[var(--border-strong)]" />
+                 <span className="text-xs font-black uppercase tracking-widest opacity-40">One Command</span>
+              </div>
+              <p className="text-[10px] font-black uppercase tracking-[0.25em] opacity-40">Supports Claude Code, Cursor, and Continue.dev</p>
+           </div>
         </div>
-      </section>
+      </motion.section>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-
-        {/* ── Progressive disclosure ── */}
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.4 }}
-          className="mb-16"
-        >
-          <h2 className="text-2xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
-            Progressive disclosure
-          </h2>
-          <p className="text-base mb-8" style={{ color: 'var(--text-secondary)', lineHeight: 1.65 }}>
-            Port Daddy exposes <strong style={{ color: 'var(--text-primary)' }}>8 essential tools</strong> by
-            default — the ones every agent needs. Call <InlineCode>pd_discover</InlineCode> to unlock the
-            remaining categories. This keeps context windows clean and LLM costs low for simple tasks.
-          </p>
-
-          <div className="grid sm:grid-cols-2 gap-3">
-            {[
-              { label: 'Default (always available)', tools: ['begin_session', 'end_session_full', 'whoami', 'claim_port', 'acquire_lock', 'add_note', 'check_salvage', 'pd_discover'], color: 'var(--p-teal-400)' },
-              { label: 'After pd_discover', tools: ['publish_message', 'dns_register', 'start_tunnel', 'inbox_send', 'integration_ready', 'briefing_generate', 'changelog_add', '+ 40 more...'], color: '#a78bfa' },
-            ].map(group => (
-              <div
-                key={group.label}
-                className="rounded-xl p-4"
-                style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
-              >
-                <div className="text-xs font-medium uppercase tracking-widest mb-3" style={{ color: group.color }}>
-                  {group.label}
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {group.tools.map(t => (
-                    <ToolChip key={t} name={t} />
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </motion.section>
-
-        {/* ── Config ── */}
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.4 }}
-          className="mb-16"
-        >
-          <h2 className="text-2xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
-            Configuration
-          </h2>
-          <p className="text-base mb-6" style={{ color: 'var(--text-secondary)' }}>
-            Add Port Daddy to your MCP client. The daemon communicates over stdio — no HTTP, no ports,
-            no extra processes.
-          </p>
-
-          {/* Tab bar */}
-          <div className="flex gap-2 mb-4">
-            {CONFIG_EXAMPLES.map((c, i) => (
-              <button
-                key={c.label}
-                onClick={() => setActiveConfig(i)}
-                className="px-3 py-1.5 text-sm font-medium rounded-lg transition-all"
-                style={{
-                  background: activeConfig === i ? 'var(--bg-overlay)' : 'transparent',
-                  color: activeConfig === i ? 'var(--text-primary)' : 'var(--text-muted)',
-                  border: '1px solid',
-                  borderColor: activeConfig === i ? 'var(--border-default)' : 'transparent',
-                }}
-              >
-                {c.label}
-              </button>
-            ))}
-          </div>
-
-          <CodeBlock
-            code={CONFIG_EXAMPLES[activeConfig].code}
-            label={CONFIG_EXAMPLES[activeConfig].file}
-          />
-        </motion.section>
-
-        {/* ── Essential 8 tools ── */}
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.4 }}
-          className="mb-16"
-        >
-          <h2 className="text-2xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
-            Essential tools
-          </h2>
-          <p className="text-base mb-8" style={{ color: 'var(--text-secondary)' }}>
-            These are always available — no <InlineCode>pd_discover</InlineCode> needed.
-          </p>
-
-          <div className="flex flex-col gap-3">
-            {ESSENTIAL_TOOLS.map((tool, i) => (
-              <motion.div
-                key={tool.name}
-                initial={{ opacity: 0, y: 8 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.3, delay: i * 0.04 }}
-              >
-                <button
-                  onClick={() => setExpandedTool(expandedTool === tool.name ? null : tool.name)}
-                  className="w-full text-left rounded-xl p-4 transition-all"
-                  style={{
-                    background: 'var(--bg-surface)',
-                    border: `1px solid ${expandedTool === tool.name ? 'var(--border-default)' : 'var(--border-subtle)'}`,
-                  }}
-                >
-                  <div className="flex items-center gap-3">
-                    <InlineCode>{tool.name}</InlineCode>
-                    <span className="text-sm flex-1 text-left" style={{ color: 'var(--text-secondary)' }}>
-                      {tool.description}
-                    </span>
-                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                      {expandedTool === tool.name ? '▲' : '▼'}
-                    </span>
-                  </div>
-                </button>
-
-                {expandedTool === tool.name && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="mt-1"
-                    style={{ border: '1px solid var(--border-default)', borderTop: 'none', borderRadius: '0 0 12px 12px', overflow: 'hidden' }}
-                  >
-                    <pre
-                      className="p-4 font-mono text-sm overflow-x-auto leading-relaxed m-0"
-                      style={{ background: 'var(--codeblock-bg)', color: 'var(--code-output)', whiteSpace: 'pre', borderTop: '1px solid var(--border-subtle)' }}
-                    >
-                      {tool.example}
-                    </pre>
-                  </motion.div>
-                )}
-              </motion.div>
-            ))}
-          </div>
-        </motion.section>
-
-        {/* ── All categories ── */}
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.4 }}
-          className="mb-16"
-        >
-          <div className="flex items-baseline gap-4 mb-2">
-            <h2 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
-              All {totalTools} tools
-            </h2>
-            <span className="text-sm font-mono" style={{ color: 'var(--text-muted)' }}>
-              17 categories
-            </span>
-          </div>
-          <p className="text-base mb-8" style={{ color: 'var(--text-secondary)' }}>
-            Unlock with <InlineCode>pd_discover()</InlineCode> or call directly if you know what you need.
-          </p>
-
-          <div className="grid sm:grid-cols-2 gap-4">
-            {ALL_CATEGORIES.map((cat, i) => (
-              <motion.div
-                key={cat.id}
-                initial={{ opacity: 0, y: 8 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.3, delay: i * 0.03 }}
-                className="rounded-xl p-4"
-                style={{ background: cat.bg, border: `1px solid ${cat.border}` }}
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-sm font-bold" style={{ color: cat.color }}>
-                    {cat.label}
-                  </span>
-                  <span className="text-xs font-mono ml-auto" style={{ color: cat.color, opacity: 0.7 }}>
-                    {cat.tools.length} tools
-                  </span>
-                </div>
-                <p className="text-xs mb-3" style={{ color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                  {cat.description}
-                </p>
-                <div className="flex flex-wrap gap-1">
-                  {cat.tools.map(t => (
-                    <span
-                      key={t}
-                      className="font-mono text-xs px-1.5 py-0.5 rounded"
-                      style={{ background: 'rgba(0,0,0,0.2)', color: cat.color, opacity: 0.9 }}
-                    >
-                      {t}
-                    </span>
-                  ))}
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </motion.section>
-
-        {/* ── How agents use it ── */}
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.4 }}
-          className="mb-16"
-        >
-          <h2 className="text-2xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
-            How agents use it
-          </h2>
-          <p className="text-base mb-6" style={{ color: 'var(--text-secondary)' }}>
-            A typical Claude Code session with Port Daddy installed.
-          </p>
-
-          <div className="grid sm:grid-cols-2 gap-6">
-            {[
-              {
-                label: 'Without Port Daddy',
-                lines: [
-                  { type: 'comment', text: '# Agent starts work — no coordination' },
-                  { type: 'comment', text: '# Hardcoded port — hope nothing else uses 3001' },
-                  { type: 'prompt', text: 'PORT=3001 node server.js' },
-                  { type: 'error', text: 'Error: EADDRINUSE address already in use' },
-                  { type: 'comment', text: '# Agent 2 starts — modifying the same files' },
-                  { type: 'comment', text: '# Agent 1\'s work gets overwritten' },
-                  { type: 'error', text: 'Merge conflict in src/auth.ts' },
-                ],
-              },
-              {
-                label: 'With Port Daddy',
-                lines: [
-                  { type: 'comment', text: '# begin_session — register, claim files, start session' },
-                  { type: 'output', text: 'Agent registered: myapp:api:main' },
-                  { type: 'output', text: 'Session started: sess_8f2a...' },
-                  { type: 'output', text: 'File claimed: src/auth.ts' },
-                  { type: 'comment', text: '# claim_port — deterministic, collision-free' },
-                  { type: 'output', text: 'Port 3001 assigned (always this port for this identity)' },
-                  { type: 'comment', text: '# Agent 2 tries same file — warned instantly' },
-                  { type: 'output', text: 'Conflict: Agent myapp:api:feature-x owns src/auth.ts' },
-                ],
-              },
-            ].map(panel => (
-              <div key={panel.label} className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-default)' }}>
-                <div className="px-4 py-2" style={{ background: 'var(--codeblock-header-bg)', borderBottom: '1px solid var(--border-subtle)' }}>
-                  <span className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>{panel.label}</span>
-                </div>
-                <div className="p-4 font-mono text-xs leading-relaxed" style={{ background: 'var(--codeblock-bg)' }}>
-                  {panel.lines.map((line, i) => (
-                    <div key={i}>
-                      {line.type === 'prompt' ? (
-                        <span>
-                          <span style={{ color: 'var(--code-prompt)' }}>$ </span>
-                          <span style={{ color: 'var(--text-primary)' }}>{line.text}</span>
-                        </span>
-                      ) : line.type === 'comment' ? (
-                        <span style={{ color: 'var(--code-comment)' }}>{line.text}</span>
-                      ) : line.type === 'error' ? (
-                        <span style={{ color: 'var(--p-red-400)' }}>{line.text}</span>
-                      ) : (
-                        <span style={{ color: 'var(--code-output)' }}>{line.text}</span>
-                      )}
+      {/* Main Content */}
+      <motion.main className="flex-1 py-32 px-6 sm:px-8 lg:px-10 max-w-7xl mx-auto w-full font-sans">
+        
+        {/* Progressive Disclosure */}
+        <section className="mb-48 space-y-16">
+           <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 border-b border-[var(--border-subtle)] pb-12">
+              <div className="max-w-2xl space-y-6">
+                 <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center border shadow-lg bg-[var(--p-teal-500)]/10 border-[var(--p-teal-500)]/20">
+                       <Layers size={28} className="text-[var(--p-teal-400)]" />
                     </div>
-                  ))}
-                </div>
+                    <h2 className="text-4xl sm:text-6xl font-display font-black tracking-tight m-0">Progressive Disclosure.</h2>
+                 </div>
+                 <p className="text-xl leading-relaxed opacity-60 m-0 font-medium">
+                    Agents shouldn't be overwhelmed by complexity. Port Daddy exposes <strong>8 essential tools</strong> by default. Call <code>pd_discover()</code> to unlock advanced categories as the task requires.
+                 </p>
               </div>
-            ))}
-          </div>
-        </motion.section>
+              <Badge variant="neutral" className="px-4 py-1.5 text-[8px] font-black uppercase tracking-widest bg-[var(--bg-overlay)]">Agent Experience (AX)</Badge>
+           </div>
 
-        {/* ── Resources ── */}
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
+           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+              {CATEGORIES.map((cat, i) => (
+                <motion.div 
+                  key={cat.id}
+                  className="p-8 rounded-[40px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-6 group hover:border-[var(--brand-primary)] transition-all"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.05 }}
+                >
+                   <div className="flex items-center justify-between">
+                      <div className="w-12 h-12 rounded-2xl bg-[var(--bg-overlay)] flex items-center justify-center border border-[var(--border-subtle)] group-hover:scale-110 transition-transform">
+                         <cat.icon size={24} className="text-[var(--brand-primary)] opacity-40 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                      <Badge variant="neutral" className="text-[8px] font-black uppercase tracking-widest opacity-40">{cat.count} Tools</Badge>
+                   </div>
+                   <h3 className="m-0 text-xl font-display font-black">{cat.label}</h3>
+                </motion.div>
+              ))}
+           </div>
+        </section>
+
+        {/* Essential 8 Tools */}
+        <section className="space-y-16">
+           <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 border-b border-[var(--border-subtle)] pb-12">
+              <div className="max-w-2xl space-y-6">
+                 <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center border shadow-lg bg-[var(--brand-primary)]/10 border-[var(--brand-primary)]/20">
+                       <Zap size={28} className="text-[var(--brand-primary)]" />
+                    </div>
+                    <h2 className="text-4xl sm:text-6xl font-display font-black tracking-tight m-0">The Essential Set.</h2>
+                 </div>
+                 <p className="text-xl leading-relaxed opacity-60 m-0 font-medium">
+                    The primitives every agent needs to be a productive member of the swarm. Optimized for context window efficiency and low latency.
+                 </p>
+              </div>
+           </div>
+
+           <div className="grid lg:grid-cols-2 gap-10">
+              {ESSENTIAL_TOOLS.map((tool, i) => (
+                <ToolCard key={tool.name} tool={tool} />
+              ))}
+           </div>
+        </section>
+
+        {/* Vision Callout */}
+        <motion.div 
+          className="mt-48 p-20 rounded-[80px] border border-dashed border-[var(--brand-primary)] bg-gradient-to-br from-[var(--bg-surface)] to-[var(--bg-base)] flex flex-col items-center text-center gap-12 relative overflow-hidden"
+          initial={{ opacity: 0, scale: 0.98 }}
+          whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.4 }}
         >
-          <h2 className="text-2xl font-bold mb-6" style={{ color: 'var(--text-primary)' }}>
-            Resources
-          </h2>
-          <div className="grid sm:grid-cols-3 gap-4">
-            {[
-              { title: 'CLI Reference', body: 'Every pd command with flags, examples, and expected output.', href: '/docs' },
-              { title: 'HTTP API', body: 'REST endpoints for every Port Daddy operation. Useful for custom integrations.', href: '/docs' },
-              { title: 'Tutorials', body: 'Step-by-step guides: harbors, spawn, watch, multi-agent war rooms.', href: '/tutorials' },
-            ].map(r => (
-              <a
-                key={r.title}
-                href={r.href}
-                className="block rounded-xl p-5 no-underline group transition-all"
-                style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
-                onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--border-default)')}
-                onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border-subtle)')}
-              >
-                <h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
-                  {r.title} →
-                </h3>
-                <p className="text-sm" style={{ color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                  {r.body}
-                </p>
-              </a>
-            ))}
-          </div>
-        </motion.section>
+           <div className="absolute top-0 right-0 p-10 opacity-[0.02] pointer-events-none">
+              <Cpu size={600} />
+           </div>
+           
+           <div className="space-y-6 max-w-3xl relative z-10">
+              <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest shadow-xl">Model Optimization</Badge>
+              <h3 className="text-4xl sm:text-7xl font-display font-black tracking-tight leading-[0.95]" style={{ color: 'var(--text-primary)' }}>
+                Built for <span className="text-[var(--p-teal-400)]">Intelligence.</span>
+              </h3>
+              <p className="text-2xl leading-relaxed opacity-70">
+                The Port Daddy MCP server isn't just a collection of APIs. It's a structured ontology designed to teach your models how to coordinate. We use precise descriptions and high-fidelity examples to ensure the model chooses the right primitive every time.
+              </p>
+           </div>
 
-      </div>
-    </div>
+           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 w-full">
+              {[
+                { label: 'Sub-50ms Latency', icon: Zap },
+                { label: 'Token Efficient', icon: Shield },
+                { label: 'Auto-Discovery', icon: Search },
+                { label: 'Secure Handshake', icon: Lock }
+              ].map((item, i) => (
+                <div key={i} className="p-8 rounded-[40px] bg-[var(--bg-overlay)] border border-[var(--border-subtle)] flex flex-col items-center gap-4">
+                   <item.icon size={24} className="text-[var(--brand-primary)]" />
+                   <span className="text-[10px] font-black uppercase tracking-widest opacity-60">{item.label}</span>
+                </div>
+              ))}
+           </div>
+        </motion.div>
+      </motion.main>
+
+      <Footer />
+    </motion.div>
   )
 }
