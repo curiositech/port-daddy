@@ -90,6 +90,7 @@ export const CORE_SCHEMA_SQL = `
     type TEXT DEFAULT 'single',
     config TEXT,
     services TEXT,
+    tags TEXT,
     last_scanned INTEGER NOT NULL,
     created_at INTEGER NOT NULL,
     metadata TEXT

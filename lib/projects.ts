@@ -15,6 +15,7 @@ interface ProjectRow {
   type: string;
   config: string | null;
   services: string | null;
+  tags: string | null;
   last_scanned: number;
   created_at: number;
   metadata: string | null;
@@ -26,6 +27,7 @@ interface ProjectDeserialized {
   type: string;
   config: Record<string, unknown> | null;
   services: Record<string, unknown> | null;
+  tags: string[] | null;
   last_scanned: number;
   created_at: number;
   metadata: Record<string, unknown> | null;
@@ -37,6 +39,7 @@ interface RegisterInput {
   type?: string;
   config?: Record<string, unknown> | null;
   services?: Record<string, unknown> | null;
+  tags?: string[] | string | null;
   metadata?: Record<string, unknown> | null;
 }
 
@@ -44,20 +47,30 @@ interface RegisterInput {
  * Initialize the projects module with a database connection.
  */
 export function createProjects(db: Database.Database) {
+  // Migrations
+  try {
+    db.exec('ALTER TABLE projects ADD COLUMN tags TEXT');
+  } catch { /* already exists */ }
+
   // Prepared statements
   const stmts = {
     getById: db.prepare('SELECT * FROM projects WHERE id = ?'),
     getByPath: db.prepare('SELECT * FROM projects WHERE root = ?'),
     getAll: db.prepare('SELECT * FROM projects ORDER BY last_scanned DESC'),
-    getByPattern: db.prepare("SELECT * FROM projects WHERE id LIKE ? ESCAPE '\\' ORDER BY last_scanned DESC"),
+    getByPattern: db.prepare(`
+      SELECT * FROM projects 
+      WHERE (id LIKE ? ESCAPE '\\' OR tags LIKE ? ESCAPE '\\')
+      ORDER BY last_scanned DESC
+    `),
     upsert: db.prepare(`
-      INSERT INTO projects (id, root, type, config, services, last_scanned, created_at, metadata)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO projects (id, root, type, config, services, tags, last_scanned, created_at, metadata)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         root = excluded.root,
         type = excluded.type,
         config = excluded.config,
         services = excluded.services,
+        tags = COALESCE(excluded.tags, tags),
         last_scanned = excluded.last_scanned,
         metadata = excluded.metadata
     `),
@@ -71,6 +84,7 @@ export function createProjects(db: Database.Database) {
   function register(project: RegisterInput): ProjectDeserialized | null {
     const now = Date.now();
     const existing = stmts.getById.get(project.id) as ProjectRow | undefined;
+    const tagsValue = Array.isArray(project.tags) ? project.tags.join(',') : (project.tags || null);
 
     stmts.upsert.run(
       project.id,
@@ -78,6 +92,7 @@ export function createProjects(db: Database.Database) {
       project.type || 'single',
       project.config ? JSON.stringify(project.config) : null,
       project.services ? JSON.stringify(project.services) : null,
+      tagsValue,
       now,
       existing?.created_at || now,
       project.metadata ? JSON.stringify(project.metadata) : null
@@ -110,8 +125,8 @@ export function createProjects(db: Database.Database) {
     let rows: ProjectRow[];
 
     if (pattern) {
-      const sqlPattern = pattern.includes('*') ? pattern.replace(/\*/g, '%') : pattern;
-      rows = stmts.getByPattern.all(sqlPattern) as ProjectRow[];
+      const sqlPattern = pattern.includes('*') ? pattern.replace(/\*/g, '%') : `%${pattern}%`;
+      rows = stmts.getByPattern.all(sqlPattern, sqlPattern) as ProjectRow[];
     } else {
       rows = stmts.getAll.all() as ProjectRow[];
     }
@@ -151,6 +166,7 @@ export function createProjects(db: Database.Database) {
       ...row,
       config: safeJsonParse(row.config),
       services: safeJsonParse(row.services),
+      tags: row.tags ? row.tags.split(',').map(t => t.trim()) : [],
       metadata: safeJsonParse(row.metadata)
     };
   }

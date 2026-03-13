@@ -5,13 +5,22 @@
 
 ### Core Capabilities
 - **Atomic Port Assignment**: Deterministic port mapping based on semantic identities (e.g., `myapp:api:main`).
-- **Swarm Radio (Pub/Sub)**: Real-time, low-latency signaling between agents using maritime signal flags.
+- **Semantic Token Wildcards**: Pervasive pattern matching (`*`) across all coordination primitives (identities, skills, purposes, channels, file paths).
+- **Swarm Radio (Pub/Sub)**: Real-time, low-latency signaling between agents using maritime signal flags. Supports pattern-based channel subscriptions.
 - **Harbor Management**: Project-scoped isolation and resource mapping (via `.portdaddyrc`).
-- **Distributed Locks**: Prevent agents from overlapping on shared resources (files, migrations).
-- **Sessions & Notes**: Append-only, immutable audit trails of agent work with advisory file claims.
-- **Agent Lifecycle (`pd spawn` & `pd watch`)**: Launch AI agents (Ollama, Claude, Gemini) with built-in coordination and ambient triggers via SSE.
-- **Agent Registry**: Heartbeat-based tracking with "Zombie" salvage for recovering crashed agents.
+- **Distributed Locks**: Prevent agents from overlapping on shared resources. Supports pattern-based release.
+- **Sessions & Notes**: Append-only audit trails. Queryable via project, agent, and purpose wildcards.
+- **Agent Lifecycle (`pd spawn` & `pd watch`)**: Launch AI agents with built-in coordination and ambient triggers.
+- **Agent Registry**: Heartbeat-based tracking with "Zombie" salvage. Supports filtering by skills and purpose patterns.
 - **Local DNS**: Access services via `http://*.pd.local` instead of magic port numbers.
+
+## 🕸️ Semantic Token Graph
+Port Daddy treats coordination metadata as a graph of semantic tokens. Agents can query the system using wildcards to discover peers and resources:
+- `pd agents --identity "myapp:*"`: Find all agents in a project.
+- `pd agents --skills "*typescript*"`: Find agents with specific capabilities.
+- `pd sessions --purpose "*bug*"`: Find all sessions related to bug fixing.
+- `pd files --symbol "handle*"`: See who is currently working on specific code symbols.
+- `pd msg "events:*"`: Subscribe to a broad category of swarm signals.
 
 ## 🏗️ Architecture
 - **Daemon (`server.ts`)**: Express-based HTTP/SSE server running on `localhost:9876`.

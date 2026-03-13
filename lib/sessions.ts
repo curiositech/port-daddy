@@ -330,6 +330,18 @@ export function createSessions(db: Database.Database) {
       WHERE sf.released_at IS NULL AND s.status = 'active'
       ORDER BY sf.file_path ASC, sf.start_line ASC
     `),
+    listActiveClaimsByPattern: db.prepare(`
+      SELECT sf.session_id, sf.file_path, sf.start_line, sf.end_line, sf.symbol,
+             sf.claimed_at, s.purpose, s.agent_id, s.phase
+      FROM session_files sf
+      JOIN sessions s ON s.id = sf.session_id
+      WHERE sf.released_at IS NULL AND s.status = 'active'
+        AND (sf.file_path LIKE ? ESCAPE '\\' OR ? IS NULL)
+        AND (sf.symbol LIKE ? ESCAPE '\\' OR ? IS NULL)
+        AND (s.agent_id LIKE ? ESCAPE '\\' OR ? IS NULL)
+        AND (s.purpose LIKE ? ESCAPE '\\' OR ? IS NULL)
+      ORDER BY sf.file_path ASC, sf.start_line ASC
+    `),
     getClaimOwner: db.prepare(`
       SELECT sf.session_id, sf.file_path, sf.start_line, sf.end_line, sf.symbol,
              sf.claimed_at, s.purpose, s.agent_id, s.phase
@@ -1207,10 +1219,12 @@ export function createSessions(db: Database.Database) {
   }
 
   /**
-   * List all active file claims across all sessions (global view)
+   * List active file claims across all sessions (global view)
    */
-  function listAllActiveClaims() {
-    const rows = stmts.listAllActiveClaims.all() as Array<{
+  function listAllActiveClaims(options: { path?: string; symbol?: string; agentId?: string; purpose?: string } = {}) {
+    const { path, symbol, agentId, purpose } = options;
+    
+    let rows: Array<{
       session_id: string;
       file_path: string;
       start_line: number | null;
@@ -1221,6 +1235,22 @@ export function createSessions(db: Database.Database) {
       agent_id: string | null;
       phase: string | null;
     }>;
+
+    if (path || symbol || agentId || purpose) {
+      const pathPattern = path ? (path.includes('*') ? path.replace(/\*/g, '%') : '%' + path + '%') : null;
+      const symbolPattern = symbol ? (symbol.includes('*') ? symbol.replace(/\*/g, '%') : '%' + symbol + '%') : null;
+      const agentPattern = agentId ? (agentId.includes('*') ? agentId.replace(/\*/g, '%') : agentId) : null;
+      const purposePattern = purpose ? (purpose.includes('*') ? purpose.replace(/\*/g, '%') : '%' + purpose + '%') : null;
+
+      rows = stmts.listActiveClaimsByPattern.all(
+        pathPattern, pathPattern,
+        symbolPattern, symbolPattern,
+        agentPattern, agentPattern,
+        purposePattern, purposePattern
+      ) as typeof rows;
+    } else {
+      rows = stmts.listAllActiveClaims.all() as typeof rows;
+    }
 
     return {
       success: true,

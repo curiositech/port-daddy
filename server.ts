@@ -43,6 +43,7 @@ import { createBriefing } from './lib/briefing.js';
 import { createSugar } from './lib/sugar.js';
 import { createHarbors } from './lib/harbors.js';
 import { createPheromoneManager } from './lib/pheromone.js';
+import { createBarnacleWatcher } from './lib/barnacle-client.js';
 import { createReactiveOrchestrator } from './lib/orchestrator.js';
 import { createCorrelationEngine } from './lib/correlation.js';
 import { initDatabase, closeDatabase, resolveDbPath } from './lib/db.js';
@@ -242,6 +243,10 @@ const sugar = createSugar({ agents, sessions, activityLog });
 const harbors = createHarbors(db);
 const pheromones = createPheromoneManager(db);
 pheromones.start();
+
+const barnacle = createBarnacleWatcher(logger);
+barnacle.start();
+
 const orchestrator = createReactiveOrchestrator(db, messaging, spawner);
 const correlationEngine = createCorrelationEngine(activityLog, sessions);
 
@@ -523,6 +528,10 @@ app.use((req: Request, res: Response, next: NextFunction): void => {
     });
   }
   next();
+});
+
+app.get('/ping', (req, res) => {
+  res.json({ status: 'ok', pid: process.pid });
 });
 
 // Mount all routes via aggregator

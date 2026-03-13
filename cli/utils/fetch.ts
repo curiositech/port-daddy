@@ -14,8 +14,9 @@ const DEFAULT_SOCK: string = '/tmp/port-daddy.sock';
 const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || DEFAULT_SOCK;
 const PORT_FILE: string = process.env.PORT_DADDY_PORT_FILE || '/tmp/port-daddy-port';
 const PORT_DADDY_URL: string = process.env.PORT_DADDY_URL || 'http://localhost:9876';
+const BARNACLE_URL: string = process.env.PORT_DADDY_BARNACLE_URL || 'http://localhost:9875';
 
-export { PORT_DADDY_URL, SOCK_PATH };
+export { PORT_DADDY_URL, BARNACLE_URL, SOCK_PATH };
 
 export interface ConnectionTarget {
   socketPath?: string;

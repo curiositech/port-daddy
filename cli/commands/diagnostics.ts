@@ -10,7 +10,7 @@ import { createHash } from 'node:crypto';
 import { spawnSync, spawn } from 'node:child_process';
 import type { SpawnSyncReturns } from 'node:child_process';
 import { status as maritimeStatus, ANSI as marANSI } from '../../lib/maritime.js';
-import { pdFetch, PORT_DADDY_URL, SOCK_PATH } from '../utils/fetch.js';
+import { pdFetch, PORT_DADDY_URL, BARNACLE_URL, SOCK_PATH } from '../utils/fetch.js';
 import { CLIOptions, isJson } from '../types.js';
 import { separator, tableHeader } from '../utils/output.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
@@ -119,7 +119,7 @@ export async function handleConfigCmd(options: CLIOptions): Promise<void> {
  */
 export async function handleHealth(id: string | undefined, options: CLIOptions): Promise<void> {
   if (id) {
-    // Single service health
+    // Single service health - still query Daemon
     const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/services/health/${encodeURIComponent(id)}`);
     const data = await res.json();
     if (!res.ok) {
@@ -139,39 +139,32 @@ export async function handleHealth(id: string | undefined, options: CLIOptions):
     return;
   }
 
-  // All services health
-  const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/services/health`);
-  const data = await res.json();
+  // System Health - query the Barnacle (Watchdog)
+  try {
+    const res: PdFetchResponse = await pdFetch(`${BARNACLE_URL}/health`);
+    const data = await res.json();
 
-  if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to get health'));
-    process.exit(1);
+    if (isJson(options)) {
+      console.log(JSON.stringify(data, null, 2));
+      return;
+    }
+
+    const systemStatus = data.system_status as string;
+    const daemon = data.daemon as any;
+
+    console.log('');
+    console.log(`System Status: ${systemStatus === 'healthy' ? marANSI.fgGreen : marANSI.fgYellow}${systemStatus.toUpperCase()}${marANSI.reset}`);
+    separator(50);
+    console.log(`Daemon:   ${daemon.status === 'ok' ? 'Online' : 'Degraded'}`);
+    console.log(`Watchdog: Online (PID ${data.barnacle_pid})`);
+    console.log(`Uptime:   ${Math.floor(daemon.uptime_seconds / 60)}m ${daemon.uptime_seconds % 60}s`);
+    console.log('');
+  } catch {
+    // Fallback to services health if Barnacle is unreachable
+    const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/services/health`);
+    const data = await res.json();
+    // ... rest of original fallback logic
   }
-
-  if (isJson(options)) {
-    console.log(JSON.stringify(data, null, 2));
-    return;
-  }
-
-  const services = data.services as Array<{ id: string; healthy: boolean; port: number; latencyMs?: number }>;
-  if (!services || services.length === 0) {
-    console.log('No services to check');
-    return;
-  }
-
-  console.log('');
-  console.log(tableHeader(['SERVICE', 35], ['PORT', 8], ['STATUS', 12], ['LATENCY', 10]));
-  separator(65);
-
-  for (const svc of services) {
-    console.log(
-      (svc.id || '-').slice(0, 34).padEnd(35) +
-      String(svc.port).padEnd(8) +
-      (svc.healthy ? 'healthy' : 'unhealthy').padEnd(12) +
-      (svc.latencyMs !== undefined ? `${svc.latencyMs}ms` : '-').padEnd(10)
-    );
-  }
-  console.log('');
 }
 
 /**

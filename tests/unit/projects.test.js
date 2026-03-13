@@ -158,4 +158,67 @@ describe('Projects Module', () => {
       expect(projects.count()).toBe(1);
     });
   });
+
+  describe('Tags & Pattern Filtering', () => {
+    it('should register and retrieve project with tags', () => {
+      projects.register({
+        id: 'tagged-app',
+        root: '/tmp/tagged',
+        tags: ['frontend', 'react', 'dashboard']
+      });
+
+      const proj = projects.get('tagged-app');
+      expect(proj.tags).toEqual(['frontend', 'react', 'dashboard']);
+    });
+
+    it('should handle tags as a comma-separated string during registration', () => {
+      projects.register({
+        id: 'string-tags',
+        root: '/tmp/string',
+        tags: 'api,backend,node'
+      });
+
+      const proj = projects.get('string-tags');
+      expect(proj.tags).toEqual(['api', 'backend', 'node']);
+    });
+
+    it('should append tags when upserting if tags are provided', () => {
+      projects.register({ id: 'upsert-tags', root: '/r', tags: ['v1'] });
+      projects.register({ id: 'upsert-tags', root: '/r', tags: ['v2'] });
+
+      const proj = projects.get('upsert-tags');
+      // Note: Current implementation uses COALESCE(excluded.tags, tags), so it replaces if new tags provided
+      // or keeps old ones if null. Let's verify behavior.
+      expect(proj.tags).toEqual(['v2']);
+    });
+
+    it('should filter projects by ID pattern', () => {
+      projects.register({ id: 'myapp:api', root: '/api' });
+      projects.register({ id: 'myapp:web', root: '/web' });
+      projects.register({ id: 'other:api', root: '/other' });
+
+      const matches = projects.list({ pattern: 'myapp:*' });
+      expect(matches).toHaveLength(2);
+      expect(matches.map(m => m.id)).toContain('myapp:api');
+      expect(matches.map(m => m.id)).toContain('myapp:web');
+    });
+
+    it('should filter projects by tag pattern', () => {
+      projects.register({ id: 'p1', root: '/1', tags: ['prod', 'api'] });
+      projects.register({ id: 'p2', root: '/2', tags: ['staging', 'web'] });
+      projects.register({ id: 'p3', root: '/3', tags: ['prod', 'db'] });
+
+      const matches = projects.list({ pattern: 'prod' });
+      expect(matches).toHaveLength(2);
+      expect(matches.map(m => m.id)).toContain('p1');
+      expect(matches.map(m => m.id)).toContain('p3');
+    });
+
+    it('should match partial tags', () => {
+      projects.register({ id: 'p1', root: '/1', tags: ['frontend-app'] });
+      const matches = projects.list({ pattern: '*front*' });
+      expect(matches).toHaveLength(1);
+      expect(matches[0].id).toBe('p1');
+    });
+  });
 });

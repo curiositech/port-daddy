@@ -17,7 +17,7 @@ export async function handleAgent(subcommand: string | undefined, args: string[]
     console.error('Usage: port-daddy agent <subcommand> [options]');
     console.error('');
     console.error('Subcommands:');
-    console.error('  register [--agent <id>] [--type <type>] [--identity <project:stack:context>] [--purpose <text>]');
+    console.error('  register [--agent <id>] [--type <type>] [--identity <project:stack:context>] [--purpose <text>] [--skills <list>]');
     console.error('                                            Register as an agent (auto-checks for dead agents in same project)');
     console.error('  heartbeat [--agent <id>]                  Send heartbeat');
     console.error('  unregister [--agent <id>]                 Unregister agent');
@@ -30,6 +30,7 @@ export async function handleAgent(subcommand: string | undefined, args: string[]
     console.error('Options:');
     console.error('  --identity <project:stack:context>        Semantic identity (enables context-aware salvage)');
     console.error('  --purpose <text>                          What you\'re working on');
+    console.error('  --skills <list>                           Comma-separated agent skills (e.g. "typescript,react")');
     console.error('  --worktree <id>                           Git worktree identifier');
     process.exit(1);
   }
@@ -47,6 +48,7 @@ export async function handleAgent(subcommand: string | undefined, args: string[]
         // Context-aware salvage: semantic identity enables project-scoped resurrection
         identity: options.identity,
         purpose: options.purpose,
+        skills: options.skills,
         worktreeId: options.worktree
       };
 
@@ -310,6 +312,7 @@ export async function handleAgents(options: CLIOptions): Promise<void> {
   if (options.active) params.append('active', 'true');
   if (options.identity) params.append('identity', options.identity as string);
   if (options.purpose) params.append('purpose', options.purpose as string);
+  if (options.skills) params.append('skills', options.skills as string);
 
   const url: string = `${PORT_DADDY_URL}/agents${params.toString() ? '?' + params : ''}`;
   const res: PdFetchResponse = await pdFetch(url);

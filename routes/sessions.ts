@@ -51,7 +51,7 @@ interface SessionsRouteDeps {
     }): Record<string, unknown>;
     getFileConflicts(files: string[]): Record<string, unknown>;
     setPhase(sessionId: string, phase: string): Record<string, unknown>;
-    listAllActiveClaims(): Record<string, unknown>;
+    listAllActiveClaims(options?: { path?: string; symbol?: string; agentId?: string; purpose?: string }): Record<string, unknown>;
     getClaimOwner(filePath: string, range?: { startLine?: number; endLine?: number }): Record<string, unknown>;
     list(options?: {
       status?: string;
@@ -587,9 +587,15 @@ export function createSessionsRoutes(deps: SessionsRouteDeps): Router {
   // ==========================================================================
   // GET /files - List all active file claims across all sessions
   // ==========================================================================
-  router.get('/files', (_req: Request, res: Response) => {
+  router.get('/files', (req: Request, res: Response) => {
     try {
-      const result = sessions.listAllActiveClaims();
+      const { path, symbol, agent, purpose } = req.query;
+      const result = sessions.listAllActiveClaims({
+        path: typeof path === 'string' ? path : undefined,
+        symbol: typeof symbol === 'string' ? symbol : undefined,
+        agentId: typeof agent === 'string' ? agent : undefined,
+        purpose: typeof purpose === 'string' ? purpose : undefined
+      });
       res.json(result);
     } catch (error) {
       metrics.errors++;

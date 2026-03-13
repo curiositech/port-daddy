@@ -206,6 +206,62 @@ describe('Global File Claims', () => {
       const result = sessions.listAllActiveClaims();
       expect(result.claims[0].phase).toBe('testing');
     });
+
+    test('should filter by path pattern', () => {
+      const s1 = sessions.start('S1');
+      sessions.claimFiles(s1.id, ['src/lib/foo.ts', 'src/lib/bar.ts', 'tests/foo.test.js']);
+
+      const result = sessions.listAllActiveClaims({ path: 'src/lib/*' });
+      expect(result.claims.length).toBe(2);
+      expect(result.claims.every(c => c.filePath.startsWith('src/lib/'))).toBe(true);
+    });
+
+    test('should filter by symbol pattern', () => {
+      const s1 = sessions.start('S1');
+      sessions.claimFiles(s1.id, [], {
+        regions: [
+          { path: 'f1.ts', symbol: 'getUsers' },
+          { path: 'f2.ts', symbol: 'getPosts' },
+          { path: 'f3.ts', symbol: 'updateUser' }
+        ]
+      });
+
+      const result = sessions.listAllActiveClaims({ symbol: 'get*' });
+      expect(result.claims.length).toBe(2);
+      expect(result.claims.map(c => c.symbol).sort()).toEqual(['getPosts', 'getUsers']);
+    });
+
+    test('should filter by agentId pattern', () => {
+      const s1 = sessions.start('S1', { agentId: 'claude-1' });
+      const s2 = sessions.start('S2', { agentId: 'gpt-4' });
+      sessions.claimFiles(s1.id, ['f1.ts']);
+      sessions.claimFiles(s2.id, ['f2.ts']);
+
+      const result = sessions.listAllActiveClaims({ agentId: 'claude-*' });
+      expect(result.claims.length).toBe(1);
+      expect(result.claims[0].agentId).toBe('claude-1');
+    });
+
+    test('should filter by purpose pattern', () => {
+      const s1 = sessions.start('Fixing auth bug');
+      const s2 = sessions.start('Adding feature x');
+      sessions.claimFiles(s1.id, ['f1.ts']);
+      sessions.claimFiles(s2.id, ['f2.ts']);
+
+      const result = sessions.listAllActiveClaims({ purpose: '*bug*' });
+      expect(result.claims.length).toBe(1);
+      expect(result.claims[0].purpose).toBe('Fixing auth bug');
+    });
+
+    test('should combine multiple filters', () => {
+      const s1 = sessions.start('Fix bug', { agentId: 'a1' });
+      sessions.claimFiles(s1.id, ['src/foo.ts'], {
+        regions: [{ path: 'src/bar.ts', symbol: 'fixMe' }]
+      });
+
+      const result = sessions.listAllActiveClaims({ path: 'src/*', agentId: 'a1', purpose: '*bug*' });
+      expect(result.claims.length).toBe(2);
+    });
   });
 
   describe('getClaimOwner()', () => {

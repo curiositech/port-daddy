@@ -1,0 +1,14 @@
+/Users/erichowens/coding/port-daddy/core/pd-barnacle/target/release/deps/serde-89717755ed11924f.d: /Users/erichowens/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/erichowens/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/erichowens/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/erichowens/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/erichowens/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Users/erichowens/coding/port-daddy/core/pd-barnacle/target/release/build/serde-d226e7a5d70b6c62/out/private.rs
+
+/Users/erichowens/coding/port-daddy/core/pd-barnacle/target/release/deps/libserde-89717755ed11924f.rlib: /Users/erichowens/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/erichowens/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/erichowens/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/erichowens/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/erichowens/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Users/erichowens/coding/port-daddy/core/pd-barnacle/target/release/build/serde-d226e7a5d70b6c62/out/private.rs
+
+/Users/erichowens/coding/port-daddy/core/pd-barnacle/target/release/deps/libserde-89717755ed11924f.rmeta: /Users/erichowens/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/erichowens/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/erichowens/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/erichowens/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/erichowens/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Users/erichowens/coding/port-daddy/core/pd-barnacle/target/release/build/serde-d226e7a5d70b6c62/out/private.rs
+
+/Users/erichowens/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs:
+/Users/erichowens/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs:
+/Users/erichowens/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs:
+/Users/erichowens/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs:
+/Users/erichowens/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs:
+/Users/erichowens/coding/port-daddy/core/pd-barnacle/target/release/build/serde-d226e7a5d70b6c62/out/private.rs:
+
+# env-dep:OUT_DIR=/Users/erichowens/coding/port-daddy/core/pd-barnacle/target/release/build/serde-d226e7a5d70b6c62/out

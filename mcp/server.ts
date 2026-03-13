@@ -621,10 +621,27 @@ const TOOLS = [
   // ── File Claims ────────────────────────────────────────────────────
   {
     name: 'list_file_claims',
-    description: '[Standard] List all file claims across all active sessions.',
+    description: '[Standard] List all file claims across all active sessions. Supports wildcard patterns for path, symbol, agent, and purpose.',
     inputSchema: {
       type: 'object' as const,
-      properties: {},
+      properties: {
+        path: {
+          type: 'string',
+          description: 'Filter by file path pattern (e.g. "src/*.ts")',
+        },
+        symbol: {
+          type: 'string',
+          description: 'Filter by symbol pattern (e.g. "handle*")',
+        },
+        agent: {
+          type: 'string',
+          description: 'Filter by agent ID pattern (e.g. "agent-*")',
+        },
+        purpose: {
+          type: 'string',
+          description: 'Filter by session purpose pattern (e.g. "*bug*")',
+        },
+      },
     },
   },
   {
@@ -1413,10 +1430,15 @@ const TOOLS = [
   },
   {
     name: 'list_projects',
-    description: '[Standard] List all registered projects with their service counts and metadata.',
+    description: '[Standard] List all registered projects with their service counts and metadata. Supports wildcard patterns for IDs and tags.',
     inputSchema: {
       type: 'object' as const,
-      properties: {},
+      properties: {
+        pattern: {
+          type: 'string',
+          description: 'Filter by project ID or tag pattern (e.g. "myapp:*" or "frontend")',
+        },
+      },
     },
   },
   {
@@ -1965,7 +1987,13 @@ async function handleTool(
 
     // ── File Claims ─────────────────────────────────────────────────
     case 'list_file_claims': {
-      res = await GET('/files');
+      const params = new URLSearchParams();
+      if (args.path) params.set('path', args.path as string);
+      if (args.symbol) params.set('symbol', args.symbol as string);
+      if (args.agent) params.set('agent', args.agent as string);
+      if (args.purpose) params.set('purpose', args.purpose as string);
+      const qs = params.toString() ? `?${params.toString()}` : '';
+      res = await GET(`/files${qs}`);
       break;
     }
 
@@ -2295,7 +2323,8 @@ async function handleTool(
     }
 
     case 'list_projects': {
-      res = await GET('/projects');
+      const qs = args.pattern ? `?pattern=${encodeURIComponent(args.pattern as string)}` : '';
+      res = await GET(`/projects${qs}`);
       break;
     }
 
