@@ -2,7 +2,7 @@ import * as React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
 import { Link } from 'react-router-dom'
-import { Code, Search, Network, Shield, Cpu, Zap, Share2, Terminal, ArrowRight, Sparkles, Box, Globe, MessageSquare } from 'lucide-react'
+import { Code, Search, Network, Shield, Cpu, Zap, Share2, Terminal, ArrowRight, Sparkles, Box, Globe, MessageSquare, RefreshCw, Layers, FileText, DollarSign, Activity } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
 
 interface Example {
@@ -91,10 +91,32 @@ const EXAMPLES: Example[] = [
     ],
     icon: RefreshCw,
     color: 'var(--p-blue-400)'
+  },
+  {
+    id: 'manifest-payment',
+    title: 'Harbor Manifest (Escrow)',
+    category: 'Economics',
+    difficulty: 'Advanced',
+    description: 'Use the Manifest/Float protocol to ensure agents commit work before getting paid or unlocking down-stream resources.',
+    what: [
+      'Agent commits a "Work Manifest" to harbor',
+      'Harbor card locks until work is verified',
+      'Tokens released upon successful PR merge',
+      'Escrowed state prevents double-spending'
+    ],
+    code: [
+      '# Submit work manifest',
+      'pd session commit --manifest ./work.json \\',
+      '  --escrow-id "pay_8f2a"',
+      '',
+      '# Harbor verifies and releases',
+      'pd harbor release pay_8f2a --verified',
+      '# → [pd] Escrow released. Session Closed.'
+    ],
+    icon: DollarSign,
+    color: 'var(--p-green-400)'
   }
 ]
-
-import { RefreshCw } from 'lucide-react'
 
 export function ExamplesPage() {
   return (
@@ -114,15 +136,15 @@ export function ExamplesPage() {
         />
         
         <div className="max-w-7xl mx-auto text-center relative z-10 flex flex-col items-center gap-10">
-           <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-[0.25em] shadow-xl">Code Blueprints</Badge>
+           <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-[0.25em] shadow-xl">The Coordination Library</Badge>
            <motion.h1 
              className="text-6xl sm:text-9xl font-black tracking-tighter font-display leading-[0.9]"
              initial={{ opacity: 0, y: 32 }}
              animate={{ opacity: 1, y: 0 }}
              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
            >
-             Working <br />
-             <span className="text-[var(--brand-primary)]">Coordination.</span>
+             Proven <br />
+             <span className="text-[var(--brand-primary)]">Patterns.</span>
            </motion.h1>
            <motion.p 
              className="text-2xl sm:text-3xl max-w-3xl leading-relaxed opacity-70 font-medium"
@@ -130,21 +152,21 @@ export function ExamplesPage() {
              animate={{ opacity: 1, y: 0 }}
              transition={{ duration: 0.8, delay: 0.1 }}
            >
-             Don't guess how to coordinate. Use these production-ready patterns for LangChain, CrewAI, and custom agent swarms.
+             Stop reinventing discovery. Use these production-grade coordination blueprints for LangChain, CrewAI, and beyond.
            </motion.p>
         </div>
       </motion.section>
 
-      {/* Examples Feed */}
-      <motion.main className="flex-1 py-24 px-6 sm:px-8 lg:px-10 max-w-7xl mx-auto w-full font-sans">
-        <div className="grid gap-16">
+      {/* Examples Grid */}
+      <motion.main className="flex-1 py-32 px-6 sm:px-8 lg:px-10 max-w-7xl mx-auto w-full font-sans">
+        <div className="grid gap-20">
           {EXAMPLES.map((ex, i) => (
             <motion.div
               key={ex.id}
               initial={{ opacity: 0, y: 32 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.7, delay: i * 0.1, ease: [0.16, 1, 0.3, 1] }}
+              transition={{ duration: 0.7, delay: i * 0.05, ease: [0.16, 1, 0.3, 1] }}
               className="group"
             >
               <motion.div 
@@ -204,37 +226,35 @@ export function ExamplesPage() {
 
         {/* Impressively long additional info */}
         <motion.div 
-          className="mt-32 p-20 rounded-[80px] border border-dashed border-[var(--border-strong)] bg-gradient-to-br from-[var(--bg-surface)] to-[var(--bg-base)] flex flex-col items-center text-center gap-12 relative overflow-hidden"
+          className="mt-48 p-20 rounded-[80px] border border-dashed border-[var(--border-strong)] bg-gradient-to-br from-[var(--bg-surface)] to-[var(--bg-base)] flex flex-col items-center text-center gap-12 relative overflow-hidden"
           initial={{ opacity: 0, scale: 0.98 }}
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
         >
            <div className="absolute top-0 right-0 p-10 opacity-[0.02] pointer-events-none">
-              <Share2 size={600} />
+              <Layers size={600} />
            </div>
            
            <div className="space-y-6 max-w-3xl relative z-10">
-              <Badge variant="amber" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest shadow-xl">Architectural Pattern</Badge>
+              <Badge variant="amber" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest shadow-xl">Architectural Integrity</Badge>
               <h3 className="text-4xl sm:text-7xl font-display font-black tracking-tight leading-[0.95]" style={{ color: 'var(--text-primary)' }}>
-                One Mesh. <span className="text-[var(--p-amber-400)]">Any Agent.</span>
+                One Mesh. <span className="text-[var(--p-amber-400)]">Infinite Logic.</span>
               </h3>
               <p className="text-2xl leading-relaxed opacity-70">
-                These examples show how Port Daddy bridges the gap between high-level agent frameworks and low-level infrastructure. Whether you are scaling to 100 agents or building your first background avatar, the primitives remain the same.
+                Port Daddy doesn't care about the intelligence of your agent. It cares about the **reliability of the mesh**. These patterns provide the hard infrastructure that allows soft logic to flourish.
               </p>
            </div>
 
-           <div className="grid sm:grid-cols-3 gap-8 w-full max-w-5xl">
+           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 w-full max-w-6xl">
               {[
-                { title: 'Swarm Radio', desc: 'Real-time inter-agent signaling.', icon: MessageSquare },
-                { title: 'Semantic DNS', desc: 'Identity-based service discovery.', icon: Globe },
-                { title: 'Harbor Cards', desc: 'Cryptographic permission tokens.', icon: Shield }
+                { label: 'Atomic Identity', icon: Anchor },
+                { label: 'Swarm Radio', icon: Zap },
+                { label: 'Harbor Scopes', icon: Shield },
+                { label: 'P2P Tunneling', icon: Globe }
               ].map((item, i) => (
-                <div key={i} className="p-8 rounded-[40px] bg-[var(--bg-overlay)] border border-[var(--border-subtle)] text-center space-y-4">
-                   <div className="w-12 h-12 rounded-2xl bg-[var(--brand-primary)]/10 flex items-center justify-center mx-auto">
-                      <item.icon size={24} className="text-[var(--brand-primary)]" />
-                   </div>
-                   <h4 className="m-0 text-xl font-display font-black leading-tight">{item.title}</h4>
-                   <p className="text-sm opacity-60 m-0 leading-relaxed">{item.desc}</p>
+                <div key={i} className="p-8 rounded-[40px] bg-[var(--bg-overlay)] border border-[var(--border-subtle)] flex flex-col items-center gap-4">
+                   <item.icon size={24} className="text-[var(--brand-primary)]" />
+                   <span className="text-[10px] font-black uppercase tracking-widest opacity-60">{item.label}</span>
                 </div>
               ))}
            </div>
