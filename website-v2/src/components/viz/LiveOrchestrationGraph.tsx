@@ -1,18 +1,11 @@
 import * as React from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { SailorAgent } from './SailorAgent'
-
-// interface Node {
-//   id: string
-//   type: 'service' | 'agent' | 'core'
-//   label: string
-//   status?: 'healthy' | 'unhealthy' | 'active' | 'idle' | 'dead'
-//   port?: number
-// }
+import { Anchor, Shield, Zap, Globe, Share2, Cpu, Terminal, Activity, MessageSquare } from 'lucide-react'
 
 interface LiveOrchestrationGraphProps {
-  services: any[]
-  agents: any[]
+  services?: any[]
+  agents?: any[]
   onSelectAgent?: (id: string) => void
   selectedAgentId?: string | null
 }
@@ -43,120 +36,135 @@ export function LiveOrchestrationGraph({
   const cx = dimensions.width / 2;
   const cy = dimensions.height / 2;
 
-  function getPos(node: any, i: number, total: number) {
-    if (node.id === 'core') return { x: cx, y: cy };
-    const safeTotal = total || 1;
-    const angle = (i / safeTotal) * 2 * Math.PI + 0.5;
-    const r = node.type === 'service' ? 160 : 280;
-    return { 
-      x: cx + r * Math.cos(angle), 
-      y: cy + r * Math.sin(angle) 
-    };
-  }
+  // Placeholder logic for nodes if real data is missing
+  const displayAgents = agents.length > 0 ? agents : [
+    { id: 'alpha', label: 'analyst', type: 'agent', status: 'active' },
+    { id: 'beta', label: 'coder', type: 'agent', status: 'idle' },
+    { id: 'gamma', label: 'reviewer', type: 'agent', status: 'active' }
+  ];
 
-  const serviceNodes = services.map(s => ({ id: `svc:${s.id}`, type: 'service' as const, label: s.id, status: s.status, port: s.port }));
-  const agentNodes = agents.map(a => ({ id: `agt:${a.id}`, type: 'agent' as const, label: a.id, status: a.healthAssessment?.liveness }));
+  const displayServices = services.length > 0 ? services : [
+    { id: 'api', label: 'main-api', type: 'service', status: 'healthy' },
+    { id: 'db', label: 'postgres', type: 'service', status: 'healthy' }
+  ];
 
   return (
-    <motion.div ref={containerRef} className="w-full h-full min-h-[500px] relative overflow-hidden font-sans bg-[var(--bg-base)]">
-      <svg
-        viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}
-        className="w-full h-full absolute inset-0 pointer-events-none"
-      >
+    <div ref={containerRef} className="w-full h-full relative cursor-grab active:cursor-grabbing font-sans">
+      <svg width={dimensions.width} height={dimensions.height} className="absolute inset-0 pointer-events-none">
         <defs>
-          <radialGradient id="coreGlow">
+          <radialGradient id="meshGradient" cx="50%" cy="50%" r="50%">
             <stop offset="0%" stopColor="var(--brand-primary)" stopOpacity="0.1" />
             <stop offset="100%" stopColor="var(--brand-primary)" stopOpacity="0" />
           </radialGradient>
         </defs>
-
+        
         {/* Connection Lines */}
-        {serviceNodes.map((node, i) => {
-          const pos = getPos(node, i, serviceNodes.length);
-          return (
-            <motion.line
-              key={`line-${node.id}`}
-              x1={cx} y1={cy} x2={pos.x} y2={pos.y}
-              stroke="var(--brand-primary)"
-              strokeWidth="1.5"
-              strokeDasharray="4 4"
-              opacity="0.15"
-              initial={{ pathLength: 0 }}
-              animate={{ pathLength: 1 }}
-            />
-          );
-        })}
+        {displayAgents.map((agent, i) => (
+          <motion.line
+            key={`line-${agent.id}`}
+            x1={cx}
+            y1={cy}
+            x2={cx + Math.cos((i / displayAgents.length) * 2 * Math.PI) * 200}
+            y2={cy + Math.sin((i / displayAgents.length) * 2 * Math.PI) * 200}
+            stroke="var(--brand-primary)"
+            strokeWidth="1"
+            strokeDasharray="4 4"
+            initial={{ opacity: 0, pathLength: 0 }}
+            animate={{ opacity: 0.2, pathLength: 1 }}
+            transition={{ duration: 1, delay: i * 0.1 }}
+          />
+        ))}
+
+        {/* Pulse ring for core daemon */}
+        <motion.circle
+          cx={cx}
+          cy={cy}
+          r={40}
+          fill="none"
+          stroke="var(--brand-primary)"
+          strokeWidth="1"
+          animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0, 0.3] }}
+          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+        />
       </svg>
 
-      {/* Core Node */}
+      {/* Core Daemon Node */}
       <motion.div
-        className="absolute flex items-center justify-center pointer-events-auto"
-        style={{ 
-          left: cx, top: cy, transform: 'translate(-50%, -50%)',
-          width: 120, height: 120,
-          borderRadius: '100%',
-          background: 'var(--bg-overlay)',
-          border: '3px solid var(--brand-primary)',
-          boxShadow: '0 0 40px rgba(58, 173, 173, 0.2)'
-        }}
-        animate={{ scale: [1, 1.05, 1] }}
-        transition={{ duration: 4, repeat: Infinity }}
+        className="absolute w-20 h-20 rounded-[24px] bg-[var(--interactive-active)] border-2 border-[var(--brand-primary)] flex items-center justify-center shadow-2xl z-20"
+        style={{ left: cx - 40, top: cy - 40 }}
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        transition={{ type: 'spring', stiffness: 260, damping: 20 }}
       >
-        <motion.div className="text-center font-sans">
-          <motion.div className="font-mono font-black text-2xl text-[var(--brand-primary)]">PORT</motion.div>
-          <motion.div className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)]">DADDY</motion.div>
-        </motion.div>
+        <Anchor className="text-[var(--brand-primary)]" size={32} />
+        <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap">
+           <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40">pd-daemon</span>
+        </div>
       </motion.div>
 
-      {/* Service Nodes */}
-      {serviceNodes.map((node, i) => {
-        const pos = getPos(node, i, serviceNodes.length);
-        const isHealthy = node.status === 'healthy';
-        return (
-          <motion.div
-            key={node.id}
-            className="absolute p-4 rounded-3xl border-2 flex flex-col items-center gap-1 shadow-lg pointer-events-auto cursor-pointer"
-            style={{ 
-              left: pos.x, top: pos.y, transform: 'translate(-50%, -50%)',
-              background: 'var(--bg-overlay)',
-              borderColor: isHealthy ? 'var(--p-teal-400)' : 'var(--p-red-400)'
-            }}
-            whileHover={{ scale: 1.1, y: -5 }}
-          >
-            <motion.div className="text-[10px] font-black uppercase tracking-widest font-sans">{node.label}</motion.div>
-            <motion.div className="text-sm font-mono font-bold text-[var(--brand-primary)]">{node.port}</motion.div>
-            {!isHealthy && <motion.div className="w-2 h-2 rounded-full bg-[var(--p-red-500)] animate-pulse" />}
-          </motion.div>
-        )
-      })}
-
-      {/* Agent Nodes (Sailors) */}
-      {agentNodes.map((node, i) => {
-        const pos = getPos(node, i, agentNodes.length);
-        const agentId = node.id.replace('agt:', '');
-        const isSelected = selectedAgentId === agentId;
-        const expression = node.status === 'dead' ? 'dead' : isSelected ? 'thinking' : 'happy';
+      {/* Agent Nodes */}
+      {displayAgents.map((agent, i) => {
+        const angle = (i / displayAgents.length) * 2 * Math.PI;
+        const x = cx + Math.cos(angle) * 200;
+        const y = cy + Math.sin(angle) * 200;
         
         return (
           <motion.div
-            key={node.id}
-            className="absolute pointer-events-auto cursor-pointer"
-            style={{ left: pos.x, top: pos.y, transform: 'translate(-50%, -50%)' }}
-            onClick={() => onSelectAgent?.(agentId)}
+            key={agent.id}
+            className="absolute z-10 group"
+            style={{ left: x - 32, top: y - 32 }}
+            initial={{ opacity: 0, scale: 0 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.2 + i * 0.1 }}
+            whileHover={{ scale: 1.1 }}
+            onClick={() => onSelectAgent?.(agent.id)}
           >
-            <SailorAgent 
-              size={isSelected ? 100 : 70} 
-              expression={expression}
-              color={isSelected ? 'var(--brand-primary)' : 'var(--p-amber-400)'}
-            />
-            <motion.div 
-              className={`mt-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest text-center shadow-md font-sans transition-colors ${isSelected ? 'bg-[var(--brand-primary)] text-white' : 'bg-[var(--bg-overlay)] text-[var(--text-muted)]'}`}
-            >
-              {node.label.slice(0, 12)}
-            </motion.div>
+            <div className="relative">
+               <div className={`w-16 h-16 rounded-full bg-[var(--bg-overlay)] border-2 flex items-center justify-center shadow-xl transition-colors duration-300 ${agent.status === 'active' ? 'border-[var(--p-teal-500)] bg-[var(--p-teal-500)]/5' : 'border-[var(--border-subtle)]'}`}>
+                  <SailorAgent size={32} />
+               </div>
+               
+               {agent.status === 'active' && (
+                 <motion.div 
+                   className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[var(--p-teal-400)] border-2 border-[var(--bg-surface)]"
+                   animate={{ scale: [1, 1.2, 1] }}
+                   transition={{ duration: 2, repeat: Infinity }}
+                 />
+               )}
+
+               <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)]">{agent.label}</span>
+                  <span className="text-[8px] font-bold opacity-40 uppercase tracking-widest">{agent.status}</span>
+               </div>
+            </div>
           </motion.div>
-        )
+        );
       })}
-    </motion.div>
+
+      {/* Service Nodes */}
+      {displayServices.map((service, i) => {
+        const angle = (i / displayServices.length) * 2 * Math.PI + (Math.PI / 4);
+        const x = cx + Math.cos(angle) * 320;
+        const y = cy + Math.sin(angle) * 320;
+        
+        return (
+          <motion.div
+            key={service.id}
+            className="absolute z-10"
+            style={{ left: x - 24, top: y - 24 }}
+            initial={{ opacity: 0, scale: 0 }}
+            animate={{ opacity: 0.6, scale: 1 }}
+            transition={{ delay: 0.5 + i * 0.1 }}
+          >
+            <div className="w-12 h-12 rounded-xl bg-[var(--bg-overlay)] border border-dashed border-[var(--p-blue-500)]/40 flex items-center justify-center">
+               <Cpu size={20} className="text-[var(--p-blue-400)]" />
+               <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-[8px] font-black uppercase tracking-widest opacity-40">
+                  {service.label}
+               </div>
+            </div>
+          </motion.div>
+        );
+      })}
+    </div>
   )
 }
