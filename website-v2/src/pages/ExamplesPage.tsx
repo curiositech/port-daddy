@@ -248,7 +248,7 @@ export function ExamplesPage() {
           ))}
         </div>
 
-        {/* Impressively long additional info */}
+        {/* Vision Callout */}
         <motion.div 
           className="mt-48 p-20 rounded-[80px] border border-dashed border-[var(--border-strong)] bg-gradient-to-br from-[var(--bg-surface)] to-[var(--bg-base)] flex flex-col items-center text-center gap-12 relative overflow-hidden"
           initial={{ opacity: 0, scale: 0.98 }}

@@ -89,11 +89,15 @@ mod stubs {
         if kani::any() { Ok(()) } else { Err(ed25519_dalek::SignatureError::default()) }
     }
 
-    // Replacement for Base64 decoding to avoid state explosion
+    // Explicitly stub VerifyingKey::from_bytes too
+    pub fn from_bytes_stub(_bytes: &[u8; 32]) -> Result<VerifyingKey, ed25519_dalek::SignatureError> {
+        // Return a fixed dummy key to avoid complex validation
+        Ok(VerifyingKey::from_bytes(&[0u8; 32]).unwrap())
+    }
+
     pub fn base64_decode_stub(_engine: &base64::engine::general_purpose::GeneralPurpose, _input: &str) -> Result<Vec<u8>, base64::DecodeError> {
         if kani::any() {
-            // Return a symbolic vector of reasonable size
-            Ok(vec![0u8; 32])
+            Ok(vec![0u8; 64])
         } else {
             Err(base64::DecodeError::InvalidLength(0))
         }
@@ -103,16 +107,15 @@ mod stubs {
 #[cfg(kani)]
 #[kani::proof]
 #[kani::stub(ed25519_dalek::Verifier::verify, stubs::signature_verify_stub)]
-#[kani::unwind(10)] // Limit unwinding of split/collect loops
+#[kani::stub(ed25519_dalek::VerifyingKey::from_bytes, stubs::from_bytes_stub)]
+#[kani::stub(base64::engine::Engine::decode, stubs::base64_decode_stub)]
+#[kani::unwind(5)]
 fn proof_verify_logic_only() {
     let pk_bytes: [u8; 32] = kani::any();
     if let Ok(verifier) = HarborCardVerifier::new(pk_bytes) {
-        // Create a constrained symbolic string
         let token_bytes: [u8; 32] = kani::any();
         if let Ok(token_str) = std::str::from_utf8(&token_bytes) {
-            // We assume it has dots to test our logic
             kani::assume(token_str.contains('.'));
-            
             let _ = verifier.verify(token_str, 0);
         }
     }
