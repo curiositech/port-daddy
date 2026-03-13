@@ -123,7 +123,7 @@ export function Features() {
           <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest shadow-2xl">Deployment Ready</Badge>
           <motion.h3 className="text-5xl sm:text-7xl font-display font-bold m-0 tracking-tight leading-tight" style={{ color: 'var(--text-primary)' }}>
             One daemon to <motion.span className="text-[var(--brand-primary)]">rule the swarm.</motion.span>
-          </motion.h2>
+          </motion.h3>
           <motion.p className="text-2xl max-w-2xl font-sans opacity-70">
             Port Daddy is free, open-source, and installs in seconds. Start building your autonomous organization today.
           </motion.p>
