@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
-import { ShieldCheck, HardDrive, Lock, Activity, Globe, Scale, Cpu, Zap, Share2, Anchor, Database, Network } from 'lucide-react'
+import { ShieldCheck, Lock, Activity, Scale, Zap, Database, Network } from 'lucide-react'
 
 const MATURITY_FEATURES = [
   { 

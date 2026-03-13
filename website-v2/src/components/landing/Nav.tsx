@@ -1,10 +1,8 @@
 import * as React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Link, useLocation } from 'react-router-dom'
-import { Button } from '@/components/ui/Button'
-import { Badge } from '@/components/ui/Badge'
 import { useTheme } from '@/lib/theme'
-import { Sun, Moon, Github, Menu, X, Anchor, Share2, Zap, Terminal, Sparkles, Layout } from 'lucide-react'
+import { Sun, Moon, Github, Menu, X, Anchor, Share2, Terminal, Sparkles, Layout } from 'lucide-react'
 
 const NAV_LINKS = [
   { label: 'Academy', href: '/tutorials', icon: Sparkles },

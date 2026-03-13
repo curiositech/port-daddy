@@ -3,14 +3,13 @@ import { motion, useScroll, useSpring } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
-import { Clock, BookOpen, ChevronRight, Home, Layout, List, ArrowLeft, ArrowRight, Zap, Shield, Globe, Share2 } from 'lucide-react'
+import { Clock, BookOpen, ChevronRight, Home, Layout, ArrowLeft, ArrowRight, Zap, Shield, Globe, Share2 } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
 
 interface TutorialLayoutProps {
   title: string
   description: string
   number: string
-  total: string
   level: 'Beginner' | 'Intermediate' | 'Advanced'
   readTime: string
   children: React.ReactNode
@@ -22,7 +21,6 @@ export function TutorialLayout({
   title,
   description,
   number,
-  total,
   level,
   readTime,
   children,

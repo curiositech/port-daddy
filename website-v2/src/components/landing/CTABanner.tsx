@@ -1,8 +1,7 @@
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
-import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
-import { ArrowRight, Github, Terminal, Sparkles, Anchor } from 'lucide-react'
+import { Github, Terminal, Sparkles, Anchor } from 'lucide-react'
 
 export function CTABanner() {
   return (

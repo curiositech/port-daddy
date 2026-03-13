@@ -1,7 +1,6 @@
-import * as React from 'react'
 import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
-import { Shield, Zap, Globe, Lock, Key, Users, Cpu, Anchor } from 'lucide-react'
+import { Shield, Key, Users, Anchor } from 'lucide-react'
 
 const CAPABILITIES = [
   { cap: 'code:read', color: 'var(--p-teal-300)', bg: 'rgba(58,173,173,0.10)' },

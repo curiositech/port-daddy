@@ -1,9 +1,8 @@
-import * as React from 'react'
 import { motion, useScroll, useTransform } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { Badge } from '@/components/ui/Badge'
 import { useTheme } from '@/lib/theme'
-import { Copy, Check, Zap, Shield, History, ArrowRight } from 'lucide-react'
+import { Zap, Shield, History, ArrowRight } from 'lucide-react'
 import { MaritimeSignalRow } from '@/components/viz/MaritimeFlags'
 
 const RAINBOW_SEGMENTS = [

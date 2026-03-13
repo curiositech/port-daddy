@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
-import { Github, Twitter, Book, PlayCircle, ShieldCheck, Anchor, Heart, Cpu, Globe, Share2, Terminal } from 'lucide-react'
+import { Github, Twitter, ShieldCheck, Heart, Globe } from 'lucide-react'
 import { useTheme } from '@/lib/theme'
 import { Badge } from '@/components/ui/Badge'
 

@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
-import { Box, Code, Cpu, MessageSquare, Terminal, Zap, Layers, Share2, Shield, Globe, ChevronRight } from 'lucide-react'
+import { Code, Cpu, MessageSquare, Terminal, Zap, Layers, Share2, Globe, ChevronRight } from 'lucide-react'
 
 interface AgentTool {
   name: string
