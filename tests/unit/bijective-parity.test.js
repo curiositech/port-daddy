@@ -8,7 +8,7 @@
  * These tests extract the source of truth from actual source code (not hardcoded
  * lists that go stale) and enforce TRUE bijective parity across surfaces.
  *
- * HISTORY: Parallel worktree agents caused regressions in v3.5:
+ * HISTORY: Parallel worktree agents caused regressions in v3.7:
  *   - Bash completions lost 139 lines (1190 vs 1329 baseline)
  *   - Zsh completions lost 129 lines (937 vs 1066 baseline)
  *   - Fish completions lost 26 lines (396 vs 422 baseline)
@@ -217,28 +217,28 @@ describe('Test Group 2: Completion Baseline Enforcement', () => {
     return content.split('\n').length;
   }
 
-  // v3.5 baselines (total lines) -- these represent the CORRECT state.
+  // v3.7 baselines (total lines) -- these represent the CORRECT state.
   // Current regressed values are lower, so these tests SHOULD fail.
   const BASH_TOTAL_BASELINE = 1300;
   const ZSH_TOTAL_BASELINE = 1150;
   const FISH_TOTAL_BASELINE = 480;
 
-  // v3.5 baselines (substantive lines) -- non-empty, non-comment
+  // v3.7 baselines (substantive lines) -- non-empty, non-comment
   const BASH_SUBSTANTIVE_BASELINE = 900;
   const ZSH_SUBSTANTIVE_BASELINE = 780;
   const FISH_SUBSTANTIVE_BASELINE = 300;
 
-  test(`bash completions total lines >= ${BASH_TOTAL_BASELINE} (v3.5 baseline)`, () => {
+  test(`bash completions total lines >= ${BASH_TOTAL_BASELINE} (v3.7 baseline)`, () => {
     const lines = countTotalLines(BASH_COMPLETIONS);
     expect(lines).toBeGreaterThanOrEqual(BASH_TOTAL_BASELINE);
   });
 
-  test(`zsh completions total lines >= ${ZSH_TOTAL_BASELINE} (v3.5 baseline)`, () => {
+  test(`zsh completions total lines >= ${ZSH_TOTAL_BASELINE} (v3.7 baseline)`, () => {
     const lines = countTotalLines(ZSH_COMPLETIONS);
     expect(lines).toBeGreaterThanOrEqual(ZSH_TOTAL_BASELINE);
   });
 
-  test(`fish completions total lines >= ${FISH_TOTAL_BASELINE} (v3.5 baseline)`, () => {
+  test(`fish completions total lines >= ${FISH_TOTAL_BASELINE} (v3.7 baseline)`, () => {
     const lines = countTotalLines(FISH_COMPLETIONS);
     expect(lines).toBeGreaterThanOrEqual(FISH_TOTAL_BASELINE);
   });

@@ -250,7 +250,7 @@ pd spawn kill <id>            # stop agent
 pd watch build-results --exec './analyze.sh'   # ambient trigger
 ```
 
-### Uncharted Waters — DONE (v3.5)
+### Uncharted Waters — DONE (v3.7)
 
 | Surface | Status | Notes |
 |---------|--------|-------|

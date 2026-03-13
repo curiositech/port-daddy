@@ -1,4 +1,4 @@
-# Port Daddy Website Refresh — v3.5 Distribution Launch
+# Port Daddy Website Refresh — v3.7 Distribution Launch
 
 ## Current State
 - **Website**: `website/index.html` (49KB, single-page, beautiful design)
@@ -8,7 +8,7 @@
 - **Deployment**: Cloudflare Pages (already set up)
 - **Missing**: llms.txt, robots.txt, sitemap.xml, distribution documentation, refreshed installation section
 
-## v3.5 Refresh Scope: Add Distribution Channels
+## v3.7 Refresh Scope: Add Distribution Channels
 
 ### Phase 1: Distribution Documentation (2 hours)
 
@@ -17,9 +17,9 @@
 1. **`website/docs/installation.md`** (NEW)
    - Four installation methods:
      - npm (existing + link to updates)
-     - Homebrew (new in v3.5)
-     - Claude Marketplace Skill (new in v3.5)
-     - Claude Code Plugins (new in v3.5)
+     - Homebrew (new in v3.7)
+     - Claude Marketplace Skill (new in v3.7)
+     - Claude Code Plugins (new in v3.7)
    - Auto-update instructions per channel
    - Comparison table (which for whom)
    - Troubleshooting install issues
@@ -41,7 +41,7 @@
 ### Phase 2: Update index.html (1 hour)
 
 **Refresh hero section:**
-- Update badge: "v3.5.0 — Now on Homebrew, Claude Marketplace, and npm"
+- Update badge: "v3.7.0 — Now on Homebrew, Claude Marketplace, and npm"
 - Revise subtitle to highlight multi-channel availability
 - Add four installation tabs instead of single command
 
@@ -73,7 +73,7 @@
    # Port Daddy — Authoritative Port Management for Multi-Agent Development
    
    Project: curiositech/port-daddy
-   Version: 3.5.0
+   Version: 3.7.0
    License: MIT
    
    ## Quick Start
@@ -185,11 +185,11 @@
    - Dimensions: 1200x600px
    - Prompt: "Flat design illustration showing 'pd' command on left side with terminal window, flowing into cloud of distribution options on right: npm package, Homebrew bottle, Claude Marketplace icon, GitHub icon. Minimalist style, navy and teal colors, showing ease of installation."
 
-5. **`website/images/v3.5-features.png`**
-   - Highlight new in v3.5: Homebrew, Marketplace, Plugins
+5. **`website/images/v3.7-features.png`**
+   - Highlight new in v3.7: Homebrew, Marketplace, Plugins
    - Grid layout showing the three new features
    - Dimensions: 1200x400px
-   - Prompt: "Flat design grid showing three new v3.5 features: Homebrew bottle with checkmark, Claude Marketplace icon with sparkle, and plugin icon with integration arrows. Clean, professional, navy and teal palette, minimalist style."
+   - Prompt: "Flat design grid showing three new v3.7 features: Homebrew bottle with checkmark, Claude Marketplace icon with sparkle, and plugin icon with integration arrows. Clean, professional, navy and teal palette, minimalist style."
 
 6. **`website/images/skills-vs-plugins.png`**
    - Left side: Skill (knowledge, SKILL.md, patterns)
@@ -203,14 +203,14 @@
 **`website/content/tutorials/README.md`** - Already exists, update:
 - Add section: "Learning path for AI agents" (Tutorial 2 focus)
 - Add link to new `/docs/claude-agent-integration`
-- Add "New in v3.5" callout: Multi-channel installation
+- Add "New in v3.7" callout: Multi-channel installation
 
 ### Phase 6: CLAUDE.md Extension (2 hours)
 
 **In project `CLAUDE.md`, add:**
 
 ```markdown
-## Distribution Channels (v3.5+)
+## Distribution Channels (v3.7+)
 
 Port Daddy is distributed across four channels for maximum reach:
 
@@ -255,17 +255,17 @@ Port Daddy is distributed across four channels for maximum reach:
 
 ### Version Management
 
-- npm: Latest is 3.5.0
+- npm: Latest is 3.7.0
 - Homebrew: Auto-syncs from npm
 - Marketplace: Auto-syncs from GitHub releases
 - Docs: Always synced at portdaddy.dev
 
-### Release Process (v3.5+)
+### Release Process (v3.7+)
 
 1. Bump version in package.json
 2. Update CHANGELOG.md
 3. Run tests: `npm test`
-4. Tag release: `git tag v3.5.0 && git push origin v3.5.0`
+4. Tag release: `git tag v3.7.0 && git push origin v3.7.0`
 5. GitHub Actions:
    - npm publish (automatic)
    - Homebrew formula update (automatic)
@@ -338,7 +338,7 @@ If you want Port Daddy in additional marketplaces:
 
 ---
 
-## File Checklist: Ready to Ship v3.5 Website Refresh
+## File Checklist: Ready to Ship v3.7 Website Refresh
 
 ### Documentation (New)
 - [ ] `website/docs/installation.md` (four channels, auto-update, comparison)
@@ -355,19 +355,19 @@ If you want Port Daddy in additional marketplaces:
 - [ ] `website/images/agent-coordination.png` (1200x600)
 - [ ] `website/images/marketplace-showcase.png` (1200x600)
 - [ ] `website/images/cli-to-cloud.png` (1200x600)
-- [ ] `website/images/v3.5-features.png` (1200x400)
+- [ ] `website/images/v3.7-features.png` (1200x400)
 - [ ] `website/images/skills-vs-plugins.png` (1000x600)
 
 ### HTML Updates (index.html)
-- [ ] Update badge: "v3.5.0 — Now on Homebrew, Claude Marketplace, npm"
+- [ ] Update badge: "v3.7.0 — Now on Homebrew, Claude Marketplace, npm"
 - [ ] Add "For AI Agents" section
 - [ ] Replace 3-card install section with 4-card (npm, Homebrew, Skill, Plugin)
 - [ ] Add auto-update instructions per channel
 - [ ] Update navbar links to point to new /docs pages
-- [ ] Add og-image metadata refresh (use new v3.5-features.png)
+- [ ] Add og-image metadata refresh (use new v3.7-features.png)
 
 ### Project Documentation
-- [ ] CLAUDE.md: Add "Distribution Channels (v3.5+)" section
+- [ ] CLAUDE.md: Add "Distribution Channels (v3.7+)" section
 
 ### Verification
 - [ ] All links work (internal: /docs/installation, /tutorials, external: GitHub, npm)
@@ -388,7 +388,7 @@ If you want Port Daddy in additional marketplaces:
 1. **distribution-hero.png** (2 min) - Use in hero section
 2. **agent-coordination.png** (3 min) - Use in "For AI Agents" section
 3. **marketplace-showcase.png** (2 min) - Use in install section callout
-4. **v3.5-features.png** (2 min) - Use as badge/callout
+4. **v3.7-features.png** (2 min) - Use as badge/callout
 5. **cli-to-cloud.png** (2 min) - Use in footer or CTA
 6. **skills-vs-plugins.png** (2 min) - Use in `/docs/distribution-channels`
 
@@ -431,16 +431,16 @@ If you want Port Daddy in additional marketplaces:
 
 ---
 
-## After v3.5 Ships
+## After v3.7 Ships
 
-1. Tag and release: `git tag v3.5.0 && git push origin v3.5.0`
+1. Tag and release: `git tag v3.7.0 && git push origin v3.7.0`
 2. npm publish (automatic via GitHub Actions)
 3. Homebrew formula updates (automatic)
 4. Marketplace webhooks trigger (automatic)
 5. Website redeploy (automatic via Cloudflare Pages)
 6. Verify:
    - `brew search port-daddy` → formula found
-   - `npm search port-daddy` → v3.5.0 listed
+   - `npm search port-daddy` → v3.7.0 listed
    - Claude Marketplace → Port Daddy available
    - portdaddy.dev homepage → updated
 

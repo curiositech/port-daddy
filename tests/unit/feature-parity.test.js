@@ -393,7 +393,7 @@ describe('Manifest Completeness', () => {
 
   it('manifest feature count reflects current feature scope', () => {
     const featureCount = Object.keys(manifest.features).length;
-    // Port Daddy has 25+ features as of v3.5
+    // Port Daddy has 25+ features as of v3.7
     expect(featureCount).toBeGreaterThanOrEqual(25);
   });
 });

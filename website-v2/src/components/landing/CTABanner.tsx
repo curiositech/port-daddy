@@ -67,14 +67,14 @@ export function CTABanner() {
             <span style={{ color: 'var(--text-primary)' }}>brew install port-daddy</span>
           </div>
           <div className="mt-1" style={{ color: 'var(--code-output)' }}>
-            ✓ port-daddy 3.5.0 installed
+            ✓ port-daddy 3.7.0 installed
           </div>
           <div className="mt-1">
             <span style={{ color: 'var(--code-prompt)' }}>$ </span>
             <span style={{ color: 'var(--text-primary)' }}>pd</span>
           </div>
           <div style={{ color: 'var(--code-output)' }}>
-            [pd] Port Daddy v3.5.0 — all clear
+            [pd] Port Daddy v3.7.0 — all clear
           </div>
         </div>
       </motion.div>

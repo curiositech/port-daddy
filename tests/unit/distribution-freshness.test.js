@@ -309,7 +309,7 @@ describe('Cross-surface feature coverage', () => {
     'sessions',  // session management
     'locks',     // distributed locks
     'salvage',   // agent resurrection
-    'sugar',     // compound commands (v3.5+)
+    'sugar',     // compound commands (v3.7+)
   ];
 
   it.each(SKILL_REQUIRED_FEATURES)(

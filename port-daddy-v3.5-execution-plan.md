@@ -1,20 +1,20 @@
-# Port Daddy v3.5 Release & Distribution Execution Plan
+# Port Daddy v3.7 Release & Distribution Execution Plan
 
 ## Status Check
 - Current: v3.4.0 (published 2 days ago)
-- Is v3.5 good enough? **YES** — v3.4 has all core features, v3.5 is distribution-focused
+- Is v3.7 good enough? **YES** — v3.4 has all core features, v3.7 is distribution-focused
 
 ## Tasks (Ready to Execute)
 
 ### Phase 1: Version Bump (1 hour)
 ```bash
 # In port-daddy repo:
-# 1. Update package.json version → 3.5.0
-# 2. Update CHANGELOG.md with v3.5 distribution changes
+# 1. Update package.json version → 3.7.0
+# 2. Update CHANGELOG.md with v3.7 distribution changes
 # 3. Update VERSION file if it exists
 # 4. Ensure .claude-plugin/plugin.json version matches
 # 5. Run: npm run typecheck && npm test
-# 6. Commit: "chore: bump to v3.5.0 — distribution release"
+# 6. Commit: "chore: bump to v3.7.0 — distribution release"
 ```
 
 ### Phase 2: Homebrew Formula (2 hours)
@@ -33,11 +33,11 @@
 ### Phase 3: GitHub Releases Setup (1 hour)
 ```bash
 # 1. Create GitHub Actions workflow (.github/workflows/release.yml)
-# 2. On tag v3.5.0:
+# 2. On tag v3.7.0:
 #    - Build dist/
 #    - Create GitHub release with notes
 #    - Generate SHA256 for Homebrew
-# 3. Tag release: git tag v3.5.0 && git push origin v3.5.0
+# 3. Tag release: git tag v3.7.0 && git push origin v3.7.0
 ```
 
 ### Phase 4: Vercel Site (3-4 hours)
@@ -142,7 +142,7 @@ pd version
 - **Marketplace**: One-click update in Claude Code UI
 - **Changelog**: Always in CHANGELOG.md, synced to docs
 
-## Release Process (v3.5+)
+## Release Process (v3.7+)
 
 1. Bump version in package.json + .claude-plugin/plugin.json
 2. Update CHANGELOG.md
@@ -245,12 +245,12 @@ These can run in parallel:
 
 ---
 
-## Checklist: Ready to Ship v3.5
+## Checklist: Ready to Ship v3.7
 
 ### Code Changes
-- [ ] Version bumped to 3.5.0 in package.json
+- [ ] Version bumped to 3.7.0 in package.json
 - [ ] Version bumped in .claude-plugin/plugin.json
-- [ ] CHANGELOG.md updated with v3.5 distribution notes
+- [ ] CHANGELOG.md updated with v3.7 distribution notes
 - [ ] Tests passing: `npm test`
 - [ ] Build successful: `npm run build`
 
@@ -293,7 +293,7 @@ These can run in parallel:
 
 ---
 
-## What v3.5 Actually Includes
+## What v3.7 Actually Includes
 
 **No new features, just distribution:**
 - ✅ All v3.4 functionality
@@ -311,7 +311,7 @@ These can run in parallel:
 
 ---
 
-## Success Metrics (After v3.5 release)
+## Success Metrics (After v3.7 release)
 
 1. **Installation Paths** (4 working):
    - npm install -g port-daddy (existing)
@@ -327,7 +327,7 @@ These can run in parallel:
 3. **Discoverability**:
    - Google search: "port daddy cli" → finds site
    - Claude Code search: "agent coordination" → finds Port Daddy
-   - npm search: "port-daddy" → v3.5 listed
+   - npm search: "port-daddy" → v3.7 listed
    - brew: "brew search port-daddy" → formula found
 
 4. **Auto-Update**:
@@ -367,9 +367,9 @@ These can run in parallel:
 
 1. **Declare this as a multi-agent project**
    ```bash
-   pd begin "Port Daddy v3.5 distribution release" \
+   pd begin "Port Daddy v3.7 distribution release" \
      --agent coordinator \
-     --identity port-daddy:release:v3.5
+     --identity port-daddy:release:v3.7
    ```
 
 2. **Claim file ownership**
@@ -390,6 +390,6 @@ These can run in parallel:
 
 4. **When complete**
    ```bash
-   pd done "v3.5 released across all channels, auto-updates working"
+   pd done "v3.7 released across all channels, auto-updates working"
    ```
 

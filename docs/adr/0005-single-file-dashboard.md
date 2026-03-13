@@ -113,7 +113,7 @@ The file is admittedly long. The discipline required is explicit naming, consist
 
 ### Negative
 
-- The file grows large. As of v3.5 it contains ~several thousand lines of mixed HTML, CSS, and JavaScript. Navigation requires good text-editor search.
+- The file grows large. As of v3.7 it contains ~several thousand lines of mixed HTML, CSS, and JavaScript. Navigation requires good text-editor search.
 - No component isolation — a bug in one panel's JavaScript can affect others if variables are not scoped carefully (mitigated by function scoping and explicit panel namespacing)
 - Caching: the browser may cache `index.html`, causing developers to see stale dashboard versions after a Port Daddy update. The daemon serves appropriate cache headers, but this requires vigilance.
 

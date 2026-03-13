@@ -21,7 +21,7 @@
 - Each tool has a full `inputSchema` with types and descriptions
 - Tools are organized into logical groups (Port Management, Sessions & Notes, Locks, Messaging, Agents, Salvage, Tunnels, DNS, System, etc.)
 - Each tool description is 1-3 sentences explaining what it does
-- No "server description" field in Server constructor (just `name: 'port-daddy', version: '3.5.0'`)
+- No "server description" field in Server constructor (just `name: 'port-daddy', version: '3.7.0'`)
 - MCP has two delivery mechanisms:
   - **Tools** - Callable functions Claude can use
   - **Resources** - Read-only data Claude can inspect (active services, sessions, agents, locks, tunnels, DNS)
@@ -246,13 +246,13 @@ Example: Skill says "Use pd begin to start a session." MCP says "begin_session t
 
 **1. Add Server Description to MCP**
 
-Current: `new Server({ name: 'port-daddy', version: '3.5.0' }, { ... })`
+Current: `new Server({ name: 'port-daddy', version: '3.7.0' }, { ... })`
 
 Better: Add description field (if MCP SDK supports it) or include in tool list metadata:
 
 ```typescript
 const server = new Server(
-  { name: 'port-daddy', version: '3.5.0' },
+  { name: 'port-daddy', version: '3.7.0' },
   {
     capabilities: {
       tools: {

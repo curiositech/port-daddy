@@ -22,7 +22,7 @@ function Footer() {
             port-daddy
           </span>
           <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
-            v3.5.0 · MIT License · Built for multi-agent workflows
+            v3.7.0 · MIT License · Built for multi-agent workflows
           </span>
         </div>
         <div className="flex flex-wrap items-center justify-center gap-6 text-sm" style={{ color: 'var(--text-muted)' }}>

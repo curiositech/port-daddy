@@ -64,7 +64,7 @@ export function HarborsSection() {
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
           >
-            <Badge variant="teal" className="mb-4">New in v3.5</Badge>
+            <Badge variant="teal" className="mb-4">New in v3.7</Badge>
             <h2
               className="text-3xl sm:text-4xl font-bold mb-4"
               style={{ color: 'var(--text-primary)' }}

@@ -65,7 +65,7 @@ const CLI_COMMANDS: CliCommand[] = [
     cmd: 'pd status',
     description: 'Daemon status: uptime, port count, SQLite path, and code hash.',
     example: 'pd status',
-    output: '[pd] Port Daddy v3.5.0 — 3 services, uptime 4h 12m',
+    output: '[pd] Port Daddy v3.7.0 — 3 services, uptime 4h 12m',
   },
   {
     group: 'Ports',
@@ -562,7 +562,7 @@ export function DocsPage() {
                     {/* Harbors section extra: capability table */}
                     {group === 'Harbors' && (
                       <span className="ml-auto">
-                        <Badge variant="teal">v3.5</Badge>
+                        <Badge variant="teal">v3.7</Badge>
                       </span>
                     )}
                   </div>
@@ -747,8 +747,8 @@ export function DocsPage() {
                     style={{ background: 'var(--bg-overlay)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)' }}>
                     {endpoints.length}
                   </span>
-                  {group === 'Harbors' && <Badge variant="teal">v3.5</Badge>}
-                  {group === 'Agents' && endpoints.some(e => e.path.includes('/spawn')) && <Badge variant="teal">v3.5</Badge>}
+                  {group === 'Harbors' && <Badge variant="teal">v3.7</Badge>}
+                  {group === 'Agents' && endpoints.some(e => e.path.includes('/spawn')) && <Badge variant="teal">v3.7</Badge>}
                 </div>
                 <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-default)' }}>
                   {endpoints.map((ep, i) => {

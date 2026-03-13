@@ -109,10 +109,10 @@ end
 
 **Update Flow:**
 ```
-1. Release on GitHub (v3.5.0 tag)
+1. Release on GitHub (v3.7.0 tag)
 2. homebrew-port-daddy tap auto-syncs (or manual PR to homebrew-core)
 3. User runs: brew upgrade port-daddy
-4. Gets v3.5.0 automatically
+4. Gets v3.7.0 automatically
 ```
 
 ---
@@ -220,7 +220,7 @@ But hosted in Anthropic's official repo
 - MCP server working
 - Local commands in `~/.claude/commands/`
 
-### Phase 2 (Next Release: v3.5)
+### Phase 2 (Next Release: v3.7)
 1. **Homebrew Formula**
    - Create homebrew-port-daddy tap
    - Test locally with `brew --developer`
@@ -234,7 +234,7 @@ But hosted in Anthropic's official repo
    - Or publish to official marketplace
 
 3. **GitHub Releases**
-   - Tag releases properly (v3.5.0)
+   - Tag releases properly (v3.7.0)
    - Include release notes
    - Homebrew will auto-detect
 
@@ -354,7 +354,7 @@ Synergy:
 - [ ] Marketplace.json enhancement
 - [ ] Publish to Claude Skill Marketplace (manual submission)
 
-### v3.5 (Next)
+### v3.7 (Next)
 - [ ] Homebrew formula in homebrew-core
 - [ ] GitHub releases with proper SemVer tags
 - [ ] Auto-update documentation for npm users
@@ -542,7 +542,7 @@ Not critical, but improves SEO + discoverability
 
 **For each release:**
 1. Bump version in package.json
-2. Tag release on GitHub (v3.5.0)
+2. Tag release on GitHub (v3.7.0)
 3. Publish to npm (`npm publish`)
 4. Homebrew auto-detects and publishes
 5. Marketplace webhooks auto-sync
