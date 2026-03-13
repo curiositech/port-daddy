@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
-import { Shield, Zap, Network, Cpu, Lock, Waves } from 'lucide-react'
+import { Shield, Network, Cpu, Lock, Waves } from 'lucide-react'
 
 export function RoadmapPage() {
   const phases = [

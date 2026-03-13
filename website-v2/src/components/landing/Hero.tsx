@@ -5,10 +5,6 @@ import { useTheme } from '@/lib/theme'
 import { Zap, Shield, History, ArrowRight } from 'lucide-react'
 import { MaritimeSignalRow } from '@/components/viz/MaritimeFlags'
 
-const RAINBOW_SEGMENTS = [
-  '#4285f4', '#34a853', '#fbbc04', '#fa7b17', '#ea4335', '#a142f4', '#24c1e0'
-]
-
 const CHANGELOG_ITEMS = [
   { version: 'v3.7.0', label: 'Harbors', badge: 'new', text: 'Permission namespaces with signed tokens.', color: 'var(--brand-primary)', icon: Shield },
   { version: 'v3.7.0', label: 'pd spawn', badge: 'new', text: 'Launch AI agents with auto-wiring.', color: 'var(--brand-secondary)', icon: Zap },
