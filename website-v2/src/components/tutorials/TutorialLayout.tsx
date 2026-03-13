@@ -2,8 +2,8 @@ import * as React from 'react'
 import { motion, useScroll, useSpring } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { Badge } from '@/components/ui/Badge'
-import { Clock, BookOpen, ChevronRight, Home, Layout, List } from 'lucide-react'
-
+import { Button } from '@/components/ui/Button'
+import { Clock, BookOpen, ChevronRight, Home, Layout, List, ArrowLeft, ArrowRight, Zap, Shield, Globe, Share2 } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
 
 interface TutorialLayoutProps {
@@ -40,37 +40,46 @@ export function TutorialLayout({
     <motion.div 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen font-sans flex flex-col" 
+      className="min-h-screen font-sans flex flex-col selection:bg-[var(--brand-primary)] selection:text-white" 
       style={{ background: 'var(--bg-base)', color: 'var(--text-primary)', paddingTop: 'var(--nav-height)' }}
     >
       {/* Progress Bar */}
       <motion.div
-        className="fixed top-0 left-0 right-0 h-1 bg-[var(--brand-primary)] z-[60] origin-left"
+        className="fixed top-0 left-0 right-0 h-1 bg-[var(--brand-primary)] z-[100] origin-left shadow-[0_0_12px_rgba(58,173,173,0.5)]"
         style={{ scaleX, top: 'var(--nav-height)' }}
       />
 
-      {/* Hero */}
+      {/* Hero Section */}
       <motion.section
-        className="py-24 px-4 sm:px-6 lg:px-8 border-b relative overflow-hidden shrink-0"
+        className="py-32 px-4 sm:px-6 lg:px-8 border-b relative overflow-hidden shrink-0"
         style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}
       >
+        {/* Abstract background shapes */}
         <motion.div 
-          className="absolute top-0 right-0 w-[400px] h-[400px] rounded-full blur-[100px] opacity-10 pointer-events-none" 
+          className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full blur-[140px] opacity-[0.12] pointer-events-none" 
           style={{ background: 'radial-gradient(circle, var(--brand-primary) 0%, transparent 70%)' }} 
+          animate={{ scale: [1, 1.1, 1], x: [0, 20, 0] }}
+          transition={{ duration: 15, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <motion.div 
+          className="absolute bottom-[-10%] left-[-5%] w-[400px] h-[400px] rounded-full blur-[100px] opacity-[0.08] pointer-events-none" 
+          style={{ background: 'radial-gradient(circle, var(--p-amber-500) 0%, transparent 70%)' }} 
+          animate={{ scale: [1, 1.2, 1], x: [0, -30, 0] }}
+          transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}
         />
         
         <motion.div className="max-w-4xl mx-auto relative z-10 text-center flex flex-col items-center">
-          <motion.nav className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] mb-10 font-sans" style={{ color: 'var(--text-muted)' }}>
-            <Link to="/" className="hover:text-[var(--text-primary)] transition-colors no-underline flex items-center gap-1.5 font-sans">
-              <Home size={12} />
+          <motion.nav className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] mb-14 font-sans" style={{ color: 'var(--text-muted)' }}>
+            <Link to="/" className="hover:text-[var(--text-primary)] transition-all no-underline flex items-center gap-1.5 font-sans group">
+              <Home size={12} className="group-hover:scale-110 transition-transform" />
               Home
             </Link>
-            <ChevronRight size={12} className="opacity-40" />
-            <Link to="/tutorials" className="hover:text-[var(--text-primary)] transition-colors no-underline flex items-center gap-1.5 font-sans">
-              <BookOpen size={12} />
+            <ChevronRight size={12} className="opacity-30" />
+            <Link to="/tutorials" className="hover:text-[var(--text-primary)] transition-all no-underline flex items-center gap-1.5 font-sans group">
+              <BookOpen size={12} className="group-hover:scale-110 transition-transform" />
               Academy
             </Link>
-            <ChevronRight size={12} className="opacity-40" />
+            <ChevronRight size={12} className="opacity-30" />
             <motion.span style={{ color: 'var(--brand-primary)' }} className="flex items-center gap-1.5 font-sans font-black">
               <Layout size={12} />
               Lesson {number}
@@ -78,171 +87,126 @@ export function TutorialLayout({
           </motion.nav>
 
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 32 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
+            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
             className="flex flex-col items-center"
           >
-            <motion.div className="flex items-center gap-3 mb-8 font-sans">
-              <Badge variant={level === 'Beginner' ? 'teal' : level === 'Intermediate' ? 'amber' : 'neutral'} className="font-sans">
+            <motion.div className="flex items-center gap-5 mb-10 font-sans">
+              <Badge variant={level === 'Beginner' ? 'teal' : level === 'Intermediate' ? 'amber' : 'neutral'} className="px-5 py-2 text-[9px] font-black uppercase tracking-widest shadow-xl shadow-[var(--brand-primary)]/5">
                 {level}
               </Badge>
-              <motion.div className="h-[1px] w-8 bg-[var(--border-strong)] opacity-30" />
-              <motion.span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 font-mono">
-                Port Daddy v3.7.0
-              </motion.span>
+              <motion.div className="h-[1px] w-12 bg-[var(--border-strong)] opacity-20" />
+              <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] opacity-60 font-mono">
+                <Clock size={14} className="text-[var(--brand-primary)]" />
+                {readTime}
+              </motion.div>
             </motion.div>
 
-            <motion.h1 className="text-5xl sm:text-7xl font-bold mb-8 tracking-tight font-display" style={{ color: 'var(--text-primary)', lineHeight: 1.1 }}>
+            <motion.h1 className="text-6xl sm:text-8xl font-bold mb-10 tracking-tighter font-display" style={{ color: 'var(--text-primary)', lineHeight: 0.95 }}>
               {title}
             </motion.h1>
-            <motion.p className="text-xl sm:text-2xl max-w-3xl leading-relaxed mb-12 mx-auto font-sans" style={{ color: 'var(--text-secondary)' }}>
+            <motion.p className="text-xl sm:text-2xl max-w-3xl leading-relaxed mb-14 mx-auto font-sans opacity-80" style={{ color: 'var(--text-secondary)' }}>
               {description}
             </motion.p>
 
-            <motion.div className="flex flex-wrap items-center justify-center gap-12 text-[10px] font-black uppercase tracking-[0.2em] font-sans" style={{ color: 'var(--text-muted)' }}>
-              <motion.div className="flex items-center gap-3">
-                <Clock size={18} className="text-[var(--brand-primary)]" />
-                {readTime}
-              </motion.div>
-              <motion.div className="flex items-center gap-3">
-                <List size={18} className="text-[var(--brand-primary)]" />
-                Lesson {number} of {total}
-              </motion.div>
+            <motion.div className="flex flex-wrap items-center justify-center gap-10 font-sans opacity-60">
+               <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em]">
+                 <Zap size={14} className="text-[var(--p-amber-400)]" />
+                 Instant Port
+               </motion.div>
+               <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em]">
+                 <Shield size={14} className="text-[var(--p-teal-400)]" />
+                 Secure DNS
+               </motion.div>
+               <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em]">
+                 <Share2 size={14} className="text-[var(--p-blue-400)]" />
+                 P2P Tunnel
+               </motion.div>
             </motion.div>
           </motion.div>
         </motion.div>
       </motion.section>
 
-      {/* Content */}
-      <motion.div className="flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-24 relative font-sans">
-        <motion.article className="prose dark:prose-invert max-w-none tutorial-content leading-relaxed text-lg font-sans" style={{ color: 'var(--text-secondary)' }}>
+      {/* Main Content Area */}
+      <motion.main className="flex-1 max-w-4xl mx-auto w-full px-6 sm:px-8 lg:px-10 py-24 font-sans relative">
+        <motion.article 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.2 }}
+          className="prose prose-invert prose-lg max-w-none 
+            prose-headings:font-display prose-headings:font-bold prose-headings:tracking-tight prose-headings:text-[var(--text-primary)]
+            prose-h2:text-4xl prose-h2:mt-24 prose-h2:mb-10 prose-h2:pb-4 prose-h2:border-b prose-h2:border-[var(--border-subtle)]
+            prose-h3:text-2xl prose-h3:mt-16 prose-h3:mb-6
+            prose-p:text-[var(--text-secondary)] prose-p:leading-relaxed prose-p:mb-8 prose-p:text-xl
+            prose-code:text-[var(--brand-primary)] prose-code:bg-[var(--interactive-active)] prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none prose-code:font-mono prose-code:font-bold
+            prose-strong:text-[var(--text-primary)] prose-strong:font-black
+            prose-ul:list-disc prose-ul:pl-8 prose-ul:mb-10 prose-ul:space-y-4
+            prose-li:text-[var(--text-secondary)] prose-li:text-lg
+            prose-blockquote:border-l-4 prose-blockquote:border-[var(--brand-primary)] prose-blockquote:bg-[var(--bg-surface)] prose-blockquote:py-4 prose-blockquote:px-8 prose-blockquote:rounded-r-2xl prose-blockquote:italic"
+        >
           {children}
         </motion.article>
 
-        {/* Navigation */}
-        <motion.div className="mt-32 pt-16 border-t font-sans" style={{ borderColor: 'var(--border-subtle)' }}>
-          <motion.div className="grid sm:grid-cols-2 gap-10 font-sans">
-            {prev ? (
-              <Link
-                to={prev.href}
-                className="group block p-10 rounded-[32px] transition-all no-underline"
-                style={{ border: '1px solid var(--border-default)', background: 'var(--bg-surface)' }}
+        {/* Lessons Navigation */}
+        <motion.nav 
+          className="mt-32 pt-16 border-t grid sm:grid-cols-2 gap-8 font-sans mb-16"
+          style={{ borderColor: 'var(--border-subtle)' }}
+        >
+          {prev ? (
+            <Link to={prev.href} className="group no-underline block">
+              <motion.div 
+                className="h-full p-10 rounded-[40px] border transition-all duration-[var(--p-transition-spring)] hover:border-[var(--brand-primary)] hover:bg-[var(--interactive-hover)] flex flex-col items-start gap-4"
+                style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-surface)' }}
+                whileHover={{ x: -8 }}
               >
-                <motion.div className="text-[10px] font-black uppercase tracking-[0.2em] mb-4 opacity-50 font-sans" style={{ color: 'var(--text-muted)' }}>Previous Lesson</motion.div>
-                <motion.div className="text-xl font-bold flex items-center gap-3 transition-transform group-hover:-translate-x-2 font-display" style={{ color: 'var(--text-primary)' }}>
-                  ← {prev.title}
-                </motion.div>
-              </Link>
-            ) : <motion.div />}
-
-            {next ? (
-              <Link
-                to={next.href}
-                className="group block p-10 rounded-[32px] transition-all text-right no-underline shadow-xl shadow-transparent hover:shadow-[var(--brand-primary)]/5"
-                style={{ border: '2px solid var(--brand-primary)', background: 'var(--bg-surface)' }}
-              >
-                <motion.div className="text-[10px] font-black uppercase tracking-[0.2em] mb-4 opacity-60 font-sans" style={{ color: 'var(--brand-primary)' }}>Next Lesson</motion.div>
-                <motion.div className="text-xl font-bold flex items-center justify-end gap-3 transition-transform group-hover:translate-x-2 font-display" style={{ color: 'var(--text-primary)' }}>
-                  {next.title} <ChevronRight size={24} className="text-[var(--brand-primary)]" />
-                </motion.div>
-              </Link>
-            ) : (
-              <motion.div className="col-span-full p-20 rounded-[56px] flex flex-col items-center justify-center text-center gap-10 border border-dashed shadow-2xl relative overflow-hidden font-sans mx-auto w-full" style={{ borderColor: 'var(--brand-primary)', background: 'var(--bg-overlay)' }}>
-                 <motion.div 
-                   className="absolute inset-0 opacity-5 pointer-events-none"
-                   animate={{ rotate: 360 }}
-                   transition={{ duration: 120, repeat: Infinity, ease: 'linear' }}
-                 >
-                    <BookOpen size={800} />
-                 </motion.div>
-                 
-                 <motion.div className="relative z-10 flex flex-col items-center gap-8">
-                    <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest shadow-xl">Academy Complete</Badge>
-                    <motion.h3 className="text-5xl font-bold font-display m-0" style={{ color: 'var(--text-primary)' }}>You've mastered the basics!</motion.h3>
-                    <motion.p className="text-xl font-medium max-w-lg font-sans leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-                      The harbor is now open. Dispatch your swarms and begin the venture.
-                    </motion.p>
-                    <Link to="/docs" className="no-underline">
-                      <motion.div 
-                        className="px-12 py-6 rounded-2xl bg-[var(--brand-primary)] text-[var(--bg-base)] font-bold text-lg shadow-[0_20px_40px_rgba(58,173,173,0.3)] transition-all font-sans"
-                        whileHover={{ scale: 1.05, y: -4 }}
-                        whileTap={{ scale: 0.95 }}
-                      >
-                        View Documentation Reference
-                      </motion.div>
-                    </Link>
-                 </motion.div>
+                <motion.span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] opacity-40 font-sans group-hover:opacity-100 group-hover:text-[var(--brand-primary)] transition-all">
+                  <ArrowLeft size={14} />
+                  Previous
+                </motion.span>
+                <motion.h4 className="m-0 text-2xl font-display font-bold leading-tight" style={{ color: 'var(--text-primary)' }}>{prev.title}</motion.h4>
               </motion.div>
-            )}
-          </motion.div>
-        </motion.div>
-      </motion.div>
+            </Link>
+          ) : <div />}
+
+          {next ? (
+            <Link to={next.href} className="group no-underline block">
+              <motion.div 
+                className="h-full p-10 rounded-[40px] border-2 transition-all duration-[var(--p-transition-spring)] hover:bg-[var(--interactive-hover)] flex flex-col items-end text-right gap-4"
+                style={{ borderColor: 'var(--brand-primary)', background: 'var(--bg-surface)' }}
+                whileHover={{ x: 8 }}
+              >
+                <motion.span className="flex items-center justify-end gap-2 text-[10px] font-black uppercase tracking-[0.25em] font-sans text-[var(--brand-primary)]">
+                  Next Up
+                  <ArrowRight size={14} />
+                </motion.span>
+                <motion.h4 className="m-0 text-2xl font-display font-bold leading-tight" style={{ color: 'var(--text-primary)' }}>{next.title}</motion.h4>
+              </motion.div>
+            </Link>
+          ) : (
+            <motion.div 
+              className="sm:col-span-2 p-16 rounded-[60px] border border-dashed flex flex-col items-center text-center gap-8 relative overflow-hidden"
+              style={{ borderColor: 'var(--brand-primary)', background: 'var(--bg-overlay)' }}
+            >
+              <motion.div 
+                className="absolute inset-0 opacity-[0.03] pointer-events-none"
+                animate={{ rotate: 360 }}
+                transition={{ duration: 60, repeat: Infinity, ease: 'linear' }}
+              >
+                <Globe size={600} />
+              </motion.div>
+              <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Certification Ready</Badge>
+              <motion.h3 className="text-5xl font-bold font-display m-0" style={{ color: 'var(--text-primary)' }}>Mastery Achieved.</motion.h3>
+              <motion.p className="text-xl max-w-xl font-sans opacity-70">You've completed the core coordination series. Your harbor is ready for deployment.</motion.p>
+              <Button size="lg" className="px-12 py-8 rounded-full text-lg font-black tracking-wide" onClick={() => window.location.href = '/docs'}>
+                EXPLORE THE SDK REFERENCE
+              </Button>
+            </motion.div>
+          )}
+        </motion.nav>
+      </motion.main>
 
       <Footer />
-
-      {/* CSS for better tutorial typography */}
-      <style dangerouslySetInnerHTML={{ __html: `
-        .tutorial-content h2 {
-          font-size: 2.5rem;
-          font-weight: 800;
-          color: var(--text-primary);
-          margin-top: 5rem;
-          margin-bottom: 2rem;
-          font-family: var(--p-font-display) !important;
-          letter-spacing: -0.02em;
-          border-bottom: 1px solid var(--border-subtle);
-          padding-bottom: 1rem;
-        }
-        .tutorial-content h3 {
-          font-size: 1.875rem;
-          font-weight: 700;
-          color: var(--text-primary);
-          margin-top: 4rem;
-          margin-bottom: 1.5rem;
-          font-family: var(--p-font-display) !important;
-        }
-        .tutorial-content p {
-          margin-bottom: 2rem;
-          line-height: 1.8;
-          font-family: var(--p-font-sans) !important;
-        }
-        .tutorial-content ul, .tutorial-content ol {
-          margin-bottom: 2.5rem;
-          padding-left: 2rem;
-          font-family: var(--p-font-sans) !important;
-        }
-        .tutorial-content li {
-          margin-bottom: 1rem;
-        }
-        .tutorial-content pre {
-          background: var(--bg-surface) !important;
-          padding: 2rem !important;
-          margin: 3rem 0 !important;
-          border-radius: 2rem !important;
-          border: 1px solid var(--border-subtle) !important;
-          box-shadow: inset 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .tutorial-content code {
-          background: var(--interactive-active);
-          color: var(--brand-primary);
-          padding: 0.25rem 0.5rem;
-          border-radius: 0.5rem;
-          font-weight: 600;
-          font-family: var(--p-font-mono) !important;
-        }
-        .tutorial-content pre code {
-          background: transparent !important;
-          padding: 0 !important;
-          border-radius: 0 !important;
-          color: inherit !important;
-          font-weight: inherit !important;
-        }
-        .tutorial-content strong {
-          color: var(--text-primary);
-          font-weight: 700;
-        }
-      `}} />
     </motion.div>
   )
 }
