@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/Badge'
 import { PRODUCT_FEATURES } from '@/data/product'
 import { 
   Shield, History, Radio, 
-  Anchor, Code, Cpu, Share2, Terminal
+  Anchor, Code, Cpu, Share2, Terminal, Sparkles, Globe, Zap
 } from 'lucide-react'
 
 const ICON_MAP: Record<string, any> = {
@@ -11,7 +11,8 @@ const ICON_MAP: Record<string, any> = {
   'coordination': Radio,
   'security': Shield,
   'observability': History,
-  'agents': Cpu
+  'agents': Cpu,
+  'intelligence': Sparkles
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -19,7 +20,8 @@ const CATEGORY_COLORS: Record<string, string> = {
   'coordination': 'var(--p-teal-400)',
   'security': 'var(--p-amber-400)',
   'observability': 'var(--p-red-400)',
-  'agents': 'var(--p-purple-400)'
+  'agents': 'var(--p-purple-400)',
+  'intelligence': 'var(--p-blue-300)'
 }
 
 export function Features() {
@@ -49,7 +51,7 @@ export function Features() {
           </motion.p>
         </motion.div>
 
-        <motion.div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-10 font-sans">
+        <motion.div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-10 font-sans">
           {PRODUCT_FEATURES.map((feature, i) => {
             const Icon = ICON_MAP[feature.category] || Code
             const color = CATEGORY_COLORS[feature.category] || 'var(--brand-primary)'
@@ -108,7 +110,7 @@ export function Features() {
         
         {/* Swarm Call to Action */}
         <motion.div 
-          className="mt-32 p-20 rounded-[80px] border border-dashed text-center flex flex-col items-center gap-10 relative overflow-hidden"
+          className="mt-32 p-20 rounded-[80px] border border-dashed border-[var(--border-strong)] text-center flex flex-col items-center gap-10 relative overflow-hidden shadow-2xl"
           style={{ borderColor: 'var(--brand-primary)', background: 'var(--bg-overlay)' }}
         >
           <motion.div 
@@ -121,7 +123,7 @@ export function Features() {
           <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest shadow-2xl">Deployment Ready</Badge>
           <motion.h3 className="text-5xl sm:text-7xl font-display font-bold m-0 tracking-tight leading-tight" style={{ color: 'var(--text-primary)' }}>
             One daemon to <motion.span className="text-[var(--brand-primary)]">rule the swarm.</motion.span>
-          </motion.h3>
+          </motion.h2>
           <motion.p className="text-2xl max-w-2xl font-sans opacity-70">
             Port Daddy is free, open-source, and installs in seconds. Start building your autonomous organization today.
           </motion.p>
