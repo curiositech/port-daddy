@@ -10,8 +10,8 @@ const NAV_LINKS = [
   { label: 'Templates', href: '/templates', internal: true, icon: LayoutGrid },
   { label: 'MCP', href: '/mcp', icon: Terminal },
   { label: 'SDK', href: '/docs', icon: Anchor },
-  { label: 'Journal', href: '/blog', icon: Layout },
-  { label: 'V4 Roadmap', href: '/roadmap', internal: true, icon: Compass },
+  { label: 'Blog', href: '/blog', icon: Layout },
+  { label: 'Roadmap', href: '/roadmap', internal: true, icon: Compass },
 ]
 
 export function Nav() {

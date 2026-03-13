@@ -82,12 +82,13 @@ export function BlogPostPage() {
       </motion.header>
 
       {/* Main Content */}
-      <motion.main className="flex-1 py-24 px-6 sm:px-8 lg:px-10 max-w-4xl mx-auto w-full font-sans relative">
-        <motion.article 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.2 }}
-          className="prose prose-invert prose-lg max-w-none 
+      <motion.main className="flex-1 py-24 px-6 sm:px-8 lg:px-10 font-sans relative">
+        <div className="max-w-3xl mx-auto w-full">
+          <motion.article 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.2 }}
+            className="prose prose-invert prose-lg max-w-none 
             prose-headings:font-display prose-headings:font-black prose-headings:tracking-tight prose-headings:text-[var(--text-primary)]
             prose-h2:text-4xl prose-h2:mt-24 prose-h2:mb-10 prose-h2:pb-4 prose-h2:border-b prose-h2:border-[var(--border-subtle)]
             prose-h3:text-2xl prose-h3:mt-16 prose-h3:mb-6
@@ -116,6 +117,7 @@ export function BlogPostPage() {
             {post.content}
           </ReactMarkdown>
         </motion.article>
+        </div>
 
         {/* Impressively long additional context */}
         <motion.div 
