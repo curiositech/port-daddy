@@ -546,7 +546,8 @@ pd harbor connect myapp --from erichowens
 
 The registry is a phone book, not a relay. Data still flows daemon-to-daemon.
 
-**Implementation:** Cloudflare Worker + KV store. <100 lines of code. Free tier handles
+**Implementation:** Cloudflare Worker + KV store. ~200-300 lines of code (signed challenge
+auth, KV storage, heartbeat cleanup, lookup API). Free tier handles
 millions of lookups/month. Alternatively, a simple Express endpoint on portdaddy.dev.
 
 **Security:**
@@ -573,7 +574,7 @@ pd harbor connect myapp --lighthouse http://lighthouse.internal:9878
 ```
 
 Same protocol as Layer 2, just pointed at your own server. The lighthouse is a
-<200 line Express app that stores harbor endpoints in SQLite.
+~300-400 line Express app that stores harbor endpoints in SQLite (auth, cleanup, lookup).
 
 **This is the enterprise layer.** Self-hosted, air-gapped, controlled.
 
