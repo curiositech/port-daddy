@@ -2739,6 +2739,437 @@ environment, not from agent-to-agent protocols.**
 ---
 ---
 
+# Part XVI: Agent Skills and Application Templates (Inspired by Firecrawl)
+
+## What Firecrawl Does Well
+
+Firecrawl nails three things we should learn from:
+
+1. **`llms.txt`** — A machine-readable documentation index at `docs.firecrawl.dev/llms.txt`.
+   Any LLM can fetch this file and instantly understand every endpoint, guide, and
+   integration. It's the "robots.txt for AI agents." We need this.
+
+2. **Template apps as proof of infrastructure** — They don't just document their API.
+   They ship complete apps (open-lovable, fireplexity, fire-enrich, open-researcher)
+   that demonstrate what you can build ON TOP of Firecrawl. Each app is a standalone
+   repo with stars, README, and deployable code. The infrastructure disappears —
+   you see the outcome, not the plumbing.
+
+3. **Agent-first onboarding** — `firecrawl-cli init --all` teaches your IDE agent how
+   to use Firecrawl. One command. The agent can then use Firecrawl without the human
+   understanding the API. The human says "scrape this website" and the agent knows how.
+
+## What Port Daddy Should Do
+
+### 1. `llms.txt` — Machine-Readable Documentation Index
+
+Create `/llms.txt` served by the daemon AND published at `portdaddy.dev/llms.txt`:
+
+```
+# Port Daddy — Coordination Runtime for AI Agent Teams
+# Version: 4.0.0
+
+## Core Concepts
+- Semantic identities: project:stack:context format
+- Harbors: cryptographic permission namespaces (enforced)
+- Sessions: mutable agent work contexts with immutable notes
+- Salvage: dead agent recovery via resurrection queue
+
+## Quick Start
+- Install: npm install -g port-daddy
+- Start: pd start
+- Begin session: pd begin "task description" --identity myapp:api:feature
+- Claim port: pd claim myapp:api -q
+- Add note: pd note "progress update"
+- End session: pd done
+
+## API Reference: https://portdaddy.dev/docs/api
+## SDK Reference: https://portdaddy.dev/docs/sdk
+## MCP Tools: https://portdaddy.dev/mcp
+## Tutorials: https://portdaddy.dev/tutorials
+
+## MCP Installation
+npx port-daddy mcp install
+
+## Endpoints (64 total)
+- POST /claim/:id — Claim a port
+- DELETE /release/:id — Release a service
+- GET /services — List services
+- POST /harbors — Create harbor
+- POST /harbors/:name/enter — Enter harbor (returns harbor card)
+- GET /harbors — List harbors
+- POST /sessions — Start session
+- POST /sessions/:id/notes — Add note
+- POST /locks/:name — Acquire lock
+- POST /msg/:channel — Publish message
+- GET /subscribe/:channel — SSE subscription
+- POST /agents/:id — Register agent
+- GET /salvage — List salvage queue
+... [all 64 endpoints]
+
+## CLI Commands (48 total)
+- pd begin <purpose> — Register + start session
+- pd done [note] — End session + unregister
+- pd whoami — Show current context
+- pd claim <identity> — Claim a port
+- pd harbor create <name> — Create harbor
+- pd harbor connect <name> --peer <host> — Connect remote harbor
+- pd spawn --backend <backend> -- <prompt> — Launch child agent
+... [all 48 commands]
+
+## SDK Methods (116 total)
+- pd.claim(identity, options?) — Claim port
+- pd.release(identity) — Release port
+- pd.begin(purpose, options?) — Start session
+... [all 116 methods]
+```
+
+This file is the single artifact that makes Port Daddy agent-accessible. Any LLM
+that can fetch a URL can learn Port Daddy's entire API in one request.
+
+**Implementation:** Static file generated from `features.manifest.json` + route
+introspection. Served at `GET /llms.txt` by the daemon and deployed to
+`portdaddy.dev/llms.txt` as a static asset.
+
+### 2. `pd teach` — Agent Skill Installation
+
+One command that installs Port Daddy knowledge into any MCP-compatible agent:
+
+```bash
+pd teach
+# → Installing Port Daddy skill for Claude Code...
+# → Added MCP server to ~/.claude.json
+# → Added skill reference to ~/.claude/skills/
+# → Your agent now knows 108 tools across 19 categories.
+# →
+# → Try: "begin a session for working on auth"
+
+pd teach --cursor
+# → Installing for Cursor...
+# → Added MCP config to .cursor/mcp.json
+
+pd teach --windsurf
+# → Installing for Windsurf...
+
+pd teach --all
+# → Installed for: Claude Code, Cursor, Windsurf
+```
+
+What `pd teach` does:
+1. Detects installed editors/agents
+2. Installs MCP server configuration for each
+3. Copies the skill reference (SKILL.md + references/) to the agent's skill directory
+4. Verifies the daemon is running
+5. Runs a self-test (agent calls `pd_discover()` to confirm connectivity)
+
+This replaces the current manual `pd mcp install` workflow. One command, all agents.
+
+**The skill itself** (`skills/port-daddy-cli/SKILL.md`) already exists and is good.
+It needs V4 updates:
+- Add harbor commands to the CLI mapping table
+- Add remote harbor workflow
+- Add region commands
+- Update tool count (93 → 108)
+- Add pheromone awareness instructions
+
+### 3. Template Applications — "Built on Port Daddy"
+
+This is the highest-leverage marketing asset. Each template is a **complete, runnable
+application** that demonstrates what you can build when agents have coordination
+infrastructure.
+
+#### Template 1: `pd-code-review` — Multi-Agent Code Review Pipeline
+
+**What it is:** 3 agents review a PR simultaneously — one checks correctness, one
+checks style, one checks security. They coordinate via Port Daddy to avoid reviewing
+the same files.
+
+**Repo structure:**
+```
+pd-code-review/
+├── README.md                    # Setup instructions + architecture diagram
+├── .portdaddyrc                 # Harbor config + region definitions
+├── agents/
+│   ├── correctness-reviewer.ts  # Agent 1: logic and bug checking
+│   ├── style-reviewer.ts        # Agent 2: code style and patterns
+│   └── security-reviewer.ts     # Agent 3: vulnerability scanning
+├── scripts/
+│   ├── review.sh                # Entry point: pd begin → spawn 3 agents → pd done
+│   └── setup.sh                 # Install deps, verify pd running
+└── package.json
+```
+
+**What it demonstrates:**
+- `pd begin` with identity-scoped harbor
+- `pd spawn` with attenuated capabilities (reviewer can only read code)
+- File regions (each reviewer claims a logical region, not files)
+- Pub/sub coordination (agents signal when their review is complete)
+- Session notes as review comments (immutable audit trail)
+- `pd done` with summary note
+
+**Why it matters:** Code review is universal. Every developer understands the problem.
+Showing 3 AI agents doing it in parallel, coordinated, without conflicts — that's
+a demo that sells itself.
+
+#### Template 2: `pd-feature-sprint` — Planner → Coder → Tester Pipeline
+
+**What it is:** One agent plans the feature (breaks into tasks), spawns a coder agent
+for each task, then a tester agent validates the output. Full pipeline, one command.
+
+```
+pd-feature-sprint/
+├── README.md
+├── .portdaddyrc
+├── agents/
+│   ├── planner.ts               # Reads issue, breaks into tasks
+│   ├── coder.ts                 # Implements a single task
+│   └── tester.ts                # Validates implementation
+├── scripts/
+│   └── sprint.sh                # pd begin → planner → coders → tester → pd done
+└── package.json
+```
+
+**What it demonstrates:**
+- Hierarchical agent spawning (planner spawns coders with attenuated caps)
+- Harbor KV store for shared task list
+- Session phases (planning → coding → testing → done)
+- Danger pheromones if a coder dies (tester picks up the work)
+- Salvage workflow (coder dies → another coder claims the task)
+
+#### Template 3: `pd-research-swarm` — Parallel Deep Research
+
+**What it is:** 4 agents research different aspects of a topic simultaneously, then
+a synthesizer agent combines their findings into a report.
+
+```
+pd-research-swarm/
+├── README.md
+├── .portdaddyrc
+├── agents/
+│   ├── researcher.ts            # Researches one aspect
+│   └── synthesizer.ts           # Combines findings
+├── scripts/
+│   └── research.sh
+└── package.json
+```
+
+**What it demonstrates:**
+- Pub/sub for broadcasting findings
+- Harbor whiteboard (shared KV) for accumulating knowledge
+- Session notes as research citations (immutable)
+- Inbox messaging (synthesizer sends follow-up questions to researchers)
+- Remote harbors (researchers could be on different machines)
+
+#### Template 4: `pd-self-healing-infra` — Resilient Service Mesh
+
+**What it is:** 3 services (API, worker, database) running with Port Daddy
+orchestration. When one crashes, a watcher agent detects it and restarts it.
+If the restarting agent dies, salvage kicks in.
+
+```
+pd-self-healing-infra/
+├── README.md
+├── .portdaddyrc
+├── services/
+│   ├── api/                     # Express API server
+│   ├── worker/                  # Background job processor
+│   └── db/                      # Database service
+├── agents/
+│   └── healer.ts                # Watches for crashes, restarts services
+├── scripts/
+│   └── up.sh                    # pd scan → pd up → spawn healer
+└── package.json
+```
+
+**What it demonstrates:**
+- `pd scan` + `pd up` (the docker-compose replacement story)
+- `pd watch` for event-driven healing
+- Health checks via Port Daddy
+- Salvage (if the healer itself dies)
+- Heat pheromones (shows which services are actively being healed)
+
+#### Template 5: `pd-cross-machine` — Two Machines, One Project
+
+**What it is:** A tutorial-as-template showing how to coordinate development
+across a MacBook and a PC desktop using remote harbors.
+
+```
+pd-cross-machine/
+├── README.md                    # Step-by-step with screenshots
+├── .portdaddyrc
+├── machine-a/
+│   └── setup.sh                 # pd harbor create → pd harbor listen
+├── machine-b/
+│   └── setup.sh                 # pd harbor connect → pd begin
+└── demo/
+    └── coordinate.sh            # Show file claims syncing, pub/sub flowing
+```
+
+**What it demonstrates:**
+- Remote harbor setup (your actual use case)
+- mDNS discovery
+- Cross-machine file claim visibility
+- Trust tiers in practice
+
+### 4. Template Presentation on portdaddy.dev
+
+New route: `/templates` (already exists as a page, needs real content)
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                                                          │
+│     Built on Port Daddy                                  │
+│                                                          │
+│     Complete applications showing what coordinated       │
+│     agent teams can build. Fork, customize, ship.        │
+│                                                          │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐     │
+│  │ CODE REVIEW │  │ FEATURE     │  │ RESEARCH    │     │
+│  │ PIPELINE    │  │ SPRINT      │  │ SWARM       │     │
+│  │             │  │             │  │             │     │
+│  │ 3 agents    │  │ planner →   │  │ 4 parallel  │     │
+│  │ review a PR │  │ coders →    │  │ researchers │     │
+│  │ in parallel │  │ tester      │  │ + synthesizer│     │
+│  │             │  │             │  │             │     │
+│  │ [Fork →]    │  │ [Fork →]    │  │ [Fork →]    │     │
+│  └─────────────┘  └─────────────┘  └─────────────┘     │
+│                                                          │
+│  ┌─────────────┐  ┌─────────────┐                       │
+│  │ SELF-HEALING│  │ CROSS-      │                       │
+│  │ INFRA       │  │ MACHINE     │                       │
+│  │             │  │             │                       │
+│  │ pd up with  │  │ MacBook +   │                       │
+│  │ auto-restart│  │ Desktop     │                       │
+│  │ and salvage │  │ one harbor  │                       │
+│  │             │  │             │                       │
+│  │ [Fork →]    │  │ [Fork →]    │                       │
+│  └─────────────┘  └─────────────┘                       │
+│                                                          │
+└─────────────────────────────────────────────────────────┘
+```
+
+Each template card links to its GitHub repo. The repo has:
+- A README with architecture diagram and step-by-step walkthrough
+- A 30-second GIF showing the template running
+- A `setup.sh` that handles everything (checks `pd status`, installs deps, runs)
+- Less than 500 lines total (excluding deps). Templates should be readable in one sitting.
+
+### 5. Use Cases Page (Outcome-Oriented)
+
+Firecrawl shows 12 use cases focused on *outcomes*, not features. We should do the same:
+
+```
+/use-cases
+
+1. "4 Agents, 1 Codebase, 0 Conflicts"
+   Multi-agent coding without file stomping. File claims + regions + locks.
+   → Link to code-review template
+
+2. "When Your Agent Crashes at 3am"
+   Automatic work preservation. Salvage queue + danger pheromones.
+   → Link to self-healing template
+
+3. "MacBook at Home, Desktop at the Office"
+   Cross-machine coordination. Remote harbors + mDNS discovery.
+   → Link to cross-machine template
+
+4. "The AI Feature Factory"
+   Planner → coders → tester pipeline. One command, full feature.
+   → Link to feature-sprint template
+
+5. "Research That Doesn't Repeat Itself"
+   Parallel research with shared whiteboard. No duplicate work.
+   → Link to research-swarm template
+
+6. "docker-compose, but for AI Agents"
+   pd scan → pd up. Framework detection + port assignment + health monitoring.
+   → Link to self-healing template
+
+7. "Formally Verified Agent Security"
+   ProVerif-proven harbor cards. Capability attenuation. Zero-trust by default.
+   → Link to whitepaper
+
+8. "The 60-Second MCP Setup"
+   pd teach --all. Every IDE agent gets 108 tools instantly.
+   → Link to MCP page
+```
+
+### 6. GitHub Organization Structure
+
+Like Firecrawl's org (`github.com/firecrawl`), create repos under `curiositech`:
+
+```
+curiositech/
+├── port-daddy              # Main daemon (existing)
+├── pd-code-review          # Template: multi-agent code review
+├── pd-feature-sprint       # Template: planner → coder → tester
+├── pd-research-swarm       # Template: parallel research
+├── pd-self-healing-infra   # Template: resilient service mesh
+├── pd-cross-machine        # Template: remote harbor tutorial
+└── awesome-port-daddy      # Community showcase (like awesome-X lists)
+```
+
+Each template repo:
+- Has its own README with GIF, architecture diagram, setup instructions
+- Is tagged `port-daddy-template` for discoverability
+- Links back to `portdaddy.dev/templates`
+- Has CI that verifies it works against the latest Port Daddy release
+
+### 7. `pd init` — Project Scaffolding
+
+Like `create-react-app` or `firecrawl init`, a command that scaffolds a coordinated
+project:
+
+```bash
+pd init my-project --template code-review
+# → Created my-project/
+# → Installed port-daddy dependency
+# → Created .portdaddyrc with harbor config
+# → Created agents/ with 3 reviewer agents
+# → Created scripts/review.sh
+# →
+# → Next steps:
+# →   cd my-project
+# →   pd begin "setting up code review pipeline"
+# →   ./scripts/review.sh <pr-url>
+
+pd init my-project --template feature-sprint
+pd init my-project --template research-swarm
+pd init my-project --blank          # Just .portdaddyrc + basic structure
+```
+
+`pd init --blank` gives you:
+```
+my-project/
+├── .portdaddyrc           # Harbor config (project name, default caps)
+├── agents/                # Empty directory for agent scripts
+└── scripts/
+    └── setup.sh           # Verifies pd is running, creates harbor
+```
+
+## Content Hierarchy Summary
+
+```
+Agent discovers Port Daddy:
+  1. Fetches llms.txt (or pd_discover via MCP)       — knows the API
+  2. Reads SKILL.md (via pd teach)                     — knows the patterns
+  3. Explores templates (via portdaddy.dev/templates)  — sees the outcomes
+
+Human discovers Port Daddy:
+  1. Lands on portdaddy.dev                            — sees the hero
+  2. Clicks a use case                                 — understands the problem
+  3. Forks a template                                  — has running code in 60s
+  4. Reads a tutorial                                  — goes deeper
+  5. Deploys to their project                          — becomes a user
+```
+
+Firecrawl's genius is that the template apps do the selling. Nobody reads API docs
+for fun. But people DO browse "cool things built with X" repos. The templates are
+the funnel.
+
+---
+---
+
 # Consolidated Execution Timeline
 
 | Phase | What | When | Revenue |
