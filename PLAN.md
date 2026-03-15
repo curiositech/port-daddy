@@ -252,8 +252,9 @@ What's missing is the middleware that says "no card, no entry."
 
 ### New files
 - `lib/harbor-middleware.ts` — Express middleware for harbor card enforcement
-- `lib/harbor-sync.ts` — Remote harbor state synchronization
-- `routes/harbor-sync.ts` — HTTP/SSE endpoints for daemon-to-daemon sync
+- `lib/sync-protocol.ts` — WebSocket sync protocol, Merkle hashing, diff exchange (see Part XVII)
+- `lib/hlc.ts` — Hybrid Logical Clock implementation (see Part XVII)
+- `lib/conflict-resolver.ts` — LWW resolution, conflict detection (see Part XVII)
 
 ### Modified files
 - `lib/sugar.ts` — auto-create harbor on `pd begin`
@@ -266,7 +267,9 @@ What's missing is the middleware that says "no card, no entry."
 
 ### Test files
 - `tests/unit/harbor-middleware.test.js` — enforcement unit tests
-- `tests/unit/harbor-sync.test.js` — sync protocol unit tests
+- `tests/unit/sync-protocol.test.js` — WebSocket sync protocol unit tests (see Part XVII)
+- `tests/unit/hlc.test.js` — HLC property tests (see Part XVII)
+- `tests/unit/conflict-resolver.test.js` — conflict resolution unit tests (see Part XVII)
 - `tests/integration/harbor-remote.test.js` — two-daemon integration test
 
 ---
@@ -768,12 +771,12 @@ Everything that runs on your machine:
 machine is the distribution moat. Charging for local features kills adoption before
 network effects kick in.
 
-### Pro ($19/seat/month)
+### Pro ($14/seat/month) *(revised from $19 in Part XXII — see pricing validation)*
 
 For individual developers who work across machines:
 
 - **portdaddy.dev lighthouse registration** — register harbors for WAN discovery
-- **Remote harbor connections** (up to 3 peers) — sync across machines
+- **Remote harbor connections** (up to 5 peers) — sync across machines *(revised from 3 in Part XXII)*
 - **Session replays** — timeline view of all actions in a session
 - **Priority mDNS** — faster discovery, persistent peer memory
 - **Email support**
@@ -781,7 +784,7 @@ For individual developers who work across machines:
 **Why $19:** Low enough for an individual to expense. The value prop is "my MacBook
 and my desktop work together without me typing IP addresses."
 
-### Team ($49/team/month, up to 10 seats)
+### Team ($39/team/month, up to 10 seats) *(revised from $49 in Part XXII)*
 
 For teams running multi-developer agent swarms:
 
@@ -815,17 +818,17 @@ For companies with compliance requirements:
 - **Local harbors** — never. Security should be default, not premium.
 - **Shell completions** — never. Developer ergonomics are table stakes.
 
-### Revenue Projections (Conservative)
+### Revenue Projections (Revised — see Part XXII for validation)
 
-| Quarter | Users | Pro ($19) | Team ($49) | Enterprise | MRR |
+| Quarter | Users | Pro ($14) | Team ($39) | Enterprise | MRR |
 |---------|-------|-----------|------------|------------|-----|
-| Q3 2026 | 500 | 20 | 2 | 0 | $478 |
-| Q4 2026 | 2,000 | 80 | 10 | 1 | $2,510 |
-| Q1 2027 | 5,000 | 200 | 30 | 3 | $6,770 |
-| Q2 2027 | 10,000 | 500 | 80 | 8 | $17,420 |
+| Q3 2026 | 500 | 10 | 2 | 0 | $218 |
+| Q4 2026 | 2,000 | 40 | 8 | 1 | $1,372 |
+| Q1 2027 | 5,000 | 100 | 25 | 3 | $3,875 |
+| Q2 2027 | 10,000 | 200 | 60 | 8 | $7,540 |
 
-This assumes 4% Pro conversion, 0.5% Team conversion, and <0.1% Enterprise.
-Conservative but realistic for a developer tool with no VC funding.
+This assumes **2% Pro conversion** (revised from 4% — see Part XXII pricing
+validation), 0.5% Team conversion, and <0.1% Enterprise. Conservative.
 
 ### Implementation: License Key System
 
@@ -1092,7 +1095,8 @@ interface TokenTrie {
 You could add a `segments` column and a GIN-style index. But:
 - SQLite doesn't have GIN indexes
 - Even with indexes, SQL can't do `*:api:*` without full scan
-- The trie is ~100 lines of code and eliminates SQL from the hot path entirely
+- The trie is ~200-300 lines of code (with wildcard matching and capability checks)
+  and eliminates SQL from the hot path entirely
 - Harbor middleware runs on every request — microseconds matter
 
 ---
@@ -1945,7 +1949,8 @@ portdaddy.dev/
 │  ├──────────────┤ ├──────────────┤ ├──────────────┤    │
 │  │ Daemon       │ │ Everything   │ │ Everything   │    │
 │  │ CLI + SDK    │ │ in Free, +   │ │ in Pro, +    │    │
-│  │ MCP (98 tools│ │              │ │              │    │
+│  │ MCP (108    │ │              │ │              │    │
+│  │ tools — V4) │ │              │ │              │    │
 │  │ Local harbors│ │ portdaddy.dev│ │ Unlimited    │    │
 │  │ (enforced!)  │ │ lighthouse   │ │ remote peers │    │
 │  │ Pub/sub      │ │              │ │              │    │
@@ -3242,13 +3247,20 @@ CREATE TABLE harbor_kv (
   harbor_name  TEXT NOT NULL REFERENCES harbors(name) ON DELETE CASCADE,
   key          TEXT NOT NULL,
   value        TEXT NOT NULL,
+  version      INTEGER NOT NULL DEFAULT 1,  -- Optimistic concurrency (CAS, from Part XIII)
   hlc_physical INTEGER NOT NULL,    -- Physical clock (ms since epoch)
   hlc_counter  INTEGER NOT NULL,    -- Logical counter
   hlc_node     TEXT NOT NULL,       -- Daemon ID (short hash)
   updated_by   TEXT,
   visibility   TEXT NOT NULL DEFAULT 'harbor',
+  conflict_mode TEXT NOT NULL DEFAULT 'lww',  -- 'lww' or 'detect'
   PRIMARY KEY (harbor_name, key)
 );
+
+-- This schema supersedes Part XIII's harbor_kv definition.
+-- CAS via `version` column is preserved for local concurrency (Part XIII).
+-- HLC columns are added for remote sync ordering (Part XVII).
+-- `conflict_mode` per key enables opt-in conflict detection.
 ```
 
 ### Conflict Detection for Critical Keys
@@ -3304,7 +3316,7 @@ pd harbor kv resolve myapp db.schema_version --value "44"
 
 ## Sync Protocol
 
-### Architecture: Bidirectional SSE + HTTP RPCs
+### Architecture: WebSocket Sync + HTTP RPCs
 
 The original plan (Part I) specified "SSE for real-time sync, HTTP for RPCs." But
 SSE is unidirectional (server → client). For daemon-to-daemon sync, we need
@@ -3470,7 +3482,7 @@ reflects this scope:
 
 ## Files to Create
 
-- `lib/hlc.ts` — Hybrid Logical Clock implementation (~50 lines)
+- `lib/hlc.ts` — Hybrid Logical Clock implementation (~80-100 lines with serialization)
 - `lib/sync-protocol.ts` — WebSocket sync protocol, Merkle hashing, diff exchange
 - `lib/conflict-resolver.ts` — LWW resolution, conflict detection, manual resolution
 - `tests/unit/hlc.test.js` — HLC property tests (monotonicity, causality)
@@ -3822,7 +3834,7 @@ Port Daddy has ~15 SQLite tables. V4 adds ~8 new tables plus column additions to
 existing tables. There is no migration system — `server.ts` uses `CREATE TABLE IF
 NOT EXISTS` on startup, which only works for new installations.
 
-## Migration Runner: Custom, 50 Lines, Zero Dependencies
+## Migration Runner: Custom, ~100-150 Lines, Zero Dependencies
 
 After evaluating better-sqlite3-migrations (doesn't exist as a package), Knex (~1.5MB
 dependency), Drizzle (requires schema DSL), and Umzug (async-first, fights better-sqlite3),
