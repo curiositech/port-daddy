@@ -1,5 +1,7 @@
 # Port Daddy V4: Harbor-First Architecture Plan
 
+# Part I: Harbor-First Architecture
+
 ## The Thesis
 
 You said three things, and they're actually one thing:
@@ -1228,6 +1230,12 @@ hop gets faster.
 
 # Part IX: Dashboard UI — Wireframes and Plan
 
+> **Relationship to Part XXIV:** Part IX defines the 12-panel layout and data
+> requirements. Part XXIV defines the implementation architecture (Web Components,
+> ADR-0016) that supersedes Part IX's implicit single-file approach. Part IX is
+> "what the dashboard shows," Part XXIV is "how it's built." The 12 panels defined
+> here are phased as 6+6 across V4.1 and V4.2 in the Consolidated Execution Timeline.
+
 ## Current State
 
 The dashboard (`public/index.html`) is a **115-line skeleton**. It has:
@@ -1756,6 +1764,12 @@ instructions: [
 ---
 
 # Part XI: Website V2 (portdaddy.dev) — Full Wireframes
+
+> **Relationship to Part IV:** Part IV defines the content strategy and copy direction.
+> Part XI implements those decisions as wireframes. Part IV is "what to say," Part XI
+> is "where it goes on the page." Content decisions live in Part IV; layout decisions
+> live here. Where they overlap (pricing page, blog, comparison page), Part IV takes
+> precedence for content and Part XI takes precedence for layout.
 
 ## Current State Assessment
 
@@ -2569,9 +2583,15 @@ CREATE TABLE pheromones (
   intensity    REAL NOT NULL DEFAULT 1.0,
   deposited_by TEXT,                    -- agent ID (null = system)
   deposited_at INTEGER NOT NULL,
+  hlc_physical INTEGER,                -- HLC for remote sync (Part XVII, added V4.1)
+  hlc_counter  INTEGER,                -- NULL until remote harbors are enabled
+  hlc_node     TEXT,                    -- Daemon ID that last wrote this entry
   metadata     TEXT,                    -- JSON (type-specific data)
   PRIMARY KEY (harbor_name, type, target)
 );
+-- Note: HLC columns are nullable for V4.0 (local-only pheromones).
+-- V4.1 migration backfills HLC values when remote harbors are enabled.
+-- Pheromone sync uses max-wins (higher intensity wins), not LWW — see Part XVII.
 
 CREATE INDEX idx_pheromones_type ON pheromones(harbor_name, type);
 CREATE INDEX idx_pheromones_target ON pheromones(harbor_name, target);
@@ -3329,6 +3349,26 @@ bidirectional state flow.
 - Native support in Node.js (`ws` library, 0 dependencies for the server)
 - HTTP RPCs remain for one-off operations (verify card, query state)
 
+### WebSocket Authentication
+
+The WebSocket connection must be authenticated BEFORE the `sync_hello` exchange.
+Authentication happens during the HTTP upgrade request:
+
+1. The initiating daemon sends a harbor card as a query parameter or
+   `Authorization: Bearer <harbor-card>` header in the HTTP upgrade request
+2. The receiving daemon verifies the card (same verification path as any harbor API
+   request — see Part XVIII for key management)
+3. If verification fails, the upgrade is rejected with HTTP 401 (no WebSocket is opened)
+4. If verification succeeds, the WebSocket opens and proceeds to `sync_hello`
+5. The authenticated harbor name is bound to the WebSocket session — a single
+   connection syncs a single harbor
+
+This means a daemon with 3 remote harbors maintains 3 authenticated WebSocket
+connections. The harbor card's `exp` claim is checked periodically (every 60s) on
+established connections. If the card expires mid-session, the connection is closed
+with a `card_expired` close frame and the initiating daemon must reconnect with a
+fresh card.
+
 ```
 Daemon A                         Daemon B
    │                                │
@@ -3450,7 +3490,13 @@ Reconnection:
   → MacBook's agent sees the event and can react
 ```
 
-Fencing tokens are shared via HLC (the HLC at acquisition time serves as the token).
+Fencing tokens use a per-lock monotonic counter (not HLC — HLCs are not globally
+ordered across partitioned nodes, so a node with faster clock drift would always
+win). Each lock maintains an `acquisition_counter` that increments on every acquire.
+During sync, the higher counter wins. This is best-effort fairness during partitions:
+both sides advance their local counter independently, and the numerically higher value
+wins on reconnection. This is explicitly NOT a consensus protocol — it is a tie-breaker
+for a scenario (dual lock holders) that should be rare and temporary.
 
 ### Split-Brain Detection
 
@@ -3483,8 +3529,8 @@ reflects this scope:
 ## Files to Create
 
 - `lib/hlc.ts` — Hybrid Logical Clock implementation (~80-100 lines with serialization)
-- `lib/sync-protocol.ts` — WebSocket sync protocol, Merkle hashing, diff exchange
-- `lib/conflict-resolver.ts` — LWW resolution, conflict detection, manual resolution
+- `lib/sync-protocol.ts` — WebSocket sync protocol, Merkle hashing, diff exchange (~800-1200 lines; this is one of the most complex modules in the codebase, encompassing connection state machine, frame encoding, Merkle tree builder, diff algorithm, reconnection logic, and partition timer)
+- `lib/conflict-resolver.ts` — LWW resolution, conflict detection, manual resolution (~200-300 lines)
 - `tests/unit/hlc.test.js` — HLC property tests (monotonicity, causality)
 - `tests/unit/sync-protocol.test.js` — Sync protocol unit tests
 - `tests/unit/conflict-resolver.test.js` — Conflict resolution unit tests
@@ -3689,6 +3735,11 @@ public key to every remote peer. They verify but can't forge.
 
 **Phase 2 (V4.1, when remote harbors ship):**
 1. Generate Ed25519 keypair. Private key in `~/.config/port-daddy/keys/ed25519-active.pem`.
+   **Note:** This introduces `~/.config/port-daddy/` as a new directory. The database
+   lives in `<project-root>/port-registry.db` (per CLAUDE.md). Keys are deliberately
+   separated from data: keys are per-user identity (shared across projects), while the
+   database is per-project state. The daemon creates this directory on first key
+   generation with `0700` permissions.
    Public key published at `GET /.well-known/jwks.json`.
 2. All new tokens signed with Ed25519 (`alg: EdDSA`).
 3. Verification accepts BOTH:
@@ -5186,6 +5237,23 @@ X-Port-Daddy-Version: 4
 - If `X-Port-Daddy-Version: 4`: enforce harbor cards
 - If `X-Port-Daddy-Version: 99`: reject with `PD-E013: Unsupported API version`
 
+### Interaction with Grace Period (Part I)
+
+The grace period and version header serve different purposes and must not conflict:
+
+- **Grace period** controls the daemon-wide enforcement mode (warn vs. reject).
+  It's a time-based transition for existing installations upgrading to V4.
+- **Version header** controls per-request compatibility. A V3 client always gets
+  V3 behavior regardless of grace period state.
+
+Precedence rules:
+1. `X-Port-Daddy-Version: 3` → always exempt from harbor card enforcement, even
+   after grace period ends. V3 clients are explicitly backward-compatible.
+2. `X-Port-Daddy-Version: 4` (or no header) during grace period → warnings only
+3. `X-Port-Daddy-Version: 4` (or no header) after grace period → enforce strictly
+4. The version header CANNOT escalate enforcement — a V4 header during grace period
+   still gets warnings, not rejections (the grace period is a daemon-wide safety net)
+
 ### Daemon-to-Daemon Protocol Versioning
 
 The WebSocket sync protocol includes version negotiation in the handshake:
@@ -5515,6 +5583,26 @@ visibility rules.
   pheromone attention does not"
 - Use a test matrix, not individual test cases — easier to verify completeness
 
+### Missing: Integration with Part XVII Sync Protocol
+
+Part XVII's Merkle tree has branches for KV, claims, members, locks, and pheromones.
+The trust tier must filter which branches are included in the Merkle hash:
+
+| Merkle Branch | Full Trust | Coordinated Trust | Minimal Trust |
+|---------------|-----------|-------------------|---------------|
+| KV entries | All | Public keys only | None |
+| File claims | All | Claim existence (no content) | None |
+| Members | All | Presence only (no capabilities) | Count only |
+| Locks | All | Lock names (no holder details) | None |
+| Pheromones | All types | heat, danger, success, contention | None |
+| Session notes | All | Summary only (no full text) | None |
+
+The Merkle hash comparison in `lib/sync-protocol.ts` must be trust-tier-aware:
+compute the hash only over branches allowed by the trust tier. If both sides compute
+hashes over different branch sets (because of misconfigured tiers), the hash will
+never match — the trust tier verification step (above) prevents this by rejecting
+connections with mismatched tiers.
+
 ## Part XIII Amendments: Harbor KV, Counters, and Logs
 
 Part XVII addresses KV conflict resolution via HLC and LWW. But Part XIII also
@@ -5613,7 +5701,7 @@ time for polish.
 | **V4.0** | Semantic regions: code boundary claims (Part XIV) | Q2 2026 | — |
 | **V4.0** | Stigmergy: pheromone deposition, decay, 6 pheromone types (Part XV) | Q2 2026 | — |
 | **V4.0** | MCP server: harbor tools (8), enhanced spawn tools (Part X) | Q2 2026 | — |
-| **V4.0** | Migration runner, schema v1-v5, backup-before-migrate | Q2 2026 | — |
+| **V4.0** | Migration runner, schema v1-v6 (incl. agent identity columns), backup-before-migrate | Q2 2026 | — |
 | **V4.0** | Key management (file-based storage, rotation, JTI cleanup) | Q2 2026 | — |
 | **V4.0** | Structured logging (pino), debug facilities, bugreport command | Q2 2026 | — |
 | **V4.0** | Error catalog (PD-E001+), CLI help tiers, first-run experience | Q2 2026 | — |
@@ -5643,3 +5731,24 @@ time for polish.
 | **V4.3** | arXiv preprint submission | Q1 2027 | Credibility |
 | **V4.3** | Remaining templates (research-swarm, self-healing) | Q1 2027 | — |
 | **V5.0** | Enterprise tier, cloud spawn, SAML/SSO | Q2 2027 | Enterprise revenue |
+
+### Scope Risk: V4.0
+
+V4.0 has 13 line items for Q2 2026. For a small team (or solo developer), this is
+aggressive. The honest assessment:
+
+**Must-ship for V4.0** (harbor enforcement is the thesis — everything else is optional):
+- Harbor enforcement + grace period + auto-harbor on begin
+- Migration runner + schema v1-v6
+- Error catalog (PD-E001+) and first-run experience
+- `pd teach` (primary distribution channel)
+
+**Can slip to V4.0.1 or V4.1** without undermining the release:
+- Structured logging (pino) — the existing console logging works for launch
+- Key management — HMAC is sufficient until remote harbors ship in V4.1
+- Website copy updates, OG tags — polish, not blocking
+- `llms.txt`, telemetry, GitHub Action — nice-to-have
+
+**Mitigation:** Treat V4.0 as a 2-month release with a hard cut date. Anything not
+done by cut date ships in V4.0.1. Do not let scope creep delay the core harbor
+enforcement launch.
