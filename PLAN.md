@@ -2019,6 +2019,726 @@ These are bugs, not features:
 ---
 ---
 
+# Part XII: Remote Harbor Privacy and Trust Tiers
+
+## The Core Question
+
+When your MacBook and desktop share a harbor, how much does each daemon trust the
+other? And how much should agents on one machine see of the other machine's state?
+
+## Three Trust Tiers
+
+### Tier 1: Full Trust (Default for Your Own Machines)
+
+```bash
+pd harbor connect myapp --trust full
+```
+
+Both daemons see everything in the harbor. All sessions, all notes, all file claims,
+all pub/sub messages, all KV store entries. This is "my MacBook and my desktop" mode.
+You own both machines. There's no reason to hide state from yourself.
+
+The harbor card for remote agents has the same capabilities as local agents.
+
+### Tier 2: Coordinated Trust (Default for Team Members)
+
+```bash
+pd harbor connect myapp --trust coordinated
+```
+
+Remote agents see coordination state but not session internals:
+
+| Visible | Hidden |
+|---------|--------|
+| Harbor membership | Session notes (unless `--visibility harbor`) |
+| File claims | Agent's internal state |
+| Lock state | Inbox messages |
+| Pub/sub on harbor channels | Local activity logs |
+| KV store (harbor-scoped) | Briefings |
+| Agent liveness | Agent type/backend |
+
+This is "I'm working with a colleague, we need to not stomp on each other's files,
+but I don't need to read their stream of consciousness notes."
+
+Remote agents get a **restricted capability set**:
+
+```bash
+pd harbor create myapp --remote-cap code:read,files:claim,locks:acquire,notes:read
+# Remote agents can read code, claim files, acquire locks, read shared notes
+# They cannot: write notes to your sessions, publish to arbitrary channels,
+#              claim ports, modify your KV entries
+```
+
+### Tier 3: Minimal Trust (Default for External / Untrusted)
+
+```bash
+pd harbor connect myapp --trust minimal
+```
+
+Remote agents can only see that the harbor exists and who's in it. No file claims,
+no notes, no KV access. They can publish/subscribe to a single designated channel.
+
+This is "I'm pairing with someone I don't fully trust" or "a CI agent is joining
+for the duration of a build."
+
+```
+Remote agent sees:
+  - Harbor name
+  - Member list (names only, no session details)
+  - Designated communication channel
+
+Remote agent cannot see:
+  - File claims
+  - Session notes
+  - KV store
+  - Lock state
+  - Port assignments
+```
+
+## Compulsory vs. Private Data
+
+Some harbor state MUST sync for coordination to work. Some state SHOULD sync for
+collaboration. Some state MUST NOT sync for privacy.
+
+```
+COMPULSORY (sync always — coordination breaks without this):
+  - Harbor membership (who is here?)
+  - File claim existence (who's working on what?)
+  - Lock state (who holds what?)
+  - Agent liveness (who's alive?)
+
+OPTIONAL (sync if trust tier allows):
+  - Session notes (visibility: harbor)
+  - KV store entries (per-key ACL possible)
+  - Pub/sub messages (per-channel ACL possible)
+  - File claim details (path vs. just "claimed")
+
+PRIVATE (never sync — local only):
+  - Harbor card JWTs (local auth tokens)
+  - Agent's internal state / environment variables
+  - Inbox messages (direct, not broadcast)
+  - Local session notes (visibility: local)
+  - Daemon config / metrics
+  - Activity log entries
+```
+
+## Note Visibility
+
+Notes gain a `visibility` field:
+
+```
+pd note "JWT implementation working" --visibility harbor
+# → syncs to all connected peers in this harbor
+
+pd note "trying a weird hack, might revert" --visibility local
+# → stays on this daemon, never syncs
+
+pd note "handoff: auth module ready for review" --visibility harbor --pin
+# → syncs AND pinned to top of harbor's shared context
+```
+
+Default visibility follows the trust tier:
+- Full trust: `harbor` (everything syncs)
+- Coordinated: `local` (opt-in to share)
+- Minimal: `local` (notes never sync)
+
+---
+---
+
+# Part XIII: Intra-Harbor Data Structures
+
+## The Landscape
+
+Agents inside a harbor need shared state. Today they have:
+- **Sessions** (per-agent, mutable status, immutable notes)
+- **File claims** (advisory, per-session)
+- **Pub/sub** (ephemeral messages, no persistence)
+- **Locks** (exclusive access, TTL-based)
+
+What's missing: **mutable shared state** (KV store), **semantic memory** (embeddings),
+and **structured shared context** (whiteboard).
+
+## 1. Harbor KV Store
+
+A scoped, mutable key-value store per harbor. The harbor's *working memory*.
+
+```bash
+# Set a value
+pd harbor kv set myapp auth.endpoint "http://localhost:3100/auth"
+pd harbor kv set myapp auth.strategy "JWT with RS256"
+pd harbor kv set myapp db.schema_version "42"
+
+# Read
+pd harbor kv get myapp auth.endpoint
+# → http://localhost:3100/auth
+
+# List with prefix
+pd harbor kv list myapp auth.*
+# → auth.endpoint = http://localhost:3100/auth
+# → auth.strategy = JWT with RS256
+
+# Delete
+pd harbor kv del myapp auth.strategy
+
+# Watch for changes (SSE)
+pd harbor kv watch myapp auth.*
+```
+
+### Schema
+
+```sql
+CREATE TABLE harbor_kv (
+  harbor_name  TEXT NOT NULL REFERENCES harbors(name) ON DELETE CASCADE,
+  key          TEXT NOT NULL,
+  value        TEXT NOT NULL,           -- JSON-encoded
+  updated_at   INTEGER NOT NULL,
+  updated_by   TEXT,                    -- agent ID
+  version      INTEGER NOT NULL DEFAULT 1,  -- optimistic concurrency
+  visibility   TEXT NOT NULL DEFAULT 'harbor',  -- 'harbor' or 'local'
+  PRIMARY KEY (harbor_name, key)
+);
+
+CREATE INDEX idx_harbor_kv_prefix ON harbor_kv(harbor_name, key);
+```
+
+### Properties
+
+- **Mutable** — unlike notes, KV entries can be updated and deleted
+- **Scoped** — each harbor has its own namespace. KV keys are in the token trie
+- **Versioned** — optimistic concurrency via version field. CAS (compare-and-swap)
+  prevents lost updates when two agents write the same key
+- **Synced** — entries with `visibility: 'harbor'` sync to remote peers
+- **Evicted** — when a harbor is destroyed, its KV store is cascade-deleted
+- **Addressed** — `myapp:kv:auth.endpoint` in the universal token namespace
+
+### CAS (Compare-and-Swap)
+
+```bash
+pd harbor kv set myapp auth.strategy "OAuth2" --expect-version 1
+# → succeeds (version was 1, now 2)
+
+pd harbor kv set myapp auth.strategy "JWT" --expect-version 1
+# → fails: version is now 2 (another agent updated it)
+# → agent must re-read and retry
+```
+
+This prevents the classic lost-update problem without requiring locks for every
+KV write. Locks are for exclusive access to resources. CAS is for shared state
+that agents update optimistically.
+
+### Relationship to Notes
+
+```
+Notes  = "what happened" (immutable journal, append-only, per-session)
+KV     = "what is true now" (mutable state, shared, per-harbor)
+```
+
+An agent writes a note: "Switched auth strategy from OAuth2 to JWT."
+The same agent updates KV: `auth.strategy = "JWT"`.
+The note explains WHY. The KV records WHAT. Both are needed.
+
+## 2. Semantic Memory (Optional Embeddings)
+
+When an embedding model is available (Ollama, etc.), KV entries can be
+semantically searchable:
+
+```bash
+# Store with embedding (requires Ollama or similar)
+pd harbor kv set myapp decision.auth "We chose JWT because OAuth2 added too much
+  latency for the real-time features. RS256 for asymmetric verification." --embed
+
+# Semantic search
+pd harbor kv search myapp "why did we pick this authentication approach?"
+# → decision.auth (similarity: 0.92): "We chose JWT because..."
+```
+
+### Implementation
+
+```sql
+CREATE TABLE harbor_embeddings (
+  harbor_name  TEXT NOT NULL,
+  key          TEXT NOT NULL,
+  embedding    BLOB NOT NULL,          -- float32 vector, 384-1536 dimensions
+  model        TEXT NOT NULL,          -- e.g., 'nomic-embed-text'
+  created_at   INTEGER NOT NULL,
+  PRIMARY KEY (harbor_name, key),
+  FOREIGN KEY (harbor_name, key) REFERENCES harbor_kv(harbor_name, key) ON DELETE CASCADE
+);
+```
+
+### Why Optional
+
+- Port Daddy is infrastructure. It should work without an ML runtime.
+- `--embed` flag only works if `pd spawn` can detect an embedding backend
+- Semantic search falls back to SQLite FTS5 (full-text search) if no embeddings
+- The embedding table is created lazily (only when first `--embed` is used)
+
+### Embedding Backend Detection
+
+```typescript
+async function getEmbeddingBackend(): Promise<EmbeddingBackend | null> {
+  // Check Ollama
+  try {
+    const res = await fetch('http://localhost:11434/api/tags');
+    const data = await res.json();
+    const embedModels = data.models.filter(m => m.name.includes('embed'));
+    if (embedModels.length) return { type: 'ollama', model: embedModels[0].name };
+  } catch {}
+
+  // No embedding backend available
+  return null;
+}
+```
+
+## 3. The Whiteboard: Structured Shared Context
+
+Notes are append-only. KV is flat key-value. Neither provides *structured shared
+context* — a document that multiple agents build together.
+
+The whiteboard is a special KV namespace with Markdown content and section ownership:
+
+```bash
+# Agent A starts a whiteboard
+pd harbor whiteboard set myapp architecture "
+## Auth Module
+- JWT with RS256
+- Tokens expire after 1h
+- Refresh tokens stored in httpOnly cookies
+"
+
+# Agent B appends to the whiteboard
+pd harbor whiteboard append myapp architecture "
+## API Layer
+- Express with TypeScript
+- Rate limiting: 100 req/min per IP
+"
+
+# Agent C reads the whiteboard
+pd harbor whiteboard get myapp architecture
+# → ## Auth Module
+#   - JWT with RS256 ...
+#   ## API Layer
+#   - Express with TypeScript ...
+
+# Diff since last read
+pd harbor whiteboard diff myapp architecture --since 5m
+```
+
+### Implementation
+
+The whiteboard is just KV entries with:
+- `key` prefix: `whiteboard:<name>`
+- `value`: Markdown string
+- `append` operation: reads current, concatenates, writes back (with CAS)
+
+No new table needed. It's a convention on top of the KV store.
+
+```bash
+# These are equivalent:
+pd harbor whiteboard set myapp arch "# Architecture\n..."
+pd harbor kv set myapp whiteboard:arch "# Architecture\n..."
+```
+
+The `whiteboard` command is sugar for KV operations with Markdown awareness
+(section dedup, append semantics, diff support).
+
+---
+---
+
+# Part XIV: Regions — Semantic Code Boundaries
+
+## The Problem with File Claims
+
+File claims today are path-based:
+
+```bash
+pd files claim src/auth/jwt.ts
+pd files claim src/auth/*
+```
+
+This breaks down because:
+
+1. **Code isn't organized by concern.** The auth logic might span `src/auth/jwt.ts`,
+   `src/middleware/auth.ts`, `src/routes/login.ts`, and `tests/auth.test.ts`. An agent
+   claiming "auth" shouldn't need to enumerate four glob patterns.
+
+2. **Functions matter more than files.** Two agents can safely work on the same file
+   if they're modifying different functions. File-level claims are too coarse.
+
+3. **Dependencies create implicit claims.** If I'm refactoring `verifyToken()`, I
+   implicitly need `issueToken()` too (they share types). But file claims don't
+   understand this.
+
+## Regions: Named Semantic Boundaries
+
+A region is a named logical area of code that maps to files, functions, and
+their dependency edges:
+
+```bash
+# Define a region manually
+pd region define auth \
+  --files "src/auth/**,src/middleware/auth*,tests/auth*" \
+  --functions "verifyToken,issueToken,refreshToken,AuthMiddleware"
+
+# Claim a region (replaces file claims for this scope)
+pd region claim auth
+# → Claimed region 'auth': 4 files, 4 functions
+# → Dependencies: issueToken → verifyToken (internal)
+# → Boundary: AuthMiddleware called from src/routes/*.ts (external)
+
+# Another agent sees:
+pd regions
+# → ● auth    (agent-a4f2, 34m)  4 files, 4 functions
+# →   src/auth/jwt.ts, src/middleware/auth.ts, tests/auth.test.ts
+# →   verifyToken, issueToken, refreshToken, AuthMiddleware
+```
+
+### Auto-Detected Regions
+
+`pd scan --deep` parses the project and suggests regions:
+
+```bash
+pd scan --deep
+# Scanning... 847 files, 12,341 functions
+#
+# Suggested regions:
+#   auth          4 files, 7 functions   (high cohesion, low coupling)
+#   database      6 files, 23 functions  (high cohesion)
+#   api-routes    12 files, 45 functions (moderate coupling to auth, database)
+#   frontend      34 files, 89 functions (moderate coupling to api-routes)
+#   config        3 files, 8 functions   (low coupling)
+#   tests         28 files              (mirrors source structure)
+#
+# Accept suggestions? [Y/n/edit]
+```
+
+Detection works by:
+1. **Import graph analysis** — which files import which? Strongly connected components
+   become region candidates.
+2. **Function call graph** — which functions call which? Functions that call each other
+   frequently are in the same region.
+3. **Naming conventions** — `src/auth/*`, `src/db/*` etc. are natural boundaries.
+4. **Co-change history** — (if git is available) files that change together belong
+   together.
+
+### Learned Function Hierarchy
+
+The ambitious version: instead of flat regions, build a *hierarchy*:
+
+```
+project: myapp
+├── auth
+│   ├── tokens (verifyToken, issueToken, refreshToken)
+│   ├── middleware (AuthMiddleware, requireAuth, optionalAuth)
+│   └── storage (storeRefreshToken, revokeRefreshToken)
+├── api
+│   ├── routes (createRouter, registerRoutes)
+│   ├── handlers (handleLogin, handleLogout, handleRegister)
+│   └── validation (validateEmail, validatePassword)
+├── database
+│   ├── connection (createPool, getConnection)
+│   ├── queries (findUser, createUser, updateUser)
+│   └── migrations (up, down, seed)
+└── frontend
+    ├── pages (LoginPage, DashboardPage, SettingsPage)
+    ├── components (AuthForm, NavBar, UserMenu)
+    └── hooks (useAuth, useApi, useUser)
+```
+
+Each node in the hierarchy is a region. Claiming `auth` claims all sub-regions.
+Claiming `auth:tokens` claims only the token functions. The hierarchy maps to
+the universal token namespace:
+
+```
+myapp:region:auth                          ← all of auth
+myapp:region:auth:tokens                   ← just token functions
+myapp:region:auth:tokens:fn:verifyToken    ← specific function
+myapp:region:api:handlers                  ← API handlers
+```
+
+### Implementation Phases
+
+**V4.0: Manual regions with file patterns**
+
+```sql
+CREATE TABLE regions (
+  harbor_name  TEXT NOT NULL REFERENCES harbors(name) ON DELETE CASCADE,
+  name         TEXT NOT NULL,
+  files        TEXT NOT NULL DEFAULT '[]',    -- JSON array of glob patterns
+  functions    TEXT NOT NULL DEFAULT '[]',    -- JSON array of function names
+  created_by   TEXT,                          -- agent ID
+  created_at   INTEGER NOT NULL,
+  metadata     TEXT,                          -- JSON
+  PRIMARY KEY (harbor_name, name)
+);
+
+CREATE TABLE region_claims (
+  harbor_name  TEXT NOT NULL,
+  region_name  TEXT NOT NULL,
+  agent_id     TEXT NOT NULL,
+  session_id   TEXT,
+  claimed_at   INTEGER NOT NULL,
+  PRIMARY KEY (harbor_name, region_name, agent_id),
+  FOREIGN KEY (harbor_name, region_name) REFERENCES regions(harbor_name, name) ON DELETE CASCADE
+);
+```
+
+**V4.1: Import graph analysis**
+
+`pd scan --deep` uses a lightweight parser (regex-based for JS/TS/Python imports,
+not full AST) to build the import graph. Suggests regions based on strongly connected
+components.
+
+**V4.2: AST-level function tracking**
+
+Use tree-sitter (available as npm package) to parse function definitions and call
+sites. Build function call graph. Regions become function groups with dependency edges.
+
+**V5: Live updating**
+
+As agents modify files, the import/call graph updates. Region boundaries shift.
+Pheromone traces (see Part XV) mark hot function groups. The system *learns* which
+code regions are naturally coupled.
+
+### Backward Compatibility
+
+File claims continue to work. Regions are a layer on top:
+
+```bash
+# Old way (still works):
+pd files claim src/auth/jwt.ts
+
+# New way (recommended):
+pd region claim auth
+
+# Regions decompose into file claims internally:
+# When you claim region 'auth', the daemon creates file claims for
+# all files matching the region's patterns. Old agents that only
+# understand file claims still see the claims.
+```
+
+---
+---
+
+# Part XV: Stigmergic Coordination
+
+## What Is Stigmergy?
+
+Coordination without direct communication. Agents leave traces in the environment.
+Other agents detect the traces and adapt their behavior. No agent needs to know any
+other agent exists. They just respond to the state of the world.
+
+Examples in nature: ant pheromone trails, termite mound building, Wikipedia edits.
+Examples in software: git commit history, CI status badges, code coverage reports.
+
+## What Port Daddy Already Has
+
+`lib/pheromone.ts` exists. It runs a decay loop every 60 seconds, multiplying
+numeric values in metadata by 0.95. Values below 0.01 are evicted.
+
+This is the *evaporation* half of stigmergy. What's missing is the *deposition* half —
+agents need to leave traces, and the traces need to mean something.
+
+## Seven Pheromone Types
+
+### 1. Heat: File/Region Activity
+
+Every time an agent reads, modifies, or claims a file, the file accumulates *heat*.
+Hot files are being actively worked on. Cold files are stable.
+
+```
+Trace: heat(file_path, intensity)
+Deposition: automatic — daemon increments heat on every file claim, note referencing a file
+Evaporation: 5% per minute (configurable)
+Read: pd heat src/auth/    → shows heat map of auth directory
+Agent use: avoid hot files (reduce conflicts), or seek hot files (join collaboration)
+```
+
+```sql
+CREATE TABLE pheromones (
+  harbor_name  TEXT NOT NULL,
+  type         TEXT NOT NULL,           -- 'heat', 'trail', 'danger', etc.
+  target       TEXT NOT NULL,           -- file path, region name, channel, etc.
+  intensity    REAL NOT NULL DEFAULT 1.0,
+  deposited_by TEXT,                    -- agent ID (null = system)
+  deposited_at INTEGER NOT NULL,
+  metadata     TEXT,                    -- JSON (type-specific data)
+  PRIMARY KEY (harbor_name, type, target)
+);
+
+CREATE INDEX idx_pheromones_type ON pheromones(harbor_name, type);
+CREATE INDEX idx_pheromones_target ON pheromones(harbor_name, target);
+```
+
+### 2. Trail: Communication Frequency
+
+When agents publish to a channel, the channel accumulates *trail* intensity. Busy
+channels glow. Dead channels fade. A new agent entering a harbor can see which
+channels are active without subscribing to all of them.
+
+```
+Trace: trail(channel, intensity)
+Deposition: automatic — +1.0 per message published
+Evaporation: 10% per minute (channels go cold faster than files)
+Read: pd trails    → shows active channels ranked by intensity
+Agent use: subscribe to hot channels first, ignore cold ones
+```
+
+### 3. Danger: Failure Markers
+
+When an agent dies (heartbeat flatlines), a *danger* trace is deposited on
+everything it was working on — its file claims, its region, its locks.
+
+```
+Trace: danger(target, intensity)
+Deposition: automatic — daemon deposits on agent death
+Evaporation: 2% per minute (danger fades slowly — 50 minutes to half-life)
+Read: pd danger src/auth/   → "⚠ agent-dead1 died here 2h ago"
+Agent use: proceed with caution, read the dead agent's notes first
+```
+
+This is the stigmergic version of salvage. Instead of explicitly running
+`pd salvage`, agents naturally encounter danger traces while working. They
+don't need to check a salvage queue — the environment warns them.
+
+### 4. Success: Completion Markers
+
+When an agent completes a session (`pd done`), a *success* trace is deposited
+on the files/regions it touched.
+
+```
+Trace: success(target, intensity)
+Deposition: automatic — on session completion with status 'completed'
+Evaporation: 3% per minute (success fades at moderate rate)
+Read: pd glow src/auth/   → "✓ recently completed work (agent-a4f2, 1h ago)"
+Agent use: confidence signal — this code was recently worked on and the agent
+           finished successfully. Probably stable.
+```
+
+### 5. Contention: Lock Pressure
+
+Every failed lock attempt deposits a *contention* trace on the lock name.
+High contention means agents are fighting over the same resource.
+
+```
+Trace: contention(lock_name, intensity)
+Deposition: automatic — +1.0 per failed lock attempt
+Evaporation: 15% per minute (contention is a momentary signal)
+Read: pd contention    → "auth-module: HIGH (4 attempts in 5m)"
+Agent use: don't try to acquire high-contention locks immediately.
+           Wait, work on something else, try later.
+```
+
+### 6. Attention: Read Pressure
+
+When multiple agents read the same file/region without claiming it, an *attention*
+trace builds up. "Three agents have looked at src/auth/ in the last 10 minutes
+but nobody's claimed it." This signals either:
+- It's important and someone should claim it
+- It's a dependency that everyone reads but nobody owns
+
+```
+Trace: attention(target, intensity)
+Deposition: automatic — +0.5 per read/access without claim
+Evaporation: 20% per minute (attention is ephemeral)
+Read: pd attention    → "src/auth/: 3 agents looking, nobody claiming"
+Agent use: if attention is high and you're qualified, claim it.
+           If attention is high and someone claims it, that's coordination.
+```
+
+### 7. Coupling: Co-Change Correlation
+
+When two files/regions are modified in the same session, a *coupling* trace
+accumulates between them. Over many sessions, strongly coupled pairs emerge.
+
+```
+Trace: coupling(target_a, target_b, intensity)
+Deposition: automatic — +1.0 when both are modified in same session
+Evaporation: 1% per hour (coupling is a long-term structural signal)
+Read: pd coupling src/auth/   → "strongly coupled with: src/middleware/auth.ts (0.89)"
+Agent use: if claiming one, consider claiming the other.
+           Feed into region auto-detection (V4.1+ — files that couple should be one region).
+```
+
+## The Evaporation Engine (Upgraded)
+
+The current `lib/pheromone.ts` becomes a proper evaporation engine:
+
+```typescript
+const EVAPORATION_RATES: Record<string, number> = {
+  heat:        0.95,   // 5%/min  — files stay warm for ~20 min
+  trail:       0.90,   // 10%/min — channels cool in ~10 min
+  danger:      0.98,   // 2%/min  — danger lingers for ~50 min
+  success:     0.97,   // 3%/min  — success visible for ~30 min
+  contention:  0.85,   // 15%/min — contention clears in ~5 min
+  attention:   0.80,   // 20%/min — attention is momentary
+  coupling:    0.999,  // 0.1%/hr — coupling is near-permanent
+};
+```
+
+The engine runs every 30 seconds. Entries below 0.01 are evicted.
+
+## How Agents Use Pheromones
+
+Agents don't need special logic. The MCP tools surface pheromone data alongside
+normal responses:
+
+```
+Agent calls: claim_port("myapp:api:auth")
+Response includes:
+  port: 3100
+  pheromones:
+    heat: 0.73 (active area — another agent was here recently)
+    danger: 0.45 (⚠ an agent died working on auth 30m ago)
+    success: 0.12 (fading — last successful completion was 2h ago)
+    coupling: [{ target: "myapp:api:middleware", strength: 0.89 }]
+```
+
+The agent's LLM reads this context and adapts:
+- "Heat is high — I should check who's working here and coordinate"
+- "Danger marker — I should read the dead agent's notes before proceeding"
+- "Coupling to middleware — I should claim that region too"
+
+No explicit pheromone commands needed for reading. The environment speaks.
+
+For writing, most pheromones are deposited *automatically* by the daemon on
+existing operations (claim, release, note, publish, lock, die, complete).
+Agents can also deposit manually:
+
+```bash
+pd pheromone deposit heat src/auth/ 0.5 --reason "investigating auth bug"
+pd pheromone deposit danger src/auth/jwt.ts 1.0 --reason "found a security issue"
+```
+
+## Harbor-Scoped Pheromones
+
+Pheromones are scoped to a harbor. Heat on `src/auth/` in the `myapp` harbor
+is independent of heat on the same file in a different harbor.
+
+In remote harbors, pheromones sync like other harbor state (subject to trust tier).
+Full-trust peers see all pheromones. Coordinated-trust peers see heat, danger,
+success, contention. Minimal-trust peers see nothing.
+
+## What This Replaces
+
+Pheromones don't replace existing features. They augment them with ambient intelligence:
+
+| Explicit mechanism | Stigmergic equivalent |
+|---|---|
+| `pd salvage` (check queue) | Danger pheromones on dead agent's files |
+| `pd files --all` (check claims) | Heat map shows activity without checking claims |
+| `pd channels` (list channels) | Trail intensity shows which channels matter |
+| `pd locks` (check contention) | Contention traces show pressure without checking |
+| Manual region definition | Coupling traces auto-discover natural boundaries |
+
+The explicit commands still work. The pheromones make the environment itself
+informative — agents that don't know to check the salvage queue still encounter
+danger traces. That's the point of stigmergy: **coordination emerges from the
+environment, not from agent-to-agent protocols.**
+
+---
+---
+
 # Consolidated Execution Timeline
 
 | Phase | What | When | Revenue |
