@@ -1,54 +1,53 @@
 /**
- * Port Daddy — Precision High-Contrast & Rhythm Tokens
- * Using OKLCH for perceptually uniform color and max accessibility.
+ * Port Daddy — Precision High-Contrast OKLCH Tokens
+ * ENFORCED WCAG AAA COMPLIANCE
  */
 
-:root {
-  /* High-Contrast Core - Light Mode by Default */
-  --bg-base:      oklch(99% 0.01 265);
-  --bg-surface:   oklch(97% 0.01 265);
-  --bg-overlay:   oklch(95% 0.02 265);
-  --bg-glass:     rgba(255, 255, 255, 0.85);
+:root, [data-theme='light'] {
+  /* High-Contrast Core - Light Mode (AAA) */
+  --bg-base:      oklch(100% 0 0);
+  --bg-surface:   oklch(98% 0.01 265);
+  --bg-overlay:   oklch(96% 0.01 265);
+  --bg-glass:     rgba(255, 255, 255, 0.9);
   
-  --text-primary:   oklch(20% 0.02 265);
-  --text-secondary: oklch(40% 0.04 265);
-  --text-muted:     oklch(60% 0.04 265);
+  --text-primary:   oklch(15% 0.02 265); /* Deepest Navy/Grey */
+  --text-secondary: oklch(25% 0.03 265);
+  --text-muted:     oklch(40% 0.04 265);
   
-  --brand-primary:   oklch(60% 0.15 200); /* Crisp Maritime Teal */
-  --brand-secondary: oklch(70% 0.12 200);
-  --brand-accent:    oklch(65% 0.25 260); /* Electric Blue */
+  --brand-primary:   oklch(45% 0.15 200); /* Darker Maritime Teal for AAA */
+  --brand-secondary: oklch(35% 0.15 200);
+  --brand-accent:    oklch(40% 0.25 260); /* Deep Electric Blue */
   
   --border-subtle: oklch(90% 0.02 265);
-  --border-strong: oklch(80% 0.04 265);
+  --border-strong: oklch(70% 0.04 265);
   
   --interactive-hover:  rgba(0, 0, 0, 0.05);
-  --interactive-active: oklch(60% 0.15 200 / 0.1);
+  --interactive-active: oklch(45% 0.15 200 / 0.1);
 
-  /* Typography Scale */
+  /* Shared Typography */
   --p-font-mono:    'JetBrains Mono', monospace;
   --p-font-sans:    'Inter', sans-serif;
   --p-font-display: 'Space Grotesk', sans-serif;
-
-  /* Rhythmic Spacing */
-  --p-radius-xl: 24px;
-  --nav-height: 80px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg-base:      oklch(5% 0.01 265);    /* Near Black */
-    --bg-surface:   oklch(10% 0.01 265);   /* Dark Grey */
-    --bg-overlay:   oklch(15% 0.02 265);   /* Lighter Grey */
-    --bg-glass:     rgba(5, 5, 5, 0.85);
-    
-    --text-primary:   oklch(98% 0.01 265); /* Near White */
-    --text-secondary: oklch(85% 0.02 265); /* Light Grey */
-    --text-muted:     oklch(70% 0.03 265); /* Muted Grey */
-    
-    --border-subtle: oklch(20% 0.03 265);
-    --border-strong: oklch(30% 0.04 265);
-    
-    --interactive-hover:  rgba(255, 255, 255, 0.08);
-    --interactive-active: oklch(60% 0.15 200 / 0.2);
-  }
+[data-theme='dark'] {
+  /* High-Contrast Core - Dark Mode (AAA) */
+  --bg-base:      oklch(10% 0.01 265); /* Very dark, not pure black */
+  --bg-surface:   oklch(15% 0.02 265);
+  --bg-overlay:   oklch(20% 0.03 265);
+  --bg-glass:     rgba(15, 15, 20, 0.9);
+  
+  --text-primary:   oklch(98% 0.01 265); /* Near White */
+  --text-secondary: oklch(90% 0.02 265);
+  --text-muted:     oklch(75% 0.03 265);
+  
+  --brand-primary:   oklch(80% 0.15 200); /* Bright Teal */
+  --brand-secondary: oklch(85% 0.12 200);
+  --brand-accent:    oklch(75% 0.25 260);
+  
+  --border-subtle: oklch(30% 0.03 265);
+  --border-strong: oklch(45% 0.04 265);
+  
+  --interactive-hover:  rgba(255, 255, 255, 0.08);
+  --interactive-active: oklch(80% 0.15 200 / 0.2);
 }

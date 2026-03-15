@@ -42,7 +42,7 @@ if (verifyLibraryChecksum(libPath)) {
     const lib = koffi.load(libPath);
     enforcer = {
       constantTimeCompare: lib.func('bool harbor_constant_time_compare(const uint8_t *a, size_t a_len, const uint8_t *b, size_t b_len)'),
-      verifyCapsSubset: lib.func('bool harbor_verify_caps_subset_json(const char *root_json, const char *sub_json)')
+      verifyCapsSubset: lib.func('bool harbor_verify_caps_subset_json(const char *root_json, size_t root_len, const char *sub_json, size_t sub_len)')
     };
     console.error('💂‍♂️ Arbiter: Formally verified Rust enforcer loaded and active.');
   } catch (err) {
@@ -103,8 +103,6 @@ export function createArbiter(
   async function checkLockAcquisition(entry: any) {
     const { agentId, targetId } = entry;
     
-    // Example: If a lock is 'db:write', ensure the agent has that capability
-    // in its formally issued Harbor Card.
     if (targetId.startsWith('db:') && enforcer) {
       const card = await harborTokens.getCardForAgent(agentId);
       if (!card) return;
@@ -112,10 +110,14 @@ export function createArbiter(
       const requiredCaps = JSON.stringify(['db:write']);
       const agentCaps = JSON.stringify(card.capabilities);
 
-      const isValid = enforcer.verifyCapsSubset(agentCaps, requiredCaps);
-      
-      if (!isValid) {
-        reportViolation('CAP_ESCALATION', `Agent ${agentId} attempted to acquire ${targetId} without proper capabilities.`);
+      try {
+        const isValid = enforcer.verifyCapsSubset(agentCaps, agentCaps.length, requiredCaps, requiredCaps.length);
+        
+        if (!isValid) {
+          reportViolation('CAP_ESCALATION', `Agent ${agentId} attempted to acquire ${targetId} without proper capabilities.`);
+        }
+      } catch (err) {
+        console.error('💂‍♂️ Arbiter: FFI verifyCapsSubset failed.', err);
       }
     }
   }

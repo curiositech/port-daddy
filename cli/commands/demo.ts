@@ -1,97 +1,62 @@
 /**
- * Demo Command — Interactive Storytelling
- * 
- * Simulates multi-agent coordination scenarios to demonstrate 
- * Port Daddy's value. Inspired by the Asciinema strategy.
+ * Demo Command — High-Fidelity Storytelling
  */
 
 import { Command } from 'commander';
+import { status as maritimeStatus, ANSI } from '../../lib/maritime.js';
 
-/**
- * Handle the demo command from the manual CLI dispatcher
- */
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 export async function handleDemo(subcommand?: string, options: any = {}) {
   switch (subcommand) {
-    case 'port-conflict':
-      console.log('\n🚀 Scenario: The Port Conflict Hell');
-      console.log('------------------------------------');
-      console.log('1. Agent A (Claude) starts a dev server on port 3000...');
+    case 'mayday':
+      console.log(`\n${ANSI.bgRed}${ANSI.fgWhite}  CRITICAL ALERT: MEMORY LEAK DETECTED  ${ANSI.reset}`);
       await delay(1000);
-      console.log('2. Agent B (Cursor) tries to start a worker on port 3000...');
+      console.log(maritimeStatus('error', 'Agent coder-1 is flatlining...'));
+      await delay(800);
+      console.log(`${ANSI.fgCyan}SIGNAL:${ANSI.reset} Broadcasting ${ANSI.fgRed}MAYDAY${ANSI.reset} on channel 'security:alerts'`);
+      console.log(`$ pd pub security:alerts "FATAL_OOM" --signal mayday`);
       await delay(1500);
-      console.log('❌ Error: EADDRINUSE: address already in use :::3000');
+      console.log(`\n${ANSI.fgGreen}REACTION:${ANSI.reset} Watcher 'Arbiter' smelled the pheromone.`);
+      console.log(`${ANSI.fgGray}Executing: ./scripts/rollback-safely.sh${ANSI.reset}`);
       await delay(1000);
-      console.log('\n🛡️  Port Daddy Solution:');
-      console.log('Agent A: pd claim myapp:api  -> 3100 (deterministic)');
-      console.log('Agent B: pd claim myapp:worker -> 3101 (deterministic)');
-      await delay(1000);
-      console.log('✅ Both agents run in parallel. Zero conflicts.');
+      console.log(maritimeStatus('success', 'Harbor stabilized. Rogue PID purged.'));
       break;
 
-    case 'coordination':
-      console.log('\n🤝 Scenario: Agent Handoff');
-      console.log('-------------------------');
-      console.log('1. Agent A: "Building auth API..."');
-      console.log('   $ pd begin "auth-build"');
-      await delay(1000);
-      console.log('2. Agent B: "Waiting for auth API to write frontend..."');
-      console.log('   $ pd integration needs myapp:api "Waiting for endpoints"');
+    case 'salvage':
+      console.log(`\n${ANSI.fgGray}# Searching for dead agents in 'myapp:api'...${ANSI.reset}`);
+      await delay(1200);
+      console.log(`${ANSI.fgYellow}ZOMBIE FOUND:${ANSI.reset} agent-alpha-99 (Last seen 45m ago)`);
+      console.log(`${ANSI.fgGray}Notes found: "Implementing auth-v2", "JWT logic 90% done"${ANSI.reset}`);
       await delay(1500);
-      console.log('3. Agent A: "Auth ready!"');
-      console.log('   $ pd integration ready myapp:api "Endpoints live at /api/v1/*"');
+      console.log(`\n${ANSI.fgCyan}ACTION:${ANSI.reset} Claiming context...`);
+      console.log(`$ pd salvage claim agent-alpha-99 --as agent-bravo-01`);
       await delay(1000);
-      console.log('✅ Agent B detects the signal and begins implementation.');
+      console.log(maritimeStatus('success', 'Context merged. Agent Bravo is now the designated survivor.'));
+      break;
+
+    case 'auction':
+      console.log(`\n${ANSI.fgCyan}CONCEPT GRAPH:${ANSI.reset} Node 'goal:optimize-db' is active.`);
+      await delay(1000);
+      console.log(`${ANSI.fgMagenta}PHEROMONES:${ANSI.reset} Agent-1 sprayed 0.4 scent...`);
+      await delay(800);
+      console.log(`${ANSI.fgMagenta}PHEROMONES:${ANSI.reset} Agent-2 sprayed 0.9 scent (HIGH INTEREST)`);
+      await delay(1500);
+      console.log(`\n${ANSI.fgYellow}AUCTION WON:${ANSI.reset} Agent-2 is locking the resource.`);
+      console.log(`$ pd lock acquire db:optimization --agent agent-2`);
+      await delay(1000);
+      console.log(maritimeStatus('success', 'Resource locked. Swarm converged.'));
       break;
 
     default:
-      console.log('Usage: pd demo <port-conflict | coordination>');
+      console.log('Usage: pd demo <mayday | salvage | auction>');
       break;
   }
 }
 
 export function registerDemoCommand(program: Command) {
-  const demo = program
-    .command('demo')
-    .description('Run interactive demonstrations of multi-agent coordination');
-
-  demo
-    .command('port-conflict')
-    .description('Simulate a port conflict and its resolution')
-    .action(async () => {
-      console.log('\n🚀 Scenario: The Port Conflict Hell');
-      console.log('------------------------------------');
-      console.log('1. Agent A (Claude) starts a dev server on port 3000...');
-      await delay(1000);
-      console.log('2. Agent B (Cursor) tries to start a worker on port 3000...');
-      await delay(1500);
-      console.log('❌ Error: EADDRINUSE: address already in use :::3000');
-      await delay(1000);
-      console.log('\n🛡️  Port Daddy Solution:');
-      console.log('Agent A: pd claim myapp:api  -> 3100 (deterministic)');
-      console.log('Agent B: pd claim myapp:worker -> 3101 (deterministic)');
-      await delay(1000);
-      console.log('✅ Both agents run in parallel. Zero conflicts.');
-    });
-
-  demo
-    .command('coordination')
-    .description('Simulate agent-to-agent signaling')
-    .action(async () => {
-      console.log('\n🤝 Scenario: Agent Handoff');
-      console.log('-------------------------');
-      console.log('1. Agent A: "Building auth API..."');
-      console.log('   $ pd begin "auth-build"');
-      await delay(1000);
-      console.log('2. Agent B: "Waiting for auth API to write frontend..."');
-      console.log('   $ pd integration needs myapp:api "Waiting for endpoints"');
-      await delay(1500);
-      console.log('3. Agent A: "Auth ready!"');
-      console.log('   $ pd integration ready myapp:api "Endpoints live at /api/v1/*"');
-      await delay(1000);
-      console.log('✅ Agent B detects the signal and begins implementation.');
-    });
-}
-
-function delay(ms: number) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  program
+    .command('demo <scenario>')
+    .description('Run high-fidelity coordination scenarios')
+    .action(handleDemo);
 }

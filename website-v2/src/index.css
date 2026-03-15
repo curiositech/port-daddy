@@ -2,6 +2,33 @@
 @plugin "@tailwindcss/typography";
 @import "./styles/tokens.css";
 
+@theme {
+  --color-bg-base: var(--bg-base);
+  --color-bg-surface: var(--bg-surface);
+  --color-bg-overlay: var(--bg-overlay);
+  --color-bg-glass: var(--bg-glass);
+
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-secondary: var(--brand-secondary);
+  --color-brand-accent: var(--brand-accent);
+
+  --color-border-subtle: var(--border-subtle);
+  --color-border-strong: var(--border-strong);
+
+  --font-display: var(--p-font-display);
+  --font-sans: var(--p-font-sans);
+  --font-mono: var(--p-font-mono);
+
+  --radius-xl: var(--p-radius-xl);
+}
+
+/* Explicitly tell Tailwind to use .dark class for dark variants */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ─── Global resets & base ──────────────────────────────────────────────────── */
 *, *::before, *::after {
   box-sizing: border-box;
@@ -20,22 +47,9 @@ body {
   background-color: var(--bg-base);
   color: var(--text-primary);
   font-family: var(--p-font-sans);
-  font-size: var(--p-text-base);
-  line-height: 1.5; /* Tighter line height */
+  line-height: 1.5;
   min-height: 100vh;
   overflow-x: hidden;
-}
-
-/* ─── Smooth Scrolling & Motion ────────────────────────────────────────────── */
-@media (prefers-reduced-motion: no-preference) {
-  :root {
-    scroll-behavior: smooth;
-  }
-}
-
-/* ─── Typography defaults (Strict Unification) ─────────────────────────────── */
-:root {
-  --baseline: 1.5rem;
 }
 
 h1, h2, h3, .font-display {
@@ -45,16 +59,6 @@ h1, h2, h3, .font-display {
   margin: 0;
   color: var(--text-primary);
   letter-spacing: -0.03em;
-  font-variant-numeric: tabular-nums;
-}
-
-h4, h5, h6, .uppercase-label, .font-sans-bold {
-  font-family: var(--p-font-sans) !important;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  margin: 0;
-  color: var(--text-primary);
 }
 
 p, li, span, button, .font-sans {
@@ -63,18 +67,10 @@ p, li, span, button, .font-sans {
   color: var(--text-secondary);
 }
 
-@media (prefers-color-scheme: dark) {
-  /* Text appears lighter on dark backgrounds - compensate with weight */
-  body, p, li, span, button, .font-sans {
-    font-weight: 450;
-  }
-}
-
 a {
   color: var(--brand-primary);
   text-decoration: none;
   transition: color 0.2s ease;
-  font-family: var(--p-font-sans) !important;
 }
 
 a:hover {
@@ -85,43 +81,12 @@ code, pre, kbd, .font-mono {
   font-family: var(--p-font-mono) !important;
 }
 
-/* ─── Custom Scrollbar ───────────────────────────────────────────── */
-::-webkit-scrollbar {
-  width: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: var(--bg-base);
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--border-subtle);
-  border: 2px solid var(--bg-base);
-  border-radius: 10px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--brand-primary);
-}
-
 /* ─── Glassmorphism ────────────────────────────────────────────────────────── */
 .glass {
   background: var(--bg-glass);
   backdrop-filter: blur(12px) saturate(160%);
   -webkit-backdrop-filter: blur(12px) saturate(160%);
   border: 1px solid var(--border-subtle);
-}
-
-/* ─── Selection ────────────────────────────────────────────────────────────── */
-::selection {
-  background-color: var(--brand-primary);
-  color: var(--p-navy-950);
-}
-
-/* ─── Focus visible ─────────────────────────────────────────────────────────── */
-:focus-visible {
-  outline: 2px solid var(--brand-primary);
-  outline-offset: 4px;
 }
 
 /* ─── Animations ───────────────────────────────────────────────────────────── */
@@ -133,13 +98,4 @@ code, pre, kbd, .font-mono {
 
 .pulse-active {
   animation: pulse-active 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-@keyframes spin-slow {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.animate-spin-slow {
-  animation: spin-slow 8s linear infinite;
 }

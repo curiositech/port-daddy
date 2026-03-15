@@ -185,14 +185,25 @@ pub extern "C" fn harbor_constant_time_compare(
 #[no_mangle]
 pub extern "C" fn harbor_verify_caps_subset_json(
     root_json: *const c_char,
-    sub_json: *const c_char
+    root_len: usize,
+    sub_json: *const c_char,
+    sub_len: usize
 ) -> bool {
-    if root_json.is_null() || sub_json.is_null() {
+    if root_json.is_null() || sub_json.is_null() || root_len == 0 || sub_len == 0 {
         return false;
     }
     
-    let root_str = unsafe { CStr::from_ptr(root_json).to_string_lossy() };
-    let sub_str = unsafe { CStr::from_ptr(sub_json).to_string_lossy() };
+    let root_bytes = unsafe { std::slice::from_raw_parts(root_json as *const u8, root_len) };
+    let sub_bytes = unsafe { std::slice::from_raw_parts(sub_json as *const u8, sub_len) };
+
+    let root_str = match std::str::from_utf8(root_bytes) {
+        Ok(s) => s,
+        Err(_) => return false,
+    };
+    let sub_str = match std::str::from_utf8(sub_bytes) {
+        Ok(s) => s,
+        Err(_) => return false,
+    };
     
     let root_vec: Vec<String> = match serde_json::from_str(&root_str) {
         Ok(v) => v,
