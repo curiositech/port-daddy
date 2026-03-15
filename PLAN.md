@@ -1006,6 +1006,217 @@ Expand the existing whitepaper with:
 ---
 ---
 
+---
+---
+
+# Part VII: Semantic Trie for Universal Token Namespace
+
+## The Problem
+
+The universal token namespace (`myapp:api:auth:files:src/*`) is currently resolved
+via SQL `LIKE` queries: `WHERE name LIKE 'myapp:%'`. This has three problems:
+
+1. **Leading wildcards are full table scans** — `*:api:*` can't use a B-tree index
+2. **Multi-segment matching is awkward** — 5-segment hierarchies need nested LIKE clauses
+3. **Hot-path latency** — harbor middleware checks caps on every request; SQL per check is too slow
+
+## The Solution: In-Memory Radix Trie
+
+Build a colon-delimited radix trie as a **read-optimized index** over SQLite:
+
+```
+root
+├── myapp
+│   ├── api
+│   │   ├── auth
+│   │   │   ├── files
+│   │   │   │   └── src/* → [file-claim-1, file-claim-2]
+│   │   │   └── locks
+│   │   │       └── auth-module → [lock-1]
+│   │   └── main → [agent-2, session-3]
+│   └── web
+│       └── * → [agent-3]
+└── otherproject
+    └── ...
+```
+
+### Operations
+
+| Operation | Complexity | Example |
+|-----------|-----------|---------|
+| Exact lookup | O(k) where k = segments | `myapp:api:auth` → direct walk |
+| Prefix query | O(k + m) where m = matches | `myapp:*` → walk to `myapp`, return all descendants |
+| Wildcard query | O(n × k) worst case | `*:api:*` → walk all roots, check for `api` child |
+| Insert/delete | O(k) + SQLite write | Trie updated in-memory, SQLite is source of truth |
+| Capability check | O(k) | `does cap ['myapp:api:*'] cover 'myapp:api:auth:files:src/foo'?` → yes |
+
+### Implementation
+
+New file: `lib/token-trie.ts`
+
+```typescript
+interface TrieNode {
+  segment: string;
+  children: Map<string, TrieNode>;
+  values: Set<{ type: string; id: string }>;  // what's registered at this path
+}
+
+interface TokenTrie {
+  insert(token: string, value: { type: string; id: string }): void;
+  remove(token: string, valueId: string): void;
+  lookup(token: string): Set<Value>;            // exact match
+  query(pattern: string): Set<Value>;           // wildcard match
+  covers(capability: string, target: string): boolean;  // cap check
+  rebuild(db: Database): void;                  // full rebuild from SQLite
+}
+```
+
+### Where It's Used
+
+1. **Harbor middleware** — `trie.covers(harborCard.cap, requestedResource)` on every request
+2. **`pd query`** — new command: `pd query myapp:*:*:files:*` → all file claims in myapp
+3. **Wildcard pub/sub** — `pd msg "events:*" subscribe` → match all event channels
+4. **Agent identity matching** — `pd agents --identity "myapp:*"` → instant, not SQL LIKE
+
+### Lifecycle
+
+- Built on daemon startup from SQLite tables (agents, sessions, file_claims, locks, harbors)
+- Updated in-memory on every mutation (insert/remove are O(k))
+- SQLite remains source of truth — if the daemon restarts, trie is rebuilt
+- No persistence of the trie itself — it's a cache, not a store
+
+### Why Not Just Fix the SQL?
+
+You could add a `segments` column and a GIN-style index. But:
+- SQLite doesn't have GIN indexes
+- Even with indexes, SQL can't do `*:api:*` without full scan
+- The trie is ~100 lines of code and eliminates SQL from the hot path entirely
+- Harbor middleware runs on every request — microseconds matter
+
+---
+---
+
+# Part VIII: Transport Layer — Socket-First, HTTP-Second
+
+## The Problem
+
+The daemon currently listens on both a Unix socket and TCP port, serving HTTP+JSON
+on both. For local communication (CLI → daemon, SDK → daemon, MCP → daemon), the
+HTTP overhead is pure waste:
+
+| Layer | Overhead | Purpose |
+|-------|----------|---------|
+| TCP handshake | ~0.3ms | Unnecessary (same machine) |
+| HTTP parsing | ~0.1ms | Unnecessary (structured protocol exists) |
+| Express middleware | ~0.1ms | Rate limiting, CORS — irrelevant locally |
+| JSON serialization | ~0.05ms | Could use msgpack (2-3x faster) |
+| **Total overhead** | **~0.55ms** | **Per request, on top of <0.1ms actual work** |
+
+That's 85% overhead. For a coordination primitive that agents call hundreds of times
+per session, this adds up.
+
+## The Architecture: Two Channels
+
+```
+                    ┌────────────────────────────┐
+                    │         DAEMON              │
+                    │                              │
+  LOCAL CLIENTS ──► │  Unix Socket / Named Pipe   │ ◄── Fast path
+  (CLI, SDK, MCP)   │    Binary protocol (msgpack) │     No HTTP, no Express
+                    │    Direct function dispatch  │     ~0.05ms per call
+                    │                              │
+  REMOTE CLIENTS ─► │  TCP :9877 (harbor sync)    │ ◄── HTTP path
+  (other daemons)   │    HTTP + JSON + TLS         │     Full Express stack
+                    │    SSE for streaming          │     ~0.5ms per call
+                    └────────────────────────────┘
+```
+
+### Fast Local Channel (Unix Socket / Named Pipe)
+
+For same-machine communication:
+
+```typescript
+// Protocol: length-prefixed msgpack frames
+// [4 bytes: payload length][N bytes: msgpack payload]
+
+interface LocalRequest {
+  method: string;      // 'claim', 'release', 'begin', 'note', etc.
+  params: unknown;     // method-specific parameters
+  harborCard?: string; // JWT for enforcement
+}
+
+interface LocalResponse {
+  success: boolean;
+  data?: unknown;
+  error?: string;
+}
+```
+
+The daemon maps `method` directly to the module function — no Express routing, no
+middleware chain, no HTTP parsing. Just:
+
+```
+socket receives bytes →
+  decode msgpack →
+    verify harbor card (if enforcement enabled) →
+      dispatch to module function →
+        encode response →
+          write to socket
+```
+
+### HTTP Channel (TCP, for Remote Harbors Only)
+
+Keep the existing Express app for:
+- Remote harbor sync (`POST /harbor/:name/sync`, `GET /harbor/:name/stream`)
+- Lighthouse endpoints
+- Dashboard (serves `public/index.html`)
+- Any external integrations that expect HTTP
+
+The HTTP channel binds to a **separate port** (9877) and is only enabled when
+remote harbors are configured. Local-only users never open a TCP port.
+
+### Migration Path
+
+This is a big change. Phase it:
+
+1. **V4.0:** Keep current HTTP-over-Unix-socket as-is. Add harbor middleware.
+2. **V4.1:** Add binary protocol as **optional** fast path alongside HTTP on the socket.
+   SDK detects protocol support and upgrades automatically.
+3. **V4.2:** Make binary protocol the default for local. HTTP stays for remote only.
+4. **V4.3:** Remove HTTP listener from Unix socket entirely. HTTP only on TCP for remote.
+
+### Why Not gRPC?
+
+gRPC would solve the serialization problem (protobuf is fast) but adds:
+- `@grpc/grpc-js` dependency (~2MB)
+- Protobuf schema management
+- Code generation step
+- Complexity for what's fundamentally a simple RPC protocol
+
+Msgpack + length-prefixed frames is simpler, faster, and zero-dependency (msgpack
+is ~50 lines to implement for the subset we need).
+
+### What About the MCP Server?
+
+The MCP server uses stdio transport (stdin/stdout) to communicate with Claude Code.
+It then makes HTTP calls to the daemon. With the fast local channel, the MCP server
+would use the binary protocol instead — cutting per-tool-call latency roughly in half.
+
+The MCP protocol itself (JSON-RPC over stdio) doesn't change. Only the MCP→daemon
+hop gets faster.
+
+### Benchmark Targets
+
+| Path | Current | V4 Target |
+|------|---------|-----------|
+| CLI → daemon (claim) | ~2ms | <0.5ms |
+| SDK → daemon (claim) | ~1.5ms | <0.3ms |
+| MCP → daemon (claim) | ~3ms | <1ms |
+| Remote daemon → daemon (sync) | ~5ms | ~5ms (HTTP stays) |
+
+---
+---
+
 # Consolidated Execution Timeline
 
 | Phase | What | When | Revenue |
