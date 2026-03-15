@@ -3241,6 +3241,12 @@ contentious.** Agents working on different parts of a codebase write different k
 Conflicts are rare, and when they happen, "latest timestamp wins" is almost always
 the right answer.
 
+**Overwrite audit:** When LWW discards a write during sync, the discarded value is
+logged to the activity log as a `kv_overwrite` event (key, old value, new value,
+losing node). This is not an undo mechanism — it's a diagnostic trail so operators
+can detect silent data loss after the fact. The activity log has its own lifecycle
+(Part XXIII) and these entries are pruned with everything else.
+
 ### Hybrid Logical Clocks (HLC)
 
 LWW needs a total ordering of writes. Wall-clock timestamps are unreliable (clock
@@ -3256,8 +3262,10 @@ HLC = (physical_time, logical_counter, node_id)
 ```
 
 HLCs are bounded in size (fixed 3-tuple), monotonically increasing per node, and
-respect causality (if event A happened before event B, A's HLC < B's HLC). They're
-used by CockroachDB, TiDB, and other distributed databases.
+respect causality for causally related events (if event A causally precedes event B
+via message passing, A's HLC < B's HLC — but concurrent events on disconnected nodes
+have no guaranteed ordering). They're used by CockroachDB, TiDB, and other distributed
+databases.
 
 **Implementation:** 16 bytes per timestamp (8 bytes physical, 4 bytes counter,
 4 bytes node_id_hash). Stored alongside every KV entry and every synced entity.
@@ -3414,6 +3422,14 @@ Merkle tree:
 If `kv_hash` differs but everything else matches, only KV entries are exchanged.
 This minimizes bandwidth for partial divergence.
 
+**Honesty note:** This is a 5-bucket category comparison, not a deep Merkle tree with
+per-key granularity. When a category hash differs, ALL entries in that category are
+exchanged. For typical harbors (<500 KV entries), a full category exchange is small
+(~10-50KB). For harbors approaching the 10,000 KV soft limit, this becomes expensive.
+A future optimization (V4.2+) could add a second level of hashing (hash-per-key-prefix)
+to narrow the exchange further, but the simple approach is correct and sufficient at
+launch scale.
+
 ### Bandwidth and Throttling
 
 For a harbor with 500 KV entries, 100 pheromone traces, 50 notes, and 20 file claims:
@@ -3472,7 +3488,19 @@ Reconnection:
 ### The Lock Problem
 
 Locks are the hardest case during partitions. If both sides acquire the same lock
-while partitioned, we have two holders. On reconnection:
+while partitioned, we have two holders. **This violates mutual exclusion.** There is
+no way to provide distributed mutual exclusion during a network partition without
+blocking (which contradicts the local-first guarantee). We choose availability over
+consistency for locks during partitions.
+
+**What this means in practice:** Locks during partitions are advisory only. Work
+performed under a preempted lock is NOT automatically rolled back — the `lock_preempted`
+event is a notification, not an undo. Agents that hold locks across partitions must
+be prepared for preemption. For critical operations, use `conflict_mode: 'detect'`
+on the KV entries protected by the lock, so conflicting writes are caught even if the
+lock was duplicated.
+
+On reconnection:
 
 **Decision: Fencing tokens.** Each lock acquisition gets a monotonically increasing
 fencing token (integer). When the partition heals, the higher fencing token wins.
@@ -3643,14 +3671,26 @@ revoked:  No longer verifies. Tokens signed by this key are rejected.
 
 ### Rotation Procedure
 
-1. Generate new key, write to `hmac-active.key`, rename old key to
-   `hmac-retired-{timestamp}.key`
-2. Mark old key as `retired` in the `signing_keys` metadata table
-3. All new tokens signed with new key
-4. Verification logic: look up key by `kid` → if `active` or `retired`, verify;
+1. Generate new key, write to a temp file (`hmac-new.key.tmp`), `fsync` it
+2. Mark old key as `retired` in the `signing_keys` metadata table (inside a transaction)
+3. Insert new key's `kid` as `active` in the same transaction
+4. COMMIT the metadata transaction
+5. Atomic rename: `hmac-new.key.tmp` → `hmac-active.key`, old key → `hmac-retired-{ts}.key`
+
+**Crash safety:** If crash occurs before step 4, no metadata change — the temp file
+is orphaned and cleaned up on startup. If crash occurs after step 4 but before step 5,
+the metadata points to a `kid` whose file doesn't yet exist — `loadSigningKey()` falls
+back to the retired key until the rename completes on next startup. This is the same
+write-ahead pattern used by SQLite itself.
+
+**Encoding note:** Keys are stored as raw bytes (32 bytes from `crypto.randomBytes(32)`),
+not hex-encoded. `fs.readFileSync(keyPath)` returns the raw Buffer directly. This
+avoids the subtle bug where hex-encoding doubles the key length to 64 ASCII bytes.
+6. All new tokens signed with new key
+7. Verification logic: look up key by `kid` → if `active` or `retired`, verify;
    if `revoked` or unknown, reject
-5. After `max_token_lifetime + 5min` (clock skew buffer), mark old key `revoked`
-6. After 24h, delete the retired key file
+8. After `max_token_lifetime + 5min` (clock skew buffer), mark old key `revoked`
+9. After 24h, delete the retired key file
 
 This is the exact pattern Auth0 and Firebase Auth use. At Port Daddy's scale
 (1-50 active JWTs), the retired key window is trivially short.
@@ -4374,9 +4414,10 @@ sheet" daily. git has excellent documentation and people still fear it.
 The user types ONE command and gets a working, secure, coordinated session.
 Everything else is opt-in.
 
-### Layer 1: The Essential Five (Day 1)
+### Layer 1: The Essential Six (Day 1)
 
 ```bash
+pd status                      # Is the daemon running?
 pd begin "task description"    # Start everything
 pd note "progress update"      # Leave breadcrumbs
 pd claim myapp:api             # Get a port
@@ -4384,9 +4425,10 @@ pd whoami                      # Where am I?
 pd done                        # End everything
 ```
 
-A new user should never need more than these five commands in their first week.
-The MCP equivalent: `begin_session`, `add_note`, `claim_port`, `whoami`,
-`end_session_full`.
+A new user's first action is `pd status` (CLAUDE.md already says "Before any session,
+verify: pd status"). The remaining five commands cover the full session lifecycle.
+The MCP equivalent: `check_status`, `begin_session`, `add_note`, `claim_port`,
+`whoami`, `end_session_full`.
 
 ### Layer 2: Coordination (Week 2+)
 
@@ -4436,7 +4478,10 @@ Port Daddy — Coordination for Agent Teams
 
 ## First-Run Experience
 
-When `pd begin` is run for the first time (no existing sessions, no config):
+When `pd begin` is run for the first time in V4 (detected via the `_migrations` table —
+if the latest applied migration is a V4 migration and no V4 sessions exist, this is
+either a fresh install or a V3→V4 upgrade). For upgrades, the welcome message includes
+a "What's new in V4" summary instead of the full onboarding flow:
 
 ```
 $ pd begin "setting up my project"
@@ -4612,10 +4657,18 @@ wrong competitors. The real competitive landscape:
 - **Positioning:** "AutoGen agents can use Port Daddy for resource management
   and session tracking."
 
-**Key insight:** There is no direct competitor for "daemon-level agent coordination
-infrastructure." The agent framework space is crowded. The agent infrastructure
-space is empty. Port Daddy's moat is that it runs at the OS level, not the
-application level.
+**Key insight:** There is no exact competitor for "daemon-level agent coordination
+infrastructure," but the adjacent space is not empty:
+- **e2b, composio, toolhouse:** Agent infrastructure platforms — but cloud-hosted,
+  not local-first. Different trust model and deployment topology.
+- **process-compose, overmind, foreman:** Process managers that handle service
+  orchestration — but without agent identity, harbor isolation, sessions, or
+  coordination primitives.
+- **mise, devenv, direnv:** Dev environment managers — but focused on versions
+  and environment variables, not runtime coordination.
+
+Port Daddy's moat is the combination: local-first daemon + agent lifecycle +
+coordination primitives + security model. No single tool covers all four.
 
 ### Tier 2: Adjacent Tools (Dev Environment)
 
@@ -4738,16 +4791,25 @@ Total cost: $0 (free tier).
 
 The plan (Part V) assumes 4% Pro conversion. Developer tool benchmarks:
 
+**Cloud services** (higher perceived ongoing value):
 | Tool | Free users | Paid conversion | Price |
 |------|-----------|----------------|-------|
 | Tailscale | ~2M | ~2-3% (estimated) | $6/user/mo |
 | Vercel | ~1M | ~1-2% | $20/user/mo |
 | Railway | ~500K | ~3% | $5/user/mo |
 | Supabase | ~1M | ~2% | $25/org/mo |
-| Linear | ~100K | ~5% (B2B focused) | $10/user/mo |
 
-4% is optimistic for a CLI tool with no established brand. **Revise to 2%
-for projections, celebrate if you beat it.**
+**Local CLI tools** (harder to convert — users don't perceive ongoing value from a local binary):
+| Tool | Model | Price |
+|------|-------|-------|
+| ngrok | Freemium | $10/mo |
+| Warp | Free/Team | Free/$15/user/mo |
+| Raycast | Free/Pro | Free/$8/mo |
+| Fig/Amazon Q | Free (acquired) | — |
+
+4% is optimistic for a CLI tool with no established brand. Local CLI tools have even
+lower conversion than cloud services because users don't perceive ongoing hosting value.
+**Revise to 2% for projections, celebrate if you beat it.**
 
 ### Pricing Adjustment
 
@@ -4825,8 +4887,19 @@ pd sessions --archive         # List archived sessions
 pd notes --session <id> --archive  # Read notes from archive
 ```
 
-**Implementation:** `INSERT INTO archive_db.sessions SELECT ... WHERE completedAt < threshold`,
-then `DELETE FROM main.sessions WHERE completedAt < threshold`. Run in a transaction.
+**Implementation:** Use `ATTACH DATABASE 'archive.db' AS archive_db` on the same
+connection, then run both operations in a single transaction:
+```sql
+BEGIN;
+INSERT INTO archive_db.sessions SELECT ... WHERE completedAt < :threshold;
+DELETE FROM main.sessions WHERE completedAt < :threshold;
+COMMIT;
+```
+This is atomic because both databases share the same connection and transaction.
+If the process crashes between INSERT and DELETE, the transaction is rolled back
+and no data is duplicated. The archive query includes an idempotency check
+(`INSERT OR IGNORE` keyed on session ID) so re-running after a partial failure
+is safe.
 
 ### Pruning: Activity Log
 
@@ -4917,7 +4990,7 @@ jobs:
       - name: Run review agents
         run: |
           pd begin "reviewing PR #${{ github.event.number }}"
-          pd spawn --backend claude -- "Review the changes in this PR"
+          pd spawn --backend claude --wait -- "Review the changes in this PR"
           pd done --note "CI review complete"
 
       - name: Post results
@@ -4946,6 +5019,13 @@ pd start --ephemeral
 
 This is the CI-optimized mode. Fast startup, no cleanup needed, no state leakage
 between CI runs.
+
+**Important:** In ephemeral mode, notes and session data exist only while the daemon
+is running. The `pd notes --json` step in the CI workflow must run BEFORE `pd stop`.
+The `pd done` command does NOT stop the daemon — it only ends the session. The daemon
+stays alive until explicitly stopped or the 30-minute inactivity timeout. The `--wait`
+flag on `pd spawn` blocks until the spawned agent completes, ensuring notes are
+written before `pd done` runs.
 
 ### Remote Harbor from CI
 
@@ -5058,12 +5138,16 @@ Property 1: Monotonic evaporation
   Exception: coupling (near-permanent, only evaporates 0.1%/hr)
 
 Property 2: Bounded intensity
-  For all pheromone entries: 0.0 <= intensity <= max_intensity
-  max_intensity = sum of all deposits since last evaporation
+  For all pheromone entries: 0.0 <= intensity <= MAX_DEPOSIT_INTENSITY
+  MAX_DEPOSIT_INTENSITY = 10.0 (enforced by daemon, see Part XXV §XV amendment)
+  Total intensity per target is bounded by rate limit (100 deposits/min × 10.0 max)
 
 Property 3: Eviction threshold
-  After sufficient evaporation cycles, every pheromone entry is evicted
-  (intensity drops below 0.01)
+  After sufficient evaporation cycles with no new deposits, every pheromone entry
+  is evicted (intensity drops below 0.01).
+  For fast-decay types (heat at 10%/hr): intensity 10.0 → <0.01 in ~70 hours
+  For slow-decay types (coupling at 0.1%/hr): intensity 10.0 → <0.01 in ~6900 hours
+  Test coupling with accelerated time (set evaporation interval to 1ms in test config)
 
 Property 4: Deposition monotonicity
   After a deposit, the target's intensity is >= its pre-deposit intensity
@@ -5176,6 +5260,17 @@ encapsulate their own HTML, CSS, and JS. The main file imports them:
 
 The components are separate `.js` files served by Express alongside `index.html`.
 No build step. No bundler. Just ES modules in the browser.
+
+**Cache busting:** Import URLs include the daemon's version hash:
+`import('./components/harbor-panel.js?v=${codeHash}')`. The `codeHash` is already
+computed by `server.ts` (dynamic `readdirSync` hash of all source files). Express
+sets `Cache-Control: no-cache` on `index.html` (which contains the version-stamped
+imports) and `Cache-Control: immutable, max-age=86400` on component `.js` files
+(which are addressed by hash, so new versions get new URLs).
+
+**Loading state:** CSS rule `:not(:defined) { display: none; }` hides unregistered
+custom elements until their JS loads. The main `index.html` contains a lightweight
+skeleton that displays until components register.
 
 **Total files:** 1 HTML + ~12 JS component files + 1 shared CSS file.
 **Build step:** None. Express serves `public/` directory as-is.
@@ -5340,9 +5435,18 @@ a valid session but its card is rejected (expired, revoked, key rotated).
 1. Agent receives 403 from daemon
 2. Error response includes `code: 'HARBOR_CARD_EXPIRED'` and `renewUrl`
 3. Agent (or MCP server) automatically calls `POST /harbors/:name/renew`
-   with the agent ID
-4. Daemon issues a new card (if the agent is still a valid member)
-5. MCP server updates its stored card transparently
+   with the **expired card** in the `Authorization` header
+4. Daemon verifies the card's **signature is valid** (the key that signed it is
+   still `active` or `retired`) but the `exp` claim has passed. If the signature
+   is invalid or the signing key is `revoked`, renewal is rejected — the agent
+   must re-enter the harbor from scratch.
+5. Daemon issues a new card (if the agent is still a valid member)
+
+**Security note:** The expired-but-signed card serves as proof of previous identity.
+Without it, any agent could request a card for any other agent's ID, which is a
+privilege escalation. The renewal endpoint NEVER accepts just an agent ID — it
+requires a previously-issued card as authentication.
+6. MCP server updates its stored card transparently
 
 This is **automatic for MCP users** — the MCP server handles renewal without
 the agent's LLM needing to understand JWT mechanics.
@@ -5370,8 +5474,9 @@ The grace period mode (`--enforce-harbors=warn`) must:
 Windows named pipes have different semantics than Unix sockets:
 - Maximum concurrent connections is configurable (Unix sockets have no explicit limit)
 - Named pipes support overlapped I/O (async) which Node.js handles automatically
-- Named pipe names are global — two Port Daddy instances need different pipe names
-  (use port number in pipe name: `\\.\pipe\port-daddy-9876`)
+- Named pipe names are global — two Port Daddy instances need different pipe names.
+  Use port number AND username: `\\.\pipe\port-daddy-${username}-${port}` to avoid
+  collision between users on shared machines (e.g., dev servers with multiple logins)
 - Named pipes survive process restart (unlike Unix sockets which must be unlinked)
 
 ### Missing: Testing on Windows
