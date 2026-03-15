@@ -1217,6 +1217,808 @@ hop gets faster.
 ---
 ---
 
+---
+---
+
+# Part IX: Dashboard UI — Wireframes and Plan
+
+## Current State
+
+The dashboard (`public/index.html`) is a **115-line skeleton**. It has:
+- 12 empty `<div>` panels (`#panel-overview` through `#panel-webhooks`)
+- CSS variables for a dark glassmorphism theme
+- A `COMMANDS` array listing 48 CLI commands
+- Zero data fetching, zero rendered content, zero interactivity
+
+The dashboard is at **~0% functional** despite being listed at 38% in parity docs.
+The CSS exists. The HTML structure doesn't.
+
+## Design Philosophy
+
+The dashboard is the **local control plane** — served by the daemon at `localhost:9876`.
+It is NOT the marketing website. It should feel like a cockpit, not a brochure.
+
+Constraints from ADR-0005: **single-file HTML**, no build step, no frameworks.
+All CSS/JS inline. Must work when served by `pd dev` immediately.
+
+## Layout: Four-Quadrant Command Center
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  ⚓ PORT DADDY  v4.0.0   │  ● 3 agents  │  ● 2 harbors  │ 🟢  │
+├─────────────┬───────────────────────────────────────────────────┤
+│             │                                                   │
+│  NAV RAIL   │              MAIN CONTENT                         │
+│             │                                                   │
+│  Overview   │  ┌─────────────────┐  ┌─────────────────────┐    │
+│  Harbors  ← │  │  HARBOR: myapp  │  │  ACTIVE SESSIONS    │    │
+│  Sessions   │  │                 │  │                     │    │
+│  Agents     │  │  Members:       │  │  ┌─agent-a4f2─────┐ │    │
+│  Ports      │  │  ● agent-a4f2  │  │  │ "building auth"│ │    │
+│  Locks      │  │  ● agent-b7e1  │  │  │ 12 notes       │ │    │
+│  Radio      │  │                 │  │  │ 3 file claims  │ │    │
+│  Salvage    │  │  Capabilities:  │  │  │ phase: coding  │ │    │
+│  Activity   │  │  code:*, notes:*│  │  └────────────────┘ │    │
+│  DNS        │  │                 │  │                     │    │
+│  Tunnels    │  │  Channels:      │  │  ┌─agent-b7e1─────┐ │    │
+│  Webhooks   │  │  myapp:radio    │  │  │ "frontend UI"  │ │    │
+│  Config     │  │  myapp:events   │  │  │ 4 notes        │ │    │
+│             │  │                 │  │  │ 1 file claim   │ │    │
+│             │  └─────────────────┘  │  └────────────────┘ │    │
+│             │                       └─────────────────────┘    │
+│             │                                                   │
+│             │  ┌───────────────────────────────────────────┐    │
+│             │  │  UNIFIED TIMELINE                         │    │
+│             │  │                                           │    │
+│             │  │  14:32  agent-a4f2  claimed src/auth/*    │    │
+│             │  │  14:33  agent-b7e1  published myapp:ready │    │
+│             │  │  14:35  agent-a4f2  note: "JWT working"  │    │
+│             │  │  14:36  lock auth-module acquired (a4f2)  │    │
+│             │  │  14:38  agent-a4f2  note: "tests passing"│    │
+│             │  │                                           │    │
+│             │  └───────────────────────────────────────────┘    │
+└─────────────┴───────────────────────────────────────────────────┘
+```
+
+## Panel Specifications
+
+### 1. Overview (Default View)
+
+The first thing you see. Four KPI cards + unified timeline.
+
+```
+┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
+│ AGENTS   │ │ HARBORS  │ │ PORTS    │ │ LATENCY  │
+│    3     │ │    2     │ │   12     │ │  0.4ms   │
+│ ● active │ │ ● active │ │ claimed  │ │ p99      │
+└──────────┘ └──────────┘ └──────────┘ └──────────┘
+
+┌─────────────────────────────────────────────────┐
+│  UNIFIED TIMELINE (SSE-powered, real-time)      │
+│                                                  │
+│  Events from: sessions, file claims, pub/sub,   │
+│  locks, agent lifecycle — merged chronologically │
+│                                                  │
+│  Each row: timestamp | source | event | detail  │
+│  Color-coded by type (maritime signal colors)    │
+│  Click to expand context                         │
+└─────────────────────────────────────────────────┘
+```
+
+**Data sources:**
+- `GET /health` → uptime, version
+- `GET /agents` → active count
+- `GET /harbors` → harbor count
+- `GET /services` → port count
+- `GET /metrics` → latency percentiles
+- `GET /subscribe/activity` → SSE for timeline (new endpoint)
+
+### 2. Harbors Panel (V4 Centerpiece)
+
+```
+┌─────────────────────────────────────────────────┐
+│  HARBORS                              [Create]  │
+├─────────────────────────────────────────────────┤
+│                                                  │
+│  ┌─ myapp ──────────────────────────────────┐   │
+│  │  Created: 2h ago  │  Expires: never      │   │
+│  │  Caps: code:*, notes:*, locks:*          │   │
+│  │  Channels: myapp:radio, myapp:events     │   │
+│  │                                           │   │
+│  │  Members (3):                             │   │
+│  │  ┌────────────────────────────────────┐   │   │
+│  │  │ ● agent-a4f2   myapp:api:auth     │   │   │
+│  │  │   caps: code:*, notes:write        │   │   │
+│  │  │   session: "building auth" (34m)   │   │   │
+│  │  │   [View Session] [Revoke Card]     │   │   │
+│  │  ├────────────────────────────────────┤   │   │
+│  │  │ ● agent-b7e1   myapp:web:ui       │   │   │
+│  │  │   caps: code:read, notes:write     │   │   │
+│  │  │   session: "frontend UI" (12m)     │   │   │
+│  │  └────────────────────────────────────┘   │   │
+│  │                                           │   │
+│  │  Remote Peers:                            │   │
+│  │  ● desktop.local:9877  (connected, 2ms)  │   │
+│  │  ○ laptop.local:9877   (last seen: 5m)   │   │
+│  │                                           │   │
+│  └───────────────────────────────────────────┘   │
+│                                                  │
+│  ┌─ other-project ──────────────────────────┐   │
+│  │  Created: 1d ago  │  Expires: 6h         │   │
+│  │  Members: 0 (empty)                       │   │
+│  │  [Destroy]                                │   │
+│  └───────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────┘
+```
+
+**Data sources:**
+- `GET /harbors` → list all harbors with members
+- `GET /harbors/:name` → detail view
+- `GET /harbor/:name/stream` → SSE for member changes (new, V4)
+
+### 3. Sessions Panel
+
+```
+┌─────────────────────────────────────────────────┐
+│  SESSIONS                    [Active ▼] [Begin] │
+├─────────────────────────────────────────────────┤
+│                                                  │
+│  ┌─ session-7f3k ────────────────────────────┐  │
+│  │  "Building JWT auth module"                │  │
+│  │  Agent: agent-a4f2  │  Harbor: myapp       │  │
+│  │  Phase: ● coding    │  Duration: 34m       │  │
+│  │  Files: src/auth/jwt.ts, src/auth/index.ts │  │
+│  │                                            │  │
+│  │  Notes (12):                               │  │
+│  │  ┌──────────────────────────────────────┐  │  │
+│  │  │ 14:02  progress  "Started JWT impl" │  │  │
+│  │  │ 14:15  progress  "Token signing OK" │  │  │
+│  │  │ 14:28  decision  "Using RS256"      │  │  │
+│  │  │ 14:35  progress  "Tests passing"    │  │  │
+│  │  │        ···  [Show all 12]  ···      │  │  │
+│  │  └──────────────────────────────────────┘  │  │
+│  │                                            │  │
+│  │  [Add Note]  [Set Phase ▼]  [End Session]  │  │
+│  └────────────────────────────────────────────┘  │
+│                                                  │
+│  ┌─ session-b2c9 ────────────────────────────┐  │
+│  │  "Frontend auth UI"  │  agent-b7e1        │  │
+│  │  Phase: ● coding     │  4 notes           │  │
+│  └────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────┘
+```
+
+### 4. Agents Panel
+
+```
+┌─────────────────────────────────────────────────┐
+│  AGENTS                                         │
+├─────────────────────────────────────────────────┤
+│                                                  │
+│  Active (3)                                      │
+│  ┌──────────────────────────────────────────┐   │
+│  │ ● agent-a4f2  myapp:api:auth            │   │
+│  │   Heartbeat: 12s ago  │  Harbor: myapp   │   │
+│  │   Session: "Building JWT auth" (34m)     │   │
+│  │   Type: claude  │  Spawned by: —         │   │
+│  ├──────────────────────────────────────────┤   │
+│  │ ● agent-b7e1  myapp:web:ui              │   │
+│  │   Heartbeat: 3s ago   │  Harbor: myapp   │   │
+│  │   Session: "Frontend UI" (12m)           │   │
+│  │   Type: cursor  │  Spawned by: —         │   │
+│  ├──────────────────────────────────────────┤   │
+│  │ ● agent-c9d3  myapp:api:test            │   │
+│  │   Heartbeat: 1s ago   │  Harbor: myapp   │   │
+│  │   Session: — (no session)                │   │
+│  │   Type: spawned │  Spawned by: agent-a4f2│   │
+│  │   Caps: code:read, notes:write (attenuated) │
+│  └──────────────────────────────────────────┘   │
+│                                                  │
+│  Stale (1)                                       │
+│  ┌──────────────────────────────────────────┐   │
+│  │ ⚠ agent-x1y2  myapp:api:old            │   │
+│  │   Last heartbeat: 8m ago                 │   │
+│  │   Status: stale → salvage in 12m         │   │
+│  └──────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────┘
+```
+
+### 5. Ports Panel
+
+```
+┌─────────────────────────────────────────────────┐
+│  PORT ASSIGNMENTS                    [Claim]    │
+├─────────────────────────────────────────────────┤
+│                                                  │
+│  Port  │  Identity           │  Agent    │ Since │
+│  ──────┼──────────────────── ┼──────────┼────── │
+│  3100  │  myapp:api:auth     │  a4f2    │ 34m   │
+│  3101  │  myapp:web:ui       │  b7e1    │ 12m   │
+│  3102  │  myapp:api:test     │  c9d3    │  2m   │
+│  5432  │  myapp:db:postgres  │  —       │  1h   │
+│  6379  │  myapp:cache:redis  │  —       │  1h   │
+│                                                  │
+│  [Cleanup Stale]                                 │
+│                                                  │
+│  Port Range: 3100-3199 (default)                │
+│  Total: 5 claimed / 100 available               │
+└─────────────────────────────────────────────────┘
+```
+
+### 6. Radio Panel (Pub/Sub)
+
+```
+┌─────────────────────────────────────────────────┐
+│  SWARM RADIO                        [Publish]   │
+├─────────────────────────────────────────────────┤
+│                                                  │
+│  Channels:                                       │
+│  ┌────────────────────────────────────────────┐ │
+│  │  myapp:radio      │ 2 subscribers │ 14 msgs│ │
+│  │  myapp:events     │ 1 subscriber  │  3 msgs│ │
+│  │  resurrection     │ 0 subscribers │  1 msg │ │
+│  └────────────────────────────────────────────┘ │
+│                                                  │
+│  Live Feed (SSE):                                │
+│  ┌────────────────────────────────────────────┐ │
+│  │  14:33  myapp:radio    "auth module ready" │ │
+│  │  14:35  myapp:events   "tests passing"     │ │
+│  │  14:36  myapp:radio    "PR created"        │ │
+│  │  ●  listening...                           │ │
+│  └────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────┘
+```
+
+### 7. Salvage Panel
+
+```
+┌─────────────────────────────────────────────────┐
+│  SALVAGE QUEUE                                   │
+├─────────────────────────────────────────────────┤
+│                                                  │
+│  Pending (2):                                    │
+│  ┌────────────────────────────────────────────┐ │
+│  │  ☠ agent-dead1  myapp:api:feature          │ │
+│  │    Died: 2h ago  │  Session: "Adding API"  │ │
+│  │    Notes: 8  │  File claims: 2             │ │
+│  │    Last note: "Halfway through endpoint"   │ │
+│  │    [Claim]  [Dismiss]                      │ │
+│  ├────────────────────────────────────────────┤ │
+│  │  ☠ agent-dead2  myapp:web:style            │ │
+│  │    Died: 5h ago  │  Session: "CSS rework"  │ │
+│  │    Notes: 3  │  File claims: 0             │ │
+│  │    [Claim]  [Dismiss]                      │ │
+│  └────────────────────────────────────────────┘ │
+│                                                  │
+│  Recently Salvaged (1):                          │
+│  ✓ agent-old3 → claimed by agent-a4f2 (1d ago) │
+└─────────────────────────────────────────────────┘
+```
+
+### 8-12. Remaining Panels
+
+| Panel | Content | Data Source |
+|-------|---------|-------------|
+| **Locks** | Active locks with holder, TTL countdown, contention queue | `GET /locks` |
+| **Activity** | Paginated activity log with type filters | `GET /activity` with `?type=` |
+| **DNS** | Registered DNS entries, resolver status, setup button | `GET /dns` |
+| **Tunnels** | Active tunnels with URLs, status, provider | `GET /tunnels` |
+| **Webhooks** | Registered webhooks, delivery history, test button | `GET /webhooks` |
+| **Config** | Daemon config (read-only), version, code hash | `GET /config`, `GET /version` |
+
+## Real-Time Strategy
+
+**SSE subscriptions** (not polling) for live panels:
+
+```javascript
+// Single SSE connection to activity feed
+const events = new EventSource('/subscribe/activity');
+events.onmessage = (e) => {
+  const event = JSON.parse(e.data);
+  timeline.prepend(renderEvent(event));
+  updateKPIs(event);
+};
+
+// Reconnect on failure (5s backoff)
+events.onerror = () => setTimeout(reconnect, 5000);
+```
+
+Polling fallback for endpoints without SSE: `setInterval(refreshPanel, 10000)`
+
+## Implementation Approach
+
+Since ADR-0005 mandates single-file HTML with no build step:
+
+1. **Vanilla JS** with template literals for rendering
+2. **CSS Grid** for the quadrant layout
+3. **CSS custom properties** for the dark theme (already defined)
+4. **`<template>` elements** for reusable card structures
+5. **Single SSE connection** to activity feed for live updates
+6. **Hash-based routing** (`#harbors`, `#sessions`, etc.) for navigation
+
+Estimated size: ~3,000-4,000 lines (HTML + CSS + JS) in one file. Large but manageable
+for a dashboard without a framework.
+
+---
+---
+
+# Part X: MCP Server — V4 Tool Plan
+
+## Current State
+
+The MCP server (`mcp/server.ts`, 2,702 lines) has:
+- **92 tools** across 17 categories
+- **10 tools** in default (tiered) mode: Essential 8 + `pd_discover` + hidden `begin`
+- **5 resources** (services, sessions, agents, locks, tunnels)
+- **Progressive disclosure** via `pd_discover(category)`
+- **Stdio transport** (perfect for Claude Code)
+
+### Critical Gap: Zero Harbor Tools
+
+Harbors are fully implemented in the daemon (7 endpoints in `routes/harbors.ts`)
+but the MCP server has **no tools for them**. This means Claude agents can't:
+- Create or enter harbors
+- Check their capabilities
+- See who else is in a harbor
+- Present harbor cards on requests
+
+## V4 MCP Architecture
+
+### New Essential Tools
+
+The Essential set should expand from 8 to **10** for V4, adding harbor awareness:
+
+```
+ESSENTIAL V4 (10 tools — always loaded):
+
+1. begin_session      ← existing (now auto-creates harbor, returns card)
+2. end_session_full   ← existing
+3. whoami             ← existing (now shows harbor membership + caps)
+4. claim_port         ← existing
+5. release_port       ← existing
+6. add_note           ← existing
+7. acquire_lock       ← existing
+8. list_services      ← existing
+9. harbor_status      ← NEW: show current harbor, members, capabilities
+10. pd_discover       ← existing (meta-tool)
+```
+
+`harbor_status` replaces no existing tool — it's additive. An agent that calls
+`begin_session` automatically enters a harbor. `harbor_status` lets it see who
+else is there and what capabilities it has.
+
+### New Harbor Tools Category
+
+```
+Category: harbors (8 tools)
+
+harbor_status      — Show agent's current harbor, members, capabilities, remote peers
+harbor_create      — Create a new harbor with capabilities and channels
+harbor_enter       — Enter a harbor (returns harbor card JWT)
+harbor_leave       — Leave a harbor
+harbor_list        — List all harbors (with pattern filter)
+harbor_show        — Get detailed harbor info with member list
+harbor_destroy     — Destroy a harbor (cascades to members)
+harbor_capabilities — Check if a capability is granted by current harbor card
+```
+
+### New Remote/Discovery Tools Category
+
+```
+Category: remote (5 tools)
+
+harbor_connect     — Connect to a remote harbor on another daemon
+harbor_disconnect  — Disconnect from a remote peer
+harbor_peers       — List connected remote peers for a harbor
+harbor_discover    — Scan local network (mDNS) for nearby daemons
+lighthouse_register — Register harbor with portdaddy.dev for WAN discovery
+```
+
+### New Spawn Tools (Enhanced)
+
+```
+Category: spawn (4 tools — replaces current 2)
+
+spawn_agent        — Launch agent with attenuated harbor card
+list_spawned       — List running spawned agents
+kill_spawned       — Kill a spawned agent
+spawn_status       — Get spawn status with capability report
+```
+
+The key change: `spawn_agent` now accepts a `capabilities` parameter that creates
+a delegated harbor card for the child. The child can only do what the parent allows.
+
+### Updated Tool Count
+
+| Category | V3 | V4 | Change |
+|----------|----|----|--------|
+| session-lifecycle | 3 | 3 | — |
+| ports | 8 | 8 | — |
+| sessions | 10 | 10 | — |
+| notes | 2 | 2 | — |
+| locks | 3 | 3 | — |
+| messaging | 4 | 4 | — |
+| agents | 10 | 10 | — |
+| inbox | 6 | 6 | — |
+| webhooks | 8 | 8 | — |
+| integration | 3 | 3 | — |
+| dns | 9 | 9 | — |
+| briefing | 2 | 2 | — |
+| tunnels | 3 | 3 | — |
+| projects | 4 | 4 | — |
+| changelog | 6 | 6 | — |
+| activity | 4 | 4 | — |
+| system | 6 | 6 | — |
+| **harbors** | **0** | **8** | **+8 NEW** |
+| **remote** | **0** | **5** | **+5 NEW** |
+| **spawn** | **2** | **4** | **+2 enhanced** |
+| **TOTAL** | **93** | **108** | **+15** |
+
+### Harbor Card Flow in MCP
+
+Today, MCP tools call the daemon via HTTP with no authentication. In V4:
+
+```
+Agent calls begin_session →
+  MCP server calls POST /sugar/begin →
+    Daemon creates harbor, enters agent, returns harbor card →
+      MCP server stores harbor card in memory →
+        All subsequent tool calls include X-Harbor-Card header →
+          Daemon middleware verifies card → allows/denies
+```
+
+The MCP server holds the harbor card for the duration of the session. The agent
+never sees the JWT directly — it's transparent infrastructure.
+
+```typescript
+// In mcp/server.ts (V4)
+let currentHarborCard: string | null = null;
+
+async function daemonRequest(method: string, path: string, body?: unknown) {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (currentHarborCard) {
+    headers['X-Harbor-Card'] = currentHarborCard;
+  }
+  // ... existing fetch logic with added header
+}
+
+// In begin_session handler:
+const result = await daemonRequest('POST', '/sugar/begin', { purpose, identity, ... });
+if (result.harborCard) {
+  currentHarborCard = result.harborCard;
+}
+```
+
+### Progressive Disclosure Updates
+
+`pd_discover` category list expands:
+
+```
+pd_discover() →
+
+Available tool categories:
+  session-lifecycle  (3 tools)  — Begin, end, whoami
+  ports              (8 tools)  — Claim, release, health
+  sessions           (10 tools) — Lifecycle, files, phases
+  notes              (2 tools)  — Add, list
+  locks              (3 tools)  — Acquire, release, list
+  messaging          (4 tools)  — Pub/sub, channels
+  agents             (10 tools) — Register, heartbeat, salvage
+  inbox              (6 tools)  — Agent-to-agent messaging
+  harbors            (8 tools)  — Permission namespaces      ← NEW
+  remote             (5 tools)  — Cross-machine coordination ← NEW
+  spawn              (4 tools)  — Launch child agents        ← EXPANDED
+  webhooks           (8 tools)  — Event subscriptions
+  dns                (9 tools)  — Local DNS management
+  ...
+```
+
+### MCP Resources (V4 Additions)
+
+```
+Existing resources:
+  port-daddy://services    — Active port assignments
+  port-daddy://sessions    — Active sessions
+  port-daddy://agents      — Registered agents
+  port-daddy://locks       — Active locks
+  port-daddy://tunnels     — Active tunnels
+
+New V4 resources:
+  port-daddy://harbors     — Active harbors with members
+  port-daddy://peers       — Connected remote daemons
+  port-daddy://timeline    — Recent unified timeline events
+```
+
+### MCP Server Instructions Update
+
+```typescript
+instructions: [
+  'Port Daddy is the coordination runtime for AI agent teams.',
+  'Services use semantic identities in project:stack:context format.',
+  'Same identity always maps to the same port — deterministic hashing.',
+  'Start every session with begin_session. This auto-creates a harbor.',  // CHANGED
+  'Your harbor card controls what you can do. Check harbor_status.',      // NEW
+  'Spawned agents get attenuated capabilities — they can do less than you.', // NEW
+  'Check check_salvage before starting new work.',
+  'Use pd_discover to find additional tools.',
+  'File claims are advisory — they announce intent, not enforce locks.',
+  'Notes are immutable — once written, cannot be edited or deleted.',
+].join(' ')
+```
+
+---
+---
+
+# Part XI: Website V2 (portdaddy.dev) — Full Wireframes
+
+## Current State Assessment
+
+The website is **much more complete than expected**:
+- 31 pages total (14 main + 17 tutorials)
+- ~4,935 lines of page components
+- Real content on every page (no stubs)
+- Data-driven architecture (blogData.ts, cookbook.ts, integrations.ts, blueprints.ts)
+- Live dashboard page with hooks (useDaemonData, useActivityStream, useTimeline)
+- Motion animations (framer-motion)
+- Dark theme with glassmorphism
+
+The messaging is already agent-coordination-first ("Port Authority for AI Swarms").
+The structural work is done. What needs to change for V4:
+
+## Site Map (V4)
+
+```
+portdaddy.dev/
+├── /                          Landing page (8 sections)
+├── /tutorials                 Academy index (16 → 19 tutorials)
+│   ├── /tutorials/getting-started
+│   ├── /tutorials/harbors     ← UPDATE for enforcement
+│   ├── /tutorials/remote-harbors ← UPDATE for connect/discover
+│   ├── /tutorials/default-harbors ← NEW (V4 auto-harbor)
+│   ├── /tutorials/lighthouse  ← NEW (discovery)
+│   ├── /tutorials/windows     ← NEW (platform support)
+│   └── ... (14 existing tutorials)
+├── /docs                      SDK Manual ← UPDATE for harbor methods
+├── /mcp                       MCP Tools ← UPDATE for harbor tools
+├── /examples                  Blueprints ← ADD harbor enforcement example
+├── /blog                      Engineering Log ← ADD 5 posts
+│   ├── /blog/formal-verification (existing)
+│   ├── /blog/zero-trust-agents ← NEW
+│   ├── /blog/four-agents-one-repo ← NEW
+│   ├── /blog/port-daddy-vs-alternatives ← NEW
+│   ├── /blog/cross-machine-harbors ← NEW
+│   └── /blog/windows-support ← NEW
+├── /compare                   ← NEW: vs docker-compose vs detect-port
+├── /roadmap                   V4 Roadmap ← UPDATE phases
+├── /cookbook                   Recipes (11 existing)
+├── /integrations              Framework support (8 existing)
+├── /templates                 Blueprints (4 existing)
+├── /dashboard                 Live daemon view
+└── /pricing                   ← NEW: Free / Pro / Team / Enterprise
+```
+
+## Landing Page Revisions
+
+### Hero Section (Updated Copy)
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                                                          │
+│              ⚓ PORT DADDY v4.0                          │
+│                                                          │
+│     Zero-Trust Coordination for Agent Swarms.            │
+│                                                          │
+│     Cryptographic harbors. Formally verified with        │
+│     ProVerif. The runtime that treats agent security     │
+│     as non-negotiable.                                   │
+│                                                          │
+│     [LAUNCH SWARM]          [SDK MANUAL]                │
+│                                                          │
+│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐    │
+│  │ Enforced     │ │ Remote       │ │ Windows      │    │
+│  │ Harbors      │ │ Harbors      │ │ Support      │    │
+│  │ v4.0 — new   │ │ v4.1 — new   │ │ v4.1 — new   │    │
+│  └──────────────┘ └──────────────┘ └──────────────┘    │
+│                                                          │
+└─────────────────────────────────────────────────────────┘
+```
+
+### New Section: "The Security Story" (After Hero)
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                                                          │
+│     TODAY: Your agents have root access to everything.   │
+│                                                          │
+│     ┌────────────────────┐                               │
+│     │  pd begin "task"   │ ← No boundaries.              │
+│     │  Agent can:        │   No capability checks.       │
+│     │  • Read all files  │   No formal guarantees.       │
+│     │  • Claim any port  │                               │
+│     │  • Publish anywhere│                               │
+│     │  • Lock anything   │                               │
+│     └────────────────────┘                               │
+│                                                          │
+│     V4: Every agent runs in a cryptographic harbor.      │
+│                                                          │
+│     ┌────────────────────┐                               │
+│     │  pd begin "task"   │ ← Auto-harbor created.        │
+│     │  --identity myapp  │   Harbor card issued.         │
+│     │                    │   Capabilities enforced.      │
+│     │  Agent can ONLY:   │                               │
+│     │  • code:read       │   Proven safe by ProVerif.    │
+│     │  • notes:write     │   Delegation chains verified. │
+│     │  • myapp:* channels│   Algorithm confusion immune. │
+│     └────────────────────┘                               │
+│                                                          │
+│     [READ THE WHITEPAPER]    [SEE THE PROOFS]            │
+│                                                          │
+└─────────────────────────────────────────────────────────┘
+```
+
+### New Section: "Cross-Machine Harbors" (Replace or Augment HowItWorks)
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                                                          │
+│     Your MacBook and your desktop. One harbor.           │
+│                                                          │
+│     ┌──────────┐       mDNS        ┌──────────┐        │
+│     │ MacBook  │◄─────────────────►│ Desktop  │        │
+│     │ daemon   │   auto-discover    │ daemon   │        │
+│     │          │                    │          │        │
+│     │ Claude ● │  file claims sync  │ ● Cursor │        │
+│     │ agent    │  pub/sub flows     │   agent  │        │
+│     └──────────┘  sessions visible  └──────────┘        │
+│                                                          │
+│     $ pd harbor connect myapp --auto                     │
+│     → Scanning local network... found Desktop.local      │
+│     → Connected. 2 agents now coordinating.              │
+│                                                          │
+│     No relay server. No cloud. Direct daemon-to-daemon.  │
+│     Authenticated with Ed25519 harbor cards.             │
+│                                                          │
+│     [REMOTE HARBORS TUTORIAL]                            │
+│                                                          │
+└─────────────────────────────────────────────────────────┘
+```
+
+## New Page: /compare
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                                                          │
+│     Honest Comparisons                                   │
+│                                                          │
+│  ┌────────────┬──────────────┬───────────┬────────────┐ │
+│  │            │  Port Daddy  │  Docker   │ detect-port│ │
+│  │            │              │  Compose  │            │ │
+│  ├────────────┼──────────────┼───────────┼────────────┤ │
+│  │ Port       │ ✅ Atomic    │ ✅ Network│ ✅ Random  │ │
+│  │ conflicts  │  assignment  │  isolation│            │ │
+│  ├────────────┼──────────────┼───────────┼────────────┤ │
+│  │ Same port  │ ✅ Always    │ ✅ Config │ ❌ Random  │ │
+│  │ each time  │              │  file     │  each run  │ │
+│  ├────────────┼──────────────┼───────────┼────────────┤ │
+│  │ Agent      │ ✅ Sessions  │ ❌ None   │ ❌ None    │ │
+│  │ coordination│ file claims │           │            │ │
+│  │            │  pub/sub     │           │            │ │
+│  ├────────────┼──────────────┼───────────┼────────────┤ │
+│  │ Security   │ ✅ Harbors   │ ✅ Containers│ ❌ None │ │
+│  │ boundaries │  (verified)  │            │           │ │
+│  ├────────────┼──────────────┼───────────┼────────────┤ │
+│  │ Multi-     │ ✅ Remote    │ ✅ Swarm  │ ❌ No     │ │
+│  │ machine    │  harbors     │  / K8s    │            │ │
+│  ├────────────┼──────────────┼───────────┼────────────┤ │
+│  │ Setup      │ npm i -g     │ Dockerfile│ npm i      │ │
+│  │            │ port-daddy   │ compose.yml│ detect-port│ │
+│  ├────────────┼──────────────┼───────────┼────────────┤ │
+│  │ Overhead   │ ~20MB daemon │ ~2GB Docker│ 0 (library)│ │
+│  │            │              │  Desktop   │            │ │
+│  └────────────┴──────────────┴───────────┴────────────┘ │
+│                                                          │
+│     When to use Docker Compose: You already have         │
+│     containers and want network isolation.               │
+│                                                          │
+│     When to use detect-port: You need one port,          │
+│     one time, no coordination.                           │
+│                                                          │
+│     When to use Port Daddy: You have AI agents that      │
+│     need to coordinate without stepping on each other.   │
+│                                                          │
+└─────────────────────────────────────────────────────────┘
+```
+
+## New Page: /pricing
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                                                          │
+│     Simple pricing. The daemon is always free.           │
+│                                                          │
+│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐    │
+│  │   FREE       │ │   PRO        │ │   TEAM       │    │
+│  │              │ │   $19/seat   │ │   $49/team   │    │
+│  │              │ │   /month     │ │   /month     │    │
+│  ├──────────────┤ ├──────────────┤ ├──────────────┤    │
+│  │ Daemon       │ │ Everything   │ │ Everything   │    │
+│  │ CLI + SDK    │ │ in Free, +   │ │ in Pro, +    │    │
+│  │ MCP (98 tools│ │              │ │              │    │
+│  │ Local harbors│ │ portdaddy.dev│ │ Unlimited    │    │
+│  │ (enforced!)  │ │ lighthouse   │ │ remote peers │    │
+│  │ Pub/sub      │ │              │ │              │    │
+│  │ Sessions     │ │ Remote harbor│ │ Self-hosted  │    │
+│  │ Salvage      │ │ (up to 3     │ │ lighthouse   │    │
+│  │ mDNS (LAN)  │ │  peers)      │ │              │    │
+│  │ Dashboard    │ │              │ │ Team         │    │
+│  │              │ │ Session      │ │ dashboard    │    │
+│  │              │ │ replays      │ │              │    │
+│  │              │ │              │ │ Harbor audit │    │
+│  │              │ │              │ │ logs         │    │
+│  │              │ │              │ │              │    │
+│  │  [Install]   │ │  [Start]     │ │  [Contact]   │    │
+│  └──────────────┘ └──────────────┘ └──────────────┘    │
+│                                                          │
+│     Enterprise? Self-hosted, SAML, SLA.                  │
+│     [Talk to us]                                         │
+│                                                          │
+└─────────────────────────────────────────────────────────┘
+```
+
+## Docs Page Updates (V4)
+
+Add harbor section to the SDK Manual:
+
+```
+Existing sections:
+  1. Atomic Identity (claim, release, find)
+  2. Swarm Radio (pub, sub, watch)
+  3. Cryptographic Harbors (harbor create, enter, list)  ← EXISTS but needs V4 update
+
+Update section 3 to include:
+  - harbor_create with capabilities
+  - harbor_enter (returns harbor card)
+  - harbor_status (show current harbor)
+  - harbor_connect (remote peer)
+  - harbor_discover (mDNS scan)
+  - Capability attenuation on spawn
+```
+
+## MCP Page Updates (V4)
+
+Add harbors to the Essential Tools showcase:
+
+```
+Essential 10 (updated from 8):
+  begin_session    — "Now auto-creates your harbor"
+  harbor_status    — NEW: "See your capabilities and co-members"
+  claim_port       — existing
+  add_note         — existing
+  ...
+
+New category highlight:
+  Harbors (8 tools) — "Cryptographic permission namespaces"
+  Remote  (5 tools) — "Cross-machine coordination"
+```
+
+## Immediate Fixes (Pre-V4)
+
+These are bugs, not features:
+
+1. **GitHub URLs** — 5 files reference `erichowens/port-daddy`:
+   - `Nav.tsx:79`
+   - `CTABanner.tsx:58,79`
+   - `Footer.tsx:96`
+   - `GettingStarted.tsx:48`
+   - `blogData.ts:89`
+
+2. **OpenGraph tags** — `index.html` has zero social sharing metadata
+
+3. **Brew tap** — `CTABanner.tsx:79` shows `erichowens/port-daddy`
+
+---
+---
+
 # Consolidated Execution Timeline
 
 | Phase | What | When | Revenue |
