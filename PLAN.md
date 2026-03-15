@@ -182,12 +182,14 @@ This is ProVerif v2 (asymmetric model) — already verified.
 
 ### Wire protocol
 
-SSE for real-time sync (you already have SSE everywhere), HTTP for RPCs:
+~~SSE for real-time sync, HTTP for RPCs~~ **Superseded by Part XVII:** WebSocket for
+bidirectional sync channel, HTTP for one-off RPCs. See Part XVII for the full
+sync protocol, Merkle hashing, and conflict resolution model.
 
 ```
-POST /harbor/:name/sync    — push local state changes
-GET  /harbor/:name/stream  — SSE stream of remote state changes
+WS  /harbor/:name/sync    — persistent bidirectional sync channel
 POST /harbor/:name/verify  — verify a harbor card from the other daemon
+GET  /harbor/:name/state   — one-off state snapshot
 ```
 
 All traffic is TLS with mutual authentication (each daemon presents its harbor card
@@ -909,7 +911,7 @@ with daemon-to-daemon synchronization.
 **Decision:**
 - Harbors sync coordination state (membership, file claims, sessions, pub/sub, locks)
   but NOT local state (port assignments, activity logs, DNS, webhooks)
-- Wire protocol: HTTP for RPCs, SSE for real-time state streaming
+- Wire protocol: WebSocket for bidirectional sync, HTTP for one-off RPCs (revised in Part XVII)
 - Authentication: shared HMAC key per harbor (Phase 1), Ed25519 per daemon (Phase 2)
 - Discovery: mDNS (LAN), portdaddy.dev registry (WAN), self-hosted lighthouse (enterprise)
 
@@ -1125,9 +1127,9 @@ per session, this adds up.
   (CLI, SDK, MCP)   │    Binary protocol (msgpack) │     No HTTP, no Express
                     │    Direct function dispatch  │     ~0.05ms per call
                     │                              │
-  REMOTE CLIENTS ─► │  TCP :9877 (harbor sync)    │ ◄── HTTP path
-  (other daemons)   │    HTTP + JSON + TLS         │     Full Express stack
-                    │    SSE for streaming          │     ~0.5ms per call
+  REMOTE CLIENTS ─► │  TCP :9877 (harbor sync)    │ ◄── Remote path
+  (other daemons)   │    WebSocket + msgpack + TLS │     Bidirectional sync
+                    │    HTTP for one-off RPCs      │     See Part XVII
                     └────────────────────────────┘
 ```
 
@@ -3170,21 +3172,2276 @@ the funnel.
 ---
 ---
 
-# Consolidated Execution Timeline
+# Part XVII: Distributed State & Conflict Resolution
+
+## The Hardest Problem in This Plan
+
+Part XIII describes a harbor KV store with CAS (compare-and-swap) for concurrency.
+Part II says remote harbors sync state between daemons. Neither addresses what happens
+when two daemons modify the same key while connected, or worse, while partitioned.
+
+CAS prevents lost updates **on a single node**. With two nodes, both can succeed
+locally with conflicting writes. When they sync — who wins?
+
+This section defines the conflict resolution model, the sync protocol, and the
+partition tolerance guarantees. These are the decisions that determine whether remote
+harbors actually work under real-world conditions.
+
+## Conflict Resolution Model: Hybrid LWW + Conflict Detection
+
+After evaluating CRDTs (LWW-Register, MV-Register, OR-Map), operational transformation,
+and per-key conflict detection with manual resolution:
+
+**Decision: Last-Writer-Wins (LWW) with Hybrid Logical Clocks (HLC) as the default,
+with opt-in conflict detection for designated keys.**
+
+### Why LWW, Not Full CRDTs
+
+CRDTs (Conflict-free Replicated Data Types) guarantee convergence without coordination.
+They're the theoretically correct answer. But:
+
+- **OR-Map / MV-Register CRDTs** require every value to carry a version vector that
+  grows with the number of nodes. For 2-10 nodes this is manageable, but the complexity
+  cost in implementation, debugging, and storage is significant.
+- **Automerge / Yjs** are excellent for document editing but heavyweight for a KV store
+  where values are typically short strings or small JSON objects.
+- **cr-sqlite** (Vulcan Labs / Expensify's project) merges SQLite databases using
+  CRDTs at the row level. It's promising but adds a significant dependency and
+  changes the SQLite interaction model.
+
+LWW is simpler, well-understood, and correct for the vast majority of KV use cases
+in agent coordination. The key insight: **most KV writes in a harbor are not
+contentious.** Agents working on different parts of a codebase write different keys.
+Conflicts are rare, and when they happen, "latest timestamp wins" is almost always
+the right answer.
+
+### Hybrid Logical Clocks (HLC)
+
+LWW needs a total ordering of writes. Wall-clock timestamps are unreliable (clock
+skew between machines). Vector clocks have unbounded size. HLCs are the pragmatic
+middle ground:
+
+```
+HLC = (physical_time, logical_counter, node_id)
+
+- physical_time: max(local_wall_clock, received_remote_time)
+- logical_counter: incremented when physical_time doesn't advance
+- node_id: daemon identifier (breaks ties deterministically)
+```
+
+HLCs are bounded in size (fixed 3-tuple), monotonically increasing per node, and
+respect causality (if event A happened before event B, A's HLC < B's HLC). They're
+used by CockroachDB, TiDB, and other distributed databases.
+
+**Implementation:** 16 bytes per timestamp (8 bytes physical, 4 bytes counter,
+4 bytes node_id_hash). Stored alongside every KV entry and every synced entity.
+
+```sql
+-- Updated harbor_kv schema with HLC
+CREATE TABLE harbor_kv (
+  harbor_name  TEXT NOT NULL REFERENCES harbors(name) ON DELETE CASCADE,
+  key          TEXT NOT NULL,
+  value        TEXT NOT NULL,
+  hlc_physical INTEGER NOT NULL,    -- Physical clock (ms since epoch)
+  hlc_counter  INTEGER NOT NULL,    -- Logical counter
+  hlc_node     TEXT NOT NULL,       -- Daemon ID (short hash)
+  updated_by   TEXT,
+  visibility   TEXT NOT NULL DEFAULT 'harbor',
+  PRIMARY KEY (harbor_name, key)
+);
+```
+
+### Conflict Detection for Critical Keys
+
+Some keys are too important for "last write wins." For these, opt into conflict
+detection:
+
+```bash
+pd harbor kv set myapp db.schema_version "42" --conflict-mode detect
+# → If this key is modified on two daemons simultaneously,
+#   BOTH values are preserved and flagged as conflicting
+```
+
+When a conflict is detected during sync:
+
+```json
+{
+  "key": "db.schema_version",
+  "conflict": true,
+  "values": [
+    {"value": "42", "hlc": "...", "node": "macbook", "updatedBy": "agent-a"},
+    {"value": "43", "hlc": "...", "node": "desktop", "updatedBy": "agent-b"}
+  ],
+  "resolution": "manual"
+}
+```
+
+The conflict is surfaced via:
+- `pd harbor kv conflicts myapp` — list all unresolved conflicts
+- Pub/sub notification on `myapp:conflicts` channel
+- Dashboard "Conflicts" indicator on the harbor panel
+- MCP tool `harbor_kv_conflicts` for agent resolution
+
+Resolution:
+
+```bash
+pd harbor kv resolve myapp db.schema_version --pick macbook
+# or
+pd harbor kv resolve myapp db.schema_version --value "44"
+```
+
+### Default Conflict Mode by Data Type
+
+| Data type | Default mode | Rationale |
+|-----------|-------------|-----------|
+| KV entries | LWW | Most writes are non-contentious |
+| File claims | Detect | Two agents claiming the same file IS the conflict |
+| Lock state | Authoritative | The daemon that holds the lock is authoritative |
+| Session notes | Append-only | No conflicts possible — notes are immutable |
+| Pheromones | Max-wins | Take the higher intensity — more conservative |
+| Harbors membership | Union | If either side says an agent is a member, it's a member |
+| Agent liveness | Latest-heartbeat | Most recent heartbeat wins |
+
+## Sync Protocol
+
+### Architecture: Bidirectional SSE + HTTP RPCs
+
+The original plan (Part I) specified "SSE for real-time sync, HTTP for RPCs." But
+SSE is unidirectional (server → client). For daemon-to-daemon sync, we need
+bidirectional state flow.
+
+**Decision: WebSocket for the persistent sync channel.** Rationale:
+- Bidirectional on a single connection
+- Binary frames (can send msgpack directly)
+- Built-in ping/pong for keepalive
+- Native support in Node.js (`ws` library, 0 dependencies for the server)
+- HTTP RPCs remain for one-off operations (verify card, query state)
+
+```
+Daemon A                         Daemon B
+   │                                │
+   │──── WS connect ───────────────►│
+   │◄─── WS accept ────────────────│
+   │                                │
+   │──── sync_hello {version, hlc} ►│
+   │◄─── sync_hello {version, hlc} │
+   │                                │
+   │──── full_state_hash ──────────►│  (Merkle hash of all synced entities)
+   │◄─── full_state_hash ──────────│
+   │                                │
+   │  If hashes differ:            │
+   │──── diff_request ─────────────►│
+   │◄─── diff_response ────────────│  (Only changed entities)
+   │──── diff_ack ─────────────────►│
+   │                                │
+   │  Ongoing:                     │
+   │◄──► mutation(key, value, hlc)  │  (Real-time bidirectional)
+   │◄──► mutation(key, value, hlc)  │
+   │                                │
+   │  Keepalive:                   │
+   │◄──► ping/pong (30s interval)  │
+```
+
+### Initial Sync: Merkle Hash Comparison
+
+On connection, each daemon computes a Merkle hash of all synced entities in the
+harbor. If hashes match, no sync needed. If they differ, a diff exchange identifies
+which entities changed.
+
+```
+Merkle tree:
+  root_hash
+  ├── kv_hash (hash of all KV entries)
+  ├── claims_hash (hash of all file claims)
+  ├── members_hash (hash of all membership records)
+  ├── locks_hash (hash of all lock state)
+  └── pheromones_hash (hash of all pheromone entries)
+```
+
+If `kv_hash` differs but everything else matches, only KV entries are exchanged.
+This minimizes bandwidth for partial divergence.
+
+### Bandwidth and Throttling
+
+For a harbor with 500 KV entries, 100 pheromone traces, 50 notes, and 20 file claims:
+
+- Full initial sync: ~50-100KB (compact msgpack encoding)
+- Incremental mutations: ~100-500 bytes per change
+- At 10 changes/second (heavy usage): ~5KB/s bandwidth
+
+This is negligible for any network. No throttling needed at V4 scale.
+
+For pathological cases (10,000+ KV entries), add:
+- `max_sync_batch_size` config (default: 1000 entities per batch)
+- Backpressure: if the WebSocket send buffer exceeds 1MB, pause sending until it drains
+- Compression: msgpack + optional zstd compression for initial sync (not for mutations)
+
+## Partition Tolerance
+
+### The Fundamental Guarantee: Local-First
+
+**When the network drops, everything local continues to work.** This is non-negotiable.
+
+- Agents on the local daemon can still claim ports, write notes, acquire locks,
+  read/write KV, publish messages
+- The daemon never blocks waiting for a remote peer
+- All local operations complete in <1ms regardless of network state
+
+### What Happens During a Partition
+
+```
+Connected:
+  MacBook ◄──────► Desktop
+  harbor: myapp (synced)
+
+Partition:
+  MacBook          Desktop
+  harbor: myapp    harbor: myapp
+  (local ops       (local ops
+   continue)        continue)
+
+  Both sides can:
+  - Write KV entries (locally)
+  - Claim files (locally)
+  - Acquire locks (locally — this means the same lock can be held by both sides!)
+  - Publish messages (local subscribers only)
+  - Read all local state
+
+Reconnection:
+  MacBook ◄──────► Desktop
+  1. WebSocket reconnects (exponential backoff: 1s, 2s, 4s, 8s, max 60s)
+  2. Merkle hash comparison (what diverged?)
+  3. Diff exchange (send changed entities)
+  4. Conflict resolution (LWW for KV, detect for file claims, see table above)
+  5. Sync complete
+```
+
+### The Lock Problem
+
+Locks are the hardest case during partitions. If both sides acquire the same lock
+while partitioned, we have two holders. On reconnection:
+
+**Decision: Fencing tokens.** Each lock acquisition gets a monotonically increasing
+fencing token (integer). When the partition heals, the higher fencing token wins.
+The loser's lock is force-released, and a `lock_preempted` event is published.
+
+```
+Partition:
+  MacBook acquires auth-module (fencing token: 17)
+  Desktop acquires auth-module (fencing token: 18)
+
+Reconnection:
+  Desktop's token (18) > MacBook's token (17)
+  → Desktop keeps the lock
+  → MacBook's lock is force-released
+  → Event published: "lock auth-module preempted: MacBook → Desktop"
+  → MacBook's agent sees the event and can react
+```
+
+Fencing tokens are shared via HLC (the HLC at acquisition time serves as the token).
+
+### Split-Brain Detection
+
+If two daemons are partitioned for more than `max_partition_duration` (default: 1 hour),
+the sync channel enters "reconciliation mode" on reconnection:
+
+1. Full state comparison (not just Merkle diff)
+2. All conflicts surfaced to agents via pub/sub
+3. A `partition_healed` event with summary of changes
+4. Dashboard shows "Reconciliation in progress" indicator
+
+For partitions shorter than 1 hour, the normal Merkle diff is sufficient.
+
+## What This Architecture Is NOT
+
+This is NOT a general-purpose distributed database. It's a coordination state
+synchronizer for 2-10 daemon nodes running on developer machines. The design
+reflects this scope:
+
+- **Not CP (consistent + partition-tolerant).** We sacrifice strict consistency
+  for availability. Local operations always work, even if they create conflicts
+  that are resolved later.
+- **Not designed for WAN latency.** Remote harbors over the internet work, but
+  the sync protocol assumes reasonable latency (<500ms). For higher latency,
+  batch mutations and sync less frequently.
+- **Not designed for large datasets.** If your harbor has >10,000 KV entries,
+  you're using it wrong. The KV store is for coordination metadata, not data
+  storage.
+
+## Files to Create
+
+- `lib/hlc.ts` — Hybrid Logical Clock implementation (~50 lines)
+- `lib/sync-protocol.ts` — WebSocket sync protocol, Merkle hashing, diff exchange
+- `lib/conflict-resolver.ts` — LWW resolution, conflict detection, manual resolution
+- `tests/unit/hlc.test.js` — HLC property tests (monotonicity, causality)
+- `tests/unit/sync-protocol.test.js` — Sync protocol unit tests
+- `tests/unit/conflict-resolver.test.js` — Conflict resolution unit tests
+- `tests/integration/partition.test.js` — Two-daemon partition simulation
+
+## ADR-0015: Conflict Resolution Model
+
+**Status:** Proposed
+**Context:** Remote harbors require a strategy for handling concurrent writes from
+different daemons. Full CRDTs are complex. No resolution means data loss.
+**Decision:** LWW with HLC as the default. Opt-in conflict detection for designated
+keys. Fencing tokens for locks. Max-wins for pheromones. Union for membership.
+**Consequences:** Occasional data loss for contentious keys in LWW mode (mitigated
+by conflict detection opt-in). Simple implementation. Well-understood semantics.
+
+---
+---
+
+# Part XVIII: Key Management & Operational Security
+
+## The Problem
+
+Part I says "HMAC signed harbor cards" and Part II says "Ed25519 for remote." Neither
+addresses where the keys live, how they rotate, how you migrate between them, or what
+happens when they're compromised. The ProVerif proofs verify the *protocol*. They say
+nothing about the *operational* security of the keys themselves.
+
+This section closes that gap.
+
+## Key Storage: The "age" Pattern
+
+After evaluating OS keychain (macOS Keychain, Linux Secret Service), environment
+variables, SQLite storage, and separate files, the answer is clear: **separate file
+with restricted permissions.** This is what SSH, age, and GPG all do.
+
+Rationale for rejecting alternatives:
+- **OS keychain**: A launchd/systemd daemon runs headlessly. macOS Keychain requires
+  interactive prompts unless you preconfigure "always allow" for a specific binary path,
+  which breaks on `npm install` updates. Linux has no universal keychain daemon.
+- **Environment variables**: Leak into `/proc/<pid>/environ`, shell histories, and logs.
+  The 12-factor recommendation is for cloud deployments, not local daemons.
+- **SQLite storage**: Puts the key alongside the data it protects. An attacker who gets
+  the DB file gets the key. This is locking the safe key inside the safe.
+
+### File Layout
+
+```
+~/.config/port-daddy/
+├── keys/
+│   ├── hmac-active.key       # Current HMAC signing key (32 bytes, hex)
+│   ├── hmac-retired-1710460800.key  # Previous key (still verifies)
+│   └── ed25519-active.pem    # Ed25519 private key (V4.1+)
+└── port-daddy.conf           # Optional config overrides
+```
+
+All key files: `0600` (owner read/write only).
+Key directory: `0700` (owner access only).
+
+### Generation and Verification
+
+On first run:
+1. `crypto.randomBytes(32)` → hex-encode → write to `hmac-active.key`
+2. Set permissions to `0600` via `fs.chmodSync` immediately after creation
+3. On every subsequent startup, verify permissions haven't been loosened
+4. If permissions are too open: **refuse to start** with a clear error message,
+   matching SSH's `WARNING: UNPROTECTED PRIVATE KEY FILE` behavior
+
+```typescript
+// lib/key-manager.ts
+function loadSigningKey(): { kid: string; secret: Buffer; state: 'active' | 'retired' } {
+  const keyPath = path.join(configDir, 'keys', 'hmac-active.key');
+  const stat = fs.statSync(keyPath);
+  const mode = stat.mode & 0o777;
+  if (mode !== 0o600) {
+    throw new Error(
+      `Key file ${keyPath} has permissions ${mode.toString(8)}, expected 600. ` +
+      `Fix with: chmod 600 ${keyPath}`
+    );
+  }
+  return { kid: kidFromPath(keyPath), secret: fs.readFileSync(keyPath), state: 'active' };
+}
+```
+
+### Why Not SQLCipher?
+
+SQLCipher encrypts the entire SQLite database. The problem: you need a key to decrypt
+it, and where does *that* key live? In a file? Then just put the signing key in the
+file directly. SQLCipher adds complexity without meaningful security gain for an
+auto-starting daemon with no user interaction.
+
+## Key Rotation: Zero-Downtime
+
+Every JWT gets a Key ID (`kid`) in its header:
+
+```json
+{ "alg": "HS256", "kid": "k-1710460800" }
+```
+
+### Key States
+
+```
+pending → active → retired → revoked
+
+pending:  Generated but not yet signing. Used for pre-distribution in remote harbors.
+active:   Signs new tokens. Only ONE key is active at a time.
+retired:  No longer signs. Still verifies. Tokens signed by this key are accepted.
+revoked:  No longer verifies. Tokens signed by this key are rejected.
+```
+
+### Rotation Procedure
+
+1. Generate new key, write to `hmac-active.key`, rename old key to
+   `hmac-retired-{timestamp}.key`
+2. Mark old key as `retired` in the `signing_keys` metadata table
+3. All new tokens signed with new key
+4. Verification logic: look up key by `kid` → if `active` or `retired`, verify;
+   if `revoked` or unknown, reject
+5. After `max_token_lifetime + 5min` (clock skew buffer), mark old key `revoked`
+6. After 24h, delete the retired key file
+
+This is the exact pattern Auth0 and Firebase Auth use. At Port Daddy's scale
+(1-50 active JWTs), the retired key window is trivially short.
+
+### Metadata Table (Not Key Material)
+
+```sql
+CREATE TABLE signing_keys (
+  kid         TEXT PRIMARY KEY,           -- e.g., "k-1710460800"
+  algorithm   TEXT NOT NULL,              -- 'HS256' or 'EdDSA'
+  state       TEXT NOT NULL DEFAULT 'active',  -- active/retired/revoked
+  created_at  INTEGER NOT NULL,
+  retired_at  INTEGER,
+  revoked_at  INTEGER
+);
+-- Key material is NOT in this table. Only metadata.
+-- Key material lives in the filesystem at ~/.config/port-daddy/keys/
+```
+
+### CLI Surface
+
+```bash
+pd keys list              # Show all keys with state and age
+pd keys rotate            # Generate new key, retire current
+pd keys revoke <kid>      # Immediately revoke a specific key
+pd keys verify            # Check permissions, validate key integrity
+```
+
+## JTI Revocation: Bounded Growth
+
+### The Problem
+
+Every harbor card has a JTI (JWT ID). When an agent dies, its JTIs are revoked.
+Without cleanup, the revocation table grows forever.
+
+### The Solution: TTL-Based Cleanup
+
+At Port Daddy's scale (1-50 active JWTs), this is a non-problem solved trivially:
+
+```sql
+CREATE TABLE revoked_jtis (
+  jti        TEXT PRIMARY KEY,
+  expires_at INTEGER NOT NULL,      -- Token's original exp claim
+  revoked_at INTEGER NOT NULL,
+  reason     TEXT                    -- 'agent_death', 'manual', 'key_rotation'
+);
+
+CREATE INDEX idx_revoked_expires ON revoked_jtis(expires_at);
+```
+
+Cleanup runs on daemon startup and every hour:
+
+```sql
+DELETE FROM revoked_jtis WHERE expires_at < unixepoch();
+```
+
+Once a token's natural expiry has passed, there's no reason to track its revocation —
+it would fail verification anyway due to the `exp` claim. This is the exact pattern
+Keycloak uses.
+
+**Why not bloom filters?** Bloom filters shine at millions of entries where memory
+savings matter. At 50 entries, a bloom filter is more complex and less accurate than
+a SQLite table. Don't optimize for a scale you don't have.
+
+**Worst-case growth:** Even if 100 agents crash per day (catastrophic scenario), with
+1-hour token TTLs, the table never exceeds ~100 rows at steady state. With 24-hour
+TTLs, it peaks at ~2400 rows. Both are trivially small for SQLite.
+
+## HMAC → Ed25519 Migration
+
+### Why Migrate
+
+HMAC (symmetric): The same secret signs and verifies. Anyone who can verify can forge.
+Fine when only the local daemon verifies. Breaks when remote daemons need to verify
+without being able to mint tokens.
+
+Ed25519 (asymmetric): Private key signs, public key verifies. You can distribute the
+public key to every remote peer. They verify but can't forge.
+
+### Migration Protocol
+
+**Phase 1 (V4.0):** HMAC only. All tokens are `alg: HS256`. Single daemon, single key.
+
+**Phase 2 (V4.1, when remote harbors ship):**
+1. Generate Ed25519 keypair. Private key in `~/.config/port-daddy/keys/ed25519-active.pem`.
+   Public key published at `GET /.well-known/jwks.json`.
+2. All new tokens signed with Ed25519 (`alg: EdDSA`).
+3. Verification accepts BOTH:
+   - `alg: EdDSA` + valid `kid` → verify with Ed25519 public key
+   - `alg: HS256` + valid `kid` in `retired` state → verify with HMAC secret
+4. **Critical security rule:** The verifier NEVER trusts the `alg` header alone.
+   It looks up the key by `kid`, checks the key's declared algorithm, and only then
+   verifies. This prevents the classic `alg: none` downgrade attack. Already
+   implemented in `lib/harbor-tokens.ts:207-209`.
+
+**Phase 3 (V4.2, after max_token_lifetime has elapsed):**
+1. All HMAC tokens have naturally expired.
+2. Remove HMAC verification path from code.
+3. Revoke and delete HMAC keys.
+4. This prevents future downgrade attacks.
+
+Node.js has native Ed25519 support (`crypto.generateKeyPairSync('ed25519')`) since
+Node 12. The `jose` library handles EdDSA JWTs. No new dependencies needed.
+
+## Dashboard Authentication
+
+### The Problem
+
+The dashboard at `localhost:9876` currently has no authentication. With remote harbors,
+the daemon listens on `0.0.0.0:9877`. If the dashboard is served on the remote port,
+anyone who can reach it can destroy harbors, kill agents, and end sessions.
+
+### The Solution: Port Separation + Optional Token
+
+**Rule 1:** The dashboard is ONLY served on the local interface. The remote harbor
+sync port (`0.0.0.0:9877`) serves ONLY sync endpoints and health checks. No dashboard,
+no destructive API endpoints.
+
+```typescript
+// server.ts — Two listeners
+const localApp = express();   // Dashboard + full API
+const remoteApp = express();  // Sync endpoints only
+
+localApp.listen(9876, '127.0.0.1');        // Localhost only
+localApp.listen('/tmp/port-daddy.sock');   // Unix socket
+
+if (remoteHarborsEnabled) {
+  remoteApp.listen(9877, '0.0.0.0');       // Remote peers only
+}
+```
+
+**Rule 2:** Remote-facing endpoints require harbor cards. No exceptions.
+The `remoteApp` has the harbor middleware on every route.
+
+**Rule 3:** Optional dashboard token for paranoid users.
+
+```bash
+pd config set dashboard.token "$(openssl rand -hex 16)"
+# → Dashboard now requires ?token=<hex> or cookie
+```
+
+This protects against local privilege escalation (another user on a shared machine).
+Optional because single-user developer machines don't need it.
+
+### CSRF Protection
+
+The dashboard makes mutating API calls (destroy harbor, end session). Even on
+localhost, CSRF is possible if a malicious website triggers a request to
+`localhost:9876`. Protection:
+
+- All mutating dashboard requests use `fetch()` with `Content-Type: application/json`
+- Express checks `Content-Type` header on POST/PUT/DELETE — browsers can't set
+  this header on cross-origin requests without CORS preflight
+- CORS is already configured to reject cross-origin requests (existing code)
+
+This is the "simple request" defense: JSON content-type forces a CORS preflight,
+which the server denies for cross-origin requests. No CSRF tokens needed.
+
+## mDNS Information Leakage
+
+### The Risk
+
+mDNS advertisements in `_portdaddy._tcp.local.` include the harbor name in the TXT
+record. In a shared office or co-working space, anyone running
+`dns-sd -B _portdaddy._tcp local.` sees your project names.
+
+### Mitigations
+
+**Tier 1 (default):** mDNS is opt-in only. The `--advertise` flag is required.
+Auto-discovery without `--advertise` uses unicast probing (direct IP, not broadcast).
+
+**Tier 2:** Hash the harbor name in the advertisement. The TXT record contains
+`harbor_hash=sha256(harbor_name + salt)[:12]` instead of the plaintext name. Peers
+that already know the harbor name can compute the hash to match. Passive observers
+see a random-looking string.
+
+**Tier 3:** Silent mode. `pd harbor listen myapp --silent` opens the sync port but
+does NOT advertise via mDNS. Connection requires explicit `pd harbor connect --peer
+<ip:port>`. Zero network visibility.
+
+```bash
+pd harbor listen myapp --advertise          # Tier 1: plaintext name in mDNS
+pd harbor listen myapp --advertise --hash   # Tier 2: hashed name
+pd harbor listen myapp                      # Tier 3: no mDNS, manual connect only
+```
+
+Default is Tier 3 (silent). You must explicitly opt into network visibility.
+
+## Lighthouse Threat Model
+
+### What the Registry Knows
+
+The portdaddy.dev registry stores: harbor name + owner, connection endpoint (IP:port),
+public key, heartbeat timestamp. It does NOT store harbor cards, secrets, or data.
+
+### Threat Scenarios
+
+| Threat | Impact | Mitigation |
+|--------|--------|------------|
+| Registry DDoS | WAN discovery down, LAN + manual connect unaffected | CDN (Cloudflare Worker is already DDoS-resistant) |
+| Registry compromise (attacker modifies endpoints) | Could redirect connections to attacker-controlled daemon | Harbor card exchange fails — the attacker's daemon can't issue valid cards without the harbor's signing key |
+| Privacy: registry reveals user activity patterns | Knows which users are online, project names, when they work | Hash harbor names in registry (same as mDNS Tier 2). Require account authentication for registration. |
+| Rogue lighthouse (self-hosted, compromised) | Same as registry compromise | Same mitigation — harbor card verification catches it |
+| Registration without consent | Someone registers your harbor name | Registration requires signed challenge — daemon proves it controls the Ed25519 key |
+
+### Data Retention
+
+- Heartbeat entries expire after 24h without renewal (stale cleanup)
+- No historical data stored — the registry is a phone book, not a log
+- Users can delete their registrations: `pd lighthouse unregister myapp`
+- Privacy policy published at `portdaddy.dev/privacy`
+
+### The Key Insight
+
+The lighthouse/registry is a **convenience layer**, not a security layer. Security
+comes from harbor cards (ProVerif-verified). If the registry is compromised, wrong,
+or offline, the worst case is that auto-discovery doesn't work — you fall back to
+manual `pd harbor connect --peer <ip>`. No data is exposed, no tokens are compromised.
+
+---
+---
+
+# Part XIX: Schema Migration & Rollback Strategy
+
+## Current State
+
+Port Daddy has ~15 SQLite tables. V4 adds ~8 new tables plus column additions to
+existing tables. There is no migration system — `server.ts` uses `CREATE TABLE IF
+NOT EXISTS` on startup, which only works for new installations.
+
+## Migration Runner: Custom, 50 Lines, Zero Dependencies
+
+After evaluating better-sqlite3-migrations (doesn't exist as a package), Knex (~1.5MB
+dependency), Drizzle (requires schema DSL), and Umzug (async-first, fights better-sqlite3),
+the answer is the same thing every successful better-sqlite3 project does: a custom
+migration table.
+
+### Schema
+
+```sql
+CREATE TABLE IF NOT EXISTS _migrations (
+  version   INTEGER PRIMARY KEY,
+  name      TEXT NOT NULL,
+  applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+```
+
+### Migration Files
+
+```
+migrations/
+├── 001_initial_schema.sql           # V1-V3 baseline (all existing tables)
+├── 002_harbor_enforcement.sql       # V4.0: signing_keys, revoked_jtis
+├── 003_harbor_kv.sql                # V4.0: harbor_kv table
+├── 004_pheromones.sql               # V4.0: pheromones table
+├── 005_regions.sql                  # V4.0: regions, region_claims tables
+├── 006_agents_identity_columns.sql  # V4.0: ALTER agents ADD identity_project etc.
+├── 007_harbor_embeddings.sql        # V4.1: harbor_embeddings (lazy, optional)
+├── 008_remote_sync.sql              # V4.1: sync_peers, sync_state tables
+└── 009_lighthouse.sql               # V4.2: lighthouse_registrations
+```
+
+### Runner Logic
+
+On daemon startup:
+
+```
+1. CREATE TABLE IF NOT EXISTS _migrations (...)
+2. SELECT MAX(version) FROM _migrations → current_version
+3. List migration files, sort by version number
+4. For each migration where version > current_version:
+   a. BEGIN TRANSACTION
+   b. Execute the SQL file
+   c. INSERT INTO _migrations (version, name)
+   d. COMMIT
+   e. If any step fails: ROLLBACK, log error, refuse to start
+5. Log: "Migrations applied: {current} → {new}"
+```
+
+Each migration runs in its own transaction. If migration 005 fails, migrations
+001-004 are already applied. The daemon logs the failure and refuses to start,
+rather than running with a partially-migrated schema.
+
+### The Initial Migration Problem
+
+Existing installations have all V1-V3 tables but no `_migrations` table. On first
+V4 startup:
+
+```
+1. Check: does _migrations table exist?
+2. If not: check for any existing tables (e.g., 'services')
+3. If existing tables found:
+   a. CREATE _migrations
+   b. INSERT version=1 (mark baseline as applied)
+   c. Proceed with migrations 002+
+4. If no existing tables (fresh install):
+   a. CREATE _migrations
+   b. Apply ALL migrations from 001
+```
+
+This detects whether we're upgrading or fresh-installing without user intervention.
+
+## Backup-Before-Migrate
+
+Before applying any migration:
+
+```
+1. Copy port-registry.db → port-registry.db.pre-v{N}.bak
+2. Keep the 3 most recent backups, delete older ones
+3. Log: "Database backed up to port-registry.db.pre-v{N}.bak"
+```
+
+If migration fails, the database is unchanged (SQLite transactions are atomic).
+If the new daemon code is buggy, the user has the backup file.
+
+**Restore command:**
+
+```bash
+pd db restore                    # Restore from most recent backup
+pd db restore --backup <path>    # Restore from specific backup
+pd db backups                    # List available backups
+```
+
+## Forward-Only Migrations (No Down Migrations)
+
+Down migrations are not worth the maintenance cost. Rationale from evaluating
+Obsidian, VS Code, Logseq, Linear, and other local-first tools: **none of them
+implement down migrations.** They all use forward-only migrations with backup.
+
+Down migrations for data transforms are often lossy or impossible (you can add
+a column but removing it loses data; you can split a table but re-merging may
+lose relationships). In practice, down migrations are untested, rot quickly,
+and give false confidence.
+
+## Version Compatibility Guard
+
+Each daemon version declares the schema versions it supports:
+
+```typescript
+const SUPPORTED_SCHEMA = { min: 1, max: 9, current: 9 };
+```
+
+On startup:
+
+```
+1. Read current schema version from _migrations
+2. If schema_version > SUPPORTED_SCHEMA.max:
+   → Error: "Database was created by a newer version of Port Daddy.
+     Your version supports schema up to v{max}, but the database is at v{actual}.
+     Upgrade Port Daddy or restore from backup."
+3. If schema_version < SUPPORTED_SCHEMA.min:
+   → Error: "Database is too old for this version. Expected at least schema v{min}."
+4. If schema_version < SUPPORTED_SCHEMA.current:
+   → Run migrations to bring it up to current
+```
+
+This prevents a downgraded daemon from silently corrupting a database it doesn't
+understand.
+
+## Safe Column Addition Patterns
+
+### Adding Nullable Columns (90% of cases)
+
+```sql
+-- Migration 006: Add identity columns to agents
+ALTER TABLE agents ADD COLUMN identity_project TEXT DEFAULT NULL;
+ALTER TABLE agents ADD COLUMN identity_stack TEXT DEFAULT NULL;
+ALTER TABLE agents ADD COLUMN identity_context TEXT DEFAULT NULL;
+ALTER TABLE agents ADD COLUMN worktree_id TEXT DEFAULT NULL;
+
+-- Backfill from existing identity strings where possible
+UPDATE agents SET identity_project = (
+  CASE WHEN identity IS NOT NULL AND identity LIKE '%:%'
+  THEN substr(identity, 1, instr(identity, ':') - 1)
+  ELSE NULL END
+);
+```
+
+### Adding NOT NULL Columns with Defaults
+
+SQLite 3.32.0+ (better-sqlite3 bundles 3.44+) supports this:
+
+```sql
+ALTER TABLE agents ADD COLUMN harbor_membership TEXT NOT NULL DEFAULT '[]';
+```
+
+Existing rows get the default value. New rows must provide a value or get the default.
+
+### Structural Changes (Copy-Table Rebuild)
+
+When you need to change column types, add constraints, or restructure:
+
+```sql
+PRAGMA foreign_keys = OFF;
+BEGIN TRANSACTION;
+
+CREATE TABLE agents_new (
+  id TEXT PRIMARY KEY,
+  -- ... new schema ...
+);
+
+INSERT INTO agents_new (id, ...) SELECT id, ... FROM agents;
+DROP TABLE agents;
+ALTER TABLE agents_new RENAME TO agents;
+
+-- Recreate indexes
+CREATE INDEX idx_agents_project ON agents(identity_project);
+
+COMMIT;
+PRAGMA foreign_keys = ON;
+```
+
+This runs inside `PRAGMA foreign_keys = OFF` and a single transaction.
+
+## Testing Migrations
+
+### Fixture-Based Testing
+
+```
+tests/
+├── fixtures/
+│   ├── schema-v1.sql    # Snapshot of V1 schema with realistic data
+│   ├── schema-v3.sql    # Snapshot of V3 schema (current baseline)
+│   └── schema-v4.sql    # Expected V4 schema for assertions
+├── unit/
+│   └── migrations.test.js
+```
+
+Each test:
+1. Creates an in-memory SQLite DB from a fixture
+2. Runs migrations
+3. Asserts schema correctness using `PRAGMA table_info()`, `PRAGMA index_list()`
+4. Asserts data was backfilled correctly
+5. Asserts the daemon's API works against the migrated schema
+
+### CI Strategy
+
+- **Test 1:** Apply ALL migrations from empty → current. Catches ordering issues.
+- **Test 2:** Apply migrations from V3 fixture → V4. Catches data migration bugs.
+- **Test 3:** Verify that a V4 daemon refuses to start with a V5 database. Catches version guard.
+- **Test 4:** Verify backup creation before migration.
+
+---
+---
+
+# Part XX: Observability & Debugging
+
+## The Problem
+
+Port Daddy is becoming a distributed system (remote harbors, daemon-to-daemon sync,
+pheromone propagation). The current observability story is `console.error` with emoji
+prefixes. This is not adequate for debugging a multi-daemon, multi-agent system where
+a request might cross machine boundaries.
+
+## Structured Logging: pino
+
+After evaluating pino, winston, and bunyan: **pino.** It's the fastest Node.js logger
+(5-10x faster than winston), JSON-native, minimal API, and used by Fastify and
+Platformatic. For a daemon that runs continuously, throughput matters.
+
+### Configuration
+
+```typescript
+// lib/logger.ts
+import pino from 'pino';
+
+const isDev = process.env.NODE_ENV === 'development';
+
+export const logger = pino({
+  level: process.env.PORT_DADDY_LOG_LEVEL || 'info',
+  transport: isDev ? { target: 'pino-pretty' } : undefined,
+  base: { pid: process.pid, daemon: 'port-daddy' },
+  serializers: {
+    err: pino.stdSerializers.err,
+  },
+});
+```
+
+**Output in daemon mode (JSON to file):**
+```json
+{"level":30,"time":1710000000000,"pid":1234,"daemon":"port-daddy","msg":"port claimed","service":"myapp:api:main","port":3000,"agentId":"agent-a4f2","requestId":"abc-123"}
+```
+
+**Output in dev mode (pretty-printed):**
+```
+[14:32:05] INFO: port claimed service=myapp:api:main port=3000 agentId=agent-a4f2
+```
+
+### Log Levels
+
+| Level | Name | When to use |
+|-------|------|-------------|
+| 60 | fatal | Process is about to exit. DB corruption, port bind failure. |
+| 50 | error | Request failed but daemon continues. Webhook delivery failed, lock timeout. |
+| 40 | warn | Degraded but functional. Late heartbeat, approaching rate limit, permissions too open on key file. |
+| 30 | info | Normal operations worth recording. Port claimed, session started, agent registered. **Default.** |
+| 20 | debug | Internal details. SQL queries, lock timing, SSE lifecycle, harbor card verification. |
+| 10 | trace | Extremely verbose. Raw HTTP bodies, full request/response dumps, msgpack frames. |
+
+### Subsystem-Based Debug Tracing (The Syncthing Pattern)
+
+Syncthing uses `STTRACE=model,protocol,db` to enable debug logging for specific
+subsystems without drowning in noise from others. Port Daddy should do the same:
+
+```bash
+PORT_DADDY_DEBUG=sync,agents,locks pd start
+# → Only sync, agent, and lock operations log at debug level
+# → Everything else stays at info
+```
+
+**Subsystems (facilities):**
+
+| Facility | What it traces |
+|----------|---------------|
+| `sync` | Daemon-to-daemon harbor sync, state reconciliation, conflict resolution |
+| `agents` | Agent registration, heartbeat, death detection, salvage |
+| `locks` | Lock acquisition, release, contention, TTL expiry |
+| `sessions` | Session lifecycle, notes, file claims, phase transitions |
+| `messaging` | Pub/sub publish, subscribe, channel lifecycle |
+| `harbors` | Harbor creation, membership changes, capability checks |
+| `sqlite` | SQL queries (parameterized, never with inline values), transaction timing |
+| `http` | Request/response logging, middleware timing |
+| `keys` | Key loading, rotation, verification (never log key material) |
+| `pheromones` | Deposition, evaporation, intensity changes |
+| `trie` | Token trie insertions, lookups, capability checks |
+
+Implementation: each subsystem creates a child logger (`logger.child({ facility: 'sync' })`).
+The facility filter checks `PORT_DADDY_DEBUG` before emitting.
+
+## Distributed Tracing: Request ID Propagation (Not OpenTelemetry)
+
+OpenTelemetry adds ~15-25MB to `node_modules` and assumes a collector (Jaeger, Zipkin)
+is running. That is unreasonable for a developer tool daemon.
+
+Instead, use the pattern that Syncthing and Tailscale use: **request ID propagation.**
+This gives 90% of tracing's value at 1% of the cost.
+
+### How It Works
+
+1. Generate a request ID at the entry point: `crypto.randomUUID()` (or nanoid for shorter IDs)
+2. Attach to every log line via pino's child logger or `req.id`
+3. Pass in daemon-to-daemon requests via `X-Request-Id` header
+4. Remote daemon logs the same ID
+
+```typescript
+// Middleware
+app.use((req, res, next) => {
+  req.id = req.headers['x-request-id'] as string || crypto.randomUUID();
+  req.log = logger.child({ requestId: req.id });
+  next();
+});
+```
+
+### Causality Chains
+
+For operations that trigger other operations (request → webhook → spawn):
+
+```json
+{"requestId":"abc-123","spanId":"span-1","parentId":null,"op":"claim-port"}
+{"requestId":"abc-123","spanId":"span-2","parentId":"span-1","op":"fire-webhook"}
+{"requestId":"abc-123","spanId":"span-3","parentId":"span-2","op":"spawn-agent"}
+```
+
+This gives a tree of operations reconstructable from JSON logs with `jq`.
+
+## Metrics: In-Memory, Self-Served
+
+No Prometheus. No StatsD. The daemon serves its own metrics via the existing
+`GET /metrics` endpoint, extended for V4:
+
+### Core Metrics
+
+**Process health (always collected):**
+- `process.memory.rss` — RSS in bytes (detect leaks)
+- `process.memory.heapUsed` / `heapTotal` — V8 heap
+- `process.eventLoopLag.p50/p95/p99` — via `perf_hooks.monitorEventLoopDelay()`
+- `process.openFileDescriptors` — important for SQLite + SSE
+- `process.uptime` — seconds
+
+**Business metrics (counters and gauges):**
+- `agents.active` (gauge) — currently registered agents
+- `harbors.active` (gauge) — active harbors
+- `ports.claimed` (gauge) — claimed ports
+- `sessions.active` (gauge) — active sessions
+- `locks.active` (gauge) — held locks
+- `locks.contentionRate` (counter) — failed lock attempts per minute
+- `requests.total` (counter by method + path)
+- `requests.errors` (counter by status code)
+- `sync.peersConnected` (gauge) — remote harbor peers
+- `sync.operationsTotal` (counter) — sync operations performed
+- `sync.conflictsTotal` (counter) — conflicts detected
+- `pheromones.active` (gauge) — non-evaporated traces
+- `salvage.queueDepth` (gauge) — pending salvage entries
+
+**Implementation:** In-memory `Map<string, number>` with helper functions.
+No dependency needed. Counters reset on configurable interval (1 minute).
+
+## Runtime Debug Controls
+
+### API Endpoints
+
+```
+POST /log-level         {"level": "debug"}      — Change log level at runtime
+POST /debug/facility    {"enable": ["sync"]}    — Enable debug tracing for facilities
+GET  /debug/state       — Dump current daemon state (agents, harbors, sessions, locks)
+GET  /debug/metrics     — Extended metrics with histograms
+GET  /logs              — Recent log entries as JSON (ring buffer, last 1000 lines)
+GET  /logs?traceId=abc  — Filter logs by trace ID
+```
+
+### Signal Handling
+
+```
+SIGUSR1  → Toggle between info and debug log level (Docker pattern)
+SIGUSR2  → Dump full state to log file (diagnostic snapshot)
+```
+
+### CLI Surface
+
+```bash
+pd debug level debug         # Set log level
+pd debug level info          # Reset
+pd debug trace sync,agents   # Enable subsystem tracing
+pd debug state               # Dump current state
+pd debug bugreport           # Collect everything into a diagnostic file
+```
+
+## The Bugreport Command (Tailscale Pattern)
+
+`pd bugreport` or `pd debug bugreport` collects everything needed for debugging
+into a single file:
+
+```
+pd-bugreport-2026-03-15T14-32-05.txt
+├── Version: 4.0.0 (code hash: abc123)
+├── Platform: darwin arm64
+├── Node: v22.5.0
+├── Uptime: 3h 42m
+├── Schema version: 9
+├── Process: pid=1234, rss=45MB, heapUsed=22MB, eventLoopLag=0.4ms
+├── Active agents: 3
+├── Active harbors: 2
+├── Active sessions: 3
+├── Active locks: 1
+├── Sync peers: 1 (connected)
+├── Recent errors (last 20):
+│   [14:30:05] ERROR: webhook delivery failed ...
+├── Recent activity (last 50):
+│   [14:28:00] agent-a4f2 claimed src/auth/*
+│   [14:29:00] agent-b7e1 published myapp:ready
+├── Configuration:
+│   port=9876, enforce-harbors=warn, ...
+├── Key status:
+│   hmac-active: k-1710460800 (2h old, permissions OK)
+│   ed25519: not configured
+└── Database:
+    size=2.3MB, wal_size=45KB, tables=23, migrations=v9
+```
+
+This file contains NO secrets (no key material, no harbor card JWTs, no token values).
+It can be shared in a GitHub issue or support request.
+
+## Cross-Daemon Log Correlation
+
+When debugging a sync issue between two daemons, the unified view is critical.
+
+### Pattern: Query + Merge (Not Centralized Logging)
+
+Each daemon exposes `GET /logs?since=<timestamp>&traceId=<id>`. The CLI fetches
+from both daemons and interleaves by timestamp:
+
+```bash
+pd debug sync-log --harbor myapp
+# → Fetching logs from localhost:9876... (42 entries)
+# → Fetching logs from desktop.local:9877... (38 entries)
+# → Merged timeline:
+#   [14:32:05.001] MacBook   → sync push initiated (traceId: abc-123)
+#   [14:32:05.003] Desktop   ← sync push received (traceId: abc-123)
+#   [14:32:05.005] Desktop   → conflict detected: auth.strategy (v2 vs v2)
+#   [14:32:05.006] Desktop   → resolved: LWW, Desktop wins (later timestamp)
+#   [14:32:05.008] MacBook   ← sync ack received
+```
+
+No centralized logging infrastructure. Each daemon is authoritative for its own
+logs. The CLI is the aggregation layer.
+
+### Log Retention
+
+- In-memory ring buffer: last 1000 entries (queryable via API)
+- File: JSON lines, rotated at 10MB, keep 3 files (pino file transport)
+- Total disk: ~30MB maximum for logs
+
+---
+---
+
+# Part XXI: UX Complexity Management & Error Design
+
+## The Complexity Cliff
+
+V3 has 48 CLI commands and 93 MCP tools. V4 adds harbors, remote, regions,
+pheromones, KV, whiteboard, teach, init, lighthouse, keys, debug. The product is
+becoming harder to learn, not easier.
+
+The lesson from git, kubectl, and docker: **tools that grow commands without growing
+clarity lose users.** kubectl has 60+ commands and people still google "kubectl cheat
+sheet" daily. git has excellent documentation and people still fear it.
+
+## Progressive Complexity Strategy
+
+### Layer 0: Zero Commands (It Just Works)
+
+`pd begin "building auth" --identity myapp:api:auth` should do everything:
+- Register agent, start session, create harbor, enter harbor, issue card, check
+  salvage queue, report pheromone context — all automatic, all invisible.
+
+The user types ONE command and gets a working, secure, coordinated session.
+Everything else is opt-in.
+
+### Layer 1: The Essential Five (Day 1)
+
+```bash
+pd begin "task description"    # Start everything
+pd note "progress update"      # Leave breadcrumbs
+pd claim myapp:api             # Get a port
+pd whoami                      # Where am I?
+pd done                        # End everything
+```
+
+A new user should never need more than these five commands in their first week.
+The MCP equivalent: `begin_session`, `add_note`, `claim_port`, `whoami`,
+`end_session_full`.
+
+### Layer 2: Coordination (Week 2+)
+
+```bash
+pd files claim src/auth/*      # Advisory file claims
+pd lock auth-module            # Exclusive access
+pd msg myapp:radio "ready"     # Pub/sub
+pd salvage                     # Check for dead agents
+pd harbors                     # See your harbor
+```
+
+### Layer 3: Power User (Month 2+)
+
+```bash
+pd harbor kv set ...           # Shared state
+pd region claim auth           # Semantic boundaries
+pd spawn --backend claude ...  # Child agents
+pd harbor connect ...          # Remote harbors
+pd debug bugreport             # Diagnostics
+```
+
+### Implementation: CLI Help Tiers
+
+```bash
+pd help                        # Shows ONLY Layer 1 commands
+pd help --all                  # Shows everything
+pd help harbors                # Shows harbor-specific commands
+pd help --examples             # Shows common workflows
+```
+
+The default `pd help` output is SHORT — five commands with one-line descriptions.
+Not a wall of text. Not 48 commands. Five.
+
+```
+Port Daddy — Coordination for Agent Teams
+
+  pd begin <purpose>     Start a coordinated session
+  pd note <message>      Add a progress note
+  pd claim <identity>    Claim a port
+  pd whoami              Show your context
+  pd done [note]         End your session
+
+  pd help --all          See all 60+ commands
+  pd help harbors        Harbor commands
+  pd help remote         Remote coordination
+```
+
+## First-Run Experience
+
+When `pd begin` is run for the first time (no existing sessions, no config):
+
+```
+$ pd begin "setting up my project"
+
+  ⚓ Welcome to Port Daddy v4.0
+
+  Creating your first harbor...
+  → Harbor 'my-project' created (auto-detected from directory name)
+  → Harbor card issued (capabilities: *)
+  → Session started: "setting up my project"
+
+  You're ready. Your agent ID is agent-7f3k.
+
+  Useful commands:
+    pd note "progress"    Leave a breadcrumb
+    pd claim myapp:api    Get a port (e.g., 3100)
+    pd whoami             See your context
+    pd done               Wrap up
+
+  Learn more: https://portdaddy.dev/tutorials/getting-started
+```
+
+No wall of features. No configuration wizard. Just start working, here are four
+commands you might need.
+
+## Error Message Design: The Elm Pattern
+
+Good error messages have three parts:
+1. **What happened** (not a stack trace, not an error code — plain English)
+2. **Why it happened** (context)
+3. **What to do next** (actionable fix)
+
+### Bad (Current)
+
+```
+Error: harbor card required
+```
+
+### Good (V4)
+
+```
+Error: Harbor card required for POST /sessions/abc/notes
+
+  Your request was rejected because no harbor card was provided.
+  This endpoint requires a valid harbor card since V4.0.
+
+  To fix this:
+    1. Start a session with: pd begin "your task" --identity myapp:api
+       This automatically creates a harbor and issues a card.
+    2. If you're using the SDK, the harbor card is managed automatically.
+    3. If you're calling the API directly, include the card as:
+       X-Harbor-Card: <your-token>
+
+  If this worked before V4, you may be in grace period mode.
+  Check: pd config get enforce-harbors
+```
+
+### Error Catalog
+
+Every error gets a code and a URL:
+
+```
+PD-E001  Harbor card required
+PD-E002  Harbor card expired
+PD-E003  Insufficient capabilities (requires X, you have Y)
+PD-E004  Harbor not found
+PD-E005  Agent not registered
+PD-E006  Session not found
+PD-E007  Lock contention (held by agent X, expires in Y)
+PD-E008  File claim conflict (claimed by agent X)
+PD-E009  Remote peer unreachable
+PD-E010  Schema version mismatch
+PD-E011  Key file permissions too open
+PD-E012  Sync conflict detected (key X has conflicting values)
+...
+```
+
+Each code links to `portdaddy.dev/errors/PD-E001` with detailed explanation,
+common causes, and resolution steps. This is what Rust, Elm, and Deno do.
+
+### CLI Error Formatting
+
+```bash
+pd claim myapp:api --port 3000
+
+  Error PD-E008: Port 3000 is already claimed
+
+  Claimed by: agent-b7e1 (myapp:web:ui)
+  Session: "building frontend" (started 12m ago)
+  Harbor: myapp
+
+  Options:
+    1. Use a different port: pd claim myapp:api (auto-assigns)
+    2. Wait for release: pd watch myapp:web:ui -- "pd claim myapp:api --port 3000"
+    3. Force claim: pd claim myapp:api --port 3000 --force (takes from agent-b7e1)
+
+  Docs: https://portdaddy.dev/errors/PD-E008
+```
+
+## Accessibility in the Dashboard
+
+### WCAG AA Requirements
+
+The dashboard glassmorphism theme (dark backgrounds, blur effects, translucent
+panels) is a WCAG risk. Specific requirements:
+
+- **Color contrast:** All text must have 4.5:1 contrast ratio against its background.
+  Semi-transparent panels over dark backgrounds often fail this. Test every panel with
+  browser DevTools contrast checker.
+- **Keyboard navigation:** Every interactive element (buttons, links, tabs, panels)
+  must be reachable via Tab key. Focus indicators must be visible.
+- **Screen reader:** Panel headers use semantic HTML (`<h2>`, `<h3>`). Data tables
+  use `<table>` with `<th>`. Status indicators use `aria-label` (not just color).
+- **Reduced motion:** Respect `prefers-reduced-motion`. Disable CSS transitions and
+  animations when this media query matches. The timeline auto-scroll becomes manual.
+- **Focus management:** When switching panels via nav rail, focus moves to the panel
+  content. Modal dialogs trap focus.
+
+### Implementation
+
+```css
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Visible focus indicators */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Ensure contrast on glassmorphism panels */
+.panel {
+  background: rgba(0, 0, 0, 0.85);  /* Darker than typical glassmorphism */
+  /* Test: white text (#fff) on rgba(0,0,0,0.85) = 15.4:1 contrast ✓ */
+}
+```
+
+---
+---
+
+# Part XXII: Market Positioning & Validation
+
+## Competitive Landscape: What Port Daddy Actually Competes With
+
+The comparison page (Part IV) covers docker-compose and detect-port. Those are the
+wrong competitors. The real competitive landscape:
+
+### Tier 1: Direct Competitors (Agent Coordination)
+
+**LangGraph / LangChain:**
+- Multi-agent orchestration framework. Defines agent graphs, handles routing.
+- **Port Daddy is NOT this.** LangGraph is an agent framework. Port Daddy is agent
+  infrastructure. LangGraph tells agents *what to do*. Port Daddy gives agents *a
+  place to coordinate*. They're complementary, not competing.
+- **Positioning:** "Use LangGraph to build your agents. Use Port Daddy to coordinate
+  them."
+
+**CrewAI:**
+- Role-based multi-agent framework. Agents have roles, goals, backstories.
+- Same distinction: framework vs. infrastructure. CrewAI handles agent behavior.
+  Port Daddy handles agent coordination (ports, files, locks, sessions, comms).
+- **Positioning:** "CrewAI agents need ports, file claims, and pub/sub too."
+
+**AutoGen (Microsoft):**
+- Multi-agent conversation framework. Agents talk to each other in chat.
+- Agent-to-agent messaging is AutoGen's core. Port Daddy has pub/sub but it's
+  a coordination primitive, not a conversation framework.
+- **Positioning:** "AutoGen agents can use Port Daddy for resource management
+  and session tracking."
+
+**Key insight:** There is no direct competitor for "daemon-level agent coordination
+infrastructure." The agent framework space is crowded. The agent infrastructure
+space is empty. Port Daddy's moat is that it runs at the OS level, not the
+application level.
+
+### Tier 2: Adjacent Tools (Dev Environment)
+
+**Turborepo / Nx:**
+- Monorepo build orchestration. Task scheduling, caching, dependency graphs.
+- They manage *build tasks*. Port Daddy manages *running services and agents*.
+- **Positioning:** "Turborepo builds your code. Port Daddy runs it."
+
+**DevContainers / Codespaces:**
+- Isolated development environments. Docker-based. Cloud or local.
+- They provide *environment isolation*. Port Daddy provides *coordination within
+  an environment*.
+- **Positioning:** "Port Daddy runs inside your DevContainer. Or outside it."
+
+**Daytona / Gitpod:**
+- Cloud dev environments. Provisioning, lifecycle, multi-service.
+- Similar to DevContainers but cloud-native. Port Daddy is local-first.
+- **Positioning:** "Port Daddy is what you use when you don't want a cloud IDE."
+
+### Tier 3: Workflow Orchestration
+
+**Temporal / Inngest:**
+- Durable workflow execution. Retry, scheduling, state machines.
+- They orchestrate *business logic workflows*. Port Daddy orchestrates *development
+  workflows*.
+- **Positioning:** Different domain entirely. Temporal is for production workloads.
+  Port Daddy is for development coordination.
+
+### The Positioning Statement
+
+```
+For AI-powered development teams
+who need agents to coordinate without conflicts,
+Port Daddy is the daemon-level coordination runtime
+that provides atomic resource management, cryptographic security boundaries,
+and cross-machine synchronization.
+
+Unlike agent frameworks (LangGraph, CrewAI, AutoGen),
+Port Daddy is infrastructure, not application logic.
+Unlike container tools (Docker, DevContainers),
+Port Daddy coordinates agents, not environments.
+```
+
+## User Research Plan
+
+### What We Need to Know (Before Building V4.1+)
+
+1. **How many people actually run agents on multiple machines today?**
+   - Survey existing users (if any) and the Claude Code / Cursor / Windsurf communities
+   - Hypothesis: <5% today, but growing fast as agent capabilities improve
+
+2. **Do developers care about harbor-level security?**
+   - Hypothesis: They don't care until an agent does something destructive
+   - Validation: Ask "has an AI agent ever modified a file you didn't want it to?"
+
+3. **How often do agents actually crash mid-task?**
+   - Instrument: add anonymous telemetry for session completion rate
+   - Hypothesis: 10-20% of sessions end in abandonment (agent crash, context window, user cancellation)
+
+4. **What's the actual pain point today?**
+   - Hypothesis: port conflicts and "which agent is working on what" confusion
+   - Validation: interviews, GitHub issues, community posts
+
+### Research Methods
+
+**Lightweight (do now):**
+- GitHub Discussions / Discord: "What's your biggest pain point with multi-agent dev?"
+- Twitter/X poll: "How many AI agents do you run simultaneously?"
+- Instrument `pd begin` with anonymous, opt-in usage counter (count only, no PII)
+
+**Medium effort (V4.0 launch):**
+- Post-install survey (3 questions, shown once): biggest pain point, # agents,
+  primary editor (Claude Code / Cursor / Windsurf / other)
+- Crash reporting (opt-in): anonymous session completion rates
+
+**Full effort (V4.1+):**
+- User interviews (5-10 users): 30-minute calls, recorded, transcribed
+- Usage telemetry dashboard (aggregate, anonymous): feature adoption rates
+
+## Analytics & Telemetry Plan
+
+### What to Measure (Anonymous, Opt-In)
+
+```bash
+pd config set telemetry true    # Opt-in (default: false)
+```
+
+**Counters only (no PII, no content, no identifiers):**
+- `install_count` — how many people install
+- `begin_count` — sessions started per day
+- `done_count` — sessions completed per day
+- `crash_count` — sessions abandoned (agent died)
+- `spawn_count` — child agents launched
+- `harbor_connect_count` — remote harbors connected
+- `mcp_tool_calls` — which MCP tools are used (tool name only, no args)
+- `cli_commands` — which CLI commands are used (command only, no args)
+- `error_codes` — which errors occur (PD-E001, PD-E007, etc.)
+- `platform` — darwin / linux / win32
+- `version` — Port Daddy version
+
+**Never collected:**
+- Harbor names, project names, agent IDs, identity strings
+- Note content, KV values, file paths
+- IP addresses, usernames, hostnames
+- Any harbor card or JWT content
+
+**Implementation:** Ping `telemetry.portdaddy.dev/v1/events` with a batch of
+counters every 24 hours. Cloudflare Worker + Analytics Engine. No database.
+Total cost: $0 (free tier).
+
+### portdaddy.dev Analytics
+
+- Plausible Analytics (privacy-friendly, no cookies, GDPR compliant)
+- Track: page views, tutorial completion rates, template fork clicks
+- A/B test: hero copy variants, pricing page layout
+
+## Pricing Validation
+
+### Concerns with Current Pricing
+
+The plan (Part V) assumes 4% Pro conversion. Developer tool benchmarks:
+
+| Tool | Free users | Paid conversion | Price |
+|------|-----------|----------------|-------|
+| Tailscale | ~2M | ~2-3% (estimated) | $6/user/mo |
+| Vercel | ~1M | ~1-2% | $20/user/mo |
+| Railway | ~500K | ~3% | $5/user/mo |
+| Supabase | ~1M | ~2% | $25/org/mo |
+| Linear | ~100K | ~5% (B2B focused) | $10/user/mo |
+
+4% is optimistic for a CLI tool with no established brand. **Revise to 2%
+for projections, celebrate if you beat it.**
+
+### Pricing Adjustment
+
+The "up to 3 peers" limit in Pro is punitive. A developer with a laptop, desktop,
+and CI runner is already at 3. Hitting a paywall on peer #4 creates resentment.
+
+**Revised Pro ($14/seat/month):**
+- Up to 5 remote peers (laptop, desktop, CI, staging, one to spare)
+- Lighthouse registration
+- Priority support
+- $14 is "I'll put it on my credit card" territory globally
+
+**Revised Team ($39/team/month, up to 10 seats):**
+- Unlimited peers
+- Self-hosted lighthouse
+- Team dashboard
+- Harbor audit logs
+
+**The real question:** Is Pro even necessary? The "free + team" model (Tailscale
+pattern) might work better:
+- Free: everything local, mDNS discovery, up to 3 remote peers
+- Team ($39/team): unlimited peers, lighthouse, audit, dashboard
+- Enterprise: custom
+
+This eliminates the awkward individual tier and focuses revenue on teams
+(where the money actually is).
+
+---
+---
+
+# Part XXIII: Storage Lifecycle & CI/CD Integration
+
+## Storage Growth Problem
+
+Port Daddy is a long-running daemon backed by SQLite. Over months of heavy use:
+
+- **Session notes** are immutable and never deleted by design
+- **Activity log** entries accumulate continuously
+- **Pheromone traces** evaporate but create/delete churn
+- **KV entries** persist until explicitly deleted
+- **Embedding BLOBs** are large (384-1536 floats per entry)
+
+Without lifecycle management, the SQLite file grows unbounded.
+
+## Growth Projections
+
+| Component | Growth rate | 6 months | 1 year |
+|-----------|-----------|----------|--------|
+| Session notes | ~50/day (5 agents × 10 notes) | ~9K rows, ~2MB | ~18K rows, ~4MB |
+| Activity log | ~200/day | ~36K rows, ~5MB | ~72K rows, ~10MB |
+| Pheromones | ~100/day created, ~80/day evaporated | ~3.6K rows, ~0.5MB | Net ~7.2K rows, ~1MB |
+| KV entries | ~20/day created, ~5/day deleted | ~2.7K rows, ~0.5MB | ~5.4K rows, ~1MB |
+| Embeddings | ~10/day (if enabled) | ~1.8K BLOBs, ~10MB | ~3.6K BLOBs, ~20MB |
+| **Total** | | **~18MB** | **~36MB** |
+
+For a developer tool, 36MB/year is acceptable. The concern is not total size
+but query performance on large tables and the WAL file during heavy writes.
+
+## Lifecycle Policies
+
+### Archival: Old Sessions
+
+Sessions completed more than 90 days ago are archived:
+
+```bash
+pd db archive --older-than 90d
+# → Archived 142 sessions (847 notes) to port-registry-archive-2026-Q1.db
+# → Active database reduced by 3.2MB
+```
+
+Archive is a separate SQLite file. Old sessions can still be queried:
+
+```bash
+pd sessions --archive         # List archived sessions
+pd notes --session <id> --archive  # Read notes from archive
+```
+
+**Implementation:** `INSERT INTO archive_db.sessions SELECT ... WHERE completedAt < threshold`,
+then `DELETE FROM main.sessions WHERE completedAt < threshold`. Run in a transaction.
+
+### Pruning: Activity Log
+
+Activity log entries older than 30 days are pruned by default:
+
+```bash
+pd db prune --older-than 30d
+# → Pruned 5,832 activity log entries
+```
+
+Configurable: `pd config set retention.activity 90d`
+
+### Eviction: Pheromones
+
+Pheromone evaporation already handles this — traces below 0.01 intensity are
+deleted. No additional lifecycle management needed. The evaporation engine
+IS the garbage collector.
+
+### Compaction: VACUUM
+
+SQLite doesn't reclaim disk space when rows are deleted. The file stays the same
+size (the space is reused internally). To actually shrink the file:
+
+```bash
+pd db vacuum
+# → Database compacted: 45MB → 32MB (saved 13MB)
+```
+
+**Auto-vacuum:** Enable `PRAGMA auto_vacuum = INCREMENTAL` on database creation.
+Run `PRAGMA incremental_vacuum(100)` after archival/pruning operations to reclaim
+space without the full-table lock of `VACUUM`.
+
+### WAL Management
+
+The WAL (Write-Ahead Log) file can grow large during heavy write periods. Run
+`PRAGMA wal_checkpoint(TRUNCATE)` periodically (every 5 minutes) to keep the
+WAL file bounded.
+
+### CLI Surface
+
+```bash
+pd db status              # Show database size, table counts, WAL size
+pd db archive             # Archive old sessions
+pd db prune               # Prune old activity entries
+pd db vacuum              # Compact database
+pd db backup              # Create manual backup
+pd db restore             # Restore from backup
+pd db backups             # List available backups
+```
+
+### Automatic Lifecycle (Default)
+
+On daemon startup, if it hasn't run in >24 hours:
+1. Prune activity log entries older than `retention.activity` (default: 30d)
+2. Archive sessions older than `retention.sessions` (default: 90d)
+3. Clean up revoked JTIs past their expiry
+4. Run `PRAGMA incremental_vacuum(100)`
+5. Log summary: "Housekeeping: pruned 42 entries, archived 3 sessions, reclaimed 1.2MB"
+
+## CI/CD Integration
+
+### The Problem
+
+Agents running in CI (GitHub Actions, GitLab CI) are a major use case. But:
+- CI runners are ephemeral — daemon state is lost between runs
+- CI runners may not have network access to a lighthouse
+- Harbor cards need to be provisioned for CI agents
+- The daemon must start, do work, and stop within minutes
+
+### GitHub Action: `curiositech/port-daddy-action`
+
+```yaml
+# .github/workflows/review.yml
+name: AI Code Review
+on: [pull_request]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: curiositech/port-daddy-action@v1
+        with:
+          version: '4.0'       # Port Daddy version
+          identity: '${{ github.repository }}:ci:pr-${{ github.event.number }}'
+
+      - name: Run review agents
+        run: |
+          pd begin "reviewing PR #${{ github.event.number }}"
+          pd spawn --backend claude -- "Review the changes in this PR"
+          pd done --note "CI review complete"
+
+      - name: Post results
+        run: |
+          pd notes --json | jq '.notes[].content' > review.md
+          gh pr comment ${{ github.event.number }} --body-file review.md
+```
+
+### What the Action Does
+
+1. Installs Port Daddy (cached via actions/cache)
+2. Starts the daemon in ephemeral mode (`pd start --ephemeral`)
+3. Creates a harbor scoped to the CI run
+4. Sets `PORT_DADDY_AGENT_ID` in the environment
+5. On job completion, stops the daemon and discards the database
+
+### Ephemeral Mode
+
+```bash
+pd start --ephemeral
+# → Database: in-memory (no disk persistence)
+# → No service installation (no launchd/systemd)
+# → Auto-shutdown after 30 minutes of inactivity
+# → No telemetry, no lighthouse registration
+```
+
+This is the CI-optimized mode. Fast startup, no cleanup needed, no state leakage
+between CI runs.
+
+### Remote Harbor from CI
+
+CI agents can connect to a developer's harbor for coordination:
+
+```yaml
+- uses: curiositech/port-daddy-action@v1
+  with:
+    harbor-connect: '${{ secrets.HARBOR_PEER }}'
+    harbor-token: '${{ secrets.HARBOR_TOKEN }}'
+```
+
+The CI agent joins the developer's harbor, sees their file claims, and can
+coordinate via pub/sub. Useful for "CI agent reviews the code that the dev
+agent is working on."
+
+### GitLab CI / Generic CI
+
+For CI systems without a dedicated action:
+
+```bash
+# In any CI script
+npm install -g port-daddy
+pd start --ephemeral
+pd begin "CI task" --identity myrepo:ci:build-$CI_JOB_ID
+# ... do work ...
+pd done
+pd stop
+```
+
+## Contributor Guide
+
+### CONTRIBUTING.md Structure
+
+```markdown
+# Contributing to Port Daddy
+
+## Quick Start (5 minutes)
+1. Fork + clone
+2. npm install
+3. npm run dev (starts daemon in dev mode)
+4. npm test (runs all tests)
+
+## Architecture Overview
+Port Daddy is a daemon + CLI + SDK + MCP server.
+See CLAUDE.md for full architecture.
+
+## Adding a New Feature (The Parity Checklist)
+Every feature must exist in ALL surfaces. Before your PR:
+1. [ ] API route in routes/
+2. [ ] CLI command in cli/commands/
+3. [ ] SDK method in lib/client.ts
+4. [ ] MCP tool in mcp/server.ts
+5. [ ] Shell completions in completions/*.{bash,zsh,fish}
+6. [ ] Unit tests in tests/unit/
+7. [ ] Integration tests in tests/integration/ (if applicable)
+8. [ ] CLAUDE.md updated
+9. [ ] CHANGELOG.md updated
+
+## Module Stability
+| Module | Stability | Notes |
+|--------|-----------|-------|
+| lib/services.ts | Stable | Core port assignment, rarely changes |
+| lib/sessions.ts | Stable | Session lifecycle |
+| lib/harbors.ts | Evolving | V4 enforcement changes expected |
+| lib/harbor-sync.ts | Experimental | Remote sync protocol |
+| lib/pheromone.ts | Experimental | Stigmergic system |
+
+## Code Style
+- TypeScript strict mode
+- No default exports
+- Dependency injection (factory functions, not classes)
+- SQLite: parameterized queries, no string interpolation
+
+## Testing
+- Unit tests: no daemon required, in-memory SQLite
+- Integration tests: ephemeral daemon auto-started by Jest
+- See tests/setup-unit.js for test DB factory
+
+## PR Process
+1. Branch from main
+2. Write tests first (or concurrently)
+3. Run full test suite: npm test
+4. Run type check: npm run typecheck
+5. Open PR with description of what + why
+6. CI must pass
+```
+
+---
+---
+
+# Part XXIV: Testing Emergent Behavior & Dashboard Architecture
+
+## Testing Pheromones and Stigmergy
+
+### The Problem
+
+Pheromone-based coordination is emergent — the whole point is that behavior arises
+from environmental traces, not explicit protocols. Traditional unit tests verify
+inputs and outputs. How do you test "agents naturally avoid hot files"?
+
+### Property-Based Testing
+
+Instead of testing specific scenarios, test **invariants** that must always hold:
+
+```
+Property 1: Monotonic evaporation
+  For all pheromone types, after one evaporation cycle:
+    new_intensity <= old_intensity
+  Exception: coupling (near-permanent, only evaporates 0.1%/hr)
+
+Property 2: Bounded intensity
+  For all pheromone entries: 0.0 <= intensity <= max_intensity
+  max_intensity = sum of all deposits since last evaporation
+
+Property 3: Eviction threshold
+  After sufficient evaporation cycles, every pheromone entry is evicted
+  (intensity drops below 0.01)
+
+Property 4: Deposition monotonicity
+  After a deposit, the target's intensity is >= its pre-deposit intensity
+
+Property 5: Harbor scoping
+  Pheromones in harbor A are never visible in harbor B's queries
+
+Property 6: Causal ordering
+  If agent A claims a file BEFORE agent B, the heat trace from A
+  has a lower HLC than the trace from B
+```
+
+Use `fast-check` (property-based testing library for JS/TS) to generate
+random sequences of deposits and evaporations and verify these properties.
+
+### Simulation Harness
+
+For testing emergent behavior (not just correctness), build a simulation:
+
+```typescript
+// tests/simulation/pheromone-sim.ts
+
+interface SimAgent {
+  id: string;
+  behavior: 'random' | 'heat-avoiding' | 'heat-seeking' | 'danger-aware';
+}
+
+interface SimConfig {
+  agents: number;
+  files: number;
+  steps: number;
+  behaviors: Record<string, number>; // behavior -> count
+}
+
+function runSimulation(config: SimConfig): SimResult {
+  // 1. Create N agents with specified behaviors
+  // 2. For each step:
+  //    a. Each agent chooses a file to claim
+  //    b. Heat-avoiding agents prefer low-heat files
+  //    c. Heat-seeking agents prefer high-heat files
+  //    d. Danger-aware agents avoid files with danger traces
+  //    e. Random agents choose randomly
+  //    f. Record conflicts (two agents claiming same file)
+  //    g. Run evaporation
+  // 3. Return: conflict count, file distribution, convergence time
+}
+```
+
+**What to measure:**
+- Conflict rate: heat-avoiding agents should have fewer conflicts than random agents
+- File distribution: heat-avoiding agents should spread across files more evenly
+- Danger response: danger-aware agents should avoid recently-dead agents' files
+- Convergence: how many steps until the system reaches steady state
+
+### Integration Tests
+
+```javascript
+// tests/integration/pheromones.test.js
+
+test('danger trace prevents file claim conflict', async () => {
+  // 1. Agent A claims file X
+  // 2. Agent A dies (heartbeat flatlines)
+  // 3. Danger trace deposited on file X
+  // 4. Agent B begins, sees danger trace on file X
+  // 5. Verify: danger trace is present in Agent B's context
+  // 6. Verify: Agent B's claim response includes pheromone data
+});
+
+test('heat evaporates over time', async () => {
+  // 1. Agent A claims file X (deposits heat)
+  // 2. Wait for 3 evaporation cycles
+  // 3. Query heat for file X
+  // 4. Verify: heat < original (0.95^3 ≈ 0.857)
+});
+
+test('coupling accumulates across sessions', async () => {
+  // 1. Session 1: modify files A and B
+  // 2. Session 2: modify files A and B again
+  // 3. Query coupling between A and B
+  // 4. Verify: coupling intensity ≈ 2.0 (two deposits)
+});
+```
+
+## Dashboard Architecture: Revisiting ADR-0005
+
+### The Tension
+
+ADR-0005 mandates single-file HTML, no build step. At 115 lines, this was fine.
+At 4000+ lines with SSE connections, hash routing, 12 interactive panels, and
+real-time data — it becomes unmaintainable.
+
+### Options
+
+**Option A: Keep single-file, use Web Components (Recommended)**
+
+Web Components are native browser APIs. No build step. No framework. Components
+encapsulate their own HTML, CSS, and JS. The main file imports them:
+
+```html
+<!-- public/index.html — stays as the entry point -->
+<script type="module">
+  import './dashboard/components/harbor-panel.js';
+  import './dashboard/components/session-panel.js';
+  import './dashboard/components/timeline.js';
+  // ... etc
+</script>
+<harbor-panel></harbor-panel>
+<session-panel></session-panel>
+```
+
+The components are separate `.js` files served by Express alongside `index.html`.
+No build step. No bundler. Just ES modules in the browser.
+
+**Total files:** 1 HTML + ~12 JS component files + 1 shared CSS file.
+**Build step:** None. Express serves `public/` directory as-is.
+**Dependency:** None. Web Components are native.
+
+This is a **minimal violation** of ADR-0005's spirit (no build step, no framework)
+while avoiding the unmaintainability of 4000 lines in one file.
+
+**Option B: Single file with `<template>` elements**
+
+Keep everything in one file. Use `<template>` elements and
+`document.importNode()` for reusable structures. Each panel is a function
+that clones a template and populates it.
+
+**Downside:** Still 4000 lines in one file. Difficult to navigate, test, or
+have multiple people work on simultaneously.
+
+**Option C: Build step with lit-html (~5KB)**
+
+Use `lit-html` for declarative templates. Requires a build step (esbuild,
+<1 second). Produces a single output file.
+
+**Downside:** Introduces a build step (violates ADR-0005 literally).
+
+### Recommendation: Option A (Web Components)
+
+Amend ADR-0005 to allow multiple files in `public/` served statically, but
+no build step, no npm dependencies for the dashboard, no framework.
+
+### ADR-0016: Dashboard Component Architecture
+
+**Status:** Proposed
+**Context:** ADR-0005 mandated single-file HTML. The dashboard has grown beyond
+what a single file can maintain. Build-step-free alternatives exist.
+**Decision:** Use native Web Components in separate ES module files. No build step.
+No framework. Express serves `public/` directory as-is.
+**Consequences:** Amends ADR-0005. Multiple source files for the dashboard.
+Still no build step, no bundler, no framework dependency.
+
+## API Versioning
+
+### The Problem
+
+V4 changes the API contract (harbor cards required). Future versions may change
+it again. External integrations and SDK clients need stability guarantees.
+
+### Decision: Header-Based Versioning (Not URL Path)
+
+URL path versioning (`/v4/claim/myapp`) is ugly, creates parallel route trees,
+and breaks when you forget to update a URL. Header-based versioning is cleaner:
+
+```
+X-Port-Daddy-Version: 4
+```
+
+### Behavior
+
+- If no version header: assume latest version (V4)
+- If `X-Port-Daddy-Version: 3`: disable harbor card requirement (backward compat)
+- If `X-Port-Daddy-Version: 4`: enforce harbor cards
+- If `X-Port-Daddy-Version: 99`: reject with `PD-E013: Unsupported API version`
+
+### Daemon-to-Daemon Protocol Versioning
+
+The WebSocket sync protocol includes version negotiation in the handshake:
+
+```json
+{
+  "type": "sync_hello",
+  "protocol_version": 1,
+  "daemon_version": "4.0.0",
+  "supported_protocol_versions": [1],
+  "capabilities": ["kv", "file_claims", "pheromones", "locks"]
+}
+```
+
+If the remote daemon's `protocol_version` is unsupported, reject the connection
+with a clear error. Capabilities are negotiated — if one daemon supports pheromones
+and the other doesn't, pheromone sync is skipped (not an error).
+
+### SDK Version Pinning
+
+```typescript
+const pd = new PortDaddy({ version: 4 }); // Sends X-Port-Daddy-Version: 4
+```
+
+The SDK includes the version header on every request. This ensures consistent
+behavior even if the daemon is upgraded underneath the SDK.
+
+## NAT Traversal Strategy
+
+### The Honest Assessment
+
+Full NAT traversal (STUN/TURN, ICE, hole punching) is complex to implement and
+unreliable. Tailscale spent years getting this right. Port Daddy should not
+attempt to replicate Tailscale's NAT traversal.
+
+### The Strategy: Leverage Existing Solutions
+
+```
+Tier 1: Same LAN — mDNS (works through any router)
+Tier 2: VPN/Overlay — Tailscale, WireGuard, ZeroTier (user provides)
+Tier 3: Port forwarding — User configures their router (fallback)
+Tier 4: Relay — portdaddy.dev relay service (V4.3+, paid tier)
+```
+
+**V4.0-V4.2:** Document that remote harbors across the internet require a VPN
+(Tailscale free tier works). Don't build NAT traversal.
+
+**V4.3+:** Add an optional relay service at `relay.portdaddy.dev`. This is a
+WebSocket proxy that forwards sync traffic between two daemons that can't
+reach each other directly. Team/Enterprise tier only.
+
+The relay sees encrypted WebSocket frames but cannot read harbor card content
+(end-to-end encryption between daemons using their Ed25519 keys). The relay
+is a dumb pipe, not a man-in-the-middle.
+
+```bash
+pd harbor connect myapp --via relay.portdaddy.dev
+# → Connecting via relay (direct connection failed)
+# → Relay latency: ~50ms (vs ~2ms direct)
+# → All traffic is end-to-end encrypted
+```
+
+### Why Not Build STUN/TURN
+
+- STUN/TURN requires running infrastructure (TURN server costs ~$50-200/month)
+- NAT hole punching success rate varies (60-80% depending on NAT type)
+- Tailscale already solves this problem perfectly and has a free tier
+- Port Daddy's value is coordination, not networking
+
+---
+---
+
+# Part XXV: Retrospective Amendments to Parts I-XVI
+
+## Part I Amendments: Harbor Enforcement
+
+### Missing: Error Recovery
+
+What happens when harbor card verification fails mid-session? The agent has
+a valid session but its card is rejected (expired, revoked, key rotated).
+
+**Recovery flow:**
+1. Agent receives 403 from daemon
+2. Error response includes `code: 'HARBOR_CARD_EXPIRED'` and `renewUrl`
+3. Agent (or MCP server) automatically calls `POST /harbors/:name/renew`
+   with the agent ID
+4. Daemon issues a new card (if the agent is still a valid member)
+5. MCP server updates its stored card transparently
+
+This is **automatic for MCP users** — the MCP server handles renewal without
+the agent's LLM needing to understand JWT mechanics.
+
+### Missing: Grace Period Implementation Detail
+
+The grace period mode (`--enforce-harbors=warn`) must:
+- Log every request that would have been rejected (with the specific missing cap)
+- Include the log count in `pd status` output: "⚠ 47 requests would have been
+  rejected by harbor enforcement"
+- Provide a `pd enforce-harbors dry-run` command that replays recent activity
+  and reports what would break
+
+### Missing: Testing Strategy
+
+- Unit test: `harbor-middleware.test.js` — verify every route has correct capability
+  requirements, test expired/revoked/missing card paths
+- Integration test: full `pd begin` → API calls with card → `pd done` flow
+- Regression test: ensure V3 API calls work in grace period mode
+
+## Part II Amendments: Windows Support
+
+### Missing: Named Pipe Behavior Differences
+
+Windows named pipes have different semantics than Unix sockets:
+- Maximum concurrent connections is configurable (Unix sockets have no explicit limit)
+- Named pipes support overlapped I/O (async) which Node.js handles automatically
+- Named pipe names are global — two Port Daddy instances need different pipe names
+  (use port number in pipe name: `\\.\pipe\port-daddy-9876`)
+- Named pipes survive process restart (unlike Unix sockets which must be unlinked)
+
+### Missing: Testing on Windows
+
+- GitHub Actions `windows-latest` runner for CI
+- PowerShell script equivalents for all bash test helpers
+- Named pipe connectivity test
+- Windows-specific service installation test (node-windows)
+- Cross-platform test matrix: macOS-latest, ubuntu-latest, windows-latest
+
+## Part III Amendments: Lighthouse Discovery
+
+### Missing: mDNS Failure Modes
+
+- mDNS doesn't work on some corporate networks (multicast blocked)
+- VPN connections often don't bridge mDNS between physical and virtual interfaces
+- Docker Desktop on macOS isolates mDNS from the host in some configurations
+- **Fallback:** If mDNS discovery returns no results after 5 seconds, suggest
+  manual connection with `pd harbor connect --peer <ip:port>`
+
+## Part V Amendments: Monetization
+
+### Missing: Billing Infrastructure
+
+Pricing is defined but implementation isn't:
+- License key generation and validation server (Stripe + Cloudflare Worker)
+- `pd license activate <key>` implementation
+- Grace period when license server is unreachable (7 days)
+- Feature gating implementation (check license before `pd harbor connect`)
+- License key format: `PD-XXXX-XXXX-XXXX-XXXX` (human-readable, typeable)
+
+## Part VII Amendments: Semantic Trie
+
+### Missing: Trie Consistency
+
+The trie is an in-memory cache of SQLite state. Consistency risks:
+- If a SQLite write succeeds but trie update fails (OOM, bug), the trie diverges
+- **Fix:** Trie updates are synchronous and happen in the same call as the SQLite
+  write. If the trie update throws, the SQLite transaction is rolled back.
+- **Rebuild:** `pd debug rebuild-trie` forces a full trie rebuild from SQLite.
+  Also runs automatically on daemon startup.
+
+### Missing: Multi-Process
+
+If multiple processes access the same SQLite database (unlikely but possible with
+tools like `sqlite3` CLI), the trie won't reflect external changes.
+- **Fix:** On startup, hash the SQLite data and compare to trie state. If they
+  differ, rebuild. This is the same startup-rebuild pattern described above.
+
+## Part VIII Amendments: Socket-First Transport
+
+### Missing: Backpressure
+
+When the daemon is under heavy load, the msgpack socket channel needs backpressure:
+- If the socket write buffer exceeds 64KB, pause accepting new frames
+- Resume when the buffer drains below 32KB
+- Node.js `net.Socket` has `write()` return value and `'drain'` event for this
+- Clients should handle write failures gracefully (retry with exponential backoff)
+
+### Missing: Protocol Error Handling
+
+What happens when the daemon receives malformed msgpack?
+- Parse failure → respond with error frame, do NOT close the connection
+- Frame too large (>1MB) → respond with error frame, close the connection
+- Unknown method → respond with `{error: 'unknown method', method: 'xyz'}`
+
+## Part IX Amendments: Dashboard
+
+Addressed in Part XXIV (Web Components architecture, ADR-0016).
+
+## Part XIII Amendments: Harbor KV
+
+Addressed in Part XVII (HLC timestamps, conflict resolution, Merkle sync).
+
+## Part XIV Amendments: Regions
+
+### Missing: Region Conflict with File Claims
+
+When an agent claims a region, and another agent has file-level claims that overlap:
+- Region claims decompose into file claims (as stated in Part XIV)
+- If a file in the region is already claimed by another agent, this IS a conflict
+- The conflict is surfaced the same way as a regular file claim conflict
+- Region claims do NOT override existing file claims — they are additive and
+  advisory, just like file claims themselves
+
+## Part XV Amendments: Stigmergy
+
+### Missing: Pheromone Deposition Rate Limiting
+
+Without limits, an agent could flood the pheromone system:
+- Max deposits per agent per minute: 100 (prevents runaway loops)
+- Max intensity per deposit: 10.0 (prevents single-deposit domination)
+- These limits are enforced by the daemon, not by agent cooperation
+
+### Missing: Pheromone Privacy in Remote Harbors
+
+Pheromone sync follows the trust tier model:
+- **Full trust:** All pheromone types sync
+- **Coordinated trust:** heat, danger, success, contention sync. Attention and
+  coupling are local-only (they reveal too much about agent behavior)
+- **Minimal trust:** No pheromones sync
+
+## Part XVI Amendments: Agent Skills & Templates
+
+### Missing: Template Maintenance Burden
+
+Five templates is ambitious. Each needs maintenance against API changes, CI, docs.
+**Revised strategy:** Ship 2 templates at V4.0 launch (code-review and cross-machine),
+add 1 per minor release. This spreads the maintenance burden and gives each template
+time for polish.
+
+### Missing: `pd teach` Failure Modes
+
+- Claude Code not installed → helpful error with install instructions
+- Daemon not running → start it automatically
+- MCP server already configured → update in place (don't duplicate)
+- Permission denied on config file → explain which file and what permissions needed
+
+---
+---
+
+# Consolidated Execution Timeline (Revised)
 
 | Phase | What | When | Revenue |
 |-------|------|------|---------|
 | **V4.0** | Harbor enforcement, auto-harbor on begin, capability delegation, grace period | Q2 2026 | — |
+| **V4.0** | Migration runner, schema v1-v5, backup-before-migrate | Q2 2026 | — |
+| **V4.0** | Key management (file-based storage, rotation, JTI cleanup) | Q2 2026 | — |
+| **V4.0** | Structured logging (pino), debug facilities, bugreport command | Q2 2026 | — |
+| **V4.0** | Error catalog (PD-E001+), CLI help tiers, first-run experience | Q2 2026 | — |
 | **V4.0** | GitHub link fix, OG tags, website copy updates | Q2 2026 | — |
-| **V4.0** | ADR-0011 (harbor-first), ADR-0012 (platform adapter) | Q2 2026 | — |
-| **V4.0** | White paper V2 (implementation status + enforcement) | Q2 2026 | — |
+| **V4.0** | ADR-0011 (harbor-first), ADR-0012 (platform), ADR-0015 (conflicts), ADR-0016 (dashboard) | Q2 2026 | — |
+| **V4.0** | 2 template apps (code-review, cross-machine) | Q2 2026 | — |
+| **V4.0** | `pd teach` for Claude Code, Cursor, Windsurf | Q2 2026 | — |
+| **V4.0** | `llms.txt` generation and serving | Q2 2026 | — |
+| **V4.0** | Opt-in anonymous telemetry | Q2 2026 | — |
+| **V4.0** | GitHub Action (curiositech/port-daddy-action) | Q2 2026 | — |
+| **V4.0** | White paper V2, CONTRIBUTING.md | Q2 2026 | — |
 | **V4.1** | Windows support via platform adapter | Q3 2026 | User base growth |
-| **V4.1** | Remote harbors (daemon-to-daemon sync) | Q3 2026 | — |
-| **V4.1** | mDNS discovery (LAN) | Q3 2026 | — |
-| **V4.1** | ADR-0013 (remote sync), ADR-0014 (lighthouse) | Q3 2026 | — |
-| **V4.2** | portdaddy.dev lighthouse, Pro tier launch | Q4 2026 | First revenue |
+| **V4.1** | Remote harbors: WebSocket sync, HLC, LWW conflict resolution | Q3 2026 | — |
+| **V4.1** | mDNS discovery (LAN, opt-in, hashed names) | Q3 2026 | — |
+| **V4.1** | HMAC → Ed25519 migration | Q3 2026 | — |
+| **V4.1** | Dashboard v1 (Web Components, 6 panels) | Q3 2026 | — |
+| **V4.1** | 1 additional template (feature-sprint) | Q3 2026 | — |
+| **V4.2** | portdaddy.dev lighthouse, API versioning (header-based) | Q4 2026 | — |
+| **V4.2** | Pro tier launch ($14/seat), license key system | Q4 2026 | First revenue |
 | **V4.2** | Blog content pipeline (5 posts) | Q4 2026 | SEO traffic |
-| **V4.2** | Comparison page, tutorial updates | Q4 2026 | Conversion |
-| **V4.3** | Self-hosted lighthouse, Team tier | Q1 2027 | Team revenue |
+| **V4.2** | Dashboard v2 (remaining 6 panels, SSE live updates) | Q4 2026 | — |
+| **V4.2** | Storage lifecycle (archive, prune, vacuum automation) | Q4 2026 | — |
+| **V4.3** | Self-hosted lighthouse, Team tier ($39/team) | Q1 2027 | Team revenue |
+| **V4.3** | Relay service at relay.portdaddy.dev | Q1 2027 | — |
 | **V4.3** | arXiv preprint submission | Q1 2027 | Credibility |
-| **V5.0** | Enterprise tier, cloud spawn | Q2 2027 | Enterprise revenue |
+| **V4.3** | Remaining templates (research-swarm, self-healing) | Q1 2027 | — |
+| **V5.0** | Enterprise tier, cloud spawn, SAML/SSO | Q2 2027 | Enterprise revenue |
