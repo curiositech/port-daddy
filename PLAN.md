@@ -781,8 +781,8 @@ For individual developers who work across machines:
 - **Priority mDNS** — faster discovery, persistent peer memory
 - **Email support**
 
-**Why $19:** Low enough for an individual to expense. The value prop is "my MacBook
-and my desktop work together without me typing IP addresses."
+**Why $14:** Low enough for an individual to expense without a second thought. The
+value prop is "my MacBook and my desktop work together without me typing IP addresses."
 
 ### Team ($39/team/month, up to 10 seats) *(revised from $49 in Part XXII)*
 
@@ -795,8 +795,8 @@ For teams running multi-developer agent swarms:
 - **Harbor audit logs** — who did what, when, where (exportable)
 - **SAML/SSO** (roadmap) — enterprise auth
 
-**Why $49/team:** A team of 5 devs each running 2-3 agents is 10-15 agents that need
-coordination. That's real infrastructure value. $49 is below the "needs procurement
+**Why $39/team:** A team of 5 devs each running 2-3 agents is 10-15 agents that need
+coordination. That's real infrastructure value. $39 is well below the "needs procurement
 approval" threshold at most companies.
 
 ### Enterprise (Custom)
@@ -5369,13 +5369,192 @@ What happens when the daemon receives malformed msgpack?
 - Frame too large (>1MB) → respond with error frame, close the connection
 - Unknown method → respond with `{error: 'unknown method', method: 'xyz'}`
 
+## Part IV Amendments: Website V2 — Copy and Content Strategy
+
+### Missing: Harbor-First Messaging
+
+The website copy was written before harbor enforcement became the central concept.
+Every page needs a messaging pass:
+- **Hero section:** "Your agents need a port authority" → emphasize harbors, not just ports
+- **Features page:** Harbor enforcement is the headline, not a bullet point
+- **Pricing page:** Free tier should lead with "enforced harbor isolation" as the default
+
+### Missing: OG Tag Validation
+
+OG tags render differently on Twitter, Slack, Discord, LinkedIn, and iMessage.
+- Test each platform manually before launch (or use a social preview tool)
+- The `og:image` needs to be at least 1200x630 for Twitter Cards
+- Slack unfurls use different metadata priority than Twitter
+
+### Missing: Broken Link Testing
+
+The GitHub/brew link fixes are mechanical but error-prone. Add:
+- A CI job that crawls the built site and verifies all links resolve (dead-simple with `lychee`)
+- Pre-deploy: `lychee public/index.html --no-progress` catches broken links
+
+## Part VI Amendments: ADRs and White Paper
+
+### Missing: ADR Review Process
+
+Self-authored ADRs are better than no ADRs, but they benefit from at least one review:
+- Post each ADR as a GitHub Discussion (or PR) for community feedback before finalizing
+- ADR-0015 (conflict resolution) and ADR-0016 (dashboard architecture) are the most
+  consequential — these should have explicit "alternatives considered" sections with
+  quantified trade-offs (not just prose)
+
+### Missing: White Paper V2 Content
+
+The white paper needs to incorporate material from Parts XVII-XXIV:
+- HLC timestamps and Merkle sync (Part XVII) — this is academically publishable
+- Stigmergic coordination (Part XV) — cite Grassé 1959, Dorigo ant colony optimization
+- The "infrastructure not framework" positioning (Part XXII) is the thesis statement
+- If the ProVerif models from V3 covered only HMAC auth, they need extension for
+  Ed25519 key rotation (Part XVIII) and WebSocket sync (Part XVII)
+
+### Missing: ADR Numbering
+
+Part VI proposes ADR-0011 through ADR-0016. Part XXIV adds ADR-0016 (dashboard).
+Verify there's no numbering collision. If Part VI already has ADR-0016 for something
+else, renumber.
+
 ## Part IX Amendments: Dashboard
 
-Addressed in Part XXIV (Web Components architecture, ADR-0016).
+Part XXIV defines the Web Components architecture (ADR-0016) that supersedes
+Part IX's conceptual wireframes. Specific reconciliation needed:
 
-## Part XIII Amendments: Harbor KV
+### Missing: Wireframe-to-Component Mapping
 
-Addressed in Part XVII (HLC timestamps, conflict resolution, Merkle sync).
+Part IX defines a 12-panel layout. Part XXIV phases this as 6+6 across V4.1 and V4.2.
+The mapping should be explicit:
+
+**V4.1 (6 panels):** Services, Agents, Sessions, Harbors, Activity Log, Health
+**V4.2 (6 panels):** Salvage Queue, Locks, Messaging, Pheromone Heatmap, Metrics, Config
+
+Verify this matches Part IX's original 12 panels. If Part IX had different panels,
+note which were dropped and why.
+
+### Missing: Data Fetching Strategy
+
+Part IX's wireframes show data but never specify how it's fetched. The dashboard needs:
+- Initial load: `GET /metrics` + `GET /services` + `GET /agents` (3 parallel requests)
+- Live updates: SSE subscription to `/subscribe/dashboard` (or a new aggregate channel)
+- Polling fallback: If SSE disconnects, poll every 5s until reconnection
+- No WebSocket for dashboard — SSE is sufficient for unidirectional server→browser updates
+
+## Part X Amendments: MCP Server — V4 Tool Plan
+
+### Missing: Harbor Card Integration
+
+The MCP server holds a persistent connection to the daemon. When harbor enforcement
+is active, every MCP tool call needs a valid harbor card:
+- The MCP server should obtain a harbor card on startup (auto-entering a default harbor)
+- Card renewal: the MCP server must handle card expiry and re-enter the harbor
+- If the card is revoked (harbor destroyed, agent evicted), all MCP tools should
+  return a clear error: "Harbor card expired. Re-enter harbor with pd begin."
+
+### Missing: Grace Period Interaction
+
+When a harbor enters grace period (Part I), the MCP server should:
+- Continue operating (grace period means old rules still apply)
+- Surface a warning in tool responses: "⚠️ Harbor entering enforcement — update your workflow"
+- After grace period ends, enforce strictly
+
+### Missing: Testing Strategy for 108 Tools
+
+Part X proposes 108 MCP tools but no testing strategy:
+- Each tool needs at least one happy-path test and one error-path test → 216 minimum tests
+- Group tests by module (harbor tools, remote tools, spawn tools)
+- Use the existing Jest setup from `tests/setup-unit.js` with in-memory SQLite
+- Integration tests: verify 5-10 critical tool flows end-to-end against a live daemon
+
+## Part XI Amendments: Website V2 Full Wireframes
+
+### Missing: Harbor Enforcement UX in Wireframes
+
+The wireframes predate harbor enforcement. Key additions:
+- **Pricing page:** The free tier box should prominently feature "Harbor Isolation (enforced)"
+  as the first bullet, not buried in a feature list
+- **Documentation wireframes:** Need a "Getting Started" flow that shows harbor enforcement
+  as the default, not an opt-in feature
+- **Trust tier selector:** If the pricing page shows remote harbor options, it needs a
+  visual explainer of the three trust tiers (full, coordinated, minimal) from Part XII
+
+## Part XII Amendments: Remote Harbor Privacy and Trust Tiers
+
+### Missing: Trust Tier Transitions
+
+What happens when a trust tier changes on a live connection?
+
+**Downgrade (full → coordinated → minimal):**
+- Already-synced data that exceeds the new tier's visibility is NOT deleted from the
+  remote (that would require the remote to trust a delete instruction, which contradicts
+  the lower trust level)
+- Instead: stop syncing new data that exceeds the tier, and mark the existing data as
+  "stale" (not refreshed after tier change)
+- The remote daemon's local copy naturally ages out via storage lifecycle (Part XXIII)
+
+**Upgrade (minimal → coordinated → full):**
+- New data types start syncing immediately
+- Historical data is NOT backfilled (would be a large sync burst)
+- The remote gets current state, not full history
+
+### Missing: Trust Tier Verification
+
+How does a remote daemon verify that the claimed trust tier is legitimate?
+- The trust tier is set by the harbor owner in their harbor config
+- The trust tier is signed with the daemon's key (Part XVIII)
+- A remote daemon can verify the signature but not override the tier
+- Mismatch between claimed and signed tier → reject connection
+
+### Missing: Testing Trust Tier Visibility Rules
+
+Trust tiers control what data types sync across 6+ categories (notes, KV, pheromones,
+file claims, agent presence, capability lists). That's 3 tiers × 6+ categories = 18+
+visibility rules.
+- Each rule needs an explicit test: "In coordinated trust, session notes sync but
+  pheromone attention does not"
+- Use a test matrix, not individual test cases — easier to verify completeness
+
+## Part XIII Amendments: Harbor KV, Counters, and Logs
+
+Part XVII addresses KV conflict resolution via HLC and LWW. But Part XIII also
+defines **counters** and **append-only logs**, which have different conflict semantics.
+
+### Missing: Counter Conflict Resolution
+
+LWW is **wrong for counters**. If daemon A increments from 5→6 and daemon B increments
+from 5→6, LWW picks one and the other increment is lost. The correct count is 7.
+
+**Resolution:** Use a state-based G-Counter (grow-only counter) for non-negative counters
+and a PN-Counter (positive-negative counter) for general counters:
+
+```
+-- G-Counter state per daemon:
+-- { "daemon-a": 3, "daemon-b": 4 }
+-- Value = sum of all entries = 7
+-- Merge = max per entry (idempotent, commutative, associative)
+```
+
+This is simple to implement (~50 lines) and doesn't require the full CRDT machinery
+that Part XVII intentionally avoided. The counter state is stored as JSON in the
+`value` column of `harbor_kv` with `conflict_mode = 'counter'`.
+
+### Missing: Append-Only Log Merge
+
+For append-only logs shared across daemons, the merge strategy is:
+- Each log entry has an HLC timestamp (from Part XVII)
+- Merge = union of entries, deduplicated by (timestamp + node_id), sorted by HLC
+- This is a grow-only set (G-Set), another simple CRDT
+- Stored as JSON array in `harbor_kv` with `conflict_mode = 'log'`
+
+### conflict_mode Summary
+
+| Mode | Use Case | Merge Strategy |
+|------|----------|----------------|
+| `lww` | General KV, config, state | Last-Writer-Wins by HLC |
+| `detect` | Critical keys (schema version, leader election) | Reject conflicting writes, require manual resolution |
+| `counter` | Metrics, vote counts, resource tracking | G-Counter / PN-Counter merge |
+| `log` | Audit trails, event streams | G-Set with HLC ordering |
 
 ## Part XIV Amendments: Regions
 
@@ -5429,28 +5608,35 @@ time for polish.
 | Phase | What | When | Revenue |
 |-------|------|------|---------|
 | **V4.0** | Harbor enforcement, auto-harbor on begin, capability delegation, grace period | Q2 2026 | — |
+| **V4.0** | Semantic trie for token namespace resolution (Part VII) | Q2 2026 | — |
+| **V4.0** | Socket-first transport: msgpack over Unix domain socket (Part VIII) | Q2 2026 | — |
+| **V4.0** | Semantic regions: code boundary claims (Part XIV) | Q2 2026 | — |
+| **V4.0** | Stigmergy: pheromone deposition, decay, 6 pheromone types (Part XV) | Q2 2026 | — |
+| **V4.0** | MCP server: harbor tools (8), enhanced spawn tools (Part X) | Q2 2026 | — |
 | **V4.0** | Migration runner, schema v1-v5, backup-before-migrate | Q2 2026 | — |
 | **V4.0** | Key management (file-based storage, rotation, JTI cleanup) | Q2 2026 | — |
 | **V4.0** | Structured logging (pino), debug facilities, bugreport command | Q2 2026 | — |
 | **V4.0** | Error catalog (PD-E001+), CLI help tiers, first-run experience | Q2 2026 | — |
-| **V4.0** | GitHub link fix, OG tags, website copy updates | Q2 2026 | — |
-| **V4.0** | ADR-0011 (harbor-first), ADR-0012 (platform), ADR-0015 (conflicts), ADR-0016 (dashboard) | Q2 2026 | — |
+| **V4.0** | GitHub link fix, OG tags, website copy updates, broken link CI (Part IV) | Q2 2026 | — |
+| **V4.0** | ADR-0011 through ADR-0016, white paper V2 with HLC/stigmergy content (Part VI) | Q2 2026 | — |
 | **V4.0** | 2 template apps (code-review, cross-machine) | Q2 2026 | — |
 | **V4.0** | `pd teach` for Claude Code, Cursor, Windsurf | Q2 2026 | — |
 | **V4.0** | `llms.txt` generation and serving | Q2 2026 | — |
 | **V4.0** | Opt-in anonymous telemetry | Q2 2026 | — |
 | **V4.0** | GitHub Action (curiositech/port-daddy-action) | Q2 2026 | — |
-| **V4.0** | White paper V2, CONTRIBUTING.md | Q2 2026 | — |
+| **V4.0** | CONTRIBUTING.md | Q2 2026 | — |
 | **V4.1** | Windows support via platform adapter | Q3 2026 | User base growth |
-| **V4.1** | Remote harbors: WebSocket sync, HLC, LWW conflict resolution | Q3 2026 | — |
+| **V4.1** | Remote harbors: WebSocket sync, HLC, LWW + counter/log CRDTs (Parts XIII, XVII) | Q3 2026 | — |
+| **V4.1** | MCP server: remote harbor tools (5) (Part X) | Q3 2026 | — |
+| **V4.1** | Trust tier enforcement for remote harbors (Part XII) | Q3 2026 | — |
 | **V4.1** | mDNS discovery (LAN, opt-in, hashed names) | Q3 2026 | — |
 | **V4.1** | HMAC → Ed25519 migration | Q3 2026 | — |
-| **V4.1** | Dashboard v1 (Web Components, 6 panels) | Q3 2026 | — |
+| **V4.1** | Dashboard v1 (Web Components, 6 panels: Services, Agents, Sessions, Harbors, Activity, Health) | Q3 2026 | — |
 | **V4.1** | 1 additional template (feature-sprint) | Q3 2026 | — |
 | **V4.2** | portdaddy.dev lighthouse, API versioning (header-based) | Q4 2026 | — |
 | **V4.2** | Pro tier launch ($14/seat), license key system | Q4 2026 | First revenue |
 | **V4.2** | Blog content pipeline (5 posts) | Q4 2026 | SEO traffic |
-| **V4.2** | Dashboard v2 (remaining 6 panels, SSE live updates) | Q4 2026 | — |
+| **V4.2** | Dashboard v2 (6 panels: Salvage, Locks, Messaging, Pheromone Heatmap, Metrics, Config) | Q4 2026 | — |
 | **V4.2** | Storage lifecycle (archive, prune, vacuum automation) | Q4 2026 | — |
 | **V4.3** | Self-hosted lighthouse, Team tier ($39/team) | Q1 2027 | Team revenue |
 | **V4.3** | Relay service at relay.portdaddy.dev | Q1 2027 | — |
