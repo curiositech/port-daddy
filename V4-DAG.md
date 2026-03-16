@@ -520,6 +520,30 @@ II.8  Windows support
 
 ---
 
+## Part XXVIII: Harbor Gap Analysis (12 Gaps)
+
+See `PLAN.md` Part XXVIII for full analysis. Summary of new nodes:
+
+```
+XXVIII.1  Harbor File Protocol (HFP)    ~600 LOE  [V4.1]  → [XVII, I, XII]
+XXVIII.2  Departure Protocol            ~400 LOE  [V4.1]  → [XVII, XXVIII.1]
+XXVIII.3  Harbor Tunnel Propagation     ~300 LOE  [V4.1]  → [XVII]
+XXVIII.4  Cross-Peer Salvage            ~200 LOE  [V4.1]  → [XVII, XXVII]
+XXVIII.5  Resilience Tiers (Relay)      ~400 LOE  [V4.2]  → [XVII, III]
+XXVIII.6  harbor.json Spec              ~200 LOE  [V4.0]  → [I]
+XXVIII.7  Co-op Governance              ~300 LOE  [V4.2]  → [XVII, XXVIII.6]
+XXVIII.8  Awareness Layer               ~300 LOE  [V4.1]  → [XV, XVII, XXVII]
+XXVIII.9  Multi-Harbor Membership       ~200 LOE  [V4.1]  → [I]
+XXVIII.10 Origin Tagging                ~150 LOE  [V4.0]  → [XVII]
+XXVIII.11 Resource Quotas               ~200 LOE  [V4.1]  → [XVII]
+XXVIII.12 Naming Clarification          ~50 LOE   [V4.0]  → []
+```
+
+Critical path additions: XVII → XXVIII.1 (HFP) → XXVIII.2 (Departure)
+New total LOE: ~3,300 additional lines.
+
+---
+
 ## Risk Nodes
 
 These parts have the highest risk of schedule slip or design iteration:

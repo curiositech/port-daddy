@@ -6788,3 +6788,1025 @@ aggressive. The honest assessment:
 **Mitigation:** Treat V4.0 as a 2-month release with a hard cut date. Anything not
 done by cut date ships in V4.0.1. Do not let scope creep delay the core harbor
 enforcement launch.
+
+---
+---
+
+# Part XXVIII: Harbor Gap Analysis — Twelve Unsolved Problems
+
+## Preamble
+
+Parts I–XXVII design a harbor-first architecture where daemons sync coordination
+state across machines. But the plan has structural gaps — questions that users will
+hit the moment they try to do anything beyond "two machines on a LAN sharing file
+claims." This Part identifies twelve gaps, proposes solutions for each, and
+establishes three new sub-protocols: **Harbor File Protocol** (HFP), **Departure
+Protocol**, and **Harbor Co-op Governance**.
+
+---
+
+## Gap 1: File Transport Layer — `lighthouse.json` Offers Files, But How?
+
+### The Problem
+
+The lighthouse.json spec declares:
+```json
+"offers": { "files": ["src/auth/**", "src/api/**"] }
+```
+
+But the sync protocol (Part XVII) syncs *metadata* — agents, sessions, locks,
+pheromones, harbor_kv. File claims are advisory ("I intend to edit src/auth.ts"),
+not a transport mechanism. There is no way for a remote agent to actually *read*
+the contents of `src/auth/jwt.ts` from the offering daemon.
+
+### Proposed Solution: Harbor File Protocol (HFP)
+
+Three-layer design:
+
+#### Layer 1: File Manifest (Syncs Automatically)
+
+The sync protocol (Part XVII) gets a 6th Merkle bucket: `file_manifest`.
+
+```sql
+CREATE TABLE harbor_file_manifest (
+  harbor_name  TEXT NOT NULL REFERENCES harbors(name) ON DELETE CASCADE,
+  file_path    TEXT NOT NULL,
+  content_hash TEXT NOT NULL,     -- sha256 of file content
+  size_bytes   INTEGER NOT NULL,
+  modified_at  TEXT NOT NULL,
+  hlc_physical INTEGER,          -- HLC columns for sync
+  hlc_counter  INTEGER,
+  hlc_node     TEXT,
+  PRIMARY KEY (harbor_name, file_path)
+);
+```
+
+The offering daemon watches files matching `offers.files` globs (via `fs.watch` or
+`chokidar` for recursive watching). On change:
+1. Recompute content hash
+2. Update `harbor_file_manifest` row
+3. Merkle bucket for `file_manifest` updates
+4. Sync protocol propagates the hash change to connected peers
+
+This is metadata only — hashes and sizes, not content. The manifest for 10,000
+files is ~500KB. It syncs cheaply.
+
+#### Layer 2: Content Fetch (On Demand)
+
+New WebSocket frame types in the sync channel:
+
+```typescript
+// Request (consumer → provider)
+interface FileRequest {
+  type: 'file-fetch';
+  path: string;           // e.g., "src/auth/jwt.ts"
+  harbor: string;         // harbor name
+  expectedHash?: string;  // optional — skip if cached hash matches
+}
+
+// Response (provider → consumer)
+interface FileResponse {
+  type: 'file-content';
+  path: string;
+  hash: string;           // sha256 of content
+  content: Buffer;        // raw bytes
+  truncated: boolean;     // true if file exceeds 10MB limit
+}
+
+// Cache hit response (provider → consumer)
+interface FileUnchanged {
+  type: 'file-unchanged';
+  path: string;
+  hash: string;           // confirms hash still matches
+}
+```
+
+The providing daemon enforces glob checks on every request:
+1. Parse `path` against `offers.files` globs from lighthouse.json
+2. If path not covered by any glob → reject with `file-access-denied`
+3. If path matches → read from disk, hash, serve
+
+Content-addressed caching on the consumer side:
+- Files cached in `~/.port-daddy/file-cache/<harbor>/<hash>/`
+- Cache key is content hash, not path (same content at different paths = one cache entry)
+- Cache eviction: LRU, 500MB default cap, configurable via `pd config set file-cache-limit`
+
+#### Layer 3: Access Modes
+
+The lighthouse.json `offers` section declares the access mode:
+
+```json
+"offers": {
+  "files": ["src/auth/**", "src/api/**"],
+  "file_access": "read-only"
+}
+```
+
+Three modes:
+
+| Mode | Behavior | Use Case |
+|------|----------|----------|
+| `read-only` (default) | Consumer can fetch, not write. Changes go through anchors or external PRs. | Cross-team collaboration, security audits |
+| `copy-on-write` | Consumer gets copy, edits locally, submits diff back as `file-changeset` frame. Provider shows changeset in review queue. | Tandem vibe coding with review gate |
+| `direct-write` | Writes proxy through sync channel, provider applies to disk. Requires `full` trust tier AND explicit opt-in. | Pair programming with full trust |
+
+Copy-on-write changesets:
+
+```typescript
+interface FileChangeset {
+  type: 'file-changeset';
+  harbor: string;
+  agent: string;
+  anchor_id?: string;       // link to anchor if applicable
+  changes: Array<{
+    path: string;
+    original_hash: string;  // hash at time of read
+    patch: string;          // unified diff
+  }>;
+  message: string;          // "Fixed JWT expiry logic"
+}
+```
+
+Provider daemon receives changeset → stores in `harbor_changesets` table →
+surfaces in dashboard review queue → provider approves/rejects.
+
+#### CLI Surface
+
+```bash
+pd fs list myapp:src/auth/         # list files in remote harbor
+pd fs read myapp:src/auth/jwt.ts   # fetch file content (cached)
+pd fs diff myapp:src/auth/jwt.ts   # diff remote vs local (if both exist)
+pd fs submit myapp --message "..."  # submit changeset (copy-on-write mode)
+pd fs review                        # review incoming changesets
+pd fs accept <changeset-id>         # apply changeset
+pd fs reject <changeset-id>         # reject changeset
+```
+
+#### Integration with Token Namespace
+
+Files live in the trie:
+```
+myapp:files:src/auth/jwt.ts        → address a specific file
+myapp:files:src/auth/*             → glob query
+myapp:files:manifest               → the manifest metadata
+myapp:changesets:<id>              → a pending changeset
+```
+
+`pd query myapp:files:src/auth/*` returns file manifest entries. The trie
+resolves `myapp` to local-or-remote, `files` to the HFP layer, and the path
+is either a disk read or a sync-channel fetch.
+
+#### DAG Position
+
+HFP depends on:
+- Part XVII (sync protocol for manifest bucket + WebSocket frame types)
+- Part I (harbor enforcement — glob checks use harbor card capabilities)
+- Part XII (trust tiers — `direct-write` requires `full` trust)
+
+New LOE: ~600 lines (`lib/harbor-files.ts`, `routes/harbor-files.ts`, CLI commands)
+
+---
+
+## Gap 2: Departure Protocol — Taking Work Home
+
+### The Problem
+
+Bob connects to Alice's harbor. Bob's agents read files, write notes, complete
+anchors, build local context. Then Bob disconnects (`pd harbor disconnect`).
+What happens to Bob's work?
+
+The current plan says: disconnected. State stays in the harbor. If Bob reconnects
+later, his notes are still there. But what if Bob never reconnects? What if Bob
+needs to reference that work on his local machine, offline?
+
+### Proposed Solution: The Departure Manifest
+
+When an agent or peer disconnects from a harbor, the daemon produces a **departure
+manifest** — a self-contained archive of everything that agent contributed plus
+everything it needs to continue working independently.
+
+```bash
+pd harbor depart myapp --reason "switching to local development"
+# → Generating departure manifest...
+# → Bundled: 3 sessions, 47 notes, 2 anchors, 12 file claims
+# → Cached files: 8 files (142KB) from offers.files
+# → Manifest: ~/.port-daddy/departures/myapp-2026-03-16T14:30:00Z.json
+# → You can continue working locally. Reconnect anytime to sync back.
+```
+
+#### What the Manifest Contains
+
+```typescript
+interface DepartureManifest {
+  version: 1;
+  harbor: string;
+  peer_id: string;
+  departed_at: string;           // ISO 8601
+  reason?: string;
+
+  // Everything this agent contributed
+  contributions: {
+    sessions: Session[];         // full session objects with notes
+    anchors: Anchor[];           // with evidence logs
+    file_claims: FileClaim[];    // advisory claims made
+    kv_entries: KVEntry[];       // harbor KV entries written by this agent
+    pheromones: Pheromone[];     // pheromones deposited
+    messages: Message[];         // pub/sub messages published
+  };
+
+  // Everything this agent consumed (for offline reference)
+  context: {
+    file_cache: FileRef[];       // content-hash refs to cached files
+    other_sessions: Session[];   // sessions this agent read (not wrote)
+    other_notes: Note[];         // notes this agent was mentioned in
+    harbor_state_snapshot: {     // point-in-time state
+      agents: Agent[];
+      active_anchors: Anchor[];
+      open_locks: Lock[];
+    };
+  };
+
+  // Reconnection info
+  reconnect: {
+    harbor_name: string;
+    lighthouse_url?: string;     // for easy reconnection
+    peer_pubkey: string;         // Ed25519 public key of harbor owner
+    last_merkle_root: string;    // for delta sync on reconnect
+  };
+}
+```
+
+#### Reconnection is a Delta Sync
+
+The departure manifest stores `last_merkle_root`. When Bob reconnects:
+1. Exchange Merkle roots (Part XVII HASH_EXCHANGE state)
+2. Bob's daemon has the departure root → only diffs since departure sync
+3. Bob's local changes (sessions continued offline) merge via conflict resolver
+4. Result: seamless continuation as if the connection never dropped
+
+#### Graceful vs. Ungraceful Departure
+
+| Type | Trigger | Manifest? | State |
+|------|---------|-----------|-------|
+| **Graceful** | `pd harbor depart` | Yes, generated and stored | Clean exit, Merkle root saved |
+| **Timeout** | No heartbeat for 1 hour | Auto-generated on provider side | Agent marked stale, enters salvage queue |
+| **Crash** | Process dies | None generated | Salvage takes over (existing Part VIII pattern) |
+
+For timeout departures, the providing daemon auto-generates a departure manifest
+and holds it for 7 days. If the peer reconnects within 7 days, it gets the manifest
+for delta sync. After 7 days, full sync required.
+
+#### What About Intellectual Property?
+
+The departure manifest bundles files that the departed agent cached. This is
+intentional — if you offered files to a harbor, you accepted that connected peers
+would read them. The departure manifest doesn't grant *new* access; it preserves
+access that already existed during the session.
+
+For sensitive harbors, the lighthouse.json can declare:
+
+```json
+"departure_policy": {
+  "allow_file_cache_export": false,  // files purged on disconnect
+  "allow_context_export": true,      // notes/sessions exportable
+  "manifest_retention": "24h"        // auto-delete manifests after 24h
+}
+```
+
+---
+
+## Gap 3: Tunnels In and Out of Harbors
+
+### The Problem
+
+Port Daddy already has tunnels (`pd tunnel start <service>` → creates a cloudflare/
+ngrok tunnel). But the plan never connects tunnels to harbors. Questions:
+
+1. If Alice creates a tunnel for `myapp:api:main`, do Bob's agents (in the same
+   harbor) get the tunnel URL?
+2. Can Bob's agents create tunnels on Alice's machine?
+3. Can a harbor *require* that certain services have tunnels?
+
+### Proposed Solution: Harbor-Scoped Tunnel Propagation
+
+#### Tunnel URLs Sync Through the Harbor
+
+When a tunnel is created for a service in a harbor, the tunnel URL is stored in
+harbor KV and syncs to all peers:
+
+```
+Key:   myapp:tunnels:api:main
+Value: { url: "https://abc123.trycloudflare.com", provider: "cloudflare",
+         created_by: "alice-macbook", port: 3001 }
+```
+
+This means Bob's agents automatically know the public URL for Alice's API. They
+don't need to create their own tunnel — they use Alice's.
+
+#### Remote Tunnel Requests
+
+Bob's agent can *request* a tunnel on Alice's machine via the harbor protocol:
+
+```bash
+pd tunnel request myapp:api:main --provider cloudflare
+# → Sent tunnel request to alice-macbook (harbor owner)
+# → Waiting for approval...
+# → Tunnel created: https://abc123.trycloudflare.com
+```
+
+This sends a `tunnel-request` frame over the sync channel. Alice's daemon can
+auto-approve (if configured) or queue for manual approval.
+
+```json
+// lighthouse.json
+"offers": {
+  "tunnels": {
+    "auto_approve": true,        // or false for manual approval
+    "providers": ["cloudflare"], // allowed providers
+    "max_concurrent": 3          // limit tunnel count
+  }
+}
+```
+
+#### Tunnel Requirements
+
+A harbor can declare that certain services MUST be tunneled:
+
+```json
+// lighthouse.json
+"requires": {
+  "tunnels": ["api:main", "web:dev"]
+}
+```
+
+When Bob enters the harbor, his daemon checks if `api:main` and `web:dev` have
+active tunnels. If not, the CLI warns:
+
+```
+⚠️ Harbor myapp requires tunnels for: api:main, web:dev
+Run: pd tunnel start myapp:api:main
+```
+
+#### Harbor-Internal vs External Tunnels
+
+Distinguish between:
+- **Internal tunnels**: Expose a service to other harbor members (via harbor sync).
+  No public URL needed — the sync channel IS the transport.
+- **External tunnels**: Expose a service to the internet (cloudflare/ngrok).
+  Needed for webhooks, mobile testing, third-party integrations.
+
+For internal access between harbor peers, the daemon can proxy requests through
+the sync channel without needing a public tunnel at all:
+
+```
+Bob's agent → Bob's daemon → [sync channel] → Alice's daemon → Alice's :3001
+```
+
+This is a reverse proxy through the harbor. No cloudflare needed. The sync
+channel already has an authenticated WebSocket — just add HTTP proxying frames.
+
+New frame type:
+```typescript
+interface HarborProxyRequest {
+  type: 'proxy-request';
+  service: string;     // "api:main"
+  method: string;      // "GET"
+  path: string;        // "/api/users"
+  headers: Record<string, string>;
+  body?: Buffer;
+}
+
+interface HarborProxyResponse {
+  type: 'proxy-response';
+  status: number;
+  headers: Record<string, string>;
+  body?: Buffer;
+}
+```
+
+This effectively gives every harbor an internal service mesh for free.
+
+---
+
+## Gap 4: Salvage Across Remote Harbors
+
+### The Problem
+
+Agent-A runs on Alice's machine in the `myapp` harbor. Agent-A dies. The existing
+salvage protocol puts Agent-A in the resurrection queue. But:
+
+1. Can Bob's agents on a different machine claim the salvage?
+2. Does the salvage include context from the remote harbor (files, notes)?
+3. What if Agent-A had open anchors with files on Alice's machine?
+
+### Proposed Solution: Cross-Peer Salvage
+
+#### Salvage State Syncs Through the Harbor
+
+The `resurrection_queue` table already syncs as part of the `agents` Merkle bucket
+(Part XVII). When Agent-A dies on Alice's machine, all connected peers see it in
+`pd salvage`. No change needed for visibility.
+
+#### Cross-Peer Claiming
+
+When Bob's agent runs `pd salvage claim agent-A`:
+
+1. Bob's daemon sends a `salvage-claim` frame to Alice's daemon
+2. Alice's daemon verifies Bob's agent has sufficient capabilities (harbor card)
+3. Claim is recorded on BOTH daemons (conflict resolution: first-writer-wins by HLC)
+4. Bob's agent receives:
+   - The departure manifest for Agent-A (same format as Gap 2)
+   - All anchor context (task definitions, evidence logs, criteria)
+   - File manifest for any files Agent-A had claimed
+
+5. If Agent-A had files from Alice's `offers.files`:
+   - Bob's agent can fetch them via HFP (Gap 1)
+   - Files are pre-authorized because Agent-A had access, and Bob is inheriting
+
+#### Salvage Hint on Harbor Entry
+
+When any agent enters a harbor with pending salvage:
+
+```
+⚓ Entered harbor: myapp
+⚠️ 2 dead agent(s) in this harbor:
+   agent-a4f2 (alice-macbook) — died 15m ago, 1 active anchor
+   agent-c7e1 (alice-macbook) — died 2h ago, session only
+Run: pd salvage --harbor myapp
+```
+
+This already exists conceptually in the "Context-Aware Salvage" feature (CLAUDE.md)
+but needs to work cross-peer.
+
+#### Anchor Continuity
+
+When Bob's agent claims Agent-A's salvage that includes anchors:
+1. Anchor status: ABANDONED → ACTIVE (re-assigned to Bob's agent)
+2. Anchor files: re-claimed by Bob's agent
+3. Evidence log: new entry: `"Salvaged from agent-a4f2 by agent-b3c1 (cross-peer)"`
+4. Bob can fetch the actual files via HFP to continue the work
+
+This means anchors are truly portable across machines. The work follows the task,
+not the machine.
+
+---
+
+## Gap 5: Always-On Requirements for Remote Harbors
+
+### The Problem
+
+Port Daddy assumes an always-on daemon (`launchd` service on macOS). But remote
+harbors create new assumptions:
+
+1. Alice closes her laptop lid. Bob's agents lose the harbor.
+2. Alice's machine reboots for an OS update. 30 minutes of downtime.
+3. Alice is on flaky WiFi. Connection drops every 10 minutes.
+
+The plan has partition detection (Part XVII: no pong for 1 hour → partition
+detected), but no strategy for what agents DO during the partition.
+
+### Proposed Solution: Harbor Resilience Tiers
+
+#### Tier 1: Best-Effort (Default)
+
+Connection drops → agents operate on cached state. When connection resumes,
+delta sync reconciles. This is what Part XVII already provides. Good enough for
+most LAN setups.
+
+During partition:
+- Local reads from cache continue working
+- Local writes (notes, KV) queue and sync later
+- File fetches from cache hit → succeed; cache miss → fail gracefully
+- Pheromones decay locally on schedule (may diverge, reconciles on reconnect)
+
+#### Tier 2: Resilient (Lighthouse Relay)
+
+For setups that need higher availability, the lighthouse acts as a store-and-forward
+relay, not just a phone book:
+
+```json
+// lighthouse.json
+"resilience": {
+  "tier": "resilient",
+  "relay": "relay.portdaddy.dev",
+  "buffer_hours": 24
+}
+```
+
+When Alice goes offline:
+1. Bob's daemon detects disconnect
+2. Switches to relay mode: mutations are sent to the relay
+3. Relay buffers mutations for up to 24 hours
+4. Alice comes back → relay flushes buffered mutations → delta sync
+
+The relay stores only encrypted sync frames (harbor-card-signed). The relay
+operator cannot read the content. This is the "mailbox" pattern.
+
+**New component:** `relay.portdaddy.dev` — a lightweight service that accepts
+WebSocket connections and buffers frames between peers. ~400 lines. Could be
+a Cloudflare Durable Object for zero-ops deployment.
+
+#### Tier 3: Federated (Multi-Provider)
+
+For critical harbors, designate multiple providers:
+
+```json
+"providers": [
+  { "id": "alice-macbook", "role": "primary" },
+  { "id": "alice-desktop", "role": "replica" },
+  { "id": "bob-workstation", "role": "replica" }
+]
+```
+
+If the primary goes down, a replica promotes to primary. File manifests are
+replicated across providers so file fetches continue working even if the
+original provider is offline.
+
+This is the distributed systems rabbit hole. Probably V4.3+ territory.
+For V4.0-V4.2, Tiers 1 and 2 are sufficient.
+
+---
+
+## Gap 6: `lighthouse.json` Formal Specification
+
+### The Problem
+
+The plan references lighthouse.json in passing but never fully specifies it.
+What are all the fields? How is it discovered? What's the lifecycle?
+
+### Proposed Specification
+
+```json
+{
+  "$schema": "https://portdaddy.dev/schemas/lighthouse.v1.json",
+  "version": 1,
+  "harbor": "myapp",
+  "owner": "alice",
+
+  "listen": {
+    "addr": "0.0.0.0",
+    "port": 9877,
+    "protocol": "wss"
+  },
+
+  "discovery": {
+    "mdns": true,
+    "lighthouse_url": "https://registry.portdaddy.dev",
+    "advertise_name": "myapp@alice"
+  },
+
+  "offers": {
+    "agents": true,
+    "compute": false,
+    "memory": true,
+    "files": ["src/auth/**", "src/api/**", "tests/**"],
+    "file_access": "copy-on-write",
+    "tunnels": {
+      "auto_approve": true,
+      "providers": ["cloudflare"],
+      "max_concurrent": 3
+    }
+  },
+
+  "requires": {
+    "trust_tier": "coordinated",
+    "harbor_card_algorithm": "HS256",
+    "tunnels": []
+  },
+
+  "limits": {
+    "max_peers": 10,
+    "max_agents_per_peer": 5,
+    "file_cache_limit_mb": 500,
+    "bandwidth_limit_mbps": 50
+  },
+
+  "departure_policy": {
+    "allow_file_cache_export": true,
+    "allow_context_export": true,
+    "manifest_retention": "7d",
+    "graceful_disconnect_timeout": "5m"
+  },
+
+  "resilience": {
+    "tier": "best-effort",
+    "relay": null,
+    "buffer_hours": 0
+  },
+
+  "identity": {
+    "pubkey": "ed25519:base64...",
+    "daemon_version": "4.0.0"
+  }
+}
+```
+
+#### Lifecycle
+
+1. Created by `pd harbor create myapp --remote` → generates `lighthouse.json`
+   in the project root (or `~/.port-daddy/harbors/myapp/lighthouse.json`)
+2. Editable by the harbor owner (directly or via `pd harbor config myapp`)
+3. Served at `GET /harbor/:name/lighthouse.json` (public, no auth required)
+4. Synced to connected peers as part of harbor metadata
+5. Changes trigger a `harbor-config-update` frame on the sync channel
+
+#### Discovery
+
+When `pd harbor connect myapp` runs without explicit flags:
+1. Check `./lighthouse.json` in the current directory
+2. Check `~/.port-daddy/harbors/myapp/lighthouse.json` (cached from previous connection)
+3. mDNS browse for `_portdaddy._tcp.local.` with TXT `harbor=myapp`
+4. Query `registry.portdaddy.dev/lookup?harbor=myapp`
+5. Fail with helpful message
+
+---
+
+## Gap 7: Harbor Co-op Governance
+
+### The Problem
+
+The plan assumes harbors have a single owner (the daemon that created it). But
+real collaboration needs shared governance:
+
+1. Who can invite new members?
+2. Who can evict misbehaving agents?
+3. Who can change lighthouse.json settings?
+4. What if the owner goes offline permanently?
+
+### Proposed Solution: Three Governance Models
+
+#### Model 1: Dictator (Default)
+
+One daemon owns the harbor. All authority flows from the owner.
+- Only owner can invite/evict
+- Only owner can modify lighthouse.json
+- If owner goes offline, harbor degrades to cached state
+
+This is the simplest model and covers 90% of use cases (one developer with
+multiple machines, or a team lead hosting for the team).
+
+#### Model 2: Council
+
+Multiple daemons share governance. Stored in lighthouse.json:
+
+```json
+"governance": {
+  "model": "council",
+  "members": [
+    { "id": "alice-macbook", "role": "admin" },
+    { "id": "bob-desktop", "role": "admin" },
+    { "id": "carol-laptop", "role": "member" }
+  ],
+  "quorum": 2
+}
+```
+
+Admin actions (invite, evict, config change) require quorum agreement.
+Implemented as a simple vote: admin proposes action via `harbor-governance`
+frame → other admins approve/reject → action executes when quorum reached.
+
+No blockchain, no consensus protocol. Just a voting table:
+
+```sql
+CREATE TABLE harbor_votes (
+  id           TEXT PRIMARY KEY,
+  harbor_name  TEXT NOT NULL,
+  action       TEXT NOT NULL,       -- 'invite', 'evict', 'config-change'
+  payload      TEXT NOT NULL,       -- JSON details
+  proposed_by  TEXT NOT NULL,
+  votes_for    TEXT DEFAULT '[]',   -- JSON array of daemon IDs
+  votes_against TEXT DEFAULT '[]',
+  status       TEXT DEFAULT 'pending', -- pending, approved, rejected, expired
+  created_at   TEXT NOT NULL,
+  expires_at   TEXT NOT NULL        -- votes expire after 24h
+);
+```
+
+#### Model 3: Open (Trust Network)
+
+Any member with sufficient trust tier can invite others. No explicit governance.
+The trust tier IS the governance:
+
+```json
+"governance": {
+  "model": "open",
+  "invite_tier": "coordinated",  // minimum trust to invite
+  "evict_tier": "full"           // minimum trust to evict
+}
+```
+
+This is the "co-op" model — good for open source projects where anyone
+trusted enough to contribute can also bring in collaborators.
+
+---
+
+## Gap 8: Tandem Vibe Coding — The Killer App
+
+### The Problem
+
+The plan treats harbors as coordination infrastructure. But the actual use case
+that will make people CARE is **tandem vibe coding**: two developers, each with
+their own AI agents, working on the same codebase simultaneously with real-time
+awareness of each other's work.
+
+This is not in the plan. It should be the banner feature.
+
+### What Tandem Vibe Coding Looks Like
+
+```
+┌─── Alice's Machine ────────────────────────────────────────┐
+│                                                             │
+│  Claude agent-a: "Building JWT auth in src/auth/jwt.ts"     │
+│  ├── Session: active, 12 notes                              │
+│  ├── File claims: src/auth/jwt.ts, src/auth/middleware.ts   │
+│  ├── Anchor: anch_7f3k "Implement JWT refresh tokens"       │
+│  └── Pheromone trail: hot on src/auth/**                    │
+│                                                             │
+└────────────────────────── harbor: myapp ────────────────────┘
+                                │
+                         sync channel (WS)
+                                │
+┌─── Bob's Machine ──────────────────────────────────────────┐
+│                                                             │
+│  Cursor agent-b: "Building login UI in src/pages/login.tsx" │
+│  ├── Session: active, 8 notes                               │
+│  ├── File claims: src/pages/login.tsx, src/api/auth.ts      │
+│  ├── Anchor: anch_9d2m "Login page with OAuth buttons"      │
+│  └── Pheromone trail: hot on src/pages/**                   │
+│                                                             │
+│  ┌── What Bob's agent SEES from Alice's harbor ──────────┐  │
+│  │ 🔥 src/auth/** is HOT (pheromone: 0.87)               │  │
+│  │ 🔒 src/auth/jwt.ts claimed by agent-a                 │  │
+│  │ 📋 Anchor anch_7f3k: "JWT refresh tokens" — ACTIVE    │  │
+│  │ 📝 Latest note: "JWT rotation working, adding tests"  │  │
+│  │ 📄 Can read src/auth/jwt.ts via HFP (copy-on-write)   │  │
+│  └────────────────────────────────────────────────────────┘  │
+│                                                             │
+│  Bob's agent decides:                                       │
+│  "Auth module is in flux. I'll code against the INTERFACE   │
+│   (reading jwt.ts via HFP) but not modify auth files.       │
+│   My login page will call the auth API once Alice finishes." │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### The Five Primitives That Enable This
+
+1. **File claims** (existing) → prevents collision
+2. **Pheromones** (Part XV) → ambient awareness of activity hotspots
+3. **HFP** (Gap 1) → read remote files to code against interfaces
+4. **Anchors** (Part XXVII) → structured task visibility
+5. **Pub/sub** (existing) → real-time event notifications
+
+### What's Missing: The Awareness Layer
+
+The primitives exist but there's no unified "awareness" that an AI agent can
+consume. Each agent needs to understand, in one API call:
+
+```bash
+pd awareness
+# → Harbor: myapp (2 peers connected)
+# → Active agents: 2
+# →
+# → HOT ZONES (pheromone heat > 0.5):
+# →   src/auth/**     heat: 0.87  claimed by: agent-a (alice-macbook)
+# →   src/pages/**    heat: 0.65  claimed by: agent-b (bob-desktop)
+# →
+# → ACTIVE ANCHORS:
+# →   anch_7f3k  "JWT refresh tokens"     → agent-a  ACTIVE
+# →   anch_9d2m  "Login page + OAuth"     → agent-b  ACTIVE
+# →
+# → FILE CONFLICTS: none
+# → RECENT EVENTS (last 5m):
+# →   agent-a noted: "JWT rotation working, adding tests"
+# →   agent-b claimed: src/api/auth.ts
+# →
+# → SUGGESTIONS:
+# →   src/api/auth.ts is claimed by BOTH agents — coordinate or split
+```
+
+This becomes an MCP tool: `harbor_awareness` — returns a structured snapshot
+that the AI agent can reason about for task planning.
+
+### Banner Feature: "Live Pair Programming for AI Agents"
+
+Marketing framing: "Your Claude and their Cursor, in the same harbor, aware of
+each other's work, avoiding conflicts automatically."
+
+This is the feature that makes harbors tangible. Not "cryptographic capability
+tokens" (true but boring). **Two AI agents pair-programming across machines.**
+
+---
+
+## Gap 9: Cross-Harbor Agent Mobility
+
+### The Problem
+
+An agent starts in the `myapp` harbor. It needs to consult a shared knowledge
+base in the `team-kb` harbor. Currently, it would need to disconnect from one
+and connect to the other. Can an agent be in multiple harbors?
+
+### Proposed Solution: Multi-Harbor Membership
+
+An agent can hold harbor cards for multiple harbors simultaneously. Each request
+specifies which harbor it's operating in (via the `X-Harbor-Card` header).
+
+```bash
+pd harbor enter team-kb --cap kb:read
+# → Now in 2 harbors: myapp (full), team-kb (kb:read only)
+
+pd query team-kb:kb:auth-patterns
+# → [reading from team-kb harbor]
+
+pd note "Applied auth pattern from team-kb to our JWT module"
+# → [note written to myapp harbor — determined by active session]
+```
+
+The agent's "primary" harbor is determined by its active session. Other harbors
+are "auxiliary" — the agent can read from them but writes go to the primary.
+
+This enables a knowledge-sharing pattern:
+- `team-kb` harbor: shared engineering knowledge, read-only for most agents
+- `myapp` harbor: active development, read-write for project agents
+- An agent reads patterns from `team-kb`, applies them in `myapp`
+
+---
+
+## Gap 10: Data Sovereignty and Source of Truth
+
+### The Problem
+
+Two daemons sync bidirectionally. Both have copies of session notes, anchors, and
+KV entries. Which one is the source of truth? If they diverge (partition), which
+one wins?
+
+The plan says "LWW by HLC" (last-writer-wins by Hybrid Logical Clock). But this
+doesn't address the *semantic* question: who OWNS the data?
+
+### Proposed Solution: Origin Tagging
+
+Every piece of synchronized data gets an `origin_node` field:
+
+```sql
+ALTER TABLE sessions ADD COLUMN origin_node TEXT;        -- daemon that created it
+ALTER TABLE session_notes ADD COLUMN origin_node TEXT;
+ALTER TABLE harbor_kv ADD COLUMN origin_node TEXT;
+ALTER TABLE anchors ADD COLUMN origin_node TEXT;
+```
+
+Rules:
+1. **Creator owns**: The daemon that created a record is the origin
+2. **Origin wins on conflict**: If two daemons modify the same record during a
+   partition, the origin's version wins (not just latest-by-HLC)
+3. **Non-origin can append, not overwrite**: Bob's daemon can add notes to Alice's
+   session, but can't modify Alice's existing notes (they're immutable anyway)
+4. **Deletes require origin**: Only the origin daemon can delete a record. Other
+   daemons can request deletion via a `delete-request` frame.
+
+This preserves data sovereignty: your data lives on your machine. Other machines
+have replicas, but you're the authority.
+
+---
+
+## Gap 11: Bandwidth and Resource Limits
+
+### The Problem
+
+The plan has rate limiting for HTTP (100 req/min) but nothing for harbor sync.
+A rogue peer could:
+- Request every file in `offers.files` simultaneously (DoS via file fetch)
+- Flood the sync channel with mutations
+- Exhaust disk space with large KV entries or file changesets
+
+### Proposed Solution: Harbor Resource Quotas
+
+In lighthouse.json (already covered in Gap 6):
+
+```json
+"limits": {
+  "max_peers": 10,
+  "max_agents_per_peer": 5,
+  "file_cache_limit_mb": 500,
+  "bandwidth_limit_mbps": 50,
+  "max_file_fetch_concurrent": 3,
+  "max_file_size_mb": 10,
+  "max_kv_entry_size_kb": 256,
+  "max_changesets_pending": 20,
+  "sync_frame_rate_limit": 100    // frames per second per peer
+}
+```
+
+Enforcement happens at the providing daemon. Exceeded limits return
+`rate-limited` frames with backoff instructions. The consuming daemon
+backs off exponentially (same pattern as Part XVII reconnection).
+
+---
+
+## Gap 12: The `lighthouse.json` → Existing Tunnel Feature Bridge
+
+### The Problem
+
+Port Daddy already has `lib/tunnel.ts` with cloudflare/ngrok support. Part III
+describes `pd lighthouse serve` for discovery. These are two unrelated features
+that share a name collision with the lighthouse.json config.
+
+### Proposed Solution: Clean Separation
+
+| Concept | What It Is | File |
+|---------|-----------|------|
+| **Tunnel** | Public URL for a local port (cloudflare/ngrok) | `lib/tunnel.ts` |
+| **Lighthouse** | Discovery registry for harbor endpoints | `lib/lighthouse-server.ts` |
+| **lighthouse.json** | Harbor configuration manifest | `lib/harbor-config.ts` |
+| **Relay** | Store-and-forward buffer for offline peers | `lib/relay.ts` (new) |
+
+The lighthouse.json file is renamed to **`harbor.json`** to avoid confusion with
+the lighthouse discovery service. Or alternatively, keep `lighthouse.json` but
+be explicit in docs that:
+- A **lighthouse** is a beacon that helps others find you
+- A **tunnel** is a pipe that forwards traffic
+- A **relay** is a mailbox that buffers messages
+
+Actually — the maritime metaphor resolves this naturally:
+- **Lighthouse**: "I'm here, come find me" (discovery/advertisement)
+- **Harbor**: "Here are the rules and what's available" (configuration)
+- **Channel**: "Traffic flows through here" (tunnels and sync)
+- **Buoy**: "Messages waiting for you" (relay buffer)
+
+So the config file is `harbor.json`, the discovery service is the lighthouse,
+tunnels remain tunnels, and the relay is a buoy.
+
+---
+
+## Summary: Impact on V4 DAG
+
+| Gap | New Module(s) | LOE | Ships In | Depends On |
+|-----|--------------|-----|----------|------------|
+| 1. File Transport (HFP) | `lib/harbor-files.ts` | ~600 | V4.1 | XVII, I, XII |
+| 2. Departure Protocol | `lib/departure.ts` | ~400 | V4.1 | XVII, XXVIII.1 |
+| 3. Harbor Tunnels | amendments to `lib/tunnel.ts` | ~300 | V4.1 | XVII, existing tunnels |
+| 4. Cross-Peer Salvage | amendments to `lib/resurrection.ts` | ~200 | V4.1 | XVII, XXVII |
+| 5. Resilience Tiers | `lib/relay.ts` | ~400 | V4.2 | XVII, lighthouse |
+| 6. harbor.json Spec | `lib/harbor-config.ts` | ~200 | V4.0 | I |
+| 7. Co-op Governance | `lib/harbor-governance.ts` | ~300 | V4.2 | XVII, harbor.json |
+| 8. Awareness Layer | `lib/awareness.ts`, MCP tool | ~300 | V4.1 | XV, XVII, XXVII |
+| 9. Multi-Harbor Membership | amendments to middleware | ~200 | V4.1 | I |
+| 10. Origin Tagging | schema + conflict resolver | ~150 | V4.0 | XVII |
+| 11. Resource Quotas | amendments to sync protocol | ~200 | V4.1 | XVII |
+| 12. Naming Clarification | renames + docs | ~50 | V4.0 | — |
+
+**Total new LOE:** ~3,300 lines (roughly equal to the existing critical path)
+
+**Critical insight:** Gaps 1 (HFP), 2 (Departure), 8 (Awareness), and 10
+(Origin Tagging) should be considered for the critical path. Without file
+transport, remote harbors are coordination-only (no code sharing). Without
+departure, disconnection is data loss. Without awareness, agents can't reason
+about each other. Without origin tagging, partitions cause data sovereignty
+violations.
+
+### Proposed Addition to Critical Path
+
+```
+                    Part XVII (Sync)
+                         │
+            ┌────────────┼────────────┐
+            ▼            ▼            ▼
+      Gap 1 (HFP)   Gap 10       Gap 8
+      File Transport  Origin Tags  Awareness
+            │            │            │
+            ▼            ▼            ▼
+      Gap 2          Parts II/III   Gap 4
+      Departure      Remote Harbors Cross-Peer Salvage
+```
+
+### Three Killer App Scenarios
+
+**1. Tandem Vibe Coding** (Gap 8)
+Two developers, each with AI agents, same codebase, real-time awareness.
+"Cursor on your laptop and Claude on your desktop, pair-programming through
+the harbor." This is the demo that sells the product.
+
+**2. Harbor Co-op** (Gap 7)
+An open-source project creates a harbor. Contributors enter, claim anchors,
+submit work. The harbor is the CI/CD-free coordination layer. "GitHub Issues
+but for AI agents, with cryptographic accountability."
+
+**3. Knowledge Foraging** (Gap 9)
+An agent reads from a shared `team-patterns` harbor, applies knowledge to its
+local `myapp` harbor. Cross-pollination without merge conflicts. "Your agents
+learn from the team's collective intelligence, automatically."
+
+---
+
+## What's NOT in This Analysis (Deferred)
+
+1. **Harbor marketplace** — agents bidding on anchors across harbors. This is
+   Part XXVII Layer 3 territory. Build the local economy first.
+2. **Harbor federation** — harbors connecting to other harbors (not peers).
+   This is a meta-coordination problem for V5+.
+3. **AI-to-AI negotiation** — agents autonomously negotiating anchor terms.
+   Cool but dangerous. Needs the credit economy (V4.2+) first.
+4. **File conflict resolution** — what if two agents edit the same file via
+   `direct-write` mode? CRDTs for code are an unsolved problem. For now,
+   `copy-on-write` with human review is the safe default.
+5. **Harbor inheritance** — a child harbor that inherits permissions from a
+   parent. Interesting for monorepo workspaces but adds complexity.
