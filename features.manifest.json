@@ -52,8 +52,7 @@
         "list",
         "l",
         "services",
-        "ps",
-        "status"
+        "ps"
       ],
       "sdk": [
         "listServices",
@@ -69,8 +68,7 @@
         "list",
         "l",
         "services",
-        "ps",
-        "status"
+        "ps"
       ],
       "docs": {
         "readme": true,
@@ -424,7 +422,10 @@
         "up",
         "down"
       ],
-      "sdk": [],
+      "sdk": [
+        "up",
+        "down"
+      ],
       "routes": [
         "POST /orchestrator/up",
         "POST /orchestrator/down",
@@ -438,7 +439,7 @@
       ],
       "docs": {
         "readme": true,
-        "sdk": false
+        "sdk": true
       }
     },
     "scan": {
@@ -524,6 +525,8 @@
       ],
       "routes": [
         "GET /activity",
+        "GET /activity/range",
+        "GET /activity/summary",
         "GET /activity/stats",
         "GET /activity/timeline",
         "GET /activity/subscribe",
@@ -566,10 +569,11 @@
     "system": {
       "description": "System info and config",
       "cli": [
-        "version",
         "metrics",
         "config",
-        "dashboard"
+        "dashboard",
+        "status",
+        "version"
       ],
       "sdk": [
         "version",
@@ -578,36 +582,23 @@
         "ping"
       ],
       "routes": [
+        "GET /status",
         "GET /version",
         "GET /metrics",
         "GET /config",
-        "GET /dashboard/events"
+        "GET /dashboard/events",
+        "GET /ping"
       ],
       "completions": [
-        "version",
         "metrics",
         "config",
-        "dashboard"
-      ],
-      "docs": {
-        "readme": true,
-        "sdk": true
-      }
-    },
-    "info": {
-      "description": "General system information",
-      "cli": [],
-      "sdk": [],
-      "routes": [
-        "GET /status"
-      ],
-      "completions": [
+        "dashboard",
         "status",
         "version"
       ],
       "docs": {
         "readme": true,
-        "sdk": false
+        "sdk": true
       }
     },
     "daemon": {
@@ -962,7 +953,7 @@
         "demo"
       ],
       "docs": {
-        "readme": false,
+        "readme": true,
         "sdk": false
       }
     }

@@ -56,7 +56,7 @@ describe('portdaddy.dev — demo GIFs in production', () => {
     const html = await res.text();
 
     const slideMatches = html.match(/class="slider-pip/g) || [];
-    expect(slideMatches.length).toBe(2);
+    expect(slideMatches.length).toBe(3);
   });
 
   test('both GIF files are non-trivial size (>100KB each)', async () => {

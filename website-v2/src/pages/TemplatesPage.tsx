@@ -7,48 +7,48 @@ export function TemplatesPage() {
     {
       title: 'Encrypted Messenger',
       description: 'End-to-End Encrypted messaging between agents using asymmetric Harbor Cards and the inbox dead-drop.',
-      icon: <MessageSquare className="w-6 h-6 text-[var(--brand-primary)]" />,
+      icon: <MessageSquare className="w-6 h-6 text-brand-primary" />,
       complexity: 'Beginner',
-      path: 'templates/encrypted-messenger'
+      path: 'https://github.com/erichowens/port-daddy/tree/main/examples/inbox'
     },
     {
       title: 'Resource Auction',
       description: 'Stigmergic task allocation. Agents bid on semantic tokens using pheromones to coordinate without a master.',
-      icon: <Gavel className="w-6 h-6 text-[var(--brand-secondary)]" />,
+      icon: <Gavel className="w-6 h-6 text-brand-secondary" />,
       complexity: 'Advanced',
-      path: 'templates/resource-auction'
+      path: 'https://github.com/erichowens/port-daddy/tree/main/examples/coordination'
     },
     {
       title: 'Auto-Reaper',
       description: 'A lifecycle guard that watches for "Man Overboard" signals and automatically prunes zombie processes.',
-      icon: <Trash2 className="w-6 h-6 text-[var(--status-error)]" />,
+      icon: <Trash2 className="w-6 h-6 text-brand-accent" />,
       complexity: 'Intermediate',
-      path: 'templates/auto-reaper'
+      path: 'https://github.com/erichowens/port-daddy/tree/main/examples/ci'
     }
   ];
 
   return (
-    <div className="min-h-screen pt-32 pb-24 bg-[var(--bg-base)]">
-      <div className="max-w-6xl mx-auto px-6 lg:px-8">
+    <div className="min-h-screen pt-32 pb-24 bg-bg-base font-sans selection:bg-brand-primary selection:text-brand-on-primary">
+      <div className="max-w-7xl mx-auto px-6 lg:px-12">
         <header className="mb-20">
           <motion.h1 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-5xl sm:text-7xl font-display font-black tracking-tighter mb-6 text-[var(--text-primary)]"
+            className="text-5xl sm:text-8xl font-display font-black tracking-tighter mb-6 text-text-primary"
           >
-            Built on <span className="text-[var(--brand-primary)]">Anchor.</span>
+            Built on <span className="text-brand-primary">Anchor.</span>
           </motion.h1>
           <motion.p 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="text-xl text-[var(--text-secondary)] max-w-2xl leading-relaxed"
+            className="text-xl sm:text-2xl text-text-secondary max-w-3xl leading-relaxed font-bold"
           >
             Start building secure, coordinate agent swarms today. These exemplary templates show you exactly how to use our core primitives.
           </motion.p>
         </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
           {templates.map((template, i) => (
             <motion.div
               key={template.title}
@@ -56,22 +56,23 @@ export function TemplatesPage() {
               whileInView={{ opacity: 1, scale: 1 }}
               transition={{ delay: i * 0.1 }}
               viewport={{ once: true }}
-              className="p-8 rounded-[32px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--brand-primary)] transition-all flex flex-col gap-6 group"
+              className="p-10 rounded-[56px] bg-bg-surface border border-border-subtle hover:border-brand-primary transition-all flex flex-col gap-8 group shadow-lg"
+              onClick={() => window.open(template.path, '_blank')}
             >
-              <div className="w-14 h-14 rounded-2xl bg-[var(--bg-overlay)] border border-[var(--border-subtle)] flex items-center justify-center group-hover:scale-110 transition-transform">
+              <div className="w-16 h-16 rounded-[32px] bg-bg-overlay border border-border-subtle flex items-center justify-center group-hover:scale-110 transition-transform shadow-md">
                 {template.icon}
               </div>
-              <div className="space-y-3">
+              <div className="space-y-4 flex-1">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-display font-bold text-[var(--text-primary)]">{template.title}</h2>
-                  <Badge variant="neutral" className="text-[8px] font-black uppercase tracking-widest">{template.complexity}</Badge>
+                  <h2 className="text-3xl font-display font-black text-text-primary">{template.title}</h2>
+                  <Badge variant="neutral" className="text-[8px] font-black uppercase tracking-widest bg-bg-overlay border border-border-subtle text-text-muted">{template.complexity}</Badge>
                 </div>
-                <p className="text-lg text-[var(--text-secondary)] leading-snug">
+                <p className="text-lg text-text-secondary leading-relaxed font-bold">
                   {template.description}
                 </p>
               </div>
-              <div className="mt-auto pt-4 flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-[var(--brand-primary)] cursor-pointer">
-                View Code <ArrowRight size={16} />
+              <div className="mt-auto pt-6 flex items-center gap-2 text-xs font-black uppercase tracking-widest text-brand-primary cursor-pointer border-t border-border-subtle group-hover:border-brand-primary transition-colors">
+                View Source <ArrowRight size={16} />
               </div>
             </motion.div>
           ))}

@@ -19,24 +19,31 @@ if (!agentId) {
   process.exit(1);
 }
 
-const intervalMs = 5_000;
 const pd = new PortDaddy({ agentId });
 
-async function poll(): Promise<void> {
-  const { messages } = await pd.inboxList(agentId, { unreadOnly: true });
-  for (const msg of messages) {
-    const ts = new Date(msg.createdAt).toISOString().slice(11, 19);
-    const from = msg.from ?? 'system';
-    console.log(`[${ts}] [${msg.type}] ${from}: ${msg.content}`);
-    await pd.inboxMarkRead(agentId, msg.id);
-  }
-}
-
-console.log(`Monitoring inbox for "${agentId}" every ${intervalMs / 1000}s...`);
+console.log(`Monitoring inbox for "${agentId}" via real-time pub/sub...`);
 console.log('Ctrl+C to stop.\n');
 
-// Initial poll, then interval
-poll().catch(console.error);
-setInterval(() => {
-  poll().catch(console.error);
-}, intervalMs);
+// Subscribe to real-time inbox messages
+const sub = pd.inboxSubscribe(agentId);
+
+sub.on('message', async (data: any) => {
+  // data is the full message object published by the server
+  const ts = new Date(data.createdAt || Date.now()).toISOString().slice(11, 19);
+  const from = data.from || data.sender || 'system';
+  
+  console.log(`[${ts}] [${data.type || 'message'}] ${from}: ${data.content}`);
+  
+  // Mark as read after receiving
+  if (data.id) {
+    await pd.inboxMarkRead(agentId, data.id);
+  }
+});
+
+sub.on('error', (err) => {
+  console.error('Subscription error:', err);
+});
+
+sub.on('connected', () => {
+  console.log('📡 Connected to swarm radio. Waiting for messages...');
+});

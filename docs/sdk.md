@@ -270,6 +270,33 @@ await pd.clearChannel('builds');
 
 ---
 
+## Port Inspector
+
+```javascript
+// List all active port assignments
+const { ports } = await pd.listActivePorts();
+
+// Get OS-level port usage
+const { systemPorts } = await pd.getSystemPorts();
+
+// Perform internal registry cleanup
+await pd.cleanup();
+```
+
+---
+
+## Orchestration
+
+```javascript
+// Start all services in a Harbor
+await pd.up();
+
+// Teardown all services
+await pd.down();
+```
+
+---
+
 ## Distributed Locks
 
 ```javascript

@@ -396,6 +396,6 @@ describe('Integration Signals', () => {
     });
 
     expect(received.length).toBe(1);
-    expect(received[0].payload).toContain('"type":"ready"');
+    expect(received[0].payload).toMatchObject({ type: 'ready' });
   });
 });

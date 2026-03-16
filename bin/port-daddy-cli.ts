@@ -108,7 +108,7 @@ const TIER_1_COMMANDS: Set<string> = new Set([
   'release', 'r',
   'find', 'f', 'list', 'l', 'ps',
   'lock', 'unlock', 'locks',
-  'status',
+  'status', 'version',
   'ports',               // 'ports cleanup' is Tier 1
   'session', 'sessions',
   'note', 'notes',
@@ -821,7 +821,7 @@ const ALL_COMMANDS: string[] = [
   'services', 'dns', 'briefing', 'integration',
   'b', 'w', 'who-owns', 'history', 'tutorial', 'files',
   'spawn', 'spawned', 'watch',
-  'harbor', 'harbors',
+  'harbor', 'harbors', 'demo',
 ];
 
 /** Simple Levenshtein distance for short strings */
@@ -939,7 +939,7 @@ async function executeDirectMode(
           console.error(maritimeStatus('success', `${highlightChannel(result.id as string)} → port ${result.port}`));
           if (result.existing) console.error('  (reused existing)');
         }
-        console.log(result.port);
+        process.stdout.write(`${result.port}\n`);
       }
       return true;
     }

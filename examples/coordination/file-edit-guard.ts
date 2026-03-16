@@ -105,23 +105,23 @@ async function watch(filePath: string) {
   console.log(`   Channel: ${channel}`);
   console.log(`   Press Ctrl+C to stop\n`);
 
-  // Poll for messages (in a real implementation, use SSE)
-  let lastId = 0;
-  setInterval(async () => {
-    try {
-      const messages = await client.getMessages(channel, { since: lastId, limit: 10 });
-      for (const msg of messages.messages ?? []) {
-        if (msg.id > lastId) {
-          lastId = msg.id;
-          const payload = typeof msg.payload === 'string' ? JSON.parse(msg.payload) : msg.payload;
-          const icon = payload.type === 'claim' ? '🔒' : payload.type === 'release' ? '🔓' : '📝';
-          console.log(`${icon} [${payload.agent}] ${payload.message}`);
-        }
-      }
-    } catch {
-      // Ignore polling errors
-    }
-  }, 1000);
+  // Subscribe to real-time messages
+  const sub = client.subscribe(channel);
+
+  sub.on('message', (msg: any) => {
+    // Note: client.subscribe now returns parsed objects for JSON content
+    const payload = msg.payload;
+    const icon = payload.type === 'claim' ? '🔒' : payload.type === 'release' ? '🔓' : '📝';
+    console.log(`${icon} [${payload.agent}] ${payload.message}`);
+  });
+
+  sub.on('error', (err) => {
+    console.error('Subscription error:', err);
+  });
+
+  sub.on('connected', () => {
+    console.log('📡 Connected to swarm radio. Waiting for signals...');
+  });
 }
 
 async function status(filePath: string) {

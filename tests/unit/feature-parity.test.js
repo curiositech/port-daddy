@@ -370,16 +370,19 @@ describe('Manifest Completeness', () => {
       config: 'system',
       projects: 'projects',
       sessions: 'sessions',
-      info: 'system',
+      status: 'system',
+      version: 'system',
       resurrection: 'salvage',
       changelog: 'changelog',
       tunnel: 'tunnel',
       dns: 'dns',
       briefing: 'briefing',
       sugar: 'sugar',
+      info: 'system',
       launchhints: 'launch_hints',
       spawn: 'spawn',
       harbors: 'harbors',
+      orchestrator: 'orchestrator',
     };
 
     const unmapped = routeModules.filter(mod => {

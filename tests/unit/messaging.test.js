@@ -498,9 +498,9 @@ describe('Messaging Module', () => {
         })
       );
 
-      // Verify the payload is the JSON string (subscribers get raw payload)
+      // Verify the payload is the parsed object (subscribers now get hydrated payload)
       const call = callback.mock.calls[0][0];
-      expect(call.payload).toBe(JSON.stringify(payload));
+      expect(call.payload).toEqual(payload);
     });
   });
 

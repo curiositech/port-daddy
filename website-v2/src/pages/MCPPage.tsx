@@ -1,17 +1,38 @@
 import * as React from 'react'
 import { motion, useScroll, useSpring } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
-import { Terminal, Shield, Zap, History, Anchor, Search, Cpu, Globe, MessageSquare, Lock, Copy, Check, Rocket, Layers, Mail, RefreshCw } from 'lucide-react'
+import { Terminal, Shield, Zap, History, Anchor, Globe, MessageSquare, Copy, Check, Rocket, Mail, RefreshCw, Download } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
 
 /* ─── Data ─────────────────────────────────────────────────────────────────── */
+
+const INSTALL_STEPS = [
+  {
+    title: 'Install the Daemon',
+    description: 'Port Daddy requires the local control plane. Install it via Homebrew or npm.',
+    icon: Download,
+    code: 'brew install erichowens/tap/port-daddy'
+  },
+  {
+    title: 'Initialize MCP',
+    description: 'One command to register the protocol handler and generate your credentials.',
+    icon: Terminal,
+    code: 'pd mcp install'
+  },
+  {
+    title: 'Agent Handshake',
+    description: 'Open Claude or Cursor. Your agents will automatically detect the new capabilities.',
+    icon: Rocket,
+    code: 'pd start'
+  }
+]
 
 const ESSENTIAL_TOOLS = [
   {
     name: 'begin_session',
     description: 'The agent entry point. Registers identity, starts a work venture, and claims initial files in one atomic handshake.',
     icon: Rocket,
-    color: 'var(--p-teal-400)',
+    color: 'var(--brand-primary)',
     example: `await begin_session({
   purpose: "Refactoring the auth middleware",
   identity: "myapp:api:auth",
@@ -22,17 +43,17 @@ const ESSENTIAL_TOOLS = [
     name: 'claim_port',
     description: 'Deterministic port assignment. Ensures semantic identities always map to the same port across restarts.',
     icon: Anchor,
-    color: 'var(--p-blue-400)',
+    color: 'var(--brand-accent)',
     example: `const { port } = await claim_port({
   identity: "myapp:api:main"
 })
-// → Port 3102 (Always assigned to this identity)`,
+// → Port 3102`,
   },
   {
     name: 'add_note',
     description: 'The immutable swarm ledger. Leave timestamped context for other agents or the human harbormaster.',
     icon: MessageSquare,
-    color: 'var(--p-amber-400)',
+    color: 'var(--brand-primary)',
     example: `await add_note({
   content: "Middleware updated. JWT shape changed.",
   type: "decision"
@@ -42,7 +63,7 @@ const ESSENTIAL_TOOLS = [
     name: 'check_salvage',
     description: 'Self-healing discovery. Identify work escrowed from dead or crashed agents in your harbor.',
     icon: RefreshCw,
-    color: 'var(--p-purple-400)',
+    color: 'var(--brand-secondary)',
     example: `const { pending } = await check_salvage({
   identity_prefix: "myapp"
 })`,
@@ -50,10 +71,10 @@ const ESSENTIAL_TOOLS = [
 ]
 
 const CATEGORIES = [
-  { id: 'ports', label: 'Atomic Ports', icon: Anchor, color: 'var(--p-blue-400)', count: 8 },
-  { id: 'security', label: 'Cryptographic Harbors', icon: Shield, color: 'var(--p-teal-400)', count: 12 },
-  { id: 'radio', label: 'Swarm Radio', icon: Zap, color: 'var(--p-amber-400)', count: 6 },
-  { id: 'inbox', label: 'Agent Inboxes', icon: Mail, color: 'var(--p-purple-400)', count: 5 },
+  { id: 'ports', label: 'Atomic Ports', icon: Anchor, count: 8 },
+  { id: 'security', label: 'Cryptographic Harbors', icon: Shield, count: 12 },
+  { id: 'radio', label: 'Swarm Radio', icon: Zap, count: 6 },
+  { id: 'inbox', label: 'Agent Inboxes', icon: Mail, count: 5 },
   { id: 'mesh', label: 'Global Mesh', icon: Globe, count: 9 },
   { id: 'audit', label: 'Immutable Audit', icon: History, count: 7 }
 ]
@@ -68,7 +89,7 @@ function ToolCard({ tool }: { tool: any }) {
 
   return (
     <motion.div 
-      className="p-12 rounded-[64px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-10 group hover:border-[var(--border-strong)] transition-all shadow-2xl relative overflow-hidden flex flex-col items-center text-center"
+      className="p-12 rounded-[64px] bg-bg-surface border border-border-subtle space-y-10 group hover:border-brand-primary transition-all shadow-2xl relative overflow-hidden flex flex-col items-center text-center"
       whileHover={{ y: -8 }}
     >
        <div className="absolute top-0 right-0 p-10 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity">
@@ -77,25 +98,24 @@ function ToolCard({ tool }: { tool: any }) {
 
        <div className="flex flex-col items-center gap-6 relative z-10">
           <motion.div 
-            className="w-20 h-20 rounded-[32px] flex items-center justify-center border shadow-lg"
-            style={{ background: `${tool.color}10`, borderColor: `${tool.color}20` }}
+            className="w-20 h-20 rounded-[32px] flex items-center justify-center border shadow-lg bg-bg-overlay border-border-subtle"
           >
              <tool.icon size={40} style={{ color: tool.color }} />
           </motion.div>
           <div className="space-y-2 flex flex-col items-center">
-             <code className="text-2xl font-black font-mono" style={{ color: tool.color }}>{tool.name}</code>
-             <Badge variant="teal" className="px-3 py-1 text-[8px] font-black uppercase tracking-widest shadow-sm">Essential Primitive</Badge>
+             <code className="text-2xl font-black font-mono text-text-primary">{tool.name}</code>
+             <Badge variant="teal" className="px-3 py-1 text-[8px] font-black uppercase tracking-widest shadow-sm bg-bg-overlay border border-brand-primary text-brand-primary">Essential Primitive</Badge>
           </div>
        </div>
 
-       <motion.p className="text-xl leading-relaxed opacity-70 m-0 relative z-10 font-medium max-w-sm">
+       <motion.p className="text-xl leading-relaxed text-text-secondary m-0 relative z-10 font-bold max-w-sm">
           {tool.description}
        </motion.p>
        
-       <motion.div className="w-full relative rounded-[40px] bg-[var(--bg-overlay)] p-10 font-mono text-sm overflow-hidden group-hover:bg-[var(--interactive-active)] transition-colors border border-[var(--border-subtle)] text-left">
+       <motion.div className="w-full relative rounded-[40px] bg-bg-overlay p-10 font-mono text-sm overflow-hidden border border-border-subtle text-left">
           <div className="flex items-start justify-between gap-8">
-             <pre className="opacity-60 m-0 leading-relaxed overflow-x-auto whitespace-pre-wrap">{tool.example}</pre>
-             <button onClick={handleCopy} className="shrink-0 text-[var(--brand-primary)] opacity-40 hover:opacity-100 transition-opacity pt-1">
+             <pre className="text-text-muted m-0 leading-relaxed overflow-x-auto whitespace-pre-wrap font-bold">{tool.example}</pre>
+             <button onClick={handleCopy} className="shrink-0 text-brand-primary opacity-40 hover:opacity-100 transition-opacity pt-1">
                 {copied ? <Check size={20} /> : <Copy size={20} />}
              </button>
           </div>
@@ -104,7 +124,7 @@ function ToolCard({ tool }: { tool: any }) {
   )
 }
 
-export default function MCPPage() {
+export default function McpPage() {
   const { scrollYProgress } = useScroll()
   const scaleX = useSpring(scrollYProgress, {
     stiffness: 100,
@@ -116,161 +136,126 @@ export default function MCPPage() {
     <motion.div 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen bg-[var(--bg-base)] flex flex-col pt-[var(--nav-height)] font-sans selection:bg-[var(--brand-primary)] selection:text-white"
+      className="min-h-screen bg-bg-base flex flex-col font-sans selection:bg-brand-primary selection:text-brand-on-primary"
     >
+      <NavStub />
+      
       <motion.div
-        className="fixed top-0 left-0 right-0 h-1 bg-[var(--brand-primary)] z-[100] origin-left shadow-[0_0_12px_rgba(58,173,173,0.5)]"
-        style={{ scaleX, top: 'var(--nav-height)' }}
+        className="fixed top-0 left-0 right-0 h-1 bg-brand-primary z-[150] origin-left"
+        style={{ scaleX, top: '80px' }}
       />
 
       {/* Hero Section */}
       <motion.section 
-        className="py-20 px-6 sm:px-8 lg:px-10 border-b relative overflow-hidden flex flex-col items-center justify-center text-center" 
-        style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}
+        className="pt-40 pb-24 px-6 sm:px-8 lg:px-12 border-b border-border-subtle relative overflow-hidden flex flex-col items-center justify-center text-center bg-bg-base"
       >
-        <motion.div 
-          className="absolute top-0 right-0 w-[800px] h-[800px] rounded-full blur-[160px] opacity-[0.1] pointer-events-none" 
-          style={{ background: 'radial-gradient(circle, var(--brand-primary) 0%, transparent 70%)' }} 
-        />
-        
-        <div className="max-w-5xl mx-auto relative z-10 flex flex-col items-center gap-8">
-           <Badge variant="teal" className="px-8 py-3 text-[10px] font-black uppercase tracking-[0.25em] shadow-xl">Model Context Protocol</Badge>
+        <div className="max-w-5xl mx-auto relative z-10 flex flex-col items-center gap-10">
+           <Badge variant="teal" className="px-8 py-3 text-[10px] font-black uppercase tracking-[0.25em] shadow-xl bg-bg-overlay border border-brand-primary text-brand-primary">Model Context Protocol</Badge>
            <motion.h1 
-             className="text-4xl sm:text-6xl font-black tracking-tighter font-display leading-[0.85] m-0 text-[var(--text-primary)]"
+             className="text-5xl sm:text-8xl font-black tracking-tighter font-display leading-[0.85] m-0 text-text-primary"
              initial={{ opacity: 0, y: 32 }}
              animate={{ opacity: 1, y: 0 }}
              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
            >
              Context is <br />
-             <span className="text-[var(--brand-primary)]">Coordination.</span>
+             <span className="text-brand-primary">Coordination.</span>
            </motion.h1>
            <motion.p 
-             className="text-xl sm:text-2xl max-w-4xl leading-relaxed text-[var(--text-secondary)] font-medium"
+             className="text-xl sm:text-3xl max-w-4xl leading-relaxed text-text-secondary font-bold"
              initial={{ opacity: 0, y: 20 }}
              animate={{ opacity: 1, y: 0 }}
              transition={{ duration: 0.8, delay: 0.1 }}
            >
-             60+ production-grade tools across 17 categories. One install command to give your agents the infrastructure they deserve.
+             One install command to give your agents the coordination infrastructure they deserve. 60+ production-grade tools for the modern swarm.
            </motion.p>
-
-           <div className="flex flex-col items-center gap-8 pt-12 w-full">
-              <motion.div 
-                className="inline-flex flex-col sm:flex-row items-center gap-6 px-12 py-8 rounded-[48px] bg-[var(--bg-overlay)] border border-[var(--border-strong)] font-mono text-xl shadow-2xl relative overflow-hidden group"
-                whileHover={{ scale: 1.02 }}
-              >
-                 <div className="absolute inset-0 bg-gradient-to-r from-[var(--brand-primary)]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                 <div className="flex items-center gap-4 relative z-10">
-                    <Terminal size={32} className="text-[var(--brand-primary)]" />
-                    <span className="font-black tracking-tight text-[var(--text-primary)]">pd mcp install</span>
-                 </div>
-                 <div className="h-8 w-[1px] bg-[var(--border-strong)] hidden sm:block relative z-10" />
-                 <motion.span className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] relative z-10">One Handshake</motion.span>
-              </motion.div>
-              <motion.p className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--text-muted)] m-0">Supports Claude Code, Cursor, and Continue.dev</motion.p>
-           </div>
         </div>
       </motion.section>
 
+      {/* Installation Guide */}
+      <section className="py-24 bg-bg-surface border-b border-border-subtle">
+        <div className="max-w-7xl mx-auto px-6 lg:px-12 flex flex-col items-center">
+           <div className="text-center mb-20 space-y-6">
+              <Badge variant="neutral" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest bg-bg-overlay border border-border-strong text-text-primary">Getting Started</Badge>
+              <h2 className="text-4xl sm:text-6xl font-display font-black text-text-primary tracking-tighter">Instant Integration.</h2>
+           </div>
+
+           <div className="grid md:grid-cols-3 gap-12 w-full">
+              {INSTALL_STEPS.map((step, i) => (
+                <motion.div 
+                  key={step.title}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.1 }}
+                  viewport={{ once: true }}
+                  className="p-10 rounded-[48px] bg-bg-base border border-border-subtle flex flex-col gap-8 group hover:border-brand-primary transition-all shadow-lg"
+                >
+                   <div className="w-14 h-14 rounded-2xl bg-bg-overlay border border-border-subtle flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <step.icon size={28} className="text-brand-primary" />
+                   </div>
+                   <div className="space-y-4">
+                      <h3 className="text-2xl font-display font-black text-text-primary">{step.title}</h3>
+                      <p className="text-text-secondary leading-relaxed font-bold">{step.description}</p>
+                   </div>
+                   <div className="mt-auto p-6 rounded-2xl bg-bg-overlay border border-border-subtle font-mono text-xs text-brand-primary font-black overflow-x-auto whitespace-nowrap">
+                      $ {step.code}
+                   </div>
+                </motion.div>
+              ))}
+           </div>
+        </div>
+      </section>
+
       {/* Main Content */}
-      <motion.main className="flex-1 py-20 px-6 sm:px-8 lg:px-10 max-w-7xl mx-auto w-full font-sans flex flex-col items-center">
+      <motion.main className="py-24 px-6 sm:px-8 lg:px-12 max-w-7xl mx-auto w-full font-sans flex flex-col items-center">
         
         {/* Progressive Disclosure */}
-        <section className="mb-32 space-y-20 w-full flex flex-col items-center">
-           <div className="flex flex-col items-center text-center gap-8 border-b border-[var(--border-subtle)] pb-20 w-full max-w-4xl">
-              <Badge variant="neutral" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest shadow-md">Agent Experience (AX)</Badge>
-              <div className="flex flex-col items-center gap-8">
-                 <motion.div className="w-20 h-20 rounded-3xl flex items-center justify-center border shadow-2xl bg-[var(--p-teal-500)]/10 border-[var(--p-teal-500)]/20">
-                    <Layers size={40} className="text-[var(--p-teal-400)]" />
-                 </motion.div>
-                 <motion.h2 className="text-4xl sm:text-6xl font-display font-black tracking-tighter m-0 leading-[0.95] text-[var(--text-primary)]">Progressive Disclosure.</motion.h2>
-              </div>
-              <motion.p className="text-xl sm:text-2xl leading-relaxed text-[var(--text-secondary)] m-0 font-medium max-w-3xl mx-auto">
-                 Agents shouldn't be overwhelmed by complexity. Port Daddy exposes <strong>8 essential tools</strong> by default. Call <code>pd_discover()</code> to unlock advanced categories as the task requires.
-              </motion.p>
+        <section className="mb-32 space-y-24 w-full flex flex-col items-center">
+           <div className="flex flex-col items-center text-center gap-10 w-full max-w-4xl">
+              <Badge variant="neutral" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest shadow-md bg-bg-overlay border border-border-subtle text-text-primary">Agent Experience (AX)</Badge>
+              <h2 className="text-4xl sm:text-7xl font-display font-black tracking-tighter m-0 leading-[0.95] text-text-primary">Master the Toolset.</h2>
+              <p className="text-xl sm:text-2xl leading-relaxed text-text-secondary m-0 font-bold max-w-3xl mx-auto">
+                 Port Daddy uses <strong>Progressive Disclosure</strong>. Agents start with the essentials and discover advanced primitives as the task evolves.
+              </p>
            </div>
 
            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8 w-full">
               {CATEGORIES.map((cat, i) => (
                 <motion.div 
                   key={cat.id}
-                  className="p-10 rounded-[56px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-8 group hover:border-[var(--brand-primary)] transition-all text-center flex flex-col items-center shadow-xl"
+                  className="p-10 rounded-[56px] bg-bg-surface border border-border-subtle space-y-8 group hover:border-brand-primary transition-all text-center flex flex-col items-center shadow-xl"
                   initial={{ opacity: 0, y: 32 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.05 }}
                 >
                    <div className="flex flex-col items-center gap-6">
-                      <motion.div className="w-16 h-16 rounded-[24px] bg-[var(--bg-overlay)] flex items-center justify-center border border-[var(--border-subtle)] group-hover:scale-110 transition-transform shadow-inner">
-                         <cat.icon size={32} className="text-[var(--brand-primary)] opacity-40 group-hover:opacity-100 transition-opacity" />
+                      <motion.div className="w-16 h-16 rounded-[24px] bg-bg-overlay flex items-center justify-center border border-border-subtle group-hover:scale-110 transition-transform shadow-inner">
+                         <cat.icon size={32} className="text-brand-primary" />
                       </motion.div>
-                      <Badge variant="neutral" className="px-3 py-1 text-[8px] font-black uppercase tracking-widest text-[var(--text-muted)] shadow-sm">{cat.count} Tools</Badge>
+                      <Badge variant="neutral" className="px-3 py-1 text-[8px] font-black uppercase tracking-widest text-text-muted shadow-sm">{cat.count} Tools</Badge>
                    </div>
-                   <motion.h3 className="m-0 text-2xl font-display font-black leading-tight text-[var(--text-primary)]">{cat.label}</motion.h3>
+                   <motion.h3 className="m-0 text-2xl font-display font-black leading-tight text-text-primary">{cat.label}</motion.h3>
                 </motion.div>
               ))}
            </div>
         </section>
 
         {/* Essential 8 Tools */}
-        <section className="space-y-20 w-full flex flex-col items-center">
-           <div className="flex flex-col items-center text-center gap-8 border-b border-[var(--border-subtle)] pb-20 w-full max-w-4xl">
-              <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest shadow-md">The Standard Library</Badge>
-              <div className="flex flex-col items-center gap-8">
-                 <motion.div className="w-20 h-20 rounded-3xl flex items-center justify-center border shadow-2xl bg-[var(--brand-primary)]/10 border-[var(--brand-primary)]/20">
-                    <Zap size={40} className="text-[var(--brand-primary)]" />
-                 </motion.div>
-                 <motion.h2 className="text-4xl sm:text-6xl font-display font-black tracking-tighter m-0 leading-[0.95] text-[var(--text-primary)]">The Essential Set.</motion.h2>
-              </div>
-              <motion.p className="text-xl sm:text-2xl leading-relaxed text-[var(--text-secondary)] m-0 font-medium max-w-3xl mx-auto">
-                 The primitives every agent needs to be a productive member of the swarm. Optimized for context window efficiency and sub-50ms latency.
-              </motion.p>
+        <section className="space-y-24 w-full flex flex-col items-center">
+           <div className="text-center space-y-8 max-w-4xl">
+              <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest shadow-md bg-bg-overlay border border-brand-primary text-brand-primary">The Standard Library</Badge>
+              <h2 className="text-4xl sm:text-7xl font-display font-black tracking-tighter m-0 leading-[0.95] text-text-primary">The Essentials.</h2>
+              <p className="text-xl sm:text-2xl leading-relaxed text-text-secondary m-0 font-bold">
+                 Primitives optimized for context window efficiency and zero-latency coordination.
+              </p>
            </div>
 
-           <div className="grid lg:grid-cols-2 gap-8 w-full">
+           <div className="grid lg:grid-cols-2 gap-12 w-full">
               {ESSENTIAL_TOOLS.map((tool) => (
                 <ToolCard key={tool.name} tool={tool} />
               ))}
            </div>
         </section>
-
-        {/* Vision Callout */}
-        <motion.div 
-          className="mt-32 p-24 rounded-[100px] border border-dashed border-[var(--brand-primary)] bg-gradient-to-br from-[var(--bg-surface)] to-[var(--bg-base)] flex flex-col items-center text-center gap-8 relative overflow-hidden w-full shadow-2xl mx-auto"
-          initial={{ opacity: 0, scale: 0.98 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true }}
-        >
-           <div className="absolute top-0 right-0 p-10 opacity-[0.02] pointer-events-none">
-              <Cpu size={800} />
-           </div>
-           
-           <div className="space-y-10 max-w-4xl relative z-10 flex flex-col items-center">
-              <Badge variant="teal" className="px-8 py-3 text-[10px] font-black uppercase tracking-widest shadow-2xl">Model Optimization</Badge>
-              <motion.h3 className="text-4xl sm:text-6xl font-display font-black tracking-tight leading-[0.95] m-0 text-[var(--text-primary)]">
-                Built for <br />
-                <span className="text-[var(--p-teal-400)]">Intelligence.</span>
-              </motion.h3>
-              <motion.p className="text-xl sm:text-2xl leading-relaxed text-[var(--text-secondary)] max-w-3xl mx-auto">
-                The Port Daddy MCP server isn't just a collection of APIs. It's a structured ontology designed to teach your models how to coordinate. We use precise descriptions and high-fidelity examples to ensure the model chooses the right primitive every time.
-              </motion.p>
-           </div>
-
-           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 w-full max-w-6xl relative z-10">
-              {[
-                { label: 'Token Efficient', icon: Zap },
-                { label: 'Latency Aware', icon: Activity },
-                { label: 'Auto-Discovery', icon: Search },
-                { label: 'Secure Handshake', icon: Lock }
-              ].map((item, i) => (
-                <motion.div key={i} className="p-10 rounded-[48px] bg-[var(--bg-overlay)] border border-[var(--border-subtle)] flex flex-col items-center gap-6 group hover:border-[var(--brand-primary)] transition-all shadow-xl">
-                   <motion.div className="w-14 h-14 rounded-2xl bg-[var(--bg-surface)] flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                      <item.icon size={28} className="text-[var(--brand-primary)]" />
-                   </motion.div>
-                   <motion.span className="text-[10px] font-black uppercase tracking-[0.25em] text-[var(--text-muted)] group-hover:text-[var(--text-primary)] transition-colors text-center">{item.label}</motion.span>
-                </motion.div>
-              ))}
-           </div>
-        </motion.div>
       </motion.main>
 
       <Footer />
@@ -278,4 +263,10 @@ export default function MCPPage() {
   )
 }
 
-import { Activity } from 'lucide-react'
+function NavStub() {
+  return (
+    <div className="fixed top-0 left-0 right-0 h-20 bg-bg-base/80 backdrop-blur-xl border-b border-border-subtle z-[100] flex items-center justify-center">
+       <span className="font-black tracking-tighter text-xl text-text-primary">port-daddy.</span>
+    </div>
+  )
+}

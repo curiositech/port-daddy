@@ -10,19 +10,25 @@
   --bg-overlay:   oklch(96% 0.01 265);
   --bg-glass:     rgba(255, 255, 255, 0.9);
   
-  --text-primary:   oklch(15% 0.02 265); /* Deepest Navy/Grey */
-  --text-secondary: oklch(25% 0.03 265);
-  --text-muted:     oklch(40% 0.04 265);
+  --text-primary:   oklch(15% 0.02 265); /* Ratio ~18:1 */
+  --text-secondary: oklch(30% 0.03 265); /* Ratio ~10:1 */
+  --text-muted:     oklch(45% 0.04 265); /* Ratio ~7:1 (AAA) */
   
-  --brand-primary:   oklch(45% 0.15 200); /* Darker Maritime Teal for AAA */
-  --brand-secondary: oklch(35% 0.15 200);
-  --brand-accent:    oklch(40% 0.25 260); /* Deep Electric Blue */
+  --brand-primary:    oklch(40% 0.12 200); /* Darker Maritime Teal */
+  --brand-on-primary: oklch(100% 0 0);     /* White text on teal */
+  --brand-secondary:  oklch(30% 0.12 200);
+  --brand-accent:     oklch(35% 0.2 260);  /* Deep Electric Blue */
   
   --border-subtle: oklch(90% 0.02 265);
-  --border-strong: oklch(70% 0.04 265);
+  --border-strong: oklch(75% 0.04 265);
   
   --interactive-hover:  rgba(0, 0, 0, 0.05);
-  --interactive-active: oklch(45% 0.15 200 / 0.1);
+  --interactive-active: oklch(40% 0.12 200 / 0.1);
+
+  /* Layout Constants */
+  --nav-height: 80px;
+  --p-radius-xl: 32px;
+  --p-radius-2xl: 48px;
 
   /* Shared Typography */
   --p-font-mono:    'JetBrains Mono', monospace;
@@ -32,22 +38,23 @@
 
 [data-theme='dark'] {
   /* High-Contrast Core - Dark Mode (AAA) */
-  --bg-base:      oklch(10% 0.01 265); /* Very dark, not pure black */
-  --bg-surface:   oklch(15% 0.02 265);
-  --bg-overlay:   oklch(20% 0.03 265);
+  --bg-base:      oklch(12% 0.01 265); /* Balanced dark, not pure black */
+  --bg-surface:   oklch(18% 0.02 265);
+  --bg-overlay:   oklch(24% 0.03 265);
   --bg-glass:     rgba(15, 15, 20, 0.9);
   
-  --text-primary:   oklch(98% 0.01 265); /* Near White */
-  --text-secondary: oklch(90% 0.02 265);
-  --text-muted:     oklch(75% 0.03 265);
+  --text-primary:   oklch(98% 0.01 265); /* Near White - Ratio ~20:1 */
+  --text-secondary: oklch(92% 0.02 265); /* Ratio ~16:1 */
+  --text-muted:     oklch(80% 0.03 265); /* Ratio ~9:1 */
   
-  --brand-primary:   oklch(80% 0.15 200); /* Bright Teal */
-  --brand-secondary: oklch(85% 0.12 200);
-  --brand-accent:    oklch(75% 0.25 260);
+  --brand-primary:    oklch(85% 0.12 200); /* Bright accessible teal */
+  --brand-on-primary: oklch(15% 0.02 265); /* Dark text on light teal */
+  --brand-secondary:  oklch(90% 0.1 200);
+  --brand-accent:     oklch(80% 0.15 260);
   
-  --border-subtle: oklch(30% 0.03 265);
-  --border-strong: oklch(45% 0.04 265);
+  --border-subtle: oklch(25% 0.03 265);
+  --border-strong: oklch(40% 0.04 265);
   
   --interactive-hover:  rgba(255, 255, 255, 0.08);
-  --interactive-active: oklch(80% 0.15 200 / 0.2);
+  --interactive-active: oklch(85% 0.12 200 / 0.2);
 }

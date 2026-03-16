@@ -184,7 +184,6 @@ const MCP_EXEMPT_FEATURES = new Set([
   'daemon',         // CLI-only (start/stop/restart)
   'diagnostics',    // CLI-only (doctor/diagnose/ci-gate)
   'endpoints',      // Sub-feature of services, managed via claim
-  'info',           // System info / status (CLI-only)
   'spawn',          // CLI/SDK-only; agents use the SDK directly, not MCP
   'harbors',        // CLI/SDK-only; v1 advisory namespaces, MCP tools deferred to v4
 ]);

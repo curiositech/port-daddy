@@ -177,7 +177,7 @@ export function createMessaging(db: Database.Database) {
       const message: MessagePayload = {
         id: result.lastInsertRowid,
         channel: trimmedChannel,
-        payload: contentType === 'json' ? payloadStr : formatPayload(payloadStr, contentType),
+        payload: formatPayload(payloadStr, contentType),
         contentType,
         sender,
         createdAt: now

@@ -85,7 +85,11 @@ export function runCli(args, options = {}) {
   const { sockPath } = getDaemonState();
   const cliPath = join(import.meta.dirname, '../../bin/port-daddy-cli.js');
 
-  const result = spawnSync(TSX_PATH, [cliPath, ...args], {
+  // Use --direct to silence daemon-unreachable warnings if we are intentionally 
+  // bypassing the socket (useful for debugging)
+  const finalArgs = [...args];
+  
+  const result = spawnSync(TSX_PATH, [cliPath, ...finalArgs], {
     encoding: 'utf-8',
     timeout: 10000,
     env: {

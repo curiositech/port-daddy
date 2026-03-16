@@ -1263,8 +1263,6 @@ class PortDaddy {
    */
   subscribe(channel: string, options: SubscribeOptions = {}): Subscription {
     const { reconnect = true, maxRetries = 10, reconnectDelay = 1000 } = options;
-    const url = `${this.url}/msg/${encodeURIComponent(channel)}/subscribe`;
-    const headers = this._headers();
     const handlers: Record<SubscriptionEventType, SubscriptionHandler[]> = {
       message: [],
       error: [],
@@ -1273,92 +1271,109 @@ class PortDaddy {
 
     let active = true;
     let retryCount = 0;
-    let controller = new AbortController();
+    let currentReq: http.ClientRequest | undefined;
+    let currentES: any | undefined;
 
     const connect = () => {
       if (!active) return;
-      controller = new AbortController();
 
       // Use native EventSource if available (browser), otherwise fall back
       const EventSourceImpl = typeof EventSource !== 'undefined' ? EventSource : null;
 
       if (!EventSourceImpl) {
-        // Node.js fallback using native fetch with streaming
-        (async () => {
-          try {
-            const res = await fetch(url, {
-              headers,
-              signal: controller.signal,
-            });
+        // Node.js fallback using http.request to support Unix sockets
+        const target = this._resolveTarget();
+        const path = `/msg/${encodeURIComponent(channel)}/subscribe`;
+        const headers = { ...this._headers(), 'Accept': 'text/event-stream' };
 
-            retryCount = 0; // Reset on successful connection
-            const reader = res.body!.getReader();
-            const decoder = new TextDecoder();
-            let buffer = '';
+        currentReq = http.request({
+          method: 'GET',
+          path,
+          headers,
+          ...(target.socketPath ? { socketPath: target.socketPath } : { host: target.host, port: target.port })
+        }, (res) => {
+          retryCount = 0; // Reset on successful connection
+          
+          let buffer = '';
+          let currentEvent = 'message';
 
-            while (active) {
-              const { done, value } = await reader.read();
-              if (done) break;
+          res.setEncoding('utf8');
+          res.on('data', (chunk: string) => {
+            buffer += chunk;
+            const lines = buffer.split('\n');
+            buffer = lines.pop()!; // Keep incomplete line in buffer
 
-              buffer += decoder.decode(value, { stream: true });
-              const lines = buffer.split('\n');
-              buffer = lines.pop()!; // Keep incomplete line in buffer
-
-              for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                  try {
-                    const data: unknown = JSON.parse(line.slice(6));
+            for (const line of lines) {
+              if (line.startsWith('event: ')) {
+                currentEvent = line.slice(7).trim();
+              } else if (line.startsWith('data: ')) {
+                try {
+                  const data: unknown = JSON.parse(line.slice(6));
+                  if (currentEvent === 'message') {
                     handlers.message.forEach(fn => fn(data));
-                  } catch {
-                    // Non-JSON data line, skip
+                  } else if (currentEvent === 'connected') {
+                    handlers.connected.forEach(fn => fn(data));
                   }
-                } else if (line.startsWith('event: connected')) {
-                  handlers.connected.forEach(fn => fn(undefined));
+                  // Reset to default for next block
+                  currentEvent = 'message';
+                } catch {
+                  // Non-JSON data line, skip
                 }
+              } else if (line.trim() === '') {
+                // End of block, reset event
+                currentEvent = 'message';
               }
             }
+          });
 
+          res.on('end', () => {
+            currentReq = undefined;
             // Stream ended — reconnect if enabled
             if (active && reconnect && retryCount < maxRetries) {
               retryCount++;
               setTimeout(connect, reconnectDelay * retryCount);
             }
-          } catch (err) {
-            if (active) {
-              handlers.error.forEach(fn => fn(err));
-              // Reconnect on error if enabled
-              if (reconnect && retryCount < maxRetries) {
-                retryCount++;
-                setTimeout(connect, reconnectDelay * retryCount);
-              }
+          });
+        });
+
+        currentReq.on('error', (err) => {
+          currentReq = undefined;
+          if (active) {
+            handlers.error.forEach(fn => fn(err));
+            // Reconnect on error if enabled
+            if (reconnect && retryCount < maxRetries) {
+              retryCount++;
+              setTimeout(connect, reconnectDelay * retryCount);
             }
           }
-        })();
+        });
+
+        currentReq.end();
       } else {
         // Browser EventSource path
-        const es = new EventSourceImpl(url);
-        es.onmessage = (e: MessageEvent) => {
+        const url = `${this.url}/msg/${encodeURIComponent(channel)}/subscribe`;
+        currentES = new EventSourceImpl(url);
+        currentES.onmessage = (e: MessageEvent) => {
           try {
             const data: unknown = JSON.parse(e.data);
             handlers.message.forEach(fn => fn(data));
           } catch { /* ignore non-JSON */ }
         };
-        es.onerror = (e: Event) => {
-          handlers.error.forEach(fn => fn(e));
-          if (active && reconnect && retryCount < maxRetries) {
-            retryCount++;
-            es.close();
-            setTimeout(connect, reconnectDelay * retryCount);
+        currentES.onerror = (e: Event) => {
+          if (active) {
+            handlers.error.forEach(fn => fn(e));
+            if (reconnect && retryCount < maxRetries) {
+              retryCount++;
+              currentES.close();
+              currentES = undefined;
+              setTimeout(connect, reconnectDelay * retryCount);
+            }
           }
         };
-        es.addEventListener('connected', () => {
+        currentES.addEventListener('connected', () => {
           retryCount = 0;
           handlers.connected.forEach(fn => fn(undefined));
         });
-
-        // Store close fn for unsubscribe
-        const origUnsubscribe = () => es.close();
-        (controller as unknown as Record<string, unknown>)._esClose = origUnsubscribe;
       }
     };
 
@@ -1368,9 +1383,14 @@ class PortDaddy {
       on(event: SubscriptionEventType, fn: SubscriptionHandler): Subscription { (handlers[event] || []).push(fn); return this; },
       unsubscribe(): void {
         active = false;
-        controller.abort();
-        const esClose = (controller as unknown as Record<string, (() => void) | undefined>)._esClose;
-        if (esClose) esClose();
+        if (currentReq) {
+          currentReq.destroy();
+          currentReq = undefined;
+        }
+        if (currentES) {
+          currentES.close();
+          currentES = undefined;
+        }
       },
     };
   }
@@ -2278,6 +2298,53 @@ class PortDaddy {
    */
   async inboxClear(agentId: string): Promise<InboxClearResponse> {
     return this._request('DELETE', `/agents/${encodeURIComponent(agentId)}/inbox`) as Promise<InboxClearResponse>;
+  }
+
+  /**
+   * Subscribe to an agent's inbox via pub/sub (SSE).
+   * 
+   * @param agentId - The agent ID to subscribe to
+   * @param options - Subscription options (reconnect, maxRetries, etc.)
+   * @returns A Subscription object with .on('message', callback)
+   */
+  inboxSubscribe(agentId: string, options: SubscribeOptions = {}): Subscription {
+    const sub = this.subscribe(`inbox:${agentId}`, options);
+    const originalOn = sub.on.bind(sub);
+
+    // Overwrite .on to automatically unwrap the pub/sub envelope for messages
+    sub.on = (event: SubscriptionEventType, fn: SubscriptionHandler): Subscription => {
+      if (event === 'message') {
+        const unwrapper = (data: any) => {
+          if (data && typeof data === 'object' && 'payload' in data) {
+            fn(data.payload);
+          } else {
+            fn(data);
+          }
+        };
+        return originalOn(event, unwrapper);
+      }
+      return originalOn(event, fn);
+    };
+
+    return sub;
+  }
+
+  // ===========================================================================
+  // Orchestrator -- Service orchestration (up/down)
+  // ===========================================================================
+
+  /**
+   * Bring services UP (optionally filtered by harbor).
+   */
+  async up(harbor?: string): Promise<Record<string, unknown>> {
+    return this._request('POST', '/orchestrator/up', { harbor }) as Promise<Record<string, unknown>>;
+  }
+
+  /**
+   * Bring services DOWN (optionally filtered by harbor).
+   */
+  async down(harbor?: string): Promise<Record<string, unknown>> {
+    return this._request('POST', '/orchestrator/down', { harbor }) as Promise<Record<string, unknown>>;
   }
 
   // ──────────────────────────────────────────────────────────────

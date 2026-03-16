@@ -13,6 +13,7 @@
   --color-text-muted: var(--text-muted);
 
   --color-brand-primary: var(--brand-primary);
+  --color-brand-on-primary: var(--brand-on-primary);
   --color-brand-secondary: var(--brand-secondary);
   --color-brand-accent: var(--brand-accent);
 
@@ -24,6 +25,9 @@
   --font-mono: var(--p-font-mono);
 
   --radius-xl: var(--p-radius-xl);
+  --radius-2xl: var(--p-radius-2xl);
+  
+  --spacing-nav: var(--nav-height);
 }
 
 /* Explicitly tell Tailwind to use .dark class for dark variants */

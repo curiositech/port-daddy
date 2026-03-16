@@ -269,14 +269,6 @@ export function createAgentsRoutes(deps: AgentsRouteDeps): Router {
         return res.status(statusCode).json({ error: result.error, code: (result as Record<string, unknown>).code });
       }
 
-      // Broadcast that a message was received
-      messaging.publish(`agent:${agentId}:inbox`, JSON.stringify({
-        event: 'message',
-        from,
-        type: type || 'message',
-        preview: content.substring(0, 100)
-      }));
-
       logger.info('inbox_message_sent', { agentId, from, messageId: result.messageId });
       res.json(result);
 

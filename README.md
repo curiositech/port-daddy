@@ -90,12 +90,29 @@ pd scan   # Detects 60+ frameworks and generates .portdaddyrc
 pd up     # Starts all services in dependency order with color-coded logs
 ```
 
-### Sugar Commands
-Coordinate your work lifecycle in three commands:
+### 🚁 Swarm Coordination
+- **pd begin / pd done**: Track **session_phases** (planning, in_progress, etc.).
+- **pd demo**: Interactive multi-agent coordination **demo**.
+- **pd status / pd version**: View system **info** and metrics.
+
+### Session Lifecycle
+Every work session progress through defined **Phases** for clear swarm visibility:
+- `planning`: Scoping the task.
+- `in_progress`: Active development.
+- `testing`: Verification in progress.
+- `reviewing`: Awaiting human or agent approval.
+- `completed` / `abandoned`: Final state reached.
+
+---
+
+## 🏥 Diagnostics & Status
+
+### System Health
+Monitor the heartbeat of your control plane:
 ```bash
-pd begin "Refactoring the auth module"
-pd note "Switched to JWT refresh tokens"
-pd done "Auth refactor complete, tests passing"
+pd status   # Quick overview of daemon and services
+pd version  # Check for stale code and FFI health
+pd health   # Authoritative report from the Barnacle (Port 9875)
 ```
 
 ---
