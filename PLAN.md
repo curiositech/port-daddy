@@ -5901,6 +5901,314 @@ time for polish.
 ---
 ---
 
+# Part XXVI: Cross-Pollination — Harvested Ideas
+
+A parallel planning effort produced its own V4 plan (`docs/plans/V4-MASTER-PLAN.md`),
+test suite (`docs/plans/V4-TEST-SUITE.md`), marketing plan (`docs/plans/V4-MARKETING-MONETIZATION.md`),
+and ADRs 0011-0016 (`docs/adr/`). This section harvests the best ideas from that work
+and integrates them into our plan. Ideas are evaluated by effort-to-value ratio and
+alignment with our local-first, incremental architecture.
+
+## Harvested: Hash-Chained Session Notes
+
+**Source:** V4-MASTER-PLAN.md §Phase 2, ADR-0012
+**Value:** High. ~10 lines of code. Gives tamper detection for free.
+
+Session notes are currently append-only but have no integrity chain. If the SQLite
+database is modified externally (backup restore, manual edit, corruption), there's
+no way to detect whether notes were altered or removed.
+
+**Change:** Each note stores `SHA256(previous_note_content || previous_note_hash)`.
+The first note in a session uses `SHA256(session_id)` as its "genesis" hash.
+
+```sql
+ALTER TABLE session_notes ADD COLUMN prev_hash TEXT;
+-- Migration: backfill existing notes with NULL (pre-chain era)
+```
+
+```typescript
+// In sessions.ts addNote()
+const prevNote = db.prepare(
+  'SELECT content, prev_hash FROM session_notes WHERE session_id = ? ORDER BY created_at DESC LIMIT 1'
+).get(sessionId);
+
+const prevHash = prevNote
+  ? sha256(prevNote.content + (prevNote.prev_hash || ''))
+  : sha256(sessionId);
+
+db.prepare('INSERT INTO session_notes (session_id, content, prev_hash, ...) VALUES (?, ?, ?, ...)')
+  .run(sessionId, content, prevHash);
+```
+
+**Verification:** `pd notes --verify <sessionId>` walks the chain and reports
+any breaks. Also exposed via `GET /sessions/:id/notes?verify=true`.
+
+**When:** V4.0. It's too simple and valuable to defer. Add `prev_hash` column
+in schema migration v4 (the harbor enforcement migration).
+
+## Harvested: Harbor Bitmask Optimization for Trie
+
+**Source:** ADR-0012, V4-MASTER-PLAN.md §Phase 2
+**Value:** Medium. Clever optimization for wildcard skip in the trie.
+
+Each harbor gets a 64-bit bitmask. Each trie node stores the OR of all harbors
+that have tokens in its subtree. Wildcard queries like `*:api:*` can skip entire
+branches where `(node.harborMask & queryHarborMask) === 0`.
+
+**Change to Part VII (Semantic Trie):**
+
+```typescript
+interface TrieNode {
+  segment: string;
+  children: Map<string, TrieNode>;
+  values: Set<{ type: string; id: string }>;
+  harborMask: bigint;  // OR of all harbor bits in this subtree
+}
+```
+
+Harbor IDs are assigned sequential bit positions (harbor 0 = bit 0, harbor 1 = bit 1).
+With `bigint`, this works for any number of harbors (no 64-bit limit in practice).
+
+**Limitation:** The bitmask helps most when queries target specific harbors.
+For `*:api:*` queries across all harbors, every branch matches and the optimization
+is a no-op. This is fine — the optimization targets the common case (scoped queries
+within a harbor).
+
+**When:** V4.0 (Part VII implementation). Add it when building the trie, not as a
+retrofit.
+
+## Harvested: Lazy Token Promotion
+
+**Source:** ADR-0012, V4-MASTER-PLAN.md §Phase 2
+**Value:** Medium. Reduces trie memory for inactive tokens.
+
+Not every registered token needs to be in the trie immediately. Most tokens are
+written once and rarely queried. Only promote tokens to the trie when they're
+involved in an interaction (query, capability check, pheromone lookup).
+
+**Strategy:**
+
+```
+Token registered → stored in SQLite only (cold)
+Token queried/checked → promoted to trie (hot)
+Token not accessed for 1 hour → evicted from trie (cold again)
+```
+
+This keeps the trie small (only active tokens) while maintaining correctness
+(cold tokens are always available via SQL fallback).
+
+**When:** V4.1. The V4.0 trie should be built naively (load everything). Lazy
+promotion is an optimization for scale, not correctness.
+
+## Harvested: Filesystem Heartbeat Watchdog (Bosun Pattern)
+
+**Source:** ADR-0015, MUTUAL_ASSURED_RESURRECTION.md
+**Value:** High. Solves a real reliability gap.
+
+The current heartbeat mechanism is HTTP-based: agents send `PUT /agents/:id/heartbeat`
+every 5 minutes. Problem: if the daemon crashes, no one detects it. The agent
+keeps heartbeating into the void (or fails silently). And if the agent process dies
+without cleanup, the daemon only notices after the heartbeat timeout (20 minutes).
+
+**The Bosun pattern:** Write a heartbeat file to disk instead of (or in addition to)
+HTTP. A lightweight watchdog process (or the daemon itself) monitors the file.
+
+```
+~/.port-daddy/heartbeats/
+  agent-a4f2.beat     # last modified = last heartbeat time
+  agent-b3c1.beat     # inotify/FSEvents watches for staleness
+  daemon.beat         # daemon writes this every 30s
+```
+
+**Benefits:**
+- Survives daemon restarts (files persist)
+- Agents can detect daemon death by watching `daemon.beat`
+- External tools (cron, launchd) can monitor `daemon.beat` for process supervision
+- No network overhead for local heartbeats
+
+**Implementation:**
+
+```typescript
+// In agents.ts heartbeat()
+const beatPath = path.join(heartbeatDir, `${agentId}.beat`);
+fs.writeFileSync(beatPath, JSON.stringify({ ts: Date.now(), agentId }));
+// Also update SQLite as before (for query/history)
+```
+
+The daemon's reaper checks file modification times in addition to the `lastHeartbeat`
+column. This is a **belt-and-suspenders** approach — either signal alone is sufficient
+to keep the agent alive.
+
+**When:** V4.0. The heartbeat directory creation is trivial. The dual-signal reaper
+is ~20 lines of additional code. Too valuable for agent reliability to defer.
+
+## Harvested: Hard Test Invariants (T1-T5)
+
+**Source:** V4-TEST-SUITE.md (Gauntlet methodology)
+**Value:** High. Concrete, measurable targets prevent performance regression.
+
+The other plan defines 5 hard invariants that every CI run must verify. These are
+excellent because they're specific numbers, not vague "should be fast":
+
+| ID | Invariant | Target | Test Method |
+|----|-----------|--------|-------------|
+| T1 | Trie lookup latency | <300μs p99 for 100k tokens | Benchmark test with `performance.now()` |
+| T2 | Memory ceiling | <50MB RSS for 100k tokens | `process.memoryUsage()` after bulk insert |
+| T3 | SIGKILL recovery | <5s from cold start to serving | Kill daemon, restart, time first successful request |
+| T4 | Harbor scope isolation | Zero cross-harbor leaks | Exhaustive property test: create 2 harbors, verify no data crosses |
+| T5 | Event loop lag | <5ms under 100 concurrent requests | `monitorEventLoopDelay()` during load test |
+
+**Integration into Part XXIV (Testing):**
+
+These invariants join the existing property-based tests. Add a `tests/benchmarks/`
+directory with:
+- `trie-benchmark.test.js` — T1 and T2
+- `recovery-benchmark.test.js` — T3
+- `isolation-benchmark.test.js` — T4
+- `load-benchmark.test.js` — T5
+
+CI runs benchmarks on every PR. If any invariant regresses, the PR is blocked.
+Use `--benchmark` flag to skip in normal `npm test` (benchmarks are slow).
+
+**When:** T4 at V4.0 (critical for harbor enforcement). T1, T2, T3, T5 at V4.1
+(need the trie and socket transport first).
+
+## Harvested: `pd self-test --adversarial`
+
+**Source:** V4-TEST-SUITE.md
+**Value:** Medium. Great for user confidence and support diagnostics.
+
+A built-in self-test command that verifies the daemon is functioning correctly:
+
+```bash
+pd self-test
+# → ✓ Daemon reachable
+# → ✓ SQLite writable
+# → ✓ Harbor enforcement active
+# → ✓ Socket transport responding
+# → ✓ Agent heartbeat cycle working
+# → 5/5 checks passed
+
+pd self-test --adversarial
+# → ✓ Basic checks (above)
+# → ✓ Harbor card with wrong key rejected
+# → ✓ Expired card renewal works
+# → ✓ Rate limit triggers at threshold
+# → ✓ Concurrent lock acquisition serialized correctly
+# → ✓ Cross-harbor data isolation verified
+# → 9/9 checks passed (adversarial)
+```
+
+**Implementation:** The basic `pd self-test` is essentially a health check that
+exercises every subsystem. The `--adversarial` flag adds negative tests (invalid
+inputs, boundary conditions, security properties).
+
+**When:** V4.0 for basic self-test (6 checks). V4.1 for adversarial (adds
+harbor-specific and security tests once those features exist).
+
+## Harvested: Two-Tier Scheduler
+
+**Source:** ADR-0011 (Reactive Coordination Kernel)
+**Value:** Medium. Prevents log/telemetry work from delaying critical paths.
+
+The daemon currently processes all work on the same event loop with no priority.
+A background telemetry flush or log rotation can delay a lock acquisition.
+
+**Two tiers:**
+
+| Tier | Operations | Priority |
+|------|-----------|----------|
+| Critical | Lock acquire/release, heartbeat, port claim, harbor card verify | Immediate (next tick) |
+| Batched | Activity log write, telemetry flush, pheromone evaporation, webhook delivery | Deferred (setImmediate or 100ms batch) |
+
+**Implementation:** The batched tier uses a simple queue that flushes periodically:
+
+```typescript
+const batchQueue: Array<() => void> = [];
+let batchTimer: NodeJS.Timeout | null = null;
+
+function enqueueBatch(fn: () => void) {
+  batchQueue.push(fn);
+  if (!batchTimer) {
+    batchTimer = setTimeout(flushBatch, 100);
+  }
+}
+
+function flushBatch() {
+  batchTimer = null;
+  const batch = batchQueue.splice(0);
+  // Execute all in one tick
+  for (const fn of batch) fn();
+}
+```
+
+Activity log writes, webhook deliveries, and pheromone evaporation use `enqueueBatch`.
+Lock operations, heartbeats, and port claims call their module functions directly.
+
+**When:** V4.1. The current architecture handles V4.0 load fine. This is an
+optimization for when remote harbors increase throughput.
+
+## Harvested: SDDL for Windows Named Pipes
+
+**Source:** ADR-0016 (Hardened Cross-Platform IPC)
+**Value:** Medium. Critical for Windows security.
+
+The Part II Windows support section specifies named pipes but doesn't define the
+security descriptor. The other plan specifies a concrete SDDL string:
+
+```
+D:(A;;GA;;;BA)(A;;GA;;;SY)(A;;GRGW;;;IU)(D;;WP;;;NS)
+```
+
+Translation:
+- `BA` (Built-in Admins): Full access
+- `SY` (System): Full access
+- `IU` (Interactive Users): Read + Write (only the logged-in user)
+- `NS` (Network Service): Denied write — **prevents NTLM relay attacks**
+
+The `NS` deny entry is the key security addition. Without it, a compromised
+network service could write to the named pipe and issue daemon commands.
+
+**Amendment to Part II:** Add the SDDL string to the named pipe creation code.
+Use `node-windows` or the native `win32pipe` module to set the security descriptor.
+
+**When:** V4.1 (with Windows support).
+
+## Not Harvested (With Rationale)
+
+The following ideas from the other plan were evaluated and intentionally excluded:
+
+| Idea | Source | Why Not |
+|------|--------|---------|
+| Bun/Fastify migration | ADR-0011 | Massive rewrite risk. Express is fine for our scale. Performance gains come from socket-first transport, not HTTP framework swap. |
+| Credit economy / FloatPlan / Anchor Protocol | ADR-0014, V4-MASTER-PLAN §Phase 3 | Premature before product-market fit. Agent "wallets" and "bilateral receipts" add complexity with no proven demand. Revisit for V5 if PMF is achieved. |
+| $29/$99 pricing tiers | V4-MARKETING-MONETIZATION.md | Too high. Our Part V pricing ($14/$39) is validated against developer tool comps (Part XXII). Port Daddy is infrastructure, not an IDE — it shouldn't cost more than GitHub Pro. |
+| "Trust-as-a-Service" (TaaS) narrative | V4-MARKETING-MONETIZATION.md | Too abstract. Developers buy tools that solve concrete problems, not narratives. Our messaging should stay concrete: "no more port conflicts, automatic agent coordination." |
+| Marketplace UI | V4-MARKETING-MONETIZATION.md | Premature. Need users before a marketplace. Revisit for V5. |
+| Bitmask-based template matching for agent capabilities | ADR-0012 | Our capability model (string-based wildcards in harbor cards) is simpler and sufficient. Bitmasks add complexity for a marginal performance gain that only matters at >1000 agents. |
+| Merkle-ized evidence chains | ADR-0014 | Overkill for local coordination. Hash-chained notes (harvested above) give 80% of the tamper-evidence benefit at 5% of the complexity. |
+
+## ADR Numbering Conflict
+
+Both our plan and the other plan use ADR numbers 0011-0016, but for different topics:
+
+| Number | Our Plan (Part VI) | Their Plan (docs/adr/) |
+|--------|-------------------|----------------------|
+| 0011 | Harbor-First Security Model | Reactive Coordination Kernel |
+| 0012 | Platform Adapter | Semantic Token Graph |
+| 0013 | Remote Harbor Sync Protocol | Unified Harbor Model |
+| 0014 | Lighthouse Discovery | Anchor Protocol |
+| 0015 | Conflict Resolution Model | Layered Resurrection |
+| 0016 | Dashboard Components | Hardened Cross-Platform IPC |
+
+**Resolution:** Our ADR numbers are authoritative (they're defined in the plan that
+maps to the actual implementation). The other plan's ADRs should be renumbered to
+0017-0022 if any are adopted. For now, the harvested ideas above are integrated
+into the existing parts rather than creating new ADRs.
+
+---
+---
+
 # Consolidated Execution Timeline (Revised)
 
 | Phase | What | When | Revenue |
@@ -5911,7 +6219,12 @@ time for polish.
 | **V4.0** | Semantic regions: code boundary claims (Part XIV) | Q2 2026 | — |
 | **V4.0** | Stigmergy: pheromone deposition, decay, 6 pheromone types (Part XV) | Q2 2026 | — |
 | **V4.0** | MCP server: harbor tools (8), enhanced spawn tools (Part X) | Q2 2026 | — |
-| **V4.0** | Migration runner, schema v1-v6 (incl. agent identity columns), backup-before-migrate | Q2 2026 | — |
+| **V4.0** | Hash-chained session notes (Part XXVI) | Q2 2026 | — |
+| **V4.0** | Filesystem heartbeat watchdog — Bosun pattern (Part XXVI) | Q2 2026 | — |
+| **V4.0** | Harbor bitmask optimization in trie (Part XXVI) | Q2 2026 | — |
+| **V4.0** | `pd self-test` basic checks (Part XXVI) | Q2 2026 | — |
+| **V4.0** | T4 hard invariant: harbor scope isolation test (Part XXVI) | Q2 2026 | — |
+| **V4.0** | Migration runner, schema v1-v6 (incl. agent identity columns, prev_hash), backup-before-migrate | Q2 2026 | — |
 | **V4.0** | Key management (file-based storage, rotation, JTI cleanup) | Q2 2026 | — |
 | **V4.0** | Structured logging (pino), debug facilities, bugreport command | Q2 2026 | — |
 | **V4.0** | Error catalog (PD-E001+), CLI help tiers, first-run experience | Q2 2026 | — |
@@ -5924,6 +6237,11 @@ time for polish.
 | **V4.0** | GitHub Action (curiositech/port-daddy-action) | Q2 2026 | — |
 | **V4.0** | CONTRIBUTING.md | Q2 2026 | — |
 | **V4.1** | Windows support via platform adapter | Q3 2026 | User base growth |
+| **V4.1** | Lazy token promotion for trie (Part XXVI) | Q3 2026 | — |
+| **V4.1** | Two-tier scheduler: critical vs batched operations (Part XXVI) | Q3 2026 | — |
+| **V4.1** | T1/T2/T3/T5 hard invariants + benchmark CI (Part XXVI) | Q3 2026 | — |
+| **V4.1** | `pd self-test --adversarial` (Part XXVI) | Q3 2026 | — |
+| **V4.1** | SDDL security descriptor for Windows named pipes (Part XXVI) | Q3 2026 | — |
 | **V4.1** | Remote harbors: WebSocket sync, HLC, LWW + counter/log CRDTs (Parts XIII, XVII) | Q3 2026 | — |
 | **V4.1** | MCP server: remote harbor tools (5) (Part X) | Q3 2026 | — |
 | **V4.1** | Trust tier enforcement for remote harbors (Part XII) | Q3 2026 | — |
@@ -5944,20 +6262,24 @@ time for polish.
 
 ### Scope Risk: V4.0
 
-V4.0 has 13 line items for Q2 2026. For a small team (or solo developer), this is
+V4.0 has 18 line items for Q2 2026. For a small team (or solo developer), this is
 aggressive. The honest assessment:
 
 **Must-ship for V4.0** (harbor enforcement is the thesis — everything else is optional):
 - Harbor enforcement + grace period + auto-harbor on begin
-- Migration runner + schema v1-v6
+- Migration runner + schema v1-v6 (including `prev_hash` column)
 - Error catalog (PD-E001+) and first-run experience
 - `pd teach` (primary distribution channel)
+- Hash-chained session notes (10 lines of code, massive integrity value)
+- `pd self-test` basic (user confidence from day one)
 
 **Can slip to V4.0.1 or V4.1** without undermining the release:
 - Structured logging (pino) — the existing console logging works for launch
 - Key management — HMAC is sufficient until remote harbors ship in V4.1
 - Website copy updates, OG tags — polish, not blocking
 - `llms.txt`, telemetry, GitHub Action — nice-to-have
+- Filesystem heartbeat watchdog — valuable but HTTP heartbeats work for launch
+- Harbor bitmask in trie — optimization, not correctness
 
 **Mitigation:** Treat V4.0 as a 2-month release with a hard cut date. Anything not
 done by cut date ships in V4.0.1. Do not let scope creep delay the core harbor
