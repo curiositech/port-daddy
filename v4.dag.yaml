@@ -1,0 +1,1039 @@
+# Port Daddy V4 Implementation DAG
+# Format: WinDAGs V3-compatible DAGDefinition
+#
+# This file encodes the dependency graph for implementing V4.
+# Validate with: node scripts/validate-dag.js v4.dag.yaml
+#
+# Node types:
+#   concrete  — fully specified, ready to implement
+#   vague     — expands into sub-DAG as upstream completes
+#
+# Commitment levels:
+#   COMMITTED    — proven approach, persist until hard failure
+#   TENTATIVE    — moderate confidence, reconsider on quality drop
+#   EXPLORATORY  — novel, reconsider frequently
+
+id: port-daddy-v4
+name: "Port Daddy V4: Harbor-First Architecture"
+description: >
+  Full implementation plan for V4 — harbor enforcement, remote sync,
+  pheromones, MCP tools, dashboard, anchors, and operational tooling.
+  27 plan parts organized into 6 tiers with sub-DAGs for complex nodes.
+
+default_model: claude-sonnet-4-20250514
+
+coordination_model:
+  type: dag
+  failure_semantics:
+    supported_failure_types: [crash, crash-recovery, omission]
+    recovery_mechanisms: [retry, redecompose, escalate]
+    requires_compensation: false
+    termination_guarantee: guaranteed
+
+execution:
+  max_parallel: 4
+  checkpoint_strategy: per-wave
+  mode: async
+
+metadata:
+  project: port-daddy
+  version_target: "4.0"
+  # Two branches from XVIII converge at II/III:
+  #   XVIII → I → II/III (enforcement branch)
+  #   XVIII → XVII → II/III (sync branch)
+  # Longest single chain: XVIII → XVII → II/III (sync is 1500 LOE)
+  critical_path: [part-xviii, part-xvii, part-ii-iii]
+  critical_path_alt: [part-xviii, part-i, part-ii-iii]
+  estimated_total_loe: 10950  # lines of new/modified code
+
+# ═══════════════════════════════════════════════════════════════
+# NODES
+# ═══════════════════════════════════════════════════════════════
+
+nodes:
+
+  # ─── Tier 0: Foundations (no V4 deps) ───────────────────────
+
+  - id: part-xviii
+    type: concrete
+    name: "Key Management"
+    plan_part: 18
+    tier: 0
+    version: "4.0"
+    critical_path: true
+    commitment_level: COMMITTED
+    loe: 400
+    description: >
+      File-based key storage at ~/.config/port-daddy/keys/ with 0600 permissions.
+      HMAC signing key for harbor cards. signing_keys and revoked_jtis tables.
+      Zero-downtime key rotation via kid-based JWT header lookup.
+      JTI revocation with TTL-based cleanup. V4.1 adds Ed25519.
+    produces:
+      - lib/key-manager.ts
+      - schema: signing_keys
+      - schema: revoked_jtis
+      - directory: ~/.config/port-daddy/keys/
+    skills:
+      - typescript-module
+      - crypto-implementation
+    input:
+      requires: []
+    output:
+      type: module
+      exports: [loadSigningKey, rotateKey, revokeJTI, verifyJTI]
+
+  - id: part-vii
+    type: concrete
+    name: "Semantic Trie"
+    plan_part: 7
+    tier: 0
+    version: "4.0"
+    critical_path: false
+    commitment_level: COMMITTED
+    loe: 300
+    description: >
+      In-memory radix trie keyed on colon-delimited identity tokens.
+      Built from SQLite on daemon startup, kept consistent with every write.
+      Replaces SQL LIKE queries on hot path. Purely a cache — SQLite is
+      source of truth, trie rebuilt on restart.
+    produces:
+      - lib/token-trie.ts
+    skills:
+      - typescript-module
+      - data-structure-implementation
+    input:
+      requires: []
+    output:
+      type: module
+      exports: [TokenTrie, TrieNode, insert, lookup, wildcardMatch]
+
+  - id: part-vi
+    type: concrete
+    name: "ADRs"
+    plan_part: 6
+    tier: 0
+    version: "4.0"
+    critical_path: false
+    commitment_level: COMMITTED
+    loe: 0  # documentation only
+    description: >
+      Architecture Decision Records ADR-0001 through ADR-0016.
+      Design constraints that govern all subsequent implementation.
+      Key decisions: ADR-0003 harbor-first, ADR-0007 HLC, ADR-0010 pino,
+      ADR-0016 dashboard multi-file.
+    produces:
+      - docs/adr/
+    skills:
+      - technical-doc
+    input:
+      requires: []
+    output:
+      type: documentation
+      exports: []
+
+  - id: part-xx
+    type: concrete
+    name: "Structured Logging"
+    plan_part: 20
+    tier: 0
+    version: "4.0"
+    critical_path: false
+    commitment_level: COMMITTED
+    loe: 350
+    description: >
+      Replace console.error/emoji-prefix logging with pino JSON logging.
+      Subsystem debug tracing via PORT_DADDY_DEBUG=sync,agents,locks.
+      X-Request-Id propagation. POST /log-level and SIGUSR1 runtime level change.
+      In-memory ring buffer (1000 entries) via GET /logs.
+    produces:
+      - lib/logger.ts
+    skills:
+      - typescript-module
+      - observability
+    input:
+      requires: []
+    output:
+      type: module
+      exports: [createLogger, requestIdMiddleware, logRingBuffer]
+
+  # ─── Tier 1: Harbor Enforcement ─────────────────────────────
+
+  - id: part-i
+    type: vague
+    name: "Harbor-First Architecture (Local)"
+    plan_part: 1
+    tier: 1
+    version: "4.0"
+    critical_path: true
+    commitment_level: COMMITTED
+    loe: 600
+    role_description: >
+      Express middleware enforcing harbor cards on every mutating route.
+      Auto-harbor creation on pd begin. Capability attenuation on pd spawn.
+      Grace period mode for backward compatibility.
+    dependency_list: [part-xviii]
+    estimated_expansion_depth: 7
+    sub_dag:
+      - id: part-i.1
+        name: "Load signing key"
+        depends_on: [part-xviii]
+      - id: part-i.2
+        name: "Middleware skeleton (requireHarborCard)"
+        depends_on: [part-i.1]
+      - id: part-i.3
+        name: "Route capability map"
+        depends_on: [part-i.2]
+      - id: part-i.4
+        name: "Auto-harbor on pd begin"
+        depends_on: [part-i.2]
+      - id: part-i.5
+        name: "Capability attenuation on pd spawn"
+        depends_on: [part-i.3, part-i.4]
+      - id: part-i.6
+        name: "Grace period mode"
+        depends_on: [part-i.5]
+      - id: part-i.7
+        name: "Card renewal endpoint (Part XXV)"
+        depends_on: [part-i.6]
+    produces:
+      - lib/harbor-middleware.ts
+      - modified: lib/sugar.ts
+      - modified: server.ts
+    soft_deps: [part-vii, part-xx]
+
+  - id: part-xxi
+    type: concrete
+    name: "UX & Error Catalog"
+    plan_part: 21
+    tier: 1
+    version: "4.0"
+    critical_path: false
+    commitment_level: TENTATIVE
+    loe: 250
+    description: >
+      Tiered CLI help (default 5 commands, --all for everything).
+      Three-part error messages (what/why/fix). Error codes PD-E001 through PD-E013.
+      First-run onboarding detection via _migrations table.
+    produces:
+      - modified: bin/port-daddy-cli.ts
+      - docs: error-catalog
+    skills:
+      - cli-architect
+      - technical-doc
+    input:
+      requires: [part-i]
+    output:
+      type: module
+      exports: [formatError, errorCodes]
+    soft_deps: [part-xx]
+
+  # ─── Tier 2: Data Layer ─────────────────────────────────────
+
+  - id: part-xiii
+    type: concrete
+    name: "Harbor KV"
+    plan_part: 13
+    tier: 2
+    version: "4.0"
+    critical_path: false
+    commitment_level: TENTATIVE
+    loe: 400
+    description: >
+      Scoped mutable KV store per harbor with optimistic CAS.
+      Whiteboard abstraction (whiteboard: key prefix over KV).
+      Optional embedding search (Ollama fallback to FTS5).
+      Schema reserves HLC columns nullable for V4.0.
+    produces:
+      - lib/harbor-kv.ts
+      - schema: harbor_kv
+      - schema: harbor_embeddings
+    skills:
+      - typescript-module
+      - sqlite-schema
+    input:
+      requires: [part-i]
+    output:
+      type: module
+      exports: [harborKV, get, set, cas, search, whiteboard]
+    soft_deps: [part-xvii, part-xxv]
+
+  - id: part-xv
+    type: concrete
+    name: "Stigmergic Coordination (Pheromones)"
+    plan_part: 15
+    tier: 2
+    version: "4.0"
+    critical_path: false
+    commitment_level: TENTATIVE
+    loe: 500
+    description: >
+      Seven pheromone types (heat, trail, danger, success, contention, attention,
+      coupling) with type-specific evaporation rates. Engine runs every 30 seconds;
+      entries below 0.01 evicted. Auto-deposition hooks in sessions/agents/locks.
+      Manual deposition API. Pheromone readings injected into MCP responses.
+    produces:
+      - modified: lib/pheromone.ts
+      - schema: pheromones
+      - modified: lib/sessions.ts
+      - modified: lib/agents.ts
+      - modified: lib/locks.ts
+    skills:
+      - typescript-module
+      - event-system
+    input:
+      requires: [part-i]
+    output:
+      type: module
+      exports: [depositPheromone, readPheromones, evaporationEngine]
+    soft_deps: [part-vii, part-xvii]
+
+  - id: part-xxvi
+    type: concrete
+    name: "Invariants (Cross-Pollination)"
+    plan_part: 26
+    tier: 2
+    version: "4.0"
+    version_full: "4.1"
+    critical_path: false
+    commitment_level: TENTATIVE
+    loe: 300
+    description: >
+      V4.0: Hash-chained session notes (prev_hash in session_notes), harbor
+      bitmask in TrieNode, 5 benchmark invariants (T1-T5), pd self-test basic.
+      V4.1: Lazy token promotion, filesystem heartbeat watchdog, two-tier scheduler.
+    produces:
+      - modified: lib/sessions.ts
+      - modified: lib/token-trie.ts
+      - modified: lib/agents.ts
+      - tests/benchmarks/
+    skills:
+      - typescript-module
+      - test-writer
+    input:
+      requires: [part-vii, part-xv]
+    output:
+      type: module
+      exports: [hashChainNote, selfTest, benchmarkInvariants]
+    soft_deps: [part-xviii]
+
+  # ─── Tier 3: MCP & CLI Surface ──────────────────────────────
+
+  - id: part-x
+    type: concrete
+    name: "MCP Server V4 Tools"
+    plan_part: 10
+    tier: 3
+    version: "4.0"
+    critical_path: false
+    commitment_level: COMMITTED
+    loe: 500
+    description: >
+      15 new MCP tools (8 harbor, 5 remote, 2 spawn). Essential set 8→10.
+      Harbor card stored from begin_session, sent as X-Harbor-Card on all
+      subsequent requests. 3 new resources (harbors, peers, timeline).
+      Card renewal on 403 via POST /harbors/:name/renew.
+    produces:
+      - modified: mcp/server.ts
+    skills:
+      - mcp-tool-builder
+      - typescript-module
+    input:
+      requires: [part-i]
+    output:
+      type: module
+      exports: [harborTools, remoteTools, spawnTools]
+    soft_deps: [part-xiii, part-xv]
+
+  - id: part-xxv
+    type: concrete
+    name: "Retrospective Amendments"
+    plan_part: 25
+    tier: 3
+    version: "4.0"
+    critical_path: false
+    commitment_level: TENTATIVE
+    loe: 400
+    description: >
+      Amendments distributed across Parts I-XVI. Harbor card renewal endpoint.
+      Grace violation counter in pd status + GET /metrics. Windows named pipe
+      username qualification. Trust tier transitions. Region claims advisory-only.
+      Template scope cut to 2. Not a standalone module — integrated inline.
+    produces:
+      - modified: lib/harbor-middleware.ts
+      - modified: lib/agents.ts
+      - modified: server.ts
+    skills:
+      - typescript-module
+      - refactoring
+    input:
+      requires: [part-i, part-vii, part-x, part-xiii, part-xv]
+    output:
+      type: amendments
+      exports: []
+
+  # ─── Tier 4: Sync & Networking ──────────────────────────────
+
+  - id: part-xvii
+    type: vague
+    name: "Distributed State & Sync Protocol"
+    plan_part: 17
+    tier: 4
+    version: "4.0"
+    critical_path: true
+    commitment_level: COMMITTED
+    loe: 1500
+    role_description: >
+      WebSocket-based bidirectional sync between daemon pairs.
+      5-bucket Merkle hash comparison, msgpack mutation frames,
+      LWW + HLC conflict resolution. Most complex single module.
+    dependency_list: [part-xviii]
+    estimated_expansion_depth: 8
+    sub_dag:
+      - id: part-xvii.1
+        name: "Hybrid Logical Clock (lib/hlc.ts)"
+        depends_on: []
+        loe: 100
+      - id: part-xvii.2
+        name: "Merkle hash buckets (5 categories)"
+        depends_on: [part-xvii.1]
+        loe: 250
+      - id: part-xvii.3
+        name: "WebSocket transport + msgpack codec"
+        depends_on: [part-xvii.2]
+        loe: 300
+      - id: part-xvii.4
+        name: "Conflict resolver (LWW, CRDT modes)"
+        depends_on: [part-xvii.2]
+        loe: 300
+      - id: part-xvii.5
+        name: "Sync state machine (CONNECTING→STREAMING)"
+        depends_on: [part-xvii.3, part-xvii.4]
+        loe: 250
+      - id: part-xvii.6
+        name: "Partition detection & reconciliation"
+        depends_on: [part-xvii.5]
+        loe: 150
+      - id: part-xvii.7
+        name: "Trust-tier filtering (Part XII integration)"
+        depends_on: [part-xvii.6]
+        loe: 100
+      - id: part-xvii.8
+        name: "Integration tests (two-daemon sync)"
+        depends_on: [part-xvii.5]
+        loe: 200
+    produces:
+      - lib/hlc.ts
+      - lib/sync-protocol.ts
+      - lib/conflict-resolver.ts
+      - tests/unit/hlc.test.js
+      - tests/unit/sync-protocol.test.js
+      - tests/unit/conflict-resolver.test.js
+      - tests/integration/partition.test.js
+    soft_deps: [part-i, part-xiii, part-xv]
+
+  - id: part-xii
+    type: concrete
+    name: "Trust Tiers"
+    plan_part: 12
+    tier: 4
+    version: "4.0"
+    version_full: "4.1"
+    critical_path: false
+    commitment_level: TENTATIVE
+    loe: 300
+    description: >
+      Three trust tiers (full/coordinated/minimal) controlling data category
+      sync. Notes gain visibility field. Trust tier signed with daemon key,
+      verified before WebSocket connection opens. Merkle branches filtered per tier.
+    produces:
+      - lib/harbor-trust.ts
+      - modified: lib/harbors.ts
+    skills:
+      - typescript-module
+      - security-model
+    input:
+      requires: [part-xvii]
+    output:
+      type: module
+      exports: [TrustTier, filterMerkleBranches, verifyTrustTier]
+
+  - id: part-ii-iii
+    type: vague
+    name: "Remote Harbors & Lighthouse"
+    plan_part: [2, 3]
+    tier: 4
+    version: "4.0"
+    version_full: "4.1"
+    critical_path: true
+    commitment_level: COMMITTED
+    loe: 800
+    role_description: >
+      Direct daemon-to-daemon sync. pd harbor connect, pd harbor create --remote,
+      lighthouse relay mode, mDNS/Tailscale discovery, Windows named pipes.
+    dependency_list: [part-i, part-xvii, part-xviii]
+    estimated_expansion_depth: 8
+    sub_dag:
+      - id: part-ii-iii.1
+        name: "Harbor remote schema (is_remote, harbor_peers table)"
+        depends_on: []
+        loe: 80
+      - id: part-ii-iii.2
+        name: "pd harbor create --remote --listen"
+        depends_on: [part-ii-iii.1]
+        loe: 150
+      - id: part-ii-iii.3
+        name: "pd harbor connect --peer --token"
+        depends_on: [part-ii-iii.2]
+        loe: 150
+      - id: part-ii-iii.4
+        name: "Discovery (mDNS, Tailscale, privacy tiers)"
+        depends_on: [part-ii-iii.2]
+        loe: 120
+      - id: part-ii-iii.5
+        name: "Bidirectional sync channel (uses Part XVII)"
+        depends_on: [part-ii-iii.3]
+        loe: 100
+      - id: part-ii-iii.6
+        name: "Lighthouse relay mode"
+        depends_on: [part-ii-iii.5]
+        loe: 100
+      - id: part-ii-iii.7
+        name: "CLI & MCP surface (5 remote tools)"
+        depends_on: [part-ii-iii.5]
+        loe: 80
+      - id: part-ii-iii.8
+        name: "Windows named pipe support"
+        depends_on: [part-ii-iii.2]
+        loe: 80
+    produces:
+      - modified: routes/harbors.ts
+      - modified: lib/harbors.ts
+      - modified: mcp/server.ts
+    soft_deps: [part-xii]
+
+  # ─── Tier 5: Advanced Features (V4.1+) ─────────────────────
+
+  - id: part-viii
+    type: concrete
+    name: "Socket Transport"
+    plan_part: 8
+    tier: 5
+    version: "4.1"
+    critical_path: false
+    commitment_level: TENTATIVE
+    loe: 600
+    description: >
+      Length-prefixed msgpack binary protocol over Unix domain socket.
+      Bypasses Express middleware for local CLI/SDK/MCP calls. HTTP retained
+      for remote sync on TCP :9877. Dispatch table enumerates all routes.
+    produces:
+      - lib/socket-transport.ts
+    skills:
+      - typescript-module
+      - network-protocol
+    input:
+      requires: [part-i]
+    output:
+      type: module
+      exports: [createSocketTransport, dispatchTable]
+
+  - id: part-xiv
+    type: concrete
+    name: "Regions"
+    plan_part: 14
+    tier: 5
+    version: "4.0"
+    version_full: "4.2"
+    critical_path: false
+    commitment_level: EXPLORATORY
+    loe: 400
+    description: >
+      V4.0: Manual region definition via glob patterns and function names.
+      V4.1: pd scan --deep auto-detection via import graph SCC analysis.
+      V4.2: tree-sitter AST-level function tracking.
+    produces:
+      - schema: regions
+      - schema: region_claims
+      - cli/commands/regions.ts
+    skills:
+      - typescript-module
+      - code-analysis
+    input:
+      requires: [part-i]
+    output:
+      type: module
+      exports: [defineRegion, claimRegion, autoDetectRegions]
+    soft_deps: [part-vii]
+
+  - id: part-xxiii
+    type: concrete
+    name: "Storage Lifecycle"
+    plan_part: 23
+    tier: 5
+    version: "4.0"
+    version_full: "4.1"
+    critical_path: false
+    commitment_level: TENTATIVE
+    loe: 500
+    description: >
+      pd db archive/prune/vacuum/backup/restore/backups/status.
+      Auto-housekeeping on startup (>24h since last run).
+      pd start --ephemeral for CI (in-memory DB, no launchd, 30-min auto-shutdown).
+      curiositech/port-daddy-action GitHub Action.
+    produces:
+      - modified: bin/port-daddy-cli.ts
+      - external: curiositech/port-daddy-action
+    skills:
+      - cli-architect
+      - sqlite-operations
+    input:
+      requires: []
+    output:
+      type: module
+      exports: [archive, prune, vacuum, backup, restore]
+    soft_deps: [part-xviii]
+
+  - id: part-ix
+    type: concrete
+    name: "Dashboard"
+    plan_part: 9
+    tier: 5
+    version: "4.1"
+    version_full: "4.2"
+    critical_path: false
+    commitment_level: TENTATIVE
+    loe: 1200
+    description: >
+      12 Web Components in public/dashboard/components/. CSS Grid, hash-based
+      routing, single SSE connection for live updates. 6 panels in V4.1,
+      6 in V4.2. Vanilla JS, no build step, no framework.
+    produces:
+      - public/dashboard/components/*.js
+      - modified: public/index.html
+    skills:
+      - web-component-builder
+      - dashboard-design
+    input:
+      requires: [part-i, part-ii-iii, part-xv, part-xvii]
+    output:
+      type: ui
+      exports: []
+    soft_deps: [part-xxiv]
+
+  - id: part-xxvii
+    type: concrete
+    name: "Anchors"
+    plan_part: 27
+    tier: 5
+    version: "4.1"
+    version_full: "4.3"
+    critical_path: false
+    commitment_level: EXPLORATORY
+    loe: 600
+    description: >
+      V4.1: 6-state task lifecycle (OPEN→ACTIVE→COMPLETED→VERIFIED + ABANDONED/DISPUTED).
+      V4.2: Ed25519-signed JSON receipts. V4.3: Credit pool, escrow, marketplace.
+    produces:
+      - lib/anchors.ts
+      - routes/anchors.ts
+      - cli/commands/anchors.ts
+      - tests/unit/anchors.test.js
+    skills:
+      - typescript-module
+      - state-machine-designer
+    input:
+      requires: [part-i, part-xviii]
+    output:
+      type: module
+      exports: [createAnchor, acceptAnchor, completeAnchor, verifyAnchor]
+    soft_deps: [part-xvii]
+
+  # ─── Tier 6: External & Documentation ───────────────────────
+
+  - id: part-xi
+    type: concrete
+    name: "Website V2"
+    plan_part: 11
+    tier: 6
+    version: "4.0"
+    version_full: "4.1"
+    critical_path: false
+    commitment_level: TENTATIVE
+    loe: 0  # separate repo
+    description: >
+      Revised landing page, /compare, /pricing, /tutorials/*, 5 blog posts,
+      OG tags. Fix hardcoded erichowens/ GitHub URLs.
+    produces:
+      - external: curiositech/portdaddy.dev
+    skills:
+      - technical-doc
+      - web-design
+    input:
+      requires: [part-i, part-ii-iii]
+    output:
+      type: documentation
+      exports: []
+
+  - id: part-v
+    type: concrete
+    name: "Monetization & Pricing"
+    plan_part: 5
+    tier: 6
+    version: "4.1"
+    critical_path: false
+    commitment_level: EXPLORATORY
+    loe: 0  # mostly documentation + config
+    description: >
+      Free/Pro/Team/Enterprise tier definitions. Feature gates in config.
+      Harbor enforcement is the gating mechanism.
+    produces:
+      - modified: lib/config.ts
+    skills:
+      - business-strategy
+    input:
+      requires: [part-i]
+    output:
+      type: configuration
+      exports: []
+
+  - id: part-xxii
+    type: concrete
+    name: "Market Positioning"
+    plan_part: 22
+    tier: 6
+    version: "4.1"
+    critical_path: false
+    commitment_level: EXPLORATORY
+    loe: 200
+    description: >
+      Anonymous opt-in telemetry (24-hour batched counter to Cloudflare Worker).
+      Post-install survey (shown once). /use-cases page. Competitive positioning.
+    produces:
+      - modified: lib/config.ts
+      - external: telemetry.portdaddy.dev
+    skills:
+      - typescript-module
+    input:
+      requires: [part-xxi]
+    output:
+      type: module
+      exports: [sendTelemetry, showSurvey]
+
+  - id: part-xxiv
+    type: concrete
+    name: "Testing & Benchmarks"
+    plan_part: 24
+    tier: 6
+    version: "4.0"
+    version_full: "4.1"
+    critical_path: false
+    commitment_level: TENTATIVE
+    loe: 800
+    description: >
+      Property-based tests (6 pheromone invariants via fast-check).
+      Multi-agent simulation harness. 5 benchmark invariants (T1-T5) in CI.
+      Dashboard Web Components architecture (ADR-0016).
+    produces:
+      - tests/simulation/pheromone-sim.ts
+      - tests/benchmarks/trie-benchmark.test.js
+      - tests/benchmarks/recovery-benchmark.test.js
+      - tests/benchmarks/isolation-benchmark.test.js
+      - tests/benchmarks/load-benchmark.test.js
+      - tests/integration/pheromones.test.js
+    skills:
+      - test-writer
+      - benchmark-designer
+    input:
+      requires: [part-xv, part-vii]
+    output:
+      type: tests
+      exports: []
+    soft_deps: [part-viii]
+
+# ═══════════════════════════════════════════════════════════════
+# EDGES
+# ═══════════════════════════════════════════════════════════════
+
+edges:
+
+  # Tier 0 → Tier 1
+  - from: part-xviii
+    to: part-i
+    type: data-flow
+    protocol: hard
+    description: "Signing key needed for harbor cards"
+
+  # Tier 0 → Tier 1 (soft)
+  - from: part-vii
+    to: part-i
+    type: data-flow
+    protocol: soft
+    description: "Trie for capability lookups (can use SQL initially)"
+
+  - from: part-xx
+    to: part-i
+    type: data-flow
+    protocol: soft
+    description: "Structured logging (nice to have from day one)"
+
+  # Tier 1 → Tier 1
+  - from: part-i
+    to: part-xxi
+    type: data-flow
+    protocol: hard
+    description: "Error codes reference harbor violations"
+
+  # Tier 1 → Tier 2
+  - from: part-i
+    to: part-xiii
+    type: data-flow
+    protocol: hard
+    description: "KV scoped per harbor"
+
+  - from: part-i
+    to: part-xv
+    type: data-flow
+    protocol: hard
+    description: "Pheromone deposition triggered by harbor-scoped operations"
+
+  # Tier 2 → Tier 2
+  - from: part-vii
+    to: part-xxvi
+    type: data-flow
+    protocol: hard
+    description: "Bitmask optimization requires trie"
+
+  - from: part-xv
+    to: part-xxvi
+    type: data-flow
+    protocol: hard
+    description: "Pheromone rate limiting"
+
+  # Tier 1 → Tier 3
+  - from: part-i
+    to: part-x
+    type: data-flow
+    protocol: hard
+    description: "Harbor enforcement for begin_session returning card"
+
+  # Tier 2,3 → Tier 3 (amendments)
+  - from: part-i
+    to: part-xxv
+    type: data-flow
+    protocol: hard
+    description: "Amends harbor middleware"
+
+  - from: part-vii
+    to: part-xxv
+    type: data-flow
+    protocol: hard
+    description: "Amends trie"
+
+  - from: part-x
+    to: part-xxv
+    type: data-flow
+    protocol: hard
+    description: "Amends MCP tools"
+
+  - from: part-xiii
+    to: part-xxv
+    type: data-flow
+    protocol: hard
+    description: "Amends harbor KV"
+
+  - from: part-xv
+    to: part-xxv
+    type: data-flow
+    protocol: hard
+    description: "Amends pheromones"
+
+  # Tier 0 → Tier 4
+  - from: part-xviii
+    to: part-xvii
+    type: data-flow
+    protocol: hard
+    description: "WebSocket auth needs signing keys"
+
+  # Tier 4 → Tier 4
+  - from: part-xvii
+    to: part-xii
+    type: data-flow
+    protocol: hard
+    description: "Merkle hash must be trust-tier-aware"
+
+  - from: part-i
+    to: part-ii-iii
+    type: data-flow
+    protocol: hard
+    description: "Remote harbors need local enforcement first"
+
+  - from: part-xvii
+    to: part-ii-iii
+    type: data-flow
+    protocol: hard
+    description: "Sync protocol for bidirectional state sync"
+
+  - from: part-xviii
+    to: part-ii-iii
+    type: data-flow
+    protocol: hard
+    description: "Key management for daemon-to-daemon auth"
+
+  # Tier 1 → Tier 5
+  - from: part-i
+    to: part-viii
+    type: data-flow
+    protocol: hard
+    description: "Dispatch needs harbor card verification"
+
+  - from: part-i
+    to: part-xiv
+    type: data-flow
+    protocol: hard
+    description: "Regions decompose into file claims"
+
+  - from: part-i
+    to: part-ix
+    type: data-flow
+    protocol: hard
+    description: "Dashboard needs harbor API"
+
+  - from: part-ii-iii
+    to: part-ix
+    type: data-flow
+    protocol: hard
+    description: "Dashboard needs remote harbor API"
+
+  - from: part-xv
+    to: part-ix
+    type: data-flow
+    protocol: hard
+    description: "Dashboard needs pheromone API"
+
+  - from: part-xvii
+    to: part-ix
+    type: data-flow
+    protocol: hard
+    description: "Dashboard needs sync status API"
+
+  - from: part-i
+    to: part-xxvii
+    type: data-flow
+    protocol: hard
+    description: "Anchors scoped to harbors"
+
+  - from: part-xviii
+    to: part-xxvii
+    type: data-flow
+    protocol: hard
+    description: "Ed25519 for signed receipts (V4.2)"
+
+  # Tier 1,4 → Tier 6
+  - from: part-i
+    to: part-xi
+    type: data-flow
+    protocol: hard
+    description: "Website content depends on harbors existing"
+
+  - from: part-ii-iii
+    to: part-xi
+    type: data-flow
+    protocol: hard
+    description: "Website content depends on remote harbors"
+
+  - from: part-i
+    to: part-v
+    type: data-flow
+    protocol: hard
+    description: "Monetization gates on harbor enforcement"
+
+  - from: part-xxi
+    to: part-xxii
+    type: data-flow
+    protocol: hard
+    description: "Telemetry uses error codes"
+
+  - from: part-xv
+    to: part-xxiv
+    type: data-flow
+    protocol: hard
+    description: "Simulation needs pheromone engine"
+
+  - from: part-vii
+    to: part-xxiv
+    type: data-flow
+    protocol: hard
+    description: "Benchmarks need trie"
+
+  # Soft edges (cross-tier)
+  - from: part-xiii
+    to: part-x
+    type: data-flow
+    protocol: soft
+    description: "Harbor KV tools in MCP"
+
+  - from: part-xv
+    to: part-x
+    type: data-flow
+    protocol: soft
+    description: "Pheromone readings in MCP responses"
+
+  - from: part-xvii
+    to: part-xiii
+    type: data-flow
+    protocol: soft
+    description: "HLC columns in harbor_kv (nullable V4.0)"
+
+  - from: part-xvii
+    to: part-xv
+    type: data-flow
+    protocol: soft
+    description: "HLC columns in pheromones (nullable V4.0)"
+
+  - from: part-xii
+    to: part-ii-iii
+    type: data-flow
+    protocol: soft
+    description: "Trust tiers for cross-daemon sync filtering"
+
+  - from: part-vii
+    to: part-xiv
+    type: data-flow
+    protocol: soft
+    description: "Trie for region path matching"
+
+  - from: part-xviii
+    to: part-xxiii
+    type: data-flow
+    protocol: soft
+    description: "Key status in bugreport"
+
+  - from: part-xxiv
+    to: part-ix
+    type: data-flow
+    protocol: soft
+    description: "ADR-0016 allows multi-file dashboard"
+
+  - from: part-viii
+    to: part-xxiv
+    type: data-flow
+    protocol: soft
+    description: "T5 benchmark depends on socket transport"
+
+  - from: part-xvii
+    to: part-xxvii
+    type: data-flow
+    protocol: soft
+    description: "Remote harbors for cross-machine credits (V4.3)"
+
+  - from: part-xviii
+    to: part-xxvi
+    type: data-flow
+    protocol: soft
+    description: "Filesystem heartbeat watchdog"
+
+  - from: part-xx
+    to: part-xxi
+    type: data-flow
+    protocol: soft
+    description: "Structured error logging"
