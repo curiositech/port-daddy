@@ -320,6 +320,206 @@ XXII   → [XXI]                       # telemetry uses error codes
 
 ---
 
+## Sub-DAGs for Complex Nodes
+
+Three nodes have enough internal complexity and strict sub-task ordering to warrant
+their own dependency graphs. Other large nodes (X, IX, XXIV) are internally flat —
+they decompose into independent parallel work items, not ordered sub-tasks.
+
+### Part I Sub-DAG: Harbor Enforcement
+
+```
+I.1  Load signing key from Part XVIII
+      │
+      ▼
+I.2  Middleware skeleton (requireHarborCard function)
+      │  - Parse X-Harbor-Card header / query param
+      │  - Verify signature via harbor-tokens.ts
+      │  - Attach payload to req.harborCard
+      │  - Public route allowlist (health, version, config, GET /harbors)
+      │
+      ├──────────────────────┐
+      ▼                      ▼
+I.3  Route capability map   I.4  Auto-harbor on pd begin
+      │  POST /claim/* →       │  Modify sugar.ts begin():
+      │    ports:claim          │    1. Extract project from identity
+      │  POST /sessions/*/     │    2. Create harbor if not exists
+      │    notes → notes:write  │    3. Enter harbor, get card
+      │  POST /msg/* →         │    4. Return card in response
+      │    msg:publish          │
+      │  POST /locks/* →       │
+      │    locks:acquire        │
+      │  (enumerate all        │
+      │   routes)              │
+      │                        │
+      └──────────┬─────────────┘
+                 │
+                 ▼
+I.5  Capability attenuation on pd spawn
+      │  Parent card cap: ['*']
+      │  Child card cap: subset specified by parent
+      │  HMAC binds caps to token
+      │
+      ▼
+I.6  Grace period mode
+      │  --enforce-harbors warn (V4.0 default)
+      │  --enforce-harbors enforce (V4.1 default)
+      │  Violation counter in pd status + GET /metrics
+      │
+      ▼
+I.7  Card renewal endpoint (Part XXV amendment)
+       POST /harbors/:name/renew
+       Accepts expired-but-signed card as proof of identity
+```
+
+**Internal critical path:** I.1 → I.2 → I.3 + I.4 (parallel) → I.5 → I.6 → I.7
+**First shippable milestone:** I.1–I.4 (middleware + auto-harbor) — enough for all downstream consumers.
+
+---
+
+### Part XVII Sub-DAG: Distributed State & Sync Protocol
+
+```
+XVII.1  Hybrid Logical Clock (lib/hlc.ts, ~100 lines)
+         │  - HLC struct: { physical: bigint, counter: number, nodeId: string }
+         │  - send(): increment counter
+         │  - recv(remote): merge, take max
+         │  - compare(): total order
+         │  - Unit tests: clock skew, merge commutativity
+         │
+         ▼
+XVII.2  Merkle hash buckets (in lib/sync-protocol.ts)
+         │  - 5 categories: agents, sessions+notes, locks, pheromones, harbor_kv
+         │  - Per-category hash = SHA256 of sorted (key, hlc) pairs
+         │  - Root hash = SHA256 of 5 category hashes
+         │  - Incremental update on every write
+         │  - Unit tests: hash consistency, incremental vs full recompute
+         │
+         ├──────────────────────────┐
+         ▼                          ▼
+XVII.3  WebSocket transport        XVII.4  Conflict resolver
+         │  - WS /harbor/:name/      │  (lib/conflict-resolver.ts, ~300 lines)
+         │    sync endpoint           │  - LWW by HLC for KV, pheromones, agents
+         │  - Auth: harbor card       │  - Session merge: union notes, latest status
+         │    on HTTP upgrade         │  - Lock conflict: fencing token comparison
+         │  - msgpack frame codec     │  - Counter CRDT (Part XXV G-Counter)
+         │  - Reconnect with          │  - Log CRDT (Part XXV G-Set)
+         │    exponential backoff     │  - Unit tests: all conflict scenarios
+         │  - Keepalive ping/pong     │
+         │                            │
+         └──────────┬─────────────────┘
+                    │
+                    ▼
+XVII.5  Sync state machine
+         │  States: CONNECTING → HASH_EXCHANGE → DIFF → STREAMING → IDLE
+         │  1. Exchange root hashes
+         │  2. If mismatch: exchange per-category hashes
+         │  3. For mismatched categories: send all entries (V4.0 — full dump)
+         │  4. Apply conflict resolver to incoming entries
+         │  5. Transition to STREAMING: incremental mutation frames
+         │
+         ▼
+XVII.6  Partition detection & reconciliation
+         │  - No pong for 1 hour → partition detected
+         │  - On reconnect: full Merkle re-exchange (back to HASH_EXCHANGE)
+         │  - Fencing tokens for distributed locks:
+         │    lock holder across partition gets lower-fenced token
+         │    on healing, higher-fenced token wins
+         │
+         ▼
+XVII.7  Trust-tier filtering (Part XII integration)
+         │  - Merkle hash computed only over branches allowed by peer's trust tier
+         │  - Full tier: all 5 categories
+         │  - Coordinated tier: agents, sessions, locks (no KV, no pheromones)
+         │  - Minimal tier: agents only
+         │
+         ▼
+XVII.8  Integration tests
+           - Two in-process daemons syncing
+           - Partition simulation (drop WS, wait, reconnect)
+           - Conflict resolution with concurrent writes
+           - Trust tier filtering verification
+```
+
+**Internal critical path:** XVII.1 → XVII.2 → XVII.3 + XVII.4 (parallel) → XVII.5 → XVII.6
+**First shippable milestone:** XVII.1–XVII.2 (HLC + Merkle) — independently testable, no networking.
+**Second milestone:** XVII.1–XVII.5 (full sync without partition handling).
+
+---
+
+### Parts II/III Sub-DAG: Remote Harbors & Lighthouse
+
+```
+II.1  Harbor remote schema
+       │  Add columns to harbors table: is_remote, listen_addr, peer_token
+       │  New table: harbor_peers (harbor_id, peer_addr, peer_pubkey, connected_at)
+       │
+       ▼
+II.2  pd harbor create --remote --listen
+       │  Opens TCP listener on specified addr (default 0.0.0.0:9877)
+       │  Generates peer token (JWT with harbor name + HMAC)
+       │  Serves only sync endpoints on this port (not full Express app)
+       │
+       ├──────────────────────┐
+       ▼                      ▼
+II.3  pd harbor connect      II.4  Discovery mechanisms
+       │  --peer <addr>         │  - mDNS advertisement (opt-in)
+       │  --token <jwt>         │  - mDNS listener for auto-discovery
+       │  Verifies token →      │  - Tailscale detection (check tailscale0 interface)
+       │  initiates WS to       │  - Three-tier privacy: opt-in / hashed names / silent
+       │  /harbor/:name/sync    │
+       │  Stores peer in        │
+       │  harbor_peers table    │
+       │                        │
+       └──────────┬─────────────┘
+                  │
+                  ▼
+II.5  Bidirectional sync channel (uses Part XVII)
+       │  WS connection established by II.3
+       │  Sync state machine from XVII.5 handles the rest
+       │  Data flows: file claims, sessions, notes, agent liveness, locks, pub/sub
+       │
+       ▼
+II.6  Lighthouse mode
+       │  pd start --lighthouse
+       │  A daemon that:
+       │    - Accepts connections from multiple peers
+       │    - Relays sync frames between peers that can't directly connect
+       │    - Does NOT hold its own state (pass-through only)
+       │    - Useful for NAT traversal without Tailscale
+       │
+       ▼
+II.7  CLI & MCP surface
+       │  pd harbor list --remote → shows peers + connection status
+       │  pd harbor disconnect <peer>
+       │  5 MCP remote tools (from Part X): harbor_connect, harbor_disconnect,
+       │    harbor_peers, harbor_sync_status, harbor_promote_lighthouse
+       │
+       ▼
+II.8  Windows support
+         Named pipes instead of Unix sockets for local transport
+         Username-qualified pipe names: \\.\pipe\port-daddy-<username>
+         Overlapped I/O for async reads (Part XXV amendment)
+```
+
+**Internal critical path:** II.1 → II.2 → II.3 → II.5 → II.6
+**First shippable milestone:** II.1–II.3 + II.5 (manual `pd harbor connect` with working sync).
+**Discovery (II.4) and lighthouse (II.6) are independently parallelizable after II.2.**
+
+---
+
+### Why Other Large Nodes Don't Need Sub-DAGs
+
+| Node | Size | Why flat |
+|------|------|----------|
+| **Part X (MCP)** | 15 tools | Each tool is independent. The only ordering: store harbor card first (1 task), then add tools in any order. |
+| **Part IX (Dashboard)** | 12 panels | Each Web Component is independent. Shared infra (SSE connection, CSS, router) is one task; then 12 parallel panel implementations. |
+| **Part XV (Pheromones)** | ~500 LOE | Linear pipeline: schema → engine → hooks → API → MCP injection. No branching. Sequential, not a DAG. |
+| **Part XVIII (Key Mgmt)** | ~400 LOE | Linear: directory setup → key generation → HMAC loading → rotation → JTI revocation. Sequential. |
+| **Part XXIV (Testing)** | ~800 LOE | 3 independent workstreams (property tests, benchmarks, simulation) — parallelizable but no ordering constraints between them. |
+
+---
+
 ## Risk Nodes
 
 These parts have the highest risk of schedule slip or design iteration:
