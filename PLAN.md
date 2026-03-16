@@ -3815,17 +3815,25 @@ sync port (`0.0.0.0:9877`) serves ONLY sync endpoints and health checks. No dash
 no destructive API endpoints.
 
 ```typescript
-// server.ts — Two listeners
+// server.ts — Three server instances from two Express apps
+import http from 'http';
 const localApp = express();   // Dashboard + full API
 const remoteApp = express();  // Sync endpoints only
 
-localApp.listen(9876, '127.0.0.1');        // Localhost only
-localApp.listen('/tmp/port-daddy.sock');   // Unix socket
+// Two servers for the local app (TCP + Unix socket)
+const localTcp = http.createServer(localApp);
+const localSock = http.createServer(localApp);
+localTcp.listen(9876, '127.0.0.1');        // Localhost TCP
+localSock.listen('/tmp/port-daddy.sock');   // Unix socket
 
 if (remoteHarborsEnabled) {
-  remoteApp.listen(9877, '0.0.0.0');       // Remote peers only
+  const remoteSrv = http.createServer(remoteApp);
+  remoteSrv.listen(9877, '0.0.0.0');       // Remote peers only
 }
 ```
+
+Note: Express's `app.listen()` creates a new `http.Server` internally. To share one
+Express app across two transports, use `http.createServer(app)` explicitly.
 
 **Rule 2:** Remote-facing endpoints require harbor cards. No exceptions.
 The `remoteApp` has the harbor middleware on every route.
@@ -3847,12 +3855,17 @@ localhost, CSRF is possible if a malicious website triggers a request to
 `localhost:9876`. Protection:
 
 - All mutating dashboard requests use `fetch()` with `Content-Type: application/json`
-- Express checks `Content-Type` header on POST/PUT/DELETE — browsers can't set
-  this header on cross-origin requests without CORS preflight
-- CORS is already configured to reject cross-origin requests (existing code)
+- **Middleware explicitly rejects** any POST/PUT/DELETE without `Content-Type: application/json`.
+  This is enforced, not just checked — requests with missing or wrong Content-Type get
+  HTTP 415 (Unsupported Media Type).
+- `Content-Type: application/json` is NOT in the CORS "simple request" safe list,
+  so it triggers a CORS preflight. The server denies preflight for cross-origin requests
+  (CORS is already configured to reject cross-origin, existing code).
 
-This is the "simple request" defense: JSON content-type forces a CORS preflight,
-which the server denies for cross-origin requests. No CSRF tokens needed.
+This is a defense-in-depth measure, not a complete CSRF solution on its own. The
+Content-Type enforcement + CORS denial together prevent cross-origin mutation.
+`fetch()` with `mode: 'no-cors'` downgrades the content type and would be rejected
+by the Content-Type middleware. No CSRF tokens needed for localhost-only services.
 
 ## mDNS Information Leakage
 
@@ -3979,6 +3992,14 @@ Each migration runs in its own transaction. If migration 005 fails, migrations
 001-004 are already applied. The daemon logs the failure and refuses to start,
 rather than running with a partially-migrated schema.
 
+**SQLite DDL rollback caveat:** `CREATE TABLE` and `ALTER TABLE ADD COLUMN` are
+transaction-safe in SQLite and will roll back correctly. However, `ALTER TABLE RENAME`
+and some older DDL operations may not be fully rollback-safe in all SQLite versions.
+Rule: migration files should use only `CREATE TABLE`, `ALTER TABLE ADD COLUMN`,
+`CREATE INDEX`, `INSERT`, `UPDATE`, and `DELETE` — all of which are transaction-safe.
+For structural changes requiring `ALTER TABLE RENAME`, use the copy-table rebuild
+pattern (see below) which handles this explicitly.
+
 ### The Initial Migration Problem
 
 Existing installations have all V1-V3 tables but no `_migrations` table. On first
@@ -3986,14 +4007,19 @@ V4 startup:
 
 ```
 1. Check: does _migrations table exist?
-2. If not: check for any existing tables (e.g., 'services')
-3. If existing tables found:
+2. If not: check for ALL expected V1-V3 baseline tables (services, sessions,
+   session_notes, agents, locks, messages, webhooks — the full set, not just one)
+3. If all baseline tables found:
    a. CREATE _migrations
    b. INSERT version=1 (mark baseline as applied)
    c. Proceed with migrations 002+
-4. If no existing tables (fresh install):
+4. If some but not all baseline tables found:
+   → Error: "Corrupt or partial database. Expected tables: {list}.
+     Missing: {missing}. Restore from backup or delete the database."
+5. If no existing tables (fresh install):
    a. CREATE _migrations
    b. Apply ALL migrations from 001
+6. If database file doesn't exist: create it fresh, apply all migrations
 ```
 
 This detects whether we're upgrading or fresh-installing without user intervention.
@@ -4109,6 +4135,18 @@ PRAGMA foreign_keys = ON;
 ```
 
 This runs inside `PRAGMA foreign_keys = OFF` and a single transaction.
+**Important:** `PRAGMA foreign_keys` is a connection-level setting. This migration
+must run on a **dedicated connection** separate from the daemon's main connection,
+or during startup before any other operations use the connection. Since migrations
+run during daemon startup (before the HTTP server starts), the main connection is
+not yet shared and this is safe by default. Never run copy-table rebuilds on a connection that is concurrently serving requests.
+
+**WAL mode interaction:** Migrations run before the server starts, so WAL
+checkpoint contention is not an issue. However, the backup-before-migrate step
+(above) copies the database file. In WAL mode, you must also copy the `-wal` and
+`-shm` files to get a consistent backup, OR run `PRAGMA wal_checkpoint(TRUNCATE)`
+before the copy to flush WAL to main DB. The migration runner should checkpoint
+before backup.
 
 ## Testing Migrations
 
@@ -4164,9 +4202,15 @@ import pino from 'pino';
 
 const isDev = process.env.NODE_ENV === 'development';
 
+// pino-pretty is a devDependency — graceful fallback if missing
+function tryPinoPretty() {
+  try { require.resolve('pino-pretty'); return { target: 'pino-pretty' }; }
+  catch { return undefined; }
+}
+
 export const logger = pino({
   level: process.env.PORT_DADDY_LOG_LEVEL || 'info',
-  transport: isDev ? { target: 'pino-pretty' } : undefined,
+  transport: isDev ? tryPinoPretty() : undefined,
   base: { pid: process.pid, daemon: 'port-daddy' },
   serializers: {
     err: pino.stdSerializers.err,
@@ -4355,8 +4399,12 @@ pd-bugreport-2026-03-15T14-32-05.txt
     size=2.3MB, wal_size=45KB, tables=23, migrations=v9
 ```
 
-This file contains NO secrets (no key material, no harbor card JWTs, no token values).
-It can be shared in a GitHub issue or support request.
+This file contains NO secrets. Enforced by a **redaction allowlist** — only known-safe
+config keys are emitted (port, enforce-harbors, log-level, database-path). Keys that
+could contain credentials are explicitly excluded: `dashboard.token`, webhook URLs,
+environment variable overrides. The bugreport command logs which keys were redacted
+so users know what was omitted. No key material, no harbor card JWTs, no token values.
+Safe to share in GitHub issues or support requests.
 
 ## Cross-Daemon Log Correlation
 
@@ -4364,8 +4412,12 @@ When debugging a sync issue between two daemons, the unified view is critical.
 
 ### Pattern: Query + Merge (Not Centralized Logging)
 
-Each daemon exposes `GET /logs?since=<timestamp>&traceId=<id>`. The CLI fetches
-from both daemons and interleaves by timestamp:
+Each daemon exposes `GET /logs?since=<timestamp>&traceId=<id>` **on the local
+interface only** (registered on `localApp`, never on `remoteApp`). The `/logs`,
+`/debug/*`, and `/log-level` endpoints are explicitly excluded from the remote-facing
+Express app. This prevents remote peers from reading operational logs.
+
+The CLI fetches from both daemons and interleaves by timestamp:
 
 ```bash
 pd debug sync-log --harbor myapp
@@ -4567,6 +4619,17 @@ common causes, and resolution steps. This is what Rust, Elm, and Deno do.
 ```bash
 pd claim myapp:api --port 3000
 
+  Error PD-E008: Port 3000 already claimed by agent-b7e1
+  Fix: pd claim myapp:api (auto-assigns), or --force to take
+  Docs: https://portdaddy.dev/errors/PD-E008
+```
+
+**Default is compact (3 lines).** For the full Elm-style explanation with context
+and options, use `--verbose` or set `PORT_DADDY_VERBOSE_ERRORS=1`:
+
+```bash
+pd claim myapp:api --port 3000 --verbose
+
   Error PD-E008: Port 3000 is already claimed
 
   Claimed by: agent-b7e1 (myapp:web:ui)
@@ -4580,6 +4643,10 @@ pd claim myapp:api --port 3000
 
   Docs: https://portdaddy.dev/errors/PD-E008
 ```
+
+The compact default is critical for MCP tool responses (LLM agents waste context
+window tokens on verbose output) and for experienced CLI users. The verbose mode
+is for debugging and onboarding.
 
 ## Accessibility in the Dashboard
 
@@ -5453,12 +5520,26 @@ the agent's LLM needing to understand JWT mechanics.
 
 ### Missing: Grace Period Implementation Detail
 
-The grace period mode (`--enforce-harbors=warn`) must:
-- Log every request that would have been rejected (with the specific missing cap)
-- Include the log count in `pd status` output: "⚠ 47 requests would have been
-  rejected by harbor enforcement"
-- Provide a `pd enforce-harbors dry-run` command that replays recent activity
-  and reports what would break
+The grace period mode (`--enforce-harbors=warn`) is implemented in the harbor
+middleware (`lib/harbor-middleware.ts`):
+
+```typescript
+// In harbor middleware
+if (enforceMode === 'warn') {
+  if (!validCard) {
+    graceViolationCount++;  // Atomic counter in daemon state
+    logger.warn({ path: req.path, agentId, missing: requiredCap },
+      'harbor_enforcement_would_reject');
+    return next();  // Allow through with warning
+  }
+}
+```
+
+The violation counter is exposed via:
+- `pd status` output: `"⚠ 47 requests would have been rejected by harbor enforcement"`
+- `GET /metrics` response: `grace_period_violations: 47`
+- `pd enforce-harbors dry-run` — reads the grace violation log (stored in the
+  activity table with type `grace_violation`) and groups by endpoint + agent
 
 ### Missing: Testing Strategy
 
@@ -5514,8 +5595,17 @@ Pricing is defined but implementation isn't:
 
 The trie is an in-memory cache of SQLite state. Consistency risks:
 - If a SQLite write succeeds but trie update fails (OOM, bug), the trie diverges
-- **Fix:** Trie updates are synchronous and happen in the same call as the SQLite
-  write. If the trie update throws, the SQLite transaction is rolled back.
+- **Fix:** Trie updates are synchronous and wrapped in the same transaction:
+
+```typescript
+// In harbors.ts — every write that affects the trie
+const txn = db.transaction(() => {
+  db.prepare('INSERT INTO harbors ...').run(name, ...);
+  trie.insert(name, capabilities);  // Throws on failure → txn rolls back
+});
+txn();
+```
+
 - **Rebuild:** `pd debug rebuild-trie` forces a full trie rebuild from SQLite.
   Also runs automatically on daemon startup.
 
@@ -5531,10 +5621,24 @@ tools like `sqlite3` CLI), the trie won't reflect external changes.
 ### Missing: Backpressure
 
 When the daemon is under heavy load, the msgpack socket channel needs backpressure:
-- If the socket write buffer exceeds 64KB, pause accepting new frames
-- Resume when the buffer drains below 32KB
-- Node.js `net.Socket` has `write()` return value and `'drain'` event for this
-- Clients should handle write failures gracefully (retry with exponential backoff)
+
+```typescript
+// In lib/socket-transport.ts
+function sendFrame(socket: net.Socket, frame: Buffer): boolean {
+  const ok = socket.write(frame);
+  if (!ok) {
+    // Buffer is full — pause accepting new inbound frames
+    socket.pause();
+    socket.once('drain', () => socket.resume());
+  }
+  return ok;
+}
+```
+
+Thresholds:
+- High watermark: 64KB (Node.js `net.Socket` default is 16KB — increase via
+  `socket.setNoDelay(true)` and `new net.Socket({ highWaterMark: 65536 })`)
+- Clients should handle `false` return from write: queue locally, retry on `drain`
 
 ### Missing: Protocol Error Handling
 
