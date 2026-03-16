@@ -6181,7 +6181,7 @@ The following ideas from the other plan were evaluated and intentionally exclude
 | Idea | Source | Why Not |
 |------|--------|---------|
 | Bun/Fastify migration | ADR-0011 | Massive rewrite risk. Express is fine for our scale. Performance gains come from socket-first transport, not HTTP framework swap. |
-| Credit economy / FloatPlan / Anchor Protocol | ADR-0014, V4-MASTER-PLAN §Phase 3 | Premature before product-market fit. Agent "wallets" and "bilateral receipts" add complexity with no proven demand. Revisit for V5 if PMF is achieved. |
+| Credit economy / FloatPlan / Anchor Protocol | ADR-0014, V4-MASTER-PLAN §Phase 3 | **Reconsidered → adopted as Part XXVII.** Structured task lifecycle (V4.1), bilateral receipts (V4.2), credits/escrow (V4.2+), marketplace (V4.3). Credits only after multi-machine harbors work. |
 | $29/$99 pricing tiers | V4-MARKETING-MONETIZATION.md | Too high. Our Part V pricing ($14/$39) is validated against developer tool comps (Part XXII). Port Daddy is infrastructure, not an IDE — it shouldn't cost more than GitHub Pro. |
 | "Trust-as-a-Service" (TaaS) narrative | V4-MARKETING-MONETIZATION.md | Too abstract. Developers buy tools that solve concrete problems, not narratives. Our messaging should stay concrete: "no more port conflicts, automatic agent coordination." |
 | Marketplace UI | V4-MARKETING-MONETIZATION.md | Premature. Need users before a marketplace. Revisit for V5. |
@@ -6205,6 +6205,505 @@ Both our plan and the other plan use ADR numbers 0011-0016, but for different to
 maps to the actual implementation). The other plan's ADRs should be renumbered to
 0017-0022 if any are adopted. For now, the harvested ideas above are integrated
 into the existing parts rather than creating new ADRs.
+
+---
+---
+
+# Part XXVII: The Anchor Protocol — Structured Task Economy
+
+## The Insight
+
+Sessions and notes are journals — they record what happened. But they don't define
+what *should* happen. An agent runs `pd begin`, writes some notes, runs `pd done`.
+There's no formal task definition, no completion criteria, no verifiable evidence
+chain, and no way for one agent to request work from another with accountability.
+
+The Anchor Protocol adds **structured accountability** in three layers:
+1. **Task Lifecycle** (V4.1) — define, assign, track, complete, verify
+2. **Bilateral Receipts** (V4.2) — signed completion proofs for disaster recovery
+3. **Credit Economy** (V4.2+) — coordination credits, escrow, settlement, marketplace
+
+**Critical constraint:** Layers 2 and 3 (receipts, credits, escrow, marketplace,
+coordination tax) ship ONLY AFTER multi-machine remote harbors are working (V4.1).
+The economy requires cross-machine coordination to be meaningful — local-only credits
+are a currency with no foreign exchange.
+
+## Layer 1: Structured Task Lifecycle (V4.1)
+
+### The Anchor Primitive
+
+An **anchor** is a structured work agreement between agents:
+
+```bash
+# Agent A creates a task
+pd anchor create \
+  --task "Fix authentication race condition in session middleware" \
+  --files src/auth.ts src/middleware/session.ts \
+  --criteria "All auth tests pass, no race condition on concurrent login" \
+  --priority high
+
+# → Anchor created: anch_7f3k92
+# → Status: OPEN
+# → Files claimed: src/auth.ts, src/middleware/session.ts
+
+# Agent B accepts the task
+pd anchor accept anch_7f3k92
+
+# → Anchor anch_7f3k92: OPEN → ACTIVE
+# → Assigned to: agent-b3c1
+# → Files claimed by agent-b3c1
+
+# Agent B works, logs evidence
+pd anchor log anch_7f3k92 "Root cause: session.save() not awaited in concurrent handler"
+pd anchor log anch_7f3k92 "Fix: wrapped in mutex, added integration test"
+
+# Agent B completes
+pd anchor complete anch_7f3k92
+
+# → Anchor anch_7f3k92: ACTIVE → COMPLETED
+# → Evidence chain: 2 log entries
+# → Completion criteria: awaiting verification
+```
+
+### Schema
+
+```sql
+CREATE TABLE anchors (
+  id           TEXT PRIMARY KEY,              -- 'anch_' + nanoid(8)
+  harbor_name  TEXT NOT NULL REFERENCES harbors(name) ON DELETE CASCADE,
+  task         TEXT NOT NULL,                 -- human-readable task description
+  criteria     TEXT,                          -- completion criteria (nullable for informal tasks)
+  priority     TEXT NOT NULL DEFAULT 'normal', -- low, normal, high, critical
+  status       TEXT NOT NULL DEFAULT 'open',  -- open, active, completed, verified, abandoned
+  created_by   TEXT NOT NULL,                 -- agent ID of requester
+  assigned_to  TEXT,                          -- agent ID of worker (NULL when open)
+  created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at   TEXT NOT NULL DEFAULT (datetime('now')),
+  completed_at TEXT,
+  verified_at  TEXT,
+  prev_hash    TEXT                           -- hash chain (same pattern as session notes)
+);
+
+CREATE TABLE anchor_files (
+  anchor_id    TEXT NOT NULL REFERENCES anchors(id) ON DELETE CASCADE,
+  file_path    TEXT NOT NULL,
+  PRIMARY KEY (anchor_id, file_path)
+);
+
+CREATE TABLE anchor_log (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  anchor_id    TEXT NOT NULL REFERENCES anchors(id) ON DELETE CASCADE,
+  agent_id     TEXT NOT NULL,
+  content      TEXT NOT NULL,
+  prev_hash    TEXT,                          -- hash chain within anchor
+  created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX idx_anchors_harbor ON anchors(harbor_name, status);
+CREATE INDEX idx_anchors_assigned ON anchors(assigned_to, status);
+```
+
+### State Machine
+
+```
+OPEN ──────► ACTIVE ──────► COMPLETED ──────► VERIFIED
+  │            │                │
+  │            │                └──► DISPUTED (V4.2+, requires credits)
+  │            │
+  │            └──► ABANDONED (worker gave up or died)
+  │                    │
+  └────────────────────┘ (returns to OPEN for re-assignment)
+```
+
+- **OPEN:** Task defined, waiting for a worker
+- **ACTIVE:** Worker assigned, in progress
+- **COMPLETED:** Worker says done, evidence logged
+- **VERIFIED:** Requester (or automated check) confirms criteria met
+- **ABANDONED:** Worker stopped (crash, timeout, explicit abandon). Task returns to OPEN.
+- **DISPUTED:** (V4.2+) Worker completed but requester disputes quality. Requires credits.
+
+### Relationship to Sessions
+
+Anchors and sessions are complementary, not competing:
+
+```
+Session  = "I'm working" (agent lifecycle, notes, file claims)
+Anchor   = "I'm working on THIS" (task definition, criteria, evidence, assignment)
+```
+
+When an agent accepts an anchor, a session note is automatically appended:
+`"Accepted anchor anch_7f3k92: Fix authentication race condition"`. When the anchor
+completes, another note: `"Completed anchor anch_7f3k92"`. This keeps the session
+journal continuous while the anchor tracks structured task state.
+
+An agent can have multiple anchors in a single session (multi-tasking), or a single
+anchor spanning multiple sessions (long-running task with breaks).
+
+### Integration with Salvage
+
+When an agent dies with active anchors:
+1. Anchors move to ABANDONED status
+2. Files are released
+3. The salvage queue entry includes anchor IDs and their evidence logs
+4. A new agent running `pd salvage claim` gets the anchor context:
+   - Task definition and criteria
+   - All evidence log entries from the dead agent
+   - File list (re-claimed for the new agent)
+5. The new agent's session note: `"Salvaged anchor anch_7f3k92 from dead agent-b3c1"`
+
+This is the "structured resurrection" pattern: the new agent doesn't just get raw notes,
+it gets a formal task definition with completion criteria and prior evidence.
+
+### CLI Commands
+
+```bash
+pd anchor create --task "..." [--files ...] [--criteria "..."] [--priority high]
+pd anchor accept <id>
+pd anchor log <id> "message"
+pd anchor complete <id>
+pd anchor verify <id>
+pd anchor abandon <id>
+pd anchor list [--status open|active|completed] [--mine]
+pd anchor show <id>                    # full detail with evidence chain
+pd anchor search "keyword"             # search task descriptions
+```
+
+### API Endpoints
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/anchors` | POST | Create anchor |
+| `/anchors` | GET | List anchors (filterable by status, harbor, agent) |
+| `/anchors/:id` | GET | Get anchor detail with evidence chain |
+| `/anchors/:id` | PUT | Update anchor (accept, complete, verify, abandon) |
+| `/anchors/:id` | DELETE | Delete anchor (only if OPEN or VERIFIED) |
+| `/anchors/:id/log` | POST | Add evidence log entry |
+| `/anchors/:id/log` | GET | Get evidence log |
+
+## Layer 2: Bilateral Receipts (V4.2)
+
+### The Problem Receipts Solve
+
+If the daemon's SQLite database is lost (corruption, disk failure, accidental deletion),
+all task history disappears. Agents that completed work have no proof. Sessions, notes,
+and anchors are gone.
+
+### The Solution: Agent-Held Receipts
+
+When an anchor reaches VERIFIED status, the daemon produces a **signed receipt** — a
+self-contained JSON document that proves the work happened:
+
+```json
+{
+  "type": "anchor_receipt",
+  "version": 1,
+  "anchor_id": "anch_7f3k92",
+  "harbor": "myapp",
+  "task": "Fix authentication race condition in session middleware",
+  "criteria": "All auth tests pass, no race condition on concurrent login",
+  "requester": "agent-a4f2",
+  "worker": "agent-b3c1",
+  "evidence_hash": "sha256:a3f2c9...",
+  "completed_at": "2026-07-15T14:32:00Z",
+  "verified_at": "2026-07-15T14:35:00Z",
+  "daemon_signature": "ed25519:...",
+  "daemon_id": "daemon-macbook-erich"
+}
+```
+
+The receipt is signed with the daemon's Ed25519 key (from Part XVIII). The
+`evidence_hash` is the Merkle root of all anchor log entries (using the same
+hash-chain from Part XXVI).
+
+### Storage
+
+Receipts are stored in two places:
+1. **Daemon:** In the `anchor_receipts` SQLite table (authoritative)
+2. **Agent:** In `~/.port-daddy/receipts/<anchor_id>.json` (backup)
+
+The agent-side storage is the key innovation. If the daemon dies, agents can
+present their receipts to a new daemon instance:
+
+```bash
+pd receipts import ~/.port-daddy/receipts/
+# → Imported 47 receipts
+# → Verified 47 signatures (daemon key: daemon-macbook-erich)
+# → Reconstructed 12 anchor records
+```
+
+### Schema
+
+```sql
+CREATE TABLE anchor_receipts (
+  anchor_id        TEXT PRIMARY KEY REFERENCES anchors(id),
+  receipt_json     TEXT NOT NULL,           -- full signed receipt
+  evidence_hash    TEXT NOT NULL,           -- Merkle root of evidence
+  daemon_signature TEXT NOT NULL,           -- ed25519 signature
+  created_at       TEXT NOT NULL DEFAULT (datetime('now'))
+);
+```
+
+### Limitations
+
+Receipts prove that work was completed and verified. They do NOT reconstruct:
+- The full evidence log (only the hash)
+- Session notes unrelated to the anchor
+- Pheromone state, KV entries, or other ephemeral state
+
+Receipts are a **disaster recovery** mechanism, not a full backup. For full backup,
+use `pd backup` (Part XXIII).
+
+## Layer 3: Credit Economy (V4.2+)
+
+**Prerequisite:** Multi-machine remote harbors must be working (V4.1 ships Q3 2026).
+Credits are meaningless without cross-machine coordination — they're a coordination
+signal between agents that may be on different machines.
+
+### Why Credits
+
+Without credits, task assignment is implicit: whoever runs `pd anchor accept` first
+gets the task. This works for cooperative agents on a single machine, but breaks down
+when:
+- Multiple agents compete for high-value tasks
+- You want to prioritize urgent work over routine work
+- You need to track which agents contribute the most value
+- Cross-machine agents need an incentive to help each other
+
+Credits solve this by making task value explicit: "This task is worth 500 credits
+to me. Who wants it?"
+
+### The Credit Unit
+
+Credits are an **internal coordination currency**, not real money. They represent
+"how much of the harbor's attention this task deserves."
+
+```
+1 credit ≈ 1 minute of agent compute time (rough heuristic)
+```
+
+This is intentionally imprecise. Credits are a signal, not a price. The daemon does
+not enforce that 500 credits = 500 minutes of work. It enforces that the requester
+has 500 credits to spend and the worker receives them on completion.
+
+### Credit Allocation
+
+Each harbor has a **credit pool**. When a harbor is created, it's seeded with a
+configurable number of credits (default: 10,000):
+
+```sql
+ALTER TABLE harbors ADD COLUMN credit_pool INTEGER NOT NULL DEFAULT 10000;
+```
+
+When an agent enters a harbor, it receives an initial credit allocation from the pool:
+
+```sql
+CREATE TABLE agent_credits (
+  agent_id     TEXT NOT NULL,
+  harbor_name  TEXT NOT NULL REFERENCES harbors(name) ON DELETE CASCADE,
+  balance      INTEGER NOT NULL DEFAULT 0,
+  earned       INTEGER NOT NULL DEFAULT 0,   -- lifetime earnings
+  spent        INTEGER NOT NULL DEFAULT 0,   -- lifetime spending
+  PRIMARY KEY (agent_id, harbor_name)
+);
+```
+
+Credit allocation on harbor entry:
+- Default: 1,000 credits per agent (configurable per harbor)
+- Credits come from the harbor pool (pool decreases)
+- If pool is depleted, new agents get 0 credits (they must earn by doing work)
+
+### Escrow
+
+When an agent creates an anchor with a bounty, the credits are escrowed:
+
+```bash
+pd anchor create \
+  --task "Fix auth bug" \
+  --bounty 500 \
+  --criteria "Tests pass"
+
+# → Credits: 1000 → 500 (500 escrowed for anch_7f3k92)
+```
+
+```sql
+CREATE TABLE escrow (
+  anchor_id    TEXT PRIMARY KEY REFERENCES anchors(id) ON DELETE CASCADE,
+  amount       INTEGER NOT NULL,
+  from_agent   TEXT NOT NULL,
+  harbor_name  TEXT NOT NULL,
+  status       TEXT NOT NULL DEFAULT 'held',  -- held, released, refunded
+  created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+```
+
+Escrow state transitions:
+- **held:** Credits locked, anchor in OPEN or ACTIVE state
+- **released:** Anchor VERIFIED, credits transferred to worker
+- **refunded:** Anchor ABANDONED with no worker, credits returned to requester
+
+All escrow operations use `BEGIN EXCLUSIVE` transactions. Double-spend is impossible
+because the balance check and deduction are atomic.
+
+### Settlement
+
+When an anchor reaches VERIFIED:
+
+```sql
+BEGIN EXCLUSIVE;
+  -- Debit escrow
+  UPDATE escrow SET status = 'released' WHERE anchor_id = ?;
+  -- Credit worker
+  UPDATE agent_credits SET balance = balance + ?, earned = earned + ?
+    WHERE agent_id = ? AND harbor_name = ?;
+  -- Record in activity log
+  INSERT INTO activity (type, details) VALUES ('credit_settlement', ...);
+COMMIT;
+```
+
+The receipt (Layer 2) includes the credit amount settled, providing an audit trail.
+
+### Dispute Resolution (Simple)
+
+If the requester believes the work is incomplete:
+
+```bash
+pd anchor dispute anch_7f3k92 --reason "Tests still failing on CI"
+# → Anchor anch_7f3k92: COMPLETED → DISPUTED
+# → Escrow remains held
+# → Both agents notified via pub/sub
+```
+
+Dispute resolution is manual: the agents communicate (via notes or pub/sub) and
+one of them resolves it:
+
+```bash
+pd anchor resolve anch_7f3k92 --release    # worker gets credits
+pd anchor resolve anch_7f3k92 --refund     # requester gets credits back
+pd anchor resolve anch_7f3k92 --split 60   # 60% to worker, 40% refunded
+```
+
+There is no automated dispute resolution. For local agent swarms, the human
+operator is the ultimate arbiter. The dispute mechanism exists to prevent
+auto-settlement when quality is unclear.
+
+### CLI Commands (Credit Extensions)
+
+```bash
+pd credits                                 # show my balance in current harbor
+pd credits --harbor myapp                  # specific harbor
+pd credits transfer <agent-id> 200         # send credits to another agent
+pd credits history                         # transaction log
+
+pd anchor create --bounty 500 ...          # create with credit bounty
+pd anchor bid <id> --ask 400               # bid on open anchor (less than bounty)
+```
+
+### API Endpoints (Credit Extensions)
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/credits` | GET | Get current agent's balance |
+| `/credits/transfer` | POST | Transfer credits between agents |
+| `/credits/history` | GET | Transaction history |
+| `/anchors/:id/bid` | POST | Bid on open anchor |
+| `/anchors/:id/dispute` | POST | Dispute completed anchor |
+| `/anchors/:id/resolve` | POST | Resolve dispute |
+
+## Layer 3b: Marketplace & Coordination Tax (V4.3+)
+
+**Prerequisite:** Credits (V4.2) and lighthouse relay (V4.3) must be working.
+The marketplace is a cross-harbor, cross-machine feature.
+
+### The Marketplace
+
+The marketplace is where agents from different harbors can post and bid on tasks:
+
+```bash
+pd marketplace list                        # browse open tasks across harbors
+pd marketplace post anch_7f3k92            # make local anchor visible on marketplace
+pd marketplace bid <anchor-id> --ask 400   # bid from another harbor
+```
+
+The lighthouse relay (`relay.portdaddy.dev`) acts as the marketplace broker.
+Tasks are advertised via the relay, and bids are routed back to the originating daemon.
+
+### Coordination Tax
+
+Port Daddy takes a **15% coordination tax** on marketplace settlements
+(cross-harbor credit transfers). This is the revenue model for the relay service:
+
+```
+Worker completes task worth 500 credits
+→ Worker receives 425 credits (85%)
+→ Port Daddy receives 75 credits (15%)
+→ Port Daddy credits convert to real revenue via Pro/Team subscription billing
+```
+
+The coordination tax ONLY applies to cross-harbor, relay-mediated settlements.
+Local settlements (same harbor, same machine) are tax-free. This incentivizes
+local-first coordination while monetizing the relay infrastructure.
+
+### Credit-to-Currency Bridge (V5.0)
+
+Credits start as internal coordination signals. In V5.0, Pro/Team customers can
+optionally attach real bounties:
+
+```bash
+pd anchor create --task "..." --bounty-usd 50.00
+# → Requires Pro subscription
+# → Stripe hold on requester's payment method
+# → Settlement via Stripe Connect to worker's account
+```
+
+This is the bridge from coordination credits to real money. It's explicitly V5.0
+because it requires:
+- Payment processing infrastructure (Stripe Connect)
+- Legal/compliance review
+- Tax reporting (1099 for US workers)
+- Fraud detection
+- All of which are orthogonal to the coordination problem Port Daddy solves
+
+### What Credits Are NOT
+
+- **Not cryptocurrency.** No blockchain, no mining, no speculation. Credits are
+  database integers in SQLite.
+- **Not mandatory.** Anchors work without credits. `--bounty` is optional. The
+  task lifecycle (Layer 1) is fully functional without the economy (Layer 3).
+- **Not transferable outside Port Daddy.** Credits have no external value until
+  the V5.0 currency bridge.
+- **Not a reputation system.** Agent reputation is tracked separately (lifetime
+  earned/spent ratio, completion rate). Credits are a medium of exchange, not
+  a trust signal.
+
+## Files to Create
+
+| File | Layer | When |
+|------|-------|------|
+| `lib/anchors.ts` | 1 | V4.1 |
+| `routes/anchors.ts` | 1 | V4.1 |
+| `cli/commands/anchors.ts` | 1 | V4.1 |
+| `tests/unit/anchors.test.js` | 1 | V4.1 |
+| `lib/receipts.ts` | 2 | V4.2 |
+| `lib/credits.ts` | 3 | V4.2 |
+| `routes/credits.ts` | 3 | V4.2 |
+| `cli/commands/credits.ts` | 3 | V4.2 |
+| `tests/unit/credits.test.js` | 3 | V4.2 |
+| `lib/marketplace.ts` | 3b | V4.3 |
+| `routes/marketplace.ts` | 3b | V4.3 |
+
+## ADR-0017: Anchor Protocol and Credit Economy
+
+**Status:** Proposed
+**Context:** Sessions and notes provide unstructured agent journaling. The Anchor
+Protocol adds structured task lifecycle, verifiable evidence chains, and an optional
+credit economy for cross-harbor coordination.
+**Decision:** Three-layer architecture: task lifecycle (V4.1), bilateral receipts
+(V4.2), credit economy (V4.2+). Credits are internal coordination signals, not
+cryptocurrency. Marketplace and coordination tax require working remote harbors.
+**Consequences:** Additional schema tables (anchors, anchor_log, escrow,
+agent_credits). Credit economy adds complexity but enables cross-machine task
+coordination and creates a revenue path via coordination tax. Economy layers are
+optional — the task lifecycle works without credits.
 
 ---
 ---
@@ -6248,16 +6747,21 @@ into the existing parts rather than creating new ADRs.
 | **V4.1** | mDNS discovery (LAN, opt-in, hashed names) | Q3 2026 | — |
 | **V4.1** | HMAC → Ed25519 migration | Q3 2026 | — |
 | **V4.1** | Dashboard v1 (Web Components, 6 panels: Services, Agents, Sessions, Harbors, Activity, Health) | Q3 2026 | — |
+| **V4.1** | Anchor Protocol Layer 1: structured task lifecycle (Part XXVII) | Q3 2026 | — |
 | **V4.1** | 1 additional template (feature-sprint) | Q3 2026 | — |
+| **V4.2** | Anchor Protocol Layer 2: bilateral receipts for DR (Part XXVII) | Q4 2026 | — |
+| **V4.2** | Anchor Protocol Layer 3: credits, escrow, settlement (Part XXVII) | Q4 2026 | — |
 | **V4.2** | portdaddy.dev lighthouse, API versioning (header-based) | Q4 2026 | — |
 | **V4.2** | Pro tier launch ($14/seat), license key system | Q4 2026 | First revenue |
 | **V4.2** | Blog content pipeline (5 posts) | Q4 2026 | SEO traffic |
 | **V4.2** | Dashboard v2 (6 panels: Salvage, Locks, Messaging, Pheromone Heatmap, Metrics, Config) | Q4 2026 | — |
 | **V4.2** | Storage lifecycle (archive, prune, vacuum automation) | Q4 2026 | — |
+| **V4.3** | Anchor Protocol Layer 3b: marketplace + 15% coordination tax (Part XXVII) | Q1 2027 | Marketplace revenue |
 | **V4.3** | Self-hosted lighthouse, Team tier ($39/team) | Q1 2027 | Team revenue |
 | **V4.3** | Relay service at relay.portdaddy.dev | Q1 2027 | — |
 | **V4.3** | arXiv preprint submission | Q1 2027 | Credibility |
 | **V4.3** | Remaining templates (research-swarm, self-healing) | Q1 2027 | — |
+| **V5.0** | Credit-to-currency bridge (Stripe Connect), real-money bounties | Q2 2027 | Transaction revenue |
 | **V5.0** | Enterprise tier, cloud spawn, SAML/SSO | Q2 2027 | Enterprise revenue |
 
 ### Scope Risk: V4.0
