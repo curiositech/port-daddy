@@ -303,10 +303,6 @@ export function createMessaging(db: Database.Database) {
 
     // Enforce per-channel subscriber limit
     if (subs.size >= MAX_SUBSCRIBERS_PER_CHANNEL) {
-      // Clean up empty channel set if we just created it
-      if (subs.size === 0) {
-        subscribers.delete(channel);
-      }
       return null;
     }
 

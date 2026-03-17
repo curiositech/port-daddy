@@ -96,7 +96,7 @@ export function createLocks(db: Database.Database) {
     }
 
     // Validate name format (alphanumeric, dashes, colons, stars)
-    if (!/^[a-zA-Z0-9._*-]+$/.test(name)) {
+    if (!/^[a-zA-Z0-9.:_*-]+$/.test(name)) {
       return { success: false, error: 'lock name must be alphanumeric with dashes, underscores, dots, colons, or stars' };
     }
 

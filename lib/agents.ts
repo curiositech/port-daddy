@@ -7,7 +7,7 @@
  */
 
 import type Database from 'better-sqlite3';
-import { parseIdentity } from './identity.js';
+import { parseIdentity, patternToSql } from './identity.js';
 
 const DEFAULT_HEARTBEAT_INTERVAL = 30000;  // 30 seconds
 const DEFAULT_AGENT_TTL = 120000;          // 2 minutes without heartbeat = display as inactive
