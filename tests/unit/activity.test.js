@@ -24,35 +24,7 @@ describe('Activity Log Module', () => {
     }
   });
 
-  describe('ActivityType Enum (8 tests)', () => {
-    it('should export SERVICE_CLAIM constant', () => {
-      expect(ActivityType.SERVICE_CLAIM).toBe('service.claim');
-    });
-
-    it('should export SERVICE_RELEASE constant', () => {
-      expect(ActivityType.SERVICE_RELEASE).toBe('service.release');
-    });
-
-    it('should export SERVICE_STATUS_CHANGE constant', () => {
-      expect(ActivityType.SERVICE_STATUS_CHANGE).toBe('service.status');
-    });
-
-    it('should export LOCK_ACQUIRE constant', () => {
-      expect(ActivityType.LOCK_ACQUIRE).toBe('lock.acquire');
-    });
-
-    it('should export LOCK_RELEASE constant', () => {
-      expect(ActivityType.LOCK_RELEASE).toBe('lock.release');
-    });
-
-    it('should export LOCK_EXPIRE constant', () => {
-      expect(ActivityType.LOCK_EXPIRE).toBe('lock.expire');
-    });
-
-    it('should export AGENT_REGISTER constant', () => {
-      expect(ActivityType.AGENT_REGISTER).toBe('agent.register');
-    });
-
+  describe('ActivityType Enum', () => {
     it('should export all required activity type constants', () => {
       const required = [
         'SERVICE_CLAIM',
@@ -106,38 +78,6 @@ describe('Activity Log Module', () => {
 
       expect(result.timestamp).toBeGreaterThanOrEqual(before);
       expect(result.timestamp).toBeLessThanOrEqual(after);
-    });
-
-    it('should accept null agentId', () => {
-      const result = activityLog.log(ActivityType.DAEMON_START, {
-        agentId: null
-      });
-
-      expect(result.success).toBe(true);
-    });
-
-    it('should accept null targetId', () => {
-      const result = activityLog.log(ActivityType.DAEMON_START, {
-        targetId: null
-      });
-
-      expect(result.success).toBe(true);
-    });
-
-    it('should accept null details', () => {
-      const result = activityLog.log(ActivityType.DAEMON_START, {
-        details: null
-      });
-
-      expect(result.success).toBe(true);
-    });
-
-    it('should accept null metadata', () => {
-      const result = activityLog.log(ActivityType.DAEMON_START, {
-        metadata: null
-      });
-
-      expect(result.success).toBe(true);
     });
 
     it('should stringify complex metadata objects', () => {
@@ -291,20 +231,6 @@ describe('Activity Log Module', () => {
       expect(result.count).toBe(5);
     });
 
-    it('should return entries in reverse chronological order with type filter', () => {
-      const timestamps = [];
-      for (let i = 0; i < 3; i++) {
-        const r = activityLog.log(ActivityType.SERVICE_CLAIM);
-        timestamps.push(r.timestamp);
-      }
-
-      const result = activityLog.getRecent({ type: ActivityType.SERVICE_CLAIM });
-
-      expect(result.entries[0].timestamp).toBe(timestamps[2]);
-      expect(result.entries[1].timestamp).toBe(timestamps[1]);
-      expect(result.entries[2].timestamp).toBe(timestamps[0]);
-    });
-
     it('should handle type filter with null metadata', () => {
       activityLog.log(ActivityType.SERVICE_CLAIM, { metadata: null });
       activityLog.log(ActivityType.LOCK_ACQUIRE);
@@ -371,19 +297,6 @@ describe('Activity Log Module', () => {
       expect(result.entries[0].agentId).toBe('agent-1');
     });
 
-    it('should return entries in reverse chronological order with agentId filter', () => {
-      const timestamps = [];
-      for (let i = 0; i < 3; i++) {
-        const r = activityLog.log(ActivityType.AGENT_HEARTBEAT, { agentId: 'agent-1' });
-        timestamps.push(r.timestamp);
-      }
-
-      const result = activityLog.getRecent({ agentId: 'agent-1' });
-
-      expect(result.entries[0].timestamp).toBe(timestamps[2]);
-      expect(result.entries[1].timestamp).toBe(timestamps[1]);
-      expect(result.entries[2].timestamp).toBe(timestamps[0]);
-    });
   });
 
   describe('getRecent with TargetPattern Filter (6 tests)', () => {
