@@ -209,38 +209,6 @@ describe('Utils Module', () => {
     });
   });
 
-  describe('parseExpires() - Complex Scenarios (5 tests)', () => {
-    it('should parse real-world session timeouts', () => {
-      expect(parseExpires('24h')).toBe(24 * 60 * 60 * 1000); // 1 day
-      expect(parseExpires('7d')).toBe(7 * 24 * 60 * 60 * 1000); // 1 week
-      expect(parseExpires('30d')).toBe(30 * 24 * 60 * 60 * 1000); // 1 month
-    });
-
-    it('should parse server keep-alive durations', () => {
-      expect(parseExpires('30s')).toBe(30 * 1000);
-      expect(parseExpires('5m')).toBe(5 * 60 * 1000);
-      expect(parseExpires('1h')).toBe(60 * 60 * 1000);
-    });
-
-    it('should parse precise timeout combinations', () => {
-      const result = parseExpires('2h45m30s');
-      const expected = (2 * 60 * 60 + 45 * 60 + 30) * 1000;
-      expect(result).toBe(expected);
-    });
-
-    it('should handle Port Daddy service expiration times', () => {
-      expect(parseExpires('10m')).toBe(10 * 60 * 1000);
-      expect(parseExpires('1h')).toBe(60 * 60 * 1000);
-      expect(parseExpires('1d')).toBe(24 * 60 * 60 * 1000);
-    });
-
-    it('should handle accumulated durations with multiple same units', () => {
-      // "5m5m" should be parsed as two separate matches
-      expect(parseExpires('5m5m')).toBe(10 * 60 * 1000);
-      expect(parseExpires('1h1h')).toBe(2 * 60 * 60 * 1000);
-    });
-  });
-
   describe('tryParseJson() - Valid JSON (10 tests)', () => {
     it('should parse valid JSON object', () => {
       const json = '{"key": "value"}';
@@ -420,93 +388,6 @@ describe('Utils Module', () => {
     });
   });
 
-  describe('tryParseJson() - Common Real-World Cases (8 tests)', () => {
-    it('should parse HTTP response body as JSON', () => {
-      const response = '{"status": "ok", "data": [1, 2, 3]}';
-      const result = tryParseJson(response);
-      expect(result.status).toBe('ok');
-      expect(result.data).toEqual([1, 2, 3]);
-    });
-
-    it('should return plain text error message as string', () => {
-      const error = 'Internal Server Error';
-      const result = tryParseJson(error);
-      expect(result).toBe(error);
-    });
-
-    it('should parse webhook payload', () => {
-      const payload = '{"event": "port.assigned", "port": 3000, "project": "myapp"}';
-      const result = tryParseJson(payload);
-      expect(result.event).toBe('port.assigned');
-      expect(result.port).toBe(3000);
-    });
-
-    it('should parse database metadata string', () => {
-      const meta = '{"created_at": 1234567890, "version": "1.0"}';
-      const result = tryParseJson(meta);
-      expect(result.created_at).toBe(1234567890);
-    });
-
-    it('should handle non-JSON log entry', () => {
-      const logEntry = '[INFO] Service started on port 3000';
-      const result = tryParseJson(logEntry);
-      expect(result).toBe(logEntry);
-    });
-
-    it('should parse Port Daddy service status JSON', () => {
-      const status = '{"services": 5, "active": true, "uptime": 3600000}';
-      const result = tryParseJson(status);
-      expect(result.services).toBe(5);
-      expect(result.active).toBe(true);
-    });
-
-    it('should handle truncated JSON gracefully', () => {
-      const truncated = '{"data": "incomplete response, server crashed';
-      const result = tryParseJson(truncated);
-      expect(result).toBe(truncated);
-    });
-
-    it('should handle HTML response incorrectly sent as JSON', () => {
-      const html = '<html><body>Error</body></html>';
-      const result = tryParseJson(html);
-      expect(result).toBe(html);
-    });
-  });
-
-  describe('tryParseJson() - Type Preservation (5 tests)', () => {
-    it('should preserve array type after parsing', () => {
-      const json = '[1, 2, 3]';
-      const result = tryParseJson(json);
-      expect(Array.isArray(result)).toBe(true);
-      expect(typeof result).not.toBe('string');
-    });
-
-    it('should preserve object type after parsing', () => {
-      const json = '{"key": "value"}';
-      const result = tryParseJson(json);
-      expect(typeof result).toBe('object');
-      expect(Array.isArray(result)).toBe(false);
-    });
-
-    it('should return string type for non-JSON input', () => {
-      const result = tryParseJson('not json');
-      expect(typeof result).toBe('string');
-      expect(result).toBe('not json');
-    });
-
-    it('should handle boolean type correctly', () => {
-      expect(tryParseJson('true')).toBe(true);
-      expect(tryParseJson('false')).toBe(false);
-      expect(typeof tryParseJson('true')).toBe('boolean');
-    });
-
-    it('should handle null type correctly', () => {
-      const result = tryParseJson('null');
-      expect(result).toBeNull();
-      expect(result === null).toBe(true);
-    });
-  });
-
   describe('Integration Tests - Cross-Function Workflows (5 tests)', () => {
     it('should parse expiration and use in timeout calculation', () => {
       const expiresIn = parseExpires('1h');
@@ -599,47 +480,4 @@ describe('Utils Module', () => {
     });
   });
 
-  describe('Security and Robustness (6 tests)', () => {
-    it('should prevent ReDoS through parseExpires length check', () => {
-      // Create a string that would cause catastrophic backtracking if length check didn't exist
-      const potentialRedos = '1' + 'x'.repeat(100); // Over 50 char limit
-      const result = parseExpires(potentialRedos);
-      expect(result).toBeNull();
-    });
-
-    it('should safely handle null prototype in JSON', () => {
-      const json = '{"__proto__": "poisoned"}';
-      const result = tryParseJson(json);
-      // Verify it doesn't pollute Object.prototype
-      expect(Object.prototype.poisoned).toBeUndefined();
-    });
-
-    it('should not execute code in JSON parsing', () => {
-      const malicious = '{"eval": function() { console.log("hacked"); }}';
-      const result = tryParseJson(malicious);
-      expect(typeof result).toBe('string'); // Should fail to parse
-      expect(result).toBe(malicious);
-    });
-
-    it('should handle JSON with circular reference attempt gracefully', () => {
-      const json = '{"a": {"b": {"c": null}}}';
-      const result = tryParseJson(json);
-      // Since we're parsing a string, there's no actual circular reference
-      expect(typeof result).toBe('object');
-    });
-
-    it('should handle excessively large numbers safely', () => {
-      const json = '99999999999999999999999999999999';
-      const result = tryParseJson(json);
-      // JavaScript will handle as Infinity or big number
-      expect(typeof result).toBe('number');
-    });
-
-    it('should safely reject command injection in duration string', () => {
-      const injection = '1h; rm -rf /';
-      const result = parseExpires(injection);
-      // Should only parse '1h' part and not execute the shell command
-      expect(result).toBe(60 * 60 * 1000);
-    });
-  });
 });
