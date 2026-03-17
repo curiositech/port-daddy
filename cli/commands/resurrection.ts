@@ -5,11 +5,11 @@
  * reclaiming work from stale or dead agents.
  */
 
-import { status as maritimeStatus } from '../../lib/maritime.js';
 import { JOLLY_ROGER, JOLLY_ROGER_COMPACT, ANSI } from '../../lib/banner.js';
 import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import { CLIOptions, isQuiet, isJson } from '../types.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
+import * as ui from '../utils/ui.js';
 
 interface StaleAgent {
   id: string;
@@ -68,7 +68,7 @@ export async function handleSalvage(subcommand: string | undefined, args: string
       const data = await res.json();
 
       if (!res.ok) {
-        console.error(maritimeStatus('error', (data.error as string) || 'Failed to claim agent'));
+        ui.error((data.error as string) || 'Failed to claim agent');
         process.exit(1);
       }
 
@@ -77,7 +77,7 @@ export async function handleSalvage(subcommand: string | undefined, args: string
         return;
       }
 
-      console.log(maritimeStatus('success', `Claimed ${agentId} for salvage`));
+      ui.success(`Claimed ${agentId} for salvage`);
       const context = data.context as { sessionId?: string; purpose?: string; notes?: string[] } | undefined;
       if (context) {
         console.log('');
@@ -111,14 +111,14 @@ export async function handleSalvage(subcommand: string | undefined, args: string
       const data = await res.json();
 
       if (!res.ok) {
-        console.error(maritimeStatus('error', (data.error as string) || 'Failed to complete salvage'));
+        ui.error((data.error as string) || 'Failed to complete salvage');
         process.exit(1);
       }
 
       if (isJson(options)) {
         console.log(JSON.stringify(data, null, 2));
       } else {
-        console.log(maritimeStatus('success', `Salvage complete: ${oldAgentId} -> ${newAgentId}`));
+        ui.success(`Salvage complete: ${oldAgentId} -> ${newAgentId}`);
       }
       break;
     }
@@ -136,7 +136,7 @@ export async function handleSalvage(subcommand: string | undefined, args: string
       const data = await res.json();
 
       if (!res.ok) {
-        console.error(maritimeStatus('error', (data.error as string) || 'Failed to abandon salvage'));
+        ui.error((data.error as string) || 'Failed to abandon salvage');
         process.exit(1);
       }
 
@@ -161,7 +161,7 @@ export async function handleSalvage(subcommand: string | undefined, args: string
       const data = await res.json();
 
       if (!res.ok) {
-        console.error(maritimeStatus('error', (data.error as string) || 'Failed to dismiss'));
+        ui.error((data.error as string) || 'Failed to dismiss');
         process.exit(1);
       }
 
@@ -183,7 +183,7 @@ export async function handleSalvage(subcommand: string | undefined, args: string
 
       // Warn about global salvage (can be noisy)
       if (options.all && !options.project && !isQuiet(options) && !isJson(options)) {
-        console.log(maritimeStatus('warning', 'Showing ALL agents globally. Use --project to filter.'));
+        ui.warn('Showing ALL agents globally. Use --project to filter.');
         console.log('');
       }
 
@@ -191,7 +191,7 @@ export async function handleSalvage(subcommand: string | undefined, args: string
       const data = await res.json();
 
       if (!res.ok) {
-        console.error(maritimeStatus('error', (data.error as string) || 'Failed to list salvage queue'));
+        ui.error((data.error as string) || 'Failed to list salvage queue');
         process.exit(1);
       }
 
@@ -205,7 +205,7 @@ export async function handleSalvage(subcommand: string | undefined, args: string
       if (agents.length === 0) {
         if (!isQuiet(options)) {
           const scope = options.project ? `${options.project}:*` : 'any project';
-          console.log(maritimeStatus('ready', `No agents awaiting salvage in ${scope}`));
+          ui.info(`No agents awaiting salvage in ${scope}`);
         }
         return;
       }

@@ -12,9 +12,9 @@ import { spawn, spawnSync } from 'node:child_process';
 import type { ChildProcess, SpawnSyncReturns } from 'node:child_process';
 import { pdFetch, PORT_DADDY_URL, getDaemonUrl } from '../utils/fetch.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
-import { status as maritimeStatus } from '../../lib/maritime.js';
 import { printBanner, printCompactHeader, printFarewell, WHEEL, ANCHOR, ANSI } from '../../lib/banner.js';
 import { autoFixStartupBlockers, diagnoseStartupBlockers } from '../utils/startup-doctor.js';
+import * as ui from '../utils/ui.js';
 
 // __dirname equivalent for ESM
 const __dirname = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
@@ -65,7 +65,7 @@ async function attemptDaemonStart(tsxBin: string, serverScript: string): Promise
       if (res.ok) {
         const data = await res.json();
         const daemonUrl = getDaemonUrl();
-        console.log(maritimeStatus('success', `Daemon running at ${daemonUrl} (PID ${data.pid})`));
+        ui.success(`Daemon running at ${daemonUrl} (PID ${data.pid})`);
         console.log('');
         console.log(`  ${ANSI.fgGray}Dashboard:${ANSI.reset} ${ANSI.fgCyan}${daemonUrl}${ANSI.reset}`);
         console.log(`  ${ANSI.fgGray}Try:${ANSI.reset}       pd claim myapp -q`);
@@ -93,7 +93,7 @@ export async function handleDaemon(action: string): Promise<void> {
         const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/health`);
         if (res.ok) {
           const data = await res.json();
-          console.log(maritimeStatus('ready', `Port Daddy already running (PID ${data.pid})`));
+          ui.info(`Port Daddy already running (PID ${data.pid})`);
           return;
         }
       } catch {}
@@ -111,7 +111,7 @@ export async function handleDaemon(action: string): Promise<void> {
 
       if (issues.length === 0) {
         // No obvious issues found — maybe it just needs a moment
-        console.error(maritimeStatus('error', 'Failed to start daemon (no fixable issues found)'));
+        ui.error('Failed to start daemon (no fixable issues found)');
         console.log(`  ${ANSI.fgGray}Run: pd doctor${ANSI.reset}`);
         process.exit(1);
       }
@@ -129,9 +129,9 @@ export async function handleDaemon(action: string): Promise<void> {
         // Found issues but couldn't fix any of them
         const unfixable = issues.filter(i => !i.fixable);
         if (unfixable.length > 0) {
-          console.error(maritimeStatus('error', `Cannot start: ${unfixable[0].detail}`));
+          ui.error(`Cannot start: ${unfixable[0].detail}`);
         } else {
-          console.error(maritimeStatus('error', 'Failed to start daemon'));
+          ui.error('Failed to start daemon');
         }
         process.exit(1);
       }
@@ -152,7 +152,7 @@ export async function handleDaemon(action: string): Promise<void> {
         if (await attemptDaemonStart(tsxBin, serverScript)) return;
       }
 
-      console.error(maritimeStatus('error', 'Failed to start daemon after auto-fix'));
+      ui.error('Failed to start daemon after auto-fix');
       console.log(`  ${ANSI.fgGray}Run: pd doctor${ANSI.reset}`);
       process.exit(1);
       break;
@@ -164,9 +164,9 @@ export async function handleDaemon(action: string): Promise<void> {
         const data = await res.json();
         process.kill(data.pid as number, 'SIGTERM');
         printFarewell();
-        console.log(maritimeStatus('success', 'Daemon stopped'));
+        ui.success('Daemon stopped');
       } catch {
-        console.log(maritimeStatus('warning', 'Port Daddy is not running'));
+        ui.warn('Port Daddy is not running');
       }
       break;
     }

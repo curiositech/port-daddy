@@ -4,10 +4,10 @@
  * Handles: agent, agents commands for multi-agent coordination
  */
 
-import { status as maritimeStatus } from '../../lib/maritime.js';
 import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import { CLIOptions, isQuiet, isJson } from '../types.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
+import * as ui from '../utils/ui.js';
 
 /**
  * Handle `pd agent <subcommand>` command
@@ -64,7 +64,7 @@ export async function handleAgent(subcommand: string | undefined, args: string[]
       const data = await res.json();
 
       if (!res.ok) {
-        console.error(maritimeStatus('error', (data.error as string) || 'Failed to register agent'));
+        ui.error((data.error as string) || 'Failed to register agent');
         process.exit(1);
       }
 
@@ -76,7 +76,7 @@ export async function handleAgent(subcommand: string | undefined, args: string[]
         // Show salvage notice if there are dead agents in the same project
         if (data.salvageHint) {
           console.log('');
-          console.log(maritimeStatus('warning', data.salvageHint as string));
+          ui.warn(data.salvageHint as string);
         }
       }
       break;
@@ -94,7 +94,7 @@ export async function handleAgent(subcommand: string | undefined, args: string[]
       const data = await res.json();
 
       if (!res.ok) {
-        console.error(maritimeStatus('error', (data.error as string) || 'Failed to send heartbeat'));
+        ui.error((data.error as string) || 'Failed to send heartbeat');
         process.exit(1);
       }
 
@@ -115,7 +115,7 @@ export async function handleAgent(subcommand: string | undefined, args: string[]
       const data = await res.json();
 
       if (!res.ok) {
-        console.error(maritimeStatus('error', (data.error as string) || 'Failed to unregister agent'));
+        ui.error((data.error as string) || 'Failed to unregister agent');
         process.exit(1);
       }
 
@@ -146,7 +146,7 @@ export async function handleAgent(subcommand: string | undefined, args: string[]
         const data = await res.json();
 
         if (!res.ok) {
-          console.error(maritimeStatus('error', (data.error as string) || 'Failed to read inbox'));
+          ui.error((data.error as string) || 'Failed to read inbox');
           process.exit(1);
         }
 
@@ -197,7 +197,7 @@ export async function handleAgent(subcommand: string | undefined, args: string[]
         const data = await res.json();
 
         if (!res.ok) {
-          console.error(maritimeStatus('error', (data.error as string) || 'Failed to send message'));
+          ui.error((data.error as string) || 'Failed to send message');
           process.exit(1);
         }
 
@@ -213,7 +213,7 @@ export async function handleAgent(subcommand: string | undefined, args: string[]
         const data = await res.json();
 
         if (!res.ok) {
-          console.error(maritimeStatus('error', (data.error as string) || 'Failed to get inbox stats'));
+          ui.error((data.error as string) || 'Failed to get inbox stats');
           process.exit(1);
         }
 
@@ -231,7 +231,7 @@ export async function handleAgent(subcommand: string | undefined, args: string[]
         const data = await res.json();
 
         if (!res.ok) {
-          console.error(maritimeStatus('error', (data.error as string) || 'Failed to clear inbox'));
+          ui.error((data.error as string) || 'Failed to clear inbox');
           process.exit(1);
         }
 
@@ -249,7 +249,7 @@ export async function handleAgent(subcommand: string | undefined, args: string[]
         const data = await res.json();
 
         if (!res.ok) {
-          console.error(maritimeStatus('error', (data.error as string) || 'Failed to mark as read'));
+          ui.error((data.error as string) || 'Failed to mark as read');
           process.exit(1);
         }
 
@@ -273,7 +273,7 @@ export async function handleAgent(subcommand: string | undefined, args: string[]
       const data = await res.json();
 
       if (!res.ok) {
-        console.error(maritimeStatus('error', (data.error as string) || 'Agent not found'));
+        ui.error((data.error as string) || 'Agent not found');
         process.exit(1);
       }
 
@@ -319,7 +319,7 @@ export async function handleAgents(options: CLIOptions): Promise<void> {
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to list agents'));
+    ui.error((data.error as string) || 'Failed to list agents');
     process.exit(1);
   }
 

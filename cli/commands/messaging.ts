@@ -6,13 +6,14 @@
 
 import http from 'node:http';
 import type { IncomingMessage, ClientRequest } from 'node:http';
-import { status as maritimeStatus, highlightChannel, formatRadioMessage, ANSI } from '../../lib/maritime.js';
+import { highlightChannel, formatRadioMessage, ANSI } from '../../lib/maritime.js';
 import type { RadioMessage, SignalType } from '../../lib/maritime.js';
 import { pdFetch, PORT_DADDY_URL, resolveTarget } from '../utils/fetch.js';
 import type { ConnectionTarget, PdFetchResponse } from '../utils/fetch.js';
 import { CLIOptions, isQuiet, isJson } from '../types.js';
 import { separator, tableHeader, relativeTime } from '../utils/output.js';
 import { canPrompt, promptText } from '../utils/prompt.js';
+import * as ui from '../utils/ui.js';
 
 /**
  * Handle `pd pub <channel> <message>` command
@@ -54,14 +55,14 @@ export async function handlePub(channel: string | undefined, message: string | u
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to publish'));
+    ui.error((data.error as string) || 'Failed to publish');
     process.exit(1);
   }
 
   if (isJson(options)) {
     console.log(JSON.stringify(data, null, 2));
   } else if (!isQuiet(options)) {
-    console.log(maritimeStatus('success', `Published to ${highlightChannel(channel)} (id: ${data.id})`));
+    ui.success(`Published to ${highlightChannel(channel)} (id: ${data.id})`);
   }
 }
 
@@ -74,7 +75,7 @@ export async function handleSub(channel: string | undefined, options: CLIOptions
     process.exit(1);
   }
 
-  console.error(maritimeStatus('ready', `Subscribing to ${highlightChannel(channel)}... (Ctrl+C to exit)`));
+  ui.info(`Subscribing to ${highlightChannel(channel)}... (Ctrl+C to exit)`);
 
   // SSE requires raw streaming — can't use pdFetch which buffers the full response
   const target: ConnectionTarget = resolveTarget();
@@ -160,7 +161,7 @@ export async function handleWait(serviceIds: string[], options: CLIOptions): Pro
     const data = await res.json();
 
     if (!res.ok) {
-      console.error(maritimeStatus('error', (data.error as string) || 'Wait failed'));
+      ui.error((data.error as string) || 'Wait failed');
       process.exit(1);
     }
 
@@ -180,7 +181,7 @@ export async function handleWait(serviceIds: string[], options: CLIOptions): Pro
     const data = await res.json();
 
     if (!res.ok) {
-      console.error(maritimeStatus('error', (data.error as string) || 'Wait failed'));
+      ui.error((data.error as string) || 'Wait failed');
       process.exit(1);
     }
 
@@ -212,13 +213,13 @@ export async function handleChannels(subcommand: string | undefined, args: strin
     });
     const data = await res.json();
     if (!res.ok) {
-      console.error(maritimeStatus('error', (data.error as string) || 'Failed to clear channel'));
+      ui.error((data.error as string) || 'Failed to clear channel');
       process.exit(1);
     }
     if (isJson(options)) {
       console.log(JSON.stringify(data, null, 2));
     } else if (!isQuiet(options)) {
-      console.log(maritimeStatus('success', `Cleared channel: ${highlightChannel(channel)}`));
+      ui.success(`Cleared channel: ${highlightChannel(channel)}`);
     }
     return;
   }
@@ -228,7 +229,7 @@ export async function handleChannels(subcommand: string | undefined, args: strin
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to list channels'));
+    ui.error((data.error as string) || 'Failed to list channels');
     process.exit(1);
   }
 
@@ -240,7 +241,7 @@ export async function handleChannels(subcommand: string | undefined, args: strin
   // API returns: { channel: string, count: number, lastMessage: number }
   const channels = data.channels as Array<{ channel: string; count: number; lastMessage: number }>;
   if (!channels || channels.length === 0) {
-    console.log(maritimeStatus('ready', 'No active channels'));
+    ui.info('No active channels');
     return;
   }
 

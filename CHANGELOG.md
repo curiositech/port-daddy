@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Context-Aware Salvage**: Agent registration with `--identity` and `--purpose` now auto-checks for dead agents in the same project and returns a salvage notice. `pd salvage --project <name>` filters by project. Dashboard shows salvage queue grouped by project.
+- **CLI @clack/prompts makeover**: Replaced raw ANSI/readline output with `@clack/prompts` for styled intro bars, spinners, log messages (success/error/warn/info), boxed notes, and interactive prompts. New confident, AI-like voice across all 58+ commands.
 - **`pd spawn` — AI Agent Launcher**: Launch local or cloud AI agents with Port Daddy coordination auto-wired
   - Backends: `ollama` (local daemon), `claude` (Anthropic SDK direct), `gemini` (Google Generative AI), `aider` (subprocess, git-native), `custom` (shell command)
   - All spawned agents auto-register, send heartbeats, start sessions, and enter salvage queue on crash

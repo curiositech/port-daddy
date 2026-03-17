@@ -4,12 +4,12 @@
  * Handles: session, sessions, note, notes commands
  */
 
-import { status as maritimeStatus } from '../../lib/maritime.js';
 import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import { CLIOptions, isQuiet, isJson } from '../types.js';
 import { getDirectSessions } from '../utils/direct-db.js';
 import { canPrompt, promptText, promptSelect } from '../utils/prompt.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
+import * as ui from '../utils/ui.js';
 
 /**
  * Handle `pd session <subcommand>` commands
@@ -110,7 +110,7 @@ async function sessionStart(rest: string[], options: CLIOptions): Promise<void> 
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to start session'));
+    ui.error((data.error as string) || 'Failed to start session');
     if (data.conflicts) {
       const conflicts = data.conflicts as Array<{ file: string; sessionId: string; purpose: string }>;
       console.error('');
@@ -128,7 +128,7 @@ async function sessionStart(rest: string[], options: CLIOptions): Promise<void> 
   } else if (isQuiet(options)) {
     console.log(sessionId);
   } else {
-    console.log(maritimeStatus('success', `Started session: ${sessionId}`));
+    ui.success(`Started session: ${sessionId}`);
     console.log(`  Purpose: ${purpose}`);
     if (files.length > 0) {
       console.log(`  Files claimed: ${files.length}`);
@@ -144,7 +144,7 @@ async function sessionEnd(rest: string[], options: CLIOptions, status: string): 
   const listData = await listRes.json();
 
   if (!listRes.ok || (listData.count as number) === 0) {
-    console.error(maritimeStatus('error', 'No active session found'));
+    ui.error('No active session found');
     process.exit(1);
   }
 
@@ -163,16 +163,19 @@ async function sessionEnd(rest: string[], options: CLIOptions, status: string): 
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to end session'));
+    ui.error((data.error as string) || 'Failed to end session');
     process.exit(1);
   }
 
   if (isJson(options)) {
     console.log(JSON.stringify(data, null, 2));
   } else if (!isQuiet(options)) {
-    const statusMsg = status === 'abandoned' ? 'warning' : 'success';
     const verb = status === 'abandoned' ? 'Abandoned' : 'Ended';
-    console.log(maritimeStatus(statusMsg, `${verb} session: ${sessionId}`));
+    if (status === 'abandoned') {
+      ui.warn(`${verb} session: ${sessionId}`);
+    } else {
+      ui.success(`${verb} session: ${sessionId}`);
+    }
     if (data.filesReleased) {
       console.log(`  Files released: ${data.filesReleased}`);
     }
@@ -193,14 +196,14 @@ async function sessionRemove(rest: string[], options: CLIOptions): Promise<void>
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to delete session'));
+    ui.error((data.error as string) || 'Failed to delete session');
     process.exit(1);
   }
 
   if (isJson(options)) {
     console.log(JSON.stringify(data, null, 2));
   } else if (!isQuiet(options)) {
-    console.log(maritimeStatus('success', `Deleted session: ${sessionId}`));
+    ui.success(`Deleted session: ${sessionId}`);
   }
 }
 
@@ -222,7 +225,7 @@ async function sessionFiles(rest: string[], options: CLIOptions): Promise<void> 
   const listData = await listRes.json();
 
   if (!listRes.ok || (listData.count as number) === 0) {
-    console.error(maritimeStatus('error', 'No active session found'));
+    ui.error('No active session found');
     process.exit(1);
   }
 
@@ -239,7 +242,7 @@ async function sessionFiles(rest: string[], options: CLIOptions): Promise<void> 
     const data = await res.json();
 
     if (!res.ok) {
-      console.error(maritimeStatus('error', (data.error as string) || 'Failed to claim files'));
+      ui.error((data.error as string) || 'Failed to claim files');
       if (data.conflicts) {
         const conflicts = data.conflicts as Array<{ file: string; sessionId: string; purpose: string }>;
         console.error('');
@@ -266,7 +269,7 @@ async function sessionFiles(rest: string[], options: CLIOptions): Promise<void> 
     const data = await res.json();
 
     if (!res.ok) {
-      console.error(maritimeStatus('error', (data.error as string) || 'Failed to release files'));
+      ui.error((data.error as string) || 'Failed to release files');
       process.exit(1);
     }
 
@@ -297,14 +300,14 @@ async function sessionPhase(rest: string[], options: CLIOptions): Promise<void> 
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to set phase'));
+    ui.error((data.error as string) || 'Failed to set phase');
     process.exit(1);
   }
 
   if (isJson(options)) {
     console.log(JSON.stringify(data, null, 2));
   } else if (!isQuiet(options)) {
-    console.log(maritimeStatus('success', `Session ${sessionId}: ${data.previousPhase} → ${data.phase}`));
+    ui.success(`Session ${sessionId}: ${data.previousPhase} → ${data.phase}`);
   }
 }
 
@@ -316,7 +319,7 @@ export async function handleFiles(options: CLIOptions): Promise<void> {
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to list files'));
+    ui.error((data.error as string) || 'Failed to list files');
     process.exit(1);
   }
 
@@ -394,7 +397,7 @@ export async function handleWhoOwns(filePath: string | undefined, options: CLIOp
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to check ownership'));
+    ui.error((data.error as string) || 'Failed to check ownership');
     process.exit(1);
   }
 
@@ -468,7 +471,7 @@ function handleSessionDirect(subcommand: string, rest: string[], options: CLIOpt
       });
 
       if (!result.success) {
-        console.error(maritimeStatus('error', (result.error as string) || 'Failed to start session'));
+        ui.error((result.error as string) || 'Failed to start session');
         process.exit(1);
       }
 
@@ -477,7 +480,7 @@ function handleSessionDirect(subcommand: string, rest: string[], options: CLIOpt
       } else if (isQuiet(options)) {
         console.log(result.id);
       } else {
-        console.log(maritimeStatus('success', `Started session: ${result.id}`));
+        ui.success(`Started session: ${result.id}`);
       }
       break;
     }
@@ -520,7 +523,7 @@ export async function handleSessions(options: CLIOptions): Promise<void> {
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to list sessions'));
+    ui.error((data.error as string) || 'Failed to list sessions');
     process.exit(1);
   }
 
@@ -610,14 +613,14 @@ export async function handleNote(content: string | undefined, options: CLIOption
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to add note'));
+    ui.error((data.error as string) || 'Failed to add note');
     process.exit(1);
   }
 
   if (isJson(options)) {
     console.log(JSON.stringify(data, null, 2));
   } else if (!isQuiet(options)) {
-    console.log(maritimeStatus('success', `Note added to session ${data.sessionId}`));
+    ui.success(`Note added to session ${data.sessionId}`);
   }
 }
 
@@ -640,7 +643,7 @@ export async function handleNotes(sessionId: string | undefined, options: CLIOpt
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to get notes'));
+    ui.error((data.error as string) || 'Failed to get notes');
     process.exit(1);
   }
 

@@ -6,8 +6,9 @@
 
 import { performance } from 'node:perf_hooks';
 import { pdFetch, getDaemonUrl } from '../utils/fetch.js';
-import { status as maritimeStatus, ANSI } from '../../lib/maritime.js';
+import { ANSI } from '../../lib/maritime.js';
 import { printCompactHeader, WHEEL, ANCHOR } from '../../lib/banner.js';
+import * as ui from '../utils/ui.js';
 
 interface BenchResults {
   avg: number;
@@ -90,7 +91,7 @@ export async function handleBench(args: string[]): Promise<void> {
     console.log(`${ANSI.fgGreen}${portStats.avg.toFixed(2)}ms${ANSI.reset} (p95: ${portStats.p95.toFixed(2)}ms)`);
 
     console.log('');
-    console.log(maritimeStatus('success', 'Benchmarks completed. System is purring.'));
+    ui.success('Benchmarks completed. System is purring.');
     console.log('');
   } catch (err: any) {
     console.error(`\n  ${ANSI.fgRed}Benchmark failed:${ANSI.reset} ${err.message}`);

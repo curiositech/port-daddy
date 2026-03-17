@@ -11,9 +11,9 @@
 
 import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
-import { status as maritimeStatus } from '../../lib/maritime.js';
 import { tableHeader, separator } from '../utils/output.js';
 import { CLIOptions, isQuiet, isJson } from '../types.js';
+import * as ui from '../utils/ui.js';
 
 type TunnelProvider = 'ngrok' | 'cloudflared' | 'localtunnel';
 
@@ -89,7 +89,7 @@ async function tunnelStart(identity: string | undefined, options: CLIOptions): P
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to start tunnel'));
+    ui.error((data.error as string) || 'Failed to start tunnel');
     process.exit(1);
   }
 
@@ -103,7 +103,7 @@ async function tunnelStart(identity: string | undefined, options: CLIOptions): P
     return;
   }
 
-  console.log(maritimeStatus('success', `Tunnel started for ${identity}`));
+  ui.success(`Tunnel started for ${identity}`);
   console.log(`  Provider: ${provider}`);
   console.log(`  URL: ${data.url}`);
 }
@@ -125,7 +125,7 @@ async function tunnelStop(identity: string | undefined, options: CLIOptions): Pr
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to stop tunnel'));
+    ui.error((data.error as string) || 'Failed to stop tunnel');
     process.exit(1);
   }
 
@@ -135,7 +135,7 @@ async function tunnelStop(identity: string | undefined, options: CLIOptions): Pr
   }
 
   if (!isQuiet(options)) {
-    console.log(maritimeStatus('success', `Tunnel stopped for ${identity}`));
+    ui.success(`Tunnel stopped for ${identity}`);
   }
 }
 
@@ -155,7 +155,7 @@ async function tunnelStatus(identity: string | undefined, options: CLIOptions): 
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to get tunnel status'));
+    ui.error((data.error as string) || 'Failed to get tunnel status');
     process.exit(1);
   }
 
@@ -192,7 +192,7 @@ async function tunnelList(options: CLIOptions): Promise<void> {
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to list tunnels'));
+    ui.error((data.error as string) || 'Failed to list tunnels');
     process.exit(1);
   }
 
@@ -236,7 +236,7 @@ async function tunnelProviders(options: CLIOptions): Promise<void> {
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to check providers'));
+    ui.error((data.error as string) || 'Failed to check providers');
     process.exit(1);
   }
 

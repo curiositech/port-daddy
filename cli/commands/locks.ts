@@ -4,11 +4,11 @@
  * Handles: lock, unlock, locks commands for distributed locking
  */
 
-import { status as maritimeStatus } from '../../lib/maritime.js';
 import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import { CLIOptions, isQuiet, isJson } from '../types.js';
 import { getDirectLocks } from '../utils/direct-db.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
+import * as ui from '../utils/ui.js';
 
 /**
  * Handle `pd lock <name>` command
@@ -42,7 +42,7 @@ export async function handleLock(name: string | undefined, options: CLIOptions):
     });
     const data = await res.json();
     if (!res.ok) {
-      console.error(maritimeStatus('error', (data.error as string) || 'Failed to extend lock'));
+      ui.error((data.error as string) || 'Failed to extend lock');
       process.exit(1);
     }
     if (isJson(options)) {
@@ -89,7 +89,7 @@ export async function handleLock(name: string | undefined, options: CLIOptions):
       }
       process.exit(1);
     }
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to acquire lock'));
+    ui.error((data.error as string) || 'Failed to acquire lock');
     process.exit(1);
   }
 
@@ -98,7 +98,7 @@ export async function handleLock(name: string | undefined, options: CLIOptions):
   } else if (isQuiet(options)) {
     // Silent success for scripting: port-daddy lock foo && do_stuff
   } else {
-    console.log(maritimeStatus('success', `Acquired lock: ${name}`));
+    ui.success(`Acquired lock: ${name}`);
     if (data.expiresAt) {
       const ttlSeconds: number = Math.ceil(((data.expiresAt as number) - (data.acquiredAt as number)) / 1000);
       console.log(`  TTL: ${ttlSeconds}s`);
@@ -129,7 +129,7 @@ export async function handleUnlock(name: string | undefined, options: CLIOptions
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to release lock'));
+    ui.error((data.error as string) || 'Failed to release lock');
     process.exit(1);
   }
 
@@ -137,9 +137,9 @@ export async function handleUnlock(name: string | undefined, options: CLIOptions
     console.log(JSON.stringify(data, null, 2));
   } else if (!isQuiet(options)) {
     if (data.released) {
-      console.log(maritimeStatus('success', `Released lock: ${name}`));
+      ui.success(`Released lock: ${name}`);
     } else {
-      console.log(maritimeStatus('warning', `Lock '${name}' was not held`));
+      ui.warn(`Lock '${name}' was not held`);
     }
   }
 }
@@ -156,7 +156,7 @@ export async function handleLocks(options: CLIOptions): Promise<void> {
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to list locks'));
+    ui.error((data.error as string) || 'Failed to list locks');
     process.exit(1);
   }
 
@@ -219,7 +219,7 @@ export function handleLockDirect(name: string | undefined, options: CLIOptions):
     });
 
     if (!result.success) {
-      console.error(maritimeStatus('error', result.error || 'Failed to extend lock'));
+      ui.error(result.error || 'Failed to extend lock');
       process.exit(1);
     }
     if (isJson(options)) {
@@ -251,7 +251,7 @@ export function handleLockDirect(name: string | undefined, options: CLIOptions):
       }
       process.exit(1);
     }
-    console.error(maritimeStatus('error', result.error || 'Failed to acquire lock'));
+    ui.error(result.error || 'Failed to acquire lock');
     process.exit(1);
   }
 
@@ -260,7 +260,7 @@ export function handleLockDirect(name: string | undefined, options: CLIOptions):
   } else if (isQuiet(options)) {
     // Silent success for scripting
   } else {
-    console.log(maritimeStatus('success', `Acquired lock: ${name}`));
+    ui.success(`Acquired lock: ${name}`);
     if (result.expiresAt) {
       const ttlSeconds = Math.ceil(((result.expiresAt as number) - (result.acquiredAt as number)) / 1000);
       console.log(`  TTL: ${ttlSeconds}s`);
@@ -284,7 +284,7 @@ export function handleUnlockDirect(name: string | undefined, options: CLIOptions
   });
 
   if (!result.success) {
-    console.error(maritimeStatus('error', result.error || 'Failed to release lock'));
+    ui.error(result.error || 'Failed to release lock');
     process.exit(1);
   }
 
@@ -292,9 +292,9 @@ export function handleUnlockDirect(name: string | undefined, options: CLIOptions
     console.log(JSON.stringify(result, null, 2));
   } else if (!isQuiet(options)) {
     if (result.released) {
-      console.log(maritimeStatus('success', `Released lock: ${name}`));
+      ui.success(`Released lock: ${name}`);
     } else {
-      console.log(maritimeStatus('warning', `Lock '${name}' was not held`));
+      ui.warn(`Lock '${name}' was not held`);
     }
   }
 }
