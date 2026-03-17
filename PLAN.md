@@ -1,5 +1,70 @@
 # Port Daddy V4: Harbor-First Architecture Plan
 
+## Reading Guide
+
+This document has 28 parts. They were written iteratively — later parts amend earlier
+ones, and the dependency graph isn't linear. **Don't read front-to-back.** Use this
+guide instead.
+
+### If you're implementing V4: Critical Path (read these first)
+
+1. **Part I** — Harbor-first architecture. The thesis, enforcement middleware, capability
+   attenuation, filesystem isolation. Everything else depends on this.
+2. **Part VIII** — Binary transport (msgpack). Ships in V4.0 alongside enforcement.
+3. **Part XVIII** — Key management. Where keys live, rotation, HMAC → Ed25519 migration.
+4. **Part XIX** — Schema migrations. How the database evolves across versions.
+5. **Part XVII** — Distributed state & conflict resolution. The hardest problem. Required
+   for remote harbors but the HLC and sync protocol design informs local choices too.
+6. **Part XXV** — Retrospective amendments. Patches gaps in Parts I-XVI. Read AFTER
+   the parts it amends.
+7. **Part XXVIII** — Gap analysis. Twelve unsolved problems with proposed solutions.
+
+### If you're planning the product: Strategy & Positioning
+
+- **Part V** — Monetization (open core + hosted lighthouse)
+- **Part XXII** — Market positioning & competitive landscape
+- **Part XXI** — UX complexity management & error design
+- **Part IV** — Website copy and content strategy
+
+### If you're building the surfaces: CLI, Dashboard, MCP, Website
+
+- **Part IX** — Dashboard wireframes (layout and data) — revised by Part XXIV
+- **Part XXIV** — Dashboard architecture (Web Components, ADR-0016)
+- **Part X** — MCP server V4 tool plan (108 tools, harbor card flow)
+- **Part XI** — Website V2 full wireframes
+- **Part XVI** — Agent skills, `pd teach`, application templates
+
+### If you're designing the distributed system: Remote Harbors
+
+- **Part I § Phase 2** → **Part III** (lighthouse discovery) → **Part XII** (trust tiers)
+  → **Part XIII** (harbor data structures) → **Part XVII** (sync protocol)
+  → **Part XXVIII** Gaps 1-12
+
+### If you're working on a specific feature
+
+| Feature | Read |
+|---------|------|
+| Windows support | Part II |
+| Semantic trie | Part VII |
+| Regions (code boundaries) | Part XIV |
+| Pheromones / stigmergy | Part XV (deferred to V4.2-V4.3) |
+| Observability & logging | Part XX |
+| Storage lifecycle & CI/CD | Part XXIII |
+| Anchor Protocol (task economy) | Part XXVII |
+
+### Cross-references and supersessions
+
+- Part XVII supersedes Part I's wire protocol (SSE → WebSocket)
+- Part XXIV supersedes Part IX's implicit single-file approach
+- Part XXV amends Parts I-XVI with operational detail
+- Part XXVI cross-pollinates ideas from a parallel planning effort
+- ADR-0017 (proposed in Part IX revision) supersedes ADR-0005 (single-file dashboard)
+- `harbor.json` replaces all references to `lighthouse.json` as the config manifest
+  (decided in Part XXVIII Gap 12)
+
+---
+---
+
 # Part I: Harbor-First Architecture
 
 ## The Thesis
@@ -1245,13 +1310,19 @@ remote harbors are configured. Local-only users never open a TCP port.
 
 ### Migration Path
 
-This is a big change. Phase it:
+~~Originally phased across V4.0-V4.3.~~ **Revised: ship msgpack in V4.0.**
 
-1. **V4.0:** Keep current HTTP-over-Unix-socket as-is. Add harbor middleware.
-2. **V4.1:** Add binary protocol as **optional** fast path alongside HTTP on the socket.
-   SDK detects protocol support and upgrades automatically.
-3. **V4.2:** Make binary protocol the default for local. HTTP stays for remote only.
-4. **V4.3:** Remove HTTP listener from Unix socket entirely. HTTP only on TCP for remote.
+The binary protocol is simple (length-prefixed msgpack frames, ~200 lines), the
+performance gain is immediate (85% overhead eliminated), and deferring it means
+building harbor middleware on top of the slow path and then migrating later. Ship
+the fast path first, then wire harbor enforcement directly into it.
+
+1. **V4.0:** Add binary protocol on the Unix socket/named pipe. HTTP stays as fallback
+   on the same socket for backward compatibility. SDK auto-detects protocol support
+   via a handshake byte (`0x01` = msgpack, `0x00` or HTTP verb = HTTP). Harbor
+   middleware runs on both paths.
+2. **V4.1:** CLI and MCP server default to binary protocol. HTTP fallback still works.
+3. **V4.2:** Remove HTTP listener from Unix socket entirely. HTTP only on TCP for remote.
 
 ### Why Not gRPC?
 
@@ -1273,14 +1344,14 @@ would use the binary protocol instead — cutting per-tool-call latency roughly 
 The MCP protocol itself (JSON-RPC over stdio) doesn't change. Only the MCP→daemon
 hop gets faster.
 
-### Benchmark Targets
+### Benchmark Targets (V4.0)
 
-| Path | Current | V4 Target |
-|------|---------|-----------|
+| Path | Current | V4.0 Target |
+|------|---------|-------------|
 | CLI → daemon (claim) | ~2ms | <0.5ms |
 | SDK → daemon (claim) | ~1.5ms | <0.3ms |
 | MCP → daemon (claim) | ~3ms | <1ms |
-| Remote daemon → daemon (sync) | ~5ms | ~5ms (HTTP stays) |
+| Remote daemon → daemon (sync) | ~5ms | ~5ms (HTTP/WS stays) |
 
 ---
 ---
@@ -1312,8 +1383,27 @@ The CSS exists. The HTML structure doesn't.
 The dashboard is the **local control plane** — served by the daemon at `localhost:9876`.
 It is NOT the marketing website. It should feel like a cockpit, not a brochure.
 
-Constraints from ADR-0005: **single-file HTML**, no build step, no frameworks.
-All CSS/JS inline. Must work when served by `pd dev` immediately.
+~~Constraints from ADR-0005: **single-file HTML**, no build step, no frameworks.
+All CSS/JS inline. Must work when served by `pd dev` immediately.~~
+
+**ADR-0005 Revised:** The single-file mandate made sense for a 115-line skeleton.
+It does not scale to a 12-panel dashboard with SSE, Web Components (Part XXIV),
+real-time timelines, and harbor management UI — that's 3,000-4,000 lines in one file,
+which is unmaintainable. **New constraint:**
+
+- **No build step** — still mandatory. The dashboard must work from `public/` with
+  zero compilation. This is the real value of ADR-0005.
+- **No framework** — still mandatory. No React, no Vue, no Svelte. Vanilla JS + Web
+  Components (native browser API, not a framework).
+- **Multi-file allowed** — `public/index.html` loads `public/js/*.js` and
+  `public/css/*.css` via `<script>` and `<link>` tags. The daemon already serves
+  `public/` as a static directory. No bundler, no import maps, just files.
+- **Each Web Component is one file** — `public/js/pd-harbors-panel.js`,
+  `public/js/pd-sessions-panel.js`, etc. Self-contained, lazy-loadable.
+
+This preserves the spirit (zero tooling, instant `pd dev`) while allowing a
+maintainable multi-file structure. ADR-0005 should be formally superseded by
+ADR-0017 documenting this revision.
 
 ## Layout: Four-Quadrant Command Center
 
@@ -2603,6 +2693,14 @@ pd region claim auth
 
 # Part XV: Stigmergic Coordination
 
+> **Schedule revision:** Pheromones are deferred to **V4.2-V4.3**. The seven
+> pheromone types, evaporation engine, and automatic deposition hooks add
+> computational overhead to every operation on the hot path. V4.0 ships harbors,
+> enforcement, and the binary protocol. V4.1 ships remote harbors and sync. V4.2
+> introduces pheromones once the core is stable and benchmarked, starting with the
+> two highest-value types (heat and danger) before adding the remaining five in V4.3.
+> The existing `lib/pheromone.ts` decay loop continues running as-is until then.
+
 ## What Is Stigmergy?
 
 Coordination without direct communication. Agents leave traces in the environment.
@@ -2619,6 +2717,15 @@ numeric values in metadata by 0.95. Values below 0.01 are evicted.
 
 This is the *evaporation* half of stigmergy. What's missing is the *deposition* half —
 agents need to leave traces, and the traces need to mean something.
+
+## Phased Rollout
+
+**V4.2:** Heat + Danger pheromones only. These are the highest-signal types —
+"someone is working here" and "someone died here." Two types, two evaporation rates,
+minimal hot-path overhead. Benchmark before proceeding.
+
+**V4.3:** Trail, Success, Contention, Attention, Coupling. Roll out incrementally,
+each gated on benchmark results showing <0.1ms deposition overhead per operation.
 
 ## Seven Pheromone Types
 
@@ -6864,11 +6971,11 @@ Protocol**, and **Harbor Co-op Governance**.
 
 ---
 
-## Gap 1: File Transport Layer — `lighthouse.json` Offers Files, But How?
+## Gap 1: File Transport Layer — `harbor.json` Offers Files, But How?
 
 ### The Problem
 
-The lighthouse.json spec declares:
+The harbor.json spec declares:
 ```json
 "offers": { "files": ["src/auth/**", "src/api/**"] }
 ```
@@ -6941,7 +7048,7 @@ interface FileUnchanged {
 ```
 
 The providing daemon enforces glob checks on every request:
-1. Parse `path` against `offers.files` globs from lighthouse.json
+1. Parse `path` against `offers.files` globs from harbor.json
 2. If path not covered by any glob → reject with `file-access-denied`
 3. If path matches → read from disk, hash, serve
 
@@ -6952,7 +7059,7 @@ Content-addressed caching on the consumer side:
 
 #### Layer 3: Access Modes
 
-The lighthouse.json `offers` section declares the access mode:
+The harbor.json `offers` section declares the access mode:
 
 ```json
 "offers": {
@@ -7122,7 +7229,7 @@ intentional — if you offered files to a harbor, you accepted that connected pe
 would read them. The departure manifest doesn't grant *new* access; it preserves
 access that already existed during the session.
 
-For sensitive harbors, the lighthouse.json can declare:
+For sensitive harbors, the harbor.json can declare:
 
 ```json
 "departure_policy": {
@@ -7177,7 +7284,7 @@ This sends a `tunnel-request` frame over the sync channel. Alice's daemon can
 auto-approve (if configured) or queue for manual approval.
 
 ```json
-// lighthouse.json
+// harbor.json
 "offers": {
   "tunnels": {
     "auto_approve": true,        // or false for manual approval
@@ -7192,7 +7299,7 @@ auto-approve (if configured) or queue for manual approval.
 A harbor can declare that certain services MUST be tunneled:
 
 ```json
-// lighthouse.json
+// harbor.json
 "requires": {
   "tunnels": ["api:main", "web:dev"]
 }
@@ -7344,7 +7451,7 @@ For setups that need higher availability, the lighthouse acts as a store-and-for
 relay, not just a phone book:
 
 ```json
-// lighthouse.json
+// harbor.json
 "resilience": {
   "tier": "resilient",
   "relay": "relay.portdaddy.dev",
@@ -7386,11 +7493,11 @@ For V4.0-V4.2, Tiers 1 and 2 are sufficient.
 
 ---
 
-## Gap 6: `lighthouse.json` Formal Specification
+## Gap 6: `harbor.json` Formal Specification
 
 ### The Problem
 
-The plan references lighthouse.json in passing but never fully specifies it.
+The plan references harbor.json in passing but never fully specifies it.
 What are all the fields? How is it discovered? What's the lifecycle?
 
 ### Proposed Specification
@@ -7462,18 +7569,18 @@ What are all the fields? How is it discovered? What's the lifecycle?
 
 #### Lifecycle
 
-1. Created by `pd harbor create myapp --remote` → generates `lighthouse.json`
-   in the project root (or `~/.port-daddy/harbors/myapp/lighthouse.json`)
+1. Created by `pd harbor create myapp --remote` → generates `harbor.json`
+   in the project root (or `~/.port-daddy/harbors/myapp/harbor.json`)
 2. Editable by the harbor owner (directly or via `pd harbor config myapp`)
-3. Served at `GET /harbor/:name/lighthouse.json` (public, no auth required)
+3. Served at `GET /harbor/:name/harbor.json` (public, no auth required)
 4. Synced to connected peers as part of harbor metadata
 5. Changes trigger a `harbor-config-update` frame on the sync channel
 
 #### Discovery
 
 When `pd harbor connect myapp` runs without explicit flags:
-1. Check `./lighthouse.json` in the current directory
-2. Check `~/.port-daddy/harbors/myapp/lighthouse.json` (cached from previous connection)
+1. Check `./harbor.json` in the current directory
+2. Check `~/.port-daddy/harbors/myapp/harbor.json` (cached from previous connection)
 3. mDNS browse for `_portdaddy._tcp.local.` with TXT `harbor=myapp`
 4. Query `registry.portdaddy.dev/lookup?harbor=myapp`
 5. Fail with helpful message
@@ -7489,7 +7596,7 @@ real collaboration needs shared governance:
 
 1. Who can invite new members?
 2. Who can evict misbehaving agents?
-3. Who can change lighthouse.json settings?
+3. Who can change harbor.json settings?
 4. What if the owner goes offline permanently?
 
 ### Proposed Solution: Three Governance Models
@@ -7498,7 +7605,7 @@ real collaboration needs shared governance:
 
 One daemon owns the harbor. All authority flows from the owner.
 - Only owner can invite/evict
-- Only owner can modify lighthouse.json
+- Only owner can modify harbor.json
 - If owner goes offline, harbor degrades to cached state
 
 This is the simplest model and covers 90% of use cases (one developer with
@@ -7506,7 +7613,7 @@ multiple machines, or a team lead hosting for the team).
 
 #### Model 2: Council
 
-Multiple daemons share governance. Stored in lighthouse.json:
+Multiple daemons share governance. Stored in harbor.json:
 
 ```json
 "governance": {
@@ -7739,7 +7846,7 @@ A rogue peer could:
 
 ### Proposed Solution: Harbor Resource Quotas
 
-In lighthouse.json (already covered in Gap 6):
+In harbor.json (already covered in Gap 6):
 
 ```json
 "limits": {
@@ -7761,13 +7868,13 @@ backs off exponentially (same pattern as Part XVII reconnection).
 
 ---
 
-## Gap 12: The `lighthouse.json` → Existing Tunnel Feature Bridge
+## Gap 12: The `harbor.json` → Existing Tunnel Feature Bridge
 
 ### The Problem
 
 Port Daddy already has `lib/tunnel.ts` with cloudflare/ngrok support. Part III
-describes `pd lighthouse serve` for discovery. These are two unrelated features
-that share a name collision with the lighthouse.json config.
+describes `pd lighthouse serve` for discovery. These were two unrelated features
+that shared a name collision when the config was called `lighthouse.json`.
 
 ### Proposed Solution: Clean Separation
 
@@ -7775,24 +7882,21 @@ that share a name collision with the lighthouse.json config.
 |---------|-----------|------|
 | **Tunnel** | Public URL for a local port (cloudflare/ngrok) | `lib/tunnel.ts` |
 | **Lighthouse** | Discovery registry for harbor endpoints | `lib/lighthouse-server.ts` |
-| **lighthouse.json** | Harbor configuration manifest | `lib/harbor-config.ts` |
+| **harbor.json** | Harbor configuration manifest | `lib/harbor-config.ts` |
 | **Relay** | Store-and-forward buffer for offline peers | `lib/relay.ts` (new) |
 
-The lighthouse.json file is renamed to **`harbor.json`** to avoid confusion with
-the lighthouse discovery service. Or alternatively, keep `lighthouse.json` but
-be explicit in docs that:
-- A **lighthouse** is a beacon that helps others find you
-- A **tunnel** is a pipe that forwards traffic
-- A **relay** is a mailbox that buffers messages
+**Decision: `harbor.json`.** No alternatives, no waffling. The maritime metaphor
+makes it obvious:
 
-Actually — the maritime metaphor resolves this naturally:
-- **Lighthouse**: "I'm here, come find me" (discovery/advertisement)
-- **Harbor**: "Here are the rules and what's available" (configuration)
-- **Channel**: "Traffic flows through here" (tunnels and sync)
-- **Buoy**: "Messages waiting for you" (relay buffer)
+| Concept | Metaphor | Name |
+|---------|----------|------|
+| Harbor configuration manifest | "Here are the rules" | `harbor.json` |
+| Discovery registry | "I'm here, come find me" | Lighthouse |
+| Public URL pipe | "Traffic flows through" | Tunnel |
+| Store-and-forward buffer | "Messages waiting for you" | Buoy / Relay |
 
-So the config file is `harbor.json`, the discovery service is the lighthouse,
-tunnels remain tunnels, and the relay is a buoy.
+All references to `lighthouse.json` in this document mean `harbor.json`.
+The file `lighthouse.json` does not exist. The lighthouse is a *service*, not a file.
 
 ---
 
@@ -7869,3 +7973,120 @@ learn from the team's collective intelligence, automatically."
    `copy-on-write` with human review is the safe default.
 5. **Harbor inheritance** — a child harbor that inherits permissions from a
    parent. Interesting for monorepo workspaces but adds complexity.
+
+---
+---
+
+# Appendix A: Killer Apps at V4.0 Release
+
+## The Question
+
+What ships on launch day that makes someone install Port Daddy and tell a friend?
+Not the architecture, not the formal proofs, not the 28-part plan — what's the
+demo that sells itself in 60 seconds?
+
+## The Answer: VS Code Extension for Tandem Vibe Coding
+
+The highest-leverage release artifact is a **VS Code extension** that surfaces
+harbor awareness directly in the editor. Not a standalone dashboard. Not a CLI
+workflow. An extension that makes the coordination **visible** while you code.
+
+### Why VS Code (Not CLI, Not Dashboard)
+
+- **Distribution**: VS Code marketplace has 15M+ active users. One click to install.
+- **Where developers live**: Agents run inside editors (Cursor IS VS Code, Windsurf
+  IS VS Code, Claude Code runs in terminals alongside VS Code). The editor is the
+  natural surface for coordination awareness.
+- **Competitive moat**: No agent coordination tool has an editor extension. This is
+  a first-mover opportunity.
+- **Works for Cursor too**: Cursor is a VS Code fork. The same extension works in both.
+
+### What the Extension Shows
+
+**Status bar item**: `⚓ myapp (3 agents)` — always visible, one glance tells you
+the harbor is active and how many agents are coordinating.
+
+**Sidebar panel: Harbor Awareness**
+
+```
+┌─ HARBOR: myapp ──────────────────────────┐
+│                                           │
+│  YOU: agent-a4f2 (Claude Code)            │
+│  Session: "Building JWT auth" (34m)       │
+│  Caps: code:*, notes:write                │
+│                                           │
+│  ALSO HERE:                               │
+│  ● agent-b7e1 (Cursor) — Bob's desktop   │
+│    "Frontend login page" (12m)            │
+│    Files: src/pages/login.tsx             │
+│                                           │
+│  HOT ZONES:                               │
+│  🔥 src/auth/**     (0.87) ← you         │
+│  🔥 src/pages/**    (0.65) ← agent-b7e1  │
+│                                           │
+│  RECENT:                                  │
+│  14:35 agent-b7e1 "OAuth buttons done"    │
+│  14:33 you claimed src/auth/middleware.ts  │
+└───────────────────────────────────────────┘
+```
+
+**File decorations**: Files claimed by other agents get a gutter icon (⚓) and a
+hover tooltip showing who claimed it and when. Hot files (high pheromone heat)
+get a subtle background tint.
+
+**CodeLens**: Above functions in claimed files:
+```
+⚓ Claimed by agent-b7e1 (Bob) — "building login page" | 📝 3 notes
+function LoginPage() {
+```
+
+### What the Extension Does NOT Do
+
+- **No editing**. It's read-only awareness. You don't manage harbors from the extension.
+- **No agent control**. You don't spawn or kill agents from VS Code. That's the CLI.
+- **No build step for the extension itself**. It talks to `localhost:9876` over HTTP
+  and subscribes to SSE for live updates. ~500 lines of TypeScript.
+
+### The 60-Second Demo
+
+```
+1. Alice opens VS Code on her MacBook. Extension shows: ⚓ myapp (1 agent)
+2. Bob opens Cursor on his desktop. Extension shows: ⚓ myapp (2 agents)
+3. Alice's sidebar updates: "● agent-b7e1 (Cursor) just joined"
+4. Bob claims src/pages/login.tsx — Alice sees the ⚓ icon appear on that file
+5. Alice's agent writes a note "JWT refresh working" — Bob sees it in his sidebar
+6. Both developers see each other's activity in real time, in their editors,
+   with zero configuration beyond `pd begin`
+```
+
+That's the demo. Two editors, two agents, one harbor, real-time awareness.
+
+### The Three Release-Day Killer Apps
+
+**1. Tandem Vibe Coding** (VS Code extension + remote harbors)
+"Your Claude and their Cursor, pair-programming through a harbor."
+Target: two developers who already use AI coding assistants.
+
+**2. Solo Multi-Agent Coordination** (CLI + MCP + dashboard)
+"Run 3 Claude agents on different tasks, zero conflicts."
+Target: power users already running multiple agents.
+
+**3. `pd teach --all`** (one-command agent onboarding)
+"Every IDE agent learns 108 coordination tools in one command."
+Target: anyone curious about agent coordination.
+
+### Extension Implementation
+
+| Component | LOE | Notes |
+|-----------|-----|-------|
+| `package.json` (extension manifest) | ~50 lines | activation events, contributes sidebar |
+| `src/extension.ts` (entry point) | ~100 lines | activate, connect to daemon, register providers |
+| `src/harbor-panel.ts` (sidebar webview) | ~200 lines | HTML panel, SSE subscription, live updates |
+| `src/file-decorations.ts` (gutter icons) | ~80 lines | file claim decorations, heat tinting |
+| `src/codelens-provider.ts` (CodeLens) | ~70 lines | claim info above functions |
+| **Total** | **~500 lines** | No dependencies beyond `vscode` API |
+
+Ship it on the VS Code marketplace as `port-daddy` on V4.0 launch day.
+The extension is the top of the funnel. It makes the coordination tangible.
+Everything else (harbors, sync, pheromones) is infrastructure that the
+extension makes visible.
