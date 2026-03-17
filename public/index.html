@@ -2,113 +2,1662 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Port Daddy Dashboard (Test Stub)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="/favicon.png" type="image/png">
+  <title>Port Daddy Dashboard (v3.7.0)</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap');
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     :root {
-      --bg-dark: #0a0a0c;
-      --bg-card: rgba(28, 28, 31, 0.8);
-      --accent: #4ade80;
-      --text: #e8e8ec;
-      --border: 1px solid rgba(255, 255, 255, 0.1);
-      --accent-glow: 0 0 20px rgba(74, 222, 128, 0.2);
-      --success: #10b981;
-      --warning: #f59e0b;
-      --danger: #ef4444;
-      --info: #3b82f6;
-      --flag-blue: #000080;
-      --flag-yellow: #facc15;
-      --flag-red: #ef4444;
+      /* Signal Tower Design System — Dashboard (always dark) */
+      --bg-dark: #111113;
+      --bg-card: #1C1C1F;
+      --bg-input: #15151A;
+      --bg-elevated: #252529;
+      --bg-sidebar: #18181B;
+      /* Signal Blue — Primary accent */
+      --accent: #0066CC;
+      --accent-dim: #0052a3;
+      --accent-soft: #3388DD;
+      --accent-glow: rgba(0,102,204,0.15);
+      /* Signal colors */
+      --brass: #E5A000;
+      --brass-dim: #c08800;
+      --brass-glow: rgba(229,160,0,0.15);
+      --text: #FAFAFA;
+      --text-dim: #8B8B96;
+      --text-muted: #6B6B76;
+      /* Signal flag colors */
+      --success: #18794E;
+      --warning: #E5A000;
+      --danger: #CD2B31;
+      --info: #0066CC;
+      --purple: #6E56CF;
+      --border: #2C2C31;
+      --border-light: #3C3C42;
+      --radius-sm: 6px;
+      --radius-md: 8px;
+      --radius-lg: 10px;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+      --shadow-md: 0 4px 16px rgba(0,0,0,0.4);
+      --transition-fast: 0.15s ease;
+      --transition-med: 0.25s ease;
     }
-    .glass { backdrop-filter: blur(10px); }
-    .glass { backdrop-filter: blur(10px); }
-    .glass { backdrop-filter: blur(10px); }
-    .atmosphere { background: radial-gradient(circle, #1e3a5f, #0a0a0c); }
-    .rich { background: linear-gradient(to right, #1e3a5f, #4a7c7e); }
-    .rich { background: linear-gradient(to right, #1e3a5f, #4a7c7e); }
-    .rich { background: linear-gradient(to right, #1e3a5f, #4a7c7e); }
-    .rich { background: linear-gradient(to right, #1e3a5f, #4a7c7e); }
-    .rich { background: linear-gradient(to right, #1e3a5f, #4a7c7e); }
-    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-    @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
-    @keyframes shimmer { from { background-position: -200% 0; } to { background-position: 200% 0; } }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg-dark);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+      font-size: 13px;
+      -webkit-font-smoothing: antialiased;
+      display: flex;
+    }
+
+    /* ── Glassmorphism base ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse at 20% 50%, rgba(74,157,158,0.08), transparent 60%),
+                  radial-gradient(ellipse at 80% 20%, rgba(112,165,224,0.05), transparent 50%);
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 200px;
+      min-width: 200px;
+      height: 100vh;
+      position: fixed;
+      left: 0; top: 0;
+      background: linear-gradient(180deg, var(--bg-sidebar) 0%, rgba(12,26,46,0.95) 100%);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      z-index: 100;
+    }
+    .sidebar-logo {
+      padding: 16px 16px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .sidebar-logo .logo-icon {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-dim));
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; color: white; font-weight: bold;
+    }
+    .sidebar-logo .logo-text {
+      display: flex; flex-direction: column;
+    }
+    .sidebar-logo .logo-title {
+      font-size: 14px; font-weight: 700; color: var(--text);
+    }
+    .sidebar-logo .logo-sub {
+      font-size: 10px; color: var(--text-muted);
+    }
+    .sidebar-section {
+      padding: 12px 0 4px;
+    }
+    .sidebar-section-label {
+      padding: 0 16px;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 16px;
+      cursor: pointer;
+      color: var(--text-dim);
+      transition: all 0.15s ease;
+      border-left: 3px solid transparent;
+      font-size: 13px;
+      position: relative;
+    }
+    .nav-item:hover {
+      background: rgba(0,102,204,0.06);
+      color: var(--text);
+    }
+    .nav-item.active {
+      background: rgba(0,102,204,0.12);
+      color: var(--accent);
+      border-left-color: var(--accent);
+    }
+    .nav-item .nav-icon {
+      width: 16px; height: 16px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .nav-item .nav-icon svg {
+      width: 16px; height: 16px;
+      fill: none; stroke: currentColor; stroke-width: 2;
+      stroke-linecap: round; stroke-linejoin: round;
+    }
+    .nav-item .nav-label { flex: 1; }
+    .nav-badge {
+      background: var(--bg-elevated);
+      color: var(--accent);
+      font-size: 10px;
+      font-weight: 600;
+      padding: 1px 6px;
+      border-radius: 8px;
+      min-width: 20px;
+      text-align: center;
+    }
+
+    /* ── Main Content ── */
+    .main {
+      margin-left: 200px;
+      flex: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Command Bar ── */
+    .command-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 24px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-dark);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .cmd-search {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 6px 12px;
+    }
+    .cmd-search svg {
+      width: 14px; height: 14px; stroke: var(--text-muted);
+      fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+    }
+    .cmd-search input {
+      flex: 1; background: none; border: none; outline: none;
+      color: var(--text); font-family: inherit; font-size: 13px;
+    }
+    .cmd-search input::placeholder { color: var(--text-muted); }
+    .cmd-search .kbd {
+      font-size: 10px; color: var(--text-muted);
+      border: 1px solid var(--border);
+      border-radius: 4px; padding: 1px 5px;
+    }
+    .cmd-btn {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-dim);
+      cursor: pointer;
+      font-family: inherit; font-size: 12px;
+      transition: all 0.15s ease;
+    }
+    .cmd-btn:hover { background: var(--bg-elevated); color: var(--text); }
+    .cmd-btn svg {
+      width: 14px; height: 14px; fill: none; stroke: currentColor;
+      stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+    }
+    .cmd-btn.danger:hover { border-color: var(--danger); color: var(--danger); }
+    /* Terminal button — prominent, always-visible */
+    .cmd-btn.terminal-btn {
+      border-color: var(--accent); color: var(--accent);
+      font-weight: 600; padding: 6px 18px; font-size: 13px;
+      background: var(--accent-glow);
+    }
+    .cmd-btn.terminal-btn:hover { background: rgba(0,102,204,0.25); border-color: var(--accent-soft); color: var(--accent-soft); }
+    /* Semantic token coloring for scope:topic:qualifier identities */
+    .id-scope { color: #4a9d9e; font-weight: 600; }
+    .id-sep   { color: var(--text-muted); font-weight: 400; }
+    .id-topic { color: var(--brass); }
+    .id-qual  { color: #6DD998; }
+
+    /* ── Panel Area ── */
+    .panel-area {
+      flex: 1;
+      padding: 24px;
+    }
+    .panel { display: none; }
+    .panel.active { display: block; animation: fadeIn 0.2s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes toastOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(120%); opacity: 0; } }
+    @keyframes pulseGlow { 0%, 100% { box-shadow: 0 0 4px var(--success); } 50% { box-shadow: 0 0 12px var(--success); } }
+    @keyframes slideIn { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: translateX(0); } }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .panel-title { font-family: 'Space Grotesk', system-ui, sans-serif; font-size: 20px; font-weight: 700; color: var(--text); }
+    .panel-actions { display: flex; gap: 8px; align-items: center; }
+
+    /* ── Stats Grid ── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      background: linear-gradient(135deg, var(--bg-card) 0%, rgba(0,102,204,0.04) 100%);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      text-align: center;
+    }
+    .stat-value {
+      font-family: 'Space Grotesk', system-ui, sans-serif;
+      font-size: 28px; font-weight: 700; color: var(--text);
+      line-height: 1;
+    }
+    .stat-label {
+      font-size: 10px; font-weight: 600; letter-spacing: 1px;
+      text-transform: uppercase; color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    /* Empty States */
+    .empty-state { text-align: center; padding: 48px 24px; color: var(--text-muted); }
+    .empty-state-icon { width: 48px; height: 48px; margin: 0 auto 12px; opacity: 0.3; stroke: var(--text-muted); fill: none; stroke-width: 1.5; }
+    .empty-state-text { font-size: 0.9em; }
+    .empty-state-hint { font-size: 0.8em; color: var(--text-muted); opacity: 0.6; margin-top: 6px; }
+
+    /* Port Badge */
+    .port-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: rgba(0,102,204,0.12);
+      border: 1px solid rgba(0,102,204,0.25); color: var(--accent);
+      padding: 3px 10px; border-radius: 6px; font-size: 0.9em;
+      font-weight: 600; font-family: 'Geist Mono', 'SF Mono', monospace; letter-spacing: 0.5px;
+    }
+
+    /* Status Indicator */
+    .status-indicator {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 3px 10px; border-radius: 4px; font-size: 0.8em;
+      font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .status-indicator.running { background: rgba(24,121,78,0.15); color: #2da96a; }
+    .status-indicator.running::before {
+      content: ''; width: 6px; height: 6px; border-radius: 50%;
+      background: #2da96a; animation: pulseGlow 2s infinite;
+    }
+    .status-indicator.claimed { background: rgba(0,102,204,0.15); color: var(--info); }
+    .status-indicator.claimed::before {
+      content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--info);
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-block; padding: 3px 10px; border-radius: 4px;
+      font-size: 0.8em; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .badge-success { background: rgba(24, 121, 78, 0.15); color: #2da96a; }
+    .badge-warning { background: rgba(229, 160, 0, 0.15); color: var(--warning); }
+    .badge-danger { background: rgba(205, 43, 49, 0.15); color: #e05555; }
+    .badge-info { background: rgba(0, 102, 204, 0.15); color: var(--info); }
+    .badge-muted { background: rgba(255,255,255,0.05); color: var(--text-muted); }
+
+    /* ── Two Column Layout ── */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    code { background: var(--bg-input); padding: 2px 8px; border-radius: 4px; font-size: 0.9em; color: var(--accent); font-family: 'Geist Mono', 'SF Mono', monospace; }
+
+    /* ── Cards ── */
+    .card {
+      background: linear-gradient(135deg, var(--bg-card), rgba(15,31,53,0.85));
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 16px;
+    }
+    .card-title {
+      font-size: 13px; font-weight: 600; color: var(--text);
+      margin-bottom: 12px;
+    }
+
+    /* ── Activity List ── */
+    .activity-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(26,48,80,0.5);
+    }
+    .activity-item:last-child { border-bottom: none; }
+    .activity-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      margin-top: 6px; flex-shrink: 0;
+    }
+    .activity-dot.green { background: var(--success); }
+    .activity-dot.blue { background: var(--info); }
+    .activity-dot.yellow { background: var(--warning); }
+    .activity-dot.red { background: var(--danger); }
+    .activity-dot.teal { background: var(--accent); }
+    .activity-text { flex: 1; color: var(--text-dim); font-size: 12px; }
+    .activity-time { color: var(--text-muted); font-size: 11px; white-space: nowrap; }
+
+    /* ── Agent List ── */
+    .agent-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 0;
+    }
+    .agent-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+    }
+    .agent-name { font-size: 12px; color: var(--accent); }
+
+    /* ── Tables ── */
+    .table-wrap { overflow-x: auto; }
+    table {
+      width: 100%; border-collapse: collapse;
+      background: var(--bg-card);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+    thead th {
+      text-align: left;
+      padding: 10px 14px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--border);
+    }
+    tbody td {
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(26,48,80,0.4);
+      font-size: 12px;
+      color: var(--text-dim);
+      vertical-align: top;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: rgba(74,157,158,0.04); }
+    .mono { font-family: inherit; color: var(--accent); font-size: 11px; }
+
+    /* ── Status Badges ── */
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+    .badge-active { background: rgba(109,209,148,0.15); color: var(--success); }
+    .badge-completed { background: rgba(74,157,158,0.15); color: var(--accent); }
+    .badge-abandoned { background: rgba(224,112,112,0.15); color: var(--danger); }
+    .badge-assigned { background: rgba(112,165,224,0.15); color: var(--info); }
+    .badge-stale { background: rgba(229,182,85,0.15); color: var(--warning); }
+    .badge-dead { background: rgba(224,112,112,0.15); color: var(--danger); }
+
+    /* ── Action Buttons ── */
+    .btn-sm {
+      padding: 3px 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg-elevated);
+      color: var(--text-dim);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 11px;
+      transition: all 0.15s ease;
+    }
+    .btn-sm:hover { color: var(--text); background: var(--bg-card); }
+    .btn-sm.danger { border-color: rgba(224,112,112,0.3); }
+    .btn-sm.danger:hover { color: var(--danger); border-color: var(--danger); }
+    .btn-actions { display: flex; gap: 4px; flex-wrap: wrap; }
+
+    /* ── Channel Cards ── */
+    .channel-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px;
+    }
+    .activity-icon {
+      width: 40px; height: 40px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; background: var(--bg-card); border: 2px solid var(--border);
+      color: var(--text-dim); transition: all var(--transition-med);
+    }
+    .activity-item:hover .activity-icon { border-color: var(--accent); color: var(--accent); }
+    .activity-icon.claim { border-color: rgba(24,121,78,0.3); color: #2da96a; background: rgba(24,121,78,0.08); }
+    .activity-icon.release { border-color: rgba(0,102,204,0.3); color: var(--info); background: rgba(0,102,204,0.08); }
+    .activity-icon.lock { border-color: rgba(229,160,0,0.3); color: var(--warning); background: rgba(229,160,0,0.08); }
+    .activity-icon.agent { border-color: rgba(110,86,207,0.3); color: var(--purple); background: rgba(110,86,207,0.08); }
+    .activity-icon.daemon { border-color: rgba(205,43,49,0.3); color: var(--danger); background: rgba(205,43,49,0.08); }
+    .activity-content { flex: 1; min-width: 0; }
+    .activity-content .type { font-weight: 600; color: var(--text); font-size: 0.9em; }
+    .activity-content .details {
+      font-size: 0.85em; color: var(--text-dim); margin-top: 3px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .activity-content .time { font-size: 0.75em; color: var(--text-muted); margin-top: 4px; }
+
+    /* Channels */
+    .channel-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .channel-card:hover { border-color: var(--accent-dim); }
+    .channel-card.expanded {
+      grid-column: 1 / -1;
+      cursor: default;
+    }
+    .channel-name {
+      font-size: 13px; font-weight: 600; color: var(--accent);
+      word-break: break-all;
+    }
+    .channel-count {
+      font-size: 11px; color: var(--text-muted); margin-top: 4px;
+    }
+    .channel-messages {
+      margin-top: 12px;
+      display: none;
+    }
+    .channel-card.expanded .channel-messages { display: block; }
+    .msg-item {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px;
+      margin-bottom: 8px;
+    }
+    .msg-meta {
+      display: flex; justify-content: space-between;
+      font-size: 10px; color: var(--text-muted); margin-bottom: 6px;
+    }
+    .msg-payload {
+      font-size: 11px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      color: var(--text-dim);
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .msg-payload .json-key { color: var(--accent); }
+    .msg-payload .json-str { color: var(--success); }
+    .msg-payload .json-num { color: var(--warning); }
+    .msg-payload .json-bool { color: var(--info); }
+    .msg-payload .json-null { color: var(--text-muted); }
+
+    /* ── Select ── */
+    select {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      padding: 5px 10px;
+      font-family: inherit;
+      font-size: 12px;
+      outline: none;
+    }
+
+    /* ── Config / Pre blocks ── */
+    pre.config-block {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      font-size: 12px;
+      color: var(--text-dim);
+      max-height: 600px;
+      overflow-y: auto;
+    }
+
+    /* ── Empty State ── */
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-muted);
+    }
+
+    /* ── Salvage Cards ── */
+    .salvage-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    .salvage-header {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      margin-bottom: 8px;
+    }
+    .salvage-agent { font-weight: 600; color: var(--accent); }
+    .salvage-detail { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+    /* ── Briefing ── */
+    .briefing-section { margin-bottom: 16px; }
+    .briefing-section h3 { font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 8px; }
+    .briefing-item { padding: 4px 0; font-size: 12px; color: var(--text-dim); }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--border-light); }
+
+    /* ── Toast ── */
+    .toast-container { position: fixed; top: 16px; right: 16px; z-index: 9999; }
+    .toast {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 10px 16px;
+      margin-bottom: 8px;
+      font-size: 12px;
+      animation: toastIn 0.3s ease;
+      box-shadow: var(--shadow-md);
+    }
+    .toast.success { border-left: 3px solid var(--success); }
+    .toast.error { border-left: 3px solid var(--danger); }
+    @keyframes toastIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    .toast.info { border-left: 3px solid var(--info); }
+    .toast-icon { flex-shrink: 0; }
+    .toast-msg { flex: 1; line-height: 1.4; }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.7); z-index: 2000; display: none;
+      align-items: center; justify-content: center; backdrop-filter: blur(2px);
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 28px; max-width: 620px; width: 90%;
+      max-height: 85vh; overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5); animation: fadeIn 0.2s ease;
+    }
+    .modal h3 { font-family: 'Space Grotesk', system-ui, sans-serif; color: var(--text); margin-bottom: 16px; font-size: 1.15em; }
+    .modal p { color: var(--text-dim); font-size: 0.9em; margin-bottom: 16px; line-height: 1.6; }
+    .modal-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; }
+    .modal-btn {
+      padding: 10px 22px; border-radius: var(--radius-sm); font-family: inherit;
+      font-weight: 600; cursor: pointer; border: 1px solid var(--border);
+      background: var(--bg-input); color: var(--text); transition: all var(--transition-med);
+    }
+    .modal-btn:hover { border-color: var(--accent); background: var(--accent-glow); }
+    .modal-btn.danger { background: var(--danger); color: white; border-color: var(--danger); }
+    .modal-btn.danger:hover { background: #e05555; }
+
+    .shortcut-list { display: grid; grid-template-columns: auto 1fr; gap: 10px 18px; }
+    .shortcut-key {
+      background: var(--bg-input); border: 1px solid var(--border);
+      padding: 5px 12px; border-radius: 4px; font-size: 0.85em;
+      color: var(--accent); font-family: inherit; text-align: center;
+    }
+    .shortcut-desc { color: var(--text-dim); font-size: 0.9em; display: flex; align-items: center; }
+
+    .tutorial-output { color: var(--text); line-height: 1.7; }
+    .tutorial-output h4 {
+      font-family: 'Space Grotesk', system-ui, sans-serif;
+      color: var(--text); margin: 24px 0 10px 0; font-size: 1.05em;
+      border-bottom: 1px solid var(--border); padding-bottom: 6px;
+    }
+    .tutorial-output h4:first-child { margin-top: 0; }
+    .tutorial-output .cmd {
+      background: var(--bg-card); padding: 10px 14px; border-radius: var(--radius-sm);
+      margin: 8px 0; font-size: 0.95em; color: var(--accent);
+      border-left: 3px solid var(--accent); font-family: 'Geist Mono', 'SF Mono', monospace;
+      transition: background var(--transition-fast); cursor: default;
+    }
+    .tutorial-output .cmd:hover { background: var(--bg-elevated); }
+    .tutorial-output .desc { color: var(--text); font-size: 0.9em; margin-bottom: 12px; }
+    .tutorial-output .note { color: var(--text-dim); font-size: 0.85em; font-style: italic; margin-top: 6px; }
+
+    .integrate-grid { display: grid; grid-template-columns: 1fr; gap: 12px; max-height: 400px; overflow-y: auto; }
+    .integrate-card {
+      background: var(--bg-input); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 14px; transition: border-color var(--transition-med);
+    }
+    .integrate-card:hover { border-color: var(--border-light); }
+    .integrate-name { color: var(--text); font-weight: 600; font-size: 0.9em; margin-bottom: 4px; }
+    .integrate-desc { color: var(--text-muted); font-size: 0.8em; margin-bottom: 10px; line-height: 1.5; }
+    .integrate-cmd {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--bg-dark); padding: 10px 12px; border-radius: var(--radius-sm);
+    }
+    .integrate-cmd code { flex: 1; font-size: 0.8em; color: var(--accent-soft); word-break: break-all; }
+
+    .cmd-btn {
+      background: none; border: 1px solid var(--border); color: var(--text-dim);
+      width: 32px; height: 32px; border-radius: 4px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; transition: all var(--transition-med);
+    }
+    .cmd-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .cmd-btn.copied, .cmd-btn.ran { border-color: var(--success); color: var(--success); }
+
+    .danger-btn { border-color: var(--danger) !important; color: var(--danger) !important; }
+    .danger-btn:hover { background: rgba(248, 113, 113, 0.1) !important; }
+    .accent-btn { border-color: var(--accent) !important; color: var(--accent) !important; }
+    .accent-btn:hover { background: rgba(0, 102, 204, 0.12) !important; }
+
+    .footer {
+      text-align: center; padding: 20px; color: var(--text-muted);
+      font-size: 0.8em; margin-top: 20px;
+      position: relative;
+    }
+    .footer::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(
+        90deg,
+        #0066CC 0% 20%,
+        #18794E 20% 40%,
+        #E5A000 40% 60%,
+        #CD2B31 60% 80%,
+        #6E56CF 80% 100%
+      );
+      opacity: 0.6;
+    }
+    .footer a { color: var(--accent); text-decoration: none; transition: color var(--transition-fast); }
+    .footer a:hover { color: var(--accent-soft); }
+    .footer .farewell { color: var(--accent); font-style: italic; margin-bottom: 8px; }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(-100%); transition: transform 0.2s ease; }
+      .sidebar.open { transform: translateX(0); }
+      .main { margin-left: 0; }
+      .two-col { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: repeat(3, 1fr); }
+    }
   </style>
-  <script>
-    var COMMANDS = ["claim", "release", "find", "lock", "unlock", "status", "ports", "session", "sessions", "note", "notes", "pub", "sub", "wait", "agent", "agents", "up", "down", "scan", "projects", "health", "dashboard", "dns", "activity", "webhook", "metrics", "config", "mcp", "briefing", "integration", "begin", "done", "whoami", "with-lock", "learn", "salvage", "resurrection", "changelog", "tunnel", "inbox", "bench", "demo", "status", "version", "dev"];
-    var CLI_ONLY = ["learn", "bench", "demo", "start", "stop", "restart", "install", "uninstall", "doctor", "diagnose", "ci-gate", "help", "ps", "log"];
-    function showPanel(id) { 
-      console.log("showing panel " + id);
-      document.body.blur();
-    }
-  </script>
 </head>
-<body class="atmosphere">
-  <div id="panel-overview"></div>
-  <div id="panel-services"></div>
-  <div id="panel-agents"></div>
-  <div id="panel-sessions"></div>
-  <div id="panel-locks"></div>
-  <div id="panel-channels"></div>
-  <div id="panel-salvage"></div>
-  <div id="panel-activity"></div>
-  <div id="panel-projects"></div>
-  <div id="panel-config"></div>
-  <div id="panel-changelog"></div>
-  <div id="panel-webhooks"></div>
-  
-  <svg>
-    <symbol id="icon-anchor"></symbol>
-    <symbol id="icon-cpu"></symbol>
-    <symbol id="icon-shield"></symbol>
-    <symbol id="icon-zap"></symbol>
-    <symbol id="icon-activity"></symbol>
-    <symbol id="icon-search"></symbol>
-    <symbol id="icon-refresh-cw"></symbol>
-    <symbol id="icon-layers"></symbol>
-    <symbol id="icon-check-circle-2"></symbol>
-    <symbol id="icon-info"></symbol>
-    <symbol id="icon-rocket"></symbol>
-    
-    <use href="#icon-anchor"></use>
-    <use href="#icon-cpu"></use>
-    <use href="#icon-shield"></use>
-    <use href="#icon-zap"></use>
-    <use href="#icon-activity"></use>
-    <use href="#icon-search"></use>
-    <use href="#icon-refresh-cw"></use>
-    <use href="#icon-layers"></use>
-    <use href="#icon-check-circle-2"></use>
-    <use href="#icon-info"></use>
-    <use href="#icon-rocket"></use>
-    <use href="#icon-anchor"></use>
-    <use href="#icon-cpu"></use>
-    <use href="#icon-shield"></use>
-    <use href="#icon-zap"></use>
-    <use href="#icon-activity"></use>
-    <use href="#icon-search"></use>
-    <use href="#icon-refresh-cw"></use>
-    <use href="#icon-layers"></use>
-    <use href="#icon-check-circle-2"></use>
+<body>
+  <!-- SVG Icon Sprite System -->
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none;">
+    <symbol id="icon-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
+    <symbol id="icon-server" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="6" rx="1"/><rect x="2" y="15" width="20" height="6" rx="1"/><circle cx="6" cy="6" r="1"/><circle cx="6" cy="18" r="1"/></symbol>
+    <symbol id="icon-users" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+    <symbol id="icon-edit" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></symbol>
+    <symbol id="icon-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+    <symbol id="icon-message" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
+    <symbol id="icon-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20M2 12h20"/></symbol>
+    <symbol id="icon-pulse" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></symbol>
+    <symbol id="icon-clock" viewBox="0 0 24 24"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12"/><path d="M12 6v6l4 2"/><path d="M2 22l4-4"/></symbol>
+    <symbol id="icon-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></symbol>
+    <symbol id="icon-link" viewBox="0 0 24 24"><path d="M18 16.98h-5.99c-1.66 0-3.01-1.34-3.01-3s1.34-3 3-3h.01"/><path d="M6 7.02h5.99c1.66 0 3.01 1.34 3.01 3s-1.34 3-3 3h-.01"/></symbol>
+    <symbol id="icon-folder" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></symbol>
+    <symbol id="icon-list" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></symbol>
+    <symbol id="icon-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9"/></symbol>
+    <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
+    <symbol id="icon-terminal" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></symbol>
+    <symbol id="icon-refresh" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></symbol>
+    <symbol id="icon-trash" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
+    <symbol id="icon-activity" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></symbol>
+    <symbol id="icon-anchor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></symbol>
   </svg>
 
-  <p>setInterval</p>
-  <p>/health</p>
-  <p>/services</p>
-  <p>/agents</p>
-  <p>/sessions</p>
-  <p>/locks</p>
-  <p>/dns</p>
-  <p>/activity</p>
-  <p>/status</p>
-  <p>/orchestrator/status</p>
-  
-  <div class="slider-pip"></div>
-  <div class="slider-pip"></div>
-  
-  <p>is a CLI-only command. Run it in your terminal.</p>
+  <!-- Sidebar -->
+  <nav class="sidebar" role="navigation" aria-label="Main navigation">
+    <div class="sidebar-logo">
+      <div class="logo-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><path d="M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20M2 12h20"/>
+        </svg>
+      </div>
+      <div class="logo-text">
+        <div class="logo-title">Port Daddy</div>
+        <div class="logo-sub">Daemon Dashboard</div>
+      </div>
+    </div>
 
-  <!-- Size padding to exceed 50KB -->
-  <div style="display:none">
-    ${'A'.repeat(60000)}
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Overview</div>
+      <div class="nav-item active" data-panel="overview" tabindex="0" role="tab" aria-selected="true">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-grid"/></svg></span>
+        <span class="nav-label">Dashboard</span>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Core</div>
+      <div class="nav-item" data-panel="services" tabindex="0" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-server"/></svg></span>
+        <span class="nav-label">Services</span>
+        <span class="nav-badge" id="badge-services">0</span>
+      </div>
+      <div class="nav-item" data-panel="agents" tabindex="0" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-users"/></svg></span>
+        <span class="nav-label">Agents</span>
+        <span class="nav-badge" id="badge-agents">0</span>
+      </div>
+      <div class="nav-item" data-panel="sessions" tabindex="0" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-edit"/></svg></span>
+        <span class="nav-label">Sessions</span>
+        <span class="nav-badge" id="badge-sessions">0</span>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Coordination</div>
+      <div class="nav-item" data-panel="locks" tabindex="0" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-lock"/></svg></span>
+        <span class="nav-label">Locks</span>
+        <span class="nav-badge" id="badge-locks">0</span>
+      </div>
+      <div class="nav-item" data-panel="channels" tabindex="0" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-message"/></svg></span>
+        <span class="nav-label">Channels</span>
+        <span class="nav-badge" id="badge-channels">0</span>
+      </div>
+      <div class="nav-item" data-panel="dns" tabindex="0" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-globe"/></svg></span>
+        <span class="nav-label">DNS</span>
+        <span class="nav-badge" id="badge-dns">0</span>
+      </div>
+      <div class="nav-item" data-panel="integration" tabindex="0" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-pulse"/></svg></span>
+        <span class="nav-label">Integration</span>
+      </div>
+      <div class="nav-item" data-panel="inbox" tabindex="0" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-message"/></svg></span>
+        <span class="nav-label">Inbox</span>
+        <span class="nav-badge" id="badge-inbox">0</span>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Monitoring</div>
+      <div class="nav-item" data-panel="activity" tabindex="0" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-activity"/></svg></span>
+        <span class="nav-label">Activity</span>
+      </div>
+      <div class="nav-item" data-panel="salvage" tabindex="0" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"/></svg></span>
+        <span class="nav-label">Salvage</span>
+      </div>
+      <div class="nav-item" data-panel="briefing" tabindex="0" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-file"/></svg></span>
+        <span class="nav-label">Briefing</span>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">System</div>
+      <div class="nav-item" data-panel="webhooks" tabindex="0" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-link"/></svg></span>
+        <span class="nav-label">Webhooks</span>
+        <span class="nav-badge" id="badge-webhooks">0</span>
+      </div>
+      <div class="nav-item" data-panel="projects" tabindex="0" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-folder"/></svg></span>
+        <span class="nav-label">Projects</span>
+        <span class="nav-badge" id="badge-projects">0</span>
+      </div>
+      <div class="nav-item" data-panel="changelog" tabindex="0" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-list"/></svg></span>
+        <span class="nav-label">Changelog</span>
+      </div>
+      <div class="nav-item" data-panel="config" tabindex="0" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-settings"/></svg></span>
+        <span class="nav-label">Config</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="main">
+    <div class="command-bar">
+      <div class="cmd-search">
+        <svg viewBox="0 0 24 24"><use href="#icon-search"/></svg>
+        <input type="text" id="command-input" placeholder="Type a command... (Ctrl+K)" autocomplete="off">
+        <span class="kbd">Ctrl+K</span>
+      </div>
+      <button class="cmd-btn terminal-btn" onclick="openTerminal()" title="Terminal (Ctrl+`)">
+        <svg viewBox="0 0 24 24"><use href="#icon-terminal"/></svg>
+        Terminal
+      </button>
+      <button class="cmd-btn" onclick="refreshAll()" title="Refresh">
+        <svg viewBox="0 0 24 24"><use href="#icon-refresh"/></svg>
+        Refresh
+      </button>
+      <button class="cmd-btn danger" onclick="releaseAll()" title="Release All">
+        <svg viewBox="0 0 24 24"><use href="#icon-trash"/></svg>
+        Release All
+      </button>
+    </div>
+
+    <div class="panel-area">
+      <!-- Dashboard Panel -->
+      <div class="panel active" id="panel-overview">
+        <div class="stats-grid" id="stats-grid"></div>
+        <div class="two-col">
+          <div class="card">
+            <div class="card-title">Recent Activity</div>
+            <div id="dashboard-activity"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Active Agents</div>
+            <div id="dashboard-agents"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Services Panel -->
+      <div class="panel" id="panel-services">
+        <div class="panel-header">
+          <div class="panel-title">Services</div>
+          <div class="panel-actions"><button class="cmd-btn" onclick="refreshServices()">Refresh</button></div>
+        </div>
+        <div class="table-wrap" id="services-table"></div>
+      </div>
+
+      <!-- Agents Panel -->
+      <div class="panel" id="panel-agents">
+        <div class="panel-header">
+          <div class="panel-title">Agents</div>
+          <div class="panel-actions"><button class="cmd-btn" onclick="refreshAgents()">Refresh</button></div>
+        </div>
+        <div class="table-wrap" id="agents-table"></div>
+      </div>
+
+      <!-- Sessions Panel -->
+      <div class="panel" id="panel-sessions">
+        <div class="panel-header">
+          <div class="panel-title">Sessions</div>
+          <div class="panel-actions">
+            <select id="session-filter" onchange="refreshSessions()">
+              <option value="">All statuses</option>
+              <option value="active">Active</option>
+              <option value="completed">Completed</option>
+              <option value="abandoned">Abandoned</option>
+            </select>
+            <button class="cmd-btn" onclick="refreshSessions()">Refresh</button>
+          </div>
+        </div>
+        <div class="table-wrap" id="sessions-table"></div>
+      </div>
+
+      <!-- Locks Panel -->
+      <div class="panel" id="panel-locks">
+        <div class="panel-header">
+          <div class="panel-title">Locks</div>
+          <div class="panel-actions"><button class="cmd-btn" onclick="refreshLocks()">Refresh</button></div>
+        </div>
+        <div class="table-wrap" id="locks-table"></div>
+      </div>
+
+      <!-- Channels Panel -->
+      <div class="panel" id="panel-channels">
+        <div class="panel-header">
+          <div class="panel-title">Channels</div>
+          <div class="panel-actions"><button class="cmd-btn" onclick="refreshChannels()">Refresh</button></div>
+        </div>
+        <div id="channels-content"></div>
+      </div>
+
+      <!-- DNS Panel -->
+      <div class="panel" id="panel-dns">
+        <div class="panel-header">
+          <div class="panel-title">DNS Records</div>
+          <div class="panel-actions"><button class="cmd-btn" onclick="refreshDns()">Refresh</button></div>
+        </div>
+        <div class="table-wrap" id="dns-table"></div>
+      </div>
+
+      <!-- Integration Panel -->
+      <div class="panel" id="panel-integration">
+        <div class="panel-header">
+          <div class="panel-title">Integration Signals</div>
+          <div class="panel-actions"><button class="cmd-btn" onclick="refreshIntegration()">Refresh</button></div>
+        </div>
+        <div id="integration-content"></div>
+      </div>
+
+      <!-- Inbox Panel -->
+      <div class="panel" id="panel-inbox">
+        <div class="panel-header">
+          <div class="panel-title">Agent Inbox</div>
+          <div class="panel-actions">
+            <input type="text" id="inbox-agent-id" placeholder="Agent ID" style="background:var(--bg-input);border:1px solid var(--border);color:var(--text);padding:4px 10px;border-radius:var(--radius-sm);font-family:inherit;font-size:0.85em;width:180px;">
+            <button class="cmd-btn" onclick="refreshInbox()">Load</button>
+          </div>
+        </div>
+        <div id="inbox-content"></div>
+      </div>
+
+      <!-- Activity Panel -->
+      <div class="panel" id="panel-activity">
+        <div class="panel-header">
+          <div class="panel-title">Activity Log</div>
+          <div class="panel-actions">
+            <select id="activity-filter" onchange="refreshActivity()">
+              <option value="">All types</option>
+              <option value="claim">Claims</option>
+              <option value="release">Releases</option>
+              <option value="lock">Locks</option>
+              <option value="message">Messages</option>
+              <option value="session">Sessions</option>
+              <option value="agent">Agents</option>
+            </select>
+            <button class="cmd-btn" onclick="refreshActivity()">Refresh</button>
+          </div>
+        </div>
+        <div id="activity-content"></div>
+      </div>
+
+      <!-- Salvage Panel -->
+      <div class="panel" id="panel-salvage">
+        <div class="panel-header">
+          <div class="panel-title">Salvage Queue</div>
+          <div class="panel-actions"><button class="cmd-btn" onclick="refreshSalvage()">Refresh</button></div>
+        </div>
+        <div id="salvage-content"></div>
+      </div>
+
+      <!-- Briefing Panel -->
+      <div class="panel" id="panel-briefing">
+        <div class="panel-header">
+          <div class="panel-title">Briefing</div>
+          <div class="panel-actions"><button class="cmd-btn" onclick="refreshBriefing()">Refresh</button></div>
+        </div>
+        <div id="briefing-content"></div>
+      </div>
+
+      <!-- Webhooks Panel -->
+      <div class="panel" id="panel-webhooks">
+        <div class="panel-header">
+          <div class="panel-title">Webhooks</div>
+          <div class="panel-actions"><button class="cmd-btn" onclick="refreshWebhooks()">Refresh</button></div>
+        </div>
+        <div class="table-wrap" id="webhooks-table"></div>
+      </div>
+
+      <!-- Projects Panel -->
+      <div class="panel" id="panel-projects">
+        <div class="panel-header">
+          <div class="panel-title">Projects</div>
+          <div class="panel-actions"><button class="cmd-btn" onclick="refreshProjects()">Refresh</button></div>
+        </div>
+        <div class="table-wrap" id="projects-table"></div>
+      </div>
+
+      <!-- Changelog Panel -->
+      <div class="panel" id="panel-changelog">
+        <div class="panel-header">
+          <div class="panel-title">Changelog</div>
+          <div class="panel-actions">
+            <select id="changelog-identity" onchange="refreshChangelog()">
+              <option value="">All identities</option>
+            </select>
+            <button class="cmd-btn" onclick="refreshChangelog()">Refresh</button>
+          </div>
+        </div>
+        <div id="changelog-content"></div>
+      </div>
+
+      <!-- Config Panel -->
+      <div class="panel" id="panel-config">
+        <div class="panel-header">
+          <div class="panel-title">Configuration</div>
+          <div class="panel-actions"><button class="cmd-btn" onclick="refreshConfig()">Refresh</button></div>
+        </div>
+        <div id="config-content"></div>
+      </div>
+    </div>
   </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Terminal Drawer -->
+  <div id="terminal-drawer" style="display:none; position:fixed; bottom:0; left:200px; right:0; height:280px; background:var(--bg-input); border-top:2px solid var(--accent); z-index:200; flex-direction:column;">
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 16px; background:var(--bg-elevated); border-bottom:1px solid var(--border);">
+      <span style="font-size:12px; font-weight:600; color:var(--accent); display:flex; align-items:center; gap:6px;"><svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;"><use href="#icon-terminal"/></svg> Terminal</span>
+      <button onclick="closeTerminal()" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:16px;">x</button>
+    </div>
+    <div id="terminal-output" style="flex:1; overflow-y:auto; padding:12px 16px; font-size:12px; color:var(--text-dim);"></div>
+    <div style="display:flex; align-items:center; padding:8px 16px; border-top:1px solid var(--border);">
+      <span style="color:var(--accent); margin-right:8px;">$</span>
+      <input type="text" id="terminal-input" style="flex:1; background:none; border:none; outline:none; color:var(--text); font-family:inherit; font-size:12px;" placeholder="pd help" autocomplete="off">
+    </div>
+  </div>
+
+  <script>
+    /* Port Daddy Dashboard — Sidebar Edition */
+    var API = '';
+    var currentPanel = 'overview';
+
+    /* ── Navigation ── */
+    document.querySelectorAll('.nav-item').forEach(function(item) {
+      item.addEventListener('click', function() {
+        var panel = this.getAttribute('data-panel');
+        if (panel) switchPanel(panel);
+      });
+      item.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.click(); }
+      });
+    });
+
+    function switchPanel(name) {
+      currentPanel = name;
+      document.querySelectorAll('.nav-item').forEach(function(n) {
+        n.classList.toggle('active', n.getAttribute('data-panel') === name);
+        n.setAttribute('aria-selected', n.getAttribute('data-panel') === name ? 'true' : 'false');
+      });
+      document.querySelectorAll('.panel').forEach(function(p) {
+        p.classList.toggle('active', p.id === 'panel-' + name);
+      });
+      location.hash = name;
+      refreshPanel(name);
+    }
+    var showPanel = switchPanel;
+
+    function refreshPanel(name) {
+      var fn = {
+        overview: refreshDashboard, services: refreshServices, agents: refreshAgents,
+        sessions: refreshSessions, locks: refreshLocks, channels: refreshChannels,
+        dns: refreshDns, integration: refreshIntegration, inbox: refreshInbox,
+        activity: refreshActivity, salvage: refreshSalvage, briefing: refreshBriefing,
+        webhooks: refreshWebhooks, projects: refreshProjects, changelog: refreshChangelog,
+        config: refreshConfig
+      };
+      if (fn[name]) fn[name]();
+    }
+
+    /* ── Helpers ── */
+    function toast(msg, type) {
+      var el = document.createElement('div');
+      el.className = 'toast ' + (type || 'success');
+      el.textContent = msg;
+      document.getElementById('toast-container').appendChild(el);
+      setTimeout(function() { el.remove(); }, 3000);
+    }
+
+    function timeAgo(ts) {
+      if (!ts) return '--';
+      var diff = Date.now() - ts;
+      if (diff < 60000) return Math.floor(diff / 1000) + 's';
+      if (diff < 3600000) return Math.floor(diff / 60000) + 'm';
+      if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ' + Math.floor((diff % 3600000) / 60000) + 'm';
+      return Math.floor(diff / 86400000) + 'd';
+    }
+
+    function fmtTime(ts) {
+      if (!ts) return '--';
+      return new Date(ts).toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit' });
+    }
+
+    function fmtDate(ts) {
+      if (!ts) return '--';
+      return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + fmtTime(ts);
+    }
+
+    function formatDuration(ms) {
+      if (ms < 60000) return Math.floor(ms / 1000) + 's';
+      if (ms < 3600000) return Math.floor(ms / 60000) + 'm ' + Math.floor((ms % 60000) / 1000) + 's';
+      return Math.floor(ms / 3600000) + 'h ' + Math.floor((ms % 3600000) / 60000) + 'm';
+    }
+
+    function statusBadge(status) {
+      return '<span class="badge badge-' + (status || 'assigned') + '">' + (status || 'unknown') + '</span>';
+    }
+
+    function highlightId(str) {
+      if (!str || str === '--') return '<span class="mono">' + escHtml(str) + '</span>';
+      var parts = str.split(':');
+      if (parts.length === 1) return '<span class="mono id-scope">' + escHtml(str) + '</span>';
+      var colors = ['id-scope', 'id-topic', 'id-qual'];
+      return '<span class="mono">' + parts.map(function(p, i) {
+        return '<span class="' + colors[Math.min(i, 2)] + '">' + escHtml(p) + '</span>';
+      }).join('<span class="id-sep">:</span>') + '</span>';
+    }
+
+    function escHtml(s) {
+      if (s == null) return '';
+      var d = document.createElement('div');
+      d.textContent = String(s);
+      return d.innerHTML;
+    }
+
+    function syntaxHighlight(json) {
+      if (typeof json === 'string') { try { json = JSON.parse(json); } catch (e) { return escHtml(json); } }
+      var str = JSON.stringify(json, null, 2);
+      return str.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/g, function(match) {
+        var cls = 'json-num';
+        if (/^"/.test(match)) { cls = /:$/.test(match) ? 'json-key' : 'json-str'; }
+        else if (/true|false/.test(match)) { cls = 'json-bool'; }
+        else if (/null/.test(match)) { cls = 'json-null'; }
+        return '<span class="' + cls + '">' + escHtml(match) + '</span>';
+      });
+    }
+
+    async function apiFetch(path) {
+      try {
+        var res = await fetch(API + path);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return await res.json();
+      } catch (e) { console.error('API error:', path, e); return null; }
+    }
+
+    function updateBadge(name, count) {
+      var el = document.getElementById('badge-' + name);
+      if (el) { el.textContent = count; el.style.display = count > 0 ? '' : 'none'; }
+    }
+
+    function setHtml(id, html) { document.getElementById(id).innerHTML = html; }
+
+    /* ── Dashboard ── */
+    async function refreshDashboard() {
+      var results = await Promise.all([
+        apiFetch('/health'), apiFetch('/version'), apiFetch('/services'),
+        apiFetch('/locks'), apiFetch('/agents'), apiFetch('/channels'),
+        apiFetch('/sessions?limit=50')
+      ]);
+      var health = results[0], version = results[1], services = results[2];
+      var locks = results[3], agents = results[4], channels = results[5], sessions = results[6];
+
+      var svcCount = services ? (services.services || []).length : 0;
+      var agentCount = agents ? (agents.agents || []).length : 0;
+      var lockCount = locks ? (locks.locks || []).length : 0;
+      var chanCount = channels ? (channels.channels || []).length : 0;
+      var sessCount = sessions ? (sessions.sessions || []).filter(function(s) { return s.status === 'active'; }).length : 0;
+      var uptime = version ? timeAgo(version.startedAt) : '--';
+
+      updateBadge('services', svcCount); updateBadge('agents', agentCount);
+      updateBadge('sessions', sessCount); updateBadge('locks', lockCount);
+      updateBadge('channels', chanCount);
+
+      setHtml('stats-grid',
+        sc(svcCount, 'SERVICES') + sc(agentCount, 'AGENTS') + sc(lockCount, 'LOCKS') +
+        sc(chanCount, 'CHANNELS') + sc(sessCount, 'SESSIONS') + sc(uptime, 'UPTIME'));
+
+      var actData = await apiFetch('/activity?limit=12');
+      var actItems = actData ? (actData.activity || []) : [];
+      setHtml('dashboard-activity', actItems.length > 0 ? actItems.map(function(a) {
+        var color = { claim: 'teal', release: 'blue', session: 'green', lock: 'yellow', agent: 'green' }[a.type] || 'blue';
+        return '<div class="activity-item"><div class="activity-dot ' + color + '"></div>' +
+          '<div class="activity-text">' + escHtml(a.action || a.type) +
+          (a.identity ? ' ' + highlightId(a.identity) : '') + '</div>' +
+          '<div class="activity-time">' + fmtTime(a.timestamp) + '</div></div>';
+      }).join('') : '<div class="empty-state"><p>No recent activity</p></div>');
+
+      var agentList = agents ? (agents.agents || []) : [];
+      var colors = ['var(--success)', 'var(--accent)', 'var(--info)', 'var(--warning)', 'var(--brass)'];
+      setHtml('dashboard-agents', agentList.length > 0 ? agentList.map(function(a, i) {
+        return '<div class="agent-item"><div class="agent-dot" style="background:' + colors[i % colors.length] + '"></div>' +
+          '<div class="agent-name">' + escHtml(a.name || a.id) + '</div></div>';
+      }).join('') : '<div class="empty-state"><p>No active agents</p></div>');
+    }
+
+    function sc(v, l) { return '<div class="stat-card"><div class="stat-value">' + v + '</div><div class="stat-label">' + l + '</div></div>'; }
+
+    /* ── Services ── */
+    async function refreshServices() {
+      var data = await apiFetch('/services');
+      var svcs = data ? (data.services || []) : [];
+      updateBadge('services', svcs.length);
+      if (!svcs.length) { setHtml('services-table', '<div class="empty-state"><p>No services registered</p></div>'); return; }
+      setHtml('services-table', '<table><thead><tr><th>ID</th><th>Port</th><th>PID</th><th>Status</th><th>Last Seen</th><th>Actions</th></tr></thead><tbody>' +
+        svcs.map(function(s) {
+          return '<tr><td>' + highlightId(s.id) + '</td><td>' + (s.port || '--') + '</td><td>' + (s.pid || '--') + '</td><td>' + statusBadge(s.status) + '</td><td>' + timeAgo(s.last_seen || s.lastSeen) + '</td><td><button class="btn-sm danger" onclick="releaseService(\'' + escHtml(s.id).replace(/'/g, "\\'") + '\')">Release</button></td></tr>';
+        }).join('') + '</tbody></table>');
+    }
+
+    async function releaseService(id) {
+      await fetch(API + '/release', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id }) });
+      toast('Released ' + id); refreshServices(); refreshDashboard();
+    }
+
+    async function releaseAll() {
+      var data = await apiFetch('/services');
+      var svcs = data ? (data.services || []) : [];
+      for (var i = 0; i < svcs.length; i++) await fetch(API + '/release', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: svcs[i].id }) });
+      toast('Released all services'); refreshAll();
+    }
+
+    /* ── Agents ── */
+    async function refreshAgents() {
+      var data = await apiFetch('/agents');
+      var agents = data ? (data.agents || []) : [];
+      updateBadge('agents', agents.length);
+      if (!agents.length) { setHtml('agents-table', '<div class="empty-state"><p>No registered agents</p></div>'); return; }
+      setHtml('agents-table', '<table><thead><tr><th>ID</th><th>Name</th><th>Identity</th><th>Purpose</th><th>Last Heartbeat</th><th>Actions</th></tr></thead><tbody>' +
+        agents.map(function(a) {
+          return '<tr><td>' + highlightId(a.id) + '</td><td>' + escHtml(a.name || '--') + '</td><td>' + highlightId(a.identity || '--') + '</td><td>' + escHtml(a.purpose || '--') + '</td><td>' + timeAgo(a.lastHeartbeat) + '</td><td><button class="btn-sm danger" onclick="removeAgent(\'' + escHtml(a.id) + '\')">Remove</button></td></tr>';
+        }).join('') + '</tbody></table>');
+    }
+
+    async function removeAgent(id) {
+      await fetch(API + '/agents/' + encodeURIComponent(id), { method: 'DELETE' });
+      toast('Removed agent ' + id); refreshAgents();
+    }
+
+    /* ── Sessions ── */
+    async function refreshSessions() {
+      var filter = document.getElementById('session-filter').value;
+      var url = '/sessions?limit=50' + (filter ? '&status=' + filter : '');
+      var data = await apiFetch(url);
+      var sessions = data ? (data.sessions || []) : [];
+      updateBadge('sessions', sessions.filter(function(s) { return s.status === 'active'; }).length);
+      if (!sessions.length) { setHtml('sessions-table', '<div class="empty-state"><p>No sessions found</p></div>'); return; }
+      setHtml('sessions-table', '<table><thead><tr><th>ID</th><th>Agent</th><th>Status</th><th>Purpose</th><th>Phase</th><th>Duration</th><th>Actions</th></tr></thead><tbody>' +
+        sessions.map(function(s) {
+          var dur = s.completedAt ? formatDuration(s.completedAt - s.createdAt) : formatDuration(Date.now() - s.createdAt);
+          var acts = s.status === 'active'
+            ? '<div class="btn-actions"><button class="btn-sm danger" onclick="endSession(\'' + escHtml(s.id) + '\')">End</button><button class="btn-sm danger" onclick="abandonSession(\'' + escHtml(s.id) + '\')">Abandon</button><button class="btn-sm" onclick="viewNotes(\'' + escHtml(s.id) + '\')">Notes</button></div>'
+            : '<button class="btn-sm" onclick="viewNotes(\'' + escHtml(s.id) + '\')">Notes</button>';
+          return '<tr><td class="mono" style="font-size:0.8em;color:var(--text-muted)">' + escHtml(s.id.slice(0,8)) + '</td><td>' + highlightId(s.agentId || '--') + '</td><td>' + statusBadge(s.status) + '</td><td>' + escHtml(s.purpose) + '</td><td>' + escHtml(s.phase || '--') + '</td><td>' + dur + '</td><td>' + acts + '</td></tr>';
+        }).join('') + '</tbody></table>');
+    }
+
+    async function endSession(id) {
+      await fetch(API + '/sessions/' + encodeURIComponent(id), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'completed' }) });
+      toast('Session ended'); refreshSessions();
+    }
+    async function abandonSession(id) {
+      await fetch(API + '/sessions/' + encodeURIComponent(id), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'abandoned' }) });
+      toast('Session abandoned'); refreshSessions();
+    }
+    async function viewNotes(sid) {
+      var data = await apiFetch('/sessions/' + encodeURIComponent(sid) + '/notes');
+      var notes = data ? (data.notes || []) : [];
+      var overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:300;display:flex;align-items:center;justify-content:center;';
+      overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+      var box = document.createElement('div');
+      box.style.cssText = 'background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;width:600px;max-height:80vh;overflow-y:auto;';
+      var header = '<div style="display:flex;justify-content:space-between;margin-bottom:16px;"><span style="font-weight:600;color:var(--accent);">Notes for ' + escHtml(sid) + '</span></div>';
+      var body = notes.length === 0 ? '<p style="color:var(--text-muted);">No notes yet</p>'
+        : notes.map(function(n) {
+            return '<div style="padding:8px 0;border-bottom:1px solid var(--border);"><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-bottom:4px;"><span>' + escHtml(n.type) + '</span><span>' + fmtTime(n.createdAt || n.created_at) + '</span></div><div style="font-size:12px;color:var(--text-dim);">' + escHtml(n.content) + '</div></div>';
+          }).join('');
+      box.innerHTML = header + body;
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+    }
+
+    /* ── Locks ── */
+    async function refreshLocks() {
+      var data = await apiFetch('/locks');
+      var locks = data ? (data.locks || []) : [];
+      updateBadge('locks', locks.length);
+      if (!locks.length) { setHtml('locks-table', '<div class="empty-state"><p>No active locks</p></div>'); return; }
+      setHtml('locks-table', '<table><thead><tr><th>Name</th><th>Owner</th><th>Acquired</th><th>Expires</th><th>Actions</th></tr></thead><tbody>' +
+        locks.map(function(l) {
+          return '<tr><td class="mono">' + escHtml(l.name) + '</td><td>' + escHtml(l.owner) + '</td><td>' + fmtTime(l.acquiredAt) + '</td><td>' + fmtTime(l.expiresAt) + '</td><td><button class="btn-sm danger" onclick="releaseLock(\'' + escHtml(l.name) + '\')">Release</button></td></tr>';
+        }).join('') + '</tbody></table>');
+    }
+
+    async function releaseLock(name) {
+      await fetch(API + '/locks/' + encodeURIComponent(name), { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ force: true }) });
+      toast('Lock released'); refreshLocks();
+    }
+
+    /* ── Channels ── */
+    var expandedChannel = null;
+
+    async function refreshChannels() {
+      var data = await apiFetch('/channels');
+      var channels = data ? (data.channels || []) : [];
+      updateBadge('channels', channels.length);
+      if (!channels.length) { setHtml('channels-content', '<div class="empty-state"><p>No channels</p></div>'); return; }
+      var safe = function(ch) { return ch.replace(/[^a-zA-Z0-9]/g, '_'); };
+      setHtml('channels-content', '<div class="channel-grid">' + channels.map(function(c) {
+        var exp = expandedChannel === c.channel;
+        return '<div class="channel-card' + (exp ? ' expanded' : '') + '" data-channel="' + escHtml(c.channel) + '" onclick="toggleChannel(this,\'' + escHtml(c.channel) + '\')">' +
+          '<div class="channel-name">' + escHtml(c.channel) + '</div>' +
+          '<div class="channel-count">' + c.count + ' message' + (c.count !== 1 ? 's' : '') + '</div>' +
+          '<div class="channel-messages" id="chan-' + safe(c.channel) + '"></div></div>';
+      }).join('') + '</div>');
+      if (expandedChannel) loadChannelMessages(expandedChannel);
+    }
+
+    async function toggleChannel(el, channel) {
+      if (expandedChannel === channel) { expandedChannel = null; el.classList.remove('expanded'); return; }
+      document.querySelectorAll('.channel-card.expanded').forEach(function(c) { c.classList.remove('expanded'); });
+      expandedChannel = channel; el.classList.add('expanded');
+      loadChannelMessages(channel);
+    }
+
+    async function loadChannelMessages(channel) {
+      var safe = channel.replace(/[^a-zA-Z0-9]/g, '_');
+      var el = document.getElementById('chan-' + safe);
+      if (!el) return;
+      el.innerHTML = '<div style="color:var(--text-muted);font-size:11px;">Loading...</div>';
+      var data = await apiFetch('/msg/' + encodeURIComponent(channel) + '?limit=10');
+      var msgs = data ? (data.messages || []) : [];
+      if (!msgs.length) { el.innerHTML = '<div style="color:var(--text-muted);font-size:11px;">No messages</div>'; return; }
+      el.innerHTML = msgs.map(function(m) {
+        var payload = m.payload;
+        if (typeof payload === 'string') { try { payload = JSON.parse(payload); } catch (e) {} }
+        return '<div class="msg-item"><div class="msg-meta"><span>' + escHtml(m.sender || 'anonymous') + '</span><span>' + fmtTime(m.created_at || m.createdAt) + '</span></div><div class="msg-payload">' + syntaxHighlight(payload) + '</div></div>';
+      }).join('') + '<div style="text-align:right;margin-top:8px;"><button class="btn-sm" onclick="event.stopPropagation();expandedChannel=null;refreshChannels();">Close</button></div>';
+    }
+
+    /* ── DNS ── */
+    async function refreshDns() {
+      var data = await apiFetch('/dns');
+      var records = data ? (data.records || []) : [];
+      updateBadge('dns', records.length);
+      if (!records.length) { setHtml('dns-table', '<div class="empty-state"><p>No DNS records</p></div>'); return; }
+      setHtml('dns-table', '<table><thead><tr><th>Identity</th><th>Hostname</th><th>Port</th><th>Updated</th></tr></thead><tbody>' +
+        records.map(function(r) {
+          return '<tr><td>' + highlightId(r.identity) + '</td><td style="color:var(--accent);font-weight:600;">' + escHtml(r.hostname) + '</td><td>' + r.port + '</td><td>' + timeAgo(r.updatedAt) + '</td></tr>';
+        }).join('') + '</tbody></table>');
+    }
+
+    /* ── Integration ── */
+    async function refreshIntegration() {
+      var data = await apiFetch('/channels');
+      var channels = data ? (data.channels || []) : [];
+      var integ = channels.filter(function(c) { return c.channel.indexOf('integration:') === 0; });
+      if (!integ.length) { setHtml('integration-content', '<div class="empty-state"><p>No integration signals</p></div>'); return; }
+      setHtml('integration-content', '<div class="channel-grid">' + integ.map(function(c) {
+        return '<div class="channel-card" onclick="switchPanel(\'channels\');expandedChannel=\'' + escHtml(c.channel) + '\';refreshChannels();">' +
+          '<div class="channel-name">' + escHtml(c.channel) + '</div>' +
+          '<div class="channel-count">' + c.count + ' signal' + (c.count !== 1 ? 's' : '') + '</div></div>';
+      }).join('') + '</div>');
+    }
+
+    /* ── Inbox ── */
+    async function refreshInbox() {
+      var agentId = document.getElementById('inbox-agent-id').value.trim();
+      if (!agentId) {
+        setHtml('inbox-content', '<div class="empty-state"><p>Enter an agent ID above to load inbox messages</p></div>');
+        return;
+      }
+      var data = await apiFetch('/agents/' + encodeURIComponent(agentId) + '/inbox');
+      var msgs = data ? (data.messages || []) : [];
+      updateBadge('inbox', msgs.filter(function(m) { return !m.read; }).length);
+      if (!msgs.length) {
+        setHtml('inbox-content', '<div class="empty-state"><p>No messages in inbox for <code>' + escHtml(agentId) + '</code></p></div>');
+        return;
+      }
+      setHtml('inbox-content', '<table><thead><tr><th>From</th><th>Message</th><th>Type</th><th>Read</th><th>Received</th></tr></thead><tbody>' +
+        msgs.map(function(m) {
+          return '<tr><td class="mono">' + escHtml(m.from || '--') + '</td>' +
+            '<td>' + escHtml(m.message || m.content || '') + '</td>' +
+            '<td><span class="badge badge-info">' + escHtml(m.type || 'message') + '</span></td>' +
+            '<td>' + (m.read ? '<span class="badge badge-success">read</span>' : '<span class="badge badge-warning">unread</span>') + '</td>' +
+            '<td>' + timeAgo(m.createdAt || m.timestamp) + '</td></tr>';
+        }).join('') + '</tbody></table>');
+    }
+
+    /* ── Activity ── */
+    async function refreshActivity() {
+      var filter = document.getElementById('activity-filter').value;
+      var url = filter ? '/activity?type=' + filter + '&limit=50' : '/activity?limit=50';
+      var data = await apiFetch(url);
+      var items = data ? (data.activity || []) : [];
+      if (!items.length) { setHtml('activity-content', '<div class="empty-state"><p>No activity</p></div>'); return; }
+      setHtml('activity-content', '<div class="card">' + items.map(function(a) {
+        var color = { claim: 'teal', release: 'blue', session: 'green', lock: 'yellow', agent: 'green' }[a.type] || 'blue';
+        var detail = (a.identity ? '<span class="mono">' + escHtml(a.identity) + '</span> ' : '') + escHtml(a.action || a.type);
+        if (a.details) detail += ' — ' + escHtml(typeof a.details === 'string' ? a.details : JSON.stringify(a.details));
+        return '<div class="activity-item"><div class="activity-dot ' + color + '"></div><div class="activity-text">' + detail + '</div><div class="activity-time">' + fmtDate(a.timestamp) + '</div></div>';
+      }).join('') + '</div>');
+    }
+
+    /* ── Salvage ── */
+    async function refreshSalvage() {
+      var data = await apiFetch('/resurrection');
+      var agents = data ? (data.agents || []) : [];
+      if (!agents.length) { setHtml('salvage-content', '<div class="empty-state"><p>No agents in salvage queue</p></div>'); return; }
+      setHtml('salvage-content', agents.map(function(a) {
+        return '<div class="salvage-card"><div class="salvage-header"><div><div class="salvage-agent">' + escHtml(a.name || a.id) + '</div>' +
+          '<div class="salvage-detail">Session: ' + escHtml(a.sessionId || '--') + '</div>' +
+          '<div class="salvage-detail">Purpose: ' + escHtml(a.purpose || '--') + '</div>' +
+          '<div class="salvage-detail">Stale since: ' + fmtDate(a.staleSince) + '</div></div>' +
+          '<div class="btn-actions"><button class="btn-sm" onclick="claimSalvage(\'' + escHtml(a.id) + '\')">Claim</button>' +
+          '<button class="btn-sm danger" onclick="dismissSalvage(\'' + escHtml(a.id) + '\')">Dismiss</button></div></div></div>';
+      }).join(''));
+    }
+
+    async function claimSalvage(id) {
+      await fetch(API + '/resurrection/claim/' + encodeURIComponent(id), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      toast('Claimed salvage'); refreshSalvage();
+    }
+    async function dismissSalvage(id) {
+      await fetch(API + '/resurrection/' + encodeURIComponent(id), { method: 'DELETE' });
+      toast('Dismissed'); refreshSalvage();
+    }
+
+    /* ── Briefing ── */
+    async function refreshBriefing() {
+      var data = await apiFetch('/briefing/latest');
+      if (!data || !data.briefing) { setHtml('briefing-content', '<div class="empty-state"><p>No briefing available</p></div>'); return; }
+      var b = data.briefing;
+      var html = '<div class="card"><div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;">Generated: ' + fmtDate(new Date(b.generatedAt).getTime()) + '</div>';
+      if (b.activeSessions && b.activeSessions.length) {
+        html += '<div class="briefing-section"><h3>Active Sessions (' + b.activeSessions.length + ')</h3>';
+        b.activeSessions.forEach(function(s) { html += '<div class="briefing-item"><span class="mono">' + escHtml(s.id) + '</span> — ' + escHtml(s.purpose) + ' <span style="color:var(--text-muted)">(' + escHtml(s.phase || s.status) + ')</span></div>'; });
+        html += '</div>';
+      }
+      if (b.activeAgents && b.activeAgents.length) {
+        html += '<div class="briefing-section"><h3>Active Agents (' + b.activeAgents.length + ')</h3>';
+        b.activeAgents.forEach(function(a) { html += '<div class="briefing-item"><span class="mono">' + escHtml(a.name || a.id) + '</span>' + (a.purpose ? ' — ' + escHtml(a.purpose) : '') + '</div>'; });
+        html += '</div>';
+      }
+      if (b.activeLocks && b.activeLocks.length) {
+        html += '<div class="briefing-section"><h3>Active Locks (' + b.activeLocks.length + ')</h3>';
+        b.activeLocks.forEach(function(l) { html += '<div class="briefing-item"><span class="mono">' + escHtml(l.name) + '</span> owned by ' + escHtml(l.owner) + '</div>'; });
+        html += '</div>';
+      }
+      if (b.recentActivity && b.recentActivity.length) {
+        html += '<div class="briefing-section"><h3>Recent Activity</h3>';
+        b.recentActivity.forEach(function(a) { html += '<div class="briefing-item">' + escHtml(a.action || a.type) + (a.identity ? ' <span class="mono">' + escHtml(a.identity) + '</span>' : '') + '</div>'; });
+        html += '</div>';
+      }
+      html += '</div>';
+      setHtml('briefing-content', html);
+    }
+
+    /* ── Webhooks ── */
+    async function refreshWebhooks() {
+      var data = await apiFetch('/webhooks');
+      var hooks = data ? (data.webhooks || []) : [];
+      updateBadge('webhooks', hooks.length);
+      if (!hooks.length) { setHtml('webhooks-table', '<div class="empty-state"><p>No webhooks configured</p></div>'); return; }
+      setHtml('webhooks-table', '<table><thead><tr><th>ID</th><th>URL</th><th>Events</th><th>Active</th><th>Created</th></tr></thead><tbody>' +
+        hooks.map(function(h) {
+          return '<tr><td class="mono">' + escHtml(h.id) + '</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;">' + escHtml(h.url) + '</td><td>' + escHtml((h.events || []).join(', ')) + '</td><td>' + (h.active ? statusBadge('active') : statusBadge('stale')) + '</td><td>' + fmtDate(h.createdAt) + '</td></tr>';
+        }).join('') + '</tbody></table>');
+    }
+
+    /* ── Projects ── */
+    async function refreshProjects() {
+      var data = await apiFetch('/projects');
+      var projects = data ? (data.projects || []) : [];
+      updateBadge('projects', projects.length);
+      if (!projects.length) { setHtml('projects-table', '<div class="empty-state"><p>No registered projects</p></div>'); return; }
+      setHtml('projects-table', '<table><thead><tr><th>ID</th><th>Root</th><th>Type</th><th>Last Scanned</th><th>Actions</th></tr></thead><tbody>' +
+        projects.map(function(p) {
+          return '<tr><td class="mono">' + escHtml(p.id) + '</td><td>' + escHtml(p.root) + '</td><td>' + escHtml(p.type || 'single') + '</td><td>' + fmtDate(p.last_scanned || p.lastScanned) + '</td><td><button class="btn-sm danger" onclick="removeProject(\'' + escHtml(p.id) + '\')">Remove</button></td></tr>';
+        }).join('') + '</tbody></table>');
+    }
+
+    async function removeProject(id) {
+      await fetch(API + '/projects/' + encodeURIComponent(id), { method: 'DELETE' });
+      toast('Removed project'); refreshProjects();
+    }
+
+    /* ── Changelog ── */
+    async function refreshChangelog() {
+      var idData = await apiFetch('/changelog/identities');
+      if (idData && idData.identities) {
+        var sel = document.getElementById('changelog-identity');
+        var cur = sel.value;
+        sel.innerHTML = '<option value="">All identities</option>' +
+          idData.identities.map(function(id) { return '<option value="' + escHtml(id) + '"' + (id === cur ? ' selected' : '') + '>' + escHtml(id) + '</option>'; }).join('');
+      }
+      var identity = document.getElementById('changelog-identity').value;
+      var url = identity ? '/changelog/' + encodeURIComponent(identity) : '/changelog';
+      var data = await apiFetch(url);
+      var entries = data ? (data.entries || []) : [];
+      if (!entries.length) { setHtml('changelog-content', '<div class="empty-state"><p>No changelog entries</p></div>'); return; }
+      setHtml('changelog-content', entries.map(function(e) {
+        return '<div class="card" style="margin-bottom:12px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
+          '<div style="font-weight:600;color:var(--accent);">' + escHtml(e.version || '') + ' — ' + escHtml(e.title) + '</div>' +
+          '<span class="badge badge-' + ({ feature: 'active', bugfix: 'completed' }[e.category] || 'assigned') + '">' + escHtml(e.category) + '</span></div>' +
+          '<div style="font-size:12px;color:var(--text-dim);white-space:pre-wrap;">' + escHtml(e.description) + '</div></div>';
+      }).join(''));
+    }
+
+    /* ── Config ── */
+    async function refreshConfig() {
+      var results = await Promise.all([apiFetch('/config'), apiFetch('/version')]);
+      var configData = results[0], versionData = results[1];
+      var html = '';
+      if (versionData) html += '<div class="card" style="margin-bottom:16px;"><div class="card-title">Version Info</div><pre class="config-block">' + syntaxHighlight(versionData) + '</pre></div>';
+      if (configData) html += '<div class="card"><div class="card-title">Configuration</div><pre class="config-block">' + syntaxHighlight(configData) + '</pre></div>';
+      setHtml('config-content', html || '<div class="empty-state"><p>Could not load config</p></div>');
+    }
+
+    /* ── Refresh All ── */
+    async function refreshAll() {
+      refreshPanel(currentPanel);
+      var results = await Promise.all([
+        apiFetch('/services'), apiFetch('/agents'), apiFetch('/sessions?limit=50'),
+        apiFetch('/locks'), apiFetch('/channels'), apiFetch('/dns'),
+        apiFetch('/webhooks'), apiFetch('/projects')
+      ]);
+      updateBadge('services', results[0] ? (results[0].services || []).length : 0);
+      updateBadge('agents', results[1] ? (results[1].agents || []).length : 0);
+      updateBadge('sessions', results[2] ? (results[2].sessions || []).filter(function(s) { return s.status === 'active'; }).length : 0);
+      updateBadge('locks', results[3] ? (results[3].locks || []).length : 0);
+      updateBadge('channels', results[4] ? (results[4].channels || []).length : 0);
+      updateBadge('dns', results[5] ? (results[5].records || []).length : 0);
+      updateBadge('webhooks', results[6] ? (results[6].webhooks || []).length : 0);
+      updateBadge('projects', results[7] ? (results[7].projects || []).length : 0);
+    }
+
+    /* ── Terminal ── */
+    function openTerminal() {
+      document.getElementById('terminal-drawer').style.display = 'flex';
+      document.getElementById('terminal-input').focus();
+    }
+    function closeTerminal() { document.getElementById('terminal-drawer').style.display = 'none'; }
+
+    var CLI_ONLY = ['begin', 'done', 'whoami', 'with-lock', 'cleanup', 'doctor', 'version', 'install-completions', 'up', 'down', 'start', 'stop', 'restart', 'install', 'uninstall', 'dev', 'ci-gate'];
+    var COMMANDS = [
+      { cmd: 'claim', hint: 'claim <id>' }, { cmd: 'release', hint: 'release <id>' },
+      { cmd: 'find', hint: 'find [pattern]' }, { cmd: 'ps', hint: 'ps [pattern]' },
+      { cmd: 'pub', hint: 'pub <channel> <msg>' }, { cmd: 'scan', hint: 'scan' },
+      { cmd: 'activity', hint: 'activity' }, { cmd: 'lock', hint: 'lock <name>' },
+      { cmd: 'unlock', hint: 'unlock <name>' }, { cmd: 'locks', hint: 'locks' },
+      { cmd: 'agents', hint: 'agents' }, { cmd: 'log', hint: 'log [limit]' },
+      { cmd: 'status', hint: 'status' }, { cmd: 'channels', hint: 'channels' },
+      { cmd: 'projects', hint: 'projects' }, { cmd: 'webhooks', hint: 'webhooks' },
+      { cmd: 'config', hint: 'config' }, { cmd: 'ports', hint: 'ports' },
+      { cmd: 'inbox', hint: 'inbox <agent-id>' },
+      { cmd: 'help', hint: 'help' }
+    ];
+
+    document.getElementById('terminal-input').addEventListener('keydown', async function(e) {
+      if (e.key !== 'Enter') return;
+      var cmd = this.value.trim();
+      if (!cmd) return;
+      this.value = '';
+      var out = document.getElementById('terminal-output');
+      out.innerHTML += '<div style="color:var(--accent);">$ ' + escHtml(cmd) + '</div>';
+      var parts = cmd.split(/\s+/);
+      var verb = parts[0], target = parts[1] || '';
+
+      if (CLI_ONLY.indexOf(verb) !== -1) {
+        out.innerHTML += '<div style="color:var(--warning);">' + escHtml(verb) + ' is a CLI-only command. Run it in your terminal: pd ' + escHtml(verb) + '</div>';
+        out.scrollTop = out.scrollHeight; return;
+      }
+
+      try {
+        var result;
+        switch (verb) {
+          case 'claim': result = await (await fetch(API + '/claim', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: target }) })).json(); break;
+          case 'release': result = await (await fetch(API + '/release', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: target }) })).json(); break;
+          case 'find': case 'ps': result = await (await fetch(API + '/services' + (target ? '?pattern=' + encodeURIComponent(target) : ''))).json(); break;
+          case 'lock': result = await (await fetch(API + '/locks/' + encodeURIComponent(target), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ owner: 'dashboard' }) })).json(); break;
+          case 'unlock': result = await (await fetch(API + '/locks/' + encodeURIComponent(target), { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ force: true }) })).json(); break;
+          case 'locks': result = await (await fetch(API + '/locks')).json(); break;
+          case 'agents': result = await (await fetch(API + '/agents')).json(); break;
+          case 'log': case 'activity': result = await (await fetch(API + '/activity?limit=' + (target || 20))).json(); break;
+          case 'status': result = await (await fetch(API + '/health')).json(); break;
+          case 'channels': result = await (await fetch(API + '/channels')).json(); break;
+          case 'projects': result = await (await fetch(API + '/projects')).json(); break;
+          case 'webhooks': result = await (await fetch(API + '/webhooks')).json(); break;
+          case 'config': result = await (await fetch(API + '/config')).json(); break;
+          case 'ports': result = await (await fetch(API + '/ports/active')).json(); break;
+          case 'health': result = await (await fetch(API + (target ? '/services/health/' + encodeURIComponent(target) : '/services/health'))).json(); break;
+          case 'scan': result = await (await fetch(API + '/scan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })).json(); break;
+          case 'inbox': result = target ? await (await fetch(API + '/agents/' + encodeURIComponent(target) + '/inbox')).json() : { error: 'Usage: inbox <agent-id>' }; break;
+          case 'help':
+            out.innerHTML += '<div>' + COMMANDS.map(function(c) { return '<span class="mono">' + c.cmd + '</span> — ' + c.hint; }).join('<br>') + '</div>';
+            out.scrollTop = out.scrollHeight; return;
+          default:
+            out.innerHTML += '<div style="color:var(--danger);">Unknown command: ' + escHtml(verb) + '. Type "help".</div>';
+            out.scrollTop = out.scrollHeight; return;
+        }
+        out.innerHTML += '<div class="msg-payload">' + syntaxHighlight(result) + '</div>';
+        refreshAll();
+      } catch (err) {
+        out.innerHTML += '<div style="color:var(--danger);">Error: ' + escHtml(err.message) + '</div>';
+      }
+      out.scrollTop = out.scrollHeight;
+    });
+
+    /* ── Ctrl+K ── */
+    document.addEventListener('keydown', function(e) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); document.getElementById('command-input').focus(); }
+    });
+
+    /* ── Command input nav ── */
+    document.getElementById('command-input').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        var val = this.value.trim().toLowerCase();
+        var panels = ['dashboard','services','agents','sessions','locks','channels','dns','integration','inbox','activity','salvage','briefing','webhooks','projects','changelog','config'];
+        var match = panels.find(function(p) { return p.indexOf(val) === 0; });
+        if (match) { switchPanel(match); this.value = ''; this.blur(); }
+      }
+    });
+
+    /* ── Polling ── */
+    var pollInterval = setInterval(refreshAll, 15000);
+
+    /* ── Init ── */
+    refreshAll();
+    var hash = location.hash.replace('#', '');
+    if (hash && document.getElementById('panel-' + hash)) switchPanel(hash);
+  </script>
 </body>
 </html>
