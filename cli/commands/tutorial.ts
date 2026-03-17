@@ -7,7 +7,8 @@
  */
 
 import { execFile } from 'node:child_process';
-import { ANSI, flag, highlightChannel, status as maritimeStatus } from '../../lib/maritime.js';
+import { ANSI, flag, highlightChannel } from '../../lib/maritime.js';
+import * as ui from '../utils/ui.js';
 import { pdFetch, getDaemonUrl } from '../utils/fetch.js';
 import { canPrompt, promptText, promptIdentity, promptConfirm, promptSelect, printRoger } from '../utils/prompt.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
@@ -151,10 +152,10 @@ async function lesson2Claim(): Promise<void> {
       process.stderr.write(`    ${ANSI.fgCyan}pd claim ${identity} -q${ANSI.reset}    \u2192 ${data.port}\n`);
       process.stderr.write(`    ${ANSI.fgCyan}pd find tutorial:*${ANSI.reset}          \u2192 list all tutorial services\n`);
     } else {
-      process.stderr.write(`  ${maritimeStatus('warning', `Could not claim port: ${data.error || 'unknown error'}`)}\n`);
+      ui.warn(`Could not claim port: ${data.error || 'unknown error'}`);
     }
   } catch {
-    process.stderr.write(`  ${maritimeStatus('warning', 'Could not reach daemon \u2014 skipping live demo')}\n`);
+    ui.warn('Could not reach daemon \u2014 skipping live demo');
   }
 
   await pressEnter();
@@ -199,10 +200,10 @@ async function lesson3Session(): Promise<void> {
       process.stderr.write(`    ${ANSI.fgCyan}pd begin -P "${purpose}"${ANSI.reset}           ${ANSI.dim}# short flag${ANSI.reset}\n`);
       process.stderr.write(`    ${ANSI.fgCyan}pd begin${ANSI.reset}                           ${ANSI.dim}# interactive${ANSI.reset}\n`);
     } else {
-      process.stderr.write(`  ${maritimeStatus('warning', `Could not start session: ${data.error || 'unknown error'}`)}\n`);
+      ui.warn(`Could not start session: ${data.error || 'unknown error'}`);
     }
   } catch {
-    process.stderr.write(`  ${maritimeStatus('warning', 'Could not reach daemon \u2014 skipping live demo')}\n`);
+    ui.warn('Could not reach daemon \u2014 skipping live demo');
   }
 
   await pressEnter();
@@ -236,10 +237,10 @@ async function lesson4Notes(): Promise<void> {
       printRoger('Note added (type: progress)');
       process.stderr.write(`\n  You just ran: ${ANSI.fgCyan}pd n "${noteContent}" --type progress${ANSI.reset}\n`);
     } else {
-      process.stderr.write(`  ${maritimeStatus('warning', 'Could not add note')}\n`);
+      ui.warn('Could not add note');
     }
   } catch {
-    process.stderr.write(`  ${maritimeStatus('warning', 'Could not reach daemon \u2014 skipping live demo')}\n`);
+    ui.warn('Could not reach daemon \u2014 skipping live demo');
   }
 
   await pressEnter();
@@ -286,7 +287,7 @@ async function lesson6Coordination(): Promise<void> {
       printRoger(`Published to ${highlightChannel(channel)}`);
     }
   } catch {
-    process.stderr.write(`  ${maritimeStatus('warning', 'Could not publish \u2014 daemon offline')}\n`);
+    ui.warn('Could not publish \u2014 daemon offline');
   }
 
   process.stderr.write(`\n  Locks provide exclusive access:\n\n`);
@@ -358,7 +359,7 @@ async function lesson8Ending(): Promise<void> {
           state.agentId = null;
         }
       } catch {
-        process.stderr.write(`  ${maritimeStatus('warning', 'Could not end session \u2014 daemon offline')}\n`);
+        ui.warn('Could not end session \u2014 daemon offline');
       }
     }
   }
@@ -388,10 +389,10 @@ async function lesson9Dns(): Promise<void> {
       printRoger('DNS record registered:');
       process.stderr.write(`    ${record.hostname || 'tutorial-lesson9.local'} \u2192 port ${record.port || 9999}\n`);
     } else {
-      process.stderr.write(`  ${maritimeStatus('warning', `Could not register DNS: ${record.error || 'unknown error'}`)}\n`);
+      ui.warn(`Could not register DNS: ${record.error || 'unknown error'}`);
     }
   } catch {
-    process.stderr.write(`  ${maritimeStatus('warning', 'Could not reach daemon \u2014 skipping live DNS demo')}\n`);
+    ui.warn('Could not reach daemon \u2014 skipping live DNS demo');
   }
 
   // List DNS records
@@ -489,10 +490,10 @@ async function lesson11Locks(): Promise<void> {
       process.stderr.write(`    Owner: ${lock.owner || 'tutorial-agent'}\n`);
       process.stderr.write(`    TTL: ${lock.ttl || 60000}ms\n`);
     } else {
-      process.stderr.write(`  ${maritimeStatus('warning', `Could not acquire lock: ${lock.error || 'unknown error'}`)}\n`);
+      ui.warn(`Could not acquire lock: ${lock.error || 'unknown error'}`);
     }
   } catch {
-    process.stderr.write(`  ${maritimeStatus('warning', 'Could not reach daemon \u2014 skipping live lock demo')}\n`);
+    ui.warn('Could not reach daemon \u2014 skipping live lock demo');
   }
 
   // Check lock status
@@ -518,7 +519,7 @@ async function lesson11Locks(): Promise<void> {
       printRoger('Lock released');
       state.lockName = undefined; // already cleaned up
     } catch {
-      process.stderr.write(`  ${maritimeStatus('warning', 'Could not release lock \u2014 it will auto-expire')}\n`);
+      ui.warn('Could not release lock \u2014 it will auto-expire');
     }
   }
 

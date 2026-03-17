@@ -13,7 +13,7 @@
 import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import { CLIOptions, isQuiet, isJson } from '../types.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
-import { status as maritimeStatus } from '../../lib/maritime.js';
+import * as ui from '../utils/ui.js';
 
 /**
  * Handle `pd briefing` command
@@ -33,7 +33,7 @@ export async function handleBriefing(options: CLIOptions): Promise<void> {
     const data = await res.json();
 
     if (!res.ok) {
-      console.error(maritimeStatus('error', (data.error as string) || 'Failed to get briefing'));
+      ui.error((data.error as string) || 'Failed to get briefing');
       process.exit(1);
     }
 
@@ -54,7 +54,7 @@ export async function handleBriefing(options: CLIOptions): Promise<void> {
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to generate briefing'));
+    ui.error((data.error as string) || 'Failed to generate briefing');
     process.exit(1);
   }
 
@@ -63,7 +63,7 @@ export async function handleBriefing(options: CLIOptions): Promise<void> {
     return;
   }
 
-  console.log(maritimeStatus('success', `Briefing generated: ${data.briefingPath}`));
+  ui.success(`Briefing generated: ${data.briefingPath}`);
   if (data.files) {
     const files = data.files as string[];
     for (const f of files) {
@@ -71,10 +71,10 @@ export async function handleBriefing(options: CLIOptions): Promise<void> {
     }
   }
   if (full && data.archivedSessions) {
-    console.log(maritimeStatus('ready', `Archived ${data.archivedSessions} session(s)`));
+    ui.info(`Archived ${data.archivedSessions} session(s)`);
   }
   if (full && data.archivedAgents) {
-    console.log(maritimeStatus('ready', `Archived ${data.archivedAgents} agent(s)`));
+    ui.info(`Archived ${data.archivedAgents} agent(s)`);
   }
 }
 
@@ -110,7 +110,7 @@ export async function handleHistory(options: CLIOptions): Promise<void> {
   }>;
 
   if (!entries || entries.length === 0) {
-    console.log(maritimeStatus('ready', 'No recent activity'));
+    ui.info('No recent activity');
     return;
   }
 
@@ -122,5 +122,5 @@ export async function handleHistory(options: CLIOptions): Promise<void> {
     console.log(`  [${time}]${agent} ${detail}`);
   }
   console.log('');
-  console.log(maritimeStatus('success', `${entries.length} entries`));
+  ui.success(`${entries.length} entries`);
 }

@@ -5,10 +5,10 @@
  * Agents report changes, system rolls up to parent levels.
  */
 
-import { status as maritimeStatus } from '../../lib/maritime.js';
 import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import { CLIOptions, isQuiet, isJson } from '../types.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
+import * as ui from '../utils/ui.js';
 
 interface ChangelogEntry {
   id: number;
@@ -83,7 +83,7 @@ export async function handleChangelog(subcommand: string | undefined, args: stri
       const data = await res.json();
 
       if (!res.ok) {
-        console.error(maritimeStatus('error', (data.error as string) || 'Failed to add changelog entry'));
+        ui.error((data.error as string) || 'Failed to add changelog entry');
         process.exit(1);
       }
 
@@ -93,7 +93,7 @@ export async function handleChangelog(subcommand: string | undefined, args: stri
       }
 
       const result = data as { id: number; ancestors?: string[] };
-      console.log(maritimeStatus('success', `Added changelog entry #${result.id}`));
+      ui.success(`Added changelog entry #${result.id}`);
       if (result.ancestors && result.ancestors.length > 0) {
         console.log(`  Rolls up to: ${result.ancestors.join(' \u2192 ')}`);
       }
@@ -114,7 +114,7 @@ export async function handleChangelog(subcommand: string | undefined, args: stri
       const data = await res.json();
 
       if (!res.ok) {
-        console.error(maritimeStatus('error', (data.error as string) || 'Failed to list changelog'));
+        ui.error((data.error as string) || 'Failed to list changelog');
         process.exit(1);
       }
 
@@ -141,7 +141,7 @@ export async function handleChangelog(subcommand: string | undefined, args: stri
       const data = await res.json();
 
       if (!res.ok) {
-        console.error(maritimeStatus('error', (data.error as string) || 'Failed to list changelog'));
+        ui.error((data.error as string) || 'Failed to list changelog');
         process.exit(1);
       }
 
@@ -171,7 +171,7 @@ export async function handleChangelog(subcommand: string | undefined, args: stri
 
       if (!res.ok) {
         const data = await res.json();
-        console.error(maritimeStatus('error', (data.error as string) || 'Failed to export changelog'));
+        ui.error((data.error as string) || 'Failed to export changelog');
         process.exit(1);
       }
 
@@ -185,7 +185,7 @@ export async function handleChangelog(subcommand: string | undefined, args: stri
       const data = await res.json();
 
       if (!res.ok) {
-        console.error(maritimeStatus('error', (data.error as string) || 'Failed to list identities'));
+        ui.error((data.error as string) || 'Failed to list identities');
         process.exit(1);
       }
 
@@ -197,7 +197,7 @@ export async function handleChangelog(subcommand: string | undefined, args: stri
       const identities = data.identities as string[];
       if (identities.length === 0) {
         if (!isQuiet(options)) {
-          console.log(maritimeStatus('ready', 'No changelog entries yet'));
+          ui.info('No changelog entries yet');
         }
         return;
       }
@@ -223,7 +223,7 @@ export async function handleChangelog(subcommand: string | undefined, args: stri
       const data = await res.json();
 
       if (!res.ok) {
-        console.error(maritimeStatus('error', (data.error as string) || 'Failed to list changelog'));
+        ui.error((data.error as string) || 'Failed to list changelog');
         process.exit(1);
       }
 
@@ -243,7 +243,7 @@ export async function handleChangelog(subcommand: string | undefined, args: stri
 function printEntries(entries: ChangelogEntry[], title: string, options: CLIOptions): void {
   if (entries.length === 0) {
     if (!isQuiet(options)) {
-      console.log(maritimeStatus('ready', 'No changelog entries'));
+      ui.info('No changelog entries');
     }
     return;
   }
