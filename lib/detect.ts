@@ -1085,7 +1085,7 @@ export function suggestIdentity(dir: string = process.cwd()): SuggestedIdentity 
   }
 
   return {
-    project: project.replace(/[^a-z0-9-]/gi, '-').toLowerCase(),
+    project: project.replace(/[^a-z0-9-]/gi, '-').replace(/^-+/, '').toLowerCase(),
     stack: stackName,
     context: 'main',
     full: `${project}:${stackName}:main`.replace(/[^a-z0-9:-]/gi, '-').toLowerCase()

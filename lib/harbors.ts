@@ -207,7 +207,12 @@ export function createHarbors(db: Database.Database, deps: HarborsDeps = {}) {
 
       let rows: HarborRow[];
       if (pattern) {
-        const sqlPattern = pattern.includes('*') ? pattern.replace(/\*/g, '%') : pattern;
+        let sqlPattern: string;
+        if (pattern.includes('*')) {
+          sqlPattern = pattern.replace(/%/g, '\\%').replace(/_/g, '\\_').replace(/\*/g, '%');
+        } else {
+          sqlPattern = pattern;
+        }
         rows = stmts.listByPattern.all(sqlPattern, limit) as HarborRow[];
       } else {
         rows = stmts.listAll.all(limit) as HarborRow[];

@@ -355,7 +355,7 @@ export function createChangelog(db: Database.Database) {
      * Export as tree structure (grouped by identity hierarchy)
      */
     exportTree(rootIdentity: string, entries: ChangelogEntry[]): string {
-      const rollup = this.rollup(rootIdentity || entries[0]?.identity.split(':')[0] || 'unknown');
+      const rollup = this.rollup(rootIdentity || entries[0]?.identity?.split(':')[0] || 'unknown');
       const lines: string[] = ['# Changelog', ''];
 
       function renderNode(node: RollupEntry, depth: number) {
