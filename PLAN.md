@@ -239,6 +239,62 @@ cd ~/code/myapp && pd begin "working on auth"
 → harbor: myapp (auto-created)
 ```
 
+#### 7. Branches, harbors, and git worktrees
+
+**Branches are not harbors.** All agents working on `myapp:*` share the `myapp`
+harbor regardless of which branch they're on. This is correct — agents on different
+branches of the same repo still need to see each other's file claims, sessions, and
+pub/sub messages. An agent on `main` and an agent on `feature-auth` can conflict
+on the same file.
+
+**The practical problem:** A git repo can only have one branch checked out at a time.
+Two agents in the same directory can't work on different branches — one does
+`git checkout feature-a` and blows away the other's working state.
+
+**The solution:** Git worktrees. Port Daddy already tracks `worktree_id` on agent
+registration.
+
+```bash
+# Main checkout stays on main
+cd ~/code/myapp
+
+# Create a worktree for the second agent's branch
+git worktree add ../myapp-feature-auth feature-auth
+
+# Agent A works in the main checkout
+pd begin "API refactor" --identity myapp:api:main --worktree default
+
+# Agent B works in the worktree
+cd ../myapp-feature-auth
+pd begin "auth feature" --identity myapp:api:feature-auth --worktree feature-auth
+```
+
+Both agents are in the **same harbor** (`myapp`). They see each other's file claims,
+coordinate via pub/sub, and avoid conflicts. But they have independent working trees,
+so `git checkout` in one doesn't affect the other.
+
+**`pd begin` with worktree auto-detection:** If the current directory is a git
+worktree (detected via `git rev-parse --git-common-dir`), the worktree name is
+set automatically. No `--worktree` flag needed.
+
+```bash
+cd ~/code/myapp-feature-auth
+pd begin "auth feature" --identity myapp:api:feature-auth
+# → worktree: feature-auth (auto-detected)
+# → harbor: myapp (same as main checkout)
+```
+
+**When to use different harbors instead:** Long-lived forks or release branches
+that never merge back. Use a different project name:
+
+```bash
+pd begin "v2 hotfix" --identity myapp-v2:api:hotfix    # harbor: myapp-v2
+pd begin "v3 feature" --identity myapp-v3:api:feature  # harbor: myapp-v3
+```
+
+These are separate harbors — agents can't see each other. Use this when the branches
+are effectively separate codebases.
+
 ---
 
 ## Phase 2: Remote Harbors (Network Daemons)
