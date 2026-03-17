@@ -7,12 +7,12 @@
 import { spawn } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { readFileSync, existsSync } from 'node:fs';
-import { status as maritimeStatus } from '../../lib/maritime.js';
 import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import { CLIOptions, isQuiet, isJson } from '../types.js';
 import { getDirectServices } from '../utils/direct-db.js';
 import { IS_TTY, separator, tableHeader } from '../utils/output.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
+import * as ui from '../utils/ui.js';
 
 /**
  * Auto-detect identity from nearest package.json
@@ -83,7 +83,7 @@ export async function handleClaim(id: string | undefined, options: CLIOptions): 
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to claim port'));
+    ui.error((data.error as string) || 'Failed to claim port');
     process.exit(1);
   }
 
@@ -134,7 +134,7 @@ export async function handleRelease(id: string | undefined, options: CLIOptions)
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to release'));
+    ui.error((data.error as string) || 'Failed to release');
     process.exit(1);
   }
 
@@ -162,7 +162,7 @@ export async function handleFind(pattern: string | undefined, options: CLIOption
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to find services'));
+    ui.error((data.error as string) || 'Failed to find services');
     process.exit(1);
   }
 
@@ -220,7 +220,7 @@ export async function handleUrl(id: string | undefined, options: CLIOptions): Pr
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Service not found'));
+    ui.error((data.error as string) || 'Service not found');
     process.exit(1);
   }
 
@@ -251,7 +251,7 @@ export async function handleEnv(id: string | undefined, options: CLIOptions): Pr
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to get services'));
+    ui.error((data.error as string) || 'Failed to get services');
     process.exit(1);
   }
 
@@ -288,7 +288,7 @@ export async function handlePorts(subcommand: string | undefined, options: CLIOp
     });
     const data = await res.json();
     if (!res.ok) {
-      console.error(maritimeStatus('error', (data.error as string) || 'Cleanup failed'));
+      ui.error((data.error as string) || 'Cleanup failed');
       process.exit(1);
     }
     if (isJson(options)) {
@@ -304,7 +304,7 @@ export async function handlePorts(subcommand: string | undefined, options: CLIOp
     const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/ports/system`);
     const data = await res.json();
     if (!res.ok) {
-      console.error(maritimeStatus('error', (data.error as string) || 'Failed to get system ports'));
+      ui.error((data.error as string) || 'Failed to get system ports');
       process.exit(1);
     }
     if (isJson(options)) {
@@ -335,13 +335,13 @@ export async function handlePorts(subcommand: string | undefined, options: CLIOp
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to list ports'));
+    ui.error((data.error as string) || 'Failed to list ports');
     process.exit(1);
   }
 
   // Detect API errors that returned 200 but no ports array
   if (data.error) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to list ports'));
+    ui.error((data.error as string) || 'Failed to list ports');
     process.exit(1);
   }
 
@@ -405,7 +405,7 @@ export function handleClaimDirect(id: string | undefined, options: CLIOptions): 
   const result = services.claim(id, claimOpts as { preferredPort?: number; range?: [number, number]; expires?: string | number });
 
   if (!result.success) {
-    console.error(maritimeStatus('error', result.error || 'Failed to claim port'));
+    ui.error(result.error || 'Failed to claim port');
     process.exit(1);
   }
 
@@ -451,7 +451,7 @@ export function handleReleaseDirect(id: string | undefined, options: CLIOptions)
   const result = services.release(id);
 
   if (!result.success) {
-    console.error(maritimeStatus('error', result.error || 'Failed to release'));
+    ui.error(result.error || 'Failed to release');
     process.exit(1);
   }
 

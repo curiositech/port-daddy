@@ -2,14 +2,15 @@
  * CLI Output Utilities
  *
  * TTY-aware formatting helpers for consistent CLI output.
+ * Now also re-exports the @clack-based UI module for convenience.
  */
 
 /** Whether stdout is a terminal (not a pipe or redirect) */
-export const IS_TTY: boolean = process.stderr.isTTY ?? false;
+export const IS_TTY: boolean = (process.stderr.isTTY ?? false) || !!process.env.FORCE_COLOR;
 
 /** Print a Unicode separator line (only in TTY mode) */
 export function separator(width: number = 75): void {
-  if (IS_TTY) console.error('\u2500'.repeat(width));
+  if (IS_TTY) console.error('─'.repeat(width));
 }
 
 /** Format a table header (only decorates in TTY mode) */
