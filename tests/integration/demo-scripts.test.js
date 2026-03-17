@@ -39,7 +39,10 @@ describe('Demo 1 — fleet (pd claim / pd find / pd ps)', () => {
   afterAll(async () => {
     // Release all claimed services
     for (const { id } of services) {
-      await request(`/release/${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => {});
+      await request('/release', {
+        method: 'DELETE',
+        body: { id },
+      }).catch(() => {});
     }
   });
 

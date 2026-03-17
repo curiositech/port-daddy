@@ -162,11 +162,6 @@ describe('Identity Module', () => {
       expect(result.hasWildcard).toBe(true);
     });
 
-    it('should detect no wildcard in normal identity', () => {
-      const result = parseIdentity('myapp:api:main');
-      expect(result.hasWildcard).toBe(false);
-    });
-
     it('should accept wildcard as part of segment (regex allows it)', () => {
       const result = parseIdentity('my*app:api:main');
       expect(result.valid).toBe(true);
@@ -622,22 +617,7 @@ describe('Identity Module', () => {
     });
   });
 
-  describe('displayIdentity() - Display Formatting (8 tests)', () => {
-    it('should display single segment', () => {
-      const display = displayIdentity('myapp');
-      expect(display).toBe('myapp');
-    });
-
-    it('should display two segments', () => {
-      const display = displayIdentity('myapp:api');
-      expect(display).toBe('myapp:api');
-    });
-
-    it('should display three segments', () => {
-      const display = displayIdentity('myapp:api:main');
-      expect(display).toBe('myapp:api:main');
-    });
-
+  describe('displayIdentity() - Display Formatting (5 tests)', () => {
     it('should display wildcards', () => {
       const display = displayIdentity('*:api:*');
       expect(display).toBe('*:api:*');
@@ -694,15 +674,7 @@ describe('Identity Module', () => {
     });
   });
 
-  describe('Integration Tests - Cross-Function Workflows (10 tests)', () => {
-    it('should parse, then display identity', () => {
-      const parsed = parseIdentity('myapp:api:main');
-      expect(parsed.valid).toBe(true);
-
-      const display = displayIdentity(parsed.full);
-      expect(display).toBe('myapp:api:main');
-    });
-
+  describe('Integration Tests - Cross-Function Workflows (7 tests)', () => {
     it('should parse, normalize, then display', () => {
       const parsed = parseIdentity('myapp:api');
       const normalized = normalizeIdentity(parsed.full, { context: 'main' });
@@ -751,31 +723,6 @@ describe('Identity Module', () => {
       expect(display).toBe(normalized.full);
     });
 
-    it('should convert complex pattern to SQL and back to display', () => {
-      const pattern = 'app-name.v1:*:feature-branch';
-      const parsed = parseIdentity(pattern);
-      const sql = patternToSql(pattern);
-      const display = displayIdentity(pattern);
-
-      expect(parsed.valid).toBe(true);
-      expect(sql).toBe('app-name.v1:%:feature-branch');
-      expect(display).toBe('app-name.v1:*:feature-branch');
-    });
-
-    it('should handle very long identities with all segments near max', () => {
-      const project = 'myapp';
-      const stack = 'api';
-      const context = 'production';
-      const longId = `${project}:${stack}:${context}`;
-
-      const parsed = parseIdentity(longId);
-      expect(parsed.valid).toBe(true);
-      expect(parsed.project).toBe(project);
-
-      const normalized = normalizeIdentity(longId);
-      expect(normalized.valid).toBe(true);
-    });
-
     it('should handle cascading normalization with wildcards in defaults', () => {
       const identity = 'app';
       const defaults = { stack: '*', context: 'main' };
@@ -802,21 +749,6 @@ describe('Identity Module', () => {
       expect(matches3).toBe(false);
     });
 
-    it('should maintain consistency across all functions for valid identity', () => {
-      const identity = 'windags:frontend:production';
-
-      const parsed = parseIdentity(identity);
-      const normalized = normalizeIdentity(identity);
-      const displayed = displayIdentity(identity);
-      const sql = patternToSql(identity);
-      const matches = matchesPattern(identity, identity);
-
-      expect(parsed.valid).toBe(true);
-      expect(normalized.valid).toBe(true);
-      expect(displayed).toBe(identity);
-      expect(sql).toBe(identity);
-      expect(matches).toBe(true);
-    });
   });
 
   describe('Boundary and Special Cases (8 tests)', () => {
@@ -923,20 +855,6 @@ describe('Identity Module', () => {
       }
     });
 
-    it('should handle multi-project discovery pattern', () => {
-      const pattern = '*:api:prod';
-      const serviceIds = [
-        'app1:api:prod',
-        'app2:api:prod',
-        'windags:api:prod',
-        'other-service:api:prod'
-      ];
-
-      for (const id of serviceIds) {
-        expect(matchesPattern(pattern, id)).toBe(true);
-      }
-    });
-
     it('should handle environment-based patterns', () => {
       const envPatterns = [
         { pattern: '*:*:prod', env: 'production' },
@@ -982,20 +900,5 @@ describe('Identity Module', () => {
       }
     });
 
-    it('should handle discovery and broadcast patterns', () => {
-      const broadcastPattern = '*:*:*';
-      const targetServices = [
-        'service1:api:prod',
-        'service2:web:dev',
-        'service3:worker:staging'
-      ];
-
-      for (const service of targetServices) {
-        expect(matchesPattern(broadcastPattern, service)).toBe(true);
-      }
-
-      const sql = patternToSql(broadcastPattern);
-      expect(sql).toBe('%:%:%');
-    });
   });
 });

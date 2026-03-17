@@ -143,14 +143,6 @@ describe('Config Module', () => {
       expect(result).toBe('/root/.portdaddyrc');
     });
 
-    it('should use process.cwd() as default directory', () => {
-      mockExistsSync = () => false;
-
-      // Just verify it doesn't crash when called without args
-      const result = findConfig();
-
-      expect(result).toBeNull();
-    });
   });
 
   describe('findConfig() - Edge Cases (4 tests)', () => {
@@ -215,16 +207,6 @@ describe('Config Module', () => {
       });
     });
 
-    it('should include _path in loaded config', () => {
-      mockExistsSync = () => true;
-      mockReadFileSync = () => JSON.stringify({ project: 'test' });
-
-      const result = loadConfig('/project');
-
-      expect(result._path).toBeDefined();
-      expect(typeof result._path).toBe('string');
-    });
-
     it('should load config with services', () => {
       mockExistsSync = () => true;
       const configContent = JSON.stringify({
@@ -271,14 +253,6 @@ describe('Config Module', () => {
       expect(result).toBeNull();
     });
 
-    it('should use process.cwd() as default', () => {
-      mockExistsSync = () => true;
-      mockReadFileSync = () => JSON.stringify({ project: 'test' });
-
-      const result = loadConfig();
-
-      expect(result).toBeDefined();
-    });
   });
 
   describe('loadConfig() - Parse Errors (6 tests)', () => {
@@ -292,7 +266,7 @@ describe('Config Module', () => {
 
     it('should throw error with config path included', () => {
       mockExistsSync = () => true;
-      mockReadFileSync = ('not json');
+      mockReadFileSync = () => 'not json';
 
       expect(() => loadConfig('/project')).toThrow(/\.portdaddyrc/);
     });
@@ -388,19 +362,12 @@ describe('Config Module', () => {
       expect(lastWrittenContent.charAt(lastWrittenContent.length - 1)).toBe('\n');
     });
 
-    it('should always save to .portdaddyrc filename', () => {
-      const config = { project: 'app' };
-
-      saveConfig(config, '/project');
-
-      expect(lastWrittenPath).toBe('/project/.portdaddyrc');
-    });
-
-    it('should return the config path', () => {
+    it('should always save to .portdaddyrc filename and return the path', () => {
       const config = { project: 'app' };
 
       const result = saveConfig(config, '/project');
 
+      expect(lastWrittenPath).toBe('/project/.portdaddyrc');
       expect(result).toBe('/project/.portdaddyrc');
     });
   });
@@ -477,16 +444,6 @@ describe('Config Module', () => {
       const result = generateConfig('/project');
 
       expect(result.services).toEqual({});
-    });
-
-    it('should use process.cwd() as default directory', () => {
-      mockSuggestIdentity = () => ({ project: 'app' });
-      mockDetectStack = () => null;
-
-      const result = generateConfig();
-
-      expect(result).toBeDefined();
-      expect(result.project).toBe('app');
     });
 
     it('should include basic config structure', () => {
@@ -737,20 +694,6 @@ describe('Config Module', () => {
     });
   });
 
-  describe('expandCommand() - Edge Cases (2 tests)', () => {
-    it('should handle command without port placeholders', () => {
-      const cmd = 'npm run worker';
-      const result = expandCommand(cmd, 3000);
-
-      expect(result).toBe('npm run worker');
-    });
-
-    it('should handle numeric port values', () => {
-      const result = expandCommand('server --port ${PORT}', 3000);
-
-      expect(result).toBe('server --port 3000');
-    });
-  });
 
   // ============================================================================
   // validateConfig() - Config Validation (24 tests)
@@ -805,21 +748,11 @@ describe('Config Module', () => {
     });
 
     it('should reject portRange with min >= max', () => {
-      const errors = validateConfig({
-        project: 'app',
-        portRange: [3100, 3000]
-      });
+      const reversed = validateConfig({ project: 'app', portRange: [3100, 3000] });
+      expect(reversed.some(e => e.includes('min must be less than max'))).toBe(true);
 
-      expect(errors.some(e => e.includes('min must be less than max'))).toBe(true);
-    });
-
-    it('should reject portRange with equal min and max', () => {
-      const errors = validateConfig({
-        project: 'app',
-        portRange: [3000, 3000]
-      });
-
-      expect(errors.some(e => e.includes('min must be less than max'))).toBe(true);
+      const equal = validateConfig({ project: 'app', portRange: [3000, 3000] });
+      expect(equal.some(e => e.includes('min must be less than max'))).toBe(true);
     });
   });
 

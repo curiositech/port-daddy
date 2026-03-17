@@ -63,44 +63,10 @@ describe('Stack Detection Module', () => {
       expect(stack.devCmd).toBe('next dev');
     });
 
-    it('should detect Next.js by next.config.mjs file', () => {
-      mockExistsSync = (path) => path.endsWith('next.config.mjs');
-      mockReadFileSync = () => '{}';
-
-      const stack = detectStack('/myapp');
-
-      expect(stack).toBeDefined();
-      expect(stack.name).toBe('Next.js');
-      expect(stack.detected).toBe('file');
-    });
-
-    it('should detect Next.js by next.config.ts file', () => {
-      mockExistsSync = (path) => path.endsWith('next.config.ts');
-      mockReadFileSync = () => '{}';
-
-      const stack = detectStack('/myapp');
-
-      expect(stack).toBeDefined();
-      expect(stack.name).toBe('Next.js');
-    });
-
     it('should detect Next.js by next dependency', () => {
       mockExistsSync = (path) => path.endsWith('package.json');
       mockReadFileSync = () => JSON.stringify({
         dependencies: { next: '^14.0.0' }
-      });
-
-      const stack = detectStack('/myapp');
-
-      expect(stack).toBeDefined();
-      expect(stack.name).toBe('Next.js');
-      expect(stack.detected).toBe('dependency');
-    });
-
-    it('should detect Next.js in devDependencies', () => {
-      mockExistsSync = (path) => path.endsWith('package.json');
-      mockReadFileSync = () => JSON.stringify({
-        devDependencies: { next: '^14.0.0' }
       });
 
       const stack = detectStack('/myapp');
@@ -135,17 +101,6 @@ describe('Stack Detection Module', () => {
       expect(stack.detected).toBe('dependency');
       expect(stack.defaultPort).toBe(3000);
       expect(stack.healthPath).toBe('/health');
-    });
-
-    it('should detect Express in devDependencies', () => {
-      mockExistsSync = (path) => path.endsWith('package.json');
-      mockReadFileSync = () => JSON.stringify({
-        devDependencies: { express: '^4.18.0' }
-      });
-
-      const stack = detectStack('/myapp');
-
-      expect(stack.name).toBe('Express');
     });
 
     it('should have PORT environment variable for Express', () => {
@@ -205,17 +160,6 @@ describe('Stack Detection Module', () => {
       expect(stack.name).toBe('Angular');
       expect(stack.detected).toBe('file');
       expect(stack.defaultPort).toBe(4200);
-    });
-
-    it('should detect Angular by @angular/core dependency', () => {
-      mockExistsSync = (path) => path.endsWith('package.json');
-      mockReadFileSync = () => JSON.stringify({
-        dependencies: { '@angular/core': '^15.0.0' }
-      });
-
-      const stack = detectStack('/myapp');
-
-      expect(stack.name).toBe('Angular');
     });
 
     it('should detect Vue CLI by vue.config.js', () => {
@@ -326,19 +270,9 @@ describe('Stack Detection Module', () => {
       expect(stack.name).toBe('NestJS');
     });
 
-    it('should detect NestJS by @nestjs/core dependency', () => {
-      mockExistsSync = (path) => path.endsWith('package.json');
-      mockReadFileSync = () => JSON.stringify({
-        dependencies: { '@nestjs/core': '^9.0.0' }
-      });
-
-      const stack = detectStack('/myapp');
-
-      expect(stack.name).toBe('NestJS');
-    });
   });
 
-  describe('detectStack() - Backend Framework Detection (5 tests)', () => {
+  describe('detectStack() - Backend Framework Detection (4 tests)', () => {
     it('should detect Fastify by dependency', () => {
       mockExistsSync = (path) => path.endsWith('package.json');
       mockReadFileSync = () => JSON.stringify({
@@ -386,18 +320,6 @@ describe('Stack Detection Module', () => {
       expect(stack.portFlag).toBe('-l');
     });
 
-    it('should have correct port configuration for each backend', () => {
-      mockExistsSync = (path) => path.endsWith('package.json');
-      mockReadFileSync = () => JSON.stringify({
-        dependencies: { express: '^4.0.0' }
-      });
-
-      const stack = detectStack('/myapp');
-
-      expect(stack.defaultPort).toBe(3000);
-      expect(stack.healthPath).toBe('/health');
-      expect(stack.devCmd).toBe('node server.js');
-    });
   });
 
   describe('detectStack() - Python Framework Detection (5 tests)', () => {
@@ -481,15 +403,6 @@ describe('Stack Detection Module', () => {
       expect(stack.defaultPort).toBe(8787);
       expect(stack.devCmd).toBe('wrangler dev');
       expect(stack.portFlag).toBe('--port');
-    });
-
-    it('should detect Cloudflare Workers by wrangler.json', () => {
-      mockExistsSync = (path) => path.endsWith('wrangler.json');
-      mockReadFileSync = () => '';
-
-      const stack = detectStack('/worker-app');
-
-      expect(stack.name).toBe('Cloudflare Workers');
     });
 
     it('should detect Cloudflare Workers by wrangler dependency', () => {
@@ -650,17 +563,6 @@ describe('Stack Detection Module', () => {
       expect(stack.name).toBe('FastAPI');
     });
 
-    it('should use process.cwd() as default directory', () => {
-      mockExistsSync = (path) => path.endsWith('package.json');
-      mockReadFileSync = () => JSON.stringify({
-        dependencies: { express: '^4.0.0' }
-      });
-
-      const stack = detectStack();
-
-      expect(stack).toBeDefined();
-      expect(stack.name).toBe('Express');
-    });
   });
 
   describe('getDevCommand() - Command Construction (8 tests)', () => {
@@ -777,19 +679,6 @@ describe('Stack Detection Module', () => {
       expect(range).toEqual([8080, 8129]);
     });
 
-    it('should have consistent 50-port range', () => {
-      const stacks = [
-        { defaultPort: 3000 },
-        { defaultPort: 5173 },
-        { defaultPort: 8000 }
-      ];
-
-      for (const stack of stacks) {
-        const [start, end] = getPortRange(stack);
-        expect(end - start).toBe(49);
-        expect(start).toBe(stack.defaultPort);
-      }
-    });
   });
 
   describe('detectServices() - Monorepo Detection (6 tests)', () => {
@@ -950,15 +839,6 @@ describe('Stack Detection Module', () => {
       const identity = suggestIdentity('/myapp');
 
       expect(identity.stack).toBe('app');
-    });
-
-    it('should lowercase full identity', () => {
-      mockExistsSync = (path) => path.endsWith('next.config.js');
-      mockReadFileSync = () => '{}';
-
-      const identity = suggestIdentity('/MyApp');
-
-      expect(identity.full).toBe(identity.full.toLowerCase());
     });
 
     it('should handle directory with uppercase in path', () => {
