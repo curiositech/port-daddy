@@ -7,10 +7,10 @@
  * Handles: pd integration ready/needs/list
  */
 
-import { status as maritimeStatus } from '../../lib/maritime.js';
 import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import { CLIOptions, isQuiet, isJson } from '../types.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
+import * as ui from '../utils/ui.js';
 
 /**
  * Handle `pd integration <subcommand>` commands
@@ -79,7 +79,7 @@ async function integrationSignal(type: 'ready' | 'needs', rest: string[], option
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || `Failed to publish ${type} signal`));
+    ui.error((data.error as string) || `Failed to publish ${type} signal`);
     process.exit(1);
   }
 
@@ -89,7 +89,7 @@ async function integrationSignal(type: 'ready' | 'needs', rest: string[], option
     console.log(channel);
   } else {
     const emoji = type === 'ready' ? 'ready' : 'needs';
-    console.log(maritimeStatus('success', `[${emoji}] ${identity}: ${description}`));
+    ui.success(`[${emoji}] ${identity}: ${description}`);
     console.log(`  Channel: ${channel}`);
   }
 }
@@ -100,7 +100,7 @@ async function integrationList(options: CLIOptions): Promise<void> {
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to list channels'));
+    ui.error((data.error as string) || 'Failed to list channels');
     process.exit(1);
   }
 

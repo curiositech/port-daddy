@@ -15,9 +15,9 @@
 
 import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
-import { status as maritimeStatus } from '../../lib/maritime.js';
 import { tableHeader, separator } from '../utils/output.js';
 import { CLIOptions, isQuiet, isJson } from '../types.js';
+import * as ui from '../utils/ui.js';
 
 interface DnsRecord {
   identity: string;
@@ -124,7 +124,7 @@ async function dnsList(options: CLIOptions): Promise<void> {
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to list DNS records'));
+    ui.error((data.error as string) || 'Failed to list DNS records');
     process.exit(1);
   }
 
@@ -182,7 +182,7 @@ async function dnsRegister(identity: string | undefined, options: CLIOptions): P
     const setupRes: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/dns/setup`, { method: 'POST' });
     if (!setupRes.ok) {
       const setupData = await setupRes.json();
-      console.error(maritimeStatus('error', (setupData.error as string) || 'Failed to setup resolver'));
+      ui.error((setupData.error as string) || 'Failed to setup resolver');
       console.error('Hint: /etc/hosts requires sudo. Run: sudo pd dns setup');
       process.exit(1);
     }
@@ -200,7 +200,7 @@ async function dnsRegister(identity: string | undefined, options: CLIOptions): P
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to register DNS'));
+    ui.error((data.error as string) || 'Failed to register DNS');
     process.exit(1);
   }
 
@@ -233,7 +233,7 @@ async function dnsUnregister(identity: string | undefined, options: CLIOptions):
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to unregister DNS'));
+    ui.error((data.error as string) || 'Failed to unregister DNS');
     process.exit(1);
   }
 
@@ -261,7 +261,7 @@ async function dnsLookup(hostname: string | undefined, options: CLIOptions): Pro
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to lookup DNS'));
+    ui.error((data.error as string) || 'Failed to lookup DNS');
     process.exit(1);
   }
 
@@ -293,7 +293,7 @@ async function dnsCleanup(options: CLIOptions): Promise<void> {
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'DNS cleanup failed'));
+    ui.error((data.error as string) || 'DNS cleanup failed');
     process.exit(1);
   }
 
@@ -314,7 +314,7 @@ async function dnsStatus(options: CLIOptions): Promise<void> {
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to get DNS status'));
+    ui.error((data.error as string) || 'Failed to get DNS status');
     process.exit(1);
   }
 
@@ -343,7 +343,7 @@ async function dnsSetup(options: CLIOptions): Promise<void> {
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to setup resolver'));
+    ui.error((data.error as string) || 'Failed to setup resolver');
     if ((data.error as string)?.includes('EACCES') || (data.error as string)?.includes('permission')) {
       console.error('Hint: /etc/hosts requires elevated privileges.');
       console.error('  Run the daemon with sudo, or manually add the markers:');
@@ -378,7 +378,7 @@ async function dnsTeardown(options: CLIOptions): Promise<void> {
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to teardown resolver'));
+    ui.error((data.error as string) || 'Failed to teardown resolver');
     process.exit(1);
   }
 
@@ -406,7 +406,7 @@ async function dnsSync(options: CLIOptions): Promise<void> {
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to sync resolver'));
+    ui.error((data.error as string) || 'Failed to sync resolver');
     process.exit(1);
   }
 

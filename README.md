@@ -144,6 +144,24 @@ pd inbox watch --agent CAPTAIN
 pd inbox send CAPTAIN "Course corrected. Heading 270." --sender "PILOT"
 ```
 
+### Agent Identity & Auto-Salvage
+Register with a semantic identity so Port Daddy can track your project context:
+```bash
+# Register with identity — enables context-aware salvage
+pd agent register --agent build-42 --identity myapp:api --purpose "Building auth module"
+
+# If another agent in myapp:* died, you'll see:
+#   ⚠  2 dead agent(s) in myapp:*. Run: pd salvage --project myapp
+
+# View dead agents scoped to your project
+pd salvage --project myapp
+
+# Pick up a dead agent's work
+pd salvage claim dead-agent-99
+```
+
+When an agent dies (crashes, loses connection, context exceeded), its sessions and notes are preserved. New agents in the same project are automatically notified at registration.
+
 ### Distributed Locks
 Prevent agents from "stepping on" each other's files or DB migrations:
 ```bash

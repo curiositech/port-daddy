@@ -84,6 +84,8 @@
     "tsconfig.json"
   ],
   "dependencies": {
+    "@clack/core": "^1.1.0",
+    "@clack/prompts": "^1.1.0",
     "@modelcontextprotocol/sdk": "^1.27.1",
     "@types/commander": "^2.12.0",
     "better-sqlite3": "^12.6.2",
@@ -112,6 +114,7 @@
     "@types/react": "^19.2.14",
     "jest": "^30.2.0",
     "supertest": "^7.2.2",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "yaml": "^2.8.2"
   }
 }
