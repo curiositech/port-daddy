@@ -415,12 +415,13 @@ describe('Webhook Delivery and Retry', () => {
     };
     global.fetch = slowFetch;
 
-    webhooks.register('https://example.com/webhook');
+    const webhookId = webhooks.register('https://example.com/webhook').id;
     webhooks.trigger(WebhookEvent.SERVICE_CLAIM, {});
 
     await sleep(100);
-    // Should have attempted delivery
-    expect(true).toBe(true);
+    // Delivery should have been recorded despite the timeout error
+    const deliveries = webhooks.getDeliveries(webhookId);
+    expect(deliveries.count).toBeGreaterThanOrEqual(1);
   });
 
   it('should track delivery status', async () => {
@@ -527,11 +528,8 @@ describe('SSRF Prevention', () => {
   });
 
   it('should block fc00::/7 IPv6 private', () => {
-    // Note: URL parsing with IPv6 can be tricky; testing with hostname format
-    const result = webhooks.register('http://fc00::1/webhook');
-    // IPv6 URLs with brackets require special handling, this may not trigger SSRF
-    // So we'll test a different pattern
-    expect(result.success === false || result.success === true).toBe(true);
+    const result = webhooks.register('http://[fc00::1]/webhook');
+    expect(result.success).toBe(false);
   });
 
   it('should block metadata.google.internal', () => {

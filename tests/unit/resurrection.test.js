@@ -381,10 +381,10 @@ describe('Resurrection Module', () => {
       resurrection.abandon('dead-agent');
       resurrection.claim('dead-agent');
 
-      // Get from list to see attempts
-      const list = resurrection.list();
-      const agent = list.agents.find(a => a.id === 'dead-agent');
-      expect(agent).toBeDefined();
+      // Query DB directly since formatQueueEntry doesn't expose resurrection_attempts
+      const row = db.prepare('SELECT resurrection_attempts FROM resurrection_queue WHERE agent_id = ?').get('dead-agent');
+      expect(row).toBeDefined();
+      expect(row.resurrection_attempts).toBeGreaterThanOrEqual(2);
     });
   });
 

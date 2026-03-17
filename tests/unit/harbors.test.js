@@ -203,7 +203,7 @@ describe('Harbors Module', () => {
 
     it('should respect limit parameter', () => {
       for (let i = 0; i < 5; i++) harbors.create(`myapp:h${i}`);
-      const result = harbors.list(3);
+      const result = harbors.list({ limit: 3 });
       expect(result.length).toBe(3);
     });
 
@@ -503,7 +503,7 @@ describe('Harbors Module', () => {
   describe('schema sanity (2 tests)', () => {
     it('should handle large number of harbors within limit', () => {
       for (let i = 0; i < 60; i++) harbors.create(`myapp:bulk-${i}`);
-      const result = harbors.list(50);
+      const result = harbors.list({ limit: 50 });
       expect(result.length).toBe(50);
     });
 

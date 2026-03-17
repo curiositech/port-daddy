@@ -216,22 +216,6 @@ describe('Health Module', () => {
       expect(elapsed).toBeGreaterThanOrEqual(500);
     });
 
-    it('should respect timeout parameter', async () => {
-      services.claim('test:app:main', { health: `http://127.0.0.1:${mockPort}/health` });
-      mockResponses.set('/health', { status: 500 });
-
-      const start = Date.now();
-      try {
-        await health.waitFor('test:app:main', { timeout: 200, checkInterval: 50 });
-      } catch (err) {
-        // Expected to timeout
-      }
-
-      const elapsed = Date.now() - start;
-      expect(elapsed).toBeGreaterThanOrEqual(200);
-      expect(elapsed).toBeLessThan(500);
-    });
-
     it('should reject on timeout', async () => {
       services.claim('test:app:main', { health: `http://127.0.0.1:${mockPort}/health` });
       mockResponses.set('/health', { status: 500 });

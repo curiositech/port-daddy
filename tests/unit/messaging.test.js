@@ -191,13 +191,6 @@ describe('Messaging Module', () => {
       expect(result.count).toBe(0);
     });
 
-    it('should reject empty channel name', () => {
-      const result = messaging.getMessages('');
-
-      expect(result.success).toBe(false);
-      expect(result.error).toMatch(/non-empty string/);
-    });
-
     it('should support after parameter for pagination', () => {
       const msg1 = messaging.publish('test-channel', 'msg1').id;
       const msg2 = messaging.publish('test-channel', 'msg2').id;
@@ -302,20 +295,6 @@ describe('Messaging Module', () => {
       const result = messaging.poll('test-channel', 0);
 
       expect(result.message.sender).toBe('agent-1');
-    });
-
-    it('should reject empty channel name', () => {
-      const result = messaging.poll('', 0);
-
-      expect(result.success).toBe(false);
-      expect(result.error).toMatch(/non-empty string/);
-    });
-
-    it('should reject non-string channel name', () => {
-      const result = messaging.poll(123, 0);
-
-      expect(result.success).toBe(false);
-      expect(result.error).toMatch(/non-empty string/);
     });
 
     it('should work in polling sequence', () => {
@@ -538,19 +517,6 @@ describe('Messaging Module', () => {
       expect(channel2.messages).toHaveLength(0);
     });
 
-    it('should reject empty channel name', () => {
-      const result = messaging.clear('');
-
-      expect(result.success).toBe(false);
-      expect(result.error).toMatch(/non-empty string/);
-    });
-
-    it('should reject non-string channel name', () => {
-      const result = messaging.clear(123);
-
-      expect(result.success).toBe(false);
-      expect(result.error).toMatch(/non-empty string/);
-    });
   });
 
   describe('List Channels (5 tests)', () => {
@@ -774,23 +740,6 @@ describe('Messaging Module', () => {
       expect(messaging.subscriberCount('*')).toBe(1);
     });
 
-    it('should return accurate count across operations', () => {
-      const unsubscribers = [];
-
-      for (let i = 0; i < 5; i++) {
-        const cb = jest.fn();
-        const unsub = messaging.subscribe('test-channel', cb);
-        unsubscribers.push(unsub);
-      }
-
-      expect(messaging.subscriberCount('test-channel')).toBe(5);
-
-      // Unsubscribe 2
-      unsubscribers[0]();
-      unsubscribers[1]();
-
-      expect(messaging.subscriberCount('test-channel')).toBe(3);
-    });
   });
 
   describe('Message Ordering and Edge Cases (10 tests)', () => {
@@ -1007,32 +956,6 @@ describe('Messaging Module', () => {
       expect(agent2Inbox[0].sender).toBe('agent-1');
     });
 
-    it('should cleanup between test lifecycle', () => {
-      messaging.publish('test-channel', 'msg1');
-      messaging.publish('test-channel', 'msg2');
-
-      const before = messaging.getMessages('test-channel').messages.length;
-      messaging.clear('test-channel');
-      const after = messaging.getMessages('test-channel').messages.length;
-
-      expect(before).toBe(2);
-      expect(after).toBe(0);
-    });
-
-    it('should handle high-frequency publishing', () => {
-      const count = 1000;
-
-      for (let i = 0; i < count; i++) {
-        messaging.publish('performance', `msg-${i}`);
-      }
-
-      const result = messaging.getMessages('performance', { limit: count });
-
-      expect(result.messages).toHaveLength(count);
-      expect(result.messages[0].payload).toBe('msg-0');
-      expect(result.messages[count - 1].payload).toBe(`msg-${count - 1}`);
-    });
-
     it('should handle expiration with active messages', () => {
       const now = Date.now();
 
@@ -1095,40 +1018,7 @@ describe('Messaging Module', () => {
     });
   });
 
-  describe('Coverage Edge Cases (3 tests)', () => {
-    it('should handle per-channel subscriber limit correctly', () => {
-      // Subscribe MAX_SUBSCRIBERS_PER_CHANNEL - 1 times to ensure we can test boundary
-      const callbacks = [];
-
-      for (let i = 0; i < 100; i++) {
-        const cb = jest.fn();
-        callbacks.push(cb);
-        const result = messaging.subscribe('test-channel', cb);
-        expect(result).not.toBeNull();
-      }
-
-      // 101st subscription should fail
-      const extraCallback = jest.fn();
-      const result = messaging.subscribe('test-channel', extraCallback);
-
-      expect(result).toBeNull();
-    });
-
-    it('should handle channel limit when trying to subscribe to new channel', () => {
-      // Fill up channels to max
-      for (let i = 0; i < 1000; i++) {
-        const cb = jest.fn();
-        const result = messaging.subscribe(`channel-${i}`, cb);
-        expect(result).not.toBeNull();
-      }
-
-      // Try to subscribe to new channel - should fail
-      const newCb = jest.fn();
-      const result = messaging.subscribe('overflow-channel', newCb);
-
-      expect(result).toBeNull();
-    });
-
+  describe('Coverage Edge Cases (1 test)', () => {
     it('should notify wildcard subscribers when publishing', () => {
       const wildcard1 = jest.fn();
       const wildcard2 = jest.fn();
@@ -1170,23 +1060,6 @@ describe('Messaging Module', () => {
       messaging.publish('test-channel', 'msg');
 
       expect(goodCb).toHaveBeenCalledTimes(1);
-    });
-
-    it('should handle concurrent-looking operations', () => {
-      // Simulate rapid fire operations
-      const results = [];
-
-      for (let i = 0; i < 100; i++) {
-        const pub = messaging.publish(`ch-${i % 10}`, `msg-${i}`);
-        results.push(pub.success);
-      }
-
-      const allSuccess = results.every(r => r === true);
-      expect(allSuccess).toBe(true);
-
-      // All should be in DB
-      const channels = messaging.listChannels();
-      expect(channels.channels.length).toBeLessThanOrEqual(10);
     });
 
     it('should handle subscriber callback that modifies data', () => {

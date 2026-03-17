@@ -297,7 +297,7 @@ describe('Test Group 3: API -> CLI Parity', () => {
     config: ['config'],
     projects: ['scan', 'projects'],
     sessions: ['session', 'sessions', 'note', 'notes'],
-    info: ['version', 'status', 'metrics'],
+    info: ['version', 'status', 'metrics', 'config'],
     resurrection: ['salvage', 'resurrection'],
     changelog: ['changelog'],
     tunnel: ['tunnel'],
@@ -307,6 +307,7 @@ describe('Test Group 3: API -> CLI Parity', () => {
     launchhints: ['hints'],
     spawn: ['spawn', 'spawned'],
     harbors: ['harbor', 'harbors'],
+    orchestrator: ['up', 'down'],
   };
 
   test('all route modules have at least one corresponding CLI command', () => {
