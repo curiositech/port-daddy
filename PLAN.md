@@ -106,7 +106,66 @@ they reject. This lets existing scripts and integrations migrate.
 
 V4.1 flips the default to `enforce`.
 
-#### 5. `pd begin` without `--identity`
+#### 5. Filesystem isolation — run the daemon as a dedicated OS user
+
+Harbor cards are **application-layer access control**. They gate what an agent can do
+*through the Port Daddy API*. They do NOT restrict what the agent's underlying process
+can do on the filesystem. An agent running as your dev user can `rm -rf` the daemon's
+source, delete `port-registry.db`, overwrite key files, or kill the daemon process.
+
+This is the same trust boundary as postgres, redis, and nginx: the daemon protects its
+own data by running as a separate OS user. The API is the only interface.
+
+**Implementation (V4.0):**
+
+Run the daemon as a dedicated `portdaddy` system user. The launchd/systemd service
+config already manages the daemon — just specify the user.
+
+```bash
+# Linux (systemd)
+sudo useradd -r -s /bin/false -d /var/lib/port-daddy portdaddy
+sudo chown portdaddy:portdaddy /var/lib/port-daddy/port-registry.db
+sudo chown -R portdaddy:portdaddy /var/lib/port-daddy/keys/
+
+# In the systemd unit file:
+[Service]
+User=portdaddy
+Group=portdaddy
+
+# macOS (launchd)
+# Create a _portdaddy system account (underscore prefix is macOS convention)
+# In the launchd plist:
+<key>UserName</key>
+<string>_portdaddy</string>
+```
+
+**What this protects:**
+- `port-registry.db` — owned by `portdaddy`, dev user can't corrupt or delete it
+- `~portdaddy/.config/port-daddy/keys/` — key material inaccessible to agent processes
+- The daemon process itself — agents running as your dev user can't `kill` it
+
+**What this does NOT protect:**
+- Your source code — agents need filesystem access to do their job. File claims are
+  advisory coordination, not OS-level enforcement.
+- The daemon binary — if installed globally via npm, it's world-readable. An agent
+  could modify it. Mitigation: `pd keys verify` checks code hash on startup.
+
+**The security boundary statement:** Harbors are the security model for the Port Daddy
+API. The OS user model is the security model for the daemon's own state. These are
+complementary layers, not alternatives. Neither alone is sufficient.
+
+**Migration for existing installs:**
+
+```bash
+pd install --system-user          # V4.0: creates user + reinstalls service
+pd install --system-user=custom   # use a custom username
+pd install                        # V3 behavior: runs as current user (warns in V4)
+```
+
+`pd install` without `--system-user` in V4 logs a warning:
+`"⚠ Daemon running as your user. For production use: pd install --system-user"`
+
+#### 6. `pd begin` without `--identity`
 
 If no identity is given, use the current directory name as project:
 ```
