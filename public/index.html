@@ -1,1074 +1,1663 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Port Daddy Dashboard (v3.7.0)</title>
-    <!-- Size: > 100KB | Coverage: 12 Panels | Visuals: 100% -->
-    <style>
-        :root {
-            --bg-dark: #030712;
-            --bg-card: #111827;
-            --accent: #0f766e;
-            --accent-glow: rgba(15, 118, 110, 0.5);
-            --text: #f9fafb;
-            --border: #374151;
-        }
-        body { font-family: sans-serif; background: var(--bg-dark); color: var(--text); margin: 0; padding: 0; }
-        .glass { backdrop-filter: blur(12px); border: 1px solid var(--border); }
-        .hero-glow { background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%); }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .panel { display: none; padding: 40px; height: 100vh; overflow-y: auto; }
-        .panel.active { display: block; animation: fadeIn 0.3s ease; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="/favicon.png" type="image/png">
+  <title>Port Daddy Dashboard (v3.7.0)</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap');
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      /* Signal Tower Design System — Dashboard (always dark) */
+      --bg-dark: #111113;
+      --bg-card: #1C1C1F;
+      --bg-input: #15151A;
+      --bg-elevated: #252529;
+      --bg-sidebar: #18181B;
+      /* Signal Blue — Primary accent */
+      --accent: #0066CC;
+      --accent-dim: #0052a3;
+      --accent-soft: #3388DD;
+      --accent-glow: rgba(0,102,204,0.15);
+      /* Signal colors */
+      --brass: #E5A000;
+      --brass-dim: #c08800;
+      --brass-glow: rgba(229,160,0,0.15);
+      --text: #FAFAFA;
+      --text-dim: #8B8B96;
+      --text-muted: #6B6B76;
+      /* Signal flag colors */
+      --success: #18794E;
+      --warning: #E5A000;
+      --danger: #CD2B31;
+      --info: #0066CC;
+      --purple: #6E56CF;
+      --border: #2C2C31;
+      --border-light: #3C3C42;
+      --radius-sm: 6px;
+      --radius-md: 8px;
+      --radius-lg: 10px;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+      --shadow-md: 0 4px 16px rgba(0,0,0,0.4);
+      --transition-fast: 0.15s ease;
+      --transition-med: 0.25s ease;
+    }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg-dark);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+      font-size: 13px;
+      -webkit-font-smoothing: antialiased;
+      display: flex;
+    }
+
+    /* ── Glassmorphism base ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse at 20% 50%, rgba(74,157,158,0.08), transparent 60%),
+                  radial-gradient(ellipse at 80% 20%, rgba(112,165,224,0.05), transparent 50%);
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 200px;
+      min-width: 200px;
+      height: 100vh;
+      position: fixed;
+      left: 0; top: 0;
+      background: linear-gradient(180deg, var(--bg-sidebar) 0%, rgba(12,26,46,0.95) 100%);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      z-index: 100;
+    }
+    .sidebar-logo {
+      padding: 16px 16px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .sidebar-logo .logo-icon {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-dim));
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; color: white; font-weight: bold;
+    }
+    .sidebar-logo .logo-text {
+      display: flex; flex-direction: column;
+    }
+    .sidebar-logo .logo-title {
+      font-size: 14px; font-weight: 700; color: var(--text);
+    }
+    .sidebar-logo .logo-sub {
+      font-size: 10px; color: var(--text-muted);
+    }
+    .sidebar-section {
+      padding: 12px 0 4px;
+    }
+    .sidebar-section-label {
+      padding: 0 16px;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 16px;
+      cursor: pointer;
+      color: var(--text-dim);
+      transition: all 0.15s ease;
+      border-left: 3px solid transparent;
+      font-size: 13px;
+      position: relative;
+    }
+    .nav-item:hover {
+      background: rgba(0,102,204,0.06);
+      color: var(--text);
+    }
+    .nav-item.active {
+      background: rgba(0,102,204,0.12);
+      color: var(--accent);
+      border-left-color: var(--accent);
+    }
+    .nav-item .nav-icon {
+      width: 16px; height: 16px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .nav-item .nav-icon svg {
+      width: 16px; height: 16px;
+      fill: none; stroke: currentColor; stroke-width: 2;
+      stroke-linecap: round; stroke-linejoin: round;
+    }
+    .nav-item .nav-label { flex: 1; }
+    .nav-badge {
+      background: var(--bg-elevated);
+      color: var(--accent);
+      font-size: 10px;
+      font-weight: 600;
+      padding: 1px 6px;
+      border-radius: 8px;
+      min-width: 20px;
+      text-align: center;
+    }
+
+    /* ── Main Content ── */
+    .main {
+      margin-left: 200px;
+      flex: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Command Bar ── */
+    .command-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 24px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-dark);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .cmd-search {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 6px 12px;
+    }
+    .cmd-search svg {
+      width: 14px; height: 14px; stroke: var(--text-muted);
+      fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+    }
+    .cmd-search input {
+      flex: 1; background: none; border: none; outline: none;
+      color: var(--text); font-family: inherit; font-size: 13px;
+    }
+    .cmd-search input::placeholder { color: var(--text-muted); }
+    .cmd-search .kbd {
+      font-size: 10px; color: var(--text-muted);
+      border: 1px solid var(--border);
+      border-radius: 4px; padding: 1px 5px;
+    }
+    .cmd-btn {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-dim);
+      cursor: pointer;
+      font-family: inherit; font-size: 12px;
+      transition: all 0.15s ease;
+    }
+    .cmd-btn:hover { background: var(--bg-elevated); color: var(--text); }
+    .cmd-btn svg {
+      width: 14px; height: 14px; fill: none; stroke: currentColor;
+      stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+    }
+    .cmd-btn.danger:hover { border-color: var(--danger); color: var(--danger); }
+    /* Terminal button — prominent, always-visible */
+    .cmd-btn.terminal-btn {
+      border-color: var(--accent); color: var(--accent);
+      font-weight: 600; padding: 6px 18px; font-size: 13px;
+      background: var(--accent-glow);
+    }
+    .cmd-btn.terminal-btn:hover { background: rgba(0,102,204,0.25); border-color: var(--accent-soft); color: var(--accent-soft); }
+    /* Semantic token coloring for scope:topic:qualifier identities */
+    .id-scope { color: #4a9d9e; font-weight: 600; }
+    .id-sep   { color: var(--text-muted); font-weight: 400; }
+    .id-topic { color: var(--brass); }
+    .id-qual  { color: #6DD998; }
+
+    /* ── Panel Area ── */
+    .panel-area {
+      flex: 1;
+      padding: 24px;
+    }
+    .panel { display: none; }
+    .panel.active { display: block; animation: fadeIn 0.2s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes toastOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(120%); opacity: 0; } }
+    @keyframes pulseGlow { 0%, 100% { box-shadow: 0 0 4px var(--success); } 50% { box-shadow: 0 0 12px var(--success); } }
+    @keyframes slideIn { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: translateX(0); } }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .panel-title { font-family: 'Space Grotesk', system-ui, sans-serif; font-size: 20px; font-weight: 700; color: var(--text); }
+    .panel-actions { display: flex; gap: 8px; align-items: center; }
+
+    /* ── Stats Grid ── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      background: linear-gradient(135deg, var(--bg-card) 0%, rgba(0,102,204,0.04) 100%);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      text-align: center;
+    }
+    .stat-value {
+      font-family: 'Space Grotesk', system-ui, sans-serif;
+      font-size: 28px; font-weight: 700; color: var(--text);
+      line-height: 1;
+    }
+    .stat-label {
+      font-size: 10px; font-weight: 600; letter-spacing: 1px;
+      text-transform: uppercase; color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    /* Empty States */
+    .empty-state { text-align: center; padding: 48px 24px; color: var(--text-muted); }
+    .empty-state-icon { width: 48px; height: 48px; margin: 0 auto 12px; opacity: 0.3; stroke: var(--text-muted); fill: none; stroke-width: 1.5; }
+    .empty-state-text { font-size: 0.9em; }
+    .empty-state-hint { font-size: 0.8em; color: var(--text-muted); opacity: 0.6; margin-top: 6px; }
+
+    /* Port Badge */
+    .port-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: rgba(0,102,204,0.12);
+      border: 1px solid rgba(0,102,204,0.25); color: var(--accent);
+      padding: 3px 10px; border-radius: 6px; font-size: 0.9em;
+      font-weight: 600; font-family: 'Geist Mono', 'SF Mono', monospace; letter-spacing: 0.5px;
+    }
+
+    /* Status Indicator */
+    .status-indicator {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 3px 10px; border-radius: 4px; font-size: 0.8em;
+      font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .status-indicator.running { background: rgba(24,121,78,0.15); color: #2da96a; }
+    .status-indicator.running::before {
+      content: ''; width: 6px; height: 6px; border-radius: 50%;
+      background: #2da96a; animation: pulseGlow 2s infinite;
+    }
+    .status-indicator.claimed { background: rgba(0,102,204,0.15); color: var(--info); }
+    .status-indicator.claimed::before {
+      content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--info);
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-block; padding: 3px 10px; border-radius: 4px;
+      font-size: 0.8em; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .badge-success { background: rgba(24, 121, 78, 0.15); color: #2da96a; }
+    .badge-warning { background: rgba(229, 160, 0, 0.15); color: var(--warning); }
+    .badge-danger { background: rgba(205, 43, 49, 0.15); color: #e05555; }
+    .badge-info { background: rgba(0, 102, 204, 0.15); color: var(--info); }
+    .badge-muted { background: rgba(255,255,255,0.05); color: var(--text-muted); }
+
+    /* ── Two Column Layout ── */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    code { background: var(--bg-input); padding: 2px 8px; border-radius: 4px; font-size: 0.9em; color: var(--accent); font-family: 'Geist Mono', 'SF Mono', monospace; }
+
+    /* ── Cards ── */
+    .card {
+      background: linear-gradient(135deg, var(--bg-card), rgba(15,31,53,0.85));
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 16px;
+    }
+    .card-title {
+      font-size: 13px; font-weight: 600; color: var(--text);
+      margin-bottom: 12px;
+    }
+
+    /* ── Activity List ── */
+    .activity-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(26,48,80,0.5);
+    }
+    .activity-item:last-child { border-bottom: none; }
+    .activity-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      margin-top: 6px; flex-shrink: 0;
+    }
+    .activity-dot.green { background: var(--success); }
+    .activity-dot.blue { background: var(--info); }
+    .activity-dot.yellow { background: var(--warning); }
+    .activity-dot.red { background: var(--danger); }
+    .activity-dot.teal { background: var(--accent); }
+    .activity-text { flex: 1; color: var(--text-dim); font-size: 12px; }
+    .activity-time { color: var(--text-muted); font-size: 11px; white-space: nowrap; }
+
+    /* ── Agent List ── */
+    .agent-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 0;
+    }
+    .agent-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+    }
+    .agent-name { font-size: 12px; color: var(--accent); }
+
+    /* ── Tables ── */
+    .table-wrap { overflow-x: auto; }
+    table {
+      width: 100%; border-collapse: collapse;
+      background: var(--bg-card);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+    thead th {
+      text-align: left;
+      padding: 10px 14px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--border);
+    }
+    tbody td {
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(26,48,80,0.4);
+      font-size: 12px;
+      color: var(--text-dim);
+      vertical-align: top;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: rgba(74,157,158,0.04); }
+    .mono { font-family: inherit; color: var(--accent); font-size: 11px; }
+
+    /* ── Status Badges ── */
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+    .badge-active { background: rgba(109,209,148,0.15); color: var(--success); }
+    .badge-completed { background: rgba(74,157,158,0.15); color: var(--accent); }
+    .badge-abandoned { background: rgba(224,112,112,0.15); color: var(--danger); }
+    .badge-assigned { background: rgba(112,165,224,0.15); color: var(--info); }
+    .badge-stale { background: rgba(229,182,85,0.15); color: var(--warning); }
+    .badge-dead { background: rgba(224,112,112,0.15); color: var(--danger); }
+
+    /* ── Action Buttons ── */
+    .btn-sm {
+      padding: 3px 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg-elevated);
+      color: var(--text-dim);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 11px;
+      transition: all 0.15s ease;
+    }
+    .btn-sm:hover { color: var(--text); background: var(--bg-card); }
+    .btn-sm.danger { border-color: rgba(224,112,112,0.3); }
+    .btn-sm.danger:hover { color: var(--danger); border-color: var(--danger); }
+    .btn-actions { display: flex; gap: 4px; flex-wrap: wrap; }
+
+    /* ── Channel Cards ── */
+    .channel-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px;
+    }
+    .activity-icon {
+      width: 40px; height: 40px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; background: var(--bg-card); border: 2px solid var(--border);
+      color: var(--text-dim); transition: all var(--transition-med);
+    }
+    .activity-item:hover .activity-icon { border-color: var(--accent); color: var(--accent); }
+    .activity-icon.claim { border-color: rgba(24,121,78,0.3); color: #2da96a; background: rgba(24,121,78,0.08); }
+    .activity-icon.release { border-color: rgba(0,102,204,0.3); color: var(--info); background: rgba(0,102,204,0.08); }
+    .activity-icon.lock { border-color: rgba(229,160,0,0.3); color: var(--warning); background: rgba(229,160,0,0.08); }
+    .activity-icon.agent { border-color: rgba(110,86,207,0.3); color: var(--purple); background: rgba(110,86,207,0.08); }
+    .activity-icon.daemon { border-color: rgba(205,43,49,0.3); color: var(--danger); background: rgba(205,43,49,0.08); }
+    .activity-content { flex: 1; min-width: 0; }
+    .activity-content .type { font-weight: 600; color: var(--text); font-size: 0.9em; }
+    .activity-content .details {
+      font-size: 0.85em; color: var(--text-dim); margin-top: 3px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .activity-content .time { font-size: 0.75em; color: var(--text-muted); margin-top: 4px; }
+
+    /* Channels */
+    .channel-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .channel-card:hover { border-color: var(--accent-dim); }
+    .channel-card.expanded {
+      grid-column: 1 / -1;
+      cursor: default;
+    }
+    .channel-name {
+      font-size: 13px; font-weight: 600; color: var(--accent);
+      word-break: break-all;
+    }
+    .channel-count {
+      font-size: 11px; color: var(--text-muted); margin-top: 4px;
+    }
+    .channel-messages {
+      margin-top: 12px;
+      display: none;
+    }
+    .channel-card.expanded .channel-messages { display: block; }
+    .msg-item {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px;
+      margin-bottom: 8px;
+    }
+    .msg-meta {
+      display: flex; justify-content: space-between;
+      font-size: 10px; color: var(--text-muted); margin-bottom: 6px;
+    }
+    .msg-payload {
+      font-size: 11px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      color: var(--text-dim);
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .msg-payload .json-key { color: var(--accent); }
+    .msg-payload .json-str { color: var(--success); }
+    .msg-payload .json-num { color: var(--warning); }
+    .msg-payload .json-bool { color: var(--info); }
+    .msg-payload .json-null { color: var(--text-muted); }
+
+    /* ── Select ── */
+    select {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      padding: 5px 10px;
+      font-family: inherit;
+      font-size: 12px;
+      outline: none;
+    }
+
+    /* ── Config / Pre blocks ── */
+    pre.config-block {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      font-size: 12px;
+      color: var(--text-dim);
+      max-height: 600px;
+      overflow-y: auto;
+    }
+
+    /* ── Empty State ── */
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-muted);
+    }
+
+    /* ── Salvage Cards ── */
+    .salvage-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    .salvage-header {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      margin-bottom: 8px;
+    }
+    .salvage-agent { font-weight: 600; color: var(--accent); }
+    .salvage-detail { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+    /* ── Briefing ── */
+    .briefing-section { margin-bottom: 16px; }
+    .briefing-section h3 { font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 8px; }
+    .briefing-item { padding: 4px 0; font-size: 12px; color: var(--text-dim); }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--border-light); }
+
+    /* ── Toast ── */
+    .toast-container { position: fixed; top: 16px; right: 16px; z-index: 9999; }
+    .toast {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 10px 16px;
+      margin-bottom: 8px;
+      font-size: 12px;
+      animation: toastIn 0.3s ease;
+      box-shadow: var(--shadow-md);
+    }
+    .toast.success { border-left: 3px solid var(--success); }
+    .toast.error { border-left: 3px solid var(--danger); }
+    @keyframes toastIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    .toast.info { border-left: 3px solid var(--info); }
+    .toast-icon { flex-shrink: 0; }
+    .toast-msg { flex: 1; line-height: 1.4; }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.7); z-index: 2000; display: none;
+      align-items: center; justify-content: center; backdrop-filter: blur(2px);
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 28px; max-width: 620px; width: 90%;
+      max-height: 85vh; overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5); animation: fadeIn 0.2s ease;
+    }
+    .modal h3 { font-family: 'Space Grotesk', system-ui, sans-serif; color: var(--text); margin-bottom: 16px; font-size: 1.15em; }
+    .modal p { color: var(--text-dim); font-size: 0.9em; margin-bottom: 16px; line-height: 1.6; }
+    .modal-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; }
+    .modal-btn {
+      padding: 10px 22px; border-radius: var(--radius-sm); font-family: inherit;
+      font-weight: 600; cursor: pointer; border: 1px solid var(--border);
+      background: var(--bg-input); color: var(--text); transition: all var(--transition-med);
+    }
+    .modal-btn:hover { border-color: var(--accent); background: var(--accent-glow); }
+    .modal-btn.danger { background: var(--danger); color: white; border-color: var(--danger); }
+    .modal-btn.danger:hover { background: #e05555; }
+
+    .shortcut-list { display: grid; grid-template-columns: auto 1fr; gap: 10px 18px; }
+    .shortcut-key {
+      background: var(--bg-input); border: 1px solid var(--border);
+      padding: 5px 12px; border-radius: 4px; font-size: 0.85em;
+      color: var(--accent); font-family: inherit; text-align: center;
+    }
+    .shortcut-desc { color: var(--text-dim); font-size: 0.9em; display: flex; align-items: center; }
+
+    .tutorial-output { color: var(--text); line-height: 1.7; }
+    .tutorial-output h4 {
+      font-family: 'Space Grotesk', system-ui, sans-serif;
+      color: var(--text); margin: 24px 0 10px 0; font-size: 1.05em;
+      border-bottom: 1px solid var(--border); padding-bottom: 6px;
+    }
+    .tutorial-output h4:first-child { margin-top: 0; }
+    .tutorial-output .cmd {
+      background: var(--bg-card); padding: 10px 14px; border-radius: var(--radius-sm);
+      margin: 8px 0; font-size: 0.95em; color: var(--accent);
+      border-left: 3px solid var(--accent); font-family: 'Geist Mono', 'SF Mono', monospace;
+      transition: background var(--transition-fast); cursor: default;
+    }
+    .tutorial-output .cmd:hover { background: var(--bg-elevated); }
+    .tutorial-output .desc { color: var(--text); font-size: 0.9em; margin-bottom: 12px; }
+    .tutorial-output .note { color: var(--text-dim); font-size: 0.85em; font-style: italic; margin-top: 6px; }
+
+    .integrate-grid { display: grid; grid-template-columns: 1fr; gap: 12px; max-height: 400px; overflow-y: auto; }
+    .integrate-card {
+      background: var(--bg-input); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 14px; transition: border-color var(--transition-med);
+    }
+    .integrate-card:hover { border-color: var(--border-light); }
+    .integrate-name { color: var(--text); font-weight: 600; font-size: 0.9em; margin-bottom: 4px; }
+    .integrate-desc { color: var(--text-muted); font-size: 0.8em; margin-bottom: 10px; line-height: 1.5; }
+    .integrate-cmd {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--bg-dark); padding: 10px 12px; border-radius: var(--radius-sm);
+    }
+    .integrate-cmd code { flex: 1; font-size: 0.8em; color: var(--accent-soft); word-break: break-all; }
+
+    .cmd-btn {
+      background: none; border: 1px solid var(--border); color: var(--text-dim);
+      width: 32px; height: 32px; border-radius: 4px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; transition: all var(--transition-med);
+    }
+    .cmd-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .cmd-btn.copied, .cmd-btn.ran { border-color: var(--success); color: var(--success); }
+
+    .danger-btn { border-color: var(--danger) !important; color: var(--danger) !important; }
+    .danger-btn:hover { background: rgba(248, 113, 113, 0.1) !important; }
+    .accent-btn { border-color: var(--accent) !important; color: var(--accent) !important; }
+    .accent-btn:hover { background: rgba(0, 102, 204, 0.12) !important; }
+
+    .footer {
+      text-align: center; padding: 20px; color: var(--text-muted);
+      font-size: 0.8em; margin-top: 20px;
+      position: relative;
+    }
+    .footer::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(
+        90deg,
+        #0066CC 0% 20%,
+        #18794E 20% 40%,
+        #E5A000 40% 60%,
+        #CD2B31 60% 80%,
+        #6E56CF 80% 100%
+      );
+      opacity: 0.6;
+    }
+    .footer a { color: var(--accent); text-decoration: none; transition: color var(--transition-fast); }
+    .footer a:hover { color: var(--accent-soft); }
+    .footer .farewell { color: var(--accent); font-style: italic; margin-bottom: 8px; }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(-100%); transition: transform 0.2s ease; }
+      .sidebar.open { transform: translateX(0); }
+      .main { margin-left: 0; }
+      .two-col { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+  </style>
 </head>
 <body>
-    <div class="hero-glow" style="position: fixed; inset: 0; opacity: 0.2;"></div>
-    <nav class="glass" style="position: fixed; left: 20px; top: 20px; bottom: 20px; width: 240px; padding: 20px;">
-        <h2>port-daddy.</h2>
-        <div onclick="showPanel('overview')">Overview</div>
-        <div onclick="showPanel('services')">Services</div>
-        <div onclick="showPanel('agents')">Agents</div>
-        <div onclick="showPanel('sessions')">Sessions</div>
-        <div onclick="showPanel('locks')">Locks</div>
-        <div onclick="showPanel('channels')">Channels</div>
-        <div onclick="showPanel('salvage')">Salvage</div>
-        <div onclick="showPanel('activity')">Activity</div>
-        <div onclick="showPanel('projects')">Projects</div>
-        <div onclick="showPanel('config')">Config</div>
-        <div onclick="showPanel('changelog')">Changelog</div>
-        <div onclick="showPanel('webhooks')">Webhooks</div>
-    </nav>
-    <main style="margin-left: 280px;">
-        <div id="panel-overview" class="panel active"><h1>Overview</h1></div>
-        <div id="panel-services" class="panel"><h1>Services</h1></div>
-        <div id="panel-agents" class="panel"><h1>Agents</h1></div>
-        <div id="panel-sessions" class="panel"><h1>Sessions</h1></div>
-        <div id="panel-locks" class="panel"><h1>Locks</h1></div>
-        <div id="panel-channels" class="panel"><h1>Channels</h1></div>
-        <div id="panel-salvage" class="panel"><h1>Salvage</h1></div>
-        <div id="panel-activity" class="panel"><h1>Activity</h1></div>
-        <div id="panel-projects" class="panel"><h1>Projects</h1></div>
-        <div id="panel-config" class="panel"><h1>Config</h1></div>
-        <div id="panel-changelog" class="panel"><h1>Changelog</h1></div>
-        <div id="panel-webhooks" class="panel"><h1>Webhooks</h1></div>
-    </main>
-    <div id="icon-grid" style="display: none;">
-        <use href="#icon-anchor"></use><use href="#icon-zap"></use><use href="#icon-shield"></use>
-        <use href="#icon-activity"></use><use href="#icon-box"></use><use href="#icon-search"></use>
-        <use href="#icon-settings"></use><use href="#icon-user"></use><use href="#icon-lock"></use>
-        <use href="#icon-terminal"></use>
+  <!-- SVG Icon Sprite System -->
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none;">
+    <symbol id="icon-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
+    <symbol id="icon-server" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="6" rx="1"/><rect x="2" y="15" width="20" height="6" rx="1"/><circle cx="6" cy="6" r="1"/><circle cx="6" cy="18" r="1"/></symbol>
+    <symbol id="icon-users" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+    <symbol id="icon-edit" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></symbol>
+    <symbol id="icon-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+    <symbol id="icon-message" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
+    <symbol id="icon-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20M2 12h20"/></symbol>
+    <symbol id="icon-pulse" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></symbol>
+    <symbol id="icon-clock" viewBox="0 0 24 24"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12"/><path d="M12 6v6l4 2"/><path d="M2 22l4-4"/></symbol>
+    <symbol id="icon-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></symbol>
+    <symbol id="icon-link" viewBox="0 0 24 24"><path d="M18 16.98h-5.99c-1.66 0-3.01-1.34-3.01-3s1.34-3 3-3h.01"/><path d="M6 7.02h5.99c1.66 0 3.01 1.34 3.01 3s-1.34 3-3 3h-.01"/></symbol>
+    <symbol id="icon-folder" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></symbol>
+    <symbol id="icon-list" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></symbol>
+    <symbol id="icon-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9"/></symbol>
+    <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
+    <symbol id="icon-terminal" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></symbol>
+    <symbol id="icon-refresh" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></symbol>
+    <symbol id="icon-trash" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
+    <symbol id="icon-activity" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></symbol>
+    <symbol id="icon-anchor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></symbol>
+  </svg>
+
+  <!-- Sidebar -->
+  <nav class="sidebar" role="navigation" aria-label="Main navigation">
+    <div class="sidebar-logo">
+      <div class="logo-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><path d="M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20M2 12h20"/>
+        </svg>
+      </div>
+      <div class="logo-text">
+        <div class="logo-title">Port Daddy</div>
+        <div class="logo-sub">Daemon Dashboard</div>
+      </div>
     </div>
-    <script>
-        function showPanel(id) {
-            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-            document.getElementById('panel-' + id).classList.add('active');
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Overview</div>
+      <div class="nav-item active" data-panel="overview" tabindex="0" role="tab" aria-selected="true">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-grid"/></svg></span>
+        <span class="nav-label">Dashboard</span>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Core</div>
+      <div class="nav-item" data-panel="services" tabindex="0" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-server"/></svg></span>
+        <span class="nav-label">Services</span>
+        <span class="nav-badge" id="badge-services">0</span>
+      </div>
+      <div class="nav-item" data-panel="agents" tabindex="0" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-users"/></svg></span>
+        <span class="nav-label">Agents</span>
+        <span class="nav-badge" id="badge-agents">0</span>
+      </div>
+      <div class="nav-item" data-panel="sessions" tabindex="0" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-edit"/></svg></span>
+        <span class="nav-label">Sessions</span>
+        <span class="nav-badge" id="badge-sessions">0</span>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Coordination</div>
+      <div class="nav-item" data-panel="locks" tabindex="0" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-lock"/></svg></span>
+        <span class="nav-label">Locks</span>
+        <span class="nav-badge" id="badge-locks">0</span>
+      </div>
+      <div class="nav-item" data-panel="channels" tabindex="0" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-message"/></svg></span>
+        <span class="nav-label">Channels</span>
+        <span class="nav-badge" id="badge-channels">0</span>
+      </div>
+      <div class="nav-item" data-panel="dns" tabindex="0" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-globe"/></svg></span>
+        <span class="nav-label">DNS</span>
+        <span class="nav-badge" id="badge-dns">0</span>
+      </div>
+      <div class="nav-item" data-panel="integration" tabindex="0" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-pulse"/></svg></span>
+        <span class="nav-label">Integration</span>
+      </div>
+      <div class="nav-item" data-panel="inbox" tabindex="0" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-message"/></svg></span>
+        <span class="nav-label">Inbox</span>
+        <span class="nav-badge" id="badge-inbox">0</span>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Monitoring</div>
+      <div class="nav-item" data-panel="activity" tabindex="0" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-activity"/></svg></span>
+        <span class="nav-label">Activity</span>
+      </div>
+      <div class="nav-item" data-panel="salvage" tabindex="0" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"/></svg></span>
+        <span class="nav-label">Salvage</span>
+      </div>
+      <div class="nav-item" data-panel="briefing" tabindex="0" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-file"/></svg></span>
+        <span class="nav-label">Briefing</span>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">System</div>
+      <div class="nav-item" data-panel="webhooks" tabindex="0" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-link"/></svg></span>
+        <span class="nav-label">Webhooks</span>
+        <span class="nav-badge" id="badge-webhooks">0</span>
+      </div>
+      <div class="nav-item" data-panel="projects" tabindex="0" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-folder"/></svg></span>
+        <span class="nav-label">Projects</span>
+        <span class="nav-badge" id="badge-projects">0</span>
+      </div>
+      <div class="nav-item" data-panel="changelog" tabindex="0" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-list"/></svg></span>
+        <span class="nav-label">Changelog</span>
+      </div>
+      <div class="nav-item" data-panel="config" tabindex="0" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-settings"/></svg></span>
+        <span class="nav-label">Config</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="main">
+    <div class="command-bar">
+      <div class="cmd-search">
+        <svg viewBox="0 0 24 24"><use href="#icon-search"/></svg>
+        <input type="text" id="command-input" placeholder="Type a command... (Ctrl+K)" autocomplete="off">
+        <span class="kbd">Ctrl+K</span>
+      </div>
+      <button class="cmd-btn terminal-btn" onclick="openTerminal()" title="Terminal (Ctrl+`)">
+        <svg viewBox="0 0 24 24"><use href="#icon-terminal"/></svg>
+        Terminal
+      </button>
+      <button class="cmd-btn" onclick="refreshAll()" title="Refresh">
+        <svg viewBox="0 0 24 24"><use href="#icon-refresh"/></svg>
+        Refresh
+      </button>
+      <button class="cmd-btn danger" onclick="releaseAll()" title="Release All">
+        <svg viewBox="0 0 24 24"><use href="#icon-trash"/></svg>
+        Release All
+      </button>
+    </div>
+
+    <div class="panel-area">
+      <!-- Dashboard Panel -->
+      <div class="panel active" id="panel-overview">
+        <div class="stats-grid" id="stats-grid"></div>
+        <div class="two-col">
+          <div class="card">
+            <div class="card-title">Recent Activity</div>
+            <div id="dashboard-activity"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Active Agents</div>
+            <div id="dashboard-agents"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Services Panel -->
+      <div class="panel" id="panel-services">
+        <div class="panel-header">
+          <div class="panel-title">Services</div>
+          <div class="panel-actions"><button class="cmd-btn" onclick="refreshServices()">Refresh</button></div>
+        </div>
+        <div class="table-wrap" id="services-table"></div>
+      </div>
+
+      <!-- Agents Panel -->
+      <div class="panel" id="panel-agents">
+        <div class="panel-header">
+          <div class="panel-title">Agents</div>
+          <div class="panel-actions"><button class="cmd-btn" onclick="refreshAgents()">Refresh</button></div>
+        </div>
+        <div class="table-wrap" id="agents-table"></div>
+      </div>
+
+      <!-- Sessions Panel -->
+      <div class="panel" id="panel-sessions">
+        <div class="panel-header">
+          <div class="panel-title">Sessions</div>
+          <div class="panel-actions">
+            <select id="session-filter" onchange="refreshSessions()">
+              <option value="">All statuses</option>
+              <option value="active">Active</option>
+              <option value="completed">Completed</option>
+              <option value="abandoned">Abandoned</option>
+            </select>
+            <button class="cmd-btn" onclick="refreshSessions()">Refresh</button>
+          </div>
+        </div>
+        <div class="table-wrap" id="sessions-table"></div>
+      </div>
+
+      <!-- Locks Panel -->
+      <div class="panel" id="panel-locks">
+        <div class="panel-header">
+          <div class="panel-title">Locks</div>
+          <div class="panel-actions"><button class="cmd-btn" onclick="refreshLocks()">Refresh</button></div>
+        </div>
+        <div class="table-wrap" id="locks-table"></div>
+      </div>
+
+      <!-- Channels Panel -->
+      <div class="panel" id="panel-channels">
+        <div class="panel-header">
+          <div class="panel-title">Channels</div>
+          <div class="panel-actions"><button class="cmd-btn" onclick="refreshChannels()">Refresh</button></div>
+        </div>
+        <div id="channels-content"></div>
+      </div>
+
+      <!-- DNS Panel -->
+      <div class="panel" id="panel-dns">
+        <div class="panel-header">
+          <div class="panel-title">DNS Records</div>
+          <div class="panel-actions"><button class="cmd-btn" onclick="refreshDns()">Refresh</button></div>
+        </div>
+        <div class="table-wrap" id="dns-table"></div>
+      </div>
+
+      <!-- Integration Panel -->
+      <div class="panel" id="panel-integration">
+        <div class="panel-header">
+          <div class="panel-title">Integration Signals</div>
+          <div class="panel-actions"><button class="cmd-btn" onclick="refreshIntegration()">Refresh</button></div>
+        </div>
+        <div id="integration-content"></div>
+      </div>
+
+      <!-- Inbox Panel -->
+      <div class="panel" id="panel-inbox">
+        <div class="panel-header">
+          <div class="panel-title">Agent Inbox</div>
+          <div class="panel-actions">
+            <input type="text" id="inbox-agent-id" placeholder="Agent ID" style="background:var(--bg-input);border:1px solid var(--border);color:var(--text);padding:4px 10px;border-radius:var(--radius-sm);font-family:inherit;font-size:0.85em;width:180px;">
+            <button class="cmd-btn" onclick="refreshInbox()">Load</button>
+          </div>
+        </div>
+        <div id="inbox-content"></div>
+      </div>
+
+      <!-- Activity Panel -->
+      <div class="panel" id="panel-activity">
+        <div class="panel-header">
+          <div class="panel-title">Activity Log</div>
+          <div class="panel-actions">
+            <select id="activity-filter" onchange="refreshActivity()">
+              <option value="">All types</option>
+              <option value="claim">Claims</option>
+              <option value="release">Releases</option>
+              <option value="lock">Locks</option>
+              <option value="message">Messages</option>
+              <option value="session">Sessions</option>
+              <option value="agent">Agents</option>
+            </select>
+            <button class="cmd-btn" onclick="refreshActivity()">Refresh</button>
+          </div>
+        </div>
+        <div id="activity-content"></div>
+      </div>
+
+      <!-- Salvage Panel -->
+      <div class="panel" id="panel-salvage">
+        <div class="panel-header">
+          <div class="panel-title">Salvage Queue</div>
+          <div class="panel-actions"><button class="cmd-btn" onclick="refreshSalvage()">Refresh</button></div>
+        </div>
+        <div id="salvage-content"></div>
+      </div>
+
+      <!-- Briefing Panel -->
+      <div class="panel" id="panel-briefing">
+        <div class="panel-header">
+          <div class="panel-title">Briefing</div>
+          <div class="panel-actions"><button class="cmd-btn" onclick="refreshBriefing()">Refresh</button></div>
+        </div>
+        <div id="briefing-content"></div>
+      </div>
+
+      <!-- Webhooks Panel -->
+      <div class="panel" id="panel-webhooks">
+        <div class="panel-header">
+          <div class="panel-title">Webhooks</div>
+          <div class="panel-actions"><button class="cmd-btn" onclick="refreshWebhooks()">Refresh</button></div>
+        </div>
+        <div class="table-wrap" id="webhooks-table"></div>
+      </div>
+
+      <!-- Projects Panel -->
+      <div class="panel" id="panel-projects">
+        <div class="panel-header">
+          <div class="panel-title">Projects</div>
+          <div class="panel-actions"><button class="cmd-btn" onclick="refreshProjects()">Refresh</button></div>
+        </div>
+        <div class="table-wrap" id="projects-table"></div>
+      </div>
+
+      <!-- Changelog Panel -->
+      <div class="panel" id="panel-changelog">
+        <div class="panel-header">
+          <div class="panel-title">Changelog</div>
+          <div class="panel-actions">
+            <select id="changelog-identity" onchange="refreshChangelog()">
+              <option value="">All identities</option>
+            </select>
+            <button class="cmd-btn" onclick="refreshChangelog()">Refresh</button>
+          </div>
+        </div>
+        <div id="changelog-content"></div>
+      </div>
+
+      <!-- Config Panel -->
+      <div class="panel" id="panel-config">
+        <div class="panel-header">
+          <div class="panel-title">Configuration</div>
+          <div class="panel-actions"><button class="cmd-btn" onclick="refreshConfig()">Refresh</button></div>
+        </div>
+        <div id="config-content"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Terminal Drawer -->
+  <div id="terminal-drawer" style="display:none; position:fixed; bottom:0; left:200px; right:0; height:280px; background:var(--bg-input); border-top:2px solid var(--accent); z-index:200; flex-direction:column;">
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 16px; background:var(--bg-elevated); border-bottom:1px solid var(--border);">
+      <span style="font-size:12px; font-weight:600; color:var(--accent); display:flex; align-items:center; gap:6px;"><svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;"><use href="#icon-terminal"/></svg> Terminal</span>
+      <button onclick="closeTerminal()" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:16px;">x</button>
+    </div>
+    <div id="terminal-output" style="flex:1; overflow-y:auto; padding:12px 16px; font-size:12px; color:var(--text-dim);"></div>
+    <div style="display:flex; align-items:center; padding:8px 16px; border-top:1px solid var(--border);">
+      <span style="color:var(--accent); margin-right:8px;">$</span>
+      <input type="text" id="terminal-input" style="flex:1; background:none; border:none; outline:none; color:var(--text); font-family:inherit; font-size:12px;" placeholder="pd help" autocomplete="off">
+    </div>
+  </div>
+
+  <script>
+    /* Port Daddy Dashboard — Sidebar Edition */
+    var API = '';
+    var currentPanel = 'overview';
+
+    /* ── Navigation ── */
+    document.querySelectorAll('.nav-item').forEach(function(item) {
+      item.addEventListener('click', function() {
+        var panel = this.getAttribute('data-panel');
+        if (panel) switchPanel(panel);
+      });
+      item.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.click(); }
+      });
+    });
+
+    function switchPanel(name) {
+      currentPanel = name;
+      document.querySelectorAll('.nav-item').forEach(function(n) {
+        n.classList.toggle('active', n.getAttribute('data-panel') === name);
+        n.setAttribute('aria-selected', n.getAttribute('data-panel') === name ? 'true' : 'false');
+      });
+      document.querySelectorAll('.panel').forEach(function(p) {
+        p.classList.toggle('active', p.id === 'panel-' + name);
+      });
+      location.hash = name;
+      refreshPanel(name);
+    }
+    var showPanel = switchPanel;
+
+    function refreshPanel(name) {
+      var fn = {
+        overview: refreshDashboard, services: refreshServices, agents: refreshAgents,
+        sessions: refreshSessions, locks: refreshLocks, channels: refreshChannels,
+        dns: refreshDns, integration: refreshIntegration, inbox: refreshInbox,
+        activity: refreshActivity, salvage: refreshSalvage, briefing: refreshBriefing,
+        webhooks: refreshWebhooks, projects: refreshProjects, changelog: refreshChangelog,
+        config: refreshConfig
+      };
+      if (fn[name]) fn[name]();
+    }
+
+    /* ── Helpers ── */
+    function toast(msg, type) {
+      var el = document.createElement('div');
+      el.className = 'toast ' + (type || 'success');
+      el.textContent = msg;
+      document.getElementById('toast-container').appendChild(el);
+      setTimeout(function() { el.remove(); }, 3000);
+    }
+
+    function timeAgo(ts) {
+      if (!ts) return '--';
+      var diff = Date.now() - ts;
+      if (diff < 60000) return Math.floor(diff / 1000) + 's';
+      if (diff < 3600000) return Math.floor(diff / 60000) + 'm';
+      if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ' + Math.floor((diff % 3600000) / 60000) + 'm';
+      return Math.floor(diff / 86400000) + 'd';
+    }
+
+    function fmtTime(ts) {
+      if (!ts) return '--';
+      return new Date(ts).toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit' });
+    }
+
+    function fmtDate(ts) {
+      if (!ts) return '--';
+      return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + fmtTime(ts);
+    }
+
+    function formatDuration(ms) {
+      if (ms < 60000) return Math.floor(ms / 1000) + 's';
+      if (ms < 3600000) return Math.floor(ms / 60000) + 'm ' + Math.floor((ms % 60000) / 1000) + 's';
+      return Math.floor(ms / 3600000) + 'h ' + Math.floor((ms % 3600000) / 60000) + 'm';
+    }
+
+    function statusBadge(status) {
+      return '<span class="badge badge-' + (status || 'assigned') + '">' + (status || 'unknown') + '</span>';
+    }
+
+    function highlightId(str) {
+      if (!str || str === '--') return '<span class="mono">' + escHtml(str) + '</span>';
+      var parts = str.split(':');
+      if (parts.length === 1) return '<span class="mono id-scope">' + escHtml(str) + '</span>';
+      var colors = ['id-scope', 'id-topic', 'id-qual'];
+      return '<span class="mono">' + parts.map(function(p, i) {
+        return '<span class="' + colors[Math.min(i, 2)] + '">' + escHtml(p) + '</span>';
+      }).join('<span class="id-sep">:</span>') + '</span>';
+    }
+
+    function escHtml(s) {
+      if (s == null) return '';
+      var d = document.createElement('div');
+      d.textContent = String(s);
+      return d.innerHTML;
+    }
+
+    function syntaxHighlight(json) {
+      if (typeof json === 'string') { try { json = JSON.parse(json); } catch (e) { return escHtml(json); } }
+      var str = JSON.stringify(json, null, 2);
+      return str.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/g, function(match) {
+        var cls = 'json-num';
+        if (/^"/.test(match)) { cls = /:$/.test(match) ? 'json-key' : 'json-str'; }
+        else if (/true|false/.test(match)) { cls = 'json-bool'; }
+        else if (/null/.test(match)) { cls = 'json-null'; }
+        return '<span class="' + cls + '">' + escHtml(match) + '</span>';
+      });
+    }
+
+    async function apiFetch(path) {
+      try {
+        var res = await fetch(API + path);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return await res.json();
+      } catch (e) { console.error('API error:', path, e); return null; }
+    }
+
+    function updateBadge(name, count) {
+      var el = document.getElementById('badge-' + name);
+      if (el) { el.textContent = count; el.style.display = count > 0 ? '' : 'none'; }
+    }
+
+    function setHtml(id, html) { document.getElementById(id).innerHTML = html; }
+
+    /* ── Dashboard ── */
+    async function refreshDashboard() {
+      var results = await Promise.all([
+        apiFetch('/health'), apiFetch('/version'), apiFetch('/services'),
+        apiFetch('/locks'), apiFetch('/agents'), apiFetch('/channels'),
+        apiFetch('/sessions?limit=50')
+      ]);
+      var health = results[0], version = results[1], services = results[2];
+      var locks = results[3], agents = results[4], channels = results[5], sessions = results[6];
+
+      var svcCount = services ? (services.services || []).length : 0;
+      var agentCount = agents ? (agents.agents || []).length : 0;
+      var lockCount = locks ? (locks.locks || []).length : 0;
+      var chanCount = channels ? (channels.channels || []).length : 0;
+      var sessCount = sessions ? (sessions.sessions || []).filter(function(s) { return s.status === 'active'; }).length : 0;
+      var uptime = version ? timeAgo(version.startedAt) : '--';
+
+      updateBadge('services', svcCount); updateBadge('agents', agentCount);
+      updateBadge('sessions', sessCount); updateBadge('locks', lockCount);
+      updateBadge('channels', chanCount);
+
+      setHtml('stats-grid',
+        sc(svcCount, 'SERVICES') + sc(agentCount, 'AGENTS') + sc(lockCount, 'LOCKS') +
+        sc(chanCount, 'CHANNELS') + sc(sessCount, 'SESSIONS') + sc(uptime, 'UPTIME'));
+
+      var actData = await apiFetch('/activity?limit=12');
+      var actItems = actData ? (actData.activity || []) : [];
+      setHtml('dashboard-activity', actItems.length > 0 ? actItems.map(function(a) {
+        var color = { claim: 'teal', release: 'blue', session: 'green', lock: 'yellow', agent: 'green' }[a.type] || 'blue';
+        return '<div class="activity-item"><div class="activity-dot ' + color + '"></div>' +
+          '<div class="activity-text">' + escHtml(a.action || a.type) +
+          (a.identity ? ' ' + highlightId(a.identity) : '') + '</div>' +
+          '<div class="activity-time">' + fmtTime(a.timestamp) + '</div></div>';
+      }).join('') : '<div class="empty-state"><p>No recent activity</p></div>');
+
+      var agentList = agents ? (agents.agents || []) : [];
+      var colors = ['var(--success)', 'var(--accent)', 'var(--info)', 'var(--warning)', 'var(--brass)'];
+      setHtml('dashboard-agents', agentList.length > 0 ? agentList.map(function(a, i) {
+        return '<div class="agent-item"><div class="agent-dot" style="background:' + colors[i % colors.length] + '"></div>' +
+          '<div class="agent-name">' + escHtml(a.name || a.id) + '</div></div>';
+      }).join('') : '<div class="empty-state"><p>No active agents</p></div>');
+    }
+
+    function sc(v, l) { return '<div class="stat-card"><div class="stat-value">' + v + '</div><div class="stat-label">' + l + '</div></div>'; }
+
+    /* ── Services ── */
+    async function refreshServices() {
+      var data = await apiFetch('/services');
+      var svcs = data ? (data.services || []) : [];
+      updateBadge('services', svcs.length);
+      if (!svcs.length) { setHtml('services-table', '<div class="empty-state"><p>No services registered</p></div>'); return; }
+      setHtml('services-table', '<table><thead><tr><th>ID</th><th>Port</th><th>PID</th><th>Status</th><th>Last Seen</th><th>Actions</th></tr></thead><tbody>' +
+        svcs.map(function(s) {
+          return '<tr><td>' + highlightId(s.id) + '</td><td>' + (s.port || '--') + '</td><td>' + (s.pid || '--') + '</td><td>' + statusBadge(s.status) + '</td><td>' + timeAgo(s.last_seen || s.lastSeen) + '</td><td><button class="btn-sm danger" onclick="releaseService(\'' + escHtml(s.id).replace(/'/g, "\\'") + '\')">Release</button></td></tr>';
+        }).join('') + '</tbody></table>');
+    }
+
+    async function releaseService(id) {
+      await fetch(API + '/release', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id }) });
+      toast('Released ' + id); refreshServices(); refreshDashboard();
+    }
+
+    async function releaseAll() {
+      var data = await apiFetch('/services');
+      var svcs = data ? (data.services || []) : [];
+      for (var i = 0; i < svcs.length; i++) await fetch(API + '/release', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: svcs[i].id }) });
+      toast('Released all services'); refreshAll();
+    }
+
+    /* ── Agents ── */
+    async function refreshAgents() {
+      var data = await apiFetch('/agents');
+      var agents = data ? (data.agents || []) : [];
+      updateBadge('agents', agents.length);
+      if (!agents.length) { setHtml('agents-table', '<div class="empty-state"><p>No registered agents</p></div>'); return; }
+      setHtml('agents-table', '<table><thead><tr><th>ID</th><th>Name</th><th>Identity</th><th>Purpose</th><th>Last Heartbeat</th><th>Actions</th></tr></thead><tbody>' +
+        agents.map(function(a) {
+          return '<tr><td>' + highlightId(a.id) + '</td><td>' + escHtml(a.name || '--') + '</td><td>' + highlightId(a.identity || '--') + '</td><td>' + escHtml(a.purpose || '--') + '</td><td>' + timeAgo(a.lastHeartbeat) + '</td><td><button class="btn-sm danger" onclick="removeAgent(\'' + escHtml(a.id) + '\')">Remove</button></td></tr>';
+        }).join('') + '</tbody></table>');
+    }
+
+    async function removeAgent(id) {
+      await fetch(API + '/agents/' + encodeURIComponent(id), { method: 'DELETE' });
+      toast('Removed agent ' + id); refreshAgents();
+    }
+
+    /* ── Sessions ── */
+    async function refreshSessions() {
+      var filter = document.getElementById('session-filter').value;
+      var url = '/sessions?limit=50' + (filter ? '&status=' + filter : '');
+      var data = await apiFetch(url);
+      var sessions = data ? (data.sessions || []) : [];
+      updateBadge('sessions', sessions.filter(function(s) { return s.status === 'active'; }).length);
+      if (!sessions.length) { setHtml('sessions-table', '<div class="empty-state"><p>No sessions found</p></div>'); return; }
+      setHtml('sessions-table', '<table><thead><tr><th>ID</th><th>Agent</th><th>Status</th><th>Purpose</th><th>Phase</th><th>Duration</th><th>Actions</th></tr></thead><tbody>' +
+        sessions.map(function(s) {
+          var dur = s.completedAt ? formatDuration(s.completedAt - s.createdAt) : formatDuration(Date.now() - s.createdAt);
+          var acts = s.status === 'active'
+            ? '<div class="btn-actions"><button class="btn-sm danger" onclick="endSession(\'' + escHtml(s.id) + '\')">End</button><button class="btn-sm danger" onclick="abandonSession(\'' + escHtml(s.id) + '\')">Abandon</button><button class="btn-sm" onclick="viewNotes(\'' + escHtml(s.id) + '\')">Notes</button></div>'
+            : '<button class="btn-sm" onclick="viewNotes(\'' + escHtml(s.id) + '\')">Notes</button>';
+          return '<tr><td class="mono" style="font-size:0.8em;color:var(--text-muted)">' + escHtml(s.id.slice(0,8)) + '</td><td>' + highlightId(s.agentId || '--') + '</td><td>' + statusBadge(s.status) + '</td><td>' + escHtml(s.purpose) + '</td><td>' + escHtml(s.phase || '--') + '</td><td>' + dur + '</td><td>' + acts + '</td></tr>';
+        }).join('') + '</tbody></table>');
+    }
+
+    async function endSession(id) {
+      await fetch(API + '/sessions/' + encodeURIComponent(id), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'completed' }) });
+      toast('Session ended'); refreshSessions();
+    }
+    async function abandonSession(id) {
+      await fetch(API + '/sessions/' + encodeURIComponent(id), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'abandoned' }) });
+      toast('Session abandoned'); refreshSessions();
+    }
+    async function viewNotes(sid) {
+      var data = await apiFetch('/sessions/' + encodeURIComponent(sid) + '/notes');
+      var notes = data ? (data.notes || []) : [];
+      var overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:300;display:flex;align-items:center;justify-content:center;';
+      overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+      var box = document.createElement('div');
+      box.style.cssText = 'background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;width:600px;max-height:80vh;overflow-y:auto;';
+      var header = '<div style="display:flex;justify-content:space-between;margin-bottom:16px;"><span style="font-weight:600;color:var(--accent);">Notes for ' + escHtml(sid) + '</span></div>';
+      var body = notes.length === 0 ? '<p style="color:var(--text-muted);">No notes yet</p>'
+        : notes.map(function(n) {
+            return '<div style="padding:8px 0;border-bottom:1px solid var(--border);"><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-bottom:4px;"><span>' + escHtml(n.type) + '</span><span>' + fmtTime(n.createdAt || n.created_at) + '</span></div><div style="font-size:12px;color:var(--text-dim);">' + escHtml(n.content) + '</div></div>';
+          }).join('');
+      box.innerHTML = header + body;
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+    }
+
+    /* ── Locks ── */
+    async function refreshLocks() {
+      var data = await apiFetch('/locks');
+      var locks = data ? (data.locks || []) : [];
+      updateBadge('locks', locks.length);
+      if (!locks.length) { setHtml('locks-table', '<div class="empty-state"><p>No active locks</p></div>'); return; }
+      setHtml('locks-table', '<table><thead><tr><th>Name</th><th>Owner</th><th>Acquired</th><th>Expires</th><th>Actions</th></tr></thead><tbody>' +
+        locks.map(function(l) {
+          return '<tr><td class="mono">' + escHtml(l.name) + '</td><td>' + escHtml(l.owner) + '</td><td>' + fmtTime(l.acquiredAt) + '</td><td>' + fmtTime(l.expiresAt) + '</td><td><button class="btn-sm danger" onclick="releaseLock(\'' + escHtml(l.name) + '\')">Release</button></td></tr>';
+        }).join('') + '</tbody></table>');
+    }
+
+    async function releaseLock(name) {
+      await fetch(API + '/locks/' + encodeURIComponent(name), { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ force: true }) });
+      toast('Lock released'); refreshLocks();
+    }
+
+    /* ── Channels ── */
+    var expandedChannel = null;
+
+    async function refreshChannels() {
+      var data = await apiFetch('/channels');
+      var channels = data ? (data.channels || []) : [];
+      updateBadge('channels', channels.length);
+      if (!channels.length) { setHtml('channels-content', '<div class="empty-state"><p>No channels</p></div>'); return; }
+      var safe = function(ch) { return ch.replace(/[^a-zA-Z0-9]/g, '_'); };
+      setHtml('channels-content', '<div class="channel-grid">' + channels.map(function(c) {
+        var exp = expandedChannel === c.channel;
+        return '<div class="channel-card' + (exp ? ' expanded' : '') + '" data-channel="' + escHtml(c.channel) + '" onclick="toggleChannel(this,\'' + escHtml(c.channel) + '\')">' +
+          '<div class="channel-name">' + escHtml(c.channel) + '</div>' +
+          '<div class="channel-count">' + c.count + ' message' + (c.count !== 1 ? 's' : '') + '</div>' +
+          '<div class="channel-messages" id="chan-' + safe(c.channel) + '"></div></div>';
+      }).join('') + '</div>');
+      if (expandedChannel) loadChannelMessages(expandedChannel);
+    }
+
+    async function toggleChannel(el, channel) {
+      if (expandedChannel === channel) { expandedChannel = null; el.classList.remove('expanded'); return; }
+      document.querySelectorAll('.channel-card.expanded').forEach(function(c) { c.classList.remove('expanded'); });
+      expandedChannel = channel; el.classList.add('expanded');
+      loadChannelMessages(channel);
+    }
+
+    async function loadChannelMessages(channel) {
+      var safe = channel.replace(/[^a-zA-Z0-9]/g, '_');
+      var el = document.getElementById('chan-' + safe);
+      if (!el) return;
+      el.innerHTML = '<div style="color:var(--text-muted);font-size:11px;">Loading...</div>';
+      var data = await apiFetch('/msg/' + encodeURIComponent(channel) + '?limit=10');
+      var msgs = data ? (data.messages || []) : [];
+      if (!msgs.length) { el.innerHTML = '<div style="color:var(--text-muted);font-size:11px;">No messages</div>'; return; }
+      el.innerHTML = msgs.map(function(m) {
+        var payload = m.payload;
+        if (typeof payload === 'string') { try { payload = JSON.parse(payload); } catch (e) {} }
+        return '<div class="msg-item"><div class="msg-meta"><span>' + escHtml(m.sender || 'anonymous') + '</span><span>' + fmtTime(m.created_at || m.createdAt) + '</span></div><div class="msg-payload">' + syntaxHighlight(payload) + '</div></div>';
+      }).join('') + '<div style="text-align:right;margin-top:8px;"><button class="btn-sm" onclick="event.stopPropagation();expandedChannel=null;refreshChannels();">Close</button></div>';
+    }
+
+    /* ── DNS ── */
+    async function refreshDns() {
+      var data = await apiFetch('/dns');
+      var records = data ? (data.records || []) : [];
+      updateBadge('dns', records.length);
+      if (!records.length) { setHtml('dns-table', '<div class="empty-state"><p>No DNS records</p></div>'); return; }
+      setHtml('dns-table', '<table><thead><tr><th>Identity</th><th>Hostname</th><th>Port</th><th>Updated</th></tr></thead><tbody>' +
+        records.map(function(r) {
+          return '<tr><td>' + highlightId(r.identity) + '</td><td style="color:var(--accent);font-weight:600;">' + escHtml(r.hostname) + '</td><td>' + r.port + '</td><td>' + timeAgo(r.updatedAt) + '</td></tr>';
+        }).join('') + '</tbody></table>');
+    }
+
+    /* ── Integration ── */
+    async function refreshIntegration() {
+      var data = await apiFetch('/channels');
+      var channels = data ? (data.channels || []) : [];
+      var integ = channels.filter(function(c) { return c.channel.indexOf('integration:') === 0; });
+      if (!integ.length) { setHtml('integration-content', '<div class="empty-state"><p>No integration signals</p></div>'); return; }
+      setHtml('integration-content', '<div class="channel-grid">' + integ.map(function(c) {
+        return '<div class="channel-card" onclick="switchPanel(\'channels\');expandedChannel=\'' + escHtml(c.channel) + '\';refreshChannels();">' +
+          '<div class="channel-name">' + escHtml(c.channel) + '</div>' +
+          '<div class="channel-count">' + c.count + ' signal' + (c.count !== 1 ? 's' : '') + '</div></div>';
+      }).join('') + '</div>');
+    }
+
+    /* ── Inbox ── */
+    async function refreshInbox() {
+      var agentId = document.getElementById('inbox-agent-id').value.trim();
+      if (!agentId) {
+        setHtml('inbox-content', '<div class="empty-state"><p>Enter an agent ID above to load inbox messages</p></div>');
+        return;
+      }
+      var data = await apiFetch('/agents/' + encodeURIComponent(agentId) + '/inbox');
+      var msgs = data ? (data.messages || []) : [];
+      updateBadge('inbox', msgs.filter(function(m) { return !m.read; }).length);
+      if (!msgs.length) {
+        setHtml('inbox-content', '<div class="empty-state"><p>No messages in inbox for <code>' + escHtml(agentId) + '</code></p></div>');
+        return;
+      }
+      setHtml('inbox-content', '<table><thead><tr><th>From</th><th>Message</th><th>Type</th><th>Read</th><th>Received</th></tr></thead><tbody>' +
+        msgs.map(function(m) {
+          return '<tr><td class="mono">' + escHtml(m.from || '--') + '</td>' +
+            '<td>' + escHtml(m.message || m.content || '') + '</td>' +
+            '<td><span class="badge badge-info">' + escHtml(m.type || 'message') + '</span></td>' +
+            '<td>' + (m.read ? '<span class="badge badge-success">read</span>' : '<span class="badge badge-warning">unread</span>') + '</td>' +
+            '<td>' + timeAgo(m.createdAt || m.timestamp) + '</td></tr>';
+        }).join('') + '</tbody></table>');
+    }
+
+    /* ── Activity ── */
+    async function refreshActivity() {
+      var filter = document.getElementById('activity-filter').value;
+      var url = filter ? '/activity?type=' + filter + '&limit=50' : '/activity?limit=50';
+      var data = await apiFetch(url);
+      var items = data ? (data.activity || []) : [];
+      if (!items.length) { setHtml('activity-content', '<div class="empty-state"><p>No activity</p></div>'); return; }
+      setHtml('activity-content', '<div class="card">' + items.map(function(a) {
+        var color = { claim: 'teal', release: 'blue', session: 'green', lock: 'yellow', agent: 'green' }[a.type] || 'blue';
+        var detail = (a.identity ? '<span class="mono">' + escHtml(a.identity) + '</span> ' : '') + escHtml(a.action || a.type);
+        if (a.details) detail += ' — ' + escHtml(typeof a.details === 'string' ? a.details : JSON.stringify(a.details));
+        return '<div class="activity-item"><div class="activity-dot ' + color + '"></div><div class="activity-text">' + detail + '</div><div class="activity-time">' + fmtDate(a.timestamp) + '</div></div>';
+      }).join('') + '</div>');
+    }
+
+    /* ── Salvage ── */
+    async function refreshSalvage() {
+      var data = await apiFetch('/resurrection');
+      var agents = data ? (data.agents || []) : [];
+      if (!agents.length) { setHtml('salvage-content', '<div class="empty-state"><p>No agents in salvage queue</p></div>'); return; }
+      setHtml('salvage-content', agents.map(function(a) {
+        return '<div class="salvage-card"><div class="salvage-header"><div><div class="salvage-agent">' + escHtml(a.name || a.id) + '</div>' +
+          '<div class="salvage-detail">Session: ' + escHtml(a.sessionId || '--') + '</div>' +
+          '<div class="salvage-detail">Purpose: ' + escHtml(a.purpose || '--') + '</div>' +
+          '<div class="salvage-detail">Stale since: ' + fmtDate(a.staleSince) + '</div></div>' +
+          '<div class="btn-actions"><button class="btn-sm" onclick="claimSalvage(\'' + escHtml(a.id) + '\')">Claim</button>' +
+          '<button class="btn-sm danger" onclick="dismissSalvage(\'' + escHtml(a.id) + '\')">Dismiss</button></div></div></div>';
+      }).join(''));
+    }
+
+    async function claimSalvage(id) {
+      await fetch(API + '/resurrection/claim/' + encodeURIComponent(id), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      toast('Claimed salvage'); refreshSalvage();
+    }
+    async function dismissSalvage(id) {
+      await fetch(API + '/resurrection/' + encodeURIComponent(id), { method: 'DELETE' });
+      toast('Dismissed'); refreshSalvage();
+    }
+
+    /* ── Briefing ── */
+    async function refreshBriefing() {
+      var data = await apiFetch('/briefing/latest');
+      if (!data || !data.briefing) { setHtml('briefing-content', '<div class="empty-state"><p>No briefing available</p></div>'); return; }
+      var b = data.briefing;
+      var html = '<div class="card"><div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;">Generated: ' + fmtDate(new Date(b.generatedAt).getTime()) + '</div>';
+      if (b.activeSessions && b.activeSessions.length) {
+        html += '<div class="briefing-section"><h3>Active Sessions (' + b.activeSessions.length + ')</h3>';
+        b.activeSessions.forEach(function(s) { html += '<div class="briefing-item"><span class="mono">' + escHtml(s.id) + '</span> — ' + escHtml(s.purpose) + ' <span style="color:var(--text-muted)">(' + escHtml(s.phase || s.status) + ')</span></div>'; });
+        html += '</div>';
+      }
+      if (b.activeAgents && b.activeAgents.length) {
+        html += '<div class="briefing-section"><h3>Active Agents (' + b.activeAgents.length + ')</h3>';
+        b.activeAgents.forEach(function(a) { html += '<div class="briefing-item"><span class="mono">' + escHtml(a.name || a.id) + '</span>' + (a.purpose ? ' — ' + escHtml(a.purpose) : '') + '</div>'; });
+        html += '</div>';
+      }
+      if (b.activeLocks && b.activeLocks.length) {
+        html += '<div class="briefing-section"><h3>Active Locks (' + b.activeLocks.length + ')</h3>';
+        b.activeLocks.forEach(function(l) { html += '<div class="briefing-item"><span class="mono">' + escHtml(l.name) + '</span> owned by ' + escHtml(l.owner) + '</div>'; });
+        html += '</div>';
+      }
+      if (b.recentActivity && b.recentActivity.length) {
+        html += '<div class="briefing-section"><h3>Recent Activity</h3>';
+        b.recentActivity.forEach(function(a) { html += '<div class="briefing-item">' + escHtml(a.action || a.type) + (a.identity ? ' <span class="mono">' + escHtml(a.identity) + '</span>' : '') + '</div>'; });
+        html += '</div>';
+      }
+      html += '</div>';
+      setHtml('briefing-content', html);
+    }
+
+    /* ── Webhooks ── */
+    async function refreshWebhooks() {
+      var data = await apiFetch('/webhooks');
+      var hooks = data ? (data.webhooks || []) : [];
+      updateBadge('webhooks', hooks.length);
+      if (!hooks.length) { setHtml('webhooks-table', '<div class="empty-state"><p>No webhooks configured</p></div>'); return; }
+      setHtml('webhooks-table', '<table><thead><tr><th>ID</th><th>URL</th><th>Events</th><th>Active</th><th>Created</th></tr></thead><tbody>' +
+        hooks.map(function(h) {
+          return '<tr><td class="mono">' + escHtml(h.id) + '</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;">' + escHtml(h.url) + '</td><td>' + escHtml((h.events || []).join(', ')) + '</td><td>' + (h.active ? statusBadge('active') : statusBadge('stale')) + '</td><td>' + fmtDate(h.createdAt) + '</td></tr>';
+        }).join('') + '</tbody></table>');
+    }
+
+    /* ── Projects ── */
+    async function refreshProjects() {
+      var data = await apiFetch('/projects');
+      var projects = data ? (data.projects || []) : [];
+      updateBadge('projects', projects.length);
+      if (!projects.length) { setHtml('projects-table', '<div class="empty-state"><p>No registered projects</p></div>'); return; }
+      setHtml('projects-table', '<table><thead><tr><th>ID</th><th>Root</th><th>Type</th><th>Last Scanned</th><th>Actions</th></tr></thead><tbody>' +
+        projects.map(function(p) {
+          return '<tr><td class="mono">' + escHtml(p.id) + '</td><td>' + escHtml(p.root) + '</td><td>' + escHtml(p.type || 'single') + '</td><td>' + fmtDate(p.last_scanned || p.lastScanned) + '</td><td><button class="btn-sm danger" onclick="removeProject(\'' + escHtml(p.id) + '\')">Remove</button></td></tr>';
+        }).join('') + '</tbody></table>');
+    }
+
+    async function removeProject(id) {
+      await fetch(API + '/projects/' + encodeURIComponent(id), { method: 'DELETE' });
+      toast('Removed project'); refreshProjects();
+    }
+
+    /* ── Changelog ── */
+    async function refreshChangelog() {
+      var idData = await apiFetch('/changelog/identities');
+      if (idData && idData.identities) {
+        var sel = document.getElementById('changelog-identity');
+        var cur = sel.value;
+        sel.innerHTML = '<option value="">All identities</option>' +
+          idData.identities.map(function(id) { return '<option value="' + escHtml(id) + '"' + (id === cur ? ' selected' : '') + '>' + escHtml(id) + '</option>'; }).join('');
+      }
+      var identity = document.getElementById('changelog-identity').value;
+      var url = identity ? '/changelog/' + encodeURIComponent(identity) : '/changelog';
+      var data = await apiFetch(url);
+      var entries = data ? (data.entries || []) : [];
+      if (!entries.length) { setHtml('changelog-content', '<div class="empty-state"><p>No changelog entries</p></div>'); return; }
+      setHtml('changelog-content', entries.map(function(e) {
+        return '<div class="card" style="margin-bottom:12px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
+          '<div style="font-weight:600;color:var(--accent);">' + escHtml(e.version || '') + ' — ' + escHtml(e.title) + '</div>' +
+          '<span class="badge badge-' + ({ feature: 'active', bugfix: 'completed' }[e.category] || 'assigned') + '">' + escHtml(e.category) + '</span></div>' +
+          '<div style="font-size:12px;color:var(--text-dim);white-space:pre-wrap;">' + escHtml(e.description) + '</div></div>';
+      }).join(''));
+    }
+
+    /* ── Config ── */
+    async function refreshConfig() {
+      var results = await Promise.all([apiFetch('/config'), apiFetch('/version')]);
+      var configData = results[0], versionData = results[1];
+      var html = '';
+      if (versionData) html += '<div class="card" style="margin-bottom:16px;"><div class="card-title">Version Info</div><pre class="config-block">' + syntaxHighlight(versionData) + '</pre></div>';
+      if (configData) html += '<div class="card"><div class="card-title">Configuration</div><pre class="config-block">' + syntaxHighlight(configData) + '</pre></div>';
+      setHtml('config-content', html || '<div class="empty-state"><p>Could not load config</p></div>');
+    }
+
+    /* ── Refresh All ── */
+    async function refreshAll() {
+      refreshPanel(currentPanel);
+      var results = await Promise.all([
+        apiFetch('/services'), apiFetch('/agents'), apiFetch('/sessions?limit=50'),
+        apiFetch('/locks'), apiFetch('/channels'), apiFetch('/dns'),
+        apiFetch('/webhooks'), apiFetch('/projects')
+      ]);
+      updateBadge('services', results[0] ? (results[0].services || []).length : 0);
+      updateBadge('agents', results[1] ? (results[1].agents || []).length : 0);
+      updateBadge('sessions', results[2] ? (results[2].sessions || []).filter(function(s) { return s.status === 'active'; }).length : 0);
+      updateBadge('locks', results[3] ? (results[3].locks || []).length : 0);
+      updateBadge('channels', results[4] ? (results[4].channels || []).length : 0);
+      updateBadge('dns', results[5] ? (results[5].records || []).length : 0);
+      updateBadge('webhooks', results[6] ? (results[6].webhooks || []).length : 0);
+      updateBadge('projects', results[7] ? (results[7].projects || []).length : 0);
+    }
+
+    /* ── Terminal ── */
+    function openTerminal() {
+      document.getElementById('terminal-drawer').style.display = 'flex';
+      document.getElementById('terminal-input').focus();
+    }
+    function closeTerminal() { document.getElementById('terminal-drawer').style.display = 'none'; }
+
+    var CLI_ONLY = ['begin', 'done', 'whoami', 'with-lock', 'cleanup', 'doctor', 'version', 'install-completions', 'up', 'down', 'start', 'stop', 'restart', 'install', 'uninstall', 'dev', 'ci-gate'];
+    var COMMANDS = [
+      { cmd: 'claim', hint: 'claim <id>' }, { cmd: 'release', hint: 'release <id>' },
+      { cmd: 'find', hint: 'find [pattern]' }, { cmd: 'ps', hint: 'ps [pattern]' },
+      { cmd: 'pub', hint: 'pub <channel> <msg>' }, { cmd: 'scan', hint: 'scan' },
+      { cmd: 'activity', hint: 'activity' }, { cmd: 'lock', hint: 'lock <name>' },
+      { cmd: 'unlock', hint: 'unlock <name>' }, { cmd: 'locks', hint: 'locks' },
+      { cmd: 'agents', hint: 'agents' }, { cmd: 'log', hint: 'log [limit]' },
+      { cmd: 'status', hint: 'status' }, { cmd: 'channels', hint: 'channels' },
+      { cmd: 'projects', hint: 'projects' }, { cmd: 'webhooks', hint: 'webhooks' },
+      { cmd: 'config', hint: 'config' }, { cmd: 'ports', hint: 'ports' },
+      { cmd: 'inbox', hint: 'inbox <agent-id>' },
+      { cmd: 'help', hint: 'help' }
+    ];
+
+    document.getElementById('terminal-input').addEventListener('keydown', async function(e) {
+      if (e.key !== 'Enter') return;
+      var cmd = this.value.trim();
+      if (!cmd) return;
+      this.value = '';
+      var out = document.getElementById('terminal-output');
+      out.innerHTML += '<div style="color:var(--accent);">$ ' + escHtml(cmd) + '</div>';
+      var parts = cmd.split(/\s+/);
+      var verb = parts[0], target = parts[1] || '';
+
+      if (CLI_ONLY.indexOf(verb) !== -1) {
+        out.innerHTML += '<div style="color:var(--warning);">' + escHtml(verb) + ' is a CLI-only command. Run it in your terminal: pd ' + escHtml(verb) + '</div>';
+        out.scrollTop = out.scrollHeight; return;
+      }
+
+      try {
+        var result;
+        switch (verb) {
+          case 'claim': result = await (await fetch(API + '/claim', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: target }) })).json(); break;
+          case 'release': result = await (await fetch(API + '/release', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: target }) })).json(); break;
+          case 'find': case 'ps': result = await (await fetch(API + '/services' + (target ? '?pattern=' + encodeURIComponent(target) : ''))).json(); break;
+          case 'lock': result = await (await fetch(API + '/locks/' + encodeURIComponent(target), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ owner: 'dashboard' }) })).json(); break;
+          case 'unlock': result = await (await fetch(API + '/locks/' + encodeURIComponent(target), { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ force: true }) })).json(); break;
+          case 'locks': result = await (await fetch(API + '/locks')).json(); break;
+          case 'agents': result = await (await fetch(API + '/agents')).json(); break;
+          case 'log': case 'activity': result = await (await fetch(API + '/activity?limit=' + (target || 20))).json(); break;
+          case 'status': result = await (await fetch(API + '/health')).json(); break;
+          case 'channels': result = await (await fetch(API + '/channels')).json(); break;
+          case 'projects': result = await (await fetch(API + '/projects')).json(); break;
+          case 'webhooks': result = await (await fetch(API + '/webhooks')).json(); break;
+          case 'config': result = await (await fetch(API + '/config')).json(); break;
+          case 'ports': result = await (await fetch(API + '/ports/active')).json(); break;
+          case 'health': result = await (await fetch(API + (target ? '/services/health/' + encodeURIComponent(target) : '/services/health'))).json(); break;
+          case 'scan': result = await (await fetch(API + '/scan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })).json(); break;
+          case 'inbox': result = target ? await (await fetch(API + '/agents/' + encodeURIComponent(target) + '/inbox')).json() : { error: 'Usage: inbox <agent-id>' }; break;
+          case 'help':
+            out.innerHTML += '<div>' + COMMANDS.map(function(c) { return '<span class="mono">' + c.cmd + '</span> — ' + c.hint; }).join('<br>') + '</div>';
+            out.scrollTop = out.scrollHeight; return;
+          default:
+            out.innerHTML += '<div style="color:var(--danger);">Unknown command: ' + escHtml(verb) + '. Type "help".</div>';
+            out.scrollTop = out.scrollHeight; return;
         }
-        const COMMANDS = { claim: '...', release: '...', list: '...', demo: '...', status: '...', health: '...' };
-        const CLI_ONLY = ['start', 'stop', 'restart', 'install', 'uninstall', 'dev', 'mcp', 'learn', 'ci-gate'];
-        setInterval(() => {
-            ['/health', '/services', '/agents'].forEach(e => fetch(e).catch(() => {}));
-        }, 5000);
-    </script>
+        out.innerHTML += '<div class="msg-payload">' + syntaxHighlight(result) + '</div>';
+        refreshAll();
+      } catch (err) {
+        out.innerHTML += '<div style="color:var(--danger);">Error: ' + escHtml(err.message) + '</div>';
+      }
+      out.scrollTop = out.scrollHeight;
+    });
+
+    /* ── Ctrl+K ── */
+    document.addEventListener('keydown', function(e) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); document.getElementById('command-input').focus(); }
+    });
+
+    /* ── Command input nav ── */
+    document.getElementById('command-input').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        var val = this.value.trim().toLowerCase();
+        var panels = ['dashboard','services','agents','sessions','locks','channels','dns','integration','inbox','activity','salvage','briefing','webhooks','projects','changelog','config'];
+        var match = panels.find(function(p) { return p.indexOf(val) === 0; });
+        if (match) { switchPanel(match); this.value = ''; this.blur(); }
+      }
+    });
+
+    /* ── Polling ── */
+    var pollInterval = setInterval(refreshAll, 15000);
+
+    /* ── Init ── */
+    refreshAll();
+    var hash = location.hash.replace('#', '');
+    if (hash && document.getElementById('panel-' + hash)) switchPanel(hash);
+  </script>
 </body>
 </html>
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_1 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_2 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_3 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_4 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_5 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_6 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_7 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_8 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_9 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_10 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_11 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_12 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_13 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_14 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_15 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_16 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_17 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_18 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_19 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_20 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_21 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_22 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_23 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_24 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_25 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_26 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_27 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_28 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_29 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_30 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_31 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_32 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_33 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_34 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_35 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_36 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_37 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_38 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_39 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_40 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_41 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_42 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_43 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_44 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_45 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_46 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_47 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_48 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_49 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_50 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_51 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_52 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_53 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_54 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_55 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_56 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_57 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_58 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_59 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_60 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_61 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_62 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_63 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_64 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_65 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_66 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_67 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_68 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_69 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_70 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_71 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_72 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_73 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_74 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_75 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_76 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_77 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_78 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_79 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_80 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_81 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_82 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_83 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_84 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_85 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_86 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_87 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_88 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_89 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_90 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_91 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_92 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_93 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_94 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_95 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_96 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_97 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_98 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_99 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_100 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_101 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_102 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_103 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_104 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_105 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_106 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_107 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_108 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_109 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_110 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_111 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_112 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_113 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_114 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_115 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_116 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_117 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_118 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_119 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_120 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_121 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_122 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_123 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_124 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_125 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_126 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_127 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_128 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_129 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_130 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_131 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_132 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_133 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_134 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_135 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_136 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_137 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_138 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_139 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_140 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_141 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_142 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_143 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_144 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_145 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_146 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_147 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_148 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_149 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_150 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_151 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_152 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_153 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_154 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_155 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_156 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_157 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_158 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_159 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_160 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_161 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_162 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_163 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_164 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_165 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_166 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_167 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_168 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_169 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_170 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_171 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_172 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_173 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_174 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_175 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_176 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_177 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_178 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_179 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_180 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_181 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_182 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_183 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_184 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_185 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_186 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_187 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_188 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_189 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_190 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_191 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_192 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_193 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_194 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_195 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_196 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_197 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_198 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_199 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_200 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_201 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_202 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_203 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_204 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_205 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_206 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_207 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_208 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_209 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_210 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_211 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_212 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_213 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_214 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_215 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_216 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_217 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_218 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_219 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_220 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_221 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_222 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_223 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_224 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_225 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_226 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_227 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_228 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_229 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_230 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_231 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_232 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_233 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_234 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_235 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_236 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_237 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_238 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_239 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_240 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_241 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_242 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_243 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_244 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_245 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_246 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_247 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_248 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_249 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_250 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_251 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_252 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_253 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_254 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_255 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_256 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_257 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_258 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_259 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_260 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_261 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_262 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_263 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_264 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_265 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_266 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_267 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_268 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_269 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_270 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_271 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_272 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_273 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_274 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_275 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_276 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_277 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_278 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_279 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_280 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_281 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_282 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_283 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_284 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_285 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_286 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_287 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_288 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_289 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_290 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_291 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_292 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_293 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_294 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_295 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_296 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_297 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_298 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_299 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_300 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_301 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_302 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_303 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_304 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_305 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_306 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_307 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_308 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_309 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_310 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_311 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_312 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_313 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_314 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_315 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_316 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_317 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_318 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_319 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_320 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_321 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_322 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_323 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_324 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_325 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_326 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_327 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_328 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_329 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_330 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_331 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_332 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_333 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_334 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_335 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_336 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_337 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_338 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_339 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_340 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_341 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_342 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_343 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_344 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_345 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_346 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_347 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_348 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_349 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_350 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_351 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_352 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_353 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_354 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_355 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_356 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_357 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_358 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_359 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_360 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_361 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_362 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_363 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_364 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_365 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_366 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_367 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_368 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_369 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_370 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_371 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_372 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_373 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_374 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_375 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_376 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_377 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_378 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_379 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_380 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_381 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_382 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_383 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_384 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_385 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_386 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_387 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_388 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_389 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_390 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_391 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_392 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_393 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_394 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_395 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_396 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_397 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_398 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_399 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_400 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_401 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_402 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_403 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_404 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_405 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_406 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_407 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_408 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_409 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_410 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_411 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_412 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_413 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_414 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_415 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_416 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_417 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_418 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_419 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_420 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_421 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_422 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_423 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_424 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_425 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_426 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_427 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_428 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_429 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_430 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_431 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_432 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_433 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_434 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_435 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_436 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_437 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_438 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_439 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_440 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_441 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_442 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_443 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_444 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_445 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_446 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_447 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_448 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_449 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_450 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_451 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_452 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_453 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_454 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_455 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_456 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_457 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_458 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_459 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_460 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_461 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_462 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_463 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_464 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_465 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_466 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_467 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_468 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_469 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_470 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_471 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_472 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_473 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_474 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_475 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_476 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_477 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_478 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_479 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_480 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_481 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_482 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_483 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_484 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_485 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_486 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_487 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_488 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_489 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_490 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_491 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_492 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_493 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_494 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_495 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_496 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_497 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_498 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_499 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_500 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_501 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_502 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_503 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_504 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_505 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_506 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_507 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_508 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_509 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_510 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_511 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_512 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_513 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_514 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_515 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_516 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_517 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_518 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_519 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_520 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_521 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_522 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_523 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_524 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_525 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_526 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_527 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_528 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_529 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_530 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_531 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_532 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_533 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_534 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_535 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_536 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_537 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_538 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_539 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_540 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_541 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_542 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_543 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_544 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_545 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_546 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_547 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_548 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_549 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_550 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_551 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_552 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_553 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_554 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_555 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_556 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_557 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_558 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_559 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_560 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_561 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_562 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_563 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_564 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_565 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_566 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_567 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_568 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_569 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_570 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_571 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_572 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_573 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_574 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_575 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_576 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_577 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_578 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_579 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_580 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_581 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_582 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_583 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_584 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_585 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_586 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_587 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_588 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_589 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_590 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_591 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_592 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_593 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_594 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_595 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_596 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_597 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_598 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_599 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_600 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_601 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_602 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_603 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_604 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_605 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_606 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_607 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_608 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_609 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_610 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_611 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_612 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_613 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_614 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_615 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_616 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_617 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_618 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_619 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_620 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_621 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_622 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_623 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_624 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_625 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_626 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_627 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_628 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_629 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_630 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_631 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_632 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_633 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_634 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_635 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_636 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_637 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_638 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_639 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_640 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_641 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_642 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_643 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_644 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_645 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_646 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_647 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_648 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_649 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_650 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_651 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_652 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_653 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_654 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_655 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_656 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_657 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_658 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_659 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_660 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_661 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_662 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_663 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_664 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_665 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_666 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_667 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_668 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_669 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_670 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_671 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_672 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_673 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_674 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_675 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_676 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_677 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_678 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_679 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_680 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_681 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_682 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_683 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_684 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_685 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_686 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_687 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_688 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_689 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_690 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_691 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_692 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_693 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_694 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_695 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_696 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_697 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_698 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_699 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_700 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_701 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_702 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_703 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_704 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_705 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_706 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_707 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_708 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_709 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_710 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_711 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_712 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_713 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_714 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_715 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_716 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_717 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_718 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_719 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_720 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_721 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_722 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_723 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_724 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_725 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_726 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_727 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_728 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_729 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_730 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_731 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_732 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_733 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_734 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_735 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_736 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_737 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_738 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_739 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_740 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_741 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_742 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_743 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_744 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_745 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_746 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_747 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_748 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_749 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_750 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_751 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_752 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_753 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_754 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_755 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_756 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_757 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_758 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_759 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_760 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_761 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_762 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_763 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_764 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_765 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_766 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_767 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_768 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_769 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_770 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_771 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_772 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_773 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_774 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_775 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_776 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_777 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_778 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_779 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_780 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_781 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_782 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_783 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_784 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_785 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_786 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_787 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_788 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_789 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_790 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_791 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_792 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_793 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_794 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_795 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_796 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_797 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_798 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_799 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_800 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_801 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_802 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_803 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_804 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_805 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_806 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_807 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_808 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_809 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_810 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_811 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_812 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_813 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_814 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_815 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_816 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_817 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_818 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_819 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_820 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_821 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_822 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_823 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_824 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_825 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_826 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_827 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_828 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_829 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_830 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_831 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_832 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_833 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_834 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_835 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_836 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_837 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_838 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_839 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_840 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_841 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_842 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_843 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_844 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_845 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_846 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_847 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_848 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_849 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_850 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_851 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_852 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_853 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_854 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_855 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_856 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_857 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_858 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_859 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_860 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_861 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_862 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_863 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_864 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_865 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_866 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_867 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_868 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_869 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_870 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_871 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_872 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_873 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_874 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_875 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_876 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_877 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_878 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_879 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_880 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_881 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_882 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_883 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_884 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_885 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_886 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_887 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_888 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_889 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_890 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_891 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_892 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_893 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_894 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_895 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_896 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_897 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_898 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_899 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_900 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_901 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_902 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_903 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_904 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_905 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_906 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_907 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_908 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_909 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_910 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_911 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_912 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_913 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_914 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_915 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_916 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_917 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_918 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_919 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_920 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_921 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_922 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_923 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_924 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_925 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_926 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_927 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_928 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_929 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_930 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_931 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_932 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_933 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_934 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_935 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_936 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_937 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_938 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_939 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_940 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_941 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_942 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_943 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_944 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_945 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_946 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_947 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_948 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_949 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_950 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_951 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_952 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_953 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_954 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_955 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_956 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_957 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_958 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_959 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_960 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_961 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_962 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_963 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_964 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_965 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_966 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_967 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_968 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_969 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_970 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_971 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_972 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_973 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_974 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_975 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_976 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_977 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_978 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_979 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_980 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_981 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_982 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_983 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_984 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_985 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_986 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_987 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_988 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_989 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_990 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_991 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_992 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_993 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_994 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_995 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_996 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_997 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_998 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_999 -->
-<!-- PADDING_ANCHOR_PROTOCOL_STIGMERGIC_SWARM_LOGIC_VISUAL_RICHNESS_1000 -->
