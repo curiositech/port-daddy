@@ -90,7 +90,7 @@ except:
     # Recent fleet messages
     echo ""
     echo "${CYAN}Recent fleet events:${NC}"
-    for ch in fleet:status fleet:alert git:committed qa:findings docs:updated tests:gap-filled; do
+    for ch in fleet:status fleet:alert git:committed qa:findings docs:updated tests:gap-filled spark:idea spark:prototype; do
       local msg=$(curl -s "$PD_URL/msg/$ch?limit=1" 2>/dev/null | python3 -c "
 import sys, json
 try:
@@ -138,6 +138,15 @@ except:
     "$FLEET_DIR/simplifier.sh"
     ;;
 
+  spark)
+    shift
+    "$FLEET_DIR/spark.sh" "$@"
+    ;;
+
+  ideas)
+    "$FLEET_DIR/spark.sh" ideas
+    ;;
+
   log)
     tail -50 /tmp/pd-fleet.log 2>/dev/null || echo "No fleet log found. Start fleet first: pd fleet up"
     ;;
@@ -160,6 +169,14 @@ except:
     echo "  ${GREEN}docs${NC}            Sync documentation to match code"
     echo "  ${GREEN}simplify${NC}        Propose simplifications for latest commit"
     echo "  ${GREEN}research \"topic\"${NC} Deep research on a topic"
+    echo ""
+    echo "The idea engine:"
+    echo "  ${GREEN}spark${NC}           Run one ideation cycle (observe → research → synthesize → pitch)"
+    echo "  ${GREEN}spark --loop${NC}    Run Spark continuously (every 30 min)"
+    echo "  ${GREEN}spark ideas${NC}     List all of Spark's ideas"
+    echo "  ${GREEN}spark pitch${NC}     Pitch the latest unreviewed idea"
+    echo "  ${GREEN}spark prototype${NC} Build a prototype of the best idea"
+    echo "  ${GREEN}ideas${NC}           Shortcut for spark ideas"
     ;;
 
   *)

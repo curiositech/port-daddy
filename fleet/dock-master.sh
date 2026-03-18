@@ -98,7 +98,14 @@ start_fleet() {
   start_watcher "simplifier"      "git:committed"     "simplifier.sh"
   start_watcher "research-scout"  "research:request"  "research-scout.sh"
 
-  fleet_success "$AGENT_NAME" "Fleet started: ${#WATCHER_PIDS[@]} watchers active"
+  # Spark runs on his own loop, not as a pd watch subscriber
+  if [[ -z "${WATCHER_PIDS[spark]}" ]] || ! kill -0 "${WATCHER_PIDS[spark]}" 2>/dev/null; then
+    "$FLEET_DIR/spark.sh" --loop 1800 &
+    WATCHER_PIDS[spark]=$!
+    fleet_log "$AGENT_NAME" "Started Spark (PID ${WATCHER_PIDS[spark]}, 30-min cycle)"
+  fi
+
+  fleet_success "$AGENT_NAME" "Fleet started: ${#WATCHER_PIDS[@]} watchers active (including Spark)"
 }
 
 stop_fleet() {

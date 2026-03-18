@@ -1,87 +1,66 @@
 import * as React from 'react'
+import { cva, type VariantProps } from 'class-variance-authority'
+import { Slot } from 'radix-ui'
+
 import { cn } from '@/lib/utils'
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'outline' | 'code'
-type ButtonSize = 'sm' | 'md' | 'lg'
+const buttonVariants = cva(
+  'inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none cursor-pointer select-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=\'size-\'])]:size-4',
+  {
+    variants: {
+      variant: {
+        primary:
+          'bg-primary text-primary-foreground border border-primary/80 shadow-sm hover:bg-primary/90 font-semibold',
+        secondary:
+          'bg-secondary text-secondary-foreground hover:bg-secondary/80 font-medium',
+        ghost:
+          'bg-transparent text-muted-foreground border border-transparent hover:bg-accent hover:text-accent-foreground font-medium',
+        outline:
+          'bg-transparent text-primary border border-primary hover:bg-accent hover:text-accent-foreground font-semibold',
+        code:
+          'bg-muted text-foreground font-mono text-sm hover:bg-muted/80',
+        destructive:
+          'bg-destructive text-destructive-foreground hover:bg-destructive/90 font-semibold',
+        link:
+          'text-primary underline-offset-4 hover:underline',
+      },
+      size: {
+        sm: 'h-8 px-3 py-1.5 text-sm rounded-md',
+        md: 'h-9 px-4 py-2 text-base rounded-lg',
+        lg: 'h-10 px-6 py-3 text-lg rounded-xl',
+        icon: 'size-9',
+      },
+    },
+    defaultVariants: {
+      variant: 'primary',
+      size: 'md',
+    },
+  }
+)
 
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: ButtonVariant
-  size?: ButtonSize
+interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {
   asChild?: boolean
 }
 
-const variantClasses: Record<ButtonVariant, string> = {
-  primary: [
-    'bg-[var(--btn-primary-bg)] text-[var(--btn-primary-text)]',
-    'border border-[var(--btn-primary-border)]',
-    'shadow-[var(--btn-primary-shadow)]',
-    'hover:bg-[var(--btn-primary-bg-hover)]',
-    'hover:shadow-[0_6px_24px_rgba(20,184,166,0.4)]',
-    'transition-all duration-200',
-    'font-semibold',
-  ].join(' '),
-  secondary: [
-    'bg-[var(--bg-surface)] text-[var(--text-primary)]',
-    'border border-[var(--border-default)]',
-    'shadow-[var(--shadow-sm)]',
-    'hover:bg-[var(--bg-surface-hover)]',
-    'hover:border-[var(--border-strong)]',
-    'transition-all duration-200',
-    'font-medium',
-  ].join(' '),
-  ghost: [
-    'bg-transparent text-[var(--text-secondary)]',
-    'border border-transparent',
-    'hover:bg-[var(--interactive-hover)]',
-    'hover:text-[var(--text-primary)]',
-    'transition-all duration-200',
-    'font-medium',
-  ].join(' '),
-  outline: [
-    'bg-transparent text-[var(--brand-primary)]',
-    'border border-[var(--brand-primary)]',
-    'hover:bg-[var(--interactive-active)]',
-    'transition-all duration-200',
-    'font-semibold',
-  ].join(' '),
-  code: [
-    'bg-[var(--bg-code)] text-[var(--text-primary)]',
-    'font-mono text-sm',
-    'border border-[var(--border-subtle)]',
-    'hover:bg-[var(--bg-surface-hover)]',
-    'hover:border-[var(--border-default)]',
-    'transition-all duration-200',
-  ].join(' '),
-}
-
-const sizeClasses: Record<ButtonSize, string> = {
-  sm: 'px-3 py-1.5 text-sm rounded-md gap-1.5',
-  md: 'px-4 py-2 text-base rounded-lg gap-2',
-  lg: 'px-6 py-3 text-lg rounded-xl gap-2.5',
-}
-
-export function Button({
+function Button({
+  className,
   variant = 'primary',
   size = 'md',
-  className,
-  children,
+  asChild = false,
   ...props
 }: ButtonProps) {
+  const Comp = asChild ? Slot.Root : 'button'
+
   return (
-    <button
-      className={cn(
-        'inline-flex items-center justify-center',
-        'cursor-pointer select-none',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-base)]',
-        'disabled:opacity-50 disabled:pointer-events-none',
-        'active:scale-[0.98]',
-        variantClasses[variant],
-        sizeClasses[size],
-        className
-      )}
+    <Comp
+      data-slot="button"
+      className={cn(buttonVariants({ variant, size, className }))}
       {...props}
-    >
-      {children}
-    </button>
+    />
   )
 }
+
+export { Button, buttonVariants }
+export type { ButtonProps }

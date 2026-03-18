@@ -668,6 +668,8 @@ _pd_cmd_fleet() {
     'docs:sync documentation to match code'
     'simplify:propose simplifications for latest commit'
     'research:deep research on a topic'
+    'spark:run one ideation cycle'
+    'ideas:list all of Spark'\''s ideas'
   )
 
   local state

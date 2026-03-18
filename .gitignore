@@ -34,6 +34,7 @@ plans/
 .CLAUDE_NOTES.md
 .portdaddyrc
 .portdaddy/
+.spark/
 *.strategy.md
 *.internal.md
 .claude/worktrees/
