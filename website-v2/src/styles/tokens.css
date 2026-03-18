@@ -1,6 +1,7 @@
 /**
  * Port Daddy — Precision High-Contrast OKLCH Tokens
  * ENFORCED WCAG AAA COMPLIANCE
+ * Includes shadcn/ui CSS variable mappings for component library compatibility.
  */
 
 :root, [data-theme='light'] {
@@ -9,18 +10,18 @@
   --bg-surface:   oklch(98% 0.01 265);
   --bg-overlay:   oklch(96% 0.01 265);
   --bg-glass:     rgba(255, 255, 255, 0.9);
-  
+
   --text-primary:   oklch(15% 0.02 265); /* Deepest Navy/Grey */
   --text-secondary: oklch(25% 0.03 265);
   --text-muted:     oklch(40% 0.04 265);
-  
+
   --brand-primary:   oklch(45% 0.15 200); /* Darker Maritime Teal for AAA */
   --brand-secondary: oklch(35% 0.15 200);
   --brand-accent:    oklch(40% 0.25 260); /* Deep Electric Blue */
-  
+
   --border-subtle: oklch(90% 0.02 265);
   --border-strong: oklch(70% 0.04 265);
-  
+
   --interactive-hover:  rgba(0, 0, 0, 0.05);
   --interactive-active: oklch(45% 0.15 200 / 0.1);
 
@@ -28,6 +29,37 @@
   --p-font-mono:    'JetBrains Mono', monospace;
   --p-font-sans:    'Inter', sans-serif;
   --p-font-display: 'Space Grotesk', sans-serif;
+
+  /* ── shadcn/ui variables — Light ─────────────────────────────────────────── */
+  --radius: 0.625rem;
+
+  --background: oklch(100% 0 0);
+  --foreground: oklch(15% 0.02 265);
+
+  --card: oklch(98% 0.01 265);
+  --card-foreground: oklch(15% 0.02 265);
+
+  --popover: oklch(100% 0 0);
+  --popover-foreground: oklch(15% 0.02 265);
+
+  --primary: oklch(45% 0.15 200);          /* Maritime Teal */
+  --primary-foreground: oklch(100% 0 0);   /* White on teal */
+
+  --secondary: oklch(96% 0.01 265);
+  --secondary-foreground: oklch(15% 0.02 265);
+
+  --muted: oklch(96% 0.01 265);
+  --muted-foreground: oklch(40% 0.04 265);
+
+  --accent: oklch(96% 0.01 265);
+  --accent-foreground: oklch(15% 0.02 265);
+
+  --destructive: oklch(55% 0.24 27);
+  --destructive-foreground: oklch(100% 0 0);
+
+  --border: oklch(90% 0.02 265);
+  --input: oklch(90% 0.02 265);
+  --ring: oklch(45% 0.15 200);             /* Teal focus ring */
 }
 
 [data-theme='dark'] {
@@ -36,18 +68,47 @@
   --bg-surface:   oklch(15% 0.02 265);
   --bg-overlay:   oklch(20% 0.03 265);
   --bg-glass:     rgba(15, 15, 20, 0.9);
-  
+
   --text-primary:   oklch(98% 0.01 265); /* Near White */
   --text-secondary: oklch(90% 0.02 265);
   --text-muted:     oklch(75% 0.03 265);
-  
+
   --brand-primary:   oklch(80% 0.15 200); /* Bright Teal */
   --brand-secondary: oklch(85% 0.12 200);
   --brand-accent:    oklch(75% 0.25 260);
-  
+
   --border-subtle: oklch(30% 0.03 265);
   --border-strong: oklch(45% 0.04 265);
-  
+
   --interactive-hover:  rgba(255, 255, 255, 0.08);
   --interactive-active: oklch(80% 0.15 200 / 0.2);
+
+  /* ── shadcn/ui variables — Dark ──────────────────────────────────────────── */
+  --background: oklch(10% 0.01 265);
+  --foreground: oklch(98% 0.01 265);
+
+  --card: oklch(15% 0.02 265);
+  --card-foreground: oklch(98% 0.01 265);
+
+  --popover: oklch(20% 0.03 265);
+  --popover-foreground: oklch(98% 0.01 265);
+
+  --primary: oklch(80% 0.15 200);          /* Bright Teal */
+  --primary-foreground: oklch(10% 0.01 265);
+
+  --secondary: oklch(20% 0.03 265);
+  --secondary-foreground: oklch(98% 0.01 265);
+
+  --muted: oklch(20% 0.03 265);
+  --muted-foreground: oklch(75% 0.03 265);
+
+  --accent: oklch(25% 0.04 265);
+  --accent-foreground: oklch(98% 0.01 265);
+
+  --destructive: oklch(65% 0.2 22);
+  --destructive-foreground: oklch(98% 0.01 265);
+
+  --border: oklch(30% 0.03 265);
+  --input: oklch(30% 0.03 265);
+  --ring: oklch(80% 0.15 200);             /* Teal focus ring */
 }
