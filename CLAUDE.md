@@ -70,6 +70,45 @@ If not running: `pd start`. If not installed: `pd install`.
 
 This project dogfoods Port Daddy for all coordination — the daemon being down is a blocker, not a deferral reason.
 
+## Stable Branch Workflow
+
+Port Daddy uses a **two-branch model** to protect the running daemon from development breakage:
+
+```
+~/coding/port-daddy/          ← development (main branch)
+~/port-daddy-stable/          ← production (stable branch, git worktree)
+```
+
+**What runs from stable:**
+- The `pd` CLI (npm link'd from `~/port-daddy-stable`)
+- The launchd daemon (`com.portdaddy.daemon`)
+- The MCP server (`pd mcp`)
+
+**What determines stability:** The test suite. `npm test` must pass (≤1 known failure allowed: up-down PID). The pre-commit hook must not block. The daemon must boot and respond to `pd status`.
+
+**How to promote main → stable:**
+```bash
+./scripts/promote-stable.sh     # runs tests, merges, reinstalls, restarts daemon
+```
+
+**Manual promotion (if script isn't available):**
+```bash
+cd ~/port-daddy-stable
+git merge main --no-edit
+npm install
+npm link
+pd stop && sleep 2
+launchctl unload ~/Library/LaunchAgents/com.portdaddy.daemon.plist
+launchctl load ~/Library/LaunchAgents/com.portdaddy.daemon.plist
+pd status                       # verify running
+```
+
+**Rules:**
+- NEVER `npm link` from `~/coding/port-daddy` — that bypasses the stability gate
+- NEVER modify files in `~/port-daddy-stable` directly — always merge from main
+- After breaking changes to the daemon, run `./scripts/promote-stable.sh` before ending the session
+- The stable worktree is a git worktree (not a separate clone) — same repo, shared history
+
 ## Development
 
 ```bash
