@@ -27,8 +27,8 @@
 
   /* Shared Typography */
   --p-font-mono:    'JetBrains Mono', monospace;
-  --p-font-sans:    'Inter', sans-serif;
-  --p-font-display: 'Space Grotesk', sans-serif;
+  --p-font-sans:    'Inter', system-ui, sans-serif;
+  --p-font-display: 'Instrument Sans', 'Inter', system-ui, sans-serif;
 
   /* ── shadcn/ui variables — Light ─────────────────────────────────────────── */
   --radius: 0.625rem;
@@ -64,51 +64,51 @@
 
 [data-theme='dark'] {
   /* High-Contrast Core - Dark Mode (AAA) */
-  --bg-base:      oklch(10% 0.01 265); /* Very dark, not pure black */
-  --bg-surface:   oklch(15% 0.02 265);
-  --bg-overlay:   oklch(20% 0.03 265);
-  --bg-glass:     rgba(15, 15, 20, 0.9);
+  --bg-base:      #0c1513;             /* Teal-shifted dark — rich, not flat */
+  --bg-surface:   #121e1c;
+  --bg-overlay:   #192826;
+  --bg-glass:     rgba(12, 21, 19, 0.92);
 
-  --text-primary:   oklch(98% 0.01 265); /* Near White */
-  --text-secondary: oklch(90% 0.02 265);
-  --text-muted:     oklch(75% 0.03 265);
+  --text-primary:   #e8edec;             /* Near white, slight teal tint */
+  --text-secondary: #b0bab8;
+  --text-muted:     #7a8886;
 
   --brand-primary:   oklch(80% 0.15 200); /* Bright Teal */
   --brand-secondary: oklch(85% 0.12 200);
   --brand-accent:    oklch(75% 0.25 260);
 
-  --border-subtle: oklch(30% 0.03 265);
-  --border-strong: oklch(45% 0.04 265);
+  --border-subtle: rgba(94, 234, 212, 0.08);
+  --border-strong: rgba(94, 234, 212, 0.15);
 
-  --interactive-hover:  rgba(255, 255, 255, 0.08);
-  --interactive-active: oklch(80% 0.15 200 / 0.2);
+  --interactive-hover:  rgba(255, 255, 255, 0.06);
+  --interactive-active: rgba(94, 234, 212, 0.12);
 
   /* ── shadcn/ui variables — Dark ──────────────────────────────────────────── */
-  --background: oklch(10% 0.01 265);
-  --foreground: oklch(98% 0.01 265);
+  --background: #0c1513;
+  --foreground: #e8edec;
 
-  --card: oklch(15% 0.02 265);
-  --card-foreground: oklch(98% 0.01 265);
+  --card: #121e1c;
+  --card-foreground: #e8edec;
 
-  --popover: oklch(20% 0.03 265);
-  --popover-foreground: oklch(98% 0.01 265);
+  --popover: #192826;
+  --popover-foreground: #e8edec;
 
   --primary: oklch(45% 0.15 200);          /* Deep Teal — high contrast on dark bg */
   --primary-foreground: oklch(100% 0 0);   /* White text on teal */
 
-  --secondary: oklch(20% 0.03 265);
-  --secondary-foreground: oklch(98% 0.01 265);
+  --secondary: #192826;
+  --secondary-foreground: #e8edec;
 
-  --muted: oklch(20% 0.03 265);
-  --muted-foreground: oklch(75% 0.03 265);
+  --muted: #192826;
+  --muted-foreground: #7a8886;
 
-  --accent: oklch(25% 0.04 265);
-  --accent-foreground: oklch(98% 0.01 265);
+  --accent: #1f302e;
+  --accent-foreground: #e8edec;
 
-  --destructive: oklch(65% 0.2 22);
-  --destructive-foreground: oklch(98% 0.01 265);
+  --destructive: #b91c1c;
+  --destructive-foreground: #fef2f2;
 
-  --border: oklch(30% 0.03 265);
-  --input: oklch(30% 0.03 265);
-  --ring: oklch(80% 0.15 200);             /* Teal focus ring */
+  --border: rgba(94, 234, 212, 0.08);
+  --input: rgba(94, 234, 212, 0.08);
+  --ring: #5eead4;
 }

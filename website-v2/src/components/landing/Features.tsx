@@ -1,11 +1,8 @@
-import { Badge } from '@/components/ui/Badge'
-import { Button } from '@/components/ui/Button'
+import { motion } from 'framer-motion'
 import { PRODUCT_FEATURES } from '@/data/product'
-import { 
-  Shield, History, Radio, 
-  Anchor, Code, Cpu, Terminal, Sparkles, ArrowRight
+import {
+  Anchor, Radio, Shield, History, Cpu, Sparkles, Terminal
 } from 'lucide-react'
-import { Link } from 'react-router-dom'
 
 const ICON_MAP: Record<string, typeof Anchor> = {
   'ports': Anchor,
@@ -16,89 +13,84 @@ const ICON_MAP: Record<string, typeof Anchor> = {
   'intelligence': Sparkles
 }
 
-const CATEGORY_COLORS: Record<string, string> = {
-  'ports': 'var(--info)',
-  'coordination': 'var(--brand-primary)',
-  'security': 'var(--warning)',
-  'observability': 'var(--error)',
-  'agents': 'var(--success)',
-  'intelligence': 'var(--brand-accent)'
+const container = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.06 } }
+}
+
+const item = {
+  hidden: { opacity: 0, y: 16 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'easeOut' as const } }
 }
 
 export function Features() {
   return (
-    <section id="features" className="py-16 lg:py-24 bg-[var(--bg-base)]">
+    <section id="features" className="relative py-24 lg:py-32">
+      {/* Subtle section divider glow */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[1px] bg-gradient-to-r from-transparent via-[#5eead4]/20 to-transparent" />
+
       <div className="max-w-[1200px] mx-auto px-6 lg:px-8">
         {/* Header */}
-        <div className="text-center mb-12">
-          <Badge variant="teal" className="mb-4">The Enumeration</Badge>
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-semibold text-[var(--text-primary)] mb-4">
-            The Definitive <span className="text-[var(--brand-primary)]">Control Plane</span>
+        <div className="max-w-2xl mb-16">
+          <p className="text-sm font-mono text-[#5eead4] tracking-wide mb-4 uppercase">
+            Primitives
+          </p>
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-[var(--text-primary)] mb-4 leading-[1.15]">
+            Everything your agents need to cooperate.
           </h2>
-          <p className="text-lg text-[var(--text-secondary)] max-w-2xl mx-auto">
-            Foundational primitives required to turn a collection of scripts into a production-grade, autonomous organization.
+          <p className="text-base text-[var(--text-muted)] leading-relaxed">
+            Nine primitives that turn a collection of scripts into a production-grade autonomous system. Each one is a single CLI command.
           </p>
         </div>
 
-        {/* Features Grid */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Feature Grid */}
+        <motion.div
+          className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4"
+          variants={container}
+          initial="hidden"
+          animate="show"
+        >
           {PRODUCT_FEATURES.map((feature) => {
-            const Icon = ICON_MAP[feature.category] || Code
-            const color = CATEGORY_COLORS[feature.category] || 'var(--brand-primary)'
-            
+            const Icon = ICON_MAP[feature.category] || Terminal
+
             return (
-              <div
+              <motion.div
                 key={feature.id}
-                className="group p-6 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:shadow-[var(--shadow-md)] transition-all"
+                variants={item}
+                className="group relative p-6 rounded-xl overflow-hidden
+                  bg-[var(--bg-surface)] border border-[var(--border-subtle)]
+                  hover:border-[rgba(94,234,212,0.2)]
+                  transition-all duration-300
+                  hover:shadow-[0_8px_40px_-8px_rgba(13,148,136,0.15)]"
               >
-                {/* Icon */}
-                <div 
-                  className="w-10 h-10 rounded-lg flex items-center justify-center mb-4"
-                  style={{ background: `${color}15` }}
-                >
-                  <Icon size={20} style={{ color }} />
-                </div>
-                
-                {/* Title & Badge */}
-                <div className="flex items-center gap-2 mb-2">
-                  <h3 className="font-semibold text-[var(--text-primary)]">
+                {/* Shimmer on hover */}
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(94,234,212,0.03) 0%, transparent 60%)'
+                  }}
+                />
+
+                <div className="relative">
+                  <Icon size={18} className="text-[#5eead4] mb-4" />
+
+                  <h3 className="text-[15px] font-semibold text-[var(--text-primary)] mb-2 tracking-[-0.01em]">
                     {feature.title}
                   </h3>
-                </div>
-                
-                {/* Description */}
-                <p className="text-sm text-[var(--text-tertiary)] leading-relaxed mb-4">
-                  {feature.description}
-                </p>
 
-                {/* CLI Snippet */}
-                <div className="p-3 rounded-lg bg-[var(--bg-code)] border border-[var(--border-subtle)] font-mono text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[var(--brand-primary)]">{feature.cli}</span>
-                    <Terminal size={12} className="text-[var(--text-muted)]" />
+                  <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-4">
+                    {feature.description}
+                  </p>
+
+                  {/* CLI snippet */}
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-[var(--bg-base)] border border-[var(--border-subtle)] font-mono text-xs">
+                    <span className="text-[#5eead4]/60 select-none">$</span>
+                    <span className="text-[var(--text-muted)]">{feature.cli}</span>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             )
           })}
-        </div>
-        
-        {/* Bottom CTA */}
-        <div className="mt-12 p-8 lg:p-12 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-center">
-          <Badge variant="teal" className="mb-4">Deployment Ready</Badge>
-          <h3 className="text-2xl lg:text-3xl font-semibold text-[var(--text-primary)] mb-3">
-            One daemon to <span className="text-[var(--brand-primary)]">rule the swarm</span>
-          </h3>
-          <p className="text-[var(--text-secondary)] max-w-xl mx-auto mb-6">
-            Port Daddy is open-source and installs in seconds. Start building your autonomous organization today.
-          </p>
-          <Link to="/tutorials/getting-started">
-            <Button size="lg" className="gap-2">
-              Get Started Now
-              <ArrowRight size={18} />
-            </Button>
-          </Link>
-        </div>
+        </motion.div>
       </div>
     </section>
   )
