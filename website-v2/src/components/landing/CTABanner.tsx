@@ -5,7 +5,7 @@ import { Github, Terminal, Sparkles, Anchor } from 'lucide-react'
 
 export function CTABanner() {
   return (
-    <section className="py-24 lg:py-32 bg-[var(--bg-surface)]">
+    <section className="py-16 lg:py-24 bg-[var(--bg-surface)]">
       <div className="max-w-[1200px] mx-auto px-6 lg:px-8">
         <div className="relative p-8 lg:p-16 rounded-2xl bg-[var(--bg-base)] border border-[var(--border-subtle)] overflow-hidden">
           {/* Background gradient */}

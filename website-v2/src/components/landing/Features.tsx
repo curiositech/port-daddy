@@ -27,10 +27,10 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 export function Features() {
   return (
-    <section id="features" className="py-24 lg:py-32 bg-[var(--bg-base)]">
+    <section id="features" className="py-16 lg:py-24 bg-[var(--bg-base)]">
       <div className="max-w-[1200px] mx-auto px-6 lg:px-8">
         {/* Header */}
-        <div className="text-center mb-16">
+        <div className="text-center mb-12">
           <Badge variant="teal" className="mb-4">The Enumeration</Badge>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-semibold text-[var(--text-primary)] mb-4">
             The Definitive <span className="text-[var(--brand-primary)]">Control Plane</span>
@@ -84,7 +84,7 @@ export function Features() {
         </div>
         
         {/* Bottom CTA */}
-        <div className="mt-16 p-8 lg:p-12 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-center">
+        <div className="mt-12 p-8 lg:p-12 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-center">
           <Badge variant="teal" className="mb-4">Deployment Ready</Badge>
           <h3 className="text-2xl lg:text-3xl font-semibold text-[var(--text-primary)] mb-3">
             One daemon to <span className="text-[var(--brand-primary)]">rule the swarm</span>

@@ -133,11 +133,11 @@
   --badge-green-border:   rgba(34, 197, 94, 0.2);
   
   /* ─── Button Variables ────────────────────────────────────────────────────── */
-  --btn-primary-bg:       #0a5f56;
+  --btn-primary-bg:       #0d9488;   /* Teal-600: vibrant, 4.6:1 on white - AA */
   --btn-primary-text:     #ffffff;
   --btn-primary-border:   transparent;
-  --btn-primary-shadow:   0 1px 2px rgba(0, 0, 0, 0.15);
-  --btn-primary-bg-hover: #084a42;
+  --btn-primary-shadow:   0 1px 3px rgba(13, 148, 136, 0.3);
+  --btn-primary-bg-hover: #0a7a6f;   /* Teal-700: deepens on hover */
   
   --btn-ghost-bg:         transparent;
   --btn-ghost-text:       #616161;

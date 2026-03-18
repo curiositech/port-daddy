@@ -12,11 +12,11 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary: [
-    'bg-[var(--brand-primary)] text-[var(--brand-on-primary)]',
-    'border border-transparent',
-    'shadow-[var(--shadow-brand)]',
-    'hover:bg-[var(--brand-primary-hover)]',
-    'hover:shadow-[0_6px_20px_rgba(13,148,136,0.35)]',
+    'bg-[var(--btn-primary-bg)] text-[var(--btn-primary-text)]',
+    'border border-[var(--btn-primary-border)]',
+    'shadow-[var(--btn-primary-shadow)]',
+    'hover:bg-[var(--btn-primary-bg-hover)]',
+    'hover:shadow-[0_6px_24px_rgba(20,184,166,0.4)]',
     'transition-all duration-200',
     'font-semibold',
   ].join(' '),

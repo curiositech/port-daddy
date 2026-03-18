@@ -33,7 +33,7 @@ export function Hero() {
   const [isModalOpen, setIsModalOpen] = useState(false)
 
   return (
-    <section className="relative min-h-[70vh] flex flex-col items-center justify-center pt-24 pb-16 overflow-hidden">
+    <section className="relative flex flex-col items-center justify-center pt-28 pb-12 overflow-hidden">
       {/* Background Grid Pattern */}
       <div className="absolute inset-0 grid-pattern opacity-50" />
       
@@ -44,7 +44,7 @@ export function Hero() {
       />
 
       <div className="relative z-10 w-full max-w-[1200px] mx-auto px-6 lg:px-8">
-        <div className="flex flex-col items-center text-center gap-8">
+        <div className="flex flex-col items-center text-center gap-6">
           {/* Maritime Signal */}
           <div className="opacity-40">
             <MaritimeSignalRow size={20} />
@@ -69,7 +69,7 @@ export function Hero() {
           </div>
 
           {/* Headline */}
-          <div className="space-y-4 max-w-4xl">
+          <div className="space-y-3 max-w-4xl">
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-tight text-[var(--text-primary)] leading-[1.1]">
               Infrastructure for{' '}
               <span className="text-[var(--brand-primary)]">the Agent Economy</span>
@@ -80,7 +80,7 @@ export function Hero() {
           </div>
 
           {/* CTAs - Updated with intent modal */}
-          <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
+          <div className="flex flex-wrap items-center justify-center gap-4">
             <Button 
               size="lg" 
               className="gap-2"
@@ -104,7 +104,7 @@ export function Hero() {
           </div>
 
           {/* Feature Highlights */}
-          <div className="grid sm:grid-cols-3 gap-4 w-full max-w-3xl mt-8">
+          <div className="grid sm:grid-cols-3 gap-4 w-full max-w-3xl mt-4">
             {HIGHLIGHTS.map((item, i) => (
               <div
                 key={i}
