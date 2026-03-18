@@ -229,7 +229,7 @@ export function Nav() {
 
               <Link
                 to="/tutorials/getting-started"
-                className="hidden sm:flex items-center px-4 py-2 rounded-lg bg-[var(--brand-primary)] text-[var(--brand-on-primary)] text-sm font-semibold hover:bg-[var(--brand-primary-hover)] transition-all shadow-[var(--shadow-brand)]"
+                className="hidden sm:flex items-center px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-all"
               >
                 Get Started
               </Link>
@@ -283,7 +283,7 @@ export function Nav() {
               <div className="pt-4 border-t border-[var(--border-subtle)]">
                 <Link
                   to="/tutorials/getting-started"
-                  className="block w-full text-center px-4 py-3 rounded-lg bg-[var(--brand-primary)] text-[var(--brand-on-primary)] font-semibold"
+                  className="block w-full text-center px-4 py-3 rounded-lg bg-primary text-primary-foreground font-semibold"
                   onClick={() => setMobileOpen(false)}
                 >
                   Get Started

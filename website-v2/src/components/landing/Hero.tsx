@@ -1,127 +1,95 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { IntentModal } from '@/components/ui/IntentModal'
-import { useTheme } from '@/lib/theme'
-import { ArrowRight, Shield, Zap, History, Terminal } from 'lucide-react'
-import { MaritimeSignalRow } from '@/components/viz/MaritimeFlags'
+import { ArrowRight, Terminal, Zap, Shield, Cpu } from 'lucide-react'
 
 const HIGHLIGHTS = [
-  { 
-    icon: Zap, 
-    label: 'Spawn & Coordinate', 
-    text: 'Launch agent swarms that discover and wire themselves. No hardcoded ports. No service mesh.',
-    color: 'var(--brand-accent)'
+  {
+    icon: Zap,
+    label: 'Zero Port Conflicts',
+    text: 'Deterministic assignment. Same identity, same port, every time.',
   },
-  { 
-    icon: Shield, 
-    label: 'Self-Healing Harbors', 
-    text: 'Agents crash. Work gets salvaged. Cryptographic namespaces keep swarms isolated and recoverable.',
-    color: 'var(--brand-primary)'
+  {
+    icon: Shield,
+    label: 'Crash Recovery',
+    text: 'Dead agents get resurrected. Their work is preserved, not lost.',
   },
-  { 
-    icon: History, 
-    label: 'MCP-Native', 
-    text: 'Built for the Model Context Protocol. Your LLM can spawn, monitor, and coordinate agents directly.',
-    color: 'var(--text-secondary)'
+  {
+    icon: Cpu,
+    label: 'MCP-Native',
+    text: 'Your LLM spawns, monitors, and coordinates agents directly.',
   },
 ]
 
 export function Hero() {
-  const { theme } = useTheme()
   const [isModalOpen, setIsModalOpen] = useState(false)
 
   return (
-    <section className="relative flex flex-col items-center justify-center pt-28 pb-12 overflow-hidden">
-      {/* Background Grid Pattern */}
-      <div className="absolute inset-0 grid-pattern opacity-50" />
-      
-      {/* Subtle gradient glow */}
-      <div 
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full opacity-[0.03]"
-        style={{ background: 'radial-gradient(circle, var(--brand-primary) 0%, transparent 70%)' }}
+    <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-28 overflow-hidden">
+      {/* Background: gradient glow */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: `
+            radial-gradient(ellipse 1000px 600px at 50% -100px, rgba(13, 148, 136, 0.12) 0%, transparent 70%)
+          `
+        }}
       />
 
-      <div className="relative z-10 w-full max-w-[1200px] mx-auto px-6 lg:px-8">
-        <div className="flex flex-col items-center text-center gap-6">
-          {/* Maritime Signal */}
-          <div className="opacity-40">
-            <MaritimeSignalRow size={20} />
-          </div>
-          
-          {/* Logo */}
-          <div className="relative w-20 h-20 sm:w-24 sm:h-24 mx-auto">
-            <img
-              src={theme === 'dark' ? '/pd_logo_darkmode.svg' : '/pd_logo.svg'}
-              alt="Port Daddy"
-              className="w-full h-full object-contain"
-            />
-          </div>
+      <div className="relative z-10 max-w-[900px] mx-auto px-6 lg:px-8 text-center">
+        {/* Headline */}
+        <h1 className="text-4xl sm:text-5xl lg:text-[3.5rem] font-bold tracking-tight leading-[1.1] mb-6">
+          Stop your AI agents from
+          <br className="hidden sm:block" />
+          <span className="text-primary"> fighting each other.</span>
+        </h1>
 
-          {/* Version Badge */}
-          <div className="flex items-center gap-3">
-            <Badge variant="teal" size="md">v3.7.0 Stable</Badge>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
-              <div className="w-2 h-2 rounded-full bg-[var(--success)] animate-pulse" />
-              <span className="text-xs font-medium text-[var(--text-tertiary)]">Swarm Ready</span>
-            </div>
-          </div>
+        <p className="text-base sm:text-lg max-w-xl mx-auto mb-10 leading-relaxed opacity-70">
+          Port Daddy is a local daemon that gives every agent its own port,
+          coordinates their work, and recovers when they crash. One install. Zero config.
+        </p>
 
-          {/* Headline */}
-          <div className="space-y-3 max-w-4xl">
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-tight text-[var(--text-primary)] leading-[1.1]">
-              Infrastructure for{' '}
-              <span className="text-[var(--brand-primary)]">the Agent Economy</span>
-            </h1>
-            <p className="text-lg sm:text-xl text-[var(--text-secondary)] max-w-2xl mx-auto leading-relaxed">
-              Spawn self-healing agent swarms. Coordinate without chaos. The coordination layer AI-native development was missing.
-            </p>
-          </div>
-
-          {/* CTAs - Updated with intent modal */}
-          <div className="flex flex-wrap items-center justify-center gap-4">
-            <Button 
-              size="lg" 
-              className="gap-2"
-              onClick={() => setIsModalOpen(true)}
-            >
-              <Terminal size={18} />
-              Start Building Agents
-              <ArrowRight size={18} />
+        {/* CTAs */}
+        <div className="flex flex-wrap items-center justify-center gap-3 mb-6">
+          <Button
+            size="lg"
+            className="gap-2"
+            onClick={() => setIsModalOpen(true)}
+          >
+            <Terminal size={18} />
+            Get Started
+            <ArrowRight size={18} />
+          </Button>
+          <Link to="/docs">
+            <Button variant="outline" size="lg">
+              Read the Docs
             </Button>
-            <Link to="/docs">
-              <Button variant="secondary" size="lg">
-                Read the Docs
-              </Button>
-            </Link>
-          </div>
+          </Link>
+        </div>
 
-          {/* Install Command */}
-          <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-[var(--bg-code)] border border-[var(--border-subtle)] font-mono text-sm text-[var(--text-secondary)]">
-            <Terminal size={16} className="text-[var(--text-muted)]" />
-            <span>brew install erichowens/port-daddy</span>
-          </div>
+        {/* Install Command */}
+        <div className="inline-flex items-center gap-3 px-4 py-2.5 rounded-lg bg-muted/50 border border-border font-mono text-sm mb-16">
+          <Terminal size={14} className="opacity-40" />
+          <span className="opacity-60">brew install erichowens/port-daddy</span>
+        </div>
 
-          {/* Feature Highlights */}
-          <div className="grid sm:grid-cols-3 gap-4 w-full max-w-3xl mt-4">
-            {HIGHLIGHTS.map((item, i) => (
-              <div
-                key={i}
-                className="group p-5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:shadow-[var(--shadow-md)] transition-all text-left"
-              >
-                <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-3 bg-[var(--bg-overlay)]">
-                  <item.icon size={20} style={{ color: item.color }} />
-                </div>
-                <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-1">
-                  {item.label}
-                </h3>
-                <p className="text-sm text-[var(--text-tertiary)] leading-relaxed">
-                  {item.text}
-                </p>
-              </div>
-            ))}
-          </div>
+        {/* Feature Cards */}
+        <div className="grid sm:grid-cols-3 gap-4">
+          {HIGHLIGHTS.map((item, i) => (
+            <div
+              key={i}
+              className="p-5 rounded-xl bg-card border border-border text-left transition-all hover:border-primary/30 hover:shadow-[0_4px_24px_rgba(13,148,136,0.1)]"
+            >
+              <item.icon size={20} className="text-primary mb-3" />
+              <h3 className="text-sm font-semibold mb-1">
+                {item.label}
+              </h3>
+              <p className="text-sm opacity-60 leading-relaxed">
+                {item.text}
+              </p>
+            </div>
+          ))}
         </div>
       </div>
 

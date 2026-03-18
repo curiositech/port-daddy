@@ -93,8 +93,8 @@
   --popover: oklch(20% 0.03 265);
   --popover-foreground: oklch(98% 0.01 265);
 
-  --primary: oklch(80% 0.15 200);          /* Bright Teal */
-  --primary-foreground: oklch(10% 0.01 265);
+  --primary: oklch(45% 0.15 200);          /* Deep Teal — high contrast on dark bg */
+  --primary-foreground: oklch(100% 0 0);   /* White text on teal */
 
   --secondary: oklch(20% 0.03 265);
   --secondary-foreground: oklch(98% 0.01 265);
