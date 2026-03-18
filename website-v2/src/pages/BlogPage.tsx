@@ -45,7 +45,7 @@ export function BlogPage() {
       </motion.section>
 
       {/* Blog Feed */}
-      <motion.main className="flex-1 py-20 px-6 sm:px-8 lg:px-10 max-w-5xl mx-auto w-full font-sans flex flex-col items-center">
+      <motion.main id="main-content" className="flex-1 py-20 px-6 sm:px-8 lg:px-10 max-w-5xl mx-auto w-full font-sans flex flex-col items-center">
         <div className="flex flex-col items-center gap-8 w-full">
           {blogPosts.map((post, index) => (
             <motion.article 

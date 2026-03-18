@@ -9,8 +9,8 @@ export function AlwaysOn() {
     <TutorialLayout
       title="Always-On Avatars"
       description="Most agents are ephemeral. Learn to deploy persistent background processes that maintain harbor-scoped state and respond to global swarm signals 24/7."
-      number="04"
-      total="16"
+      number={4}
+      total={16}
       level="Intermediate"
       readTime="10 min read"
       prev={{ title: 'Cryptographic Harbors', href: '/tutorials/harbors' }}

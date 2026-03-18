@@ -9,8 +9,8 @@ export function Dashboard() {
     <TutorialLayout
       title="Visual Control Plane"
       description="Coordination is hard to visualize in a terminal. Learn to use the Port Daddy HUD to monitor network graphs, lock contention, and real-time swarm telemetry."
-      number="08"
-      total="16"
+      number={8}
+      total={16}
       level="Beginner"
       readTime="5 min read"
       prev={{ title: 'Reactive Pipelines', href: '/tutorials/pipelines' }}

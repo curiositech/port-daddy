@@ -3,29 +3,36 @@
 @import "./styles/tokens.css";
 
 @theme {
+  /* Map tokens to Tailwind theme */
   --color-bg-base: var(--bg-base);
   --color-bg-surface: var(--bg-surface);
+  --color-bg-elevated: var(--bg-elevated);
   --color-bg-overlay: var(--bg-overlay);
-  --color-bg-glass: var(--bg-glass);
-
+  --color-bg-code: var(--bg-code);
+  
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
   --color-text-muted: var(--text-muted);
-
+  
   --color-brand-primary: var(--brand-primary);
-  --color-brand-on-primary: var(--brand-on-primary);
-  --color-brand-secondary: var(--brand-secondary);
+  --color-brand-primary-hover: var(--brand-primary-hover);
   --color-brand-accent: var(--brand-accent);
-
+  --color-brand-on-primary: var(--brand-on-primary);
+  
   --color-border-subtle: var(--border-subtle);
+  --color-border-default: var(--border-default);
   --color-border-strong: var(--border-strong);
-
-  --font-display: var(--p-font-display);
-  --font-sans: var(--p-font-sans);
-  --font-mono: var(--p-font-mono);
-
-  --radius-xl: var(--p-radius-xl);
-  --radius-2xl: var(--p-radius-2xl);
+  
+  --font-display: var(--font-display);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-serif: var(--font-serif);
+  
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
   
   --spacing-nav: var(--nav-height);
 }
@@ -33,7 +40,7 @@
 /* Explicitly tell Tailwind to use .dark class for dark variants */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* ─── Global resets & base ──────────────────────────────────────────────────── */
+/* ─── Global Resets & Base ─────────────────────────────────────────────────── */
 *, *::before, *::after {
   box-sizing: border-box;
 }
@@ -44,62 +51,329 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
   margin: 0;
+  padding: 0;
   background-color: var(--bg-base);
   color: var(--text-primary);
-  font-family: var(--p-font-sans);
-  line-height: 1.5;
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: 1.6;
   min-height: 100vh;
   overflow-x: hidden;
 }
 
-h1, h2, h3, .font-display {
-  font-family: var(--p-font-display) !important;
-  font-weight: 700;
-  line-height: 1.05;
+/* ─── Typography ───────────────────────────────────────────────────────────── */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  line-height: 1.15;
   margin: 0;
   color: var(--text-primary);
-  letter-spacing: -0.03em;
+  letter-spacing: -0.03em; /* Tighter tracking for serif elegance */
 }
 
-p, li, span, button, .font-sans {
-  font-family: var(--p-font-sans) !important;
+/* Use italic for h1 to convey editorial sophistication */
+h1 { 
+  font-size: var(--text-5xl); 
+  line-height: 1.05; 
+  font-weight: 500;
+  font-style: italic;
+}
+
+h2 { 
+  font-size: var(--text-4xl); 
+  font-weight: 500;
+}
+
+h3 { 
+  font-size: var(--text-2xl); 
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+h4 { 
+  font-size: var(--text-xl); 
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+@media (min-width: 640px) {
+  h1 { font-size: var(--text-6xl); }
+  h2 { font-size: var(--text-5xl); }
+}
+
+/* Override for UI components that shouldn't use serif */
+.nav-link, .button, .badge, .tag, .label {
+  font-family: var(--font-sans);
+  letter-spacing: 0;
+}
+
+p, li {
   margin: 0;
   color: var(--text-secondary);
 }
 
+/* ─── Links ────────────────────────────────────────────────────────────────── */
 a {
   color: var(--brand-primary);
   text-decoration: none;
-  transition: color 0.2s ease;
+  transition: color var(--transition-fast);
 }
 
 a:hover {
-  color: var(--brand-secondary);
+  color: var(--brand-primary-hover);
 }
 
-code, pre, kbd, .font-mono {
-  font-family: var(--p-font-mono) !important;
+/* ─── Code & Pre ───────────────────────────────────────────────────────────── */
+code, pre, kbd {
+  font-family: var(--font-mono);
 }
 
-/* ─── Glassmorphism ────────────────────────────────────────────────────────── */
+code {
+  font-size: 0.875em;
+  padding: 0.15em 0.4em;
+  background: var(--bg-code);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+}
+
+pre {
+  background: var(--bg-code);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  overflow-x: auto;
+  font-size: var(--text-sm);
+  line-height: 1.6;
+}
+
+pre code {
+  padding: 0;
+  background: none;
+  font-size: inherit;
+}
+
+/* ─── Selection ────────────────────────────────────────────────────────────── */
+::selection {
+  background: var(--brand-primary);
+  color: var(--brand-on-primary);
+}
+
+/* ─── Scrollbar ────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb, var(--border-strong));
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover, var(--text-tertiary));
+}
+
+/* Light mode scrollbar defaults */
+:root:not([data-theme='dark']),
+[data-theme='light'] {
+  --scrollbar-thumb: var(--border-strong);
+  --scrollbar-thumb-hover: var(--text-tertiary);
+}
+
+/* ─── Focus Visible ────────────────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 2px;
+}
+
+/* ─── Utility Classes ──────────────────────────────────────────────────────── */
+
+/* Section Container */
+.section {
+  padding: var(--section-padding) 0;
+}
+
+@media (max-width: 768px) {
+  .section {
+    padding: 80px 0;
+  }
+}
+
+/* Container */
+.container-main {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0 var(--space-6);
+}
+
+@media (min-width: 640px) {
+  .container-main {
+    padding: 0 var(--space-8);
+  }
+}
+
+@media (min-width: 1024px) {
+  .container-main {
+    padding: 0 var(--space-12);
+  }
+}
+
+/* Glass Effect (Subtle) - uses theme tokens */
 .glass {
-  background: var(--bg-glass);
-  backdrop-filter: blur(12px) saturate(160%);
-  -webkit-backdrop-filter: blur(12px) saturate(160%);
+  background: var(--glass-bg, rgba(255, 255, 255, 0.8));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border, rgba(0, 0, 0, 0.1));
+}
+
+/* Light mode defaults */
+:root:not([data-theme='dark']) .glass,
+[data-theme='light'] .glass {
+  --glass-bg: rgba(255, 255, 255, 0.8);
+  --glass-border: rgba(0, 0, 0, 0.1);
+}
+
+/* Gradient Text */
+.gradient-text {
+  background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-accent) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Card Base - uses tonal elevation */
+.card {
+  background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  transition: all var(--transition-base);
+}
+
+.card:hover {
+  border-color: var(--border-default);
+  background: var(--bg-surface-hover);
+}
+
+/* Elevated cards (modals, popovers, dropdowns) */
+.card-elevated {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+}
+
+/* Dark mode: elevated cards get glow instead of shadow */
+[data-theme='dark'] .card:hover {
+  box-shadow: var(--glow-brand-sm);
+}
+
+/* Button Reset */
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  padding: 0;
+}
+
+/* Input Reset */
+input, textarea {
+  font-family: inherit;
+}
+
+/* Image Reset */
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* ─── Elevation Utilities (Dark Mode Tonal System) ────────────────────────────
+ * Use these for cards, modals, dropdowns, and elevated surfaces.
+ * In dark mode, elevation is shown by lighter backgrounds, not shadows.
+ */
+.elevation-0 { background: var(--surface-base, var(--bg-base)); }
+.elevation-1 { background: var(--surface-1, var(--bg-surface)); }
+.elevation-2 { background: var(--surface-2, var(--bg-surface-hover)); }
+.elevation-3 { background: var(--surface-3, var(--bg-elevated)); }
+.elevation-4 { background: var(--surface-4, #242424); }
+.elevation-5 { background: var(--surface-5, #2a2a2a); }
+
+/* Glow Utilities (Dark Mode Only) */
+.glow-brand {
+  box-shadow: var(--glow-brand-sm);
+  transition: box-shadow var(--transition-fast);
+}
+
+.glow-brand:hover {
+  box-shadow: var(--glow-brand);
+}
+
+.glow-brand-strong {
+  box-shadow: var(--glow-brand-lg);
+}
+
+/* Focus glow for interactive elements */
+.focus-glow:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bg-base), 0 0 0 4px var(--brand-primary), var(--glow-brand-sm);
 }
 
 /* ─── Animations ───────────────────────────────────────────────────────────── */
-@keyframes pulse-active {
-  0% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.5); opacity: 0.4; }
-  100% { transform: scale(1); opacity: 1; }
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-.pulse-active {
-  animation: pulse-active 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+@keyframes fade-in-up {
+  from { 
+    opacity: 0; 
+    transform: translateY(20px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.6s ease-out forwards;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.6s ease-out forwards;
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 3s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+/* ─── Grid Pattern Background ──────────────────────────────────────────────── */
+.grid-pattern {
+  background-image: 
+    linear-gradient(to right, var(--border-subtle) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--border-subtle) 1px, transparent 1px);
+  background-size: 40px 40px;
+  mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
+  -webkit-mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
 }

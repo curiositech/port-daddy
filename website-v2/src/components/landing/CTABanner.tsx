@@ -1,86 +1,67 @@
-import { motion } from 'framer-motion'
-import { Link } from 'react-router-dom'
 import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
+import { Link } from 'react-router-dom'
 import { Github, Terminal, Sparkles, Anchor } from 'lucide-react'
 
 export function CTABanner() {
   return (
-    <motion.section 
-      className="py-20 px-6 sm:px-8 lg:px-10 relative overflow-hidden font-sans bg-[var(--bg-base)] flex flex-col items-center text-center"
-      initial={{ opacity: 0 }}
-      whileInView={{ opacity: 1 }}
-      viewport={{ once: true }}
-    >
-      {/* Background glow effects */}
-      <motion.div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background: 'radial-gradient(circle at 50% 50%, var(--brand-primary) 0%, transparent 70%)',
-        }}
-        animate={{ opacity: [0.05, 0.1, 0.05], scale: [1, 1.1, 1] }}
-        transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
-      />
+    <section className="py-24 lg:py-32 bg-[var(--bg-surface)]">
+      <div className="max-w-[1200px] mx-auto px-6 lg:px-8">
+        <div className="relative p-8 lg:p-16 rounded-2xl bg-[var(--bg-base)] border border-[var(--border-subtle)] overflow-hidden">
+          {/* Background gradient */}
+          <div 
+            className="absolute inset-0 opacity-[0.03]"
+            style={{ background: 'radial-gradient(circle at 50% 50%, var(--brand-primary) 0%, transparent 70%)' }}
+          />
 
-      <motion.div
-        initial={{ opacity: 0, y: 32 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-        className="relative max-w-5xl mx-auto text-center flex flex-col items-center gap-8"
-      >
-        <motion.div className="flex flex-col items-center gap-6">
-           <Badge variant="teal" className="px-8 py-3 text-[10px] font-black uppercase tracking-[0.25em] shadow-xl">The Departure</Badge>
-           <motion.div 
-             className="w-24 h-24 rounded-[40px] bg-[var(--interactive-active)] flex items-center justify-center border border-[var(--brand-primary)] shadow-[0_0_48px_rgba(58,173,173,0.3)]"
-             animate={{ y: [0, -12, 0] }}
-             transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-           >
-              <Anchor className="text-[var(--brand-primary)]" size={48} />
-           </motion.div>
-        </motion.div>
+          <div className="relative z-10 text-center">
+            {/* Icon */}
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[var(--interactive-active)] mb-8">
+              <Anchor className="text-[var(--brand-primary)]" size={32} />
+            </div>
 
-        <motion.div className="space-y-6 flex flex-col items-center">
-           <motion.h2 className="text-4xl sm:text-6xl font-display font-black tracking-tighter leading-[0.85] m-0" style={{ color: 'var(--text-primary)' }}>
-             Your agents deserve a <br />
-             <motion.span className="text-[var(--brand-primary)]">harbormaster.</motion.span>
-           </motion.h2>
+            <Badge variant="teal" className="mb-4 block w-fit mx-auto">Get Started</Badge>
+            
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-semibold text-[var(--text-primary)] mb-4">
+              Your agents deserve a <span className="text-[var(--brand-primary)]">harbormaster</span>
+            </h2>
+            
+            <p className="text-lg text-[var(--text-secondary)] max-w-2xl mx-auto mb-8">
+              The era of wobbly scripts and port conflicts is over. Build swarms that are resilient, cryptographically secure, and always-on.
+            </p>
 
-           <motion.p className="text-2xl sm:text-3xl max-w-3xl mx-auto leading-relaxed font-sans" style={{ color: 'var(--text-secondary)' }}>
-             The era of wobbly scripts and port conflicts is over. Build swarms that are resilient, cryptographically secure, and always-on.
-           </motion.p>
-        </motion.div>
+            {/* CTAs */}
+            <div className="flex flex-wrap items-center justify-center gap-4 mb-8">
+              <a 
+                href="https://github.com/erichowens/port-daddy" 
+                target="_blank" 
+                rel="noopener noreferrer"
+              >
+                <Button size="lg" className="gap-2">
+                  <Github size={20} />
+                  Star on GitHub
+                </Button>
+              </a>
+              <Link to="/tutorials/getting-started">
+                <Button variant="secondary" size="lg" className="gap-2">
+                  <Sparkles size={20} />
+                  Learn the Protocol
+                </Button>
+              </Link>
+            </div>
 
-        <motion.div className="flex flex-wrap gap-6 justify-center items-center pt-4">
-          <motion.button 
-            className="px-16 py-8 rounded-full bg-[var(--brand-primary)] text-[var(--bg-base)] font-black text-2xl shadow-[0_32px_64px_rgba(58,173,173,0.3)] flex items-center gap-4 transition-all"
-            whileHover={{ scale: 1.05, y: -6, boxShadow: '0 40px 80px rgba(58,173,173,0.4)' }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => window.open('https://github.com/erichowens/port-daddy', '_blank')}
-          >
-            <Github size={28} />
-            STAR ON GITHUB
-          </motion.button>
-          
-          <Link to="/tutorials/getting-started" className="no-underline">
-            <motion.button 
-              className="px-16 py-8 rounded-full bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border-strong)] font-black text-2xl flex items-center gap-4 transition-all shadow-xl"
-              whileHover={{ scale: 1.05, y: -6, background: 'var(--interactive-hover)' }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <Sparkles size={28} className="text-[var(--p-amber-400)]" />
-              LEARN THE PROTOCOL
-            </motion.button>
-          </Link>
-        </motion.div>
-
-        <motion.div className="pt-16 flex flex-col items-center gap-6">
-           <motion.div className="flex items-center gap-4 px-8 py-4 rounded-full bg-[var(--bg-overlay)] border border-[var(--border-subtle)] font-mono text-xs font-black uppercase tracking-widest shadow-lg" style={{ color: 'var(--text-muted)' }}>
-              <Terminal size={18} className="text-[var(--brand-primary)]" />
-              brew install erichowens/port-daddy
-           </motion.div>
-           <motion.p className="text-[10px] font-black uppercase tracking-[0.3em] m-0" style={{ color: 'var(--text-muted)', opacity: 0.5 }}>Free · Open Source · MIT License</motion.p>
-        </motion.div>
-      </motion.div>
-    </motion.section>
+            {/* Install Command */}
+            <div className="inline-flex items-center gap-3 px-4 py-3 rounded-lg bg-[var(--bg-code)] border border-[var(--border-subtle)] font-mono text-sm">
+              <Terminal size={16} className="text-[var(--text-muted)]" />
+              <span className="text-[var(--text-secondary)]">brew install erichowens/port-daddy</span>
+            </div>
+            
+            <p className="mt-4 text-xs text-[var(--text-muted)]">
+              Free · Open Source · MIT License
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
   )
 }

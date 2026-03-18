@@ -1,114 +1,298 @@
 import * as React from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
 import { Link, useLocation } from 'react-router-dom'
 import { useTheme } from '@/lib/theme'
-import { Sun, Moon, Github, Menu, X, Anchor, Share2, Terminal, Sparkles, Layout, Compass, LayoutGrid } from 'lucide-react'
+import { Sun, Moon, Github, Menu, X, ChevronDown, BookOpen, GraduationCap, LayoutGrid } from 'lucide-react'
 
-const NAV_LINKS = [
-  { label: 'Academy', href: '/tutorials', icon: Sparkles },
-  { label: 'Blueprints', href: '/examples', icon: Share2 },
-  { label: 'Templates', href: '/templates', internal: true, icon: LayoutGrid },
-  { label: 'MCP', href: '/mcp', icon: Terminal },
-  { label: 'SDK', href: '/docs', icon: Anchor },
-  { label: 'Blog', href: '/blog', icon: Layout },
-  { label: 'Roadmap', href: '/roadmap', internal: true, icon: Compass },
+interface NavItem {
+  label: string
+  href: string
+  description?: string
+  icon?: React.ElementType
+}
+
+interface NavSection {
+  label: string
+  href: string
+  items?: NavItem[]
+}
+
+// Simplified navigation structure (3 main items instead of 8)
+const NAV_STRUCTURE: NavSection[] = [
+  {
+    label: 'Get Started',
+    href: '/tutorials',
+    items: [
+      { 
+        label: 'Tutorials', 
+        href: '/tutorials',
+        description: 'Step-by-step guides for beginners',
+        icon: GraduationCap
+      },
+      { 
+        label: 'Templates', 
+        href: '/templates',
+        description: 'Pre-configured project templates',
+        icon: LayoutGrid
+      },
+      { 
+        label: 'Blueprints', 
+        href: '/examples',
+        description: 'Real-world integration examples',
+        icon: BookOpen
+      },
+    ]
+  },
+  {
+    label: 'Documentation',
+    href: '/docs',
+    items: [
+      { 
+        label: 'CLI Reference', 
+        href: '/docs/cli',
+        description: 'Command-line interface docs',
+        icon: BookOpen
+      },
+      { 
+        label: 'TypeScript SDK', 
+        href: '/docs/sdk',
+        description: 'Programmatic API reference',
+        icon: BookOpen
+      },
+      { 
+        label: 'MCP Tools', 
+        href: '/docs/mcp',
+        description: 'AI assistant integrations',
+        icon: BookOpen
+      },
+      { 
+        label: 'Whitepaper', 
+        href: '/whitepaper',
+        description: 'Technical specification',
+        icon: BookOpen
+      },
+    ]
+  },
+  {
+    label: 'Community',
+    href: '/blog',
+    items: [
+      { 
+        label: 'Blog', 
+        href: '/blog',
+        description: 'Engineering insights & updates',
+        icon: BookOpen
+      },
+      { 
+        label: 'Roadmap', 
+        href: '/roadmap',
+        description: 'Upcoming features',
+        icon: LayoutGrid
+      },
+      { 
+        label: 'GitHub', 
+        href: 'https://github.com/erichowens/port-daddy',
+        description: 'Source code & issues',
+        icon: Github,
+      },
+    ]
+  },
 ]
+
+function DropdownNav({ section }: { section: NavSection }) {
+  const [isOpen, setIsOpen] = React.useState(false)
+  const location = useLocation()
+  const isActive = location.pathname.startsWith(section.href)
+
+  return (
+    <div 
+      className="relative"
+      onMouseEnter={() => setIsOpen(true)}
+      onMouseLeave={() => setIsOpen(false)}
+    >
+      <Link
+        to={section.href}
+        className={`flex items-center gap-1 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+          isActive 
+            ? 'text-[var(--brand-primary)] bg-[var(--interactive-active)]' 
+            : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--interactive-hover)]'
+        }`}
+      >
+        {section.label}
+        {section.items && <ChevronDown size={14} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />}
+      </Link>
+
+      {section.items && isOpen && (
+        <div className="absolute top-full left-0 mt-1 w-64 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl shadow-[var(--shadow-lg)] py-2 z-50">
+          {section.items.map((item) => {
+            const Icon = item.icon || BookOpen
+            const isExternal = item.href.startsWith('http')
+            return (
+              <Link
+                key={item.label}
+                to={item.href}
+                target={isExternal ? '_blank' : undefined}
+                rel={isExternal ? 'noopener noreferrer' : undefined}
+                className="flex items-start gap-3 px-4 py-3 hover:bg-[var(--interactive-hover)] transition-colors"
+              >
+                <Icon size={18} className="text-[var(--text-muted)] mt-0.5" />
+                <div>
+                  <div className="text-sm font-medium text-[var(--text-primary)]">
+                    {item.label}
+                    {isExternal && <span className="ml-1 text-[var(--text-muted)]">↗</span>}
+                  </div>
+                  {item.description && (
+                    <div className="text-xs text-[var(--text-tertiary)] mt-0.5">
+                      {item.description}
+                    </div>
+                  )}
+                </div>
+              </Link>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export function Nav() {
   const [mobileOpen, setMobileOpen] = React.useState(false)
+  const [scrolled, setScrolled] = React.useState(false)
   const { theme, toggle } = useTheme()
-  const location = useLocation()
+
+  React.useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20)
+    }
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
 
   return (
-    <nav className="sticky top-0 left-0 right-0 z-[100] transition-all duration-500 font-sans bg-bg-base/80 backdrop-blur-xl border-b border-border-subtle">
-      <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12 py-4">
-        <div className="flex items-center justify-between">
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-3 no-underline group relative z-10">
-            <motion.div 
-              className="w-10 h-10 rounded-xl bg-bg-overlay border border-border-subtle flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform group-hover:border-brand-primary"
-            >
-               <motion.img
-                src={theme === 'dark' ? '/pd_logo_darkmode.svg' : '/pd_logo.svg'}
-                alt="Port Daddy"
-                className="h-6 w-auto"
-              />
-            </motion.div>
-            <motion.span className="font-black text-xl tracking-tighter text-text-primary">port-daddy.</motion.span>
-          </Link>
+    <>
+      {/* Skip Link for Accessibility */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[200] focus:px-4 focus:py-2 focus:bg-[var(--brand-primary)] focus:text-[var(--brand-on-primary)] focus:rounded-lg focus:font-medium focus:shadow-lg"
+      >
+        Skip to main content
+      </a>
+      <nav 
+        className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-300 ${
+          scrolled 
+            ? 'bg-[var(--bg-base)]/80 backdrop-blur-xl border-b border-[var(--border-subtle)]' 
+            : 'bg-transparent'
+        }`}
+      >
+        <div className="max-w-[1200px] mx-auto px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            {/* Logo */}
+            <Link to="/" className="flex items-center gap-2.5 no-underline group">
+              <div className="w-8 h-8 rounded-lg bg-[var(--brand-primary)] flex items-center justify-center">
+                <img
+                  src={theme === 'dark' ? '/pd_logo_darkmode.svg' : '/pd_logo.svg'}
+                  alt="Port Daddy"
+                  className="h-5 w-auto"
+                />
+              </div>
+              <span className="font-semibold text-lg tracking-tight text-[var(--text-primary)]">
+                Port Daddy
+              </span>
+            </Link>
 
-          {/* Desktop Links */}
-          <div className="hidden xl:flex items-center gap-1">
-            {NAV_LINKS.map((link) => {
-              const isActive = location.pathname === link.href;
-              return (
-                <Link 
-                  key={link.label} 
-                  to={link.href} 
-                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest no-underline transition-all flex items-center gap-2 group ${isActive ? 'bg-brand-primary text-brand-on-primary shadow-lg' : 'text-text-muted hover:text-text-primary hover:bg-bg-overlay'}`}
-                >
-                  <link.icon size={14} className={isActive ? '' : 'opacity-40 group-hover:opacity-100 transition-opacity'} />
-                  {link.label}
-                </Link>
-              )
-            })}
-          </div>
-
-          {/* Actions */}
-          <div className="flex items-center gap-4 relative z-10">
-            <motion.button
-              onClick={toggle}
-              className="p-3 rounded-xl border border-border-subtle bg-bg-overlay text-text-muted hover:text-text-primary hover:border-brand-primary transition-all"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-            </motion.button>
-
-            <motion.button
-              onClick={() => window.open('https://github.com/erichowens/port-daddy', '_blank')}
-              className="p-3 rounded-xl border border-border-subtle bg-bg-overlay text-text-muted hover:text-text-primary hover:border-brand-primary transition-all hidden sm:flex"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <Github size={18} />
-            </motion.button>
-
-            <motion.button
-              className="xl:hidden p-3 rounded-xl border border-border-subtle bg-bg-overlay text-text-muted"
-              onClick={() => setMobileOpen(!mobileOpen)}
-            >
-              {mobileOpen ? <X size={18} /> : <Menu size={18} />}
-            </motion.button>
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile Menu */}
-      <AnimatePresence>
-        {mobileOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="xl:hidden bg-bg-surface border-b border-border-subtle overflow-hidden font-sans"
-          >
-            <div className="px-6 py-10 space-y-4">
-              {NAV_LINKS.map((link) => (
-                <Link
-                  key={link.label}
-                  to={link.href}
-                  className="flex items-center gap-4 px-6 py-4 rounded-2xl bg-bg-overlay no-underline text-lg font-bold text-text-primary"
-                  onClick={() => setMobileOpen(false)}
-                >
-                  <link.icon size={20} className="text-brand-primary" />
-                  {link.label}
-                </Link>
+            {/* Desktop Navigation - Simplified (3 items with dropdowns) */}
+            <div className="hidden lg:flex items-center gap-1">
+              {NAV_STRUCTURE.map((section) => (
+                <DropdownNav key={section.label} section={section} />
               ))}
             </div>
-          </motion.div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={toggle}
+                className="p-2 rounded-lg text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--interactive-hover)] transition-all"
+                aria-label="Toggle theme"
+              >
+                {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+              </button>
+
+              <a
+                href="https://github.com/erichowens/port-daddy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--interactive-hover)] transition-all"
+              >
+                <Github size={18} />
+                <span>Star</span>
+              </a>
+
+              <Link
+                to="/tutorials/getting-started"
+                className="hidden sm:flex items-center px-4 py-2 rounded-lg bg-[var(--brand-primary)] text-[var(--brand-on-primary)] text-sm font-semibold hover:bg-[var(--brand-primary-hover)] transition-all shadow-[var(--shadow-brand)]"
+              >
+                Get Started
+              </Link>
+
+              <button
+                className="lg:hidden p-2 rounded-lg text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--interactive-hover)] transition-all"
+                onClick={() => setMobileOpen(!mobileOpen)}
+                aria-label="Toggle menu"
+              >
+                {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile Menu - Updated with new structure */}
+        {mobileOpen && (
+          <div className="lg:hidden bg-[var(--bg-surface)] border-b border-[var(--border-subtle)] max-h-[80vh] overflow-y-auto">
+            <div className="px-6 py-4 space-y-6">
+              {NAV_STRUCTURE.map((section) => (
+                <div key={section.label}>
+                  <Link
+                    to={section.href}
+                    className="block text-sm font-semibold text-[var(--text-primary)] mb-2"
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    {section.label}
+                  </Link>
+                  {section.items && (
+                    <div className="space-y-1 pl-4">
+                      {section.items.map((item) => {
+                        const isExternal = item.href.startsWith('http')
+                        return (
+                          <Link
+                            key={item.label}
+                            to={item.href}
+                            target={isExternal ? '_blank' : undefined}
+                            rel={isExternal ? 'noopener noreferrer' : undefined}
+                            className="block py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                            onClick={() => setMobileOpen(false)}
+                          >
+                            {item.label}
+                            {isExternal && <span className="ml-1 text-[var(--text-muted)]">↗</span>}
+                          </Link>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              ))}
+              <div className="pt-4 border-t border-[var(--border-subtle)]">
+                <Link
+                  to="/tutorials/getting-started"
+                  className="block w-full text-center px-4 py-3 rounded-lg bg-[var(--brand-primary)] text-[var(--brand-on-primary)] font-semibold"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  Get Started
+                </Link>
+              </div>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
-    </nav>
+      </nav>
+    </>
   )
 }

@@ -9,8 +9,8 @@ export function SessionPhases() {
     <TutorialLayout
       title="The Session State Machine"
       description="Coordination is a sequence of handoffs. Learn to drive agents through planning → coding → reviewing phases with auto-escrow and phase-aware salvage."
-      number="13"
-      total="16"
+      number={13}
+      total={16}
       level="Advanced"
       readTime="15 min read"
       prev={{ title: 'Sugar Commands', href: '/tutorials/sugar' }}

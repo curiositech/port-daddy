@@ -9,8 +9,8 @@ export function DNSResolver() {
     <TutorialLayout
       title="Identity Discovery"
       description="Stop memorizing port numbers. Learn to use Port Daddy's internal DNS to resolve services by their semantic identities across your entire mesh."
-      number="09"
-      total="16"
+      number={9}
+      total={16}
       level="Intermediate"
       readTime="8 min read"
       prev={{ title: 'Visual Control Plane', href: '/tutorials/dashboard' }}

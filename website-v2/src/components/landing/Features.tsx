@@ -1,12 +1,13 @@
-import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
 import { PRODUCT_FEATURES } from '@/data/product'
 import { 
   Shield, History, Radio, 
-  Anchor, Code, Cpu, Share2, Terminal, Sparkles, Zap
+  Anchor, Code, Cpu, Terminal, Sparkles, ArrowRight
 } from 'lucide-react'
+import { Link } from 'react-router-dom'
 
-const ICON_MAP: Record<string, any> = {
+const ICON_MAP: Record<string, typeof Anchor> = {
   'ports': Anchor,
   'coordination': Radio,
   'security': Shield,
@@ -16,131 +17,89 @@ const ICON_MAP: Record<string, any> = {
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
-  'ports': 'var(--p-blue-400)',
-  'coordination': 'var(--p-teal-400)',
-  'security': 'var(--p-amber-400)',
-  'observability': 'var(--p-red-400)',
-  'agents': 'var(--p-purple-400)',
-  'intelligence': 'var(--p-blue-300)'
+  'ports': 'var(--info)',
+  'coordination': 'var(--brand-primary)',
+  'security': 'var(--warning)',
+  'observability': 'var(--error)',
+  'agents': 'var(--success)',
+  'intelligence': 'var(--brand-accent)'
 }
 
 export function Features() {
   return (
-    <motion.section 
-      id="features" 
-      className="py-20 px-6 sm:px-8 lg:px-10 font-sans selection:bg-[var(--brand-primary)] selection:text-white bg-[var(--bg-base)] flex flex-col items-center text-center"
-      initial={{ opacity: 0 }}
-      whileInView={{ opacity: 1 }}
-      viewport={{ once: true }}
-    >
-      <motion.div className="max-w-7xl mx-auto font-sans flex flex-col items-center">
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.7 }}
-          className="text-center mb-16 flex flex-col items-center gap-8"
-        >
-          <div className="flex flex-col items-center gap-4">
-             <Badge variant="teal" className="px-5 py-1.5 text-[10px] font-black uppercase tracking-widest font-sans">The Enumeration</Badge>
-             <motion.h2 className="text-4xl sm:text-6xl font-bold font-display tracking-tight leading-tight m-0" style={{ color: 'var(--text-primary)' }}>
-               The Definitive <br />
-               <motion.span className="text-[var(--brand-primary)]">Control Plane.</motion.span>
-             </motion.h2>
-          </div>
-          <motion.p className="text-xl sm:text-2xl max-w-3xl mx-auto leading-relaxed font-sans" style={{ color: 'var(--text-secondary)' }}>
+    <section id="features" className="py-24 lg:py-32 bg-[var(--bg-base)]">
+      <div className="max-w-[1200px] mx-auto px-6 lg:px-8">
+        {/* Header */}
+        <div className="text-center mb-16">
+          <Badge variant="teal" className="mb-4">The Enumeration</Badge>
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-semibold text-[var(--text-primary)] mb-4">
+            The Definitive <span className="text-[var(--brand-primary)]">Control Plane</span>
+          </h2>
+          <p className="text-lg text-[var(--text-secondary)] max-w-2xl mx-auto">
             Foundational primitives required to turn a collection of scripts into a production-grade, autonomous organization.
-          </motion.p>
-        </motion.div>
+          </p>
+        </div>
 
-        <motion.div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8 w-full">
-          {PRODUCT_FEATURES.map((feature, i) => {
+        {/* Features Grid */}
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {PRODUCT_FEATURES.map((feature) => {
             const Icon = ICON_MAP[feature.category] || Code
             const color = CATEGORY_COLORS[feature.category] || 'var(--brand-primary)'
             
             return (
-              <motion.div
+              <div
                 key={feature.id}
-                initial={{ opacity: 0, y: 24 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: i * 0.03 }}
-                className="group relative"
+                className="group p-6 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:shadow-[var(--shadow-md)] transition-all"
               >
-                <motion.div 
-                  className="h-full p-10 rounded-[48px] border transition-all duration-300 flex flex-col items-center text-center gap-8 bg-[var(--bg-surface)]"
-                  style={{ borderColor: 'var(--border-subtle)' }}
-                  whileHover={{ y: -8, borderColor: color, boxShadow: `0 32px 64px -16px ${color}10` }}
+                {/* Icon */}
+                <div 
+                  className="w-10 h-10 rounded-lg flex items-center justify-center mb-4"
+                  style={{ background: `${color}15` }}
                 >
-                  <motion.div 
-                    className="w-16 h-16 rounded-[24px] flex items-center justify-center border transition-colors group-hover:scale-110"
-                    style={{ background: `${color}10`, borderColor: `${color}20` }}
-                  >
-                    <Icon size={32} style={{ color }} />
-                  </motion.div>
-                  
-                  <div className="space-y-3 flex-1">
-                    <div className="flex flex-col items-center gap-2">
-                      <motion.h3 className="m-0 text-2xl font-display font-black leading-tight" style={{ color: 'var(--text-primary)' }}>
-                        {feature.title}
-                      </motion.h3>
-                      <Badge variant={feature.status === 'core' ? 'neutral' : feature.status === 'new' ? 'teal' : 'amber'} className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--text-muted)' }}>
-                        {feature.status}
-                      </Badge>
-                    </div>
-                    
-                    <motion.p className="m-0 text-base leading-relaxed group-hover:opacity-100 transition-opacity font-medium" style={{ color: 'var(--text-muted)' }}>
-                      {feature.description}
-                    </motion.p>
-                  </div>
+                  <Icon size={20} style={{ color }} />
+                </div>
+                
+                {/* Title & Badge */}
+                <div className="flex items-center gap-2 mb-2">
+                  <h3 className="font-semibold text-[var(--text-primary)]">
+                    {feature.title}
+                  </h3>
+                </div>
+                
+                {/* Description */}
+                <p className="text-sm text-[var(--text-tertiary)] leading-relaxed mb-4">
+                  {feature.description}
+                </p>
 
-                  <motion.div 
-                    className="w-full p-6 rounded-[32px] bg-[var(--bg-overlay)] border border-[var(--border-subtle)] flex items-center justify-between group-hover:border-[var(--border-strong)] transition-colors"
-                  >
-                    <motion.code className="font-mono text-xs font-bold" style={{ color: 'var(--brand-primary)' }}>
-                      {feature.cli}
-                    </motion.code>
-                    <Terminal size={14} className="opacity-20 group-hover:opacity-40 transition-opacity" />
-                  </motion.div>
-                </motion.div>
-              </motion.div>
+                {/* CLI Snippet */}
+                <div className="p-3 rounded-lg bg-[var(--bg-code)] border border-[var(--border-subtle)] font-mono text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[var(--brand-primary)]">{feature.cli}</span>
+                    <Terminal size={12} className="text-[var(--text-muted)]" />
+                  </div>
+                </div>
+              </div>
             )
           })}
-        </motion.div>
+        </div>
         
-        {/* Call to Action */}
-        <motion.div 
-          className="mt-32 p-16 rounded-[80px] border border-dashed border-[var(--border-strong)] text-center flex flex-col items-center gap-8 relative overflow-hidden bg-[var(--bg-overlay)] w-full"
-          style={{ borderColor: 'var(--border-subtle)' }}
-        >
-          <motion.div 
-            className="absolute inset-0 opacity-[0.03] pointer-events-none"
-            animate={{ rotate: -360 }}
-            transition={{ duration: 180, repeat: Infinity, ease: 'linear' }}
-          >
-             <Share2 size={1000} className="text-[var(--brand-primary)]" />
-          </motion.div>
-          <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Deployment Ready</Badge>
-          <motion.h3 className="text-4xl sm:text-6xl font-display font-black m-0 tracking-tight leading-tight" style={{ color: 'var(--text-primary)' }}>
-            One daemon to <br />
-            <motion.span className="text-[var(--brand-primary)]">rule the swarm.</motion.span>
-          </motion.h3>
-          <motion.p className="text-xl sm:text-2xl max-w-2xl font-sans" style={{ color: 'var(--text-secondary)' }}>
+        {/* Bottom CTA */}
+        <div className="mt-16 p-8 lg:p-12 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-center">
+          <Badge variant="teal" className="mb-4">Deployment Ready</Badge>
+          <h3 className="text-2xl lg:text-3xl font-semibold text-[var(--text-primary)] mb-3">
+            One daemon to <span className="text-[var(--brand-primary)]">rule the swarm</span>
+          </h3>
+          <p className="text-[var(--text-secondary)] max-w-xl mx-auto mb-6">
             Port Daddy is open-source and installs in seconds. Start building your autonomous organization today.
-          </motion.p>
-          <motion.div className="flex flex-wrap justify-center gap-6">
-             <motion.button 
-               className="px-12 py-6 rounded-full bg-[var(--brand-primary)] text-[var(--bg-base)] font-black text-xl shadow-xl transition-all flex items-center gap-3"
-               whileHover={{ scale: 1.05, y: -4 }}
-               whileTap={{ scale: 0.95 }}
-               onClick={() => window.location.href = '/tutorials/getting-started'}
-             >
-               GET STARTED NOW
-               <Zap size={24} />
-             </motion.button>
-          </motion.div>
-        </motion.div>
-      </motion.div>
-    </motion.section>
+          </p>
+          <Link to="/tutorials/getting-started">
+            <Button size="lg" className="gap-2">
+              Get Started Now
+              <ArrowRight size={18} />
+            </Button>
+          </Link>
+        </div>
+      </div>
+    </section>
   )
 }

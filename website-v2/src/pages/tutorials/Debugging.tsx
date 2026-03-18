@@ -10,8 +10,8 @@ export function Debugging() {
     <TutorialLayout
       title="Conflict Detection"
       description="Turn 2am EADDRINUSE nightmares into 5-second diagnoses. Learn to use Port Daddy's registry to find, identify, and resolve infrastructure collisions."
-      number="04"
-      total="16"
+      number={4}
+      total={16}
       level="Intermediate"
       readTime="14 min read"
       prev={{ title: 'Fleet Management', href: '/tutorials/monorepo' }}

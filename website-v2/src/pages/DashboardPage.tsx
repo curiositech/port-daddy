@@ -153,7 +153,7 @@ export function DashboardPage() {
       </motion.section>
 
       {/* Main Grid */}
-      <motion.main className="flex-1 py-16 px-6 sm:px-8 lg:px-10 max-w-7xl mx-auto w-full font-sans">
+      <motion.main id="main-content" className="flex-1 py-16 px-6 sm:px-8 lg:px-10 max-w-7xl mx-auto w-full font-sans">
         <motion.div className="grid lg:grid-cols-12 gap-10 min-h-[800px]">
            
            {/* Left Column: Visual Graph */}

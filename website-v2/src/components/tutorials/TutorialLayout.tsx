@@ -3,14 +3,16 @@ import { motion, useScroll, useSpring } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { TutorialProgress, useTutorialProgress } from './TutorialProgress'
+import { ReorientationPanel } from './ReorientationPanel'
 import { Clock, BookOpen, ChevronRight, Home, Layout, ArrowLeft, ArrowRight, Zap, Shield, Globe, Share2 } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
 
 interface TutorialLayoutProps {
   title: string
   description: string
-  number: string
-  total?: string
+  number: number
+  total?: number
   level: 'Beginner' | 'Intermediate' | 'Advanced'
   readTime: string
   children: React.ReactNode
@@ -34,6 +36,42 @@ export function TutorialLayout({
     damping: 30,
     restDelta: 0.001
   })
+  
+  const { markComplete } = useTutorialProgress()
+  const [showProgress, setShowProgress] = React.useState(false)
+  const [hasReturned, setHasReturned] = React.useState(false)
+  
+  // Track if user is returning to this tutorial
+  React.useEffect(() => {
+    const stored = localStorage.getItem('pd-last-tutorial')
+    const current = number
+    
+    if (stored && parseInt(stored) === current) {
+      const lastVisit = localStorage.getItem('pd-last-visit')
+      if (lastVisit) {
+        const hoursSince = (Date.now() - parseInt(lastVisit)) / (1000 * 60 * 60)
+        if (hoursSince > 0.5) { // Show reorientation if away for >30 min
+          setHasReturned(true)
+        }
+      }
+    }
+    
+    // Save current position
+    localStorage.setItem('pd-last-tutorial', current.toString())
+    localStorage.setItem('pd-last-visit', Date.now().toString())
+    
+    // Mark as complete when reaching bottom
+    const handleScroll = () => {
+      const scrolled = window.scrollY + window.innerHeight
+      const height = document.documentElement.scrollHeight
+      if (scrolled >= height - 200) {
+        markComplete(current)
+      }
+    }
+    
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [number, markComplete])
 
   return (
     <motion.div 
@@ -68,7 +106,16 @@ export function TutorialLayout({
         />
         
         <motion.div className="max-w-4xl mx-auto relative z-10 text-center flex flex-col items-center">
-          <motion.nav className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] mb-14 font-sans" style={{ color: 'var(--text-muted)' }}>
+          {/* Reorientation Panel for returning users */}
+          {hasReturned && (
+            <ReorientationPanel 
+              tutorialNumber={number} 
+              tutorialTitle={title}
+              onDismiss={() => setHasReturned(false)}
+            />
+          )}
+          
+          <motion.nav className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] mb-6 font-sans" style={{ color: 'var(--text-muted)' }}>
             <Link to="/" className="hover:text-[var(--text-primary)] transition-all no-underline flex items-center gap-1.5 font-sans group">
               <Home size={12} className="group-hover:scale-110 transition-transform" />
               Home
@@ -84,6 +131,15 @@ export function TutorialLayout({
               Lesson {number}
             </motion.span>
           </motion.nav>
+          
+          {/* Tutorial Progress Tracker */}
+          <div className="mb-8">
+            <TutorialProgress 
+              currentNumber={number} 
+              isOpen={showProgress}
+              onToggle={() => setShowProgress(!showProgress)}
+            />
+          </div>
 
           <motion.div
             initial={{ opacity: 0, y: 32 }}
@@ -128,7 +184,7 @@ export function TutorialLayout({
       </motion.section>
 
       {/* Main Content Area */}
-      <motion.main className="flex-1 max-w-4xl mx-auto w-full px-6 sm:px-8 lg:px-10 py-24 font-sans relative">
+      <motion.main id="main-content" className="flex-1 max-w-4xl mx-auto w-full px-6 sm:px-8 lg:px-10 py-24 font-sans relative">
         <motion.article 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

@@ -1,6 +1,7 @@
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import * as React from 'react'
 import { cn } from '@/lib/utils'
+import { Copy, Check } from 'lucide-react'
 
 interface CodeBlockProps {
   children: React.ReactNode
@@ -52,10 +53,35 @@ export function CodeBlock({ children, language, filename, className, copyable = 
         {copyable && (
           <button
             onClick={handleCopy}
-            className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors px-2 py-1 rounded hover:bg-[var(--interactive-hover)]"
-            aria-label="Copy code"
+            className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-all px-2 py-1.5 rounded-md hover:bg-[var(--interactive-hover)]"
+            aria-label={copied ? 'Copied to clipboard' : 'Copy code to clipboard'}
+            title={copied ? 'Copied!' : 'Copy code'}
           >
-            {copied ? 'Copied!' : 'Copy'}
+            <AnimatePresence mode="wait">
+              {copied ? (
+                <motion.span
+                  key="check"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  className="flex items-center gap-1.5 text-[var(--brand-primary)]"
+                >
+                  <Check size={14} />
+                  <span>Copied!</span>
+                </motion.span>
+              ) : (
+                <motion.span
+                  key="copy"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  className="flex items-center gap-1.5"
+                >
+                  <Copy size={14} />
+                  <span>Copy</span>
+                </motion.span>
+              )}
+            </AnimatePresence>
           </button>
         )}
       </motion.div>

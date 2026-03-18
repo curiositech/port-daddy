@@ -180,7 +180,7 @@ export function ExamplesPage() {
       </motion.section>
 
       {/* Examples Grid */}
-      <motion.main className="flex-1 py-20 px-6 sm:px-8 lg:px-10 max-w-7xl mx-auto w-full font-sans flex flex-col items-center">
+      <motion.main id="main-content" className="flex-1 py-20 px-6 sm:px-8 lg:px-10 max-w-7xl mx-auto w-full font-sans flex flex-col items-center">
         <div className="grid gap-8 w-full">
           {EXAMPLES.map((ex, i) => (
             <motion.div

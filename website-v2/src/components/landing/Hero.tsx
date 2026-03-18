@@ -1,118 +1,132 @@
-import { motion } from 'framer-motion'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
+import { IntentModal } from '@/components/ui/IntentModal'
 import { useTheme } from '@/lib/theme'
-import { Zap, Shield, History, ArrowRight } from 'lucide-react'
+import { ArrowRight, Shield, Zap, History, Terminal } from 'lucide-react'
 import { MaritimeSignalRow } from '@/components/viz/MaritimeFlags'
 
-const CHANGELOG_ITEMS = [
-  { version: 'v3.7.0', label: 'Harbors', badge: 'new', text: 'Permission namespaces with signed tokens.', color: 'var(--brand-primary)', icon: Shield },
-  { version: 'v3.7.0', label: 'pd spawn', badge: 'new', text: 'Launch AI agents with auto-wiring.', color: 'var(--brand-secondary)', icon: Zap },
-  { version: 'v3.7.0', label: 'Timeline', badge: 'new', text: 'Unified Radio merging infra and agent notes.', color: 'var(--brand-accent)', icon: History },
+const HIGHLIGHTS = [
+  { 
+    icon: Zap, 
+    label: 'Spawn & Coordinate', 
+    text: 'Launch agent swarms that discover and wire themselves. No hardcoded ports. No service mesh.',
+    color: 'var(--brand-accent)'
+  },
+  { 
+    icon: Shield, 
+    label: 'Self-Healing Harbors', 
+    text: 'Agents crash. Work gets salvaged. Cryptographic namespaces keep swarms isolated and recoverable.',
+    color: 'var(--brand-primary)'
+  },
+  { 
+    icon: History, 
+    label: 'MCP-Native', 
+    text: 'Built for the Model Context Protocol. Your LLM can spawn, monitor, and coordinate agents directly.',
+    color: 'var(--text-secondary)'
+  },
 ]
-
-const fadeUp = {
-  initial: { opacity: 0, y: 24 },
-  animate: { opacity: 1, y: 0 },
-}
 
 export function Hero() {
   const { theme } = useTheme()
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   return (
-    <section
-      id="hero"
-      className="relative min-h-[85vh] flex flex-col items-center justify-center py-24 overflow-hidden w-full bg-bg-base"
-    >
-      {/* Background Decor - Extremely subtle to not affect contrast */}
-      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
-        <div 
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[1000px] rounded-full blur-[160px] opacity-[0.03]"
-          style={{ background: 'radial-gradient(circle, var(--brand-primary) 0%, transparent 70%)' }}
-        />
+    <section className="relative min-h-[70vh] flex flex-col items-center justify-center pt-24 pb-16 overflow-hidden">
+      {/* Background Grid Pattern */}
+      <div className="absolute inset-0 grid-pattern opacity-50" />
+      
+      {/* Subtle gradient glow */}
+      <div 
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full opacity-[0.03]"
+        style={{ background: 'radial-gradient(circle, var(--brand-primary) 0%, transparent 70%)' }}
+      />
+
+      <div className="relative z-10 w-full max-w-[1200px] mx-auto px-6 lg:px-8">
+        <div className="flex flex-col items-center text-center gap-8">
+          {/* Maritime Signal */}
+          <div className="opacity-40">
+            <MaritimeSignalRow size={20} />
+          </div>
+          
+          {/* Logo */}
+          <div className="relative w-20 h-20 sm:w-24 sm:h-24 mx-auto">
+            <img
+              src={theme === 'dark' ? '/pd_logo_darkmode.svg' : '/pd_logo.svg'}
+              alt="Port Daddy"
+              className="w-full h-full object-contain"
+            />
+          </div>
+
+          {/* Version Badge */}
+          <div className="flex items-center gap-3">
+            <Badge variant="teal" size="md">v3.7.0 Stable</Badge>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+              <div className="w-2 h-2 rounded-full bg-[var(--success)] animate-pulse" />
+              <span className="text-xs font-medium text-[var(--text-tertiary)]">Swarm Ready</span>
+            </div>
+          </div>
+
+          {/* Headline */}
+          <div className="space-y-4 max-w-4xl">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-tight text-[var(--text-primary)] leading-[1.1]">
+              Infrastructure for{' '}
+              <span className="text-[var(--brand-primary)]">the Agent Economy</span>
+            </h1>
+            <p className="text-lg sm:text-xl text-[var(--text-secondary)] max-w-2xl mx-auto leading-relaxed">
+              Spawn self-healing agent swarms. Coordinate without chaos. The coordination layer AI-native development was missing.
+            </p>
+          </div>
+
+          {/* CTAs - Updated with intent modal */}
+          <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
+            <Button 
+              size="lg" 
+              className="gap-2"
+              onClick={() => setIsModalOpen(true)}
+            >
+              <Terminal size={18} />
+              Start Building Agents
+              <ArrowRight size={18} />
+            </Button>
+            <Link to="/docs">
+              <Button variant="secondary" size="lg">
+                Read the Docs
+              </Button>
+            </Link>
+          </div>
+
+          {/* Install Command */}
+          <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-[var(--bg-code)] border border-[var(--border-subtle)] font-mono text-sm text-[var(--text-secondary)]">
+            <Terminal size={16} className="text-[var(--text-muted)]" />
+            <span>brew install erichowens/port-daddy</span>
+          </div>
+
+          {/* Feature Highlights */}
+          <div className="grid sm:grid-cols-3 gap-4 w-full max-w-3xl mt-8">
+            {HIGHLIGHTS.map((item, i) => (
+              <div
+                key={i}
+                className="group p-5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:shadow-[var(--shadow-md)] transition-all text-left"
+              >
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-3 bg-[var(--bg-overlay)]">
+                  <item.icon size={20} style={{ color: item.color }} />
+                </div>
+                <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-1">
+                  {item.label}
+                </h3>
+                <p className="text-sm text-[var(--text-tertiary)] leading-relaxed">
+                  {item.text}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
-      <motion.div 
-        className="relative z-10 w-full flex flex-col items-center text-center gap-12"
-        initial="initial"
-        animate="animate"
-        transition={{ staggerChildren: 0.1 }}
-      >
-        {/* Signal Row */}
-        <motion.div variants={fadeUp} className="opacity-60 flex justify-center w-full">
-          <MaritimeSignalRow size={24} />
-        </motion.div>
-        
-        {/* Logo */}
-        <motion.div variants={fadeUp} className="relative group flex justify-center w-full">
-           <div 
-             className="absolute inset-0 blur-3xl opacity-10 group-hover:opacity-20 transition-opacity"
-             style={{ background: 'var(--brand-primary)' }}
-           />
-           <img
-            src={theme === 'dark' ? '/pd_logo_darkmode.svg' : '/pd_logo.svg'}
-            alt="Port Daddy"
-            className="relative h-[120px] sm:h-[160px] w-auto drop-shadow-2xl mx-auto"
-          />
-        </motion.div>
-
-        {/* Badge & Text */}
-        <motion.div variants={fadeUp} className="flex flex-col items-center gap-8 text-center px-4 w-full">
-          <div className="flex flex-wrap justify-center gap-3">
-            <Badge variant="teal" className="px-4 py-1.5 text-[10px] font-black uppercase tracking-widest bg-bg-overlay border border-brand-primary text-brand-primary">v3.7.0 STABLE</Badge>
-            <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-bg-overlay border border-border-subtle">
-              <div className="w-2 h-2 rounded-full bg-brand-primary pulse-active" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-text-secondary">Swarm Ready</span>
-            </div>
-          </div>
-
-          <div className="space-y-6 max-w-4xl mx-auto">
-             <h1 className="text-6xl sm:text-8xl font-display font-black tracking-tight leading-[0.95] text-text-primary">
-               Port Authority for <br />
-               <span className="text-brand-primary">AI Swarms.</span>
-             </h1>
-             <p className="text-xl sm:text-2xl font-bold leading-relaxed text-text-secondary max-w-2xl mx-auto">
-               Atomic port assignment, semantic DNS, and cryptographic harbors for multi-agent coordination.
-             </p>
-          </div>
-
-          {/* CTAs */}
-          <div className="flex flex-wrap justify-center gap-6 pt-4 w-full">
-             <Link to="/tutorials/getting-started" className="no-underline">
-               <button className="px-10 py-5 rounded-full bg-brand-primary text-white font-black text-lg shadow-xl hover:scale-105 transition-transform flex items-center gap-2">
-                 LAUNCH SWARM
-                 <ArrowRight size={20} />
-               </button>
-             </Link>
-             <Link to="/docs" className="no-underline">
-               <button className="px-10 py-5 rounded-full bg-bg-surface text-text-primary border-2 border-border-strong font-black text-lg hover:bg-interactive-hover transition-all">
-                 SDK MANUAL
-               </button>
-             </Link>
-          </div>
-        </motion.div>
-
-        {/* Feature Highlights */}
-        <motion.div 
-          variants={fadeUp}
-          className="grid sm:grid-cols-3 gap-8 w-full max-w-5xl mt-12 mx-auto"
-        >
-          {CHANGELOG_ITEMS.map((item, i) => (
-            <div 
-              key={i}
-              className="p-8 rounded-[40px] bg-bg-surface border border-border-subtle flex flex-col items-center text-center group hover:border-brand-primary transition-all shadow-sm"
-            >
-              <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-6 bg-bg-overlay border border-border-subtle group-hover:scale-110 transition-transform mx-auto">
-                <item.icon size={24} style={{ color: item.color }} />
-              </div>
-              <h3 className="text-lg font-black uppercase tracking-widest mb-2 text-text-muted">{item.label}</h3>
-              <p className="text-base text-text-secondary leading-relaxed font-bold">
-                {item.text}
-              </p>
-            </div>
-          ))}
-        </motion.div>
-      </motion.div>
+      {/* Intent Modal */}
+      <IntentModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </section>
   )
 }

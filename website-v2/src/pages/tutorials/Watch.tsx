@@ -9,8 +9,8 @@ export function Watch() {
     <TutorialLayout
       title="Swarm Observation"
       description="Coordination requires constant vigilance. Learn to use pd watch to monitor Swarm Radio channels and execute automated actions the moment a signal fires."
-      number="14"
-      total="16"
+      number={14}
+      total={16}
       level="Intermediate"
       readTime="10 min read"
       prev={{ title: 'Swarm Bootstrapping', href: '/tutorials/spawn' }}

@@ -136,7 +136,7 @@ export default function DocsPage() {
       </motion.section>
 
       {/* Main Content */}
-      <motion.main className="flex-1 py-24 px-6 sm:px-8 lg:px-10 max-w-7xl mx-auto w-full font-sans">
+      <motion.main id="main-content" className="flex-1 py-24 px-6 sm:px-8 lg:px-10 max-w-7xl mx-auto w-full font-sans">
         <motion.div className="space-y-32 flex flex-col items-center">
           {SECTIONS.map((section) => (
             <motion.section 

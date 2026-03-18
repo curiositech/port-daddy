@@ -9,8 +9,8 @@ export function TimeTravel() {
     <TutorialLayout
       title="Time-Travel Debugging"
       description="Scrub through the history of your swarm. Correlate infrastructure events with agent session notes to diagnose complex race conditions and state drifts."
-      number="06"
-      total="16"
+      number={6}
+      total={16}
       level="Intermediate"
       readTime="8 min read"
       prev={{ title: 'P2P Tunnels', href: '/tutorials/tunnel' }}

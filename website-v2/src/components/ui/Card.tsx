@@ -1,67 +1,66 @@
-import { motion, type HTMLMotionProps } from 'framer-motion';
+import * as React from 'react'
 import { cn } from '@/lib/utils'
 
-type CardVariant = 'default' | 'glass' | 'elevated'
-
-interface CardProps extends HTMLMotionProps<'div'> {
-  variant?: CardVariant
+interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
+  variant?: 'default' | 'elevated' | 'outline'
+  hover?: boolean
 }
 
-const variantClasses: Record<CardVariant, string> = {
-  default: [
-    'bg-[var(--card-bg)]',
-    'border border-[var(--card-border)]',
-    'shadow-[var(--card-shadow)]',
-    'rounded-[var(--card-radius)]',
-  ].join(' '),
-  glass: [
-    'bg-[var(--glass-card-bg)]',
-    'border border-[var(--glass-card-border)]',
-    'rounded-[var(--card-radius)]',
-    'backdrop-blur-[var(--glass-card-blur)]',
-  ].join(' '),
-  elevated: [
-    'bg-[var(--bg-elevated)]',
-    'border border-[var(--border-subtle)]',
-    'shadow-[var(--p-shadow-xl)]',
-    'rounded-[var(--card-radius)]',
-  ].join(' '),
-}
+export function Card({
+  variant = 'default',
+  hover = false,
+  className,
+  children,
+  ...props
+}: CardProps) {
+  const variants = {
+    default: 'bg-[var(--bg-surface)] border-[var(--border-subtle)]',
+    elevated: 'bg-[var(--bg-surface)] border-[var(--border-subtle)] shadow-[var(--shadow-md)]',
+    outline: 'bg-transparent border-[var(--border-default)]',
+  }
 
-export function Card({ variant = 'default', className, children, ...props }: CardProps) {
   return (
-    <motion.div
-      className={cn(variantClasses[variant], 'overflow-hidden', className)}
+    <div
+      className={cn(
+        'rounded-xl border',
+        'transition-all duration-200',
+        variants[variant],
+        hover && 'hover:border-[var(--border-default)] hover:shadow-[var(--shadow-md)]',
+        className
+      )}
       {...props}
     >
       {children}
-    </motion.div>
+    </div>
   )
 }
 
-export function CardHeader({ className, children, ...props }: HTMLMotionProps<'div'>) {
+interface CardHeaderProps extends React.HTMLAttributes<HTMLDivElement> {}
+
+export function CardHeader({ className, children, ...props }: CardHeaderProps) {
   return (
-    <motion.div className={cn('px-6 py-4 border-b border-[var(--border-subtle)]', className)} {...props}>
+    <div className={cn('px-6 pt-6 pb-4', className)} {...props}>
       {children}
-    </motion.div>
+    </div>
   )
 }
 
-export function CardContent({ className, children, ...props }: HTMLMotionProps<'div'>) {
+interface CardContentProps extends React.HTMLAttributes<HTMLDivElement> {}
+
+export function CardContent({ className, children, ...props }: CardContentProps) {
   return (
-    <motion.div className={cn('px-6 py-4', className)} {...props}>
+    <div className={cn('px-6 py-4', className)} {...props}>
       {children}
-    </motion.div>
+    </div>
   )
 }
 
-export function CardFooter({ className, children, ...props }: HTMLMotionProps<'div'>) {
+interface CardFooterProps extends React.HTMLAttributes<HTMLDivElement> {}
+
+export function CardFooter({ className, children, ...props }: CardFooterProps) {
   return (
-    <motion.div
-      className={cn('px-6 py-4 border-t border-[var(--border-subtle)]', className)}
-      {...props}
-    >
+    <div className={cn('px-6 pt-4 pb-6', className)} {...props}>
       {children}
-    </motion.div>
+    </div>
   )
 }

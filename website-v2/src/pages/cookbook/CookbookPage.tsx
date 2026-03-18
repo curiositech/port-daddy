@@ -60,7 +60,7 @@ export function CookbookPage() {
       </motion.section>
 
       {/* Grid Section */}
-      <motion.main className="flex-1 max-w-7xl mx-auto px-6 sm:px-8 lg:px-10 py-20 font-sans">
+      <motion.main id="main-content" className="flex-1 max-w-7xl mx-auto px-6 sm:px-8 lg:px-10 py-20 font-sans">
         <motion.div className="grid sm:grid-cols-2 lg:grid-cols-2 gap-12">
           {COOKBOOK_RECIPES.map((recipe, i) => {
             const Icon = ICON_MAP[recipe.icon] || Book

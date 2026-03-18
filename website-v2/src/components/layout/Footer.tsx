@@ -1,158 +1,128 @@
-import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
-import { Github, Twitter, ShieldCheck, Heart, Globe } from 'lucide-react'
+import { Github, Twitter, ShieldCheck, Heart } from 'lucide-react'
 import { useTheme } from '@/lib/theme'
 import { Badge } from '@/components/ui/Badge'
+
+const FOOTER_LINKS = [
+  {
+    title: 'Academy',
+    links: [
+      { label: 'Getting Started', href: '/tutorials/getting-started' },
+      { label: 'Multi-Agent Flow', href: '/tutorials/multi-agent' },
+      { label: 'Harbors & Security', href: '/tutorials/harbors' },
+      { label: 'P2P Tunnels', href: '/tutorials/tunnel' },
+    ]
+  },
+  {
+    title: 'Infrastructure',
+    links: [
+      { label: 'The Daemon', href: '/docs/daemon' },
+      { label: 'Semantic DNS', href: '/docs/dns' },
+      { label: 'Lighthouses', href: '/docs/lighthouses' },
+      { label: 'SDK Reference', href: '/docs/sdk' },
+    ]
+  },
+  {
+    title: 'Ecosystem',
+    links: [
+      { label: 'LangChain', href: '/integrations/langchain' },
+      { label: 'CrewAI', href: '/integrations/crewai' },
+      { label: 'Claude Code', href: '/integrations/claude' },
+      { label: 'Gemini CLI', href: '/integrations/gemini' },
+    ]
+  }
+]
 
 export function Footer() {
   const currentYear = new Date().getFullYear()
   const { theme } = useTheme()
 
-  const footerMotion = {
-    initial: { opacity: 0, y: 20 },
-    whileInView: { opacity: 1, y: 0 },
-    viewport: { once: true },
-    transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] as const }
-  }
-
-  const sections = [
-    {
-      title: 'Academy',
-      links: [
-        { label: 'Getting Started', href: '/tutorials/getting-started' },
-        { label: 'Multi-Agent Flow', href: '/tutorials/multi-agent' },
-        { label: 'Harbors & Security', href: '/tutorials/harbors' },
-        { label: 'P2P Tunnels', href: '/tutorials/tunnel' },
-        { label: 'Time-Travel Debugging', href: '/tutorials/time-travel' }
-      ]
-    },
-    {
-      title: 'Infrastructure',
-      links: [
-        { label: 'The Daemon', href: '/docs/daemon' },
-        { label: 'Semantic DNS', href: '/docs/dns' },
-        { label: 'Lighthouses', href: '/docs/lighthouses' },
-        { label: 'Swarm Radio', href: '/docs/radio' },
-        { label: 'SDK Reference', href: '/docs/sdk' }
-      ]
-    },
-    {
-      title: 'Ecosystem',
-      links: [
-        { label: 'LangChain', href: '/integrations/langchain' },
-        { label: 'CrewAI', href: '/integrations/crewai' },
-        { label: 'Claude Code', href: '/integrations/claude' },
-        { label: 'Gemini CLI', href: '/integrations/gemini' },
-        { label: 'Storybook', href: '/storybook' }
-      ]
-    }
-  ]
-
   return (
-    <motion.footer
-      {...footerMotion}
-      className="py-20 px-6 sm:px-8 lg:px-10 border-t relative overflow-hidden font-sans selection:bg-[var(--brand-primary)] selection:text-white"
-      style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-base)' }}
-    >
-      {/* Decorative background art */}
-      <motion.div 
-        className="absolute bottom-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full blur-[140px] opacity-[0.08] pointer-events-none" 
-        style={{ background: 'radial-gradient(circle, var(--brand-primary) 0%, transparent 70%)' }} 
-      />
-      <motion.div 
-        className="absolute top-[-10%] left-[-5%] w-[300px] h-[300px] rounded-full blur-[100px] opacity-[0.05] pointer-events-none" 
-        style={{ background: 'radial-gradient(circle, var(--p-amber-500) 0%, transparent 70%)' }} 
-      />
-
-      <motion.div className="max-w-7xl mx-auto relative z-10 font-sans">
-        <motion.div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-16 mb-24">
-          
-          {/* Brand Identity */}
-          <motion.div className="col-span-2 lg:col-span-3 space-y-10">
-            <Link to="/" className="inline-flex items-center gap-4 no-underline group">
-              <motion.div 
-                className="w-14 h-14 rounded-2xl bg-[var(--interactive-active)] border border-[var(--border-subtle)] flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform"
-              >
-                <motion.img
+    <footer className="py-16 bg-[var(--bg-base)] border-t border-[var(--border-subtle)]">
+      <div className="max-w-[1200px] mx-auto px-6 lg:px-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 lg:gap-12 mb-12">
+          {/* Brand */}
+          <div className="col-span-2">
+            <Link to="/" className="inline-flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 rounded-lg bg-[var(--brand-primary)] flex items-center justify-center">
+                <img
                   src={theme === 'dark' ? '/pd_logo_darkmode.svg' : '/pd_logo.svg'}
                   alt="Port Daddy"
-                  style={{ height: '32px', width: 'auto' }}
+                  className="h-5 w-auto"
                 />
-              </motion.div>
-              <motion.span 
-                className="font-black text-3xl tracking-tighter font-display" 
-                style={{ color: 'var(--text-primary)' }}
-              >
-                port-daddy.
-              </motion.span>
+              </div>
+              <span className="font-semibold text-lg text-[var(--text-primary)]">
+                Port Daddy
+              </span>
             </Link>
             
-            <motion.div className="space-y-6 max-w-sm">
-               <motion.p className="text-xl leading-relaxed opacity-60 font-medium">
-                 The definitive control plane for high-fidelity multi-agent orchestration.
-               </motion.p>
-               
-               <motion.div className="flex items-center gap-4">
-                  <a href="https://github.com/erichowens/port-daddy" target="_blank" className="w-10 h-10 rounded-full border border-[var(--border-subtle)] bg-[var(--bg-surface)] flex items-center justify-center hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)] transition-all">
-                     <Github size={18} />
-                  </a>
-                  <a href="#" target="_blank" className="w-10 h-10 rounded-full border border-[var(--border-subtle)] bg-[var(--bg-surface)] flex items-center justify-center hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)] transition-all">
-                     <Twitter size={18} />
-                  </a>
-                  <Badge variant="teal" className="px-3 py-1 text-[8px] font-black uppercase tracking-widest">v3.7.0 STABLE</Badge>
-               </motion.div>
-            </motion.div>
-          </motion.div>
+            <p className="text-sm text-[var(--text-tertiary)] max-w-xs mb-4">
+              The definitive control plane for high-fidelity multi-agent orchestration.
+            </p>
+            
+            <div className="flex items-center gap-3">
+              <a 
+                href="https://github.com/erichowens/port-daddy" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="w-8 h-8 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:border-[var(--border-default)] transition-all"
+              >
+                <Github size={16} />
+              </a>
+              <a 
+                href="#" 
+                className="w-8 h-8 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:border-[var(--border-default)] transition-all"
+              >
+                <Twitter size={16} />
+              </a>
+              <Badge variant="teal" size="sm">v3.7.0</Badge>
+            </div>
+          </div>
 
-          {/* Navigation Sections */}
-          {sections.map((section) => (
-            <motion.div key={section.title} className="space-y-8">
-              <motion.h4 className="text-[10px] font-black uppercase tracking-[0.25em] text-[var(--brand-primary)]">
+          {/* Links */}
+          {FOOTER_LINKS.map((section) => (
+            <div key={section.title}>
+              <h4 className="text-xs font-semibold text-[var(--text-primary)] uppercase tracking-wide mb-4">
                 {section.title}
-              </motion.h4>
-              <ul className="space-y-4 list-none p-0 m-0">
+              </h4>
+              <ul className="space-y-3">
                 {section.links.map((link) => (
                   <li key={link.label}>
                     <Link 
-                      to={link.href} 
-                      className="text-base font-medium opacity-50 hover:opacity-100 hover:text-[var(--text-primary)] transition-all no-underline"
+                      to={link.href}
+                      className="text-sm text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors"
                     >
                       {link.label}
                     </Link>
                   </li>
                 ))}
               </ul>
-            </motion.div>
+            </div>
           ))}
-        </motion.div>
+        </div>
 
         {/* Bottom Bar */}
-        <motion.div 
-          className="pt-12 border-t border-[var(--border-subtle)] flex flex-col md:flex-row items-center justify-between gap-8 font-sans opacity-40 hover:opacity-100 transition-opacity duration-500"
-        >
-          <motion.div className="flex flex-col md:flex-row items-center gap-8">
-             <motion.span className="text-sm font-bold tracking-tight">© {currentYear} Port Daddy Project</motion.span>
-             <motion.div className="flex items-center gap-2 text-sm font-medium">
-                <ShieldCheck size={14} className="text-[var(--p-teal-400)]" />
-                <motion.span>Anchor Protocol Verified</motion.span>
-             </motion.div>
-             <motion.div className="flex items-center gap-2 text-sm font-medium">
-                <Globe size={14} className="text-[var(--p-blue-400)]" />
-                <motion.span>Distributed by Homebrew</motion.span>
-             </motion.div>
-          </motion.div>
+        <div className="pt-8 border-t border-[var(--border-subtle)] flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-4 text-xs text-[var(--text-muted)]">
+            <span>© {currentYear} Port Daddy Project</span>
+            <span className="hidden sm:inline">·</span>
+            <div className="flex items-center gap-1.5">
+              <ShieldCheck size={12} className="text-[var(--success)]" />
+              <span>Anchor Protocol Verified</span>
+            </div>
+          </div>
 
-          <motion.div className="flex items-center gap-6">
-             <motion.div className="flex items-center gap-2 text-sm font-bold">
-                <motion.span>Built by Erich Owens</motion.span>
-                <Heart size={14} className="text-[var(--p-red-500)] fill-[var(--p-red-500)] animate-pulse" />
-             </motion.div>
-             <motion.div className="h-4 w-[1px] bg-[var(--border-strong)]" />
-             <a href="#" className="text-sm font-bold hover:text-[var(--brand-primary)] transition-colors no-underline">Terms</a>
-             <a href="#" className="text-sm font-bold hover:text-[var(--brand-primary)] transition-colors no-underline">Privacy</a>
-          </motion.div>
-        </motion.div>
-      </motion.div>
-    </motion.footer>
+          <div className="flex items-center gap-4 text-xs text-[var(--text-muted)]">
+            <span className="flex items-center gap-1.5">
+              Built by Erich Owens
+              <Heart size={12} className="text-red-500 fill-red-500" />
+            </span>
+            <span className="hidden sm:inline">·</span>
+            <Link to="#" className="hover:text-[var(--text-primary)] transition-colors">Terms</Link>
+            <Link to="#" className="hover:text-[var(--text-primary)] transition-colors">Privacy</Link>
+          </div>
+        </div>
+      </div>
+    </footer>
   )
 }

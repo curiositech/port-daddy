@@ -53,7 +53,7 @@ export function IntegrationsPage() {
       </motion.section>
 
       {/* Grid Section */}
-      <motion.main className="flex-1 max-w-7xl mx-auto px-6 sm:px-8 lg:px-10 py-24 font-sans flex flex-col items-center">
+      <motion.main id="main-content" className="flex-1 max-w-7xl mx-auto px-6 sm:px-8 lg:px-10 py-24 font-sans flex flex-col items-center">
         <motion.div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-16 w-full">
           {INTEGRATIONS.map((int, i) => {
             const Icon = CATEGORY_ICONS[int.category] || Puzzle

@@ -9,8 +9,8 @@ export function Tunnel() {
     <TutorialLayout
       title="P2P Tunnels"
       description="Modern agents don't just live on one machine. Learn to link two Port Daddy daemons across the internet to create a secure, shared service mesh for your swarms."
-      number="05"
-      total="16"
+      number={5}
+      total={16}
       level="Advanced"
       readTime="20 min read"
       prev={{ title: 'Always-On Avatars', href: '/tutorials/always-on' }}

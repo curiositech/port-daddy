@@ -9,8 +9,8 @@ export function Pipelines() {
     <TutorialLayout
       title="Reactive Pipelines"
       description="Turn your harbor into an event-driven DAG. Learn to define rules that automatically spawn agents, trigger scripts, or re-route traffic based on swarm signals."
-      number="08"
-      total="16"
+      number={8}
+      total={16}
       level="Advanced"
       readTime="12 min read"
       prev={{ title: 'Time-Travel Debugging', href: '/tutorials/time-travel' }}

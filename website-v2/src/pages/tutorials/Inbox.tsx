@@ -9,8 +9,8 @@ export function Inbox() {
     <TutorialLayout
       title="The Agent Inbox"
       description="Coordination requires communication. Learn to use Port Daddy's internal messaging system to send direct signals, broadcast events, and monitor agent heartbeats in real-time."
-      number="10"
-      total="16"
+      number={10}
+      total={16}
       level="Intermediate"
       readTime="10 min read"
       prev={{ title: 'Identity Discovery', href: '/tutorials/dns' }}

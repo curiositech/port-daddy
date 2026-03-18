@@ -9,8 +9,8 @@ export function Harbors() {
     <TutorialLayout
       title="Cryptographic Harbors"
       description="Modern AI requires more than just ports. Learn to define secure permission namespaces and issue HMAC-signed capability tokens to your swarms."
-      number="03"
-      total="16"
+      number={3}
+      total={16}
       level="Advanced"
       readTime="12 min read"
       prev={{ title: 'Multi-Agent Flow', href: '/tutorials/multi-agent' }}

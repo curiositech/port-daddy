@@ -9,8 +9,8 @@ export function MultiAgentOrchestration() {
     <TutorialLayout
       title="The Swarm Handshake"
       description="Coordination is more than just avoiding conflicts. Learn to use file claims, session notes, and Swarm Radio to build high-fidelity agent teams."
-      number="02"
-      total="16"
+      number={2}
+      total={16}
       level="Intermediate"
       readTime="12 min read"
       prev={{ title: 'The First Handshake', href: '/tutorials/getting-started' }}

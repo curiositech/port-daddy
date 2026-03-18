@@ -82,7 +82,7 @@ export function BlogPostPage() {
       </motion.header>
 
       {/* Main Content */}
-      <motion.main className="flex-1 py-24 px-6 sm:px-8 lg:px-10 font-sans relative">
+      <motion.main id="main-content" className="flex-1 py-24 px-6 sm:px-8 lg:px-10 font-sans relative">
         <div className="max-w-3xl mx-auto w-full">
           <motion.article 
             initial={{ opacity: 0, y: 20 }}

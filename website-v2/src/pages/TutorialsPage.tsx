@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
 import { Link } from 'react-router-dom'
-import { Clock, Play, Zap, Shield, Globe, Sparkles, Anchor, Share2, Layers, Cpu, Search, RefreshCw, Box, Activity as ActivityIcon, History, Network, Mail } from 'lucide-react'
+import { Clock, Play, Zap, Shield, Globe, Sparkles, Anchor, Share2, Layers, Search, Box, History } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
 
 interface Tutorial {
@@ -146,7 +146,7 @@ export function TutorialsPage() {
       </motion.section>
 
       {/* Tutorials Grid */}
-      <motion.main className="flex-1 py-24 px-6 sm:px-8 lg:px-12 max-w-7xl mx-auto w-full font-sans flex flex-col items-center">
+      <motion.main id="main-content" className="flex-1 py-24 px-6 sm:px-8 lg:px-12 max-w-7xl mx-auto w-full font-sans flex flex-col items-center">
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-12 w-full">
           {TUTORIALS.map((tutorial, i) => (
             <motion.div

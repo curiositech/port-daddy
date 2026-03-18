@@ -9,8 +9,8 @@ export function Spawn() {
     <TutorialLayout
       title="Swarm Bootstrapping"
       description="Coordination starts with instrumentation. Learn to use pd spawn to launch agent processes with sessions, heartbeats, and Swarm Radio auto-wired."
-      number="11"
-      total="16"
+      number={11}
+      total={16}
       level="Advanced"
       readTime="15 min read"
       prev={{ title: 'Agent Inbox', href: '/tutorials/inbox' }}

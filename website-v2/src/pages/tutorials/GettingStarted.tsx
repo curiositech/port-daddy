@@ -10,8 +10,8 @@ export function GettingStarted() {
     <TutorialLayout
       title="The First Handshake"
       description="Modern AI doesn't live in a silo. Whether you're using LangChain or CrewAI, Port Daddy is the unified orchestration layer that turns a collection of scripts into a resilient swarm."
-      number="01"
-      total="16"
+      number={1}
+      total={16}
       level="Beginner"
       readTime="5 min read"
       next={{ title: 'Multi-Agent Orchestration', href: '/tutorials/multi-agent' }}

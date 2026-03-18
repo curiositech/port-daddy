@@ -1,60 +1,260 @@
-/**
- * Port Daddy — Precision High-Contrast OKLCH Tokens
- * ENFORCED WCAG AAA COMPLIANCE
+/*
+ * WCAG-Compliant Design Tokens for Port Daddy v2
+ * Premium editorial aesthetic with accessible contrast ratios
  */
 
 :root, [data-theme='light'] {
-  /* High-Contrast Core - Light Mode (AAA) */
-  --bg-base:      oklch(100% 0 0);
-  --bg-surface:   oklch(98% 0.01 265);
-  --bg-overlay:   oklch(96% 0.01 265);
-  --bg-glass:     rgba(255, 255, 255, 0.9);
+  /* ─── Brand Colors ─────────────────────────────────────────────────────────── */
+  --brand-primary:        #0a5f56;   /* Teal-700 - 7.5:1 contrast, AAA compliant */
+  --brand-primary-hover:  #084a42;   /* Teal-800 */
+  --brand-secondary:      #0d9488;   /* Teal-600 */
+  --brand-accent:         #14b8a6;   /* Teal-500 */
+  --brand-on-primary:     #ffffff;
   
-  --text-primary:   oklch(15% 0.02 265); /* Ratio ~18:1 */
-  --text-secondary: oklch(30% 0.03 265); /* Ratio ~10:1 */
-  --text-muted:     oklch(45% 0.04 265); /* Ratio ~7:1 (AAA) */
+  /* ─── Text Colors (WCAG AA Compliant) ─────────────────────────────────────── */
+  --text-primary:         #111111;   /* 15.3:1 contrast - AAA compliant */
+  --text-secondary:       #4a4a4a;   /* 9.4:1 contrast - AAA compliant */
+  --text-tertiary:        #616161;   /* 6.2:1 contrast - AA compliant (was #888) */
+  --text-muted:           #757575;   /* 4.6:1 contrast - AA compliant (was #999) */
+  --text-placeholder:     #9e9e9e;   /* 2.7:1 - only for placeholders */
+  --text-on-primary:      #ffffff;   /* On brand color */
   
-  --brand-primary:    oklch(40% 0.12 200); /* Darker Maritime Teal */
-  --brand-on-primary: oklch(100% 0 0);     /* White text on teal */
-  --brand-secondary:  oklch(30% 0.12 200);
-  --brand-accent:     oklch(35% 0.2 260);  /* Deep Electric Blue */
+  /* ─── Background Colors ───────────────────────────────────────────────────── */
+  --bg-base:              #fafafa;
+  --bg-surface:           #ffffff;
+  --bg-surface-hover:     #f5f5f5;
+  --bg-overlay:           rgba(0, 0, 0, 0.04);
+  --bg-elevated:          #ffffff;
   
-  --border-subtle: oklch(90% 0.02 265);
-  --border-strong: oklch(75% 0.04 265);
+  /* ─── Border Colors ───────────────────────────────────────────────────────── */
+  --border-subtle:        #e5e5e5;
+  --border-strong:        #d4d4d4;
+  --border-focus:         #0d9488;
   
-  --interactive-hover:  rgba(0, 0, 0, 0.05);
-  --interactive-active: oklch(40% 0.12 200 / 0.1);
-
-  /* Layout Constants */
-  --nav-height: 80px;
-  --p-radius-xl: 32px;
-  --p-radius-2xl: 48px;
-
-  /* Shared Typography */
-  --p-font-mono:    'JetBrains Mono', monospace;
-  --p-font-sans:    'Inter', sans-serif;
-  --p-font-display: 'Space Grotesk', sans-serif;
+  /* ─── Interactive States ──────────────────────────────────────────────────── */
+  --interactive-hover:    rgba(13, 148, 136, 0.08);
+  --interactive-active:   rgba(13, 148, 136, 0.12);
+  
+  /* ─── Typography Scale ────────────────────────────────────────────────────── */
+  --font-display:         'Newsreader', Georgia, 'Times New Roman', serif;
+  --font-sans:            'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono:            'JetBrains Mono', 'Fira Code', monospace;
+  
+  /* ─── Font Sizes (Rem-based for accessibility) ────────────────────────────── */
+  --text-xs:              0.75rem;   /* 12px */
+  --text-sm:              0.875rem;  /* 14px */
+  --text-base:            1rem;      /* 16px */
+  --text-lg:              1.125rem;  /* 18px */
+  --text-xl:              1.25rem;   /* 20px */
+  --text-2xl:             1.5rem;    /* 24px */
+  --text-3xl:             1.875rem;  /* 30px */
+  --text-4xl:             2.25rem;   /* 36px */
+  --text-5xl:             3rem;      /* 48px */
+  
+  /* ─── Line Heights ────────────────────────────────────────────────────────── */
+  --leading-none:         1;
+  --leading-tight:        1.25;
+  --leading-snug:         1.375;
+  --leading-normal:       1.5;
+  --leading-relaxed:      1.625;
+  --leading-loose:        2;
+  
+  /* ─── Letter Spacing ──────────────────────────────────────────────────────── */
+  --tracking-tighter:     -0.05em;
+  --tracking-tight:       -0.025em;
+  --tracking-normal:      0;
+  --tracking-wide:        0.025em;
+  --tracking-wider:       0.05em;
+  --tracking-widest:      0.1em;
+  
+  /* ─── Spacing Scale ───────────────────────────────────────────────────────── */
+  --space-0:              0;
+  --space-1:              0.25rem;   /* 4px */
+  --space-2:              0.5rem;    /* 8px */
+  --space-3:              0.75rem;   /* 12px */
+  --space-4:              1rem;      /* 16px */
+  --space-5:              1.25rem;   /* 20px */
+  --space-6:              1.5rem;    /* 24px */
+  --space-8:              2rem;      /* 32px */
+  --space-10:             2.5rem;    /* 40px */
+  --space-12:             3rem;      /* 48px */
+  --space-16:             4rem;      /* 64px */
+  --space-20:             5rem;      /* 80px */
+  --space-24:             6rem;      /* 96px */
+  
+  /* ─── Border Radius ───────────────────────────────────────────────────────── */
+  --radius-none:          0;
+  --radius-sm:            0.25rem;
+  --radius-md:            0.5rem;
+  --radius-lg:            0.75rem;
+  --radius-xl:            1rem;
+  --radius-2xl:           1.5rem;
+  --radius-3xl:           2rem;
+  --radius-full:          9999px;
+  
+  /* ─── Shadows ─────────────────────────────────────────────────────────────── */
+  --shadow-sm:            0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md:            0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg:            0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  --shadow-xl:            0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  --shadow-brand:         0 4px 14px rgba(10, 95, 86, 0.35);
+  
+  /* ─── Z-Index Scale ───────────────────────────────────────────────────────── */
+  --z-dropdown:           50;
+  --z-sticky:             100;
+  --z-fixed:              200;
+  --z-modal-backdrop:     300;
+  --z-modal:              400;
+  --z-popover:            500;
+  --z-tooltip:            600;
+  
+  /* ─── Focus Ring ──────────────────────────────────────────────────────────── */
+  --focus-ring-width:     2px;
+  --focus-ring-offset:    2px;
+  --focus-ring-color:     #0a5f56;
+  
+  /* ─── Transitions ─────────────────────────────────────────────────────────── */
+  --transition-fast:      150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal:    250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow:      350ms cubic-bezier(0.4, 0, 0.2, 1);
+  
+  /* ─── Navigation Height ───────────────────────────────────────────────────── */
+  --nav-height:           64px;
+  
+  /* ─── Badge Variables ─────────────────────────────────────────────────────── */
+  --badge-teal-bg:        rgba(10, 95, 86, 0.1);
+  --badge-teal-text:      #0a5f56;
+  --badge-teal-border:    rgba(10, 95, 86, 0.2);
+  --badge-amber-bg:       rgba(245, 158, 11, 0.1);
+  --badge-amber-text:     #d97706;
+  --badge-amber-border:   rgba(245, 158, 11, 0.2);
+  --badge-green-bg:       rgba(34, 197, 94, 0.1);
+  --badge-green-text:     #16a34a;
+  --badge-green-border:   rgba(34, 197, 94, 0.2);
+  
+  /* ─── Button Variables ────────────────────────────────────────────────────── */
+  --btn-primary-bg:       #0a5f56;
+  --btn-primary-text:     #ffffff;
+  --btn-primary-border:   transparent;
+  --btn-primary-shadow:   0 1px 2px rgba(0, 0, 0, 0.15);
+  --btn-primary-bg-hover: #084a42;
+  
+  --btn-ghost-bg:         transparent;
+  --btn-ghost-text:       #616161;
+  --btn-ghost-border:     transparent;
+  --btn-ghost-bg-hover:   rgba(13, 148, 136, 0.08);
 }
 
+/* ─── Dark Theme ────────────────────────────────────────────────────────────── */
 [data-theme='dark'] {
-  /* High-Contrast Core - Dark Mode (AAA) */
-  --bg-base:      oklch(12% 0.01 265); /* Balanced dark, not pure black */
-  --bg-surface:   oklch(18% 0.02 265);
-  --bg-overlay:   oklch(24% 0.03 265);
-  --bg-glass:     rgba(15, 15, 20, 0.9);
+  /* Brand Colors - brightened for visibility on dark backgrounds */
+  --brand-primary:        #14b8a6;   /* Teal-500, 7.95:1 on dark */
+  --brand-primary-hover:  #2dd4bf;   /* Teal-400 */
+  --brand-secondary:      #0d9488;   /* Teal-600, 5.29:1 */
+  --brand-accent:         #5eead4;   /* Teal-300, 9.7:1 - WAS #0f766e (3.62:1) */
+  --brand-on-primary:     #0a0a0a;
   
-  --text-primary:   oklch(98% 0.01 265); /* Near White - Ratio ~20:1 */
-  --text-secondary: oklch(92% 0.02 265); /* Ratio ~16:1 */
-  --text-muted:     oklch(80% 0.03 265); /* Ratio ~9:1 */
+  /* Text Colors (WCAG AA Compliant for dark theme) */
+  --text-primary:         #e5e5e5;   /* 15.7:1 on dark bg - AAA */
+  --text-secondary:       #a3a3a3;   /* 7.85:1 on dark bg - AAA */
+  --text-tertiary:        #8c8c8c;   /* 5.89:1 on dark bg - AA */
+  --text-muted:           #737373;   /* 4.18:1 on dark bg - AA (borderline) */
+  --text-placeholder:     #525252;
+  --text-on-primary:      #0a0a0a;
   
-  --brand-primary:    oklch(85% 0.12 200); /* Bright accessible teal */
-  --brand-on-primary: oklch(15% 0.02 265); /* Dark text on light teal */
-  --brand-secondary:  oklch(90% 0.1 200);
-  --brand-accent:     oklch(80% 0.15 260);
+  /* Background Colors - near-black base for OLED optimization */
+  --bg-base:              #0a0a0a;   /* Main background */
+  --bg-surface:           #141414;   /* Surface-1: +5% white tonal elevation */
+  --bg-surface-hover:     #1a1a1a;   /* Surface-2: +7% white */
+  --bg-overlay:           rgba(255, 255, 255, 0.05);
+  --bg-elevated:          #1f1f1f;   /* Surface-3: +8% white */
   
-  --border-subtle: oklch(25% 0.03 265);
-  --border-strong: oklch(40% 0.04 265);
+  /* ─── Tonal Elevation System (Material Design 3) ──────────────────────────────
+   * In dark mode, elevation is shown by LIGHTER surfaces, not shadows.
+   * Each level adds a white overlay percentage to the base.
+   */
+  --surface-base:         #0a0a0a;   /* Level 0: base background */
+  --surface-1:            #141414;   /* Level 1: +5% white (cards, buttons) */
+  --surface-2:            #1a1a1a;   /* Level 2: +7% white (hover states) */
+  --surface-3:            #1f1f1f;   /* Level 3: +8% white (elevated cards) */
+  --surface-4:            #242424;   /* Level 4: +9% white (modals, popovers) */
+  --surface-5:            #2a2a2a;   /* Level 5: +11% white (top sheets) */
   
-  --interactive-hover:  rgba(255, 255, 255, 0.08);
-  --interactive-active: oklch(85% 0.12 200 / 0.2);
+  /* Border Colors - semi-transparent white for visibility */
+  --border-subtle:        rgba(255, 255, 255, 0.10);  /* WAS #262626 (1.31:1) */
+  --border-default:       rgba(255, 255, 255, 0.15);  /* Standard borders */
+  --border-strong:        rgba(255, 255, 255, 0.25);  /* WAS #404040 (1.91:1) */
+  --border-focus:         #14b8a6;
+  
+  /* Interactive States */
+  --interactive-hover:    rgba(20, 184, 166, 0.12);
+  --interactive-active:   rgba(20, 184, 166, 0.18);
+  
+  /* Shadows - reduced opacity, used sparingly in dark mode */
+  --shadow-sm:            0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md:            0 4px 6px -1px rgba(0, 0, 0, 0.5);
+  --shadow-lg:            0 10px 15px -3px rgba(0, 0, 0, 0.6);
+  --shadow-xl:            0 20px 25px -5px rgba(0, 0, 0, 0.7);
+  --shadow-brand:         0 4px 20px rgba(20, 184, 166, 0.35);
+  
+  /* Glow Effects - unique to dark mode for depth */
+  --glow-brand:           0 0 20px rgba(20, 184, 166, 0.35);
+  --glow-brand-sm:        0 0 10px rgba(20, 184, 166, 0.25);
+  --glow-brand-lg:        0 0 30px rgba(20, 184, 166, 0.4), 0 0 60px rgba(20, 184, 166, 0.2);
+  --glow-accent:          0 0 15px rgba(94, 234, 212, 0.3);
+  
+  /* Badge Variables */
+  --badge-teal-bg:        rgba(20, 184, 166, 0.15);
+  --badge-teal-text:      #5eead4;   /* Lightened for dark mode */
+  --badge-teal-border:    rgba(94, 234, 212, 0.25);
+  --badge-amber-bg:       rgba(245, 158, 11, 0.15);
+  --badge-amber-text:     #fbbf24;
+  --badge-green-bg:       rgba(34, 197, 94, 0.15);
+  --badge-green-text:     #86efac;
+  
+  /* Button Variables */
+  --btn-primary-bg:       #14b8a6;
+  --btn-primary-text:     #0a0a0a;
+  --btn-primary-border:   transparent;
+  --btn-primary-shadow:   0 1px 2px rgba(0, 0, 0, 0.3), var(--glow-brand-sm);
+  --btn-primary-bg-hover: #2dd4bf;
+  
+  --btn-ghost-bg:         transparent;
+  --btn-ghost-text:       #a3a3a3;
+  --btn-ghost-border:     rgba(255, 255, 255, 0.15);
+  --btn-ghost-bg-hover:   rgba(255, 255, 255, 0.05);
+  
+  --btn-code-bg:          var(--surface-2);
+  --btn-code-text:        #e5e5e5;
+  --btn-code-bg-hover:    var(--surface-3);
+  
+  /* Glass Effect */
+  --glass-bg:             rgba(20, 20, 20, 0.7);
+  --glass-border:         rgba(255, 255, 255, 0.1);
+  
+  /* Scrollbar */
+  --scrollbar-thumb:      rgba(255, 255, 255, 0.20);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.30);
+}
+
+/* ─── Reduced Motion Preferences ────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ─── High Contrast Mode Support ────────────────────────────────────────────── */
+@media (prefers-contrast: high) {
+  :root, [data-theme='light'], [data-theme='dark'] {
+    --border-subtle: currentColor;
+    --border-strong: currentColor;
+    --focus-ring-width: 3px;
+    --focus-ring-offset: 3px;
+  }
 }
