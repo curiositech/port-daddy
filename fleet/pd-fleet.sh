@@ -31,31 +31,64 @@ DOCK_MASTER_PID_FILE="/tmp/pd-dock-master.pid"
 
 case "${1:-help}" in
   up)
+    # Preflight checks
+    if ! curl -s "$PD_URL/health" > /dev/null 2>&1; then
+      echo "${RED}Port Daddy daemon not running. Start it first: pd start${NC}"
+      exit 1
+    fi
+
     if [[ -f "$DOCK_MASTER_PID_FILE" ]] && kill -0 "$(cat "$DOCK_MASTER_PID_FILE")" 2>/dev/null; then
       echo "${YELLOW}Fleet already running (Dock Master PID $(cat "$DOCK_MASTER_PID_FILE"))${NC}"
+      echo "  Status: pd fleet status"
+      echo "  Stop:   pd fleet down"
       exit 0
     fi
+
+    # Check for claude CLI (warn but don't block — some agents don't need it)
+    if ! command -v claude &> /dev/null; then
+      echo "${YELLOW}WARNING: claude CLI not in PATH — AI agents will log errors instead of working${NC}"
+    fi
+
     echo "${CYAN}Starting Port Daddy Fleet...${NC}"
     nohup "$FLEET_DIR/dock-master.sh" > /tmp/pd-fleet.log 2>&1 &
     echo $! > "$DOCK_MASTER_PID_FILE"
-    echo "${GREEN}Fleet started (Dock Master PID $!)${NC}"
-    echo "  Logs: tail -f /tmp/pd-fleet.log"
-    echo "  Stop: pd fleet down"
+    sleep 2
+
+    # Verify it actually started
+    if kill -0 $! 2>/dev/null; then
+      echo "${GREEN}Fleet started (Dock Master PID $!)${NC}"
+      echo "  Logs:   tail -f /tmp/pd-fleet.log"
+      echo "  Status: pd fleet status"
+      echo "  Stop:   pd fleet down"
+    else
+      echo "${RED}Fleet failed to start. Check: tail -20 /tmp/pd-fleet.log${NC}"
+      rm -f "$DOCK_MASTER_PID_FILE"
+      exit 1
+    fi
     ;;
 
   down)
+    local stopped=0
     if [[ -f "$DOCK_MASTER_PID_FILE" ]]; then
       local pid=$(cat "$DOCK_MASTER_PID_FILE")
       if kill -0 "$pid" 2>/dev/null; then
-        kill "$pid"
+        # Kill the process group (Dock Master + all child watchers)
+        kill -- -"$pid" 2>/dev/null || kill "$pid" 2>/dev/null
         wait "$pid" 2>/dev/null
-        echo "${GREEN}Fleet stopped (was PID $pid)${NC}"
-      else
-        echo "${DIM}Dock Master was not running${NC}"
+        stopped=1
       fi
       rm -f "$DOCK_MASTER_PID_FILE"
+    fi
+
+    # Also kill any stray fleet processes
+    pkill -f "fleet/spark.sh" 2>/dev/null && stopped=1
+    pkill -f "fleet/dock-master.sh" 2>/dev/null && stopped=1
+    pkill -f "fleet/.*\.sh --loop" 2>/dev/null && stopped=1
+
+    if [[ $stopped -gt 0 ]]; then
+      echo "${GREEN}Fleet stopped${NC}"
     else
-      echo "${DIM}No fleet running${NC}"
+      echo "${DIM}No fleet was running${NC}"
     fi
     ;;
 

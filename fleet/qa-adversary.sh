@@ -33,6 +33,9 @@ adversary_run() {
   fi
 
   fleet_log "$AGENT_NAME" "Adversarial review of $sha: $msg"
+  pd_note "QA Adversary reviewing $sha: $msg ($changed)" "progress"
+
+  fleet_check_claude "$AGENT_NAME" || return 0
 
   # Build the prompt with the actual diff
   local diff=$(git show HEAD --stat -- lib/ routes/ server.ts mcp/ 2>/dev/null | head -200)

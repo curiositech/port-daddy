@@ -76,6 +76,9 @@ documentarian_run() {
     esac
   done
 
+  pd_note "Documentarian reviewing docs after $sha: $msg" "progress"
+  fleet_check_claude "$AGENT_NAME" || return 0
+
   # Build the prompt — give the Documentarian full context
   local routes_list=$(ls routes/*.ts 2>/dev/null | tr '\n' ', ')
   local lib_list=$(ls lib/*.ts 2>/dev/null | tr '\n' ', ')

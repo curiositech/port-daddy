@@ -30,6 +30,8 @@ simplifier_run() {
   fi
 
   fleet_log "$AGENT_NAME" "Analyzing complexity in $sha"
+  pd_note "Simplifier reviewing $sha" "progress"
+  fleet_check_claude "$AGENT_NAME" || return 0
 
   local prompt="You are a code simplifier for Port Daddy. Review these recently changed files and look for opportunities to simplify WITHOUT changing behavior.
 

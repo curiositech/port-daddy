@@ -31,8 +31,11 @@ hunter_run() {
 
   if [[ ! -f "$coverage_file" ]]; then
     fleet_warn "$AGENT_NAME" "Coverage report not generated — tests may have failed"
+    pd_note "Test Gap Hunter: coverage report not generated" "warning"
     return 1
   fi
+
+  fleet_check_claude "$AGENT_NAME" || return 0
 
   # Parse coverage and find gaps
   local gaps=$(python3 -c "
