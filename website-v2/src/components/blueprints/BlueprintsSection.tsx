@@ -28,8 +28,8 @@ export function BlueprintsSection() {
               Do not start from zero. Use these high-fidelity blueprints to launch complex, self-healing coordination patterns in seconds.
             </p>
           </div>
-          
-          <Link to="/blueprints">
+
+          <Link to="/templates">
             <Button variant="secondary" className="gap-2">
               View Library
               <ArrowRight size={16} />
@@ -44,7 +44,7 @@ export function BlueprintsSection() {
             return (
               <Link
                 key={blueprint.id}
-                to={`/blueprints/${blueprint.id}`}
+                to={`/templates/${blueprint.id}`}
                 className="group block p-6 rounded-xl bg-[var(--bg-base)] border border-[var(--border-subtle)] hover:border-[var(--brand-primary)] hover:shadow-[var(--shadow-md)] transition-all"
               >
                 <div className="flex items-start justify-between mb-4">
@@ -53,7 +53,7 @@ export function BlueprintsSection() {
                   </div>
                   <div className="flex flex-wrap gap-2 justify-end">
                     {blueprint.tags.slice(0, 3).map(tag => (
-                      <Badge key={tag} variant="neutral" size="sm">{tag}</Badge>
+                      <Badge key={tag} variant="neutral">{tag}</Badge>
                     ))}
                   </div>
                 </div>

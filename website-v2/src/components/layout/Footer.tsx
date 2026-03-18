@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Github, Twitter, ShieldCheck, Heart } from 'lucide-react'
+import { Github, MessageSquare, ShieldCheck, Heart } from 'lucide-react'
 import { useTheme } from '@/lib/theme'
 import { Badge } from '@/components/ui/Badge'
 
@@ -11,24 +11,27 @@ const FOOTER_LINKS = [
       { label: 'Multi-Agent Flow', href: '/tutorials/multi-agent' },
       { label: 'Harbors & Security', href: '/tutorials/harbors' },
       { label: 'P2P Tunnels', href: '/tutorials/tunnel' },
+      { label: 'Time-Travel Debugging', href: '/tutorials/time-travel' }
     ]
   },
   {
     title: 'Infrastructure',
     links: [
-      { label: 'The Daemon', href: '/docs/daemon' },
-      { label: 'Semantic DNS', href: '/docs/dns' },
-      { label: 'Lighthouses', href: '/docs/lighthouses' },
-      { label: 'SDK Reference', href: '/docs/sdk' },
+      { label: 'The Daemon', href: '/tutorials/always-on' },
+      { label: 'Semantic DNS', href: '/tutorials/dns' },
+      { label: 'Session Phases', href: '/tutorials/session-phases' },
+      { label: 'P2P Tunnels', href: '/tutorials/tunnel' },
+      { label: 'SDK Reference', href: '/docs' }
     ]
   },
   {
     title: 'Ecosystem',
     links: [
-      { label: 'LangChain', href: '/integrations/langchain' },
+      { label: 'LangGraph', href: '/integrations/langgraph' },
       { label: 'CrewAI', href: '/integrations/crewai' },
-      { label: 'Claude Code', href: '/integrations/claude' },
-      { label: 'Gemini CLI', href: '/integrations/gemini' },
+      { label: 'Claude Code', href: '/integrations/claude-skill' },
+      { label: 'Gemini CLI', href: '/integrations/gemini-cli' },
+      { label: 'All Integrations', href: '/integrations' }
     ]
   }
 ]
@@ -55,27 +58,29 @@ export function Footer() {
                 Port Daddy
               </span>
             </Link>
-            
+
             <p className="text-sm text-[var(--text-tertiary)] max-w-xs mb-4">
               The definitive control plane for high-fidelity multi-agent orchestration.
             </p>
-            
+
             <div className="flex items-center gap-3">
-              <a 
-                href="https://github.com/erichowens/port-daddy" 
-                target="_blank" 
+              <a
+                href="https://github.com/erichowens/port-daddy"
+                target="_blank"
                 rel="noopener noreferrer"
                 className="w-8 h-8 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:border-[var(--border-default)] transition-all"
               >
                 <Github size={16} />
               </a>
-              <a 
-                href="#" 
+              <a
+                href="https://github.com/erichowens/port-daddy/discussions"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="w-8 h-8 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:border-[var(--border-default)] transition-all"
               >
-                <Twitter size={16} />
+                <MessageSquare size={16} />
               </a>
-              <Badge variant="teal" size="sm">v3.7.0</Badge>
+              <Badge variant="teal">v3.7.0</Badge>
             </div>
           </div>
 
@@ -88,7 +93,7 @@ export function Footer() {
               <ul className="space-y-3">
                 {section.links.map((link) => (
                   <li key={link.label}>
-                    <Link 
+                    <Link
                       to={link.href}
                       className="text-sm text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors"
                     >
@@ -104,8 +109,8 @@ export function Footer() {
         {/* Bottom Bar */}
         <div className="pt-8 border-t border-[var(--border-subtle)] flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4 text-xs text-[var(--text-muted)]">
-            <span>© {currentYear} Port Daddy Project</span>
-            <span className="hidden sm:inline">·</span>
+            <span>&copy; {currentYear} Port Daddy Project</span>
+            <span className="hidden sm:inline">&middot;</span>
             <div className="flex items-center gap-1.5">
               <ShieldCheck size={12} className="text-[var(--success)]" />
               <span>Anchor Protocol Verified</span>
@@ -117,9 +122,8 @@ export function Footer() {
               Built by Erich Owens
               <Heart size={12} className="text-red-500 fill-red-500" />
             </span>
-            <span className="hidden sm:inline">·</span>
-            <Link to="#" className="hover:text-[var(--text-primary)] transition-colors">Terms</Link>
-            <Link to="#" className="hover:text-[var(--text-primary)] transition-colors">Privacy</Link>
+            <span className="hidden sm:inline">&middot;</span>
+            <span>MIT License</span>
           </div>
         </div>
       </div>
