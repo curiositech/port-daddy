@@ -17,7 +17,7 @@ export function TemplatePage() {
     restDelta: 0.001
   })
 
-  if (!bp) return <Navigate to="/#blueprints" replace />;
+  if (!bp) return <Navigate to="/templates" replace />;
 
   return (
     <motion.div 
@@ -41,7 +41,7 @@ export function TemplatePage() {
         />
         
         <motion.div className="max-w-4xl mx-auto relative z-10 flex flex-col items-center text-center gap-10">
-           <Link to="/#blueprints" className="no-underline group">
+           <Link to="/templates" className="no-underline group">
               <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] opacity-40 group-hover:opacity-100 group-hover:text-[var(--brand-primary)] transition-all">
                  <ChevronLeft size={14} className="group-hover:-translate-x-1 transition-transform" />
                  Back to Blueprints

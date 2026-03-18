@@ -66,7 +66,7 @@ export function BlueprintsSection() {
             viewport={{ once: true }}
             transition={{ duration: 0.6, delay: 0.2 }}
           >
-            <Link to="/blueprints" className="no-underline">
+            <Link to="/templates" className="no-underline">
               <motion.button 
                 className="group flex items-center gap-3 px-8 py-4 rounded-2xl border border-[var(--border-strong)] bg-[var(--bg-surface)] hover:bg-[var(--interactive-hover)] transition-all font-black text-[10px] uppercase tracking-widest"
                 whileHover={{ y: -4 }}
@@ -90,7 +90,7 @@ export function BlueprintsSection() {
                 transition={{ duration: 0.7, delay: i * 0.1, ease: [0.16, 1, 0.3, 1] }}
                 className="group"
               >
-                <Link to={`/blueprints/${blueprint.id}`} className="no-underline block h-full">
+                <Link to={`/templates/${blueprint.id}`} className="no-underline block h-full">
                   <motion.div 
                     className="h-full p-12 rounded-[56px] border transition-all duration-[var(--p-transition-spring)] flex flex-col items-start gap-10"
                     style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-surface)' }}

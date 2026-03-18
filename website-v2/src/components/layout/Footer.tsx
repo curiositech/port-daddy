@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
-import { Github, Twitter, ShieldCheck, Heart, Globe } from 'lucide-react'
+import { Github, MessageSquare, ShieldCheck, Heart, Globe } from 'lucide-react'
 import { useTheme } from '@/lib/theme'
 import { Badge } from '@/components/ui/Badge'
 
@@ -29,21 +29,21 @@ export function Footer() {
     {
       title: 'Infrastructure',
       links: [
-        { label: 'The Daemon', href: '/docs/daemon' },
-        { label: 'Semantic DNS', href: '/docs/dns' },
-        { label: 'Lighthouses', href: '/docs/lighthouses' },
-        { label: 'Swarm Radio', href: '/docs/radio' },
-        { label: 'SDK Reference', href: '/docs/sdk' }
+        { label: 'The Daemon', href: '/tutorials/always-on' },
+        { label: 'Semantic DNS', href: '/tutorials/dns' },
+        { label: 'Session Phases', href: '/tutorials/session-phases' },
+        { label: 'P2P Tunnels', href: '/tutorials/tunnel' },
+        { label: 'SDK Reference', href: '/docs' }
       ]
     },
     {
       title: 'Ecosystem',
       links: [
-        { label: 'LangChain', href: '/integrations/langchain' },
+        { label: 'LangGraph', href: '/integrations/langgraph' },
         { label: 'CrewAI', href: '/integrations/crewai' },
-        { label: 'Claude Code', href: '/integrations/claude' },
-        { label: 'Gemini CLI', href: '/integrations/gemini' },
-        { label: 'Storybook', href: '/storybook' }
+        { label: 'Claude Code', href: '/integrations/claude-skill' },
+        { label: 'Gemini CLI', href: '/integrations/gemini-cli' },
+        { label: 'All Integrations', href: '/integrations' }
       ]
     }
   ]
@@ -96,8 +96,8 @@ export function Footer() {
                   <a href="https://github.com/erichowens/port-daddy" target="_blank" className="w-10 h-10 rounded-full border border-[var(--border-subtle)] bg-[var(--bg-surface)] flex items-center justify-center hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)] transition-all">
                      <Github size={18} />
                   </a>
-                  <a href="#" target="_blank" className="w-10 h-10 rounded-full border border-[var(--border-subtle)] bg-[var(--bg-surface)] flex items-center justify-center hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)] transition-all">
-                     <Twitter size={18} />
+                  <a href="https://github.com/erichowens/port-daddy/discussions" target="_blank" className="w-10 h-10 rounded-full border border-[var(--border-subtle)] bg-[var(--bg-surface)] flex items-center justify-center hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)] transition-all">
+                     <MessageSquare size={18} />
                   </a>
                   <Badge variant="teal" className="px-3 py-1 text-[8px] font-black uppercase tracking-widest">v3.7.0 STABLE</Badge>
                </motion.div>
@@ -148,8 +148,7 @@ export function Footer() {
                 <Heart size={14} className="text-[var(--p-red-500)] fill-[var(--p-red-500)] animate-pulse" />
              </motion.div>
              <motion.div className="h-4 w-[1px] bg-[var(--border-strong)]" />
-             <a href="#" className="text-sm font-bold hover:text-[var(--brand-primary)] transition-colors no-underline">Terms</a>
-             <a href="#" className="text-sm font-bold hover:text-[var(--brand-primary)] transition-colors no-underline">Privacy</a>
+             <motion.span className="text-sm font-bold" style={{ color: 'var(--text-muted)' }}>MIT License</motion.span>
           </motion.div>
         </motion.div>
       </motion.div>
