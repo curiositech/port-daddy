@@ -9,8 +9,8 @@ export function TimeTravel() {
     <TutorialLayout
       title="Time-Travel Debugging"
       description="When multiple agents work on the same project, the hardest question is always 'what happened first?' Learn to use Port Daddy's immutable activity log to reconstruct exactly what happened, in what order, and why."
-      number="06"
-      total="16"
+      number={6}
+      total={16}
       level="Intermediate"
       readTime="8 min read"
       prev={{ title: 'P2P Tunnels', href: '/tutorials/tunnel' }}
