@@ -821,7 +821,7 @@ const ALL_COMMANDS: string[] = [
   'services', 'dns', 'briefing', 'integration',
   'b', 'w', 'who-owns', 'history', 'tutorial', 'files',
   'spawn', 'spawned', 'watch',
-  'harbor', 'harbors', 'demo',
+  'harbor', 'harbors', 'demo', 'fleet',
 ];
 
 /** Simple Levenshtein distance for short strings */
@@ -2030,6 +2030,15 @@ async function main(): Promise<void> {
       case 'who-owns':
         await handleWhoOwns(positional[0], options);
         break;
+
+      // Fleet — background agent management
+      case 'fleet': {
+        const fleetScript = join(dirname(fileURLToPath(import.meta.url)), '..', 'fleet', 'pd-fleet.sh');
+        const fleetArgs = [fleetScript, ...positional];
+        const { spawnSync: fleetSpawn } = await import('node:child_process');
+        const fleetResult = fleetSpawn('zsh', fleetArgs, { stdio: 'inherit', env: process.env });
+        process.exit(fleetResult.status ?? 1);
+      }
 
       default: {
         // Check for misspelled commands first

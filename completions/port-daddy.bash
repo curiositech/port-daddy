@@ -115,8 +115,8 @@ _port_daddy() {
     dashboard channels webhook webhooks metrics config health ports
     # Orchestration
     up down
-    # Benchmarking & Demos
-    bench demo
+    # Benchmarking, Demos & Fleet
+    bench demo fleet
     # Project (+ alias)
     scan s projects p doctor diagnose hints
     # Daemon lifecycle

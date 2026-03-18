@@ -93,6 +93,7 @@ pd up     # Starts all services in dependency order with color-coded logs
 ### 🚁 Swarm Coordination
 - **pd begin / pd done**: Track **session_phases** (planning, in_progress, etc.).
 - **pd demo**: Interactive multi-agent coordination **demo**.
+- **pd fleet**: Background agent **fleet** management — gardener, QA adversary, documentarian, research scout, simplifier.
 - **pd status / pd version**: View system **info** and metrics.
 
 ### Session Lifecycle

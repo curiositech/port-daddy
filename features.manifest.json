@@ -956,6 +956,21 @@
         "readme": true,
         "sdk": false
       }
+    },
+    "fleet": {
+      "description": "Background agent fleet management (gardener, QA, docs, research, simplifier)",
+      "cli": [
+        "fleet"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "fleet"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
     }
   }
 }

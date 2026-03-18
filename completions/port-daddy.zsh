@@ -655,6 +655,34 @@ _pd_cmd_demo() {
   esac
 }
 
+_pd_cmd_fleet() {
+  local -a fleet_subcmds
+  fleet_subcmds=(
+    'up:start Dock Master and all fleet watchers'
+    'down:stop all fleet agents'
+    'status:show fleet health and recent events'
+    'log:show fleet log'
+    'gardener:auto-commit uncommitted changes'
+    'qa:adversarial review of latest commit'
+    'hunt:find and fill test coverage gaps'
+    'docs:sync documentation to match code'
+    'simplify:propose simplifications for latest commit'
+    'research:deep research on a topic'
+  )
+
+  local state
+  _arguments -C \
+    '(-h --help)'{-h,--help}'[show help]' \
+    '1:subcommand:->subcommand' \
+    && return
+
+  case "$state" in
+    subcommand)
+      _describe 'fleet subcommand' fleet_subcmds
+      ;;
+  esac
+}
+
 _pd_cmd_doctor() {
   _arguments \
     '(-j --json)'{-j,--json}'[JSON output]' \
@@ -1271,9 +1299,10 @@ _port_daddy() {
     # Orchestration
     'up:start all services (auto-detect or from .portdaddyrc)'
     'down:stop all services started by up'
-    # Benchmarking & Demos
+    # Benchmarking, Demos & Fleet
     'bench:run performance benchmarks'
     'demo:interactive demos of Port Daddy features'
+    'fleet:manage background agent fleet (gardener, QA, docs, research)'
     # Project (+ aliases)
     'scan:deep-scan project for frameworks and register with daemon'
     's:deep-scan project (alias for scan)'
@@ -1347,6 +1376,7 @@ _port_daddy() {
         down)               _pd_cmd_down ;;
         bench)              _pd_cmd_bench ;;
         demo)               _pd_cmd_demo ;;
+        fleet)              _pd_cmd_fleet ;;
         s|scan)             _pd_cmd_scan ;;
         p|projects)         _pd_cmd_projects ;;
         doctor|diagnose)    _pd_cmd_doctor ;;
