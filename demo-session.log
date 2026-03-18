@@ -1,0 +1,717 @@
+═══════════════════════════════════════════════════════════════
+  PORT DADDY MULTI-AGENT COORDINATION DEMO
+  2026-03-18 03:53:35 UTC
+═══════════════════════════════════════════════════════════════
+
+=== PHASE 1: Create harbor for the cafe project ===
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts harbor create cafe-demo --description 'Cafe menu API project'
+└─────────────────────────────────────────────────────
+
+  Harbor created: cafe-demo
+
+  Next: pd harbor enter cafe-demo
+
+
+
+=== PHASE 2: Enter harbor and claim ports ===
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts harbor enter cafe-demo
+└─────────────────────────────────────────────────────
+No agent ID. Use --agent <id> or run pd begin first.
+
+--- Claim ports for our services ---
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts claim cafe:api:main --port 3100
+└─────────────────────────────────────────────────────
+3100
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts claim cafe:frontend:main --port 3101
+└─────────────────────────────────────────────────────
+3101
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts find 'cafe:*'
+└─────────────────────────────────────────────────────
+
+ID                                 PORT    STATUS      URL
+───────────────────────────────────────────────────────────────────────────
+cafe:api:main                      3100    assigned    http://localhost:3100
+cafe:frontend:main                 3101    assigned    http://localhost:3101
+
+Total: 2 service(s)
+
+
+=== PHASE 3: Register 3 agents with identities ===
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts agent register --agent architect-1 --identity cafe:api --purpose 'Adding order endpoint and data model'
+└─────────────────────────────────────────────────────
+Registered agent: architect-1
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts agent register --agent stylist-2 --identity cafe:frontend --purpose 'Redesigning the menu UI with dark mode'
+└─────────────────────────────────────────────────────
+Registered agent: stylist-2
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts agent register --agent tester-3 --identity cafe:api --purpose 'Writing integration tests for all endpoints'
+└─────────────────────────────────────────────────────
+Registered agent: tester-3
+
+--- List all agents ---
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts agents
+└─────────────────────────────────────────────────────
+
+ID                       TYPE      PID       ACTIVE    LAST HEARTBEAT
+───────────────────────────────────────────────────────────────────────────
+tester-3                 cli       3991      yes       2026-03-18 03:54:04
+stylist-2                cli       3954      yes       2026-03-18 03:54:03
+architect-1              cli       3917      yes       2026-03-18 03:54:03
+
+Total: 3 agent(s)
+
+
+=== PHASE 4: Start sessions and claim files ===
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts session start 'Adding POST /order endpoint' --agent architect-1 --files server.js
+└─────────────────────────────────────────────────────
+|
+*  Started session: session-913a7d39-e9f3-48a4-80f8-c585ae41edb3
+  Purpose: Adding POST /order endpoint
+  Files claimed: 1
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts session start 'Dark mode redesign' --agent stylist-2 --files public/index.html,server.js
+└─────────────────────────────────────────────────────
+|
+*  Started session: session-d012a487-f8d3-42e5-bcff-92eef666c1b7
+  Purpose: Dark mode redesign
+  Files claimed: 1
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts session start 'Integration test suite' --agent tester-3 --files server.js
+└─────────────────────────────────────────────────────
+|
+x  File conflicts detected
+
+File conflicts:
+  undefined (claimed by session-913a7d39-e9f3-48a4-80f8-c585ae41edb3: Adding POST /order endpoint)
+
+--- Active sessions ---
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts sessions
+└─────────────────────────────────────────────────────
+Showing sessions for worktree 2af8a878 (use --all-worktrees for all)
+
+ID              PURPOSE                    STATUS    FILES  NOTES  AGE
+───────────────────────────────────────────────────────────────────────────
+session-d012a487-f8d3-42e5-bcff-92eef666c1b7Dark mode redesign         active        0      0  1s
+session-913a7d39-e9f3-48a4-80f8-c585ae41edb3Adding POST /order endp... active        0      0  2s
+
+
+=== PHASE 5: Agents working — notes, locks, messages ===
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts note 'Defined Order schema: { id, items[], total, status }' --agent architect-1 --type progress
+└─────────────────────────────────────────────────────
+|
+*  Note added to session session-d012a487-f8d3-42e5-bcff-92eef666c1b7
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts note 'POST /order endpoint created, validates item IDs against menu' --agent architect-1 --type progress
+└─────────────────────────────────────────────────────
+|
+*  Note added to session session-d012a487-f8d3-42e5-bcff-92eef666c1b7
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts note 'Added CSS custom properties for dark/light theme toggle' --agent stylist-2 --type progress
+└─────────────────────────────────────────────────────
+|
+*  Note added to session session-d012a487-f8d3-42e5-bcff-92eef666c1b7
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts note 'DECISION: Using prefers-color-scheme media query, no JS toggle needed' --agent stylist-2 --type decision
+└─────────────────────────────────────────────────────
+|
+*  Note added to session session-d012a487-f8d3-42e5-bcff-92eef666c1b7
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts lock db-migrations --owner architect-1 --ttl 30000
+└─────────────────────────────────────────────────────
+|
+*  Acquired lock: db-migrations
+  TTL: 30s
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts note 'Waiting for db-migrations lock before running test seed' --agent tester-3 --type blocker
+└─────────────────────────────────────────────────────
+|
+*  Note added to session session-d012a487-f8d3-42e5-bcff-92eef666c1b7
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts pub cafe:api:ready 'POST /order endpoint is live on port 3100' --sender architect-1
+└─────────────────────────────────────────────────────
+|
+*  Published to cafe:api:ready (id: 4)
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts unlock db-migrations
+└─────────────────────────────────────────────────────
+|
+*  Released lock: db-migrations
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts note 'Orders table migration complete, lock released' --agent architect-1 --type progress
+└─────────────────────────────────────────────────────
+|
+*  Note added to session session-d012a487-f8d3-42e5-bcff-92eef666c1b7
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts lock db-migrations --owner tester-3 --ttl 15000
+└─────────────────────────────────────────────────────
+|
+*  Acquired lock: db-migrations
+  TTL: 15s
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts note 'Seeding test data: 5 test orders with known IDs' --agent tester-3 --type progress
+└─────────────────────────────────────────────────────
+|
+*  Note added to session session-d012a487-f8d3-42e5-bcff-92eef666c1b7
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts unlock db-migrations
+└─────────────────────────────────────────────────────
+|
+*  Released lock: db-migrations
+
+--- All notes so far ---
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts notes --limit 20
+└─────────────────────────────────────────────────────
+
+--- session-d012a487-f8d3-42e5-bcff-92eef666c1b7: Dark mode redesign ---
+  [1s] [progress] Seeding test data: 5 test orders with known IDs
+  [3s] [progress] Orders table migration complete, lock released
+  [5s] [blocker] Waiting for db-migrations lock before running test seed
+  [7s] [decision] DECISION: Using prefers-color-scheme media query, no JS toggle needed
+  [8s] [progress] Added CSS custom properties for dark/light theme toggle
+  [9s] [progress] POST /order endpoint created, validates item IDs against menu
+  [10s] [progress] Defined Order schema: { id, items[], total, status }
+
+
+=== PHASE 6: Simulate agent death + salvage ===
+
+┌─────────────────────────────────────────────────────
+│ $ sqlite3 /home/user/port-daddy/port-registry.db "UPDATE agents SET lastHeartbeat = datetime('now', '-30 minutes') WHERE id = 'stylist-2'"
+└─────────────────────────────────────────────────────
+environment: line 36: sqlite3: command not found
+
+┌─────────────────────────────────────────────────────
+│ $ curl -s -X POST http://localhost:9876/salvage/reap | python3 -m json.tool
+└─────────────────────────────────────────────────────
+{
+    "success": true,
+    "agents": [],
+    "count": 0,
+    "filtered": false
+}
+
+--- tester-3 registers again and sees the salvage hint ---
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts agent register --agent tester-3 --identity cafe:api --purpose 'Continuing test suite after stylist-2 died'
+└─────────────────────────────────────────────────────
+Updated agent: tester-3
+
+--- Check salvage queue ---
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts salvage
+└─────────────────────────────────────────────────────
+|
+•  No agents awaiting salvage in any project
+
+--- Claim stylist-2's work ---
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts salvage claim stylist-2
+└─────────────────────────────────────────────────────
+|
+x  Agent not in resurrection queue
+
+
+--- Backdating stylist-2 heartbeat via Node ---
+┌─────────────────────────────────────────────────────
+│ $ node -e "
+const Database = require('better-sqlite3');
+const db = new Database('/home/user/port-daddy/port-registry.db');
+db.prepare(\"UPDATE agents SET lastHeartbeat = datetime('now', '-30 minutes') WHERE id = 'stylist-2'\").run();
+const row = db.prepare(\"SELECT id, lastHeartbeat FROM agents WHERE id = 'stylist-2'\").get();
+console.log('Updated:', JSON.stringify(row));
+db.close();
+"
+└─────────────────────────────────────────────────────
+/home/user/port-daddy/node_modules/better-sqlite3/lib/methods/wrappers.js:5
+	return this[cppdb].prepare(sql, this, false);
+	                   ^
+
+SqliteError: no such column: lastHeartbeat
+    at Database.prepare (/home/user/port-daddy/node_modules/better-sqlite3/lib/methods/wrappers.js:5:21)
+    at [eval]:4:4
+    at runScriptInThisContext (node:internal/vm:209:10)
+    at node:internal/process/execution:446:12
+    at [eval]-wrapper:6:24
+    at runScriptInContext (node:internal/process/execution:444:60)
+    at evalFunction (node:internal/process/execution:279:30)
+    at evalTypeScript (node:internal/process/execution:291:3)
+    at node:internal/main/eval_string:74:3 {
+  code: 'SQLITE_ERROR'
+}
+
+Node.js v22.22.0
+
+┌─────────────────────────────────────────────────────
+│ $ curl -s -X POST http://localhost:9876/salvage/reap | python3 -m json.tool
+└─────────────────────────────────────────────────────
+{
+    "success": true,
+    "agents": [],
+    "count": 0,
+    "filtered": false
+}
+
+--- Salvage queue after reap ---
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts salvage --all
+└─────────────────────────────────────────────────────
+|
+!  Showing ALL agents globally. Use --project to filter.
+
+|
+•  No agents awaiting salvage in any project
+
+┌─────────────────────────────────────────────────────
+│ $ node -e "
+const Database = require('better-sqlite3');
+const db = new Database('/home/user/port-daddy/port-registry.db');
+db.prepare(\"UPDATE agents SET last_heartbeat = datetime('now', '-30 minutes') WHERE id = 'stylist-2'\").run();
+const row = db.prepare(\"SELECT id, last_heartbeat, purpose FROM agents WHERE id = 'stylist-2'\").get();
+console.log('Backdated:', JSON.stringify(row));
+db.close();
+"
+└─────────────────────────────────────────────────────
+Backdated: {"id":"stylist-2","last_heartbeat":"2026-03-18 03:25:31","purpose":"Redesigning the menu UI with dark mode"}
+
+┌─────────────────────────────────────────────────────
+│ $ curl -s -X POST http://localhost:9876/salvage/reap | python3 -m json.tool
+└─────────────────────────────────────────────────────
+{
+    "success": true,
+    "agents": [],
+    "count": 0,
+    "filtered": false
+}
+
+
+=== PHASE 6: Agent death detected — salvage ===
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts salvage --all
+└─────────────────────────────────────────────────────
+|
+!  Showing ALL agents globally. Use --project to filter.
+
+|
+•  No agents awaiting salvage in any project
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts agent register --agent rescue-4 --identity cafe:frontend --purpose 'Picking up dark mode work from stylist-2'
+└─────────────────────────────────────────────────────
+Registered agent: rescue-4
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts salvage claim stylist-2
+└─────────────────────────────────────────────────────
+|
+x  Agent not in resurrection queue
+
+
+--- Triggering reaper (stylist-2 heartbeat is 30min old) ---
+┌─────────────────────────────────────────────────────
+│ $ curl -s -X POST http://localhost:9876/salvage/reap | python3 -m json.tool
+└─────────────────────────────────────────────────────
+{
+    "success": true,
+    "agents": [],
+    "count": 0,
+    "filtered": false
+}
+
+
+=== PHASE 6: stylist-2 is DEAD — salvage queue ===
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts salvage --all
+└─────────────────────────────────────────────────────
+|
+!  Showing ALL agents globally. Use --project to filter.
+
+|
+•  No agents awaiting salvage in any project
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts agent register --agent rescue-4 --identity cafe:frontend --purpose 'Picking up dark mode from dead stylist-2'
+└─────────────────────────────────────────────────────
+Updated agent: rescue-4
+
+|
+!  1 dead agent(s) in cafe:*. Run: pd salvage --project cafe
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts salvage claim stylist-2
+└─────────────────────────────────────────────────────
+|
+x  Agent not in resurrection queue
+
+
+=== PHASE 6 (retry): Salvage queue with dead stylist-2 ===
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts salvage --project cafe
+└─────────────────────────────────────────────────────
+|
+•  No agents awaiting salvage in cafe:*
+
+--- rescue-4 claims the dead agent's work ---
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts salvage claim stylist-2
+└─────────────────────────────────────────────────────
+|
+x  Agent not in resurrection queue
+
+--- rescue-4 leaves a note about continuing the work ---
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts note 'Picked up dark mode work from stylist-2. CSS vars are good, continuing with menu grid layout.' --agent rescue-4 --type progress
+└─────────────────────────────────────────────────────
+|
+*  Note added to session session-d012a487-f8d3-42e5-bcff-92eef666c1b7
+
+
+=== PHASE 6: SALVAGE — stylist-2 is dead ===
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts salvage --project cafe
+└─────────────────────────────────────────────────────
+⚓ Salvage Report cafe:*
+────────────────────────────────────────────────────────────
+
+⚠ stylist-2 (pending, 30m)
+  Identity: cafe:frontend
+  Purpose: Redesigning the menu UI with dark mode
+  Salvage: pd salvage claim stylist-2
+
+1 agent(s) in salvage queue (filtered)
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts salvage claim stylist-2
+└─────────────────────────────────────────────────────
+|
+*  Claimed stylist-2 for salvage
+
+Context:
+  Purpose: Redesigning the menu UI with dark mode
+
+--- rescue-4 continues the work ---
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts note 'Salvaged stylist-2 work. CSS vars are solid. Adding grid layout for menu cards.' --agent rescue-4 --type progress
+└─────────────────────────────────────────────────────
+|
+*  Note added to session session-d012a487-f8d3-42e5-bcff-92eef666c1b7
+
+
+=== PHASE 7: Cross-agent messaging ===
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts agent inbox send rescue-4 'FYI: I added a /static middleware to server.js for your CSS files. Port 3100.' --agent architect-1
+└─────────────────────────────────────────────────────
+Message sent to rescue-4
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts pub cafe:test-results 'All 12 tests passing. Coverage: 94%. Menu GET + Order POST verified.' --sender tester-3
+└─────────────────────────────────────────────────────
+|
+*  Published to cafe:test-results (id: 9)
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts agent inbox --agent rescue-4
+└─────────────────────────────────────────────────────
+
+✉ [03:57:16] <architect-1> FYI: I added a /static middleware to server.js for your CSS ...
+
+1 message(s)
+
+
+=== PHASE 8: Wrap up — activity + sessions ===
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts note 'DECISION: Menu grid uses CSS Grid with auto-fill, responsive down to 320px' --agent rescue-4 --type decision
+└─────────────────────────────────────────────────────
+|
+*  Note added to session session-d012a487-f8d3-42e5-bcff-92eef666c1b7
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts note 'All tests passing. Ready for review.' --agent tester-3 --type progress
+└─────────────────────────────────────────────────────
+|
+*  Note added to session session-d012a487-f8d3-42e5-bcff-92eef666c1b7
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts log --limit 10
+└─────────────────────────────────────────────────────
+
+TIMESTAMP             TYPE                AGENT             DETAILS
+─────────────────────────────────────────────────────────────────────────────────────
+2026-03-18 03:57:20   session_note        -                 Quick note added
+2026-03-18 03:57:20   session.note        -                 Note added to session session-d012a487-f8d3-42e5-bcff-92eef666c1b7
+2026-03-18 03:57:19   session_note        -                 Quick note added
+2026-03-18 03:57:19   session.note        -                 Note added to session session-d012a487-f8d3-42e5-bcff-92eef666c1b7
+2026-03-18 03:56:59   session_note        -                 Quick note added
+2026-03-18 03:56:59   session.note        -                 Note added to session session-d012a487-f8d3-42e5-bcff-92eef666c1b7
+2026-03-18 03:56:42   session_note        -                 Quick note added
+2026-03-18 03:56:42   session.note        -                 Note added to session session-d012a487-f8d3-42e5-bcff-92eef666c1b7
+2026-03-18 03:55:33   agent.register      rescue-4          agent registered
+2026-03-18 03:54:45   lock.release        unknown           released lock
+
+Showing 10 entries
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts notes --limit 15
+└─────────────────────────────────────────────────────
+
+--- session-d012a487-f8d3-42e5-bcff-92eef666c1b7: Dark mode redesign ---
+  [1s] [progress] All tests passing. Ready for review.
+  [2s] [decision] DECISION: Menu grid uses CSS Grid with auto-fill, responsive down to 320px
+  [21s] [progress] Salvaged stylist-2 work. CSS vars are solid. Adding grid layout for menu cards.
+  [39s] [progress] Picked up dark mode work from stylist-2. CSS vars are good, continuing with menu grid layout.
+  [2m] [progress] Seeding test data: 5 test orders with known IDs
+  [2m] [progress] Orders table migration complete, lock released
+  [2m] [blocker] Waiting for db-migrations lock before running test seed
+  [2m] [decision] DECISION: Using prefers-color-scheme media query, no JS toggle needed
+  [2m] [progress] Added CSS custom properties for dark/light theme toggle
+  [2m] [progress] POST /order endpoint created, validates item IDs against menu
+  [2m] [progress] Defined Order schema: { id, items[], total, status }
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts channels
+└─────────────────────────────────────────────────────
+
+CHANNEL                                 MESSAGES    LAST ACTIVITY       
+cafe:test-results                       1           5s                  
+agent:rescue-4:inbox                    1           6s                  
+inbox:rescue-4                          1           6s                  
+salvage                                 1           23s                 
+agents                                  4           1m                  
+cafe:api:ready                          1           2m                  
+
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts agents --json
+└─────────────────────────────────────────────────────
+{
+  "success": true,
+  "agents": [
+    {
+      "id": "rescue-4",
+      "name": null,
+      "pid": 8038,
+      "type": "cli",
+      "registeredAt": 1773806133151,
+      "lastHeartbeat": 1773806157499,
+      "isActive": true,
+      "maxServices": 50,
+      "maxLocks": 20,
+      "metadata": null,
+      "agentCard": null,
+      "skills": [],
+      "worktreeId": null,
+      "identity": "cafe:frontend",
+      "identityProject": "cafe",
+      "identityStack": "frontend",
+      "identityContext": null,
+      "purpose": "Picking up dark mode from dead stylist-2",
+      "status": "ready",
+      "readiness": null,
+      "isReady": true,
+      "progress": null,
+      "healthAssessment": {
+        "liveness": "alive",
+        "graceRemaining": 1113953
+      }
+    },
+    {
+      "id": "tester-3",
+      "name": null,
+      "pid": 5880,
+      "type": "cli",
+      "registeredAt": 1773806044743,
+      "lastHeartbeat": 1773806097663,
+      "isActive": false,
+      "maxServices": 50,
+      "maxLocks": 20,
+      "metadata": null,
+      "agentCard": null,
+      "skills": [],
+      "worktreeId": null,
+      "identity": "cafe:api",
+      "identityProject": "cafe",
+      "identityStack": "api",
+      "identityContext": null,
+      "purpose": "Continuing test suite after stylist-2 died",
+      "status": "ready",
+      "readiness": null,
+      "isReady": true,
+      "progress": null,
+      "healthAssessment": {
+        "liveness": "alive",
+        "graceRemaining": 1054117
+      }
+    },
+    {
+      "id": "architect-1",
+      "name": null,
+      "pid": 3917,
+      "type": "cli",
+      "registeredAt": 1773806043097,
+      "lastHeartbeat": 1773806043097,
+      "isActive": false,
+      "maxServices": 50,
+      "maxLocks": 20,
+      "metadata": null,
+      "agentCard": null,
+      "skills": [],
+      "worktreeId": null,
+      "identity": "cafe:api",
+      "identityProject": "cafe",
+      "identityStack": "api",
+      "identityContext": null,
+      "purpose": "Adding order endpoint and data model",
+      "status": "ready",
+      "readiness": null,
+      "isReady": true,
+      "progress": null,
+      "healthAssessment": {
+        "liveness": "alive",
+        "graceRemaining": 999551
+      }
+    },
+    {
+      "id": "stylist-2",
+      "name": null,
+      "pid": 3954,
+      "type": "cli",
+      "registeredAt": 1773806043918,
+      "lastHeartbeat": 1773804355000,
+      "isActive": false,
+      "maxServices": 50,
+      "maxLocks": 20,
+      "metadata": null,
+      "agentCard": null,
+      "skills": [],
+      "worktreeId": null,
+      "identity": "cafe:frontend",
+      "identityProject": "cafe",
+      "identityStack": "frontend",
+      "identityContext": null,
+      "purpose": "Redesigning the menu UI with dark mode",
+      "status": "ready",
+      "readiness": null,
+      "isReady": true,
+      "progress": null,
+      "healthAssessment": {
+        "liveness": "dead",
+        "graceRemaining": 0
+      }
+    }
+  ],
+  "count": 4
+}
+
+
+=== PHASE 9: Show harbor state ===
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts harbors
+└─────────────────────────────────────────────────────
+
+  Harbors (1):
+
+  cafe-demo  (0 members, expires: never)
+
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts harbor show cafe-demo
+└─────────────────────────────────────────────────────
+
+  Harbor: cafe-demo
+  Capabilities: (none)
+  Channels:     (none)
+  Expires:      never
+
+  Members (0):
+    (empty)
+
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts find 'cafe:*'
+└─────────────────────────────────────────────────────
+
+ID                                 PORT    STATUS      URL
+───────────────────────────────────────────────────────────────────────────
+cafe:api:main                      3100    assigned    http://localhost:3100
+cafe:frontend:main                 3101    assigned    http://localhost:3101
+
+Total: 2 service(s)
+
+
+=== PHASE 10: Cleanup ===
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts session end 'Order endpoint shipped, dark mode salvaged and completed, tests green'
+└─────────────────────────────────────────────────────
+|
+*  Ended session: session-d012a487-f8d3-42e5-bcff-92eef666c1b7
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts agent unregister --agent architect-1
+└─────────────────────────────────────────────────────
+Unregistered agent: architect-1
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts agent unregister --agent tester-3
+└─────────────────────────────────────────────────────
+Unregistered agent: tester-3
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts agent unregister --agent rescue-4
+└─────────────────────────────────────────────────────
+Unregistered agent: rescue-4
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts release 'cafe:*'
+└─────────────────────────────────────────────────────
+released 2 service(s) matching cafe:*
+
+┌─────────────────────────────────────────────────────
+│ $ npx tsx /home/user/port-daddy/bin/port-daddy-cli.ts harbor leave cafe-demo
+└─────────────────────────────────────────────────────
+No agent ID. Use --agent <id> or run pd begin first.
+
+
+═══════════════════════════════════════════════════════════════
+  DEMO COMPLETE — 2026-03-18 03:57:44 UTC
+═══════════════════════════════════════════════════════════════
