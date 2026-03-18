@@ -438,7 +438,7 @@
         "down"
       ],
       "docs": {
-        "readme": true,
+        "readme": false,
         "sdk": true
       }
     },
