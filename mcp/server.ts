@@ -36,7 +36,8 @@ import * as net from 'node:net';
 // ---------------------------------------------------------------------------
 
 const DAEMON_URL = process.env.PORT_DADDY_URL || 'http://localhost:9876';
-const REQUEST_TIMEOUT = 10_000;
+// 30s default for most tools; spawn and wait tools override with longer timeouts
+const REQUEST_TIMEOUT = 30_000;
 
 // ---------------------------------------------------------------------------
 // HTTP helper — lightweight, no external deps
@@ -50,7 +51,8 @@ interface ApiResponse {
 async function api(
   method: string,
   path: string,
-  body?: Record<string, unknown>
+  body?: Record<string, unknown>,
+  options?: { timeout?: number }
 ): Promise<ApiResponse> {
   const url = new URL(path, DAEMON_URL);
 
@@ -65,7 +67,7 @@ async function api(
           'Content-Type': 'application/json',
           Accept: 'application/json',
         },
-        timeout: REQUEST_TIMEOUT,
+        timeout: options?.timeout ?? REQUEST_TIMEOUT,
       },
       (res) => {
         let raw = '';
@@ -100,10 +102,10 @@ function isPortInUse(port: number): Promise<boolean> {
   });
 }
 
-const GET = (path: string) => api('GET', path);
-const POST = (path: string, body?: Record<string, unknown>) => api('POST', path, body);
-const PUT = (path: string, body?: Record<string, unknown>) => api('PUT', path, body);
-const DELETE = (path: string, body?: Record<string, unknown>) => api('DELETE', path, body);
+const GET = (path: string, opts?: { timeout?: number }) => api('GET', path, undefined, opts);
+const POST = (path: string, body?: Record<string, unknown>, opts?: { timeout?: number }) => api('POST', path, body, opts);
+const PUT = (path: string, body?: Record<string, unknown>, opts?: { timeout?: number }) => api('PUT', path, body, opts);
+const DELETE = (path: string, body?: Record<string, unknown>, opts?: { timeout?: number }) => api('DELETE', path, body, opts);
 
 // ---------------------------------------------------------------------------
 // Tiered tool loading — reduce context window overhead by 80%
@@ -2454,15 +2456,17 @@ async function handleTool(
     }
 
     case 'wait_for_service': {
+      // Wait tools can block for up to 5 minutes — use a longer HTTP timeout
+      const waitTimeout = Math.min(((args.timeout as number) || 60000) + 5000, 305000);
       if (args.services && Array.isArray(args.services)) {
         // Wait for multiple services
         const body: Record<string, unknown> = { services: args.services };
         if (args.timeout) body.timeout = args.timeout;
-        res = await POST('/wait', body);
+        res = await POST('/wait', body, { timeout: waitTimeout });
       } else if (args.identity) {
         // Wait for a single service
         const qs = args.timeout ? `?timeout=${args.timeout}` : '';
-        res = await GET(`/wait/${encodeURIComponent(args.identity as string)}${qs}`);
+        res = await GET(`/wait/${encodeURIComponent(args.identity as string)}${qs}`, { timeout: waitTimeout });
       } else {
         return JSON.stringify({ success: false, error: 'identity or services is required' });
       }

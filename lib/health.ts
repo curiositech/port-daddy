@@ -302,9 +302,34 @@ export function createHealth(db: Database.Database, services: ServicesLike) {
   async function waitForAll(serviceIds: string[], options: WaitForOptions = {}) {
     const { timeout = 60000 } = options;
 
-    const results = await Promise.all(
+    // Use Promise.allSettled to avoid leaking polling intervals when one
+    // service times out — Promise.all rejects immediately on first failure,
+    // leaving other waiters' intervals running indefinitely.
+    const settled = await Promise.allSettled(
       serviceIds.map(id => waitFor(id, { ...options, timeout }))
-    ) as Array<Record<string, unknown>>;
+    );
+
+    const results: Array<Record<string, unknown>> = [];
+    const errors: string[] = [];
+
+    for (let i = 0; i < settled.length; i++) {
+      const outcome = settled[i];
+      if (outcome.status === 'fulfilled') {
+        results.push(outcome.value as Record<string, unknown>);
+      } else {
+        errors.push(`${serviceIds[i]}: ${outcome.reason?.message || 'timeout'}`);
+        results.push({ serviceId: serviceIds[i], healthy: false, error: outcome.reason?.message });
+      }
+    }
+
+    if (errors.length > 0) {
+      return {
+        success: false,
+        error: `Timeout waiting for: ${errors.join(', ')}`,
+        services: results,
+        allHealthy: false
+      };
+    }
 
     return {
       success: true,

@@ -178,6 +178,23 @@ export function createSugar(deps: SugarDeps) {
       };
     }
 
+    // Verify ownership: if agentId is provided and sessionId was also provided,
+    // confirm the session belongs to this agent. Prevents agent A from closing
+    // agent B's session by passing B's sessionId.
+    if (agentId && options.sessionId) {
+      const sessionInfo = sessions.get(sessionId);
+      if (sessionInfo.success && sessionInfo.session) {
+        const session = sessionInfo.session as Record<string, unknown>;
+        if (session.agent_id && session.agent_id !== agentId) {
+          return {
+            success: false,
+            error: `Session ${sessionId} belongs to agent ${session.agent_id}, not ${agentId}`,
+            code: 'SESSION_OWNERSHIP_MISMATCH',
+          };
+        }
+      }
+    }
+
     // Count notes before ending (end adds the handoff note)
     const notesBefore = sessions.getNotes(sessionId);
     const beforeCount = (notesBefore.notes as unknown[] || []).length;

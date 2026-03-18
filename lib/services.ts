@@ -377,7 +377,11 @@ export function createServices(db: Database.Database) {
     let services: ServiceRow[];
 
     if (idOrPattern === '*' || idOrPattern === '*:*:*') {
-      services = stmts.getAllActive.all() as ServiceRow[];
+      // Use getByPattern('%') instead of getAllActive to include all statuses,
+      // consistent with pattern-based queries. getAllActive only returns
+      // 'assigned'/'running' which creates a silent asymmetry where find('*')
+      // returns fewer results than find('myapp:*').
+      services = stmts.getByPattern.all('%') as ServiceRow[];
     } else {
       const parsed = parseIdentity(idOrPattern);
       if (!parsed.valid) {

@@ -510,7 +510,15 @@ export function createWebhooks(db: Database.Database) {
   function retryPending() {
     const pending = stmts.getPendingDeliveries.all() as DeliveryRow[];
 
+    // Track which delivery IDs are already in the queue to prevent double-queueing.
+    // Without this, calling retryPending() while processQueue() is running would
+    // push deliveries that are already in deliveryQueue, causing duplicate sends.
+    const alreadyQueued = new Set(deliveryQueue.map(d => d.deliveryId));
+    let queued = 0;
+
     for (const delivery of pending) {
+      if (alreadyQueued.has(delivery.id)) continue;
+
       const webhook = stmts.getById.get(delivery.webhook_id) as WebhookRow | undefined;
       if (!webhook || !webhook.active) continue;
 
@@ -521,11 +529,12 @@ export function createWebhooks(db: Database.Database) {
         secret: webhook.secret,
         payload: JSON.parse(delivery.payload)
       });
+      queued++;
     }
 
-    if (pending.length > 0) processQueue();
+    if (queued > 0) processQueue();
 
-    return { retrying: pending.length };
+    return { retrying: queued };
   }
 
   function cleanup() {
