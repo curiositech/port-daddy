@@ -64,4 +64,4 @@ The Anchor Protocol elevates local multi-agent development from a state of "hope
 1. Blanchet, B. (2016). *ProVerif: Cryptographic Protocol Verifier*. INRIA.
 2. AWS Automated Reasoning Group. (2022). *Kani Rust Verifier*.
 3. Birgisson, A., et al. (2014). *Macaroons: Cookies with Contextual Caveats for Decentralized Authorization in the Cloud*. Google Research.
-4. Kobeissi, N., et al. (2017). *Automated Analysis of the Signal Protocol*.
+4. Kobeissi, N., et al. (2017). *Automated Analysis of the Signal Protocol*.x`
