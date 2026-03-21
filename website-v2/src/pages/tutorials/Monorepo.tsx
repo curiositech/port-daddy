@@ -26,7 +26,7 @@ export function Monorepo() {
             <motion.h2 className="m-0">The Monorepo Nightmare</motion.h2>
           </motion.div>
           <motion.p>
-            You have fifteen services. Three databases. A search engine. Every developer on your team has a different way of starting the stack, and port conflicts are a daily occurrence. **Fleet Management** turns your monorepo into a unified service mesh.
+            You have fifteen services. Three databases. A search engine. Every developer on your team has a different way of starting the stack, and port conflicts are a daily occurrence. <strong>Fleet Management</strong> turns your monorepo into a unified service mesh.
           </motion.p>
           <motion.div className="grid sm:grid-cols-2 gap-8 pt-4">
              <motion.div className="p-8 rounded-[32px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-4">
@@ -34,14 +34,14 @@ export function Monorepo() {
                    <Zap size={20} className="text-[var(--p-teal-400)]" />
                 </motion.div>
                 <motion.h3 className="text-xl font-display font-black m-0">Zero-Config DNS</motion.h3>
-                <motion.p className="text-sm opacity-60 m-0">Services find each other via semantic names instead of hardcoded <code>localhost:3001</code> URLs.</motion.p>
+                <motion.p className="text-sm text-[var(--text-secondary)] m-0">Services find each other via semantic names instead of hardcoded <code>localhost:3001</code> URLs.</motion.p>
              </motion.div>
              <motion.div className="p-8 rounded-[32px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-4">
                 <motion.div className="w-10 h-10 rounded-xl bg-[var(--p-blue-500)]/10 flex items-center justify-center">
                    <Anchor size={20} className="text-[var(--p-blue-400)]" />
                 </motion.div>
                 <motion.h3 className="text-xl font-display font-black m-0">Atomic Assignment</motion.h3>
-                <motion.p className="text-sm opacity-60 m-0">Ports are hashed from directory paths, ensuring the same service always gets the same port.</motion.p>
+                <motion.p className="text-sm text-[var(--text-secondary)] m-0">Ports are hashed from directory paths, ensuring the same service always gets the same port.</motion.p>
              </motion.div>
           </motion.div>
         </section>
@@ -64,7 +64,7 @@ export function Monorepo() {
           </CodeBlock>
 
           <blockquote className="bg-[var(--bg-overlay)] p-8 rounded-3xl border-l-4 border-[var(--brand-primary)]">
-             <motion.p className="m-0 text-sm italic opacity-60 font-medium">
+             <motion.p className="m-0 text-sm italic text-[var(--text-secondary)] font-medium">
                Port Daddy creates a local SQLite registry of your services, allowing agents to query the fleet status at any time.
              </motion.p>
           </blockquote>
@@ -89,21 +89,21 @@ export function Monorepo() {
 
           <motion.div className="bg-[var(--bg-surface)] p-10 rounded-[48px] border border-[var(--border-subtle)] space-y-6 relative overflow-hidden shadow-2xl">
              <motion.div className="absolute inset-0 bg-gradient-to-r from-[var(--p-teal-500)]/5 to-[var(--p-blue-500)]/5" />
-             <motion.p className="text-sm font-black uppercase tracking-widest opacity-40 m-0 relative z-10">Internal Service Mesh</motion.p>
+             <motion.p className="text-sm font-black uppercase tracking-widest text-[var(--text-muted)] m-0 relative z-10">Internal Service Mesh</motion.p>
              <motion.div className="flex flex-col gap-4 relative z-10">
                 <motion.div className="flex items-center justify-between p-4 rounded-2xl bg-[var(--bg-overlay)] border border-[var(--border-subtle)]">
                    <motion.div className="flex items-center gap-4">
                       <code className="text-xs text-[var(--brand-primary)]">auth.pd.local</code>
-                      <ArrowRight size={14} className="opacity-20" />
-                      <code className="text-xs opacity-60">localhost:3101</code>
+                      <ArrowRight size={14} className="opacity-40" />
+                      <code className="text-xs text-[var(--text-secondary)]">localhost:3101</code>
                    </motion.div>
                    <Badge variant="teal">Healthy</Badge>
                 </motion.div>
                 <motion.div className="flex items-center justify-between p-4 rounded-2xl bg-[var(--bg-overlay)] border border-[var(--border-subtle)]">
                    <motion.div className="flex items-center gap-4">
                       <code className="text-xs text-[var(--brand-primary)]">api.pd.local</code>
-                      <ArrowRight size={14} className="opacity-20" />
-                      <code className="text-xs opacity-60">localhost:3102</code>
+                      <ArrowRight size={14} className="opacity-40" />
+                      <code className="text-xs text-[var(--text-secondary)]">localhost:3102</code>
                    </motion.div>
                    <Badge variant="teal">Healthy</Badge>
                 </motion.div>
@@ -121,8 +121,8 @@ export function Monorepo() {
            </motion.div>
            <Badge variant="amber" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Orchestration Maturity</Badge>
            <motion.h3 className="text-4xl font-display font-black m-0" style={{ color: 'var(--text-primary)' }}>Unified Mesh.</motion.h3>
-           <motion.p className="text-xl max-w-xl opacity-70">
-             Fleet management isn't just about starting scripts—it's about building a **shared environment**. When your frontend agent needs the API, it doesn't search for a port. It asks the Port Daddy mesh for the API identity.
+           <motion.p className="text-xl max-w-xl text-[var(--text-secondary)]">
+             Fleet management isn't just about starting scripts -- it's about building a <strong>shared environment</strong>. When your frontend agent needs the API, it doesn't search for a port. It asks the Port Daddy mesh for the API identity.
            </motion.p>
            <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--p-amber-400)]">
               <Shield size={14} className="animate-pulse" />

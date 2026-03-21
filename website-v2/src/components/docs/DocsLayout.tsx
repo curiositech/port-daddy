@@ -1,12 +1,13 @@
 import * as React from 'react'
 import { Link, useLocation, Outlet } from 'react-router-dom'
 import { useTheme } from '@/lib/theme'
-import { 
+import {
   Terminal, Code, Cpu, Globe, Zap, BookOpen,
   ChevronRight, Menu, ExternalLink,
   Sparkles, Home, Search
 } from 'lucide-react'
 import { DocsSearch } from './DocsSearch'
+import { Nav } from '@/components/landing/Nav'
 
 interface NavItem {
   label: string
@@ -433,27 +434,126 @@ function SidebarSection({
   )
 }
 
+interface TocHeading {
+  id: string
+  text: string
+  level: number
+}
+
+function TableOfContents({ pathname }: { pathname: string }) {
+  const [headings, setHeadings] = React.useState<TocHeading[]>([])
+  const [activeId, setActiveId] = React.useState<string>('')
+
+  // Extract headings from the rendered page content
+  React.useEffect(() => {
+    // Small delay to let Outlet content render
+    const timer = setTimeout(() => {
+      const mainContent = document.getElementById('main-content')
+      if (!mainContent) return
+
+      const elements = mainContent.querySelectorAll('h2, h3')
+      const extracted: TocHeading[] = []
+
+      elements.forEach((el) => {
+        const text = el.textContent?.trim() || ''
+        if (!text) return
+
+        // Generate an id if the heading doesn't have one
+        if (!el.id) {
+          el.id = text
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/(^-|-$)/g, '')
+        }
+
+        extracted.push({
+          id: el.id,
+          text,
+          level: el.tagName === 'H2' ? 2 : 3,
+        })
+      })
+
+      setHeadings(extracted)
+    }, 100)
+
+    return () => clearTimeout(timer)
+  }, [pathname])
+
+  // Track active heading via IntersectionObserver
+  React.useEffect(() => {
+    if (headings.length === 0) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            setActiveId(entry.target.id)
+            break
+          }
+        }
+      },
+      { rootMargin: '-80px 0px -60% 0px', threshold: 0 }
+    )
+
+    headings.forEach((h) => {
+      const el = document.getElementById(h.id)
+      if (el) observer.observe(el)
+    })
+
+    return () => observer.disconnect()
+  }, [headings])
+
+  if (headings.length === 0) return null
+
+  return (
+    <>
+      <h4 className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-4">
+        On this page
+      </h4>
+      <nav className="space-y-1">
+        {headings.map((h) => (
+          <a
+            key={h.id}
+            href={`#${h.id}`}
+            className={`block text-sm py-1 transition-colors ${
+              h.level === 3 ? 'pl-4' : ''
+            } ${
+              activeId === h.id
+                ? 'text-[var(--brand-primary)] font-medium'
+                : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
+            }`}
+          >
+            {h.text}
+          </a>
+        ))}
+      </nav>
+    </>
+  )
+}
+
 export function DocsLayout() {
   const [mobileOpen, setMobileOpen] = React.useState(false)
   const location = useLocation()
   const { theme } = useTheme()
 
   return (
-    <div className="min-h-screen bg-[var(--bg-base)] flex">
-      {/* Mobile Overlay */}
-      {mobileOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-          onClick={() => setMobileOpen(false)}
-        />
-      )}
+    <>
+      <Nav />
+      <div className="min-h-screen bg-[var(--bg-base)] flex pt-16">
+        {/* Mobile Overlay */}
+        {mobileOpen && (
+          <div
+            className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+            onClick={() => setMobileOpen(false)}
+          />
+        )}
 
-      {/* Sidebar */}
-      <aside 
-        className={`fixed lg:sticky top-0 left-0 z-50 h-screen w-72 bg-[var(--bg-surface)] border-r border-[var(--border-subtle)] overflow-y-auto transition-transform lg:translate-x-0 ${
-          mobileOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
-      >
+        {/* Sidebar */}
+        <aside
+          className={`fixed lg:sticky top-16 left-0 z-50 h-[calc(100vh-4rem)] w-72 bg-[var(--bg-surface)] border-r border-[var(--border-subtle)] overflow-y-auto transition-transform lg:translate-x-0 ${
+            mobileOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
+        >
         <div className="p-4">
           {/* Logo */}
           <div className="flex items-center gap-2 mb-4 px-2">
@@ -517,7 +617,7 @@ export function DocsLayout() {
       {/* Main Content */}
       <main id="main-content" className="flex-1 min-w-0">
         {/* Mobile Header */}
-        <div className="lg:hidden sticky top-0 z-30 bg-[var(--bg-base)]/80 backdrop-blur-xl border-b border-[var(--border-subtle)] px-4 py-3 flex items-center gap-3">
+        <div className="lg:hidden sticky top-16 z-30 bg-[var(--bg-base)]/80 backdrop-blur-xl border-b border-[var(--border-subtle)] px-4 py-3 flex items-center gap-3">
           <button
             onClick={() => setMobileOpen(true)}
             className="p-2 rounded-lg hover:bg-[var(--interactive-hover)]"
@@ -542,18 +642,13 @@ export function DocsLayout() {
         </div>
       </main>
 
-      {/* Right Side - Table of Contents (desktop) */}
-      <aside className="hidden xl:block w-64 sticky top-0 h-screen overflow-y-auto border-l border-[var(--border-subtle)] bg-[var(--bg-base)]">
-        <div className="p-6">
-          <h4 className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-4">
-            On this page
-          </h4>
-          <div className="text-sm text-[var(--text-tertiary)]">
-            {/* This would be dynamically populated based on headings */}
-            <p className="text-xs italic">Navigation based on page content</p>
+        {/* Right Side - Table of Contents (desktop) */}
+        <aside className="hidden xl:block w-64 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto border-l border-[var(--border-subtle)] bg-[var(--bg-base)]">
+          <div className="p-6">
+            <TableOfContents pathname={location.pathname} />
           </div>
-        </div>
-      </aside>
-    </div>
+        </aside>
+      </div>
+    </>
   )
 }

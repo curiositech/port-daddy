@@ -26,7 +26,7 @@ export function AlwaysOn() {
             <motion.h2 className="m-0">Beyond the Prompt</motion.h2>
           </motion.div>
           <motion.p>
-            An **Always-On Avatar** is an agent process that doesn't terminate after a single task. It lives within a specific Harbor, maintaining a persistent local context and listening to **Swarm Radio** for instructions.
+            An <strong>Always-On Avatar</strong> is an agent process that doesn't terminate after a single task. It lives within a specific Harbor, maintaining a persistent local context and listening to <strong>Swarm Radio</strong> for instructions.
           </motion.p>
           <motion.div className="grid sm:grid-cols-2 gap-8 pt-4">
              <motion.div className="p-8 rounded-[32px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-4">
@@ -34,14 +34,14 @@ export function AlwaysOn() {
                    <Activity size={20} className="text-[var(--p-teal-400)]" />
                 </motion.div>
                 <motion.h3 className="text-xl font-display font-black m-0">Persistent State</motion.h3>
-                <motion.p className="text-sm opacity-60 m-0">Avatars can hold long-running variables, database connections, and cache in-memory across multiple user sessions.</motion.p>
+                <motion.p className="text-sm text-[var(--text-secondary)] m-0">Avatars can hold long-running variables, database connections, and cache in-memory across multiple user sessions.</motion.p>
              </motion.div>
              <motion.div className="p-8 rounded-[32px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-4">
                 <motion.div className="w-10 h-10 rounded-xl bg-[var(--p-amber-500)]/10 flex items-center justify-center">
                    <Share2 size={20} className="text-[var(--p-amber-400)]" />
                 </motion.div>
                 <motion.h3 className="text-xl font-display font-black m-0">Event Driven</motion.h3>
-                <motion.p className="text-sm opacity-60 m-0">Instead of polling, Avatars wake up instantly when a message hits a channel they are subscribed to.</motion.p>
+                <motion.p className="text-sm text-[var(--text-secondary)] m-0">Instead of polling, Avatars wake up instantly when a message hits a channel they are subscribed to.</motion.p>
              </motion.div>
           </motion.div>
         </section>
@@ -66,7 +66,7 @@ export function AlwaysOn() {
           </CodeBlock>
 
           <blockquote className="bg-[var(--bg-overlay)] p-8 rounded-3xl border-l-4 border-[var(--brand-primary)]">
-             <motion.p className="m-0 text-sm italic opacity-60 font-medium">
+             <motion.p className="m-0 text-sm italic text-[var(--text-secondary)] font-medium">
                Note: The avatar will immediately claim its semantic identity. Any other agent trying to claim <code>infra:monitor</code> will be blocked by the daemon until the avatar releases it.
              </motion.p>
           </blockquote>
@@ -91,18 +91,18 @@ export function AlwaysOn() {
           </CodeBlock>
 
           <motion.div className="bg-[var(--bg-surface)] p-10 rounded-[48px] border border-[var(--border-subtle)] space-y-6">
-             <motion.p className="text-sm font-black uppercase tracking-widest opacity-40 m-0">The Coordination Loop</motion.p>
+             <motion.p className="text-sm font-black uppercase tracking-widest text-[var(--text-muted)] m-0">The Coordination Loop</motion.p>
              <motion.div className="space-y-4">
                 <motion.div className="flex items-center gap-4 p-4 rounded-2xl bg-[var(--bg-overlay)] border border-[var(--border-subtle)]">
                    <Badge variant="neutral">Trigger</Badge>
                    <motion.span className="text-sm font-bold">CI Fails</motion.span>
                 </motion.div>
-                <motion.div className="flex justify-center"><ArrowDown size={16} className="opacity-20" /></motion.div>
+                <motion.div className="flex justify-center"><ArrowDown size={16} className="opacity-40" /></motion.div>
                 <motion.div className="flex items-center gap-4 p-4 rounded-2xl bg-[var(--bg-overlay)] border border-[var(--brand-primary)]/20 shadow-xl shadow-[var(--brand-primary)]/5">
                    <Badge variant="teal">Action</Badge>
                    <motion.span className="text-sm font-bold">Avatar wakes up and clones the broken branch</motion.span>
                 </motion.div>
-                <motion.div className="flex justify-center"><ArrowDown size={16} className="opacity-20" /></motion.div>
+                <motion.div className="flex justify-center"><ArrowDown size={16} className="opacity-40" /></motion.div>
                 <motion.div className="flex items-center gap-4 p-4 rounded-2xl bg-[var(--bg-overlay)] border border-[var(--border-subtle)]">
                    <Badge variant="neutral">Resolve</Badge>
                    <motion.span className="text-sm font-bold">Avatar publishes "fixed" to Swarm Radio</motion.span>
@@ -121,8 +121,8 @@ export function AlwaysOn() {
            </motion.div>
            <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Self-Healing Logic</Badge>
            <motion.h3 className="text-4xl font-display font-black m-0" style={{ color: 'var(--text-primary)' }}>Resilient Avatars.</motion.h3>
-           <motion.p className="text-xl max-w-xl opacity-70">
-             What if the Avatar itself crashes? Port Daddy's **Resurrection Queue** holds the Avatar's harbor card and last-known notes in escrow. When you spawn a replacement, it automatically "inherits" the previous state and continues its watch.
+           <motion.p className="text-xl max-w-xl text-[var(--text-secondary)]">
+             What if the Avatar itself crashes? Port Daddy's <strong>Resurrection Queue</strong> holds the Avatar's harbor card and last-known notes in escrow. When you spawn a replacement, it automatically "inherits" the previous state and continues its watch.
            </motion.p>
            <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--p-teal-400)]">
               <Globe size={14} className="animate-spin-slow" />

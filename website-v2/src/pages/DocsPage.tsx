@@ -125,7 +125,7 @@ export default function DocsPage() {
              The <motion.span className="text-[var(--brand-primary)]">SDK Manual.</motion.span>
            </motion.h1>
            <motion.p 
-             className="text-2xl sm:text-3xl max-w-3xl leading-relaxed opacity-70 font-medium"
+             className="text-2xl sm:text-3xl max-w-3xl leading-relaxed text-[var(--text-secondary)] font-medium"
              initial={{ opacity: 0, y: 20 }}
              animate={{ opacity: 1, y: 0 }}
              transition={{ duration: 0.8, delay: 0.1 }}
@@ -191,7 +191,7 @@ export default function DocsPage() {
               <motion.h3 className="text-4xl sm:text-7xl font-display font-black tracking-tight leading-[0.95]" style={{ color: 'var(--text-primary)' }}>
                 System <motion.span className="text-[var(--p-amber-400)]">Soundness.</motion.span>
               </motion.h3>
-              <motion.p className="text-2xl leading-relaxed opacity-70">
+              <motion.p className="text-2xl leading-relaxed text-[var(--text-secondary)]">
                 Port Daddy is built on a foundation of formal verification. We ensure that every command follows strictly defined state transitions, preventing "zombie" processes and unauthorized port claims across your entire swarm.
               </motion.p>
            </motion.div>
@@ -205,7 +205,7 @@ export default function DocsPage() {
               ].map((item, i) => (
                 <motion.div key={i} className="p-8 rounded-[40px] bg-[var(--bg-overlay)] border border-[var(--border-subtle)] flex flex-col items-center gap-4">
                    <item.icon size={24} className="text-[var(--brand-primary)]" />
-                   <motion.span className="text-[10px] font-black uppercase tracking-widest opacity-60">{item.label}</motion.span>
+                   <motion.span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">{item.label}</motion.span>
                 </motion.div>
               ))}
            </motion.div>

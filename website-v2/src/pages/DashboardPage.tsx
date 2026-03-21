@@ -40,7 +40,7 @@ function UnifiedTimeline() {
           <History size={24} className="text-[var(--brand-primary)]" />
           <motion.div className="flex flex-col">
              <motion.h2 className="font-black text-[10px] uppercase tracking-[0.25em] text-[var(--text-primary)] font-sans m-0">Swarm Radio</motion.h2>
-             <motion.span className="text-[10px] font-bold opacity-40 uppercase tracking-widest">Unified Timeline</motion.span>
+             <motion.span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Unified Timeline</motion.span>
           </motion.div>
         </motion.div>
         <motion.div className="flex items-center gap-3 font-sans">
@@ -163,7 +163,7 @@ export function DashboardPage() {
                     <Badge variant="neutral" className="px-4 py-1.5 text-[10px] font-black uppercase tracking-widest shadow-xl">Network Topology</Badge>
                     <motion.div className="flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--bg-base)]/50 backdrop-blur-md border border-[var(--border-subtle)]">
                        <motion.div className="w-2 h-2 rounded-full bg-[var(--p-teal-400)] animate-pulse" />
-                       <motion.span className="text-[10px] font-bold opacity-60 uppercase">Force-Directed</motion.span>
+                       <motion.span className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Force-Directed</motion.span>
                     </motion.div>
                  </motion.div>
                  <LiveOrchestrationGraph />

@@ -26,7 +26,7 @@ export function Sugar() {
             <motion.h2 className="m-0">Invisible Infrastructure</motion.h2>
           </motion.div>
           <motion.p>
-            While Port Daddy provides a robust REST API for deep integrations, most humans and CLI-native agents prefer our **Sugar Commands**. These are high-level wrappers that combine multiple primitives into a single, intuitive action.
+            While Port Daddy provides a robust REST API for deep integrations, most humans and CLI-native agents prefer our <strong>Sugar Commands</strong>. These are high-level wrappers that combine multiple primitives into a single, intuitive action.
           </motion.p>
           <motion.div className="grid sm:grid-cols-2 gap-8 pt-4">
              <motion.div className="p-8 rounded-[32px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-4">
@@ -34,14 +34,14 @@ export function Sugar() {
                    <Zap size={20} className="text-[var(--p-teal-400)]" />
                 </motion.div>
                 <motion.h3 className="text-xl font-display font-black m-0">Zero Config</motion.h3>
-                <motion.p className="text-sm opacity-60 m-0">Sugar commands auto-detect your project root and existing sessions so you don't have to pass IDs.</motion.p>
+                <motion.p className="text-sm text-[var(--text-secondary)] m-0">Sugar commands auto-detect your project root and existing sessions so you don't have to pass IDs.</motion.p>
              </motion.div>
              <motion.div className="p-8 rounded-[32px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-4">
                 <motion.div className="w-10 h-10 rounded-xl bg-[var(--p-blue-500)]/10 flex items-center justify-center">
                    <Shield size={20} className="text-[var(--p-blue-400)]" />
                 </motion.div>
                 <motion.h3 className="text-xl font-display font-black m-0">Safe Defaults</motion.h3>
-                <motion.p className="text-sm opacity-60 m-0">Built-in timeouts and retry logic ensure that your agent scripts are resilient to network blips.</motion.p>
+                <motion.p className="text-sm text-[var(--text-secondary)] m-0">Built-in timeouts and retry logic ensure that your agent scripts are resilient to network blips.</motion.p>
              </motion.div>
           </motion.div>
         </section>
@@ -66,7 +66,7 @@ export function Sugar() {
           </CodeBlock>
 
           <blockquote className="bg-[var(--bg-overlay)] p-8 rounded-3xl border-l-4 border-[var(--brand-primary)]">
-             <motion.p className="m-0 text-sm italic opacity-60 font-medium">
+             <motion.p className="m-0 text-sm italic text-[var(--text-secondary)] font-medium">
                When the agent finishes, <code>pd done</code> releases all file claims and port assignments cleanly, closing the session timeline.
              </motion.p>
           </blockquote>
@@ -91,21 +91,21 @@ export function Sugar() {
 
           <motion.div className="bg-[var(--bg-surface)] p-10 rounded-[48px] border border-[var(--border-subtle)] space-y-6 relative overflow-hidden shadow-2xl">
              <motion.div className="absolute inset-0 bg-gradient-to-r from-[var(--p-amber-500)]/5 to-transparent" />
-             <motion.p className="text-sm font-black uppercase tracking-widest opacity-40 m-0 relative z-10">Productivity HUD</motion.p>
+             <motion.p className="text-sm font-black uppercase tracking-widest text-[var(--text-muted)] m-0 relative z-10">Productivity HUD</motion.p>
              <motion.div className="space-y-4 relative z-10">
                 <motion.div className="flex items-center justify-between p-4 rounded-2xl bg-[var(--bg-overlay)] border border-[var(--border-subtle)]">
                    <motion.div className="flex items-center gap-4">
-                      <Terminal size={14} className="opacity-20" />
+                      <Terminal size={14} className="opacity-40" />
                       <code className="text-xs">pd whoami</code>
                    </motion.div>
-                   <motion.span className="text-[10px] font-mono opacity-40">Identify current agent</motion.span>
+                   <motion.span className="text-[10px] font-mono text-[var(--text-muted)]">Identify current agent</motion.span>
                 </motion.div>
                 <motion.div className="flex items-center justify-between p-4 rounded-2xl bg-[var(--bg-overlay)] border border-[var(--border-subtle)]">
                    <motion.div className="flex items-center gap-4">
-                      <Terminal size={14} className="opacity-20" />
+                      <Terminal size={14} className="opacity-40" />
                       <code className="text-xs">pd salvage</code>
                    </motion.div>
-                   <motion.span className="text-[10px] font-mono opacity-40">Recover orphaned work</motion.span>
+                   <motion.span className="text-[10px] font-mono text-[var(--text-muted)]">Recover orphaned work</motion.span>
                 </motion.div>
              </motion.div>
           </motion.div>
@@ -121,7 +121,7 @@ export function Sugar() {
            </motion.div>
            <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Efficiency Maturity</Badge>
            <motion.h3 className="text-4xl font-display font-black m-0" style={{ color: 'var(--text-primary)' }}>Sweet Simplicity.</motion.h3>
-           <motion.p className="text-xl max-w-xl opacity-70">
+           <motion.p className="text-xl max-w-xl text-[var(--text-secondary)]">
              Multi-agent coordination is complex, but the interface shouldn't be. Port Daddy's sugar commands turn deep infrastructure primitives into a "standard library" for your agent swarm prompts.
            </motion.p>
            <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-primary)]">

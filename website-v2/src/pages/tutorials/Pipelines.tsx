@@ -26,7 +26,7 @@ export function Pipelines() {
             <motion.h2 className="m-0">Beyond Static CI</motion.h2>
           </motion.div>
           <motion.p>
-            Standard CI/CD pipelines are static—they run on a schedule or a push. **Port Daddy Pipelines** are reactive. They live inside your harbor, watching Swarm Radio for specific signals and executing actions in real-time.
+            Standard CI/CD pipelines are static -- they run on a schedule or a push. <strong>Port Daddy Pipelines</strong> are reactive. They live inside your harbor, watching Swarm Radio for specific signals and executing actions in real-time.
           </motion.p>
           <motion.div className="grid sm:grid-cols-2 gap-8 pt-4">
              <motion.div className="p-8 rounded-[32px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-4">
@@ -34,14 +34,14 @@ export function Pipelines() {
                    <Zap size={20} className="text-[var(--p-teal-400)]" />
                 </motion.div>
                 <motion.h3 className="text-xl font-display font-black m-0">Event Triggers</motion.h3>
-                <motion.p className="text-sm opacity-60 m-0">Fire actions based on any pub/sub message, port claim, or agent note event.</motion.p>
+                <motion.p className="text-sm text-[var(--text-secondary)] m-0">Fire actions based on any pub/sub message, port claim, or agent note event.</motion.p>
              </motion.div>
              <motion.div className="p-8 rounded-[32px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-4">
                 <motion.div className="w-10 h-10 rounded-xl bg-[var(--p-amber-500)]/10 flex items-center justify-center">
                    <RefreshCw size={20} className="text-[var(--p-amber-400)]" />
                 </motion.div>
                 <motion.h3 className="text-xl font-display font-black m-0">Auto-Healing</motion.h3>
-                <motion.p className="text-sm opacity-60 m-0">Automatically spawn debugger agents when your swarm reports a failure.</motion.p>
+                <motion.p className="text-sm text-[var(--text-secondary)] m-0">Automatically spawn debugger agents when your swarm reports a failure.</motion.p>
              </motion.div>
           </motion.div>
         </section>
@@ -66,7 +66,7 @@ export function Pipelines() {
           </CodeBlock>
 
           <blockquote className="bg-[var(--bg-overlay)] p-8 rounded-3xl border-l-4 border-[var(--p-blue-400)]">
-             <motion.p className="m-0 text-sm italic opacity-60 font-medium">
+             <motion.p className="m-0 text-sm italic text-[var(--text-secondary)] font-medium">
                This rule creates a persistent watcher. Whenever any agent publishes to <code>test:fail</code>, the daemon will spawn a new coding agent to investigate.
              </motion.p>
           </blockquote>
@@ -82,27 +82,27 @@ export function Pipelines() {
           </motion.div>
 
           <motion.p>
-            By chaining multiple rules, you build a **Dynamic DAG**. Each agent finishes its work by publishing a signal that triggers the next set of agents in the harbor.
+            By chaining multiple rules, you build a <strong>Dynamic DAG</strong>. Each agent finishes its work by publishing a signal that triggers the next set of agents in the harbor.
           </motion.p>
 
           <motion.div className="bg-[var(--bg-surface)] p-10 rounded-[48px] border border-[var(--border-subtle)] space-y-8 shadow-2xl relative overflow-hidden">
              <motion.div className="absolute inset-0 bg-gradient-to-b from-[var(--p-teal-500)]/5 to-transparent" />
-             <motion.p className="text-sm font-black uppercase tracking-widest opacity-40 m-0">The DAG Flow</motion.p>
+             <motion.p className="text-sm font-black uppercase tracking-widest text-[var(--text-muted)] m-0">The DAG Flow</motion.p>
              
              <motion.div className="grid gap-6">
                 <motion.div className="flex items-center gap-6 p-6 rounded-2xl bg-[var(--bg-overlay)] border border-[var(--border-subtle)]">
                    <Badge variant="teal" className="shrink-0">Node 01</Badge>
                    <motion.div className="flex-1">
                       <motion.p className="font-bold m-0 text-sm">Planner finishes task</motion.p>
-                      <code className="text-[10px] opacity-40">pub task:ready</code>
+                      <code className="text-[10px] text-[var(--text-muted)]">pub task:ready</code>
                    </motion.div>
                 </motion.div>
-                <motion.div className="flex justify-center"><ArrowDown size={16} className="opacity-20" /></motion.div>
+                <motion.div className="flex justify-center"><ArrowDown size={16} className="opacity-40" /></motion.div>
                 <motion.div className="flex items-center gap-6 p-6 rounded-2xl bg-[var(--bg-overlay)] border border-[var(--brand-primary)]/20 shadow-lg">
                    <Badge variant="amber" className="shrink-0 text-white bg-[var(--brand-primary)]">Auto-Action</Badge>
                    <motion.div className="flex-1">
                       <motion.p className="font-bold m-0 text-sm text-[var(--brand-primary)]">Spawn Coder + Reviewer</motion.p>
-                      <code className="text-[10px] opacity-40">pd spawn (x2)</code>
+                      <code className="text-[10px] text-[var(--text-muted)]">pd spawn (x2)</code>
                    </motion.div>
                 </motion.div>
              </motion.div>
@@ -119,7 +119,7 @@ export function Pipelines() {
            </motion.div>
            <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Autonomous Maturity</Badge>
            <motion.h3 className="text-4xl font-display font-black m-0" style={{ color: 'var(--text-primary)' }}>Convergent Pipelines.</motion.h3>
-           <motion.p className="text-xl max-w-xl opacity-70">
+           <motion.p className="text-xl max-w-xl text-[var(--text-secondary)]">
              Unlike rigid JSON pipelines, Port Daddy DAGs are <strong>state-aware</strong>. The orchestrator checks if the harbor is healthy before spawning new nodes, ensuring your swarm doesn't runaway during a system failure.
            </motion.p>
            <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-primary)]">

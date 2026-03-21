@@ -26,7 +26,7 @@ export function Spawn() {
             <motion.h2 className="m-0">The Orchestrator's Tool</motion.h2>
           </motion.div>
           <motion.p>
-            Launching an agent script is easy. Launching an agent that is **aware** of its swarm is hard. <code>pd spawn</code> is the orchestrator's command—it launches a sub-process and automatically wraps it in a managed Port Daddy session with full telemetry.
+            Launching an agent script is easy. Launching an agent that is <strong>aware</strong> of its swarm is hard. <code>pd spawn</code> is the orchestrator's command—it launches a sub-process and automatically wraps it in a managed Port Daddy session with full telemetry.
           </motion.p>
           <motion.div className="grid sm:grid-cols-3 gap-6 pt-4">
              <motion.div className="p-6 rounded-[32px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-center space-y-3">
@@ -64,8 +64,8 @@ export function Spawn() {
           </CodeBlock>
 
           <blockquote className="bg-[var(--bg-overlay)] p-8 rounded-3xl border-l-4 border-[var(--p-teal-400)]">
-             <motion.p className="m-0 text-sm italic opacity-60 font-medium">
-               Port Daddy intercepts the agent's stdout/stderr and automatically converts meaningful output into **Session Notes** that other agents can read.
+             <motion.p className="m-0 text-sm italic text-[var(--text-secondary)] font-medium">
+               Port Daddy intercepts the agent's stdout/stderr and automatically converts meaningful output into <strong>Session Notes</strong> that other agents can read.
              </motion.p>
           </blockquote>
         </section>
@@ -80,21 +80,21 @@ export function Spawn() {
           </motion.div>
 
           <motion.p>
-            The daemon monitors the sub-process for heartbeats. If the agent hangs, crashes, or goes into an infinite loop, Port Daddy detects the failure and flags the session for **Salvage**.
+            The daemon monitors the sub-process for heartbeats. If the agent hangs, crashes, or goes into an infinite loop, Port Daddy detects the failure and flags the session for <strong>Salvage</strong>.
           </motion.p>
 
           <motion.div className="bg-[var(--bg-surface)] p-10 rounded-[48px] border border-[var(--border-subtle)] space-y-6 shadow-2xl relative overflow-hidden">
              <motion.div className="absolute inset-0 bg-gradient-to-r from-[var(--p-amber-500)]/5 to-transparent" />
-             <motion.p className="text-sm font-black uppercase tracking-widest opacity-40 m-0">Daemon Telemetry</motion.p>
+             <motion.p className="text-sm font-black uppercase tracking-widest text-[var(--text-muted)] m-0">Daemon Telemetry</motion.p>
              <motion.div className="space-y-4">
                 <motion.div className="flex items-center justify-between p-4 rounded-2xl bg-[var(--bg-overlay)] border border-[var(--p-teal-500)]/20">
                    <motion.div className="flex items-center gap-4">
                       <Zap size={16} className="text-[var(--p-teal-400)] animate-pulse" />
                       <motion.span className="text-sm font-bold">agent-7f3a (coder) is active</motion.span>
                    </motion.div>
-                   <motion.span className="text-[10px] font-mono opacity-40">CPU: 12%</motion.span>
+                   <motion.span className="text-[10px] font-mono text-[var(--text-muted)]">CPU: 12%</motion.span>
                 </motion.div>
-                <motion.div className="flex items-center justify-between p-4 rounded-2xl bg-[var(--bg-overlay)] border border-transparent opacity-40">
+                <motion.div className="flex items-center justify-between p-4 rounded-2xl bg-[var(--bg-overlay)] border border-transparent text-[var(--text-muted)]">
                    <motion.div className="flex items-center gap-4">
                       <RefreshCw size={16} />
                       <motion.span className="text-sm font-bold">Waiting for session note...</motion.span>
@@ -115,7 +115,7 @@ export function Spawn() {
            </motion.div>
            <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Fleet Maturity</Badge>
            <motion.h3 className="text-4xl font-display font-black m-0" style={{ color: 'var(--text-primary)' }}>Unified Bootstrapping.</motion.h3>
-           <motion.p className="text-xl max-w-xl opacity-70">
+           <motion.p className="text-xl max-w-xl text-[var(--text-secondary)]">
              With <code>pd spawn</code>, you move from managing individual scripts to managing a <strong>coordinated fleet</strong>. The daemon provides the "glue" that allows agents from different families to coexist in a single, secure harbor.
            </motion.p>
            <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-primary)]">

@@ -1,29 +1,67 @@
 /**
- * Port Daddy — Precision High-Contrast OKLCH Tokens
- * ENFORCED WCAG AAA COMPLIANCE
+ * Port Daddy — Neumorphic Design Tokens
+ * Light-first soft UI with extruded/inset shadow depth
  * Includes shadcn/ui CSS variable mappings for component library compatibility.
  */
 
 :root, [data-theme='light'] {
-  /* High-Contrast Core - Light Mode (AAA) */
-  --bg-base:      oklch(100% 0 0);
-  --bg-surface:   oklch(98% 0.01 265);
-  --bg-overlay:   oklch(96% 0.01 265);
-  --bg-glass:     rgba(255, 255, 255, 0.9);
+  /* Neumorphic Core - Light Mode (default) */
+  --bg-base:      #e0e0e0;
+  --bg-surface:   #e6e6e6;
+  --bg-overlay:   #d4d4d4;
+  --bg-glass:     rgba(224, 224, 224, 0.92);
 
-  --text-primary:   oklch(15% 0.02 265); /* Deepest Navy/Grey */
-  --text-secondary: oklch(25% 0.03 265);
-  --text-muted:     oklch(40% 0.04 265);
+  --text-primary:   #2d2d2d;
+  --text-secondary: #555555;
+  --text-muted:     #888888;
 
-  --brand-primary:   oklch(45% 0.15 200); /* Darker Maritime Teal for AAA */
-  --brand-secondary: oklch(35% 0.15 200);
-  --brand-accent:    oklch(40% 0.25 260); /* Deep Electric Blue */
+  --brand-primary:   #0d9488;
+  --brand-secondary: #0f766e;
+  --brand-accent:    #0d9488;
 
-  --border-subtle: oklch(90% 0.02 265);
-  --border-strong: oklch(70% 0.04 265);
+  --border-subtle: rgba(0, 0, 0, 0.06);
+  --border-strong: rgba(0, 0, 0, 0.12);
 
-  --interactive-hover:  rgba(0, 0, 0, 0.05);
-  --interactive-active: oklch(45% 0.15 200 / 0.1);
+  --interactive-hover:  rgba(0, 0, 0, 0.04);
+  --interactive-active: rgba(13, 148, 136, 0.1);
+
+  /* Status Colors — Light */
+  --status-success: #15803d;
+  --status-warning: #b45309;
+  --status-error:   #dc2626;
+
+  /* Palette Colors — Light (high-contrast on #e0e0e0 bg) */
+  --p-teal-400:   #0d7d73;
+  --p-teal-500:   #0f766e;
+  --p-amber-400:  #92400e;
+  --p-amber-500:  #78350f;
+  --p-blue-400:   #1d4ed8;
+  --p-blue-500:   #1e40af;
+  --p-red-400:    #b91c1c;
+  --p-green-400:  #15803d;
+  --p-purple-400: #6d28d9;
+
+  /* Code Block — Always dark for readability */
+  --bg-code:              #1a1a2e;
+  --text-code:            #e0e0e0;
+  --code-prompt:          #5eead4;
+  --code-output:          #a0a0a0;
+  --codeblock-bg:         #1a1a2e;
+  --codeblock-header-bg:  #151525;
+  --codeblock-border:     #2a2a3e;
+  --codeblock-text:       #e0e0e0;
+  --codeblock-filename:   #8899aa;
+  --codeblock-copy:       #8899aa;
+  --codeblock-copy-hover: #e0e0e0;
+  --codeblock-dot-red:    #ff5f56;
+  --codeblock-dot-amber:  #ffbd2e;
+  --codeblock-dot-green:  #27c93f;
+
+  /* Neumorphic Shadow Tokens */
+  --shadow-neu-raised: 6px 6px 12px #c4c4c4, -6px -6px 12px #ffffff;
+  --shadow-neu-inset:  inset 4px 4px 8px #c4c4c4, inset -4px -4px 8px #ffffff;
+  --shadow-neu-sm:     3px 3px 6px #c4c4c4, -3px -3px 6px #ffffff;
+  --shadow-neu-flat:   2px 2px 4px #c4c4c4, -2px -2px 4px #ffffff;
 
   /* Shared Typography */
   --p-font-mono:    'JetBrains Mono', monospace;
@@ -31,84 +69,122 @@
   --p-font-display: 'Instrument Sans', 'Inter', system-ui, sans-serif;
 
   /* ── shadcn/ui variables — Light ─────────────────────────────────────────── */
-  --radius: 0.625rem;
+  --radius: 0.75rem;
 
-  --background: oklch(100% 0 0);
-  --foreground: oklch(15% 0.02 265);
+  --background: #e0e0e0;
+  --foreground: #2d2d2d;
 
-  --card: oklch(98% 0.01 265);
-  --card-foreground: oklch(15% 0.02 265);
+  --card: #e6e6e6;
+  --card-foreground: #2d2d2d;
 
-  --popover: oklch(100% 0 0);
-  --popover-foreground: oklch(15% 0.02 265);
+  --popover: #e6e6e6;
+  --popover-foreground: #2d2d2d;
 
-  --primary: oklch(45% 0.15 200);          /* Maritime Teal */
-  --primary-foreground: oklch(100% 0 0);   /* White on teal */
+  --primary: #0d9488;
+  --primary-foreground: #ffffff;
 
-  --secondary: oklch(96% 0.01 265);
-  --secondary-foreground: oklch(15% 0.02 265);
+  --secondary: #d4d4d4;
+  --secondary-foreground: #2d2d2d;
 
-  --muted: oklch(96% 0.01 265);
-  --muted-foreground: oklch(40% 0.04 265);
+  --muted: #d4d4d4;
+  --muted-foreground: #888888;
 
-  --accent: oklch(96% 0.01 265);
-  --accent-foreground: oklch(15% 0.02 265);
+  --accent: #d4d4d4;
+  --accent-foreground: #2d2d2d;
 
-  --destructive: oklch(55% 0.24 27);
-  --destructive-foreground: oklch(100% 0 0);
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
 
-  --border: oklch(90% 0.02 265);
-  --input: oklch(90% 0.02 265);
-  --ring: oklch(45% 0.15 200);             /* Teal focus ring */
+  --border: rgba(0, 0, 0, 0.06);
+  --input: rgba(0, 0, 0, 0.08);
+  --ring: #0d9488;
 }
 
 [data-theme='dark'] {
-  /* High-Contrast Core - Dark Mode (AAA) */
-  --bg-base:      #0c1513;             /* Teal-shifted dark — rich, not flat */
-  --bg-surface:   #121e1c;
-  --bg-overlay:   #192826;
-  --bg-glass:     rgba(12, 21, 19, 0.92);
+  /* Neumorphic Core - Dark Mode */
+  --bg-base:      #2d2d2d;
+  --bg-surface:   #333333;
+  --bg-overlay:   #262626;
+  --bg-glass:     rgba(45, 45, 45, 0.92);
 
-  --text-primary:   #e8edec;             /* Near white, slight teal tint */
-  --text-secondary: #b0bab8;
-  --text-muted:     #7a8886;
+  --text-primary:   #e0e0e0;
+  --text-secondary: #b0b0b0;
+  --text-muted:     #808080;
 
-  --brand-primary:   oklch(80% 0.15 200); /* Bright Teal */
-  --brand-secondary: oklch(85% 0.12 200);
-  --brand-accent:    oklch(75% 0.25 260);
+  --brand-primary:   #5eead4;
+  --brand-secondary: #2dd4bf;
+  --brand-accent:    #5eead4;
 
-  --border-subtle: rgba(94, 234, 212, 0.08);
-  --border-strong: rgba(94, 234, 212, 0.15);
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-strong: rgba(255, 255, 255, 0.12);
 
-  --interactive-hover:  rgba(255, 255, 255, 0.06);
+  --interactive-hover:  rgba(255, 255, 255, 0.05);
   --interactive-active: rgba(94, 234, 212, 0.12);
 
+  /* Status Colors — Dark */
+  --status-success: #4ade80;
+  --status-warning: #fbbf24;
+  --status-error:   #f87171;
+
+  /* Palette Colors — Dark (bright on dark bg) */
+  --p-teal-400:   #2dd4bf;
+  --p-teal-500:   #14b8a6;
+  --p-amber-400:  #fbbf24;
+  --p-amber-500:  #f59e0b;
+  --p-blue-400:   #60a5fa;
+  --p-blue-500:   #3b82f6;
+  --p-red-400:    #f87171;
+  --p-green-400:  #4ade80;
+  --p-purple-400: #a78bfa;
+
+  /* Code Block — Always dark for readability */
+  --bg-code:              #1a1a2e;
+  --text-code:            #e0e0e0;
+  --code-prompt:          #5eead4;
+  --code-output:          #a0a0a0;
+  --codeblock-bg:         #1a1a2e;
+  --codeblock-header-bg:  #151525;
+  --codeblock-border:     #2a2a3e;
+  --codeblock-text:       #e0e0e0;
+  --codeblock-filename:   #8899aa;
+  --codeblock-copy:       #8899aa;
+  --codeblock-copy-hover: #e0e0e0;
+  --codeblock-dot-red:    #ff5f56;
+  --codeblock-dot-amber:  #ffbd2e;
+  --codeblock-dot-green:  #27c93f;
+
+  /* Neumorphic Shadow Tokens - Dark */
+  --shadow-neu-raised: 6px 6px 12px #222222, -6px -6px 12px #3a3a3a;
+  --shadow-neu-inset:  inset 4px 4px 8px #222222, inset -4px -4px 8px #3a3a3a;
+  --shadow-neu-sm:     3px 3px 6px #222222, -3px -3px 6px #3a3a3a;
+  --shadow-neu-flat:   2px 2px 4px #222222, -2px -2px 4px #3a3a3a;
+
   /* ── shadcn/ui variables — Dark ──────────────────────────────────────────── */
-  --background: #0c1513;
-  --foreground: #e8edec;
+  --background: #2d2d2d;
+  --foreground: #e0e0e0;
 
-  --card: #121e1c;
-  --card-foreground: #e8edec;
+  --card: #333333;
+  --card-foreground: #e0e0e0;
 
-  --popover: #192826;
-  --popover-foreground: #e8edec;
+  --popover: #333333;
+  --popover-foreground: #e0e0e0;
 
-  --primary: oklch(45% 0.15 200);          /* Deep Teal — high contrast on dark bg */
-  --primary-foreground: oklch(100% 0 0);   /* White text on teal */
+  --primary: #5eead4;
+  --primary-foreground: #1a1a1a;
 
-  --secondary: #192826;
-  --secondary-foreground: #e8edec;
+  --secondary: #3a3a3a;
+  --secondary-foreground: #e0e0e0;
 
-  --muted: #192826;
-  --muted-foreground: #7a8886;
+  --muted: #3a3a3a;
+  --muted-foreground: #808080;
 
-  --accent: #1f302e;
-  --accent-foreground: #e8edec;
+  --accent: #3a3a3a;
+  --accent-foreground: #e0e0e0;
 
   --destructive: #b91c1c;
   --destructive-foreground: #fef2f2;
 
-  --border: rgba(94, 234, 212, 0.08);
-  --input: rgba(94, 234, 212, 0.08);
+  --border: rgba(255, 255, 255, 0.06);
+  --input: rgba(255, 255, 255, 0.08);
   --ring: #5eead4;
 }

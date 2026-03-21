@@ -49,7 +49,7 @@ export function CookbookPage() {
             <motion.span className="text-[var(--p-amber-400)]">Cookbook.</motion.span>
           </motion.h1>
           <motion.p 
-            className="text-2xl sm:text-3xl max-w-3xl leading-relaxed opacity-70 font-medium"
+            className="text-2xl sm:text-3xl max-w-3xl leading-relaxed text-[var(--text-secondary)] font-medium"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.1 }}
@@ -92,7 +92,7 @@ export function CookbookPage() {
                       <motion.h3 className="m-0 text-3xl sm:text-4xl font-display font-black leading-tight text-[var(--text-primary)] group-hover:text-[var(--p-amber-400)] transition-colors">
                         {recipe.title}
                       </motion.h3>
-                      <motion.p className="m-0 text-xl opacity-60 leading-relaxed text-[var(--text-secondary)] group-hover:opacity-100 transition-opacity">
+                      <motion.p className="m-0 text-xl leading-relaxed text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors">
                         {recipe.description}
                       </motion.p>
                     </motion.div>
@@ -100,7 +100,7 @@ export function CookbookPage() {
                     <motion.div className="w-full flex items-center justify-between pt-8 border-t border-[var(--border-subtle)] group-hover:border-[var(--p-amber-400)]/20 transition-colors">
                        <motion.div className="flex items-center gap-3">
                           <motion.div className="w-2 h-2 rounded-full bg-[var(--status-success)] pulse-active" />
-                          <motion.span className="text-[10px] font-black uppercase tracking-widest opacity-40 group-hover:opacity-60">Verified Recipe</motion.span>
+                          <motion.span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] group-hover:text-[var(--text-secondary)]">Verified Recipe</motion.span>
                        </motion.div>
                        <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--p-amber-400)] group-hover:gap-4 transition-all">
                           Read Pattern
@@ -130,8 +130,8 @@ export function CookbookPage() {
               <motion.h3 className="text-4xl sm:text-7xl font-display font-black tracking-tight leading-[0.95]" style={{ color: 'var(--text-primary)' }}>
                 Soundness by <motion.span className="text-[var(--p-teal-400)]">Pattern.</motion.span>
               </motion.h3>
-              <motion.p className="text-2xl leading-relaxed opacity-70">
-                The Cookbook isn't just a list of commands—it's a library of **proven state machines**. Every recipe is designed to converge your swarm on a result while maintaining the absolute integrity of your harbor.
+              <motion.p className="text-2xl leading-relaxed text-[var(--text-secondary)]">
+                The Cookbook isn't just a list of commands—it's a library of <strong>proven state machines</strong>. Every recipe is designed to converge your swarm on a result while maintaining the absolute integrity of your harbor.
               </motion.p>
            </motion.div>
 
@@ -144,7 +144,7 @@ export function CookbookPage() {
               ].map((item, i) => (
                 <motion.div key={i} className="p-8 rounded-[40px] bg-[var(--bg-overlay)] border border-[var(--border-subtle)] flex flex-col items-center gap-4">
                    <item.icon size={24} className="text-[var(--p-amber-400)]" />
-                   <motion.span className="text-[10px] font-black uppercase tracking-widest opacity-60">{item.label}</motion.span>
+                   <motion.span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">{item.label}</motion.span>
                 </motion.div>
               ))}
            </motion.div>

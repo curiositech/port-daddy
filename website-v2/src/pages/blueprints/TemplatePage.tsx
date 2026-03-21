@@ -42,7 +42,7 @@ export function TemplatePage() {
         
         <motion.div className="max-w-4xl mx-auto relative z-10 flex flex-col items-center text-center gap-10">
            <Link to="/templates" className="no-underline group">
-              <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] opacity-40 group-hover:opacity-100 group-hover:text-[var(--brand-primary)] transition-all">
+              <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] text-[var(--text-muted)] group-hover:text-[var(--brand-primary)] transition-all">
                  <ChevronLeft size={14} className="group-hover:-translate-x-1 transition-transform" />
                  Back to Blueprints
               </motion.div>
@@ -67,7 +67,7 @@ export function TemplatePage() {
            </motion.div>
 
            <motion.p 
-             className="text-2xl leading-relaxed opacity-70 font-medium max-w-2xl"
+             className="text-2xl leading-relaxed text-[var(--text-secondary)] font-medium max-w-2xl"
              initial={{ opacity: 0, y: 20 }}
              animate={{ opacity: 1, y: 0 }}
              transition={{ duration: 0.8, delay: 0.1 }}
@@ -100,13 +100,13 @@ export function TemplatePage() {
                  <motion.div className="absolute top-0 right-0 p-8 opacity-5">
                     <Terminal size={100} />
                  </motion.div>
-                 <motion.p className="text-sm font-black uppercase tracking-widest opacity-40 m-0">Terminal Execution</motion.p>
+                 <motion.p className="text-sm font-black uppercase tracking-widest text-[var(--text-muted)] m-0">Terminal Execution</motion.p>
                  <CodeBlock language="bash">
                    {`mkdir ${bp.id}\ncd ${bp.id}\n\npd init --template ${bp.id}\npd up`}
                  </CodeBlock>
                  <motion.div className="flex items-center gap-3 p-4 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
                     <Info size={16} className="text-[var(--brand-primary)] shrink-0" />
-                    <motion.p className="text-sm m-0 opacity-60">This template includes pre-configured harbor cards and Swarm Radio channels.</motion.p>
+                    <motion.p className="text-sm m-0 text-[var(--text-secondary)]">This template includes pre-configured harbor cards and Swarm Radio channels.</motion.p>
                  </motion.div>
               </motion.div>
            </section>
@@ -126,14 +126,14 @@ export function TemplatePage() {
                        <Users size={20} className="text-[var(--p-teal-400)]" />
                     </motion.div>
                     <motion.h3 className="text-xl font-display font-black m-0">Role-Based Agents</motion.h3>
-                    <motion.p className="text-base opacity-60 m-0 leading-relaxed">Dedicated identities for planners, coders, and reviewers with scoped file access.</motion.p>
+                    <motion.p className="text-base text-[var(--text-secondary)] m-0 leading-relaxed">Dedicated identities for planners, coders, and reviewers with scoped file access.</motion.p>
                  </motion.div>
                  <motion.div className="p-8 rounded-[32px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-4 group hover:border-[var(--p-amber-400)] transition-colors">
                     <motion.div className="w-10 h-10 rounded-xl bg-[var(--p-amber-500)]/10 flex items-center justify-center border border-[var(--p-amber-500)]/20">
                        <Zap size={20} className="text-[var(--p-amber-400)]" />
                     </motion.div>
                     <motion.h3 className="text-xl font-display font-black m-0">Reactive Signaling</motion.h3>
-                    <motion.p className="text-base opacity-60 m-0 leading-relaxed">Pre-wired Swarm Radio channels for automatic handoffs and error reporting.</motion.p>
+                    <motion.p className="text-base text-[var(--text-secondary)] m-0 leading-relaxed">Pre-wired Swarm Radio channels for automatic handoffs and error reporting.</motion.p>
                  </motion.div>
               </motion.div>
            </section>
@@ -148,7 +148,7 @@ export function TemplatePage() {
               </motion.div>
               <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest shadow-xl">Formal Integrity</Badge>
               <motion.h3 className="text-4xl font-display font-black m-0" style={{ color: 'var(--text-primary)' }}>Mathematically Sound.</motion.h3>
-              <motion.p className="text-xl max-w-xl opacity-70">
+              <motion.p className="text-xl max-w-xl text-[var(--text-secondary)]">
                 Like all Port Daddy templates, this blueprint is verified against our formal state machine. We ensure that the coordination logic cannot result in unauthorized port claims or "zombie" process cycles.
               </motion.p>
               <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-primary)]">

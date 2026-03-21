@@ -57,9 +57,9 @@ export function GettingStarted() {
           </motion.div>
 
           <motion.div className="bg-[var(--bg-overlay)] p-10 rounded-[40px] border border-[var(--border-subtle)]">
-             <motion.p className="text-sm uppercase tracking-widest font-black mb-6 opacity-40">Verification</motion.p>
+             <motion.p className="text-sm uppercase tracking-widest font-black mb-6 text-[var(--text-muted)]">Verification</motion.p>
              <CodeBlock language="bash">{`pd start`}</CodeBlock>
-             <motion.p className="mt-6 mb-0 text-sm italic opacity-60">
+             <motion.p className="mt-6 mb-0 text-sm italic text-[var(--text-secondary)]">
                The daemon is now listening on <code>localhost:9876</code>. It is your swarm's lighthouse.
              </motion.p>
           </motion.div>
@@ -108,7 +108,7 @@ export function GettingStarted() {
                 <motion.div className="w-10 h-10 rounded-full bg-[var(--p-teal-500)]/10 flex items-center justify-center text-[var(--p-teal-400)] font-black">A</motion.div>
                 <motion.div className="flex-1">
                    <motion.p className="font-bold m-0 text-lg">Local Agent</motion.p>
-                   <motion.p className="text-sm m-0 opacity-60">Uses <code>pd claim</code> to announce presence.</motion.p>
+                   <motion.p className="text-sm m-0 text-[var(--text-secondary)]">Uses <code>pd claim</code> to announce presence.</motion.p>
                 </motion.div>
                 <Badge variant="teal">Active</Badge>
              </motion.div>
@@ -116,7 +116,7 @@ export function GettingStarted() {
                 <motion.div className="w-10 h-10 rounded-full bg-[var(--p-amber-500)]/10 flex items-center justify-center text-[var(--p-amber-400)] font-black">B</motion.div>
                 <motion.div className="flex-1">
                    <motion.p className="font-bold m-0 text-lg">Remote Harbor</motion.p>
-                   <motion.p className="text-sm m-0 opacity-60">Connected via <code>pd tunnel</code>.</motion.p>
+                   <motion.p className="text-sm m-0 text-[var(--text-secondary)]">Connected via <code>pd tunnel</code>.</motion.p>
                 </motion.div>
                 <Badge variant="neutral">Connected</Badge>
              </motion.div>

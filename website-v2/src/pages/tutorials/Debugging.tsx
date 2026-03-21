@@ -34,7 +34,7 @@ export function Debugging() {
             {`$ lsof -i :3100\nCOMMAND   PID   USER   FD   TYPE   DEVICE   NAME\nnode    48291  erich   23u  IPv6   0x1a2b   *:3100`}
           </CodeBlock>
 
-          <motion.p className="opacity-60 italic text-sm">
+          <motion.p className="text-[var(--text-secondary)] italic text-sm">
             Great. You have a PID. But what service is it? Why did it start? And is it safe to kill?
           </motion.p>
         </section>
@@ -49,7 +49,7 @@ export function Debugging() {
           </motion.div>
           
           <motion.p>
-            When every service claims its port through Port Daddy, you get a complete **Semantic Registry**. The <code>find</code> command tells you exactly who owns the port.
+            When every service claims its port through Port Daddy, you get a complete <strong>Semantic Registry</strong>. The <code>find</code> command tells you exactly who owns the port.
           </motion.p>
 
           <CodeBlock language="bash">
@@ -62,14 +62,14 @@ export function Debugging() {
                    <Activity size={20} className="text-[var(--p-teal-400)]" />
                 </motion.div>
                 <motion.h3 className="text-xl font-display font-black m-0">Live Health</motion.h3>
-                <motion.p className="text-sm opacity-60 m-0">Port Daddy checks if the process is actually responding, not just squatting on the socket.</motion.p>
+                <motion.p className="text-sm text-[var(--text-secondary)] m-0">Port Daddy checks if the process is actually responding, not just squatting on the socket.</motion.p>
              </motion.div>
              <motion.div className="p-8 rounded-[32px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-4">
                 <motion.div className="w-10 h-10 rounded-xl bg-[var(--p-blue-500)]/10 flex items-center justify-center">
                    <Shield size={20} className="text-[var(--p-blue-400)]" />
                 </motion.div>
                 <motion.h3 className="text-xl font-display font-black m-0">Owner Track</motion.h3>
-                <motion.p className="text-sm opacity-60 m-0">See exactly which agent or harbor created the claim to avoid accidental kills.</motion.p>
+                <motion.p className="text-sm text-[var(--text-secondary)] m-0">See exactly which agent or harbor created the claim to avoid accidental kills.</motion.p>
              </motion.div>
           </motion.div>
         </section>
@@ -95,10 +95,10 @@ export function Debugging() {
              <motion.div className="absolute top-0 right-0 p-8 opacity-5">
                 <RefreshCw size={100} className="animate-spin-slow" />
              </motion.div>
-             <motion.p className="text-sm font-black uppercase tracking-widest opacity-40 m-0 relative z-10">Advanced Diagnostics</motion.p>
+             <motion.p className="text-sm font-black uppercase tracking-widest text-[var(--text-muted)] m-0 relative z-10">Advanced Diagnostics</motion.p>
              <CodeBlock language="bash">{`$ pd health --all`}</CodeBlock>
              <motion.div className="space-y-2 relative z-10">
-                <motion.div className="flex items-center justify-between text-xs font-mono opacity-60">
+                <motion.div className="flex items-center justify-between text-xs font-mono text-[var(--text-secondary)]">
                    <motion.span>myapp:api</motion.span>
                    <motion.span className="text-[var(--status-success)]">HEALTHY</motion.span>
                 </motion.div>
@@ -117,7 +117,7 @@ export function Debugging() {
         >
            <Badge variant="amber" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Still Stuck?</Badge>
            <motion.h3 className="text-4xl font-display font-black m-0" style={{ color: 'var(--text-primary)' }}>Deep SDK Reference.</motion.h3>
-           <motion.p className="text-xl max-w-xl opacity-70">
+           <motion.p className="text-xl max-w-xl text-[var(--text-secondary)]">
              The CLI manual contains detailed error codes and recovery patterns for every possible infrastructure collision.
            </motion.p>
            <Link to="/docs" className="no-underline">

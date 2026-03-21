@@ -35,18 +35,30 @@ function AnimatedTerminal() {
   }
 
   return (
-    <div className="rounded-xl overflow-hidden border border-white/[0.08] bg-[#0a1210] shadow-[0_24px_80px_-12px_rgba(0,0,0,0.8)]">
+    <div
+      className="rounded-2xl overflow-hidden"
+      style={{
+        background: '#d0d0d0',
+        boxShadow: 'inset 4px 4px 8px #b8b8b8, inset -4px -4px 8px #e8e8e8',
+      }}
+    >
       {/* Title bar */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-white/[0.03] border-b border-white/[0.06]">
+      <div
+        className="flex items-center justify-between px-4 py-2.5"
+        style={{
+          background: '#d6d6d6',
+          boxShadow: '0 1px 0 rgba(0,0,0,0.06)',
+        }}
+      >
         <div className="flex items-center gap-2">
-          <span className="w-3 h-3 rounded-full bg-[#ff5f56]/80" />
-          <span className="w-3 h-3 rounded-full bg-[#ffbd2e]/80" />
-          <span className="w-3 h-3 rounded-full bg-[#27c93f]/80" />
+          <span className="w-3 h-3 rounded-full bg-[#ff5f56]/70" />
+          <span className="w-3 h-3 rounded-full bg-[#ffbd2e]/70" />
+          <span className="w-3 h-3 rounded-full bg-[#27c93f]/70" />
         </div>
-        <span className="text-[11px] font-mono text-white/25 tracking-wide">port-daddy</span>
+        <span className="text-[11px] font-mono text-[#888] tracking-wide">port-daddy</span>
         <button
           onClick={handleCopy}
-          className="text-white/30 hover:text-white/60 transition-colors cursor-pointer"
+          className="text-[#999] hover:text-[#555] transition-colors cursor-pointer"
           aria-label="Copy install command"
         >
           {copied ? <Check size={14} /> : <Copy size={14} />}
@@ -61,15 +73,15 @@ function AnimatedTerminal() {
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.25, ease: 'easeOut' }}
-            className={line.prompt ? 'text-white/90' : 'text-white/40'}
+            className={line.prompt ? 'text-[#2d2d2d]' : 'text-[#777]'}
           >
-            {line.prompt && <span className="text-[#5eead4] mr-2">$</span>}
+            {line.prompt && <span className="text-[#0d9488] mr-2">$</span>}
             {!line.prompt && <span className="mr-2">&nbsp;&nbsp;</span>}
             {line.text}
           </motion.div>
         ))}
         {visibleLines < TERMINAL_LINES.length && (
-          <span className="inline-block w-[7px] h-[15px] bg-[#5eead4] ml-[18px] animate-pulse" />
+          <span className="inline-block w-[7px] h-[15px] bg-[#0d9488] ml-[18px] animate-pulse" />
         )}
       </div>
     </div>
@@ -81,54 +93,55 @@ export function Hero() {
 
   return (
     <section className="relative min-h-screen flex items-center overflow-hidden pt-24">
-      {/* Background layers */}
-      <div className="absolute inset-0 pointer-events-none" style={{
-        background: `
-          radial-gradient(ellipse 1200px 700px at 30% -10%, rgba(13, 148, 136, 0.1) 0%, transparent 70%),
-          radial-gradient(ellipse 600px 400px at 85% 80%, rgba(6, 182, 212, 0.06) 0%, transparent 60%)
-        `
-      }} />
-
-      {/* Dot grid */}
-      <div className="absolute inset-0 pointer-events-none opacity-[0.035]" style={{
-        backgroundImage: 'radial-gradient(circle, currentColor 1px, transparent 1px)',
+      {/* Subtle dot grid on the neumorphic surface */}
+      <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{
+        backgroundImage: 'radial-gradient(circle, #888 1px, transparent 1px)',
         backgroundSize: '24px 24px',
       }} />
 
       <div className="relative z-10 w-full max-w-[1200px] mx-auto px-6 lg:px-8 py-20 lg:py-0">
         <div className="grid lg:grid-cols-[1fr,1.1fr] gap-12 lg:gap-16 items-center">
-          {/* Left — Copy */}
+          {/* Left -- Copy */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, ease: 'easeOut' as const }}
           >
-            <p className="text-sm font-mono text-[#5eead4] tracking-wide mb-5 uppercase">
+            <p className="text-sm font-mono text-[#0d9488] tracking-wide mb-5 uppercase">
               Multi-agent coordination
             </p>
 
             <h1 className="text-[2.5rem] sm:text-5xl lg:text-[3.25rem] xl:text-[3.75rem] font-bold tracking-[-0.035em] leading-[1.08] mb-6 text-[var(--text-primary)]">
               Stop your agents from
               {' '}
-              <span className="bg-gradient-to-r from-[#5eead4] to-[#0d9488] bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-[#0d9488] to-[#0f766e] bg-clip-text text-transparent">
                 fighting each other.
               </span>
             </h1>
 
-            <p className="text-base lg:text-lg text-[var(--text-muted)] leading-relaxed mb-8 max-w-lg">
+            <p className="text-base lg:text-lg text-[var(--text-secondary)] leading-relaxed mb-8 max-w-lg">
               Port Daddy is a daemon that gives every AI agent its own port, coordinates file access, and recovers work when they crash. One install. Zero config.
             </p>
 
             <div className="flex flex-wrap items-center gap-3">
-              <Button
-                size="lg"
-                className="gap-2"
+              <button
                 onClick={() => setIsModalOpen(true)}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-lg font-semibold text-white cursor-pointer transition-all duration-200"
+                style={{
+                  background: '#0d9488',
+                  boxShadow: '4px 4px 8px #c4c4c4, -4px -4px 8px #ffffff',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.boxShadow = '2px 2px 4px #c4c4c4, -2px -2px 4px #ffffff'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.boxShadow = '4px 4px 8px #c4c4c4, -4px -4px 8px #ffffff'
+                }}
               >
                 <Terminal size={16} />
                 Get Started
                 <ArrowRight size={16} />
-              </Button>
+              </button>
               <Link to="/docs">
                 <Button variant="ghost" size="lg" className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">
                   Read the Docs
@@ -137,7 +150,7 @@ export function Hero() {
             </div>
           </motion.div>
 
-          {/* Right — Terminal */}
+          {/* Right -- Terminal */}
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}

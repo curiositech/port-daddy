@@ -40,7 +40,7 @@ export function RoadmapPage() {
             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[var(--bg-overlay)] border border-[var(--border-subtle)] mb-8"
           >
             <Cpu size={14} className="text-[var(--brand-primary)]" />
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 text-[var(--text-primary)]">Roadmap to v4.0</span>
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)]">Roadmap to v4.0</span>
           </motion.div>
           
           <motion.h1 

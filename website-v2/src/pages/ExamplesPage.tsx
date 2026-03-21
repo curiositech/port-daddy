@@ -235,7 +235,7 @@ export function ExamplesPage() {
                          <Terminal size={24} className="text-[var(--text-primary)]" />
                       </div>
                       {ex.code.map((line, j) => (
-                        <div key={j} className={line.startsWith('#') ? 'text-[var(--text-muted)] mb-3 opacity-40' : line.startsWith('pd') || line.startsWith('curl') ? 'text-[var(--text-primary)] font-bold mb-2' : 'text-[var(--text-secondary)] opacity-60'}>
+                        <div key={j} className={line.startsWith('#') ? 'text-[var(--text-muted)] mb-3' : line.startsWith('pd') || line.startsWith('curl') ? 'text-[var(--text-primary)] font-bold mb-2' : 'text-[var(--text-secondary)]'}>
                           {line.startsWith('pd') || line.startsWith('curl') ? (
                             <span><span style={{ color: 'var(--brand-primary)' }}>$</span> {line}</span>
                           ) : line}
@@ -266,7 +266,7 @@ export function ExamplesPage() {
                 <span className="text-[var(--p-amber-400)]">Infinite Logic.</span>
               </motion.h3>
               <motion.p className="text-xl sm:text-2xl leading-relaxed text-[var(--text-secondary)] max-w-3xl">
-                Port Daddy doesn't care about the intelligence of your agent. It cares about the **reliability of the mesh**. These patterns provide the hard infrastructure that allows soft logic to flourish.
+                Port Daddy doesn't care about the intelligence of your agent. It cares about the <strong>reliability of the mesh</strong>. These patterns provide the hard infrastructure that allows soft logic to flourish.
               </motion.p>
            </div>
 

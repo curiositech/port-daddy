@@ -42,7 +42,7 @@ export function IntegrationsPage() {
             <motion.span className="text-[var(--brand-primary)]">Everything.</motion.span>
           </motion.h1>
           <motion.p 
-            className="text-2xl sm:text-4xl max-w-4xl leading-relaxed opacity-70 font-medium"
+            className="text-2xl sm:text-4xl max-w-4xl leading-relaxed text-[var(--text-secondary)] font-medium"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.1 }}
@@ -83,12 +83,12 @@ export function IntegrationsPage() {
 
                     <div className="space-y-6 flex-1 flex flex-col items-center">
                       <div className="flex flex-col items-center gap-2">
-                         <motion.span className="text-[10px] font-black uppercase tracking-[0.3em] opacity-30 font-mono">{int.category}</motion.span>
+                         <motion.span className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--text-muted)] font-mono">{int.category}</motion.span>
                          <motion.h3 className="m-0 text-3xl font-display font-black leading-tight text-[var(--text-primary)]">
                            {int.name}
                          </motion.h3>
                       </div>
-                      <motion.p className="m-0 text-lg opacity-60 leading-relaxed group-hover:opacity-100 transition-opacity max-w-xs">
+                      <motion.p className="m-0 text-lg text-[var(--text-secondary)] leading-relaxed group-hover:text-[var(--text-primary)] transition-colors max-w-xs">
                         {int.description}
                       </motion.p>
                     </div>
@@ -123,7 +123,7 @@ export function IntegrationsPage() {
                 One Mesh. <br />
                 <span className="text-[var(--p-amber-400)]">Global Scale.</span>
               </motion.h3>
-              <motion.p className="text-2xl sm:text-3xl leading-relaxed opacity-70 max-w-3xl">
+              <motion.p className="text-2xl sm:text-3xl leading-relaxed text-[var(--text-secondary)] max-w-3xl">
                 Integrations in Port Daddy are not mere API wrappers. They are high-fidelity bridges that allow different agent families to communicate using a single, secure protocol. Build your swarm with Claude, monitor it with Gemini, and orchestrate it with CrewAI.
               </motion.p>
            </div>
@@ -139,7 +139,7 @@ export function IntegrationsPage() {
                    <motion.div className="w-14 h-14 rounded-2xl bg-[var(--bg-surface)] flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
                       <item.icon size={28} className="text-[var(--brand-primary)]" />
                    </motion.div>
-                   <motion.span className="text-[10px] font-black uppercase tracking-[0.25em] opacity-40 group-hover:opacity-100 transition-opacity text-center">{item.label}</motion.span>
+                   <motion.span className="text-[10px] font-black uppercase tracking-[0.25em] text-[var(--text-muted)] group-hover:text-[var(--text-primary)] transition-colors text-center">{item.label}</motion.span>
                 </motion.div>
               ))}
            </div>

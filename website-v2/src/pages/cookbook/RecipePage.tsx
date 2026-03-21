@@ -59,7 +59,7 @@ export function RecipePage() {
         
         <motion.div className="max-w-4xl mx-auto relative z-10 flex flex-col items-center text-center gap-10">
            <Link to="/cookbook" className="no-underline group">
-              <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] opacity-40 group-hover:opacity-100 group-hover:text-[var(--p-amber-400)] transition-all">
+              <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] text-[var(--text-muted)] group-hover:text-[var(--p-amber-400)] transition-all">
                  <ChevronLeft size={14} className="group-hover:-translate-x-1 transition-transform" />
                  Back to Cookbook
               </motion.div>
@@ -84,7 +84,7 @@ export function RecipePage() {
            </motion.div>
 
            <motion.p 
-             className="text-2xl leading-relaxed opacity-70 font-medium max-w-2xl"
+             className="text-2xl leading-relaxed text-[var(--text-secondary)] font-medium max-w-2xl"
              initial={{ opacity: 0, y: 20 }}
              animate={{ opacity: 1, y: 0 }}
              transition={{ duration: 0.8, delay: 0.1 }}
@@ -110,7 +110,7 @@ export function RecipePage() {
               <motion.article 
                 className="prose prose-invert prose-lg max-w-none 
                   prose-headings:font-display prose-headings:font-black prose-headings:tracking-tight
-                  prose-p:text-xl prose-p:leading-relaxed prose-p:opacity-70
+                  prose-p:text-xl prose-p:leading-relaxed prose-p:text-[var(--text-secondary)]
                   prose-strong:text-[var(--text-primary)] prose-strong:font-black
                   prose-code:text-[var(--p-amber-400)] prose-code:bg-[var(--bg-overlay)] prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:font-bold prose-code:before:content-none prose-code:after:content-none"
                 initial={{ opacity: 0, y: 20 }}
@@ -131,7 +131,7 @@ export function RecipePage() {
               </motion.div>
               <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest shadow-xl">State Verification</Badge>
               <motion.h3 className="text-4xl font-display font-black m-0" style={{ color: 'var(--text-primary)' }}>Pattern Soundness.</motion.h3>
-              <motion.p className="text-xl max-w-xl opacity-70">
+              <motion.p className="text-xl max-w-xl text-[var(--text-secondary)]">
                 This recipe has been verified against the Port Daddy v3.7 state machine. We ensure that following these handoff steps results in a deterministic and resilient harbor state.
               </motion.p>
               <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--p-amber-400)]">

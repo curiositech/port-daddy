@@ -26,26 +26,23 @@ const item = {
 export function Features() {
   return (
     <section id="features" className="relative py-24 lg:py-32">
-      {/* Subtle section divider glow */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[1px] bg-gradient-to-r from-transparent via-[#5eead4]/20 to-transparent" />
-
       <div className="max-w-[1200px] mx-auto px-6 lg:px-8">
         {/* Header */}
         <div className="max-w-2xl mb-16">
-          <p className="text-sm font-mono text-[#5eead4] tracking-wide mb-4 uppercase">
+          <p className="text-sm font-mono text-[#0d9488] tracking-wide mb-4 uppercase">
             Primitives
           </p>
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-[var(--text-primary)] mb-4 leading-[1.15]">
             Everything your agents need to cooperate.
           </h2>
-          <p className="text-base text-[var(--text-muted)] leading-relaxed">
+          <p className="text-base text-[var(--text-secondary)] leading-relaxed">
             Nine primitives that turn a collection of scripts into a production-grade autonomous system. Each one is a single CLI command.
           </p>
         </div>
 
         {/* Feature Grid */}
         <motion.div
-          className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4"
+          className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6"
           variants={container}
           initial="hidden"
           animate="show"
@@ -57,21 +54,29 @@ export function Features() {
               <motion.div
                 key={feature.id}
                 variants={item}
-                className="group relative p-6 rounded-xl overflow-hidden
-                  bg-[var(--bg-surface)] border border-[var(--border-subtle)]
-                  hover:border-[rgba(94,234,212,0.2)]
-                  transition-all duration-300
-                  hover:shadow-[0_8px_40px_-8px_rgba(13,148,136,0.15)]"
+                className="group relative p-6 rounded-2xl transition-all duration-300 cursor-default"
+                style={{
+                  background: 'var(--bg-surface)',
+                  boxShadow: 'var(--shadow-neu-raised)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.boxShadow = 'var(--shadow-neu-flat)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.boxShadow = 'var(--shadow-neu-raised)'
+                }}
               >
-                {/* Shimmer on hover */}
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
-                  style={{
-                    background: 'linear-gradient(135deg, rgba(94,234,212,0.03) 0%, transparent 60%)'
-                  }}
-                />
-
                 <div className="relative">
-                  <Icon size={18} className="text-[#5eead4] mb-4" />
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center mb-4"
+                    style={{
+                      background: 'var(--bg-base)',
+                      boxShadow: 'var(--shadow-neu-inset)',
+                      borderRadius: '12px',
+                    }}
+                  >
+                    <Icon size={18} className="text-[#0d9488]" />
+                  </div>
 
                   <h3 className="text-[15px] font-semibold text-[var(--text-primary)] mb-2 tracking-[-0.01em]">
                     {feature.title}
@@ -81,9 +86,16 @@ export function Features() {
                     {feature.description}
                   </p>
 
-                  {/* CLI snippet */}
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-[var(--bg-base)] border border-[var(--border-subtle)] font-mono text-xs">
-                    <span className="text-[#5eead4]/60 select-none">$</span>
+                  {/* CLI snippet - inset neumorphic */}
+                  <div
+                    className="flex items-center gap-2 px-3 py-2 font-mono text-xs"
+                    style={{
+                      background: 'var(--bg-base)',
+                      boxShadow: 'inset 2px 2px 4px #c4c4c4, inset -2px -2px 4px #ffffff',
+                      borderRadius: '8px',
+                    }}
+                  >
+                    <span className="text-[#0d9488]/60 select-none">$</span>
                     <span className="text-[var(--text-muted)]">{feature.cli}</span>
                   </div>
                 </div>

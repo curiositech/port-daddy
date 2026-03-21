@@ -26,7 +26,7 @@ export function Tunnel() {
             <motion.h2 className="m-0">The Global Harbor</motion.h2>
           </motion.div>
           <motion.p>
-            Port Daddy's tunneling system isn't just about public URLs. It's a full **P2P Service Mesh**. By linking two daemons, your local agents can discover and coordination with remote agents as if they were on the same loopback interface.
+            Port Daddy's tunneling system isn't just about public URLs. It's a full <strong>P2P Service Mesh</strong>. By linking two daemons, your local agents can discover and coordination with remote agents as if they were on the same loopback interface.
           </motion.p>
           <motion.div className="grid sm:grid-cols-2 gap-8 pt-4">
              <motion.div className="p-8 rounded-[32px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-4">
@@ -34,14 +34,14 @@ export function Tunnel() {
                    <Lock size={20} className="text-[var(--p-teal-400)]" />
                 </motion.div>
                 <motion.h3 className="text-xl font-display font-black m-0">Noise Protocol</motion.h3>
-                <motion.p className="text-sm opacity-60 m-0">Every tunnel is end-to-end encrypted using the Noise Protocol (Noise_XX), ensuring zero eavesdropping.</motion.p>
+                <motion.p className="text-sm text-[var(--text-secondary)] m-0">Every tunnel is end-to-end encrypted using the Noise Protocol (Noise_XX), ensuring zero eavesdropping.</motion.p>
              </motion.div>
              <motion.div className="p-8 rounded-[32px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-4">
                 <motion.div className="w-10 h-10 rounded-xl bg-[var(--p-amber-500)]/10 flex items-center justify-center">
                    <Network size={20} className="text-[var(--p-amber-400)]" />
                 </motion.div>
                 <motion.h3 className="text-xl font-display font-black m-0">Identity Mesh</motion.h3>
-                <motion.p className="text-sm opacity-60 m-0">Remote services are resolved via their semantic identities. <code>pd dns resolve</code> works globally.</motion.p>
+                <motion.p className="text-sm text-[var(--text-secondary)] m-0">Remote services are resolved via their semantic identities. <code>pd dns resolve</code> works globally.</motion.p>
              </motion.div>
           </motion.div>
         </section>
@@ -64,8 +64,8 @@ export function Tunnel() {
           </CodeBlock>
 
           <blockquote className="bg-[var(--bg-overlay)] p-8 rounded-3xl border-l-4 border-[var(--brand-primary)]">
-             <motion.p className="m-0 text-sm italic opacity-60 font-medium">
-               Port Daddy uses a distributed network of **Lighthouses** to negotiate P2P connections, even behind restrictive NAT or corporate firewalls.
+             <motion.p className="m-0 text-sm italic text-[var(--text-secondary)] font-medium">
+               Port Daddy uses a distributed network of <strong>Lighthouses</strong> to negotiate P2P connections, even behind restrictive NAT or corporate firewalls.
              </motion.p>
           </blockquote>
         </section>
@@ -89,19 +89,19 @@ export function Tunnel() {
 
           <motion.div className="bg-[var(--bg-surface)] p-10 rounded-[48px] border border-[var(--border-subtle)] space-y-6 relative overflow-hidden shadow-2xl">
              <motion.div className="absolute inset-0 bg-gradient-to-r from-[var(--p-blue-500)]/5 to-[var(--p-teal-500)]/5" />
-             <motion.p className="text-sm font-black uppercase tracking-widest opacity-40 m-0 relative z-10">The Mesh Visualization</motion.p>
+             <motion.p className="text-sm font-black uppercase tracking-widest text-[var(--text-muted)] m-0 relative z-10">The Mesh Visualization</motion.p>
              <motion.div className="flex items-center justify-between gap-10 relative z-10">
                 <motion.div className="flex-1 p-6 rounded-2xl bg-[var(--bg-overlay)] border border-[var(--border-subtle)] text-center">
                    <Badge variant="teal" className="mb-2">Local Harbor</Badge>
-                   <motion.p className="text-xs opacity-60 m-0">Agent 'A'</motion.p>
+                   <motion.p className="text-xs text-[var(--text-secondary)] m-0">Agent 'A'</motion.p>
                 </motion.div>
                 <motion.div className="flex-1 flex flex-col items-center">
-                   <motion.div className="h-[1px] w-full bg-dashed border-t border-[var(--brand-primary)] opacity-40" />
-                   <motion.span className="text-[8px] font-black uppercase tracking-widest opacity-40 mt-2">Noise Tunnel</motion.span>
+                   <motion.div className="h-[1px] w-full bg-dashed border-t border-[var(--brand-primary)] text-[var(--text-muted)]" />
+                   <motion.span className="text-[8px] font-black uppercase tracking-widest text-[var(--text-muted)] mt-2">Noise Tunnel</motion.span>
                 </motion.div>
                 <motion.div className="flex-1 p-6 rounded-2xl bg-[var(--bg-overlay)] border border-[var(--border-subtle)] text-center">
                    <Badge variant="amber" className="mb-2">Remote Harbor</Badge>
-                   <motion.p className="text-xs opacity-60 m-0">Agent 'B'</motion.p>
+                   <motion.p className="text-xs text-[var(--text-secondary)] m-0">Agent 'B'</motion.p>
                 </motion.div>
              </motion.div>
           </motion.div>
@@ -117,8 +117,8 @@ export function Tunnel() {
            </motion.div>
            <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Privacy Engineering</Badge>
            <motion.h3 className="text-4xl font-display font-black m-0" style={{ color: 'var(--text-primary)' }}>Zero-Trust Mesh.</motion.h3>
-           <motion.p className="text-xl max-w-xl opacity-70">
-             Unlike standard VPNs, Port Daddy tunnels are **per-identity**. You don't expose your entire network—only the specific semantic identities you've explicitly claimed in your harbor.
+           <motion.p className="text-xl max-w-xl text-[var(--text-secondary)]">
+             Unlike standard VPNs, Port Daddy tunnels are <strong>per-identity</strong>. You don't expose your entire network—only the specific semantic identities you've explicitly claimed in your harbor.
            </motion.p>
            <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--p-blue-400)]">
               <Activity size={14} className="animate-pulse" />

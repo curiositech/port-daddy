@@ -8,6 +8,9 @@ import { ReorientationPanel } from './ReorientationPanel'
 import { Clock, BookOpen, ChevronRight, Home, Layout, ArrowLeft, ArrowRight, Zap, Shield, Globe, Share2 } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
 
+// Nav height matches the h-16 (4rem / 64px) used in Nav.tsx
+const NAV_HEIGHT = '4rem'
+
 interface TutorialLayoutProps {
   title: string
   description: string
@@ -78,12 +81,12 @@ export function TutorialLayout({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       className="min-h-screen font-sans flex flex-col selection:bg-[var(--brand-primary)] selection:text-white" 
-      style={{ background: 'var(--bg-base)', color: 'var(--text-primary)', paddingTop: 'var(--nav-height)' }}
+      style={{ background: 'var(--bg-base)', color: 'var(--text-primary)', paddingTop: NAV_HEIGHT }}
     >
       {/* Progress Bar */}
       <motion.div
         className="fixed top-0 left-0 right-0 h-1 bg-[var(--brand-primary)] z-[100] origin-left shadow-[0_0_12px_rgba(58,173,173,0.5)]"
-        style={{ scaleX, top: 'var(--nav-height)' }}
+        style={{ scaleX, top: NAV_HEIGHT }}
       />
 
       {/* Hero Section */}
@@ -120,12 +123,12 @@ export function TutorialLayout({
               <Home size={12} className="group-hover:scale-110 transition-transform" />
               Home
             </Link>
-            <ChevronRight size={12} className="opacity-30" />
+            <ChevronRight size={12} className="opacity-50" />
             <Link to="/tutorials" className="hover:text-[var(--text-primary)] transition-all no-underline flex items-center gap-1.5 font-sans group">
               <BookOpen size={12} className="group-hover:scale-110 transition-transform" />
               Academy
             </Link>
-            <ChevronRight size={12} className="opacity-30" />
+            <ChevronRight size={12} className="opacity-50" />
             <motion.span style={{ color: 'var(--brand-primary)' }} className="flex items-center gap-1.5 font-sans font-black">
               <Layout size={12} />
               Lesson {number}
@@ -151,8 +154,8 @@ export function TutorialLayout({
               <Badge variant={level === 'Beginner' ? 'teal' : level === 'Intermediate' ? 'amber' : 'neutral'} className="px-5 py-2 text-[9px] font-black uppercase tracking-widest shadow-xl shadow-[var(--brand-primary)]/5">
                 {level}
               </Badge>
-              <motion.div className="h-[1px] w-12 bg-[var(--border-strong)] opacity-20" />
-              <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] opacity-60 font-mono">
+              <motion.div className="h-[1px] w-12 bg-[var(--border-strong)] opacity-40" />
+              <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] font-mono">
                 <Clock size={14} className="text-[var(--brand-primary)]" />
                 {readTime}
               </motion.div>
@@ -161,11 +164,11 @@ export function TutorialLayout({
             <motion.h1 className="text-6xl sm:text-8xl font-bold mb-10 tracking-tighter font-display" style={{ color: 'var(--text-primary)', lineHeight: 0.95 }}>
               {title}
             </motion.h1>
-            <motion.p className="text-xl sm:text-2xl max-w-3xl leading-relaxed mb-14 mx-auto font-sans opacity-80" style={{ color: 'var(--text-secondary)' }}>
+            <motion.p className="text-xl sm:text-2xl max-w-3xl leading-relaxed mb-14 mx-auto font-sans" style={{ color: 'var(--text-secondary)' }}>
               {description}
             </motion.p>
 
-            <motion.div className="flex flex-wrap items-center justify-center gap-10 font-sans opacity-60">
+            <motion.div className="flex flex-wrap items-center justify-center gap-10 font-sans text-[var(--text-muted)]">
                <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em]">
                  <Zap size={14} className="text-[var(--p-amber-400)]" />
                  Instant Port
@@ -215,7 +218,7 @@ export function TutorialLayout({
                 style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-surface)' }}
                 whileHover={{ x: -8 }}
               >
-                <motion.span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] opacity-40 font-sans group-hover:opacity-100 group-hover:text-[var(--brand-primary)] transition-all">
+                <motion.span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] text-[var(--text-muted)] font-sans group-hover:text-[var(--brand-primary)] transition-all">
                   <ArrowLeft size={14} />
                   Previous
                 </motion.span>
@@ -252,7 +255,7 @@ export function TutorialLayout({
               </motion.div>
               <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Certification Ready</Badge>
               <motion.h3 className="text-5xl font-bold font-display m-0" style={{ color: 'var(--text-primary)' }}>Mastery Achieved.</motion.h3>
-              <motion.p className="text-xl max-w-xl font-sans opacity-70">You've completed the core coordination series. Your harbor is ready for deployment.</motion.p>
+              <motion.p className="text-xl max-w-xl font-sans text-[var(--text-secondary)]">You've completed the core coordination series. Your harbor is ready for deployment.</motion.p>
               <Button size="lg" className="px-12 py-8 rounded-full text-lg font-black tracking-wide" onClick={() => window.location.href = '/docs'}>
                 EXPLORE THE SDK REFERENCE
               </Button>

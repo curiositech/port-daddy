@@ -42,7 +42,7 @@ export function IntegrationPage() {
         
         <motion.div className="max-w-4xl mx-auto relative z-10 flex flex-col items-center text-center gap-10">
            <Link to="/integrations" className="no-underline group">
-              <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] opacity-40 group-hover:opacity-100 group-hover:text-[var(--brand-primary)] transition-all">
+              <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] text-[var(--text-muted)] group-hover:text-[var(--brand-primary)] transition-all">
                  <ChevronLeft size={14} className="group-hover:-translate-x-1 transition-transform" />
                  Back to Swarm Ecosystem
               </motion.div>
@@ -67,7 +67,7 @@ export function IntegrationPage() {
            </motion.div>
 
            <motion.p 
-             className="text-2xl leading-relaxed opacity-70 font-medium max-w-2xl"
+             className="text-2xl leading-relaxed text-[var(--text-secondary)] font-medium max-w-2xl"
              initial={{ opacity: 0, y: 20 }}
              animate={{ opacity: 1, y: 0 }}
              transition={{ duration: 0.8, delay: 0.1 }}
@@ -103,7 +103,7 @@ export function IntegrationPage() {
                       <motion.div className="w-10 h-10 rounded-full bg-[var(--bg-overlay)] flex items-center justify-center shrink-0 border border-[var(--border-subtle)] group-hover:scale-110 transition-transform">
                          <CheckCircle2 size={18} className="text-[var(--p-teal-400)]" />
                       </motion.div>
-                      <motion.p className="text-lg leading-relaxed opacity-70 m-0 group-hover:opacity-100 transition-opacity">{detail}</motion.p>
+                      <motion.p className="text-lg leading-relaxed text-[var(--text-secondary)] m-0 group-hover:text-[var(--text-primary)] transition-colors">{detail}</motion.p>
                    </motion.div>
                  ))}
               </motion.div>
@@ -122,11 +122,11 @@ export function IntegrationPage() {
                  <motion.div className="absolute top-0 right-0 p-8 opacity-5">
                     <Rocket size={100} />
                  </motion.div>
-                 <motion.p className="text-sm font-black uppercase tracking-widest opacity-40 m-0">Terminal Setup</motion.p>
+                 <motion.p className="text-sm font-black uppercase tracking-widest text-[var(--text-muted)] m-0">Terminal Setup</motion.p>
                  <CodeBlock language="bash">{integration.setupCode}</CodeBlock>
                  <motion.div className="flex items-center gap-3 p-4 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
                     <Info size={16} className="text-[var(--brand-primary)] shrink-0" />
-                    <motion.p className="text-sm m-0 opacity-60">This integration requires Port Daddy v3.7.0+ running in the background.</motion.p>
+                    <motion.p className="text-sm m-0 text-[var(--text-secondary)]">This integration requires Port Daddy v3.7.0+ running in the background.</motion.p>
                  </motion.div>
               </motion.div>
            </section>
@@ -141,7 +141,7 @@ export function IntegrationPage() {
               </motion.div>
               <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest shadow-xl">Full Reference</Badge>
               <motion.h3 className="text-4xl font-display font-black m-0" style={{ color: 'var(--text-primary)' }}>Need more detail?</motion.h3>
-              <motion.p className="text-xl max-w-xl opacity-70">
+              <motion.p className="text-xl max-w-xl text-[var(--text-secondary)]">
                 Explore the complete API reference and coordination patterns in our technical documentation.
               </motion.p>
               <Link to="/docs" className="no-underline">

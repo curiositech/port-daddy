@@ -100,20 +100,44 @@ const NAV_STRUCTURE: NavSection[] = [
 
 function DropdownNav({ section }: { section: NavSection }) {
   const [isOpen, setIsOpen] = React.useState(false)
+  const closeTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const location = useLocation()
   const isActive = location.pathname.startsWith(section.href)
 
+  const handleMouseEnter = () => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current)
+      closeTimeoutRef.current = null
+    }
+    setIsOpen(true)
+  }
+
+  const handleMouseLeave = () => {
+    closeTimeoutRef.current = setTimeout(() => {
+      setIsOpen(false)
+    }, 150)
+  }
+
+  // Clean up timeout on unmount
+  React.useEffect(() => {
+    return () => {
+      if (closeTimeoutRef.current) {
+        clearTimeout(closeTimeoutRef.current)
+      }
+    }
+  }, [])
+
   return (
-    <div 
+    <div
       className="relative"
-      onMouseEnter={() => setIsOpen(true)}
-      onMouseLeave={() => setIsOpen(false)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       <Link
         to={section.href}
         className={`flex items-center gap-1 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
-          isActive 
-            ? 'text-[var(--brand-primary)] bg-[var(--interactive-active)]' 
+          isActive
+            ? 'text-[var(--brand-primary)] bg-[var(--interactive-active)]'
             : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--interactive-hover)]'
         }`}
       >
@@ -122,34 +146,41 @@ function DropdownNav({ section }: { section: NavSection }) {
       </Link>
 
       {section.items && isOpen && (
-        <div className="absolute top-full left-0 mt-1 w-64 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl shadow-[var(--shadow-lg)] py-2 z-50">
-          {section.items.map((item) => {
-            const Icon = item.icon || BookOpen
-            const isExternal = item.href.startsWith('http')
-            return (
-              <Link
-                key={item.label}
-                to={item.href}
-                target={isExternal ? '_blank' : undefined}
-                rel={isExternal ? 'noopener noreferrer' : undefined}
-                className="flex items-start gap-3 px-4 py-3 hover:bg-[var(--interactive-hover)] transition-colors"
-              >
-                <Icon size={18} className="text-[var(--text-muted)] mt-0.5" />
-                <div>
-                  <div className="text-sm font-medium text-[var(--text-primary)]">
-                    {item.label}
-                    {isExternal && <span className="ml-1 text-[var(--text-muted)]">↗</span>}
-                  </div>
-                  {item.description && (
-                    <div className="text-xs text-[var(--text-tertiary)] mt-0.5">
-                      {item.description}
+        <>
+          {/* Invisible bridge between trigger and dropdown to prevent close on gap crossing */}
+          <div className="absolute top-full left-0 w-full h-2" />
+          <div className="absolute top-full left-0 pt-2 w-64 z-50">
+            <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl shadow-[var(--shadow-lg)] py-2">
+              {section.items.map((item) => {
+                const Icon = item.icon || BookOpen
+                const isExternal = item.href.startsWith('http')
+                return (
+                  <Link
+                    key={item.label}
+                    to={item.href}
+                    target={isExternal ? '_blank' : undefined}
+                    rel={isExternal ? 'noopener noreferrer' : undefined}
+                    className="flex items-start gap-3 px-4 py-3 hover:bg-[var(--interactive-hover)] transition-colors"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    <Icon size={18} className="text-[var(--text-muted)] mt-0.5" />
+                    <div>
+                      <div className="text-sm font-medium text-[var(--text-primary)]">
+                        {item.label}
+                        {isExternal && <span className="ml-1 text-[var(--text-muted)]">↗</span>}
+                      </div>
+                      {item.description && (
+                        <div className="text-xs text-[var(--text-tertiary)] mt-0.5">
+                          {item.description}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              </Link>
-            )
-          })}
-        </div>
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+        </>
       )}
     </div>
   )
