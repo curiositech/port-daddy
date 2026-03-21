@@ -107,6 +107,7 @@ pd status                       # verify running
 - NEVER `npm link` from `~/coding/port-daddy` — that bypasses the stability gate
 - NEVER modify files in `~/port-daddy-stable` directly — always merge from main
 - After breaking changes to the daemon, run `./scripts/promote-stable.sh` before ending the session
+- **PROMPT THE USER** when a significant feature is stable and tested: "This looks ready to ship — want me to run `pdship`?" Don't auto-promote. Ask first.
 - The stable worktree is a git worktree (not a separate clone) — same repo, shared history
 
 ## Development
