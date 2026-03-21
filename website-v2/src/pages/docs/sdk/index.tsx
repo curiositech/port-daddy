@@ -28,7 +28,7 @@ const SDK_MODULES = [
   {
     name: 'Messaging',
     description: 'Pub/sub messaging via Swarm Radio for agent coordination.',
-    href: '/docs/sdk/claim',
+    href: '/docs/sdk/subscribe',
     functions: ['publish()', 'subscribe()'],
     badge: 'Core'
   },
@@ -76,8 +76,15 @@ export default function SdkOverview() {
           TypeScript SDK
         </h1>
         <p className="text-xl text-[var(--text-secondary)] leading-relaxed max-w-3xl">
-          Programmatic access to Port Daddy's port management, session tracking, 
+          Programmatic access to Port Daddy's port management, session tracking,
           and agent coordination features. Build multi-agent workflows with type safety.
+        </p>
+        <p className="text-sm text-[var(--text-tertiary)] p-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] max-w-xl">
+          Use this reference if you are writing JavaScript or TypeScript that coordinates agents
+          programmatically. For terminal usage see the{' '}
+          <a href="/docs/cli" className="text-[var(--brand-primary)] hover:underline">CLI reference</a>, or
+          for LLM tool calls see the{' '}
+          <a href="/docs/mcp" className="text-[var(--brand-primary)] hover:underline">MCP reference</a>.
         </p>
       </div>
 

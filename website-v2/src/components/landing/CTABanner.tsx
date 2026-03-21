@@ -13,7 +13,7 @@ export function CTABanner() {
       />
 
       <div className="relative z-10 max-w-[800px] mx-auto px-6 lg:px-8 text-center">
-        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#0d9488] mb-6">
+        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--brand-secondary)] mb-6">
           Get Started
         </p>
 

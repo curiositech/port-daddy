@@ -75,7 +75,7 @@ function AnimatedTerminal() {
             transition={{ duration: 0.25, ease: 'easeOut' }}
             className={line.prompt ? 'text-[#2d2d2d]' : 'text-[#777]'}
           >
-            {line.prompt && <span className="text-[#0d9488] mr-2">$</span>}
+            {line.prompt && <span className="text-[var(--brand-accent)] mr-2">$</span>}
             {!line.prompt && <span className="mr-2">&nbsp;&nbsp;</span>}
             {line.text}
           </motion.div>
@@ -92,7 +92,7 @@ export function Hero() {
   const [isModalOpen, setIsModalOpen] = useState(false)
 
   return (
-    <section className="relative min-h-screen flex items-center overflow-hidden pt-24">
+    <section className="relative flex items-center overflow-hidden pt-32 pb-16 lg:pt-40 lg:pb-24">
       {/* Subtle dot grid on the neumorphic surface */}
       <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{
         backgroundImage: 'radial-gradient(circle, #888 1px, transparent 1px)',
@@ -107,28 +107,28 @@ export function Hero() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, ease: 'easeOut' as const }}
           >
-            <p className="text-sm font-mono text-[#0d9488] tracking-wide mb-5 uppercase">
+            <p className="text-xs font-mono text-[var(--brand-accent)] tracking-wide mb-3 uppercase">
               Multi-agent coordination
             </p>
 
-            <h1 className="text-[2.5rem] sm:text-5xl lg:text-[3.25rem] xl:text-[3.75rem] font-bold tracking-[-0.035em] leading-[1.08] mb-6 text-[var(--text-primary)]">
+            <h1 className="text-3xl sm:text-4xl lg:text-[2.75rem] font-bold tracking-[-0.02em] leading-[1.15] mb-4 text-[var(--text-primary)]">
               Stop your agents from
               {' '}
-              <span className="bg-gradient-to-r from-[#0d9488] to-[#0f766e] bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-[#D4643A] to-[#B84E28] bg-clip-text text-transparent">
                 fighting each other.
               </span>
             </h1>
 
-            <p className="text-base lg:text-lg text-[var(--text-secondary)] leading-relaxed mb-8 max-w-lg">
+            <p className="text-sm lg:text-base text-[var(--text-secondary)] leading-relaxed mb-6 max-w-md">
               Port Daddy is a daemon that gives every AI agent its own port, coordinates file access, and recovers work when they crash. One install. Zero config.
             </p>
 
             <div className="flex flex-wrap items-center gap-3">
               <button
                 onClick={() => setIsModalOpen(true)}
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-lg font-semibold text-white cursor-pointer transition-all duration-200"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white cursor-pointer transition-all duration-200"
                 style={{
-                  background: '#0d9488',
+                  background: 'var(--brand-primary)',
                   boxShadow: '4px 4px 8px #c4c4c4, -4px -4px 8px #ffffff',
                 }}
                 onMouseEnter={(e) => {

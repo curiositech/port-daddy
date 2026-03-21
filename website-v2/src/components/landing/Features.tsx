@@ -29,7 +29,7 @@ export function Features() {
       <div className="max-w-[1200px] mx-auto px-6 lg:px-8">
         {/* Header */}
         <div className="max-w-2xl mb-16">
-          <p className="text-sm font-mono text-[#0d9488] tracking-wide mb-4 uppercase">
+          <p className="text-sm font-mono text-[var(--brand-secondary)] tracking-wide mb-4 uppercase">
             Primitives
           </p>
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-[var(--text-primary)] mb-4 leading-[1.15]">
@@ -75,7 +75,7 @@ export function Features() {
                       borderRadius: '12px',
                     }}
                   >
-                    <Icon size={18} className="text-[#0d9488]" />
+                    <Icon size={18} className="text-[var(--brand-accent)]" />
                   </div>
 
                   <h3 className="text-[15px] font-semibold text-[var(--text-primary)] mb-2 tracking-[-0.01em]">
@@ -95,7 +95,7 @@ export function Features() {
                       borderRadius: '8px',
                     }}
                   >
-                    <span className="text-[#0d9488]/60 select-none">$</span>
+                    <span className="text-[var(--brand-accent)]/60 select-none">$</span>
                     <span className="text-[var(--text-muted)]">{feature.cli}</span>
                   </div>
                 </div>

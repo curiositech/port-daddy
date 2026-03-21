@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { motion, useScroll, useSpring } from 'framer-motion'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { TutorialProgress, useTutorialProgress } from './TutorialProgress'
@@ -43,7 +43,13 @@ export function TutorialLayout({
   const { markComplete } = useTutorialProgress()
   const [showProgress, setShowProgress] = React.useState(false)
   const [hasReturned, setHasReturned] = React.useState(false)
-  
+  const location = useLocation()
+
+  // Scroll to top when navigating between tutorials
+  React.useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [location.pathname])
+
   // Track if user is returning to this tutorial
   React.useEffect(() => {
     const stored = localStorage.getItem('pd-last-tutorial')

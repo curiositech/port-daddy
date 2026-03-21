@@ -273,6 +273,8 @@ createRoot(document.getElementById('root')!).render(
             <Route path="features/timeline" element={<PortsFeature />} />
             <Route path="features/dns" element={<PortsFeature />} />
             <Route path="features/remote" element={<PortsFeature />} />
+            <Route path="features/sessions" element={<PortsFeature />} />
+            <Route path="features/tunnels" element={<PortsFeature />} />
             
             {/* SDK - TypeScript */}
             <Route path="sdk" element={<SdkOverview />} />

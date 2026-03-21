@@ -13,7 +13,7 @@ const INTENTS = [
     title: "I'm building AI agents",
     description: 'Learn to spawn, coordinate, and recover agent swarms',
     action: 'Agent Tutorial',
-    href: '/tutorials/spawn',
+    href: '/tutorials/pd-spawn',
     primary: true,
   },
   {

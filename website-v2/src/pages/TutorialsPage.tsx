@@ -20,11 +20,11 @@ const TUTORIALS: Tutorial[] = [
   {
     slug: 'getting-started',
     number: '01',
-    title: 'The First Handshake',
-    description: 'Install Port Daddy, claim your first semantic identity, and learn why ports are a relic of the past.',
+    title: 'Getting Started',
+    description: 'Install Port Daddy, start the daemon, and see how two AI agents coordinate on the same project without stepping on each other.',
     level: 'beginner',
-    time: '5 min',
-    tags: ['CLI', 'Identity', 'Basics'],
+    time: '10 min',
+    tags: ['Install', 'Sessions', 'Coordination'],
     href: '/tutorials/getting-started',
     icon: Sparkles
   },

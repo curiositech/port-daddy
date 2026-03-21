@@ -85,8 +85,15 @@ export default function McpOverview() {
           Model Context Protocol
         </h1>
         <p className="text-xl text-[var(--text-secondary)] leading-relaxed max-w-3xl">
-          Connect Port Daddy to any AI tool via the Model Context Protocol (MCP). 
+          Connect Port Daddy to any AI tool via the Model Context Protocol (MCP).
           Give your agents native access to port management, swarm coordination, and more.
+        </p>
+        <p className="text-sm text-[var(--text-tertiary)] p-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] max-w-xl">
+          Use this reference if your LLM (Claude, Cursor, Windsurf, etc.) needs to coordinate
+          agents directly via tool calls. For terminal usage see the{' '}
+          <a href="/docs/cli" className="text-[var(--brand-primary)] hover:underline">CLI reference</a>, or
+          for programmatic access see the{' '}
+          <a href="/docs/sdk" className="text-[var(--brand-primary)] hover:underline">SDK reference</a>.
         </p>
       </div>
 

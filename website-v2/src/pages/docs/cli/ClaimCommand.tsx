@@ -51,7 +51,7 @@ Port 3001 assigned to myapp:api:main`
         { name: 'pd release', href: '/docs/cli/release' },
         { name: 'pd find', href: '/docs/cli/find' },
         { name: 'pd services', href: '/docs/cli/services' },
-        { name: 'TypeScript SDK: claim()', href: '/docs/sdk/claim' },
+        { name: 'TypeScript SDK: claim()', href: '/docs/sdk/ports' },
       ]}
     />
   )

@@ -31,8 +31,15 @@ export default function CliOverview() {
           Command Line Interface
         </h1>
         <p className="text-xl text-[var(--text-secondary)] leading-relaxed">
-          Complete reference for the <code className="text-[var(--brand-primary)]">pd</code> CLI. 
+          Complete reference for the <code className="text-[var(--brand-primary)]">pd</code> CLI.
           Manage ports, agents, sessions, locks, and more.
+        </p>
+        <p className="text-sm text-[var(--text-tertiary)] p-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] max-w-xl">
+          Use this reference if you are running <code className="text-[var(--brand-primary)]">pd</code> commands
+          from your terminal. For programmatic access see the{' '}
+          <a href="/docs/sdk" className="text-[var(--brand-primary)] hover:underline">SDK</a>, or for
+          LLM tool calls see the{' '}
+          <a href="/docs/mcp" className="text-[var(--brand-primary)] hover:underline">MCP reference</a>.
         </p>
       </div>
 

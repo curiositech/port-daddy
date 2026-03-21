@@ -1,190 +1,192 @@
 /**
  * Port Daddy — Neumorphic Design Tokens
+ * Split-complementary palette: Coral + Indigo + Teal
  * Light-first soft UI with extruded/inset shadow depth
- * Includes shadcn/ui CSS variable mappings for component library compatibility.
  */
 
 :root, [data-theme='light'] {
-  /* Neumorphic Core - Light Mode (default) */
+  /* Neumorphic Surfaces */
   --bg-base:      #e0e0e0;
   --bg-surface:   #e6e6e6;
   --bg-overlay:   #d4d4d4;
   --bg-glass:     rgba(224, 224, 224, 0.92);
 
-  --text-primary:   #2d2d2d;
-  --text-secondary: #555555;
-  --text-muted:     #888888;
+  /* Text — high contrast on #e0e0e0 */
+  --text-primary:   #2b2b2b;
+  --text-secondary: #505050;
+  --text-muted:     #757575;
 
-  --brand-primary:   #0d9488;
-  --brand-secondary: #0f766e;
-  --brand-accent:    #0d9488;
+  /* Brand — Split Complementary: Coral / Indigo / Teal */
+  --brand-primary:   #D4643A;  /* Warm coral-sienna */
+  --brand-secondary: #4A5FC7;  /* Deep periwinkle-indigo */
+  --brand-accent:    #2A9D8F;  /* Warm-shifted teal */
 
+  /* Borders — shadows do the work, borders are minimal */
   --border-subtle: rgba(0, 0, 0, 0.06);
   --border-strong: rgba(0, 0, 0, 0.12);
 
+  /* Interactive */
   --interactive-hover:  rgba(0, 0, 0, 0.04);
-  --interactive-active: rgba(13, 148, 136, 0.1);
+  --interactive-active: rgba(212, 100, 58, 0.1);
 
-  /* Status Colors — Light */
-  --status-success: #15803d;
-  --status-warning: #b45309;
-  --status-error:   #dc2626;
+  /* Status */
+  --status-success: #2E7D4F;
+  --status-warning: #B8760C;
+  --status-error:   #C43030;
 
-  /* Palette Colors — Light (high-contrast on #e0e0e0 bg) */
-  --p-teal-400:   #0d7d73;
-  --p-teal-500:   #0f766e;
-  --p-amber-400:  #92400e;
-  --p-amber-500:  #78350f;
-  --p-blue-400:   #1d4ed8;
-  --p-blue-500:   #1e40af;
-  --p-red-400:    #b91c1c;
-  --p-green-400:  #15803d;
-  --p-purple-400: #6d28d9;
+  /* Palette variants */
+  --p-coral-400:   #D4643A;
+  --p-coral-500:   #B84E28;
+  --p-indigo-400:  #4A5FC7;
+  --p-indigo-500:  #3A4FA0;
+  --p-teal-400:    #2A9D8F;
+  --p-teal-500:    #1E7A6F;
+  --p-amber-400:   #B8760C;
+  --p-red-400:     #C43030;
+  --p-green-400:   #2E7D4F;
 
-  /* Code Block — Always dark for readability */
-  --bg-code:              #1a1a2e;
-  --text-code:            #e0e0e0;
-  --code-prompt:          #5eead4;
-  --code-output:          #a0a0a0;
-  --codeblock-bg:         #1a1a2e;
-  --codeblock-header-bg:  #151525;
-  --codeblock-border:     #2a2a3e;
-  --codeblock-text:       #e0e0e0;
-  --codeblock-filename:   #8899aa;
-  --codeblock-copy:       #8899aa;
-  --codeblock-copy-hover: #e0e0e0;
-  --codeblock-dot-red:    #ff5f56;
-  --codeblock-dot-amber:  #ffbd2e;
-  --codeblock-dot-green:  #27c93f;
+  /* Code Block — always dark for readability */
+  --bg-code:              #1e1e2e;
+  --text-code:            #cdd6f4;
+  --code-prompt:          #a6e3a1;
+  --code-output:          #9399b2;
+  --codeblock-bg:         #1e1e2e;
+  --codeblock-header-bg:  #181825;
+  --codeblock-border:     #313244;
+  --codeblock-text:       #cdd6f4;
+  --codeblock-filename:   #7f849c;
+  --codeblock-copy:       #7f849c;
+  --codeblock-copy-hover: #cdd6f4;
+  --codeblock-dot-red:    #f38ba8;
+  --codeblock-dot-amber:  #f9e2af;
+  --codeblock-dot-green:  #a6e3a1;
 
-  /* Neumorphic Shadow Tokens */
-  --shadow-neu-raised: 6px 6px 12px #c4c4c4, -6px -6px 12px #ffffff;
-  --shadow-neu-inset:  inset 4px 4px 8px #c4c4c4, inset -4px -4px 8px #ffffff;
-  --shadow-neu-sm:     3px 3px 6px #c4c4c4, -3px -3px 6px #ffffff;
-  --shadow-neu-flat:   2px 2px 4px #c4c4c4, -2px -2px 4px #ffffff;
+  /* Neumorphic Shadows */
+  --shadow-neu-raised: 6px 6px 12px #b8b8b8, -6px -6px 12px #ffffff;
+  --shadow-neu-inset:  inset 4px 4px 8px #b8b8b8, inset -4px -4px 8px #ffffff;
+  --shadow-neu-sm:     3px 3px 6px #b8b8b8, -3px -3px 6px #ffffff;
+  --shadow-neu-flat:   2px 2px 4px #c8c8c8, -2px -2px 4px #f0f0f0;
 
-  /* Shared Typography */
+  /* Typography */
   --p-font-mono:    'JetBrains Mono', monospace;
   --p-font-sans:    'Inter', system-ui, sans-serif;
   --p-font-display: 'Instrument Sans', 'Inter', system-ui, sans-serif;
 
-  /* ── shadcn/ui variables — Light ─────────────────────────────────────────── */
+  /* shadcn/ui — Light */
   --radius: 0.75rem;
 
   --background: #e0e0e0;
-  --foreground: #2d2d2d;
+  --foreground: #2b2b2b;
 
   --card: #e6e6e6;
-  --card-foreground: #2d2d2d;
+  --card-foreground: #2b2b2b;
 
   --popover: #e6e6e6;
-  --popover-foreground: #2d2d2d;
+  --popover-foreground: #2b2b2b;
 
-  --primary: #0d9488;
+  --primary: #D4643A;
   --primary-foreground: #ffffff;
 
   --secondary: #d4d4d4;
-  --secondary-foreground: #2d2d2d;
+  --secondary-foreground: #2b2b2b;
 
   --muted: #d4d4d4;
-  --muted-foreground: #888888;
+  --muted-foreground: #757575;
 
   --accent: #d4d4d4;
-  --accent-foreground: #2d2d2d;
+  --accent-foreground: #2b2b2b;
 
-  --destructive: #dc2626;
+  --destructive: #C43030;
   --destructive-foreground: #ffffff;
 
   --border: rgba(0, 0, 0, 0.06);
   --input: rgba(0, 0, 0, 0.08);
-  --ring: #0d9488;
+  --ring: #D4643A;
 }
 
 [data-theme='dark'] {
-  /* Neumorphic Core - Dark Mode */
-  --bg-base:      #2d2d2d;
-  --bg-surface:   #333333;
-  --bg-overlay:   #262626;
-  --bg-glass:     rgba(45, 45, 45, 0.92);
+  /* Neumorphic Surfaces — Dark */
+  --bg-base:      #2b2b2b;
+  --bg-surface:   #323232;
+  --bg-overlay:   #252525;
+  --bg-glass:     rgba(43, 43, 43, 0.92);
 
   --text-primary:   #e0e0e0;
-  --text-secondary: #b0b0b0;
-  --text-muted:     #808080;
+  --text-secondary: #a0a0a0;
+  --text-muted:     #707070;
 
-  --brand-primary:   #5eead4;
-  --brand-secondary: #2dd4bf;
-  --brand-accent:    #5eead4;
+  --brand-primary:   #E8845E;
+  --brand-secondary: #7B8FE8;
+  --brand-accent:    #5EC4B6;
 
   --border-subtle: rgba(255, 255, 255, 0.06);
   --border-strong: rgba(255, 255, 255, 0.12);
 
   --interactive-hover:  rgba(255, 255, 255, 0.05);
-  --interactive-active: rgba(94, 234, 212, 0.12);
+  --interactive-active: rgba(232, 132, 94, 0.12);
 
-  /* Status Colors — Dark */
   --status-success: #4ade80;
   --status-warning: #fbbf24;
   --status-error:   #f87171;
 
-  /* Palette Colors — Dark (bright on dark bg) */
-  --p-teal-400:   #2dd4bf;
-  --p-teal-500:   #14b8a6;
-  --p-amber-400:  #fbbf24;
-  --p-amber-500:  #f59e0b;
-  --p-blue-400:   #60a5fa;
-  --p-blue-500:   #3b82f6;
-  --p-red-400:    #f87171;
-  --p-green-400:  #4ade80;
-  --p-purple-400: #a78bfa;
+  --p-coral-400:   #E8845E;
+  --p-coral-500:   #D4643A;
+  --p-indigo-400:  #7B8FE8;
+  --p-indigo-500:  #4A5FC7;
+  --p-teal-400:    #5EC4B6;
+  --p-teal-500:    #2A9D8F;
+  --p-amber-400:   #fbbf24;
+  --p-red-400:     #f87171;
+  --p-green-400:   #4ade80;
 
-  /* Code Block — Always dark for readability */
-  --bg-code:              #1a1a2e;
-  --text-code:            #e0e0e0;
-  --code-prompt:          #5eead4;
-  --code-output:          #a0a0a0;
-  --codeblock-bg:         #1a1a2e;
-  --codeblock-header-bg:  #151525;
-  --codeblock-border:     #2a2a3e;
-  --codeblock-text:       #e0e0e0;
-  --codeblock-filename:   #8899aa;
-  --codeblock-copy:       #8899aa;
-  --codeblock-copy-hover: #e0e0e0;
-  --codeblock-dot-red:    #ff5f56;
-  --codeblock-dot-amber:  #ffbd2e;
-  --codeblock-dot-green:  #27c93f;
+  /* Code Block — always dark */
+  --bg-code:              #1e1e2e;
+  --text-code:            #cdd6f4;
+  --code-prompt:          #a6e3a1;
+  --code-output:          #9399b2;
+  --codeblock-bg:         #1e1e2e;
+  --codeblock-header-bg:  #181825;
+  --codeblock-border:     #313244;
+  --codeblock-text:       #cdd6f4;
+  --codeblock-filename:   #7f849c;
+  --codeblock-copy:       #7f849c;
+  --codeblock-copy-hover: #cdd6f4;
+  --codeblock-dot-red:    #f38ba8;
+  --codeblock-dot-amber:  #f9e2af;
+  --codeblock-dot-green:  #a6e3a1;
 
-  /* Neumorphic Shadow Tokens - Dark */
-  --shadow-neu-raised: 6px 6px 12px #222222, -6px -6px 12px #3a3a3a;
-  --shadow-neu-inset:  inset 4px 4px 8px #222222, inset -4px -4px 8px #3a3a3a;
-  --shadow-neu-sm:     3px 3px 6px #222222, -3px -3px 6px #3a3a3a;
-  --shadow-neu-flat:   2px 2px 4px #222222, -2px -2px 4px #3a3a3a;
+  /* Neumorphic Shadows — Dark */
+  --shadow-neu-raised: 6px 6px 12px #1e1e1e, -6px -6px 12px #3a3a3a;
+  --shadow-neu-inset:  inset 4px 4px 8px #1e1e1e, inset -4px -4px 8px #3a3a3a;
+  --shadow-neu-sm:     3px 3px 6px #1e1e1e, -3px -3px 6px #3a3a3a;
+  --shadow-neu-flat:   2px 2px 4px #222222, -2px -2px 4px #363636;
 
-  /* ── shadcn/ui variables — Dark ──────────────────────────────────────────── */
-  --background: #2d2d2d;
+  /* shadcn/ui — Dark */
+  --background: #2b2b2b;
   --foreground: #e0e0e0;
 
-  --card: #333333;
+  --card: #323232;
   --card-foreground: #e0e0e0;
 
-  --popover: #333333;
+  --popover: #323232;
   --popover-foreground: #e0e0e0;
 
-  --primary: #5eead4;
+  --primary: #E8845E;
   --primary-foreground: #1a1a1a;
 
   --secondary: #3a3a3a;
   --secondary-foreground: #e0e0e0;
 
   --muted: #3a3a3a;
-  --muted-foreground: #808080;
+  --muted-foreground: #707070;
 
   --accent: #3a3a3a;
   --accent-foreground: #e0e0e0;
 
-  --destructive: #b91c1c;
-  --destructive-foreground: #fef2f2;
+  --destructive: #f87171;
+  --destructive-foreground: #1a1a1a;
 
   --border: rgba(255, 255, 255, 0.06);
   --input: rgba(255, 255, 255, 0.08);
-  --ring: #5eead4;
+  --ring: #E8845E;
 }
