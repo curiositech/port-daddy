@@ -101,6 +101,50 @@ a {
   transition: color 0.2s ease;
 }
 
+/* ─── Design System: Spacing & Layout ─────────────────────────────────────── */
+
+/*
+ * SPACING RULES (use these, nothing else):
+ *   Section padding:  py-12 (mobile) → py-16 lg:py-24 (desktop)
+ *   Card padding:     p-5 (compact) or p-6 (standard)
+ *   Content max:      max-w-[1100px] mx-auto px-6
+ *   Grid gaps:        gap-4 (tight) gap-6 (standard) gap-8 (loose)
+ *   Heading margin:   mb-2 (h3) mb-3 (h2) mb-4 (h1)
+ *   Paragraph margin: mb-4 (body) mb-6 (lead)
+ *   Section headers:  mb-10 (below header block)
+ *   Nav clearance:    pt-20 (first section after fixed nav)
+ *
+ * TYPOGRAPHY (Tailwind classes only):
+ *   Hero h1:     text-3xl sm:text-4xl lg:text-[2.75rem] font-bold
+ *   Section h2:  text-2xl sm:text-3xl font-bold
+ *   Card h3:     text-sm font-semibold
+ *   Body:        text-sm (cards) text-base (pages)
+ *   Overline:    text-xs font-mono uppercase tracking-wide
+ *   Muted:       text-[var(--text-muted)]
+ *
+ * BORDER RADIUS:
+ *   Buttons:     rounded-lg (8px)
+ *   Cards:       rounded-xl (12px) or rounded-2xl (16px)
+ *   Inputs:      rounded-lg (8px)
+ *   Badges:      rounded-full
+ *   Max:         rounded-2xl (16px) — nothing bigger
+ */
+
+/* Standard section wrapper */
+.section {
+  padding: 3rem 0;  /* py-12 */
+}
+@media (min-width: 1024px) {
+  .section { padding: 6rem 0; }  /* lg:py-24 */
+}
+
+/* Standard content container */
+.container-narrow {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
 /* ─── Neumorphic Utilities ────────────────────────────────────────────────── */
 .neu-raised {
   background: var(--bg-surface);
