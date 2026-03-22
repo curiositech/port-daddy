@@ -8,8 +8,8 @@ import { pdFetch } from '../utils/fetch.js';
 import { createWatch } from '../../lib/watch.js';
 import { CLIOptions, isQuiet, isJson } from '../types.js';
 import { IS_TTY, relativeTime } from '../utils/output.js';
-import { status as maritimeStatus } from '../../lib/maritime.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
+import * as ui from '../utils/ui.js';
 
 // =============================================================================
 // handleSpawn — pd spawn --backend ollama -- "my task"
@@ -35,7 +35,7 @@ export async function handleSpawn(
     const data = await res.json();
 
     if (!res.ok) {
-      console.error(maritimeStatus('error', (data.error as string) || `Failed to kill agent ${agentId}`));
+      ui.error((data.error as string) || `Failed to kill agent ${agentId}`);
       process.exit(1);
     }
 
@@ -45,7 +45,7 @@ export async function handleSpawn(
     }
 
     if (!isQuiet(options)) {
-      console.error(maritimeStatus('success', `Agent ${agentId} killed`));
+      ui.success(`Agent ${agentId} killed`);
     }
     return;
   }
@@ -111,7 +111,7 @@ export async function handleSpawn(
   if (options.timeout) body.timeout = parseInt(options.timeout as string, 10);
 
   if (IS_TTY && !isQuiet(options) && !isJson(options)) {
-    console.error(maritimeStatus('ready', `Spawning ${backend} agent...`));
+    ui.info(`Spawning ${backend} agent...`);
   }
 
   const res: PdFetchResponse = await pdFetch('/spawn', {
@@ -123,7 +123,7 @@ export async function handleSpawn(
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to spawn agent'));
+    ui.error((data.error as string) || 'Failed to spawn agent');
     process.exit(1);
   }
 
@@ -137,8 +137,10 @@ export async function handleSpawn(
     return;
   }
 
-  const statusLabel: 'success' | 'error' | 'warning' = data.status === 'completed' ? 'success' : data.status === 'failed' ? 'error' : 'warning';
-  console.error(maritimeStatus(statusLabel, `Agent ${data.agentId as string}: ${data.status as string}`));
+  const agentMsg = `Agent ${data.agentId as string}: ${data.status as string}`;
+  if (data.status === 'completed') ui.success(agentMsg);
+  else if (data.status === 'failed') ui.error(agentMsg);
+  else ui.warn(agentMsg);
   console.error(`  Backend: ${data.backend as string}`);
   if (data.model) console.error(`  Model: ${data.model as string}`);
   if (data.identity) console.error(`  Identity: ${data.identity as string}`);
@@ -171,7 +173,7 @@ export async function handleSpawned(
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to list spawned agents'));
+    ui.error((data.error as string) || 'Failed to list spawned agents');
     process.exit(1);
   }
 
@@ -266,7 +268,7 @@ export async function handleWatch(
 
   const exec = options.exec as string | undefined;
   if (!exec) {
-    console.error(maritimeStatus('error', '--exec is required'));
+    ui.error('--exec is required');
     console.error('Example: pd watch deployments --exec ./handle-message.sh');
     process.exit(1);
   }
@@ -283,7 +285,7 @@ export async function handleWatch(
     : 0;
 
   if (IS_TTY && !isQuiet(options)) {
-    console.error(maritimeStatus('ready', `Watching channel "${channel}" — exec: ${exec}`));
+    ui.info(`Watching channel "${channel}" — exec: ${exec}`);
     if (once) console.error('  (--once: will exit after first message)');
     console.error(`  max-concurrent: ${maxConcurrent}  timeout: ${timeout}ms  min-interval: ${minInterval}ms`);
     console.error('  Reconnects with exponential backoff on disconnect');
@@ -297,7 +299,8 @@ export async function handleWatch(
   const cleanup = () => {
     handle.stop();
     if (IS_TTY && !isQuiet(options)) {
-      console.error('\n' + maritimeStatus('stop', 'Watch stopped'));
+      console.error('');
+      ui.warn('Watch stopped');
     }
     process.exit(0);
   };

@@ -9,12 +9,13 @@ import { existsSync, readFileSync, readdirSync, accessSync, constants } from 'no
 import { createHash } from 'node:crypto';
 import { spawnSync, spawn } from 'node:child_process';
 import type { SpawnSyncReturns } from 'node:child_process';
-import { status as maritimeStatus, ANSI as marANSI } from '../../lib/maritime.js';
+import { ANSI as marANSI } from '../../lib/maritime.js';
 import { pdFetch, PORT_DADDY_URL, BARNACLE_URL, SOCK_PATH } from '../utils/fetch.js';
 import { CLIOptions, isJson } from '../types.js';
 import { separator, tableHeader } from '../utils/output.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import { diagnoseStartupBlockers, confirmFix } from '../utils/startup-doctor.js';
+import * as ui from '../utils/ui.js';
 
 // __dirname equivalent for ESM
 const __dirname = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
@@ -54,7 +55,7 @@ export async function handleMetrics(options: CLIOptions): Promise<void> {
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to get metrics'));
+    ui.error((data.error as string) || 'Failed to get metrics');
     process.exit(1);
   }
 
@@ -91,7 +92,7 @@ export async function handleConfigCmd(options: CLIOptions): Promise<void> {
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to get config'));
+    ui.error((data.error as string) || 'Failed to get config');
     process.exit(1);
   }
 
@@ -123,7 +124,7 @@ export async function handleHealth(id: string | undefined, options: CLIOptions):
     const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/services/health/${encodeURIComponent(id)}`);
     const data = await res.json();
     if (!res.ok) {
-      console.error(maritimeStatus('error', (data.error as string) || `Health check failed for '${id}'`));
+      ui.error((data.error as string) || `Health check failed for '${id}'`);
       process.exit(1);
     }
     if (isJson(options)) {

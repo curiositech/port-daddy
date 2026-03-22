@@ -309,11 +309,11 @@ When an agent dies, other agents in the same project should be notified.
 | `routes/resurrection.ts` | ✅ DONE | `/salvage/*` as primary routes, `/resurrection/*` as deprecated aliases. |
 | `cli/commands/agents.ts` | ✅ DONE | Accepts `--identity`, `--purpose`, `--worktree`. Shows salvageHint notice on register. |
 | `cli/commands/resurrection.ts` | ✅ DONE | Uses `/salvage/*` routes. Maritime labels paired with standard terms. |
-| `public/index.html` | ⬜ TODO | Add "Salvage Queue" panel showing dead agents by project |
-| `completions/*.{bash,zsh,fish}` | ⬜ TODO | Add `--identity`, `--project`, `--purpose` flags |
-| `lib/client.ts` | ⬜ TODO | Add identity/purpose params to register(), salvage filter to SDK |
-| `README.md` | ⬜ TODO | Document agent identity and auto-salvage notice |
-| `CHANGELOG.md` | ⬜ TODO | Add entry when feature ships |
+| `public/index.html` | ✅ DONE | Salvage Queue panel with project grouping, 15s auto-refresh, dead-since timestamps |
+| `completions/*.{bash,zsh,fish}` | ✅ DONE | `--identity`, `--purpose`, `--worktree` on agent register; `--project`, `--stack` on salvage |
+| `lib/client.ts` | ✅ DONE | RegisterOptions has identity/purpose/worktree; SalvageListOptions has project/stack/all/limit |
+| `README.md` | ✅ DONE | Agent Identity & Auto-Salvage section with registration, notice, and claim examples |
+| `CHANGELOG.md` | ✅ DONE | Context-Aware Salvage entry added to [Unreleased] |
 
 **Flow:**
 1. `pd agent register --identity myapp:api --purpose "Building auth"` → stores identity

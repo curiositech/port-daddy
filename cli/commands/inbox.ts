@@ -2,11 +2,11 @@
  * CLI Inbox Commands
  * Direct messaging between registered agents.
  */
-import { status as maritimeStatus } from '../../lib/maritime.js';
 import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import { CLIOptions, isQuiet, isJson } from '../types.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import { handleSub } from './messaging.js';
+import * as ui from '../utils/ui.js';
 
 /**
  * Handle `pd inbox <subcommand>` command — top-level standalone inbox access.
@@ -32,7 +32,7 @@ export async function handleInbox(subcommand: string | undefined, args: string[]
     const data = await res.json();
 
     if (!res.ok) {
-      console.error(maritimeStatus('error', (data.error as string) || 'Failed to read inbox'));
+      ui.error((data.error as string) || 'Failed to read inbox');
       process.exit(1);
     }
 
@@ -83,7 +83,7 @@ export async function handleInbox(subcommand: string | undefined, args: string[]
     const data = await res.json();
 
     if (!res.ok) {
-      console.error(maritimeStatus('error', (data.error as string) || 'Failed to send message'));
+      ui.error((data.error as string) || 'Failed to send message');
       process.exit(1);
     }
 
@@ -99,7 +99,7 @@ export async function handleInbox(subcommand: string | undefined, args: string[]
     const data = await res.json();
 
     if (!res.ok) {
-      console.error(maritimeStatus('error', (data.error as string) || 'Failed to get inbox stats'));
+      ui.error((data.error as string) || 'Failed to get inbox stats');
       process.exit(1);
     }
 
@@ -117,7 +117,7 @@ export async function handleInbox(subcommand: string | undefined, args: string[]
     const data = await res.json();
 
     if (!res.ok) {
-      console.error(maritimeStatus('error', (data.error as string) || 'Failed to clear inbox'));
+      ui.error((data.error as string) || 'Failed to clear inbox');
       process.exit(1);
     }
 
@@ -135,7 +135,7 @@ export async function handleInbox(subcommand: string | undefined, args: string[]
     const data = await res.json();
 
     if (!res.ok) {
-      console.error(maritimeStatus('error', (data.error as string) || 'Failed to mark as read'));
+      ui.error((data.error as string) || 'Failed to mark as read');
       process.exit(1);
     }
 
