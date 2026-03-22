@@ -274,9 +274,9 @@ describe('spawn — backend dispatch', () => {
     expect(result.output).toContain('custom output');
     expect(result.backend).toBe('custom');
     expect(cpSpawn).toHaveBeenCalledWith(
-      'echo hello',
-      [],
-      expect.objectContaining({ shell: true })
+      '/bin/sh',
+      ['-c', 'echo hello'],
+      expect.objectContaining({ shell: false })
     );
   });
 
@@ -292,11 +292,11 @@ describe('spawn — backend dispatch', () => {
     });
 
     expect(cpSpawn).toHaveBeenCalledWith(
-      'ls',
-      [],
+      '/bin/sh',
+      ['-c', 'ls'],
       expect.objectContaining({
         cwd: '/tmp/test',
-        shell: true,
+        shell: false,
       })
     );
 
