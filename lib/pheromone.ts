@@ -13,8 +13,10 @@ export interface PheromoneConfig {
   intervalMs: number;
 }
 
+const ALLOWED_TABLES = new Set(['services', 'projects', 'sessions', 'agents', 'locks']);
+
 export function createPheromoneManager(db: Database.Database, config: PheromoneConfig = { decayRate: 0.95, intervalMs: 60000 }) {
-  
+
   /**
    * Run one evaporation cycle.
    * Scans all services, projects, and sessions for pheromones in metadata.
@@ -22,8 +24,11 @@ export function createPheromoneManager(db: Database.Database, config: PheromoneC
   function evaporate() {
     try {
       const tables = ['services', 'projects', 'sessions'];
-      
+
       for (const table of tables) {
+        if (!ALLOWED_TABLES.has(table)) {
+          throw new Error(`pheromone: invalid table name: ${table}`);
+        }
         try {
           const rows = db.prepare(`SELECT id, metadata FROM ${table} WHERE metadata IS NOT NULL`).all() as any[];
           
