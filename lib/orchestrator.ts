@@ -510,9 +510,16 @@ export function createReactiveOrchestrator(db: any, messaging: any, spawner: any
         if (typeof spec.task === 'string') spec.task = spec.task.replace('{{msg}}', JSON.stringify(msg.payload));
         await spawner.spawn(spec);
       } else if (rule.action === 'exec') {
+        const cmd = rule.payload.cmd;
+        // Validate command before execution (defense-in-depth)
+        if (/[;&|`$()\{\}!<>]/.test(cmd)) {
+          console.error(`[orchestrator] Blocked exec rule "${rule.name}": command contains shell metacharacters`);
+          return;
+        }
         const env = { ...process.env, PD_CHANNEL: msg.channel, PD_MESSAGE: JSON.stringify(msg.payload) };
-        const child = spawn(rule.payload.cmd, { shell: true, env });
-        child.stdout.on('data', (d) => console.log(`[orchestrator:${rule.name}] ${d}`));
+        const child = spawn(cmd, { shell: true, env });
+        child.stdout?.on('data', (d: Buffer) => console.log(`[orchestrator:${rule.name}] ${d}`));
+        child.stderr?.on('data', (d: Buffer) => console.error(`[orchestrator:${rule.name}] ${d}`));
       }
       events.emit('rule:fired', { ruleId: rule.id, channel: msg.channel });
     } catch (err) { console.error(`Rule "${rule.name}" failed:`, err); }

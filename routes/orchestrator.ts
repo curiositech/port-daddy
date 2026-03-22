@@ -52,6 +52,32 @@ export function createOrchestratorRoutes(deps: OrchestratorRouteDeps) {
 
   router.post('/orchestrator/rules', (req: Request, res: Response) => {
     try {
+      // Validate required fields
+      if (!req.body.name || typeof req.body.name !== 'string') {
+        return res.status(400).json({ error: 'name is required and must be a string' });
+      }
+      if (!req.body.channelPattern || typeof req.body.channelPattern !== 'string') {
+        return res.status(400).json({ error: 'channelPattern is required' });
+      }
+      if (!req.body.action || !['spawn', 'exec'].includes(req.body.action)) {
+        return res.status(400).json({ error: 'action must be "spawn" or "exec"' });
+      }
+      if (!req.body.payload || typeof req.body.payload !== 'object') {
+        return res.status(400).json({ error: 'payload is required and must be an object' });
+      }
+
+      // For exec action, validate the command
+      if (req.body.action === 'exec') {
+        const cmd = req.body.payload?.cmd;
+        if (!cmd || typeof cmd !== 'string') {
+          return res.status(400).json({ error: 'exec action requires payload.cmd string' });
+        }
+        // Reject shell metacharacters in exec commands
+        if (/[;&|`$()\{\}!<>]/.test(cmd)) {
+          return res.status(400).json({ error: 'exec command contains shell metacharacters — use spawn action instead' });
+        }
+      }
+
       const result = orchestrator.addRule(req.body);
       res.json(result);
     } catch (error) {
