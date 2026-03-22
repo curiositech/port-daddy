@@ -14,7 +14,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 
 interface StaleAgent {
   id: string;
@@ -47,6 +47,15 @@ export function createLaunchHintsRoutes(deps: LaunchRouteDeps): Router {
   router.get('/launch-hints', (req: Request, res: Response) => {
     try {
       const cwd = (req.query.cwd as string | undefined) || '';
+
+      // Validate cwd is a real directory under the user's home
+      if (cwd) {
+        const resolved = resolve(cwd);
+        const home = process.env.HOME || '/';
+        if (!resolved.startsWith(home) && !resolved.startsWith('/tmp')) {
+          return res.status(400).json({ error: 'cwd must be within home directory' });
+        }
+      }
 
       // Derive project name: try package.json first, then directory name
       let projectName: string | null = null;
