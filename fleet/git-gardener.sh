@@ -41,7 +41,8 @@ gardener_run() {
   local diff_lines=$(git diff HEAD -- lib/ routes/ server.ts mcp/ bin/ tests/ | wc -l | tr -d ' ')
   if [[ "$diff_lines" -gt "$MAX_STAGED_LINES" ]]; then
     fleet_warn "$AGENT_NAME" "Large diff ($diff_lines lines) — skipping auto-commit, needs human review"
-    pd_pub "git:large-diff" "{\"lines\":$diff_lines,\"files\":$changed_count,\"timestamp\":$(date +%s)}"
+    local json=$(python3 -c "import json,sys; print(json.dumps({'lines':int(sys.argv[1]),'files':int(sys.argv[2]),'timestamp':int(__import__('time').time())}))" "$diff_lines" "$changed_count" 2>/dev/null)
+    pd_pub "git:large-diff" "$json"
     return 0
   fi
 
@@ -72,10 +73,12 @@ $diff_content" --max-tokens 100 2>/dev/null | head -1)
     local sha=$(git rev-parse --short HEAD)
     fleet_success "$AGENT_NAME" "Committed: $sha — $commit_msg"
     pd_note "Git Gardener auto-committed $sha: $commit_msg" "progress"
-    pd_pub "git:committed" "{\"sha\":\"$sha\",\"message\":\"$commit_msg\",\"files\":$changed_count,\"agent\":\"$AGENT_NAME\",\"timestamp\":$(date +%s)}"
+    local json=$(python3 -c "import json,sys; print(json.dumps({'sha':sys.argv[1],'message':sys.argv[2],'files':int(sys.argv[3]),'agent':sys.argv[4],'timestamp':int(__import__('time').time())}))" "$sha" "$commit_msg" "$changed_count" "$AGENT_NAME" 2>/dev/null)
+    pd_pub "git:committed" "$json"
   else
     fleet_warn "$AGENT_NAME" "Commit failed (pre-commit hook blocked?)"
-    pd_pub "git:commit-blocked" "{\"reason\":\"hook\",\"files\":$changed_count,\"timestamp\":$(date +%s)}"
+    local json=$(python3 -c "import json,sys; print(json.dumps({'reason':'hook','files':int(sys.argv[1]),'timestamp':int(__import__('time').time())}))" "$changed_count" 2>/dev/null)
+    pd_pub "git:commit-blocked" "$json"
   fi
 }
 

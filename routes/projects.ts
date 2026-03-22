@@ -134,7 +134,7 @@ export function createProjectsRoutes(deps: ProjectsRouteDeps): Router {
     } catch (error) {
       metrics.errors++;
       logger.error('scan_error', { error: (error as Error).message });
-      res.status(500).json({ error: 'scan failed', details: (error as Error).message });
+      res.status(500).json({ error: 'internal server error' });
     }
   });
 
