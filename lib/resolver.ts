@@ -14,6 +14,7 @@
 
 import type Database from 'better-sqlite3';
 import { readFileSync, writeFileSync, existsSync, copyFileSync } from 'fs';
+import { resolve } from 'path';
 
 // =============================================================================
 // Constants
@@ -77,6 +78,14 @@ export function createResolver(db: Database.Database, config: ResolverConfig = {
   }
 
   function writeHostsFile(content: string): void {
+    // Verify we're only writing to the expected path
+    const resolvedPath = resolve(hostsFilePath);
+    if (resolvedPath !== '/etc/hosts' && resolvedPath !== '/private/etc/hosts') {
+      // Allow test paths (anything not /etc/hosts must be explicitly configured)
+      if (hostsFilePath === DEFAULT_HOSTS_PATH) {
+        throw new Error(`Unexpected hosts file path: ${resolvedPath}`);
+      }
+    }
     backupIfNeeded();
     writeFileSync(hostsFilePath, content, 'utf-8');
   }
@@ -202,7 +211,13 @@ export function createResolver(db: Database.Database, config: ResolverConfig = {
   /**
    * Initialize the managed section in the hosts file.
    */
-  function setup(): { success: boolean; alreadySetUp?: boolean } {
+  function setup(): { success: boolean; alreadySetUp?: boolean; error?: string } {
+    // Refuse to modify /etc/hosts if running as root
+    if (process.getuid && process.getuid() === 0) {
+      console.warn('[resolver] WARNING: Running as root — refusing to modify /etc/hosts for safety');
+      return { success: false, error: 'Refusing to modify /etc/hosts when running as root. Use --allow-root to override.' };
+    }
+
     if (isSetUp()) {
       return { success: true, alreadySetUp: true };
     }
