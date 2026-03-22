@@ -7,13 +7,14 @@
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
-import { status as maritimeStatus, highlightChannel } from '../../lib/maritime.js';
+import { highlightChannel } from '../../lib/maritime.js';
 import { pdFetch } from '../utils/fetch.js';
 import { CLIOptions, isQuiet, isJson } from '../types.js';
 import { IS_TTY, relativeTime } from '../utils/output.js';
 import { canPrompt, promptText, promptSelect, promptIdentity, promptConfirm, printRoger } from '../utils/prompt.js';
 import { autoIdentityFromPackageJson } from './services.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
+import * as ui from '../utils/ui.js';
 
 // =============================================================================
 // .portdaddy/current.json — local context file
@@ -72,7 +73,7 @@ export async function handleBegin(
     // Interactive wizard
     purpose = await promptText({ label: 'What are you working on?', required: true }) || undefined;
     if (!purpose) {
-      console.error(maritimeStatus('error', 'Purpose is required'));
+      ui.error('Purpose is required');
       process.exit(1);
     }
 
@@ -127,7 +128,7 @@ export async function handleBegin(
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to begin'));
+    ui.error((data.error as string) || 'Failed to begin');
     process.exit(1);
   }
 
@@ -150,7 +151,7 @@ export async function handleBegin(
     return;
   }
 
-  console.error(maritimeStatus('success', `Agent ${highlightChannel(data.agentId as string)} ready`));
+  ui.success(`Agent ${highlightChannel(data.agentId as string)} ready`);
   console.error(`  Session: ${data.sessionId}`);
   console.error(`  Purpose: ${purpose}`);
   if (identity) console.error(`  Identity: ${identity}`);
@@ -217,7 +218,7 @@ export async function handleDone(
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to end session'));
+    ui.error((data.error as string) || 'Failed to end session');
     process.exit(1);
   }
 
@@ -234,8 +235,11 @@ export async function handleDone(
     return;
   }
 
-  const statusLabel = data.sessionStatus === 'abandoned' ? 'warning' : 'success';
-  console.error(maritimeStatus(statusLabel as 'success' | 'warning', `Session ${data.sessionId} ${data.sessionStatus}`));
+  if (data.sessionStatus === 'abandoned') {
+    ui.warn(`Session ${data.sessionId} ${data.sessionStatus}`);
+  } else {
+    ui.success(`Session ${data.sessionId} ${data.sessionStatus}`);
+  }
   if (data.agentUnregistered) console.error(`  Agent ${data.agentId} unregistered`);
   if (data.notesCount) console.error(`  Notes: ${data.notesCount}`);
   if (note) console.error(`  Final note: "${note}"`);
@@ -341,12 +345,12 @@ export async function handleWithLock(
 
   if (!lockRes.ok) {
     const lockData = await lockRes.json();
-    console.error(maritimeStatus('error', `Failed to acquire lock "${name}": ${lockData.error || 'lock is held'}`));
+    ui.error(`Failed to acquire lock "${name}": ${lockData.error || 'lock is held'}`);
     process.exit(1);
   }
 
   if (IS_TTY && !isQuiet(options)) {
-    console.error(maritimeStatus('success', `Lock "${name}" acquired`));
+    ui.success(`Lock "${name}" acquired`);
   }
 
   // Run the command — shell: false by default to prevent injection.
@@ -390,7 +394,7 @@ export async function handleWithLock(
   }).catch(() => {});
 
   if (IS_TTY && !isQuiet(options)) {
-    console.error(maritimeStatus('success', `Lock "${name}" released`));
+    ui.success(`Lock "${name}" released`);
   }
 
   process.exit(exitCode);

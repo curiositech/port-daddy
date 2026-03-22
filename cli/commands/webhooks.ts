@@ -4,11 +4,11 @@
  * Handles: webhook command for webhook management
  */
 
-import { status as maritimeStatus } from '../../lib/maritime.js';
 import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import { CLIOptions, isQuiet, isJson } from '../types.js';
 import { separator, tableHeader } from '../utils/output.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
+import * as ui from '../utils/ui.js';
 
 /**
  * Handle `pd webhook <subcommand>` command
@@ -19,7 +19,7 @@ export async function handleWebhook(subcommand: string | undefined, args: string
     const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/webhooks`);
     const data = await res.json();
     if (!res.ok) {
-      console.error(maritimeStatus('error', (data.error as string) || 'Failed to list webhooks'));
+      ui.error((data.error as string) || 'Failed to list webhooks');
       process.exit(1);
     }
     if (isJson(options)) {
@@ -50,7 +50,7 @@ export async function handleWebhook(subcommand: string | undefined, args: string
     const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/webhooks/events`);
     const data = await res.json();
     if (!res.ok) {
-      console.error(maritimeStatus('error', (data.error as string) || 'Failed to list webhook events'));
+      ui.error((data.error as string) || 'Failed to list webhook events');
       process.exit(1);
     }
     if (isJson(options)) {
@@ -76,7 +76,7 @@ export async function handleWebhook(subcommand: string | undefined, args: string
     });
     const data = await res.json();
     if (!res.ok) {
-      console.error(maritimeStatus('error', (data.error as string) || 'Failed to test webhook'));
+      ui.error((data.error as string) || 'Failed to test webhook');
       process.exit(1);
     }
     if (isJson(options)) {
@@ -109,7 +109,7 @@ export async function handleWebhook(subcommand: string | undefined, args: string
     });
     const data = await res.json();
     if (!res.ok) {
-      console.error(maritimeStatus('error', (data.error as string) || 'Failed to update webhook'));
+      ui.error((data.error as string) || 'Failed to update webhook');
       process.exit(1);
     }
     if (isJson(options)) {
@@ -131,7 +131,7 @@ export async function handleWebhook(subcommand: string | undefined, args: string
     });
     const data = await res.json();
     if (!res.ok) {
-      console.error(maritimeStatus('error', (data.error as string) || 'Failed to delete webhook'));
+      ui.error((data.error as string) || 'Failed to delete webhook');
       process.exit(1);
     }
     if (isJson(options)) {
@@ -151,7 +151,7 @@ export async function handleWebhook(subcommand: string | undefined, args: string
     const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/webhooks/${encodeURIComponent(id)}/deliveries`);
     const data = await res.json();
     if (!res.ok) {
-      console.error(maritimeStatus('error', (data.error as string) || 'Failed to get deliveries'));
+      ui.error((data.error as string) || 'Failed to get deliveries');
       process.exit(1);
     }
     if (isJson(options)) {
@@ -183,7 +183,7 @@ export async function handleWebhook(subcommand: string | undefined, args: string
   const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/webhooks/${encodeURIComponent(subcommand)}`);
   const data = await res.json();
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || `Webhook '${subcommand}' not found`));
+    ui.error((data.error as string) || `Webhook '${subcommand}' not found`);
     console.error('Subcommands: list, events, test <id>, update <id>, rm <id>, deliveries <id>');
     process.exit(1);
   }

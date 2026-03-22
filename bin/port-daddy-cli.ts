@@ -33,8 +33,9 @@ import { createServices } from '../lib/services.js';
 import { createLocks } from '../lib/locks.js';
 import { createSessions } from '../lib/sessions.js';
 import { createActivityLog } from '../lib/activity.js';
-import { status as maritimeStatus, highlightChannel, flag, SignalFlags, ANSI as marANSI } from '../lib/maritime.js';
+import { highlightChannel, flag, SignalFlags, ANSI as marANSI } from '../lib/maritime.js';
 import { BANNER, TAGLINE } from '../lib/banner.js';
+import * as ui from '../cli/utils/ui.js';
 
 // Command modules (extracted from this file)
 import {
@@ -224,60 +225,37 @@ function printLaunchHints(hints: {
   nudges?: Array<{ type: string; message: string; cmd: string }>;
 }): void {
   const { salvage, nudges, isNewFolder, uncharted_waters, projectName } = hints;
-  if (!salvage && !nudges?.length) return;
+  if (!salvage && !nudges?.length && !isNewFolder && !uncharted_waters) return;
 
   const inProject = salvage?.inProject ?? 0;
   const total = salvage?.total ?? 0;
-  let printed = false;
 
   if (inProject > 0) {
     const n = inProject;
-    console.error(marANSI.fgYellow + `  ${n} agent${n > 1 ? 's' : ''} from ${projectName || 'this project'} need salvaging` + marANSI.reset);
-    for (const a of (salvage?.recent ?? [])) {
+    const agentLines = (salvage?.recent ?? []).map(a => {
       const ago = a.minutesAgo != null ? ` (${a.minutesAgo}m ago)` : '';
       const id = a.identity ? ` [${a.identity}]` : '';
-      console.error(marANSI.fgGray + `    ${a.purpose ?? a.id}${id}${ago}` + marANSI.reset);
-    }
-    console.error(marANSI.fgCyan + `  → pd salvage${projectName ? ` --project ${projectName}` : ''}` + marANSI.reset);
-    printed = true;
+      return `  ${a.purpose ?? a.id}${id}${ago}`;
+    }).join('\n');
+    const cmd = `pd salvage${projectName ? ` --project ${projectName}` : ''}`;
+    ui.warn(`${n} agent${n > 1 ? 's' : ''} from ${projectName || 'this project'} need salvaging`);
+    if (agentLines) ui.message(agentLines);
+    ui.info(`Run: ${cmd}`);
   } else if (total > 0) {
-    console.error(marANSI.fgGray + `  ${total} agent${total > 1 ? 's' : ''} pending salvage across all projects  (pd salvage)` + marANSI.reset);
-    printed = true;
+    ui.info(`${total} agent${total > 1 ? 's' : ''} pending salvage across all projects — run pd salvage`);
   }
 
   if (isNewFolder || uncharted_waters) {
-    if (printed) console.error('');
-
-    // Compass rose + dramatic header
-    const line = marANSI.fgGray + '\u2500'.repeat(55) + marANSI.reset;
-    const compassRose = [
-      '       ' + marANSI.fgCyan + marANSI.bold + '   N   ' + marANSI.reset,
-      '       ' + marANSI.fgCyan + '   |   ' + marANSI.reset,
-      '       ' + marANSI.fgCyan + 'W \u2500\u2022\u2500 E' + marANSI.reset,
-      '       ' + marANSI.fgCyan + '   |   ' + marANSI.reset,
-      '       ' + marANSI.fgCyan + '   S   ' + marANSI.reset,
-    ];
-    const header = marANSI.bold + marANSI.fgCyan + '\u2693  UNCHARTED WATERS' + marANSI.reset;
-    const folderLine = projectName
-      ? marANSI.fgGray + `   Port Daddy hasn't seen ` + marANSI.fgWhite + projectName + marANSI.fgGray + ' before.' + marANSI.reset
-      : marANSI.fgGray + '   Port Daddy hasn\'t seen this folder before.' + marANSI.reset;
-
-    console.error('');
-    console.error(line);
-    compassRose.forEach(l => console.error(l));
-    console.error('');
-    console.error('  ' + header);
-    console.error(folderLine);
-    console.error('');
-    console.error(marANSI.fgGray + '   Offer:' + marANSI.reset);
-    console.error(marANSI.fgCyan + '   \u25b8 pd scan' + marANSI.reset + marANSI.fgGray + '         \u2014 detect all services in this project' + marANSI.reset);
-    console.error(marANSI.fgCyan + '   \u25b8 pd learn' + marANSI.reset + marANSI.fgGray + '        \u2014 interactive tutorial (5 min)' + marANSI.reset);
-    console.error(marANSI.fgCyan + '   \u25b8 pd mcp install' + marANSI.reset + marANSI.fgGray + '   \u2014 add to your AI agent\'s MCP config' + marANSI.reset);
-    console.error(line);
-    printed = true;
+    const name = projectName || 'this folder';
+    const body = [
+      `I haven't seen ${name} before. Here's what I can do:`,
+      '',
+      '  pd scan          Detect all services in this project',
+      '  pd learn         Interactive tutorial (5 min)',
+      '  pd mcp install   Add to your AI agent\'s MCP config',
+    ].join('\n');
+    ui.note(body, 'New project detected');
   }
-
-  if (printed) console.error('');
 }
 
 // =============================================================================
@@ -387,13 +365,9 @@ async function checkDaemonFreshness(autoRestart: boolean = true): Promise<boolea
     const localHash: string = getLocalCodeHash();
 
     if (data.codeHash && data.codeHash !== localHash) {
-      console.error('');
-      console.error('\u26a0\ufe0f  Daemon is running stale code');
-      console.error(`   Daemon: ${data.codeHash}  Local: ${localHash}`);
+      ui.warn('Daemon is running stale code — auto-restarting...');
 
       if (autoRestart) {
-        console.error('   Auto-restarting...');
-        console.error('');
 
         // Kill the old daemon
         try {
@@ -418,13 +392,12 @@ async function checkDaemonFreshness(autoRestart: boolean = true): Promise<boolea
           try {
             const healthRes: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/health`);
             if (healthRes.ok) {
-              console.error('   \u2713 Daemon restarted with fresh code');
-              console.error('');
+              ui.success('Daemon restarted with fresh code');
               return true;
             }
           } catch {}
         }
-        console.error('   \u2717 Failed to restart daemon');
+        ui.error('Failed to restart daemon');
         process.exit(1);
       } else {
         // No auto-restart (CI mode)
@@ -492,56 +465,48 @@ function readCurrentSession(): { sessionId: string; agentId?: string; purpose?: 
 }
 
 /**
- * Build the compact main help output (~25 lines).
+ * Build the compact main help output.
  * Shows context-aware next steps if an active session exists.
  */
 function buildHelp(): string {
-  const lines: string[] = [
-    'Port Daddy \u2014 Port management & agent coordination',
-    '',
-  ];
-
-  // 5f: Context-aware help — show active session info if available
-  const session = readCurrentSession();
-  if (session) {
-    lines.push(`Active session: ${session.sessionId}${session.purpose ? ` (purpose: "${session.purpose}")` : ''}`);
-    lines.push(`  pd note "progress"     Log what you're doing`);
-    lines.push(`  pd done "summary"      End this session`);
-    lines.push('');
-  }
-
-  const K = flag('kilo');
-  const C = flag('charlie');
   const A = marANSI.bold + marANSI.fgCyan;
   const Z = marANSI.reset;
   const G = marANSI.fgGreen;
   const D = marANSI.fgGray;
+  const lines: string[] = [];
+
+  // Context-aware: show active session
+  const session = readCurrentSession();
+  if (session) {
+    lines.push(`${A}You're in a session:${Z} ${session.sessionId}${session.purpose ? ` — "${session.purpose}"` : ''}`);
+    lines.push(`  ${G}pd note${Z} "progress"     Log what you're doing`);
+    lines.push(`  ${G}pd done${Z} "summary"      Wrap it up`);
+    lines.push('');
+  }
+
   lines.push(
-    `${K} ${A}Quick Start:${Z}`,
-    `  ${G}pd begin${Z} "purpose"       Start working (registers agent + session)`,
-    `  ${G}pd done${Z} "summary"        Finish up (ends session + unregisters)`,
-    `  ${G}pd whoami${Z}                Show current context`,
+    `${A}Get started:${Z}`,
+    `  ${G}pd begin${Z} "purpose"       I'll set up your agent + session`,
+    `  ${G}pd done${Z} "summary"        Finish up — I'll clean everything`,
+    `  ${G}pd whoami${Z}                See your current context`,
     '',
-    `${K} ${A}Port Management:${Z}`,
-    `  ${G}pd claim${Z} <id>            Claim a port  ${D}(alias: c)${Z}`,
-    `  ${G}pd release${Z} <id>          Release a port  ${D}(alias: r)${Z}`,
-    `  ${G}pd find${Z} [pattern]        List services  ${D}(alias: f, l, ps)${Z}`,
+    `${A}Ports:${Z}`,
+    `  ${G}pd claim${Z} <id>            I'll assign a port  ${D}(c)${Z}`,
+    `  ${G}pd release${Z} <id>          Free it up  ${D}(r)${Z}`,
+    `  ${G}pd find${Z} [pattern]        What's running  ${D}(f, l, ps)${Z}`,
     '',
-    `${K} ${A}Sessions & Notes:${Z}`,
-    `  ${G}pd session start${Z} "why"   Start a session manually`,
-    `  ${G}pd note${Z} "message"        Add a note to current session`,
-    `  ${G}pd notes${Z}                 View recent notes`,
+    `${A}Sessions & notes:${Z}`,
+    `  ${G}pd session start${Z} "why"   Manual session start`,
+    `  ${G}pd note${Z} "message"        Leave a note`,
+    `  ${G}pd notes${Z}                 Review recent notes`,
     '',
-    `${K} ${A}Coordination:${Z}`,
-    `  ${G}pd lock${Z} <name>           Acquire a distributed lock`,
+    `${A}Coordination:${Z}`,
+    `  ${G}pd lock${Z} <name>           Grab a distributed lock`,
     `  ${G}pd agent register${Z}        Register as an agent`,
-    `  ${G}pd salvage${Z}               Check for dead agents to continue`,
+    `  ${G}pd salvage${Z}               Pick up a dead agent's work`,
     '',
-    `${C} ${A}More:${Z} pd help <topic>`,
-    `${D}Topics: sessions, locks, agents, ports, messaging, dns, orchestration, sugar, tutorial${Z}`,
-    '',
-    `${marANSI.fgCyan}Dashboard:${Z} ${marANSI.bold}${PORT_DADDY_URL}${Z}  ${D}(pd dashboard to open)${Z}`,
-    `${D}Tip: Run \`pd learn\` for an interactive tutorial${Z}`,
+    `${D}pd help <topic> for details — topics: sessions, locks, agents, ports, messaging, dns, orchestration, sugar, tutorial${Z}`,
+    `${D}Dashboard: ${PORT_DADDY_URL}  •  Tutorial: pd learn${Z}`,
   );
 
   return lines.join('\n');
@@ -916,7 +881,7 @@ async function executeDirectMode(
       const result = svc.claim(id, claimOpts as Parameters<typeof svc.claim>[1]);
 
       if (!result.success) {
-        console.error(maritimeStatus('error', result.error || 'Failed to claim port'));
+        ui.error(result.error || 'Failed to claim port');
         process.exit(1);
       }
 
@@ -924,7 +889,7 @@ async function executeDirectMode(
       if (!result.existing) {
         const portFree = await isPortAvailable(result.port as number);
         if (!portFree && IS_TTY) {
-          console.error(maritimeStatus('warning', `port ${result.port} is assigned but appears in use by another process`));
+          ui.warn(`port ${result.port} is assigned but appears in use by another process`);
         }
       }
 
@@ -936,7 +901,7 @@ async function executeDirectMode(
         console.log(result.port);
       } else {
         if (IS_TTY) {
-          console.error(maritimeStatus('success', `${highlightChannel(result.id as string)} → port ${result.port}`));
+          ui.success(`${highlightChannel(result.id as string)} → port ${result.port}`);
           if (result.existing) console.error('  (reused existing)');
         }
         process.stdout.write(`${result.port}\n`);
@@ -955,7 +920,7 @@ async function executeDirectMode(
         } else if (options.quiet) {
           console.log(result.released);
         } else {
-          console.log(maritimeStatus('success', result.message as string));
+          ui.success(result.message as string);
         }
         return true;
       }
@@ -969,7 +934,7 @@ async function executeDirectMode(
 
       const result = svc.release(id);
       if (!result.success) {
-        console.error(maritimeStatus('error', result.error || 'Failed to release'));
+        ui.error(result.error || 'Failed to release');
         process.exit(1);
       }
 
@@ -978,7 +943,7 @@ async function executeDirectMode(
       } else if (options.quiet) {
         console.log(result.released);
       } else {
-        console.log(maritimeStatus('success', result.message as string));
+        ui.success(result.message as string);
       }
       return true;
     }
@@ -1069,7 +1034,7 @@ async function executeDirectMode(
         });
 
         if (!result.success) {
-          console.error(maritimeStatus('error', result.error || 'Failed to extend lock'));
+          ui.error(result.error || 'Failed to extend lock');
           process.exit(1);
         }
         if (options.json) {
@@ -1101,7 +1066,7 @@ async function executeDirectMode(
           }
           process.exit(1);
         }
-        console.error(maritimeStatus('error', result.error || 'Failed to acquire lock'));
+        ui.error(result.error || 'Failed to acquire lock');
         process.exit(1);
       }
 
@@ -1110,7 +1075,7 @@ async function executeDirectMode(
       } else if (options.quiet) {
         // Silent success for scripting
       } else {
-        console.log(maritimeStatus('success', `Acquired lock: ${name}`));
+        ui.success(`Acquired lock: ${name}`);
         if (result.expiresAt) {
           const ttlSeconds = Math.ceil(((result.expiresAt as number) - (result.acquiredAt as number)) / 1000);
           console.log(`  TTL: ${ttlSeconds}s`);
@@ -1133,7 +1098,7 @@ async function executeDirectMode(
       });
 
       if (!result.success) {
-        console.error(maritimeStatus('error', result.error || 'Failed to release lock'));
+        ui.error(result.error || 'Failed to release lock');
         process.exit(1);
       }
 
@@ -1141,9 +1106,9 @@ async function executeDirectMode(
         console.log(JSON.stringify(result, null, 2));
       } else if (!options.quiet) {
         if (result.released) {
-          console.log(maritimeStatus('success', `Released lock: ${name}`));
+          ui.success(`Released lock: ${name}`);
         } else {
-          console.log(maritimeStatus('warning', `Lock '${name}' was not held`));
+          ui.warn(`Lock '${name}' was not held`);
         }
       }
       return true;
@@ -1284,7 +1249,7 @@ async function executeDirectMode(
           } else if (options.quiet) {
             console.log(sessionId);
           } else {
-            console.log(maritimeStatus('success', `Started session: ${sessionId}`));
+            ui.success(`Started session: ${sessionId}`);
             console.log(`  Purpose: ${purpose}`);
             if (files.length > 0) console.log(`  Files claimed: ${files.length}`);
           }
@@ -1300,7 +1265,7 @@ async function executeDirectMode(
           const listResult = sess.list({ status: 'active', limit: 1 });
           const sessionsList = (listResult as Record<string, unknown>).sessions as Array<{ id: string }>;
           if (!sessionsList || sessionsList.length === 0) {
-            console.error(maritimeStatus('error', 'No active session found'));
+            ui.error('No active session found');
             process.exit(1);
           }
 
@@ -1311,14 +1276,14 @@ async function executeDirectMode(
           const result = sess.end(sessionId, endOpts as Parameters<typeof sess.end>[1]);
 
           if (!result.success) {
-            console.error(maritimeStatus('error', result.error || 'Failed to end session'));
+            ui.error(result.error || 'Failed to end session');
             process.exit(1);
           }
 
           if (options.json) {
             console.log(JSON.stringify({ success: true, id: sessionId, status }, null, 2));
           } else if (!options.quiet) {
-            console.log(maritimeStatus('success', `Ended session: ${sessionId}`));
+            ui.success(`Ended session: ${sessionId}`);
             console.log(`  Status: ${status}`);
           }
           break;
@@ -1330,7 +1295,7 @@ async function executeDirectMode(
           const listResult = sess.list({ status: 'active', limit: 1 });
           const sessionsList = (listResult as Record<string, unknown>).sessions as Array<{ id: string }>;
           if (!sessionsList || sessionsList.length === 0) {
-            console.error(maritimeStatus('error', 'No active session found'));
+            ui.error('No active session found');
             process.exit(1);
           }
 
@@ -1338,14 +1303,14 @@ async function executeDirectMode(
           const result = sess.abandon(sessionId);
 
           if (!result.success) {
-            console.error(maritimeStatus('error', result.error || 'Failed to abandon session'));
+            ui.error(result.error || 'Failed to abandon session');
             process.exit(1);
           }
 
           if (options.json) {
             console.log(JSON.stringify({ success: true, id: sessionId, status: 'abandoned' }, null, 2));
           } else if (!options.quiet) {
-            console.log(maritimeStatus('warning', `Abandoned session: ${sessionId}`));
+            ui.warn(`Abandoned session: ${sessionId}`);
           }
           break;
         }
@@ -1567,8 +1532,7 @@ async function main(): Promise<void> {
 
   if (!command || command === '--help' || command === '-h') {
     if (IS_TTY) {
-      console.error(BANNER);
-      console.error(`  ${TAGLINE}\n`);
+      ui.intro('Port Daddy — Your ports. My rules. Zero conflicts.');
     }
 
     // Launch hints — best-effort, skip if daemon not running (500ms timeout)
@@ -1591,12 +1555,12 @@ async function main(): Promise<void> {
       } catch {
         // Daemon not running — silently skip
       }
-    }
 
-    // Tier-1 fallback: if daemon wasn't available, show basic first-run hint
-    const portdaddyDir = join(process.cwd(), '.portdaddy');
-    if (!existsSync(portdaddyDir)) {
-      console.error(marANSI.fgGray + '  First time here? Run `pd learn` for an interactive tutorial.' + marANSI.reset + '\n');
+      // First-run hint
+      const portdaddyDir = join(process.cwd(), '.portdaddy');
+      if (!existsSync(portdaddyDir)) {
+        ui.info('First time here? Run pd learn for an interactive tutorial.');
+      }
     }
 
     console.log(buildHelp());
@@ -2044,20 +2008,16 @@ async function main(): Promise<void> {
         // Check for misspelled commands first
         const suggestion = suggestCommand(command);
         if (suggestion) {
-          console.error(`Unknown command: ${command}`);
-          console.error(`  Did you mean: port-daddy ${suggestion}?`);
-          console.error('');
-          console.error('Run "pd help" for usage or "pd help <topic>" for details');
-          console.error('Tip: Run `pd learn` for an interactive tutorial');
+          ui.error(`Unknown command: ${command}`);
+          ui.info(`Did you mean: pd ${suggestion}?`);
           process.exit(1);
         }
         // Only treat as a claim if it's a semantic identity (must contain : for project:stack:context format)
         if (command.includes(':')) {
           await handleClaim(command, options);
         } else {
-          console.error(`Unknown command: ${command}`);
-          console.error('Run "pd help" for usage or "pd help <topic>" for details');
-          console.error('Tip: Run `pd learn` for an interactive tutorial');
+          ui.error(`Unknown command: ${command}`);
+          ui.info('Run pd help for usage — or pd learn for a tutorial');
           process.exit(1);
         }
         break;
@@ -2096,19 +2056,17 @@ async function main(): Promise<void> {
           // Retry the original command
           return main();
         } catch {
-          console.error('Failed to auto-start daemon.');
-          console.error('Start it manually: port-daddy start');
-          console.error('Or install as service: port-daddy install');
+          ui.error('Could not auto-start the daemon.');
+          ui.info('Start manually: pd start — or install as service: pd install');
           process.exit(1);
         }
       } else {
-        console.error('Port Daddy daemon is not running.');
-        console.error('Start it with: port-daddy start');
-        console.error('Or install as service: port-daddy install');
+        ui.error('Daemon is not running.');
+        ui.info('Start with: pd start — or install: pd install');
         process.exit(1);
       }
     } else {
-      console.error('Error:', error.message);
+      ui.error(error.message);
     }
     process.exit(1);
   }

@@ -10,8 +10,6 @@ import { tmpdir, homedir } from 'node:os';
 import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import { CLIOptions } from '../types.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
-import { status as maritimeStatus } from '../../lib/maritime.js';
-
 // Orchestration types
 import { normalizeServiceConfig, topologicalSort, createOrchestrator } from '../../lib/orchestrator.js';
 import { discoverServices, mergeWithConfig, suggestNames } from '../../lib/discover.js';
@@ -20,6 +18,7 @@ import { loadConfig } from '../../lib/config.js';
 import type { PortDaddyRcConfig } from '../../lib/config.js';
 
 import { createHash } from 'node:crypto';
+import * as ui from '../utils/ui.js';
 
 /**
  * Get a unique PID file path for the current project directory.
@@ -41,7 +40,7 @@ export async function handleUp(positional: string[], options: CLIOptions): Promi
     const healthRes: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/health`);
     if (!healthRes.ok) throw new Error('unhealthy');
   } catch {
-    console.error(maritimeStatus('error', 'Port Daddy daemon is not running.'));
+    ui.error('Port Daddy daemon is not running.');
     console.error('  Start with: port-daddy start');
     process.exit(1);
   }
@@ -51,7 +50,7 @@ export async function handleUp(positional: string[], options: CLIOptions): Promi
   try {
     config = loadConfig(dir);
   } catch (err: unknown) {
-    console.error(maritimeStatus('error', `Config error: ${(err as Error).message}`));
+    ui.error(`Config error: ${(err as Error).message}`);
     process.exit(1);
   }
 
@@ -73,7 +72,7 @@ export async function handleUp(positional: string[], options: CLIOptions): Promi
 
       if (scanRes.ok && (scanData.serviceCount as number) > 0) {
         // Scan found services — reload config and continue
-        console.error(maritimeStatus('success', `Scan found ${scanData.serviceCount} service(s). Config saved.`));
+        ui.success(`Scan found ${scanData.serviceCount} service(s). Config saved.`);
         console.error('');
         config = loadConfig(dir);
         const rediscovered = discoverServices(dir);
@@ -84,7 +83,7 @@ export async function handleUp(positional: string[], options: CLIOptions): Promi
     }
 
     if (Object.keys(mergedServices).length === 0) {
-      console.error(maritimeStatus('error', 'No services found.'));
+      ui.error('No services found.');
       console.error('  Port Daddy looked for known frameworks (Next.js, Express,');
       console.error('  FastAPI, Docker, Go, Rust, etc.) but found nothing.');
       console.error('');
@@ -180,45 +179,45 @@ export async function handleUp(positional: string[], options: CLIOptions): Promi
 
   orchestrator.on('healthy', (data: unknown) => {
     const { name, port } = data as { name: string; port: number };
-    console.log(maritimeStatus('success', `${name} healthy (port ${port})`));
+    ui.success(`${name} healthy (port ${port})`);
   });
 
   orchestrator.on('healthTimeout', (data: unknown) => {
     const { name, port } = data as { name: string; port: number };
-    console.error(maritimeStatus('warning', `${name} did not become healthy (port ${port})`));
+    ui.warn(`${name} did not become healthy (port ${port})`);
   });
 
   orchestrator.on('crash', (data: unknown) => {
     const { name } = data as { name: string };
-    console.error(maritimeStatus('error', `${name} crashed during startup`));
+    ui.error(`${name} crashed during startup`);
   });
 
   orchestrator.on('exit', (data: unknown) => {
     const { name, code, signal, early } = data as { name: string; code: number; signal: string; early: boolean };
     if (early) {
-      console.error(maritimeStatus('error', `${name} exited immediately (code ${code})`));
+      ui.error(`${name} exited immediately (code ${code})`);
     } else {
-      console.log(maritimeStatus('stop', `${name} exited (code ${code}, signal ${signal})`));
+      ui.warn(`${name} exited (code ${code}, signal ${signal})`);
     }
   });
 
   orchestrator.on('allStarted', (data: unknown) => {
     const { services } = data as { services: string[] };
     console.log('');
-    console.log(maritimeStatus('success', `All ${services.length} service(s) running. Press Ctrl+C to stop.`));
+    ui.success(`All ${services.length} service(s) running. Press Ctrl+C to stop.`);
     console.log(`  Dashboard: ${PORT_DADDY_URL}/`);
     console.log('');
   });
 
   orchestrator.on('stopped', () => {
     console.log('');
-    console.log(maritimeStatus('stop', 'All services stopped.'));
+    ui.warn('All services stopped.');
     removePidFile(dir);
   });
 
   orchestrator.on('error', (data: unknown) => {
     const { name, error } = data as { name: string; error: string };
-    console.error(maritimeStatus('error', `Error in ${name}: ${error}`));
+    ui.error(`Error in ${name}: ${error}`);
   });
 
   // 9. Handle Ctrl+C / SIGTERM
@@ -227,11 +226,13 @@ export async function handleUp(positional: string[], options: CLIOptions): Promi
   const gracefulShutdown = async (): Promise<void> => {
     if (shuttingDown) {
       // Double Ctrl+C: force kill
-      console.error('\n' + maritimeStatus('stop', 'Force killing...'));
+      console.error('');
+      ui.warn('Force killing...');
       process.exit(1);
     }
     shuttingDown = true;
-    console.log('\n' + maritimeStatus('warning', 'Shutting down...'));
+    console.log('');
+    ui.warn('Shutting down...');
     await orchestrator.stop();
     removePidFile(dir);
     // Resolve the keep-alive promise so the process exits naturally
@@ -246,13 +247,13 @@ export async function handleUp(positional: string[], options: CLIOptions): Promi
   writePidFile(dir);
 
   // 11. Start
-  console.log(maritimeStatus('ready', `Starting: ${order.join(' → ')}`));
+  ui.info(`Starting: ${order.join(' → ')}`);
   console.log('');
 
   try {
     await orchestrator.start();
   } catch (err: unknown) {
-    console.error(maritimeStatus('error', `Failed to start: ${(err as Error).message}`));
+    ui.error(`Failed to start: ${(err as Error).message}`);
     removePidFile(dir);
     process.exit(1);
   }
@@ -269,7 +270,7 @@ export async function handleDown(options: CLIOptions): Promise<void> {
   const pidFile = getPidFile(dir);
 
   if (!existsSync(pidFile)) {
-    console.error(maritimeStatus('error', 'No port-daddy up session found.'));
+    ui.error('No port-daddy up session found.');
     console.error('  (No PID file at ' + pidFile + ')');
     process.exit(1);
   }
@@ -278,24 +279,24 @@ export async function handleDown(options: CLIOptions): Promise<void> {
   const pid: number = parseInt(pidStr, 10);
 
   if (isNaN(pid)) {
-    console.error(maritimeStatus('error', 'Invalid PID file. Removing it.'));
+    ui.error('Invalid PID file. Removing it.');
     removePidFile(dir);
     process.exit(1);
   }
 
   // Check if process is alive
   if (!isProcessAlive(pid)) {
-    console.error(maritimeStatus('warning', `Process ${pid} is not running. Cleaning up PID file.`));
+    ui.warn(`Process ${pid} is not running. Cleaning up PID file.`);
     removePidFile(dir);
     process.exit(1);
   }
 
   // Send SIGTERM to trigger graceful shutdown
-  console.log(maritimeStatus('stop', `Stopping port-daddy up (PID ${pid})...`));
+  ui.warn(`Stopping port-daddy up (PID ${pid})...`);
   try {
     process.kill(pid, 'SIGTERM');
   } catch (err: unknown) {
-    console.error(maritimeStatus('error', `Failed to signal process: ${(err as Error).message}`));
+    ui.error(`Failed to signal process: ${(err as Error).message}`);
     removePidFile(dir);
     process.exit(1);
   }
@@ -308,7 +309,7 @@ export async function handleDown(options: CLIOptions): Promise<void> {
 
   // If still alive after 10s, escalate to SIGKILL
   if (isProcessAlive(pid)) {
-    console.log(maritimeStatus('warning', 'Graceful shutdown timed out. Force killing...'));
+    ui.warn('Graceful shutdown timed out. Force killing...');
     try { process.kill(pid, 'SIGKILL'); } catch { /* already dead */ }
     await new Promise(r => setTimeout(r, 500));
   }
@@ -333,7 +334,7 @@ export async function handleDown(options: CLIOptions): Promise<void> {
         } catch { /* best effort */ }
       }
       if (orphaned.length > 0) {
-        console.log(maritimeStatus('success', `Released ${orphaned.length} orphaned service(s).`));
+        ui.success(`Released ${orphaned.length} orphaned service(s).`);
       }
     }
   } catch { /* daemon unreachable — nothing more we can do */ }
@@ -342,9 +343,9 @@ export async function handleDown(options: CLIOptions): Promise<void> {
   removePidFile(dir);
 
   if (isProcessAlive(pid)) {
-    console.error(maritimeStatus('warning', `Process ${pid} may still be running.`));
+    ui.warn(`Process ${pid} may still be running.`);
   } else {
-    console.log(maritimeStatus('success', 'Stopped.'));
+    ui.success('Stopped.');
   }
 }
 

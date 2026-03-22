@@ -198,11 +198,19 @@ function runAider(spec: SpawnSpec): Promise<{ output: string; error: string | nu
 
 function runCustom(spec: SpawnSpec): Promise<{ output: string; error: string | null; child: ChildProcess }> {
   return new Promise((resolve) => {
-    // spec.task is the shell command
+    // Reject obvious shell injection patterns
+    const DANGEROUS_PATTERNS = /[;&|`$(){}!<>]/;
+    if (DANGEROUS_PATTERNS.test(spec.task)) {
+      return resolve({
+        output: '',
+        error: 'Command contains shell metacharacters. Use explicit arguments instead of shell syntax.',
+        child: null as any
+      });
+    }
+
     const child = spawnChild(spec.task, [], {
       cwd: spec.workdir || process.cwd(),
       env: { ...process.env, ...(spec.env || {}) },
-      shell: true,
       timeout: spec.timeout || 300000,
     });
 

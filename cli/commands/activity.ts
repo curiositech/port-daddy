@@ -4,10 +4,10 @@
  * Handles: log, activity commands for audit trail
  */
 
-import { status as maritimeStatus } from '../../lib/maritime.js';
 import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import { CLIOptions, isJson } from '../types.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
+import * as ui from '../utils/ui.js';
 
 /**
  * Handle `pd log [subcommand]` command
@@ -21,7 +21,7 @@ export async function handleLog(subcommand: string | undefined, options: CLIOpti
     const data = await res.json();
 
     if (!res.ok) {
-      console.error(maritimeStatus('error', (data.error as string) || 'Failed to get summary'));
+      ui.error((data.error as string) || 'Failed to get summary');
       process.exit(1);
     }
 
@@ -53,7 +53,7 @@ export async function handleLog(subcommand: string | undefined, options: CLIOpti
     const data = await res.json();
 
     if (!res.ok) {
-      console.error(maritimeStatus('error', (data.error as string) || 'Failed to get stats'));
+      ui.error((data.error as string) || 'Failed to get stats');
       process.exit(1);
     }
 
@@ -143,7 +143,7 @@ export async function handleLog(subcommand: string | undefined, options: CLIOpti
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to get activity'));
+    ui.error((data.error as string) || 'Failed to get activity');
     process.exit(1);
   }
 

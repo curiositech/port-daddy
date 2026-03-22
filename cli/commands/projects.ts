@@ -4,10 +4,10 @@
  * Handles: scan, projects commands for project discovery and registry
  */
 
-import { status as maritimeStatus } from '../../lib/maritime.js';
 import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import { CLIOptions, isJson } from '../types.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
+import * as ui from '../utils/ui.js';
 
 /**
  * Handle `pd scan [dir]` command
@@ -26,7 +26,7 @@ export async function handleScan(dir: string | undefined, options: CLIOptions): 
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Scan failed'));
+    ui.error((data.error as string) || 'Scan failed');
     if (data.details) console.error(`  ${data.details}`);
     process.exit(1);
   }
@@ -113,7 +113,7 @@ export async function handleProjects(subcommand: string | undefined, args: strin
     const data = await res.json();
 
     if (!res.ok) {
-      console.error(maritimeStatus('error', (data.error as string) || 'Failed to remove project'));
+      ui.error((data.error as string) || 'Failed to remove project');
       process.exit(1);
     }
 
@@ -131,7 +131,7 @@ export async function handleProjects(subcommand: string | undefined, args: strin
     const data = await res.json();
 
     if (!res.ok) {
-      console.error(maritimeStatus('error', (data.error as string) || 'Project not found'));
+      ui.error((data.error as string) || 'Project not found');
       if (data.suggestion) console.error(`  ${data.suggestion}`);
       process.exit(1);
     }
@@ -166,7 +166,7 @@ export async function handleProjects(subcommand: string | undefined, args: strin
   const data = await res.json();
 
   if (!res.ok) {
-    console.error(maritimeStatus('error', (data.error as string) || 'Failed to list projects'));
+    ui.error((data.error as string) || 'Failed to list projects');
     process.exit(1);
   }
 
