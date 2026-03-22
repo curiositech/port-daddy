@@ -65,19 +65,21 @@ export function createProjectsRoutes(deps: ProjectsRouteDeps): Router {
       // Build config from scan results
       const config = buildConfigFromScan(result);
 
-      // Register project centrally
-      projects.register({
-        id: result.project,
-        root: result.root,
-        type: result.type,
-        config,
-        services: result.services,
-        metadata: {
-          workspaceType: result.workspaceType,
-          serviceCount: result.serviceCount,
-          frameworks: Object.values(result.services).map((s: Record<string, unknown>) => (s.stack as Record<string, unknown>).name)
-        }
-      });
+      // Register project centrally (skip during dry-run)
+      if (!dryRun) {
+        projects.register({
+          id: result.project,
+          root: result.root,
+          type: result.type,
+          config,
+          services: result.services,
+          metadata: {
+            workspaceType: result.workspaceType,
+            serviceCount: result.serviceCount,
+            frameworks: Object.values(result.services).map((s: Record<string, unknown>) => (s.stack as Record<string, unknown>).name)
+          }
+        });
+      }
 
       // Save .portdaddyrc unless dry-run
       let savedPath: string | null = null;
