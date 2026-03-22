@@ -69,18 +69,23 @@ except: pass
 # ---------------------------------------------------------------------------
 pd_pub() {
   local channel="$1" payload="$2"
-  curl -s -X POST "$PD_URL/msg/$channel" \
-    -H 'Content-Type: application/json' \
-    -d "$payload" > /dev/null 2>&1
+  # payload is already JSON, just validate it
+  if echo "$payload" | python3 -c "import json,sys; json.load(sys.stdin)" 2>/dev/null; then
+    curl -s -X POST "$PD_URL/msg/$channel" \
+      -H 'Content-Type: application/json' \
+      -d "$payload" > /dev/null 2>&1
+  fi
 }
 
 pd_note() {
   local content="$1" type="${2:-progress}"
-  # Escape content for JSON safety
-  local escaped=$(echo "$content" | head -1 | sed 's/\\/\\\\/g; s/"/\\"/g' | head -c 500)
-  curl -s -X POST "$PD_URL/notes" \
-    -H 'Content-Type: application/json' \
-    -d "{\"content\":\"$escaped\",\"type\":\"$type\"}" > /dev/null 2>&1
+  # Use python3 for safe JSON encoding
+  local json=$(python3 -c "import json,sys; print(json.dumps({'content':sys.argv[1][:500],'type':sys.argv[2]}))" "$content" "$type" 2>/dev/null)
+  if [[ -n "$json" ]]; then
+    curl -s -X POST "$PD_URL/notes" \
+      -H 'Content-Type: application/json' \
+      -d "$json" > /dev/null 2>&1
+  fi
 }
 
 pd_begin() {
@@ -148,7 +153,12 @@ fleet_warn() {
 fleet_error() {
   local name="$1" msg="$2"
   echo "${DIM}$(date +%H:%M:%S)${NC} ${RED}[$name]${NC} $msg" >&2
-  pd_pub "fleet:error" "{\"agent\":\"$name\",\"error\":\"$(echo "$msg" | sed 's/"/\\"/g' | head -c 200)\",\"timestamp\":$(date +%s)}"
+  local json=$(python3 -c "import json,sys; print(json.dumps({'agent':sys.argv[1],'error':sys.argv[2][:200],'timestamp':int(__import__('time').time())}))" "$name" "$msg" 2>/dev/null)
+  if [[ -n "$json" ]]; then
+    curl -s -X POST "$PD_URL/msg/fleet:error" \
+      -H 'Content-Type: application/json' \
+      -d "$json" > /dev/null 2>&1
+  fi
 }
 
 # ---------------------------------------------------------------------------

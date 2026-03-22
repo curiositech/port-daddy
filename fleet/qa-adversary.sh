@@ -73,10 +73,12 @@ Be thorough but honest. Don't invent problems that don't exist."
     # Worktree has changes (new test files with bug reproductions)
     fleet_success "$AGENT_NAME" "Bugs found — worktree at $result"
     pd_note "QA Adversary found issues in $sha. Worktree: $result" "warning"
-    pd_pub "qa:findings" "{\"sha\":\"$sha\",\"worktree\":\"$result\",\"agent\":\"$AGENT_NAME\",\"timestamp\":$(date +%s)}"
+    local json=$(python3 -c "import json,sys; print(json.dumps({'sha':sys.argv[1],'worktree':sys.argv[2],'agent':sys.argv[3],'timestamp':int(__import__('time').time())}))" "$sha" "$result" "$AGENT_NAME" 2>/dev/null)
+    pd_pub "qa:findings" "$json"
   else
     fleet_success "$AGENT_NAME" "Clean — no issues in $sha"
-    pd_pub "qa:clean" "{\"sha\":\"$sha\",\"agent\":\"$AGENT_NAME\",\"timestamp\":$(date +%s)}"
+    local json=$(python3 -c "import json,sys; print(json.dumps({'sha':sys.argv[1],'agent':sys.argv[2],'timestamp':int(__import__('time').time())}))" "$sha" "$AGENT_NAME" 2>/dev/null)
+    pd_pub "qa:clean" "$json"
   fi
 }
 

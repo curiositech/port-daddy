@@ -79,7 +79,8 @@ Pick ONE research topic that would help Port Daddy leap forward. Output ONLY the
 
   if [[ -n "$topic" ]]; then
     fleet_log "$AGENT_NAME" "Research topic: $topic"
-    pd_pub "research:request" "{\"topic\":\"$(echo "$topic" | sed 's/"/\\"/g')\",\"context\":\"Commissioned by Spark\",\"requestor\":\"spark\"}"
+    local json=$(python3 -c "import json,sys; print(json.dumps({'topic':sys.argv[1],'context':'Commissioned by Spark','requestor':'spark'}))" "$topic" 2>/dev/null)
+    pd_pub "research:request" "$json"
     pd_note "Spark commissioned research: $topic" "research"
     echo "$topic" >> "$SPARK_DIR/research-log.md"
   else
@@ -134,7 +135,8 @@ Be bold. Be specific. Be buildable." --max-tokens 1500 2>/dev/null)
     echo "$idea" > "$idea_file"
     fleet_success "$AGENT_NAME" "New idea: $idea_name"
     pd_note "Spark idea: $idea_name" "idea"
-    pd_pub "spark:idea" "{\"name\":\"$(echo "$idea_name" | sed 's/"/\\"/g')\",\"file\":\"$idea_file\",\"timestamp\":$(date +%s)}"
+    local json=$(python3 -c "import json,sys; print(json.dumps({'name':sys.argv[1],'file':sys.argv[2],'timestamp':int(__import__('time').time())}))" "$idea_name" "$idea_file" 2>/dev/null)
+    pd_pub "spark:idea" "$json"
   else
     fleet_log "$AGENT_NAME" "no idea generated this cycle"
   fi
