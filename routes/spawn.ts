@@ -60,6 +60,23 @@ export function createSpawnRoutes(deps: SpawnRouteDeps): Router {
         });
       }
 
+      if (typeof task === 'string' && task.length > 1000) {
+        return res.status(400).json({
+          success: false,
+          error: 'task must not exceed 1000 characters',
+          code: 'VALIDATION_ERROR',
+        });
+      }
+
+      // For custom backend, reject shell metacharacters at route level
+      if (backend === 'custom' && /[;&|`$(){}!<>]/.test(task as string)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Custom backend task contains shell metacharacters. Use explicit arguments instead of shell syntax.',
+          code: 'VALIDATION_ERROR',
+        });
+      }
+
       const spec: SpawnSpec = {
         backend: backend as SpawnSpec['backend'],
         task: task.trim(),
