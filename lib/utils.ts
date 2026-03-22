@@ -38,6 +38,12 @@ export const PRIVATE_IP_PATTERNS: readonly RegExp[] = [
   /^::ffff:10\./i,
   /^::ffff:172\.(1[6-9]|2[0-9]|3[01])\./i,
   /^::ffff:192\.168\./i,
+  // IPv4-mapped IPv6 for CGN (Carrier-Grade NAT) — RFC 6598
+  /^::ffff:100\./i,
+  // Full-form IPv6 loopback
+  /^0:0:0:0:0:0:0:1$/,
+  // IPv4-compatible IPv6 loopback (deprecated but still routable)
+  /^::127\.0\.0\.1$/,
   // Cloud metadata endpoints
   /^metadata\.google\.internal$/i,
   /^169\.254\.169\.254$/,

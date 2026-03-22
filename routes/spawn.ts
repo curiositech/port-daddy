@@ -93,7 +93,7 @@ export function createSpawnRoutes(deps: SpawnRouteDeps): Router {
     } catch (error) {
       metrics.errors++;
       logger.error('spawn_error', { error: (error as Error).message });
-      res.status(500).json({ error: 'internal server error', details: (error as Error).message });
+      res.status(500).json({ error: 'internal server error' });
     }
   });
 
@@ -111,7 +111,7 @@ export function createSpawnRoutes(deps: SpawnRouteDeps): Router {
     } catch (error) {
       metrics.errors++;
       logger.error('spawn_list_error', { error: (error as Error).message });
-      res.status(500).json({ error: 'internal server error', details: (error as Error).message });
+      res.status(500).json({ error: 'internal server error' });
     }
   });
 
@@ -134,7 +134,7 @@ export function createSpawnRoutes(deps: SpawnRouteDeps): Router {
     } catch (error) {
       metrics.errors++;
       logger.error('spawn_kill_error', { error: (error as Error).message });
-      res.status(500).json({ error: 'internal server error', details: (error as Error).message });
+      res.status(500).json({ error: 'internal server error' });
     }
   });
 
