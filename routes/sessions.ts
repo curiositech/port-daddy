@@ -143,7 +143,7 @@ export function createSessionsRoutes(deps: SessionsRouteDeps): Router {
     } catch (error) {
       metrics.errors++;
       logger.error('session_start_error', { error: (error as Error).message });
-      res.status(500).json({ error: 'internal server error', details: (error as Error).message });
+      res.status(500).json({ error: 'internal server error' });
     }
   });
 
@@ -537,7 +537,7 @@ export function createSessionsRoutes(deps: SessionsRouteDeps): Router {
     } catch (error) {
       metrics.errors++;
       logger.error('session_files_release_error', { error: (error as Error).message });
-      res.status(500).json({ error: (error as Error).message });
+      res.status(500).json({ error: 'internal server error' });
     }
   });
 

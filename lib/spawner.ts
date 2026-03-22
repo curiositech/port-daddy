@@ -249,11 +249,38 @@ export function createSpawner(_deps: {} = {}) {
   // In-memory registry of active spawned agents
   const agents = new Map<string, AgentRecord>();
 
+  const MAX_AGENT_RECORDS = 1000;
+  const ONE_HOUR = 60 * 60 * 1000;
+
+  /**
+   * Remove completed/failed/killed agents older than 1 hour,
+   * and enforce a hard cap of MAX_AGENT_RECORDS entries.
+   */
+  function cleanupStaleAgents(): void {
+    const cutoff = Date.now() - ONE_HOUR;
+    for (const [id, record] of agents) {
+      if (record.completedAt && record.completedAt < cutoff) {
+        agents.delete(id);
+      }
+    }
+
+    // Hard cap — evict oldest completed entries first
+    if (agents.size > MAX_AGENT_RECORDS) {
+      const completed = [...agents.entries()]
+        .filter(([, r]) => r.completedAt)
+        .sort((a, b) => (a[1].completedAt || 0) - (b[1].completedAt || 0));
+      for (const [id] of completed.slice(0, agents.size - MAX_AGENT_RECORDS)) {
+        agents.delete(id);
+      }
+    }
+  }
+
   /**
    * Spawn an AI agent with the given spec.
    * Automatically wires PD session + heartbeat + done.
    */
   async function spawn(spec: SpawnSpec): Promise<SpawnResult> {
+    cleanupStaleAgents();
     const agentId = `spawned-${randomBytes(6).toString('hex')}`;
     const model = spec.model || DEFAULT_MODELS[spec.backend];
     const startedAt = Date.now();
@@ -392,6 +419,7 @@ export function createSpawner(_deps: {} = {}) {
    * List all active (and recently completed) spawned agents.
    */
   function list(): SpawnedAgent[] {
+    cleanupStaleAgents();
     return Array.from(agents.values()).map((r) => ({
       agentId: r.agentId,
       backend: r.backend,

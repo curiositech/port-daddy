@@ -124,7 +124,7 @@ export function createDnsRoutes(deps: DnsRouteDeps): Router {
     } catch (error) {
       metrics.errors++;
       logger.error('dns_resolver_setup_failed', { error: (error as Error).message });
-      res.status(500).json({ error: (error as Error).message });
+      res.status(500).json({ error: 'internal server error' });
     }
   });
 
@@ -144,7 +144,7 @@ export function createDnsRoutes(deps: DnsRouteDeps): Router {
     } catch (error) {
       metrics.errors++;
       logger.error('dns_resolver_teardown_failed', { error: (error as Error).message });
-      res.status(500).json({ error: (error as Error).message });
+      res.status(500).json({ error: 'internal server error' });
     }
   });
 
@@ -164,7 +164,7 @@ export function createDnsRoutes(deps: DnsRouteDeps): Router {
     } catch (error) {
       metrics.errors++;
       logger.error('dns_resolver_sync_failed', { error: (error as Error).message });
-      res.status(500).json({ error: (error as Error).message });
+      res.status(500).json({ error: 'internal server error' });
     }
   });
 

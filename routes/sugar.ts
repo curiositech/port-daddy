@@ -67,7 +67,7 @@ export function createSugarRoutes(deps: SugarRouteDeps): Router {
     } catch (error) {
       metrics.errors++;
       logger.error('sugar_begin_error', { error: (error as Error).message });
-      res.status(500).json({ error: 'internal server error', details: (error as Error).message });
+      res.status(500).json({ error: 'internal server error' });
     }
   });
 
@@ -105,7 +105,7 @@ export function createSugarRoutes(deps: SugarRouteDeps): Router {
     } catch (error) {
       metrics.errors++;
       logger.error('sugar_done_error', { error: (error as Error).message });
-      res.status(500).json({ error: 'internal server error', details: (error as Error).message });
+      res.status(500).json({ error: 'internal server error' });
     }
   });
 
@@ -122,7 +122,7 @@ export function createSugarRoutes(deps: SugarRouteDeps): Router {
     } catch (error) {
       metrics.errors++;
       logger.error('sugar_whoami_error', { error: (error as Error).message });
-      res.status(500).json({ error: 'internal server error', details: (error as Error).message });
+      res.status(500).json({ error: 'internal server error' });
     }
   });
 
