@@ -197,7 +197,7 @@ claude_run_worktree() {
     git -C "$PROJECT_DIR" worktree add "$wt_dir" HEAD --detach 2>/dev/null
   fi
 
-  claude -p "$prompt" --cwd "$wt_dir" --allowedTools 'Read,Glob,Grep,Bash(*),Write,Edit' 2>/dev/null
+  claude -p "$prompt" --cwd "$wt_dir" --allowedTools 'Read,Glob,Grep,Bash(git*),Bash(npm*),Bash(node*),Bash(cat*),Bash(ls*),Bash(wc*),Write,Edit' 2>/dev/null
 
   local exit_code=$?
 

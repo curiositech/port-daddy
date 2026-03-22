@@ -208,9 +208,13 @@ function runCustom(spec: SpawnSpec): Promise<{ output: string; error: string | n
       });
     }
 
-    const child = spawnChild(spec.task, [], {
+    // SECURITY: Use explicit /bin/sh -c instead of shell: true.
+    // The dangerous pattern check above catches metacharacters; this
+    // ensures the command is executed in a controlled shell invocation.
+    const child = spawnChild('/bin/sh', ['-c', spec.task], {
       cwd: spec.workdir || process.cwd(),
       env: { ...process.env, ...(spec.env || {}) },
+      shell: false,
       timeout: spec.timeout || 300000,
     });
 
