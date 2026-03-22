@@ -150,8 +150,10 @@ export function createWatch() {
         );
       }, timeout);
 
-      const child = spawn(exec, [], {
-        shell: true,
+      // SECURITY: exec command runs in a shell. PD_MESSAGE and PD_MESSAGE_CONTENT
+      // are set as environment variables — exec scripts should not eval them directly.
+      const child = spawn('/bin/sh', ['-c', exec], {
+        shell: false,
         stdio: 'inherit',
         env,
         signal: controller.signal,
