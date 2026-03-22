@@ -487,9 +487,20 @@ app.use(rateLimit({
 }));
 
 app.use(cors({
-  origin: /^https?:\/\/(localhost|127\.0\.0\.1|.*\.pd\.local)(:\d+)?$/,
+  origin: /^https?:\/\/(localhost|127\.0\.0\.1|dashboard\.pd\.local)(:\d+)?$/,
   credentials: true
 }));
+
+// DNS rebinding protection: validate Host header
+app.use((req: Request, res: Response, next: NextFunction): void => {
+  const host = (req.headers.host || '').replace(/:\d+$/, ''); // strip port
+  const allowedHosts = ['localhost', '127.0.0.1', '[::1]', '::1', ''];
+  if (!allowedHosts.includes(host) && !host.endsWith('.local')) {
+    res.status(403).json({ error: 'Invalid Host header' });
+    return;
+  }
+  next();
+});
 
 app.use((req: Request, res: Response, next: NextFunction): void => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
