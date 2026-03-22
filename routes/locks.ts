@@ -61,9 +61,9 @@ export function createLocksRoutes(deps: LocksRouteDeps): Router {
         return res.status(400).json({ error: nameValidation.error, code: 'VALIDATION_ERROR' });
       }
 
-      // Check agent resource limits
-      const agentId = owner || (req.headers['x-agent-id'] as string | undefined);
-      if (agentId) {
+      // Check agent resource limits — always enforce, even for anonymous callers
+      const agentId = owner || (req.headers['x-agent-id'] as string) || `anonymous-${req.ip || 'local'}`;
+      {
         const limitCheck = agents.canAcquireLock(agentId);
         if (!limitCheck.allowed) {
           return res.status(429).json({
