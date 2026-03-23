@@ -2,19 +2,19 @@ import { motion } from 'framer-motion'
 import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Badge } from '@/components/ui/Badge'
-import { Globe, Shield, Zap, Share2, Network, Lock, Activity } from 'lucide-react'
+import { Globe, Zap, Share2, Terminal, Activity } from 'lucide-react'
 
 export function Tunnel() {
   return (
     <TutorialLayout
-      title="P2P Tunnels"
-      description="Modern agents don't just live on one machine. Learn to link two Port Daddy daemons across the internet to create a secure, shared service mesh for your swarms."
-      number={5}
-      total={16}
-      level="Advanced"
-      readTime="20 min read"
-      prev={{ title: 'Always-On Avatars', href: '/tutorials/always-on' }}
-      next={{ title: 'Time-Travel Debugging', href: '/tutorials/time-travel' }}
+      title="Tunnels"
+      description="Expose local services to the internet instantly. Port Daddy wraps ngrok, cloudflared, and localtunnel to create public URLs for any claimed service."
+      number="05"
+      total="14"
+      level="Beginner"
+      readTime="6 min read"
+      prev={{ title: 'Agent Spawning', href: '/tutorials/always-on' }}
+      next={{ title: 'Activity Log', href: '/tutorials/time-travel' }}
     >
       <motion.div className="space-y-16">
         {/* Concept Section */}
@@ -23,106 +23,121 @@ export function Tunnel() {
             <motion.div className="w-12 h-12 rounded-2xl bg-[var(--interactive-active)] flex items-center justify-center border border-[var(--p-blue-400)]">
               <Globe className="text-[var(--p-blue-400)]" size={24} />
             </motion.div>
-            <motion.h2 className="m-0">The Global Harbor</motion.h2>
+            <motion.h2 className="m-0">Public URLs for Local Services</motion.h2>
           </motion.div>
           <motion.p>
-            Port Daddy's tunneling system isn't just about public URLs. It's a full <strong>P2P Service Mesh</strong>. By linking two daemons, your local agents can discover and coordination with remote agents as if they were on the same loopback interface.
+            Port Daddy's tunnel system wraps popular tunnel providers (ngrok, cloudflared, localtunnel) to expose your locally-claimed services to the internet. It manages the tunnel lifecycle alongside your port claims -- start a tunnel, share the URL, stop it when done.
           </motion.p>
           <motion.div className="grid sm:grid-cols-2 gap-8 pt-4">
              <motion.div className="p-8 rounded-[32px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-4">
                 <motion.div className="w-10 h-10 rounded-xl bg-[var(--p-teal-500)]/10 flex items-center justify-center">
-                   <Lock size={20} className="text-[var(--p-teal-400)]" />
+                   <Share2 size={20} className="text-[var(--p-teal-400)]" />
                 </motion.div>
-                <motion.h3 className="text-xl font-display font-black m-0">Noise Protocol</motion.h3>
-                <motion.p className="text-sm text-[var(--text-secondary)] m-0">Every tunnel is end-to-end encrypted using the Noise Protocol (Noise_XX), ensuring zero eavesdropping.</motion.p>
+                <motion.h3 className="text-xl font-display font-black m-0">Provider Agnostic</motion.h3>
+                <motion.p className="text-sm opacity-60 m-0">Works with whichever tunnel provider you have installed. Port Daddy detects available providers automatically.</motion.p>
              </motion.div>
              <motion.div className="p-8 rounded-[32px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-4">
                 <motion.div className="w-10 h-10 rounded-xl bg-[var(--p-amber-500)]/10 flex items-center justify-center">
-                   <Network size={20} className="text-[var(--p-amber-400)]" />
+                   <Terminal size={20} className="text-[var(--p-amber-400)]" />
                 </motion.div>
-                <motion.h3 className="text-xl font-display font-black m-0">Identity Mesh</motion.h3>
-                <motion.p className="text-sm text-[var(--text-secondary)] m-0">Remote services are resolved via their semantic identities. <code>pd dns resolve</code> works globally.</motion.p>
+                <motion.h3 className="text-xl font-display font-black m-0">Lifecycle Managed</motion.h3>
+                <motion.p className="text-sm opacity-60 m-0">Tunnels are tied to your port claims. The daemon tracks active tunnels and can clean them up on shutdown.</motion.p>
              </motion.div>
           </motion.div>
         </section>
 
-        {/* Step 1: Connecting */}
+        {/* Step 1: Check providers */}
         <section className="space-y-8">
           <motion.div className="flex items-center gap-4">
             <motion.div className="w-12 h-12 rounded-2xl bg-[var(--interactive-active)] flex items-center justify-center border border-[var(--brand-primary)]">
-              <Share2 className="text-[var(--brand-primary)]" size={24} />
+              <Terminal className="text-[var(--brand-primary)]" size={24} />
             </motion.div>
-            <motion.h2 className="m-0">1. Link the Daemons</motion.h2>
+            <motion.h2 className="m-0">1. Check Available Providers</motion.h2>
           </motion.div>
-          
+
           <motion.p>
-            On the host machine, generate a lighthouse invitation. On the client machine, use that invitation to establish the tunnel.
+            First, check which tunnel providers are installed on your system.
           </motion.p>
 
           <CodeBlock language="bash">
-            {`# Host: Generate invitation\n$ pd tunnel invite\n✓ Invitation generated: pd-inv-7f3a-9921\n\n# Client: Connect to host\n$ pd tunnel connect pd-inv-7f3a-9921\n✓ Secure P2P Tunnel Established.`}
-          </CodeBlock>
+            {`$ curl http://localhost:9876/tunnel/providers
 
-          <blockquote className="bg-[var(--bg-overlay)] p-8 rounded-3xl border-l-4 border-[var(--brand-primary)]">
-             <motion.p className="m-0 text-sm italic text-[var(--text-secondary)] font-medium">
-               Port Daddy uses a distributed network of <strong>Lighthouses</strong> to negotiate P2P connections, even behind restrictive NAT or corporate firewalls.
-             </motion.p>
-          </blockquote>
+{
+  "ngrok": true,
+  "cloudflared": true,
+  "localtunnel": false
+}`}
+          </CodeBlock>
         </section>
 
-        {/* Step 2: Global Discovery */}
+        {/* Step 2: Start a tunnel */}
         <section className="space-y-8">
           <motion.div className="flex items-center gap-4">
             <motion.div className="w-12 h-12 rounded-2xl bg-[var(--interactive-active)] flex items-center justify-center border border-[var(--p-teal-400)]">
               <Zap className="text-[var(--p-teal-400)]" size={24} />
             </motion.div>
-            <motion.h2 className="m-0">2. Cross-Harbor Calls</motion.h2>
+            <motion.h2 className="m-0">2. Start a Tunnel</motion.h2>
           </motion.div>
 
           <motion.p>
-            Once connected, your agents can use standard <code>pd claim</code> and <code>pd pub</code> commands. The daemon automatically routes traffic across the tunnel based on the semantic identity.
+            Start a tunnel for any service that has a claimed port. The provider wraps your local port in a public URL.
           </motion.p>
 
           <CodeBlock language="bash">
-            {`# On Client: Call a service running on the Host\ncurl http://$(pd dns resolve host-swarm:api)/status\n\n# On Host: Publish a signal to the Client\npd pub client-swarm:events "deploy-starting"`}
+            {`# Start a tunnel using ngrok for a claimed service
+$ curl -X POST http://localhost:9876/tunnel/myapp:api \\
+    -H "Content-Type: application/json" \\
+    -d '{"provider": "ngrok"}'
+
+{
+  "url": "https://abc123.ngrok.io",
+  "provider": "ngrok",
+  "port": 3102,
+  "service": "myapp:api"
+}
+
+# Check tunnel status
+$ curl http://localhost:9876/tunnel/myapp:api
+
+# List all active tunnels
+$ curl http://localhost:9876/tunnels
+
+# Stop a tunnel
+$ curl -X DELETE http://localhost:9876/tunnel/myapp:api`}
           </CodeBlock>
 
           <motion.div className="bg-[var(--bg-surface)] p-10 rounded-[48px] border border-[var(--border-subtle)] space-y-6 relative overflow-hidden shadow-2xl">
-             <motion.div className="absolute inset-0 bg-gradient-to-r from-[var(--p-blue-500)]/5 to-[var(--p-teal-500)]/5" />
-             <motion.p className="text-sm font-black uppercase tracking-widest text-[var(--text-muted)] m-0 relative z-10">The Mesh Visualization</motion.p>
+             <motion.p className="text-sm font-black uppercase tracking-widest opacity-40 m-0 relative z-10">How It Works</motion.p>
              <motion.div className="flex items-center justify-between gap-10 relative z-10">
                 <motion.div className="flex-1 p-6 rounded-2xl bg-[var(--bg-overlay)] border border-[var(--border-subtle)] text-center">
-                   <Badge variant="teal" className="mb-2">Local Harbor</Badge>
-                   <motion.p className="text-xs text-[var(--text-secondary)] m-0">Agent 'A'</motion.p>
+                   <Badge variant="teal" className="mb-2">Local Service</Badge>
+                   <motion.p className="text-xs opacity-60 m-0">localhost:3102</motion.p>
                 </motion.div>
                 <motion.div className="flex-1 flex flex-col items-center">
-                   <motion.div className="h-[1px] w-full bg-dashed border-t border-[var(--brand-primary)] text-[var(--text-muted)]" />
-                   <motion.span className="text-[8px] font-black uppercase tracking-widest text-[var(--text-muted)] mt-2">Noise Tunnel</motion.span>
+                   <motion.div className="h-[1px] w-full bg-dashed border-t border-[var(--brand-primary)] opacity-40" />
+                   <motion.span className="text-[8px] font-black uppercase tracking-widest opacity-40 mt-2">ngrok / cloudflared</motion.span>
                 </motion.div>
                 <motion.div className="flex-1 p-6 rounded-2xl bg-[var(--bg-overlay)] border border-[var(--border-subtle)] text-center">
-                   <Badge variant="amber" className="mb-2">Remote Harbor</Badge>
-                   <motion.p className="text-xs text-[var(--text-secondary)] m-0">Agent 'B'</motion.p>
+                   <Badge variant="amber" className="mb-2">Public URL</Badge>
+                   <motion.p className="text-xs opacity-60 m-0">abc123.ngrok.io</motion.p>
                 </motion.div>
              </motion.div>
           </motion.div>
         </section>
 
-        {/* Security Callout */}
-        <motion.div 
+        {/* Callout */}
+        <motion.div
           className="p-16 rounded-[60px] border border-dashed border-[var(--p-blue-400)] bg-[var(--bg-overlay)] flex flex-col items-center text-center gap-8 relative overflow-hidden"
           whileHover={{ scale: 1.01 }}
         >
-           <motion.div className="absolute top-0 right-0 p-10 opacity-[0.03] pointer-events-none">
-              <Shield size={400} />
-           </motion.div>
-           <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Privacy Engineering</Badge>
-           <motion.h3 className="text-4xl font-display font-black m-0" style={{ color: 'var(--text-primary)' }}>Zero-Trust Mesh.</motion.h3>
-           <motion.p className="text-xl max-w-xl text-[var(--text-secondary)]">
-             Unlike standard VPNs, Port Daddy tunnels are <strong>per-identity</strong>. You don't expose your entire network—only the specific semantic identities you've explicitly claimed in your harbor.
+           <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Simple Wrappers</Badge>
+           <motion.h3 className="text-4xl font-display font-black m-0" style={{ color: 'var(--text-primary)' }}>No Magic. Just Plumbing.</motion.h3>
+           <motion.p className="text-xl max-w-xl opacity-70">
+             Port Daddy tunnels are thin wrappers around existing tools. You still need ngrok, cloudflared, or localtunnel installed on your system. Port Daddy just manages the lifecycle alongside your port claims.
            </motion.p>
            <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--p-blue-400)]">
               <Activity size={14} className="animate-pulse" />
-              Anchor Protocol v4 Verified
+              Provider Detection Active
            </motion.div>
         </motion.div>
       </motion.div>

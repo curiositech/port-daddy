@@ -99,6 +99,7 @@ export function HarborsSection() {
           </div>
         </div>
 
+<<<<<<< HEAD
         {/* Harbor Cards */}
         <div className="flex flex-col md:flex-row items-center justify-center gap-6">
           <HarborCard 
@@ -126,5 +127,60 @@ export function HarborsSection() {
         </div>
       </div>
     </section>
+=======
+          <motion.div className="grid sm:grid-cols-2 gap-8 w-full pt-8">
+             <motion.div className="space-y-6 p-10 rounded-[48px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] flex flex-col items-center shadow-xl">
+                <motion.div className="w-14 h-14 rounded-2xl bg-[var(--p-teal-500)]/10 flex items-center justify-center shadow-lg">
+                   <Shield className="text-[var(--p-teal-400)]" size={28} />
+                </motion.div>
+                <div className="space-y-2">
+                   <motion.h3 className="text-2xl font-display font-black m-0 text-[var(--text-primary)] text-center">HMAC-Signed Tokens</motion.h3>
+                   <motion.p className="text-base m-0 leading-relaxed text-center" style={{ color: 'var(--text-muted)' }}>Each harbor issues JWT tokens with capabilities, TTLs, and revocation tracking.</motion.p>
+                </div>
+             </motion.div>
+             <motion.div className="space-y-6 p-10 rounded-[48px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] flex flex-col items-center shadow-xl">
+                <motion.div className="w-14 h-14 rounded-2xl bg-[var(--p-amber-500)]/10 flex items-center justify-center shadow-lg">
+                   <Users className="text-[var(--p-amber-400)]" size={28} />
+                </motion.div>
+                <div className="space-y-2">
+                   <motion.h3 className="text-2xl font-display font-black m-0 text-[var(--text-primary)] text-center">Advisory Enforcement</motion.h3>
+                   <motion.p className="text-base m-0 leading-relaxed text-center" style={{ color: 'var(--text-muted)' }}>Harbors record intent and enable discovery. Full daemon-level enforcement is planned.</motion.p>
+                </div>
+             </motion.div>
+          </motion.div>
+        </motion.div>
+
+        <motion.div className="w-full relative flex flex-col items-center gap-8">
+           <motion.div className="absolute inset-0 bg-[var(--brand-primary)] opacity-[0.05] blur-[140px] rounded-full pointer-events-none" />
+           <motion.div className="relative flex flex-col md:flex-row items-center justify-center gap-8 w-full">
+              <HarborCard 
+                name="frontend-harbor" 
+                capabilities={['msg:publish', 'file:claim']} 
+                delay={0.1}
+              />
+              <motion.div className="shrink-0 flex items-center justify-center opacity-20">
+                 <div className="w-12 h-[2px] bg-gradient-to-r from-transparent via-[var(--brand-primary)] to-transparent hidden md:block" />
+                 <div className="h-12 w-[2px] bg-gradient-to-b from-transparent via-[var(--brand-primary)] to-transparent md:hidden" />
+              </motion.div>
+              <HarborCard 
+                name="system-architect" 
+                capabilities={['code:read', 'notes:write', 'tunnel:create']} 
+                delay={0.2}
+              />
+           </motion.div>
+           
+           <motion.div
+             className="flex items-center gap-3 px-8 py-4 rounded-full bg-[var(--bg-overlay)] border border-[var(--border-subtle)] mt-8"
+             initial={{ opacity: 0 }}
+             whileInView={{ opacity: 1 }}
+             viewport={{ once: true }}
+           >
+              <Activity size={16} className="text-[var(--p-teal-400)]" />
+              <motion.span className="text-[10px] font-black uppercase tracking-[0.25em]" style={{ color: 'var(--text-muted)' }}>Enforcement: Advisory</motion.span>
+           </motion.div>
+        </motion.div>
+      </motion.div>
+    </motion.section>
+>>>>>>> worktree-agent-ae9460d3
   )
 }
