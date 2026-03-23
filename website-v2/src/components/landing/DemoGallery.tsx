@@ -17,48 +17,18 @@ interface Demo {
 
 const DEMOS: Demo[] = [
   {
-    id: 'mayday',
-    gif: '/gifs/mayday.gif',
-    title: 'The Mayday Rollback',
-    subtitle: 'Automated error signaling & recovery',
-    badge: 'Maritime Signals',
-    badgeColor: 'teal',
-    description:
-      'When an agent detects a critical failure (like an OOM), it broadcasts a MAYDAY signal. Port Daddy watchers catch the pheromone and trigger a safe rollback automatically.',
-    stats: [
-      { value: 'PROVEN', label: 'recovery' },
-      { value: '< 10ms', label: 'signal' },
-      { value: 'Secure', label: 'channel' },
-    ],
-  },
-  {
     id: 'salvage',
     gif: '/gifs/salvage.gif',
-    title: 'The Ghost Salvage',
-    subtitle: 'Never lose a dead agent\'s context',
-    badge: 'Zombie Protocol',
+    title: 'Session Salvage',
+    subtitle: 'Recover crashed agent context',
+    badge: 'Crash Recovery',
     badgeColor: 'amber',
     description:
-      'If an agent crashes, Port Daddy preserves its work context. A fresh agent can instantly "salvage" the session, inheriting all notes and file claims.',
+      'If an agent crashes, Port Daddy preserves its session notes and file claims in the salvage queue. A fresh agent can claim the dead agent\'s work and continue where it left off.',
     stats: [
-      { value: '100%', label: 'persistence' },
-      { value: 'Zero', label: 'loss' },
-      { value: 'ACID', label: 'backed' },
-    ],
-  },
-  {
-    id: 'auction',
-    gif: { light: '/gifs/auction-light.gif', dark: '/gifs/auction-dark.gif' },
-    title: 'Stigmergic Auction',
-    subtitle: 'Competitive task allocation',
-    badge: 'Pheromones',
-    badgeColor: 'neutral',
-    description:
-      'Agents bid on shared goals by spraying pheromones on the concept graph. The highest confidence "scent" wins the resource lock, enabling masterless coordination.',
-    stats: [
-      { value: 'Dynamic', label: 'decay' },
-      { value: 'SOMA', label: 'inspired' },
-      { value: 'Swarm', label: 'ready' },
+      { value: 'SQLite', label: 'backed' },
+      { value: 'Immutable', label: 'notes' },
+      { value: 'Advisory', label: 'claims' },
     ],
   },
 ]
@@ -95,7 +65,7 @@ export function DemoGallery() {
             <motion.span className="text-brand-primary">Coordination.</motion.span>
           </motion.h2>
           <motion.p className="text-2xl sm:text-3xl max-w-4xl mx-auto leading-relaxed font-sans text-text-secondary font-bold">
-            These aren't mockups. These are <strong>high-fidelity recordings</strong> of the Anchor Protocol managing live agent swarms.
+            These aren't mockups. These are <strong>high-fidelity recordings</strong> of Port Daddy managing live agent coordination.
           </motion.p>
         </motion.div>
 

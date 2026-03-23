@@ -15,7 +15,7 @@ export function Debugging() {
       level="Intermediate"
       readTime="14 min read"
       prev={{ title: 'Fleet Management', href: '/tutorials/monorepo' }}
-      next={{ title: 'P2P Tunnels', href: '/tutorials/tunnel' }}
+      next={{ title: 'Tunnels', href: '/tutorials/tunnel' }}
     >
       <motion.div className="space-y-16">
         {/* Intro Section */}

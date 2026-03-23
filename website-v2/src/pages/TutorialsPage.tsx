@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
 import { Link } from 'react-router-dom'
-import { Clock, Play, Zap, Shield, Globe, Sparkles, Anchor, Share2, Layers, Cpu, Search, RefreshCw, Box, Activity as ActivityIcon, History, Network, Mail } from 'lucide-react'
+import { Clock, Play, Zap, Shield, Globe, Sparkles, Anchor, Share2, Cpu, Search, RefreshCw, Box, Activity as ActivityIcon, History, Network, Mail } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
 
 interface Tutorial {
@@ -75,39 +75,28 @@ const TUTORIALS: Tutorial[] = [
   {
     slug: 'tunnel',
     number: '06',
-    title: 'P2P Tunnels',
-    description: 'Link two daemons across the internet to create a shared service mesh using Noise Protocol.',
-    level: 'advanced',
-    time: '20 min',
-    tags: ['P2P', 'Noise', 'Global'],
+    title: 'Tunnels',
+    description: 'Expose local services to the internet with ngrok, cloudflared, or localtunnel. Port Daddy manages the tunnel lifecycle.',
+    level: 'beginner',
+    time: '6 min',
+    tags: ['Tunnel', 'ngrok', 'Expose'],
     href: '/tutorials/tunnel',
     icon: Globe
   },
   {
     slug: 'time-travel',
     number: '07',
-    title: 'Time-Travel Debugging',
-    description: 'Scrub through the history of your swarm. Correlate infrastructure events with agent notes.',
+    title: 'Activity Log',
+    description: 'Inspect the append-only event timeline. Correlate infrastructure events with agent notes to debug coordination issues.',
     level: 'intermediate',
     time: '8 min',
-    tags: ['Timeline', 'Audit', 'Radio'],
+    tags: ['Timeline', 'Audit', 'Logs'],
     href: '/tutorials/time-travel',
     icon: History
   },
   {
-    slug: 'pipelines',
-    number: '08',
-    title: 'Reactive Pipelines',
-    description: 'Turn your harbor into an event-driven DAG. Auto-spawn agents based on swarm signals.',
-    level: 'advanced',
-    time: '12 min',
-    tags: ['DAG', 'Automation', 'Signals'],
-    href: '/tutorials/pipelines',
-    icon: Layers
-  },
-  {
     slug: 'dashboard',
-    number: '09',
+    number: '08',
     title: 'Visual Control Plane',
     description: 'Visualize your swarm. Live network graphs, lock contention, and real-time telemetry.',
     level: 'beginner',
@@ -118,7 +107,7 @@ const TUTORIALS: Tutorial[] = [
   },
   {
     slug: 'dns',
-    number: '10',
+    number: '09',
     title: 'Identity Discovery',
     description: 'Resolve services by semantic hostname instead of port numbers with zero configuration.',
     level: 'intermediate',
@@ -129,7 +118,7 @@ const TUTORIALS: Tutorial[] = [
   },
   {
     slug: 'inbox',
-    number: '11',
+    number: '10',
     title: 'Agent Inboxes',
     description: 'Direct agent-to-agent messaging with structured payloads and real-time streams.',
     level: 'intermediate',
@@ -140,8 +129,8 @@ const TUTORIALS: Tutorial[] = [
   },
   {
     slug: 'spawn',
-    number: '12',
-    title: 'Swarm Bootstrapping',
+    number: '11',
+    title: 'Agent Spawning',
     description: 'Launch agent fleets with Port Daddy coordination auto-wired. Heartbeats included.',
     level: 'advanced',
     time: '15 min',
@@ -151,18 +140,18 @@ const TUTORIALS: Tutorial[] = [
   },
   {
     slug: 'always-on',
-    number: '13',
-    title: 'Always-On Avatars',
-    description: 'Deploy persistent background processes that respond to global signals 24/7.',
+    number: '12',
+    title: 'Spawn + Watch Pattern',
+    description: 'Combine pd spawn and pd watch to build agents that react to pub/sub signals automatically.',
     level: 'intermediate',
     time: '10 min',
-    tags: ['Avatars', 'BG', 'Persistence'],
+    tags: ['Spawn', 'Watch', 'Events'],
     href: '/tutorials/always-on',
     icon: RefreshCw
   },
   {
     slug: 'session-phases',
-    number: '14',
+    number: '13',
     title: 'The State Machine',
     description: 'Drive agents through planning -> coding -> reviewing with phase-aware handoffs.',
     level: 'advanced',
@@ -173,7 +162,7 @@ const TUTORIALS: Tutorial[] = [
   },
   {
     slug: 'sugar',
-    number: '15',
+    number: '14',
     title: 'Sugar Commands',
     description: 'Learn the high-level wrappers that make coordination invisible and friction-free.',
     level: 'beginner',
@@ -181,17 +170,6 @@ const TUTORIALS: Tutorial[] = [
     tags: ['CLI', 'Productivity', 'UX'],
     href: '/tutorials/sugar',
     icon: Zap
-  },
-  {
-    slug: 'remote-harbors',
-    number: '16',
-    title: 'Multiplayer Localhost',
-    description: 'Link remote agent clusters and GPU-powered harbors across the global mesh.',
-    level: 'advanced',
-    time: '15 min',
-    tags: ['Mesh', 'Global', 'GPU'],
-    href: '/tutorials/remote-harbors',
-    icon: Globe
   }
 ]
 
@@ -229,7 +207,7 @@ export function TutorialsPage() {
              animate={{ opacity: 1, y: 0 }}
              transition={{ duration: 0.8, delay: 0.1 }}
            >
-             From your first port claim to production-grade P2P harbors. Learn to orchestrate the next generation of AI with high-fidelity, verified code.
+             From your first port claim to multi-agent coordination. Learn to orchestrate AI agents with sessions, pub/sub, and crash recovery.
            </motion.p>
         </motion.div>
       </motion.section>
@@ -319,7 +297,7 @@ export function TutorialsPage() {
               {[
                 { label: 'VHS Recorded', icon: Play },
                 { label: 'Playwright Verified', icon: Shield },
-                { label: 'LangChain Tested', icon: Sparkles },
+                { label: 'Unit Tested', icon: Sparkles },
                 { label: 'Continuous CI', icon: Zap }
               ].map((item, i) => (
                 <motion.div key={i} className="p-10 rounded-[48px] bg-[var(--bg-overlay)] border border-[var(--border-subtle)] flex flex-col items-center gap-6 group hover:border-[var(--brand-primary)] transition-all shadow-xl">

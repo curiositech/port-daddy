@@ -14,7 +14,7 @@ export function SessionPhases() {
       level="Advanced"
       readTime="15 min read"
       prev={{ title: 'Sugar Commands', href: '/tutorials/sugar' }}
-      next={{ title: 'Remote Harbors (Preview)', href: '/tutorials/remote-harbors' }}
+      next={{ title: 'Debugging', href: '/tutorials/debugging' }}
     >
       <motion.div className="space-y-16">
         {/* Intro Section */}
