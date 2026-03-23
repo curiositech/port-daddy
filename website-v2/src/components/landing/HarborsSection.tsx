@@ -97,8 +97,8 @@ export function HarborsSection() {
                    <Shield className="text-[var(--p-teal-400)]" size={28} />
                 </motion.div>
                 <div className="space-y-2">
-                   <motion.h3 className="text-2xl font-display font-black m-0 text-[var(--text-primary)] text-center">Always-On Avatars</motion.h3>
-                   <motion.p className="text-base m-0 leading-relaxed text-center" style={{ color: 'var(--text-muted)' }}>Persistent processes that maintain harbor-scoped state across sessions.</motion.p>
+                   <motion.h3 className="text-2xl font-display font-black m-0 text-[var(--text-primary)] text-center">HMAC-Signed Tokens</motion.h3>
+                   <motion.p className="text-base m-0 leading-relaxed text-center" style={{ color: 'var(--text-muted)' }}>Each harbor issues JWT tokens with capabilities, TTLs, and revocation tracking.</motion.p>
                 </div>
              </motion.div>
              <motion.div className="space-y-6 p-10 rounded-[48px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] flex flex-col items-center shadow-xl">
@@ -106,8 +106,8 @@ export function HarborsSection() {
                    <Users className="text-[var(--p-amber-400)]" size={28} />
                 </motion.div>
                 <div className="space-y-2">
-                   <motion.h3 className="text-2xl font-display font-black m-0 text-[var(--text-primary)] text-center">Background Teams</motion.h3>
-                   <motion.p className="text-base m-0 leading-relaxed text-center" style={{ color: 'var(--text-muted)' }}>Orchestrate groups of agents that coordinate to solve complex infra tasks.</motion.p>
+                   <motion.h3 className="text-2xl font-display font-black m-0 text-[var(--text-primary)] text-center">Advisory Enforcement</motion.h3>
+                   <motion.p className="text-base m-0 leading-relaxed text-center" style={{ color: 'var(--text-muted)' }}>Harbors record intent and enable discovery. Full daemon-level enforcement is planned.</motion.p>
                 </div>
              </motion.div>
           </motion.div>
@@ -132,14 +132,14 @@ export function HarborsSection() {
               />
            </motion.div>
            
-           <motion.div 
+           <motion.div
              className="flex items-center gap-3 px-8 py-4 rounded-full bg-[var(--bg-overlay)] border border-[var(--border-subtle)] mt-8"
              initial={{ opacity: 0 }}
              whileInView={{ opacity: 1 }}
              viewport={{ once: true }}
            >
               <Activity size={16} className="text-[var(--p-teal-400)]" />
-              <motion.span className="text-[10px] font-black uppercase tracking-[0.25em]" style={{ color: 'var(--text-muted)' }}>Formal Verification: Active</motion.span>
+              <motion.span className="text-[10px] font-black uppercase tracking-[0.25em]" style={{ color: 'var(--text-muted)' }}>Enforcement: Advisory</motion.span>
            </motion.div>
         </motion.div>
       </motion.div>

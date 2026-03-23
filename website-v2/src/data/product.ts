@@ -25,17 +25,17 @@ export const PRODUCT_FEATURES = [
     status: 'core'
   },
   {
-    id: 'always-on-avatars',
-    title: 'Always-On Avatars',
-    description: 'Persistent agent processes that live in background harbors, maintaining state and responding to signals 24/7.',
+    id: 'agent-spawning',
+    title: 'Agent Spawning',
+    description: 'Launch agents with built-in coordination. Supports Claude, Ollama, Aider, and custom backends. Sessions, heartbeats, and salvage auto-wired.',
     category: 'agents',
-    cli: 'pd spawn --avatar',
+    cli: 'pd spawn --backend claude',
     status: 'new'
   },
   {
     id: 'harbors',
-    title: 'Cryptographic Harbors',
-    description: 'Named permission namespaces with HMAC-signed capability tokens (JWT). Enforce security boundaries at the daemon level.',
+    title: 'Harbors (Advisory)',
+    description: 'Named permission namespaces with HMAC-signed capability tokens (JWT). Advisory enforcement in the current version.',
     category: 'security',
     cli: 'pd harbor create <name>',
     status: 'new'
@@ -51,33 +51,33 @@ export const PRODUCT_FEATURES = [
   {
     id: 'reactive-watchers',
     title: 'Reactive Watchers',
-    description: 'Ambient agent kernel that reacts to pub/sub messages without polling. Execute scripts instantly on swarm signals.',
+    description: 'Subscribe to pub/sub channels and execute commands when messages arrive. No polling -- pure SSE event-driven.',
     category: 'coordination',
     cli: 'pd watch <channel>',
     status: 'new'
   },
   {
-    id: 'remote-harbors',
-    title: 'Remote Harbors (P2P)',
-    description: 'Secure P2P tunneling between daemons. Connect local agents to remote swarms with zero-config DNS.',
-    category: 'security',
-    cli: 'pd tunnel connect <peer>',
-    status: 'preview'
+    id: 'tunnels',
+    title: 'Tunnels',
+    description: 'Expose local services via ngrok, cloudflared, or localtunnel. Port Daddy manages the tunnel lifecycle alongside port claims.',
+    category: 'ports',
+    cli: 'pd tunnel start <svc> ngrok',
+    status: 'new'
   },
   {
-    id: 'time-travel',
-    title: 'Time-Travel Debugging',
-    description: 'A unified timeline that interleaves infrastructure events with agent notes and radio traffic for rapid diagnostics.',
+    id: 'activity-log',
+    title: 'Activity Log',
+    description: 'Append-only timeline that interleaves infrastructure events with agent notes and radio traffic. Immutable audit trail.',
     category: 'observability',
-    cli: 'pd activity timeline',
-    status: 'new'
+    cli: 'pd log',
+    status: 'core'
   },
   {
     id: 'self-healing',
-    title: 'Self-Healing Diagnostics',
-    description: 'Automated health checks for SQLite integrity, stale sockets, and PID staleness. Auto-salvage work from crashed agents.',
+    title: 'Session Salvage',
+    description: 'When agents crash, their session notes and file claims are preserved. New agents can claim dead agents\' work and continue.',
     category: 'observability',
-    cli: 'pd doctor',
-    status: 'new'
+    cli: 'pd salvage',
+    status: 'core'
   }
 ] satisfies Feature[];

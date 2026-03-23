@@ -13,7 +13,7 @@ export function Dashboard() {
       total="16"
       level="Beginner"
       readTime="5 min read"
-      prev={{ title: 'Reactive Pipelines', href: '/tutorials/pipelines' }}
+      prev={{ title: 'Activity Log', href: '/tutorials/time-travel' }}
       next={{ title: 'Identity Discovery', href: '/tutorials/dns' }}
     >
       <motion.div className="space-y-16">

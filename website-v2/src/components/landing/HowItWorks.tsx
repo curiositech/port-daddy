@@ -16,11 +16,11 @@ const STEPS: Step[] = [
     number: '01',
     title: 'Atomic Identity',
     description:
-      'Summon a session. Port Daddy assigns a stable port and a cryptographic identity, then checks for orphaned work from previous swarms.',
+      'Start a session. Port Daddy assigns a stable port via deterministic hashing, then checks for orphaned work from previous agents.',
     code: [
       '$ pd begin --identity swarm:analyst',
       '',
-      '[pd] Handshake complete · agent-7f3a',
+      '[pd] Session started · agent-7f3a',
       '  Port 3102 assigned (deterministic)',
       '  Salvage: No dead agents detected',
     ],
@@ -46,7 +46,7 @@ const STEPS: Step[] = [
     number: '03',
     title: 'Self-Healing Done',
     description:
-      "When a task finishes, pd done releases resources. If an agent crashes, the work is escrowed—ready for an Always-On Avatar to salvage.",
+      "When a task finishes, pd done releases resources. If an agent crashes, the work is preserved in the salvage queue for another agent to pick up.",
     code: [
       '$ pd done --note "Model training complete"',
       '✓ Resources released',
@@ -146,12 +146,12 @@ export function HowItWorks() {
           viewport={{ once: true }}
         >
            <div className="flex-1 space-y-8 relative z-10 flex flex-col items-center">
-              <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest shadow-2xl">Autonomous Resilience</Badge>
+              <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest shadow-2xl">Crash Recovery</Badge>
               <motion.h3 className="text-4xl sm:text-6xl font-display font-black leading-[0.95] m-0" style={{ color: 'var(--text-primary)' }}>
-                The <span className="text-[var(--p-teal-400)]">Self-Healing</span> <br /> Swarm.
+                Session <span className="text-[var(--p-teal-400)]">Salvage</span> <br /> Queue.
               </motion.h3>
               <motion.p className="text-2xl leading-relaxed max-w-xl" style={{ color: 'var(--text-secondary)' }}>
-                Port Daddy doesn't just manage ports—it manages <strong>resilience</strong>. If a critical background agent dies, its state, file claims, and notes are held in an escrow harbor until a replacement is spawned to take its place.
+                When an agent dies, Port Daddy preserves its session notes and file claims in the salvage queue. A new agent can claim the dead agent's context and continue where it left off. No work is lost.
               </motion.p>
               <div className="flex flex-col sm:flex-row items-center gap-6 pt-6">
                  <div className="flex -space-x-6">

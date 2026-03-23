@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
-import { Code, Cpu, MessageSquare, Terminal, Zap, Layers, Share2, Globe, ChevronRight } from 'lucide-react'
+import { Code, Cpu, MessageSquare, Terminal, Layers, Globe, ChevronRight } from 'lucide-react'
 
 interface AgentTool {
   name: string
@@ -11,12 +11,10 @@ interface AgentTool {
 }
 
 const TOOLS: AgentTool[] = [
-  { name: 'Claude Code', tagline: 'MCP native', how: 'pd mcp install → tools in every session', icon: Cpu, color: 'var(--p-teal-400)' },
-  { name: 'LangChain', tagline: 'Unified Tools', how: 'Wrap identities in Tools for universal discovery', icon: Layers, color: 'var(--p-amber-400)' },
-  { name: 'CrewAI', tagline: 'Swarm Logic', how: 'Assign one Port Daddy session per crew member', icon: Share2, color: 'var(--p-blue-400)' },
-  { name: 'Gemini CLI', tagline: 'Google AI', how: 'Native extension for port & harbor control', icon: Zap, color: 'var(--p-purple-400)' },
-  { name: 'Aider', tagline: 'Git-Native', how: 'pd begin wraps every autonomous session', icon: Code, color: 'var(--p-green-400)' },
-  { name: 'Continue.dev', tagline: 'IDE Context', how: 'File claims prevent multi-agent collisions', icon: Terminal, color: 'var(--p-red-400)' },
+  { name: 'Claude Code', tagline: 'MCP native', how: 'pd mcp install -- tools available in every Claude Code session automatically', icon: Cpu, color: 'var(--p-teal-400)' },
+  { name: 'Ollama', tagline: 'Local LLMs', how: 'pd spawn --backend ollama -- run local models with Port Daddy coordination built in', icon: Layers, color: 'var(--p-amber-400)' },
+  { name: 'Aider', tagline: 'Git-Native', how: 'pd spawn --backend aider -- autonomous coding sessions with heartbeats and salvage', icon: Code, color: 'var(--p-green-400)' },
+  { name: 'HTTP API', tagline: 'Any Agent', how: 'Port Daddy works with any agent that can make HTTP calls to localhost:9876', icon: Terminal, color: 'var(--p-blue-400)' },
 ]
 
 export function AgentEcosystem() {
@@ -116,7 +114,7 @@ export function AgentEcosystem() {
                     </motion.div>
                     <div className="space-y-3">
                        <motion.p className="font-black m-0 text-xl tracking-tight">Cross-Framework Signaling</motion.p>
-                       <motion.p className="text-base m-0 opacity-80 leading-relaxed">A LangChain agent can publish an event that a CrewAI task is waiting for, bridged instantly by the Port Daddy daemon.</motion.p>
+                       <motion.p className="text-base m-0 opacity-80 leading-relaxed">Any agent that can make HTTP calls can publish events that other agents are waiting for, bridged by the Port Daddy daemon's pub/sub system.</motion.p>
                     </div>
                  </motion.div>
               </div>
