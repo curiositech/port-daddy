@@ -2,19 +2,26 @@ import { motion } from 'framer-motion'
 import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Badge } from '@/components/ui/Badge'
-import { Cpu, Zap, Activity, Terminal, RefreshCw, Globe, Share2 } from 'lucide-react'
+import { Cpu, Zap, Activity, Terminal, RefreshCw, Share2, ArrowDown } from 'lucide-react'
 
 export function AlwaysOn() {
   return (
     <TutorialLayout
+<<<<<<< HEAD
       title="Always-On Avatars"
       description="Most agents are ephemeral. Learn to deploy persistent background processes that maintain harbor-scoped state and respond to global swarm signals 24/7."
       number={4}
       total={16}
+=======
+      title="Agent Spawning"
+      description="Most agents are ephemeral. Learn to use pd spawn and pd watch to create persistent background agents that respond to pub/sub signals automatically."
+      number="04"
+      total="14"
+>>>>>>> worktree-agent-ae9460d3
       level="Intermediate"
       readTime="10 min read"
-      prev={{ title: 'Cryptographic Harbors', href: '/tutorials/harbors' }}
-      next={{ title: 'P2P Tunnels', href: '/tutorials/tunnel' }}
+      prev={{ title: 'Harbors', href: '/tutorials/harbors' }}
+      next={{ title: 'Tunnels', href: '/tutorials/tunnel' }}
     >
       <motion.div className="space-y-16">
         {/* Intro Section */}
@@ -26,22 +33,35 @@ export function AlwaysOn() {
             <motion.h2 className="m-0">Beyond the Prompt</motion.h2>
           </motion.div>
           <motion.p>
+<<<<<<< HEAD
             An <strong>Always-On Avatar</strong> is an agent process that doesn't terminate after a single task. It lives within a specific Harbor, maintaining a persistent local context and listening to <strong>Swarm Radio</strong> for instructions.
+=======
+            A spawned agent is a background process launched by <code>pd spawn</code> that runs independently. Combined with <code>pd watch</code>, you can build agents that react to pub/sub signals automatically -- without polling.
+>>>>>>> worktree-agent-ae9460d3
           </motion.p>
           <motion.div className="grid sm:grid-cols-2 gap-8 pt-4">
              <motion.div className="p-8 rounded-[32px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-4">
                 <motion.div className="w-10 h-10 rounded-xl bg-[var(--p-teal-500)]/10 flex items-center justify-center">
                    <Activity size={20} className="text-[var(--p-teal-400)]" />
                 </motion.div>
+<<<<<<< HEAD
                 <motion.h3 className="text-xl font-display font-black m-0">Persistent State</motion.h3>
                 <motion.p className="text-sm text-[var(--text-secondary)] m-0">Avatars can hold long-running variables, database connections, and cache in-memory across multiple user sessions.</motion.p>
+=======
+                <motion.h3 className="text-xl font-display font-black m-0">Built-in Coordination</motion.h3>
+                <motion.p className="text-sm opacity-60 m-0">Spawned agents get automatic sessions, heartbeats, notes, and salvage. Port Daddy wires it all silently.</motion.p>
+>>>>>>> worktree-agent-ae9460d3
              </motion.div>
              <motion.div className="p-8 rounded-[32px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-4">
                 <motion.div className="w-10 h-10 rounded-xl bg-[var(--p-amber-500)]/10 flex items-center justify-center">
                    <Share2 size={20} className="text-[var(--p-amber-400)]" />
                 </motion.div>
                 <motion.h3 className="text-xl font-display font-black m-0">Event Driven</motion.h3>
+<<<<<<< HEAD
                 <motion.p className="text-sm text-[var(--text-secondary)] m-0">Instead of polling, Avatars wake up instantly when a message hits a channel they are subscribed to.</motion.p>
+=======
+                <motion.p className="text-sm opacity-60 m-0"><code>pd watch</code> subscribes to SSE channels and executes commands when messages arrive. No polling required.</motion.p>
+>>>>>>> worktree-agent-ae9460d3
              </motion.div>
           </motion.div>
         </section>
@@ -52,22 +72,28 @@ export function AlwaysOn() {
             <motion.div className="w-12 h-12 rounded-2xl bg-[var(--interactive-active)] flex items-center justify-center border border-[var(--brand-primary)]">
               <Zap className="text-[var(--brand-primary)]" size={24} />
             </motion.div>
-            <motion.h2 className="m-0">1. Summon an Avatar</motion.h2>
+            <motion.h2 className="m-0">1. Spawn a Background Agent</motion.h2>
           </motion.div>
-          
+
           <motion.p>
-            Use the <code>--avatar</code> flag with <code>pd spawn</code> to launch a persistent process. We'll give it the identity <code>infra:monitor</code>.
+            Use <code>pd spawn</code> to launch a persistent agent process. Port Daddy supports multiple backends: Claude, Ollama, Aider, and custom shell commands.
           </motion.p>
 
           <CodeBlock language="bash">
-            {`$ pd spawn --avatar --identity infra:monitor \\
+            {`$ pd spawn --backend claude \\
+    --identity infra:monitor \\
     --purpose "Watch CI and auto-fix flakes" \\
-    -- "npm run monitor-swarm"`}
+    -- "Review the test failures in src/auth/"`}
           </CodeBlock>
 
           <blockquote className="bg-[var(--bg-overlay)] p-8 rounded-3xl border-l-4 border-[var(--brand-primary)]">
+<<<<<<< HEAD
              <motion.p className="m-0 text-sm italic text-[var(--text-secondary)] font-medium">
                Note: The avatar will immediately claim its semantic identity. Any other agent trying to claim <code>infra:monitor</code> will be blocked by the daemon until the avatar releases it.
+=======
+             <motion.p className="m-0 text-sm italic opacity-60 font-medium">
+               The spawned agent automatically registers with Port Daddy, starts a session, and begins sending heartbeats. If it crashes, its work enters the salvage queue for another agent to pick up.
+>>>>>>> worktree-agent-ae9460d3
              </motion.p>
           </blockquote>
         </section>
@@ -82,12 +108,18 @@ export function AlwaysOn() {
           </motion.div>
 
           <motion.p>
-            Now we need to tell the Avatar when to act. We'll use <code>pd watch</code> to bridge a Swarm Radio channel to our Avatar's input.
+            Use <code>pd watch</code> to subscribe to a pub/sub channel and execute a command whenever a message arrives. The message content is available via environment variables.
           </motion.p>
 
           <CodeBlock language="bash">
             {`$ pd watch swarm:ci:failure \\
-    --exec "pd pub infra:monitor:task 'fix-build'"`}
+    --exec "./scripts/auto-fix.sh"
+
+# Environment variables available in the script:
+# PD_MESSAGE        — full message JSON
+# PD_MESSAGE_CONTENT — message payload
+# PD_CHANNEL        — channel name
+# PD_TIMESTAMP      — event timestamp`}
           </CodeBlock>
 
           <motion.div className="bg-[var(--bg-surface)] p-10 rounded-[48px] border border-[var(--border-subtle)] space-y-6">
@@ -95,43 +127,48 @@ export function AlwaysOn() {
              <motion.div className="space-y-4">
                 <motion.div className="flex items-center gap-4 p-4 rounded-2xl bg-[var(--bg-overlay)] border border-[var(--border-subtle)]">
                    <Badge variant="neutral">Trigger</Badge>
-                   <motion.span className="text-sm font-bold">CI Fails</motion.span>
+                   <motion.span className="text-sm font-bold">Agent publishes to swarm:ci:failure</motion.span>
                 </motion.div>
                 <motion.div className="flex justify-center"><ArrowDown size={16} className="opacity-40" /></motion.div>
                 <motion.div className="flex items-center gap-4 p-4 rounded-2xl bg-[var(--bg-overlay)] border border-[var(--brand-primary)]/20 shadow-xl shadow-[var(--brand-primary)]/5">
                    <Badge variant="teal">Action</Badge>
-                   <motion.span className="text-sm font-bold">Avatar wakes up and clones the broken branch</motion.span>
+                   <motion.span className="text-sm font-bold">pd watch runs the --exec script</motion.span>
                 </motion.div>
                 <motion.div className="flex justify-center"><ArrowDown size={16} className="opacity-40" /></motion.div>
                 <motion.div className="flex items-center gap-4 p-4 rounded-2xl bg-[var(--bg-overlay)] border border-[var(--border-subtle)]">
                    <Badge variant="neutral">Resolve</Badge>
-                   <motion.span className="text-sm font-bold">Avatar publishes "fixed" to Swarm Radio</motion.span>
+                   <motion.span className="text-sm font-bold">Script publishes result back to Swarm Radio</motion.span>
                 </motion.div>
              </motion.div>
           </motion.div>
         </section>
 
-        {/* Self-Healing Callout */}
-        <motion.div 
+        {/* Salvage Callout */}
+        <motion.div
           className="p-16 rounded-[60px] border border-dashed border-[var(--p-teal-400)] bg-[var(--bg-overlay)] flex flex-col items-center text-center gap-8 relative overflow-hidden"
           whileHover={{ scale: 1.01 }}
         >
            <motion.div className="absolute top-0 right-0 p-10 opacity-[0.03] pointer-events-none">
               <RefreshCw size={400} />
            </motion.div>
+<<<<<<< HEAD
            <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Self-Healing Logic</Badge>
            <motion.h3 className="text-4xl font-display font-black m-0" style={{ color: 'var(--text-primary)' }}>Resilient Avatars.</motion.h3>
            <motion.p className="text-xl max-w-xl text-[var(--text-secondary)]">
              What if the Avatar itself crashes? Port Daddy's <strong>Resurrection Queue</strong> holds the Avatar's harbor card and last-known notes in escrow. When you spawn a replacement, it automatically "inherits" the previous state and continues its watch.
+=======
+           <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Crash Recovery</Badge>
+           <motion.h3 className="text-4xl font-display font-black m-0" style={{ color: 'var(--text-primary)' }}>Salvage Queue.</motion.h3>
+           <motion.p className="text-xl max-w-xl opacity-70">
+             If a spawned agent crashes, Port Daddy preserves its session notes and file claims in the salvage queue. Run <code>pd salvage</code> to see dead agents and <code>pd salvage claim</code> to pick up where they left off.
+>>>>>>> worktree-agent-ae9460d3
            </motion.p>
            <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--p-teal-400)]">
-              <Globe size={14} className="animate-spin-slow" />
-              Distributed State Sync Active
+              <Zap size={14} className="animate-pulse" />
+              SQLite-Backed Persistence
            </motion.div>
         </motion.div>
       </motion.div>
     </TutorialLayout>
   )
 }
-
-import { ArrowDown } from 'lucide-react'

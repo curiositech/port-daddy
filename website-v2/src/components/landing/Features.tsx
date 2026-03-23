@@ -88,15 +88,14 @@ export function Features() {
 
                   {/* CLI snippet - inset neumorphic */}
                   <div
-                    className="flex items-center gap-2 px-3 py-2 font-mono text-xs"
+                    className="flex items-center gap-2 px-3 py-2 font-mono text-xs rounded-lg"
                     style={{
-                      background: 'var(--bg-base)',
-                      boxShadow: 'inset 2px 2px 4px #c4c4c4, inset -2px -2px 4px #ffffff',
+                      background: 'var(--bg-code)',
                       borderRadius: '8px',
                     }}
                   >
-                    <span className="text-[var(--brand-accent)]/60 select-none">$</span>
-                    <span className="text-[var(--text-muted)]">{feature.cli}</span>
+                    <span className="text-[var(--code-prompt)] select-none">$</span>
+                    <span className="text-[var(--text-code)]">{feature.cli}</span>
                   </div>
                 </div>
               </motion.div>
