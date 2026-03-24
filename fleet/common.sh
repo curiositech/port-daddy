@@ -10,6 +10,16 @@ export PD_URL="${PORT_DADDY_URL:-http://localhost:9876}"
 export FLEET_DIR="$(cd "$(dirname "$0")" && pwd)"
 export PROJECT_DIR="$(cd "$FLEET_DIR/.." && pwd)"
 
+# ---------------------------------------------------------------------------
+# Load API keys from .env (standard dotenv, not in git)
+# Checks project root first, then home directory
+# ---------------------------------------------------------------------------
+if [[ -f "$PROJECT_DIR/.env" ]]; then
+  set -a; source "$PROJECT_DIR/.env"; set +a
+elif [[ -f "$HOME/.port-daddy-env" ]]; then
+  set -a; source "$HOME/.port-daddy-env"; set +a
+fi
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
