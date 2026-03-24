@@ -1393,7 +1393,7 @@ _port_daddy() {
       case "$prev" in
         spawn)
           if [[ "$cur" == -* ]]; then
-            _pd_opts '--backend --model --identity --purpose --files --workdir --timeout'
+            _pd_opts '--backend --model --identity --purpose --files --workdir --timeout --allowedTools'
           else
             # shellcheck disable=SC2207
             COMPREPLY=( $(compgen -W "kill" -- "$cur") )
@@ -1404,9 +1404,9 @@ _port_daddy() {
           ;;
         --backend)
           # shellcheck disable=SC2207
-          COMPREPLY=( $(compgen -W "ollama claude gemini aider custom" -- "$cur") )
+          COMPREPLY=( $(compgen -W "ollama claude claude-code gemini aider custom" -- "$cur") )
           ;;
-        --model|--identity|--purpose|--workdir|--timeout)
+        --model|--identity|--purpose|--workdir|--timeout|--allowedTools)
           COMPREPLY=()  # Free-form
           ;;
         --files)

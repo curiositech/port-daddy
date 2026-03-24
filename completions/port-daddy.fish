@@ -533,13 +533,14 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command n" -s t -l type -d 'Note type' -x -a 'note handoff commit warning'
 
     # spawn
-    complete -c $prog -n "__pd_using_command spawn" -l backend -d 'AI backend' -x -a 'ollama claude gemini aider custom'
+    complete -c $prog -n "__pd_using_command spawn" -l backend -d 'AI backend' -x -a 'ollama claude claude-code gemini aider custom'
     complete -c $prog -n "__pd_using_command spawn" -l model -d 'Model name override' -x
     complete -c $prog -n "__pd_using_command spawn" -l identity -d 'PD semantic identity (project:stack:context)' -x -a '(__pd_service_ids)'
     complete -c $prog -n "__pd_using_command spawn" -l purpose -d 'Human-readable task description' -x
     complete -c $prog -n "__pd_using_command spawn" -l files -d 'Files to pass to aider' -r
     complete -c $prog -n "__pd_using_command spawn" -l workdir -d 'Working directory' -r
     complete -c $prog -n "__pd_using_command spawn" -l timeout -d 'Timeout in milliseconds' -x
+    complete -c $prog -n "__pd_using_command spawn" -l allowedTools -d 'Tool permissions for claude-code backend' -x
 
     # watch
     complete -c $prog -n "__pd_using_command watch" -l exec -d 'Shell command to run on each message' -x

@@ -18,12 +18,13 @@ import type { ChildProcess } from 'node:child_process';
 // =============================================================================
 
 export interface SpawnSpec {
-  backend: 'ollama' | 'claude' | 'gemini' | 'aider' | 'custom';
+  backend: 'ollama' | 'claude' | 'claude-code' | 'gemini' | 'aider' | 'custom';
   model?: string;
   identity?: string;   // PD semantic identity: project:stack:context
   purpose?: string;    // human-readable task description
   task: string;        // the prompt / task
   files?: string[];    // for aider backend
+  allowedTools?: string;  // for claude-code backend (--allowedTools)
   workdir?: string;
   env?: Record<string, string>;
   timeout?: number;    // ms, default 300000
@@ -135,6 +136,42 @@ async function runClaude(spec: SpawnSpec, model: string): Promise<{ output: stri
   }
 }
 
+function runClaudeCode(spec: SpawnSpec): Promise<{ output: string; error: string | null }> {
+  return new Promise((resolve) => {
+    const args = ['-p', spec.task, '--output-format', 'text'];
+
+    if (spec.allowedTools) {
+      args.push('--allowedTools', spec.allowedTools);
+    }
+
+    const child = spawnChild('claude', args, {
+      cwd: spec.workdir || process.cwd(),
+      env: { ...process.env, ...(spec.env || {}) },
+      timeout: spec.timeout || 300000,
+    });
+
+    const stdout: string[] = [];
+    const stderr: string[] = [];
+
+    child.stdout?.on('data', (data: Buffer) => stdout.push(data.toString()));
+    child.stderr?.on('data', (data: Buffer) => stderr.push(data.toString()));
+
+    child.on('close', (code) => {
+      const output = stdout.join('');
+      const errText = stderr.join('');
+      if (code !== 0) {
+        resolve({ output, error: errText || `claude exited with code ${code}` });
+      } else {
+        resolve({ output: output + (errText ? `\nstderr: ${errText}` : ''), error: null });
+      }
+    });
+
+    child.on('error', (err) => {
+      resolve({ output: '', error: `Failed to start claude: ${err.message}` });
+    });
+  });
+}
+
 async function runGemini(spec: SpawnSpec, model: string): Promise<{ output: string; error: string | null }> {
   let GoogleGenerativeAI: unknown = null;
   try {
@@ -235,6 +272,7 @@ function runCustom(spec: SpawnSpec): Promise<{ output: string; error: string | n
 const DEFAULT_MODELS: Record<SpawnSpec['backend'], string> = {
   ollama: 'llama3.2:8b',
   claude: 'claude-haiku-4-5-20251001',
+  'claude-code': 'claude-code',  // claude CLI manages its own model
   gemini: 'gemini-2.0-flash-exp',
   aider: 'aider',   // aider manages its own model selection
   custom: 'custom',
@@ -305,6 +343,12 @@ export function createSpawner(_deps: {} = {}) {
         }
         case 'claude': {
           const result = await runClaude(spec, model);
+          output = result.output;
+          error = result.error;
+          break;
+        }
+        case 'claude-code': {
+          const result = await runClaudeCode(spec);
           output = result.output;
           error = result.error;
           break;

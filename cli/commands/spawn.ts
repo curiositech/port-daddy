@@ -64,7 +64,7 @@ export async function handleSpawn(
 
   const backend = (options.backend as string) || 'ollama';
 
-  const validBackends = ['ollama', 'claude', 'gemini', 'aider', 'custom'];
+  const validBackends = ['ollama', 'claude', 'claude-code', 'gemini', 'aider', 'custom'];
   if (!validBackends.includes(backend)) {
     console.error(`Invalid backend "${backend}". Valid: ${validBackends.join(', ')}`);
     process.exit(1);
@@ -74,13 +74,14 @@ export async function handleSpawn(
     console.error('Usage: pd spawn --backend <backend> -- <task>');
     console.error('       pd spawn --backend claude -- "Write a hello world program"');
     console.error('');
-    console.error('Backends: ollama, claude, gemini, aider, custom');
+    console.error('Backends: ollama, claude, claude-code, gemini, aider, custom');
     console.error('');
     console.error('Options:');
     console.error('  --backend <name>    AI backend to use (default: ollama)');
     console.error('  --model <name>      Model override');
     console.error('  --identity <id>     PD semantic identity (project:stack:context)');
     console.error('  --purpose <text>    Human-readable task description');
+    console.error('  --allowedTools <t>  Tool permissions for claude-code backend');
     console.error('  -j, --json          JSON output');
     console.error('  -q, --quiet         Suppress output');
     console.error('');
@@ -107,6 +108,7 @@ export async function handleSpawn(
     }
   }
 
+  if (options.allowedTools) body.allowedTools = options.allowedTools;
   if (options.workdir) body.workdir = options.workdir;
   if (options.timeout) body.timeout = parseInt(options.timeout as string, 10);
 

@@ -1027,13 +1027,14 @@ _pd_cmd_spawn() {
 
   local state subcmd
   _arguments -C \
-    '--backend[AI backend to use]:backend:(ollama claude gemini aider custom)' \
+    '--backend[AI backend to use]:backend:(ollama claude claude-code gemini aider custom)' \
     '--model[model name override]:model:' \
     '--identity[PD semantic identity (project:stack:context)]:identity:_pd_complete_services' \
     '--purpose[human-readable task description]:purpose:' \
     '--files[files to pass to aider]:file:_files' \
     '--workdir[working directory]:directory:_directories' \
     '--timeout[timeout in milliseconds]:milliseconds:' \
+    '--allowedTools[tool permissions for claude-code backend]:tools:' \
     '(-j --json)'{-j,--json}'[JSON output]' \
     '(-q --quiet)'{-q,--quiet}'[suppress output]' \
     '(-h --help)'{-h,--help}'[show help]' \

@@ -22,7 +22,7 @@ interface SpawnRouteDeps {
   };
 }
 
-const VALID_BACKENDS = new Set(['ollama', 'claude', 'gemini', 'aider', 'custom']);
+const VALID_BACKENDS = new Set(['ollama', 'claude', 'claude-code', 'gemini', 'aider', 'custom']);
 
 export function createSpawnRoutes(deps: SpawnRouteDeps): Router {
   const { metrics, logger } = deps;
@@ -33,13 +33,13 @@ export function createSpawnRoutes(deps: SpawnRouteDeps): Router {
   // ==========================================================================
   router.post('/spawn', async (req: Request, res: Response) => {
     try {
-      const { backend, model, identity, purpose, task, files, workdir, env, timeout } = req.body as Record<string, unknown>;
+      const { backend, model, identity, purpose, task, files, allowedTools, workdir, env, timeout } = req.body as Record<string, unknown>;
 
       // Validate required fields
       if (!backend || typeof backend !== 'string') {
         return res.status(400).json({
           success: false,
-          error: 'backend is required. Valid values: ollama, claude, gemini, aider, custom',
+          error: 'backend is required. Valid values: ollama, claude, claude-code, gemini, aider, custom',
           code: 'VALIDATION_ERROR',
         });
       }
@@ -69,6 +69,7 @@ export function createSpawnRoutes(deps: SpawnRouteDeps): Router {
       if (identity && typeof identity === 'string') spec.identity = identity;
       if (purpose && typeof purpose === 'string') spec.purpose = purpose;
       if (Array.isArray(files)) spec.files = files as string[];
+      if (allowedTools && typeof allowedTools === 'string') spec.allowedTools = allowedTools;
       if (workdir && typeof workdir === 'string') spec.workdir = workdir;
       if (env && typeof env === 'object' && !Array.isArray(env)) spec.env = env as Record<string, string>;
       if (timeout && typeof timeout === 'number') spec.timeout = timeout;
