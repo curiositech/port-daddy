@@ -1,0 +1,4380 @@
+openapi: 3.1.0
+info:
+  title: Port Daddy API
+  version: 3.7.0
+  description: >
+    Authoritative port management and service orchestration for multi-agent
+    development. Provides atomic port assignment, pub/sub messaging, distributed
+    locks, agent registry, session coordination, and project:stack:context
+    semantic identities.
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:9876
+    description: Local daemon
+
+tags:
+  - name: services
+    description: Service claiming, releasing, and querying
+  - name: health
+    description: Service health monitoring and wait operations
+  - name: info
+    description: Version, metrics, health, status, and port utilities
+  - name: sessions
+    description: Session lifecycle, notes, and file claims
+  - name: agents
+    description: Agent registry, heartbeats, and inbox
+  - name: locks
+    description: Distributed locking with TTL and ownership
+  - name: messaging
+    description: Pub/sub messaging and SSE subscriptions
+  - name: webhooks
+    description: Webhook subscription management
+  - name: activity
+    description: Activity log queries and statistics
+  - name: salvage
+    description: Agent self-healing and work reclamation (formerly resurrection)
+  - name: changelog
+    description: Hierarchical changelog with identity-based rollup
+  - name: tunnel
+    description: Tunnel creation and management for exposing local services
+  - name: dns
+    description: Local DNS records mapping semantic identities to hostnames
+  - name: briefing
+    description: Project briefing generation
+  - name: sugar
+    description: Compound commands for common workflows
+  - name: launch
+    description: Context-aware startup hints
+  - name: spawn
+    description: AI agent launcher
+  - name: harbors
+    description: Agent grouping and coordination zones
+  - name: orchestrator
+    description: Service orchestration (up/down)
+  - name: projects
+    description: Project scanning and registry
+  - name: config
+    description: Configuration loading
+
+paths:
+  # ===========================================================================
+  # SERVICES
+  # ===========================================================================
+  /claim:
+    post:
+      tags: [services]
+      summary: Claim a port with semantic identity
+      description: >
+        Claims a port for a service identified by a semantic identity string.
+        Idempotent — re-claiming updates last_seen and returns existing port.
+      operationId: claimPort
+      parameters:
+        - $ref: '#/components/parameters/XAgentId'
+        - $ref: '#/components/parameters/XPid'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              properties:
+                id:
+                  type: string
+                  description: Semantic identity (e.g. myapp:api:main)
+                  example: myapp:api:main
+                port:
+                  type: integer
+                  description: Preferred port (1024-65535). If omitted, auto-assigned from range.
+                range:
+                  type: array
+                  items:
+                    type: integer
+                  minItems: 2
+                  maxItems: 2
+                  description: "[start, end] port range for auto-assignment"
+                expires:
+                  type: integer
+                  description: TTL in milliseconds
+                pair:
+                  type: string
+                  description: Paired service identity
+                cmd:
+                  type: string
+                  description: Command used to start the service
+                cwd:
+                  type: string
+                  description: Working directory of the service
+                pid:
+                  type: integer
+                  description: Process ID of the service
+                metadata:
+                  type: object
+                  description: Arbitrary metadata (max 10KB)
+      responses:
+        '200':
+          description: Port claimed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  id:
+                    type: string
+                  port:
+                    type: integer
+                  existing:
+                    type: boolean
+                    description: True if this was an existing claim that was renewed
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          description: Agent resource limit exceeded
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /release:
+    delete:
+      tags: [services]
+      summary: Release services by ID or pattern
+      operationId: releaseService
+      parameters:
+        - $ref: '#/components/parameters/XAgentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                  description: Service identity to release
+                expired:
+                  type: boolean
+                  description: If true, release all expired services
+      responses:
+        '200':
+          description: Service(s) released
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  released:
+                    type: integer
+                  releasedPorts:
+                    type: array
+                    items:
+                      type: integer
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /services:
+    get:
+      tags: [services]
+      summary: Find/list services
+      operationId: listServices
+      parameters:
+        - name: pattern
+          in: query
+          schema:
+            type: string
+          description: Identity pattern to match (supports * wildcard)
+        - name: status
+          in: query
+          schema:
+            type: string
+          description: Filter by status
+        - name: port
+          in: query
+          schema:
+            type: integer
+          description: Filter by port number
+        - name: expired
+          in: query
+          schema:
+            type: string
+            enum: ['true', 'false']
+          description: Filter by expiration status
+      responses:
+        '200':
+          description: List of matching services
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  count:
+                    type: integer
+                  services:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Service'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /services/{id}:
+    get:
+      tags: [services]
+      summary: Get a single service by identity
+      operationId: getService
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Service identity
+      responses:
+        '200':
+          description: Service details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  service:
+                    $ref: '#/components/schemas/Service'
+        '404':
+          description: Service not found
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /services/{id}/endpoints/{env}:
+    put:
+      tags: [services]
+      summary: Set endpoint URL for a service environment
+      operationId: setServiceEndpoint
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: env
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Environment name (e.g. dev, staging, production)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url:
+                  type: string
+                  format: uri
+      responses:
+        '200':
+          description: Endpoint set
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /wait/{id}:
+    get:
+      tags: [services]
+      summary: Block until a service exists or timeout
+      operationId: waitForService
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: timeout
+          in: query
+          schema:
+            type: integer
+            default: 30000
+            maximum: 120000
+          description: Timeout in milliseconds (max 120000)
+      responses:
+        '200':
+          description: Service found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  services:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Service'
+                  resolved:
+                    type: integer
+                  requested:
+                    type: integer
+                  timedOut:
+                    type: boolean
+        '408':
+          description: Timeout waiting for service
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /wait:
+    post:
+      tags: [services]
+      summary: Block until multiple services exist or timeout
+      operationId: waitForMultipleServices
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ids]
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: string
+                  description: Service identities to wait for
+                timeout:
+                  type: integer
+                  default: 30000
+                  maximum: 120000
+      responses:
+        '200':
+          description: All services found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  services:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Service'
+                  resolved:
+                    type: integer
+                  requested:
+                    type: integer
+                  timedOut:
+                    type: boolean
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '408':
+          description: Timeout waiting for services
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ===========================================================================
+  # HEALTH
+  # ===========================================================================
+  /services/health:
+    get:
+      tags: [health]
+      summary: List all service health statuses
+      operationId: listHealthStatuses
+      responses:
+        '200':
+          description: Health status for all services
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /services/health/{id}:
+    get:
+      tags: [health]
+      summary: Check health of a single service
+      operationId: checkServiceHealth
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Health check result
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ===========================================================================
+  # INFO
+  # ===========================================================================
+  /version:
+    get:
+      tags: [info]
+      summary: Get daemon version and metadata
+      operationId: getVersion
+      responses:
+        '200':
+          description: Version information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  version:
+                    type: string
+                    example: 3.7.0
+                  codeHash:
+                    type: string
+                  startedAt:
+                    type: integer
+                    description: Unix timestamp when daemon started
+                  service:
+                    type: string
+                    example: port-daddy
+                  api:
+                    type: string
+                    example: semantic
+                  node_version:
+                    type: string
+                  pid:
+                    type: integer
+                  uptime:
+                    type: integer
+                    description: Uptime in seconds
+                  installDir:
+                    type: string
+
+  /metrics:
+    get:
+      tags: [info]
+      summary: Get daemon metrics
+      operationId: getMetrics
+      responses:
+        '200':
+          description: Daemon metrics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  errors:
+                    type: integer
+                  total_assignments:
+                    type: integer
+                  total_releases:
+                    type: integer
+                  active_ports:
+                    type: integer
+                  uptime_seconds:
+                    type: integer
+                  uptime_formatted:
+                    type: string
+                  messages_published:
+                    type: integer
+                  validation_failures:
+                    type: integer
+
+  /health:
+    get:
+      tags: [info]
+      summary: Daemon health check
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Daemon is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  version:
+                    type: string
+                  uptime_seconds:
+                    type: integer
+                  active_ports:
+                    type: integer
+                  pid:
+                    type: integer
+
+  /status:
+    get:
+      tags: [info]
+      summary: Combined health, metrics, and process info
+      operationId: getStatus
+      responses:
+        '200':
+          description: Full status report
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  version:
+                    type: string
+                  pid:
+                    type: integer
+                  uptimeSeconds:
+                    type: integer
+                  uptimeHuman:
+                    type: string
+                  metrics:
+                    type: object
+                    properties:
+                      activePorts:
+                        type: integer
+                      memoryRSS:
+                        type: integer
+                      avgResponseMs:
+                        type: number
+
+  /ports/request:
+    post:
+      tags: [info]
+      summary: Request a port (legacy compatibility wrapper)
+      operationId: requestPort
+      parameters:
+        - $ref: '#/components/parameters/XPid'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [project]
+              properties:
+                project:
+                  type: string
+                  description: Project name
+                preferred:
+                  type: integer
+                  description: Preferred port number
+      responses:
+        '200':
+          description: Port assigned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  port:
+                    type: integer
+                  message:
+                    type: string
+                  existing:
+                    type: boolean
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /ports/release:
+    delete:
+      tags: [info]
+      summary: Release a port (legacy compatibility wrapper)
+      operationId: releasePort
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                port:
+                  type: integer
+                project:
+                  type: string
+      responses:
+        '200':
+          description: Port released
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /ports/active:
+    get:
+      tags: [info]
+      summary: List active port assignments
+      operationId: listActivePorts
+      responses:
+        '200':
+          description: Active ports
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ports:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        port:
+                          type: integer
+                        project:
+                          type: string
+                        pid:
+                          type: integer
+                        started:
+                          type: integer
+                        last_seen:
+                          type: integer
+                        alive:
+                          type: boolean
+                        age_minutes:
+                          type: integer
+                  count:
+                    type: integer
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /ports/system:
+    get:
+      tags: [info]
+      summary: List system/well-known ports in use
+      operationId: listSystemPorts
+      parameters:
+        - name: range_only
+          in: query
+          schema:
+            type: string
+            enum: ['true', 'false']
+          description: Only show ports within the managed range
+        - name: unmanaged_only
+          in: query
+          schema:
+            type: string
+            enum: ['true', 'false']
+          description: Only show ports not managed by Port Daddy
+      responses:
+        '200':
+          description: System ports
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ports:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        port:
+                          type: integer
+                        managed_by_port_daddy:
+                          type: boolean
+                        project:
+                          type: string
+                          nullable: true
+                  count:
+                    type: integer
+                  total_system_ports:
+                    type: integer
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /ports/cleanup:
+    post:
+      tags: [info]
+      summary: Release stale ports
+      operationId: cleanupPorts
+      responses:
+        '200':
+          description: Cleanup result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  freed:
+                    type: array
+                    items: {}
+                  count:
+                    type: integer
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ===========================================================================
+  # SESSIONS
+  # ===========================================================================
+  /sessions:
+    post:
+      tags: [sessions]
+      summary: Start a new session
+      operationId: startSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [purpose]
+              properties:
+                purpose:
+                  type: string
+                  description: Description of what this session is for
+                agentId:
+                  type: string
+                  description: Agent that owns this session
+                files:
+                  type: array
+                  items:
+                    type: string
+                  description: Files to claim for this session
+                force:
+                  type: boolean
+                  default: false
+                  description: Force file claims even with conflicts
+                metadata:
+                  type: object
+                  description: Arbitrary session metadata
+      responses:
+        '200':
+          description: Session started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  id:
+                    type: string
+                    description: Session ID
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          description: File conflicts detected
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  error:
+                    type: string
+                  code:
+                    type: string
+                    example: FILE_CONFLICT
+                  conflicts:
+                    type: array
+                    items: {}
+                  hint:
+                    type: string
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    get:
+      tags: [sessions]
+      summary: List sessions
+      operationId: listSessions
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, completed, abandoned]
+        - name: agent
+          in: query
+          schema:
+            type: string
+          description: Filter by agent ID
+        - name: project
+          in: query
+          schema:
+            type: string
+          description: Filter by project
+        - name: purpose
+          in: query
+          schema:
+            type: string
+          description: Filter by purpose (substring match)
+        - name: worktree
+          in: query
+          schema:
+            type: string
+          description: Filter by worktree ID
+        - name: all
+          in: query
+          schema:
+            type: string
+            enum: ['true']
+          description: Include sessions from all worktrees
+        - name: allWorktrees
+          in: query
+          schema:
+            type: string
+            enum: ['true']
+          description: Alias for all
+        - name: notes
+          in: query
+          schema:
+            type: string
+            enum: ['true']
+          description: Include notes in response
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: List of sessions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  sessions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Session'
+                  count:
+                    type: integer
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sessions/{id}:
+    get:
+      tags: [sessions]
+      summary: Get session details including notes and files
+      operationId: getSession
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Session details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  session:
+                    $ref: '#/components/schemas/Session'
+        '404':
+          description: Session not found
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    put:
+      tags: [sessions]
+      summary: End or abandon a session
+      operationId: updateSession
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [completed, abandoned]
+                  description: Set to 'abandoned' to abandon the session
+                note:
+                  type: string
+                  description: Optional closing note
+      responses:
+        '200':
+          description: Session updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  status:
+                    type: string
+                  releasedFiles:
+                    type: array
+                    items:
+                      type: string
+        '404':
+          description: Session not found
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags: [sessions]
+      summary: Delete session and cascade to notes and file claims
+      operationId: deleteSession
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Session deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '404':
+          description: Session not found
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sessions/{id}/phase:
+    put:
+      tags: [sessions]
+      summary: Set session phase
+      operationId: setSessionPhase
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phase]
+              properties:
+                phase:
+                  type: string
+                  description: Phase name
+      responses:
+        '200':
+          description: Phase set
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  phase:
+                    type: string
+                  previousPhase:
+                    type: string
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          description: Session not found
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sessions/{id}/notes:
+    post:
+      tags: [sessions]
+      summary: Add a note to a session
+      operationId: addSessionNote
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content:
+                  type: string
+                type:
+                  type: string
+                  description: Note type (e.g. note, progress, decision, blocker)
+      responses:
+        '200':
+          description: Note added
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  noteId:
+                    type: integer
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          description: Session not found
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    get:
+      tags: [sessions]
+      summary: Get notes for a session
+      operationId: getSessionNotes
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+          description: Filter by note type
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+        - name: since
+          in: query
+          schema:
+            type: integer
+          description: Unix timestamp — only notes after this time
+      responses:
+        '200':
+          description: Session notes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  notes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Note'
+                  count:
+                    type: integer
+        '404':
+          description: Session not found
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sessions/{id}/files:
+    post:
+      tags: [sessions]
+      summary: Claim files for a session
+      operationId: claimSessionFiles
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                  description: File paths to claim
+                regions:
+                  type: array
+                  items:
+                    type: object
+                    required: [path]
+                    properties:
+                      path:
+                        type: string
+                      startLine:
+                        type: integer
+                        minimum: 1
+                      endLine:
+                        type: integer
+                      symbol:
+                        type: string
+                  description: Region-level claims
+                force:
+                  type: boolean
+                  default: false
+                  description: Force claims even with conflicts
+      responses:
+        '200':
+          description: Files claimed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  claimed:
+                    type: array
+                    items:
+                      type: string
+                  conflicts:
+                    type: array
+                    items: {}
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          description: Session not found
+        '409':
+          description: File conflicts detected
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags: [sessions]
+      summary: Release files from a session
+      operationId: releaseSessionFiles
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: paths
+          in: query
+          schema:
+            type: string
+          description: Comma-separated file paths to release
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                regions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      path:
+                        type: string
+                      startLine:
+                        type: integer
+                      endLine:
+                        type: integer
+      responses:
+        '200':
+          description: Files released
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  released:
+                    type: array
+                    items:
+                      type: string
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          description: Session not found
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /notes:
+    post:
+      tags: [sessions]
+      summary: Quick note (auto-creates session if needed)
+      operationId: quickNote
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content:
+                  type: string
+                agentId:
+                  type: string
+                type:
+                  type: string
+      responses:
+        '200':
+          description: Note added
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  noteId:
+                    type: integer
+                  sessionId:
+                    type: string
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    get:
+      tags: [sessions]
+      summary: Recent notes across all sessions
+      operationId: listRecentNotes
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: type
+          in: query
+          schema:
+            type: string
+        - name: since
+          in: query
+          schema:
+            type: integer
+          description: Unix timestamp
+      responses:
+        '200':
+          description: Recent notes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  notes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Note'
+                  count:
+                    type: integer
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /files:
+    get:
+      tags: [sessions]
+      summary: List all active file claims across all sessions
+      operationId: listAllFileClaims
+      parameters:
+        - name: path
+          in: query
+          schema:
+            type: string
+          description: Filter by file path
+        - name: symbol
+          in: query
+          schema:
+            type: string
+          description: Filter by symbol name
+        - name: agent
+          in: query
+          schema:
+            type: string
+          description: Filter by agent ID
+        - name: purpose
+          in: query
+          schema:
+            type: string
+          description: Filter by session purpose
+      responses:
+        '200':
+          description: Active file claims
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /files/who-owns:
+    get:
+      tags: [sessions]
+      summary: Check who owns a specific file
+      operationId: getFileOwner
+      parameters:
+        - name: path
+          in: query
+          required: true
+          schema:
+            type: string
+          description: File path to check
+        - name: startLine
+          in: query
+          schema:
+            type: integer
+          description: Start line for range filter
+        - name: endLine
+          in: query
+          schema:
+            type: integer
+          description: End line for range filter
+      responses:
+        '200':
+          description: File ownership info
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ===========================================================================
+  # AGENTS
+  # ===========================================================================
+  /agents:
+    post:
+      tags: [agents]
+      summary: Register an agent
+      operationId: registerAgent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              properties:
+                id:
+                  type: string
+                  description: Unique agent identifier
+                name:
+                  type: string
+                type:
+                  type: string
+                  default: cli
+                  description: Agent type
+                identity:
+                  type: string
+                  description: Semantic identity for context-aware salvage (e.g. myapp:api)
+                worktreeId:
+                  type: string
+                  description: Git worktree identifier
+                purpose:
+                  type: string
+                  description: What this agent is working on
+                metadata:
+                  type: object
+                agentCard:
+                  type: object
+                maxServices:
+                  type: integer
+                  description: Maximum number of services this agent can claim
+                maxLocks:
+                  type: integer
+                  description: Maximum number of locks this agent can hold
+      responses:
+        '200':
+          description: Agent registered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  registered:
+                    type: boolean
+                  salvageHint:
+                    type: object
+                    description: Hint about dead agents in the same project
+                    nullable: true
+                    properties:
+                      count:
+                        type: integer
+                      project:
+                        type: string
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    get:
+      tags: [agents]
+      summary: List all agents
+      operationId: listAgents
+      parameters:
+        - name: active
+          in: query
+          schema:
+            type: string
+            enum: ['true']
+          description: Only show active agents
+        - name: identity
+          in: query
+          schema:
+            type: string
+          description: Filter by identity prefix
+        - name: purpose
+          in: query
+          schema:
+            type: string
+          description: Filter by purpose
+      responses:
+        '200':
+          description: List of agents
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /agents/{id}:
+    get:
+      tags: [agents]
+      summary: Get agent info
+      operationId: getAgent
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Agent details
+        '404':
+          description: Agent not found
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags: [agents]
+      summary: Unregister an agent
+      operationId: unregisterAgent
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Agent unregistered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  unregistered:
+                    type: boolean
+        '400':
+          description: Agent not found or error
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /agents/{id}/heartbeat:
+    post:
+      tags: [agents]
+      summary: Send agent heartbeat
+      operationId: agentHeartbeat
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/XPid'
+      responses:
+        '200':
+          description: Heartbeat acknowledged
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '400':
+          description: Agent not found
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /agents/{id}/inbox:
+    post:
+      tags: [agents]
+      summary: Send a message to an agent's inbox
+      operationId: sendInboxMessage
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content:
+                  type: string
+                from:
+                  type: string
+                  description: Sender identifier
+                type:
+                  type: string
+                  default: message
+      responses:
+        '200':
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  messageId:
+                    type: integer
+        '400':
+          description: Content required or validation error
+        '429':
+          description: Resource limit exceeded
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    get:
+      tags: [agents]
+      summary: Read an agent's inbox
+      operationId: listInboxMessages
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: unread
+          in: query
+          schema:
+            type: string
+            enum: ['true']
+          description: Only show unread messages
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: since
+          in: query
+          schema:
+            type: integer
+          description: Unix timestamp
+      responses:
+        '200':
+          description: Inbox messages
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  messages:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/InboxMessage'
+                  count:
+                    type: integer
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags: [agents]
+      summary: Clear an agent's inbox
+      operationId: clearInbox
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Inbox cleared
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  deleted:
+                    type: integer
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /agents/{id}/inbox/stats:
+    get:
+      tags: [agents]
+      summary: Get inbox statistics
+      operationId: getInboxStats
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Inbox stats
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  total:
+                    type: integer
+                  unread:
+                    type: integer
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /agents/{id}/inbox/{messageId}/read:
+    put:
+      tags: [agents]
+      summary: Mark a single inbox message as read
+      operationId: markInboxMessageRead
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Message marked as read
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /agents/{id}/inbox/read-all:
+    put:
+      tags: [agents]
+      summary: Mark all inbox messages as read
+      operationId: markAllInboxMessagesRead
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: All messages marked as read
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  marked:
+                    type: integer
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ===========================================================================
+  # LOCKS
+  # ===========================================================================
+  /locks:
+    get:
+      tags: [locks]
+      summary: List all locks
+      operationId: listLocks
+      parameters:
+        - name: owner
+          in: query
+          schema:
+            type: string
+          description: Filter by lock owner
+      responses:
+        '200':
+          description: List of locks
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /locks/{name}:
+    post:
+      tags: [locks]
+      summary: Acquire a lock
+      operationId: acquireLock
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/XAgentId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                owner:
+                  type: string
+                  description: Lock owner (defaults to x-agent-id header or PID)
+                ttl:
+                  type: integer
+                  default: 300000
+                  description: Time-to-live in milliseconds
+                metadata:
+                  type: object
+      responses:
+        '200':
+          description: Lock acquired
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  owner:
+                    type: string
+                  expiresAt:
+                    type: string
+                    format: date-time
+        '400':
+          description: Invalid TTL
+        '409':
+          description: Lock already held by another owner
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  error:
+                    type: string
+                  code:
+                    type: string
+                    example: LOCK_HELD
+                  owner:
+                    type: string
+                  expiresAt:
+                    type: string
+        '429':
+          description: Agent lock limit exceeded
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    put:
+      tags: [locks]
+      summary: Extend lock TTL
+      operationId: extendLock
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/XAgentId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                owner:
+                  type: string
+                ttl:
+                  type: integer
+                  description: New TTL in milliseconds
+      responses:
+        '200':
+          description: Lock extended
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '400':
+          description: Lock not found or not owned
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    get:
+      tags: [locks]
+      summary: Check lock status
+      operationId: checkLock
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lock status
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags: [locks]
+      summary: Release a lock
+      operationId: releaseLock
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/XAgentId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                owner:
+                  type: string
+                  description: Must match lock owner (unless force=true)
+                force:
+                  type: boolean
+                  default: false
+                  description: Force release regardless of owner
+      responses:
+        '200':
+          description: Lock released
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  released:
+                    type: boolean
+        '403':
+          description: Lock not found or not owned
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ===========================================================================
+  # MESSAGING
+  # ===========================================================================
+  /msg:
+    get:
+      tags: [messaging]
+      summary: List all channels
+      operationId: listChannelsViaMsg
+      responses:
+        '200':
+          description: List of channels
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /channels:
+    get:
+      tags: [messaging]
+      summary: List all channels (alias)
+      operationId: listChannels
+      responses:
+        '200':
+          description: List of channels
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /msg/{channel}:
+    post:
+      tags: [messaging]
+      summary: Publish a message to a channel
+      operationId: publishMessage
+      parameters:
+        - name: channel
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                payload:
+                  description: Message payload (any JSON value)
+                sender:
+                  type: string
+                expires:
+                  type: integer
+                  description: Message TTL in milliseconds
+      responses:
+        '200':
+          description: Message published
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  id:
+                    type: integer
+                    description: Message ID
+        '400':
+          description: Invalid channel name
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    get:
+      tags: [messaging]
+      summary: Get messages from a channel
+      operationId: getMessages
+      parameters:
+        - name: channel
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 1000
+        - name: after
+          in: query
+          schema:
+            type: integer
+          description: Only messages after this ID
+      responses:
+        '200':
+          description: Channel messages
+        '400':
+          description: Invalid channel name
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags: [messaging]
+      summary: Clear all messages in a channel
+      operationId: clearChannel
+      parameters:
+        - name: channel
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Channel cleared
+        '400':
+          description: Invalid channel name
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /msg/{channel}/poll:
+    get:
+      tags: [messaging]
+      summary: Long-poll for next message on a channel
+      operationId: pollChannel
+      parameters:
+        - name: channel
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: after
+          in: query
+          schema:
+            type: integer
+            default: 0
+          description: Only messages after this ID
+        - name: timeout
+          in: query
+          schema:
+            type: integer
+            default: 30000
+            maximum: 60000
+          description: Long-poll timeout in milliseconds
+      responses:
+        '200':
+          description: Message received or timeout
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message: {}
+        '400':
+          description: Invalid channel name
+        '429':
+          description: Too many concurrent connections
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /msg/{channel}/subscribe:
+    get:
+      tags: [messaging]
+      summary: Subscribe to channel via Server-Sent Events (SSE)
+      operationId: subscribeToChannel
+      parameters:
+        - name: channel
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: SSE stream opened
+          content:
+            text/event-stream: {}
+        '400':
+          description: Invalid channel name
+        '429':
+          description: Too many concurrent SSE connections
+        '503':
+          description: Subscription limit exceeded
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ===========================================================================
+  # WEBHOOKS
+  # ===========================================================================
+  /webhooks:
+    post:
+      tags: [webhooks]
+      summary: Register a webhook
+      operationId: registerWebhook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url:
+                  type: string
+                  format: uri
+                events:
+                  type: array
+                  items:
+                    type: string
+                  description: Event types to subscribe to
+                secret:
+                  type: string
+                  description: HMAC signing secret
+                filterPattern:
+                  type: string
+                  description: Pattern to filter events by target ID
+                metadata:
+                  type: object
+      responses:
+        '200':
+          description: Webhook registered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  id:
+                    type: string
+        '400':
+          description: URL required or validation error
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    get:
+      tags: [webhooks]
+      summary: List webhooks
+      operationId: listWebhooks
+      parameters:
+        - name: active
+          in: query
+          schema:
+            type: string
+            enum: ['true']
+          description: Only show active webhooks
+      responses:
+        '200':
+          description: List of webhooks
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /webhooks/events:
+    get:
+      tags: [webhooks]
+      summary: List available webhook event types
+      operationId: listWebhookEvents
+      responses:
+        '200':
+          description: Available events with descriptions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  events:
+                    type: array
+                    items:
+                      type: string
+                  descriptions:
+                    type: object
+                    additionalProperties:
+                      type: string
+
+  /webhooks/{id}:
+    get:
+      tags: [webhooks]
+      summary: Get webhook by ID
+      operationId: getWebhook
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Webhook details
+        '404':
+          description: Webhook not found
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    put:
+      tags: [webhooks]
+      summary: Update a webhook
+      operationId: updateWebhook
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                url:
+                  type: string
+                  format: uri
+                events:
+                  type: array
+                  items:
+                    type: string
+                filterPattern:
+                  type: string
+                active:
+                  type: boolean
+                metadata:
+                  type: object
+      responses:
+        '200':
+          description: Webhook updated
+        '400':
+          description: Validation error
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags: [webhooks]
+      summary: Delete a webhook
+      operationId: deleteWebhook
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Webhook deleted
+        '404':
+          description: Webhook not found
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /webhooks/{id}/test:
+    post:
+      tags: [webhooks]
+      summary: Send a test delivery to a webhook
+      operationId: testWebhook
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Test delivery sent
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /webhooks/{id}/deliveries:
+    get:
+      tags: [webhooks]
+      summary: List webhook deliveries
+      operationId: listWebhookDeliveries
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Delivery history
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ===========================================================================
+  # ACTIVITY
+  # ===========================================================================
+  /activity:
+    get:
+      tags: [activity]
+      summary: Get recent activity
+      operationId: getActivity
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+        - name: type
+          in: query
+          schema:
+            type: string
+          description: Filter by activity type
+        - name: agent
+          in: query
+          schema:
+            type: string
+          description: Filter by agent ID
+        - name: target
+          in: query
+          schema:
+            type: string
+          description: Filter by target pattern
+      responses:
+        '200':
+          description: Recent activity entries
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags: [activity]
+      summary: Clear the activity log
+      operationId: clearActivity
+      responses:
+        '200':
+          description: Activity log cleared
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /activity/timeline:
+    get:
+      tags: [activity]
+      summary: Get unified timeline (activity + notes)
+      operationId: getActivityTimeline
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: agent
+          in: query
+          schema:
+            type: string
+        - name: session
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Unified timeline
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /activity/subscribe:
+    get:
+      tags: [activity]
+      summary: Subscribe to activity log via SSE
+      operationId: subscribeToActivity
+      responses:
+        '200':
+          description: SSE stream opened
+          content:
+            text/event-stream: {}
+        '429':
+          description: Too many concurrent SSE connections
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /activity/range:
+    get:
+      tags: [activity]
+      summary: Get activity by time range
+      operationId: getActivityRange
+      parameters:
+        - name: start
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: Start timestamp (Unix ms)
+        - name: end
+          in: query
+          schema:
+            type: integer
+          description: End timestamp (defaults to now)
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 1000
+      responses:
+        '200':
+          description: Activity in range
+        '400':
+          description: Start timestamp required
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /activity/summary:
+    get:
+      tags: [activity]
+      summary: Get activity summary by type
+      operationId: getActivitySummary
+      parameters:
+        - name: since
+          in: query
+          schema:
+            type: integer
+            default: 0
+          description: Unix timestamp
+      responses:
+        '200':
+          description: Activity summary
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /activity/stats:
+    get:
+      tags: [activity]
+      summary: Get activity log statistics
+      operationId: getActivityStats
+      responses:
+        '200':
+          description: Activity statistics
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ===========================================================================
+  # SALVAGE (formerly Resurrection)
+  # ===========================================================================
+  /salvage:
+    get:
+      tags: [salvage]
+      summary: List salvage queue entries
+      operationId: listSalvage
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: project
+          in: query
+          schema:
+            type: string
+          description: Filter by project identity
+        - name: stack
+          in: query
+          schema:
+            type: string
+          description: Filter by stack identity
+      responses:
+        '200':
+          description: Salvage queue
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  agents:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/StaleAgent'
+                  count:
+                    type: integer
+                  filtered:
+                    type: boolean
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /salvage/pending:
+    get:
+      tags: [salvage]
+      summary: List agents pending salvage
+      operationId: listPendingSalvage
+      parameters:
+        - name: project
+          in: query
+          schema:
+            type: string
+        - name: stack
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Pending agents
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  agents:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/StaleAgent'
+                  count:
+                    type: integer
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /salvage/reap:
+    post:
+      tags: [salvage]
+      summary: Trigger reaper to check for dead agents
+      operationId: reapSalvage
+      responses:
+        '200':
+          description: Reaper triggered
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /salvage/claim/{agentId}:
+    post:
+      tags: [salvage]
+      summary: Claim a dead agent's work
+      operationId: claimSalvage
+      parameters:
+        - name: agentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                newAgentId:
+                  type: string
+      responses:
+        '200':
+          description: Work claimed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  agent:
+                    $ref: '#/components/schemas/StaleAgent'
+                  context:
+                    type: object
+        '400':
+          description: Agent not in salvage queue
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /salvage/complete/{agentId}:
+    post:
+      tags: [salvage]
+      summary: Mark salvage as complete
+      operationId: completeSalvage
+      parameters:
+        - name: agentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [newAgentId]
+              properties:
+                newAgentId:
+                  type: string
+                  description: ID of the agent that completed the work
+      responses:
+        '200':
+          description: Salvage marked complete
+        '400':
+          description: newAgentId required
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /salvage/abandon/{agentId}:
+    post:
+      tags: [salvage]
+      summary: Return agent to salvage queue
+      operationId: abandonSalvage
+      parameters:
+        - name: agentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Agent returned to queue
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /salvage/{agentId}:
+    delete:
+      tags: [salvage]
+      summary: Dismiss agent from salvage queue
+      operationId: dismissSalvage
+      parameters:
+        - name: agentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Agent dismissed
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ===========================================================================
+  # CHANGELOG
+  # ===========================================================================
+  /changelog:
+    post:
+      tags: [changelog]
+      summary: Add a changelog entry
+      operationId: addChangelogEntry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [identity, summary]
+              properties:
+                identity:
+                  type: string
+                  description: Semantic identity the change applies to
+                summary:
+                  type: string
+                  description: Short summary of the change
+                type:
+                  type: string
+                  enum: [feature, fix, refactor, docs, chore, breaking]
+                description:
+                  type: string
+                  description: Detailed description
+                sessionId:
+                  type: string
+                agentId:
+                  type: string
+                metadata:
+                  type: object
+      responses:
+        '201':
+          description: Entry added
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  id:
+                    type: integer
+                  identity:
+                    type: string
+                  ancestors:
+                    type: array
+                    items:
+                      type: string
+        '400':
+          description: Missing identity or summary, or invalid type
+
+    get:
+      tags: [changelog]
+      summary: List recent changelog entries
+      operationId: listChangelog
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 500
+        - name: since
+          in: query
+          schema:
+            type: integer
+          description: Unix timestamp
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: [flat, tree, keep-a-changelog]
+          description: Export format (returns markdown)
+        - name: raw
+          in: query
+          schema:
+            type: string
+            enum: ['true']
+          description: Return raw markdown text/markdown when format is set
+      responses:
+        '200':
+          description: Changelog entries or formatted markdown
+
+  /changelog/identities:
+    get:
+      tags: [changelog]
+      summary: List all distinct identities with changelog entries
+      operationId: listChangelogIdentities
+      responses:
+        '200':
+          description: Identity list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  identities:
+                    type: array
+                    items:
+                      type: string
+                  count:
+                    type: integer
+
+  /changelog/session/{sessionId}:
+    get:
+      tags: [changelog]
+      summary: List changelog entries for a session
+      operationId: listChangelogBySession
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Session changelog entries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  sessionId:
+                    type: string
+                  entries:
+                    type: array
+                    items: {}
+                  count:
+                    type: integer
+
+  /changelog/agent/{agentId}:
+    get:
+      tags: [changelog]
+      summary: List changelog entries for an agent
+      operationId: listChangelogByAgent
+      parameters:
+        - name: agentId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 500
+      responses:
+        '200':
+          description: Agent changelog entries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  agentId:
+                    type: string
+                  entries:
+                    type: array
+                    items: {}
+                  count:
+                    type: integer
+
+  /changelog/{id}:
+    get:
+      tags: [changelog]
+      summary: Get a single changelog entry by numeric ID or list by identity
+      description: >
+        When id is a numeric value, returns a single entry. When id is a string
+        identity (e.g. myapp:api), returns entries for that identity with optional
+        tree expansion, rollup, or export format.
+      operationId: getChangelogEntry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Numeric entry ID or semantic identity string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 500
+        - name: tree
+          in: query
+          schema:
+            type: string
+            enum: ['true']
+          description: Include descendant identities
+        - name: rollup
+          in: query
+          schema:
+            type: string
+            enum: ['true']
+          description: Aggregate view
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: [flat, tree, keep-a-changelog]
+        - name: raw
+          in: query
+          schema:
+            type: string
+            enum: ['true']
+      responses:
+        '200':
+          description: Entry or entries
+        '404':
+          description: Entry not found (numeric ID only)
+
+  # ===========================================================================
+  # TUNNEL
+  # ===========================================================================
+  /tunnel/providers:
+    get:
+      tags: [tunnel]
+      summary: Check which tunnel providers are installed
+      operationId: listTunnelProviders
+      responses:
+        '200':
+          description: Provider availability
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  providers:
+                    type: object
+                    properties:
+                      ngrok:
+                        type: boolean
+                      cloudflared:
+                        type: boolean
+                      localtunnel:
+                        type: boolean
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /tunnel/{id}:
+    post:
+      tags: [tunnel]
+      summary: Start a tunnel for a service
+      operationId: startTunnel
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Service identity
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                provider:
+                  type: string
+                  enum: [ngrok, cloudflared, localtunnel]
+                  default: ngrok
+      responses:
+        '200':
+          description: Tunnel started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  serviceId:
+                    type: string
+                  provider:
+                    type: string
+                  url:
+                    type: string
+                    format: uri
+        '400':
+          description: Invalid identity or provider, or tunnel error
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags: [tunnel]
+      summary: Stop a tunnel for a service
+      operationId: stopTunnel
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Tunnel stopped
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  serviceId:
+                    type: string
+        '400':
+          description: Invalid identity or tunnel error
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    get:
+      tags: [tunnel]
+      summary: Get tunnel status for a service
+      operationId: getTunnelStatus
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Tunnel status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  serviceId:
+                    type: string
+                  provider:
+                    type: string
+                  port:
+                    type: integer
+                  url:
+                    type: string
+                    nullable: true
+                  status:
+                    type: string
+                  pid:
+                    type: integer
+                  startedAt:
+                    type: integer
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /tunnels:
+    get:
+      tags: [tunnel]
+      summary: List all active tunnels
+      operationId: listTunnels
+      responses:
+        '200':
+          description: Active tunnels
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  tunnels:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        serviceId:
+                          type: string
+                        provider:
+                          type: string
+                        port:
+                          type: integer
+                        url:
+                          type: string
+                          nullable: true
+                        status:
+                          type: string
+                        pid:
+                          type: integer
+                        startedAt:
+                          type: integer
+                  count:
+                    type: integer
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ===========================================================================
+  # DNS
+  # ===========================================================================
+  /dns:
+    get:
+      tags: [dns]
+      summary: List all DNS records
+      operationId: listDnsRecords
+      parameters:
+        - name: pattern
+          in: query
+          schema:
+            type: string
+          description: Identity pattern to filter
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: DNS records
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /dns/status:
+    get:
+      tags: [dns]
+      summary: DNS system status
+      operationId: getDnsStatus
+      responses:
+        '200':
+          description: DNS status including resolver info
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /dns/cleanup:
+    post:
+      tags: [dns]
+      summary: Remove stale DNS records
+      operationId: cleanupDns
+      responses:
+        '200':
+          description: Cleanup result
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /dns/setup:
+    post:
+      tags: [dns]
+      summary: Initialize /etc/hosts managed section
+      operationId: setupDnsResolver
+      responses:
+        '200':
+          description: Resolver set up
+        '501':
+          description: Resolver not configured
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /dns/teardown:
+    post:
+      tags: [dns]
+      summary: Remove /etc/hosts managed section
+      operationId: teardownDnsResolver
+      responses:
+        '200':
+          description: Resolver torn down
+        '501':
+          description: Resolver not configured
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /dns/sync:
+    post:
+      tags: [dns]
+      summary: Rebuild /etc/hosts from DNS registry
+      operationId: syncDnsResolver
+      responses:
+        '200':
+          description: Resolver synced
+        '501':
+          description: Resolver not configured
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /dns/resolver:
+    get:
+      tags: [dns]
+      summary: Get resolver status
+      operationId: getDnsResolverStatus
+      responses:
+        '200':
+          description: Resolver status
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /dns/{id}:
+    post:
+      tags: [dns]
+      summary: Register DNS for a service
+      operationId: registerDns
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Service identity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [port]
+              properties:
+                hostname:
+                  type: string
+                  description: Custom hostname (auto-generated if omitted)
+                port:
+                  type: integer
+                  minimum: 1
+                  maximum: 65535
+      responses:
+        '200':
+          description: DNS registered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  hostname:
+                    type: string
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          description: Hostname conflict
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags: [dns]
+      summary: Unregister DNS for a service
+      operationId: unregisterDns
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: DNS unregistered
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          description: DNS record not found
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    get:
+      tags: [dns]
+      summary: Get DNS record by identity
+      operationId: getDnsRecord
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: DNS record
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          description: DNS record not found
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ===========================================================================
+  # BRIEFING
+  # ===========================================================================
+  /briefing:
+    post:
+      tags: [briefing]
+      summary: Generate .portdaddy/ briefing and write to disk
+      operationId: generateBriefing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [projectRoot]
+              properties:
+                projectRoot:
+                  type: string
+                  description: Absolute path to project root
+                project:
+                  type: string
+                  description: Explicit project name
+                full:
+                  type: boolean
+                  description: Generate full sync (includes archiving)
+      responses:
+        '200':
+          description: Briefing generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  briefingPath:
+                    type: string
+                  files:
+                    type: array
+                    items:
+                      type: string
+                  archivedSessions:
+                    type: integer
+                    description: Only when full=true
+                  archivedAgents:
+                    type: integer
+                    description: Only when full=true
+        '400':
+          description: projectRoot required or invalid
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /briefing/{project}:
+    get:
+      tags: [briefing]
+      summary: Return briefing data as JSON (no disk write)
+      operationId: getBriefing
+      parameters:
+        - name: project
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: projectRoot
+          in: query
+          schema:
+            type: string
+          description: Project root path (defaults to cwd)
+      responses:
+        '200':
+          description: Briefing data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  briefing:
+                    type: object
+        '400':
+          description: Invalid project root
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ===========================================================================
+  # SUGAR
+  # ===========================================================================
+  /sugar/begin:
+    post:
+      tags: [sugar]
+      summary: Register agent + start session atomically
+      operationId: sugarBegin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [purpose]
+              properties:
+                purpose:
+                  type: string
+                identity:
+                  type: string
+                  description: Semantic identity (e.g. myapp:api)
+                agentId:
+                  type: string
+                  description: Explicit agent ID (auto-generated if omitted)
+                type:
+                  type: string
+                  description: Agent type
+                files:
+                  type: array
+                  items:
+                    type: string
+                force:
+                  type: boolean
+                metadata:
+                  type: object
+      responses:
+        '200':
+          description: Agent registered and session started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  agentId:
+                    type: string
+                  sessionId:
+                    type: string
+        '400':
+          description: Validation error or registration failed
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sugar/done:
+    post:
+      tags: [sugar]
+      summary: End session + unregister agent
+      operationId: sugarDone
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                agentId:
+                  type: string
+                sessionId:
+                  type: string
+                note:
+                  type: string
+                  description: Optional closing note
+                status:
+                  type: string
+                  enum: [completed, abandoned]
+                  default: completed
+      responses:
+        '200':
+          description: Session ended and agent unregistered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  agentId:
+                    type: string
+                  sessionId:
+                    type: string
+                  sessionStatus:
+                    type: string
+        '400':
+          description: Invalid status
+        '404':
+          description: No active session found
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sugar/whoami:
+    get:
+      tags: [sugar]
+      summary: Show current agent/session context
+      operationId: sugarWhoami
+      parameters:
+        - name: agentId
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Current context
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ===========================================================================
+  # LAUNCH HINTS
+  # ===========================================================================
+  /launch-hints:
+    get:
+      tags: [launch]
+      summary: Context-aware startup hints for CLI banner
+      operationId: getLaunchHints
+      parameters:
+        - name: cwd
+          in: query
+          schema:
+            type: string
+          description: Current working directory
+      responses:
+        '200':
+          description: Launch hints
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  projectName:
+                    type: string
+                    nullable: true
+                  isNewFolder:
+                    type: boolean
+                  uncharted_waters:
+                    type: boolean
+                    description: True when folder has not been registered
+                  salvage:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                      inProject:
+                        type: integer
+                      recent:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            purpose:
+                              type: string
+                              nullable: true
+                            identity:
+                              type: string
+                              nullable: true
+                            minutesAgo:
+                              type: integer
+                              nullable: true
+                  nudges:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        type:
+                          type: string
+                        message:
+                          type: string
+                        cmd:
+                          type: string
+
+  # ===========================================================================
+  # SPAWN
+  # ===========================================================================
+  /spawn:
+    post:
+      tags: [spawn]
+      summary: Launch an AI agent
+      operationId: spawnAgent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [backend, task]
+              properties:
+                backend:
+                  type: string
+                  enum: [ollama, claude, gemini, aider, custom]
+                model:
+                  type: string
+                  description: Model name (backend-specific)
+                identity:
+                  type: string
+                  description: Semantic identity for the spawned agent
+                purpose:
+                  type: string
+                task:
+                  type: string
+                  description: Task description or prompt
+                files:
+                  type: array
+                  items:
+                    type: string
+                workdir:
+                  type: string
+                env:
+                  type: object
+                  additionalProperties:
+                    type: string
+                  description: Extra environment variables
+                timeout:
+                  type: integer
+                  description: Timeout in milliseconds
+      responses:
+        '200':
+          description: Agent spawned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  agentId:
+                    type: string
+                  backend:
+                    type: string
+                  status:
+                    type: string
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    get:
+      tags: [spawn]
+      summary: List active spawned agents
+      operationId: listSpawnedAgents
+      responses:
+        '200':
+          description: Active spawned agents
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  agents:
+                    type: array
+                    items: {}
+                  count:
+                    type: integer
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /spawn/{id}:
+    delete:
+      tags: [spawn]
+      summary: Kill a spawned agent
+      operationId: killSpawnedAgent
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Agent killed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  agentId:
+                    type: string
+                  message:
+                    type: string
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ===========================================================================
+  # HARBORS
+  # ===========================================================================
+  /harbors:
+    post:
+      tags: [harbors]
+      summary: Create or update a harbor
+      operationId: createHarbor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                capabilities:
+                  type: array
+                  items:
+                    type: string
+                channels:
+                  type: array
+                  items:
+                    type: string
+                agentPatterns:
+                  type: array
+                  items:
+                    type: string
+                expiresIn:
+                  type: integer
+                  description: TTL in milliseconds
+                metadata:
+                  type: object
+      responses:
+        '201':
+          description: Harbor created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  harbor:
+                    type: object
+        '400':
+          description: Name required or validation error
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    get:
+      tags: [harbors]
+      summary: List all harbors
+      operationId: listHarbors
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+        - name: pattern
+          in: query
+          schema:
+            type: string
+          description: Filter by name pattern
+      responses:
+        '200':
+          description: List of harbors
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  harbors:
+                    type: array
+                    items: {}
+                  count:
+                    type: integer
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /harbors/agent/{agentId}:
+    get:
+      tags: [harbors]
+      summary: List harbors an agent is currently in
+      operationId: listAgentHarbors
+      parameters:
+        - name: agentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Agent's harbors
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  harbors:
+                    type: array
+                    items: {}
+                  count:
+                    type: integer
+                  agentId:
+                    type: string
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /harbors/{name}:
+    get:
+      tags: [harbors]
+      summary: Get harbor details
+      operationId: getHarbor
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Harbor details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  harbor:
+                    type: object
+        '404':
+          description: Harbor not found
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags: [harbors]
+      summary: Destroy a harbor
+      operationId: destroyHarbor
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Harbor destroyed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '404':
+          description: Harbor not found
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /harbors/{name}/enter:
+    post:
+      tags: [harbors]
+      summary: Agent enters a harbor
+      operationId: enterHarbor
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [agentId]
+              properties:
+                agentId:
+                  type: string
+                identity:
+                  type: string
+                capabilities:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Agent entered harbor
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  harbor:
+                    type: object
+        '400':
+          description: agentId required or entry denied
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /harbors/{name}/leave:
+    post:
+      tags: [harbors]
+      summary: Agent leaves a harbor
+      operationId: leaveHarbor
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [agentId]
+              properties:
+                agentId:
+                  type: string
+      responses:
+        '200':
+          description: Agent left harbor
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '400':
+          description: agentId required
+        '404':
+          description: Harbor or membership not found
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /harbors/{name}/members:
+    get:
+      tags: [harbors]
+      summary: List harbor members
+      operationId: listHarborMembers
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Harbor members
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  members:
+                    type: array
+                    items: {}
+                  count:
+                    type: integer
+        '404':
+          description: Harbor not found
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ===========================================================================
+  # ORCHESTRATOR
+  # ===========================================================================
+  /orchestrator/up:
+    post:
+      tags: [orchestrator]
+      summary: Start orchestration
+      operationId: orchestratorUp
+      responses:
+        '200':
+          description: Orchestration started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /orchestrator/down:
+    post:
+      tags: [orchestrator]
+      summary: Stop all orchestrated services
+      operationId: orchestratorDown
+      responses:
+        '200':
+          description: All services stopped
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /orchestrator/status:
+    get:
+      tags: [orchestrator]
+      summary: Get orchestrator status
+      operationId: orchestratorStatus
+      responses:
+        '200':
+          description: Orchestrator status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /orchestrator/rules:
+    get:
+      tags: [orchestrator]
+      summary: List orchestration rules
+      operationId: listOrchestratorRules
+      responses:
+        '200':
+          description: Current rules
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags: [orchestrator]
+      summary: Add an orchestration rule
+      operationId: addOrchestratorRule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Rule added
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ===========================================================================
+  # PROJECTS
+  # ===========================================================================
+  /scan:
+    post:
+      tags: [projects]
+      summary: Deep scan a directory for services
+      operationId: scanProject
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                dir:
+                  type: string
+                  description: Directory to scan (defaults to cwd)
+                save:
+                  type: boolean
+                  default: true
+                  description: Save .portdaddyrc config file
+                dryRun:
+                  type: boolean
+                  default: false
+                  description: Preview without saving
+                useBranch:
+                  type: boolean
+                  default: false
+                  description: Include git branch in service identities
+      responses:
+        '200':
+          description: Scan results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  project:
+                    type: string
+                  root:
+                    type: string
+                  type:
+                    type: string
+                  serviceCount:
+                    type: integer
+                  services:
+                    type: object
+                    additionalProperties:
+                      type: object
+                      properties:
+                        dir:
+                          type: string
+                        framework:
+                          type: string
+                        dev:
+                          type: string
+                        health:
+                          type: string
+                        preferredPort:
+                          type: integer
+                  suggestions:
+                    type: array
+                    items:
+                      type: string
+                  config:
+                    type: object
+                  saved:
+                    type: boolean
+                  savedPath:
+                    type: string
+                    nullable: true
+                  dryRun:
+                    type: boolean
+                  guidance:
+                    type: object
+                  existingConfig:
+                    type: object
+                    nullable: true
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /projects:
+    get:
+      tags: [projects]
+      summary: List all registered projects
+      operationId: listProjects
+      parameters:
+        - name: pattern
+          in: query
+          schema:
+            type: string
+          description: Filter by name pattern
+      responses:
+        '200':
+          description: List of projects
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  count:
+                    type: integer
+                  projects:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        root:
+                          type: string
+                        type:
+                          type: string
+                        serviceCount:
+                          type: integer
+                        lastScanned:
+                          type: string
+                        createdAt:
+                          type: string
+                        frameworks:
+                          type: array
+                          items:
+                            type: string
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /projects/{id}:
+    get:
+      tags: [projects]
+      summary: Get project details
+      operationId: getProject
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Project details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  project:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      root:
+                        type: string
+                      type:
+                        type: string
+                      config:
+                        type: object
+                      services:
+                        type: object
+                      lastScanned:
+                        type: string
+                      createdAt:
+                        type: string
+                      metadata:
+                        type: object
+        '404':
+          description: Project not found
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags: [projects]
+      summary: Remove a project
+      operationId: deleteProject
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Project removed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '404':
+          description: Project not found
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ===========================================================================
+  # CONFIG
+  # ===========================================================================
+  /config:
+    get:
+      tags: [config]
+      summary: Load resolved configuration
+      operationId: getConfig
+      parameters:
+        - name: dir
+          in: query
+          schema:
+            type: string
+          description: Directory to search for .portdaddyrc (defaults to cwd)
+      responses:
+        '200':
+          description: Resolved configuration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  config:
+                    type: object
+                  path:
+                    type: string
+        '400':
+          description: Failed to parse config
+        '404':
+          description: No .portdaddyrc found
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  parameters:
+    XAgentId:
+      name: x-agent-id
+      in: header
+      schema:
+        type: string
+      description: Agent identifier for resource tracking
+
+    XPid:
+      name: x-pid
+      in: header
+      schema:
+        type: integer
+      description: Process ID of the calling process
+
+  schemas:
+    Service:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Semantic identity (project:stack:context)
+        port:
+          type: integer
+        pid:
+          type: integer
+          nullable: true
+        cmd:
+          type: string
+          nullable: true
+        cwd:
+          type: string
+          nullable: true
+        createdAt:
+          type: integer
+          description: Unix timestamp
+        lastSeen:
+          type: integer
+          description: Unix timestamp
+        metadata:
+          type: object
+          nullable: true
+
+    Session:
+      type: object
+      properties:
+        id:
+          type: string
+        purpose:
+          type: string
+        status:
+          type: string
+          enum: [active, completed, abandoned]
+        agentId:
+          type: string
+          nullable: true
+        phase:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+        endedAt:
+          type: string
+          nullable: true
+        metadata:
+          type: object
+          nullable: true
+
+    Note:
+      type: object
+      properties:
+        id:
+          type: integer
+        sessionId:
+          type: string
+        content:
+          type: string
+        type:
+          type: string
+        createdAt:
+          type: string
+
+    StaleAgent:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        purpose:
+          type: string
+          nullable: true
+        sessionId:
+          type: string
+          nullable: true
+        lastHeartbeat:
+          type: integer
+        staleSince:
+          type: integer
+        status:
+          type: string
+          enum: [stale, dead, resurrecting]
+        identityProject:
+          type: string
+          nullable: true
+        identityStack:
+          type: string
+          nullable: true
+        identityContext:
+          type: string
+          nullable: true
+
+    InboxMessage:
+      type: object
+      properties:
+        id:
+          type: integer
+        agentId:
+          type: string
+        from:
+          type: string
+          nullable: true
+        content:
+          type: string
+        type:
+          type: string
+        read:
+          type: boolean
+        createdAt:
+          type: integer
+
+  responses:
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              code:
+                type: string
+                example: VALIDATION_ERROR
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: internal server error
