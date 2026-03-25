@@ -55,7 +55,7 @@ export function CTABanner() {
             className="px-16 py-8 rounded-full bg-[var(--brand-primary)] text-[var(--bg-base)] font-black text-2xl shadow-[0_32px_64px_rgba(58,173,173,0.3)] flex items-center gap-4 transition-all"
             whileHover={{ scale: 1.05, y: -6, boxShadow: '0 40px 80px rgba(58,173,173,0.4)' }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => window.open('https://github.com/erichowens/port-daddy', '_blank')}
+            onClick={() => window.open('https://github.com/curiositech/port-daddy', '_blank')}
           >
             <Github size={28} />
             STAR ON GITHUB

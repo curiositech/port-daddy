@@ -86,7 +86,7 @@ If you want to geek out on the actual proof files, they're sitting in the /analy
 ### Further Reading
 * [Official ProVerif Documentation](https://proverif.inria.fr/)
 * [RFC 8032: EdDSA signatures](https://tools.ietf.org/html/rfc8032)
-* [The Anchor Formal Report](https://github.com/erichowens/port-daddy/blob/main/docs/reports/FORMAL_VERIFICATION_ANCHOR_V3.md)
+* [The Anchor Formal Report](https://github.com/curiositech/port-daddy/blob/main/docs/reports/FORMAL_VERIFICATION_ANCHOR_V3.md)
     `
   }
 ];

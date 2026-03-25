@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
 import { Link } from 'react-router-dom'
-import { Clock, Play, Zap, Shield, Globe, Sparkles, Anchor, Share2, Layers, Cpu, Search, RefreshCw, Box, Activity as ActivityIcon, History, Network, Mail } from 'lucide-react'
+import { Clock, Play, Zap, Shield, Globe, Sparkles, Anchor, Share2, Cpu, Search, RefreshCw, Box, Activity as ActivityIcon, History, Network, Mail } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
 
 interface Tutorial {
@@ -95,19 +95,8 @@ const TUTORIALS: Tutorial[] = [
     icon: History
   },
   {
-    slug: 'pipelines',
-    number: '08',
-    title: 'Reactive Pipelines',
-    description: 'Turn your harbor into an event-driven DAG. Auto-spawn agents based on swarm signals.',
-    level: 'advanced',
-    time: '12 min',
-    tags: ['DAG', 'Automation', 'Signals'],
-    href: '/tutorials/pipelines',
-    icon: Layers
-  },
-  {
     slug: 'dashboard',
-    number: '09',
+    number: '08',
     title: 'Visual Control Plane',
     description: 'Visualize your swarm. Live network graphs, lock contention, and real-time telemetry.',
     level: 'beginner',
@@ -118,7 +107,7 @@ const TUTORIALS: Tutorial[] = [
   },
   {
     slug: 'dns',
-    number: '10',
+    number: '09',
     title: 'Identity Discovery',
     description: 'Resolve services by semantic hostname instead of port numbers with zero configuration.',
     level: 'intermediate',
@@ -129,7 +118,7 @@ const TUTORIALS: Tutorial[] = [
   },
   {
     slug: 'inbox',
-    number: '11',
+    number: '10',
     title: 'Agent Inboxes',
     description: 'Direct agent-to-agent messaging with structured payloads and real-time streams.',
     level: 'intermediate',
@@ -140,7 +129,7 @@ const TUTORIALS: Tutorial[] = [
   },
   {
     slug: 'spawn',
-    number: '12',
+    number: '11',
     title: 'Swarm Bootstrapping',
     description: 'Launch agent fleets with Port Daddy coordination auto-wired. Heartbeats included.',
     level: 'advanced',
@@ -151,7 +140,7 @@ const TUTORIALS: Tutorial[] = [
   },
   {
     slug: 'always-on',
-    number: '13',
+    number: '12',
     title: 'Always-On Avatars',
     description: 'Deploy persistent background processes that respond to global signals 24/7.',
     level: 'intermediate',
@@ -162,7 +151,7 @@ const TUTORIALS: Tutorial[] = [
   },
   {
     slug: 'session-phases',
-    number: '14',
+    number: '13',
     title: 'The State Machine',
     description: 'Drive agents through planning -> coding -> reviewing with phase-aware handoffs.',
     level: 'advanced',
@@ -173,7 +162,7 @@ const TUTORIALS: Tutorial[] = [
   },
   {
     slug: 'sugar',
-    number: '15',
+    number: '14',
     title: 'Sugar Commands',
     description: 'Learn the high-level wrappers that make coordination invisible and friction-free.',
     level: 'beginner',
@@ -181,17 +170,6 @@ const TUTORIALS: Tutorial[] = [
     tags: ['CLI', 'Productivity', 'UX'],
     href: '/tutorials/sugar',
     icon: Zap
-  },
-  {
-    slug: 'remote-harbors',
-    number: '16',
-    title: 'Multiplayer Localhost',
-    description: 'Link remote agent clusters and GPU-powered harbors across the global mesh.',
-    level: 'advanced',
-    time: '15 min',
-    tags: ['Mesh', 'Global', 'GPU'],
-    href: '/tutorials/remote-harbors',
-    icon: Globe
   }
 ]
 

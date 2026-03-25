@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
-import { Sparkles, Shield, RefreshCw, DollarSign, Database, Terminal, Layers, Anchor, Zap, Globe } from 'lucide-react'
+import { Sparkles, Shield, Terminal, Layers, Anchor, Zap, Globe, Radio, Users, Search } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
 
 interface Example {
@@ -17,125 +17,137 @@ interface Example {
 
 const EXAMPLES: Example[] = [
   {
-    id: 'langchain-discovery',
-    title: 'LangChain Tool Discovery',
-    category: 'Integrations',
+    id: 'multi-agent-coordination',
+    title: 'Multi-Agent Coordination',
+    category: 'Sessions',
     difficulty: 'Beginner',
-    description: 'Wrap your agents in a Port Daddy lighthouse so they can find each other via semantic DNS instead of fragile, hardcoded ports.',
+    description: 'Register agents, claim files, and use sessions to coordinate work across multiple AI agents on the same project.',
     what: [
-      'Agent A claims identity swarm:analyst',
-      'LangChain Tool resolves address via pd dns',
-      'Zero reconfiguration if service moves ports',
-      'Works across local and remote harbors'
+      'Register agents with semantic identities',
+      'Claim files to prevent edit conflicts',
+      'Session notes create an immutable audit trail',
+      'Salvage picks up where crashed agents left off'
     ],
     code: [
-      '# Agent A: Claim identity',
-      'pd claim swarm:analyst',
+      '# Start a coordinated session',
+      'pd begin --identity myapp:api --purpose "Build auth"',
       '',
-      '# Agent B: Discover via DNS',
-      'curl http://$(pd dns resolve swarm:analyst)/health',
+      '# Claim files you are working on',
+      'pd session files claim src/auth.ts src/routes.ts',
       '',
-      '# Response:',
-      '{"status": "online", "port": 3102}'
+      '# Leave notes for other agents',
+      'pd note "Added JWT validation middleware"',
+      '',
+      '# End session when done',
+      'pd done'
     ],
-    icon: Sparkles,
+    icon: Users,
     color: 'var(--p-teal-400)'
   },
   {
-    id: 'crewai-harbors',
-    title: 'Secure CrewAI Harbors',
-    category: 'Security',
+    id: 'pub-sub-signaling',
+    title: 'Pub/Sub Swarm Radio',
+    category: 'Messaging',
     difficulty: 'Intermediate',
-    description: 'Enforce cryptographic boundaries for your CrewAI members. Each agent gets a scoped token that strictly limits their system access.',
-     what: [
-      'Create a harbor with specific capabilities',
-      'Issue HMAC-signed JWTs to crew members',
-      'Daemon rejects unauthorized file/port claims',
-      'Auto-expiry prevents permission rot'
+    description: 'Use named radio channels for real-time inter-agent signaling. Publish events and subscribe to triggers across your swarm.',
+    what: [
+      'Publish structured messages to named channels',
+      'Subscribe via SSE for real-time delivery',
+      'pd watch triggers scripts on new messages',
+      'Channels are ephemeral and low-overhead'
     ],
     code: [
-      '# Create harbor for coding crew',
-      'pd harbor create my-crew:coding \\',
-      '  --cap "code:write,file:claim" \\',
-      '  --ttl 1h',
+      '# Publish a build result',
+      'pd pub build-results "tests passed, 42/42"',
       '',
-      '# Members enter harbor to get tokens',
-      'pd harbor enter my-crew:coding',
-      '# → [pd] Identity Verified. Token Issued.'
+      '# Watch channel and trigger script',
+      'pd watch build-results --exec "./deploy.sh"',
+      '',
+      '# Subscribe via SSE (programmatic)',
+      'curl -N http://localhost:9876/subscribe/build-results'
     ],
-    icon: Shield,
+    icon: Radio,
     color: 'var(--p-amber-400)'
   },
   {
-    id: 'self-healing-infra',
-    title: 'Self-Healing Infra Swarm',
-    category: 'Resilience',
+    id: 'spawn-agent-fleet',
+    title: 'Spawn Agent Fleets',
+    category: 'Orchestration',
     difficulty: 'Advanced',
-    description: 'Orchestrate background agents that monitor infrastructure and automatically salvage work from crashed processes.',
+    description: 'Launch AI agent fleets with Port Daddy coordination auto-wired. Sessions, heartbeats, notes, and salvage are all automatic.',
     what: [
-      'Persistent "Avatar" agents live in harbors',
-      'Crashes trigger automatic work escrow',
-      'Resurrection queue preserves session state',
-      'Swarm Radio signals replacement spawns'
+      'Spawn Ollama, Claude, Gemini, or Aider agents',
+      'Coordination (sessions, heartbeats) auto-wired',
+      'List and kill spawned agents from the CLI',
+      'Dead agents enter the salvage queue automatically'
     ],
     code: [
-      '# Spawn always-on avatar',
-      'pd spawn --avatar --identity infra:monitor',
+      '# Spawn an Ollama agent with coordination',
+      'pd spawn --backend ollama --model llama3.2:8b \\',
+      '  --identity myapp:coder -- "Fix the login bug"',
       '',
-      '# Watch for crash events',
-      'pd watch swarm:events \\',
-      '  --filter "type == agent_crash" \\',
-      '  --exec "./scripts/respawn.sh"',
+      '# List running agents',
+      'pd spawned',
+      '',
+      '# Check for dead agents to salvage',
+      'pd salvage --project myapp'
     ],
-    icon: RefreshCw,
+    icon: Sparkles,
     color: 'var(--p-blue-400)'
   },
   {
-    id: 'manifest-payment',
-    title: 'Harbor Manifest (Escrow)',
-    category: 'Economics',
-    difficulty: 'Advanced',
-    description: 'Use the Manifest/Float protocol to ensure agents commit work before getting paid or unlocking down-stream resources.',
+    id: 'semantic-discovery',
+    title: 'Semantic DNS Discovery',
+    category: 'Discovery',
+    difficulty: 'Beginner',
+    description: 'Claim semantic identities and resolve services by name instead of port number. No more hardcoding localhost:3000.',
     what: [
-      'Agent commits a "Work Manifest" to harbor',
-      'Harbor card locks until work is verified',
-      'Tokens released upon successful PR merge',
-      'Escrowed state prevents double-spending'
+      'Deterministic port hashing from identity strings',
+      'DNS resolution by semantic name',
+      'Zero reconfiguration when ports change',
+      'Works with pd claim or pd begin'
     ],
     code: [
-      '# Submit work manifest',
-      'pd session commit --manifest ./work.json \\',
-      '  --escrow-id "pay_8f2a"',
+      '# Claim a semantic identity',
+      'pd claim myapp:api',
+      '# → Port 3847 assigned to myapp:api',
       '',
-      '# Harbor verifies and releases',
-      'pd harbor release pay_8f2a --verified',
-      '# → [pd] Escrow released. Session Closed.'
+      '# Resolve from another agent',
+      'pd find myapp:api',
+      '# → {"port": 3847, "identity": "myapp:api"}',
+      '',
+      '# DNS lookup',
+      'pd dns resolve myapp:api'
     ],
-    icon: DollarSign,
+    icon: Search,
     color: 'var(--p-green-400)'
   },
   {
-    id: 'distributed-memory',
-    title: 'Shared Embedding Memory',
-    category: 'Data',
+    id: 'distributed-locks',
+    title: 'Distributed Locks',
+    category: 'Coordination',
     difficulty: 'Intermediate',
-    description: 'Provide a global K/V store for your swarm, optimized for vector embeddings and shared context across agent families.',
+    description: 'Use advisory locks to prevent concurrent access to shared resources. TTL-based auto-expiry prevents deadlocks from crashed agents.',
     what: [
-      'Agents store context via pd memory',
-      'Shared vector embeddings for RAG',
-      'Locks prevent concurrent memory writes',
-      'Timeline audit of all state changes'
+      'Acquire named locks with configurable TTL',
+      'Locks auto-expire to prevent deadlocks',
+      'Extend TTL while holding the lock',
+      'pd with-lock wraps any command safely'
     ],
     code: [
-      '# Store shared context',
-      'pd memory store swarm:context \\',
-      '  --value "current_goal: refactor_auth"',
+      '# Acquire a lock with 60s TTL',
+      'pd lock db-migration --ttl 60000',
       '',
-      '# Retrieve from another agent',
-      'pd memory get swarm:context',
-      '# → "current_goal: refactor_auth"'
+      '# Run a command under lock (sugar)',
+      'pd with-lock db-migration -- npm run migrate',
+      '',
+      '# List active locks',
+      'pd locks',
+      '',
+      '# Release when done',
+      'pd unlock db-migration'
     ],
-    icon: Database,
+    icon: Shield,
     color: 'var(--p-purple-400)'
   }
 ]
@@ -174,7 +186,7 @@ export function ExamplesPage() {
              animate={{ opacity: 1, y: 0 }}
              transition={{ duration: 0.8, delay: 0.1 }}
            >
-             Stop reinventing discovery. Use these production-grade coordination blueprints for LangChain, CrewAI, and beyond.
+             Stop reinventing coordination. Use these production-grade patterns for multi-agent orchestration, discovery, and resilience.
            </motion.p>
         </div>
       </motion.section>
