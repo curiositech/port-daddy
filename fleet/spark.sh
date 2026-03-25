@@ -61,7 +61,7 @@ OBSERVATION
 spark_research() {
   fleet_log "$AGENT_NAME" "RESEARCH"
 
-  fleet_check_claude "$AGENT_NAME" || { fleet_log "$AGENT_NAME" "skipping research (no claude)"; return 0; }
+  fleet_check_claude "$AGENT_NAME" || { fleet_log "$AGENT_NAME" "skipping research (no pd/claude)"; return 0; }
 
   local prev_ideas=$(fleet_glob "$IDEAS_DIR/*.md")
   local prev_content=""
@@ -69,13 +69,16 @@ spark_research() {
     prev_content=$(for f in ${(f)prev_ideas}; do head -5 "$f" 2>/dev/null; done | head -20)
   fi
 
-  local topic=$(claude -p "You are Spark, the idea engine for Port Daddy (a multi-agent coordination daemon). Based on this observation:
+  local topic=$(pd spawn --backend claude-cli \
+    --maxTokens 100 \
+    --timeout 120000 \
+    -q -- "You are Spark, the idea engine for Port Daddy (a multi-agent coordination daemon). Based on this observation:
 
 $(cat "$SPARK_DIR/latest-observation.md" 2>/dev/null)
 
 Previous ideas: ${prev_content:-(none)}
 
-Pick ONE research topic that would help Port Daddy leap forward. Output ONLY the topic as a single sentence." --max-tokens 100 2>/dev/null | head -1)
+Pick ONE research topic that would help Port Daddy leap forward. Output ONLY the topic as a single sentence." 2>/dev/null | head -1)
 
   if [[ -n "$topic" ]]; then
     fleet_log "$AGENT_NAME" "Research topic: $topic"
@@ -94,7 +97,7 @@ Pick ONE research topic that would help Port Daddy leap forward. Output ONLY the
 spark_synthesize() {
   fleet_log "$AGENT_NAME" "SYNTHESIZE"
 
-  fleet_check_claude "$AGENT_NAME" || { fleet_log "$AGENT_NAME" "skipping synthesis (no claude)"; return 0; }
+  fleet_check_claude "$AGENT_NAME" || { fleet_log "$AGENT_NAME" "skipping synthesis (no pd/claude)"; return 0; }
 
   local research_content=""
   local research_files=$(fleet_glob "$PROJECT_DIR/research/*.md")
@@ -108,7 +111,10 @@ spark_synthesize() {
     prev_content=$(for f in ${(f)idea_files}; do head -5 "$f" 2>/dev/null; done | head -20)
   fi
 
-  local idea=$(claude -p "You are Spark. Generate ONE bold idea for Port Daddy.
+  local idea=$(pd spawn --backend claude-cli \
+    --maxTokens 1500 \
+    --timeout 600000 \
+    -q -- "You are Spark. Generate ONE bold idea for Port Daddy.
 
 Observation: $(cat "$SPARK_DIR/latest-observation.md" 2>/dev/null | head -30)
 Research: ${research_content:-(none)}
@@ -125,7 +131,7 @@ Format:
 ## Effort
 [Small / Medium / Large]
 
-Be bold. Be specific. Be buildable." --max-tokens 1500 2>/dev/null)
+Be bold. Be specific. Be buildable." 2>/dev/null)
 
   if [[ -n "$idea" ]]; then
     local idea_name=$(echo "$idea" | grep "^# " | head -1 | sed 's/^# //')

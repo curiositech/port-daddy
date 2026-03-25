@@ -72,7 +72,10 @@ Output format:
 
 Be thorough but concise. Focus on actionable insights, not summaries."
 
-  local result=$(claude -p "$prompt" --allowedTools 'WebSearch,WebFetch,Read,Grep' 2>/dev/null)
+  local result=$(pd spawn --backend claude-cli \
+    --allowedTools 'WebSearch,WebFetch,Read,Grep' \
+    --timeout 600000 \
+    -q -- "$prompt" 2>/dev/null)
 
   if [[ -n "$result" ]]; then
     # Save findings as a note

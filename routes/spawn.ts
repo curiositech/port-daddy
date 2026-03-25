@@ -60,10 +60,10 @@ export function createSpawnRoutes(deps: SpawnRouteDeps): Router {
         });
       }
 
-      if (typeof task === 'string' && task.length > 1000) {
+      if (typeof task === 'string' && task.length > 100000) {
         return res.status(400).json({
           success: false,
-          error: 'task must not exceed 1000 characters',
+          error: 'task must not exceed 100000 characters',
           code: 'VALIDATION_ERROR',
         });
       }

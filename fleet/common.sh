@@ -42,10 +42,14 @@ fleet_preflight() {
 }
 
 fleet_check_claude() {
+  # Check pd first (preferred), then claude CLI as fallback
+  if command -v pd &> /dev/null; then
+    return 0
+  fi
   if ! command -v claude &> /dev/null; then
-    fleet_error "${1:-agent}" "claude CLI not in PATH — cannot run AI tasks"
-    pd_note "Fleet agent ${1:-agent} failed: claude CLI not in PATH" "error"
-    pd_pub "fleet:error" "{\"agent\":\"${1:-agent}\",\"error\":\"claude not in PATH\",\"timestamp\":$(date +%s)}"
+    fleet_error "${1:-agent}" "Neither pd nor claude CLI in PATH — cannot run AI tasks"
+    pd_note "Fleet agent ${1:-agent} failed: pd/claude not in PATH" "error"
+    pd_pub "fleet:error" "{\"agent\":\"${1:-agent}\",\"error\":\"pd/claude not in PATH\",\"timestamp\":$(date +%s)}"
     return 1
   fi
   return 0
@@ -185,7 +189,7 @@ fleet_glob() {
 }
 
 # ---------------------------------------------------------------------------
-# Claude Code helpers
+# Claude Code helpers — dogfood pd spawn for full PD coordination
 # ---------------------------------------------------------------------------
 claude_run() {
   local prompt="$1"
@@ -193,7 +197,11 @@ claude_run() {
 
   fleet_check_claude "claude_run" || return 1
 
-  claude -p "$prompt" --cwd "$work_dir" --allowedTools 'Read,Glob,Grep,Bash(git*),Bash(npm*),Write,Edit' 2>/dev/null
+  pd spawn --backend claude-cli \
+    --allowedTools 'Read,Glob,Grep,Bash(git*),Bash(npm*),Write,Edit' \
+    --workdir "$work_dir" \
+    --timeout 600000 \
+    -q -- "$prompt"
 }
 
 claude_run_worktree() {
@@ -207,7 +215,11 @@ claude_run_worktree() {
     git -C "$PROJECT_DIR" worktree add "$wt_dir" HEAD --detach 2>/dev/null
   fi
 
-  claude -p "$prompt" --cwd "$wt_dir" --allowedTools 'Read,Glob,Grep,Bash(git*),Bash(npm*),Bash(node*),Bash(cat*),Bash(ls*),Bash(wc*),Write,Edit' 2>/dev/null
+  pd spawn --backend claude-cli \
+    --allowedTools 'Read,Glob,Grep,Bash(git*),Bash(npm*),Bash(node*),Bash(cat*),Bash(ls*),Bash(wc*),Write,Edit' \
+    --workdir "$wt_dir" \
+    --timeout 600000 \
+    -q -- "$prompt" > /dev/null
 
   local exit_code=$?
 
