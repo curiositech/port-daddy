@@ -31,19 +31,20 @@ export function RoadmapPage() {
   ];
 
   return (
-    <div className="min-h-screen pt-32 pb-24 bg-[var(--bg-base)]">
+    <div className="min-h-screen pt-32 pb-24" style={{ background: 'var(--surface-base)' }}>
       <div className="max-w-5xl mx-auto px-6 lg:px-8">
         <header className="mb-24 text-center max-w-3xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[var(--bg-overlay)] border border-[var(--border-subtle)] mb-8"
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-8"
+            style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
           >
             <Cpu size={14} className="text-[var(--brand-primary)]" />
             <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 text-[var(--text-primary)]">Roadmap to v4.0</span>
           </motion.div>
-          
-          <motion.h1 
+
+          <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
@@ -51,8 +52,8 @@ export function RoadmapPage() {
           >
             The Future of <span className="text-[var(--brand-primary)]">Agentic Trust.</span>
           </motion.h1>
-          
-          <motion.p 
+
+          <motion.p
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
@@ -70,9 +71,13 @@ export function RoadmapPage() {
               whileInView={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.1 }}
               viewport={{ once: true }}
-              className="group p-10 rounded-[40px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--brand-primary)] transition-all flex flex-col md:flex-row gap-10 items-start"
+              className="group p-10 rounded-2xl transition-all flex flex-col md:flex-row gap-10 items-start"
+              style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
             >
-              <div className="p-6 rounded-3xl bg-[var(--bg-overlay)] border border-[var(--border-subtle)] group-hover:scale-110 transition-transform">
+              <div
+                className="p-6 rounded-2xl group-hover:scale-110 transition-transform"
+                style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
+              >
                 {phase.icon}
               </div>
               <div className="flex-1 space-y-4">
@@ -85,23 +90,52 @@ export function RoadmapPage() {
                 <p className="text-xl text-[var(--text-secondary)] leading-relaxed max-w-2xl">
                   {phase.description}
                 </p>
+                {/* Progress indicator with inset track */}
+                <div
+                  className="h-2 w-full rounded-full overflow-hidden"
+                  style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-pressed)' }}
+                >
+                  <motion.div
+                    className="h-full rounded-full"
+                    style={{
+                      background: phase.status === 'shipped' ? 'var(--brand-primary)' : phase.status === 'active' ? 'var(--brand-accent)' : 'var(--text-muted)',
+                      width: phase.status === 'shipped' ? '100%' : phase.status === 'active' ? '60%' : phase.status === 'preview' ? '20%' : '5%'
+                    }}
+                    initial={{ width: 0 }}
+                    whileInView={{ width: phase.status === 'shipped' ? '100%' : phase.status === 'active' ? '60%' : phase.status === 'preview' ? '20%' : '5%' }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 1, delay: i * 0.15 }}
+                  />
+                </div>
               </div>
             </motion.div>
           ))}
         </div>
 
-        <motion.footer 
+        {/* Timeline connector */}
+        <div className="flex justify-center my-8">
+          <div className="w-[2px] h-16" style={{ background: 'var(--brand-accent)' }} />
+        </div>
+
+        <motion.footer
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
-          className="mt-32 p-16 rounded-[60px] bg-gradient-to-br from-[var(--bg-overlay)] to-transparent border border-[var(--border-subtle)] text-center space-y-8"
+          className="p-16 rounded-2xl text-center space-y-8"
+          style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
         >
           <h3 className="text-4xl font-display font-black text-[var(--text-primary)]">Ready to Build the Swarm?</h3>
           <p className="text-lg text-[var(--text-secondary)] max-w-xl mx-auto">
             Our formal verification models and Rust core are open source. Dive into the math and help us define the Anchor Protocol.
           </p>
           <div className="flex justify-center gap-4">
-            <Badge variant="neutral" className="px-6 py-2 cursor-pointer hover:bg-[var(--interactive-hover)]">GitHub</Badge>
-            <Badge variant="teal" className="px-6 py-2 cursor-pointer">Documentation</Badge>
+            <span
+              className="px-6 py-2 rounded-xl cursor-pointer text-sm font-bold text-[var(--text-primary)]"
+              style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-sm)' }}
+            >GitHub</span>
+            <span
+              className="px-6 py-2 rounded-xl cursor-pointer text-sm font-bold text-[var(--text-inverse)]"
+              style={{ background: 'var(--brand-primary)', boxShadow: 'var(--shadow-sm)' }}
+            >Documentation</span>
           </div>
         </motion.footer>
       </div>

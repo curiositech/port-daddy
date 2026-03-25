@@ -20,7 +20,10 @@ export function Harbors() {
         {/* Concept Section */}
         <section className="space-y-6">
           <motion.div className="flex items-center gap-4 mb-8">
-            <motion.div className="w-12 h-12 rounded-2xl bg-[var(--interactive-active)] flex items-center justify-center border border-[var(--brand-primary)]">
+            <motion.div
+              className="w-12 h-12 rounded-2xl flex items-center justify-center"
+              style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
+            >
               <Shield className="text-[var(--brand-primary)]" size={24} />
             </motion.div>
             <motion.h2 className="m-0">The Security Pivot</motion.h2>
@@ -28,7 +31,10 @@ export function Harbors() {
           <motion.p>
             Standard multi-agent frameworks often run with the full permissions of the host user. This is a massive security risk. **Harbors** are Port Daddy's solution: named workspaces that enforce strict capability boundaries.
           </motion.p>
-          <blockquote className="bg-[var(--bg-surface)] p-10 rounded-[32px] border-l-8 border-[var(--p-teal-500)]">
+          <blockquote
+            className="p-10 rounded-2xl border-l-8 border-[var(--p-teal-500)]"
+            style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
+          >
              <motion.p className="font-bold text-[var(--text-primary)] m-0 mb-4 text-2xl font-display">Soundness by Design:</motion.p>
              <motion.p className="m-0 text-lg">
                In Port Daddy v3.7, every harbor operation is verified against a mathematical state machine. If an agent tries to claim a port it doesn't own, the daemon rejects the request instantly.
@@ -39,12 +45,15 @@ export function Harbors() {
         {/* Step 1: Creation */}
         <section className="space-y-8">
           <motion.div className="flex items-center gap-4">
-            <motion.div className="w-12 h-12 rounded-2xl bg-[var(--interactive-active)] flex items-center justify-center border border-[var(--p-amber-400)]">
+            <motion.div
+              className="w-12 h-12 rounded-2xl flex items-center justify-center"
+              style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
+            >
               <Lock className="text-[var(--p-amber-400)]" size={24} />
             </motion.div>
             <motion.h2 className="m-0">1. Define the Boundary</motion.h2>
           </motion.div>
-          
+
           <motion.p>
             Create a harbor named <code>security-review</code>. We will grant it the ability to read code and write notes, but nothing else.
           </motion.p>
@@ -56,11 +65,17 @@ export function Harbors() {
           </CodeBlock>
 
           <motion.div className="grid sm:grid-cols-2 gap-6">
-             <motion.div className="p-8 rounded-[32px] bg-[var(--bg-overlay)] border border-[var(--border-subtle)] space-y-4">
+             <motion.div
+               className="p-8 rounded-2xl space-y-4"
+               style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
+             >
                 <Badge variant="teal">Capability: code:read</Badge>
                 <motion.p className="text-sm opacity-60 m-0 leading-relaxed text-[var(--text-secondary)]">Allows the agent to use <code>pd session files claim</code> to access source files.</motion.p>
              </motion.div>
-             <motion.div className="p-8 rounded-[32px] bg-[var(--bg-overlay)] border border-[var(--border-subtle)] space-y-4">
+             <motion.div
+               className="p-8 rounded-2xl space-y-4"
+               style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
+             >
                 <Badge variant="amber">Capability: notes:write</Badge>
                 <motion.p className="text-sm opacity-60 m-0 leading-relaxed text-[var(--text-secondary)]">Allows the agent to post status updates to the global session timeline.</motion.p>
              </motion.div>
@@ -70,14 +85,17 @@ export function Harbors() {
         {/* Step 2: Entrance */}
         <section className="space-y-8">
           <motion.div className="flex items-center gap-4">
-            <motion.div className="w-12 h-12 rounded-2xl bg-[var(--interactive-active)] flex items-center justify-center border border-[var(--p-blue-400)]">
+            <motion.div
+              className="w-12 h-12 rounded-2xl flex items-center justify-center"
+              style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
+            >
               <Key className="text-[var(--p-blue-400)]" size={24} />
             </motion.div>
             <motion.h2 className="m-0">2. Enter & Authenticate</motion.h2>
           </motion.div>
 
           <motion.p>
-            When an agent enters a harbor, the daemon issues a unique **Harbor Card**—an HMAC-signed JWT that proves the agent's identity and permissions.
+            When an agent enters a harbor, the daemon issues a unique **Harbor Card**--an HMAC-signed JWT that proves the agent's identity and permissions.
           </motion.p>
 
           <CodeBlock language="bash">
@@ -90,8 +108,9 @@ export function Harbors() {
         </section>
 
         {/* The Formal Verification Note */}
-        <motion.div 
-          className="p-16 rounded-[60px] border border-dashed border-[var(--brand-primary)] bg-[var(--bg-overlay)] flex flex-col items-center text-center gap-8 relative overflow-hidden"
+        <motion.div
+          className="p-16 rounded-2xl flex flex-col items-center text-center gap-8 relative overflow-hidden"
+          style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
           whileHover={{ scale: 1.01 }}
         >
            <motion.div className="absolute top-0 right-0 p-10 opacity-[0.03] pointer-events-none">
