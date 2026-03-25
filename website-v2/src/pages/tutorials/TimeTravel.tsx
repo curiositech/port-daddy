@@ -14,7 +14,7 @@ export function TimeTravel() {
       level="Intermediate"
       readTime="8 min read"
       prev={{ title: 'P2P Tunnels', href: '/tutorials/tunnel' }}
-      next={{ title: 'Reactive Pipelines', href: '/tutorials/pipelines' }}
+      next={{ title: 'Visual Control Plane', href: '/tutorials/dashboard' }}
     >
       <motion.div className="space-y-16">
         {/* Concept Section */}

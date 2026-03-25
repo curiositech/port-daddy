@@ -58,9 +58,7 @@ createRoot(document.getElementById('root')!).render(
           <Route path="/tutorials/pd-spawn" element={<Tutorials.Spawn />} />
           <Route path="/tutorials/harbors" element={<Tutorials.Harbors />} />
           <Route path="/tutorials/dashboard" element={<Tutorials.Dashboard />} />
-          <Route path="/tutorials/pipelines" element={<Tutorials.Pipelines />} />
           <Route path="/tutorials/time-travel" element={<Tutorials.TimeTravel />} />
-          <Route path="/tutorials/remote-harbors" element={<Tutorials.RemoteHarbors />} />
 
           {/* Ecosystem */}
           <Route path="/cookbook" element={<CookbookPage />} />

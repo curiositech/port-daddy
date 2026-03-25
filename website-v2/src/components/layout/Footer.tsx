@@ -93,7 +93,7 @@ export function Footer() {
                </motion.p>
                
                <motion.div className="flex items-center gap-4">
-                  <a href="https://github.com/erichowens/port-daddy" target="_blank" className="w-10 h-10 rounded-full border border-[var(--border-subtle)] bg-[var(--bg-surface)] flex items-center justify-center hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)] transition-all">
+                  <a href="https://github.com/curiositech/port-daddy" target="_blank" className="w-10 h-10 rounded-full border border-[var(--border-subtle)] bg-[var(--bg-surface)] flex items-center justify-center hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)] transition-all">
                      <Github size={18} />
                   </a>
                   <a href="#" target="_blank" className="w-10 h-10 rounded-full border border-[var(--border-subtle)] bg-[var(--bg-surface)] flex items-center justify-center hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)] transition-all">

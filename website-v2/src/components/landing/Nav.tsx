@@ -76,7 +76,7 @@ export function Nav() {
             </motion.button>
 
             <motion.button
-              onClick={() => window.open('https://github.com/erichowens/port-daddy', '_blank')}
+              onClick={() => window.open('https://github.com/curiositech/port-daddy', '_blank')}
               className="p-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-overlay)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--brand-primary)] transition-all hidden sm:flex"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
