@@ -1406,14 +1406,14 @@ _port_daddy() {
           # shellcheck disable=SC2207
           COMPREPLY=( $(compgen -W "ollama claude claude-cli gemini aider custom" -- "$cur") )
           ;;
-        --model|--identity|--purpose|--workdir|--timeout)
+        --model|--identity|--purpose|--workdir|--timeout|--allowedTools|--maxTokens)
           COMPREPLY=()  # Free-form
           ;;
         --files)
           # shellcheck disable=SC2207
           COMPREPLY=( $(compgen -f -- "$cur") )
           ;;
-        *) _pd_opts '--backend --model --identity --purpose --files --workdir --timeout' ;;
+        *) _pd_opts '--backend --model --identity --purpose --files --workdir --timeout --allowedTools --maxTokens' ;;
       esac
       ;;
 

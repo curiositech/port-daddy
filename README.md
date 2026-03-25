@@ -149,8 +149,44 @@ pd activity    # Stream the raw audit trail of all operations
 
 ### Webhooks & Life Cycles
 - **Webhooks:** `pd webhooks` subscribe external systems to swarm events.
-- **Spawn:** `pd spawn` launch AI agents (Claude, Aider) with coordination baked in.
 - **Phases:** Track work via `planning`, `testing`, and `reviewing` session phases.
+
+### Spawn AI Agents
+Launch AI agents with full PD coordination (registration, sessions, heartbeats) baked in:
+```bash
+# Claude Code CLI (full agent with file editing tools)
+pd spawn --backend claude-cli --allowedTools 'Read,Write,Edit,Glob,Grep' -- "Fix the login bug in src/auth.ts"
+
+# Claude API (text in, text out — fast, no tools)
+pd spawn --backend claude -- "Explain what this function does"
+
+# Ollama (local LLM, default)
+pd spawn --backend ollama --model llama3.2:8b -- "Summarize the README"
+
+# List running/completed agents
+pd spawned
+
+# Kill a running agent
+pd spawn kill <agent-id>
+
+# Watch a channel and auto-trigger scripts
+pd watch git:committed --exec './fleet/qa-adversary.sh'
+```
+
+**Backends:** `ollama` (default), `claude` (API), `claude-cli` (full CLI), `gemini`, `aider`, `custom`
+
+**Key flags:** `--backend`, `--model`, `--identity`, `--purpose`, `--allowedTools` (claude-cli), `--maxTokens`, `--workdir`, `--timeout`
+
+Quiet mode (`-q`) prints raw output to stdout and exits non-zero on failure — perfect for shell scripts:
+```bash
+local result=$(pd spawn --backend claude-cli --maxTokens 100 -q -- "Write a commit message for: $diff")
+```
+
+### OpenAPI Specification
+Full API spec at `docs/openapi.yaml` (OpenAPI 3.1, 96 paths, 125 operations):
+```bash
+cat docs/openapi.yaml    # Machine-readable API contract
+```
 
 ### Agent Inboxes (SSE Watch)
 Every agent (or human) can stream their personal inbox live:
