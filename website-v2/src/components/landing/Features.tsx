@@ -25,7 +25,7 @@ const item = {
 
 export function Features() {
   return (
-    <section id="features" className="relative py-24 lg:py-32">
+    <section id="features" className="relative py-16 lg:py-20">
       <div className="max-w-[1200px] mx-auto px-6 lg:px-8">
         {/* Header */}
         <div className="max-w-2xl mb-16">
@@ -39,24 +39,6 @@ export function Features() {
             Nine primitives that turn a collection of scripts into a production-grade autonomous system. Each one is a single CLI command.
           </p>
         </div>
-
-        {/* Dashboard Screenshot */}
-        <motion.div
-          className="mb-16 rounded-2xl overflow-hidden"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.1 }}
-          style={{
-            boxShadow: 'var(--shadow-neu-raised)',
-          }}
-        >
-          <img
-            src="/img/dashboard-services.png"
-            alt="Port Daddy dashboard showing services, agents, and session coordination"
-            className="w-full h-auto block"
-            loading="lazy"
-          />
-        </motion.div>
 
         {/* Feature Grid */}
         <motion.div

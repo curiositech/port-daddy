@@ -1,34 +1,30 @@
-import * as React from 'react'
+import { forwardRef } from 'react'
 import { cva, type VariantProps } from 'class-variance-authority'
 import { Slot } from 'radix-ui'
-
 import { cn } from '@/lib/utils'
 
 const buttonVariants = cva(
-  'inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none cursor-pointer select-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=\'size-\'])]:size-4',
+  [
+    'inline-flex items-center justify-center gap-2',
+    'font-semibold cursor-pointer select-none whitespace-nowrap',
+    'transition-all duration-[200ms]',
+    'disabled:pointer-events-none disabled:opacity-50',
+    'focus-visible:outline-2 focus-visible:outline-offset-2',
+  ].join(' '),
   {
     variants: {
       variant: {
-        primary:
-          'bg-primary text-primary-foreground border border-primary/80 shadow-sm hover:bg-primary/90 font-semibold',
-        secondary:
-          'bg-secondary text-secondary-foreground hover:bg-secondary/80 font-medium',
-        ghost:
-          'bg-transparent text-muted-foreground border border-transparent hover:bg-accent hover:text-accent-foreground font-medium',
-        outline:
-          'bg-transparent text-primary border border-primary hover:bg-accent hover:text-accent-foreground font-semibold',
-        code:
-          'bg-muted text-foreground font-mono text-sm hover:bg-muted/80',
-        destructive:
-          'bg-destructive text-destructive-foreground hover:bg-destructive/90 font-semibold',
-        link:
-          'text-primary underline-offset-4 hover:underline',
+        primary: 'text-[var(--text-inverse)]',
+        secondary: 'text-[var(--text-primary)]',
+        ghost: 'text-[var(--text-muted)] hover:text-[var(--text-primary)]',
+        danger: 'text-[var(--text-inverse)]',
+        outline: 'text-[var(--text-primary)]',
       },
       size: {
-        sm: 'h-8 px-3 py-1.5 text-sm rounded-md',
-        md: 'h-9 px-4 py-2 text-base rounded-lg',
-        lg: 'h-10 px-6 py-3 text-lg rounded-xl',
-        icon: 'size-9',
+        sm: 'text-xs px-3 py-1 rounded-lg',
+        md: 'text-sm px-5 py-2 rounded-xl',
+        lg: 'text-sm px-6 py-2.5 rounded-xl',
+        icon: 'w-10 h-10 rounded-xl',
       },
     },
     defaultVariants: {
@@ -38,29 +34,60 @@ const buttonVariants = cva(
   }
 )
 
+const variantStyles: Record<string, {
+  base: React.CSSProperties
+  hover: React.CSSProperties
+}> = {
+  primary: {
+    base: { background: 'var(--brand-primary)', boxShadow: 'var(--shadow-sm)' },
+    hover: { boxShadow: 'var(--shadow-flat)' },
+  },
+  secondary: {
+    base: { background: 'var(--surface-raised)', boxShadow: 'var(--shadow-sm)' },
+    hover: { boxShadow: 'var(--shadow-flat)' },
+  },
+  ghost: {
+    base: { background: 'transparent' },
+    hover: { background: 'var(--interactive-hover)' },
+  },
+  danger: {
+    base: { background: 'var(--status-error)', boxShadow: 'var(--shadow-sm)' },
+    hover: { boxShadow: 'var(--shadow-flat)' },
+  },
+  outline: {
+    base: { background: 'transparent', border: '1px solid var(--border-default)' },
+    hover: { background: 'var(--interactive-hover)' },
+  },
+}
+
 interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean
 }
 
-function Button({
-  className,
-  variant = 'primary',
-  size = 'md',
-  asChild = false,
-  ...props
-}: ButtonProps) {
-  const Comp = asChild ? Slot.Root : 'button'
-
-  return (
-    <Comp
-      data-slot="button"
-      className={cn(buttonVariants({ variant, size, className }))}
-      {...props}
-    />
-  )
-}
+const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ variant = 'primary', size, asChild = false, className, style, ...props }, ref) => {
+    const Comp = asChild ? Slot.Root : 'button'
+    const v = variant ?? 'primary'
+    const styles = variantStyles[v]
+    return (
+      <Comp
+        ref={ref as React.Ref<HTMLButtonElement>}
+        className={cn(buttonVariants({ variant, size }), className)}
+        style={{ ...styles.base, ...style }}
+        onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => {
+          Object.assign(e.currentTarget.style, { ...styles.base, ...styles.hover })
+        }}
+        onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => {
+          Object.assign(e.currentTarget.style, styles.base)
+        }}
+        {...props}
+      />
+    )
+  }
+)
+Button.displayName = 'Button'
 
 export { Button, buttonVariants }
 export type { ButtonProps }
