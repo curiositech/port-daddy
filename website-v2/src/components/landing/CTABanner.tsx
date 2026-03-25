@@ -5,8 +5,9 @@ import { Github, Terminal, Sparkles, Anchor } from 'lucide-react'
 
 export function CTABanner() {
   return (
-    <motion.section 
-      className="py-20 px-6 sm:px-8 lg:px-10 relative overflow-hidden font-sans bg-[var(--bg-base)] flex flex-col items-center text-center"
+    <motion.section
+      className="py-20 px-6 sm:px-8 lg:px-10 relative overflow-hidden font-sans flex flex-col items-center text-center"
+      style={{ background: 'var(--surface-base)' }}
       initial={{ opacity: 0 }}
       whileInView={{ opacity: 1 }}
       viewport={{ once: true }}
@@ -29,20 +30,25 @@ export function CTABanner() {
         className="relative max-w-5xl mx-auto text-center flex flex-col items-center gap-8"
       >
         <motion.div className="flex flex-col items-center gap-6">
-           <Badge variant="teal" className="px-8 py-3 text-[10px] font-black uppercase tracking-[0.25em] shadow-xl">The Departure</Badge>
-           <motion.div 
-             className="w-24 h-24 rounded-[40px] bg-[var(--interactive-active)] flex items-center justify-center border border-[var(--brand-primary)] shadow-[0_0_48px_rgba(58,173,173,0.3)]"
+           <Badge variant="teal" className="px-8 py-3 text-[10px] font-black uppercase tracking-[0.25em]">The Departure</Badge>
+           {/* Anchor icon in inset circle */}
+           <motion.div
+             className="w-24 h-24 rounded-[40px] flex items-center justify-center"
+             style={{
+               background: 'var(--surface-base)',
+               boxShadow: 'var(--shadow-inset)',
+             }}
              animate={{ y: [0, -12, 0] }}
              transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
            >
-              <Anchor className="text-[var(--brand-primary)]" size={48} />
+              <Anchor style={{ color: 'var(--brand-primary)' }} size={48} />
            </motion.div>
         </motion.div>
 
         <motion.div className="space-y-6 flex flex-col items-center">
            <motion.h2 className="text-4xl sm:text-6xl font-display font-black tracking-tighter leading-[0.85] m-0" style={{ color: 'var(--text-primary)' }}>
              Your agents deserve a <br />
-             <motion.span className="text-[var(--brand-primary)]">harbormaster.</motion.span>
+             <motion.span style={{ color: 'var(--brand-primary)' }}>harbormaster.</motion.span>
            </motion.h2>
 
            <motion.p className="text-2xl sm:text-3xl max-w-3xl mx-auto leading-relaxed font-sans" style={{ color: 'var(--text-secondary)' }}>
@@ -51,31 +57,55 @@ export function CTABanner() {
         </motion.div>
 
         <motion.div className="flex flex-wrap gap-6 justify-center items-center pt-4">
-          <motion.button 
-            className="px-16 py-8 rounded-full bg-[var(--brand-primary)] text-[var(--bg-base)] font-black text-2xl shadow-[0_32px_64px_rgba(58,173,173,0.3)] flex items-center gap-4 transition-all"
-            whileHover={{ scale: 1.05, y: -6, boxShadow: '0 40px 80px rgba(58,173,173,0.4)' }}
-            whileTap={{ scale: 0.95 }}
+          {/* Primary CTA button with neumorphic shadow */}
+          <motion.button
+            className="px-16 py-8 rounded-full font-black text-2xl flex items-center gap-4 transition-all"
+            style={{
+              background: 'var(--brand-primary)',
+              color: 'var(--text-inverse)',
+              boxShadow: 'var(--shadow-sm)',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+            whileHover={{ scale: 1.05, y: -6, boxShadow: 'var(--shadow-raised)' }}
+            whileTap={{ scale: 0.95, boxShadow: 'var(--shadow-pressed)' }}
             onClick={() => window.open('https://github.com/erichowens/port-daddy', '_blank')}
           >
             <Github size={28} />
             STAR ON GITHUB
           </motion.button>
-          
+
+          {/* Secondary CTA button */}
           <Link to="/tutorials/getting-started" className="no-underline">
-            <motion.button 
-              className="px-16 py-8 rounded-full bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border-strong)] font-black text-2xl flex items-center gap-4 transition-all shadow-xl"
-              whileHover={{ scale: 1.05, y: -6, background: 'var(--interactive-hover)' }}
-              whileTap={{ scale: 0.95 }}
+            <motion.button
+              className="px-16 py-8 rounded-full font-black text-2xl flex items-center gap-4 transition-all"
+              style={{
+                background: 'var(--surface-raised)',
+                color: 'var(--text-primary)',
+                boxShadow: 'var(--shadow-sm)',
+                border: 'none',
+                cursor: 'pointer',
+              }}
+              whileHover={{ scale: 1.05, y: -6, boxShadow: 'var(--shadow-flat)' }}
+              whileTap={{ scale: 0.95, boxShadow: 'var(--shadow-pressed)' }}
             >
-              <Sparkles size={28} className="text-[var(--p-amber-400)]" />
+              <Sparkles size={28} style={{ color: 'var(--brand-accent)' }} />
               LEARN THE PROTOCOL
             </motion.button>
           </Link>
         </motion.div>
 
         <motion.div className="pt-16 flex flex-col items-center gap-6">
-           <motion.div className="flex items-center gap-4 px-8 py-4 rounded-full bg-[var(--bg-overlay)] border border-[var(--border-subtle)] font-mono text-xs font-black uppercase tracking-widest shadow-lg" style={{ color: 'var(--text-muted)' }}>
-              <Terminal size={18} className="text-[var(--brand-primary)]" />
+           {/* Install command in inset terminal */}
+           <motion.div
+             className="flex items-center gap-4 px-8 py-4 rounded-full font-mono text-xs font-black uppercase tracking-widest"
+             style={{
+               background: 'var(--code-bg)',
+               boxShadow: 'var(--shadow-inset)',
+               color: 'var(--text-muted)',
+             }}
+           >
+              <Terminal size={18} style={{ color: 'var(--brand-primary)' }} />
               brew install erichowens/port-daddy
            </motion.div>
            <motion.p className="text-[10px] font-black uppercase tracking-[0.3em] m-0" style={{ color: 'var(--text-muted)', opacity: 0.5 }}>Free · Open Source · MIT License</motion.p>
