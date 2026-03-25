@@ -969,6 +969,153 @@ describe('spawn — agent IDs', () => {
 });
 
 // =============================================================================
+// spawn — claude-cli backend
+// =============================================================================
+
+describe('spawn — claude-cli backend', () => {
+  test('spawns claude CLI with -p flag and task', async () => {
+    const spawner = createSpawner();
+    resolveChildProcess(0, 'Claude output here');
+
+    const result = await spawner.spawn({
+      backend: 'claude-cli',
+      task: 'Write a hello world program',
+    });
+
+    expect(result.status).toBe('completed');
+    expect(result.output).toContain('Claude output here');
+    expect(result.backend).toBe('claude-cli');
+    expect(cpSpawn).toHaveBeenCalledWith(
+      'claude',
+      ['-p', 'Write a hello world program'],
+      expect.objectContaining({
+        timeout: 300000,
+      })
+    );
+  });
+
+  test('passes --allowedTools when specified', async () => {
+    const spawner = createSpawner();
+    resolveChildProcess(0, 'done');
+
+    await spawner.spawn({
+      backend: 'claude-cli',
+      task: 'Fix the bug',
+      allowedTools: 'Read,Glob,Grep,Bash(git*),Write,Edit',
+    });
+
+    const args = cpSpawn.mock.calls[0][1];
+    expect(args).toContain('--allowedTools');
+    expect(args).toContain('Read,Glob,Grep,Bash(git*),Write,Edit');
+  });
+
+  test('passes --cwd when workdir specified', async () => {
+    const spawner = createSpawner();
+    resolveChildProcess(0, 'done');
+
+    await spawner.spawn({
+      backend: 'claude-cli',
+      task: 'Read files',
+      workdir: '/tmp/my-project',
+    });
+
+    const args = cpSpawn.mock.calls[0][1];
+    expect(args).toContain('--cwd');
+    expect(args).toContain('/tmp/my-project');
+    expect(cpSpawn.mock.calls[0][2].cwd).toBe('/tmp/my-project');
+  });
+
+  test('passes --max-tokens when maxTokens specified', async () => {
+    const spawner = createSpawner();
+    resolveChildProcess(0, 'short response');
+
+    await spawner.spawn({
+      backend: 'claude-cli',
+      task: 'Generate a one-liner',
+      maxTokens: 100,
+    });
+
+    const args = cpSpawn.mock.calls[0][1];
+    expect(args).toContain('--max-tokens');
+    expect(args).toContain('100');
+  });
+
+  test('passes all options together', async () => {
+    const spawner = createSpawner();
+    resolveChildProcess(0, 'full output');
+
+    await spawner.spawn({
+      backend: 'claude-cli',
+      task: 'Do everything',
+      workdir: '/tmp/test',
+      allowedTools: 'Read,Write',
+      maxTokens: 500,
+    });
+
+    const args = cpSpawn.mock.calls[0][1];
+    expect(args).toEqual([
+      '-p', 'Do everything',
+      '--allowedTools', 'Read,Write',
+      '--cwd', '/tmp/test',
+      '--max-tokens', '500',
+    ]);
+  });
+
+  test('handles non-zero exit code', async () => {
+    const spawner = createSpawner();
+    resolveChildProcess(1, '', 'claude error output');
+
+    const result = await spawner.spawn({
+      backend: 'claude-cli',
+      task: 'bad task',
+    });
+
+    expect(result.status).toBe('failed');
+    expect(result.error).toContain('claude error output');
+  });
+
+  test('handles claude not in PATH', async () => {
+    const spawner = createSpawner();
+    rejectChildProcess('spawn claude ENOENT');
+
+    const result = await spawner.spawn({
+      backend: 'claude-cli',
+      task: 'test',
+    });
+
+    expect(result.status).toBe('failed');
+    expect(result.error).toContain('Failed to start claude CLI');
+    expect(result.error).toContain('ENOENT');
+  });
+
+  test('defaults model to claude-cli', async () => {
+    const spawner = createSpawner();
+    resolveChildProcess(0, 'ok');
+
+    const result = await spawner.spawn({
+      backend: 'claude-cli',
+      task: 'test',
+    });
+
+    expect(result.model).toBe('claude-cli');
+  });
+
+  test('passes custom env variables', async () => {
+    const spawner = createSpawner();
+    resolveChildProcess(0, 'done');
+
+    await spawner.spawn({
+      backend: 'claude-cli',
+      task: 'test',
+      env: { ANTHROPIC_API_KEY: 'sk-test' },
+    });
+
+    const spawnCall = cpSpawn.mock.calls[0];
+    expect(spawnCall[2].env.ANTHROPIC_API_KEY).toBe('sk-test');
+  });
+});
+
+// =============================================================================
 // spawn — default models
 // =============================================================================
 

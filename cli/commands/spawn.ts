@@ -64,7 +64,7 @@ export async function handleSpawn(
 
   const backend = (options.backend as string) || 'ollama';
 
-  const validBackends = ['ollama', 'claude', 'gemini', 'aider', 'custom'];
+  const validBackends = ['ollama', 'claude', 'claude-cli', 'gemini', 'aider', 'custom'];
   if (!validBackends.includes(backend)) {
     console.error(`Invalid backend "${backend}". Valid: ${validBackends.join(', ')}`);
     process.exit(1);
@@ -74,15 +74,17 @@ export async function handleSpawn(
     console.error('Usage: pd spawn --backend <backend> -- <task>');
     console.error('       pd spawn --backend claude -- "Write a hello world program"');
     console.error('');
-    console.error('Backends: ollama, claude, gemini, aider, custom');
+    console.error('Backends: ollama, claude, claude-cli, gemini, aider, custom');
     console.error('');
     console.error('Options:');
-    console.error('  --backend <name>    AI backend to use (default: ollama)');
-    console.error('  --model <name>      Model override');
-    console.error('  --identity <id>     PD semantic identity (project:stack:context)');
-    console.error('  --purpose <text>    Human-readable task description');
-    console.error('  -j, --json          JSON output');
-    console.error('  -q, --quiet         Suppress output');
+    console.error('  --backend <name>      AI backend to use (default: ollama)');
+    console.error('  --model <name>        Model override');
+    console.error('  --identity <id>       PD semantic identity (project:stack:context)');
+    console.error('  --purpose <text>      Human-readable task description');
+    console.error('  --allowedTools <str>  Tool permissions for claude-cli backend');
+    console.error('  --maxTokens <n>       Max tokens for claude/claude-cli backends');
+    console.error('  -j, --json            JSON output');
+    console.error('  -q, --quiet           Suppress output');
     console.error('');
     console.error('Subcommands:');
     console.error('  pd spawn kill <id>  Kill a running spawned agent');
@@ -109,6 +111,8 @@ export async function handleSpawn(
 
   if (options.workdir) body.workdir = options.workdir;
   if (options.timeout) body.timeout = parseInt(options.timeout as string, 10);
+  if (options.allowedTools) body.allowedTools = options.allowedTools;
+  if (options.maxTokens) body.maxTokens = parseInt(options.maxTokens as string, 10);
 
   if (IS_TTY && !isQuiet(options) && !isJson(options)) {
     ui.info(`Spawning ${backend} agent...`);
@@ -127,19 +131,28 @@ export async function handleSpawn(
     process.exit(1);
   }
 
+  const failed = data.status === 'failed';
+
   if (isJson(options)) {
     console.log(JSON.stringify(data, null, 2));
+    if (failed) process.exit(1);
     return;
   }
 
   if (isQuiet(options)) {
-    console.log(data.agentId);
+    // In quiet mode, print output if available, otherwise agent ID
+    if (data.output && typeof data.output === 'string') {
+      console.log(data.output);
+    } else {
+      console.log(data.agentId);
+    }
+    if (failed) process.exit(1);
     return;
   }
 
   const agentMsg = `Agent ${data.agentId as string}: ${data.status as string}`;
   if (data.status === 'completed') ui.success(agentMsg);
-  else if (data.status === 'failed') ui.error(agentMsg);
+  else if (failed) ui.error(agentMsg);
   else ui.warn(agentMsg);
   console.error(`  Backend: ${data.backend as string}`);
   if (data.model) console.error(`  Model: ${data.model as string}`);
@@ -156,6 +169,7 @@ export async function handleSpawn(
     console.error('--- Output ---');
     console.log(data.output);
   }
+  if (failed) process.exit(1);
 }
 
 // =============================================================================

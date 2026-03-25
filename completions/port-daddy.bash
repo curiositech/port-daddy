@@ -1404,7 +1404,7 @@ _port_daddy() {
           ;;
         --backend)
           # shellcheck disable=SC2207
-          COMPREPLY=( $(compgen -W "ollama claude gemini aider custom" -- "$cur") )
+          COMPREPLY=( $(compgen -W "ollama claude claude-cli gemini aider custom" -- "$cur") )
           ;;
         --model|--identity|--purpose|--workdir|--timeout)
           COMPREPLY=()  # Free-form

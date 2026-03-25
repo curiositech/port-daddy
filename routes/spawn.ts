@@ -22,7 +22,7 @@ interface SpawnRouteDeps {
   };
 }
 
-const VALID_BACKENDS = new Set(['ollama', 'claude', 'gemini', 'aider', 'custom']);
+const VALID_BACKENDS = new Set(['ollama', 'claude', 'claude-cli', 'gemini', 'aider', 'custom']);
 
 export function createSpawnRoutes(deps: SpawnRouteDeps): Router {
   const { metrics, logger } = deps;
@@ -33,7 +33,7 @@ export function createSpawnRoutes(deps: SpawnRouteDeps): Router {
   // ==========================================================================
   router.post('/spawn', async (req: Request, res: Response) => {
     try {
-      const { backend, model, identity, purpose, task, files, workdir, env, timeout } = req.body as Record<string, unknown>;
+      const { backend, model, identity, purpose, task, files, workdir, env, timeout, allowedTools, maxTokens } = req.body as Record<string, unknown>;
 
       // Validate required fields
       if (!backend || typeof backend !== 'string') {
@@ -89,6 +89,8 @@ export function createSpawnRoutes(deps: SpawnRouteDeps): Router {
       if (workdir && typeof workdir === 'string') spec.workdir = workdir;
       if (env && typeof env === 'object' && !Array.isArray(env)) spec.env = env as Record<string, string>;
       if (timeout && typeof timeout === 'number') spec.timeout = timeout;
+      if (allowedTools && typeof allowedTools === 'string') spec.allowedTools = allowedTools;
+      if (maxTokens && typeof maxTokens === 'number') spec.maxTokens = maxTokens;
 
       logger.info('spawn_start', {
         backend,
