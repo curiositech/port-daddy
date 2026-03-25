@@ -1433,25 +1433,39 @@
 
     /* ── Salvage ── */
     async function refreshSalvage() {
-      var data = await apiFetch('/resurrection');
-      var agents = data ? (data.agents || []) : [];
+      var data = await apiFetch('/salvage/pending');
+      var agents = data ? (data.agents || data.pending || []) : [];
       if (!agents.length) { setHtml('salvage-content', '<div class="empty-state"><p>No agents in salvage queue</p></div>'); return; }
-      setHtml('salvage-content', agents.map(function(a) {
-        return '<div class="salvage-card"><div class="salvage-header"><div><div class="salvage-agent">' + escHtml(a.name || a.id) + '</div>' +
-          '<div class="salvage-detail">Session: ' + escHtml(a.sessionId || '--') + '</div>' +
-          '<div class="salvage-detail">Purpose: ' + escHtml(a.purpose || '--') + '</div>' +
-          '<div class="salvage-detail">Stale since: ' + fmtDate(a.staleSince) + '</div></div>' +
-          '<div class="btn-actions"><button class="btn-sm" onclick="claimSalvage(\'' + escHtml(a.id) + '\')">Claim</button>' +
-          '<button class="btn-sm danger" onclick="dismissSalvage(\'' + escHtml(a.id) + '\')">Dismiss</button></div></div></div>';
-      }).join(''));
+      // Group by project
+      var groups = {};
+      agents.forEach(function(a) {
+        var proj = a.identityProject || a.identity_project || 'Unassigned';
+        if (!groups[proj]) groups[proj] = [];
+        groups[proj].push(a);
+      });
+      var html = '';
+      Object.keys(groups).sort().forEach(function(proj) {
+        html += '<div style="margin-bottom:16px"><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:8px">' + escHtml(proj) + ' (' + groups[proj].length + ')</div>';
+        groups[proj].forEach(function(a) {
+          var agentName = a.agent_name || a.name || a.id || a.agent_id;
+          var since = a.diedAt || a.detected_at || a.staleSince || a.lastHeartbeat;
+          html += '<div class="salvage-card"><div class="salvage-header"><div><div class="salvage-agent">' + escHtml(agentName) + '</div>' +
+            '<div class="salvage-detail">Purpose: ' + escHtml(a.purpose || '--') + '</div>' +
+            '<div class="salvage-detail">Dead since: ' + (since ? fmtDate(since) : '?') + '</div></div>' +
+            '<div class="btn-actions"><button class="btn-sm" onclick="claimSalvage(\'' + escHtml(a.agent_id || a.id) + '\')">Claim</button>' +
+            '<button class="btn-sm danger" onclick="dismissSalvage(\'' + escHtml(a.agent_id || a.id) + '\')">Dismiss</button></div></div></div>';
+        });
+        html += '</div>';
+      });
+      setHtml('salvage-content', html);
     }
 
     async function claimSalvage(id) {
-      await fetch(API + '/resurrection/claim/' + encodeURIComponent(id), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      await fetch(API + '/salvage/claim/' + encodeURIComponent(id), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
       toast('Claimed salvage'); refreshSalvage();
     }
     async function dismissSalvage(id) {
-      await fetch(API + '/resurrection/' + encodeURIComponent(id), { method: 'DELETE' });
+      await fetch(API + '/salvage/' + encodeURIComponent(id), { method: 'DELETE' });
       toast('Dismissed'); refreshSalvage();
     }
 

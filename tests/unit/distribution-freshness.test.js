@@ -393,8 +393,8 @@ describe('Dashboard freshness', () => {
     // v3.4 changed to POST /claim with id in body
     // Old pattern: fetch(API + '/claim/' + id, { method: 'POST' })
     // New pattern: fetch(API + '/claim', { body: JSON.stringify({ id }) })
-    // Negative lookbehind excludes /resurrection/claim/ which is a valid route
-    const oldClaimPattern = /(?<!resurrection)\/claim\/['"` ]*\+|(?<!resurrection)\/claim\/['"]\s*\+/;
+    // Negative lookbehind excludes /resurrection/claim/ and /salvage/claim/ which are valid routes
+    const oldClaimPattern = /(?<!resurrection|salvage)\/claim\/['"` ]*\+|(?<!resurrection|salvage)\/claim\/['"]\s*\+/;
     expect(dashboardContent).not.toMatch(oldClaimPattern);
   });
 

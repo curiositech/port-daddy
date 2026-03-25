@@ -18,7 +18,7 @@ import type { ChildProcess } from 'node:child_process';
 // =============================================================================
 
 export interface SpawnSpec {
-  backend: 'ollama' | 'claude' | 'gemini' | 'aider' | 'custom';
+  backend: 'ollama' | 'claude' | 'claude-cli' | 'gemini' | 'aider' | 'custom';
   model?: string;
   identity?: string;   // PD semantic identity: project:stack:context
   purpose?: string;    // human-readable task description
@@ -27,6 +27,8 @@ export interface SpawnSpec {
   workdir?: string;
   env?: Record<string, string>;
   timeout?: number;    // ms, default 300000
+  allowedTools?: string;  // for claude-cli backend: tool permission string
+  maxTokens?: number;     // for claude/claude-cli backends
 }
 
 export interface SpawnResult {
@@ -240,6 +242,48 @@ function runCustom(spec: SpawnSpec): Promise<{ output: string; error: string | n
   });
 }
 
+function runClaudeCli(spec: SpawnSpec): Promise<{ output: string; error: string | null }> {
+  return new Promise((resolve) => {
+    const args = ['-p', spec.task];
+
+    if (spec.allowedTools) {
+      args.push('--allowedTools', spec.allowedTools);
+    }
+    if (spec.workdir) {
+      args.push('--cwd', spec.workdir);
+    }
+    if (spec.maxTokens) {
+      args.push('--max-tokens', String(spec.maxTokens));
+    }
+
+    const child = spawnChild('claude', args, {
+      cwd: spec.workdir || process.cwd(),
+      env: { ...process.env, ...(spec.env || {}) },
+      timeout: spec.timeout || 300000,
+    });
+
+    const stdout: string[] = [];
+    const stderr: string[] = [];
+
+    child.stdout?.on('data', (data: Buffer) => stdout.push(data.toString()));
+    child.stderr?.on('data', (data: Buffer) => stderr.push(data.toString()));
+
+    child.on('close', (code) => {
+      const output = stdout.join('');
+      const errText = stderr.join('');
+      if (code !== 0) {
+        resolve({ output, error: errText || `claude exited with code ${code}` });
+      } else {
+        resolve({ output, error: null });
+      }
+    });
+
+    child.on('error', (err) => {
+      resolve({ output: '', error: `Failed to start claude CLI: ${err.message}` });
+    });
+  });
+}
+
 // =============================================================================
 // Default models per backend
 // =============================================================================
@@ -247,6 +291,7 @@ function runCustom(spec: SpawnSpec): Promise<{ output: string; error: string | n
 const DEFAULT_MODELS: Record<SpawnSpec['backend'], string> = {
   ollama: 'llama3.2:8b',
   claude: 'claude-haiku-4-5-20251001',
+  'claude-cli': 'claude-cli',  // claude CLI manages its own model
   gemini: 'gemini-2.0-flash-exp',
   aider: 'aider',   // aider manages its own model selection
   custom: 'custom',
@@ -350,6 +395,12 @@ export function createSpawner(_deps: {} = {}) {
         }
         case 'gemini': {
           const result = await runGemini(spec, model);
+          output = result.output;
+          error = result.error;
+          break;
+        }
+        case 'claude-cli': {
+          const result = await runClaudeCli(spec);
           output = result.output;
           error = result.error;
           break;
