@@ -1,12 +1,12 @@
 # ⚓ Port Daddy (v3.7.0)
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/curiositech/port-daddy/main/pd_logo.svg" alt="Port Daddy Logo" width="200">
+  <img src="website-v2/public/img/hero-portdaddy.png" alt="Port Daddy — the harbormaster for your AI agents" width="600">
 </p>
 
 <p align="center">
-  <strong>The "Agentic OS" Control Plane.</strong><br />
-  Authoritative port management, real-time swarm coordination, and immersive 3D visualization.
+  <strong>Stop your agents from fighting each other.</strong><br />
+  Atomic port assignment, session coordination, pub/sub messaging, and agent resurrection — one daemon, zero config.
 </p>
 
 <p align="center">
@@ -19,13 +19,23 @@
 
 ---
 
-## 🌊 Overview
+## Overview
 
-**Port Daddy** is a lightweight, local orchestration daemon that transforms your development environment into a high-fidelity control plane for autonomous AI agents. 
+**Port Daddy** is a daemon that gives every AI agent its own port, coordinates file access, and recovers work when they crash. One install, zero config.
 
-While individual agents are brilliant, **coordination** is the bottleneck. Port Daddy solves this by providing the missing system-level primitives: **Atomic Port Assignment**, **Real-time Pub/Sub Messaging**, **Distributed Locks**, and **Append-only Session Trails**. 
+While individual agents are brilliant, **coordination** is the bottleneck. Port Daddy provides the missing primitives: atomic port assignment, pub/sub messaging, distributed locks, session trails, and agent resurrection.
 
-Whether you are running a 15-service monorepo or a swarm of 50 agents attacking a complex bug, Port Daddy ensures your local harbor is organized, observable, and purring.
+```bash
+# Start working (registers agent + claims port + starts session)
+pd begin "Building the auth layer" --identity myapp:api
+
+# Log progress, coordinate with other agents
+pd note "JWT validation passing all tests"
+pd pub api:ready '{"endpoints": ["/login", "/register"]}'
+
+# Done (ends session + releases everything)
+pd done "Auth complete"
+```
 
 ### ⚓ Key Primitives
 - **Atomic Port Assignment:** Zero race conditions. Semantic identities (e.g., `myapp:api`) map to stable, deterministic ports.

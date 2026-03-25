@@ -1,71 +1,85 @@
 /**
- * Port Daddy — Neumorphic Design Tokens
- * Split-complementary palette: Coral + Indigo + Teal
- * Light-first soft UI with extruded/inset shadow depth
+ * Port Daddy — Harbor Heritage Design Tokens
+ * Palette derived from the vintage travel poster illustration:
+ *   Red (cinnabar) + Black (warm ebony) + Stone (sandstone)
+ * Complementary harmonics: Harbor Teal + Rope Gold
+ * Neumorphic soft UI on warm sandstone (light) / dark ebony (dark)
+ *
+ * Color relationships:
+ *   Red (#CC3D2E) sits at ~12° — warm, authoritative, the signal flag
+ *   Teal (#4A9D9E) sits at ~182° — near-complement, the harbor water
+ *   Gold (#C69C6D) sits at ~35° — analogous to red, the mooring rope
+ *   Stone (#D4C5A9) — warm neutral ground, the harbor wall itself
+ *   Black (#1E1B18) — the anchor, warm ebony with brown undertones
  */
 
 :root, [data-theme='light'] {
-  /* Neumorphic Surfaces */
-  --bg-base:      #e0e0e0;
-  --bg-surface:   #e6e6e6;
-  --bg-overlay:   #d4d4d4;
-  --bg-glass:     rgba(224, 224, 224, 0.92);
+  /* Neumorphic Surfaces — Sandstone */
+  --bg-base:      #D4C5A9;
+  --bg-surface:   #DDD0B6;
+  --bg-overlay:   #C8B99D;
+  --bg-glass:     rgba(212, 197, 169, 0.92);
 
-  /* Text — high contrast on #e0e0e0 */
-  --text-primary:   #2b2b2b;
-  --text-secondary: #505050;
-  --text-muted:     #757575;
+  /* Text — warm ebony on sandstone (8.4:1 contrast ratio) */
+  --text-primary:   #1E1B18;
+  --text-secondary: #4A4640;
+  --text-muted:     #7A7468;
 
-  /* Brand — Split Complementary: Coral / Indigo / Teal */
-  --brand-primary:   #D4643A;  /* Warm coral-sienna */
-  --brand-secondary: #4A5FC7;  /* Deep periwinkle-indigo */
-  --brand-accent:    #2A9D8F;  /* Warm-shifted teal */
+  /* Brand — Red / Teal / Gold (split-complementary + analogous) */
+  --brand-primary:   #CC3D2E;  /* Cinnabar red — the signal flag */
+  --brand-secondary: #4A9D9E;  /* Harbor teal — the water */
+  --brand-accent:    #C69C6D;  /* Rope gold — warm analogous */
 
-  /* Borders — shadows do the work, borders are minimal */
-  --border-subtle: rgba(0, 0, 0, 0.06);
-  --border-strong: rgba(0, 0, 0, 0.12);
+  /* Borders */
+  --border-subtle: rgba(30, 27, 24, 0.08);
+  --border-strong: rgba(30, 27, 24, 0.16);
 
   /* Interactive */
-  --interactive-hover:  rgba(0, 0, 0, 0.04);
-  --interactive-active: rgba(212, 100, 58, 0.1);
+  --interactive-hover:  rgba(30, 27, 24, 0.06);
+  --interactive-active: rgba(204, 61, 46, 0.12);
 
   /* Status */
-  --status-success: #2E7D4F;
-  --status-warning: #B8760C;
-  --status-error:   #C43030;
+  --status-success: #4A7A5A;
+  --status-warning: #B8860B;
+  --status-error:   #CC3D2E;
 
   /* Palette variants */
-  --p-coral-400:   #D4643A;
-  --p-coral-500:   #B84E28;
-  --p-indigo-400:  #4A5FC7;
-  --p-indigo-500:  #3A4FA0;
-  --p-teal-400:    #2A9D8F;
-  --p-teal-500:    #1E7A6F;
-  --p-amber-400:   #B8760C;
-  --p-red-400:     #C43030;
-  --p-green-400:   #2E7D4F;
+  --p-red-400:     #CC3D2E;
+  --p-red-500:     #A83226;
+  --p-red-600:     #8B2920;
+  --p-teal-400:    #4A9D9E;
+  --p-teal-500:    #3A8182;
+  --p-gold-400:    #C69C6D;
+  --p-gold-500:    #A68050;
+  --p-stone-300:   #E8DCC6;
+  --p-stone-400:   #D4C5A9;
+  --p-stone-500:   #C0B193;
+  --p-ebony-400:   #3D3832;
+  --p-ebony-500:   #1E1B18;
+  --p-green-400:   #4A7A5A;
+  --p-amber-400:   #B8860B;
 
-  /* Code Block — always dark for readability */
-  --bg-code:              #1e1e2e;
-  --text-code:            #cdd6f4;
-  --code-prompt:          #a6e3a1;
-  --code-output:          #9399b2;
-  --codeblock-bg:         #1e1e2e;
-  --codeblock-header-bg:  #181825;
-  --codeblock-border:     #313244;
-  --codeblock-text:       #cdd6f4;
-  --codeblock-filename:   #7f849c;
-  --codeblock-copy:       #7f849c;
-  --codeblock-copy-hover: #cdd6f4;
-  --codeblock-dot-red:    #f38ba8;
-  --codeblock-dot-amber:  #f9e2af;
-  --codeblock-dot-green:  #a6e3a1;
+  /* Code Block — dark ebony terminal */
+  --bg-code:              #1E1B18;
+  --text-code:            #E8E0D4;
+  --code-prompt:          #7ABF7E;
+  --code-output:          #A89E8F;
+  --codeblock-bg:         #1E1B18;
+  --codeblock-header-bg:  #161412;
+  --codeblock-border:     #3D3832;
+  --codeblock-text:       #E8E0D4;
+  --codeblock-filename:   #7A7468;
+  --codeblock-copy:       #7A7468;
+  --codeblock-copy-hover: #E8E0D4;
+  --codeblock-dot-red:    #E05A4B;
+  --codeblock-dot-amber:  #D4AD7C;
+  --codeblock-dot-green:  #7ABF7E;
 
-  /* Neumorphic Shadows */
-  --shadow-neu-raised: 6px 6px 12px #b8b8b8, -6px -6px 12px #ffffff;
-  --shadow-neu-inset:  inset 4px 4px 8px #b8b8b8, inset -4px -4px 8px #ffffff;
-  --shadow-neu-sm:     3px 3px 6px #b8b8b8, -3px -3px 6px #ffffff;
-  --shadow-neu-flat:   2px 2px 4px #c8c8c8, -2px -2px 4px #f0f0f0;
+  /* Neumorphic Shadows — warm sandstone depth */
+  --shadow-neu-raised: 6px 6px 12px #B0A48B, -6px -6px 12px #F2ECD8;
+  --shadow-neu-inset:  inset 4px 4px 8px #B0A48B, inset -4px -4px 8px #F2ECD8;
+  --shadow-neu-sm:     3px 3px 6px #B0A48B, -3px -3px 6px #F2ECD8;
+  --shadow-neu-flat:   2px 2px 4px #BEB299, -2px -2px 4px #EAE2CE;
 
   /* Typography */
   --p-font-mono:    'JetBrains Mono', monospace;
@@ -75,118 +89,123 @@
   /* shadcn/ui — Light */
   --radius: 0.75rem;
 
-  --background: #e0e0e0;
-  --foreground: #2b2b2b;
+  --background: #D4C5A9;
+  --foreground: #1E1B18;
 
-  --card: #e6e6e6;
-  --card-foreground: #2b2b2b;
+  --card: #DDD0B6;
+  --card-foreground: #1E1B18;
 
-  --popover: #e6e6e6;
-  --popover-foreground: #2b2b2b;
+  --popover: #DDD0B6;
+  --popover-foreground: #1E1B18;
 
-  --primary: #D4643A;
-  --primary-foreground: #ffffff;
+  --primary: #CC3D2E;
+  --primary-foreground: #F2ECD8;
 
-  --secondary: #d4d4d4;
-  --secondary-foreground: #2b2b2b;
+  --secondary: #C8B99D;
+  --secondary-foreground: #1E1B18;
 
-  --muted: #d4d4d4;
-  --muted-foreground: #757575;
+  --muted: #C8B99D;
+  --muted-foreground: #7A7468;
 
-  --accent: #d4d4d4;
-  --accent-foreground: #2b2b2b;
+  --accent: #C8B99D;
+  --accent-foreground: #1E1B18;
 
-  --destructive: #C43030;
-  --destructive-foreground: #ffffff;
+  --destructive: #CC3D2E;
+  --destructive-foreground: #F2ECD8;
 
-  --border: rgba(0, 0, 0, 0.06);
-  --input: rgba(0, 0, 0, 0.08);
-  --ring: #D4643A;
+  --border: rgba(30, 27, 24, 0.08);
+  --input: rgba(30, 27, 24, 0.1);
+  --ring: #CC3D2E;
 }
 
 [data-theme='dark'] {
-  /* Neumorphic Surfaces — Dark */
-  --bg-base:      #2b2b2b;
-  --bg-surface:   #323232;
-  --bg-overlay:   #252525;
-  --bg-glass:     rgba(43, 43, 43, 0.92);
+  /* Neumorphic Surfaces — Warm Ebony */
+  --bg-base:      #1E1B18;
+  --bg-surface:   #282420;
+  --bg-overlay:   #161412;
+  --bg-glass:     rgba(30, 27, 24, 0.92);
 
-  --text-primary:   #e0e0e0;
-  --text-secondary: #a0a0a0;
-  --text-muted:     #707070;
+  --text-primary:   #E8E0D4;
+  --text-secondary: #A89E8F;
+  --text-muted:     #6B6358;
 
-  --brand-primary:   #E8845E;
-  --brand-secondary: #7B8FE8;
-  --brand-accent:    #5EC4B6;
+  --brand-primary:   #E05A4B;
+  --brand-secondary: #6BB8B9;
+  --brand-accent:    #D4AD7C;
 
-  --border-subtle: rgba(255, 255, 255, 0.06);
-  --border-strong: rgba(255, 255, 255, 0.12);
+  --border-subtle: rgba(232, 224, 212, 0.06);
+  --border-strong: rgba(232, 224, 212, 0.12);
 
-  --interactive-hover:  rgba(255, 255, 255, 0.05);
-  --interactive-active: rgba(232, 132, 94, 0.12);
+  --interactive-hover:  rgba(232, 224, 212, 0.05);
+  --interactive-active: rgba(224, 90, 75, 0.14);
 
-  --status-success: #4ade80;
-  --status-warning: #fbbf24;
-  --status-error:   #f87171;
+  --status-success: #7ABF7E;
+  --status-warning: #D4AD7C;
+  --status-error:   #E05A4B;
 
-  --p-coral-400:   #E8845E;
-  --p-coral-500:   #D4643A;
-  --p-indigo-400:  #7B8FE8;
-  --p-indigo-500:  #4A5FC7;
-  --p-teal-400:    #5EC4B6;
-  --p-teal-500:    #2A9D8F;
-  --p-amber-400:   #fbbf24;
-  --p-red-400:     #f87171;
-  --p-green-400:   #4ade80;
+  --p-red-400:     #E05A4B;
+  --p-red-500:     #CC3D2E;
+  --p-red-600:     #A83226;
+  --p-teal-400:    #6BB8B9;
+  --p-teal-500:    #4A9D9E;
+  --p-gold-400:    #D4AD7C;
+  --p-gold-500:    #C69C6D;
+  --p-stone-300:   #D4C5A9;
+  --p-stone-400:   #A89E8F;
+  --p-stone-500:   #7A7468;
+  --p-ebony-400:   #3D3832;
+  --p-ebony-500:   #1E1B18;
+  --p-green-400:   #7ABF7E;
+  --p-amber-400:   #D4AD7C;
 
-  /* Code Block — always dark */
-  --bg-code:              #1e1e2e;
-  --text-code:            #cdd6f4;
-  --code-prompt:          #a6e3a1;
-  --code-output:          #9399b2;
-  --codeblock-bg:         #1e1e2e;
-  --codeblock-header-bg:  #181825;
-  --codeblock-border:     #313244;
-  --codeblock-text:       #cdd6f4;
-  --codeblock-filename:   #7f849c;
-  --codeblock-copy:       #7f849c;
-  --codeblock-copy-hover: #cdd6f4;
-  --codeblock-dot-red:    #f38ba8;
-  --codeblock-dot-amber:  #f9e2af;
-  --codeblock-dot-green:  #a6e3a1;
+  /* Code Block — dark ebony terminal */
+  --bg-code:              #161412;
+  --text-code:            #E8E0D4;
+  --code-prompt:          #7ABF7E;
+  --code-output:          #A89E8F;
+  --codeblock-bg:         #161412;
+  --codeblock-header-bg:  #100E0C;
+  --codeblock-border:     #3D3832;
+  --codeblock-text:       #E8E0D4;
+  --codeblock-filename:   #6B6358;
+  --codeblock-copy:       #6B6358;
+  --codeblock-copy-hover: #E8E0D4;
+  --codeblock-dot-red:    #E05A4B;
+  --codeblock-dot-amber:  #D4AD7C;
+  --codeblock-dot-green:  #7ABF7E;
 
-  /* Neumorphic Shadows — Dark */
-  --shadow-neu-raised: 6px 6px 12px #1e1e1e, -6px -6px 12px #3a3a3a;
-  --shadow-neu-inset:  inset 4px 4px 8px #1e1e1e, inset -4px -4px 8px #3a3a3a;
-  --shadow-neu-sm:     3px 3px 6px #1e1e1e, -3px -3px 6px #3a3a3a;
-  --shadow-neu-flat:   2px 2px 4px #222222, -2px -2px 4px #363636;
+  /* Neumorphic Shadows — Dark Ebony */
+  --shadow-neu-raised: 6px 6px 12px #141210, -6px -6px 12px #2A2622;
+  --shadow-neu-inset:  inset 4px 4px 8px #141210, inset -4px -4px 8px #2A2622;
+  --shadow-neu-sm:     3px 3px 6px #141210, -3px -3px 6px #2A2622;
+  --shadow-neu-flat:   2px 2px 4px #121010, -2px -2px 4px #262220;
 
   /* shadcn/ui — Dark */
-  --background: #2b2b2b;
-  --foreground: #e0e0e0;
+  --background: #1E1B18;
+  --foreground: #E8E0D4;
 
-  --card: #323232;
-  --card-foreground: #e0e0e0;
+  --card: #282420;
+  --card-foreground: #E8E0D4;
 
-  --popover: #323232;
-  --popover-foreground: #e0e0e0;
+  --popover: #282420;
+  --popover-foreground: #E8E0D4;
 
-  --primary: #E8845E;
-  --primary-foreground: #1a1a1a;
+  --primary: #E05A4B;
+  --primary-foreground: #1E1B18;
 
-  --secondary: #3a3a3a;
-  --secondary-foreground: #e0e0e0;
+  --secondary: #3D3832;
+  --secondary-foreground: #E8E0D4;
 
-  --muted: #3a3a3a;
-  --muted-foreground: #707070;
+  --muted: #3D3832;
+  --muted-foreground: #6B6358;
 
-  --accent: #3a3a3a;
-  --accent-foreground: #e0e0e0;
+  --accent: #3D3832;
+  --accent-foreground: #E8E0D4;
 
-  --destructive: #f87171;
-  --destructive-foreground: #1a1a1a;
+  --destructive: #E05A4B;
+  --destructive-foreground: #1E1B18;
 
-  --border: rgba(255, 255, 255, 0.06);
-  --input: rgba(255, 255, 255, 0.08);
-  --ring: #E8845E;
+  --border: rgba(232, 224, 212, 0.06);
+  --input: rgba(232, 224, 212, 0.08);
+  --ring: #E05A4B;
 }
