@@ -79,9 +79,9 @@ html {
 
 body {
   margin: 0;
-  background-color: var(--bg-base);
+  background-color: var(--surface-base);
   color: var(--text-primary);
-  font-family: var(--p-font-sans);
+  font-family: var(--font-sans);
   line-height: 1.5;
   min-height: 100vh;
   overflow-x: hidden;
@@ -146,32 +146,29 @@ a {
 }
 
 /* ─── Neumorphic Utilities ────────────────────────────────────────────────── */
+/* Prefer the <Surface> component. These exist for edge cases. */
 .neu-raised {
-  background: var(--bg-surface);
-  box-shadow: var(--shadow-neu-raised);
-  border-radius: 16px;
-  border: 1px solid transparent;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-raised);
+  border-radius: var(--radius-xl);
 }
 
 .neu-inset {
-  background: var(--bg-base);
-  box-shadow: var(--shadow-neu-inset);
-  border-radius: 16px;
-  border: 1px solid transparent;
+  background: var(--surface-sunken);
+  box-shadow: var(--shadow-inset);
+  border-radius: var(--radius-xl);
 }
 
 .neu-flat {
-  background: var(--bg-surface);
-  box-shadow: var(--shadow-neu-flat);
-  border-radius: 16px;
-  border: 1px solid transparent;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-flat);
+  border-radius: var(--radius-xl);
 }
 
-.neu-sm {
-  background: var(--bg-surface);
-  box-shadow: var(--shadow-neu-sm);
-  border-radius: 12px;
-  border: 1px solid transparent;
+.neu-pressed {
+  background: var(--surface-sunken);
+  box-shadow: var(--shadow-pressed);
+  border-radius: var(--radius-xl);
 }
 
 /* ─── Glass (kept for compatibility, simplified) ──────────────────────────── */
