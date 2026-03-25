@@ -7,17 +7,10 @@ import { Cpu, Zap, Activity, Terminal, RefreshCw, Share2, ArrowDown } from 'luci
 export function AlwaysOn() {
   return (
     <TutorialLayout
-<<<<<<< HEAD
       title="Always-On Avatars"
       description="Most agents are ephemeral. Learn to deploy persistent background processes that maintain harbor-scoped state and respond to global swarm signals 24/7."
       number={4}
       total={16}
-=======
-      title="Agent Spawning"
-      description="Most agents are ephemeral. Learn to use pd spawn and pd watch to create persistent background agents that respond to pub/sub signals automatically."
-      number="04"
-      total="14"
->>>>>>> worktree-agent-ae9460d3
       level="Intermediate"
       readTime="10 min read"
       prev={{ title: 'Harbors', href: '/tutorials/harbors' }}
@@ -33,35 +26,22 @@ export function AlwaysOn() {
             <motion.h2 className="m-0">Beyond the Prompt</motion.h2>
           </motion.div>
           <motion.p>
-<<<<<<< HEAD
             An <strong>Always-On Avatar</strong> is an agent process that doesn't terminate after a single task. It lives within a specific Harbor, maintaining a persistent local context and listening to <strong>Swarm Radio</strong> for instructions.
-=======
-            A spawned agent is a background process launched by <code>pd spawn</code> that runs independently. Combined with <code>pd watch</code>, you can build agents that react to pub/sub signals automatically -- without polling.
->>>>>>> worktree-agent-ae9460d3
           </motion.p>
           <motion.div className="grid sm:grid-cols-2 gap-8 pt-4">
              <motion.div className="p-8 rounded-[32px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-4">
                 <motion.div className="w-10 h-10 rounded-xl bg-[var(--p-teal-500)]/10 flex items-center justify-center">
                    <Activity size={20} className="text-[var(--p-teal-400)]" />
                 </motion.div>
-<<<<<<< HEAD
                 <motion.h3 className="text-xl font-display font-black m-0">Persistent State</motion.h3>
                 <motion.p className="text-sm text-[var(--text-secondary)] m-0">Avatars can hold long-running variables, database connections, and cache in-memory across multiple user sessions.</motion.p>
-=======
-                <motion.h3 className="text-xl font-display font-black m-0">Built-in Coordination</motion.h3>
-                <motion.p className="text-sm opacity-60 m-0">Spawned agents get automatic sessions, heartbeats, notes, and salvage. Port Daddy wires it all silently.</motion.p>
->>>>>>> worktree-agent-ae9460d3
              </motion.div>
              <motion.div className="p-8 rounded-[32px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-4">
                 <motion.div className="w-10 h-10 rounded-xl bg-[var(--p-amber-500)]/10 flex items-center justify-center">
                    <Share2 size={20} className="text-[var(--p-amber-400)]" />
                 </motion.div>
                 <motion.h3 className="text-xl font-display font-black m-0">Event Driven</motion.h3>
-<<<<<<< HEAD
                 <motion.p className="text-sm text-[var(--text-secondary)] m-0">Instead of polling, Avatars wake up instantly when a message hits a channel they are subscribed to.</motion.p>
-=======
-                <motion.p className="text-sm opacity-60 m-0"><code>pd watch</code> subscribes to SSE channels and executes commands when messages arrive. No polling required.</motion.p>
->>>>>>> worktree-agent-ae9460d3
              </motion.div>
           </motion.div>
         </section>
@@ -87,13 +67,8 @@ export function AlwaysOn() {
           </CodeBlock>
 
           <blockquote className="bg-[var(--bg-overlay)] p-8 rounded-3xl border-l-4 border-[var(--brand-primary)]">
-<<<<<<< HEAD
              <motion.p className="m-0 text-sm italic text-[var(--text-secondary)] font-medium">
                Note: The avatar will immediately claim its semantic identity. Any other agent trying to claim <code>infra:monitor</code> will be blocked by the daemon until the avatar releases it.
-=======
-             <motion.p className="m-0 text-sm italic opacity-60 font-medium">
-               The spawned agent automatically registers with Port Daddy, starts a session, and begins sending heartbeats. If it crashes, its work enters the salvage queue for another agent to pick up.
->>>>>>> worktree-agent-ae9460d3
              </motion.p>
           </blockquote>
         </section>
@@ -151,17 +126,10 @@ export function AlwaysOn() {
            <motion.div className="absolute top-0 right-0 p-10 opacity-[0.03] pointer-events-none">
               <RefreshCw size={400} />
            </motion.div>
-<<<<<<< HEAD
            <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Self-Healing Logic</Badge>
            <motion.h3 className="text-4xl font-display font-black m-0" style={{ color: 'var(--text-primary)' }}>Resilient Avatars.</motion.h3>
            <motion.p className="text-xl max-w-xl text-[var(--text-secondary)]">
              What if the Avatar itself crashes? Port Daddy's <strong>Resurrection Queue</strong> holds the Avatar's harbor card and last-known notes in escrow. When you spawn a replacement, it automatically "inherits" the previous state and continues its watch.
-=======
-           <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Crash Recovery</Badge>
-           <motion.h3 className="text-4xl font-display font-black m-0" style={{ color: 'var(--text-primary)' }}>Salvage Queue.</motion.h3>
-           <motion.p className="text-xl max-w-xl opacity-70">
-             If a spawned agent crashes, Port Daddy preserves its session notes and file claims in the salvage queue. Run <code>pd salvage</code> to see dead agents and <code>pd salvage claim</code> to pick up where they left off.
->>>>>>> worktree-agent-ae9460d3
            </motion.p>
            <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--p-teal-400)]">
               <Zap size={14} className="animate-pulse" />

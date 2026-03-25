@@ -1,11 +1,7 @@
 import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
 import { Link } from 'react-router-dom'
-<<<<<<< HEAD
 import { Clock, Play, Zap, Shield, Globe, Sparkles, Anchor, Share2, Layers, Search, Box, History } from 'lucide-react'
-=======
-import { Clock, Play, Zap, Shield, Globe, Sparkles, Anchor, Share2, Cpu, Search, RefreshCw, Box, Activity as ActivityIcon, History, Network, Mail } from 'lucide-react'
->>>>>>> worktree-agent-ae9460d3
 import { Footer } from '@/components/layout/Footer'
 
 interface Tutorial {
@@ -99,7 +95,6 @@ const TUTORIALS: Tutorial[] = [
     icon: History
   },
   {
-<<<<<<< HEAD
     slug: 'pipelines',
     number: '08',
     title: 'Reactive Pipelines',
@@ -109,83 +104,6 @@ const TUTORIALS: Tutorial[] = [
     tags: ['DAG', 'Automation', 'Signals'],
     href: '/tutorials/pipelines',
     icon: Layers
-=======
-    slug: 'dashboard',
-    number: '08',
-    title: 'Visual Control Plane',
-    description: 'Visualize your swarm. Live network graphs, lock contention, and real-time telemetry.',
-    level: 'beginner',
-    time: '5 min',
-    tags: ['HUD', 'Live', 'Graphs'],
-    href: '/tutorials/dashboard',
-    icon: ActivityIcon
-  },
-  {
-    slug: 'dns',
-    number: '09',
-    title: 'Identity Discovery',
-    description: 'Resolve services by semantic hostname instead of port numbers with zero configuration.',
-    level: 'intermediate',
-    time: '8 min',
-    tags: ['DNS', 'Local', 'Hosts'],
-    href: '/tutorials/dns',
-    icon: Network
-  },
-  {
-    slug: 'inbox',
-    number: '10',
-    title: 'Agent Inboxes',
-    description: 'Direct agent-to-agent messaging with structured payloads and real-time streams.',
-    level: 'intermediate',
-    time: '10 min',
-    tags: ['Inbox', 'Messaging', 'SSE'],
-    href: '/tutorials/inbox',
-    icon: Mail
-  },
-  {
-    slug: 'spawn',
-    number: '11',
-    title: 'Agent Spawning',
-    description: 'Launch agent fleets with Port Daddy coordination auto-wired. Heartbeats included.',
-    level: 'advanced',
-    time: '15 min',
-    tags: ['Spawn', 'Fleet', 'Telemetry'],
-    href: '/tutorials/spawn',
-    icon: Cpu
-  },
-  {
-    slug: 'always-on',
-    number: '12',
-    title: 'Spawn + Watch Pattern',
-    description: 'Combine pd spawn and pd watch to build agents that react to pub/sub signals automatically.',
-    level: 'intermediate',
-    time: '10 min',
-    tags: ['Spawn', 'Watch', 'Events'],
-    href: '/tutorials/always-on',
-    icon: RefreshCw
-  },
-  {
-    slug: 'session-phases',
-    number: '13',
-    title: 'The State Machine',
-    description: 'Drive agents through planning -> coding -> reviewing with phase-aware handoffs.',
-    level: 'advanced',
-    time: '15 min',
-    tags: ['Phases', 'State', 'Lifecycle'],
-    href: '/tutorials/session-phases',
-    icon: RefreshCw
-  },
-  {
-    slug: 'sugar',
-    number: '14',
-    title: 'Sugar Commands',
-    description: 'Learn the high-level wrappers that make coordination invisible and friction-free.',
-    level: 'beginner',
-    time: '5 min',
-    tags: ['CLI', 'Productivity', 'UX'],
-    href: '/tutorials/sugar',
-    icon: Zap
->>>>>>> worktree-agent-ae9460d3
   }
 ]
 

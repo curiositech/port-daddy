@@ -150,13 +150,19 @@ export function Hero() {
             </div>
           </motion.div>
 
-          {/* Right -- Terminal */}
+          {/* Right -- Hero Illustration */}
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.2, ease: 'easeOut' as const }}
+            className="rounded-2xl overflow-hidden"
+            style={{ boxShadow: 'var(--shadow-neu-raised)' }}
           >
-            <AnimatedTerminal />
+            <img
+              src="/img/hero-portdaddy.png"
+              alt="Port Daddy — the harbormaster for your AI agents"
+              className="w-full h-auto block"
+            />
           </motion.div>
         </div>
       </div>

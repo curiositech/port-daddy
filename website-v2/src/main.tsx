@@ -162,17 +162,16 @@ createRoot(document.getElementById('root')!).render(
     <ThemeProvider>
       <BrowserRouter>
         <Routes>
-<<<<<<< HEAD
           {/* Main Site with Nav */}
           <Route element={<MainLayout />}>
             <Route path="/" element={<App />} />
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/docs" element={<DocsPage />} />
             <Route path="/examples" element={<ExamplesPage />} />
             <Route path="/mcp" element={<MCPPage />} />
-            <Route path="/whitepaper" element={<WhitepaperPage />} />
             <Route path="/roadmap" element={<RoadmapPage />} />
             <Route path="/templates" element={<TemplatesPage />} />
-            
+
             {/* Academy */}
             <Route path="/tutorials" element={<TutorialsPage />} />
             <Route path="/tutorials/getting-started" element={<Tutorials.GettingStarted />} />
@@ -188,36 +187,7 @@ createRoot(document.getElementById('root')!).render(
             <Route path="/tutorials/pd-spawn" element={<Tutorials.Spawn />} />
             <Route path="/tutorials/harbors" element={<Tutorials.Harbors />} />
             <Route path="/tutorials/dashboard" element={<Tutorials.Dashboard />} />
-            <Route path="/tutorials/pipelines" element={<Tutorials.Pipelines />} />
             <Route path="/tutorials/time-travel" element={<Tutorials.TimeTravel />} />
-            <Route path="/tutorials/remote-harbors" element={<Tutorials.RemoteHarbors />} />
-=======
-          {/* Main */}
-          <Route path="/" element={<App />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/docs" element={<DocsPage />} />
-          <Route path="/examples" element={<ExamplesPage />} />
-          <Route path="/mcp" element={<MCPPage />} />
-          <Route path="/roadmap" element={<RoadmapPage />} />
-          <Route path="/templates" element={<TemplatesPage />} />
-          
-          {/* Academy */}
-          <Route path="/tutorials" element={<TutorialsPage />} />
-          <Route path="/tutorials/getting-started" element={<Tutorials.GettingStarted />} />
-          <Route path="/tutorials/multi-agent" element={<Tutorials.MultiAgentOrchestration />} />
-          <Route path="/tutorials/monorepo" element={<Tutorials.Monorepo />} />
-          <Route path="/tutorials/debugging" element={<Tutorials.Debugging />} />
-          <Route path="/tutorials/tunnel" element={<Tutorials.Tunnel />} />
-          <Route path="/tutorials/dns" element={<Tutorials.DNSResolver />} />
-          <Route path="/tutorials/session-phases" element={<Tutorials.SessionPhases />} />
-          <Route path="/tutorials/inbox" element={<Tutorials.Inbox />} />
-          <Route path="/tutorials/sugar" element={<Tutorials.Sugar />} />
-          <Route path="/tutorials/always-on" element={<Tutorials.AlwaysOn />} />
-          <Route path="/tutorials/pd-spawn" element={<Tutorials.Spawn />} />
-          <Route path="/tutorials/harbors" element={<Tutorials.Harbors />} />
-          <Route path="/tutorials/dashboard" element={<Tutorials.Dashboard />} />
-          <Route path="/tutorials/time-travel" element={<Tutorials.TimeTravel />} />
->>>>>>> worktree-agent-ae9460d3
 
             {/* Ecosystem */}
             <Route path="/cookbook" element={<CookbookPage />} />
