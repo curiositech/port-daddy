@@ -685,3 +685,341 @@ describe('subscribe', () => {
     sub.unsubscribe();
   });
 });
+
+// =============================================================================
+// Agent Registration with Identity/Purpose/Worktree
+// =============================================================================
+
+describe('Agent registration with identity params', () => {
+  let pd;
+  beforeEach(() => {
+    pd = createClient({ agentId: 'identity-agent', pid: 7777 });
+  });
+
+  test('register with identity string passes it in request body', async () => {
+    queueResponse({ success: true, registered: true, agentId: 'identity-agent' });
+
+    await pd.register({ identity: 'myapp:api:main' });
+
+    expect(receivedRequests).toHaveLength(1);
+    expect(receivedRequests[0].body.identity).toBe('myapp:api:main');
+  });
+
+  test('register with purpose string passes it in request body', async () => {
+    queueResponse({ success: true, registered: true, agentId: 'identity-agent' });
+
+    await pd.register({ purpose: 'Building auth system' });
+
+    expect(receivedRequests).toHaveLength(1);
+    expect(receivedRequests[0].body.purpose).toBe('Building auth system');
+  });
+
+  test('register with worktree string passes it in request body', async () => {
+    queueResponse({ success: true, registered: true, agentId: 'identity-agent' });
+
+    await pd.register({ worktree: 'worktree-abc123' });
+
+    expect(receivedRequests).toHaveLength(1);
+    expect(receivedRequests[0].body.worktree).toBe('worktree-abc123');
+  });
+
+  test('register with all identity params at once', async () => {
+    queueResponse({ success: true, registered: true, agentId: 'identity-agent' });
+
+    await pd.register({
+      identity: 'myapp:api:feature-auth',
+      purpose: 'Implementing OAuth flow',
+      worktree: 'worktree-def456',
+    });
+
+    const body = receivedRequests[0].body;
+    expect(body.identity).toBe('myapp:api:feature-auth');
+    expect(body.purpose).toBe('Implementing OAuth flow');
+    expect(body.worktree).toBe('worktree-def456');
+    expect(body.id).toBe('identity-agent');
+  });
+
+  test('register response includes autoSalvageNotice when dead agents exist', async () => {
+    queueResponse({
+      success: true,
+      registered: true,
+      agentId: 'identity-agent',
+      autoSalvageNotice: {
+        count: 2,
+        message: '2 dead agent(s) in myapp:*',
+        command: 'pd salvage --project myapp',
+      },
+    });
+
+    const result = await pd.register({ identity: 'myapp:api' });
+
+    expect(result.autoSalvageNotice).toBeDefined();
+    expect(result.autoSalvageNotice.count).toBe(2);
+    expect(result.autoSalvageNotice.message).toBe('2 dead agent(s) in myapp:*');
+    expect(result.autoSalvageNotice.command).toBe('pd salvage --project myapp');
+  });
+
+  test('register response includes parsed identity components', async () => {
+    queueResponse({
+      success: true,
+      registered: true,
+      agentId: 'identity-agent',
+      identity: {
+        project: 'myapp',
+        stack: 'api',
+        context: 'main',
+      },
+    });
+
+    const result = await pd.register({ identity: 'myapp:api:main' });
+
+    expect(result.identity).toBeDefined();
+    expect(result.identity.project).toBe('myapp');
+    expect(result.identity.stack).toBe('api');
+    expect(result.identity.context).toBe('main');
+  });
+
+  test('register response without identity components', async () => {
+    queueResponse({
+      success: true,
+      registered: true,
+      agentId: 'identity-agent',
+    });
+
+    const result = await pd.register();
+
+    expect(result.identity).toBeUndefined();
+    expect(result.autoSalvageNotice).toBeUndefined();
+  });
+
+  test('register without identity params still works (backward compat)', async () => {
+    queueResponse({ success: true, registered: true, agentId: 'identity-agent' });
+
+    await pd.register({ name: 'My Agent', type: 'ci' });
+
+    const body = receivedRequests[0].body;
+    expect(body.name).toBe('My Agent');
+    expect(body.type).toBe('ci');
+    // identity/purpose/worktree should be undefined (not sent as null)
+    expect(body.identity).toBeUndefined();
+    expect(body.purpose).toBeUndefined();
+    expect(body.worktree).toBeUndefined();
+  });
+});
+
+// =============================================================================
+// Salvage with Filters
+// =============================================================================
+
+describe('Salvage listing with filters', () => {
+  let pd;
+  beforeEach(() => {
+    pd = createClient({ agentId: 'salvage-agent', pid: 8888 });
+  });
+
+  test('salvage() with no params calls /resurrection/pending', async () => {
+    queueResponse({ success: true, agents: [], count: 0 });
+
+    await pd.salvage();
+
+    expect(receivedRequests).toHaveLength(1);
+    expect(receivedRequests[0].method).toBe('GET');
+    expect(receivedRequests[0].url).toBe('/resurrection/pending');
+  });
+
+  test('salvage({ project: "myapp" }) includes project query param', async () => {
+    queueResponse({ success: true, agents: [], count: 0, filtered: true });
+
+    await pd.salvage({ project: 'myapp' });
+
+    expect(receivedRequests[0].url).toContain('/resurrection/pending?');
+    expect(receivedRequests[0].url).toContain('project=myapp');
+  });
+
+  test('salvage({ stack: "api" }) includes stack query param', async () => {
+    queueResponse({ success: true, agents: [], count: 0, filtered: true });
+
+    await pd.salvage({ stack: 'api' });
+
+    expect(receivedRequests[0].url).toContain('/resurrection/pending?');
+    expect(receivedRequests[0].url).toContain('stack=api');
+  });
+
+  test('salvage({ project: "myapp", stack: "api" }) includes both params', async () => {
+    queueResponse({ success: true, agents: [], count: 0, filtered: true });
+
+    await pd.salvage({ project: 'myapp', stack: 'api' });
+
+    const url = receivedRequests[0].url;
+    expect(url).toContain('project=myapp');
+    expect(url).toContain('stack=api');
+  });
+
+  test('salvage({ limit: 5 }) includes limit param', async () => {
+    queueResponse({ success: true, agents: [], count: 0 });
+
+    await pd.salvage({ limit: 5 });
+
+    expect(receivedRequests[0].url).toContain('limit=5');
+  });
+
+  test('salvage({ all: true }) calls /resurrection (global queue)', async () => {
+    queueResponse({ success: true, agents: [], count: 0 });
+
+    await pd.salvage({ all: true });
+
+    expect(receivedRequests[0].url).toBe('/resurrection');
+  });
+
+  test('salvage({ all: true, project: "myapp" }) uses global endpoint with filter', async () => {
+    queueResponse({ success: true, agents: [], count: 0 });
+
+    await pd.salvage({ all: true, project: 'myapp' });
+
+    const url = receivedRequests[0].url;
+    expect(url).toContain('/resurrection?');
+    expect(url).toContain('project=myapp');
+    // Should NOT use /resurrection/pending when all is true
+    expect(url).not.toContain('/pending');
+  });
+
+  test('salvage response with agents includes identity fields', async () => {
+    queueResponse({
+      success: true,
+      agents: [{
+        id: 'dead-agent-1',
+        name: 'dead-agent-1',
+        purpose: 'Building login page',
+        sessionId: 'sess-123',
+        lastHeartbeat: Date.now() - 3600000,
+        staleSince: Date.now() - 1800000,
+        status: 'dead',
+        identityProject: 'myapp',
+        identityStack: 'frontend',
+        identityContext: 'feature-login',
+      }],
+      count: 1,
+      filtered: true,
+    });
+
+    const result = await pd.salvage({ project: 'myapp' });
+
+    expect(result.count).toBe(1);
+    expect(result.agents[0].id).toBe('dead-agent-1');
+    expect(result.agents[0].identityProject).toBe('myapp');
+    expect(result.agents[0].identityStack).toBe('frontend');
+    expect(result.agents[0].purpose).toBe('Building login page');
+    expect(result.filtered).toBe(true);
+  });
+});
+
+// =============================================================================
+// Salvage Lifecycle Methods
+// =============================================================================
+
+describe('Salvage lifecycle methods', () => {
+  let pd;
+  beforeEach(() => {
+    pd = createClient({ agentId: 'rescue-agent', pid: 9999 });
+  });
+
+  test('salvageClaim sends POST to /resurrection/claim/:agentId', async () => {
+    queueResponse({
+      success: true,
+      message: 'Claimed dead-agent-1 for resurrection',
+      context: {
+        sessionId: 'sess-123',
+        purpose: 'Building auth',
+        notes: ['Started OAuth implementation', 'Got stuck on token refresh'],
+      },
+    });
+
+    const result = await pd.salvageClaim('dead-agent-1');
+
+    expect(receivedRequests).toHaveLength(1);
+    expect(receivedRequests[0].method).toBe('POST');
+    expect(receivedRequests[0].url).toBe('/resurrection/claim/dead-agent-1');
+    expect(receivedRequests[0].body.newAgentId).toBe('rescue-agent');
+    expect(result.success).toBe(true);
+    expect(result.context.sessionId).toBe('sess-123');
+    expect(result.context.notes).toHaveLength(2);
+  });
+
+  test('salvageClaim uses fallback agentId when none set', async () => {
+    const pd2 = createClient({ pid: 4242 });
+    pd2.agentId = undefined;
+    queueResponse({ success: true, message: 'Claimed' });
+
+    await pd2.salvageClaim('dead-agent-2');
+
+    expect(receivedRequests[0].body.newAgentId).toBe('sdk-4242');
+  });
+
+  test('salvageClaim encodes agentId in URL', async () => {
+    queueResponse({ success: true, message: 'Claimed' });
+
+    await pd.salvageClaim('agent:with:colons');
+
+    expect(receivedRequests[0].url).toBe('/resurrection/claim/agent%3Awith%3Acolons');
+  });
+
+  test('salvageComplete sends POST to /resurrection/complete/:agentId', async () => {
+    queueResponse({ success: true, message: 'Resurrection complete' });
+
+    const result = await pd.salvageComplete('dead-agent-1');
+
+    expect(receivedRequests).toHaveLength(1);
+    expect(receivedRequests[0].method).toBe('POST');
+    expect(receivedRequests[0].url).toBe('/resurrection/complete/dead-agent-1');
+    expect(receivedRequests[0].body.newAgentId).toBe('rescue-agent');
+    expect(result.success).toBe(true);
+  });
+
+  test('salvageComplete with explicit newAgentId', async () => {
+    queueResponse({ success: true, message: 'Resurrection complete' });
+
+    await pd.salvageComplete('dead-agent-1', 'specific-agent');
+
+    expect(receivedRequests[0].body.newAgentId).toBe('specific-agent');
+  });
+
+  test('salvageComplete uses fallback when no agentId set', async () => {
+    const pd2 = createClient({ pid: 3333 });
+    pd2.agentId = undefined;
+    queueResponse({ success: true, message: 'Complete' });
+
+    await pd2.salvageComplete('dead-agent-1');
+
+    expect(receivedRequests[0].body.newAgentId).toBe('sdk-3333');
+  });
+
+  test('salvageAbandon sends POST to /resurrection/abandon/:agentId', async () => {
+    queueResponse({ success: true, message: 'Returned to queue' });
+
+    const result = await pd.salvageAbandon('dead-agent-1');
+
+    expect(receivedRequests).toHaveLength(1);
+    expect(receivedRequests[0].method).toBe('POST');
+    expect(receivedRequests[0].url).toBe('/resurrection/abandon/dead-agent-1');
+    expect(result.success).toBe(true);
+  });
+
+  test('salvageDismiss sends DELETE to /resurrection/:agentId', async () => {
+    queueResponse({ success: true, message: 'Dismissed from queue' });
+
+    const result = await pd.salvageDismiss('dead-agent-1');
+
+    expect(receivedRequests).toHaveLength(1);
+    expect(receivedRequests[0].method).toBe('DELETE');
+    expect(receivedRequests[0].url).toBe('/resurrection/dead-agent-1');
+    expect(result.success).toBe(true);
+  });
+
+  test('salvageDismiss encodes agentId in URL', async () => {
+    queueResponse({ success: true, message: 'Dismissed' });
+
+    await pd.salvageDismiss('agent:with:colons');
+
+    expect(receivedRequests[0].url).toBe('/resurrection/agent%3Awith%3Acolons');
+  });
+});
