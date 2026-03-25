@@ -52,13 +52,16 @@ gardener_run() {
   local diff_summary=$(git diff --stat HEAD -- lib/ routes/ server.ts mcp/ bin/ tests/ 2>/dev/null | tail -5)
   local diff_content=$(git diff HEAD -- lib/ routes/ server.ts mcp/ bin/ tests/ 2>/dev/null | head -500)
 
-  local commit_msg=$(claude -p "You are a git commit message writer. Given this diff, write a single conventional commit message (type: subject, max 72 chars). Types: feat, fix, test, refactor, docs, chore. Be specific about what changed. Output ONLY the commit message, nothing else.
+  local commit_msg=$(pd spawn --backend claude-cli \
+    --maxTokens 100 \
+    --timeout 120000 \
+    -q -- "You are a git commit message writer. Given this diff, write a single conventional commit message (type: subject, max 72 chars). Types: feat, fix, test, refactor, docs, chore. Be specific about what changed. Output ONLY the commit message, nothing else.
 
 Diff stats:
 $diff_summary
 
 Diff (first 500 lines):
-$diff_content" --max-tokens 100 2>/dev/null | head -1)
+$diff_content" 2>/dev/null | head -1)
 
   if [[ -z "$commit_msg" ]]; then
     commit_msg="chore: auto-commit $(date +%Y-%m-%d_%H:%M) ($changed_count files)"
