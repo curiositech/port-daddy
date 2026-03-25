@@ -764,7 +764,9 @@ function verifySignature(payload, signature, secret) {
 
 ## Spawn — AI Agent Launcher
 
-Launch AI agents (Ollama, Claude, Gemini, Aider, custom subprocess) with Port Daddy coordination auto-wired. Each spawned agent automatically registers, sends heartbeats, and marks its session done on completion.
+Launch AI agents (Ollama, Claude, Claude CLI, Gemini, Aider, custom subprocess) with Port Daddy coordination auto-wired. Each spawned agent automatically registers, sends heartbeats, and marks its session done on completion.
+
+**Backends:** `ollama` (default), `claude` (API — text in/out), `claude-cli` (full CLI with tools), `gemini`, `aider`, `custom`
 
 ```typescript
 // Spawn a local Ollama agent
@@ -777,7 +779,16 @@ const result = await pd.spawn({
 });
 console.log(result.agentId, result.status);  // e.g. "ollama-abc123", "completed"
 
-// Spawn a Claude SDK agent
+// Spawn Claude Code CLI (full agent with file editing tools)
+await pd.spawn({
+  backend: 'claude-cli',
+  identity: 'myapp:fixer',
+  task: 'Fix the login bug in src/auth.ts',
+  allowedTools: 'Read,Write,Edit,Glob,Grep,Bash(git*)',
+  workdir: '/path/to/project',
+});
+
+// Spawn Claude API (text in, text out — fast, no tools)
 await pd.spawn({
   backend: 'claude',
   model: 'claude-haiku-4-5-20251001',

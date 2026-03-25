@@ -11,11 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Context-Aware Salvage**: Agent registration with `--identity` and `--purpose` now auto-checks for dead agents in the same project and returns a salvage notice. `pd salvage --project <name>` filters by project. Dashboard shows salvage queue grouped by project.
 - **CLI @clack/prompts makeover**: Replaced raw ANSI/readline output with `@clack/prompts` for styled intro bars, spinners, log messages (success/error/warn/info), boxed notes, and interactive prompts. New confident, AI-like voice across all 58+ commands.
 - **`pd spawn` — AI Agent Launcher**: Launch local or cloud AI agents with Port Daddy coordination auto-wired
-  - Backends: `ollama` (local daemon), `claude` (Anthropic SDK direct), `gemini` (Google Generative AI), `aider` (subprocess, git-native), `custom` (shell command)
+  - Backends: `ollama` (local daemon), `claude` (Anthropic SDK direct), `claude-cli` (full Claude Code CLI with tools), `gemini` (Google Generative AI), `aider` (subprocess, git-native), `custom` (shell command)
+  - `claude-cli` backend wraps `claude -p` as a subprocess — supports `--allowedTools`, `--cwd`, `--maxTokens` flags for full agentic capabilities
   - All spawned agents auto-register, send heartbeats, start sessions, and enter salvage queue on crash
+  - CLI exits non-zero when agent fails; quiet mode (`-q`) prints raw output to stdout
   - `pd spawn -- <task>`, `pd spawned`, `pd spawn kill <id>` CLI commands
   - SDK: `pd.spawn()`, `pd.listSpawned()`, `pd.killSpawned()`
   - API: `POST /spawn`, `GET /spawn`, `DELETE /spawn/:id`
+- **Fleet dogfooding**: All 8 fleet agents migrated from direct `claude -p` to `pd spawn --backend claude-cli`, gaining full PD coordination (registration, sessions, heartbeats, done signals) for free
+- **OpenAPI 3.1 specification**: Full API spec at `docs/openapi.yaml` — 96 paths, 125 operations, single source of truth for the HTTP API
+- **Dashboard salvage panel upgrade**: Groups dead agents by project, uses primary `/salvage` routes (not deprecated `/resurrection`), adds Claim/Dismiss action buttons per agent
 - **`pd watch` — Ambient Agent Kernel**: React to pub/sub messages without polling
   - `pd watch <channel> --exec <script>` runs script on each message
   - Script receives `PD_MESSAGE`, `PD_MESSAGE_CONTENT`, `PD_CHANNEL`, `PD_TIMESTAMP` env vars
