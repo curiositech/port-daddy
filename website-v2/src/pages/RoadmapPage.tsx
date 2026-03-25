@@ -7,12 +7,12 @@ export function RoadmapPage() {
     {
       title: 'Phase 1: The Secure Core',
       status: 'shipped',
-      description: 'Formal verification of the Anchor Protocol via ProVerif and transition to memory-safe Rust for sensitive cryptographic parsing.',
+      description: 'Formal verification of the Anchor Protocol via ProVerif. TypeScript daemon shipped with SQLite-backed state, atomic port assignment, and HMAC-signed harbor tokens.',
       icon: <Shield className="w-8 h-8 text-[var(--brand-primary)]" />
     },
     {
       title: 'Phase 2: Distributed Arbiters',
-      status: 'active',
+      status: 'preview',
       description: 'Introduction of ambient security agents that monitor Harbor state transitions in real-time, enforcing formally proven rules without human intervention.',
       icon: <Lock className="w-8 h-8 text-[var(--p-teal-400)]" />
     },
@@ -97,7 +97,7 @@ export function RoadmapPage() {
         >
           <h3 className="text-4xl font-display font-black text-[var(--text-primary)]">Ready to Build the Swarm?</h3>
           <p className="text-lg text-[var(--text-secondary)] max-w-xl mx-auto">
-            Our formal verification models and Rust core are open source. Dive into the math and help us define the Anchor Protocol.
+            Our formal verification models and TypeScript daemon are open source. Dive into the math and help us define the Anchor Protocol.
           </p>
           <div className="flex justify-center gap-4">
             <Badge variant="neutral" className="px-6 py-2 cursor-pointer hover:bg-[var(--interactive-hover)]">GitHub</Badge>
