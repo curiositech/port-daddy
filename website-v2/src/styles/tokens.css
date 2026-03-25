@@ -1,211 +1,299 @@
 /**
- * Port Daddy — Harbor Heritage Design Tokens
- * Palette derived from the vintage travel poster illustration:
- *   Red (cinnabar) + Black (warm ebony) + Stone (sandstone)
- * Complementary harmonics: Harbor Teal + Rope Gold
- * Neumorphic soft UI on warm sandstone (light) / dark ebony (dark)
+ * Port Daddy — Harbor Heritage Design System
+ * Three-tier token architecture:
+ *   Tier 1: Primitives (raw palette, spacing scale, radii, type scale)
+ *   Tier 2: Semantic (meaning-mapped aliases for surface, text, brand, state)
+ *   Tier 3: Component (specific component slots, defined in CVA variants)
  *
- * Color relationships:
- *   Red (#CC3D2E) sits at ~12° — warm, authoritative, the signal flag
- *   Teal (#4A9D9E) sits at ~182° — near-complement, the harbor water
- *   Gold (#C69C6D) sits at ~35° — analogous to red, the mooring rope
- *   Stone (#D4C5A9) — warm neutral ground, the harbor wall itself
- *   Black (#1E1B18) — the anchor, warm ebony with brown undertones
+ * Palette from vintage travel poster illustration:
+ *   Cinnabar Red · Warm Ebony · Harbor Sandstone · Harbor Teal · Rope Gold
  */
 
-:root, [data-theme='light'] {
-  /* Neumorphic Surfaces — Sandstone */
-  --bg-base:      #D4C5A9;
-  --bg-surface:   #DDD0B6;
-  --bg-overlay:   #C8B99D;
-  --bg-glass:     rgba(212, 197, 169, 0.92);
+:root {
+  /* ═══════════════════════════════════════════════════════════════════
+   * TIER 1 — PRIMITIVES
+   * Raw values. Never reference these directly in components.
+   * ═══════════════════════════════════════════════════════════════════ */
 
-  /* Text — warm ebony on sandstone (8.4:1 contrast ratio) */
-  --text-primary:   #1E1B18;
-  --text-secondary: #4A4640;
-  --text-muted:     #7A7468;
+  /* Palette: Red */
+  --p-red-50:  #FDF2F0;
+  --p-red-100: #F9DDD8;
+  --p-red-200: #F0AFA5;
+  --p-red-300: #E58072;
+  --p-red-400: #D95A4A;
+  --p-red-500: #CC3D2E;
+  --p-red-600: #A83226;
+  --p-red-700: #8B2920;
+  --p-red-800: #6E201A;
+  --p-red-900: #511714;
 
-  /* Brand — Red / Teal / Gold (split-complementary + analogous) */
-  --brand-primary:   #CC3D2E;  /* Cinnabar red — the signal flag */
-  --brand-secondary: #4A9D9E;  /* Harbor teal — the water */
-  --brand-accent:    #C69C6D;  /* Rope gold — warm analogous */
+  /* Palette: Teal */
+  --p-teal-50:  #EFF8F8;
+  --p-teal-100: #D4EDED;
+  --p-teal-200: #A8DBDC;
+  --p-teal-300: #7CC4C5;
+  --p-teal-400: #5BB0B1;
+  --p-teal-500: #4A9D9E;
+  --p-teal-600: #3A8182;
+  --p-teal-700: #2D6566;
+  --p-teal-800: #204A4B;
+  --p-teal-900: #143030;
 
-  /* Borders */
-  --border-subtle: rgba(30, 27, 24, 0.08);
-  --border-strong: rgba(30, 27, 24, 0.16);
+  /* Palette: Gold */
+  --p-gold-50:  #FBF5EC;
+  --p-gold-100: #F3E4CC;
+  --p-gold-200: #E4C899;
+  --p-gold-300: #D4AD7C;
+  --p-gold-400: #C69C6D;
+  --p-gold-500: #A68050;
+  --p-gold-600: #866538;
+  --p-gold-700: #664C2A;
+  --p-gold-800: #46341D;
+  --p-gold-900: #281E10;
 
-  /* Interactive */
-  --interactive-hover:  rgba(30, 27, 24, 0.06);
-  --interactive-active: rgba(204, 61, 46, 0.12);
+  /* Palette: Stone (warm neutrals) */
+  --p-stone-50:  #F5F1E9;
+  --p-stone-100: #EBE5D6;
+  --p-stone-200: #DDD3BC;
+  --p-stone-300: #D4C5A9;
+  --p-stone-400: #C0B193;
+  --p-stone-500: #A89D87;
+  --p-stone-600: #8A8070;
+  --p-stone-700: #6B6358;
+  --p-stone-800: #4A4640;
+  --p-stone-900: #3D3832;
 
-  /* Status */
-  --status-success: #4A7A5A;
-  --status-warning: #B8860B;
-  --status-error:   #CC3D2E;
+  /* Palette: Ebony (warm blacks) */
+  --p-ebony-50:  #E8E0D4;
+  --p-ebony-100: #A89E8F;
+  --p-ebony-200: #7A7468;
+  --p-ebony-300: #5A544A;
+  --p-ebony-400: #3D3832;
+  --p-ebony-500: #2E2A25;
+  --p-ebony-600: #282420;
+  --p-ebony-700: #1E1B18;
+  --p-ebony-800: #161412;
+  --p-ebony-900: #100E0C;
 
-  /* Palette variants */
-  --p-red-400:     #CC3D2E;
-  --p-red-500:     #A83226;
-  --p-red-600:     #8B2920;
-  --p-teal-400:    #4A9D9E;
-  --p-teal-500:    #3A8182;
-  --p-gold-400:    #C69C6D;
-  --p-gold-500:    #A68050;
-  --p-stone-300:   #E8DCC6;
-  --p-stone-400:   #D4C5A9;
-  --p-stone-500:   #C0B193;
-  --p-ebony-400:   #3D3832;
-  --p-ebony-500:   #1E1B18;
-  --p-green-400:   #4A7A5A;
-  --p-amber-400:   #B8860B;
+  /* Spacing scale (4px base) */
+  --space-0:  0;
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --space-24: 96px;
 
-  /* Code Block — dark ebony terminal */
-  --bg-code:              #1E1B18;
-  --text-code:            #E8E0D4;
-  --code-prompt:          #7ABF7E;
-  --code-output:          #A89E8F;
-  --codeblock-bg:         #1E1B18;
-  --codeblock-header-bg:  #161412;
-  --codeblock-border:     #3D3832;
-  --codeblock-text:       #E8E0D4;
-  --codeblock-filename:   #7A7468;
-  --codeblock-copy:       #7A7468;
-  --codeblock-copy-hover: #E8E0D4;
-  --codeblock-dot-red:    #E05A4B;
-  --codeblock-dot-amber:  #D4AD7C;
-  --codeblock-dot-green:  #7ABF7E;
+  /* Radii */
+  --radius-sm:   8px;
+  --radius-md:   12px;
+  --radius-lg:   16px;
+  --radius-xl:   20px;
+  --radius-2xl:  24px;
+  --radius-full: 9999px;
 
-  /* Neumorphic Shadows — warm sandstone depth */
-  --shadow-neu-raised: 6px 6px 12px #B0A48B, -6px -6px 12px #F2ECD8;
-  --shadow-neu-inset:  inset 4px 4px 8px #B0A48B, inset -4px -4px 8px #F2ECD8;
-  --shadow-neu-sm:     3px 3px 6px #B0A48B, -3px -3px 6px #F2ECD8;
-  --shadow-neu-flat:   2px 2px 4px #BEB299, -2px -2px 4px #EAE2CE;
+  /* Type scale */
+  --text-xs:   0.75rem;
+  --text-sm:   0.875rem;
+  --text-base: 1rem;
+  --text-lg:   1.125rem;
+  --text-xl:   1.25rem;
+  --text-2xl:  1.5rem;
+  --text-3xl:  1.875rem;
+  --text-4xl:  2.25rem;
+  --text-5xl:  3rem;
 
-  /* Typography */
-  --p-font-mono:    'JetBrains Mono', monospace;
-  --p-font-sans:    'Inter', system-ui, sans-serif;
-  --p-font-display: 'Instrument Sans', 'Inter', system-ui, sans-serif;
+  /* Font stacks */
+  --font-sans:    'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Instrument Sans', 'Inter', system-ui, sans-serif;
+  --font-mono:    'JetBrains Mono', 'Fira Code', monospace;
 
-  /* shadcn/ui — Light */
-  --radius: 0.75rem;
+  /* Transition durations */
+  --duration-fast:   100ms;
+  --duration-normal: 200ms;
+  --duration-slow:   300ms;
+  --duration-slower:  500ms;
 
-  --background: #D4C5A9;
-  --foreground: #1E1B18;
-
-  --card: #DDD0B6;
-  --card-foreground: #1E1B18;
-
-  --popover: #DDD0B6;
-  --popover-foreground: #1E1B18;
-
-  --primary: #CC3D2E;
-  --primary-foreground: #F2ECD8;
-
-  --secondary: #C8B99D;
-  --secondary-foreground: #1E1B18;
-
-  --muted: #C8B99D;
-  --muted-foreground: #7A7468;
-
-  --accent: #C8B99D;
-  --accent-foreground: #1E1B18;
-
-  --destructive: #CC3D2E;
-  --destructive-foreground: #F2ECD8;
-
-  --border: rgba(30, 27, 24, 0.08);
-  --input: rgba(30, 27, 24, 0.1);
-  --ring: #CC3D2E;
+  /* Easing */
+  --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+ * TIER 2 — SEMANTIC TOKENS (Light Theme)
+ * Meaning-mapped. Components reference THESE, not primitives.
+ * ═══════════════════════════════════════════════════════════════════ */
+
+:root, [data-theme='light'] {
+  /* Surfaces */
+  --surface-base:     var(--p-stone-300);   /* page background */
+  --surface-raised:   var(--p-stone-200);   /* cards, panels */
+  --surface-overlay:  var(--p-stone-400);   /* dropdowns, modals */
+  --surface-sunken:   var(--p-stone-400);   /* inset areas */
+  --surface-glass:    rgba(212, 197, 169, 0.88);
+
+  /* Text */
+  --text-primary:     var(--p-ebony-700);
+  --text-secondary:   var(--p-ebony-300);
+  --text-muted:       var(--p-stone-700);
+  --text-inverse:     var(--p-stone-50);
+
+  /* Brand */
+  --brand-primary:    var(--p-red-500);
+  --brand-secondary:  var(--p-teal-500);
+  --brand-accent:     var(--p-gold-400);
+
+  /* Interactive */
+  --interactive-hover:   rgba(30, 27, 24, 0.06);
+  --interactive-active:  rgba(204, 61, 46, 0.12);
+  --interactive-focus:   var(--p-teal-400);
+
+  /* Borders */
+  --border-subtle:    rgba(30, 27, 24, 0.08);
+  --border-default:   rgba(30, 27, 24, 0.12);
+  --border-strong:    rgba(30, 27, 24, 0.20);
+
+  /* Status */
+  --status-success:   #4A7A5A;
+  --status-warning:   #B8860B;
+  --status-error:     var(--p-red-500);
+  --status-info:      var(--p-teal-500);
+
+  /* Neumorphic depth (the magic sauce) */
+  --neu-shadow:       var(--p-stone-500);
+  --neu-highlight:    var(--p-stone-50);
+  --shadow-raised:    6px 6px 12px var(--p-stone-500), -6px -6px 12px var(--p-stone-50);
+  --shadow-inset:     inset 4px 4px 8px var(--p-stone-500), inset -4px -4px 8px var(--p-stone-50);
+  --shadow-sm:        3px 3px 6px var(--p-stone-500), -3px -3px 6px var(--p-stone-50);
+  --shadow-flat:      2px 2px 4px var(--p-stone-600), -2px -2px 4px var(--p-stone-100);
+  --shadow-pressed:   inset 2px 2px 4px var(--p-stone-500), inset -2px -2px 4px var(--p-stone-50);
+
+  /* Code (always dark — warm ebony terminal) */
+  --code-bg:          var(--p-ebony-700);
+  --code-header-bg:   var(--p-ebony-800);
+  --code-border:      var(--p-ebony-400);
+  --code-text:        var(--p-ebony-50);
+  --code-prompt:      #7ABF7E;
+  --code-output:      var(--p-ebony-100);
+  --code-comment:     var(--p-stone-700);
+  --code-dot-red:     var(--p-red-400);
+  --code-dot-amber:   var(--p-gold-300);
+  --code-dot-green:   #7ABF7E;
+
+  /* Legacy aliases (for gradual migration — remove later) */
+  --bg-base: var(--surface-base);
+  --bg-surface: var(--surface-raised);
+  --bg-overlay: var(--surface-overlay);
+  --bg-glass: var(--surface-glass);
+  --bg-code: var(--code-bg);
+  --text-code: var(--code-text);
+  --shadow-neu-raised: var(--shadow-raised);
+  --shadow-neu-inset: var(--shadow-inset);
+  --shadow-neu-sm: var(--shadow-sm);
+  --shadow-neu-flat: var(--shadow-flat);
+  --codeblock-bg: var(--code-bg);
+  --codeblock-header-bg: var(--code-header-bg);
+  --codeblock-border: var(--code-border);
+  --codeblock-text: var(--code-text);
+  --codeblock-filename: var(--code-comment);
+  --codeblock-copy: var(--p-stone-700);
+  --codeblock-copy-hover: var(--code-text);
+  --codeblock-dot-red: var(--code-dot-red);
+  --codeblock-dot-amber: var(--code-dot-amber);
+  --codeblock-dot-green: var(--code-dot-green);
+
+  /* shadcn/ui compatibility */
+  --radius: var(--radius-lg);
+  --background: var(--surface-base);
+  --foreground: var(--text-primary);
+  --card: var(--surface-raised);
+  --card-foreground: var(--text-primary);
+  --popover: var(--surface-raised);
+  --popover-foreground: var(--text-primary);
+  --primary: var(--brand-primary);
+  --primary-foreground: var(--text-inverse);
+  --secondary: var(--surface-overlay);
+  --secondary-foreground: var(--text-primary);
+  --muted: var(--surface-overlay);
+  --muted-foreground: var(--text-muted);
+  --accent: var(--surface-overlay);
+  --accent-foreground: var(--text-primary);
+  --destructive: var(--status-error);
+  --destructive-foreground: var(--text-inverse);
+  --border: var(--border-subtle);
+  --input: var(--border-default);
+  --ring: var(--brand-primary);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+ * TIER 2 — SEMANTIC TOKENS (Dark Theme)
+ * ═══════════════════════════════════════════════════════════════════ */
+
 [data-theme='dark'] {
-  /* Neumorphic Surfaces — Warm Ebony */
-  --bg-base:      #1E1B18;
-  --bg-surface:   #282420;
-  --bg-overlay:   #161412;
-  --bg-glass:     rgba(30, 27, 24, 0.92);
+  --surface-base:     var(--p-ebony-700);
+  --surface-raised:   var(--p-ebony-600);
+  --surface-overlay:  var(--p-ebony-800);
+  --surface-sunken:   var(--p-ebony-800);
+  --surface-glass:    rgba(30, 27, 24, 0.88);
 
-  --text-primary:   #E8E0D4;
-  --text-secondary: #A89E8F;
-  --text-muted:     #6B6358;
+  --text-primary:     var(--p-ebony-50);
+  --text-secondary:   var(--p-ebony-100);
+  --text-muted:       var(--p-stone-700);
+  --text-inverse:     var(--p-ebony-700);
 
-  --brand-primary:   #E05A4B;
-  --brand-secondary: #6BB8B9;
-  --brand-accent:    #D4AD7C;
+  --brand-primary:    var(--p-red-400);
+  --brand-secondary:  var(--p-teal-400);
+  --brand-accent:     var(--p-gold-300);
 
-  --border-subtle: rgba(232, 224, 212, 0.06);
-  --border-strong: rgba(232, 224, 212, 0.12);
+  --interactive-hover:   rgba(232, 224, 212, 0.05);
+  --interactive-active:  rgba(217, 90, 74, 0.14);
+  --interactive-focus:   var(--p-teal-400);
 
-  --interactive-hover:  rgba(232, 224, 212, 0.05);
-  --interactive-active: rgba(224, 90, 75, 0.14);
+  --border-subtle:    rgba(232, 224, 212, 0.06);
+  --border-default:   rgba(232, 224, 212, 0.10);
+  --border-strong:    rgba(232, 224, 212, 0.16);
 
-  --status-success: #7ABF7E;
-  --status-warning: #D4AD7C;
-  --status-error:   #E05A4B;
+  --status-success:   #7ABF7E;
+  --status-warning:   var(--p-gold-300);
+  --status-error:     var(--p-red-400);
+  --status-info:      var(--p-teal-400);
 
-  --p-red-400:     #E05A4B;
-  --p-red-500:     #CC3D2E;
-  --p-red-600:     #A83226;
-  --p-teal-400:    #6BB8B9;
-  --p-teal-500:    #4A9D9E;
-  --p-gold-400:    #D4AD7C;
-  --p-gold-500:    #C69C6D;
-  --p-stone-300:   #D4C5A9;
-  --p-stone-400:   #A89E8F;
-  --p-stone-500:   #7A7468;
-  --p-ebony-400:   #3D3832;
-  --p-ebony-500:   #1E1B18;
-  --p-green-400:   #7ABF7E;
-  --p-amber-400:   #D4AD7C;
+  --neu-shadow:       var(--p-ebony-900);
+  --neu-highlight:    var(--p-ebony-500);
+  --shadow-raised:    6px 6px 12px var(--p-ebony-900), -6px -6px 12px var(--p-ebony-500);
+  --shadow-inset:     inset 4px 4px 8px var(--p-ebony-900), inset -4px -4px 8px var(--p-ebony-500);
+  --shadow-sm:        3px 3px 6px var(--p-ebony-900), -3px -3px 6px var(--p-ebony-500);
+  --shadow-flat:      2px 2px 4px var(--p-ebony-900), -2px -2px 4px var(--p-ebony-500);
+  --shadow-pressed:   inset 2px 2px 4px var(--p-ebony-900), inset -2px -2px 4px var(--p-ebony-500);
 
-  /* Code Block — dark ebony terminal */
-  --bg-code:              #161412;
-  --text-code:            #E8E0D4;
-  --code-prompt:          #7ABF7E;
-  --code-output:          #A89E8F;
-  --codeblock-bg:         #161412;
-  --codeblock-header-bg:  #100E0C;
-  --codeblock-border:     #3D3832;
-  --codeblock-text:       #E8E0D4;
-  --codeblock-filename:   #6B6358;
-  --codeblock-copy:       #6B6358;
-  --codeblock-copy-hover: #E8E0D4;
-  --codeblock-dot-red:    #E05A4B;
-  --codeblock-dot-amber:  #D4AD7C;
-  --codeblock-dot-green:  #7ABF7E;
+  --code-bg:          var(--p-ebony-800);
+  --code-header-bg:   var(--p-ebony-900);
 
-  /* Neumorphic Shadows — Dark Ebony */
-  --shadow-neu-raised: 6px 6px 12px #141210, -6px -6px 12px #2A2622;
-  --shadow-neu-inset:  inset 4px 4px 8px #141210, inset -4px -4px 8px #2A2622;
-  --shadow-neu-sm:     3px 3px 6px #141210, -3px -3px 6px #2A2622;
-  --shadow-neu-flat:   2px 2px 4px #121010, -2px -2px 4px #262220;
-
-  /* shadcn/ui — Dark */
-  --background: #1E1B18;
-  --foreground: #E8E0D4;
-
-  --card: #282420;
-  --card-foreground: #E8E0D4;
-
-  --popover: #282420;
-  --popover-foreground: #E8E0D4;
-
-  --primary: #E05A4B;
-  --primary-foreground: #1E1B18;
-
-  --secondary: #3D3832;
-  --secondary-foreground: #E8E0D4;
-
-  --muted: #3D3832;
-  --muted-foreground: #6B6358;
-
-  --accent: #3D3832;
-  --accent-foreground: #E8E0D4;
-
-  --destructive: #E05A4B;
-  --destructive-foreground: #1E1B18;
-
-  --border: rgba(232, 224, 212, 0.06);
-  --input: rgba(232, 224, 212, 0.08);
-  --ring: #E05A4B;
+  /* shadcn/ui compatibility */
+  --background: var(--surface-base);
+  --foreground: var(--text-primary);
+  --card: var(--surface-raised);
+  --card-foreground: var(--text-primary);
+  --popover: var(--surface-raised);
+  --popover-foreground: var(--text-primary);
+  --primary: var(--brand-primary);
+  --primary-foreground: var(--text-inverse);
+  --secondary: var(--p-ebony-400);
+  --secondary-foreground: var(--text-primary);
+  --muted: var(--p-ebony-400);
+  --muted-foreground: var(--text-muted);
+  --accent: var(--p-ebony-400);
+  --accent-foreground: var(--text-primary);
+  --destructive: var(--status-error);
+  --destructive-foreground: var(--text-inverse);
+  --border: var(--border-subtle);
+  --input: var(--border-default);
+  --ring: var(--brand-primary);
 }

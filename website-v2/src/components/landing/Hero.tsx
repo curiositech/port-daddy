@@ -92,14 +92,14 @@ export function Hero() {
   const [isModalOpen, setIsModalOpen] = useState(false)
 
   return (
-    <section className="relative flex items-center overflow-hidden pt-32 pb-16 lg:pt-40 lg:pb-24">
+    <section className="relative flex items-center overflow-hidden pt-24 pb-8 lg:pt-32 lg:pb-12">
       {/* Subtle dot grid on the neumorphic surface */}
       <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{
         backgroundImage: 'radial-gradient(circle, #888 1px, transparent 1px)',
         backgroundSize: '24px 24px',
       }} />
 
-      <div className="relative z-10 w-full max-w-[1200px] mx-auto px-6 lg:px-8 py-20 lg:py-0">
+      <div className="relative z-10 w-full max-w-[1200px] mx-auto px-6 lg:px-8">
         <div className="grid lg:grid-cols-[1fr,1.1fr] gap-12 lg:gap-16 items-center">
           {/* Left -- Copy */}
           <motion.div
