@@ -1,140 +1,56 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { Badge } from './Badge'
-import { Activity, AlertTriangle, CheckCircle, Circle, Zap } from 'lucide-react'
+import { Anchor, Cpu, Shield } from 'lucide-react'
 
-const meta = {
-  title: 'UI/Badge',
+const meta: Meta<typeof Badge> = {
+  title: 'Design System/Badge',
   component: Badge,
-  tags: ['autodocs'],
   argTypes: {
-    variant: {
-      control: 'select',
-      options: ['teal', 'amber', 'green', 'neutral'],
-      description: 'Color variant',
-    },
-    children: {
-      control: 'text',
-      description: 'Badge content',
-    },
+    variant: { control: 'select', options: ['default', 'red', 'teal', 'gold', 'success', 'warning', 'outline'] },
+    size: { control: 'select', options: ['sm', 'md', 'lg'] },
   },
-  args: {
-    children: 'Badge',
-  },
-} satisfies Meta<typeof Badge>
-
+}
 export default meta
-type Story = StoryObj<typeof meta>
 
-// ─── Variants ──────────────────────────────────────────────────
+type Story = StoryObj<typeof Badge>
 
-export const Teal: Story = {
-  args: {
-    variant: 'teal',
-    children: 'Active',
-  },
-}
-
-export const Amber: Story = {
-  args: {
-    variant: 'amber',
-    children: 'Warning',
-  },
-}
-
-export const Green: Story = {
-  args: {
-    variant: 'green',
-    children: 'Healthy',
-  },
-}
-
-export const Neutral: Story = {
-  args: {
-    variant: 'neutral',
-    children: 'Inactive',
-  },
-}
-
-// ─── All Variants Side by Side ─────────────────────────────────
+export const Default: Story = { args: { children: 'Default', variant: 'default' } }
+export const Red: Story = { args: { children: 'Critical', variant: 'red' } }
+export const Teal: Story = { args: { children: 'Active', variant: 'teal' } }
+export const Gold: Story = { args: { children: 'Preview', variant: 'gold' } }
+export const Success: Story = { args: { children: 'Shipped', variant: 'success' } }
+export const Warning: Story = { args: { children: 'Stale', variant: 'warning' } }
 
 export const AllVariants: Story = {
   render: () => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+      <Badge variant="default">Default</Badge>
+      <Badge variant="red">Red</Badge>
       <Badge variant="teal">Teal</Badge>
-      <Badge variant="amber">Amber</Badge>
-      <Badge variant="green">Green</Badge>
-      <Badge variant="neutral">Neutral</Badge>
+      <Badge variant="gold">Gold</Badge>
+      <Badge variant="success">Success</Badge>
+      <Badge variant="warning">Warning</Badge>
+      <Badge variant="outline">Outline</Badge>
     </div>
   ),
 }
 
-// ─── With Icons ────────────────────────────────────────────────
-
-export const WithIcon: Story = {
+export const WithIcons: Story = {
   render: () => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-      <Badge variant="green">
-        <CheckCircle size={12} />
-        Running
-      </Badge>
-      <Badge variant="amber">
-        <AlertTriangle size={12} />
-        Stale
-      </Badge>
-      <Badge variant="teal">
-        <Activity size={12} />
-        Heartbeat
-      </Badge>
-      <Badge variant="neutral">
-        <Circle size={12} />
-        Idle
-      </Badge>
+    <div style={{ display: 'flex', gap: 8 }}>
+      <Badge variant="teal"><Anchor /> Ports</Badge>
+      <Badge variant="gold"><Cpu /> Agents</Badge>
+      <Badge variant="red"><Shield /> Security</Badge>
     </div>
   ),
 }
 
-// ─── Contextual Usage ──────────────────────────────────────────
-
-export const StatusIndicators: Story = {
-  name: 'Status Indicators',
+export const Sizes: Story = {
   render: () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-        <Badge variant="green">
-          <Zap size={12} />
-          Online
-        </Badge>
-        <span style={{ fontSize: '0.875rem' }}>Port Daddy Daemon</span>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-        <Badge variant="teal">v3.5</Badge>
-        <span style={{ fontSize: '0.875rem' }}>Current Version</span>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-        <Badge variant="amber">
-          <AlertTriangle size={12} />
-          Stale
-        </Badge>
-        <span style={{ fontSize: '0.875rem' }}>Agent worker-042</span>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-        <Badge variant="neutral">Stopped</Badge>
-        <span style={{ fontSize: '0.875rem' }}>Background Worker</span>
-      </div>
-    </div>
-  ),
-}
-
-// ─── Without Icons ─────────────────────────────────────────────
-
-export const TextOnly: Story = {
-  name: 'Text Only',
-  render: () => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-      <Badge variant="teal">Port 3001</Badge>
-      <Badge variant="green">Claimed</Badge>
-      <Badge variant="amber">Expiring</Badge>
-      <Badge variant="neutral">Released</Badge>
+    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+      <Badge size="sm" variant="teal">Small</Badge>
+      <Badge size="md" variant="teal">Medium</Badge>
+      <Badge size="lg" variant="teal">Large</Badge>
     </div>
   ),
 }

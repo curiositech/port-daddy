@@ -1,52 +1,91 @@
 import * as React from 'react'
 import { cva, type VariantProps } from 'class-variance-authority'
-
 import { cn } from '@/lib/utils'
 
+/**
+ * Badge — neumorphic inset pill for status, categories, and labels.
+ * Uses semantic tokens from the harbor heritage design system.
+ */
 const badgeVariants = cva(
-  'inline-flex w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-full border px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 [&>svg]:pointer-events-none [&>svg]:size-3',
+  [
+    'inline-flex w-fit shrink-0 items-center justify-center gap-1',
+    'rounded-full text-xs font-semibold uppercase tracking-wider',
+    'whitespace-nowrap transition-all duration-200',
+    '[&>svg]:pointer-events-none [&>svg]:size-3',
+  ].join(' '),
   {
     variants: {
+      variant: {
+        default: '',
+        red: '',
+        teal: '',
+        gold: '',
+        success: '',
+        warning: '',
+        outline: '',
+      },
       size: {
         sm: 'px-2 py-px text-[10px]',
-        md: 'px-2.5 py-0.5 text-xs',
+        md: 'px-2.5 py-0.5',
         lg: 'px-3 py-1 text-sm',
-      },
-      variant: {
-        default:
-          'bg-primary text-primary-foreground border-transparent',
-        teal:
-          'bg-primary/10 text-primary border-primary/20',
-        amber:
-          'bg-amber-500/15 text-amber-700 border-transparent dark:text-amber-400',
-        green:
-          'bg-emerald-500/15 text-emerald-700 border-transparent dark:text-emerald-400',
-        neutral:
-          'bg-muted text-muted-foreground border-border',
-        outline:
-          'border-border text-foreground bg-transparent',
-        destructive:
-          'bg-destructive text-destructive-foreground border-transparent',
-        secondary:
-          'bg-secondary text-secondary-foreground border-transparent',
       },
     },
     defaultVariants: {
-      variant: 'teal',
+      variant: 'default',
       size: 'md',
     },
   }
 )
 
+const variantStyles: Record<string, React.CSSProperties> = {
+  default: {
+    background: 'var(--surface-sunken)',
+    boxShadow: 'var(--shadow-pressed)',
+    color: 'var(--text-secondary)',
+  },
+  red: {
+    background: 'color-mix(in srgb, var(--brand-primary) 15%, var(--surface-base))',
+    boxShadow: 'var(--shadow-pressed)',
+    color: 'var(--brand-primary)',
+  },
+  teal: {
+    background: 'color-mix(in srgb, var(--brand-secondary) 15%, var(--surface-base))',
+    boxShadow: 'var(--shadow-pressed)',
+    color: 'var(--brand-secondary)',
+  },
+  gold: {
+    background: 'color-mix(in srgb, var(--brand-accent) 20%, var(--surface-base))',
+    boxShadow: 'var(--shadow-pressed)',
+    color: 'var(--p-gold-600)',
+  },
+  success: {
+    background: 'color-mix(in srgb, var(--status-success) 15%, var(--surface-base))',
+    boxShadow: 'var(--shadow-pressed)',
+    color: 'var(--status-success)',
+  },
+  warning: {
+    background: 'color-mix(in srgb, var(--status-warning) 15%, var(--surface-base))',
+    boxShadow: 'var(--shadow-pressed)',
+    color: 'var(--status-warning)',
+  },
+  outline: {
+    background: 'transparent',
+    border: '1px solid var(--border-default)',
+    color: 'var(--text-secondary)',
+  },
+}
+
 interface BadgeProps
   extends React.HTMLAttributes<HTMLSpanElement>,
     VariantProps<typeof badgeVariants> {}
 
-function Badge({ className, variant = 'teal', size = 'md', ...props }: BadgeProps) {
+function Badge({ className, variant = 'default', size = 'md', style, ...props }: BadgeProps) {
+  const v = variant ?? 'default'
   return (
     <span
       data-slot="badge"
       className={cn(badgeVariants({ variant, size }), className)}
+      style={{ ...variantStyles[v], ...style }}
       {...props}
     />
   )
