@@ -16,7 +16,6 @@ interface Demo {
 
 const DEMOS: Demo[] = [
   {
-<<<<<<< HEAD
     id: 'mayday',
     gif: '/gifs/mayday.gif',
     title: 'Mayday Rollback',
@@ -59,20 +58,6 @@ const DEMOS: Demo[] = [
       { value: 'Dynamic', label: 'decay' },
       { value: 'SOMA', label: 'inspired' },
       { value: 'Swarm', label: 'ready' },
-=======
-    id: 'salvage',
-    gif: '/gifs/salvage.gif',
-    title: 'Session Salvage',
-    subtitle: 'Recover crashed agent context',
-    badge: 'Crash Recovery',
-    badgeColor: 'amber',
-    description:
-      'If an agent crashes, Port Daddy preserves its session notes and file claims in the salvage queue. A fresh agent can claim the dead agent\'s work and continue where it left off.',
-    stats: [
-      { value: 'SQLite', label: 'backed' },
-      { value: 'Immutable', label: 'notes' },
-      { value: 'Advisory', label: 'claims' },
->>>>>>> worktree-agent-ae9460d3
     ],
   },
 ]
@@ -88,7 +73,6 @@ export function DemoGallery() {
   }
 
   return (
-<<<<<<< HEAD
     <section id="demo" className="py-24 lg:py-32 bg-[var(--bg-base)]">
       <div className="max-w-[1200px] mx-auto px-6 lg:px-8">
         {/* Header */}
@@ -101,32 +85,6 @@ export function DemoGallery() {
             High-fidelity recordings of the Anchor Protocol managing live agent swarms.
           </p>
         </div>
-=======
-    <motion.section 
-      id="demo" 
-      className="py-24 px-6 sm:px-8 lg:px-10 font-sans relative overflow-hidden bg-bg-base"
-      initial={{ opacity: 0 }}
-      whileInView={{ opacity: 1 }}
-      viewport={{ once: true }}
-    >
-      <motion.div className="max-w-7xl mx-auto font-sans flex flex-col items-center">
-        <motion.div
-          initial={{ opacity: 0, y: 32 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          className="text-center mb-16 flex flex-col items-center gap-12"
-        >
-          <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-[0.25em] shadow-xl bg-bg-overlay border border-brand-primary text-brand-primary">The Evidence</Badge>
-          <motion.h2 className="text-6xl sm:text-9xl font-bold font-display tracking-tight leading-[0.9] m-0 text-text-primary">
-            Proof of <br />
-            <motion.span className="text-brand-primary">Coordination.</motion.span>
-          </motion.h2>
-          <motion.p className="text-2xl sm:text-3xl max-w-4xl mx-auto leading-relaxed font-sans text-text-secondary font-bold">
-            These aren't mockups. These are <strong>high-fidelity recordings</strong> of Port Daddy managing live agent coordination.
-          </motion.p>
-        </motion.div>
->>>>>>> worktree-agent-ae9460d3
 
         <div className="grid lg:grid-cols-12 gap-8 items-start">
           {/* Demo Selector */}
