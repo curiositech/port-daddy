@@ -114,7 +114,7 @@ export function Hero() {
             <h1 className="text-3xl sm:text-4xl lg:text-[2.75rem] font-bold tracking-[-0.02em] leading-[1.15] mb-4 text-[var(--text-primary)]">
               Stop your agents from
               {' '}
-              <span className="bg-gradient-to-r from-[#D4643A] to-[#B84E28] bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-[#CC3D2E] to-[#A83226] bg-clip-text text-transparent">
                 fighting each other.
               </span>
             </h1>
@@ -129,13 +129,13 @@ export function Hero() {
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white cursor-pointer transition-all duration-200"
                 style={{
                   background: 'var(--brand-primary)',
-                  boxShadow: '4px 4px 8px #c4c4c4, -4px -4px 8px #ffffff',
+                  boxShadow: 'var(--shadow-neu-sm)',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.boxShadow = '2px 2px 4px #c4c4c4, -2px -2px 4px #ffffff'
+                  e.currentTarget.style.boxShadow = 'var(--shadow-neu-flat)'
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.boxShadow = '4px 4px 8px #c4c4c4, -4px -4px 8px #ffffff'
+                  e.currentTarget.style.boxShadow = 'var(--shadow-neu-sm)'
                 }}
               >
                 <Terminal size={16} />
