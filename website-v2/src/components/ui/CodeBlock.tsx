@@ -1,13 +1,12 @@
-import { motion } from 'framer-motion';
 import * as React from 'react'
 import { cn } from '@/lib/utils'
+import { Copy, Check, Terminal, FileCode } from 'lucide-react'
 
 interface CodeBlockProps {
   children: React.ReactNode
   language?: string
   filename?: string
   className?: string
-  /** If true, show a copy button */
   copyable?: boolean
 }
 
@@ -22,60 +21,77 @@ export function CodeBlock({ children, language, filename, className, copyable = 
     })
   }
 
+  const Icon = filename ? FileCode : Terminal
+
   return (
-    <motion.div
-      className={cn(
-        'rounded-lg overflow-hidden',
-        className
-      )}
+    <div
+      className={cn('rounded-2xl p-5 transition-all duration-300', className)}
       style={{
-        background: 'var(--codeblock-bg)',
-        border: '1px solid var(--codeblock-border)',
+        background: 'var(--bg-surface)',
+        boxShadow: 'var(--shadow-neu-raised)',
       }}
     >
       {/* Header */}
-      <motion.div
-        className="flex items-center justify-between px-4 py-2"
-        style={{
-          background: 'var(--codeblock-header-bg)',
-          borderBottom: '1px solid var(--codeblock-border)',
-        }}
-      >
-        <motion.div className="flex items-center gap-3">
-          {/* Traffic lights */}
-          <motion.div className="flex gap-1.5">
-            <motion.span className="w-3 h-3 rounded-full" style={{ background: 'var(--codeblock-dot-red)' }} />
-            <motion.span className="w-3 h-3 rounded-full" style={{ background: 'var(--codeblock-dot-amber)' }} />
-            <motion.span className="w-3 h-3 rounded-full" style={{ background: 'var(--codeblock-dot-green)' }} />
-          </motion.div>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-3">
+          <div
+            className="w-8 h-8 rounded-lg flex items-center justify-center"
+            style={{
+              background: 'var(--bg-base)',
+              boxShadow: 'var(--shadow-neu-inset)',
+            }}
+          >
+            <Icon size={14} className="text-[var(--brand-primary)]" />
+          </div>
           {filename && (
-            <motion.span className="text-xs font-mono" style={{ color: 'var(--codeblock-filename)' }}>{filename}</motion.span>
+            <span className="text-xs font-mono text-[var(--text-muted)]">{filename}</span>
           )}
           {language && !filename && (
-            <motion.span className="text-xs font-mono uppercase tracking-wider" style={{ color: 'var(--codeblock-filename)' }}>
-              {language}
-            </motion.span>
+            <span className="text-xs font-mono text-[var(--text-muted)] uppercase tracking-wider">{language}</span>
           )}
-        </motion.div>
+        </div>
         {copyable && (
           <button
             onClick={handleCopy}
-            className="text-xs transition-colors px-2 py-1 rounded"
-            style={{ color: copied ? 'var(--codeblock-dot-green)' : 'var(--codeblock-copy)' }}
-            onMouseEnter={(e) => { if (!copied) e.currentTarget.style.color = 'var(--codeblock-copy-hover)' }}
-            onMouseLeave={(e) => { if (!copied) e.currentTarget.style.color = 'var(--codeblock-copy)' }}
+            className="w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 cursor-pointer"
+            style={{
+              background: 'var(--bg-base)',
+              boxShadow: 'var(--shadow-neu-sm)',
+            }}
             aria-label="Copy code"
           >
-            {copied ? 'Copied!' : 'Copy'}
+            {copied ? (
+              <Check size={12} className="text-[var(--codeblock-dot-green)]" />
+            ) : (
+              <Copy size={12} className="text-[var(--text-muted)]" />
+            )}
           </button>
         )}
-      </motion.div>
+      </div>
 
-      {/* Code body */}
-      <pre className="overflow-x-auto p-4 m-0 text-sm leading-relaxed">
-        <code className="font-mono" style={{ color: 'var(--codeblock-text)' }}>{children}</code>
-      </pre>
-    </motion.div>
+      {/* Code body — always dark, inset */}
+      <div
+        className="rounded-xl overflow-hidden"
+        style={{
+          background: 'var(--bg-code)',
+          boxShadow: 'var(--shadow-neu-inset)',
+        }}
+      >
+        {/* Traffic lights */}
+        <div
+          className="flex items-center gap-2 px-4 py-2"
+          style={{ borderBottom: '1px solid var(--codeblock-border)' }}
+        >
+          <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--codeblock-dot-red)' }} />
+          <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--codeblock-dot-amber)' }} />
+          <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--codeblock-dot-green)' }} />
+        </div>
+
+        <pre className="overflow-x-auto p-4 m-0 text-sm leading-relaxed">
+          <code className="font-mono" style={{ color: 'var(--codeblock-text)' }}>{children}</code>
+        </pre>
+      </div>
+    </div>
   )
 }
 
@@ -88,16 +104,16 @@ interface TerminalLineProps {
 
 export function TerminalLine({ prompt = '$', command, output, className }: TerminalLineProps) {
   return (
-    <motion.div className={cn('font-mono text-sm leading-relaxed', className)}>
+    <div className={cn('font-mono text-sm leading-relaxed', className)}>
       {command !== undefined && (
-        <motion.div>
-          <motion.span style={{ color: 'var(--code-prompt)' }}>{prompt} </motion.span>
-          <motion.span style={{ color: 'var(--codeblock-text)' }}>{command}</motion.span>
-        </motion.div>
+        <div>
+          <span style={{ color: 'var(--code-prompt)' }}>{prompt} </span>
+          <span style={{ color: 'var(--codeblock-text)' }}>{command}</span>
+        </div>
       )}
       {output !== undefined && (
-        <motion.div className="pl-4" style={{ color: 'var(--code-output)' }}>{output}</motion.div>
+        <div className="pl-4" style={{ color: 'var(--code-output)' }}>{output}</div>
       )}
-    </motion.div>
+    </div>
   )
 }

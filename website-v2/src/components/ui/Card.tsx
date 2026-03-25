@@ -2,27 +2,41 @@ import * as React from 'react'
 
 import { cn } from '@/lib/utils'
 
-type CardVariant = 'default' | 'glass' | 'elevated'
-
-const variantClasses: Record<CardVariant, string> = {
-  default: '',
-  glass: 'backdrop-blur-md bg-bg-glass border-border-subtle',
-  elevated: 'shadow-xl',
-}
+type CardVariant = 'default' | 'glass' | 'elevated' | 'inset'
 
 interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: CardVariant
 }
 
-function Card({ variant = 'default', className, ...props }: CardProps) {
+function Card({ variant = 'default', className, style, ...props }: CardProps) {
+  const variantStyles: Record<CardVariant, React.CSSProperties> = {
+    default: {
+      background: 'var(--bg-surface)',
+      boxShadow: 'var(--shadow-neu-raised)',
+    },
+    glass: {
+      background: 'var(--bg-glass)',
+      boxShadow: 'var(--shadow-neu-sm)',
+      backdropFilter: 'blur(12px)',
+    },
+    elevated: {
+      background: 'var(--bg-surface)',
+      boxShadow: 'var(--shadow-neu-raised)',
+    },
+    inset: {
+      background: 'var(--bg-overlay)',
+      boxShadow: 'var(--shadow-neu-inset)',
+    },
+  }
+
   return (
     <div
       data-slot="card"
       className={cn(
-        'flex flex-col gap-6 rounded-xl border border-border bg-card py-6 text-card-foreground shadow-sm',
-        variantClasses[variant],
+        'flex flex-col gap-6 rounded-2xl py-6 text-[var(--text-primary)] transition-all duration-200',
         className
       )}
+      style={{ ...variantStyles[variant], ...style }}
       {...props}
     />
   )

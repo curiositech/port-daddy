@@ -107,48 +107,52 @@ export function TerminalReplay() {
 
   return (
     <motion.div
-      className="rounded-xl overflow-hidden border"
+      className="rounded-2xl p-5"
       style={{
-        background: 'var(--codeblock-bg)',
-        borderColor: 'var(--border-default)',
-        boxShadow: 'var(--p-shadow-xl)',
+        background: 'var(--bg-surface)',
+        boxShadow: 'var(--shadow-neu-raised)',
       }}
     >
-      {/* Terminal header */}
+      {/* Inset terminal */}
       <motion.div
-        className="flex items-center justify-between px-4 py-3"
+        className="rounded-xl overflow-hidden"
         style={{
-          background: 'var(--codeblock-header-bg)',
-          borderBottom: '1px solid var(--border-subtle)',
+          background: 'var(--bg-code)',
+          boxShadow: 'var(--shadow-neu-inset)',
         }}
       >
-        <motion.div className="flex items-center gap-3">
-          <motion.div className="flex gap-1.5">
-            <motion.span className="w-3 h-3 rounded-full" style={{ background: 'var(--p-red-500)', opacity: 0.7 }} />
-            <motion.span className="w-3 h-3 rounded-full" style={{ background: 'var(--p-amber-500)', opacity: 0.7 }} />
-            <motion.span className="w-3 h-3 rounded-full" style={{ background: 'var(--p-green-500)', opacity: 0.7 }} />
+        {/* Terminal header */}
+        <motion.div
+          className="flex items-center justify-between px-4 py-2"
+          style={{ borderBottom: '1px solid var(--codeblock-border)' }}
+        >
+          <motion.div className="flex items-center gap-3">
+            <motion.div className="flex gap-1.5">
+              <motion.span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--codeblock-dot-red)' }} />
+              <motion.span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--codeblock-dot-amber)' }} />
+              <motion.span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--codeblock-dot-green)' }} />
+            </motion.div>
+            <motion.span className="text-xs font-mono" style={{ color: 'var(--codeblock-filename)' }}>
+              zsh — port-daddy demo
+            </motion.span>
           </motion.div>
-          <motion.span className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
-            zsh — port-daddy demo
-          </motion.span>
+          {done && (
+            <button
+              onClick={restart}
+              className="text-xs px-2 py-1 rounded transition-colors cursor-pointer"
+              style={{ color: 'var(--codeblock-dot-green)' }}
+            >
+              Replay
+            </button>
+          )}
         </motion.div>
-        {done && (
-          <button
-            onClick={restart}
-            className="text-xs px-2 py-1 rounded transition-colors"
-            style={{ color: 'var(--brand-primary)', background: 'var(--badge-teal-bg)' }}
-          >
-            Replay
-          </button>
-        )}
-      </motion.div>
 
-      {/* Terminal body */}
-      <motion.div
-        ref={scrollRef}
-        className="overflow-y-auto p-4 font-mono text-sm leading-relaxed"
-        style={{ minHeight: '320px', maxHeight: '420px', color: 'var(--code-output)' }}
-      >
+        {/* Terminal body */}
+        <motion.div
+          ref={scrollRef}
+          className="overflow-y-auto p-4 font-mono text-sm leading-relaxed"
+          style={{ minHeight: '320px', maxHeight: '420px', color: 'var(--code-output)' }}
+        >
         <AnimatePresence initial={false}>
           {visibleLines.map((line, i) => (
             <motion.div
@@ -170,6 +174,7 @@ export function TerminalReplay() {
           </motion.div>
         )}
       </motion.div>
+      </motion.div>
     </motion.div>
   )
 }
@@ -179,7 +184,7 @@ function TerminalLine({ step, text, isLast }: { step: ReplayStep; text: string; 
 
   if (step.type === 'comment') {
     return (
-      <motion.div style={{ color: 'var(--code-comment)' }} className="select-none">
+      <motion.div style={{ color: 'var(--codeblock-filename)' }} className="select-none">
         {text}
       </motion.div>
     )
@@ -189,7 +194,7 @@ function TerminalLine({ step, text, isLast }: { step: ReplayStep; text: string; 
     return (
       <motion.div className="flex items-start gap-2">
         <motion.span style={{ color: 'var(--code-prompt)', flexShrink: 0 }}>$</motion.span>
-        <motion.span style={{ color: 'var(--text-primary)' }}>
+        <motion.span style={{ color: 'var(--text-code)' }}>
           {text}
           {isLast && <BlinkCursor />}
         </motion.span>

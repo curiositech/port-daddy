@@ -44,26 +44,28 @@ export function NeumorphicTerminal({
     } catch { /* */ }
   }
 
+  // All colors here use --code-* and --codeblock-* tokens which are designed
+  // for the always-dark terminal background, not page-level --text-* tokens
   const highlightBash = (line: string) => {
     if (!line.trim()) return <span> </span>
-    if (line.startsWith('#')) return <span className="text-[var(--text-muted)]">{line}</span>
+    if (line.startsWith('#')) return <span className="text-[var(--codeblock-filename)]">{line}</span>
     if (line.startsWith('$')) {
       const cmd = line.slice(2)
       return (
         <>
-          <span className="text-[var(--brand-accent)]">$ </span>
-          <span className="text-[var(--text-primary)]">{cmd}</span>
+          <span className="text-[var(--code-prompt)]">$ </span>
+          <span className="text-[var(--text-code)]">{cmd}</span>
         </>
       )
     }
     // Output lines — check for special markers
     if (line.includes('ready') || line.includes('complete') || line.includes('passed') || line.includes('claimed'))
-      return <span className="text-[var(--status-success)]">{line}</span>
+      return <span className="text-[var(--codeblock-dot-green)]">{line}</span>
     if (line.includes('WARNING') || line.includes('warning'))
-      return <span className="text-[var(--status-warning)]">{line}</span>
+      return <span className="text-[var(--codeblock-dot-amber)]">{line}</span>
     if (line.includes('ERROR') || line.includes('error'))
-      return <span className="text-[var(--status-error)]">{line}</span>
-    return <span className="text-[var(--text-secondary)]">{line}</span>
+      return <span className="text-[var(--codeblock-dot-red)]">{line}</span>
+    return <span className="text-[var(--code-output)]">{line}</span>
   }
 
   const lines = displayedCode.split('\n')
