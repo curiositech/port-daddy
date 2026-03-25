@@ -41,13 +41,21 @@ export function Footer() {
   const { theme } = useTheme()
 
   return (
-    <footer className="py-16 bg-[var(--bg-base)] border-t border-[var(--border-subtle)]">
+    <footer
+      className="py-16"
+      style={{
+        background: 'var(--surface-sunken)',
+      }}
+    >
       <div className="max-w-[1200px] mx-auto px-6 lg:px-8">
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 lg:gap-12 mb-12">
           {/* Brand */}
           <div className="col-span-2">
             <Link to="/" className="inline-flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-[var(--brand-primary)] flex items-center justify-center">
+              <div
+                className="w-8 h-8 rounded-[var(--radius-sm)] bg-[var(--brand-primary)] flex items-center justify-center"
+                style={{ boxShadow: 'var(--shadow-sm)' }}
+              >
                 <img
                   src={theme === 'dark' ? '/pd_logo_darkmode.svg' : '/pd_logo.svg'}
                   alt="Port Daddy"
@@ -59,24 +67,26 @@ export function Footer() {
               </span>
             </Link>
 
-            <p className="text-sm text-[var(--text-tertiary)] max-w-xs mb-4">
+            <p className="text-sm text-[var(--text-muted)] max-w-xs mb-4">
               The definitive control plane for high-fidelity multi-agent orchestration.
             </p>
 
             <div className="flex items-center gap-3">
               <a
-                href="https://github.com/erichowens/port-daddy"
+                href="https://github.com/curiositech/port-daddy"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-8 h-8 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:border-[var(--border-default)] transition-all"
+                className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-all"
+                style={{ boxShadow: 'var(--shadow-inset)' }}
               >
                 <Github size={16} />
               </a>
               <a
-                href="https://github.com/erichowens/port-daddy/discussions"
+                href="https://github.com/curiositech/port-daddy/discussions"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-8 h-8 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:border-[var(--border-default)] transition-all"
+                className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-all"
+                style={{ boxShadow: 'var(--shadow-inset)' }}
               >
                 <MessageSquare size={16} />
               </a>
@@ -95,7 +105,7 @@ export function Footer() {
                   <li key={link.label}>
                     <Link
                       to={link.href}
-                      className="text-sm text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors"
+                      className="text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
                     >
                       {link.label}
                     </Link>
@@ -107,20 +117,23 @@ export function Footer() {
         </div>
 
         {/* Bottom Bar */}
-        <div className="pt-8 border-t border-[var(--border-subtle)] flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4 text-xs text-[var(--text-muted)]">
             <span>&copy; {currentYear} Port Daddy Project</span>
             <span className="hidden sm:inline">&middot;</span>
             <div className="flex items-center gap-1.5">
-              <ShieldCheck size={12} className="text-[var(--success)]" />
+              <ShieldCheck size={12} className="text-[var(--status-success)]" />
               <span>Anchor Protocol Verified</span>
             </div>
           </div>
 
           <div className="flex items-center gap-4 text-xs text-[var(--text-muted)]">
-            <span className="flex items-center gap-1.5">
+            <span
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full"
+              style={{ boxShadow: 'var(--shadow-pressed)' }}
+            >
               Built by Erich Owens
-              <Heart size={12} className="text-red-500 fill-red-500" />
+              <Heart size={12} className="text-[var(--brand-primary)]" style={{ fill: 'var(--brand-primary)' }} />
             </span>
             <span className="hidden sm:inline">&middot;</span>
             <span>MIT License</span>
