@@ -107,7 +107,27 @@
       font-size: 0.8rem; font-weight: 600; color: var(--warning);
       margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.4rem;
     }
-    .salvage-group-header .skull { font-size: 1rem; }
+    .salvage-group-header .group-icon {
+      width: 14px; height: 14px; display: inline-block;
+      border: 2px solid var(--danger); border-radius: 50%;
+      position: relative;
+    }
+    .salvage-group-header .group-icon::after {
+      content: ''; position: absolute; top: 2px; left: 50%;
+      transform: translateX(-50%); width: 2px; height: 5px;
+      background: var(--danger);
+    }
+    .salvage-action-row { display: flex; gap: 0.4rem; margin-top: 0.3rem; }
+    .salvage-btn {
+      background: none; border: 1px solid rgba(255,255,255,0.12);
+      color: var(--text-dim); border-radius: 4px; padding: 0.15rem 0.5rem;
+      cursor: pointer; font-size: 0.7rem; transition: all 0.15s ease;
+    }
+    .salvage-btn:hover { background: rgba(255,255,255,0.06); color: var(--text); }
+    .salvage-btn.claim { border-color: rgba(74, 222, 128, 0.3); color: var(--success); }
+    .salvage-btn.claim:hover { background: rgba(74, 222, 128, 0.1); }
+    .salvage-btn.dismiss { border-color: rgba(239, 68, 68, 0.3); color: var(--danger); }
+    .salvage-btn.dismiss:hover { background: rgba(239, 68, 68, 0.1); }
 
     /* Refresh button */
     .refresh-btn {
@@ -199,6 +219,14 @@
     }
 
     // ─── Salvage Queue ───────────────────────────────────────────────────
+    function salvageClaim(agentId) {
+      fetch(BASE + '/salvage/claim/' + agentId, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ newAgentId: 'dashboard-' + Date.now() }) })
+        .then(function() { refreshSalvage(); });
+    }
+    function salvageDismiss(agentId) {
+      fetch(BASE + '/salvage/' + agentId, { method: 'DELETE' })
+        .then(function() { refreshSalvage(); });
+    }
     function refreshSalvage() {
       fetchJSON('/salvage/pending').then(function(d) {
         var el = document.getElementById('salvage-content');
@@ -208,14 +236,14 @@
         badge.className = 'badge' + (agents.length > 0 ? ' danger' : '');
 
         if (!agents.length) {
-          el.innerHTML = '<div class="empty">No dead agents — all clear</div>';
+          el.innerHTML = '<div class="empty">No dead agents -- all clear</div>';
           return;
         }
 
         // Group by project
         var groups = {};
         agents.forEach(function(a) {
-          var proj = a.identityProject || a.identity_project || 'unidentified';
+          var proj = a.identityProject || a.identity_project || 'Unassigned';
           if (!groups[proj]) groups[proj] = [];
           groups[proj].push(a);
         });
@@ -223,11 +251,16 @@
         var html = '';
         Object.keys(groups).sort().forEach(function(proj) {
           html += '<div class="salvage-group">';
-          html += '<div class="salvage-group-header"><span class="skull">☠️</span> ' + proj + ' (' + groups[proj].length + ')</div>';
-          html += '<table class="data-table"><thead><tr><th>Agent</th><th>Purpose</th><th>Dead since</th></tr></thead><tbody>';
+          html += '<div class="salvage-group-header"><span class="group-icon"></span> ' + proj + ' (' + groups[proj].length + ')</div>';
+          html += '<table class="data-table"><thead><tr><th>Agent</th><th>Purpose</th><th>Dead since</th><th>Actions</th></tr></thead><tbody>';
           groups[proj].forEach(function(a) {
-            var since = a.diedAt || a.lastHeartbeat;
-            html += '<tr><td>' + a.id + '</td><td>' + (a.purpose || '—') + '</td><td style="color:var(--text-dim)">' + (since ? relTime(Date.now() - since) : '?') + '</td></tr>';
+            var since = a.diedAt || a.detected_at || a.lastHeartbeat;
+            var agentName = a.agent_name || a.id || a.agent_id;
+            html += '<tr><td>' + agentName + '</td><td>' + (a.purpose || '—') + '</td><td style="color:var(--text-dim)">' + (since ? relTime(Date.now() - since) : '?') + '</td>';
+            html += '<td><div class="salvage-action-row">';
+            html += '<button class="salvage-btn claim" onclick="salvageClaim(\'' + (a.agent_id || a.id) + '\')">Claim</button>';
+            html += '<button class="salvage-btn dismiss" onclick="salvageDismiss(\'' + (a.agent_id || a.id) + '\')">Dismiss</button>';
+            html += '</div></td></tr>';
           });
           html += '</tbody></table></div>';
         });
@@ -330,7 +363,7 @@
     <!-- Salvage Queue -->
     <div class="panel" id="panel-salvage">
       <div class="panel-header">
-        <h2>☠️ Salvage Queue</h2>
+        <h2>Salvage Queue</h2>
         <span id="salvage-badge" class="badge">0</span>
       </div>
       <div id="salvage-content"><div class="empty">Loading...</div></div>
