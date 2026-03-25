@@ -73,111 +73,154 @@ export function DemoGallery() {
   }
 
   return (
-    <section id="demo" className="py-24 lg:py-32 bg-[var(--bg-base)]">
-      <div className="max-w-[1200px] mx-auto px-6 lg:px-8">
-        {/* Header */}
-        <div className="text-center mb-16">
-          <Badge variant="teal" className="mb-4">Live Demos</Badge>
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-semibold text-[var(--text-primary)] mb-4">
-            Proof of <span className="text-[var(--brand-primary)]">Coordination</span>
-          </h2>
-          <p className="text-lg text-[var(--text-secondary)] max-w-2xl mx-auto">
-            High-fidelity recordings of the Anchor Protocol managing live agent swarms.
-          </p>
-        </div>
+    <motion.section
+      id="demo"
+      className="py-24 px-6 sm:px-8 lg:px-10 font-sans relative overflow-hidden"
+      style={{ background: 'var(--surface-base)' }}
+      initial={{ opacity: 0 }}
+      whileInView={{ opacity: 1 }}
+      viewport={{ once: true }}
+    >
+      <motion.div className="max-w-7xl mx-auto font-sans flex flex-col items-center">
+        <motion.div
+          initial={{ opacity: 0, y: 32 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+          className="text-center mb-16 flex flex-col items-center gap-12"
+        >
+          <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-[0.25em]">The Evidence</Badge>
+          <motion.h2 className="text-6xl sm:text-9xl font-bold font-display tracking-tight leading-[0.9] m-0" style={{ color: 'var(--text-primary)' }}>
+            Proof of <br />
+            <motion.span style={{ color: 'var(--brand-primary)' }}>Coordination.</motion.span>
+          </motion.h2>
+          <motion.p className="text-2xl sm:text-3xl max-w-4xl mx-auto leading-relaxed font-sans font-bold" style={{ color: 'var(--text-secondary)' }}>
+            These aren't mockups. These are <strong>high-fidelity recordings</strong> of the Anchor Protocol managing live agent swarms.
+          </motion.p>
+        </motion.div>
 
-        <div className="grid lg:grid-cols-12 gap-8 items-start">
-          {/* Demo Selector */}
-          <div className="lg:col-span-4 space-y-3">
+        <div className="grid lg:grid-cols-12 gap-20 items-start w-full">
+          {/* Tab Controls */}
+          <div className="lg:col-span-4 space-y-8 flex flex-col items-center lg:items-stretch">
             {DEMOS.map((demo) => (
               <button
                 key={demo.id}
                 onClick={() => setActiveTab(demo.id)}
-                className={`w-full text-left p-4 rounded-xl border transition-all ${
-                  activeId === demo.id
-                    ? 'bg-[var(--bg-surface)] border-[var(--brand-primary)] shadow-[var(--shadow-md)]'
-                    : 'bg-transparent border-transparent hover:bg-[var(--bg-surface)] hover:border-[var(--border-subtle)]'
-                }`}
+                className="w-full max-w-md lg:max-w-none text-left p-12 rounded-[56px] transition-all duration-300 relative group overflow-hidden"
+                style={{
+                  background: activeId === demo.id ? 'var(--surface-raised)' : 'var(--surface-base)',
+                  boxShadow: activeId === demo.id ? 'var(--shadow-raised)' : 'var(--shadow-flat)',
+                  border: 'none',
+                  cursor: 'pointer',
+                }}
+                whileHover={{ scale: activeId === demo.id ? 1 : 1.02 }}
               >
-                <div className="flex items-start justify-between mb-2">
-                  <Badge variant={demo.badgeVariant} size="sm">{demo.badge}</Badge>
-                  {activeId === demo.id && (
-                    <Play size={14} className="text-[var(--brand-primary)]" />
-                  )}
+                <div className="flex items-center justify-between mb-8">
+                   <Badge variant={demo.badgeColor === 'teal' ? 'teal' : demo.badgeColor === 'amber' ? 'amber' : 'neutral'} className="text-[8px] font-black uppercase tracking-widest px-4 py-1.5">
+                     {demo.badge}
+                   </Badge>
+                   <Play size={16} style={{ color: activeId === demo.id ? 'var(--brand-primary)' : 'var(--text-muted)', opacity: activeId === demo.id ? 1 : 0.4 }} className={activeId === demo.id ? 'animate-pulse' : ''} />
                 </div>
-                <h3 className={`font-semibold mb-1 ${
-                  activeId === demo.id ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'
-                }`}>
-                  {demo.title}
-                </h3>
-                <p className="text-sm text-[var(--text-tertiary)]">{demo.subtitle}</p>
-              </button>
+                <h3 className="text-3xl font-display font-black mb-3" style={{ color: activeId === demo.id ? 'var(--text-primary)' : 'var(--text-secondary)' }}>{demo.title}</h3>
+                <p className="text-base m-0 leading-relaxed font-bold" style={{ color: 'var(--text-muted)' }}>{demo.subtitle}</p>
+
+                {activeId === demo.id && (
+                  <motion.div
+                    layoutId="active-pill"
+                    className="absolute left-0 top-1/4 bottom-1/4 w-1.5 rounded-full"
+                    style={{ background: 'var(--brand-primary)' }}
+                  />
+                )}
+              </motion.button>
             ))}
 
-            {/* Automation Note */}
-            <div className="p-4 rounded-xl border border-dashed border-[var(--border-default)] bg-[var(--bg-overlay)]">
-              <div className="flex items-center gap-2 text-[var(--brand-primary)] mb-2">
-                <Activity size={16} />
-                <span className="text-xs font-semibold uppercase tracking-wide">Automation Active</span>
-              </div>
-              <p className="text-sm text-[var(--text-tertiary)]">
-                Screenshots verified on every commit using Playwright + VHS.
-              </p>
-            </div>
+            {/* Automation notice - raised neumorphic */}
+            <motion.div
+              className="w-full max-w-md lg:max-w-none p-12 rounded-[56px] flex flex-col items-center text-center gap-6"
+              style={{
+                background: 'var(--surface-raised)',
+                boxShadow: 'var(--shadow-raised)',
+              }}
+              whileHover={{ boxShadow: 'var(--shadow-sm)' }}
+            >
+               <div className="flex items-center gap-3" style={{ color: 'var(--brand-primary)' }}>
+                  <Activity size={24} />
+                  <span className="text-[10px] font-black uppercase tracking-[0.25em]">Automation Active</span>
+               </div>
+               <p className="text-base m-0 leading-relaxed font-sans font-bold" style={{ color: 'var(--text-secondary)' }}>Our automated screenshot service verifies these scenarios on every commit using Playwright + VHS.</p>
+            </motion.div>
           </div>
 
-          {/* Demo Display */}
-          <div className="lg:col-span-8">
-            <div className="space-y-6">
-              {/* Main Demo Image */}
-              <div className="relative rounded-2xl overflow-hidden border border-[var(--border-subtle)] bg-[var(--bg-code)] shadow-[var(--shadow-lg)]">
-                <div className="aspect-video relative">
-                  <img
-                    src={getGifSrc(activeDemo)}
-                    alt={activeDemo.title}
-                    className="w-full h-full object-cover"
-                  />
-                  {/* Overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg-base)]/60 via-transparent to-transparent" />
-                  
-                  {/* Live Indicator */}
-                  <div className="absolute bottom-4 left-4 flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-[var(--success)] animate-pulse" />
-                    <span className="text-xs font-medium text-white/90 uppercase tracking-wide">
-                      Live Execution
-                    </span>
-                  </div>
+          {/* Visual Display */}
+          <div className="lg:col-span-8 flex flex-col items-center">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeId + theme}
+                initial={{ opacity: 0, x: 32 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -32 }}
+                transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+                className="space-y-12 w-full flex flex-col items-center"
+              >
+                {/* Video display with inset frame */}
+                <div
+                  className="relative rounded-[80px] overflow-hidden group w-full aspect-video flex items-center justify-center"
+                  style={{
+                    background: 'var(--code-bg)',
+                    boxShadow: 'var(--shadow-inset)',
+                  }}
+                >
+                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent z-10" />
+                   <motion.img
+                     src={getGifSrc(activeDemo)}
+                     alt={activeDemo.title}
+                     className="w-full h-auto relative z-0 scale-100 group-hover:scale-[1.05] transition-transform duration-[3s]"
+                   />
+                   <div className="absolute bottom-12 left-12 right-12 z-20 flex justify-between items-center">
+                      <div className="flex items-center gap-5">
+                         <div className="w-4 h-4 rounded-full" style={{ background: 'var(--brand-primary)', boxShadow: '0 0 20px var(--brand-primary)' }} />
+                         <span className="text-[10px] font-black uppercase tracking-[0.3em]" style={{ color: 'var(--text-inverse)' }}>Live Swarm Execution</span>
+                      </div>
+                      <ExternalLink size={20} style={{ color: 'var(--text-inverse)', opacity: 0.6 }} />
+                   </div>
+                </div>
 
-                  <button className="absolute bottom-4 right-4 p-2 rounded-lg bg-white/10 backdrop-blur-sm text-white hover:bg-white/20 transition-all">
-                    <ExternalLink size={16} />
-                  </button>
+                {/* Stat cards - raised neumorphic */}
+                <div className="grid sm:grid-cols-3 gap-10 w-full">
+                   {activeDemo.stats.map((stat, i) => (
+                     <motion.div
+                       key={i}
+                       className="p-10 rounded-[48px] text-center flex flex-col items-center gap-2"
+                       style={{
+                         background: 'var(--surface-raised)',
+                         boxShadow: 'var(--shadow-raised)',
+                       }}
+                       whileHover={{ y: -8, boxShadow: 'var(--shadow-sm)' }}
+                     >
+                        <div className="text-4xl font-display font-black leading-none" style={{ color: 'var(--brand-primary)' }}>{stat.value}</div>
+                        <div className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>{stat.label}</div>
+                     </motion.div>
+                   ))}
                 </div>
               </div>
 
-              {/* Stats */}
-              <div className="grid sm:grid-cols-3 gap-4">
-                {activeDemo.stats.map((stat, i) => (
-                  <div
-                    key={i}
-                    className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-center"
-                  >
-                    <div className="text-2xl font-semibold text-[var(--brand-primary)] mb-1">
-                      {stat.value}
-                    </div>
-                    <div className="text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wide">
-                      {stat.label}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Description */}
-              <div className="p-6 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
-                <p className="text-[var(--text-secondary)] leading-relaxed">
-                  {activeDemo.description}
-                </p>
-              </div>
-            </div>
+                {/* Description panel - raised */}
+                <motion.div
+                  className="p-12 rounded-[56px] w-full text-center relative overflow-hidden"
+                  style={{
+                    background: 'var(--surface-raised)',
+                    boxShadow: 'var(--shadow-raised)',
+                  }}
+                >
+                   <div className="absolute top-0 right-0 p-10 opacity-[0.03] pointer-events-none">
+                      <Share2 size={300} style={{ color: 'var(--text-muted)' }} />
+                   </div>
+                   <p className="text-2xl leading-relaxed m-0 font-sans max-w-3xl mx-auto font-bold" style={{ color: 'var(--text-secondary)' }}>
+                     {activeDemo.description}
+                   </p>
+                </motion.div>
+              </motion.div>
+            </AnimatePresence>
           </div>
         </div>
       </div>

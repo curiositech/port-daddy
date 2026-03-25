@@ -3,89 +3,109 @@ import { Github, Terminal, Sparkles } from 'lucide-react'
 
 export function CTABanner() {
   return (
-    <section className="relative py-24 lg:py-32 overflow-hidden">
-      {/* Neumorphic surface with subtle teal wash */}
-      <div
-        className="absolute inset-0"
+    <motion.section
+      className="py-20 px-6 sm:px-8 lg:px-10 relative overflow-hidden font-sans flex flex-col items-center text-center"
+      style={{ background: 'var(--surface-base)' }}
+      initial={{ opacity: 0 }}
+      whileInView={{ opacity: 1 }}
+      viewport={{ once: true }}
+    >
+      {/* Background glow effects */}
+      <motion.div
+        className="absolute inset-0 pointer-events-none"
         style={{
           background: 'linear-gradient(180deg, var(--bg-base) 0%, #d6ddd9 50%, var(--bg-base) 100%)',
         }}
       />
 
-      <div className="relative z-10 max-w-[800px] mx-auto px-6 lg:px-8 text-center">
-        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--brand-secondary)] mb-6">
-          Get Started
-        </p>
+      <motion.div
+        initial={{ opacity: 0, y: 32 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+        className="relative max-w-5xl mx-auto text-center flex flex-col items-center gap-8"
+      >
+        <motion.div className="flex flex-col items-center gap-6">
+           <Badge variant="teal" className="px-8 py-3 text-[10px] font-black uppercase tracking-[0.25em]">The Departure</Badge>
+           {/* Anchor icon in inset circle */}
+           <motion.div
+             className="w-24 h-24 rounded-[40px] flex items-center justify-center"
+             style={{
+               background: 'var(--surface-base)',
+               boxShadow: 'var(--shadow-inset)',
+             }}
+             animate={{ y: [0, -12, 0] }}
+             transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+           >
+              <Anchor style={{ color: 'var(--brand-primary)' }} size={48} />
+           </motion.div>
+        </motion.div>
 
-        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-semibold text-[var(--text-primary)] mb-4 leading-tight">
-          One daemon to rule your swarm.
-        </h2>
+        <motion.div className="space-y-6 flex flex-col items-center">
+           <motion.h2 className="text-4xl sm:text-6xl font-display font-black tracking-tighter leading-[0.85] m-0" style={{ color: 'var(--text-primary)' }}>
+             Your agents deserve a <br />
+             <motion.span style={{ color: 'var(--brand-primary)' }}>harbormaster.</motion.span>
+           </motion.h2>
 
         <p className="text-lg text-[var(--text-secondary)] max-w-xl mx-auto mb-10">
           Port Daddy is open-source and installs in seconds. Start building your autonomous organization today.
         </p>
 
-        {/* CTAs */}
-        <div className="flex flex-wrap items-center justify-center gap-4 mb-10">
-          <a
-            href="https://github.com/erichowens/port-daddy"
-            target="_blank"
-            rel="noopener noreferrer"
+        <motion.div className="flex flex-wrap gap-6 justify-center items-center pt-4">
+          {/* Primary CTA button with neumorphic shadow */}
+          <motion.button
+            className="px-16 py-8 rounded-full font-black text-2xl flex items-center gap-4 transition-all"
+            style={{
+              background: 'var(--brand-primary)',
+              color: 'var(--text-inverse)',
+              boxShadow: 'var(--shadow-sm)',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+            whileHover={{ scale: 1.05, y: -6, boxShadow: 'var(--shadow-raised)' }}
+            whileTap={{ scale: 0.95, boxShadow: 'var(--shadow-pressed)' }}
+            onClick={() => window.open('https://github.com/erichowens/port-daddy', '_blank')}
           >
-            <button
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-lg font-semibold text-white cursor-pointer transition-all duration-200"
+            <Github size={28} />
+            STAR ON GITHUB
+          </motion.button>
+
+          {/* Secondary CTA button */}
+          <Link to="/tutorials/getting-started" className="no-underline">
+            <motion.button
+              className="px-16 py-8 rounded-full font-black text-2xl flex items-center gap-4 transition-all"
               style={{
-                background: '#0d9488',
-                boxShadow: '4px 4px 8px #b8b8b8, -4px -4px 8px #ffffff',
+                background: 'var(--surface-raised)',
+                color: 'var(--text-primary)',
+                boxShadow: 'var(--shadow-sm)',
+                border: 'none',
+                cursor: 'pointer',
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.boxShadow = '2px 2px 4px #b8b8b8, -2px -2px 4px #ffffff'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.boxShadow = '4px 4px 8px #b8b8b8, -4px -4px 8px #ffffff'
-              }}
+              whileHover={{ scale: 1.05, y: -6, boxShadow: 'var(--shadow-flat)' }}
+              whileTap={{ scale: 0.95, boxShadow: 'var(--shadow-pressed)' }}
             >
-              <Github size={18} />
-              Star on GitHub
-            </button>
-          </a>
-          <Link to="/tutorials/getting-started">
-            <button
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-lg font-semibold text-[var(--text-primary)] cursor-pointer transition-all duration-200"
-              style={{
-                background: 'var(--bg-surface)',
-                boxShadow: '4px 4px 8px #b8b8b8, -4px -4px 8px #ffffff',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.boxShadow = '2px 2px 4px #b8b8b8, -2px -2px 4px #ffffff'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.boxShadow = '4px 4px 8px #b8b8b8, -4px -4px 8px #ffffff'
-              }}
-            >
-              <Sparkles size={18} />
-              Learn the Protocol
-            </button>
+              <Sparkles size={28} style={{ color: 'var(--brand-accent)' }} />
+              LEARN THE PROTOCOL
+            </motion.button>
           </Link>
         </div>
 
-        {/* Install Command - inset neumorphic */}
-        <div
-          className="inline-flex items-center gap-3 px-5 py-3 font-mono text-sm text-[var(--text-secondary)]"
-          style={{
-            background: 'var(--bg-base)',
-            boxShadow: 'inset 3px 3px 6px #c4c4c4, inset -3px -3px 6px #ffffff',
-            borderRadius: '12px',
-          }}
-        >
-          <Terminal size={16} className="text-[#0d9488]" />
-          <span>brew install erichowens/port-daddy</span>
-        </div>
-
-        <p className="mt-4 text-xs text-[var(--text-muted)]">
-          Free &middot; Open Source &middot; MIT License
-        </p>
-      </div>
-    </section>
+        <motion.div className="pt-16 flex flex-col items-center gap-6">
+           {/* Install command in inset terminal */}
+           <motion.div
+             className="flex items-center gap-4 px-8 py-4 rounded-full font-mono text-xs font-black uppercase tracking-widest"
+             style={{
+               background: 'var(--code-bg)',
+               boxShadow: 'var(--shadow-inset)',
+               color: 'var(--text-muted)',
+             }}
+           >
+              <Terminal size={18} style={{ color: 'var(--brand-primary)' }} />
+              brew install erichowens/port-daddy
+           </motion.div>
+           <motion.p className="text-[10px] font-black uppercase tracking-[0.3em] m-0" style={{ color: 'var(--text-muted)', opacity: 0.5 }}>Free · Open Source · MIT License</motion.p>
+        </motion.div>
+      </motion.div>
+    </motion.section>
   )
 }
