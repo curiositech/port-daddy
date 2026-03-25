@@ -40,6 +40,24 @@ export function Features() {
           </p>
         </div>
 
+        {/* Dashboard Screenshot */}
+        <motion.div
+          className="mb-16 rounded-2xl overflow-hidden"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+          style={{
+            boxShadow: 'var(--shadow-neu-raised)',
+          }}
+        >
+          <img
+            src="/img/dashboard-services.png"
+            alt="Port Daddy dashboard showing services, agents, and session coordination"
+            className="w-full h-auto block"
+            loading="lazy"
+          />
+        </motion.div>
+
         {/* Feature Grid */}
         <motion.div
           className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6"
