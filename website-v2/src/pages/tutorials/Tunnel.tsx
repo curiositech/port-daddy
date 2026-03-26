@@ -78,7 +78,8 @@ export function Tunnel() {
           </motion.p>
 
           <CodeBlock language="bash">
-            {`$ curl http://localhost:9876/tunnel/providers
+            {'$ curl http://localhost:9876/tunnel/providers\n\n# Returns list of available providers (ngrok, cloudflare, localtunnel)'}
+          </CodeBlock>
 
           <blockquote
             className="p-8 rounded-2xl border-l-4 border-[var(--brand-primary)]"
