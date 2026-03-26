@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom'
-import { Github, Terminal, Sparkles } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { Anchor, Github, Terminal, Sparkles } from 'lucide-react'
+import { Badge } from '@/components/ui/Badge'
 
 export function CTABanner() {
   return (
@@ -104,6 +106,7 @@ export function CTABanner() {
               brew install erichowens/port-daddy
            </motion.div>
            <motion.p className="text-[10px] font-black uppercase tracking-[0.3em] m-0" style={{ color: 'var(--text-muted)', opacity: 0.5 }}>Free · Open Source · MIT License</motion.p>
+        </motion.div>
         </motion.div>
       </motion.div>
     </motion.section>
