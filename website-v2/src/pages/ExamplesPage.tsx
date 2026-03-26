@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
-import { Sparkles, Shield, Terminal, Layers, Anchor, Zap, Globe, Radio, Users, Search } from 'lucide-react'
+import { NeumorphicTerminal } from '@/components/ui/NeumorphicTerminal'
+import { Sparkles, Shield, Layers, Anchor, Zap, Globe, Radio, Users, Search } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
 
 interface Example {
@@ -242,22 +243,15 @@ export function ExamplesPage() {
                 </div>
 
                 <div className="flex-1 w-full relative max-w-2xl">
-                   <motion.div className="absolute inset-0 blur-3xl opacity-[0.05] pointer-events-none" style={{ background: ex.color }} />
-                   <motion.div
-                     className="relative p-12 rounded-2xl font-mono text-base leading-relaxed overflow-hidden"
-                     style={{ background: 'var(--code-bg)', boxShadow: 'var(--shadow-inset)', borderRadius: 'var(--radius-lg)' }}
-                   >
-                      <div className="absolute top-0 right-0 p-8 opacity-10">
-                         <Terminal size={24} className="text-[var(--text-primary)]" />
-                      </div>
-                      {ex.code.map((line, j) => (
-                        <div key={j} className={line.startsWith('#') ? 'text-[var(--text-muted)] mb-3 opacity-40' : line.startsWith('pd') || line.startsWith('curl') ? 'text-[var(--code-text)] font-bold mb-2' : 'text-[var(--text-secondary)] opacity-60'}>
-                          {line.startsWith('pd') || line.startsWith('curl') ? (
-                            <span><span style={{ color: 'var(--code-prompt)' }}>$</span> {line}</span>
-                          ) : line}
-                        </div>
-                      ))}
-                   </motion.div>
+                   <NeumorphicTerminal
+                     code={ex.code.map(line =>
+                       (line.startsWith('pd') || line.startsWith('curl')) ? `$ ${line}` :
+                       line.startsWith('#') ? line :
+                       `  ${line}`
+                     ).join('\n')}
+                     title={ex.title}
+                     typewriterSpeed={0}
+                   />
                 </div>
               </motion.div>
             </motion.div>

@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
+import { CodeBlock } from '@/components/ui/CodeBlock'
 import { MessageSquare, Gavel, Trash2, ArrowRight } from 'lucide-react'
 
 export function TemplatesPage() {
@@ -76,13 +77,9 @@ export function TemplatesPage() {
               </div>
 
               {/* Code preview area */}
-              <div
-                className="p-4 rounded-xl font-mono text-xs"
-                style={{ background: 'var(--code-bg)', boxShadow: 'var(--shadow-inset)', borderRadius: 'var(--radius-md)' }}
-              >
-                <span style={{ color: 'var(--code-prompt)' }}>$</span>
-                <span style={{ color: 'var(--code-text)' }}> pd template clone {template.path}</span>
-              </div>
+              <CodeBlock language="bash">
+                {'$ pd template clone ' + template.path}
+              </CodeBlock>
 
               <div className="mt-auto pt-4">
                 <motion.a

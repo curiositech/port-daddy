@@ -101,6 +101,18 @@ a {
   transition: color 0.2s ease;
 }
 
+/* Inline code — neumorphic inset pill, NOT black background */
+code:not(pre code) {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  font-weight: 600;
+  color: var(--brand-primary);
+  background: var(--surface-sunken);
+  box-shadow: var(--shadow-pressed);
+  padding: 0.15em 0.5em;
+  border-radius: var(--radius-sm);
+}
+
 /* ─── Design System: Spacing & Layout ─────────────────────────────────────── */
 
 /*

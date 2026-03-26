@@ -1,9 +1,9 @@
-import * as React from 'react'
+
 import { motion, useScroll, useSpring } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
-import { Terminal, Shield, Zap, History, Anchor, Globe, MessageSquare, Copy, Check, Rocket, Mail, RefreshCw, Download,  Search, Cpu, Layers } from 'lucide-react'
+import { Terminal, Shield, Zap, History, Anchor, Globe, MessageSquare, Rocket, Mail, RefreshCw, Download, Search, Cpu, Layers, Activity } from 'lucide-react'
+import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Footer } from '@/components/layout/Footer'
-import { Activity } from 'lucide-react'
 
 /* --- Data ----------------------------------------------------------------- */
 
@@ -81,13 +81,6 @@ const CATEGORIES = [
 ]
 
 function ToolCard({ tool }: { tool: any }) {
-  const [copied, setCopied] = React.useState(false)
-  const handleCopy = () => {
-    navigator.clipboard.writeText(tool.example)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
   return (
     <motion.div
       className="p-12 rounded-2xl space-y-10 group transition-all relative overflow-hidden flex flex-col items-center text-center"
@@ -118,17 +111,9 @@ function ToolCard({ tool }: { tool: any }) {
           {tool.description}
        </motion.p>
 
-       <motion.div
-         className="w-full relative p-10 font-mono text-sm overflow-hidden transition-colors text-left rounded-2xl"
-         style={{ background: 'var(--code-bg)', boxShadow: 'var(--shadow-inset)', borderRadius: 'var(--radius-lg)' }}
-       >
-          <div className="flex items-start justify-between gap-8">
-             <pre className="opacity-60 m-0 leading-relaxed overflow-x-auto whitespace-pre-wrap" style={{ color: 'var(--code-text)' }}>{tool.example}</pre>
-             <button onClick={handleCopy} className="shrink-0 text-[var(--brand-primary)] opacity-40 hover:opacity-100 transition-opacity pt-1">
-                {copied ? <Check size={20} /> : <Copy size={20} />}
-             </button>
-          </div>
-       </motion.div>
+       <CodeBlock language="bash">
+         {tool.example}
+       </CodeBlock>
     </motion.div>
   )
 }
