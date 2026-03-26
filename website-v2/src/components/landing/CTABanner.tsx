@@ -44,19 +44,19 @@ export function CTABanner() {
         </motion.div>
 
         <motion.div className="space-y-6 flex flex-col items-center">
-           <motion.h2 className="text-4xl sm:text-6xl font-display font-black tracking-tighter leading-[0.85] m-0" style={{ color: 'var(--text-primary)' }}>
+           <motion.h2 className="text-2xl sm:text-4xl lg:text-6xl font-display font-black tracking-tighter leading-[0.85] m-0" style={{ color: 'var(--text-primary)' }}>
              Your agents deserve a <br />
              <motion.span style={{ color: 'var(--brand-primary)' }}>harbormaster.</motion.span>
            </motion.h2>
 
-        <p className="text-lg text-[var(--text-secondary)] max-w-xl mx-auto mb-10">
+        <p className="text-base sm:text-lg text-[var(--text-secondary)] max-w-xl mx-auto mb-6 sm:mb-10 px-4">
           Port Daddy is open-source and installs in seconds. Start building your autonomous organization today.
         </p>
 
-        <motion.div className="flex flex-wrap gap-6 justify-center items-center pt-4">
+        <motion.div className="flex flex-col sm:flex-row flex-wrap gap-4 sm:gap-6 justify-center items-center pt-4 w-full sm:w-auto">
           {/* Primary CTA button with neumorphic shadow */}
           <motion.button
-            className="px-16 py-8 rounded-full font-black text-2xl flex items-center gap-4 transition-all"
+            className="w-full sm:w-auto px-8 sm:px-16 py-4 sm:py-8 rounded-full font-black text-base sm:text-2xl flex items-center justify-center gap-3 sm:gap-4 transition-all"
             style={{
               background: 'var(--brand-primary)',
               color: 'var(--text-inverse)',
@@ -68,14 +68,14 @@ export function CTABanner() {
             whileTap={{ scale: 0.95, boxShadow: 'var(--shadow-pressed)' }}
             onClick={() => window.open('https://github.com/erichowens/port-daddy', '_blank')}
           >
-            <Github size={28} />
+            <Github size={22} />
             STAR ON GITHUB
           </motion.button>
 
           {/* Secondary CTA button */}
-          <Link to="/tutorials/getting-started" className="no-underline">
+          <Link to="/tutorials/getting-started" className="no-underline w-full sm:w-auto">
             <motion.button
-              className="px-16 py-8 rounded-full font-black text-2xl flex items-center gap-4 transition-all"
+              className="w-full sm:w-auto px-8 sm:px-16 py-4 sm:py-8 rounded-full font-black text-base sm:text-2xl flex items-center justify-center gap-3 sm:gap-4 transition-all"
               style={{
                 background: 'var(--surface-raised)',
                 color: 'var(--text-primary)',
@@ -86,7 +86,7 @@ export function CTABanner() {
               whileHover={{ scale: 1.05, y: -6, boxShadow: 'var(--shadow-flat)' }}
               whileTap={{ scale: 0.95, boxShadow: 'var(--shadow-pressed)' }}
             >
-              <Sparkles size={28} style={{ color: 'var(--brand-accent)' }} />
+              <Sparkles size={22} style={{ color: 'var(--brand-accent)' }} />
               LEARN THE PROTOCOL
             </motion.button>
           </Link>
@@ -95,7 +95,7 @@ export function CTABanner() {
         <motion.div className="pt-16 flex flex-col items-center gap-6">
            {/* Install command in inset terminal */}
            <motion.div
-             className="flex items-center gap-4 px-8 py-4 rounded-full font-mono text-xs font-black uppercase tracking-widest"
+             className="flex items-center gap-3 sm:gap-4 px-4 sm:px-8 py-3 sm:py-4 rounded-full font-mono text-[10px] sm:text-xs font-black uppercase tracking-widest"
              style={{
                background: 'var(--code-bg)',
                boxShadow: 'var(--shadow-inset)',
