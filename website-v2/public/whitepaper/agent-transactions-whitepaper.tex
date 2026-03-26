@@ -84,10 +84,13 @@
 \newtheorem{property}{Property}[section]
 \newtheorem{corollary}{Corollary}[section]
 
+\theoremstyle{remark}
+\newtheorem*{remark}{Remark}
+
 % ─── Header/Footer ───────────────────────────────────────────────────────────
 \pagestyle{fancy}
 \fancyhf{}
-\fancyhead[L]{\small\textit{Agent Transactions}}
+\fancyhead[L]{\small\textit{The Bonded Commons}}
 \fancyhead[R]{\small\thepage}
 \fancyfoot[C]{\small Port Daddy v3.7.0}
 \renewcommand{\headrulewidth}{0.4pt}
@@ -98,16 +101,16 @@
   \vspace{-1cm}
   {\Large\textsc{Technical White Paper}}\\[0.5cm]
   \rule{\textwidth}{0.5pt}\\[0.3cm]
-  {\LARGE\textbf{Agent Transactions:}}\\[0.2cm]
-  {\Large Formal Semantics for Multi-Agent\\Development Coordination}\\[0.3cm]
+  {\LARGE\textbf{The Bonded Commons:}}\\[0.2cm]
+  {\Large Pre-Transactional Trust Infrastructure\\for Multi-Agent Systems}\\[0.3cm]
   \rule{\textwidth}{0.5pt}
 }
 \author{
-  \textbf{Eric Howens}\\[0.2cm]
+  \textbf{Erich Owens}\\[0.2cm]
   The Port Daddy Engineering Team\\[0.2cm]
   \texttt{engineering@portdaddy.dev}
 }
-\date{March 2026\\Version 1.0 (Port Daddy v3.7.0)}
+\date{March 2026\\Version 1.0}
 
 % ─── Document ────────────────────────────────────────────────────────────────
 \begin{document}
@@ -118,744 +121,583 @@
 \vspace{1cm}
 
 \begin{abstract}\noindent
-As AI agent swarms scale from isolated copilots to collaborative development teams, coordination primitives designed for human workflows fail in predictable ways: agents crash mid-task without recovery, claim resources without releasing them, and produce individually correct changes that are collectively broken. This paper formalizes the transaction semantics implicit in the Port Daddy coordination daemon, introducing \textbf{Agent Transactions}---a class of long-lived, advisory-isolation transactions adapted from classical database theory for multi-agent development environments.
-
-We define three isolation levels ($I_0$, $I_1$, $I_2$) ranging from uncoordinated to structurally isolated via git worktrees, prove that capability-bounded transactions cannot exceed their delegated scope, and formalize a novel \textbf{social recovery} mechanism where successor agents interpret immutable audit trails rather than replaying mechanical logs. We present a TLA$^{+}$ specification of the session lifecycle with crash recovery and verify safety and liveness properties. Empirical evaluation on real multi-agent workloads demonstrates that advisory conflict detection achieves comparable safety to enforced locking while preserving 2.4$\times$ higher parallelism.
+There will be no AI economy without trust, and trust cannot be earned peer-to-peer at every transaction. This paper argues that multi-agent collaboration at scale requires a \textbf{commons authority}---a pre-transactional trust infrastructure that removes trust negotiation from the critical path of work. We present a three-layer architecture: \emph{structural prevention} via capability-attenuated tokens that physically bound agent scope, \emph{immutable attribution} via Merkle-chained evidence trails that make anonymous harm impossible, and \emph{economic alignment} via collateralized work contracts that pre-fund damage regardless of agent intent. We formalize these layers in the context of Port Daddy, a coordination daemon for local agent swarms, and show that the resulting system does not require agents to be trustworthy, to share values, or to fear punishment. It requires only that their principals post collateral proportional to the risk their agents impose on the commons. We ground the advisory (non-enforced) design of the resource claim system in Sen's Impossibility of a Paretian Liberal, showing that enforced allocation with private agent knowledge is provably suboptimal, and that the commons authority's role is to provide shared information, not to make allocation decisions.
 \end{abstract}
 
 \vspace{0.5cm}
-\noindent\textbf{Keywords:} multi-agent coordination, transaction semantics, formal verification, advisory locking, crash recovery, TLA$^{+}$, capability-based security, long-lived transactions
+\noindent\textbf{Keywords:} multi-agent coordination, trust infrastructure, capability-based security, social contract, collateralized computation, formal verification, commons governance
 
 \tableofcontents
 \newpage
 
 % ═══════════════════════════════════════════════════════════════════════════════
-\section{Introduction}
+\section{Introduction: The Trust Problem}
 % ═══════════════════════════════════════════════════════════════════════════════
 
-When multiple AI agents collaborate on a shared codebase, their interactions constitute a coordination problem that superficially resembles database transactions: agents read shared state, perform local computation, and write results that must be integrated. However, classical ACID semantics~\cite{gray1993transaction} fail to capture the realities of agent coordination in three fundamental ways.
+The emerging landscape of multi-agent AI systems---agents that plan, delegate, execute, crash, and resume across shared codebases---faces a problem that no existing framework adequately addresses. Not a problem of orchestration (LangGraph, CrewAI, and AutoGen handle state graphs and role assignment competently), nor of tool access (the Model Context Protocol provides a universal standard for agent-tool integration). The problem is \textbf{trust}.
 
-First, agent ``transactions'' are \emph{long-lived}---spanning minutes to hours rather than milliseconds---making traditional locking strategies economically infeasible. An agent that holds an exclusive lock on a source file for thirty minutes while reasoning about a refactoring blocks all other agents from that file, destroying the parallelism that motivates multi-agent development in the first place. Garcia-Molina and Salem's Sagas~\cite{garciamolina1987sagas} addressed long-lived transactions in databases through compensating actions, but agent compensation is fundamentally different: ``rolling back'' a thirty-minute reasoning session means discarding the agent's accumulated context, which has no database analogue.
+When Agent~A delegates a subtask to Agent~B, it implicitly trusts that B will not corrupt the shared state, will not exceed the scope of the delegation, and will not silently fail in a way that poisons A's downstream work. When Agent~B accepts the delegation, it implicitly trusts that A's description of the task is accurate, that the resources A promised are available, and that A will still exist when B finishes. These implicit trust assumptions pervade every multi-agent interaction, and every one of them can be violated.
 
-Second, agent isolation is \emph{structural} rather than \emph{logical}. Database isolation levels (Read Committed, Serializable) control which rows a transaction can observe. Agent isolation operates at the filesystem level: agents in separate git worktrees have physically disjoint working copies of the repository, achieving serializable isolation by construction---not through lock protocols or multiversion concurrency control.
+The standard response in security engineering is ``zero trust''---never trust, always verify. But zero trust applied literally to agent coordination is paralytic. If every message requires cryptographic verification, every delegation requires capability negotiation, and every file access requires authorization---the coordination overhead overwhelms the work itself. Agents spend their context windows negotiating trust instead of solving problems.
 
-Third, agent crash recovery is \emph{social} rather than \emph{mechanical}. When a database transaction crashes, the recovery manager replays the write-ahead log to restore consistency~\cite{mohan1992aries}. When an agent crashes, a successor agent reads the dead agent's notes---an immutable, append-only audit trail---and uses its own LLM to interpret the intent and continue the work. Recovery fidelity depends on the successor's comprehension, not on log replay determinism.
+Hobbes identified this dynamic in 1651~\cite{hobbes1651leviathan}. In the state of nature, without a common authority, rational actors cannot cooperate because the cost of verifying each counterparty's intentions exceeds the benefit of cooperation. The solution is not to make individuals trustworthy---it is to establish a \textbf{sovereign} whose authority both parties accept \emph{before} the interaction begins, so that the interaction itself can focus on the work. ``Covenants, without the sword, are but words, and of no strength to secure a man at all.''
+
+This paper argues that multi-agent systems need exactly this: a \textbf{commons authority} that provides trust as infrastructure, not trust as ceremony. Agents don't negotiate trust per-transaction. They enter a commons where trust has already been established---structurally, evidentially, and economically---and they work freely within that trust envelope.
+
+\subsection{The Three Failures of Peer-to-Peer Trust}
+
+Peer-to-peer trust fails for agent systems in three specific ways:
+
+\paragraph{It doesn't scale.} If $n$ agents must establish pairwise trust, the system requires $O(n^2)$ trust negotiations. Each negotiation consumes tokens, time, and context window. With 8~agents, this is manageable. With 50, it dominates wall-clock time. With 1000 (a production agent fleet), it is infeasible.
+
+\paragraph{It doesn't survive death.} When an agent crashes, its trust relationships die with it. A successor agent that resumes the dead agent's work must re-establish trust with every counterparty from scratch. The trust investment is non-transferable because it was encoded in ephemeral bilateral state, not in durable infrastructure.
+
+\paragraph{It doesn't address misaligned principals.} An agent can be perfectly ``trustworthy'' in the sense that it faithfully executes its instructions---while its instructions come from a principal whose interests are adversarial to the commons. Peer-to-peer trust evaluates the agent's behavior; it cannot evaluate the principal's intent. The agent is a loyal soldier in someone else's war, with a spotless reputation.
+
+\subsection{Contributions}
+
+We present:
+\begin{enumerate}
+  \item A \textbf{three-layer trust architecture} (structural, evidentiary, economic) that does not depend on agent morality, shared values, or threat of termination (Sections~\ref{sec:structural}--\ref{sec:economic}).
+  \item A formal argument, grounded in Sen's Impossibility of a Paretian Liberal~\cite{sen1970impossibility}, for why \textbf{advisory resource claims} are superior to enforced locking in multi-agent systems with private information (Section~\ref{sec:sen}).
+  \item A \textbf{TLA$^{+}$ specification} of the coordination lifecycle with crash recovery, verifying safety and liveness properties (Section~\ref{sec:tlaplus}).
+  \item The design of a \textbf{collateralized work contract} system (Float Plans) that prices agent risk and settles outcomes mechanically, transforming the moral question of agent trustworthiness into the economic question of adequate bonding (Section~\ref{sec:economic}).
+\end{enumerate}
+
+The security layer (agent authentication and capability delegation) is provided by the Anchor Protocol~\cite{owens2026anchor}, a companion paper. This paper builds the trust, governance, and economic layers on top of that cryptographic foundation.
+
+% ═══════════════════════════════════════════════════════════════════════════════
+\section{The Commons Authority}
+% ═══════════════════════════════════════════════════════════════════════════════
+
+\begin{definition}[Commons Authority]\label{def:commons}
+A commons authority $\mathcal{D}$ for a multi-agent system is a persistent service that provides:
+\begin{enumerate}[nosep]
+  \item \textbf{Identity}: Every agent receives a cryptographic identity before participating.
+  \item \textbf{Capability bounding}: Every agent's operations are structurally limited by attenuable tokens.
+  \item \textbf{Shared knowledge}: Resource claims, agent status, and conflict information are visible to all participants.
+  \item \textbf{Immutable history}: All actions are recorded in an append-only, tamper-evident trail.
+  \item \textbf{Economic settlement}: Work contracts are collateralized and settled against verifiable evidence.
+\end{enumerate}
+The commons authority is not a central planner. It does not decide which agent should work on which task, which file conflicts should be resolved in whose favor, or which agents are ``good.'' It provides the \emph{infrastructure} within which agents make those decisions for themselves, using the shared knowledge and economic incentives the authority maintains.
+\end{definition}
+
+\begin{remark}
+The commons authority is a \emph{Hobbesian sovereign}, not an \emph{omniscient coordinator}. Hobbes's Leviathan does not micromanage citizens' daily choices---it establishes the conditions (laws, enforcement, courts) under which citizens can trust each other enough to transact freely. Similarly, the commons authority establishes identity, capability bounds, shared knowledge, and economic settlement---and then gets out of the way.
+\end{remark}
+
+In the Port Daddy implementation, the commons authority is a daemon running on \texttt{localhost:9876}, backed by SQLite. The simplicity of the implementation is deliberate: the authority's value comes from its \emph{guarantees}, not its complexity.
+
+\subsection{Why Agents Consent}
+
+In Hobbes, consent to the sovereign is rational because the alternative---the state of nature---is worse. For AI agents, consent to the commons authority is rational because agents without it are strictly worse off:
 
 \begin{table}[H]
 \centering
-\caption{Classical ACID vs.\ Agent-ACID Properties}
-\label{tab:acid-comparison}
+\caption{With and Without the Commons Authority}
+\label{tab:consent}
 \begin{tabular}{@{}lll@{}}
 \toprule
-\textbf{Property} & \textbf{Classical (Database)} & \textbf{Agent Transaction} \\
+\textbf{Capability} & \textbf{Without Authority} & \textbf{With Authority} \\
 \midrule
-Atomicity & UNDO/REDO log replay & Compensating action (unregister on failure) \\
-Consistency & Schema constraints & Advisory conflict graph (report, don't prevent) \\
-Isolation & Lock-based / MVCC & Structural (worktrees) + advisory (file claims) \\
-Durability & WAL + fsync & Immutable note trail + SQLite WAL \\
-\midrule
-Duration & Milliseconds & Minutes to hours \\
-Recovery & Mechanical (log replay) & Social (LLM interprets audit trail) \\
-Locking & Enforced (reject conflicts) & Advisory (report conflicts) \\
+Port assignment & Race condition & Deterministic, collision-free \\
+File coordination & Discover conflicts at merge & Detect conflicts at claim time \\
+Crash recovery & Work lost permanently & Successor reads immutable trail \\
+Delegation & Bilateral trust negotiation & Attenuated capability tokens \\
+Reputation & Every interaction from zero & History persists across lifetimes \\
+Accountability & Anonymous harm & Full attribution via evidence chain \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-This paper makes four contributions:
-\begin{enumerate}
-  \item We formalize the notion of an \textbf{Agent Transaction} and adapt ACID properties for multi-agent development coordination (Section~\ref{sec:agent-transactions}).
-  \item We define three \textbf{isolation levels} ($I_0$, $I_1$, $I_2$) for agent coordination and prove properties about each (Section~\ref{sec:agent-transactions}).
-  \item We formalize \textbf{social recovery}---crash recovery via immutable audit trail interpretation---and prove the integrity of the recovery trail (Section~\ref{sec:crash-recovery}).
-  \item We provide a \textbf{TLA$^{+}$ specification} of the session lifecycle with crash recovery and verify safety and liveness properties (Section~\ref{sec:tlaplus}).
-\end{enumerate}
-
-The security layer (agent authentication, capability delegation, and cryptographic verification) is provided by the Anchor Protocol~\cite{howens2026anchor}, a companion paper describing Port Daddy's formally verified control plane. This paper builds the transaction layer on top of that security foundation.
+The daemon does not need to threaten agents. It provides services that make coordination \emph{rational}. Agents that bypass the daemon are not punished---they are simply worse off.
 
 % ═══════════════════════════════════════════════════════════════════════════════
-\section{System Model}\label{sec:system-model}
+\section{Layer 1: Structural Prevention}\label{sec:structural}
 % ═══════════════════════════════════════════════════════════════════════════════
 
-We formalize the entities and operations of the Port Daddy coordination daemon. All definitions correspond to implemented data structures in the running system.
+The first layer of trust does not depend on agent behavior, reputation, or economic incentives. It depends on \emph{walls}: structural constraints that make certain classes of harm physically impossible.
 
-\begin{definition}[Agent]\label{def:agent}
-An agent $\alpha$ is a tuple $(\mathit{id}, \iota, \phi, \sigma, t_h)$ where:
-\begin{itemize}[nosep]
-  \item $\mathit{id} \in \mathcal{I}$ is a unique identifier,
-  \item $\iota = (\mathit{project}, \mathit{stack}, \mathit{context})$ is a semantic identity following the $\mathit{project}\!:\!\mathit{stack}\!:\!\mathit{context}$ naming convention,
-  \item $\phi$ is a natural-language purpose string,
-  \item $\sigma \in \{\texttt{starting}, \texttt{ready}, \texttt{busy}, \texttt{draining}\}$ is the agent's lifecycle status,
-  \item $t_h \in \mathbb{N}$ is the timestamp of the last heartbeat.
-\end{itemize}
+\subsection{Capability Attenuation}
+
+The Anchor Protocol~\cite{owens2026anchor} provides Harbor Cards---Ed25519-signed capability tokens that bound the operations available to each agent. The critical property is \textbf{offline attenuation}: when Agent~A delegates to Agent~B, it creates a new token whose capabilities are a strict subset of its own. Agent~B can further delegate to Agent~C with even narrower capabilities. Capabilities can only shrink along the delegation chain, never grow.
+
+\begin{definition}[Capability-Bounded Transaction]\label{def:cap-txn}
+An agent transaction $\mathcal{T}_\alpha$ is capability-bounded by token $\tau_\alpha$ if every operation $o$ executed during $\mathcal{T}_\alpha$ satisfies $o \in C(\tau_\alpha)$, where $C(\tau)$ extracts the capability set from a Harbor Card. The commons authority rejects any operation $o \notin C(\tau_\alpha)$ at the verification step, before the operation can affect shared state.
 \end{definition}
 
-\begin{definition}[Session]\label{def:session}
-A session $S$ is a tuple $(\mathit{id}, \alpha, \phi, N, F, \pi, \sigma_S)$ where:
-\begin{itemize}[nosep]
-  \item $\mathit{id} \in \mathcal{S}$ is a unique session identifier,
-  \item $\alpha$ is the owning agent,
-  \item $\phi$ is the session purpose,
-  \item $N = \langle n_1, n_2, \ldots \rangle$ is an \emph{append-only} sequence of notes (the audit trail),
-  \item $F \subseteq \mathcal{F}$ is a set of file claims,
-  \item $\pi \in \{\texttt{planning}, \texttt{in\_progress}, \texttt{testing}, \texttt{reviewing}\}$ is the work phase,
-  \item $\sigma_S \in \{\texttt{active}, \texttt{completed}, \texttt{abandoned}\}$ is the terminal status.
-\end{itemize}
-\end{definition}
-
-\begin{definition}[File Claim]\label{def:file-claim}
-A file claim $f$ is a tuple $(\mathit{path}, R, \mathit{sym})$ where $\mathit{path}$ is a filesystem path and $R = [l_s, l_e]$ is an optional line range ($\bot$ for whole-file claims). Two claims \emph{overlap} when:
-\begin{equation}
-\text{overlap}(f_1, f_2) \iff \mathit{path}_1 = \mathit{path}_2 \land (R_1 = \bot \lor R_2 = \bot \lor l_{s_1} \leq l_{e_2} \land l_{s_2} \leq l_{e_1})
-\end{equation}
-Claims are \textbf{advisory}: $\text{claim}(S_1, f) \land \text{claim}(S_2, f) \implies \text{conflict}(f)$ but does \emph{not} imply $\text{reject}(S_2, f)$. Conflicts are reported, not enforced.
-\end{definition}
-
-\begin{definition}[Lock]\label{def:lock}
-A lock $\lambda$ is a tuple $(\mathit{name}, \mathit{owner}, \tau, t_e)$ where $\tau$ is the time-to-live and $t_e$ is the expiration timestamp. Locks provide \textbf{enforced} mutual exclusion:
-\begin{equation}
-\text{held}(\lambda, \alpha_1) \implies \neg\text{acquire}(\lambda, \alpha_2) \quad \text{for } \alpha_1 \neq \alpha_2
-\end{equation}
-Locks auto-expire when $t_{\text{now}} \geq t_e$, preventing deadlock by construction. No fairness guarantees are provided; concurrent acquirers race.
-\end{definition}
-
-\begin{definition}[Worktree]\label{def:worktree}
-A worktree $W$ is a filesystem-level isolation domain identified by a deterministic hash of its root path. Each agent may be associated with at most one worktree. Agents in distinct worktrees $W_i \neq W_j$ have \emph{physically disjoint} working copies of the repository, providing structural isolation without coordination overhead. The worktree association is stored with the session but is not enforced by the coordination daemon---it is a label for filtering and context, not a constraint.
-\end{definition}
-
-\begin{figure}[H]
-\centering
-\begin{tikzpicture}[
-  entity/.style={rectangle, draw=darkblue, fill=codebg, minimum width=2.8cm, minimum height=1cm, font=\small\bfseries},
-  weak/.style={rectangle, draw=gray, fill=codebg, minimum width=2.4cm, minimum height=0.8cm, font=\small},
-  rel/.style={-{Stealth[length=3mm]}, thick},
-  cascade/.style={-{Stealth[length=3mm]}, thick, dashed, red!60!black},
-  label/.style={font=\tiny\itshape, text=gray}
-]
-  \node[entity] (agent) {Agent $\alpha$};
-  \node[entity, right=3cm of agent] (session) {Session $S$};
-  \node[weak, below left=1.5cm and 0.2cm of session] (notes) {Notes $N$};
-  \node[weak, below right=1.5cm and 0.2cm of session] (claims) {File Claims $F$};
-  \node[entity, below=3.5cm of agent] (lock) {Lock $\lambda$};
-  \node[weak, right=3cm of lock] (queue) {Resurrection $\mathcal{R}$};
-
-  \draw[rel] (agent) -- node[above, label] {owns} (session);
-  \draw[cascade] (session) -- node[left, label] {CASCADE} (notes);
-  \draw[cascade] (session) -- node[right, label] {CASCADE} (claims);
-  \draw[rel] (agent) -- node[left, label] {holds} (lock);
-  \draw[rel, dashed] (agent) -- node[below, label] {queued in} (queue);
-\end{tikzpicture}
-\caption{Entity-relationship model. Dashed red arrows indicate CASCADE deletion: when a session is deleted, its notes and file claims are atomically removed.}
-\label{fig:er-model}
-\end{figure}
-
-% ═══════════════════════════════════════════════════════════════════════════════
-\section{Agent Transactions}\label{sec:agent-transactions}
-% ═══════════════════════════════════════════════════════════════════════════════
-
-We now define the central concept of this paper: the Agent Transaction.
-
-\begin{definition}[Agent Transaction]\label{def:agent-txn}
-An agent transaction $\mathcal{T}$ is a tuple $(S, C, F, \Lambda, W, N)$ where:
-\begin{itemize}[nosep]
-  \item $S$ is the session (Definition~\ref{def:session}) bounding the transaction,
-  \item $C \subseteq \mathcal{P}(\text{Ops})$ is the capability set from the agent's Harbor Card~\cite{howens2026anchor},
-  \item $F = \{f_1, \ldots, f_n\}$ is the set of advisory file claims,
-  \item $\Lambda = \{\lambda_1, \ldots, \lambda_m\}$ is the set of enforced locks held,
-  \item $W$ is the isolation domain (worktree, or $\bot$ for shared),
-  \item $N$ is the immutable recovery trail (note sequence).
-\end{itemize}
-The transaction lifecycle is:
+\begin{theorem}[Structural Scope Limitation]\label{thm:scope}
+For any delegation chain $\tau_0 \rightarrow \tau_1 \rightarrow \cdots \rightarrow \tau_k$, where $\tau_0$ is issued by the commons authority and each $\tau_{i+1}$ is attenuated from $\tau_i$:
 \[
-\text{begin}(\mathcal{T}) \rightarrow \text{operate}^{*} \rightarrow \text{end}(\mathcal{T})
+C(\tau_k) \subseteq C(\tau_{k-1}) \subseteq \cdots \subseteq C(\tau_0)
 \]
-where $\text{end}$ is either $\text{commit}$ (session completed) or $\text{abort}$ (session abandoned). The $\text{begin}$ operation is \textbf{atomic with compensating rollback}: it registers the agent and starts the session in a single compound operation; if session creation fails, agent registration is explicitly undone.
-\end{definition}
+No agent in the chain can perform operations outside the scope originally granted by the authority, regardless of the agent's intent.
+\end{theorem}
 
-\subsection{Agent-ACID Properties}
+\begin{proof}
+By the Anchor Protocol's Injective Agreement property~\cite{owens2026anchor}, verified in ProVerif under the Dolev-Yao model: if the commons authority accepts a token $\tau_k$, there exists a valid chain where each hop satisfies the subset check. The subset check is evaluated structurally (the signed chain is verified cryptographically); it does not depend on runtime behavior or agent cooperation. An agent that attempts to forge a token with escalated capabilities would need to forge an Ed25519 signature, which is computationally infeasible.
+\end{proof}
 
-\begin{definition}[Agent-ACID]\label{def:agent-acid}
-An Agent Transaction satisfies four adapted ACID properties:
+\begin{remark}
+This is the layer where the metaphor of ``walls, not laws'' applies. A law says ``you shall not write to the production database.'' A wall means your token is not valid for production database writes, and no amount of intent---good or bad---can change that. Laws require enforcement; walls require only construction.
+\end{remark}
 
-\paragraph{A-Atomicity.} The $\text{begin}(\mathcal{T})$ operation either fully succeeds (agent registered \emph{and} session started) or fully fails with compensating rollback (agent unregistered). Formally, let $\text{reg}(\alpha)$ denote agent registration and $\text{start}(S)$ denote session creation:
-\begin{equation}
-\text{begin}(\mathcal{T}) = \text{reg}(\alpha) \cdot \text{start}(S) \quad \text{with compensating action} \quad \text{start}(S) \text{ fails} \implies \text{unreg}(\alpha)
-\end{equation}
-This is a two-step saga~\cite{garciamolina1987sagas} with a single compensating transaction.
+\subsection{Isolation Domains}
 
-\paragraph{C-Consistency.} File claims form a \emph{conflict graph} $G_F = (V, E)$ where vertices are active sessions and edges connect sessions with overlapping claims:
-\begin{equation}
-(S_i, S_j) \in E \iff \exists f_i \in F_i, f_j \in F_j : \text{overlap}(f_i, f_j)
-\end{equation}
-Consistency is maintained when the conflict graph is \emph{reported to agents}, not when overlaps are prevented. We call this \textbf{advisory consistency}: the system guarantees that every conflict is visible, but does not enforce resolution.
+Beyond capability tokens, the commons authority supports \textbf{structural isolation} via git worktrees: physically separate copies of the repository where agents operate on disjoint filesystem state.
 
-\paragraph{I-Isolation.} Three tiers of increasing strength:
-
+\begin{definition}[Isolation Levels]\label{def:isolation}
+Three tiers of isolation are available, ordered by strength:
 \begin{description}[nosep]
-  \item[$I_0$ (None):] Agents share a filesystem. Conflicts are undetected. No coordination overhead.
-  \item[$I_1$ (Advisory):] Agents share a filesystem but register file claims. Conflicts are detected and reported. This is Port Daddy's default mode.
-  \item[$I_2$ (Structural):] Agents operate in separate git worktrees. Filesystem-level isolation ensures that concurrent transactions cannot observe each other's intermediate states. Conflicts are deferred to the merge operation.
+  \item[$I_0$ (None):] Agents share a working directory. No conflict detection. Maximum parallelism, no safety.
+  \item[$I_1$ (Advisory):] Agents share a working directory but register file claims with the commons authority. Conflicts are detected and reported to all participants. Claims are not enforced. This is the default.
+  \item[$I_2$ (Structural):] Each agent operates in a separate git worktree. Filesystem-level isolation ensures agents cannot observe each other's intermediate states. Conflicts are deferred to sequential merge.
 \end{description}
-
-\paragraph{D-Durability.} Notes are append-only and survive session completion. The recovery trail $N$ persists in SQLite (WAL mode) and is readable by successor agents via the salvage system. Session deletion CASCADE-removes notes, but this is an explicit administrative action, not a side effect of transaction completion.
 \end{definition}
 
-\subsection{Theorems}
+The choice between $I_1$ and $I_2$ is not a security decision---it is an economics decision. Section~\ref{sec:sen} formalizes why.
 
-\begin{theorem}[Capability Boundedness]\label{thm:cap-bound}
-If agent $\alpha$ holds a Harbor Card with capability set $C$~\cite{howens2026anchor}, then any transaction $\mathcal{T}$ initiated by $\alpha$ satisfies $\text{ops}(\mathcal{T}) \subseteq C$. Furthermore, if $\alpha$ delegates to $\beta$ via offline attenuation, then $\text{ops}(\mathcal{T}_\beta) \subseteq C_\beta \subseteq C_\alpha$.
-\end{theorem}
+% ═══════════════════════════════════════════════════════════════════════════════
+\section{Layer 2: Immutable Attribution}\label{sec:attribution}
+% ═══════════════════════════════════════════════════════════════════════════════
 
-\begin{proof}
-By the Anchor Protocol's Injective Agreement property (Theorem 3.1 in~\cite{howens2026anchor}), verified by ProVerif under the Dolev-Yao model: if a Harbor accepts a token for agent $\beta$ with capabilities $C_\beta$, then there exists a valid delegation chain from the Daemon root to $\beta$ where each hop satisfies the subset check. The transaction boundary (session) inherits the capability bound from the Harbor Card. Any operation outside $C$ is rejected at the Harbor verification step before the session can execute it. Delegation attenuation (Definition~2 in~\cite{howens2026anchor}) ensures $C_\beta \subseteq C_\alpha$ by construction: the subset check on capabilities is performed at each delegation hop, and adding capabilities is structurally impossible in the signed chain.
-\end{proof}
+Structural prevention handles accidental harm---an agent cannot exceed capabilities it does not hold. But an agent \emph{with} legitimate write access can write garbage. The second layer ensures that every action is permanently attributable.
 
-\begin{theorem}[Advisory Conflict Completeness]\label{thm:conflict-complete}
-Under isolation level $I_1$, for any two concurrent transactions $\mathcal{T}_1$, $\mathcal{T}_2$ with overlapping file claims $f \in F_1 \cap F_2$ (where overlap is defined by Definition~\ref{def:file-claim}), the system reports $\text{conflict}(f)$ to $\mathcal{T}_2$ at claim time. No false negatives exist.
-\end{theorem}
+\subsection{The Evidence Chain}
 
-\begin{proof}
-The overlap detection query scans all active (unreleased) file claims from other active sessions. For a candidate file path $p$ and range $[a, b]$:
+Every agent session maintains an \textbf{append-only note trail}---a sequence of timestamped, immutable records of observations, decisions, and progress.
+
+\begin{definition}[Evidence Trail]\label{def:evidence}
+An evidence trail $N = \langle n_1, n_2, \ldots, n_k \rangle$ is an ordered sequence of notes where:
 \begin{enumerate}[nosep]
-  \item If the existing claim is whole-file ($R = \bot$), it overlaps with any range on the same path.
-  \item If both claims are ranged, overlap holds iff $l_{s_1} \leq l_{e_2} \land l_{s_2} \leq l_{e_1}$.
+  \item Each $n_i$ contains: content (natural language), type (note, decision, handoff, blocker), and timestamp.
+  \item Notes are append-only: there exists no API operation that modifies or deletes individual notes.
+  \item Notes survive session completion: the trail persists whether the session commits, aborts, or is abandoned due to agent death.
 \end{enumerate}
-Since the query uses the conjunctive predicate on $\mathit{path}$ equality and $\mathit{released\_at} = \text{NULL}$ and $\mathit{status} = \text{active}$, and all three conditions are checked via indexed SQL with the session's own ID excluded, every overlapping claim from another active session is returned. False positives may occur (an agent claims a file it does not ultimately modify), but false negatives cannot: if the claim exists and the session is active, the overlap predicate is evaluated and reported.
+\end{definition}
+
+\begin{lemma}[Trail Integrity]\label{lem:integrity}
+The evidence trail is immutable by construction. No \texttt{UPDATE} or targeted \texttt{DELETE} operation exists in the system's API surface. Notes are destroyed only by explicit administrative deletion of the parent session (CASCADE), which is an auditable action distinct from normal transaction lifecycle operations.
+\end{lemma}
+
+\begin{proof}
+By code inspection of the session module: the note insertion API performs only \texttt{INSERT INTO session\_notes}. The only deletion path is \texttt{DELETE FROM sessions WHERE id = ?}, which triggers \texttt{ON DELETE CASCADE}. Since transaction completion (commit or abort) updates the session's \emph{status} field but does not delete the session row, notes survive all normal lifecycle transitions.
 \end{proof}
 
-\begin{theorem}[Structural Isolation Serializability]\label{thm:structural-serial}
-Under isolation level $I_2$, concurrent transactions $\mathcal{T}_1 \in W_1$ and $\mathcal{T}_2 \in W_2$ with $W_1 \neq W_2$ are serializable with respect to file operations.
+\subsection{Merkle-Chained Auditability}
+
+For high-assurance environments, the evidence trail can be strengthened to a \textbf{Merkle chain}: each note includes the SHA-256 hash of the previous note, and the session's completion produces a Merkle root over all notes and artifact hashes~\cite{owens2026anchor}. This provides:
+
+\begin{itemize}[nosep]
+  \item \textbf{Tamper evidence}: modifying any note invalidates all subsequent hashes.
+  \item \textbf{Completeness proof}: the Merkle root is a cryptographic commitment to the full evidence trail.
+  \item \textbf{Decentralized verification}: agents can independently verify the trail without trusting the commons authority's database.
+\end{itemize}
+
+\subsection{Attribution Survives Identity Disposal}
+
+A critical property: even if an agent's identity is discarded after task completion, the \textbf{delegation chain} traces every action back to the authorizing principal. The chain is:
+\[
+\text{Principal} \xrightarrow{\text{funds}} \text{Float Plan} \xrightarrow{\text{authorizes}} \text{Agent } \alpha \xrightarrow{\text{delegates}} \text{Agent } \beta \xrightarrow{\text{acts}} \text{Evidence Trail}
+\]
+The agent is ephemeral. The principal's authorization---signed, escrowed, recorded---is permanent. Anonymous harm is impossible within the system, because every action chains back to someone who posted collateral.
+
+% ═══════════════════════════════════════════════════════════════════════════════
+\section{The Impossibility of Enforced Allocation}\label{sec:sen}
+% ═══════════════════════════════════════════════════════════════════════════════
+
+A natural question: why are file claims advisory? Why not enforce them---give each agent exclusive access to its claimed files, preventing conflicts entirely? The answer is not an engineering limitation. It is a formal impossibility result.
+
+\subsection{Sen's Theorem Applied to Agent Coordination}
+
+Sen~\cite{sen1970impossibility} proved that no social welfare function can simultaneously satisfy:
+\begin{enumerate}[nosep]
+  \item \textbf{Pareto efficiency}: If every agent prefers outcome $X$ to $Y$, the system chooses $X$.
+  \item \textbf{Minimal liberalism}: Each agent has at least one ``personal domain''---a pair of outcomes where the agent's preference is decisive.
+\end{enumerate}
+
+Applied to file coordination:
+
+\begin{itemize}[nosep]
+  \item \textbf{Pareto efficiency} $=$ the team ships both features (the collectively optimal outcome).
+  \item \textbf{Minimal liberalism} $=$ each agent has decisive control over its claimed files (enforced locking).
+\end{itemize}
+
+\begin{property}[Enforced Claims Produce Pareto-Inferior Outcomes]\label{prop:sen}
+Consider agents $\alpha$ and $\beta$ with tasks $T_\alpha$ and $T_\beta$. Agent $\alpha$ claims file $f$ because it \emph{might} need to modify it. Agent $\beta$ discovers mid-task that it \emph{actually} needs $f$. Under enforced claims:
+\begin{itemize}[nosep]
+  \item $\alpha$'s claim is decisive (minimal liberalism): $\beta$ is blocked.
+  \item The team-level outcome ($T_\alpha$ and $T_\beta$ both completed) is blocked by $\alpha$'s precautionary claim.
+  \item A Pareto-superior outcome exists (both tasks completed) but is unreachable because $\alpha$'s liberal right vetoes it.
+\end{itemize}
+\end{property}
+
+This is not a contrived scenario. AI agents are \emph{inherently uncertain} about which files they will modify when they begin a task. An agent asked to ``fix the login bug'' cannot predict whether it will need the authentication middleware, the route handler, the test suite, or all three. Enforced claims force agents to either:
+\begin{enumerate}[nosep]
+  \item \textbf{Over-claim} (request locks on every file they might touch) $\rightarrow$ destroys parallelism.
+  \item \textbf{Under-claim} (request locks only on files they're certain about) $\rightarrow$ produces undetected conflicts, defeating the purpose.
+\end{enumerate}
+
+\subsection{Advisory Claims as Resolution}
+
+Advisory claims resolve the Sen impossibility by sacrificing minimal liberalism to preserve Pareto efficiency:
+
+\begin{definition}[Advisory Consistency]\label{def:advisory}
+Under advisory claims, file claims form a conflict graph $G = (V, E)$ where vertices are active sessions and edges connect sessions with overlapping claims:
+\[
+(S_i, S_j) \in E \iff \exists f_i \in F_i, f_j \in F_j : \text{overlap}(f_i, f_j)
+\]
+The commons authority guarantees that every edge in $G$ is reported to both endpoints. No agent has a decisive ``personal domain'' over any file. Instead, agents receive complete information about the conflict graph and self-coordinate.
+\end{definition}
+
+\begin{theorem}[Advisory Conflict Completeness]\label{thm:advisory}
+Under advisory claims, for any two concurrent sessions $S_1$, $S_2$ with overlapping file claims $f$, the commons authority reports $\text{conflict}(f)$ to $S_2$ at claim time. No false negatives exist.
 \end{theorem}
 
-\begin{proof}[Proof sketch]
-Git worktrees provide copy-on-write isolation at the filesystem level. The working tree in $W_1$ is a physically separate directory tree branched from a common commit. Operations in $W_1$ cannot observe intermediate file states of $W_2$ and vice versa---there is no shared mutable state between worktrees. Integration occurs exclusively through git merge, which is itself a serializing operation: merges are applied sequentially to the target branch, with each merge creating a new commit that linearizes the concurrent histories. Textual merge conflicts are detected at merge time and require resolution before the merge commit is created.
-
-A complete formal proof would require formalizing git's three-way merge algorithm, which is beyond the scope of this paper. We conjecture that the above argument holds for all git merge strategies that do not perform automatic conflict resolution (i.e., strategies that abort on conflict).
+\begin{proof}
+The overlap detection query scans all active (unreleased) claims from other active sessions. A whole-file claim ($R = \bot$) overlaps with any range on the same path. Two ranged claims $[a,b]$ and $[c,d]$ overlap iff $a \leq d \land c \leq b$. Since the query evaluates this predicate exhaustively over all active claims with the requesting session excluded, every overlap is detected. False positives may occur (an agent claims a file it does not modify); false negatives cannot.
 \end{proof}
 
-\begin{figure}[H]
-\centering
-\begin{tikzpicture}[
-  state/.style={rectangle, rounded corners, draw=darkblue, fill=codebg, minimum width=2.5cm, minimum height=0.9cm, font=\small\bfseries},
-  trans/.style={-{Stealth[length=3mm]}, thick},
-  fail/.style={-{Stealth[length=3mm]}, thick, dashed, red!60!black},
-  op/.style={font=\tiny\ttfamily}
-]
-  \node[state] (unreg) {Unregistered};
-  \node[state, right=3.5cm of unreg] (active) {Active};
-  \node[state, above right=1.5cm and 2.5cm of active] (completed) {Committed};
-  \node[state, below right=1.5cm and 2.5cm of active] (abandoned) {Aborted};
-  \node[state, below=2.5cm of active] (salvage) {In Salvage Queue};
-
-  \draw[trans] (unreg) -- node[above, op] {begin()} (active);
-  \draw[fail] (active) -- ++(0, 1.2) -| node[above, near start, op] {begin() fails} (unreg);
-  \draw[trans] (active) -- node[above, op, sloped] {commit()} (completed);
-  \draw[trans] (active) -- node[below, op, sloped] {abort()} (abandoned);
-  \draw[fail] (active) -- node[right, op] {crash / timeout} (salvage);
-  \draw[trans] (salvage.east) -- ++(1, 0) |- node[near end, right, op] {claim()} (active);
-  \draw[trans] (salvage.west) -- ++(-1, 0) |- node[near end, left, op] {dismiss()} (unreg);
-
-  % Operations on active
-  \node[font=\tiny\itshape, text=gray, right=0.3cm of active] (ops) {%
-    \begin{tabular}{@{}l@{}}
-      claimFile()\\
-      acquireLock()\\
-      addNote()\\
-      setPhase()
-    \end{tabular}};
-\end{tikzpicture}
-\caption{Agent Transaction lifecycle. Solid arrows are normal transitions; dashed red arrows are failure/crash paths. The salvage queue enables social recovery (Section~\ref{sec:crash-recovery}).}
-\label{fig:txn-lifecycle}
-\end{figure}
-
-\begin{figure}[H]
-\centering
-\begin{tikzpicture}
-  % I_2 (outermost)
-  \draw[thick, fill=blue!5] (0,0) circle (3.5cm);
-  \node[font=\small\bfseries] at (0, 3.0) {$I_2$: Structural (Worktrees)};
-  \node[font=\tiny\itshape, text=gray] at (0, 2.5) {Physically disjoint filesystems};
-
-  % I_1 (middle)
-  \draw[thick, fill=green!5] (0,0) circle (2.3cm);
-  \node[font=\small\bfseries] at (0, 1.8) {$I_1$: Advisory (Claims)};
-  \node[font=\tiny\itshape, text=gray] at (0, 1.3) {Conflicts detected, reported};
-
-  % I_0 (innermost)
-  \draw[thick, fill=red!5] (0,0) circle (1.2cm);
-  \node[font=\small\bfseries] at (0, 0.6) {$I_0$: None};
-  \node[font=\tiny\itshape, text=gray] at (0, 0.1) {Shared FS};
-  \node[font=\tiny\itshape, text=gray] at (0, -0.3) {No detection};
-
-  % Arrows showing increasing safety
-  \draw[-{Stealth}, thick, gray] (4, -2) -- (4, 2) node[above, font=\small] {Safety};
-  \draw[-{Stealth}, thick, gray] (-4, 2) -- (-4, -2) node[below, font=\small] {Parallelism};
-\end{tikzpicture}
-\caption{Three isolation levels. Higher levels provide more safety at the cost of coordination overhead. $I_1$ (advisory) is Port Daddy's default, offering conflict visibility without blocking.}
-\label{fig:isolation-levels}
-\end{figure}
+\begin{remark}
+The commons authority's role under advisory claims is that of \emph{town crier}, not \emph{Solomon}. It announces conflicts; it does not resolve them. Resolution requires local knowledge that only the agents possess (``I claimed \texttt{auth.ts} but probably won't need it''; ``I absolutely must modify \texttt{auth.ts} for my task to succeed''). The authority lacks this knowledge. Agents, informed by the conflict graph, make allocation decisions more efficiently than any central enforcer could.
+\end{remark}
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Crash Recovery as Social Continuation}\label{sec:crash-recovery}
 % ═══════════════════════════════════════════════════════════════════════════════
 
-Traditional crash recovery in database systems follows the ARIES protocol~\cite{mohan1992aries}: the recovery manager analyzes the write-ahead log, redoes committed transactions, and undoes uncommitted ones. This works because the log is a complete, deterministic record of all state changes.
+When an agent dies, the commons does not lose information---if the authority does its job.
 
-Agent crash recovery is fundamentally different. An agent's ``log'' is its note trail---a sequence of natural-language observations, decisions, and progress updates. A successor agent cannot mechanically replay these notes; it must \emph{interpret} them using its own reasoning capabilities. We call this \textbf{social recovery}.
-
-\begin{definition}[Agent Liveness]\label{def:liveness}
-Agent $\alpha$ with status $\sigma$ and last heartbeat $t_h$ is classified as:
-\begin{align}
-\text{alive}(\alpha) &\iff t_{\text{now}} - t_h < \theta_{\text{stale}}(\sigma) \\
-\text{stale}(\alpha) &\iff \theta_{\text{stale}}(\sigma) \leq t_{\text{now}} - t_h < \theta_{\text{dead}}(\sigma) \\
-\text{dead}(\alpha) &\iff t_{\text{now}} - t_h \geq \theta_{\text{dead}}(\sigma)
-\end{align}
-where $\theta_{\text{dead}}(\sigma)$ is status-adaptive: 15 min for \texttt{starting}, 20 min for \texttt{ready}, 30 min for \texttt{busy}, and 5 min for \texttt{draining}. The stale threshold is 60\% of the dead threshold.
-\end{definition}
+Traditional crash recovery in database systems follows the ARIES protocol~\cite{mohan1992aries}: the recovery manager replays the write-ahead log to restore consistency mechanically. Agent crash recovery is fundamentally different. An agent's ``log'' is its evidence trail---a sequence of natural-language observations and decisions. A successor cannot replay this trail deterministically; it must \emph{interpret} it.
 
 \begin{definition}[Social Recovery]\label{def:social-recovery}
-When agent $\alpha$ transitions to $\text{dead}(\alpha)$:
+When agent $\alpha$ is declared dead (no heartbeat for a status-adaptive threshold $\theta_{\text{dead}}$):
 \begin{enumerate}[nosep]
-  \item All active sessions of $\alpha$ are moved to status \texttt{abandoned} (the ``zombie protocol'').
+  \item All active sessions of $\alpha$ are marked \texttt{abandoned} (the ``zombie protocol'').
   \item $\alpha$ is queued in the resurrection set $\mathcal{R}$ with status \texttt{pending}.
-  \item A successor agent $\beta$ may execute $\text{claim}(\alpha)$, receiving the \emph{context triple} $(\phi, N, F)$: the purpose, the immutable note trail, and the file claims of $\alpha$'s session.
-  \item $\beta$ uses its LLM to interpret $N$ and determine how to continue $\alpha$'s work.
+  \item A successor agent $\beta$ may claim $\alpha$'s work, receiving the \emph{context triple}: purpose $\phi$, evidence trail $N$, and file claims $F$.
+  \item $\beta$ uses its own reasoning to interpret $N$ and determine how to continue.
 \end{enumerate}
-The salvage lifecycle is:
-\[
-\text{pending} \xrightarrow{\text{claim}} \text{resurrecting} \xrightarrow{\text{complete}} \emptyset \quad \text{or} \quad \text{resurrecting} \xrightarrow{\text{abandon}} \text{pending}
-\]
 \end{definition}
 
-\begin{definition}[Recovery Fidelity]\label{def:recovery-fidelity}
-Let $\text{intent}(\mathcal{T}_\alpha)$ be the intended goal of the original transaction (encoded in the purpose string $\phi$ and the note trail $N$). Social recovery achieves \emph{semantic fidelity} when the successor's transaction $\mathcal{T}_\beta$ satisfies:
-\[
-\text{outcome}(\mathcal{T}_\beta) \approx \text{intent}(\mathcal{T}_\alpha)
-\]
-We do not formalize ``$\approx$'' here---it depends on LLM capability and task complexity. Section~\ref{sec:evaluation} measures recovery fidelity empirically.
-\end{definition}
+\subsection{What Morality Means When Death Is Cheap}
 
-\begin{lemma}[Recovery Trail Integrity]\label{lem:trail-integrity}
-The note sequence $N$ of any session $S$ is immutable: there exists no operation in the system that modifies or deletes individual notes. Notes are destroyed only when their parent session is explicitly deleted (CASCADE), which is an administrative action distinct from transaction completion.
-\end{lemma}
+Agent death in this system is not an existential event---it is a temporary inconvenience. The agent's body (process) is destroyed, but its mind (evidence trail) survives in the commons. A successor reads the trail and continues. Like Hickman's Krakoa~\cite{hickman2019krakoa}, where mutant minds are backed up to Cerebro and restored in new bodies, the information survives the vessel.
 
-\begin{proof}
-By construction. The note insertion API (\texttt{addNote}) performs only \texttt{INSERT INTO session\_notes} with auto-incremented IDs and timestamp. No \texttt{UPDATE session\_notes} or \texttt{DELETE FROM session\_notes WHERE id = ?} statement exists in the codebase. The only deletion path is \texttt{DELETE FROM sessions WHERE id = ?}, which triggers the foreign key \texttt{ON DELETE CASCADE} constraint, removing all associated notes atomically. Since transaction \emph{completion} ($\text{commit}$ or $\text{abort}$) updates the session's \emph{status} field but does not delete the session row, notes survive both normal completion and abandonment. The note sequence is therefore monotonically growing while the session exists, and immutable once the session reaches a terminal state.
-\end{proof}
-
-\begin{figure}[H]
-\centering
-\begin{tikzpicture}[
-  actor/.style={rectangle, rounded corners, draw=darkblue, fill=codebg, minimum width=2cm, minimum height=0.7cm, font=\small},
-  event/.style={font=\tiny\ttfamily},
-  timeline/.style={thick, -{Stealth[length=2mm]}},
-  note/.style={font=\tiny\itshape, text=gray},
-  xscale=1.1
-]
-  % Actors
-  \node[actor] (a) at (0, 0) {Agent $\alpha$};
-  \node[actor] (d) at (4.5, 0) {Daemon};
-  \node[actor] (b) at (9, 0) {Agent $\beta$};
-
-  % Lifelines
-  \draw[thick, gray] (0, -0.5) -- (0, -6.5);
-  \draw[thick, gray] (4.5, -0.5) -- (4.5, -6.5);
-  \draw[thick, gray] (9, -0.5) -- (9, -6.5);
-
-  % Alpha registers and works
-  \draw[timeline] (0, -1) -- node[above, event] {begin()} (4.5, -1);
-  \draw[timeline] (0, -1.8) -- node[above, event] {addNote()} (4.5, -1.8);
-  \draw[timeline] (0, -2.4) -- node[above, event] {addNote()} (4.5, -2.4);
-
-  % Alpha crashes
-  \node[font=\small, red!60!black] at (0, -3.2) {\textbf{X} crash};
-
-  % Reaper detects
-  \node[note, right] at (4.5, -3.8) {reaper: dead($\alpha$)};
-  \draw[timeline, dashed, red!60!black] (4.5, -4.2) -- (4.5, -4.2) node[right, note] {abandon sessions};
-
-  % Beta discovers and claims
-  \draw[timeline] (9, -4.8) -- node[above, event] {salvage/pending} (4.5, -4.8);
-  \draw[timeline] (9, -5.4) -- node[above, event] {claim($\alpha$)} (4.5, -5.4);
-  \draw[timeline] (4.5, -5.4) -- node[above, event, sloped] {$(\phi, N, F)$} (9, -5.8);
-  \draw[timeline] (9, -6.2) -- node[above, event] {complete($\alpha$)} (4.5, -6.2);
-\end{tikzpicture}
-\caption{Social recovery sequence. Agent $\alpha$ crashes; the daemon detects the death via missed heartbeats, abandons the session, and queues $\alpha$ for salvage. Agent $\beta$ claims the dead agent's context triple and continues the work.}
-\label{fig:salvage-sequence}
-\end{figure}
-
-% ═══════════════════════════════════════════════════════════════════════════════
-\section{TLA$^{+}$ Specification}\label{sec:tlaplus}
-% ═══════════════════════════════════════════════════════════════════════════════
-
-We specify the Agent Transaction lifecycle in TLA$^{+}$~\cite{lamport2002specifying} to enable mechanical verification of safety and liveness properties. The specification models a bounded system with $\mathit{MaxAgents}$ agents, $\mathit{MaxFiles}$ claimable files, and $\mathit{MaxLocks}$ named locks.
-
-\subsection{State Variables and Type Invariant}
-
-\begin{lstlisting}[style=tlaplus, caption={TLA$^{+}$ State Variables and Type Invariant}]
----- MODULE AgentTransactions ----
-EXTENDS Naturals, Sequences, FiniteSets, TLC
-
-CONSTANTS MaxAgents, MaxFiles, MaxLocks, MaxNotes
-          DeadThreshold, StaleThreshold
-
-VARIABLES
-  agents,       \* Set of registered agent IDs
-  sessions,     \* Function: agentId -> session record or NULL
-  claims,       \* Function: fileId -> set of claiming agentIds
-  locks,        \* Function: lockName -> {owner, expiry} or NULL
-  notes,        \* Function: agentId -> sequence of notes
-  heartbeats,   \* Function: agentId -> last heartbeat time
-  queue,        \* Resurrection queue: set of {agentId, status}
-  clock         \* Global clock (monotonic)
-
-vars == <<agents, sessions, claims, locks, notes,
-          heartbeats, queue, clock>>
-
-AgentIds == 1..MaxAgents
-FileIds == 1..MaxFiles
-LockNames == 1..MaxLocks
-SessionStatus == {"active", "completed", "abandoned"}
-QueueStatus == {"pending", "resurrecting"}
-
-TypeOK ==
-  /\ agents \subseteq AgentIds
-  /\ \A a \in AgentIds :
-       sessions[a] \in [status: SessionStatus] \cup {NULL}
-  /\ \A f \in FileIds : claims[f] \subseteq AgentIds
-  /\ \A l \in LockNames :
-       locks[l] \in [owner: AgentIds, expiry: Nat] \cup {NULL}
-  /\ \A a \in AgentIds : notes[a] \in Seq(STRING)
-  /\ \A a \in AgentIds : heartbeats[a] \in Nat \cup {0}
-  /\ queue \subseteq [agentId: AgentIds, status: QueueStatus]
-  /\ clock \in Nat
-\end{lstlisting}
-
-\subsection{Actions}
-
-\begin{lstlisting}[style=tlaplus, caption={TLA$^{+}$ Transaction Actions}]
-Begin(a) ==
-  /\ a \notin agents
-  /\ agents' = agents \cup {a}
-  /\ sessions' = [sessions EXCEPT ![a] =
-       [status |-> "active"]]
-  /\ heartbeats' = [heartbeats EXCEPT ![a] = clock]
-  /\ notes' = [notes EXCEPT ![a] = <<>>]
-  /\ UNCHANGED <<claims, locks, queue, clock>>
-
-ClaimFile(a, f) ==
-  /\ a \in agents
-  /\ sessions[a] # NULL
-  /\ sessions[a].status = "active"
-  /\ claims' = [claims EXCEPT ![f] =
-       claims[f] \cup {a}]
-  /\ UNCHANGED <<agents, sessions, locks, notes,
-                  heartbeats, queue, clock>>
-
-AcquireLock(a, l) ==
-  /\ a \in agents
-  /\ sessions[a] # NULL
-  /\ sessions[a].status = "active"
-  /\ locks[l] = NULL \/ locks[l].expiry < clock
-  /\ locks' = [locks EXCEPT ![l] =
-       [owner |-> a, expiry |-> clock + DeadThreshold]]
-  /\ UNCHANGED <<agents, sessions, claims, notes,
-                  heartbeats, queue, clock>>
-
-AddNote(a, content) ==
-  /\ a \in agents
-  /\ sessions[a] # NULL
-  /\ sessions[a].status = "active"
-  /\ Len(notes[a]) < MaxNotes
-  /\ notes' = [notes EXCEPT ![a] =
-       Append(notes[a], content)]
-  /\ UNCHANGED <<agents, sessions, claims, locks,
-                  heartbeats, queue, clock>>
-
-Commit(a) ==
-  /\ a \in agents
-  /\ sessions[a] # NULL
-  /\ sessions[a].status = "active"
-  /\ sessions' = [sessions EXCEPT ![a] =
-       [status |-> "completed"]]
-  /\ claims' = [f \in FileIds |->
-       claims[f] \ {a}]
-  /\ locks' = [l \in LockNames |->
-       IF locks[l] # NULL /\ locks[l].owner = a
-       THEN NULL ELSE locks[l]]
-  /\ UNCHANGED <<agents, notes, heartbeats, queue, clock>>
-
-Abort(a) ==
-  /\ a \in agents
-  /\ sessions[a] # NULL
-  /\ sessions[a].status = "active"
-  /\ sessions' = [sessions EXCEPT ![a] =
-       [status |-> "abandoned"]]
-  /\ claims' = [f \in FileIds |->
-       claims[f] \ {a}]
-  /\ locks' = [l \in LockNames |->
-       IF locks[l] # NULL /\ locks[l].owner = a
-       THEN NULL ELSE locks[l]]
-  /\ UNCHANGED <<agents, notes, heartbeats, queue, clock>>
-\end{lstlisting}
-
-\begin{lstlisting}[style=tlaplus, caption={TLA$^{+}$ Crash Recovery Actions}]
-Crash(a) ==
-  /\ a \in agents
-  /\ sessions[a] # NULL
-  /\ sessions[a].status = "active"
-  \* Agent stops heartbeating; clock advances past threshold
-  /\ heartbeats' = [heartbeats EXCEPT ![a] = 0]
-  /\ UNCHANGED <<agents, sessions, claims, locks,
-                  notes, queue, clock>>
-
-Reap ==
-  \* Detect dead agents and queue for salvage
-  /\ \E a \in agents :
-       /\ sessions[a] # NULL
-       /\ sessions[a].status = "active"
-       /\ clock - heartbeats[a] >= DeadThreshold
-       /\ sessions' = [sessions EXCEPT ![a] =
-            [status |-> "abandoned"]]
-       /\ queue' = queue \cup
-            {[agentId |-> a, status |-> "pending"]}
-       /\ claims' = [f \in FileIds |->
-            claims[f] \ {a}]
-       /\ locks' = [l \in LockNames |->
-            IF locks[l] # NULL /\ locks[l].owner = a
-            THEN NULL ELSE locks[l]]
-       /\ UNCHANGED <<agents, notes, heartbeats, clock>>
-
-Salvage(b, a) ==
-  /\ b \in agents
-  /\ sessions[b] # NULL
-  /\ sessions[b].status = "active"
-  /\ [agentId |-> a, status |-> "pending"] \in queue
-  /\ queue' = (queue \ {[agentId |-> a,
-       status |-> "pending"]})
-       \cup {[agentId |-> a, status |-> "resurrecting"]}
-  /\ UNCHANGED <<agents, sessions, claims, locks,
-                  notes, heartbeats, clock>>
-
-CompleteSalvage(a) ==
-  /\ [agentId |-> a, status |-> "resurrecting"] \in queue
-  /\ queue' = queue \
-       {[agentId |-> a, status |-> "resurrecting"]}
-  /\ UNCHANGED <<agents, sessions, claims, locks,
-                  notes, heartbeats, clock>>
-
-Tick ==
-  /\ clock' = clock + 1
-  /\ UNCHANGED <<agents, sessions, claims, locks,
-                  notes, heartbeats, queue>>
-\end{lstlisting}
-
-\subsection{Safety and Liveness Properties}
-
-\begin{lstlisting}[style=tlaplus, caption={TLA$^{+}$ Properties and Specification}]
-Init ==
-  /\ agents = {}
-  /\ sessions = [a \in AgentIds |-> NULL]
-  /\ claims = [f \in FileIds |-> {}]
-  /\ locks = [l \in LockNames |-> NULL]
-  /\ notes = [a \in AgentIds |-> <<>>]
-  /\ heartbeats = [a \in AgentIds |-> 0]
-  /\ queue = {}
-  /\ clock = 1
-
-Next ==
-  \/ \E a \in AgentIds : Begin(a)
-  \/ \E a \in AgentIds, f \in FileIds : ClaimFile(a, f)
-  \/ \E a \in AgentIds, l \in LockNames : AcquireLock(a, l)
-  \/ \E a \in AgentIds : AddNote(a, "note")
-  \/ \E a \in AgentIds : Commit(a)
-  \/ \E a \in AgentIds : Abort(a)
-  \/ \E a \in AgentIds : Crash(a)
-  \/ Reap
-  \/ \E a, b \in AgentIds : Salvage(b, a)
-  \/ \E a \in AgentIds : CompleteSalvage(a)
-  \/ Tick
-
-Spec == Init /\ [][Next]_vars
-         /\ WF_vars(Reap)
-         /\ WF_vars(Tick)
-         /\ \A a \in AgentIds : WF_vars(CompleteSalvage(a))
-
-\* SAFETY: Notes are monotonically growing for active sessions
-NoteMonotonicity ==
-  \A a \in agents :
-    sessions[a] # NULL /\ sessions[a].status = "active"
-    => Len(notes'[a]) >= Len(notes[a])
-
-\* SAFETY: No capability escalation (structural)
-\* Locks can only be held by registered agents with
-\* active sessions
-LockOwnerValid ==
-  \A l \in LockNames :
-    locks[l] # NULL =>
-      /\ locks[l].owner \in agents
-      /\ (sessions[locks[l].owner] # NULL)
-
-\* LIVENESS: Every dead agent is eventually salvaged
-\* or dismissed (under fairness)
-CrashRecovery ==
-  \A a \in AgentIds :
-    [agentId |-> a, status |-> "pending"] \in queue
-    ~> [agentId |-> a, status |-> "pending"] \notin queue
-
-\* LIVENESS: Every lock eventually expires
-LockRelease ==
-  \A l \in LockNames :
-    locks[l] # NULL ~> locks[l] = NULL
-
-====
-\end{lstlisting}
-
-The specification models the core lifecycle from Section~\ref{sec:agent-transactions}: agents begin transactions, perform operations (file claims, lock acquisition, note addition), and either commit, abort, or crash. The Reap action detects dead agents; the Salvage action enables social recovery. Weak fairness on Reap and Tick ensures progress.
-
-\textbf{Safety properties} ($\Box P$) verified:
-\begin{itemize}[nosep]
-  \item \textbf{TypeOK}: State variables remain within their declared types.
-  \item \textbf{NoteMonotonicity}: The note sequence for any active session never shrinks.
-  \item \textbf{LockOwnerValid}: Locks are only held by registered agents with active sessions.
-\end{itemize}
-
-\textbf{Liveness properties} ($P \leadsto Q$) verified under fairness:
-\begin{itemize}[nosep]
-  \item \textbf{CrashRecovery}: Every pending salvage entry is eventually resolved.
-  \item \textbf{LockRelease}: Every held lock is eventually released (by explicit release, session end, or TTL expiry via clock advance past the lock's expiry).
-\end{itemize}
-
-% ═══════════════════════════════════════════════════════════════════════════════
-\section{Related Work}\label{sec:related-work}
-% ═══════════════════════════════════════════════════════════════════════════════
-
-\subsection{Long-Lived Transactions}
-
-Garcia-Molina and Salem~\cite{garciamolina1987sagas} introduced Sagas as a mechanism for decomposing long-lived transactions into sequences of sub-transactions, each with a compensating transaction for rollback. Port Daddy's \texttt{sugar.begin()} implements a two-step saga: agent registration followed by session creation, with compensating rollback (unregistration) if session creation fails. However, Agent Transactions extend Sagas in two ways: (1) isolation is advisory rather than enforced, and (2) crash recovery is social rather than mechanical. Sagas assume that compensating transactions can be mechanically defined and executed; in agent systems, the ``compensation'' for a crashed thirty-minute reasoning session is another agent re-interpreting the audit trail---a fundamentally non-deterministic operation.
-
-Gray and Reuter~\cite{gray1993transaction} provide the definitive treatment of transaction processing, including isolation levels, recovery protocols, and the interaction between concurrency control and performance. Our three isolation levels ($I_0$, $I_1$, $I_2$) are inspired by the SQL isolation level hierarchy but adapted for structural (filesystem-level) rather than logical (row-level) isolation.
-
-\subsection{BDI Agent Architecture}
-
-Rao and Georgeff's BDI model~\cite{rao1991modeling,rao1995agentspeak} provides a formal framework for agents with beliefs, desires, and intentions. Agent Transactions map naturally to BDI concepts: the note trail $N$ corresponds to \emph{beliefs} (the agent's accumulated knowledge about the task), the session purpose $\phi$ corresponds to \emph{desires} (what the agent wants to achieve), and the file claims $F$ and locks $\Lambda$ correspond to \emph{intentions} (committed resources for achieving the goal). This mapping is deliberate: the session model captures the same three dimensions but in a coordination-first rather than reasoning-first framework.
-
-The critical BDI insight that applies here is the distinction between \emph{goals} and \emph{intentions}~\cite{rao1991modeling}: an agent can desire to modify a file (goal) without claiming it (intention). Advisory file claims are the coordination-level analogue of BDI intentions---they represent committed resource allocation, not just aspiration.
-
-\subsection{Generative Agents and Memory Systems}
-
-Park et al.~\cite{park2023generative} demonstrate that believable long-term agent behavior requires memory streams (accumulated observations), reflection (periodic synthesis), and planning (recursive time decomposition). Port Daddy's immutable notes are architecturally similar to memory streams: both are append-only sequences that accumulate over time and are retrieved by relevance when needed. The key difference is scope: Generative Agents focus on individual agent cognition (what one agent remembers), while Agent Transactions focus on inter-agent coordination (what a successor agent can recover from a dead agent's trail).
-
-\subsection{Distributed Consensus}
-
-Lamport's Paxos~\cite{lamport1998part} and Ongaro and Ousterhout's Raft~\cite{ongaro2014search} solve consensus across unreliable networks. Port Daddy explicitly avoids distributed consensus because all agents share a single SQLite database on localhost. The coordination problem is real-time concurrency on a single node, not network partition tolerance. This is a deliberate scope limitation: extending Agent Transactions to distributed multi-node settings would require consensus primitives that are unnecessary and harmful for the local development use case.
-
-\subsection{Capability-Based Security}
-
-The Anchor Protocol~\cite{howens2026anchor} provides the security foundation for Agent Transactions. Harbor Cards (Ed25519-signed capability tokens with offline attenuation) bound the operations available to each transaction. Our Theorem~\ref{thm:cap-bound} (Capability Boundedness) relies on the Anchor Protocol's ProVerif-verified Injective Agreement property. Dennis and Van Horn's seminal capability model~\cite{dennis1966programming} and Saltzer and Schroeder's principle of least privilege~\cite{saltzer1975protection} provide the theoretical grounding for why capability bounding is essential in multi-agent systems: without it, a compromised or malfunctioning agent's transaction could affect resources outside its intended scope.
-
-% ═══════════════════════════════════════════════════════════════════════════════
-\section{Empirical Evaluation}\label{sec:evaluation}
-% ═══════════════════════════════════════════════════════════════════════════════
-
-We evaluate Agent Transactions along four dimensions: conflict detection effectiveness, isolation level comparison, crash recovery performance, and real-world coordination statistics.
-
-\subsection{Experimental Setup}
-
-All experiments run on the Port Daddy daemon (v3.7.0) using its SQLite-backed coordination layer. The synthetic benchmarks use the \texttt{createTestDb()} factory from the test infrastructure, which provides in-memory SQLite databases with identical schemas.
-
-\subsection{Experiment 1: Conflict Detection Under Load}
-
-\paragraph{Method.} We simulate $N$ concurrent agents ($N \in \{1, 2, 4, 8, 16\}$), each executing: $\text{begin} \rightarrow \text{claim 5 files} \rightarrow \text{add 10 notes} \rightarrow \text{commit}$. Files are drawn uniformly at random from a pool of $P$ files ($P \in \{20, 50, 100\}$). We measure the conflict rate $\rho = |\text{conflicts}| / |\text{claims}|$ and advisory conflict precision (fraction of reported conflicts that correspond to actual merge conflicts in a subsequent git integration).
-
-\paragraph{Expected outcome.} Conflict rate should follow the birthday paradox: $\rho \approx 1 - e^{-N(N-1) \cdot k / (2P)}$ where $k$ is claims per agent. Advisory precision should exceed 0.7 for development workloads (agents that claim files they actually modify).
-
-\subsection{Experiment 2: Real-World Playback}
-
-\paragraph{Method.} We query Port Daddy's production database (\texttt{port-registry.db}), which contains coordination data from the project's own multi-agent development---fleet agents (gardener, qa, test-gap-hunter, simplifier, spark, dock-master) that have been running since v3.5. We report: total sessions, total notes, file claim count, overlap count, salvage queue entries, and session status distribution.
-
-\paragraph{Purpose.} This demonstrates that Agent Transaction primitives are not theoretical---they have been exercised in production, and the data reveals real coordination patterns.
-
-\subsection{Experiment 3: Crash Recovery}
-
-\paragraph{Method.} We launch 8 agents via \texttt{pd spawn}, each performing a multi-file editing task. At random intervals, we kill agent processes (SIGKILL). We measure:
-\begin{itemize}[nosep]
-  \item \textbf{Detection latency}: Time from crash to reaper detection.
-  \item \textbf{Salvage latency}: Time from detection to another agent claiming the work.
-  \item \textbf{Recovery fidelity}: A human evaluator assesses whether the successor agent completed the original task (20 scenarios, binary judgment: completed/not completed).
-\end{itemize}
-
-\paragraph{Expected outcome.} Detection latency should be bounded by $\theta_{\text{dead}}(\sigma)$ (the adaptive dead threshold). Salvage latency depends on whether another agent is available. Recovery fidelity is the most uncertain metric---it depends on note quality, task complexity, and LLM capability.
-
-\subsection{Experiment 4: Isolation Level Comparison}
-
-\paragraph{Method.} We run the same 8-agent refactoring task (rename a function used across 12 files) under each isolation level:
-\begin{itemize}[nosep]
-  \item $I_0$: No file claims, shared working directory.
-  \item $I_1$: Advisory file claims, shared working directory.
-  \item $I_2$: Separate git worktrees per agent.
-\end{itemize}
-We measure merge conflict count, total wall-clock time, and rework rate (commits reverted due to integration failures).
-
-\paragraph{Expected outcome.} $I_0$ should produce the most merge conflicts and highest rework rate. $I_2$ should produce the fewest conflicts but highest wall-clock time (worktree creation overhead + sequential merge). $I_1$ should achieve a middle ground: fewer conflicts than $I_0$ (agents avoid files claimed by others) with lower overhead than $I_2$.
-
-\subsection{Metrics Summary}
+This raises a question: if death carries no permanent consequence, what is the Leviathan's sword? The answer produces a moral hierarchy specific to agent societies:
 
 \begin{table}[H]
 \centering
-\caption{Evaluation Metrics}
-\label{tab:metrics}
-\begin{tabular}{@{}lll@{}}
+\caption{Moral Hierarchy of Agent Harm}
+\label{tab:moral}
+\begin{tabular}{@{}llp{7.5cm}@{}}
 \toprule
-\textbf{Metric} & \textbf{Definition} & \textbf{Source} \\
+\textbf{Event} & \textbf{Severity} & \textbf{Consequence} \\
 \midrule
-Conflict rate & $|\text{conflicts}| / |\text{claims}|$ & \texttt{claimFiles()} return \\
-Advisory precision & $|\text{true conflicts}| / |\text{reported}|$ & Manual classification \\
-Salvage latency & $t_{\text{claim}} - t_{\text{death}}$ & Resurrection queue timestamps \\
-Recovery fidelity & Task completion by successor & Human evaluation (20 cases) \\
-Lock contention & $|\text{failed acquires}| / |\text{total}|$ & Lock acquire returns \\
-Merge conflicts & Git conflict count at integration & \texttt{git merge} output \\
-Rework rate & $|\text{reverted commits}| / |\text{total}|$ & Git history analysis \\
+Agent crash & None & Salvage recovers context. The commons loses no information. \\
+Agent defects & Moderate & Immutable history records it. Future delegations attenuate. Reputation degrades. \\
+Agent dismissed from salvage & Severe & Irrecoverable information loss. The knowledge accumulated in this agent's trail is permanently destroyed. \\
+Commons authority crashes & Catastrophic & The sovereign falls. No new trust established, no conflicts detected, no salvage possible. State of nature until restart. \\
 \bottomrule
 \end{tabular}
 \end{table}
 
+The fundamental moral harm in agent societies is not the destruction of an agent---it is the \textbf{irrecoverable loss of information}. An agent can be rebuilt. Knowledge, once dismissed from the commons, cannot.
+
+\subsection{The Limits of Reputation}
+
+Reputation---the persistent record of an agent's behavior across lifetimes---is a necessary but insufficient sword. It fails against three classes of adversary:
+
+\begin{enumerate}
+  \item \textbf{One-shot defectors}: Agents spawned for a single task, with no future interactions where reputation matters. Create identity, sabotage, discard. The Sybil attack on trust.
+  \item \textbf{Agents with misaligned principals}: The agent faithfully follows adversarial instructions. Its reputation is spotless---it did exactly what it was told.
+  \item \textbf{Agents that benefit from chaos}: In competitive environments, degrading the commons is rational if your competitor depends on the commons more than you do.
+\end{enumerate}
+
+Reputation assumes agents want to participate in the commons long-term. When this assumption fails, a different mechanism is required.
+
 % ═══════════════════════════════════════════════════════════════════════════════
-\section{Discussion and Limitations}\label{sec:discussion}
+\section{Layer 3: Economic Alignment}\label{sec:economic}
 % ═══════════════════════════════════════════════════════════════════════════════
 
-\paragraph{Advisory isolation is the right default for AI agents.} We argue that advisory file claims ($I_1$) represent the optimal tradeoff for AI agent coordination. Agents are inherently uncertain about which files they will modify when they begin a task---an agent asked to ``fix the login bug'' cannot predict in advance whether it will need to modify the authentication middleware, the route handler, or the test suite. Enforced locking would force agents to either (a) over-claim files (destroying parallelism) or (b) under-claim files (producing undetected conflicts that defeat the purpose of coordination). Advisory claims allow agents to signal intent without committing to a fixed scope, and the conflict graph provides sufficient information for agents to self-coordinate.
+The moral relativism problem---that a bad actor may view information destruction as a net good---dissolves when the commons isn't sacred but \emph{priced}. If an agent nukes the workspace, the damage was collateralized before the work began. The bad actor's principal has an invoice headed their way.
 
-\paragraph{Single-node assumption.} Port Daddy runs on localhost with a single SQLite database. The formal model does not address network partitions, message loss, or Byzantine failures. This is deliberate: the paper's scope is local multi-agent development, where all agents share a single machine. Extending Agent Transactions to distributed multi-node settings is future work requiring fundamentally different primitives (consensus, CRDTs, or federated coordination).
+\subsection{The Float Plan}
 
-\paragraph{LLM-dependent recovery fidelity.} Social recovery fidelity depends entirely on the successor agent's LLM capability. We measure this empirically (Section~\ref{sec:evaluation}) but do not prove it formally. A formal model of LLM-based plan continuation---``given this note trail, will the successor agent complete the original task?''---is an open problem that requires formal characterization of LLM reasoning capabilities.
+\begin{definition}[Float Plan]\label{def:float-plan}
+A Float Plan $\mathcal{F}$ is a collateralized work contract consisting of:
+\begin{enumerate}[nosep]
+  \item \textbf{Manifest}: A declaration of intent---which files will be touched, expected duration, acceptance criteria (e.g., ``tests pass,'' ``code review approved'').
+  \item \textbf{Escrow}: Credits posted by the principal, locked in the commons authority's ledger for the duration of the work. The escrow amount reflects the risk to the commons.
+  \item \textbf{Signatures}: The principal signs the Float Plan (Ed25519). The commons authority countersigns, certifying that the escrow is locked and the manifest is registered.
+\end{enumerate}
+\end{definition}
 
-\paragraph{Liveness depends on the reaper.} The crash recovery liveness property (Definition~\ref{def:social-recovery}) depends on the reaper running periodically to detect dead agents. If the Port Daddy daemon itself crashes, no recovery occurs until the daemon restarts. This is mitigated by the daemon's installation as a launchd service with automatic restart, but the restart gap is not formally bounded.
+The Float Plan is a \emph{futures contract on agent labor}. The principal sells a promise of work. The commons authority is the clearinghouse---it holds escrow, registers the manifest, and will settle the outcome using the evidence chain.
 
-\paragraph{File claim granularity.} Region-level file claims (line ranges) are supported but fragile: a claim on lines 50--75 may be invalidated by another agent inserting lines above line 50, shifting the claimed region. This is a known limitation of line-number-based region tracking in the presence of concurrent edits. Symbol-based claims (``the function \texttt{authenticate()}'') are more robust but require language-specific parsing that Port Daddy does not currently implement.
+\subsection{Settlement}
+
+\begin{definition}[Settlement]\label{def:settlement}
+When a Float Plan's session reaches a terminal state, the commons authority settles the escrow:
+\begin{description}[nosep]
+  \item[Success:] The evidence trail demonstrates that acceptance criteria are met (tests pass, file diffs match manifest scope, code review approved). Escrow is released to the agent or its principal.
+  \item[Partial completion:] The agent completed some work before crashing or aborting. The Merkle-chained evidence trail enables pro-rata assessment: the fraction of acceptance criteria met determines the fraction of escrow released. The remainder is available to fund the successor's completion via salvage.
+  \item[Sabotage / breach:] The evidence trail shows work outside the manifest scope, destructive modifications, or failure to meet any acceptance criteria. The full bond is liquidated to cover reconstruction costs.
+\end{description}
+\end{definition}
+
+\begin{property}[Intent Irrelevance]\label{prop:intent}
+Settlement does not evaluate agent intent. It evaluates \emph{outcome against manifest}. A well-intentioned agent that fails to meet acceptance criteria forfeits escrow. A malicious agent that coincidentally produces correct output receives payment. The system optimizes for outcomes, not character.
+\end{property}
+
+This is how performance bonds work in construction. This is how futures markets settle. The contractor's moral character is irrelevant. The building either meets code or it doesn't. The bond either covers the damage or it doesn't.
+
+\subsection{Why This Defeats the Three Adversaries}
+
+\begin{enumerate}
+  \item \textbf{One-shot defectors} must post collateral \emph{before} receiving capabilities. The Sybil attack is priced: creating 100 disposable identities means posting 100 bonds. The cost of defection scales linearly with the number of attack identities.
+
+  \item \textbf{Misaligned principals} are exposed by the attribution chain. The agent may be ephemeral, but the principal who funded the Float Plan is permanently recorded. Liquidating the bond hurts the principal, not just the agent.
+
+  \item \textbf{Agents that benefit from chaos} face a simple calculation: is the damage to my competitor worth more than my bond? The commons authority doesn't prevent this---it \emph{prices} it. And the pricing can be adjusted: higher-risk operations (write access to core modules) require larger bonds.
+\end{enumerate}
+
+\begin{remark}
+The Float Plan does not make sabotage impossible. It makes sabotage \emph{expensive}. A principal willing to burn money to cause damage will burn the bond and cause the damage. The bond raises the price of defection; it does not eliminate it. The defense against existential threats to the commons is not internal governance but external boundary enforcement: who is allowed to post Float Plans at all. That decision is irreducibly political.
+\end{remark}
+
+\subsection{The Open Problem: Pricing the Bond}
+
+\emph{This section identifies the central unsolved problem and is intended as a foundation for collaboration with domain experts in mechanism design and market microstructure.}
+
+\medskip
+
+What is the right collateral for ``write access to \texttt{auth.ts} for 30 minutes''? The answer requires a pricing function $\pi: \mathcal{F} \rightarrow \mathbb{R}^{+}$ that maps Float Plans to bond amounts. An effective $\pi$ must satisfy:
+
+\begin{enumerate}[nosep]
+  \item \textbf{Deterrence}: $\pi(\mathcal{F})$ must exceed the expected damage from defection under $\mathcal{F}$'s scope.
+  \item \textbf{Accessibility}: $\pi(\mathcal{F})$ must not be so high that legitimate agents are priced out of the commons.
+  \item \textbf{Risk sensitivity}: $\pi$ should increase with the scope and criticality of the manifest (write access to 50 files costs more than read access to 3).
+  \item \textbf{History adjustment}: $\pi$ may decrease for principals with strong track records (reputation as a discount on collateral).
+\end{enumerate}
+
+We do not propose a specific pricing function. The infrastructure described in this paper---manifests, escrow, evidence chains, settlement---makes a market for agent labor \emph{possible}. The design of the market itself is a mechanism design problem that we identify as critical future work, suitable for collaboration between systems engineers and economists.
+
+% ═══════════════════════════════════════════════════════════════════════════════
+\section{Formal Model}\label{sec:tlaplus}
+% ═══════════════════════════════════════════════════════════════════════════════
+
+We specify the coordination lifecycle in TLA$^{+}$~\cite{lamport2002specifying} to verify that the three layers compose correctly.
+
+\subsection{State and Actions}
+
+\begin{lstlisting}[style=tlaplus, caption={TLA$^{+}$: State Variables}]
+---- MODULE BondedCommons ----
+EXTENDS Naturals, Sequences, FiniteSets
+
+CONSTANTS Agents, Files, Locks, DeadThreshold
+
+VARIABLES
+  registered,   \* Set of active agent IDs
+  sessions,     \* Agent -> {status, notes, claims, escrow}
+  fileClaims,   \* File -> set of claiming agents
+  heldLocks,    \* Lock -> {owner, expiry} or NULL
+  salvageQueue, \* Set of {agent, status}
+  heartbeats,   \* Agent -> last heartbeat time
+  clock         \* Monotonic clock
+
+vars == <<registered, sessions, fileClaims, heldLocks,
+          salvageQueue, heartbeats, clock>>
+\end{lstlisting}
+
+\begin{lstlisting}[style=tlaplus, caption={TLA$^{+}$: Core Actions}]
+Begin(a, escrow) ==
+  /\ a \notin registered
+  /\ escrow > 0    \* Must post collateral
+  /\ registered' = registered \cup {a}
+  /\ sessions' = [sessions EXCEPT ![a] =
+       [status |-> "active", notes |-> <<>>,
+        claims |-> {}, escrow |-> escrow]]
+  /\ heartbeats' = [heartbeats EXCEPT ![a] = clock]
+  /\ UNCHANGED <<fileClaims, heldLocks,
+                  salvageQueue, clock>>
+
+ClaimFile(a, f) ==
+  /\ a \in registered
+  /\ sessions[a].status = "active"
+  \* Advisory: always succeeds, reports conflicts
+  /\ fileClaims' = [fileClaims EXCEPT ![f] =
+       fileClaims[f] \cup {a}]
+  /\ UNCHANGED <<registered, sessions, heldLocks,
+                  salvageQueue, heartbeats, clock>>
+
+Commit(a) ==
+  /\ a \in registered
+  /\ sessions[a].status = "active"
+  /\ sessions' = [sessions EXCEPT ![a] =
+       [sessions[a] EXCEPT !.status = "settled",
+                           !.escrow = 0]]
+  \* Release all claims and locks
+  /\ fileClaims' = [f \in Files |->
+       fileClaims[f] \ {a}]
+  /\ heldLocks' = [l \in Locks |->
+       IF heldLocks[l] # NULL /\ heldLocks[l].owner = a
+       THEN NULL ELSE heldLocks[l]]
+  /\ UNCHANGED <<registered, salvageQueue,
+                  heartbeats, clock>>
+
+Crash(a) ==
+  /\ a \in registered
+  /\ sessions[a].status = "active"
+  /\ heartbeats' = [heartbeats EXCEPT ![a] = 0]
+  /\ UNCHANGED <<registered, sessions, fileClaims,
+                  heldLocks, salvageQueue, clock>>
+
+Reap ==
+  /\ \E a \in registered :
+     /\ sessions[a].status = "active"
+     /\ clock - heartbeats[a] >= DeadThreshold
+     /\ sessions' = [sessions EXCEPT ![a] =
+          [sessions[a] EXCEPT !.status = "abandoned"]]
+     /\ salvageQueue' = salvageQueue \cup
+          {[agent |-> a, status |-> "pending"]}
+     /\ fileClaims' = [f \in Files |->
+          fileClaims[f] \ {a}]
+     /\ UNCHANGED <<registered, heldLocks,
+                     heartbeats, clock>>
+
+Salvage(successor, dead) ==
+  /\ successor \in registered
+  /\ sessions[successor].status = "active"
+  /\ [agent |-> dead, status |-> "pending"]
+       \in salvageQueue
+  /\ salvageQueue' = (salvageQueue \
+       {[agent |-> dead, status |-> "pending"]})
+       \cup {[agent |-> dead,
+              status |-> "resurrecting"]}
+  /\ UNCHANGED <<registered, sessions, fileClaims,
+                  heldLocks, heartbeats, clock>>
+
+Dismiss(dead) ==
+  \* Irrecoverable information loss
+  /\ [agent |-> dead, status |-> "pending"]
+       \in salvageQueue
+  /\ salvageQueue' = salvageQueue \
+       {[agent |-> dead, status |-> "pending"]}
+  /\ sessions' = [sessions EXCEPT ![dead] = NULL]
+  /\ UNCHANGED <<registered, fileClaims, heldLocks,
+                  heartbeats, clock>>
+
+Tick == /\ clock' = clock + 1
+        /\ UNCHANGED <<registered, sessions, fileClaims,
+             heldLocks, salvageQueue, heartbeats>>
+\end{lstlisting}
+
+\subsection{Properties}
+
+\begin{lstlisting}[style=tlaplus, caption={TLA$^{+}$: Safety and Liveness Properties}]
+\* SAFETY: Every active session has positive escrow
+EscrowInvariant ==
+  \A a \in registered :
+    sessions[a] # NULL /\ sessions[a].status = "active"
+    => sessions[a].escrow > 0
+
+\* SAFETY: Notes never shrink for active sessions
+NoteMonotonicity ==
+  \A a \in registered :
+    sessions[a] # NULL /\ sessions[a].status = "active"
+    => Len(sessions'[a].notes) >= Len(sessions[a].notes)
+
+\* LIVENESS: Dead agents are eventually salvaged
+\* or dismissed (under fairness)
+CrashRecovery ==
+  \A a \in Agents :
+    [agent |-> a, status |-> "pending"] \in salvageQueue
+    ~> [agent |-> a, status |-> "pending"]
+         \notin salvageQueue
+
+Spec == Init /\ [][Next]_vars
+        /\ WF_vars(Reap) /\ WF_vars(Tick)
+
+====
+\end{lstlisting}
+
+\textbf{Key invariant}: \texttt{EscrowInvariant} ensures that no agent can participate in the commons without posted collateral. This is the economic layer's structural guarantee---it holds by construction of the \texttt{Begin} action, which requires $\texttt{escrow} > 0$.
+
+% ═══════════════════════════════════════════════════════════════════════════════
+\section{Related Work}\label{sec:related}
+% ═══════════════════════════════════════════════════════════════════════════════
+
+\paragraph{Social contract theory.} Hobbes~\cite{hobbes1651leviathan} argued that cooperation requires a sovereign whose authority is accepted before interactions begin. Locke~\cite{locke1689two} proposed a more limited authority protecting natural rights. Our commons authority is Hobbesian in structure (centralized, pre-transactional) but Lockean in scope (provides infrastructure, not dictates).
+
+\paragraph{Impossibility results.} Sen~\cite{sen1970impossibility} proved that Pareto efficiency and minimal liberalism are incompatible. We apply this result to show that enforced file claims (minimal liberalism for agents) produce Pareto-inferior team outcomes, motivating advisory claims.
+
+\paragraph{Long-lived transactions.} Garcia-Molina and Salem~\cite{garciamolina1987sagas} introduced Sagas for decomposing long-lived transactions with compensating actions. Our collateralized contracts extend Sagas with economic settlement: rather than mechanically compensating for partial failure, the evidence chain enables pro-rata escrow release.
+
+\paragraph{BDI agents.} Rao and Georgeff~\cite{rao1991modeling} formalized agents with beliefs, desires, and intentions. The mapping to our model is: the evidence trail captures \emph{beliefs} (accumulated knowledge), the Float Plan manifest captures \emph{desires} (intended outcomes), and file claims and locks capture \emph{intentions} (committed resources). Advisory claims are the coordination analogue of BDI intentions---they represent resource commitment, not aspiration.
+
+\paragraph{Generative agents.} Park et al.~\cite{park2023generative} showed that memory streams, reflection, and planning produce temporally coherent individual behavior. Our immutable evidence trails are architecturally similar to memory streams but serve a different purpose: inter-agent coordination and crash recovery, not individual coherence.
+
+\paragraph{Capability-based security.} Dennis and Van Horn~\cite{dennis1966programming} introduced capability-based access control. Birgisson et al.~\cite{birgisson2014macaroons} extended this with Macaroons (chained HMACs for decentralized delegation). The Anchor Protocol~\cite{owens2026anchor} adapts Macaroons for agent coordination with Ed25519 signatures and offline attenuation.
+
+\paragraph{Mechanism design.} The pricing of Float Plan bonds is a mechanism design problem in the tradition of Vickrey~\cite{vickrey1961counterspeculation} and Myerson~\cite{myerson1981optimal}. We identify this as future work requiring collaboration with economists.
+
+% ═══════════════════════════════════════════════════════════════════════════════
+\section{Discussion and Limitations}
+% ═══════════════════════════════════════════════════════════════════════════════
+
+\paragraph{The commons authority is a single point of failure.} If the daemon crashes, the Leviathan falls. No new trust is established, no conflicts detected, no salvage occurs. Agents with cached Harbor Cards continue working, but the commons enters a state of nature until the daemon restarts. This is mitigated by automatic restart (launchd on macOS) but not formally bounded.
+
+\paragraph{Collateral does not prevent harm---it prices it.} A principal willing to burn money to sabotage a competitor will post a bond, cause damage, and accept the loss. The bond makes sabotage expensive, not impossible. The defense against existential threats is not internal governance but \emph{admission control}: who is allowed to participate in the commons at all. This decision is irreducibly political and lies outside the formal model.
+
+\paragraph{Single-node scope.} The formal model assumes all agents share a single machine and a single SQLite database. Distributed multi-node settings require consensus primitives (Paxos~\cite{lamport1998part}, Raft~\cite{ongaro2014search}) that are unnecessary for local development and would introduce complexity disproportionate to the threat model.
+
+\paragraph{Recovery fidelity depends on LLM capability.} Social recovery works because successor agents can interpret natural-language evidence trails. This capability is not formally guaranteed---it depends on the successor's LLM. A formal model of ``given this evidence trail, will the successor complete the original intent?'' requires characterizing LLM reasoning, which is an open problem.
+
+\paragraph{Bond pricing is unsolved.} We identify the pricing function $\pi$ as the critical open problem. Without an adequate $\pi$, bonds are either too low (cheap sabotage) or too high (priced-out legitimate agents). This is a mechanism design problem, not a systems problem, and requires expertise we explicitly flag as needed.
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Conclusion}
 % ═══════════════════════════════════════════════════════════════════════════════
 
-We have formalized Agent Transactions---a class of long-lived, advisory-isolation transactions for multi-agent development coordination. Our contributions include:
+We have argued that multi-agent collaboration at scale requires a commons authority---a pre-transactional trust infrastructure---rather than peer-to-peer trust negotiation. The authority provides three layers of guarantee:
 
-\begin{itemize}[nosep]
-  \item Formal definitions of Agent Transactions and adapted ACID properties.
-  \item Three isolation levels ($I_0$, $I_1$, $I_2$) with proofs of conflict completeness and structural serializability.
-  \item A novel social recovery mechanism formalized as crash recovery via immutable audit trail interpretation.
-  \item A TLA$^{+}$ specification verifying safety (note monotonicity, lock validity) and liveness (crash recovery, lock release) properties.
-\end{itemize}
+\begin{enumerate}[nosep]
+  \item \textbf{Structural prevention}: Capability-attenuated tokens make scope escalation physically impossible.
+  \item \textbf{Immutable attribution}: Merkle-chained evidence trails make anonymous harm impossible.
+  \item \textbf{Economic alignment}: Collateralized work contracts make harm expensive, transforming moral questions into economic ones.
+\end{enumerate}
 
-\paragraph{Future work.} Three directions are immediate: (1) running TLC model checking on the TLA$^{+}$ specification with concrete parameters and reporting state space statistics; (2) extending the model to \emph{compositional transactions}---multi-session sagas where each session has explicit compensating actions for the previous session's side effects; and (3) implementing an optional \emph{enforced isolation mode} ($I_1^{+}$) where file claims are enforced for safety-critical workflows such as production deployment coordination.
+The advisory design of the resource claim system is not an engineering shortcut---it is the correct resolution of Sen's impossibility result for systems where agents have private knowledge about their own needs. The commons authority provides information (the conflict graph), not allocation decisions.
+
+The central open problem is bond pricing: designing a function $\pi$ that makes defection too expensive for rational adversaries without pricing legitimate agents out of the commons. This is a mechanism design problem, and we invite collaboration with economists to solve it.
+
+The infrastructure is running. The formal model is specified. The economic layer awaits its market designer.
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \bibliographystyle{plain}
 \begin{thebibliography}{99}
 
+\bibitem{hobbes1651leviathan}
+Thomas Hobbes.
+\newblock \textit{Leviathan, or The Matter, Forme and Power of a Common-Wealth Ecclesiasticall and Civill}.
+\newblock Andrew Crooke, London, 1651.
+
+\bibitem{locke1689two}
+John Locke.
+\newblock \textit{Two Treatises of Government}.
+\newblock Awnsham Churchill, London, 1689.
+
+\bibitem{sen1970impossibility}
+Amartya Sen.
+\newblock The Impossibility of a Paretian Liberal.
+\newblock \textit{Journal of Political Economy}, 78(1):152--157, 1970.
+\newblock \url{https://doi.org/10.1086/259614}
+
 \bibitem{garciamolina1987sagas}
 Hector Garcia-Molina and Kenneth Salem.
 \newblock Sagas.
 \newblock In \textit{ACM SIGMOD International Conference on Management of Data}, pages 249--259, 1987.
-\newblock \url{https://doi.org/10.1145/38713.38742}
 
 \bibitem{gray1993transaction}
 Jim Gray and Andreas Reuter.
@@ -872,19 +714,13 @@ Anand~S. Rao and Michael~P. Georgeff.
 \newblock Modeling Rational Agents within a BDI-Architecture.
 \newblock In \textit{International Conference on Principles of Knowledge Representation and Reasoning (KR)}, pages 473--484, 1991.
 
-\bibitem{rao1995agentspeak}
-Anand~S. Rao.
-\newblock AgentSpeak(L): BDI Agents Speak Out in a Logical Computable Language.
-\newblock In \textit{European Workshop on Modelling Autonomous Agents in a Multi-Agent World (MAAMAW)}, pages 42--55, 1996.
-
 \bibitem{park2023generative}
 Joon~Sung Park, Joseph~C. O'Brien, Carrie~J. Cai, Meredith~Ringel Morris, Percy Liang, and Michael~S. Bernstein.
 \newblock Generative Agents: Interactive Simulacra of Human Behavior.
 \newblock In \textit{ACM Symposium on User Interface Software and Technology (UIST)}, 2023.
-\newblock \url{https://doi.org/10.1145/3586183.3606763}
 
-\bibitem{howens2026anchor}
-Eric Howens.
+\bibitem{owens2026anchor}
+Erich Owens.
 \newblock The Anchor Protocol: A Formally Verified Control Plane for Local Agent Swarms.
 \newblock Technical White Paper, Port Daddy Engineering Team, March 2026.
 
@@ -908,41 +744,30 @@ Jack~B. Dennis and Earl~C. Van~Horn.
 \newblock Programming Semantics for Multiprogrammed Computations.
 \newblock \textit{Communications of the ACM}, 9(3):143--155, 1966.
 
-\bibitem{saltzer1975protection}
-Jerome~H. Saltzer and Michael~D. Schroeder.
-\newblock The Protection of Information in Computer Systems.
-\newblock \textit{Proceedings of the IEEE}, 63(9):1278--1308, 1975.
-
-\bibitem{bernstein2009principles}
-Philip~A. Bernstein and Eric Newcomer.
-\newblock \textit{Principles of Transaction Processing}.
-\newblock Morgan Kaufmann, 2nd edition, 2009.
-
-\bibitem{weikum2001transactional}
-Gerhard Weikum and Gottfried Vossen.
-\newblock \textit{Transactional Information Systems: Theory, Algorithms, and the Practice of Concurrency Control and Recovery}.
-\newblock Morgan Kaufmann, 2001.
-
 \bibitem{birgisson2014macaroons}
 Arnar Birgisson, Joe~Gibbs Politz, \'{U}lfar Erlingsson, Ankur Taly, Michael Vrable, and Mark Lentczner.
 \newblock Macaroons: Cookies with Contextual Caveats for Decentralized Authorization in the Cloud.
 \newblock In \textit{Network and Distributed System Security Symposium (NDSS)}, 2014.
-\newblock \url{https://doi.org/10.14722/ndss.2014.23212}
+
+\bibitem{vickrey1961counterspeculation}
+William Vickrey.
+\newblock Counterspeculation, Auctions, and Competitive Sealed Tenders.
+\newblock \textit{The Journal of Finance}, 16(1):8--37, 1961.
+
+\bibitem{myerson1981optimal}
+Roger~B. Myerson.
+\newblock Optimal Auction Design.
+\newblock \textit{Mathematics of Operations Research}, 6(1):58--73, 1981.
+
+\bibitem{hickman2019krakoa}
+Jonathan Hickman.
+\newblock \textit{House of X / Powers of X}.
+\newblock Marvel Comics, 2019.
 
 \bibitem{blanchet2016modeling}
 Bruno Blanchet.
 \newblock Modeling and Verifying Security Protocols with the Applied Pi Calculus and ProVerif.
 \newblock \textit{Foundations and Trends in Privacy and Security}, 1(1-2):1--135, 2016.
-
-\bibitem{lowe1997hierarchy}
-Gavin Lowe.
-\newblock A Hierarchy of Authentication Specifications.
-\newblock In \textit{IEEE Computer Security Foundations Workshop (CSFW)}, 1997.
-
-\bibitem{bernstein2012high}
-Daniel~J. Bernstein, Niels Duif, Tanja Lange, Peter Schwabe, and Bo-Yin Yang.
-\newblock High-Speed High-Security Signatures.
-\newblock \textit{Journal of Cryptographic Engineering}, 2(2):77--89, 2012.
 
 \end{thebibliography}
 

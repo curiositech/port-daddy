@@ -88,7 +88,7 @@ export function CTABanner() {
               LEARN THE PROTOCOL
             </motion.button>
           </Link>
-        </div>
+        </motion.div>
 
         <motion.div className="pt-16 flex flex-col items-center gap-6">
            {/* Install command in inset terminal */}

@@ -107,26 +107,7 @@ export function Tunnel() {
           </motion.p>
 
           <CodeBlock language="bash">
-            {`# Start a tunnel using ngrok for a claimed service
-$ curl -X POST http://localhost:9876/tunnel/myapp:api \\
-    -H "Content-Type: application/json" \\
-    -d '{"provider": "ngrok"}'
-
-{
-  "url": "https://abc123.ngrok.io",
-  "provider": "ngrok",
-  "port": 3102,
-  "service": "myapp:api"
-}
-
-# Check tunnel status
-$ curl http://localhost:9876/tunnel/myapp:api
-
-# List all active tunnels
-$ curl http://localhost:9876/tunnels
-
-# Stop a tunnel
-$ curl -X DELETE http://localhost:9876/tunnel/myapp:api`}
+            {'# Start a tunnel using ngrok for a claimed service\n$ curl -X POST http://localhost:9876/tunnel/myapp:api \\\n    -H "Content-Type: application/json" \\\n    -d \'{"provider": "ngrok"}\'\n\n# Response:\n# { "url": "https://abc123.ngrok.io", "provider": "ngrok", "port": 3102 }\n\n# Check tunnel status\n$ curl http://localhost:9876/tunnel/myapp:api\n\n# List all active tunnels\n$ curl http://localhost:9876/tunnels\n\n# Stop a tunnel\n$ curl -X DELETE http://localhost:9876/tunnel/myapp:api'}
           </CodeBlock>
 
           <motion.div
