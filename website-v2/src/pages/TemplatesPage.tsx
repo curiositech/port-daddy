@@ -28,17 +28,17 @@ export function TemplatesPage() {
   ];
 
   return (
-    <div className="min-h-screen pt-32 pb-24 bg-bg-base font-sans selection:bg-brand-primary selection:text-brand-on-primary">
-      <div className="max-w-7xl mx-auto px-6 lg:px-12">
+    <div className="min-h-screen pt-32 pb-24" style={{ background: 'var(--surface-base)' }}>
+      <div className="max-w-6xl mx-auto px-6 lg:px-8">
         <header className="mb-20">
-          <motion.h1 
+          <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="text-5xl sm:text-8xl font-display font-black tracking-tighter mb-6 text-text-primary"
           >
             Built on <span className="text-brand-primary">Anchor.</span>
           </motion.h1>
-          <motion.p 
+          <motion.p
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
@@ -56,10 +56,13 @@ export function TemplatesPage() {
               whileInView={{ opacity: 1, scale: 1 }}
               transition={{ delay: i * 0.1 }}
               viewport={{ once: true }}
-              className="p-10 rounded-[56px] bg-bg-surface border border-border-subtle hover:border-brand-primary transition-all flex flex-col gap-8 group shadow-lg"
-              onClick={() => window.open(template.path, '_blank')}
+              className="p-8 rounded-2xl transition-all flex flex-col gap-6 group"
+              style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
             >
-              <div className="w-16 h-16 rounded-[32px] bg-bg-overlay border border-border-subtle flex items-center justify-center group-hover:scale-110 transition-transform shadow-md">
+              <div
+                className="w-14 h-14 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform"
+                style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
+              >
                 {template.icon}
               </div>
               <div className="space-y-4 flex-1">
@@ -71,8 +74,25 @@ export function TemplatesPage() {
                   {template.description}
                 </p>
               </div>
-              <div className="mt-auto pt-6 flex items-center gap-2 text-xs font-black uppercase tracking-widest text-brand-primary cursor-pointer border-t border-border-subtle group-hover:border-brand-primary transition-colors">
-                View Source <ArrowRight size={16} />
+
+              {/* Code preview area */}
+              <div
+                className="p-4 rounded-xl font-mono text-xs"
+                style={{ background: 'var(--code-bg)', boxShadow: 'var(--shadow-inset)', borderRadius: 'var(--radius-md)' }}
+              >
+                <span style={{ color: 'var(--code-prompt)' }}>$</span>
+                <span style={{ color: 'var(--code-text)' }}> pd template clone {template.path}</span>
+              </div>
+
+              <div className="mt-auto pt-4">
+                <motion.a
+                  className="inline-flex items-center gap-2 text-sm font-bold uppercase tracking-widest cursor-pointer px-6 py-3 rounded-xl"
+                  style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-sm)', color: 'var(--brand-primary)' }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  View Code <ArrowRight size={16} />
+                </motion.a>
               </div>
             </motion.div>
           ))}

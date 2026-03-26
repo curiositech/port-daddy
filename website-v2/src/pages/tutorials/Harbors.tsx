@@ -20,7 +20,10 @@ export function Harbors() {
         {/* Why Harbors Exist */}
         <section className="space-y-6">
           <motion.div className="flex items-center gap-4 mb-8">
-            <motion.div className="w-12 h-12 rounded-2xl bg-[var(--interactive-active)] flex items-center justify-center border border-[var(--brand-primary)]">
+            <motion.div
+              className="w-12 h-12 rounded-2xl flex items-center justify-center"
+              style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
+            >
               <Shield className="text-[var(--brand-primary)]" size={24} />
             </motion.div>
             <motion.h2 className="m-0">Why Harbors Exist</motion.h2>
@@ -34,12 +37,24 @@ export function Harbors() {
           <motion.p>
             <strong>Harbors</strong> solve this by letting you define exactly what each agent is allowed to do. A harbor is a named permission namespace -- think of it as a scoped role that you assign to a group of agents. Each harbor has a list of capabilities (like <code>code:read</code>, <code>notes:write</code>, <code>file:claim</code>), and agents inside the harbor receive a signed token that proves their permissions. The daemon verifies this token on every request.
           </motion.p>
+          <blockquote
+            className="p-10 rounded-2xl border-l-8 border-[var(--p-teal-500)]"
+            style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
+          >
+             <motion.p className="font-bold text-[var(--text-primary)] m-0 mb-4 text-2xl font-display">Soundness by Design:</motion.p>
+             <motion.p className="m-0 text-lg">
+               In Port Daddy v3.7, every harbor operation is verified against a mathematical state machine. If an agent tries to claim a port it doesn't own, the daemon rejects the request instantly.
+             </motion.p>
+          </blockquote>
         </section>
 
         {/* Step 1: Creation */}
         <section className="space-y-8">
           <motion.div className="flex items-center gap-4">
-            <motion.div className="w-12 h-12 rounded-2xl bg-[var(--interactive-active)] flex items-center justify-center border border-[var(--p-amber-400)]">
+            <motion.div
+              className="w-12 h-12 rounded-2xl flex items-center justify-center"
+              style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
+            >
               <Lock className="text-[var(--p-amber-400)]" size={24} />
             </motion.div>
             <motion.h2 className="m-0">1. Create a Harbor</motion.h2>
@@ -60,13 +75,19 @@ export function Harbors() {
           </motion.p>
 
           <motion.div className="grid sm:grid-cols-2 gap-6">
-             <motion.div className="p-8 rounded-[32px] bg-[var(--bg-overlay)] border border-[var(--border-subtle)] space-y-4">
+             <motion.div
+               className="p-8 rounded-2xl space-y-4"
+               style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
+             >
                 <Badge variant="teal">Capability: code:read</Badge>
                 <motion.p className="text-sm m-0 leading-relaxed text-[var(--text-secondary)]">
                   Allows the agent to read source files and view session notes within the harbor. The agent can use <code>pd session files claim</code> to access files, but only in read mode.
                 </motion.p>
              </motion.div>
-             <motion.div className="p-8 rounded-[32px] bg-[var(--bg-overlay)] border border-[var(--border-subtle)] space-y-4">
+             <motion.div
+               className="p-8 rounded-2xl space-y-4"
+               style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
+             >
                 <Badge variant="amber">Capability: notes:write</Badge>
                 <motion.p className="text-sm m-0 leading-relaxed text-[var(--text-secondary)]">
                   Allows the agent to post status updates and findings to the session timeline. Other agents (including those outside this harbor) can read these notes to see the review results.
@@ -78,14 +99,17 @@ export function Harbors() {
         {/* Step 2: Entrance */}
         <section className="space-y-8">
           <motion.div className="flex items-center gap-4">
-            <motion.div className="w-12 h-12 rounded-2xl bg-[var(--interactive-active)] flex items-center justify-center border border-[var(--p-blue-400)]">
+            <motion.div
+              className="w-12 h-12 rounded-2xl flex items-center justify-center"
+              style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
+            >
               <Key className="text-[var(--p-blue-400)]" size={24} />
             </motion.div>
             <motion.h2 className="m-0">2. Enter the Harbor</motion.h2>
           </motion.div>
 
           <motion.p>
-            When an agent enters a harbor, Port Daddy issues a <strong>Harbor Card</strong> -- an HMAC-signed JWT that encodes the agent's identity, its capabilities, and the expiration time. The agent includes this token in subsequent API requests, and the daemon verifies it before allowing the operation.
+            When an agent enters a harbor, the daemon issues a unique **Harbor Card**--an HMAC-signed JWT that proves the agent's identity and permissions.
           </motion.p>
 
           <CodeBlock language="bash">
@@ -195,7 +219,8 @@ Token JTI burned — cannot be reused.`}
 
         {/* The Formal Verification Note */}
         <motion.div
-          className="p-16 rounded-[60px] border border-dashed border-[var(--brand-primary)] bg-[var(--bg-overlay)] flex flex-col items-center text-center gap-8 relative overflow-hidden"
+          className="p-16 rounded-2xl flex flex-col items-center text-center gap-8 relative overflow-hidden"
+          style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
           whileHover={{ scale: 1.01 }}
         >
            <motion.div className="absolute top-0 right-0 p-10 opacity-[0.03] pointer-events-none">

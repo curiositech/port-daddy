@@ -20,24 +20,39 @@ export function Pipelines() {
         {/* Intro Section */}
         <section className="space-y-6">
           <motion.div className="flex items-center gap-4 mb-8">
-            <motion.div className="w-12 h-12 rounded-2xl bg-[var(--interactive-active)] flex items-center justify-center border border-[var(--brand-primary)]">
+            <motion.div
+              className="w-12 h-12 rounded-2xl flex items-center justify-center"
+              style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
+            >
               <Layers className="text-[var(--brand-primary)]" size={24} />
             </motion.div>
             <motion.h2 className="m-0">Beyond Static CI</motion.h2>
           </motion.div>
           <motion.p>
-            Standard CI/CD pipelines are static -- they run on a schedule or a push. <strong>Port Daddy Pipelines</strong> are reactive. They live inside your harbor, watching Swarm Radio for specific signals and executing actions in real-time.
+            Standard CI/CD pipelines are static--they run on a schedule or a push. **Port Daddy Pipelines** are reactive. They live inside your harbor, watching Swarm Radio for specific signals and executing actions in real-time.
           </motion.p>
           <motion.div className="grid sm:grid-cols-2 gap-8 pt-4">
-             <motion.div className="p-8 rounded-[32px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-4">
-                <motion.div className="w-10 h-10 rounded-xl bg-[var(--p-teal-500)]/10 flex items-center justify-center">
+             <motion.div
+               className="p-8 rounded-2xl space-y-4"
+               style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
+             >
+                <motion.div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center"
+                  style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
+                >
                    <Zap size={20} className="text-[var(--p-teal-400)]" />
                 </motion.div>
                 <motion.h3 className="text-xl font-display font-black m-0">Event Triggers</motion.h3>
                 <motion.p className="text-sm text-[var(--text-secondary)] m-0">Fire actions based on any pub/sub message, port claim, or agent note event.</motion.p>
              </motion.div>
-             <motion.div className="p-8 rounded-[32px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-4">
-                <motion.div className="w-10 h-10 rounded-xl bg-[var(--p-amber-500)]/10 flex items-center justify-center">
+             <motion.div
+               className="p-8 rounded-2xl space-y-4"
+               style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
+             >
+                <motion.div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center"
+                  style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
+                >
                    <RefreshCw size={20} className="text-[var(--p-amber-400)]" />
                 </motion.div>
                 <motion.h3 className="text-xl font-display font-black m-0">Auto-Healing</motion.h3>
@@ -49,12 +64,15 @@ export function Pipelines() {
         {/* Step 1: Defining Rules */}
         <section className="space-y-8">
           <motion.div className="flex items-center gap-4">
-            <motion.div className="w-12 h-12 rounded-2xl bg-[var(--interactive-active)] flex items-center justify-center border border-[var(--p-blue-400)]">
+            <motion.div
+              className="w-12 h-12 rounded-2xl flex items-center justify-center"
+              style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
+            >
               <Terminal className="text-[var(--p-blue-400)]" size={24} />
             </motion.div>
             <motion.h2 className="m-0">1. Define a Rule</motion.h2>
           </motion.div>
-          
+
           <motion.p>
             Use the <code>orchestrator</code> command to link a Swarm Radio channel to an autonomous action.
           </motion.p>
@@ -65,8 +83,11 @@ export function Pipelines() {
     --action "pd spawn --backend aider -- model-check src/auth/"`}
           </CodeBlock>
 
-          <blockquote className="bg-[var(--bg-overlay)] p-8 rounded-3xl border-l-4 border-[var(--p-blue-400)]">
-             <motion.p className="m-0 text-sm italic text-[var(--text-secondary)] font-medium">
+          <blockquote
+            className="p-8 rounded-2xl border-l-4 border-[var(--p-blue-400)]"
+            style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
+          >
+             <motion.p className="m-0 text-sm italic opacity-60 font-medium">
                This rule creates a persistent watcher. Whenever any agent publishes to <code>test:fail</code>, the daemon will spawn a new coding agent to investigate.
              </motion.p>
           </blockquote>
@@ -75,7 +96,10 @@ export function Pipelines() {
         {/* Step 2: Complex DAGs */}
         <section className="space-y-8">
           <motion.div className="flex items-center gap-4">
-            <motion.div className="w-12 h-12 rounded-2xl bg-[var(--interactive-active)] flex items-center justify-center border border-[var(--p-purple-400)]">
+            <motion.div
+              className="w-12 h-12 rounded-2xl flex items-center justify-center"
+              style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
+            >
               <Share2 className="text-[var(--p-purple-400)]" size={24} />
             </motion.div>
             <motion.h2 className="m-0">2. Chain Your Swarm</motion.h2>
@@ -85,20 +109,29 @@ export function Pipelines() {
             By chaining multiple rules, you build a <strong>Dynamic DAG</strong>. Each agent finishes its work by publishing a signal that triggers the next set of agents in the harbor.
           </motion.p>
 
-          <motion.div className="bg-[var(--bg-surface)] p-10 rounded-[48px] border border-[var(--border-subtle)] space-y-8 shadow-2xl relative overflow-hidden">
+          <motion.div
+            className="p-10 rounded-2xl space-y-8 relative overflow-hidden"
+            style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
+          >
              <motion.div className="absolute inset-0 bg-gradient-to-b from-[var(--p-teal-500)]/5 to-transparent" />
-             <motion.p className="text-sm font-black uppercase tracking-widest text-[var(--text-muted)] m-0">The DAG Flow</motion.p>
-             
+             <motion.p className="text-sm font-black uppercase tracking-widest opacity-40 m-0">The DAG Flow</motion.p>
+
              <motion.div className="grid gap-6">
-                <motion.div className="flex items-center gap-6 p-6 rounded-2xl bg-[var(--bg-overlay)] border border-[var(--border-subtle)]">
+                <motion.div
+                  className="flex items-center gap-6 p-6 rounded-2xl"
+                  style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
+                >
                    <Badge variant="teal" className="shrink-0">Node 01</Badge>
                    <motion.div className="flex-1">
                       <motion.p className="font-bold m-0 text-sm">Planner finishes task</motion.p>
                       <code className="text-[10px] text-[var(--text-muted)]">pub task:ready</code>
                    </motion.div>
                 </motion.div>
-                <motion.div className="flex justify-center"><ArrowDown size={16} className="opacity-40" /></motion.div>
-                <motion.div className="flex items-center gap-6 p-6 rounded-2xl bg-[var(--bg-overlay)] border border-[var(--brand-primary)]/20 shadow-lg">
+                <motion.div className="flex justify-center"><ArrowDown size={16} className="opacity-20" /></motion.div>
+                <motion.div
+                  className="flex items-center gap-6 p-6 rounded-2xl"
+                  style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
+                >
                    <Badge variant="amber" className="shrink-0 text-white bg-[var(--brand-primary)]">Auto-Action</Badge>
                    <motion.div className="flex-1">
                       <motion.p className="font-bold m-0 text-sm text-[var(--brand-primary)]">Spawn Coder + Reviewer</motion.p>
@@ -110,8 +143,9 @@ export function Pipelines() {
         </section>
 
         {/* Resilience Callout */}
-        <motion.div 
-          className="p-16 rounded-[60px] border border-dashed border-[var(--p-teal-400)] bg-[var(--bg-overlay)] flex flex-col items-center text-center gap-8 relative overflow-hidden"
+        <motion.div
+          className="p-16 rounded-2xl flex flex-col items-center text-center gap-8 relative overflow-hidden"
+          style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
           whileHover={{ scale: 1.01 }}
         >
            <motion.div className="absolute top-0 right-0 p-10 opacity-[0.03] pointer-events-none">
