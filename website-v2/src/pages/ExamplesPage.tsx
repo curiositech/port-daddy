@@ -154,24 +154,25 @@ const EXAMPLES: Example[] = [
 
 export function ExamplesPage() {
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen bg-[var(--bg-base)] flex flex-col pt-[var(--nav-height)] font-sans selection:bg-[var(--brand-primary)] selection:text-white"
+      className="min-h-screen flex flex-col pt-[var(--nav-height)] font-sans selection:bg-[var(--brand-primary)] selection:text-white"
+      style={{ background: 'var(--surface-base)' }}
     >
       {/* Hero Section */}
-      <motion.section 
-        className="py-20 px-6 sm:px-8 lg:px-10 border-b relative overflow-hidden flex flex-col items-center justify-center text-center" 
-        style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}
+      <motion.section
+        className="py-20 px-6 sm:px-8 lg:px-10 relative overflow-hidden flex flex-col items-center justify-center text-center"
+        style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
       >
-        <motion.div 
-          className="absolute top-0 right-0 w-[800px] h-[800px] rounded-full blur-[160px] opacity-[0.1] pointer-events-none" 
-          style={{ background: 'radial-gradient(circle, var(--brand-primary) 0%, transparent 70%)' }} 
+        <motion.div
+          className="absolute top-0 right-0 w-[800px] h-[800px] rounded-full blur-[160px] opacity-[0.1] pointer-events-none"
+          style={{ background: 'radial-gradient(circle, var(--brand-primary) 0%, transparent 70%)' }}
         />
-        
+
         <div className="max-w-5xl mx-auto relative z-10 flex flex-col items-center gap-8">
-           <Badge variant="teal" className="px-8 py-3 text-[10px] font-black uppercase tracking-[0.25em] shadow-xl">The Coordination Library</Badge>
-           <motion.h1 
+           <Badge variant="teal" className="px-8 py-3 text-[10px] font-black uppercase tracking-[0.25em]">The Coordination Library</Badge>
+           <motion.h1
              className="text-4xl sm:text-6xl font-black tracking-tighter font-display leading-[0.85] m-0 text-[var(--text-primary)]"
              initial={{ opacity: 0, y: 32 }}
              animate={{ opacity: 1, y: 0 }}
@@ -180,7 +181,7 @@ export function ExamplesPage() {
              Proven <br />
              <span className="text-[var(--brand-primary)]">Patterns.</span>
            </motion.h1>
-           <motion.p 
+           <motion.p
              className="text-xl sm:text-2xl max-w-4xl leading-relaxed text-[var(--text-secondary)] font-medium"
              initial={{ opacity: 0, y: 20 }}
              animate={{ opacity: 1, y: 0 }}
@@ -203,25 +204,25 @@ export function ExamplesPage() {
               transition={{ duration: 0.7, delay: i * 0.05, ease: [0.16, 1, 0.3, 1] }}
               className="group"
             >
-              <motion.div 
-                className="p-16 rounded-[80px] border transition-all duration-500 flex flex-col lg:flex-row gap-8 items-center"
-                style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-surface)' }}
-                whileHover={{ borderColor: ex.color, boxShadow: `0 40px 80px -20px ${ex.color}15` }}
+              <motion.div
+                className="p-16 rounded-2xl transition-all duration-500 flex flex-col lg:flex-row gap-8 items-center"
+                style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
+                whileHover={{ boxShadow: `var(--shadow-raised), 0 40px 80px -20px ${ex.color}15` }}
               >
                 <div className="flex-1 space-y-8 flex flex-col items-center lg:items-start text-center lg:text-left">
                    <div className="flex flex-col lg:flex-row items-center gap-8">
-                      <motion.div 
-                        className="w-24 h-24 rounded-[40px] flex items-center justify-center border transition-transform group-hover:scale-110 duration-500 shadow-xl"
-                        style={{ background: `${ex.color}10`, borderColor: `${ex.color}20` }}
+                      <motion.div
+                        className="w-24 h-24 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 duration-500"
+                        style={{ background: `${ex.color}10`, boxShadow: 'var(--shadow-inset)' }}
                       >
                         <ex.icon size={48} style={{ color: ex.color }} />
                       </motion.div>
                       <div className="space-y-3 flex flex-col items-center lg:items-start">
                          <div className="flex items-center gap-4">
-                            <Badge variant="neutral" className="text-[10px] font-black uppercase tracking-widest px-4 py-1.5 shadow-sm">
+                            <Badge variant="neutral" className="text-[10px] font-black uppercase tracking-widest px-4 py-1.5">
                                <span className="text-[var(--text-primary)]">{ex.category}</span>
                             </Badge>
-                            <div className="h-1 w-1 rounded-full bg-[var(--border-strong)]" />
+                            <div className="h-1 w-1 rounded-full" style={{ background: 'var(--text-muted)' }} />
                             <motion.span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">{ex.difficulty}</motion.span>
                          </div>
                          <motion.h2 className="m-0 text-4xl sm:text-6xl font-display font-black tracking-tight leading-tight text-[var(--text-primary)]">{ex.title}</motion.h2>
@@ -233,7 +234,7 @@ export function ExamplesPage() {
                    <div className="grid sm:grid-cols-2 gap-8 w-full">
                       {ex.what.map((point, j) => (
                         <motion.div key={j} className="flex items-start gap-4 group/item">
-                           <div className="mt-2 w-2 h-2 rounded-full shrink-0 group-hover/item:scale-150 transition-transform shadow-xl" style={{ background: ex.color }} />
+                           <div className="mt-2 w-2 h-2 rounded-full shrink-0 group-hover/item:scale-150 transition-transform" style={{ background: ex.color }} />
                            <motion.p className="text-base text-[var(--text-secondary)] m-0 leading-relaxed font-bold group-hover/item:text-[var(--text-primary)] transition-colors">{point}</motion.p>
                         </motion.div>
                       ))}
@@ -242,14 +243,17 @@ export function ExamplesPage() {
 
                 <div className="flex-1 w-full relative max-w-2xl">
                    <motion.div className="absolute inset-0 blur-3xl opacity-[0.05] pointer-events-none" style={{ background: ex.color }} />
-                   <motion.div className="relative p-12 rounded-[64px] bg-[var(--bg-overlay)] border border-[var(--border-strong)] group-hover:border-[var(--brand-primary)]/40 transition-colors shadow-2xl font-mono text-base leading-relaxed overflow-hidden">
+                   <motion.div
+                     className="relative p-12 rounded-2xl font-mono text-base leading-relaxed overflow-hidden"
+                     style={{ background: 'var(--code-bg)', boxShadow: 'var(--shadow-inset)', borderRadius: 'var(--radius-lg)' }}
+                   >
                       <div className="absolute top-0 right-0 p-8 opacity-10">
                          <Terminal size={24} className="text-[var(--text-primary)]" />
                       </div>
                       {ex.code.map((line, j) => (
-                        <div key={j} className={line.startsWith('#') ? 'text-[var(--text-muted)] mb-3' : line.startsWith('pd') || line.startsWith('curl') ? 'text-[var(--text-primary)] font-bold mb-2' : 'text-[var(--text-secondary)]'}>
+                        <div key={j} className={line.startsWith('#') ? 'text-[var(--text-muted)] mb-3 opacity-40' : line.startsWith('pd') || line.startsWith('curl') ? 'text-[var(--code-text)] font-bold mb-2' : 'text-[var(--text-secondary)] opacity-60'}>
                           {line.startsWith('pd') || line.startsWith('curl') ? (
-                            <span><span style={{ color: 'var(--brand-primary)' }}>$</span> {line}</span>
+                            <span><span style={{ color: 'var(--code-prompt)' }}>$</span> {line}</span>
                           ) : line}
                         </div>
                       ))}
@@ -261,8 +265,9 @@ export function ExamplesPage() {
         </div>
 
         {/* Vision Callout */}
-        <motion.div 
-          className="mt-20 p-24 rounded-[100px] border border-dashed border-[var(--border-strong)] bg-gradient-to-br from-[var(--bg-surface)] to-[var(--bg-base)] flex flex-col items-center text-center gap-8 relative overflow-hidden w-full shadow-2xl mx-auto"
+        <motion.div
+          className="mt-20 p-24 rounded-2xl flex flex-col items-center text-center gap-8 relative overflow-hidden w-full mx-auto"
+          style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
           initial={{ opacity: 0, scale: 0.98 }}
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
@@ -270,9 +275,9 @@ export function ExamplesPage() {
            <div className="absolute top-0 right-0 p-10 opacity-[0.02] pointer-events-none">
               <Layers size={800} />
            </div>
-           
+
            <div className="max-w-4xl relative z-10 space-y-10 flex flex-col items-center">
-              <Badge variant="amber" className="px-8 py-3 text-[10px] font-black uppercase tracking-widest shadow-xl">Architectural Integrity</Badge>
+              <Badge variant="amber" className="px-8 py-3 text-[10px] font-black uppercase tracking-widest">Architectural Integrity</Badge>
               <motion.h3 className="text-4xl sm:text-6xl font-display font-black tracking-tight leading-[0.95] m-0 text-[var(--text-primary)]">
                 One Mesh. <br />
                 <span className="text-[var(--p-amber-400)]">Infinite Logic.</span>
@@ -289,8 +294,15 @@ export function ExamplesPage() {
                 { title: 'Harbor Scopes', icon: Shield },
                 { title: 'P2P Tunneling', icon: Globe }
               ].map((item, i) => (
-                <motion.div key={i} className="p-10 rounded-[48px] bg-[var(--bg-overlay)] border border-[var(--border-subtle)] flex flex-col items-center gap-6 group hover:border-[var(--brand-primary)] transition-all shadow-xl">
-                   <motion.div className="w-14 h-14 rounded-2xl bg-[var(--bg-surface)] flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                <motion.div
+                  key={i}
+                  className="p-10 rounded-2xl flex flex-col items-center gap-6 group transition-all"
+                  style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-sm)' }}
+                >
+                   <motion.div
+                     className="w-14 h-14 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform"
+                     style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
+                   >
                       <item.icon size={28} className="text-[var(--brand-primary)]" />
                    </motion.div>
                    <motion.span className="text-[10px] font-black uppercase tracking-[0.25em] text-[var(--text-muted)] group-hover:text-[var(--text-primary)] transition-colors text-center">{item.title}</motion.span>
