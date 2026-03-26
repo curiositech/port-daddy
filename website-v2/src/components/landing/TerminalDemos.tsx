@@ -125,14 +125,14 @@ export function TerminalDemos() {
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-[240px,1fr] gap-6">
+        <div className="grid lg:grid-cols-[240px,1fr] gap-4 sm:gap-6">
           {/* Tabs */}
-          <div className="flex lg:flex-col gap-2">
+          <div className="flex lg:flex-col gap-2 overflow-x-auto pb-2 lg:pb-0 -mx-2 px-2 lg:mx-0 lg:px-0">
             {DEMOS.map((demo) => (
               <button
                 key={demo.id}
                 onClick={() => setActiveDemo(demo)}
-                className="text-left px-4 py-3 rounded-xl transition-all duration-200 cursor-pointer"
+                className="text-left px-4 py-3 rounded-xl transition-all duration-200 cursor-pointer shrink-0 lg:shrink"
                 style={{
                   background: activeDemo.id === demo.id ? 'var(--bg-overlay)' : 'transparent',
                   boxShadow: activeDemo.id === demo.id ? 'var(--shadow-neu-inset)' : 'none',
