@@ -17,7 +17,7 @@ export function Hero() {
       }} />
 
       <div className="relative z-10 w-full max-w-[1200px] mx-auto px-6 lg:px-8">
-        <div className="grid lg:grid-cols-[1fr,1.1fr] gap-12 lg:gap-16 items-center">
+        <div className="grid lg:grid-cols-[1fr,1.1fr] gap-8 lg:gap-16 items-center">
           {/* Left -- Copy */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
