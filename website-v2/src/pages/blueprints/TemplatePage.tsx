@@ -77,7 +77,7 @@ export function TemplatePage() {
 
            <motion.div className="flex flex-wrap justify-center gap-3">
               {bp.tags.map(tag => (
-                <Badge key={tag} variant="neutral" className="px-4 py-1.5 text-[8px] font-black uppercase tracking-widest bg-[var(--bg-overlay)]">{tag}</Badge>
+                <Badge key={tag} variant="default" className="px-4 py-1.5 text-[8px] font-black uppercase tracking-widest bg-[var(--bg-overlay)]">{tag}</Badge>
               ))}
            </motion.div>
         </motion.div>

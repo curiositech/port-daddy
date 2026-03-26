@@ -1,18 +1,19 @@
 import * as React from 'react'
 import { motion } from 'framer-motion'
-import { Link } from 'react-router-dom'
 import {
   FileText,
   Download,
   Shield,
   CheckCircle,
-  Anchor,
   Lock,
   Terminal,
   Scale,
   Handshake,
-  Eye
+  Eye,
+  Anchor
 } from 'lucide-react'
+import { Surface } from '@/components/ui/Surface'
+import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 
 interface Paper {
@@ -24,8 +25,8 @@ interface Paper {
   pages: number
   sizeKb: number
   badge: string
-  badgeVariant: 'teal' | 'neutral'
-  highlights: Array<{ icon: typeof Shield; label: string; color: string }>
+  badgeVariant: 'red' | 'teal' | 'gold' | 'default'
+  highlights: Array<{ icon: typeof Shield; label: string; badgeVariant: 'red' | 'teal' | 'gold' | 'default' | 'success' }>
   sections: Array<{ title: string; content: string }>
 }
 
@@ -39,12 +40,12 @@ const PAPERS: Paper[] = [
     pages: 16,
     sizeKb: 400,
     badge: 'New',
-    badgeVariant: 'teal',
+    badgeVariant: 'red',
     highlights: [
-      { icon: Scale, label: 'Sen\'s Impossibility Applied', color: 'text-amber-600' },
-      { icon: Handshake, label: 'Collateralized Contracts', color: 'text-emerald-600' },
-      { icon: Eye, label: 'Immutable Attribution', color: 'text-blue-600' },
-      { icon: Terminal, label: 'TLA+ Verified', color: 'text-purple-600' },
+      { icon: Scale, label: "Sen's Impossibility Applied", badgeVariant: 'gold' },
+      { icon: Handshake, label: 'Collateralized Contracts', badgeVariant: 'success' },
+      { icon: Eye, label: 'Immutable Attribution', badgeVariant: 'teal' },
+      { icon: Terminal, label: 'TLA+ Verified', badgeVariant: 'default' },
     ],
     sections: [
       {
@@ -57,7 +58,7 @@ const PAPERS: Paper[] = [
       },
       {
         title: 'Why Advisory Claims',
-        content: 'Grounded in Sen\'s Impossibility of a Paretian Liberal: enforced file allocation with private agent knowledge is provably suboptimal. The authority provides information, not allocation decisions.'
+        content: "Grounded in Sen's Impossibility of a Paretian Liberal: enforced file allocation with private agent knowledge is provably suboptimal. The authority provides information, not allocation decisions."
       },
       {
         title: 'The Open Problem',
@@ -74,12 +75,12 @@ const PAPERS: Paper[] = [
     pages: 12,
     sizeKb: 368,
     badge: 'Foundation',
-    badgeVariant: 'neutral',
+    badgeVariant: 'teal',
     highlights: [
-      { icon: Shield, label: 'ProVerif Verified', color: 'text-emerald-600' },
-      { icon: Lock, label: 'Memory Safe (Rust)', color: 'text-blue-600' },
-      { icon: CheckCircle, label: 'Constant-Time Crypto', color: 'text-purple-600' },
-      { icon: Terminal, label: 'Formal Methods', color: 'text-amber-600' },
+      { icon: Shield, label: 'ProVerif Verified', badgeVariant: 'success' },
+      { icon: Lock, label: 'Memory Safe (Rust)', badgeVariant: 'teal' },
+      { icon: CheckCircle, label: 'Constant-Time Crypto', badgeVariant: 'default' },
+      { icon: Terminal, label: 'Formal Methods', badgeVariant: 'gold' },
     ],
     sections: [
       {
@@ -88,11 +89,11 @@ const PAPERS: Paper[] = [
       },
       {
         title: 'The Local Swarm Problem',
-        content: 'Three critical threat vectors on localhost: port squatting ("Ghost in the Harbor"), resource contention, and privilege escalation between concurrent agents.'
+        content: 'Three critical threat vectors on localhost: port squatting, resource contention, and privilege escalation between concurrent agents.'
       },
       {
         title: 'Formal Verification',
-        content: 'ProVerif symbolic analysis proves Injective Agreement: capabilities cannot be escalated and trust is perfectly transitive across delegation chains. Kani verifies memory safety and constant-time comparisons.'
+        content: "ProVerif symbolic analysis proves Injective Agreement: capabilities cannot be escalated and trust is perfectly transitive across delegation chains. Kani verifies memory safety and constant-time comparisons."
       },
       {
         title: 'Implementation',
@@ -109,23 +110,39 @@ export default function WhitepaperPage() {
   const paper = PAPERS.find(p => p.id === activePaper)!
 
   return (
-    <div className="min-h-screen bg-[var(--bg-base)] pt-20">
+    <div className="min-h-screen pt-20" style={{ background: 'var(--surface-base)' }}>
       {/* Hero */}
-      <section className="py-16 px-6">
-        <div className="max-w-7xl mx-auto">
+      <section className="py-16 px-6 sm:px-8 lg:px-10">
+        <div className="max-w-5xl mx-auto text-center">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-center max-w-4xl mx-auto"
+            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+            className="flex flex-col items-center gap-6"
           >
-            <h1 className="text-4xl sm:text-5xl font-medium italic text-[var(--text-primary)] mb-4">
+            <Badge variant="red" size="lg" className="px-6 py-2 text-[10px] font-black uppercase tracking-[0.2em]">
               White Papers
+            </Badge>
+
+            <motion.div
+              className="w-20 h-20 rounded-[28px] flex items-center justify-center"
+              style={{
+                background: 'var(--surface-base)',
+                boxShadow: 'var(--shadow-inset)',
+              }}
+            >
+              <Anchor size={36} style={{ color: 'var(--brand-primary)' }} />
+            </motion.div>
+
+            <h1
+              className="text-4xl sm:text-5xl lg:text-6xl font-display font-black tracking-tighter leading-[0.9]"
+              style={{ color: 'var(--text-primary)' }}
+            >
+              Formal Foundations
             </h1>
-            <p className="text-xl text-[var(--text-secondary)] leading-relaxed mb-4 font-sans">
-              by Erich Owens
-            </p>
-            <p className="text-lg text-[var(--text-muted)] leading-relaxed font-sans max-w-2xl mx-auto">
-              The formal foundations of Port Daddy: cryptographic identity,
+
+            <p className="text-lg max-w-2xl mx-auto leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+              by <strong style={{ color: 'var(--text-primary)' }}>Erich Owens</strong> — Cryptographic identity,
               commons governance, and collateralized coordination for multi-agent systems.
             </p>
           </motion.div>
@@ -133,120 +150,130 @@ export default function WhitepaperPage() {
       </section>
 
       {/* Paper Selector */}
-      <section className="px-6 pb-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid md:grid-cols-2 gap-4">
-            {PAPERS.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => { setActivePaper(p.id); setIsLoading(true) }}
-                className={`text-left p-6 rounded-xl border transition-all ${
-                  activePaper === p.id
-                    ? 'bg-[var(--bg-surface)] border-[var(--brand-primary)] shadow-lg'
-                    : 'bg-[var(--bg-base)] border-[var(--border-subtle)] hover:border-[var(--brand-primary)]/50'
-                }`}
+      <section className="px-6 sm:px-8 lg:px-10 pb-10">
+        <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-6">
+          {PAPERS.map((p) => (
+            <Surface
+              key={p.id}
+              depth={activePaper === p.id ? 'inset' : 'raised'}
+              radius="2xl"
+              padding="lg"
+              interactive
+              className="text-left"
+              onClick={() => { setActivePaper(p.id); setIsLoading(true) }}
+            >
+              <div className="flex items-start justify-between mb-4">
+                <Badge variant={p.badgeVariant} size="sm">{p.badge}</Badge>
+                <FileText
+                  size={20}
+                  style={{ color: activePaper === p.id ? 'var(--brand-primary)' : 'var(--text-muted)' }}
+                />
+              </div>
+              <h2
+                className="text-xl font-bold tracking-tight mb-2"
+                style={{ color: activePaper === p.id ? 'var(--brand-primary)' : 'var(--text-primary)' }}
               >
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <Badge variant={p.badgeVariant} className="mb-2 text-xs">
-                      {p.badge}
-                    </Badge>
-                    <h2 className={`text-xl font-semibold ${
-                      activePaper === p.id ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'
-                    }`}>
-                      {p.title}
-                    </h2>
-                  </div>
-                  <FileText size={20} className={
-                    activePaper === p.id ? 'text-[var(--brand-primary)]' : 'text-[var(--text-muted)]'
-                  } />
-                </div>
-                <p className="text-sm text-[var(--text-muted)] font-sans">
-                  {p.subtitle}
-                </p>
-                <div className="flex items-center gap-4 mt-3 text-xs text-[var(--text-muted)]">
-                  <span>{p.date}</span>
-                  <span>{p.pages} pages</span>
-                  <span>{p.sizeKb} KB</span>
-                </div>
-              </button>
-            ))}
-          </div>
+                {p.title}
+              </h2>
+              <p className="text-sm leading-relaxed mb-4" style={{ color: 'var(--text-muted)' }}>
+                {p.subtitle}
+              </p>
+              <div className="flex items-center gap-4 text-xs" style={{ color: 'var(--text-muted)' }}>
+                <span>{p.date}</span>
+                <span>{p.pages} pages</span>
+                <span>{p.sizeKb} KB</span>
+              </div>
+            </Surface>
+          ))}
         </div>
       </section>
 
-      {/* Active Paper: Badges */}
-      <section className="px-6 pb-8">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-center gap-3">
+      {/* Active Paper Badges */}
+      <section className="px-6 sm:px-8 lg:px-10 pb-10">
+        <div className="max-w-5xl mx-auto flex flex-wrap items-center justify-center gap-3">
           {paper.highlights.map((h, i) => (
             <motion.div
               key={h.label}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: i * 0.05 }}
-              className="flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--bg-surface)] border border-[var(--border-subtle)]"
+              transition={{ delay: i * 0.06 }}
             >
-              <h.icon size={16} className={h.color} />
-              <span className="text-sm font-medium text-[var(--text-secondary)]">{h.label}</span>
+              <Badge variant={h.badgeVariant} size="md" className="gap-1.5">
+                <h.icon size={12} />
+                {h.label}
+              </Badge>
             </motion.div>
           ))}
         </div>
       </section>
 
       {/* Key Highlights */}
-      <section className="py-8 px-6 border-y border-[var(--border-subtle)] bg-[var(--bg-surface)]">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {paper.sections.map((section, i) => (
-              <motion.div
-                key={`${paper.id}-${section.title}`}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.08 }}
-                className="space-y-3"
-              >
-                <h3 className="text-lg font-semibold text-[var(--text-primary)] font-sans">
-                  {section.title}
-                </h3>
-                <p className="text-sm text-[var(--text-secondary)] leading-relaxed font-sans">
-                  {section.content}
-                </p>
-              </motion.div>
-            ))}
-          </div>
+      <section className="py-12 px-6 sm:px-8 lg:px-10">
+        <div className="max-w-5xl mx-auto">
+          <Surface depth="flat" radius="2xl" padding="lg">
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+              {paper.sections.map((section, i) => (
+                <motion.div
+                  key={`${paper.id}-${section.title}`}
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.08, duration: 0.5 }}
+                  className="space-y-3"
+                >
+                  <h3 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>
+                    {section.title}
+                  </h3>
+                  <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                    {section.content}
+                  </p>
+                </motion.div>
+              ))}
+            </div>
+          </Surface>
         </div>
       </section>
 
       {/* PDF Viewer */}
-      <section className="py-16 px-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="bg-[var(--bg-surface)] rounded-2xl border border-[var(--border-subtle)] overflow-hidden shadow-xl">
+      <section className="py-12 px-6 sm:px-8 lg:px-10">
+        <div className="max-w-5xl mx-auto">
+          <Surface depth="raised" radius="2xl" padding="none" className="overflow-hidden">
             {/* PDF Toolbar */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)] bg-[var(--bg-base)]">
+            <div
+              className="flex items-center justify-between px-6 py-4"
+              style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
+            >
               <div className="flex items-center gap-3">
-                <FileText size={20} className="text-[var(--brand-primary)]" />
-                <span className="font-medium text-[var(--text-primary)]">{paper.filename}.pdf</span>
+                <FileText size={18} style={{ color: 'var(--brand-primary)' }} />
+                <span className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
+                  {paper.filename}.pdf
+                </span>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-sm text-[var(--text-muted)]">{paper.sizeKb} KB</span>
-                <a
-                  href={`/whitepaper/${paper.filename}.pdf`}
-                  download
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--brand-primary)] text-[var(--brand-on-primary)] text-sm font-medium hover:bg-[var(--brand-primary-hover)] transition-colors"
-                >
-                  <Download size={16} />
-                  Download PDF
-                </a>
+                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                  {paper.sizeKb} KB
+                </span>
+                <Button variant="primary" size="sm" asChild>
+                  <a href={`/whitepaper/${paper.filename}.pdf`} download>
+                    <Download size={14} />
+                    Download
+                  </a>
+                </Button>
               </div>
             </div>
 
             {/* PDF Embed */}
-            <div className="relative aspect-[1/1.4] w-full bg-[var(--bg-base)]">
+            <div className="relative aspect-[1/1.4] w-full" style={{ background: 'var(--surface-sunken)' }}>
               {isLoading && (
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="flex flex-col items-center gap-4">
-                    <div className="w-8 h-8 border-2 border-[var(--brand-primary)] border-t-transparent rounded-full animate-spin" />
-                    <span className="text-sm text-[var(--text-muted)]">Loading PDF...</span>
+                    <div
+                      className="w-8 h-8 rounded-full animate-spin"
+                      style={{
+                        border: '2px solid var(--border-default)',
+                        borderTopColor: 'var(--brand-primary)',
+                      }}
+                    />
+                    <span className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading PDF...</span>
                   </div>
                 </div>
               )}
@@ -258,34 +285,50 @@ export default function WhitepaperPage() {
                 title={`${paper.title} Whitepaper`}
               />
             </div>
-          </div>
+          </Surface>
         </div>
       </section>
 
-      {/* Relationship Between Papers */}
-      <section className="py-16 px-6 bg-[var(--bg-surface)] border-t border-[var(--border-subtle)]">
+      {/* How They Relate */}
+      <section className="py-16 px-6 sm:px-8 lg:px-10">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-2xl font-medium italic text-[var(--text-primary)] mb-6">
+          <h2
+            className="text-3xl font-display font-black tracking-tighter mb-10"
+            style={{ color: 'var(--text-primary)' }}
+          >
             How the Papers Relate
           </h2>
           <div className="grid md:grid-cols-3 gap-6 items-center">
-            <div className="p-6 rounded-xl bg-[var(--bg-base)] border border-[var(--border-subtle)]">
-              <Lock size={24} className="text-[var(--brand-primary)] mx-auto mb-3" />
-              <h3 className="font-semibold text-[var(--text-primary)] mb-2 font-sans">Anchor Protocol</h3>
-              <p className="text-sm text-[var(--text-secondary)] font-sans">
+            <Surface depth="inset" radius="xl" padding="lg" className="text-center">
+              <Lock size={28} style={{ color: 'var(--brand-secondary)' }} className="mx-auto mb-3" />
+              <h3 className="font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
+                Anchor Protocol
+              </h3>
+              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
                 The security foundation. Cryptographic identity, capability tokens, delegation chains.
               </p>
-            </div>
+            </Surface>
+
             <div className="flex items-center justify-center">
-              <div className="text-[var(--text-muted)] text-2xl font-light">builds on</div>
+              <motion.div
+                className="text-lg font-display font-black tracking-tight"
+                style={{ color: 'var(--text-muted)' }}
+                animate={{ x: [0, 6, 0] }}
+                transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+              >
+                builds on &rarr;
+              </motion.div>
             </div>
-            <div className="p-6 rounded-xl bg-[var(--bg-base)] border border-[var(--border-subtle)]">
-              <Scale size={24} className="text-[var(--brand-primary)] mx-auto mb-3" />
-              <h3 className="font-semibold text-[var(--text-primary)] mb-2 font-sans">Bonded Commons</h3>
-              <p className="text-sm text-[var(--text-secondary)] font-sans">
+
+            <Surface depth="raised" radius="xl" padding="lg" className="text-center">
+              <Scale size={28} style={{ color: 'var(--brand-primary)' }} className="mx-auto mb-3" />
+              <h3 className="font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
+                Bonded Commons
+              </h3>
+              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
                 The governance layer. Trust infrastructure, advisory coordination, collateralized contracts.
               </p>
-            </div>
+            </Surface>
           </div>
         </div>
       </section>

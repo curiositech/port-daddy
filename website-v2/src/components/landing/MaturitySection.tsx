@@ -1,7 +1,8 @@
+import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
-import { 
-  ShieldCheck, Lock, Activity, Scale, 
-  Zap, Database, Network 
+import {
+  ShieldCheck, Lock, Activity, Scale,
+  Zap, Database, Network
 } from 'lucide-react'
 
 const MATURITY_FEATURES = [
@@ -64,7 +65,7 @@ export function MaturitySection() {
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
           >
-            <Badge variant="neutral" className="px-6 py-2 uppercase tracking-[0.25em] text-[10px] font-black">Infrastructure Maturity</Badge>
+            <Badge variant="default" className="px-6 py-2 uppercase tracking-[0.25em] text-[10px] font-black">Infrastructure Maturity</Badge>
           </motion.div>
           <motion.h2
             className="text-5xl sm:text-7xl font-black tracking-tighter font-display leading-[0.9] m-0"
@@ -141,7 +142,7 @@ export function MaturitySection() {
                    </motion.div>
                 </motion.div>
               </motion.div>
-            </motion.div>
+            </div>
           ))}
         </div>
 

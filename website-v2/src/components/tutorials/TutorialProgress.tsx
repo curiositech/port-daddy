@@ -60,12 +60,12 @@ export function TutorialProgress({ currentNumber, isOpen: controlledOpen, onTogg
         onClick={() => setIsOpen(!isOpen)}
       >
         <div className="flex-1">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-[var(--text-primary)]">
+          <div className="flex items-center justify-between mb-2 gap-4">
+            <span className="text-sm font-medium text-[var(--text-primary)] whitespace-nowrap">
               Getting Started Series
             </span>
-            <span className="text-xs text-[var(--text-muted)]">
-              {currentNumber} of {TUTORIALS.length} • ~{TOTAL_TIME} min total
+            <span className="text-xs text-[var(--text-muted)] whitespace-nowrap">
+              {currentNumber} of {TUTORIALS.length} &middot; ~{TOTAL_TIME} min total
             </span>
           </div>
           

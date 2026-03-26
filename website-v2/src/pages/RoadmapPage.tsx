@@ -83,7 +83,7 @@ export function RoadmapPage() {
               <div className="flex-1 space-y-4">
                 <div className="flex items-center gap-4">
                   <h2 className="text-3xl font-display font-bold text-[var(--text-primary)]">{phase.title}</h2>
-                  <Badge variant={phase.status === 'shipped' ? 'teal' : phase.status === 'active' ? 'amber' : 'neutral'} className="uppercase text-[8px] font-black tracking-widest">
+                  <Badge variant={phase.status === 'shipped' ? 'teal' : phase.status === 'active' ? 'gold' : 'default'} className="uppercase text-[8px] font-black tracking-widest">
                     {phase.status}
                   </Badge>
                 </div>

@@ -74,7 +74,7 @@ export function BlogPage() {
                            {post.author}
                         </div>
                      </div>
-                     <Badge variant="neutral" className="px-4 py-1.5 text-[8px] font-black uppercase tracking-widest bg-[var(--bg-overlay)] shadow-sm">
+                     <Badge variant="default" className="px-4 py-1.5 text-[8px] font-black uppercase tracking-widest bg-[var(--bg-overlay)] shadow-sm">
                         <span className="text-[var(--text-primary)]">Engineering Depth</span>
                      </Badge>
                   </div>

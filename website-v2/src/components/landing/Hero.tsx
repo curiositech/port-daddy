@@ -1,92 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
 import { IntentModal } from '@/components/ui/IntentModal'
-import { ArrowRight, Terminal, Copy, Check } from 'lucide-react'
-
-const TERMINAL_LINES = [
-  { prompt: true, text: 'brew install erichowens/port-daddy', delay: 0 },
-  { prompt: false, text: 'Installing port-daddy v3.7.0...', delay: 600 },
-  { prompt: false, text: 'Daemon installed at /usr/local/bin/pd', delay: 1000 },
-  { prompt: true, text: 'pd begin --identity myapp:api --purpose "Build the auth layer"', delay: 1800 },
-  { prompt: false, text: '● Session started · port 9201 · agent registered', delay: 2400 },
-  { prompt: true, text: 'pd claim myapp:frontend', delay: 3200 },
-  { prompt: false, text: '● Port 9202 claimed · identity myapp:frontend', delay: 3700 },
-  { prompt: true, text: 'pd pub build-ready "API is live on :9201"', delay: 4400 },
-  { prompt: false, text: '● Published to build-ready · 2 subscribers notified', delay: 5000 },
-]
-
-function AnimatedTerminal() {
-  const [visibleLines, setVisibleLines] = useState(0)
-  const [copied, setCopied] = useState(false)
-
-  useEffect(() => {
-    const timers = TERMINAL_LINES.map((line, i) =>
-      setTimeout(() => setVisibleLines(i + 1), line.delay + 800)
-    )
-    return () => timers.forEach(clearTimeout)
-  }, [])
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText('brew install erichowens/port-daddy')
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  return (
-    <div
-      className="rounded-2xl overflow-hidden"
-      style={{
-        background: '#d0d0d0',
-        boxShadow: 'inset 4px 4px 8px #b8b8b8, inset -4px -4px 8px #e8e8e8',
-      }}
-    >
-      {/* Title bar */}
-      <div
-        className="flex items-center justify-between px-4 py-2.5"
-        style={{
-          background: '#d6d6d6',
-          boxShadow: '0 1px 0 rgba(0,0,0,0.06)',
-        }}
-      >
-        <div className="flex items-center gap-2">
-          <span className="w-3 h-3 rounded-full bg-[#ff5f56]/70" />
-          <span className="w-3 h-3 rounded-full bg-[#ffbd2e]/70" />
-          <span className="w-3 h-3 rounded-full bg-[#27c93f]/70" />
-        </div>
-        <span className="text-[11px] font-mono text-[#888] tracking-wide">port-daddy</span>
-        <button
-          onClick={handleCopy}
-          className="text-[#999] hover:text-[#555] transition-colors cursor-pointer"
-          aria-label="Copy install command"
-        >
-          {copied ? <Check size={14} /> : <Copy size={14} />}
-        </button>
-      </div>
-
-      {/* Terminal body */}
-      <div className="p-5 font-mono text-[13px] leading-[1.7] min-h-[260px]">
-        {TERMINAL_LINES.slice(0, visibleLines).map((line, i) => (
-          <motion.div
-            key={i}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.25, ease: 'easeOut' }}
-            className={line.prompt ? 'text-[#2d2d2d]' : 'text-[#777]'}
-          >
-            {line.prompt && <span className="text-[var(--brand-accent)] mr-2">$</span>}
-            {!line.prompt && <span className="mr-2">&nbsp;&nbsp;</span>}
-            {line.text}
-          </motion.div>
-        ))}
-        {visibleLines < TERMINAL_LINES.length && (
-          <span className="inline-block w-[7px] h-[15px] bg-[#0d9488] ml-[18px] animate-pulse" />
-        )}
-      </div>
-    </div>
-  )
-}
+import { ArrowRight, Terminal } from 'lucide-react'
 
 export function Hero() {
   const [isModalOpen, setIsModalOpen] = useState(false)

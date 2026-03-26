@@ -72,7 +72,7 @@ export function RecipePage() {
            </motion.div>
 
            <motion.div className="space-y-4">
-              <Badge variant={recipe.difficulty === 'advanced' ? 'neutral' : 'teal'} className="px-4 py-1.5 text-[8px] font-black uppercase tracking-widest">{recipe.difficulty} Pattern</Badge>
+              <Badge variant={recipe.difficulty === 'advanced' ? 'default' : 'teal'} className="px-4 py-1.5 text-[8px] font-black uppercase tracking-widest">{recipe.difficulty} Pattern</Badge>
               <motion.h1 
                 className="text-5xl sm:text-7xl font-black tracking-tighter font-display leading-[1.05]"
                 initial={{ opacity: 0, y: 24 }}

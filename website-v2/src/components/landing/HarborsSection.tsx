@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
 import { Shield, Key, Users, Anchor, Activity } from 'lucide-react'
 
@@ -63,8 +64,8 @@ function HarborCard({ name, capabilities, delay = 0 }: { name: string; capabilit
               </span>
             )
           })}
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
 
       <motion.div className="mt-10 pt-8 flex items-center justify-between" style={{ borderTop: '1px solid var(--surface-sunken)' }}>
          <motion.div className="flex items-center gap-2">
@@ -111,7 +112,7 @@ export function HarborsSection() {
               Orchestrate groups of agents that coordinate to solve complex infra tasks.
             </p>
           </div>
-        </div>
+        </motion.div>
 
           <motion.div className="grid sm:grid-cols-2 gap-8 w-full pt-8">
              {/* Always-On Avatars card - raised neumorphic */}
@@ -161,7 +162,6 @@ export function HarborsSection() {
                 </div>
              </motion.div>
           </motion.div>
-        </motion.div>
 
         <motion.div className="w-full relative flex flex-col items-center gap-8">
            <motion.div className="absolute inset-0 opacity-[0.05] blur-[140px] rounded-full pointer-events-none" style={{ background: 'var(--brand-primary)' }} />

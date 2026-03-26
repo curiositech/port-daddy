@@ -1,7 +1,8 @@
 import * as React from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
 import { useTheme } from '@/lib/theme'
-import { Play, ExternalLink, Activity } from 'lucide-react'
+import { Play, ExternalLink, Activity, Share2 } from 'lucide-react'
 
 interface Demo {
   id: string
@@ -9,7 +10,7 @@ interface Demo {
   title: string
   subtitle: string
   badge: string
-  badgeVariant: 'teal' | 'amber' | 'neutral'
+  badgeVariant: 'teal' | 'gold' | 'default'
   description: string
   stats: Array<{ value: string; label: string }>
 }
@@ -36,7 +37,7 @@ const DEMOS: Demo[] = [
     title: 'Ghost Salvage',
     subtitle: 'Never lose a dead agent\'s context',
     badge: 'Zombie Protocol',
-    badgeVariant: 'amber',
+    badgeVariant: 'gold',
     description:
       'If an agent crashes, Port Daddy preserves its work context. A fresh agent can instantly salvage the session, inheriting all notes and file claims.',
     stats: [
@@ -51,7 +52,7 @@ const DEMOS: Demo[] = [
     title: 'Stigmergic Auction',
     subtitle: 'Competitive task allocation',
     badge: 'Pheromones',
-    badgeVariant: 'neutral',
+    badgeVariant: 'default',
     description:
       'Agents bid on shared goals by spraying pheromones on the concept graph. The highest confidence scent wins the resource lock, enabling masterless coordination.',
     stats: [
@@ -103,7 +104,7 @@ export function DemoGallery() {
           {/* Tab Controls */}
           <div className="lg:col-span-4 space-y-8 flex flex-col items-center lg:items-stretch">
             {DEMOS.map((demo) => (
-              <button
+              <motion.button
                 key={demo.id}
                 onClick={() => setActiveTab(demo.id)}
                 className="w-full max-w-md lg:max-w-none text-left p-12 rounded-[56px] transition-all duration-300 relative group overflow-hidden"
@@ -116,7 +117,7 @@ export function DemoGallery() {
                 whileHover={{ scale: activeId === demo.id ? 1 : 1.02 }}
               >
                 <div className="flex items-center justify-between mb-8">
-                   <Badge variant={demo.badgeColor === 'teal' ? 'teal' : demo.badgeColor === 'amber' ? 'amber' : 'neutral'} className="text-[8px] font-black uppercase tracking-widest px-4 py-1.5">
+                   <Badge variant={demo.badgeVariant === 'teal' ? 'teal' : demo.badgeVariant === 'gold' ? 'gold' : 'default'} className="text-[8px] font-black uppercase tracking-widest px-4 py-1.5">
                      {demo.badge}
                    </Badge>
                    <Play size={16} style={{ color: activeId === demo.id ? 'var(--brand-primary)' : 'var(--text-muted)', opacity: activeId === demo.id ? 1 : 0.4 }} className={activeId === demo.id ? 'animate-pulse' : ''} />
@@ -202,7 +203,6 @@ export function DemoGallery() {
                      </motion.div>
                    ))}
                 </div>
-              </div>
 
                 {/* Description panel - raised */}
                 <motion.div
@@ -223,7 +223,7 @@ export function DemoGallery() {
             </AnimatePresence>
           </div>
         </div>
-      </div>
-    </section>
+      </motion.div>
+    </motion.section>
   )
 }

@@ -93,7 +93,7 @@ export function WorkflowsTable() {
                         <Activity size={12} /> pd spawn
                       </Badge>
                     ) : (
-                      <Badge variant="neutral" className="flex items-center gap-1.5 py-1 px-3 font-sans">
+                      <Badge variant="default" className="flex items-center gap-1.5 py-1 px-3 font-sans">
                         <Terminal size={12} /> exec
                       </Badge>
                     )}

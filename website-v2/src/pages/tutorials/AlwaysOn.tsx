@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Badge } from '@/components/ui/Badge'
-import { Cpu, Zap, Activity, Terminal, RefreshCw, Globe, Share2, ArrowDown } from 'lucide-react'
+import { Cpu, Zap, Activity, Terminal, RefreshCw, Share2, ArrowDown } from 'lucide-react'
 
 export function AlwaysOn() {
   return (
@@ -131,7 +131,7 @@ export function AlwaysOn() {
                   className="flex items-center gap-4 p-4 rounded-2xl"
                   style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
                 >
-                   <Badge variant="neutral">Trigger</Badge>
+                   <Badge variant="default">Trigger</Badge>
                    <motion.span className="text-sm font-bold">Agent publishes to swarm:ci:failure</motion.span>
                 </motion.div>
                 <motion.div className="flex justify-center"><ArrowDown size={16} className="opacity-20" /></motion.div>
@@ -147,7 +147,7 @@ export function AlwaysOn() {
                   className="flex items-center gap-4 p-4 rounded-2xl"
                   style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
                 >
-                   <Badge variant="neutral">Resolve</Badge>
+                   <Badge variant="default">Resolve</Badge>
                    <motion.span className="text-sm font-bold">Script publishes result back to Swarm Radio</motion.span>
                 </motion.div>
              </motion.div>

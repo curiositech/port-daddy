@@ -49,7 +49,7 @@ export default function LocksSdk() {
       <div className="space-y-4">
         <div className="flex items-center gap-3">
           <Badge variant="teal">SDK</Badge>
-          <Badge variant="amber">New in v3.7</Badge>
+          <Badge variant="gold">New in v3.7</Badge>
         </div>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Locks Module
@@ -77,7 +77,7 @@ export default function LocksSdk() {
             <div className="p-4 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">name</code>
-                <Badge variant="neutral" size="sm">required</Badge>
+                <Badge variant="default" size="sm">required</Badge>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
               <p className="text-sm text-[var(--text-tertiary)] mt-1">Unique name for this lock</p>
@@ -179,7 +179,7 @@ if (!lock) {
             <div className="p-4 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">name</code>
-                <Badge variant="neutral" size="sm">required</Badge>
+                <Badge variant="default" size="sm">required</Badge>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
               <p className="text-sm text-[var(--text-tertiary)] mt-1">The lock name to release</p>
@@ -218,7 +218,7 @@ console.log(released) // true`}
             <div className="p-4 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">name</code>
-                <Badge variant="neutral" size="sm">required</Badge>
+                <Badge variant="default" size="sm">required</Badge>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
               <p className="text-sm text-[var(--text-tertiary)] mt-1">Lock name</p>
@@ -226,7 +226,7 @@ console.log(released) // true`}
             <div className="p-4 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">fn</code>
-                <Badge variant="neutral" size="sm">required</Badge>
+                <Badge variant="default" size="sm">required</Badge>
                 <span className="text-xs text-[var(--text-muted)]">() =&gt; Promise&lt;T&gt;</span>
               </div>
               <p className="text-sm text-[var(--text-tertiary)] mt-1">Function to execute while holding the lock</p>

@@ -53,7 +53,7 @@ export function BlueprintsSection() {
                   </div>
                   <div className="flex flex-wrap gap-2 justify-end">
                     {blueprint.tags.slice(0, 3).map(tag => (
-                      <Badge key={tag} variant="neutral">{tag}</Badge>
+                      <Badge key={tag} variant="default">{tag}</Badge>
                     ))}
                   </div>
                 </div>
@@ -83,7 +83,7 @@ export function BlueprintsSection() {
         {/* Framework Support */}
         <div className="p-8 lg:p-12 rounded-2xl bg-[var(--bg-base)] border border-[var(--border-subtle)]">
           <div className="text-center mb-10">
-            <Badge variant="amber" className="mb-4">Framework Support</Badge>
+            <Badge variant="gold" className="mb-4">Framework Support</Badge>
             <h3 className="text-2xl lg:text-3xl font-semibold text-[var(--text-primary)] mb-3">
               Built for <span className="text-[var(--warning)]">LangChain</span> & <span className="text-[var(--brand-primary)]">CrewAI</span>
             </h3>

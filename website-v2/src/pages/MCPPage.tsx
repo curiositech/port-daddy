@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { motion, useScroll, useSpring } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
-import { Terminal, Shield, Zap, History, Anchor, Globe, MessageSquare, Copy, Check, Rocket, Mail, RefreshCw, Download, Home, FileText } from 'lucide-react'
+import { Terminal, Shield, Zap, History, Anchor, Globe, MessageSquare, Copy, Check, Rocket, Mail, RefreshCw, Download,  Search, Cpu, Layers } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
 import { Activity } from 'lucide-react'
 
@@ -148,7 +148,7 @@ export default function McpPage() {
       className="min-h-screen flex flex-col pt-[var(--nav-height)] font-sans selection:bg-[var(--brand-primary)] selection:text-white"
       style={{ background: 'var(--surface-base)' }}
     >
-      <NavStub />
+
       
       <motion.div
         className="fixed top-0 left-0 right-0 h-1 z-[100] origin-left"
@@ -208,7 +208,7 @@ export default function McpPage() {
       <section className="py-24 bg-bg-surface border-b border-border-subtle">
         <div className="max-w-7xl mx-auto px-6 lg:px-12 flex flex-col items-center">
            <div className="text-center mb-20 space-y-6">
-              <Badge variant="neutral" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest bg-bg-overlay border border-border-strong text-text-primary">Getting Started</Badge>
+              <Badge variant="default" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest bg-bg-overlay border border-border-strong text-text-primary">Getting Started</Badge>
               <h2 className="text-4xl sm:text-6xl font-display font-black text-text-primary tracking-tighter">Instant Integration.</h2>
            </div>
 
@@ -244,7 +244,7 @@ export default function McpPage() {
         {/* Progressive Disclosure */}
         <section className="mb-32 space-y-20 w-full flex flex-col items-center">
            <div className="flex flex-col items-center text-center gap-8 pb-20 w-full max-w-4xl">
-              <Badge variant="neutral" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Agent Experience (AX)</Badge>
+              <Badge variant="default" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Agent Experience (AX)</Badge>
               <div className="flex flex-col items-center gap-8">
                  <motion.div
                    className="w-20 h-20 rounded-2xl flex items-center justify-center"
@@ -341,7 +341,7 @@ export default function McpPage() {
                 { label: 'Token Efficient', icon: Zap },
                 { label: 'Latency Aware', icon: Activity },
                 { label: 'Auto-Discovery', icon: Search },
-                { label: 'Secure Handshake', icon: Lock }
+                { label: 'Secure Handshake', icon: Shield }
               ].map((item, i) => (
                 <motion.div
                   key={i}

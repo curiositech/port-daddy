@@ -136,7 +136,7 @@ export function Watch() {
                       <Terminal size={16} className="text-[var(--brand-primary)]" />
                       <motion.span className="text-sm font-bold text-[var(--brand-primary)]">Watcher triggers './run-ci.sh'</motion.span>
                    </motion.div>
-                   <Badge variant="amber">Action</Badge>
+                   <Badge variant="gold">Action</Badge>
                 </motion.div>
                 <motion.div className="flex justify-center"><ArrowDown size={16} className="opacity-20" /></motion.div>
                 <motion.div
@@ -147,7 +147,7 @@ export function Watch() {
                       <RefreshCw size={16} />
                       <motion.span className="text-sm font-bold">CI publishes "tests-pass" to Swarm Radio</motion.span>
                    </motion.div>
-                   <Badge variant="neutral">Loop</Badge>
+                   <Badge variant="default">Loop</Badge>
                 </motion.div>
              </motion.div>
           </motion.div>

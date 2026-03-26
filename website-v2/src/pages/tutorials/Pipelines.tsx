@@ -132,7 +132,7 @@ export function Pipelines() {
                   className="flex items-center gap-6 p-6 rounded-2xl"
                   style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
                 >
-                   <Badge variant="amber" className="shrink-0 text-white bg-[var(--brand-primary)]">Auto-Action</Badge>
+                   <Badge variant="gold" className="shrink-0 text-white bg-[var(--brand-primary)]">Auto-Action</Badge>
                    <motion.div className="flex-1">
                       <motion.p className="font-bold m-0 text-sm text-[var(--brand-primary)]">Spawn Coder + Reviewer</motion.p>
                       <code className="text-[10px] text-[var(--text-muted)]">pd spawn (x2)</code>

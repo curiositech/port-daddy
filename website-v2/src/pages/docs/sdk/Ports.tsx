@@ -49,7 +49,7 @@ export default function PortsSdk() {
       <div className="space-y-4">
         <div className="flex items-center gap-3">
           <Badge variant="teal">SDK</Badge>
-          <Badge variant="green">Core</Badge>
+          <Badge variant="success">Core</Badge>
         </div>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Ports Module
@@ -77,7 +77,7 @@ export default function PortsSdk() {
             <div className="p-4 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">identity</code>
-                <Badge variant="neutral" size="sm">required</Badge>
+                <Badge variant="default" size="sm">required</Badge>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
               <p className="text-sm text-[var(--text-tertiary)] mt-1">
@@ -163,7 +163,7 @@ console.log(claim1.port === claim2.port) // true`}
             <div className="p-4 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">identity</code>
-                <Badge variant="neutral" size="sm">required</Badge>
+                <Badge variant="default" size="sm">required</Badge>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
               <p className="text-sm text-[var(--text-tertiary)] mt-1">The identity to release</p>

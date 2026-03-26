@@ -121,7 +121,7 @@ export function Dashboard() {
                 >
                    <motion.div className="flex items-center justify-between">
                       <motion.span className="text-[10px] font-black uppercase text-[var(--text-muted)]">Lock Status</motion.span>
-                      <Badge variant="amber">Contested</Badge>
+                      <Badge variant="gold">Contested</Badge>
                    </motion.div>
                    <motion.p className="text-xs font-bold">db-migration-lock</motion.p>
                    <motion.div

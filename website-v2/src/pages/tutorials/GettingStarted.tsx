@@ -2,7 +2,8 @@ import { motion } from 'framer-motion'
 import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Badge } from '@/components/ui/Badge'
-import { Terminal, Users, FileCode, Activity, AlertTriangle } from 'lucide-react'
+import { Terminal, Users, Cpu, Globe } from 'lucide-react'
+import { Button } from '@/components/ui/Button'
 
 export function GettingStarted() {
   return (
@@ -62,7 +63,7 @@ export function GettingStarted() {
               className="p-8 rounded-2xl space-y-4"
               style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
             >
-              <Badge variant="neutral">Node.js / Global</Badge>
+              <Badge variant="default">Node.js / Global</Badge>
               <CodeBlock language="bash">
                 {`npm install -g port-daddy`}
               </CodeBlock>
@@ -149,7 +150,7 @@ export function GettingStarted() {
                    <motion.p className="font-bold m-0 text-lg">Remote Harbor</motion.p>
                    <motion.p className="text-sm m-0 opacity-60">Connected via <code>pd tunnel</code>.</motion.p>
                 </motion.div>
-                <Badge variant="neutral">Connected</Badge>
+                <Badge variant="default">Connected</Badge>
              </motion.div>
           </motion.div>
 

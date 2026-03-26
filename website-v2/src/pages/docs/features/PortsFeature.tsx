@@ -9,7 +9,7 @@ export default function PortsFeature() {
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           <Badge variant="teal">Feature</Badge>
-          <Badge variant="green">Core</Badge>
+          <Badge variant="success">Core</Badge>
         </div>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Atomic Port Assignment

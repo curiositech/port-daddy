@@ -49,7 +49,7 @@ export default function HarborsSdk() {
       <div className="space-y-4">
         <div className="flex items-center gap-3">
           <Badge variant="teal">SDK</Badge>
-          <Badge variant="amber">New in v3.7</Badge>
+          <Badge variant="gold">New in v3.7</Badge>
         </div>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Harbors Module
@@ -101,7 +101,7 @@ export default function HarborsSdk() {
             <div className="p-4 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">name</code>
-                <Badge variant="neutral" size="sm">required</Badge>
+                <Badge variant="default" size="sm">required</Badge>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
               <p className="text-sm text-[var(--text-tertiary)] mt-1">Unique name for this harbor</p>
@@ -182,7 +182,7 @@ export default function HarborsSdk() {
             <div className="p-4 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">name</code>
-                <Badge variant="neutral" size="sm">required</Badge>
+                <Badge variant="default" size="sm">required</Badge>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
               <p className="text-sm text-[var(--text-tertiary)] mt-1">Harbor name to enter</p>
@@ -190,7 +190,7 @@ export default function HarborsSdk() {
             <div className="p-4 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">token</code>
-                <Badge variant="neutral" size="sm">required</Badge>
+                <Badge variant="default" size="sm">required</Badge>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
               <p className="text-sm text-[var(--text-tertiary)] mt-1">Harbor card token</p>
@@ -240,7 +240,7 @@ try {
             <div className="p-4 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">agentId</code>
-                <Badge variant="neutral" size="sm">required</Badge>
+                <Badge variant="default" size="sm">required</Badge>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
               <p className="text-sm text-[var(--text-tertiary)] mt-1">Agent to issue card to</p>
@@ -248,7 +248,7 @@ try {
             <div className="p-4 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">capabilities</code>
-                <Badge variant="neutral" size="sm">required</Badge>
+                <Badge variant="default" size="sm">required</Badge>
                 <span className="text-xs text-[var(--text-muted)]">string[]</span>
               </div>
               <p className="text-sm text-[var(--text-tertiary)] mt-1">Capabilities to grant (must be subset of harbor capabilities)</p>
@@ -256,7 +256,7 @@ try {
             <div className="p-4 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.harborName</code>
-                <Badge variant="neutral" size="sm">required</Badge>
+                <Badge variant="default" size="sm">required</Badge>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
               <p className="text-sm text-[var(--text-tertiary)] mt-1">Harbor this card is valid for</p>

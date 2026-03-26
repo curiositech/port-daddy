@@ -49,7 +49,7 @@ export default function SessionsSdk() {
       <div className="space-y-4">
         <div className="flex items-center gap-3">
           <Badge variant="teal">SDK</Badge>
-          <Badge variant="green">Core</Badge>
+          <Badge variant="success">Core</Badge>
         </div>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Sessions Module
@@ -153,7 +153,7 @@ export default function SessionsSdk() {
             <div className="p-4 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">sessionId</code>
-                <Badge variant="neutral" size="sm">required</Badge>
+                <Badge variant="default" size="sm">required</Badge>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
               <p className="text-sm text-[var(--text-tertiary)] mt-1">The session ID to complete</p>
@@ -207,7 +207,7 @@ await pd.sessions.done(session.id)`}
             <div className="p-4 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">sessionId</code>
-                <Badge variant="neutral" size="sm">required</Badge>
+                <Badge variant="default" size="sm">required</Badge>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
               <p className="text-sm text-[var(--text-tertiary)] mt-1">The session ID to add note to</p>
@@ -215,7 +215,7 @@ await pd.sessions.done(session.id)`}
             <div className="p-4 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">content</code>
-                <Badge variant="neutral" size="sm">required</Badge>
+                <Badge variant="default" size="sm">required</Badge>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
               <p className="text-sm text-[var(--text-tertiary)] mt-1">Note content</p>

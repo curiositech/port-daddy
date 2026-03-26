@@ -85,7 +85,7 @@ export function CommandPage({
       <div className="space-y-4">
         <div className="flex items-center gap-3">
           <Badge variant="teal">CLI</Badge>
-          <Badge variant="neutral">v{version}</Badge>
+          <Badge variant="default">v{version}</Badge>
         </div>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight font-mono">
           {command}

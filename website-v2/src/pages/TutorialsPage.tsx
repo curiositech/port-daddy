@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
+import { Surface } from '@/components/ui/Surface'
 import { Link } from 'react-router-dom'
 import { Clock, Play, Zap, Shield, Globe, Sparkles, Anchor, Share2, Layers, Search, Box, History } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
@@ -107,141 +108,221 @@ const TUTORIALS: Tutorial[] = [
   }
 ]
 
+const LEVEL_BADGE: Record<string, 'teal' | 'gold' | 'red'> = {
+  beginner: 'teal',
+  intermediate: 'gold',
+  advanced: 'red',
+}
+
 export function TutorialsPage() {
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen bg-bg-base flex flex-col font-sans selection:bg-brand-primary selection:text-brand-on-primary"
+      className="min-h-screen flex flex-col font-sans"
+      style={{ background: 'var(--surface-base)' }}
     >
       {/* Hero Section */}
-      <motion.section 
-        className="pt-32 pb-20 px-6 sm:px-8 lg:px-12 border-b border-border-subtle relative overflow-hidden flex flex-col items-center justify-center text-center bg-bg-surface"
-      >
-        <motion.div 
-          className="absolute top-0 right-0 w-[800px] h-[800px] rounded-full blur-[160px] opacity-[0.05] pointer-events-none" 
-          style={{ background: 'radial-gradient(circle, var(--brand-primary) 0%, transparent 70%)' }} 
-        />
-        
-        <div className="max-w-5xl mx-auto relative z-10 flex flex-col items-center gap-10">
-           <Badge variant="teal" className="px-8 py-3 text-[10px] font-black uppercase tracking-[0.25em] shadow-xl bg-bg-overlay border border-brand-primary text-brand-primary">Academy of Coordination</Badge>
-           <motion.h1 
-             className="text-5xl sm:text-8xl font-black tracking-tighter font-display leading-[0.85] m-0 text-text-primary"
-             initial={{ opacity: 0, y: 32 }}
-             animate={{ opacity: 1, y: 0 }}
-             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-           >
-             Master the <br />
-             <span className="text-brand-primary">Swarm Logic.</span>
-           </motion.h1>
-           <motion.p 
-             className="text-xl sm:text-3xl max-w-4xl leading-relaxed text-text-secondary font-bold"
-             initial={{ opacity: 0, y: 20 }}
-             animate={{ opacity: 1, y: 0 }}
-             transition={{ duration: 0.8, delay: 0.1 }}
-           >
-             From your first port claim to multi-agent coordination. Learn to orchestrate AI agents with sessions, pub/sub, and crash recovery.
-           </motion.p>
+      <section className="pt-32 pb-20 px-6 sm:px-8 lg:px-12 flex flex-col items-center text-center">
+        <div className="max-w-5xl mx-auto flex flex-col items-center gap-8">
+          <Badge variant="red" size="lg" className="px-6 py-2 text-[10px] font-black uppercase tracking-[0.2em]">
+            Academy of Coordination
+          </Badge>
+
+          <motion.div
+            className="w-20 h-20 rounded-[28px] flex items-center justify-center"
+            style={{
+              background: 'var(--surface-base)',
+              boxShadow: 'var(--shadow-inset)',
+            }}
+          >
+            <Anchor size={36} style={{ color: 'var(--brand-primary)' }} />
+          </motion.div>
+
+          <motion.h1
+            className="text-5xl sm:text-7xl font-display font-black tracking-tighter leading-[0.85]"
+            style={{ color: 'var(--text-primary)' }}
+            initial={{ opacity: 0, y: 32 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+          >
+            Master the <br />
+            <span style={{ color: 'var(--brand-primary)' }}>Swarm Logic.</span>
+          </motion.h1>
+
+          <motion.p
+            className="text-xl sm:text-2xl max-w-3xl leading-relaxed font-semibold"
+            style={{ color: 'var(--text-secondary)' }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.1 }}
+          >
+            From your first port claim to multi-agent coordination. Learn to orchestrate AI agents with sessions, pub/sub, and crash recovery.
+          </motion.p>
         </div>
-      </motion.section>
+      </section>
 
       {/* Tutorials Grid */}
-      <motion.main id="main-content" className="flex-1 py-24 px-6 sm:px-8 lg:px-12 max-w-7xl mx-auto w-full font-sans flex flex-col items-center">
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-12 w-full">
+      <main className="flex-1 py-16 px-6 sm:px-8 lg:px-12 max-w-7xl mx-auto w-full">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
           {TUTORIALS.map((tutorial, i) => (
             <motion.div
               key={tutorial.slug}
-              initial={{ opacity: 0, y: 32 }}
+              initial={{ opacity: 0, y: 24 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: i * 0.03 }}
+              transition={{ duration: 0.5, delay: i * 0.04 }}
               className="group h-full"
             >
               <Link to={tutorial.href} className="no-underline block h-full">
-                <motion.div 
-                  className="h-full p-10 rounded-[48px] bg-bg-surface border border-border-subtle transition-all duration-500 flex flex-col items-center text-center gap-10 group-hover:border-brand-primary shadow-lg"
-                  whileHover={{ y: -12, boxShadow: '0 40px 80px -20px rgba(58,173,173,0.15)' }}
+                <Surface
+                  depth="raised"
+                  radius="2xl"
+                  padding="lg"
+                  interactive
+                  className="h-full flex flex-col items-center text-center gap-6"
                 >
-                  <div className="w-full flex flex-col items-center gap-6">
-                     <motion.div className="w-16 h-16 rounded-2xl bg-bg-overlay flex items-center justify-center border border-border-subtle group-hover:scale-110 transition-transform">
-                        <tutorial.icon size={32} className="text-brand-primary" />
-                     </motion.div>
-                     <Badge variant={tutorial.level === 'beginner' ? 'teal' : tutorial.level === 'intermediate' ? 'amber' : 'neutral'} className="text-[8px] font-black uppercase tracking-widest px-4 py-1.5 shadow-md">
-                        {tutorial.level}
-                     </Badge>
+                  {/* Icon */}
+                  <div
+                    className="w-14 h-14 rounded-[18px] flex items-center justify-center group-hover:scale-110 transition-transform"
+                    style={{
+                      background: 'var(--surface-base)',
+                      boxShadow: 'var(--shadow-inset)',
+                    }}
+                  >
+                    <tutorial.icon size={26} style={{ color: 'var(--brand-primary)' }} />
                   </div>
 
-                  <div className="space-y-6 flex-1 flex flex-col items-center">
-                    <div className="flex flex-col items-center gap-2">
-                       <span className="text-[10px] font-black uppercase tracking-[0.3em] text-text-muted font-mono">Lesson {tutorial.number}</span>
-                       <h3 className="m-0 text-3xl font-display font-black leading-tight text-text-primary">
-                         {tutorial.title}
-                       </h3>
-                    </div>
-                    <p className="m-0 text-lg text-text-secondary leading-relaxed font-bold group-hover:text-text-primary transition-colors">
+                  {/* Level Badge */}
+                  <Badge variant={LEVEL_BADGE[tutorial.level]} size="sm">
+                    {tutorial.level}
+                  </Badge>
+
+                  {/* Title + Description */}
+                  <div className="space-y-3 flex-1 flex flex-col items-center">
+                    <span
+                      className="text-[10px] font-black uppercase tracking-[0.3em] font-mono"
+                      style={{ color: 'var(--text-muted)' }}
+                    >
+                      Lesson {tutorial.number}
+                    </span>
+                    <h3
+                      className="text-2xl font-display font-black leading-tight"
+                      style={{ color: 'var(--text-primary)' }}
+                    >
+                      {tutorial.title}
+                    </h3>
+                    <p
+                      className="text-sm leading-relaxed"
+                      style={{ color: 'var(--text-secondary)' }}
+                    >
                       {tutorial.description}
                     </p>
                   </div>
 
-                  <div className="flex flex-wrap justify-center gap-3">
-                     {tutorial.tags.map(tag => (
-                       <span key={tag} className="px-4 py-1.5 rounded-xl bg-bg-overlay text-[10px] font-black text-text-muted uppercase tracking-widest border border-border-subtle group-hover:border-brand-primary/20 transition-all">{tag}</span>
-                     ))}
+                  {/* Tags */}
+                  <div className="flex flex-wrap justify-center gap-2">
+                    {tutorial.tags.map(tag => (
+                      <Badge key={tag} variant="default" size="sm">{tag}</Badge>
+                    ))}
                   </div>
 
-                  <div className="w-full flex items-center justify-between pt-10 border-t border-border-subtle group-hover:border-brand-primary/20 transition-colors">
-                     <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-text-muted group-hover:text-text-primary transition-colors">
-                        <Clock size={14} className="text-brand-primary" />
+                  {/* Footer */}
+                  <div
+                    className="w-full flex items-center justify-between pt-4"
+                    style={{ borderTop: '1px solid var(--border-default)' }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Clock size={14} style={{ color: 'var(--brand-primary)' }} />
+                      <span
+                        className="text-[10px] font-black uppercase tracking-widest"
+                        style={{ color: 'var(--text-muted)' }}
+                      >
                         {tutorial.time}
-                     </div>
-                     <div className="w-10 h-10 rounded-full bg-bg-overlay border border-border-subtle flex items-center justify-center group-hover:bg-brand-primary group-hover:text-brand-on-primary group-hover:border-transparent transition-all shadow-md">
-                        <Play size={14} fill="currentColor" className="ml-0.5" />
-                     </div>
+                      </span>
+                    </div>
+                    <div
+                      className="w-9 h-9 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform"
+                      style={{
+                        background: 'var(--surface-base)',
+                        boxShadow: 'var(--shadow-inset)',
+                      }}
+                    >
+                      <Play size={12} fill="currentColor" style={{ color: 'var(--brand-primary)' }} className="ml-0.5" />
+                    </div>
                   </div>
-                </motion.div>
+                </Surface>
               </Link>
             </motion.div>
           ))}
         </div>
 
-        {/* Vision Callout */}
-        <motion.div 
-          className="mt-32 p-20 rounded-[80px] border border-dashed border-border-strong bg-gradient-to-br from-bg-surface to-bg-base flex flex-col items-center text-center gap-12 relative overflow-hidden w-full shadow-2xl mx-auto"
+        {/* Verification Callout */}
+        <motion.div
+          className="mt-20"
           initial={{ opacity: 0, scale: 0.98 }}
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
         >
-           <div className="absolute top-0 right-0 p-10 opacity-[0.02] pointer-events-none text-text-primary">
-              <Anchor size={800} />
-           </div>
-           
-           <div className="space-y-8 max-w-4xl relative z-10 flex flex-col items-center">
-              <Badge variant="teal" className="px-8 py-3 text-[10px] font-black uppercase tracking-widest shadow-2xl bg-bg-overlay border border-brand-primary text-brand-primary">Automated Verification</Badge>
-              <h3 className="text-4xl sm:text-7xl font-display font-black tracking-tight leading-[0.95] m-0 text-text-primary">
-                Certified <span className="text-brand-primary">Academy.</span>
-              </h3>
-              <p className="text-xl sm:text-2xl leading-relaxed text-text-secondary font-bold">
-                Every lesson in the Port Daddy Academy is backed by an automated verification service. We use Playwright and VHS to record live CLI sessions and ensure that the code you learn today will work in your harbor tomorrow.
-              </p>
-           </div>
+          <Surface depth="flat" radius="2xl" padding="xl" className="flex flex-col items-center text-center gap-10 relative overflow-hidden">
+            {/* Ghost anchor */}
+            <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none">
+              <Anchor size={400} style={{ color: 'var(--text-primary)' }} />
+            </div>
 
-           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 w-full max-w-6xl relative z-10">
+            <div className="space-y-6 max-w-3xl relative z-10 flex flex-col items-center">
+              <Badge variant="teal" size="lg" className="px-6 py-2 text-[10px] font-black uppercase tracking-[0.2em]">
+                Automated Verification
+              </Badge>
+              <h3
+                className="text-3xl sm:text-5xl font-display font-black tracking-tighter leading-[0.9]"
+                style={{ color: 'var(--text-primary)' }}
+              >
+                Certified <span style={{ color: 'var(--brand-primary)' }}>Academy.</span>
+              </h3>
+              <p
+                className="text-lg leading-relaxed"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                Every lesson is backed by automated verification. We use Playwright and VHS to record live CLI sessions and ensure the code you learn today works in your harbor tomorrow.
+              </p>
+            </div>
+
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 w-full max-w-4xl relative z-10">
               {[
                 { label: 'VHS Recorded', icon: Play },
                 { label: 'Playwright Verified', icon: Shield },
                 { label: 'Unit Tested', icon: Sparkles },
                 { label: 'Continuous CI', icon: Zap }
-              ].map((item, i) => (
-                <motion.div key={i} className="p-10 rounded-[40px] bg-bg-overlay border border-border-subtle flex flex-col items-center gap-6 group hover:border-brand-primary transition-all shadow-xl">
-                   <motion.div className="w-14 h-14 rounded-2xl bg-bg-base flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform border border-border-subtle">
-                      <item.icon size={28} className="text-brand-primary" />
-                   </motion.div>
-                   <span className="text-[10px] font-black uppercase tracking-[0.25em] text-text-muted group-hover:text-text-primary transition-colors">{item.label}</span>
-                </motion.div>
+              ].map((item) => (
+                <Surface
+                  key={item.label}
+                  depth="inset"
+                  radius="xl"
+                  padding="md"
+                  className="flex flex-col items-center gap-4 group"
+                >
+                  <div
+                    className="w-12 h-12 rounded-[16px] flex items-center justify-center group-hover:scale-110 transition-transform"
+                    style={{
+                      background: 'var(--surface-raised)',
+                      boxShadow: 'var(--shadow-sm)',
+                    }}
+                  >
+                    <item.icon size={22} style={{ color: 'var(--brand-primary)' }} />
+                  </div>
+                  <span
+                    className="text-[10px] font-black uppercase tracking-[0.2em]"
+                    style={{ color: 'var(--text-muted)' }}
+                  >
+                    {item.label}
+                  </span>
+                </Surface>
               ))}
-           </div>
+            </div>
+          </Surface>
         </motion.div>
-      </motion.main>
+      </main>
 
       <Footer />
     </motion.div>

@@ -51,14 +51,17 @@
 \citation{blanchet2016modeling}
 \citation{lowe1997hierarchy}
 \citation{cve20159235}
-\citation{mclean2015critical}
 \newlabel{thm:injective}{{4.1}{5}{Injective Agreement}{theorem.4.1}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces ProVerif verification results across all three protocol phases. All queries verified for an unbounded number of sessions under the Dolev-Yao adversary model.}}{5}{table.caption.2}\protected@file@percent }
+\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
+\newlabel{tab:proverif-results}{{1}{5}{ProVerif verification results across all three protocol phases. All queries verified for an unbounded number of sessions under the Dolev-Yao adversary model}{table.caption.2}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {4.2}Implementation Verification}{5}{subsection.4.2}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {5}Verification Algorithms}{5}{section.5}\protected@file@percent }
 \newlabel{sec:algorithms}{{5}{5}{Verification Algorithms}{section.5}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {5.1}Phase 1: Symmetric HS256 with Algorithm Pinning}{5}{subsection.5.1}\protected@file@percent }
 \newlabel{alg:symmetric}{{1}{5}{Algorithm 1: Secure Harbor Verification (HS256 with Algorithm Pinning)}{lstlisting.1}{}}
 \@writefile{lol}{\contentsline {lstlisting}{\numberline {1}{\ignorespaces Algorithm 1: Secure Harbor Verification (HS256 with Algorithm Pinning)}}{5}{lstlisting.1}\protected@file@percent }
+\citation{mclean2015critical}
 \citation{bernstein2012high}
 \citation{birgisson2014macaroons}
 \@writefile{toc}{\contentsline {subsection}{\numberline {5.2}Phase 2: Asymmetric Ed25519}{6}{subsection.5.2}\protected@file@percent }
@@ -68,9 +71,15 @@
 \newlabel{sec:delegation}{{5.3}{6}{Phase 3: Multi-hop Delegation}{subsection.5.3}{}}
 \newlabel{alg:delegation}{{3}{6}{Algorithm 3: Delegation Chain Verification}{lstlisting.3}{}}
 \@writefile{lol}{\contentsline {lstlisting}{\numberline {3}{\ignorespaces Algorithm 3: Delegation Chain Verification}}{6}{lstlisting.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {6}Implementation: Rust Core}{7}{section.6}\protected@file@percent }
-\@writefile{lol}{\contentsline {lstlisting}{\numberline {4}{\ignorespaces Rust Implementation — Constant-Time Verification}}{7}{lstlisting.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {6}Implementation: Deployed Rust Core}{7}{section.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.1}Core Verification Logic}{7}{subsection.6.1}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {4}{\ignorespaces Deployed Rust Implementation — Harbor Card Verifier (abridged from \texttt  {core/harbor-card-rs/src/lib.rs})}}{7}{lstlisting.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.2}FFI Bridge to the Node.js Daemon}{8}{subsection.6.2}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {5}{\ignorespaces FFI Exports — Called from \texttt  {lib/arbiter.ts} in the Running Daemon}}{8}{lstlisting.5}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {6}{\ignorespaces TypeScript FFI Binding (\texttt  {lib/arbiter.ts})}}{8}{lstlisting.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.3}Kani Verification Harnesses}{8}{subsection.6.3}\protected@file@percent }
 \citation{dolev1983security}
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {7}{\ignorespaces Kani Proof Harnesses (Deployed Source)}}{9}{lstlisting.7}\protected@file@percent }
 \citation{blanchet2016modeling}
 \citation{blanchet2016modeling}
 \citation{mclean2015critical}
@@ -78,20 +87,20 @@
 \citation{birgisson2014macaroons}
 \citation{aws2022kani}
 \citation{brumley2011remote}
+\citation{birgisson2014macaroons}
 \citation{blanchet2016modeling}
 \citation{aws2022kani}
 \citation{birgisson2014macaroons}
 \bibstyle{plain}
 \bibcite{blanchet2016modeling}{1}
+\@writefile{toc}{\contentsline {section}{\numberline {7}Security Analysis}{10}{section.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.1}Threat Model}{10}{subsection.7.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.2}Security Properties}{10}{subsection.7.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Verified Security Properties. ``Deployed'' indicates the verified Rust code is called by the production daemon via FFI (\texttt  {lib/arbiter.ts} $\to $ \texttt  {harbor-card-rs}).}}{10}{table.caption.3}\protected@file@percent }
+\newlabel{tab:properties}{{2}{10}{Verified Security Properties. ``Deployed'' indicates the verified Rust code is called by the production daemon via FFI (\texttt {lib/arbiter.ts} $\to $ \texttt {harbor-card-rs})}{table.caption.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.3}Limitations}{10}{subsection.7.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {8}Conclusion}{10}{section.8}\protected@file@percent }
 \bibcite{blanchet2007cryptoverif}{2}
-\@writefile{toc}{\contentsline {section}{\numberline {7}Security Analysis}{9}{section.7}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {7.1}Threat Model}{9}{subsection.7.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {7.2}Security Properties}{9}{subsection.7.2}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Verified Security Properties}}{9}{table.caption.2}\protected@file@percent }
-\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
-\newlabel{tab:properties}{{1}{9}{Verified Security Properties}{table.caption.2}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {7.3}Limitations}{9}{subsection.7.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {8}Conclusion}{9}{section.8}\protected@file@percent }
 \bibcite{blanchet2017proverif}{3}
 \bibcite{birgisson2014macaroons}{4}
 \bibcite{lowe1997hierarchy}{5}
@@ -114,8 +123,14 @@
 \bibcite{bhargavan2017everest}{22}
 \bibcite{brumley2011remote}{23}
 \bibcite{barbosa2021sok}{24}
-\@writefile{toc}{\contentsline {section}{\numberline {A}Full ProVerif Models}{11}{appendix.A}\protected@file@percent }
-\newlabel{app:proverif}{{A}{11}{Full ProVerif Models}{appendix.A}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {A.1}Phase 1: Symmetric HS256}{11}{subsection.A.1}\protected@file@percent }
-\@writefile{lol}{\contentsline {lstlisting}{\numberline {5}{\ignorespaces \texttt  {harbor\_card\_v1\_refined.pv}}}{11}{lstlisting.5}\protected@file@percent }
-\gdef \@abspage@last{12}
+\@writefile{toc}{\contentsline {section}{\numberline {A}Full ProVerif Models}{12}{appendix.A}\protected@file@percent }
+\newlabel{app:proverif}{{A}{12}{Full ProVerif Models}{appendix.A}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {A.1}Phase 1: Symmetric HS256}{12}{subsection.A.1}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {8}{\ignorespaces \texttt  {harbor\_card\_v1\_refined.pv}}}{12}{lstlisting.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {B}Phase 2: Asymmetric Ed25519}{13}{appendix.B}\protected@file@percent }
+\newlabel{app:phase2}{{B}{13}{Phase 2: Asymmetric Ed25519}{appendix.B}{}}
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {9}{\ignorespaces \texttt  {harbor\_card\_v2\_asymmetric.pv} --- Verified in ProVerif 2.05}}{13}{lstlisting.9}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {C}Phase 3: Multi-hop Delegation}{14}{appendix.C}\protected@file@percent }
+\newlabel{app:phase3}{{C}{14}{Phase 3: Multi-hop Delegation}{appendix.C}{}}
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {10}{\ignorespaces \texttt  {harbor\_card\_v3\_delegation.pv} --- Verified in ProVerif 2.05}}{14}{lstlisting.10}\protected@file@percent }
+\gdef \@abspage@last{15}
