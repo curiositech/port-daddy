@@ -1,5 +1,6 @@
+import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
-import { Anchor, Zap, RefreshCw, Cpu, Shield } from 'lucide-react'
+import { Anchor, Zap, RefreshCw, Cpu, Shield, ArrowRight, Terminal } from 'lucide-react'
 
 interface Step {
   number: string
@@ -7,6 +8,7 @@ interface Step {
   description: string
   code: string[]
   icon: typeof Anchor
+  color?: string
 }
 
 const STEPS: Step[] = [
@@ -141,7 +143,7 @@ export function HowItWorks() {
                    <ArrowRight size={32} style={{ color: 'var(--text-muted)' }} />
                 </div>
               )}
-            </div>
+            </motion.div>
           ))}
         </div>
 

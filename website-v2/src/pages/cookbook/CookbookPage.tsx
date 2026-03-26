@@ -38,7 +38,7 @@ export function CookbookPage() {
         />
         
         <motion.div className="max-w-7xl mx-auto text-center flex flex-col items-center gap-10 relative z-10">
-          <Badge variant="amber" className="px-6 py-2 text-[10px] font-black uppercase tracking-[0.25em] shadow-xl">Orchestration Patterns</Badge>
+          <Badge variant="gold" className="px-6 py-2 text-[10px] font-black uppercase tracking-[0.25em] shadow-xl">Orchestration Patterns</Badge>
           <motion.h1 
             className="text-6xl sm:text-9xl font-black tracking-tighter font-display leading-[0.9]"
             initial={{ opacity: 0, y: 32 }}
@@ -83,7 +83,7 @@ export function CookbookPage() {
                        <motion.div className="w-20 h-20 rounded-[32px] bg-[var(--p-amber-400)]/10 flex items-center justify-center border border-[var(--p-amber-400)]/20 group-hover:scale-110 transition-transform shadow-xl">
                           <Icon size={40} className="text-[var(--p-amber-400)]" />
                        </motion.div>
-                       <Badge variant={recipe.difficulty === 'advanced' ? 'neutral' : 'teal'} className="text-[8px] font-black uppercase tracking-widest px-3 py-1">
+                       <Badge variant={recipe.difficulty === 'advanced' ? 'default' : 'teal'} className="text-[8px] font-black uppercase tracking-widest px-3 py-1">
                           {recipe.difficulty}
                        </Badge>
                     </motion.div>

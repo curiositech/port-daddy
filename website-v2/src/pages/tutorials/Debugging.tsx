@@ -140,7 +140,7 @@ export function Debugging() {
           style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
           whileHover={{ scale: 1.01 }}
         >
-           <Badge variant="amber" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Still Stuck?</Badge>
+           <Badge variant="gold" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Still Stuck?</Badge>
            <motion.h3 className="text-4xl font-display font-black m-0" style={{ color: 'var(--text-primary)' }}>Deep SDK Reference.</motion.h3>
            <motion.p className="text-xl max-w-xl text-[var(--text-secondary)]">
              The CLI manual contains detailed error codes and recovery patterns for every possible infrastructure collision.

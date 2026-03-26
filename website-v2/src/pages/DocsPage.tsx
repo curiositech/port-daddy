@@ -163,7 +163,7 @@ export default function DocsPage() {
                         {section.description}
                      </motion.p>
                   </motion.div>
-                  <Badge variant="neutral" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest bg-[var(--bg-overlay)]">Core Primitive</Badge>
+                  <Badge variant="default" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest bg-[var(--bg-overlay)]">Core Primitive</Badge>
                </motion.div>
 
                <motion.div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8 w-full">
@@ -187,7 +187,7 @@ export default function DocsPage() {
            </motion.div>
            
            <motion.div className="space-y-6 max-w-3xl relative z-10">
-              <Badge variant="amber" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest shadow-xl">Architectural Integrity</Badge>
+              <Badge variant="gold" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest shadow-xl">Architectural Integrity</Badge>
               <motion.h3 className="text-4xl sm:text-7xl font-display font-black tracking-tight leading-[0.95]" style={{ color: 'var(--text-primary)' }}>
                 System <motion.span className="text-[var(--p-amber-400)]">Soundness.</motion.span>
               </motion.h3>

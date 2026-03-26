@@ -76,7 +76,7 @@ export function IntegrationsPage() {
                        <motion.div className="w-20 h-20 rounded-[32px] bg-[var(--interactive-active)] flex items-center justify-center border border-[var(--border-subtle)] group-hover:scale-110 transition-transform shadow-lg">
                           <Icon size={32} className="text-[var(--brand-primary)]" />
                        </motion.div>
-                       <Badge variant={int.status === 'official' ? 'teal' : 'neutral'} className="text-[8px] font-black uppercase tracking-widest px-4 py-1.5 shadow-md">
+                       <Badge variant={int.status === 'official' ? 'teal' : 'default'} className="text-[8px] font-black uppercase tracking-widest px-4 py-1.5 shadow-md">
                           {int.status}
                        </Badge>
                     </div>
@@ -118,7 +118,7 @@ export function IntegrationsPage() {
            </div>
            
            <div className="max-w-4xl relative z-10 space-y-10 flex flex-col items-center">
-              <Badge variant="amber" className="px-8 py-3 text-[10px] font-black uppercase tracking-widest shadow-xl">Architectural Mesh</Badge>
+              <Badge variant="gold" className="px-8 py-3 text-[10px] font-black uppercase tracking-widest shadow-xl">Architectural Mesh</Badge>
               <motion.h3 className="text-5xl sm:text-8xl font-display font-black tracking-tight leading-[0.95] m-0" style={{ color: 'var(--text-primary)' }}>
                 One Mesh. <br />
                 <span className="text-[var(--p-amber-400)]">Global Scale.</span>

@@ -14,8 +14,8 @@ const NAV_HEIGHT = '4rem'
 interface TutorialLayoutProps {
   title: string
   description: string
-  number: number
-  total?: number
+  number: number | string
+  total?: number | string
   level: 'Beginner' | 'Intermediate' | 'Advanced'
   readTime: string
   children: React.ReactNode
@@ -50,10 +50,12 @@ export function TutorialLayout({
     window.scrollTo(0, 0)
   }, [location.pathname])
 
+  const numericNumber = typeof number === 'string' ? parseInt(number, 10) : number
+
   // Track if user is returning to this tutorial
   React.useEffect(() => {
     const stored = localStorage.getItem('pd-last-tutorial')
-    const current = number
+    const current = numericNumber
     
     if (stored && parseInt(stored) === current) {
       const lastVisit = localStorage.getItem('pd-last-visit')
@@ -118,7 +120,7 @@ export function TutorialLayout({
           {/* Reorientation Panel for returning users */}
           {hasReturned && (
             <ReorientationPanel 
-              tutorialNumber={number} 
+              tutorialNumber={typeof number === 'string' ? parseInt(number, 10) : number}
               tutorialTitle={title}
               onDismiss={() => setHasReturned(false)}
             />
@@ -144,7 +146,7 @@ export function TutorialLayout({
           {/* Tutorial Progress Tracker */}
           <div className="mb-8">
             <TutorialProgress 
-              currentNumber={number} 
+              currentNumber={typeof number === 'string' ? parseInt(number, 10) : number}
               isOpen={showProgress}
               onToggle={() => setShowProgress(!showProgress)}
             />
@@ -157,7 +159,7 @@ export function TutorialLayout({
             className="flex flex-col items-center"
           >
             <motion.div className="flex items-center gap-5 mb-10 font-sans">
-              <Badge variant={level === 'Beginner' ? 'teal' : level === 'Intermediate' ? 'amber' : 'neutral'} className="px-5 py-2 text-[9px] font-black uppercase tracking-widest shadow-xl shadow-[var(--brand-primary)]/5">
+              <Badge variant={level === 'Beginner' ? 'teal' : level === 'Intermediate' ? 'gold' : 'default'} className="px-5 py-2 text-[9px] font-black uppercase tracking-widest shadow-xl shadow-[var(--brand-primary)]/5">
                 {level}
               </Badge>
               <motion.div className="h-[1px] w-12 bg-[var(--border-strong)] opacity-40" />

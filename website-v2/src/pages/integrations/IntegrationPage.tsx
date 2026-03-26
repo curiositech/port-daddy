@@ -55,7 +55,7 @@ export function IntegrationPage() {
            </motion.div>
 
            <motion.div className="space-y-4">
-              <Badge variant={integration.status === 'official' ? 'teal' : 'neutral'} className="px-4 py-1.5 text-[8px] font-black uppercase tracking-widest">{integration.status} Integration</Badge>
+              <Badge variant={integration.status === 'official' ? 'teal' : 'default'} className="px-4 py-1.5 text-[8px] font-black uppercase tracking-widest">{integration.status} Integration</Badge>
               <motion.h1 
                 className="text-5xl sm:text-7xl font-black tracking-tighter font-display leading-[1.05]"
                 initial={{ opacity: 0, y: 24 }}

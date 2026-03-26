@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Badge } from '@/components/ui/Badge'
-import { Globe, Zap, Share2, Terminal, Activity } from 'lucide-react'
+import { Globe, Zap, Share2, Activity, Network, Lock as LockIcon } from 'lucide-react'
 
 export function Tunnel() {
   return (
@@ -10,7 +10,7 @@ export function Tunnel() {
       title="Tunnels"
       description="Expose local services to the internet instantly. Port Daddy wraps ngrok, cloudflared, and localtunnel to create public URLs for any claimed service."
       number="05"
-      total="14"
+      total={14}
       level="Beginner"
       readTime="6 min read"
       prev={{ title: 'Agent Spawning', href: '/tutorials/always-on' }}
@@ -40,7 +40,7 @@ export function Tunnel() {
                   className="w-10 h-10 rounded-xl flex items-center justify-center"
                   style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
                 >
-                   <Lock size={20} className="text-[var(--p-teal-400)]" />
+                   <LockIcon size={20} className="text-[var(--p-teal-400)]" />
                 </motion.div>
                 <motion.h3 className="text-xl font-display font-black m-0">Provider Agnostic</motion.h3>
                 <motion.p className="text-sm opacity-60 m-0">Works with whichever tunnel provider you have installed. Port Daddy detects available providers automatically.</motion.p>
@@ -133,7 +133,7 @@ export function Tunnel() {
                   className="flex-1 p-6 rounded-2xl text-center"
                   style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
                 >
-                   <Badge variant="amber" className="mb-2">Remote Harbor</Badge>
+                   <Badge variant="gold" className="mb-2">Remote Harbor</Badge>
                    <motion.p className="text-xs opacity-60 m-0">Agent 'B'</motion.p>
                 </motion.div>
              </motion.div>

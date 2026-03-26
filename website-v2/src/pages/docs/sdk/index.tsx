@@ -70,7 +70,7 @@ export default function SdkOverview() {
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           <Badge variant="teal">SDK</Badge>
-          <Badge variant="neutral">v3.7.0</Badge>
+          <Badge variant="default">v3.7.0</Badge>
         </div>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           TypeScript SDK
@@ -144,7 +144,7 @@ await pd.sessions.done(session.id)`} />
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
                     <h3 className="font-semibold text-[var(--text-primary)]">{module.name}</h3>
-                    <Badge variant={module.badge === 'New' ? 'amber' : 'green'}>{module.badge}</Badge>
+                    <Badge variant={module.badge === 'New' ? 'gold' : 'success'}>{module.badge}</Badge>
                   </div>
                   <p className="text-sm text-[var(--text-tertiary)] mb-3">{module.description}</p>
                   <div className="flex flex-wrap gap-2">

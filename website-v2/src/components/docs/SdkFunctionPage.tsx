@@ -86,7 +86,7 @@ export function SdkFunctionPage({
       <div className="space-y-4">
         <div className="flex items-center gap-3">
           <Badge variant="teal">SDK</Badge>
-          <Badge variant="neutral">v{version}</Badge>
+          <Badge variant="default">v{version}</Badge>
         </div>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight font-mono">
           {fn}()
@@ -111,7 +111,7 @@ export function SdkFunctionPage({
               <div key={i} className="p-4 bg-[var(--bg-surface)]">
                 <div className="flex items-center gap-2">
                   <code className="text-sm font-mono text-[var(--brand-primary)]">{param.name}</code>
-                  {param.required && <Badge variant="neutral" size="sm">required</Badge>}
+                  {param.required && <Badge variant="default" size="sm">required</Badge>}
                   <span className="text-xs text-[var(--text-muted)]">{param.type}</span>
                 </div>
                 <p className="text-sm text-[var(--text-tertiary)] mt-1">{param.description}</p>

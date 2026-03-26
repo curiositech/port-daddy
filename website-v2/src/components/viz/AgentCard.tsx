@@ -36,7 +36,7 @@ export function AgentCard({ agent }: AgentCardProps) {
           <motion.div className="font-sans">
             <motion.h3 className="text-base font-bold truncate max-w-[180px] font-display" style={{ color: 'var(--text-primary)' }}>{agent.name || agent.id}</motion.h3>
             <motion.div className="flex items-center gap-2 mt-1 font-sans">
-              <Badge variant={agent.healthAssessment.liveness === 'alive' ? 'teal' : 'neutral'} className="text-[9px] px-1.5 py-0 font-sans">
+              <Badge variant={agent.healthAssessment.liveness === 'alive' ? 'teal' : 'default'} className="text-[9px] px-1.5 py-0 font-sans">
                 {agent.healthAssessment.liveness}
               </Badge>
               <motion.span className="text-[10px] text-[var(--text-muted)] font-mono uppercase tracking-tighter">{agent.type}</motion.span>
@@ -91,7 +91,7 @@ export function AgentCard({ agent }: AgentCardProps) {
               </motion.div>
               <motion.div className="flex flex-wrap gap-2 font-sans">
                 {capabilities.map((cap: string) => (
-                  <Badge key={cap} variant="neutral" className="text-[10px] font-black uppercase tracking-widest bg-[var(--bg-overlay)] border-[var(--border-subtle)] font-sans">
+                  <Badge key={cap} variant="default" className="text-[10px] font-black uppercase tracking-widest bg-[var(--bg-overlay)] border-[var(--border-subtle)] font-sans">
                     {cap}
                   </Badge>
                 ))}
@@ -105,7 +105,7 @@ export function AgentCard({ agent }: AgentCardProps) {
               </motion.div>
               <motion.div className="flex flex-wrap gap-2 font-sans">
                 {protocols.map((proto: string) => (
-                  <Badge key={proto} variant="neutral" className="text-[10px] font-mono font-bold uppercase font-mono">
+                  <Badge key={proto} variant="default" className="text-[10px] font-mono font-bold uppercase font-mono">
                     {proto}
                   </Badge>
                 ))}

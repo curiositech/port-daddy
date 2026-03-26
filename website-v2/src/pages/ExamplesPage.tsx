@@ -219,7 +219,7 @@ export function ExamplesPage() {
                       </motion.div>
                       <div className="space-y-3 flex flex-col items-center lg:items-start">
                          <div className="flex items-center gap-4">
-                            <Badge variant="neutral" className="text-[10px] font-black uppercase tracking-widest px-4 py-1.5">
+                            <Badge variant="default" className="text-[10px] font-black uppercase tracking-widest px-4 py-1.5">
                                <span className="text-[var(--text-primary)]">{ex.category}</span>
                             </Badge>
                             <div className="h-1 w-1 rounded-full" style={{ background: 'var(--text-muted)' }} />
@@ -277,7 +277,7 @@ export function ExamplesPage() {
            </div>
 
            <div className="max-w-4xl relative z-10 space-y-10 flex flex-col items-center">
-              <Badge variant="amber" className="px-8 py-3 text-[10px] font-black uppercase tracking-widest">Architectural Integrity</Badge>
+              <Badge variant="gold" className="px-8 py-3 text-[10px] font-black uppercase tracking-widest">Architectural Integrity</Badge>
               <motion.h3 className="text-4xl sm:text-6xl font-display font-black tracking-tight leading-[0.95] m-0 text-[var(--text-primary)]">
                 One Mesh. <br />
                 <span className="text-[var(--p-amber-400)]">Infinite Logic.</span>

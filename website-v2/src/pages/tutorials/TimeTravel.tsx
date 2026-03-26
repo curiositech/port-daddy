@@ -10,7 +10,7 @@ export function TimeTravel() {
       title="Activity Log Inspection"
       description="When multiple agents work on the same project, the hardest question is 'what happened first?' Learn to use Port Daddy's immutable activity log to reconstruct the sequence of events."
       number="06"
-      total="14"
+      total={14}
       level="Intermediate"
       readTime="8 min read"
       prev={{ title: 'Tunnels', href: '/tutorials/tunnel' }}
@@ -46,14 +46,14 @@ export function TimeTravel() {
                className="p-6 rounded-2xl text-center space-y-3"
                style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
              >
-                <Badge variant="amber" className="text-[8px] font-black uppercase tracking-widest">Signals</Badge>
+                <Badge variant="gold" className="text-[8px] font-black uppercase tracking-widest">Signals</Badge>
                 <motion.p className="text-xs font-bold m-0">Pub/sub messages, SSE events</motion.p>
              </motion.div>
              <motion.div
                className="p-6 rounded-2xl text-center space-y-3"
                style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
              >
-                <Badge variant="neutral" className="text-[8px] font-black uppercase tracking-widest">Cognition</Badge>
+                <Badge variant="default" className="text-[8px] font-black uppercase tracking-widest">Cognition</Badge>
                 <motion.p className="text-xs font-bold m-0">Agent Notes</motion.p>
              </motion.div>
           </motion.div>

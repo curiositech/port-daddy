@@ -43,14 +43,14 @@ export function Spawn() {
                className="p-6 rounded-2xl text-center space-y-3"
                style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
              >
-                <Badge variant="amber" className="text-[8px] font-black uppercase tracking-widest">Automatic</Badge>
+                <Badge variant="gold" className="text-[8px] font-black uppercase tracking-widest">Automatic</Badge>
                 <motion.p className="text-xs font-bold m-0">Session Logs</motion.p>
              </motion.div>
              <motion.div
                className="p-6 rounded-2xl text-center space-y-3"
                style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
              >
-                <Badge variant="neutral" className="text-[8px] font-black uppercase tracking-widest">Automatic</Badge>
+                <Badge variant="default" className="text-[8px] font-black uppercase tracking-widest">Automatic</Badge>
                 <motion.p className="text-xs font-bold m-0">Radio Wiring</motion.p>
              </motion.div>
           </motion.div>

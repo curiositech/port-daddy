@@ -153,7 +153,7 @@ export function Monorepo() {
            <motion.div className="absolute top-0 right-0 p-10 opacity-[0.03] pointer-events-none">
               <Globe size={400} />
            </motion.div>
-           <Badge variant="amber" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Orchestration Maturity</Badge>
+           <Badge variant="gold" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Orchestration Maturity</Badge>
            <motion.h3 className="text-4xl font-display font-black m-0" style={{ color: 'var(--text-primary)' }}>Unified Mesh.</motion.h3>
            <motion.p className="text-xl max-w-xl opacity-70">
              Fleet management isn't just about starting scripts--it's about building a **shared environment**. When your frontend agent needs the API, it doesn't search for a port. It asks the Port Daddy mesh for the API identity.

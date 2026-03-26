@@ -50,7 +50,7 @@ function UnifiedTimeline() {
           </motion.div>
         </motion.div>
         <motion.div className="flex items-center gap-3 font-sans">
-          <Badge variant="neutral" className="px-3 py-1 text-[8px] font-black uppercase tracking-widest">v3.7 protocol</Badge>
+          <Badge variant="default" className="px-3 py-1 text-[8px] font-black uppercase tracking-widest">v3.7 protocol</Badge>
           <motion.div
             className="flex items-center gap-2 px-3 py-1.5 rounded-full"
             style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-pressed)' }}
@@ -189,7 +189,7 @@ export function DashboardPage() {
                 style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
               >
                  <motion.div className="absolute top-8 left-8 z-10 flex items-center gap-4">
-                    <Badge variant="neutral" className="px-4 py-1.5 text-[10px] font-black uppercase tracking-widest">Network Topology</Badge>
+                    <Badge variant="default" className="px-4 py-1.5 text-[10px] font-black uppercase tracking-widest">Network Topology</Badge>
                     <motion.div
                       className="flex items-center gap-2 px-3 py-1 rounded-full backdrop-blur-md"
                       style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-pressed)' }}

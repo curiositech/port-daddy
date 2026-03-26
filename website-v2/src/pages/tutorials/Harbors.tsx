@@ -88,7 +88,7 @@ export function Harbors() {
                className="p-8 rounded-2xl space-y-4"
                style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
              >
-                <Badge variant="amber">Capability: notes:write</Badge>
+                <Badge variant="gold">Capability: notes:write</Badge>
                 <motion.p className="text-sm m-0 leading-relaxed text-[var(--text-secondary)]">
                   Allows the agent to post status updates and findings to the session timeline. Other agents (including those outside this harbor) can read these notes to see the review results.
                 </motion.p>

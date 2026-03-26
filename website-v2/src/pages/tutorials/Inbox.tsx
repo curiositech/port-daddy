@@ -132,7 +132,7 @@ export function Inbox() {
                   className="flex-1 p-6 rounded-2xl text-center"
                   style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
                 >
-                   <Badge variant="amber" className="mb-2">Daemon Inbox</Badge>
+                   <Badge variant="gold" className="mb-2">Daemon Inbox</Badge>
                    <motion.p className="text-[10px] text-[var(--text-muted)] font-mono">Persistent Queue</motion.p>
                 </motion.div>
                 <motion.div className="shrink-0">
@@ -142,7 +142,7 @@ export function Inbox() {
                   className="flex-1 p-6 rounded-2xl text-center opacity-60"
                   style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
                 >
-                   <Badge variant="neutral" className="mb-2">Agent 'beta'</Badge>
+                   <Badge variant="default" className="mb-2">Agent 'beta'</Badge>
                    <motion.p className="text-[10px] text-[var(--text-muted)] font-mono">pd sub...</motion.p>
                 </motion.div>
              </motion.div>

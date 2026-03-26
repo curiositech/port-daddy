@@ -68,7 +68,7 @@ export function TemplatesPage() {
               <div className="space-y-4 flex-1">
                 <div className="flex items-center justify-between">
                   <h2 className="text-3xl font-display font-black text-text-primary">{template.title}</h2>
-                  <Badge variant="neutral" className="text-[8px] font-black uppercase tracking-widest bg-bg-overlay border border-border-subtle text-text-muted">{template.complexity}</Badge>
+                  <Badge variant="default" className="text-[8px] font-black uppercase tracking-widest bg-bg-overlay border border-border-subtle text-text-muted">{template.complexity}</Badge>
                 </div>
                 <p className="text-lg text-text-secondary leading-relaxed font-bold">
                   {template.description}

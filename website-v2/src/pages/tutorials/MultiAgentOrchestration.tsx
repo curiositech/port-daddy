@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Badge } from '@/components/ui/Badge'
-import { Share2, FileCode, MessageSquare, Activity, Users, AlertTriangle } from 'lucide-react'
+import { Share2, FileCode, MessageSquare, Activity, Users } from 'lucide-react'
 
 export function MultiAgentOrchestration() {
   return (
@@ -134,7 +134,7 @@ $ pd watch swarm:events --exec "npm test"
                className="p-8 rounded-2xl space-y-4"
                style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
              >
-                <Badge variant="neutral">The Broadcaster</Badge>
+                <Badge variant="default">The Broadcaster</Badge>
                 <motion.p className="text-sm opacity-60 m-0 leading-relaxed text-[var(--text-secondary)]">Publishes high-level events like "task_complete" or "error_detected".</motion.p>
              </motion.div>
              <motion.div
@@ -156,7 +156,7 @@ $ pd watch swarm:events --exec "npm test"
            <motion.div className="absolute top-0 right-0 p-10 opacity-[0.03] pointer-events-none">
               <Share2 size={400} />
            </motion.div>
-           <Badge variant="amber" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">The Pattern</Badge>
+           <Badge variant="gold" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">The Pattern</Badge>
            <motion.h3 className="text-4xl font-display font-black m-0" style={{ color: 'var(--text-primary)' }}>Claim, Work, Signal, Done.</motion.h3>
            <motion.p className="text-xl max-w-xl text-[var(--text-secondary)]">
              The coordination pattern is always the same. Start a session (<code>pd begin</code>). Claim your files. Do the work, writing notes along the way. Signal completion via pub/sub. End the session (<code>pd done</code>). Every agent follows this lifecycle, and Port Daddy handles the rest.

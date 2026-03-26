@@ -105,7 +105,7 @@ export const FullComposition: Story = {
       <CardHeader>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <h3 style={{ margin: 0 }}>Port Assignment</h3>
-          <Badge variant="green">Active</Badge>
+          <Badge variant="success">Active</Badge>
         </div>
       </CardHeader>
       <CardContent>
