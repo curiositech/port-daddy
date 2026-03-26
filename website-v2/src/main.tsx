@@ -199,6 +199,9 @@ createRoot(document.getElementById('root')!).render(
             {/* Blog */}
             <Route path="/blog" element={<BlogPage />} />
             <Route path="/blog/:slug" element={<BlogPostPage />} />
+
+            {/* White Papers */}
+            <Route path="/whitepaper" element={<WhitepaperPage />} />
           </Route>
 
           {/* Documentation with Sidebar Layout */}
