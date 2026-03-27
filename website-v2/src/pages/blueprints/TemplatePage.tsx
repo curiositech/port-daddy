@@ -114,16 +114,16 @@ export function TemplatePage() {
            {/* Architecture */}
            <section className="space-y-12">
               <motion.div className="flex items-center gap-4 border-b border-[var(--border-subtle)] pb-8">
-                 <motion.div className="w-10 h-10 rounded-xl bg-[var(--p-teal-500)]/10 flex items-center justify-center border border-[var(--p-teal-500)]/20">
-                    <Layers size={20} className="text-[var(--p-teal-400)]" />
+                 <motion.div className="w-10 h-10 rounded-xl bg-[var(--brand-secondary)]/10 flex items-center justify-center border border-[var(--brand-secondary)]/20">
+                    <Layers size={20} className="text-[var(--brand-secondary)]" />
                  </motion.div>
                  <motion.h2 className="text-3xl font-display font-black m-0">Swarm Architecture</motion.h2>
               </motion.div>
 
               <motion.div className="grid sm:grid-cols-2 gap-8">
                  <motion.div className="p-8 rounded-[32px] bg-[var(--surface-raised)] border border-[var(--border-subtle)] space-y-4 group hover:border-[var(--brand-primary)] transition-colors">
-                    <motion.div className="w-10 h-10 rounded-xl bg-[var(--p-teal-500)]/10 flex items-center justify-center border border-[var(--p-teal-500)]/20">
-                       <Users size={20} className="text-[var(--p-teal-400)]" />
+                    <motion.div className="w-10 h-10 rounded-xl bg-[var(--brand-secondary)]/10 flex items-center justify-center border border-[var(--brand-secondary)]/20">
+                       <Users size={20} className="text-[var(--brand-secondary)]" />
                     </motion.div>
                     <motion.h3 className="text-xl font-display font-black m-0">Role-Based Agents</motion.h3>
                     <motion.p className="text-base text-[var(--text-secondary)] m-0 leading-relaxed">Dedicated identities for planners, coders, and reviewers with scoped file access.</motion.p>

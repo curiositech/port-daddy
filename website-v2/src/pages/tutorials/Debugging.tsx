@@ -4,6 +4,7 @@ import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Badge } from '@/components/ui/Badge'
 import { Search, Activity, Shield, Zap, AlertTriangle, RefreshCw, ChevronRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { Surface } from '@/components/ui/Surface'
 
 export function Debugging() {
   return (
@@ -21,11 +22,8 @@ export function Debugging() {
         {/* Intro Section */}
         <section className="space-y-6">
           <motion.div className="flex items-center gap-4 mb-8">
-            <motion.div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center"
-              style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-            >
-              <AlertTriangle className="text-[var(--p-red-400)]" size={24} />
+            <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
+              <AlertTriangle className="text-[var(--status-error)]" size={24} />
             </motion.div>
             <motion.h2 className="m-0">The Horror Story</motion.h2>
           </motion.div>
@@ -45,10 +43,7 @@ export function Debugging() {
         {/* Step 1: Identification */}
         <section className="space-y-8">
           <motion.div className="flex items-center gap-4">
-            <motion.div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center"
-              style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-            >
+            <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Search className="text-[var(--brand-primary)]" size={24} />
             </motion.div>
             <motion.h2 className="m-0">1. Identify the Squatter</motion.h2>
@@ -63,23 +58,17 @@ export function Debugging() {
           </CodeBlock>
 
           <motion.div className="grid sm:grid-cols-2 gap-8 pt-4">
-             <motion.div
-               className="p-8 rounded-2xl space-y-4"
-               style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-             >
+             <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
                 <motion.div
                   className="w-10 h-10 rounded-xl flex items-center justify-center"
                   style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
                 >
-                   <Activity size={20} className="text-[var(--p-teal-400)]" />
+                   <Activity size={20} className="text-[var(--brand-secondary)]" />
                 </motion.div>
                 <motion.h3 className="text-xl font-display font-black m-0">Live Health</motion.h3>
                 <motion.p className="text-sm text-[var(--text-secondary)] m-0">Port Daddy checks if the process is actually responding, not just squatting on the socket.</motion.p>
              </motion.div>
-             <motion.div
-               className="p-8 rounded-2xl space-y-4"
-               style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-             >
+             <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
                 <motion.div
                   className="w-10 h-10 rounded-xl flex items-center justify-center"
                   style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
@@ -95,11 +84,8 @@ export function Debugging() {
         {/* Step 2: Resolution */}
         <section className="space-y-8">
           <motion.div className="flex items-center gap-4">
-            <motion.div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center"
-              style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-            >
-              <Zap className="text-[var(--p-teal-400)]" size={24} />
+            <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
+              <Zap className="text-[var(--brand-secondary)]" size={24} />
             </motion.div>
             <motion.h2 className="m-0">2. Heal the Harbor</motion.h2>
           </motion.div>
@@ -112,10 +98,7 @@ export function Debugging() {
             {`$ pd release :3100 --force\n\n✓ Sending SIGTERM to PID 48291...\n✓ Process terminated.\n✓ Port 3100 is now free for reclamation.`}
           </CodeBlock>
 
-          <motion.div
-            className="p-10 rounded-2xl space-y-6 relative overflow-hidden"
-            style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-          >
+          <Surface depth="raised" radius="2xl" className="p-10 space-y-6 relative overflow-hidden">
              <motion.div className="absolute top-0 right-0 p-8 opacity-5">
                 <RefreshCw size={100} className="animate-spin-slow" />
              </motion.div>
@@ -128,18 +111,14 @@ export function Debugging() {
                 </motion.div>
                 <motion.div className="flex items-center justify-between text-xs font-mono">
                    <motion.span>myapp:worker</motion.span>
-                   <motion.span className="text-[var(--p-red-400)] font-bold">UNHEALTHY (Connection Refused)</motion.span>
+                   <motion.span className="text-[var(--status-error)] font-bold">UNHEALTHY (Connection Refused)</motion.span>
                 </motion.div>
              </motion.div>
           </motion.div>
         </section>
 
         {/* Support CTA */}
-        <motion.div
-          className="p-16 rounded-2xl flex flex-col items-center text-center gap-8 relative overflow-hidden"
-          style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-          whileHover={{ scale: 1.01 }}
-        >
+        <Surface depth="raised" radius="2xl" className="p-16 flex flex-col items-center text-center gap-8 relative overflow-hidden">
            <Badge variant="gold" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Still Stuck?</Badge>
            <motion.h3 className="text-4xl font-display font-black m-0" style={{ color: 'var(--text-primary)' }}>Deep SDK Reference.</motion.h3>
            <motion.p className="text-xl max-w-xl text-[var(--text-secondary)]">

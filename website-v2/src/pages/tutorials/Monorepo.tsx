@@ -3,6 +3,7 @@ import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Badge } from '@/components/ui/Badge'
 import { Box, Layers, Zap, Globe, Shield, Activity, Anchor, ArrowRight } from 'lucide-react'
+import { Surface } from '@/components/ui/Surface'
 
 export function Monorepo() {
   return (
@@ -20,10 +21,7 @@ export function Monorepo() {
         {/* Intro Section */}
         <section className="space-y-6">
           <motion.div className="flex items-center gap-4 mb-8">
-            <motion.div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center"
-              style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-            >
+            <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Layers className="text-[var(--brand-accent)]" size={24} />
             </motion.div>
             <motion.h2 className="m-0">The Monorepo Nightmare</motion.h2>
@@ -32,23 +30,17 @@ export function Monorepo() {
             You have fifteen services. Three databases. A search engine. Every developer on your team has a different way of starting the stack, and port conflicts are a daily occurrence. <strong>Fleet Management</strong> turns your monorepo into a unified service mesh.
           </motion.p>
           <motion.div className="grid sm:grid-cols-2 gap-8 pt-4">
-             <motion.div
-               className="p-8 rounded-2xl space-y-4"
-               style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-             >
+             <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
                 <motion.div
                   className="w-10 h-10 rounded-xl flex items-center justify-center"
                   style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
                 >
-                   <Zap size={20} className="text-[var(--p-teal-400)]" />
+                   <Zap size={20} className="text-[var(--brand-secondary)]" />
                 </motion.div>
                 <motion.h3 className="text-xl font-display font-black m-0">Zero-Config DNS</motion.h3>
                 <motion.p className="text-sm text-[var(--text-secondary)] m-0">Services find each other via semantic names instead of hardcoded <code>localhost:3001</code> URLs.</motion.p>
              </motion.div>
-             <motion.div
-               className="p-8 rounded-2xl space-y-4"
-               style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-             >
+             <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
                 <motion.div
                   className="w-10 h-10 rounded-xl flex items-center justify-center"
                   style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
@@ -64,10 +56,7 @@ export function Monorepo() {
         {/* Step 1: Scanning */}
         <section className="space-y-8">
           <motion.div className="flex items-center gap-4">
-            <motion.div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center"
-              style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-            >
+            <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Box className="text-[var(--brand-primary)]" size={24} />
             </motion.div>
             <motion.h2 className="m-0">1. Index the Fleet</motion.h2>
@@ -81,10 +70,7 @@ export function Monorepo() {
             {`$ pd scan ./services\n\n✓ Found 12 services in 1.4s\n  - services/auth (Next.js)\n  - services/api (Express)\n  - services/worker (Go)`}
           </CodeBlock>
 
-          <blockquote
-            className="p-8 rounded-2xl border-l-4 border-[var(--brand-primary)]"
-            style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-          >
+          <Surface depth="inset" radius="2xl" padding="none" className="p-8 border-l-4 border-[var(--brand-primary)]">
              <motion.p className="m-0 text-sm italic opacity-60 font-medium">
                Port Daddy creates a local SQLite registry of your services, allowing agents to query the fleet status at any time.
              </motion.p>
@@ -94,11 +80,8 @@ export function Monorepo() {
         {/* Step 2: Launching */}
         <section className="space-y-8">
           <motion.div className="flex items-center gap-4">
-            <motion.div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center"
-              style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-            >
-              <Activity className="text-[var(--p-teal-400)]" size={24} />
+            <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
+              <Activity className="text-[var(--brand-secondary)]" size={24} />
             </motion.div>
             <motion.h2 className="m-0">2. Bring the Stack Up</motion.h2>
           </motion.div>
@@ -111,17 +94,11 @@ export function Monorepo() {
             {`$ pd up\n\n[payment-stack] Starting 12 services...\n✓ [auth]   Started on port 3101\n✓ [api]    Started on port 3102\n✓ [worker] Started on port 3103\n\nMesh health: 100% (All services responding)`}
           </CodeBlock>
 
-          <motion.div
-            className="p-10 rounded-2xl space-y-6 relative overflow-hidden"
-            style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-          >
-             <motion.div className="absolute inset-0 bg-gradient-to-r from-[var(--p-teal-500)]/5 to-[var(--p-blue-500)]/5" />
+          <Surface depth="raised" radius="2xl" className="p-10 space-y-6 relative overflow-hidden">
+             <motion.div className="absolute inset-0 bg-gradient-to-r from-[var(--brand-secondary)]/5 to-[var(--brand-secondary)]/5" />
              <motion.p className="text-sm font-black uppercase tracking-widest text-[var(--text-muted)] m-0 relative z-10">Internal Service Mesh</motion.p>
              <motion.div className="flex flex-col gap-4 relative z-10">
-                <motion.div
-                  className="flex items-center justify-between p-4 rounded-2xl"
-                  style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-                >
+                <Surface depth="inset" radius="2xl" padding="none" className="flex items-center justify-between p-4">
                    <motion.div className="flex items-center gap-4">
                       <code className="text-xs text-[var(--brand-primary)]">auth.pd.local</code>
                       <ArrowRight size={14} className="opacity-40" />
@@ -129,10 +106,7 @@ export function Monorepo() {
                    </motion.div>
                    <Badge variant="teal">Healthy</Badge>
                 </motion.div>
-                <motion.div
-                  className="flex items-center justify-between p-4 rounded-2xl"
-                  style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-                >
+                <Surface depth="inset" radius="2xl" padding="none" className="flex items-center justify-between p-4">
                    <motion.div className="flex items-center gap-4">
                       <code className="text-xs text-[var(--brand-primary)]">api.pd.local</code>
                       <ArrowRight size={14} className="opacity-40" />
@@ -145,11 +119,7 @@ export function Monorepo() {
         </section>
 
         {/* Resilience Callout */}
-        <motion.div
-          className="p-16 rounded-2xl flex flex-col items-center text-center gap-8 relative overflow-hidden"
-          style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-          whileHover={{ scale: 1.01 }}
-        >
+        <Surface depth="raised" radius="2xl" className="p-16 flex flex-col items-center text-center gap-8 relative overflow-hidden">
            <motion.div className="absolute top-0 right-0 p-10 opacity-[0.03] pointer-events-none">
               <Globe size={400} />
            </motion.div>

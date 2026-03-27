@@ -73,7 +73,7 @@ export function BlogPage() {
                         </div>
                         <div className="h-1 w-1 rounded-full bg-[var(--border-strong)]" />
                         <div className="flex items-center gap-2 sm:gap-3">
-                           <User size={14} className="text-[var(--p-teal-400)]" />
+                           <User size={14} className="text-[var(--brand-secondary)]" />
                            {post.author}
                         </div>
                      </div>
@@ -138,7 +138,7 @@ export function BlogPage() {
               <Badge variant="teal" className="px-6 sm:px-8 py-2 sm:py-3 text-[10px] font-black uppercase tracking-widest">Formal Methods</Badge>
               <h3 className="text-2xl sm:text-4xl lg:text-6xl font-display font-black tracking-tight leading-[0.95] m-0 text-[var(--text-primary)]">
                 Soundness by <br />
-                <span className="text-[var(--p-teal-400)]">Design.</span>
+                <span className="text-[var(--brand-secondary)]">Design.</span>
               </h3>
               <p className="text-base sm:text-xl lg:text-2xl leading-relaxed text-[var(--text-secondary)] max-w-3xl">
                 The Journal isn't just about features—it's about proofs. We document our journey through symbolic analysis, noise protocol implementation, and the mathematical underpinnings of agentic coordination.

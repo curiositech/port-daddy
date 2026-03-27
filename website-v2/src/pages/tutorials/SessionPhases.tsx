@@ -3,6 +3,7 @@ import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Badge } from '@/components/ui/Badge'
 import { Activity, Zap, Shield, Layers, RefreshCw, CheckCircle2 } from 'lucide-react'
+import { Surface } from '@/components/ui/Surface'
 
 export function SessionPhases() {
   return (
@@ -20,10 +21,7 @@ export function SessionPhases() {
         {/* Intro Section */}
         <section className="space-y-6">
           <motion.div className="flex items-center gap-4 mb-8">
-            <motion.div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center"
-              style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-            >
+            <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <RefreshCw className="text-[var(--brand-primary)]" size={24} />
             </motion.div>
             <motion.h2 className="m-0">Beyond Flat Logs</motion.h2>
@@ -31,11 +29,8 @@ export function SessionPhases() {
           <motion.p>
             In a multi-agent swarm, "success" isn't a binary state. Work evolves through a lifecycle. <strong>Session Phases</strong> turn your agent's work into a manageable state machine, allowing the daemon to coordinate complex handoffs between specialists.
           </motion.p>
-          <motion.div
-            className="p-10 rounded-2xl space-y-8 relative overflow-hidden"
-            style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-          >
-             <motion.div className="absolute inset-0 bg-gradient-to-r from-[var(--p-teal-500)]/5 to-transparent" />
+          <Surface depth="raised" radius="2xl" className="p-10 space-y-8 relative overflow-hidden">
+             <motion.div className="absolute inset-0 bg-gradient-to-r from-[var(--brand-secondary)]/5 to-transparent" />
              <motion.p className="text-sm font-black uppercase tracking-widest opacity-40 m-0">Swarm Progress</motion.p>
 
              <motion.div className="flex flex-col sm:flex-row items-center justify-between gap-6">
@@ -44,7 +39,7 @@ export function SessionPhases() {
                      className="w-10 h-10 rounded-full flex items-center justify-center"
                      style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-pressed)' }}
                    >
-                      <CheckCircle2 size={18} className="text-[var(--p-teal-400)]" />
+                      <CheckCircle2 size={18} className="text-[var(--brand-secondary)]" />
                    </motion.div>
                    <motion.span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Planning</motion.span>
                 </motion.div>
@@ -75,10 +70,7 @@ export function SessionPhases() {
         {/* Step 1: Transitions */}
         <section className="space-y-8">
           <motion.div className="flex items-center gap-4">
-            <motion.div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center"
-              style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-            >
+            <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Zap className="text-[var(--brand-accent)]" size={24} />
             </motion.div>
             <motion.h2 className="m-0">1. Transition the Session</motion.h2>
@@ -92,10 +84,7 @@ export function SessionPhases() {
             {`$ pd session phase coding\n\n✓ Session phase updated: planning -> coding\n✓ Broadcasted signal to 12 swarm radio subscribers.`}
           </CodeBlock>
 
-          <blockquote
-            className="p-8 rounded-2xl border-l-4 border-[var(--brand-accent)]"
-            style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-          >
+          <Surface depth="inset" radius="2xl" padding="none" className="p-8 border-l-4 border-[var(--brand-accent)]">
              <motion.p className="m-0 text-sm italic opacity-60 font-medium">
                Phase transitions are recorded in the **Immutable Timeline**, providing a high-fidelity audit trail of the work lifecycle.
              </motion.p>
@@ -105,10 +94,7 @@ export function SessionPhases() {
         {/* Step 2: Phase-Aware Salvage */}
         <section className="space-y-8">
           <motion.div className="flex items-center gap-4">
-            <motion.div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center"
-              style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-            >
+            <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Layers className="text-[var(--brand-secondary)]" size={24} />
             </motion.div>
             <motion.h2 className="m-0">2. Smart Recovery</motion.h2>
@@ -123,23 +109,17 @@ export function SessionPhases() {
           </CodeBlock>
 
           <motion.div className="grid sm:grid-cols-2 gap-8 pt-4">
-             <motion.div
-               className="p-8 rounded-2xl space-y-4"
-               style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-             >
+             <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
                 <motion.div
                   className="w-10 h-10 rounded-xl flex items-center justify-center"
                   style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
                 >
-                   <Activity size={20} className="text-[var(--p-teal-400)]" />
+                   <Activity size={20} className="text-[var(--brand-secondary)]" />
                 </motion.div>
                 <motion.h3 className="text-xl font-display font-black m-0">Zero Context Loss</motion.h3>
                 <motion.p className="text-sm text-[var(--text-secondary)] m-0">Agents inherit the previous agent's notes, file claims, and current phase status.</motion.p>
              </motion.div>
-             <motion.div
-               className="p-8 rounded-2xl space-y-4"
-               style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-             >
+             <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
                 <motion.div
                   className="w-10 h-10 rounded-xl flex items-center justify-center"
                   style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
@@ -153,11 +133,7 @@ export function SessionPhases() {
         </section>
 
         {/* Vision Callout */}
-        <motion.div
-          className="p-16 rounded-2xl flex flex-col items-center text-center gap-8 relative overflow-hidden"
-          style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-          whileHover={{ scale: 1.01 }}
-        >
+        <Surface depth="raised" radius="2xl" className="p-16 flex flex-col items-center text-center gap-8 relative overflow-hidden">
            <motion.div className="absolute top-0 right-0 p-10 opacity-[0.03] pointer-events-none">
               <Activity size={400} />
            </motion.div>
