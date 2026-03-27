@@ -55,7 +55,7 @@ export function Harbors() {
               className="w-12 h-12 rounded-2xl flex items-center justify-center"
               style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
             >
-              <Lock className="text-[var(--p-amber-400)]" size={24} />
+              <Lock className="text-[var(--brand-accent)]" size={24} />
             </motion.div>
             <motion.h2 className="m-0">1. Create a Harbor</motion.h2>
           </motion.div>
@@ -139,8 +139,8 @@ Expires: 2h from now`}
         {/* Step 3: What Happens When It Expires */}
         <section className="space-y-8">
           <motion.div className="flex items-center gap-4">
-            <motion.div className="w-12 h-12 rounded-2xl bg-[var(--interactive-active)] flex items-center justify-center border border-[var(--p-amber-400)]">
-              <AlertTriangle className="text-[var(--p-amber-400)]" size={24} />
+            <motion.div className="w-12 h-12 rounded-2xl bg-[var(--interactive-active)] flex items-center justify-center border border-[var(--brand-accent)]">
+              <AlertTriangle className="text-[var(--brand-accent)]" size={24} />
             </motion.div>
             <motion.h2 className="m-0">3. Token Expiration and Revocation</motion.h2>
           </motion.div>
@@ -164,7 +164,7 @@ Token JTI burned — cannot be reused.`}
             The "JTI burned" message means Port Daddy records the token's unique identifier in a revocation list. Even if someone copies the raw JWT string, it will be rejected because the daemon checks the JTI against the revocation list on every request.
           </motion.p>
 
-          <blockquote className="bg-[var(--bg-surface)] p-10 rounded-[32px] border-l-8 border-[var(--p-amber-500)]">
+          <blockquote className="bg-[var(--bg-surface)] p-10 rounded-[32px] border-l-8 border-[var(--brand-accent)]">
              <motion.p className="font-bold text-[var(--text-primary)] m-0 mb-4 text-xl font-display">Common Pitfall: Forgetting to Set a TTL</motion.p>
              <motion.p className="m-0 text-base">
                If you create a harbor without <code>--ttl</code>, tokens default to 2 hours. For production workflows, always set an explicit TTL that matches the expected duration of the task. A CI pipeline that runs in 10 minutes should use <code>--ttl 15m</code>, not the default.

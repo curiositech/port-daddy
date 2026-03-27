@@ -79,7 +79,7 @@ export default function SdkOverview() {
           Programmatic access to Port Daddy's port management, session tracking,
           and agent coordination features. Build multi-agent workflows with type safety.
         </p>
-        <p className="text-sm text-[var(--text-tertiary)] p-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] max-w-xl">
+        <p className="text-sm text-[var(--text-muted)] p-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] max-w-xl">
           Use this reference if you are writing JavaScript or TypeScript that coordinates agents
           programmatically. For terminal usage see the{' '}
           <a href="/docs/cli" className="text-[var(--brand-primary)] hover:underline">CLI reference</a>, or
@@ -146,7 +146,7 @@ await pd.sessions.done(session.id)`} />
                     <h3 className="font-semibold text-[var(--text-primary)]">{module.name}</h3>
                     <Badge variant={module.badge === 'New' ? 'gold' : 'success'}>{module.badge}</Badge>
                   </div>
-                  <p className="text-sm text-[var(--text-tertiary)] mb-3">{module.description}</p>
+                  <p className="text-sm text-[var(--text-muted)] mb-3">{module.description}</p>
                   <div className="flex flex-wrap gap-2">
                     {module.functions.map(fn => (
                       <code 
@@ -208,11 +208,11 @@ const claim: PortClaim = await pd.ports.claim('myapp:api', options)`} />
         <div>
           <div className="text-sm text-[var(--text-muted)] mb-1">Also See</div>
           <div className="font-semibold text-[var(--text-primary)]">CLI Reference</div>
-          <div className="text-sm text-[var(--text-tertiary)]">Command-line interface documentation</div>
+          <div className="text-sm text-[var(--text-muted)]">Command-line interface documentation</div>
         </div>
         <Link 
           to="/docs/cli"
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--brand-primary)] text-[var(--brand-on-primary)] font-medium hover:bg-[var(--brand-primary-hover)] transition-colors"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--brand-primary)] text-[var(--text-inverse)] font-medium hover:bg-[var(--brand-primary)] transition-colors"
         >
           <Terminal size={16} />
           View CLI

@@ -88,7 +88,7 @@ export default function McpOverview() {
           Connect Port Daddy to any AI tool via the Model Context Protocol (MCP).
           Give your agents native access to port management, swarm coordination, and more.
         </p>
-        <p className="text-sm text-[var(--text-tertiary)] p-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] max-w-xl">
+        <p className="text-sm text-[var(--text-muted)] p-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] max-w-xl">
           Use this reference if your LLM (Claude, Cursor, Windsurf, etc.) needs to coordinate
           agents directly via tool calls. For terminal usage see the{' '}
           <a href="/docs/cli" className="text-[var(--brand-primary)] hover:underline">CLI reference</a>, or
@@ -158,7 +158,7 @@ export default function McpOverview() {
                     <h3 className="font-semibold text-[var(--text-primary)]">{server.name}</h3>
                     <ArrowRight size={14} className="text-[var(--text-muted)] group-hover:text-[var(--brand-primary)] group-hover:translate-x-1 transition-all" />
                   </div>
-                  <p className="text-sm text-[var(--text-tertiary)] mb-3">{server.description}</p>
+                  <p className="text-sm text-[var(--text-muted)] mb-3">{server.description}</p>
                   <code className="text-xs px-2 py-1 rounded bg-[var(--bg-code)] text-[var(--brand-primary)] font-mono">
                     {server.setup}
                   </code>
@@ -191,7 +191,7 @@ export default function McpOverview() {
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <code className="text-[var(--brand-primary)] font-mono font-medium">{tool.name}</code>
-                  <p className="text-sm text-[var(--text-tertiary)] mt-1">{tool.description}</p>
+                  <p className="text-sm text-[var(--text-muted)] mt-1">{tool.description}</p>
                 </div>
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
@@ -253,13 +253,13 @@ export default function McpOverview() {
         <div>
           <div className="text-sm text-[var(--text-muted)] mb-1">Learn More</div>
           <div className="font-semibold text-[var(--text-primary)]">MCP Specification</div>
-          <div className="text-sm text-[var(--text-tertiary)]">Official Model Context Protocol docs</div>
+          <div className="text-sm text-[var(--text-muted)]">Official Model Context Protocol docs</div>
         </div>
         <a 
           href="https://modelcontextprotocol.io"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--brand-primary)] text-[var(--brand-on-primary)] font-medium hover:bg-[var(--brand-primary-hover)] transition-colors"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--brand-primary)] text-[var(--text-inverse)] font-medium hover:bg-[var(--brand-primary)] transition-colors"
         >
           View Spec
           <ExternalLink size={16} />

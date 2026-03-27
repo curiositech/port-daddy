@@ -79,21 +79,21 @@ export default function SessionsSdk() {
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.identity</code>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Semantic identity in format <code>project:stack:context</code></p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Semantic identity in format <code>project:stack:context</code></p>
             </div>
             <div className="p-4 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.purpose</code>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Description of what this agent is working on</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Description of what this agent is working on</p>
             </div>
             <div className="p-4 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.project</code>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Project name (inferred from identity if not provided)</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Project name (inferred from identity if not provided)</p>
             </div>
           </div>
         </div>
@@ -156,21 +156,21 @@ export default function SessionsSdk() {
                 <Badge variant="default" size="sm">required</Badge>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">The session ID to complete</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">The session ID to complete</p>
             </div>
             <div className="p-4 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.summary</code>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Summary of work completed</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Summary of work completed</p>
             </div>
             <div className="p-4 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.outcome</code>
                 <span className="text-xs text-[var(--text-muted)]">'success' | 'failure' | 'cancelled'</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Session outcome status</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Session outcome status</p>
             </div>
           </div>
         </div>
@@ -210,7 +210,7 @@ await pd.sessions.done(session.id)`}
                 <Badge variant="default" size="sm">required</Badge>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">The session ID to add note to</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">The session ID to add note to</p>
             </div>
             <div className="p-4 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2">
@@ -218,14 +218,14 @@ await pd.sessions.done(session.id)`}
                 <Badge variant="default" size="sm">required</Badge>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Note content</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Note content</p>
             </div>
             <div className="p-4 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">type</code>
                 <span className="text-xs text-[var(--text-muted)]">NoteType</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">
+              <p className="text-sm text-[var(--text-muted)] mt-1">
                 Note type: 'thought', 'decision', 'progress', 'blocker', 'handoff'
               </p>
             </div>
@@ -274,21 +274,21 @@ await pd.sessions.addNote(
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.sessionId</code>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Filter by session ID</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Filter by session ID</p>
             </div>
             <div className="p-4 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.type</code>
                 <span className="text-xs text-[var(--text-muted)]">NoteType</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Filter by note type</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Filter by note type</p>
             </div>
             <div className="p-4 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.limit</code>
                 <span className="text-xs text-[var(--text-muted)]">number</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Maximum number of notes to return</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Maximum number of notes to return</p>
             </div>
           </div>
         </div>
@@ -382,7 +382,7 @@ interface GetNotesOptions {
         </Link>
         <Link 
           to="/docs/sdk/locks"
-          className="flex items-center gap-2 text-sm text-[var(--brand-primary)] hover:text-[var(--brand-primary-hover)] transition-colors"
+          className="flex items-center gap-2 text-sm text-[var(--brand-primary)] hover:text-[var(--brand-primary)] transition-colors"
         >
           Locks Module
           <ArrowLeft size={14} className="rotate-180" />

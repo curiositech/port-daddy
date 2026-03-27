@@ -20,11 +20,11 @@
   --color-border-subtle: var(--border-subtle);
   --color-border-strong: var(--border-strong);
 
-  --font-display: var(--p-font-display);
-  --font-sans: var(--p-font-sans);
-  --font-mono: var(--p-font-mono);
+  --font-display: var(--font-display);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
 
-  --radius-xl: var(--p-radius-xl);
+  --radius-xl: var(--radius-xl);
 
   /* ── shadcn/ui color tokens ──────────────────────────────────────────────── */
   --color-background: var(--background);
@@ -139,7 +139,8 @@ code:not(pre code) {
  *   Cards:       rounded-xl (12px) or rounded-2xl (16px)
  *   Inputs:      rounded-lg (8px)
  *   Badges:      rounded-full
- *   Max:         rounded-2xl (16px) — nothing bigger
+ *   Sections:    rounded-3xl (32px) or rounded-4xl (48px) for hero panels
+ *   Max:         rounded-4xl (48px) — nothing bigger
  */
 
 /* Standard section wrapper */

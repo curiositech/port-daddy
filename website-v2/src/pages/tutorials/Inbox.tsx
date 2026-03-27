@@ -53,7 +53,7 @@ export function Inbox() {
                   className="w-10 h-10 rounded-xl flex items-center justify-center"
                   style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
                 >
-                   <Activity size={20} className="text-[var(--p-amber-400)]" />
+                   <Activity size={20} className="text-[var(--brand-accent)]" />
                 </motion.div>
                 <motion.h3 className="text-xl font-display font-black m-0">Radio Stream</motion.h3>
                 <motion.p className="text-sm text-[var(--text-secondary)] m-0">Subscribe to any inbox live via SSE to monitor agent progress in your terminal or dashboard.</motion.p>

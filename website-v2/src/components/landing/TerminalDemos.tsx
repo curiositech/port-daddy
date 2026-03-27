@@ -110,7 +110,7 @@ export function TerminalDemos() {
   const [activeDemo, setActiveDemo] = useState(DEMOS[0])
 
   return (
-    <section id="demos" className="relative py-24 lg:py-32">
+    <section id="demos" className="relative py-16 lg:py-24">
       <div className="max-w-[1200px] mx-auto px-6 lg:px-8">
         {/* Header */}
         <div className="max-w-2xl mb-12">
@@ -132,10 +132,10 @@ export function TerminalDemos() {
               <button
                 key={demo.id}
                 onClick={() => setActiveDemo(demo)}
-                className="text-left px-4 py-3 rounded-xl transition-all duration-200 cursor-pointer shrink-0 lg:shrink"
+                className="text-left px-4 py-3 rounded-[var(--radius-lg)] transition-all duration-200 cursor-pointer shrink-0 lg:shrink"
                 style={{
-                  background: activeDemo.id === demo.id ? 'var(--bg-overlay)' : 'transparent',
-                  boxShadow: activeDemo.id === demo.id ? 'var(--shadow-neu-inset)' : 'none',
+                  background: activeDemo.id === demo.id ? 'var(--surface-overlay)' : 'transparent',
+                  boxShadow: activeDemo.id === demo.id ? 'var(--shadow-inset)' : 'none',
                 }}
               >
                 <div className="flex items-center gap-2">

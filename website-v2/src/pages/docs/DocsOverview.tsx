@@ -122,7 +122,7 @@ export default function DocsOverview() {
         </p>
         <Link
           to="/docs/quickstart"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--brand-primary)] text-[var(--brand-on-primary)] font-medium hover:bg-[var(--brand-primary-hover)] transition-colors"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--brand-primary)] text-[var(--text-inverse)] font-medium hover:bg-[var(--brand-primary)] transition-colors"
         >
           Quick Start
           <ArrowRight size={16} />
@@ -154,7 +154,7 @@ export default function DocsOverview() {
                     <span className="text-xs font-mono text-[var(--text-muted)]">{String(i + 1).padStart(2, '0')}</span>
                     <h3 className="font-semibold text-[var(--text-primary)]">{concept.title}</h3>
                   </div>
-                  <p className="text-sm text-[var(--text-tertiary)] leading-relaxed">{concept.description}</p>
+                  <p className="text-sm text-[var(--text-muted)] leading-relaxed">{concept.description}</p>
                 </div>
                 <ArrowRight size={16} className="text-[var(--text-muted)] group-hover:text-[var(--brand-primary)] shrink-0 mt-1" />
               </div>
@@ -193,7 +193,7 @@ export default function DocsOverview() {
                     <h3 className="font-semibold text-[var(--text-primary)]">{iface.title}</h3>
                     <ArrowRight size={14} className="text-[var(--text-muted)] group-hover:text-[var(--brand-primary)] group-hover:translate-x-1 transition-all" />
                   </div>
-                  <p className="text-sm text-[var(--text-tertiary)] mt-1">{iface.description}</p>
+                  <p className="text-sm text-[var(--text-muted)] mt-1">{iface.description}</p>
                 </div>
               </div>
             </Link>

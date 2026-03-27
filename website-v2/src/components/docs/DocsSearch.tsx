@@ -163,7 +163,7 @@ export function DocsSearch() {
           setIsOpen(true)
           setTimeout(() => inputRef.current?.focus(), 100)
         }}
-        className="flex items-center gap-2 w-full px-3 py-2 rounded-lg bg-[var(--bg-overlay)] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] transition-all text-sm"
+        className="flex items-center gap-2 w-full px-3 py-2 rounded-lg bg-[var(--bg-overlay)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] transition-all text-sm"
       >
         <Search size={16} />
         <span className="flex-1 text-left">Search documentation...</span>
@@ -278,7 +278,7 @@ export function DocsSearch() {
                                 {item.title}
                               </div>
                               {item.description && (
-                                <div className="text-xs text-[var(--text-tertiary)] truncate">
+                                <div className="text-xs text-[var(--text-muted)] truncate">
                                   {item.description}
                                 </div>
                               )}

@@ -24,7 +24,7 @@ export function Watch() {
               className="w-12 h-12 rounded-2xl flex items-center justify-center"
               style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
             >
-              <Eye className="text-[var(--p-amber-400)]" size={24} />
+              <Eye className="text-[var(--brand-accent)]" size={24} />
             </motion.div>
             <motion.h2 className="m-0">Beyond Polling</motion.h2>
           </motion.div>
@@ -113,7 +113,7 @@ export function Watch() {
             className="p-10 rounded-2xl space-y-8 relative overflow-hidden"
             style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
           >
-             <motion.div className="absolute inset-0 bg-gradient-to-r from-[var(--p-amber-500)]/5 to-transparent" />
+             <motion.div className="absolute inset-0 bg-gradient-to-r from-[var(--brand-accent)]/5 to-transparent" />
              <motion.p className="text-sm font-black uppercase tracking-widest opacity-40 m-0">The Observation Chain</motion.p>
 
              <motion.div className="space-y-4">

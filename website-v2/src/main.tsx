@@ -166,7 +166,7 @@ createRoot(document.getElementById('root')!).render(
           <Route element={<MainLayout />}>
             <Route path="/" element={<App />} />
             <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/docs" element={<DocsPage />} />
+            {/* DocsPage is now served via DocsLayout — use /docs-old for legacy */}
             <Route path="/examples" element={<ExamplesPage />} />
             <Route path="/mcp" element={<MCPPage />} />
             <Route path="/roadmap" element={<RoadmapPage />} />

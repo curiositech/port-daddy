@@ -72,17 +72,17 @@ export default function PortsFeature() {
         <div className="grid sm:grid-cols-3 gap-4">
           <div className="p-4 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">project</code>
-            <p className="text-sm text-[var(--text-tertiary)] mt-2">Your project name</p>
+            <p className="text-sm text-[var(--text-muted)] mt-2">Your project name</p>
             <p className="text-xs text-[var(--text-muted)] mt-1">e.g., myapp, frontend, api</p>
           </div>
           <div className="p-4 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">stack</code>
-            <p className="text-sm text-[var(--text-tertiary)] mt-2">Service layer</p>
+            <p className="text-sm text-[var(--text-muted)] mt-2">Service layer</p>
             <p className="text-xs text-[var(--text-muted)] mt-1">e.g., api, web, worker</p>
           </div>
           <div className="p-4 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">context</code>
-            <p className="text-sm text-[var(--text-tertiary)] mt-2">Environment/context</p>
+            <p className="text-sm text-[var(--text-muted)] mt-2">Environment/context</p>
             <p className="text-xs text-[var(--text-muted)] mt-1">e.g., main, dev, test</p>
           </div>
         </div>
@@ -182,11 +182,11 @@ await pd.release('myapp:api:main')`}
         <div>
           <div className="text-sm text-[var(--text-muted)] mb-1">Next Feature</div>
           <div className="font-semibold text-[var(--text-primary)]">Swarm Radio</div>
-          <div className="text-sm text-[var(--text-tertiary)]">Pub/sub messaging for agent coordination</div>
+          <div className="text-sm text-[var(--text-muted)]">Pub/sub messaging for agent coordination</div>
         </div>
         <Link 
           to="/docs/features/radio"
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--brand-primary)] text-[var(--brand-on-primary)] font-medium hover:bg-[var(--brand-primary-hover)] transition-colors"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--brand-primary)] text-[var(--text-inverse)] font-medium hover:bg-[var(--brand-primary)] transition-colors"
         >
           Learn More
           <ArrowRight size={16} />

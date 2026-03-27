@@ -87,7 +87,7 @@ export function AgentCard({ agent }: AgentCardProps) {
           <motion.div className="pt-4 border-t border-[var(--border-subtle)] space-y-4 font-sans">
             <motion.div className="space-y-3 font-sans">
               <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] font-sans">
-                <Zap size={12} className="text-[var(--p-amber-400)]" /> Capabilities
+                <Zap size={12} className="text-[var(--brand-accent)]" /> Capabilities
               </motion.div>
               <motion.div className="flex flex-wrap gap-2 font-sans">
                 {capabilities.map((cap: string) => (

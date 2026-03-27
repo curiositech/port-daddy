@@ -95,7 +95,7 @@ export function Spawn() {
               className="w-12 h-12 rounded-2xl flex items-center justify-center"
               style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
             >
-              <Activity className="text-[var(--p-amber-400)]" size={24} />
+              <Activity className="text-[var(--brand-accent)]" size={24} />
             </motion.div>
             <motion.h2 className="m-0">2. Monitor the Pulse</motion.h2>
           </motion.div>
@@ -108,7 +108,7 @@ export function Spawn() {
             className="p-10 rounded-2xl space-y-6 relative overflow-hidden"
             style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
           >
-             <motion.div className="absolute inset-0 bg-gradient-to-r from-[var(--p-amber-500)]/5 to-transparent" />
+             <motion.div className="absolute inset-0 bg-gradient-to-r from-[var(--brand-accent)]/5 to-transparent" />
              <motion.p className="text-sm font-black uppercase tracking-widest text-[var(--text-muted)] m-0">Daemon Telemetry</motion.p>
              <motion.div className="space-y-4">
                 <motion.div

@@ -40,7 +40,7 @@ export function WorkflowsTable() {
       <motion.div className="px-8 py-6 border-b border-[var(--border-subtle)] flex items-center justify-between bg-[var(--bg-overlay)] font-sans">
         <motion.div className="font-sans">
           <motion.h2 className="text-lg font-bold flex items-center gap-2 font-display">
-            <Zap size={20} className="text-[var(--p-amber-400)]" />
+            <Zap size={20} className="text-[var(--brand-accent)]" />
             Reactive Pipelines
           </motion.h2>
           <motion.p className="text-xs text-[var(--text-muted)] font-medium uppercase tracking-widest mt-1 font-sans">
@@ -76,7 +76,7 @@ export function WorkflowsTable() {
                 className="group hover:bg-[var(--bg-overlay)] transition-colors font-sans"
               >
                 <motion.td className="px-8 py-5 font-sans">
-                  <motion.div className={`w-2.5 h-2.5 rounded-full ${rule.enabled ? 'bg-[var(--status-success)] shadow-[0_0_8px_var(--status-success)]' : 'bg-[var(--text-disabled)]'}`} />
+                  <motion.div className={`w-2.5 h-2.5 rounded-full ${rule.enabled ? 'bg-[var(--status-success)] shadow-[0_0_8px_var(--status-success)]' : 'bg-[var(--text-muted)]'}`} />
                 </motion.td>
                 <motion.td className="px-4 py-5 font-sans">
                   <motion.span className="font-bold text-sm font-sans" style={{ color: 'var(--text-primary)' }}>{rule.name}</motion.span>

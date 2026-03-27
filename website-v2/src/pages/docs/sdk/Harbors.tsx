@@ -71,15 +71,15 @@ export default function HarborsSdk() {
         <div className="grid sm:grid-cols-3 gap-4 text-sm">
           <div>
             <strong className="text-[var(--text-primary)]">Create</strong>
-            <p className="text-[var(--text-tertiary)] mt-1">Define a new harbor with specific capabilities</p>
+            <p className="text-[var(--text-muted)] mt-1">Define a new harbor with specific capabilities</p>
           </div>
           <div>
             <strong className="text-[var(--text-primary)]">Enter</strong>
-            <p className="text-[var(--text-tertiary)] mt-1">Agents present cards to enter harbors</p>
+            <p className="text-[var(--text-muted)] mt-1">Agents present cards to enter harbors</p>
           </div>
           <div>
             <strong className="text-[var(--text-primary)]">Control</strong>
-            <p className="text-[var(--text-tertiary)] mt-1">Restricted operations within boundaries</p>
+            <p className="text-[var(--text-muted)] mt-1">Restricted operations within boundaries</p>
           </div>
         </div>
       </div>
@@ -104,28 +104,28 @@ export default function HarborsSdk() {
                 <Badge variant="default" size="sm">required</Badge>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Unique name for this harbor</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Unique name for this harbor</p>
             </div>
             <div className="p-4 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.capabilities</code>
                 <span className="text-xs text-[var(--text-muted)]">string[]</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Allowed capabilities in this harbor (e.g., ['read', 'write', 'execute'])</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Allowed capabilities in this harbor (e.g., ['read', 'write', 'execute'])</p>
             </div>
             <div className="p-4 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.allowedIdentities</code>
                 <span className="text-xs text-[var(--text-muted)]">string[]</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Identity patterns allowed to enter (e.g., ['myapp:*'])</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Identity patterns allowed to enter (e.g., ['myapp:*'])</p>
             </div>
             <div className="p-4 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.ttl</code>
                 <span className="text-xs text-[var(--text-muted)]">number</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Harbor lifetime in seconds (default: 1 hour)</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Harbor lifetime in seconds (default: 1 hour)</p>
             </div>
           </div>
         </div>
@@ -185,7 +185,7 @@ export default function HarborsSdk() {
                 <Badge variant="default" size="sm">required</Badge>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Harbor name to enter</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Harbor name to enter</p>
             </div>
             <div className="p-4 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2">
@@ -193,7 +193,7 @@ export default function HarborsSdk() {
                 <Badge variant="default" size="sm">required</Badge>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Harbor card token</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Harbor card token</p>
             </div>
           </div>
         </div>
@@ -243,7 +243,7 @@ try {
                 <Badge variant="default" size="sm">required</Badge>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Agent to issue card to</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Agent to issue card to</p>
             </div>
             <div className="p-4 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2">
@@ -251,7 +251,7 @@ try {
                 <Badge variant="default" size="sm">required</Badge>
                 <span className="text-xs text-[var(--text-muted)]">string[]</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Capabilities to grant (must be subset of harbor capabilities)</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Capabilities to grant (must be subset of harbor capabilities)</p>
             </div>
             <div className="p-4 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2">
@@ -259,21 +259,21 @@ try {
                 <Badge variant="default" size="sm">required</Badge>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Harbor this card is valid for</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Harbor this card is valid for</p>
             </div>
             <div className="p-4 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.ttl</code>
                 <span className="text-xs text-[var(--text-muted)]">number</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Card lifetime in seconds</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Card lifetime in seconds</p>
             </div>
             <div className="p-4 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.restrictions</code>
                 <span className="text-xs text-[var(--text-muted)]">object</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Additional restrictions (paths, operations, etc.)</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Additional restrictions (paths, operations, etc.)</p>
             </div>
           </div>
         </div>
@@ -390,7 +390,7 @@ interface CardOptions {
         </Link>
         <Link 
           to="/docs/sdk"
-          className="flex items-center gap-2 text-sm text-[var(--brand-primary)] hover:text-[var(--brand-primary-hover)] transition-colors"
+          className="flex items-center gap-2 text-sm text-[var(--brand-primary)] hover:text-[var(--brand-primary)] transition-colors"
         >
           SDK Overview
           <ArrowLeft size={14} className="rotate-180" />

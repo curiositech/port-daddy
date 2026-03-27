@@ -264,7 +264,7 @@ function SidebarSection({
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center gap-2 py-2 px-3 text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--interactive-hover)] rounded-md transition-colors"
       >
-        <Icon size={16} className="text-[var(--text-tertiary)]" />
+        <Icon size={16} className="text-[var(--text-muted)]" />
         <span className="flex-1 text-left">{section.title}</span>
         <ChevronRight 
           size={14} 
@@ -373,7 +373,7 @@ function TableOfContents({ pathname }: { pathname: string }) {
             } ${
               activeId === h.id
                 ? 'text-[var(--brand-primary)] font-medium'
-                : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
             }`}
           >
             {h.text}
@@ -445,7 +445,7 @@ export function DocsLayout() {
           <div className="mt-6 pt-4 border-t border-[var(--border-subtle)] px-2">
             <Link 
               to="/"
-              className="flex items-center gap-2 text-sm font-medium text-[var(--brand-primary)] hover:text-[var(--brand-primary-hover)] transition-colors"
+              className="flex items-center gap-2 text-sm font-medium text-[var(--brand-primary)] hover:text-[var(--brand-primary)] transition-colors"
             >
               <Home size={14} />
               Back to Home
@@ -458,7 +458,7 @@ export function DocsLayout() {
               href="https://github.com/erichowens/port-daddy" 
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 text-sm text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors"
+              className="flex items-center gap-2 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
             >
               <ExternalLink size={14} />
               GitHub

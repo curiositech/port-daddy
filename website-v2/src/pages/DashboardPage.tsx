@@ -84,7 +84,7 @@ function UnifiedTimeline() {
                   >
                      {item.type === 'note' ? <MessageSquare size={14} className="text-[var(--p-blue-400)]" /> :
                       item.type === 'port' ? <Anchor size={14} className="text-[var(--p-teal-400)]" /> :
-                      <Zap size={14} className="text-[var(--p-amber-400)]" />}
+                      <Zap size={14} className="text-[var(--brand-accent)]" />}
                   </motion.div>
                   <motion.div className="w-[1px] h-full bg-gradient-to-b from-[var(--text-muted)] to-transparent opacity-20" />
                </motion.div>
@@ -150,7 +150,7 @@ export function DashboardPage() {
            <motion.div className="grid grid-cols-2 sm:grid-cols-4 gap-6 w-full max-w-5xl">
               {[
                 { label: 'Active Agents', value: stats?.activeAgents || '0', icon: Users, color: 'var(--p-teal-400)' },
-                { label: 'Harbors', value: stats?.activeHarbors || '0', icon: Shield, color: 'var(--p-amber-400)' },
+                { label: 'Harbors', value: stats?.activeHarbors || '0', icon: Shield, color: 'var(--brand-accent)' },
                 { label: 'Port Claims', value: stats?.activePorts || '0', icon: Anchor, color: 'var(--p-blue-400)' },
                 { label: 'Latency', value: '<5ms', icon: Zap, color: 'var(--p-purple-400)' }
               ].map((stat, i) => (
@@ -227,7 +227,7 @@ export function DashboardPage() {
                          className="w-12 h-12 rounded-2xl flex items-center justify-center"
                          style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
                        >
-                          <Search size={24} className="text-[var(--p-amber-400)]" />
+                          <Search size={24} className="text-[var(--brand-accent)]" />
                        </motion.div>
                        <motion.h3 className="text-xl font-display font-black m-0">Conflict Monitor</motion.h3>
                     </motion.div>

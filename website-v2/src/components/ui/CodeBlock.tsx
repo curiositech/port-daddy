@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { cn } from '@/lib/utils'
+import { Surface } from './Surface'
 import { Copy, Check, Terminal, FileCode } from 'lucide-react'
 
 interface CodeBlockProps {
@@ -24,25 +25,13 @@ export function CodeBlock({ children, language, filename, className, copyable = 
   const Icon = filename ? FileCode : Terminal
 
   return (
-    <div
-      className={cn('rounded-2xl p-5 transition-all duration-300', className)}
-      style={{
-        background: 'var(--bg-surface)',
-        boxShadow: 'var(--shadow-neu-raised)',
-      }}
-    >
+    <Surface depth="raised" radius="2xl" padding="md" className={cn('transition-all duration-300', className)}>
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{
-              background: 'var(--bg-base)',
-              boxShadow: 'var(--shadow-neu-inset)',
-            }}
-          >
+          <Surface depth="inset" radius="lg" padding="none" className="w-8 h-8 flex items-center justify-center">
             <Icon size={14} className="text-[var(--brand-primary)]" />
-          </div>
+          </Surface>
           {filename && (
             <span className="text-xs font-mono text-[var(--text-muted)]">{filename}</span>
           )}
@@ -53,15 +42,15 @@ export function CodeBlock({ children, language, filename, className, copyable = 
         {copyable && (
           <button
             onClick={handleCopy}
-            className="w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 cursor-pointer"
+            className="w-8 h-8 rounded-[var(--radius-lg)] flex items-center justify-center transition-all duration-200 cursor-pointer"
             style={{
-              background: 'var(--bg-base)',
-              boxShadow: 'var(--shadow-neu-sm)',
+              background: 'var(--surface-base)',
+              boxShadow: 'var(--shadow-sm)',
             }}
             aria-label="Copy code"
           >
             {copied ? (
-              <Check size={12} className="text-[var(--codeblock-dot-green)]" />
+              <Check size={12} className="text-[var(--code-dot-green)]" />
             ) : (
               <Copy size={12} className="text-[var(--text-muted)]" />
             )}
@@ -71,27 +60,27 @@ export function CodeBlock({ children, language, filename, className, copyable = 
 
       {/* Code body — always dark, inset */}
       <div
-        className="rounded-xl overflow-hidden"
+        className="rounded-[var(--radius-lg)] overflow-hidden"
         style={{
-          background: 'var(--bg-code)',
-          boxShadow: 'var(--shadow-neu-inset)',
+          background: 'var(--code-bg)',
+          boxShadow: 'var(--shadow-inset)',
         }}
       >
         {/* Traffic lights */}
         <div
           className="flex items-center gap-2 px-4 py-2"
-          style={{ borderBottom: '1px solid var(--codeblock-border)' }}
+          style={{ borderBottom: '1px solid var(--code-border)' }}
         >
-          <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--codeblock-dot-red)' }} />
-          <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--codeblock-dot-amber)' }} />
-          <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--codeblock-dot-green)' }} />
+          <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--code-dot-red)' }} />
+          <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--code-dot-amber)' }} />
+          <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--code-dot-green)' }} />
         </div>
 
         <pre className="overflow-x-auto p-4 m-0 text-sm leading-relaxed">
-          <code className="font-mono" style={{ color: 'var(--codeblock-text)' }}>{children}</code>
+          <code className="font-mono" style={{ color: 'var(--code-text)' }}>{children}</code>
         </pre>
       </div>
-    </div>
+    </Surface>
   )
 }
 
@@ -108,7 +97,7 @@ export function TerminalLine({ prompt = '$', command, output, className }: Termi
       {command !== undefined && (
         <div>
           <span style={{ color: 'var(--code-prompt)' }}>{prompt} </span>
-          <span style={{ color: 'var(--codeblock-text)' }}>{command}</span>
+          <span style={{ color: 'var(--code-text)' }}>{command}</span>
         </div>
       )}
       {output !== undefined && (

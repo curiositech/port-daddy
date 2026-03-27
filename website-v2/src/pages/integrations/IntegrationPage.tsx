@@ -112,8 +112,8 @@ export function IntegrationPage() {
            {/* Setup Guide */}
            <section className="space-y-12">
               <motion.div className="flex items-center gap-4 border-b border-[var(--border-subtle)] pb-8">
-                 <motion.div className="w-10 h-10 rounded-xl bg-[var(--p-amber-500)]/10 flex items-center justify-center border border-[var(--p-amber-500)]/20">
-                    <Terminal size={20} className="text-[var(--p-amber-400)]" />
+                 <motion.div className="w-10 h-10 rounded-xl bg-[var(--brand-accent)]/10 flex items-center justify-center border border-[var(--brand-accent)]/20">
+                    <Terminal size={20} className="text-[var(--brand-accent)]" />
                  </motion.div>
                  <motion.h2 className="text-3xl font-display font-black m-0">Quick Start</motion.h2>
               </motion.div>

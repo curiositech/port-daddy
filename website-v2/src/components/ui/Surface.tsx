@@ -24,6 +24,8 @@ const surfaceVariants = cva(
         lg: 'rounded-[var(--radius-lg)]',
         xl: 'rounded-[var(--radius-xl)]',
         '2xl': 'rounded-[var(--radius-2xl)]',
+        '3xl': 'rounded-[var(--radius-3xl)]',
+        '4xl': 'rounded-[var(--radius-4xl)]',
         full: 'rounded-full',
       },
       padding: {

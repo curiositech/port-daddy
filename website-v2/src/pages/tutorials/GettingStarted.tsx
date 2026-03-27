@@ -89,7 +89,7 @@ export function GettingStarted() {
               className="w-12 h-12 rounded-2xl flex items-center justify-center"
               style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
             >
-              <Cpu className="text-[var(--p-amber-400)]" size={24} />
+              <Cpu className="text-[var(--brand-accent)]" size={24} />
             </motion.div>
             <motion.h2 className="m-0">2. Claim Your Identity</motion.h2>
           </motion.div>
@@ -145,7 +145,7 @@ export function GettingStarted() {
                className="flex items-center gap-6 p-6 rounded-2xl"
                style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
              >
-                <motion.div className="w-10 h-10 rounded-full bg-[var(--p-amber-500)]/10 flex items-center justify-center text-[var(--p-amber-400)] font-black">B</motion.div>
+                <motion.div className="w-10 h-10 rounded-full bg-[var(--brand-accent)]/10 flex items-center justify-center text-[var(--brand-accent)] font-black">B</motion.div>
                 <motion.div className="flex-1">
                    <motion.p className="font-bold m-0 text-lg">Remote Harbor</motion.p>
                    <motion.p className="text-sm m-0 opacity-60">Connected via <code>pd tunnel</code>.</motion.p>

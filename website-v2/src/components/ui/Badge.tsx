@@ -56,7 +56,7 @@ const variantStyles: Record<string, React.CSSProperties> = {
   gold: {
     background: 'color-mix(in srgb, var(--brand-accent) 20%, var(--surface-base))',
     boxShadow: 'var(--shadow-pressed)',
-    color: 'var(--p-gold-600)',
+    color: 'var(--brand-accent)',
   },
   success: {
     background: 'color-mix(in srgb, var(--status-success) 15%, var(--surface-base))',
