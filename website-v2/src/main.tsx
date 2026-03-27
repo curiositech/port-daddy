@@ -24,6 +24,15 @@ import QuickStart from '@/pages/docs/QuickStart'
 import CliOverview from '@/pages/docs/CliOverview'
 import McpOverview from '@/pages/docs/McpOverview'
 import PortsFeature from '@/pages/docs/features/PortsFeature'
+import RadioFeature from '@/pages/docs/features/RadioFeature'
+import SessionsFeature from '@/pages/docs/features/SessionsFeature'
+import HarborsFeature from '@/pages/docs/features/HarborsFeature'
+import SalvageFeature from '@/pages/docs/features/SalvageFeature'
+import TimelineFeature from '@/pages/docs/features/TimelineFeature'
+import DnsFeature from '@/pages/docs/features/DnsFeature'
+import RemoteFeature from '@/pages/docs/features/RemoteFeature'
+import TunnelsFeature from '@/pages/docs/features/TunnelsFeature'
+import AvatarsFeature from '@/pages/docs/features/AvatarsFeature'
 
 // CLI Command Pages
 import ClaimCommand from '@/pages/docs/cli/ClaimCommand'
@@ -267,15 +276,15 @@ createRoot(document.getElementById('root')!).render(
             
             {/* Features */}
             <Route path="features/ports" element={<PortsFeature />} />
-            <Route path="features/radio" element={<PortsFeature />} />
-            <Route path="features/harbors" element={<PortsFeature />} />
-            <Route path="features/avatars" element={<PortsFeature />} />
-            <Route path="features/salvage" element={<PortsFeature />} />
-            <Route path="features/timeline" element={<PortsFeature />} />
-            <Route path="features/dns" element={<PortsFeature />} />
-            <Route path="features/remote" element={<PortsFeature />} />
-            <Route path="features/sessions" element={<PortsFeature />} />
-            <Route path="features/tunnels" element={<PortsFeature />} />
+            <Route path="features/radio" element={<RadioFeature />} />
+            <Route path="features/harbors" element={<HarborsFeature />} />
+            <Route path="features/avatars" element={<AvatarsFeature />} />
+            <Route path="features/salvage" element={<SalvageFeature />} />
+            <Route path="features/timeline" element={<TimelineFeature />} />
+            <Route path="features/dns" element={<DnsFeature />} />
+            <Route path="features/remote" element={<RemoteFeature />} />
+            <Route path="features/sessions" element={<SessionsFeature />} />
+            <Route path="features/tunnels" element={<TunnelsFeature />} />
             
             {/* SDK - TypeScript */}
             <Route path="sdk" element={<SdkOverview />} />
