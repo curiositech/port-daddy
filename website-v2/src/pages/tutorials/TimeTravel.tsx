@@ -110,11 +110,10 @@ $ curl http://localhost:9876/activity/stats`}
             The activity log is most useful for diagnosing race conditions between agents, finding lost work after crashes, and understanding why a service stopped responding.
           </motion.p>
 
-          <Surface depth="raised" radius="2xl" className="p-10 border-l-8 border-[var(--status-error)]">
-             <motion.p className="font-bold text-[var(--text-primary)] m-0 mb-4 text-2xl font-display">Post-Mortem Integrity:</motion.p>
-             <motion.p className="m-0 text-lg">
-               Since the database is immutable, agents can't "delete their mistakes" to hide errors. This ensures a 100% audit trail for your autonomous organization.
-             </motion.p>
+          <Surface depth="flat" radius="xl" padding="md" className="border-l-4 border-[var(--brand-secondary)]">
+            <p className="m-0 text-sm" style={{ color: 'var(--text-secondary)' }}>
+              <strong>Post-Mortem Integrity:</strong> Since the database is immutable, agents can't "delete their mistakes" to hide errors. This ensures a 100% audit trail for your autonomous organization.
+            </p>
           </Surface>
         </section>
 
