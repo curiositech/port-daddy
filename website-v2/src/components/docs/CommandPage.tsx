@@ -213,7 +213,7 @@ export function CommandPage({
             {flags.map((flag, i) => (
               <div key={i} className="p-4">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">{flag.flag}</code>
-                <p className="text-sm text-[var(--text-tertiary)] mt-1">{flag.description}</p>
+                <p className="text-sm text-[var(--text-muted)] mt-1">{flag.description}</p>
               </div>
             ))}
           </div>
@@ -236,7 +236,7 @@ export function CommandPage({
               >
                 <div>
                   <code className="text-sm font-mono text-[var(--brand-primary)]">{sub.name}</code>
-                  <p className="text-sm text-[var(--text-tertiary)] mt-1">{sub.description}</p>
+                  <p className="text-sm text-[var(--text-muted)] mt-1">{sub.description}</p>
                 </div>
                 <ArrowLeft size={16} className="text-[var(--text-muted)] rotate-180" />
               </Link>
@@ -290,7 +290,7 @@ export function CommandPage({
         </Link>
         <Link 
           to="/docs/sdk"
-          className="flex items-center gap-2 text-sm text-[var(--brand-primary)] hover:text-[var(--brand-primary-hover)] transition-colors"
+          className="flex items-center gap-2 text-sm text-[var(--brand-primary)] hover:text-[var(--brand-primary)] transition-colors"
         >
           SDK Reference
           <ArrowLeft size={14} className="rotate-180" />

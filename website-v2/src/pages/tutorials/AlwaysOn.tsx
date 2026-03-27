@@ -53,7 +53,7 @@ export function AlwaysOn() {
                   className="w-10 h-10 rounded-xl flex items-center justify-center"
                   style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
                 >
-                   <Share2 size={20} className="text-[var(--p-amber-400)]" />
+                   <Share2 size={20} className="text-[var(--brand-accent)]" />
                 </motion.div>
                 <motion.h3 className="text-xl font-display font-black m-0">Event Driven</motion.h3>
                 <motion.p className="text-sm text-[var(--text-secondary)] m-0">Instead of polling, Avatars wake up instantly when a message hits a channel they are subscribed to.</motion.p>

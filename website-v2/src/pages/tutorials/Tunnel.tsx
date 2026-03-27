@@ -53,7 +53,7 @@ export function Tunnel() {
                   className="w-10 h-10 rounded-xl flex items-center justify-center"
                   style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
                 >
-                   <Network size={20} className="text-[var(--p-amber-400)]" />
+                   <Network size={20} className="text-[var(--brand-accent)]" />
                 </motion.div>
                 <motion.h3 className="text-xl font-display font-black m-0">Lifecycle Managed</motion.h3>
                 <motion.p className="text-sm opacity-60 m-0">Tunnels are tied to your port claims. The daemon tracks active tunnels and can clean them up on shutdown.</motion.p>

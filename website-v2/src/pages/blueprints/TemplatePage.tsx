@@ -128,9 +128,9 @@ export function TemplatePage() {
                     <motion.h3 className="text-xl font-display font-black m-0">Role-Based Agents</motion.h3>
                     <motion.p className="text-base text-[var(--text-secondary)] m-0 leading-relaxed">Dedicated identities for planners, coders, and reviewers with scoped file access.</motion.p>
                  </motion.div>
-                 <motion.div className="p-8 rounded-[32px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-4 group hover:border-[var(--p-amber-400)] transition-colors">
-                    <motion.div className="w-10 h-10 rounded-xl bg-[var(--p-amber-500)]/10 flex items-center justify-center border border-[var(--p-amber-500)]/20">
-                       <Zap size={20} className="text-[var(--p-amber-400)]" />
+                 <motion.div className="p-8 rounded-[32px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-4 group hover:border-[var(--brand-accent)] transition-colors">
+                    <motion.div className="w-10 h-10 rounded-xl bg-[var(--brand-accent)]/10 flex items-center justify-center border border-[var(--brand-accent)]/20">
+                       <Zap size={20} className="text-[var(--brand-accent)]" />
                     </motion.div>
                     <motion.h3 className="text-xl font-display font-black m-0">Reactive Signaling</motion.h3>
                     <motion.p className="text-base text-[var(--text-secondary)] m-0 leading-relaxed">Pre-wired Swarm Radio channels for automatic handoffs and error reporting.</motion.p>

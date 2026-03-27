@@ -132,7 +132,7 @@ export function IntegrationsPage() {
               <Badge variant="gold" className="px-6 sm:px-8 py-2 sm:py-3 text-[10px] font-black uppercase tracking-widest">Architectural Mesh</Badge>
               <h3 className="text-2xl sm:text-5xl lg:text-7xl font-display font-black tracking-tight leading-[0.95] m-0" style={{ color: 'var(--text-primary)' }}>
                 One Mesh. <br />
-                <span className="text-[var(--p-amber-400)]">Global Scale.</span>
+                <span className="text-[var(--brand-accent)]">Global Scale.</span>
               </h3>
               <p className="text-base sm:text-2xl lg:text-3xl leading-relaxed text-[var(--text-secondary)] max-w-3xl">
                 Integrations in Port Daddy are not mere API wrappers. They are high-fidelity bridges that allow different agent families to communicate using a single, secure protocol. Build your swarm with Claude, monitor it with Gemini, and orchestrate it with CrewAI.

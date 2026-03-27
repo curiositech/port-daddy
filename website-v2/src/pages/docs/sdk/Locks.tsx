@@ -80,28 +80,28 @@ export default function LocksSdk() {
                 <Badge variant="default" size="sm">required</Badge>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Unique name for this lock</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Unique name for this lock</p>
             </div>
             <div className="p-4 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.ttl</code>
                 <span className="text-xs text-[var(--text-muted)]">number</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Time-to-live in seconds (default: 60)</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Time-to-live in seconds (default: 60)</p>
             </div>
             <div className="p-4 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.wait</code>
                 <span className="text-xs text-[var(--text-muted)]">boolean</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Wait for lock instead of failing immediately</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Wait for lock instead of failing immediately</p>
             </div>
             <div className="p-4 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.timeout</code>
                 <span className="text-xs text-[var(--text-muted)]">number</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Max wait time in milliseconds (when wait=true)</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Max wait time in milliseconds (when wait=true)</p>
             </div>
           </div>
         </div>
@@ -182,7 +182,7 @@ if (!lock) {
                 <Badge variant="default" size="sm">required</Badge>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">The lock name to release</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">The lock name to release</p>
             </div>
           </div>
         </div>
@@ -221,7 +221,7 @@ console.log(released) // true`}
                 <Badge variant="default" size="sm">required</Badge>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Lock name</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Lock name</p>
             </div>
             <div className="p-4 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2">
@@ -229,14 +229,14 @@ console.log(released) // true`}
                 <Badge variant="default" size="sm">required</Badge>
                 <span className="text-xs text-[var(--text-muted)]">() =&gt; Promise&lt;T&gt;</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Function to execute while holding the lock</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Function to execute while holding the lock</p>
             </div>
             <div className="p-4 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options</code>
                 <span className="text-xs text-[var(--text-muted)]">LockOptions</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Same options as acquireLock</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Same options as acquireLock</p>
             </div>
           </div>
         </div>
@@ -294,25 +294,25 @@ if (result === null) {
         <div className="grid sm:grid-cols-2 gap-4">
           <div>
             <h3 className="font-medium text-[var(--text-primary)] mb-2">File Modifications</h3>
-            <p className="text-sm text-[var(--text-tertiary)]">
+            <p className="text-sm text-[var(--text-muted)]">
               Prevent multiple agents from editing the same file simultaneously.
             </p>
           </div>
           <div>
             <h3 className="font-medium text-[var(--text-primary)] mb-2">Database Migrations</h3>
-            <p className="text-sm text-[var(--text-tertiary)]">
+            <p className="text-sm text-[var(--text-muted)]">
               Ensure only one agent runs migrations at a time.
             </p>
           </div>
           <div>
             <h3 className="font-medium text-[var(--text-primary)] mb-2">Build Processes</h3>
-            <p className="text-sm text-[var(--text-tertiary)]">
+            <p className="text-sm text-[var(--text-muted)]">
               Coordinate builds to avoid conflicts in output directories.
             </p>
           </div>
           <div>
             <h3 className="font-medium text-[var(--text-primary)] mb-2">Resource Allocation</h3>
-            <p className="text-sm text-[var(--text-tertiary)]">
+            <p className="text-sm text-[var(--text-muted)]">
               Coordinate access to limited external resources.
             </p>
           </div>
@@ -348,7 +348,7 @@ interface LockOptions {
         </Link>
         <Link 
           to="/docs/sdk/harbors"
-          className="flex items-center gap-2 text-sm text-[var(--brand-primary)] hover:text-[var(--brand-primary-hover)] transition-colors"
+          className="flex items-center gap-2 text-sm text-[var(--brand-primary)] hover:text-[var(--brand-primary)] transition-colors"
         >
           Harbors Module
           <ArrowLeft size={14} className="rotate-180" />

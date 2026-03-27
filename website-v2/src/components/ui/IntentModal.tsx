@@ -1,5 +1,6 @@
 import { BookOpen, Play, Search, X, Sparkles, Terminal, Github } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { Surface } from './Surface'
 
 interface IntentModalProps {
   isOpen: boolean
@@ -42,17 +43,17 @@ export function IntentModal({ isOpen, onClose }: IntentModalProps) {
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
       {/* Backdrop */}
-      <div 
+      <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
       />
-      
+
       {/* Modal */}
-      <div className="relative w-full max-w-lg bg-[var(--bg-surface)] rounded-2xl border border-[var(--border-subtle)] shadow-[var(--shadow-xl)] p-6 sm:p-8">
+      <Surface depth="floating" radius="2xl" padding="lg" className="relative w-full max-w-lg border border-[var(--border-subtle)]">
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--interactive-hover)] transition-all"
+          className="absolute top-4 right-4 p-2 rounded-[var(--radius-lg)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--interactive-hover)] transition-all cursor-pointer"
           aria-label="Close"
         >
           <X size={20} />
@@ -77,27 +78,33 @@ export function IntentModal({ isOpen, onClose }: IntentModalProps) {
                 key={intent.id}
                 to={intent.href}
                 onClick={onClose}
-                className={`flex items-start gap-4 p-4 rounded-xl border transition-all group ${
+                className={`flex items-start gap-4 p-4 rounded-[var(--radius-lg)] border transition-all group ${
                   intent.primary
-                    ? 'bg-[var(--interactive-active)] border-[var(--brand-primary)]/30 hover:border-[var(--brand-primary)]'
-                    : 'bg-[var(--bg-base)] border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-surface-hover)]'
+                    ? 'border-[var(--brand-primary)]/30 hover:border-[var(--brand-primary)]'
+                    : 'border-[var(--border-subtle)] hover:border-[var(--border-default)]'
                 }`}
+                style={{
+                  background: intent.primary
+                    ? 'var(--interactive-active)'
+                    : 'var(--surface-base)',
+                }}
               >
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
-                  intent.primary 
-                    ? 'bg-[var(--brand-primary)]/10' 
-                    : 'bg-[var(--bg-overlay)]'
-                }`}>
-                  <Icon 
-                    size={20} 
-                    className={intent.primary ? 'text-[var(--brand-primary)]' : 'text-[var(--text-secondary)]'} 
+                <Surface
+                  depth="inset"
+                  radius="lg"
+                  padding="none"
+                  className="w-10 h-10 flex items-center justify-center shrink-0"
+                >
+                  <Icon
+                    size={20}
+                    className={intent.primary ? 'text-[var(--brand-primary)]' : 'text-[var(--text-secondary)]'}
                   />
-                </div>
+                </Surface>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-[var(--text-primary)] mb-0.5">
                     {intent.title}
                   </h3>
-                  <p className="text-sm text-[var(--text-tertiary)] mb-2">
+                  <p className="text-sm text-[var(--text-muted)] mb-2">
                     {intent.description}
                   </p>
                   <span className={`text-sm font-medium ${
@@ -144,7 +151,7 @@ export function IntentModal({ isOpen, onClose }: IntentModalProps) {
             </Link>
           </div>
         </div>
-      </div>
+      </Surface>
     </div>
   )
 }

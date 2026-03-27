@@ -61,14 +61,14 @@ export function BlueprintsSection() {
                 <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-2">
                   {blueprint.title}
                 </h3>
-                <p className="text-[var(--text-tertiary)] leading-relaxed mb-4">
+                <p className="text-[var(--text-muted)] leading-relaxed mb-4">
                   {blueprint.description}
                 </p>
 
                 <div className="flex items-center justify-between pt-4 border-t border-[var(--border-subtle)]">
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-[var(--success)]" />
-                    <span className="text-xs font-medium text-[var(--text-tertiary)]">Ready to Spawn</span>
+                    <span className="text-xs font-medium text-[var(--text-muted)]">Ready to Spawn</span>
                   </div>
                   <span className="text-sm font-medium text-[var(--brand-primary)] group-hover:gap-3 transition-all flex items-center gap-2">
                     Inspect
@@ -103,7 +103,7 @@ export function BlueprintsSection() {
                   <item.icon size={20} className="text-[var(--brand-primary)]" />
                 </div>
                 <h4 className="font-semibold text-[var(--text-primary)] mb-1">{item.title}</h4>
-                <p className="text-sm text-[var(--text-tertiary)]">{item.desc}</p>
+                <p className="text-sm text-[var(--text-muted)]">{item.desc}</p>
               </div>
             ))}
           </div>

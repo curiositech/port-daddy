@@ -183,7 +183,7 @@ export function SdkFunctionPage({
                   {param.required && <Badge variant="default" size="sm">required</Badge>}
                   <span className="text-xs text-[var(--text-muted)]">{param.type}</span>
                 </div>
-                <p className="text-sm text-[var(--text-tertiary)] mt-1">{param.description}</p>
+                <p className="text-sm text-[var(--text-muted)] mt-1">{param.description}</p>
               </div>
             ))}
           </div>
@@ -199,7 +199,7 @@ export function SdkFunctionPage({
             style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
           >
             <code className="text-sm font-mono text-[var(--brand-primary)]">{returns.type}</code>
-            <p className="text-sm text-[var(--text-tertiary)] mt-1">{returns.description}</p>
+            <p className="text-sm text-[var(--text-muted)] mt-1">{returns.description}</p>
           </div>
         </div>
       )}
@@ -249,7 +249,7 @@ export function SdkFunctionPage({
         </Link>
         <Link 
           to="/docs/sdk"
-          className="flex items-center gap-2 text-sm text-[var(--brand-primary)] hover:text-[var(--brand-primary-hover)] transition-colors"
+          className="flex items-center gap-2 text-sm text-[var(--brand-primary)] hover:text-[var(--brand-primary)] transition-colors"
         >
           All SDK Functions
           <ArrowLeft size={14} className="rotate-180" />

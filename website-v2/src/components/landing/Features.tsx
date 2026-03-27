@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { Surface } from '@/components/ui/Surface'
 import { PRODUCT_FEATURES } from '@/data/product'
 import {
   Anchor, Radio, Shield, History, Cpu, Sparkles, Terminal
@@ -25,7 +26,7 @@ const item = {
 
 export function Features() {
   return (
-    <section id="features" className="relative py-16 lg:py-20">
+    <section id="features" className="relative py-16 lg:py-24">
       <div className="max-w-[1200px] mx-auto px-6 lg:px-8">
         {/* Header */}
         <div className="max-w-2xl mb-16">
@@ -51,53 +52,31 @@ export function Features() {
             const Icon = ICON_MAP[feature.category] || Terminal
 
             return (
-              <motion.div
-                key={feature.id}
-                variants={item}
-                className="group relative p-6 rounded-2xl transition-all duration-300 cursor-default"
-                style={{
-                  background: 'var(--bg-surface)',
-                  boxShadow: 'var(--shadow-neu-raised)',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.boxShadow = 'var(--shadow-neu-flat)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.boxShadow = 'var(--shadow-neu-raised)'
-                }}
-              >
-                <div className="relative">
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center mb-4"
-                    style={{
-                      background: 'var(--bg-base)',
-                      boxShadow: 'var(--shadow-neu-inset)',
-                      borderRadius: '12px',
-                    }}
-                  >
-                    <Icon size={18} className="text-[var(--brand-accent)]" />
+              <motion.div key={feature.id} variants={item}>
+                <Surface depth="raised" radius="2xl" padding="lg" interactive className="h-full">
+                  <div className="relative">
+                    <Surface depth="inset" radius="md" padding="none" className="w-10 h-10 flex items-center justify-center mb-4">
+                      <Icon size={18} className="text-[var(--brand-accent)]" />
+                    </Surface>
+
+                    <h3 className="text-[15px] font-semibold text-[var(--text-primary)] mb-2 tracking-[-0.01em]">
+                      {feature.title}
+                    </h3>
+
+                    <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-4">
+                      {feature.description}
+                    </p>
+
+                    {/* CLI snippet */}
+                    <div
+                      className="flex items-center gap-2 px-3 py-2 font-mono text-xs rounded-[var(--radius-sm)]"
+                      style={{ background: 'var(--code-bg)' }}
+                    >
+                      <span className="text-[var(--code-prompt)] select-none">$</span>
+                      <span className="text-[var(--code-text)]">{feature.cli}</span>
+                    </div>
                   </div>
-
-                  <h3 className="text-[15px] font-semibold text-[var(--text-primary)] mb-2 tracking-[-0.01em]">
-                    {feature.title}
-                  </h3>
-
-                  <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-4">
-                    {feature.description}
-                  </p>
-
-                  {/* CLI snippet - inset neumorphic */}
-                  <div
-                    className="flex items-center gap-2 px-3 py-2 font-mono text-xs rounded-lg"
-                    style={{
-                      background: 'var(--bg-code)',
-                      borderRadius: '8px',
-                    }}
-                  >
-                    <span className="text-[var(--code-prompt)] select-none">$</span>
-                    <span className="text-[var(--text-code)]">{feature.cli}</span>
-                  </div>
-                </div>
+                </Surface>
               </motion.div>
             )
           })}

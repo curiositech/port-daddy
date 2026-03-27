@@ -56,7 +56,7 @@ function CodeBlock({ code, verify }: { code: string; verify: string }) {
       </div>
       <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
         <span>Verify:</span>
-        <code className="text-[var(--text-tertiary)]">{verify}</code>
+        <code className="text-[var(--text-muted)]">{verify}</code>
       </div>
     </div>
   )

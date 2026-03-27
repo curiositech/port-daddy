@@ -2,11 +2,12 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Anchor, Github, Terminal, Sparkles } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
+import { Surface } from '@/components/ui/Surface'
 
 export function CTABanner() {
   return (
     <motion.section
-      className="py-20 px-6 sm:px-8 lg:px-10 relative overflow-hidden font-sans flex flex-col items-center text-center"
+      className="py-16 lg:py-24 px-6 lg:px-8 relative overflow-hidden font-sans flex flex-col items-center text-center"
       style={{ background: 'var(--surface-base)' }}
       initial={{ opacity: 0 }}
       whileInView={{ opacity: 1 }}
@@ -16,7 +17,7 @@ export function CTABanner() {
       <motion.div
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: 'linear-gradient(180deg, var(--bg-base) 0%, #d6ddd9 50%, var(--bg-base) 100%)',
+          background: 'linear-gradient(180deg, var(--surface-base) 0%, var(--surface-overlay) 50%, var(--surface-base) 100%)',
         }}
       />
 
@@ -30,17 +31,14 @@ export function CTABanner() {
         <motion.div className="flex flex-col items-center gap-6">
            <Badge variant="teal" className="px-8 py-3 text-[10px] font-black uppercase tracking-[0.25em]">The Departure</Badge>
            {/* Anchor icon in inset circle */}
-           <motion.div
-             className="w-24 h-24 rounded-[40px] flex items-center justify-center"
-             style={{
-               background: 'var(--surface-base)',
-               boxShadow: 'var(--shadow-inset)',
-             }}
-             animate={{ y: [0, -12, 0] }}
-             transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-           >
-              <Anchor style={{ color: 'var(--brand-primary)' }} size={48} />
-           </motion.div>
+           <Surface depth="inset" radius="3xl" padding="none" className="w-24 h-24 flex items-center justify-center">
+              <motion.div
+                animate={{ y: [0, -12, 0] }}
+                transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+              >
+                <Anchor style={{ color: 'var(--brand-primary)' }} size={48} />
+              </motion.div>
+           </Surface>
         </motion.div>
 
         <motion.div className="space-y-6 flex flex-col items-center">
@@ -54,7 +52,7 @@ export function CTABanner() {
         </p>
 
         <motion.div className="flex flex-col sm:flex-row flex-wrap gap-4 sm:gap-6 justify-center items-center pt-4 w-full sm:w-auto">
-          {/* Primary CTA button with neumorphic shadow */}
+          {/* Primary CTA */}
           <motion.button
             className="w-full sm:w-auto px-8 sm:px-16 py-4 sm:py-8 rounded-full font-black text-base sm:text-2xl flex items-center justify-center gap-3 sm:gap-4 transition-all"
             style={{
@@ -66,13 +64,13 @@ export function CTABanner() {
             }}
             whileHover={{ scale: 1.05, y: -6, boxShadow: 'var(--shadow-raised)' }}
             whileTap={{ scale: 0.95, boxShadow: 'var(--shadow-pressed)' }}
-            onClick={() => window.open('https://github.com/erichowens/port-daddy', '_blank')}
+            onClick={() => window.open('https://github.com/curiositech/port-daddy', '_blank')}
           >
             <Github size={22} />
             STAR ON GITHUB
           </motion.button>
 
-          {/* Secondary CTA button */}
+          {/* Secondary CTA */}
           <Link to="/tutorials/getting-started" className="no-underline w-full sm:w-auto">
             <motion.button
               className="w-full sm:w-auto px-8 sm:px-16 py-4 sm:py-8 rounded-full font-black text-base sm:text-2xl flex items-center justify-center gap-3 sm:gap-4 transition-all"

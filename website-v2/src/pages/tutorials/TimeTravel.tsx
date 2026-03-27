@@ -100,7 +100,7 @@ $ curl http://localhost:9876/activity/stats`}
              </motion.div>
              <motion.div className="flex items-center gap-4">
                 <motion.span className="w-20" style={{ color: 'var(--code-text)' }}>12:04:05</motion.span>
-                <motion.span className="text-[var(--p-amber-400)]">[radio]</motion.span>
+                <motion.span className="text-[var(--brand-accent)]">[radio]</motion.span>
                 <motion.span className="font-bold" style={{ color: 'var(--code-text)' }}>swarm:task:new {'->'} {"{id: 42}"}</motion.span>
              </motion.div>
              <motion.div className="flex items-center gap-4 opacity-40">

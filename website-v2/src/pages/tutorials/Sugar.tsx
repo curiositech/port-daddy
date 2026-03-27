@@ -24,7 +24,7 @@ export function Sugar() {
               className="w-12 h-12 rounded-2xl flex items-center justify-center"
               style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
             >
-              <Sparkles className="text-[var(--p-amber-400)]" size={24} />
+              <Sparkles className="text-[var(--brand-accent)]" size={24} />
             </motion.div>
             <motion.h2 className="m-0">Invisible Infrastructure</motion.h2>
           </motion.div>
@@ -100,7 +100,7 @@ export function Sugar() {
               className="w-12 h-12 rounded-2xl flex items-center justify-center"
               style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
             >
-              <Lock className="text-[var(--p-amber-400)]" size={24} />
+              <Lock className="text-[var(--brand-accent)]" size={24} />
             </motion.div>
             <motion.h2 className="m-0">2. pd with-lock</motion.h2>
           </motion.div>
@@ -117,7 +117,7 @@ export function Sugar() {
             className="p-10 rounded-2xl space-y-6 relative overflow-hidden"
             style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
           >
-             <motion.div className="absolute inset-0 bg-gradient-to-r from-[var(--p-amber-500)]/5 to-transparent" />
+             <motion.div className="absolute inset-0 bg-gradient-to-r from-[var(--brand-accent)]/5 to-transparent" />
              <motion.p className="text-sm font-black uppercase tracking-widest text-[var(--text-muted)] m-0 relative z-10">Productivity HUD</motion.p>
              <motion.div className="space-y-4 relative z-10">
                 <motion.div

@@ -80,7 +80,7 @@ export default function PortsSdk() {
                 <Badge variant="default" size="sm">required</Badge>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">
+              <p className="text-sm text-[var(--text-muted)] mt-1">
                 Semantic identity in format <code>project:stack:context</code>
               </p>
             </div>
@@ -89,21 +89,21 @@ export default function PortsSdk() {
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.project</code>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Project name (optional, inferred from identity)</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Project name (optional, inferred from identity)</p>
             </div>
             <div className="p-4 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.ttl</code>
                 <span className="text-xs text-[var(--text-muted)]">number</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Time-to-live in seconds (optional)</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Time-to-live in seconds (optional)</p>
             </div>
             <div className="p-4 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.preferredPort</code>
                 <span className="text-xs text-[var(--text-muted)]">number</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Preferred port number (optional, best effort)</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Preferred port number (optional, best effort)</p>
             </div>
           </div>
         </div>
@@ -166,7 +166,7 @@ console.log(claim1.port === claim2.port) // true`}
                 <Badge variant="default" size="sm">required</Badge>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">The identity to release</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">The identity to release</p>
             </div>
           </div>
         </div>
@@ -228,14 +228,14 @@ if (claim) {
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.project</code>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Filter by project name (optional)</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Filter by project name (optional)</p>
             </div>
             <div className="p-4 bg-[var(--bg-surface)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.status</code>
                 <span className="text-xs text-[var(--text-muted)]">'active' | 'expired' | 'all'</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Filter by status (default: 'active')</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Filter by status (default: 'active')</p>
             </div>
           </div>
         </div>
@@ -301,7 +301,7 @@ interface ListServicesOptions {
         </Link>
         <Link 
           to="/docs/sdk/sessions"
-          className="flex items-center gap-2 text-sm text-[var(--brand-primary)] hover:text-[var(--brand-primary-hover)] transition-colors"
+          className="flex items-center gap-2 text-sm text-[var(--brand-primary)] hover:text-[var(--brand-primary)] transition-colors"
         >
           Sessions Module
           <ArrowLeft size={14} className="rotate-180" />

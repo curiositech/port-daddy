@@ -111,7 +111,7 @@ export function TutorialLayout({
         />
         <motion.div 
           className="absolute bottom-[-10%] left-[-5%] w-[400px] h-[400px] rounded-full blur-[100px] opacity-[0.08] pointer-events-none" 
-          style={{ background: 'radial-gradient(circle, var(--p-amber-500) 0%, transparent 70%)' }} 
+          style={{ background: 'radial-gradient(circle, var(--brand-accent) 0%, transparent 70%)' }} 
           animate={{ scale: [1, 1.2, 1], x: [0, -30, 0] }}
           transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}
         />
@@ -178,7 +178,7 @@ export function TutorialLayout({
 
             <motion.div className="flex flex-wrap items-center justify-center gap-10 font-sans text-[var(--text-muted)]">
                <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em]">
-                 <Zap size={14} className="text-[var(--p-amber-400)]" />
+                 <Zap size={14} className="text-[var(--brand-accent)]" />
                  Instant Port
                </motion.div>
                <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em]">

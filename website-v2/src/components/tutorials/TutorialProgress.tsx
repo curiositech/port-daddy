@@ -77,7 +77,7 @@ export function TutorialProgress({ currentNumber, isOpen: controlledOpen, onTogg
             />
           </div>
           
-          <div className="flex items-center justify-between mt-2 text-xs text-[var(--text-tertiary)]">
+          <div className="flex items-center justify-between mt-2 text-xs text-[var(--text-muted)]">
             <span>{completedCount} completed</span>
             <span>{remainingCount} remaining (~{remainingTime} min)</span>
           </div>

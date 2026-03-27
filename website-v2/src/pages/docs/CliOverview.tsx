@@ -34,7 +34,7 @@ export default function CliOverview() {
           Complete reference for the <code className="text-[var(--brand-primary)]">pd</code> CLI.
           Manage ports, agents, sessions, locks, and more.
         </p>
-        <p className="text-sm text-[var(--text-tertiary)] p-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] max-w-xl">
+        <p className="text-sm text-[var(--text-muted)] p-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] max-w-xl">
           Use this reference if you are running <code className="text-[var(--brand-primary)]">pd</code> commands
           from your terminal. For programmatic access see the{' '}
           <a href="/docs/sdk" className="text-[var(--brand-primary)] hover:underline">SDK</a>, or for
@@ -60,7 +60,7 @@ export default function CliOverview() {
             onClick={() => setActiveGroup(null)}
             className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
               activeGroup === null 
-                ? 'bg-[var(--brand-primary)] text-[var(--brand-on-primary)]' 
+                ? 'bg-[var(--brand-primary)] text-[var(--text-inverse)]' 
                 : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border border-[var(--border-subtle)] hover:border-[var(--border-default)]'
             }`}
           >
@@ -72,7 +72,7 @@ export default function CliOverview() {
               onClick={() => setActiveGroup(group)}
               className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                 activeGroup === group 
-                  ? 'bg-[var(--brand-primary)] text-[var(--brand-on-primary)]' 
+                  ? 'bg-[var(--brand-primary)] text-[var(--text-inverse)]' 
                   : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border border-[var(--border-subtle)] hover:border-[var(--border-default)]'
               }`}
             >
@@ -125,7 +125,7 @@ export default function CliOverview() {
                 <div className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wide mb-2">Flags</div>
                 <ul className="space-y-1">
                   {cmd.flags.map((flag, j) => (
-                    <li key={j} className="text-sm font-mono text-[var(--text-tertiary)]">
+                    <li key={j} className="text-sm font-mono text-[var(--text-muted)]">
                       {flag}
                     </li>
                   ))}
@@ -137,7 +137,7 @@ export default function CliOverview() {
             {cmd.output && (
               <div className="mt-4 pt-4 border-t border-[var(--border-subtle)]">
                 <div className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wide mb-2">Output</div>
-                <pre className="text-sm text-[var(--text-tertiary)] whitespace-pre-wrap font-mono">{cmd.output}</pre>
+                <pre className="text-sm text-[var(--text-muted)] whitespace-pre-wrap font-mono">{cmd.output}</pre>
               </div>
             )}
           </div>
@@ -150,19 +150,19 @@ export default function CliOverview() {
         <div className="grid sm:grid-cols-2 gap-4 text-sm">
           <div>
             <code className="text-[var(--brand-primary)]">pd claim &lt;identity&gt;</code>
-            <p className="text-[var(--text-tertiary)] mt-1">Claim a stable port</p>
+            <p className="text-[var(--text-muted)] mt-1">Claim a stable port</p>
           </div>
           <div>
             <code className="text-[var(--brand-primary)]">pd begin</code>
-            <p className="text-[var(--text-tertiary)] mt-1">Start agent session</p>
+            <p className="text-[var(--text-muted)] mt-1">Start agent session</p>
           </div>
           <div>
             <code className="text-[var(--brand-primary)]">pd pub &lt;channel&gt;</code>
-            <p className="text-[var(--text-tertiary)] mt-1">Publish message</p>
+            <p className="text-[var(--text-muted)] mt-1">Publish message</p>
           </div>
           <div>
             <code className="text-[var(--brand-primary)]">pd harbor create</code>
-            <p className="text-[var(--text-tertiary)] mt-1">Create permission namespace</p>
+            <p className="text-[var(--text-muted)] mt-1">Create permission namespace</p>
           </div>
         </div>
       </div>

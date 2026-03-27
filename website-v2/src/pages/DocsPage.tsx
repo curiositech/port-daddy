@@ -37,7 +37,7 @@ const SECTIONS: DocSection[] = [
     title: 'Swarm Radio',
     description: 'Low-latency pub/sub signaling for real-time inter-agent state synchronization.',
     icon: MessageSquare,
-    color: 'var(--p-amber-400)',
+    color: 'var(--brand-accent)',
     commands: [
       { cmd: 'pd pub <channel> <msg>', desc: 'Broadcast a message to a named channel.', example: 'pd pub swarm:events "deploy-ready"' },
       { cmd: 'pd sub <channel>', desc: 'Subscribe to a real-time stream of events.', example: 'pd sub swarm:events' },
@@ -189,7 +189,7 @@ export default function DocsPage() {
            <motion.div className="space-y-6 max-w-3xl relative z-10">
               <Badge variant="gold" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest shadow-xl">Architectural Integrity</Badge>
               <motion.h3 className="text-4xl sm:text-7xl font-display font-black tracking-tight leading-[0.95]" style={{ color: 'var(--text-primary)' }}>
-                System <motion.span className="text-[var(--p-amber-400)]">Soundness.</motion.span>
+                System <motion.span className="text-[var(--brand-accent)]">Soundness.</motion.span>
               </motion.h3>
               <motion.p className="text-2xl leading-relaxed text-[var(--text-secondary)]">
                 Port Daddy is built on a foundation of formal verification. We ensure that every command follows strictly defined state transitions, preventing "zombie" processes and unauthorized port claims across your entire swarm.

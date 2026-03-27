@@ -103,7 +103,7 @@ export function SailorAgent({
             animate={{ opacity: [0, 1, 0] }}
             transition={{ duration: 1, repeat: Infinity }}
           >
-            <path d="M80 40 L 82 35 L 84 40 L 89 42 L 84 44 L 82 49 L 80 44 L 75 42 Z" fill="var(--p-amber-400)" />
+            <path d="M80 40 L 82 35 L 84 40 L 89 42 L 84 44 L 82 49 L 80 44 L 75 42 Z" fill="var(--brand-accent)" />
           </motion.g>
         )}
       </svg>

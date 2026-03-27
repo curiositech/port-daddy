@@ -53,7 +53,7 @@ export function Dashboard() {
                   className="w-10 h-10 rounded-xl flex items-center justify-center"
                   style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
                 >
-                   <Activity size={20} className="text-[var(--p-amber-400)]" />
+                   <Activity size={20} className="text-[var(--brand-accent)]" />
                 </motion.div>
                 <motion.h3 className="text-xl font-display font-black m-0">Swarm Radio Feed</motion.h3>
                 <motion.p className="text-sm text-[var(--text-secondary)] m-0">A unified chronological stream of every message, port claim, and session note across the mesh.</motion.p>
@@ -129,7 +129,7 @@ export function Dashboard() {
                      style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-pressed)' }}
                    >
                       <motion.div
-                        className="h-full bg-[var(--p-amber-400)]"
+                        className="h-full bg-[var(--brand-accent)]"
                         animate={{ width: ['20%', '80%', '40%'] }}
                         transition={{ duration: 4, repeat: Infinity }}
                       />
