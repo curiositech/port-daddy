@@ -64,10 +64,10 @@ export function DNSResolver() {
             {`$ pd claim my-swarm:api --dns auth.pd.local\n\n✓ Port 3102 assigned.\n✓ DNS Registered: http://auth.pd.local -> localhost:3102`}
           </CodeBlock>
 
-          <Surface depth="inset" radius="2xl" padding="none" className="p-8 border-l-4 border-[var(--brand-primary)]">
-             <motion.p className="m-0 text-sm italic opacity-60 font-medium">
-               The daemon handles the complexity of OS-level DNS resolution, ensuring your browser and local tools can resolve these names instantly.
-             </motion.p>
+          <Surface depth="flat" radius="xl" padding="md" className="border-l-4 border-[var(--brand-secondary)]">
+            <p className="m-0 text-sm" style={{ color: 'var(--text-secondary)' }}>
+              The daemon handles the complexity of OS-level DNS resolution, ensuring your browser and local tools can resolve these names instantly.
+            </p>
           </Surface>
         </section>
 
