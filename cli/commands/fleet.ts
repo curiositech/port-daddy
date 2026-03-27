@@ -7,14 +7,15 @@
 
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { existsSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, unlinkSync, mkdirSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import * as ui from '../utils/ui.js';
-import { loadFleetConfig, createFleetRunner, type FleetConfig } from '../../lib/fleet-engine.js';
+import { pdFetch, isDaemonRunning } from '../utils/fetch.js';
+import { loadFleetConfig, createFleetRunner } from '../../lib/fleet-engine.js';
 
 // ─── Load .env.local / .env for API keys ────────────────────────────────────
-// Searches: cwd, project root, home directory. All found vars are merged.
-// Existing env vars take precedence (don't overwrite what's already set).
+// Searches: cwd, parent dir, home directory. Later files overwrite earlier ones,
+// so cwd takes precedence over home, and .env.local over .env within each dir.
 function loadEnvFiles(): void {
   const searchDirs = [
     process.cwd(),
@@ -41,7 +42,7 @@ function loadEnvFiles(): void {
           if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
             val = val.slice(1, -1);
           }
-          if (!process.env[key]) process.env[key] = val;
+          process.env[key] = val;
         }
       }
     }
@@ -52,7 +53,6 @@ function loadEnvFiles(): void {
 loadEnvFiles();
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const FLEET_DIR = join(__dirname, '..', '..', 'fleet');
 const PD_URL = process.env.PD_URL || process.env.PORT_DADDY_URL || 'http://localhost:9876';
 
 function isFleetRunning(): { running: boolean; pid: number | null; name: string | null } {
@@ -68,18 +68,9 @@ function isFleetRunning(): { running: boolean; pid: number | null; name: string 
   }
 }
 
-async function isDaemonUp(): Promise<boolean> {
-  try {
-    const res = await fetch(`${PD_URL}/health`);
-    return res.ok;
-  } catch {
-    return false;
-  }
-}
-
 async function getFleetAgents(): Promise<Array<{ id: string; purpose: string; status: string }>> {
   try {
-    const res = await fetch(`${PD_URL}/agents`);
+    const res = await pdFetch('/agents');
     if (!res.ok) return [];
     const data = await res.json() as any;
     return (data.agents || []).filter((a: any) => a.id?.startsWith('fleet-'));
@@ -94,7 +85,7 @@ async function getFleetAgents(): Promise<Array<{ id: string; purpose: string; st
 let activeRunner: ReturnType<typeof createFleetRunner> | null = null;
 
 async function fleetUp(): Promise<void> {
-  if (!(await isDaemonUp())) {
+  if (!(await isDaemonRunning())) {
     ui.error('Port Daddy daemon not running. Start it first: pd start');
     process.exit(1);
   }
@@ -123,7 +114,6 @@ async function fleetUp(): Promise<void> {
 
     // Save state so pd fleet status/stop can find it
     const stateFile = join(projectDir, '.portdaddy', 'fleet-state.json');
-    const { mkdirSync } = await import('node:fs');
     mkdirSync(join(projectDir, '.portdaddy'), { recursive: true });
     writeFileSync(stateFile, JSON.stringify({
       pid: process.pid,
@@ -167,7 +157,7 @@ async function fleetUp(): Promise<void> {
   }
 }
 
-async function fleetDown(): Promise<void> {
+function fleetDown(): void {
   const { running, pid } = isFleetRunning();
   const stateFile = join(process.cwd(), '.portdaddy', 'fleet-state.json');
 
@@ -223,14 +213,14 @@ async function fleetStatus(): Promise<void> {
     'spark:idea', 'spark:prototype',
   ];
 
-  let anyEvents = false;
-  for (const ch of channels) {
-    try {
-      const res = await fetch(`${PD_URL}/msg/${ch}?limit=1`);
-      if (!res.ok) continue;
-      const data = await res.json() as any;
-      const msgs = data.messages || [];
-      if (msgs.length > 0) {
+  const channelResults = await Promise.all(
+    channels.map(async (ch) => {
+      try {
+        const res = await pdFetch(`/msg/${ch}?limit=1`);
+        if (!res.ok) return null;
+        const data = await res.json() as any;
+        const msgs = data.messages || [];
+        if (msgs.length === 0) return null;
         const ts = msgs[0].timestamp;
         const time = ts > 1000000000
           ? new Date(ts).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
@@ -238,13 +228,15 @@ async function fleetStatus(): Promise<void> {
         const payload = typeof msgs[0].payload === 'string'
           ? msgs[0].payload.slice(0, 80)
           : JSON.stringify(msgs[0].payload).slice(0, 80);
-        console.log(`  ${ch}: ${time} — ${payload}`);
-        anyEvents = true;
-      }
-    } catch {}
-  }
+        return `  ${ch}: ${time} — ${payload}`;
+      } catch { return null; }
+    })
+  );
 
-  if (!anyEvents) {
+  const eventLines = channelResults.filter(Boolean) as string[];
+  if (eventLines.length > 0) {
+    eventLines.forEach(line => console.log(line));
+  } else {
     console.log('  (no recent events)');
   }
 }
@@ -258,8 +250,8 @@ async function fleetStatus(): Promise<void> {
  *
  * For simple backends (custom, ollama), use the daemon's spawn API.
  */
-async function runAgentByName(agentName: string): Promise<void> {
-  const config = loadFleetConfig(process.cwd());
+async function runAgentByName(agentName: string, preloadedConfig?: ReturnType<typeof loadFleetConfig>): Promise<void> {
+  const config = preloadedConfig ?? loadFleetConfig(process.cwd());
   if (!config) {
     ui.error('No pd-fleet.yml found');
     process.exit(1);
@@ -311,7 +303,7 @@ async function runAgentByName(agentName: string): Promise<void> {
 
   } else {
     // Use daemon's spawn API for simple backends
-    const res = await fetch(`${PD_URL}/spawn`, {
+    const res = await pdFetch('/spawn', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -349,7 +341,7 @@ export async function handleFleet(positional: string[], _options: Record<string,
       break;
 
     case 'down':
-      await fleetDown();
+      fleetDown();
       break;
 
     case 'status':
@@ -388,15 +380,15 @@ export async function handleFleet(positional: string[], _options: Record<string,
 
     case 'run': {
       const agentName = positional[1];
+      const config = loadFleetConfig(process.cwd());
       if (!agentName) {
-        const config = loadFleetConfig(process.cwd());
         ui.error('Usage: pd fleet run <agent-name>');
         if (config) {
           ui.info(`Available: ${config.agents.map(a => a.name).join(', ')}`);
         }
         process.exit(1);
       }
-      await runAgentByName(agentName);
+      await runAgentByName(agentName, config);
       break;
     }
 
@@ -404,7 +396,7 @@ export async function handleFleet(positional: string[], _options: Record<string,
       // Try running it as an agent name
       const config = loadFleetConfig(process.cwd());
       if (config?.agents.find(a => a.name === subcommand)) {
-        await runAgentByName(subcommand);
+        await runAgentByName(subcommand, config);
       } else {
         ui.error(`Unknown: pd fleet ${subcommand}`);
         ui.info('Run "pd fleet help" for usage');

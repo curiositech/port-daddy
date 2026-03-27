@@ -57,11 +57,7 @@ interface RunningAgent {
 // ─── YAML Parser ────────────────────────────────────────────────────────────
 
 function parseFleetYaml(text: string): Record<string, unknown> {
-  try {
-    return JSON.parse(text);
-  } catch {
-    return parseYaml(text) as Record<string, unknown>;
-  }
+  return parseYaml(text) as Record<string, unknown>;
 }
 
 // ─── Template Resolution ────────────────────────────────────────────────────
