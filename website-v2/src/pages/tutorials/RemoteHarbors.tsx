@@ -26,7 +26,7 @@ export function RemoteHarbors() {
             <motion.h2 className="m-0">The Infinite Swarm</motion.h2>
           </motion.div>
           <motion.p>
-            **Remote Harbors** are the final piece of the Port Daddy architecture. They allow you to treat agents running on different machines--whether it's your teammate's laptop or a cloud-hosted GPU cluster--as part of a single, unified swarm.
+            <strong>Remote Harbors</strong> are the final piece of the Port Daddy architecture. They allow you to treat agents running on different machines--whether it's your teammate's laptop or a cloud-hosted GPU cluster--as part of a single, unified swarm.
           </motion.p>
           <motion.div className="grid sm:grid-cols-2 gap-8 pt-4">
              <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
@@ -68,10 +68,10 @@ export function RemoteHarbors() {
 ✓ Latency: 42ms (Secure P2P)`}
           </CodeBlock>
 
-          <Surface depth="inset" radius="2xl" padding="none" className="p-8 border-l-4 border-[var(--brand-primary)]">
-             <motion.p className="m-0 text-sm italic opacity-60 font-medium">
-               In Port Daddy v3.7, all remote communication is strictly end-to-end encrypted using the **Noise Protocol** (Noise_XX). Even the lighthouse cannot see your agent traffic.
-             </motion.p>
+          <Surface depth="flat" radius="xl" padding="md" className="border-l-4 border-[var(--brand-secondary)]">
+            <p className="m-0 text-sm" style={{ color: 'var(--text-secondary)' }}>
+              In Port Daddy v3.7, all remote communication is strictly end-to-end encrypted using the <strong>Noise Protocol</strong> (Noise_XX). Even the lighthouse cannot see your agent traffic.
+            </p>
           </Surface>
         </section>
 
