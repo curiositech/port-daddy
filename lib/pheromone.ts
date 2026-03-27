@@ -67,18 +67,82 @@ export function createPheromoneManager(db: Database.Database, config: PheromoneC
     }
   }
 
+  /**
+   * Spray a pheromone: set or increase a value on an entity's metadata.
+   */
+  function spray(table: string, id: string, key: string, strength: number): { success: boolean; pheromones: Record<string, number> } {
+    if (!ALLOWED_TABLES.has(table)) {
+      return { success: false, pheromones: {} };
+    }
+    if (strength < 0 || strength > 1) {
+      return { success: false, pheromones: {} };
+    }
+
+    const row = db.prepare(`SELECT metadata FROM ${table} WHERE id = ?`).get(id) as { metadata: string | null } | undefined;
+    if (!row) return { success: false, pheromones: {} };
+
+    const metadata = row.metadata ? JSON.parse(row.metadata) : {};
+    if (!metadata.pheromones) metadata.pheromones = {};
+    metadata.pheromones[key] = strength;
+
+    db.prepare(`UPDATE ${table} SET metadata = ? WHERE id = ?`).run(JSON.stringify(metadata), id);
+    return { success: true, pheromones: metadata.pheromones };
+  }
+
+  /**
+   * Sniff pheromones: read all pheromone values for an entity.
+   */
+  function sniff(table: string, id: string): { success: boolean; pheromones: Record<string, number> } {
+    if (!ALLOWED_TABLES.has(table)) {
+      return { success: false, pheromones: {} };
+    }
+
+    const row = db.prepare(`SELECT metadata FROM ${table} WHERE id = ?`).get(id) as { metadata: string | null } | undefined;
+    if (!row) return { success: false, pheromones: {} };
+
+    const metadata = row.metadata ? JSON.parse(row.metadata) : {};
+    return { success: true, pheromones: metadata.pheromones || {} };
+  }
+
+  /**
+   * List all non-zero pheromones across all tracked tables.
+   */
+  function list(): Array<{ table: string; id: string; pheromones: Record<string, number> }> {
+    const results: Array<{ table: string; id: string; pheromones: Record<string, number> }> = [];
+
+    for (const table of ['services', 'projects', 'sessions', 'agents']) {
+      if (!ALLOWED_TABLES.has(table)) continue;
+      try {
+        const rows = db.prepare(`SELECT id, metadata FROM ${table} WHERE metadata IS NOT NULL`).all() as any[];
+        for (const row of rows) {
+          try {
+            const metadata = JSON.parse(row.metadata);
+            if (metadata?.pheromones && Object.keys(metadata.pheromones).length > 0) {
+              results.push({ table, id: row.id, pheromones: metadata.pheromones });
+            }
+          } catch {}
+        }
+      } catch {}
+    }
+
+    return results;
+  }
+
   let timer: NodeJS.Timeout | null = null;
 
   return {
     start() {
       if (timer) return;
       timer = setInterval(evaporate, config.intervalMs);
-      console.error(`🧪 Pheromone Evaporator active (decay: ${config.decayRate}, interval: ${config.intervalMs}ms)`);
+      console.error('[Pheromone] Evaporator active (decay: ' + config.decayRate + ', interval: ' + config.intervalMs + 'ms)');
     },
     stop() {
       if (timer) clearInterval(timer);
       timer = null;
     },
-    evaporateNow: evaporate
+    evaporateNow: evaporate,
+    spray,
+    sniff,
+    list,
   };
 }
