@@ -68,7 +68,7 @@ export function Pipelines() {
               className="w-12 h-12 rounded-2xl flex items-center justify-center"
               style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
             >
-              <Terminal className="text-[var(--p-blue-400)]" size={24} />
+              <Terminal className="text-[var(--brand-secondary)]" size={24} />
             </motion.div>
             <motion.h2 className="m-0">1. Define a Rule</motion.h2>
           </motion.div>
@@ -84,7 +84,7 @@ export function Pipelines() {
           </CodeBlock>
 
           <blockquote
-            className="p-8 rounded-2xl border-l-4 border-[var(--p-blue-400)]"
+            className="p-8 rounded-2xl border-l-4 border-[var(--brand-secondary)]"
             style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
           >
              <motion.p className="m-0 text-sm italic opacity-60 font-medium">

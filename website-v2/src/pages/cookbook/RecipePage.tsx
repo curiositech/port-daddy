@@ -38,7 +38,7 @@ export function RecipePage() {
 
   return (
     <motion.div 
-      className="min-h-screen bg-[var(--bg-base)] flex flex-col pt-[var(--nav-height)] font-sans selection:bg-[var(--brand-primary)] selection:text-white"
+      className="min-h-screen bg-[var(--surface-base)] flex flex-col pt-[var(--nav-height)] font-sans selection:bg-[var(--brand-primary)] selection:text-white"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
     >
@@ -50,7 +50,7 @@ export function RecipePage() {
       {/* Hero Section */}
       <motion.header 
         className="py-20 px-6 sm:px-8 lg:px-10 border-b relative overflow-hidden" 
-        style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}
+        style={{ background: 'var(--surface-raised)', borderColor: 'var(--border-subtle)' }}
       >
         <motion.div 
           className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full blur-[140px] opacity-[0.08] pointer-events-none" 
@@ -66,7 +66,7 @@ export function RecipePage() {
            </Link>
 
            <motion.div className="flex items-center gap-6">
-              <motion.div className="w-24 h-24 rounded-[32px] bg-[var(--bg-overlay)] flex items-center justify-center border border-[var(--brand-accent)] shadow-2xl shadow-[var(--brand-accent)]/10">
+              <motion.div className="w-24 h-24 rounded-[32px] bg-[var(--surface-overlay)] flex items-center justify-center border border-[var(--brand-accent)] shadow-2xl shadow-[var(--brand-accent)]/10">
                  <Icon size={48} className="text-[var(--brand-accent)]" />
               </motion.div>
            </motion.div>
@@ -112,7 +112,7 @@ export function RecipePage() {
                   prose-headings:font-display prose-headings:font-black prose-headings:tracking-tight
                   prose-p:text-xl prose-p:leading-relaxed prose-p:text-[var(--text-secondary)]
                   prose-strong:text-[var(--text-primary)] prose-strong:font-black
-                  prose-code:text-[var(--brand-accent)] prose-code:bg-[var(--bg-overlay)] prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:font-bold prose-code:before:content-none prose-code:after:content-none"
+                  prose-code:text-[var(--brand-accent)] prose-code:bg-[var(--surface-overlay)] prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:font-bold prose-code:before:content-none prose-code:after:content-none"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.7, delay: 0.2 }}
@@ -123,7 +123,7 @@ export function RecipePage() {
 
            {/* Implementation Note */}
            <motion.div 
-             className="p-16 rounded-[60px] border border-dashed border-[var(--brand-accent)] bg-[var(--bg-overlay)] flex flex-col items-center text-center gap-8 relative overflow-hidden"
+             className="p-16 rounded-[60px] border border-dashed border-[var(--brand-accent)] bg-[var(--surface-overlay)] flex flex-col items-center text-center gap-8 relative overflow-hidden"
              whileHover={{ scale: 1.01 }}
            >
               <motion.div className="absolute top-0 right-0 p-10 opacity-[0.03] pointer-events-none">

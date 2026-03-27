@@ -64,7 +64,7 @@ export function ReorientationPanel({ tutorialNumber, tutorialTitle, onDismiss }:
                 setDismissed(true)
                 onDismiss()
               }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--bg-surface)] text-[var(--text-secondary)] text-sm font-medium hover:bg-[var(--interactive-hover)] transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--surface-raised)] text-[var(--text-secondary)] text-sm font-medium hover:bg-[var(--interactive-hover)] transition-colors"
             >
               <Map size={14} />
               Browse all tutorials

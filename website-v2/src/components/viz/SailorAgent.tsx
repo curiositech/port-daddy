@@ -32,7 +32,7 @@ export function SailorAgent({
         {/* Body - A round bouncy blob */}
         <motion.circle
           cx="50" cy="60" r="35"
-          fill="var(--bg-overlay)"
+          fill="var(--surface-overlay)"
           stroke={color}
           strokeWidth="4"
           animate={{

@@ -26,7 +26,7 @@ export function BlogPostPage() {
     <motion.div 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen bg-[var(--bg-base)] flex flex-col pt-[var(--nav-height)] font-sans selection:bg-[var(--brand-primary)] selection:text-white"
+      className="min-h-screen bg-[var(--surface-base)] flex flex-col pt-[var(--nav-height)] font-sans selection:bg-[var(--brand-primary)] selection:text-white"
     >
       {/* Progress Bar */}
       <motion.div
@@ -37,7 +37,7 @@ export function BlogPostPage() {
       {/* Hero Section */}
       <motion.header 
         className="py-20 px-6 sm:px-8 lg:px-10 border-b relative overflow-hidden" 
-        style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}
+        style={{ background: 'var(--surface-raised)', borderColor: 'var(--border-subtle)' }}
       >
         <motion.div 
           className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full blur-[140px] opacity-[0.08] pointer-events-none" 
@@ -75,7 +75,7 @@ export function BlogPostPage() {
 
            <motion.div className="flex flex-wrap justify-center gap-3">
               {post.tags.map(tag => (
-                <Badge key={tag} variant="default" className="px-4 py-1.5 text-[8px] font-black uppercase tracking-widest bg-[var(--bg-overlay)]">{tag}</Badge>
+                <Badge key={tag} variant="default" className="px-4 py-1.5 text-[8px] font-black uppercase tracking-widest bg-[var(--surface-overlay)]">{tag}</Badge>
               ))}
            </motion.div>
         </motion.div>
@@ -97,7 +97,7 @@ export function BlogPostPage() {
             prose-strong:text-[var(--text-primary)] prose-strong:font-black
             prose-ul:list-disc prose-ul:pl-8 prose-ul:mb-10 prose-ul:space-y-4
             prose-li:text-[var(--text-secondary)] prose-li:text-lg
-            prose-blockquote:border-l-4 prose-blockquote:border-[var(--brand-primary)] prose-blockquote:bg-[var(--bg-surface)] prose-blockquote:py-8 prose-blockquote:px-10 prose-blockquote:rounded-r-3xl prose-blockquote:italic prose-blockquote:text-2xl"
+            prose-blockquote:border-l-4 prose-blockquote:border-[var(--brand-primary)] prose-blockquote:bg-[var(--surface-raised)] prose-blockquote:py-8 prose-blockquote:px-10 prose-blockquote:rounded-r-3xl prose-blockquote:italic prose-blockquote:text-2xl"
         >
           <ReactMarkdown
             components={{
@@ -121,7 +121,7 @@ export function BlogPostPage() {
 
         {/* Impressively long additional context */}
         <motion.div 
-          className="mt-32 p-20 rounded-[80px] border border-dashed border-[var(--border-strong)] bg-[var(--bg-overlay)] flex flex-col items-center text-center gap-12 relative overflow-hidden"
+          className="mt-32 p-20 rounded-[80px] border border-dashed border-[var(--border-strong)] bg-[var(--surface-overlay)] flex flex-col items-center text-center gap-12 relative overflow-hidden"
           initial={{ opacity: 0, scale: 0.98 }}
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
@@ -139,7 +139,7 @@ export function BlogPostPage() {
                 This engineering post was produced as part of our commitment to transparency and mathematical rigor. We believe the future of AI coordination must be built on a foundation of formal methods and verified protocols.
               </motion.p>
               <motion.div className="flex flex-wrap justify-center gap-6 pt-4">
-                 <motion.div className="flex items-center gap-3 px-6 py-3 rounded-full bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+                 <motion.div className="flex items-center gap-3 px-6 py-3 rounded-full bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
                     <Share2 size={16} className="text-[var(--brand-primary)]" />
                     <motion.span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Share Protocol Insights</motion.span>
                  </motion.div>

@@ -99,7 +99,7 @@ export default function DocsOverview() {
       </div>
 
       {/* The Problem */}
-      <div className="p-6 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+      <div className="p-6 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
         <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-4">The Problem</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed mb-4">
           When you run two or more AI agents at the same time -- say, one building an API and another
@@ -143,7 +143,7 @@ export default function DocsOverview() {
             <Link
               key={concept.title}
               to={concept.href}
-              className="group p-5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:shadow-[var(--shadow-md)] transition-all"
+              className="group p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:shadow-[var(--shadow-md)] transition-all"
             >
               <div className="flex items-start gap-4">
                 <div className="w-10 h-10 rounded-lg bg-[var(--interactive-hover)] flex items-center justify-center shrink-0 group-hover:bg-[var(--interactive-active)] transition-colors">
@@ -179,7 +179,7 @@ export default function DocsOverview() {
             <Link
               key={iface.title}
               to={iface.href}
-              className="group p-5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:shadow-[var(--shadow-md)] transition-all"
+              className="group p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:shadow-[var(--shadow-md)] transition-all"
             >
               <div className="flex items-start gap-4">
                 <div

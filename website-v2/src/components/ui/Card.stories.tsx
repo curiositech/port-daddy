@@ -11,8 +11,12 @@ const meta = {
   argTypes: {
     variant: {
       control: 'select',
-      options: ['default', 'glass', 'elevated'],
-      description: 'Visual style variant',
+      options: ['default', 'glass', 'elevated', 'inset'],
+      description: 'Visual style variant (maps to Surface depth)',
+    },
+    interactive: {
+      control: 'boolean',
+      description: 'Whether the card responds to hover with depth changes',
     },
   },
 } satisfies Meta<typeof Card>
@@ -32,7 +36,7 @@ export const Default: Story = {
         <h3 style={{ margin: 0 }}>Default Card</h3>
       </CardHeader>
       <CardContent>
-        <p>The standard card style with subtle background and border.</p>
+        <p>The standard neumorphic raised card with soft shadows.</p>
       </CardContent>
     </Card>
   ),
@@ -43,7 +47,7 @@ export const Glass: Story = {
     variant: 'glass',
   },
   render: (args) => (
-    <div style={{ padding: '2rem', background: 'linear-gradient(135deg, #1a1a2e, #16213e)' }}>
+    <div style={{ padding: '2rem', background: 'linear-gradient(135deg, var(--surface-base), var(--surface-overlay))' }}>
       <Card {...args} style={{ maxWidth: 400 }}>
         <CardHeader>
           <h3 style={{ margin: 0 }}>Glass Card</h3>
@@ -66,7 +70,24 @@ export const Elevated: Story = {
         <h3 style={{ margin: 0 }}>Elevated Card</h3>
       </CardHeader>
       <CardContent>
-        <p>Elevated variant with stronger shadow for emphasis.</p>
+        <p>Elevated variant — same depth as default, for emphasis.</p>
+      </CardContent>
+    </Card>
+  ),
+}
+
+export const Interactive: Story = {
+  args: {
+    variant: 'default',
+    interactive: true,
+  },
+  render: (args) => (
+    <Card {...args} style={{ maxWidth: 400 }}>
+      <CardHeader>
+        <h3 style={{ margin: 0 }}>Interactive Card</h3>
+      </CardHeader>
+      <CardContent>
+        <p>Hover to see the neumorphic depth change — shadow compresses on hover.</p>
       </CardContent>
     </Card>
   ),
@@ -81,7 +102,7 @@ export const AllVariants: Story = {
       gridTemplateColumns: 'repeat(3, 1fr)',
       gap: '1.5rem',
       padding: '2rem',
-      background: 'linear-gradient(135deg, var(--bg-base), var(--bg-surface))',
+      background: 'linear-gradient(135deg, var(--surface-base), var(--surface-raised))',
     }}>
       {(['default', 'glass', 'elevated'] as const).map((variant) => (
         <Card key={variant} variant={variant}>
@@ -163,7 +184,7 @@ export const FeatureCardsGrid: Story = {
       gap: '1.5rem',
       maxWidth: 900,
     }}>
-      <Card variant="default">
+      <Card variant="default" interactive>
         <CardContent>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <Anchor size={24} style={{ color: 'var(--brand-primary)' }} />
@@ -173,7 +194,7 @@ export const FeatureCardsGrid: Story = {
         </CardContent>
       </Card>
 
-      <Card variant="default">
+      <Card variant="default" interactive>
         <CardContent>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <Server size={24} style={{ color: 'var(--brand-primary)' }} />
@@ -183,7 +204,7 @@ export const FeatureCardsGrid: Story = {
         </CardContent>
       </Card>
 
-      <Card variant="default">
+      <Card variant="default" interactive>
         <CardContent>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <Shield size={24} style={{ color: 'var(--brand-primary)' }} />

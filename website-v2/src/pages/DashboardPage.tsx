@@ -82,7 +82,7 @@ function UnifiedTimeline() {
                     className="w-8 h-8 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform"
                     style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
                   >
-                     {item.type === 'note' ? <MessageSquare size={14} className="text-[var(--p-blue-400)]" /> :
+                     {item.type === 'note' ? <MessageSquare size={14} className="text-[var(--brand-secondary)]" /> :
                       item.type === 'port' ? <Anchor size={14} className="text-[var(--p-teal-400)]" /> :
                       <Zap size={14} className="text-[var(--brand-accent)]" />}
                   </motion.div>
@@ -151,7 +151,7 @@ export function DashboardPage() {
               {[
                 { label: 'Active Agents', value: stats?.activeAgents || '0', icon: Users, color: 'var(--p-teal-400)' },
                 { label: 'Harbors', value: stats?.activeHarbors || '0', icon: Shield, color: 'var(--brand-accent)' },
-                { label: 'Port Claims', value: stats?.activePorts || '0', icon: Anchor, color: 'var(--p-blue-400)' },
+                { label: 'Port Claims', value: stats?.activePorts || '0', icon: Anchor, color: 'var(--brand-secondary)' },
                 { label: 'Latency', value: '<5ms', icon: Zap, color: 'var(--p-purple-400)' }
               ].map((stat, i) => (
                 <motion.div

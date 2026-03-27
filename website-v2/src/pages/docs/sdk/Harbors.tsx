@@ -14,7 +14,7 @@ function CodeBlock({ code, output }: { code: string; output?: string }) {
 
   return (
     <div className="space-y-2">
-      <div className="relative p-4 rounded-lg bg-[var(--bg-code)] border border-[var(--border-subtle)] font-mono text-sm group">
+      <div className="relative p-4 rounded-lg bg-[var(--code-bg)] border border-[var(--border-subtle)] font-mono text-sm group">
         <button
           onClick={handleCopy}
           className="absolute right-3 top-3 p-1.5 rounded hover:bg-[var(--interactive-hover)] text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity"
@@ -24,7 +24,7 @@ function CodeBlock({ code, output }: { code: string; output?: string }) {
         <code className="text-[var(--brand-primary)]">{code}</code>
       </div>
       {output && (
-        <div className="p-4 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] font-mono text-sm">
+        <div className="p-4 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)] font-mono text-sm">
           <div className="text-[var(--text-muted)] mb-1 text-xs uppercase tracking-wide">Output</div>
           <pre className="text-[var(--text-secondary)] whitespace-pre-wrap">{output}</pre>
         </div>
@@ -61,7 +61,7 @@ export default function HarborsSdk() {
       </div>
 
       {/* What are Harbors? */}
-      <div className="p-6 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+      <div className="p-6 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
         <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-4">What are Harbors?</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed mb-4">
           A Harbor is a capability-based security boundary. Agents must present a valid 
@@ -98,7 +98,7 @@ export default function HarborsSdk() {
         <div className="space-y-3">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Parameters</h3>
           <div className="divide-y divide-[var(--border-subtle)] border border-[var(--border-subtle)] rounded-xl overflow-hidden">
-            <div className="p-4 bg-[var(--bg-surface)]">
+            <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">name</code>
                 <Badge variant="default" size="sm">required</Badge>
@@ -106,21 +106,21 @@ export default function HarborsSdk() {
               </div>
               <p className="text-sm text-[var(--text-muted)] mt-1">Unique name for this harbor</p>
             </div>
-            <div className="p-4 bg-[var(--bg-surface)]">
+            <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.capabilities</code>
                 <span className="text-xs text-[var(--text-muted)]">string[]</span>
               </div>
               <p className="text-sm text-[var(--text-muted)] mt-1">Allowed capabilities in this harbor (e.g., ['read', 'write', 'execute'])</p>
             </div>
-            <div className="p-4 bg-[var(--bg-surface)]">
+            <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.allowedIdentities</code>
                 <span className="text-xs text-[var(--text-muted)]">string[]</span>
               </div>
               <p className="text-sm text-[var(--text-muted)] mt-1">Identity patterns allowed to enter (e.g., ['myapp:*'])</p>
             </div>
-            <div className="p-4 bg-[var(--bg-surface)]">
+            <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.ttl</code>
                 <span className="text-xs text-[var(--text-muted)]">number</span>
@@ -179,7 +179,7 @@ export default function HarborsSdk() {
         <div className="space-y-3">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Parameters</h3>
           <div className="divide-y divide-[var(--border-subtle)] border border-[var(--border-subtle)] rounded-xl overflow-hidden">
-            <div className="p-4 bg-[var(--bg-surface)]">
+            <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">name</code>
                 <Badge variant="default" size="sm">required</Badge>
@@ -187,7 +187,7 @@ export default function HarborsSdk() {
               </div>
               <p className="text-sm text-[var(--text-muted)] mt-1">Harbor name to enter</p>
             </div>
-            <div className="p-4 bg-[var(--bg-surface)]">
+            <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">token</code>
                 <Badge variant="default" size="sm">required</Badge>
@@ -237,7 +237,7 @@ try {
         <div className="space-y-3">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Parameters</h3>
           <div className="divide-y divide-[var(--border-subtle)] border border-[var(--border-subtle)] rounded-xl overflow-hidden">
-            <div className="p-4 bg-[var(--bg-surface)]">
+            <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">agentId</code>
                 <Badge variant="default" size="sm">required</Badge>
@@ -245,7 +245,7 @@ try {
               </div>
               <p className="text-sm text-[var(--text-muted)] mt-1">Agent to issue card to</p>
             </div>
-            <div className="p-4 bg-[var(--bg-surface)]">
+            <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">capabilities</code>
                 <Badge variant="default" size="sm">required</Badge>
@@ -253,7 +253,7 @@ try {
               </div>
               <p className="text-sm text-[var(--text-muted)] mt-1">Capabilities to grant (must be subset of harbor capabilities)</p>
             </div>
-            <div className="p-4 bg-[var(--bg-surface)]">
+            <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.harborName</code>
                 <Badge variant="default" size="sm">required</Badge>
@@ -261,14 +261,14 @@ try {
               </div>
               <p className="text-sm text-[var(--text-muted)] mt-1">Harbor this card is valid for</p>
             </div>
-            <div className="p-4 bg-[var(--bg-surface)]">
+            <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.ttl</code>
                 <span className="text-xs text-[var(--text-muted)]">number</span>
               </div>
               <p className="text-sm text-[var(--text-muted)] mt-1">Card lifetime in seconds</p>
             </div>
-            <div className="p-4 bg-[var(--bg-surface)]">
+            <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.restrictions</code>
                 <span className="text-xs text-[var(--text-muted)]">object</span>
@@ -317,7 +317,7 @@ try {
       </div>
 
       {/* Security Model */}
-      <div className="p-6 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+      <div className="p-6 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
         <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-4">Security Model</h2>
         <div className="space-y-4 text-[var(--text-secondary)]">
           <p>

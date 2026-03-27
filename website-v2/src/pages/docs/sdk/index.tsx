@@ -51,7 +51,7 @@ function CodeBlock({ code }: { code: string }) {
   }
 
   return (
-    <div className="relative p-4 rounded-lg bg-[var(--bg-code)] border border-[var(--border-subtle)] font-mono text-sm group">
+    <div className="relative p-4 rounded-lg bg-[var(--code-bg)] border border-[var(--border-subtle)] font-mono text-sm group">
       <button
         onClick={handleCopy}
         className="absolute right-3 top-3 p-1.5 rounded hover:bg-[var(--interactive-hover)] text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity"
@@ -79,7 +79,7 @@ export default function SdkOverview() {
           Programmatic access to Port Daddy's port management, session tracking,
           and agent coordination features. Build multi-agent workflows with type safety.
         </p>
-        <p className="text-sm text-[var(--text-muted)] p-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] max-w-xl">
+        <p className="text-sm text-[var(--text-muted)] p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)] max-w-xl">
           Use this reference if you are writing JavaScript or TypeScript that coordinates agents
           programmatically. For terminal usage see the{' '}
           <a href="/docs/cli" className="text-[var(--brand-primary)] hover:underline">CLI reference</a>, or
@@ -138,7 +138,7 @@ await pd.sessions.done(session.id)`} />
             <Link
               key={module.name}
               to={module.href}
-              className="group p-5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:shadow-[var(--shadow-md)] transition-all"
+              className="group p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:shadow-[var(--shadow-md)] transition-all"
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
@@ -151,7 +151,7 @@ await pd.sessions.done(session.id)`} />
                     {module.functions.map(fn => (
                       <code 
                         key={fn}
-                        className="text-xs px-2 py-1 rounded bg-[var(--bg-code)] text-[var(--brand-primary)] font-mono"
+                        className="text-xs px-2 py-1 rounded bg-[var(--code-bg)] text-[var(--brand-primary)] font-mono"
                       >
                         {fn}
                       </code>
@@ -186,7 +186,7 @@ const pd = new PortDaddy({
       </div>
 
       {/* Type Safety */}
-      <div className="p-6 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+      <div className="p-6 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
         <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-4">Full Type Safety</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed mb-4">
           The SDK is written in TypeScript and provides complete type definitions:

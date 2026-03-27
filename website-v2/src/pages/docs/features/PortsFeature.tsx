@@ -21,7 +21,7 @@ export default function PortsFeature() {
       </div>
 
       {/* The Problem */}
-      <div className="p-6 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+      <div className="p-6 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
         <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-4">The Problem</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed mb-4">
           When multiple AI agents work on the same project, they often need to spin up services 
@@ -51,7 +51,7 @@ export default function PortsFeature() {
           The same identity always gets the same port, across restarts, across machines.
         </p>
         
-        <div className="p-6 rounded-xl bg-[var(--bg-code)] border border-[var(--border-subtle)] font-mono text-sm">
+        <div className="p-6 rounded-xl bg-[var(--code-bg)] border border-[var(--border-subtle)] font-mono text-sm">
           <div className="text-[var(--text-muted)] mb-2"># Identity format: project:stack:context</div>
           <div className="text-[var(--brand-primary)]">$ pd claim myapp:api:main</div>
           <div className="text-[var(--text-secondary)] mt-2">Port 3001 assigned to myapp:api:main</div>
@@ -70,17 +70,17 @@ export default function PortsFeature() {
         </p>
         
         <div className="grid sm:grid-cols-3 gap-4">
-          <div className="p-4 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+          <div className="p-4 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">project</code>
             <p className="text-sm text-[var(--text-muted)] mt-2">Your project name</p>
             <p className="text-xs text-[var(--text-muted)] mt-1">e.g., myapp, frontend, api</p>
           </div>
-          <div className="p-4 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+          <div className="p-4 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">stack</code>
             <p className="text-sm text-[var(--text-muted)] mt-2">Service layer</p>
             <p className="text-xs text-[var(--text-muted)] mt-1">e.g., api, web, worker</p>
           </div>
-          <div className="p-4 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+          <div className="p-4 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">context</code>
             <p className="text-sm text-[var(--text-muted)] mt-2">Environment/context</p>
             <p className="text-xs text-[var(--text-muted)] mt-1">e.g., main, dev, test</p>
@@ -93,43 +93,43 @@ export default function PortsFeature() {
         <h2 className="text-2xl font-semibold text-[var(--text-primary)]">CLI Commands</h2>
         
         <div className="space-y-4">
-          <div className="p-5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+          <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <div className="flex items-center gap-2 mb-2">
               <code className="text-lg font-mono text-[var(--brand-primary)]">pd claim &lt;identity&gt;</code>
             </div>
             <p className="text-[var(--text-secondary)] mb-3">Claim a port for a service. Idempotent — returns the same port on repeat calls.</p>
-            <div className="p-3 rounded-lg bg-[var(--bg-code)] font-mono text-sm">
+            <div className="p-3 rounded-lg bg-[var(--code-bg)] font-mono text-sm">
               $ pd claim myapp:api:main --json
             </div>
           </div>
 
-          <div className="p-5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+          <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <div className="flex items-center gap-2 mb-2">
               <code className="text-lg font-mono text-[var(--brand-primary)]">pd release &lt;identity&gt;</code>
             </div>
             <p className="text-[var(--text-secondary)] mb-3">Release a port claim. Safe to call even if the port is not claimed.</p>
-            <div className="p-3 rounded-lg bg-[var(--bg-code)] font-mono text-sm">
+            <div className="p-3 rounded-lg bg-[var(--code-bg)] font-mono text-sm">
               $ pd release myapp:api:main
             </div>
           </div>
 
-          <div className="p-5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+          <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <div className="flex items-center gap-2 mb-2">
               <code className="text-lg font-mono text-[var(--brand-primary)]">pd find &lt;identity&gt;</code>
             </div>
             <p className="text-[var(--text-secondary)] mb-3">Look up the port assigned to an identity without claiming a new one.</p>
-            <div className="p-3 rounded-lg bg-[var(--bg-code)] font-mono text-sm">
+            <div className="p-3 rounded-lg bg-[var(--code-bg)] font-mono text-sm">
               $ pd find myapp:api:main --quiet<br/>
               3001
             </div>
           </div>
 
-          <div className="p-5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+          <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <div className="flex items-center gap-2 mb-2">
               <code className="text-lg font-mono text-[var(--brand-primary)]">pd services</code>
             </div>
             <p className="text-[var(--text-secondary)] mb-3">List all active port claims with identity, port, and last-seen timestamp.</p>
-            <div className="p-3 rounded-lg bg-[var(--bg-code)] font-mono text-sm">
+            <div className="p-3 rounded-lg bg-[var(--code-bg)] font-mono text-sm">
               $ pd services<br/>
               myapp:api:main 3001 5s ago<br/>
               myapp:frontend:main 3000 2s ago
@@ -146,7 +146,7 @@ export default function PortsFeature() {
           framework signatures (package.json, Cargo.toml, etc.).
         </p>
         
-        <div className="p-6 rounded-xl bg-[var(--bg-code)] border border-[var(--border-subtle)] font-mono text-sm">
+        <div className="p-6 rounded-xl bg-[var(--code-bg)] border border-[var(--border-subtle)] font-mono text-sm">
           <div className="text-[var(--brand-primary)]">$ pd scan ./services</div>
           <div className="text-[var(--text-secondary)] mt-2">Found 4 services:</div>
           <div className="text-[var(--text-secondary)] mt-1 ml-4">myapp:api → 3001 (express)</div>
@@ -160,7 +160,7 @@ export default function PortsFeature() {
       <div className="space-y-4">
         <h2 className="text-2xl font-semibold text-[var(--text-primary)]">SDK Usage</h2>
         
-        <div className="p-5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+        <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
           <div className="text-sm font-medium text-[var(--text-muted)] mb-3">TypeScript</div>
           <pre className="text-sm font-mono text-[var(--text-secondary)] overflow-x-auto">
 {`import { PortDaddy } from '@port-daddy/sdk'

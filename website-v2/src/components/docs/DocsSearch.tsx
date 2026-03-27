@@ -163,11 +163,11 @@ export function DocsSearch() {
           setIsOpen(true)
           setTimeout(() => inputRef.current?.focus(), 100)
         }}
-        className="flex items-center gap-2 w-full px-3 py-2 rounded-lg bg-[var(--bg-overlay)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] transition-all text-sm"
+        className="flex items-center gap-2 w-full px-3 py-2 rounded-lg bg-[var(--surface-overlay)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] transition-all text-sm"
       >
         <Search size={16} />
         <span className="flex-1 text-left">Search documentation...</span>
-        <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-xs font-mono bg-[var(--bg-surface)] rounded border border-[var(--border-subtle)]">
+        <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-xs font-mono bg-[var(--surface-raised)] rounded border border-[var(--border-subtle)]">
           ⌘K
         </kbd>
       </button>
@@ -185,7 +185,7 @@ export function DocsSearch() {
           />
           
           {/* Search Panel */}
-          <div className="relative w-full max-w-xl bg-[var(--bg-surface)] rounded-2xl border border-[var(--border-subtle)] shadow-[var(--shadow-xl)] overflow-hidden">
+          <div className="relative w-full max-w-xl bg-[var(--surface-raised)] rounded-2xl border border-[var(--border-subtle)] shadow-[var(--shadow-xl)] overflow-hidden">
             {/* Search Input */}
             <div className="flex items-center gap-3 px-4 py-4 border-b border-[var(--border-subtle)]">
               <Search size={20} className="text-[var(--text-muted)]" />
@@ -208,7 +208,7 @@ export function DocsSearch() {
                   <X size={16} />
                 </button>
               )}
-              <kbd className="hidden sm:inline-block px-2 py-1 text-xs font-mono bg-[var(--bg-base)] rounded border border-[var(--border-subtle)] text-[var(--text-muted)]">
+              <kbd className="hidden sm:inline-block px-2 py-1 text-xs font-mono bg-[var(--surface-base)] rounded border border-[var(--border-subtle)] text-[var(--text-muted)]">
                 ESC
               </kbd>
             </div>
@@ -297,11 +297,11 @@ export function DocsSearch() {
             <div className="flex items-center justify-between px-4 py-3 border-t border-[var(--border-subtle)] text-xs text-[var(--text-muted)]">
               <div className="flex items-center gap-3">
                 <span className="flex items-center gap-1">
-                  <kbd className="px-1.5 py-0.5 bg-[var(--bg-base)] rounded border border-[var(--border-subtle)]">↑↓</kbd>
+                  <kbd className="px-1.5 py-0.5 bg-[var(--surface-base)] rounded border border-[var(--border-subtle)]">↑↓</kbd>
                   to navigate
                 </span>
                 <span className="flex items-center gap-1">
-                  <kbd className="px-1.5 py-0.5 bg-[var(--bg-base)] rounded border border-[var(--border-subtle)]">↵</kbd>
+                  <kbd className="px-1.5 py-0.5 bg-[var(--surface-base)] rounded border border-[var(--border-subtle)]">↵</kbd>
                   to select
                 </span>
               </div>

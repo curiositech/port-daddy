@@ -53,7 +53,7 @@ export function DNSResolver() {
                   className="w-10 h-10 rounded-xl flex items-center justify-center"
                   style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
                 >
-                   <Anchor size={20} className="text-[var(--p-blue-400)]" />
+                   <Anchor size={20} className="text-[var(--brand-secondary)]" />
                 </motion.div>
                 <motion.h3 className="text-xl font-display font-black m-0">Semantic Mapping</motion.h3>
                 <motion.p className="text-sm text-[var(--text-secondary)] m-0">Map <code>project:stack:identity</code> strings directly to reachable network addresses.</motion.p>
@@ -98,7 +98,7 @@ export function DNSResolver() {
               className="w-12 h-12 rounded-2xl flex items-center justify-center"
               style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
             >
-              <Search className="text-[var(--p-blue-400)]" size={24} />
+              <Search className="text-[var(--brand-secondary)]" size={24} />
             </motion.div>
             <motion.h2 className="m-0">2. Discovery in Code</motion.h2>
           </motion.div>

@@ -118,7 +118,7 @@ export const TerminalLineStory: Story = {
   },
   render: () => (
     <div style={{
-      background: 'var(--codeblock-bg, #1a1a2e)',
+      background: 'var(--code-bg, #1a1a2e)',
       padding: '1rem',
       borderRadius: '0.5rem',
       display: 'flex',
