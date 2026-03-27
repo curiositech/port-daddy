@@ -92,7 +92,7 @@
 \fancyhf{}
 \fancyhead[L]{\small\textit{The Bonded Commons}}
 \fancyhead[R]{\small\thepage}
-\fancyfoot[C]{\small Port Daddy v3.7.0}
+\fancyfoot[C]{\small Port Daddy v3.8.0}
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0pt}
 
@@ -258,6 +258,10 @@ Three tiers of isolation are available, ordered by strength:
 \end{definition}
 
 The choice between $I_1$ and $I_2$ is not a security decision---it is an economics decision. Section~\ref{sec:sen} formalizes why.
+
+\subsection{Runtime Invariant Enforcement}
+
+Structural prevention is enforced at two levels: \emph{statically} by the Anchor Protocol's ProVerif-verified token exchange (all three protocol phases verified in ProVerif 2.05~\cite{owens2026anchor}), and \emph{dynamically} by the \textbf{Arbiter}---an ambient security agent that subscribes to the daemon's event stream and checks every state transition against six formally derived invariants. These invariants map directly to the safety properties of the TLA$^{+}$ specification in Section~\ref{sec:tlaplus}: \texttt{NoteMonotonicity}, \texttt{EscrowInvariant}, and \texttt{LockOwnerValid} are compiled from the formal model into synchronous runtime checks. Violations are logged immutably and, in strict mode, trigger the salvage protocol---the sovereign's sword in code form.
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Layer 2: Immutable Attribution}\label{sec:attribution}

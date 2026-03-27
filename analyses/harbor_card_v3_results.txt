@@ -1,0 +1,94 @@
+Process 0 (that is, the initial process):
+{1}new sk_a: skey;
+{2}let pk_a: pkey = pk(sk_a) in
+{3}out(c, pk_a);
+{4}new id_a: id;
+{5}new id_b: id;
+{6}new cap_root: capability;
+(
+    {7}!
+    {8}let a: id = id_a in
+    {9}let cap: capability = cap_root in
+    {10}let msg: bitstring = base_token(daemon_id,a,harbor_id,cap) in
+    {11}let s: bitstring = sign(msg,daemon_sk) in
+    {12}event IssuedRoot(a,harbor_id,cap);
+    {13}out(c, (msg,s))
+) | (
+    {14}!
+    {15}let a_1: id = id_a in
+    {16}let a_sk: skey = sk_a in
+    {17}let b: id = id_b in
+    {18}let sub_cap: capability = cap_root in
+    {19}in(c, (msg_1: bitstring,s_1: bitstring));
+    {20}let base_token(=daemon_id,=a_1,=harbor_id,root_cap: capability) = msg_1 in
+    {21}if (check_sign(msg_1,pk(daemon_sk),s_1) = true) then
+    {22}if (is_subset(sub_cap,root_cap) = true) then
+    {23}let d_msg: bitstring = delegate_token((msg_1,s_1),b,sub_cap) in
+    {24}let d_s: bitstring = sign(d_msg,a_sk) in
+    {25}event Delegated(a_1,b,sub_cap);
+    {26}out(c, (d_msg,d_s))
+) | (
+    {27}!
+    {28}in(c, (d_msg_1: bitstring,d_s_1: bitstring));
+    {29}let delegate_token((base_msg: bitstring,base_s: bitstring),b_1: id,sub_cap_1: capability) = d_msg_1 in
+    {30}let base_token(=daemon_id,a_2: id,=harbor_id,root_cap_1: capability) = base_msg in
+    {31}if (check_sign(base_msg,pk(daemon_sk),base_s) = true) then
+    {32}if (check_sign(d_msg_1,pk_a,d_s_1) = true) then
+    {33}if (is_subset(sub_cap_1,root_cap_1) = true) then
+    {34}event Accepted(b_1,harbor_id,sub_cap_1)
+)
+
+--  Process 1 (that is, process 0, with let moved downwards):
+{1}new sk_a: skey;
+{2}let pk_a: pkey = pk(sk_a) in
+{3}out(c, pk_a);
+{4}new id_a: id;
+{5}new id_b: id;
+{6}new cap_root: capability;
+(
+    {7}!
+    {9}let cap: capability = cap_root in
+    {8}let a: id = id_a in
+    {12}event IssuedRoot(a,harbor_id,cap);
+    {10}let msg: bitstring = base_token(daemon_id,a,harbor_id,cap) in
+    {11}let s: bitstring = sign(msg,daemon_sk) in
+    {13}out(c, (msg,s))
+) | (
+    {14}!
+    {19}in(c, (msg_1: bitstring,s_1: bitstring));
+    {15}let a_1: id = id_a in
+    {20}let base_token(=daemon_id,=a_1,=harbor_id,root_cap: capability) = msg_1 in
+    {21}if (check_sign(msg_1,pk(daemon_sk),s_1) = true) then
+    {18}let sub_cap: capability = cap_root in
+    {22}if (is_subset(sub_cap,root_cap) = true) then
+    {17}let b: id = id_b in
+    {25}event Delegated(a_1,b,sub_cap);
+    {23}let d_msg: bitstring = delegate_token((msg_1,s_1),b,sub_cap) in
+    {16}let a_sk: skey = sk_a in
+    {24}let d_s: bitstring = sign(d_msg,a_sk) in
+    {26}out(c, (d_msg,d_s))
+) | (
+    {27}!
+    {28}in(c, (d_msg_1: bitstring,d_s_1: bitstring));
+    {29}let delegate_token((base_msg: bitstring,base_s: bitstring),b_1: id,sub_cap_1: capability) = d_msg_1 in
+    {30}let base_token(=daemon_id,a_2: id,=harbor_id,root_cap_1: capability) = base_msg in
+    {31}if (check_sign(base_msg,pk(daemon_sk),base_s) = true) then
+    {32}if (check_sign(d_msg_1,pk_a,d_s_1) = true) then
+    {33}if (is_subset(sub_cap_1,root_cap_1) = true) then
+    {34}event Accepted(b_1,harbor_id,sub_cap_1)
+)
+
+-- Query event(Accepted(b_2,harbor_id[],cap_1)) ==> (event(IssuedRoot(a_3,harbor_id[],cap_1)) && event(Delegated(a_3,b_2,cap_1))) || event(IssuedRoot(b_2,harbor_id[],cap_1)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query event(Accepted(b_2,harbor_id[],cap_1)) ==> (event(IssuedRoot(a_3,harbor_id[],cap_1)) && event(Delegated(a_3,b_2,cap_1))) || event(IssuedRoot(b_2,harbor_id[],cap_1))
+goal reachable: b-event(Delegated(id_a[],id_b[],cap_root[])) && b-event(IssuedRoot(id_a[],harbor_id[],cap_root[])) -> event(Accepted(id_b[],harbor_id[],cap_root[]))
+RESULT event(Accepted(b_2,harbor_id[],cap_1)) ==> (event(IssuedRoot(a_3,harbor_id[],cap_1)) && event(Delegated(a_3,b_2,cap_1))) || event(IssuedRoot(b_2,harbor_id[],cap_1)) is true.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query event(Accepted(b_2,harbor_id[],cap_1)) ==> (event(IssuedRoot(a_3,harbor_id[],cap_1)) && event(Delegated(a_3,b_2,cap_1))) || event(IssuedRoot(b_2,harbor_id[],cap_1)) is true.
+
+--------------------------------------------------------------
+

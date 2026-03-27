@@ -11,6 +11,7 @@ import { randomUUID } from 'crypto';
 import { ActivityType } from './activity.js';
 import { getWorktreeId } from './worktree.js';
 import { patternToSql } from './identity.js';
+import type { NoteEncryption } from './note-encryption.js';
 
 const MAX_NOTES_PER_SESSION = 500;
 
@@ -134,7 +135,9 @@ interface FileConflict {
 /**
  * Initialize the sessions module with a database connection
  */
-export function createSessions(db: Database.Database) {
+export function createSessions(db: Database.Database, noteEncryption?: NoteEncryption) {
+  // In-memory cache: sessionId → unwrapped session key (avoids re-unwrap on every read)
+  const sessionKeyCache = new Map<string, Buffer>();
   // Ensure tables exist (base schema without worktree_id for migration compatibility)
   const schemaStatements = [
     `CREATE TABLE IF NOT EXISTS sessions (
@@ -201,6 +204,11 @@ export function createSessions(db: Database.Database) {
     if (!hasIdentityProject) {
       db.prepare("ALTER TABLE sessions ADD COLUMN identity_project TEXT").run();
     }
+    // Migration: add wrapped_session_key for note encryption (v3.8+)
+    const hasWrappedKey = columns.some(c => c.name === 'wrapped_session_key');
+    if (!hasWrappedKey) {
+      db.prepare("ALTER TABLE sessions ADD COLUMN wrapped_session_key TEXT").run();
+    }
   } catch {
     // Column already exists or table doesn't exist yet
   }
@@ -254,6 +262,12 @@ export function createSessions(db: Database.Database) {
     `),
     updateStatus: db.prepare(`
       UPDATE sessions SET status = ?, updated_at = ?, completed_at = ? WHERE id = ?
+    `),
+    setWrappedKey: db.prepare(`
+      UPDATE sessions SET wrapped_session_key = ? WHERE id = ?
+    `),
+    getWrappedKey: db.prepare(`
+      SELECT wrapped_session_key FROM sessions WHERE id = ?
     `),
     abandonActiveByAgent: db.prepare(`
       UPDATE sessions SET status = 'abandoned', updated_at = ?, completed_at = ?
@@ -456,6 +470,57 @@ export function createSessions(db: Database.Database) {
     `),
   };
 
+  // ─── Note Encryption Helpers ──────────────────────────────────────────────
+
+  /**
+   * Get the session key for a session (from cache or unwrap from DB).
+   * Returns null if encryption is disabled or no key exists for this session.
+   */
+  function getSessionKey(sessionId: string): Buffer | null {
+    if (!noteEncryption?.isEnabled()) return null;
+
+    // Check cache first
+    const cached = sessionKeyCache.get(sessionId);
+    if (cached) return cached;
+
+    // Unwrap from DB
+    const row = stmts.getWrappedKey.get(sessionId) as { wrapped_session_key: string | null } | undefined;
+    if (!row?.wrapped_session_key) return null;
+
+    try {
+      const key = noteEncryption.unwrapSessionKey(row.wrapped_session_key);
+      sessionKeyCache.set(sessionId, key);
+      return key;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Encrypt note content if encryption is enabled.
+   * Returns plaintext unchanged if disabled or no session key.
+   */
+  function maybeEncrypt(sessionId: string, content: string): string {
+    const key = getSessionKey(sessionId);
+    if (!key || !noteEncryption) return content;
+    return noteEncryption.encryptNote(content, key);
+  }
+
+  /**
+   * Decrypt note content if it's encrypted.
+   * Returns content unchanged if plaintext (backward compat).
+   */
+  function maybeDecrypt(sessionId: string, content: string): string {
+    if (!noteEncryption?.isEnabled()) return content;
+    if (!noteEncryption.isEncrypted(content)) return content;  // plaintext legacy note
+
+    const key = getSessionKey(sessionId);
+    if (!key) return content;  // no key available — return ciphertext as-is
+
+    const decrypted = noteEncryption.decryptNote(content, key);
+    return decrypted ?? content;  // if decryption fails, return raw content
+  }
+
   function safeJsonParse(value: string | null): Record<string, unknown> | null {
     if (!value) return null;
     try {
@@ -489,7 +554,7 @@ export function createSessions(db: Database.Database) {
     const note: Record<string, unknown> = {
       id: row.id,
       sessionId: row.session_id,
-      content: row.content,
+      content: maybeDecrypt(row.session_id, row.content),
       type: row.type,
       createdAt: row.created_at,
     };
@@ -581,6 +646,19 @@ export function createSessions(db: Database.Database) {
       );
     } catch (err) {
       return { success: false, error: (err as Error).message };
+    }
+
+    // Generate and store session encryption key (if encryption enabled)
+    if (noteEncryption?.isEnabled()) {
+      try {
+        const sessionKey = noteEncryption.generateSessionKey();
+        const wrappedKey = noteEncryption.wrapSessionKey(sessionKey);
+        stmts.setWrappedKey.run(wrappedKey, id);
+        sessionKeyCache.set(id, sessionKey);
+      } catch (err) {
+        // Encryption key generation failed — session still works, notes will be plaintext
+        console.error('[Sessions] Failed to generate session encryption key:', (err as Error).message);
+      }
     }
 
     // Claim files if provided
@@ -732,7 +810,10 @@ export function createSessions(db: Database.Database) {
     const now = Date.now();
     const { type = 'note' } = options;
 
-    const result = stmts.insertNote.run(sessionId, trimmedContent, type, now);
+    // Encrypt note content if encryption is enabled for this session
+    const storedContent = maybeEncrypt(sessionId, trimmedContent);
+
+    const result = stmts.insertNote.run(sessionId, storedContent, type, now);
     const noteId = Number(result.lastInsertRowid);
 
     if (activityLog) {

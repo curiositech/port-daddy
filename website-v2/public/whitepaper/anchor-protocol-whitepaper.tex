@@ -84,7 +84,7 @@
 \fancyhf{}
 \fancyhead[L]{\small\textit{The Anchor Protocol}}
 \fancyhead[R]{\small\thepage}
-\fancyfoot[C]{\small Port Daddy v3.7.0 — Formally Verified}
+\fancyfoot[C]{\small Port Daddy v3.8.0 — Formally Verified}
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0pt}
 
@@ -235,6 +235,31 @@ $\text{Accepted}(b) \implies \text{IssuedRoot}(a) \land \text{Delegated}(a,b)$ &
 \caption{ProVerif verification results across all three protocol phases. All queries verified for an unbounded number of sessions under the Dolev-Yao adversary model.}
 \label{tab:proverif-results}
 \end{table}
+
+The following is the verbatim ProVerif 2.05 output for the delegation chain query (Phase~3), the most complex property:
+
+\begin{lstlisting}[caption={ProVerif 2.05 Terminal Output --- Phase 3 Delegation Chain}]
+RESULT event(Accepted(b_2,harbor_id[],cap_1))
+  ==> (event(IssuedRoot(a_3,harbor_id[],cap_1))
+       && event(Delegated(a_3,b_2,cap_1)))
+      || event(IssuedRoot(b_2,harbor_id[],cap_1))
+  is true.
+\end{lstlisting}
+
+\subsection{Runtime Enforcement: The Arbiter}
+
+Formal proofs guarantee protocol \emph{design} correctness. To enforce these guarantees at \emph{runtime}, Port Daddy deploys the \textbf{Arbiter}---an ambient security agent that subscribes to the daemon's activity log and checks every state transition against six formally derived invariants:
+
+\begin{enumerate}
+  \item \texttt{PID\_SQUATTING}: Detects when a process claims a port previously held by a different PID (the ``Ghost in the Harbor'').
+  \item \texttt{CAP\_ESCALATION}: Verifies capability subsets via the deployed Rust FFI enforcer.
+  \item \texttt{NOTE\_MONOTONICITY}: Ensures the note sequence for active sessions never shrinks (from the TLA$^{+}$ \texttt{NoteMonotonicity} invariant).
+  \item \texttt{ESCROW\_POSITIVE}: Validates that active sessions have positive escrow (when Float Plans are active).
+  \item \texttt{LOCK\_OWNER\_VALID}: Ensures locks are only held by registered agents with active sessions.
+  \item \texttt{HEARTBEAT\_FRESHNESS}: Flags stale heartbeats as early warning for agent death.
+\end{enumerate}
+
+Violations are logged to the activity trail and, in strict mode, trigger the ``man overboard'' salvage protocol. The Arbiter's API (\texttt{GET /arbiter/status}, \texttt{GET /arbiter/violations}) provides real-time visibility into the security state of the commons.
 
 \subsection{Implementation Verification}
 

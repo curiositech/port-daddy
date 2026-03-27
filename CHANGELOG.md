@@ -5,6 +5,24 @@ All notable changes to Port Daddy will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.8.0] - 2026-03-27
+
+### Added
+- **The Arbiter**: Runtime invariant enforcement — 6 formally-derived rules check every state transition against the TLA+ specification. Rules: PID squatting, capability escalation, note monotonicity, escrow positivity, lock owner validity, heartbeat freshness. API: `GET /arbiter/status`, `GET /arbiter/violations`, `POST /arbiter/test-invariant/:name`. Subscribes to resurrection events. Strict mode triggers man-overboard salvage on critical violations.
+- **Note Encryption (Escrow Secrecy)**: AES-256-GCM envelope encryption for session notes. Master key at `~/.port-daddy/master.key`. Per-session keys wrapped and stored in `sessions.wrapped_session_key`. Backward-compatible — existing plaintext notes remain readable. ProVerif-verified: `RESULT not attacker(note_content[]) is true`.
+- **ProVerif Escrow Secrecy Model**: Fourth formal model (`analyses/harbor_card_v4_escrow_secrecy.pv`) proving note confidentiality and authentication under the Dolev-Yao adversary model.
+- **ProVerif Results Captured**: All four models (v1 HS256, v2 Ed25519, v3 Delegation, v4 Escrow) executed in ProVerif 2.05. All queries return TRUE. Results saved to `analyses/harbor_card_v{1,2,3,4}_results.txt`.
+- **"The Bonded Commons" White Paper** (16 pages, Erich Owens): Formal governance framework — Hobbes, Sen's Impossibility, collateralized work contracts. Three-layer trust: structural prevention (walls), immutable attribution (courts), economic alignment (insurance). TLA+ spec with escrow invariant.
+- **Anchor Protocol White Paper Updated** (16 pages): Added Phase 2/3 ProVerif models to appendix, verbatim ProVerif output, Arbiter section, "Deployed" column in security table, actual Rust core code (not simplified).
+- **V4 Unified Roadmap**: `docs/V4-UNIFIED-ROADMAP.md` — 6-phase plan with 16 appendix wild ideas preserved from original planning docs.
+- **Economist Brief**: `docs/ECONOMIST-BRIEF.md` — Handoff document for mechanism design collaboration on bond pricing.
+- **Note Encryption Design Doc**: `docs/NOTE_ENCRYPTION_DESIGN.md` — Full design, proof results, implementation, remaining gaps.
+
+### Fixed
+- CLI unknown command tests: Updated to check both stdout and stderr (clack/prompts renders to stdout)
+- Manifest enforcement: Added arbiter routes to `features.manifest.json`
+- Missing `@clack/prompts` dependency added to package.json
+
 ## [Unreleased]
 
 ### Added

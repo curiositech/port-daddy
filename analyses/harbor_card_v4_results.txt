@@ -1,0 +1,89 @@
+Process 0 (that is, the initial process):
+{1}new harbor_sk: skey;
+{2}new agent_a: id;
+{3}new session_1: id;
+(
+    {4}!
+    {5}let agent_id: id = agent_a in
+    {6}let session_id: id = session_1 in
+    {7}new session_key: symkey;
+    {8}let wrapped_key: bitstring = wrap(session_key,master_key) in
+    {9}out(c, session_record(session_id,wrapped_key));
+    {10}let encrypted_note: bitstring = senc(note_content,session_key) in
+    {11}event NoteWritten(agent_id,session_id,note_content);
+    {12}out(c, encrypted_note)
+) | (
+    {13}!
+    {14}let agent_id_1: id = agent_a in
+    {15}let session_id_1: id = session_1 in
+    {16}let harbor_sk_1: skey = harbor_sk in
+    {17}in(c, (card_msg: bitstring,card_sig: bitstring));
+    {18}if (checksign(card_msg,pk(harbor_sk_1),card_sig) = true) then
+    {19}in(c, record: bitstring);
+    {20}let session_record(=session_id_1,wrapped_key_1: bitstring) = record in
+    {21}let session_key_1: symkey = unwrap(wrapped_key_1,master_key) in
+    {22}in(c, encrypted_note_1: bitstring);
+    {23}let plaintext: bitstring = sdec(encrypted_note_1,session_key_1) in
+    {24}event NoteRead(agent_id_1,session_id_1,plaintext);
+    {25}out(daemon_channel, plaintext)
+) | (
+    {26}let card_msg_1: bitstring = (agent_a,session_1) in
+    {27}let card_sig_1: bitstring = sign(card_msg_1,harbor_sk) in
+    {28}out(c, (card_msg_1,card_sig_1))
+)
+
+--  Process 1 (that is, process 0, with let moved downwards):
+{1}new harbor_sk: skey;
+{2}new agent_a: id;
+{3}new session_1: id;
+(
+    {4}!
+    {7}new session_key: symkey;
+    {8}let wrapped_key: bitstring = wrap(session_key,master_key) in
+    {6}let session_id: id = session_1 in
+    {9}out(c, session_record(session_id,wrapped_key));
+    {5}let agent_id: id = agent_a in
+    {11}event NoteWritten(agent_id,session_id,note_content);
+    {10}let encrypted_note: bitstring = senc(note_content,session_key) in
+    {12}out(c, encrypted_note)
+) | (
+    {13}!
+    {17}in(c, (card_msg: bitstring,card_sig: bitstring));
+    {16}let harbor_sk_1: skey = harbor_sk in
+    {18}if (checksign(card_msg,pk(harbor_sk_1),card_sig) = true) then
+    {19}in(c, record: bitstring);
+    {15}let session_id_1: id = session_1 in
+    {20}let session_record(=session_id_1,wrapped_key_1: bitstring) = record in
+    {21}let session_key_1: symkey = unwrap(wrapped_key_1,master_key) in
+    {22}in(c, encrypted_note_1: bitstring);
+    {23}let plaintext: bitstring = sdec(encrypted_note_1,session_key_1) in
+    {14}let agent_id_1: id = agent_a in
+    {24}event NoteRead(agent_id_1,session_id_1,plaintext);
+    {25}out(daemon_channel, plaintext)
+) | (
+    {26}let card_msg_1: bitstring = (agent_a,session_1) in
+    {27}let card_sig_1: bitstring = sign(card_msg_1,harbor_sk) in
+    {28}out(c, (card_msg_1,card_sig_1))
+)
+
+-- Query not attacker(note_content[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query not attacker(note_content[])
+RESULT not attacker(note_content[]) is true.
+-- Query event(NoteRead(agent,session,content)) ==> event(NoteWritten(agent,session,content)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query event(NoteRead(agent,session,content)) ==> event(NoteWritten(agent,session,content))
+goal reachable: b-event(NoteWritten(agent_a[],session_1[],note_content[])) -> event(NoteRead(agent_a[],session_1[],note_content[]))
+RESULT event(NoteRead(agent,session,content)) ==> event(NoteWritten(agent,session,content)) is true.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query not attacker(note_content[]) is true.
+
+Query event(NoteRead(agent,session,content)) ==> event(NoteWritten(agent,session,content)) is true.
+
+--------------------------------------------------------------
+
