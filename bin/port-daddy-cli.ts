@@ -1840,9 +1840,137 @@ async function main(): Promise<void> {
         await handleDaemon('uninstall');
         break;
 
-      case 'dev':
-        await handleDev();
+      case 'dev': {
+        const devSubcmd = positional[0] || 'start';
+        const { mkdirSync: devMkdir, existsSync: devExists, readFileSync: devRead, writeFileSync: devWrite, unlinkSync: devUnlink } = await import('node:fs');
+        const { tmpdir: devTmpdir } = await import('node:os');
+        const { spawn: devSpawnFn } = await import('node:child_process');
+
+        const devDir = join(devTmpdir(), 'port-daddy-dev');
+        const devStateFile = join(devDir, 'dev-state.json');
+        const devServerPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'server.ts');
+        const devTsxPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'node_modules', '.bin', 'tsx');
+
+        if (devSubcmd === 'start') {
+          devMkdir(devDir, { recursive: true });
+
+          // Check if already running
+          if (devExists(devStateFile)) {
+            try {
+              const st = JSON.parse(devRead(devStateFile, 'utf-8'));
+              process.kill(st.pid, 0);
+              ui.warn(`Dev daemon already running (PID ${st.pid}, port ${st.port})`);
+              ui.info(`  PD_URL=http://localhost:${st.port}`);
+              ui.info(`  pd dev stop   — to stop it`);
+              process.exit(0);
+            } catch {
+              try { devUnlink(devStateFile); } catch {}
+            }
+          }
+
+          const devPort = parseInt(process.env.PORT_DADDY_PORT as string) || 9877;
+
+          ui.info(`Starting isolated dev daemon from ${process.cwd()}`);
+          ui.info(`  Port: ${devPort} (stable stays on 9876)`);
+          ui.info(`  DB: ${join(devDir, 'port-daddy.db')} (isolated)`);
+
+          const child = devSpawnFn(devTsxPath, [devServerPath], {
+            env: {
+              ...process.env,
+              PORT_DADDY_PREFIX: devDir,
+              PORT_DADDY_PORT: String(devPort),
+              NODE_ENV: 'development',
+            },
+            stdio: ['ignore', 'pipe', 'pipe'],
+            detached: true,
+          });
+          child.unref();
+
+          // Wait for health check
+          let devReady = false;
+          const devDeadline = Date.now() + 15000;
+          while (Date.now() < devDeadline) {
+            try {
+              const res = await fetch(`http://localhost:${devPort}/health`);
+              if (res.ok) { devReady = true; break; }
+            } catch { /* not ready yet */ }
+            await new Promise(r => setTimeout(r, 200));
+          }
+
+          if (!devReady) {
+            ui.error(`Dev daemon failed to start within 15s`);
+            child.kill();
+            process.exit(1);
+          }
+
+          devWrite(devStateFile, JSON.stringify({
+            pid: child.pid,
+            port: devPort,
+            prefix: devDir,
+            startedAt: new Date().toISOString(),
+            cwd: process.cwd(),
+          }));
+
+          // Fetch version to confirm
+          try {
+            const vRes = await fetch(`http://localhost:${devPort}/version`);
+            const vData = await vRes.json() as any;
+            ui.success(`Dev daemon v${vData.version} running (PID ${child.pid})`);
+          } catch {
+            ui.success(`Dev daemon running (PID ${child.pid})`);
+          }
+
+          ui.info('');
+          ui.info(`  Test commands:`);
+          ui.info(`    PD_URL=http://localhost:${devPort} pd status`);
+          ui.info(`    curl http://localhost:${devPort}/arbiter/status`);
+          ui.info(`    curl http://localhost:${devPort}/version`);
+          ui.info('');
+          ui.info(`  Stop: pd dev stop`);
+
+        } else if (devSubcmd === 'stop') {
+          if (!devExists(devStateFile)) {
+            ui.warn('No dev daemon running');
+            process.exit(0);
+          }
+          try {
+            const st = JSON.parse(devRead(devStateFile, 'utf-8'));
+            process.kill(st.pid, 'SIGTERM');
+            devUnlink(devStateFile);
+            ui.success(`Dev daemon stopped (was PID ${st.pid})`);
+          } catch {
+            ui.warn(`Dev daemon not running (stale state cleaned up)`);
+            try { devUnlink(devStateFile); } catch {}
+          }
+
+        } else if (devSubcmd === 'status') {
+          if (!devExists(devStateFile)) {
+            ui.info('No dev daemon running');
+            process.exit(0);
+          }
+          try {
+            const st = JSON.parse(devRead(devStateFile, 'utf-8'));
+            process.kill(st.pid, 0);
+            const res = await fetch(`http://localhost:${st.port}/version`);
+            const ver = await res.json() as any;
+            ui.success(`Dev daemon running`);
+            ui.info(`  PID: ${st.pid}`);
+            ui.info(`  Port: ${st.port}`);
+            ui.info(`  Version: ${ver.version}`);
+            ui.info(`  Prefix: ${st.prefix}`);
+            ui.info(`  Started: ${st.startedAt}`);
+          } catch {
+            ui.warn('Dev daemon not running (stale state cleaned up)');
+            try { devUnlink(devStateFile); } catch {}
+          }
+
+        } else {
+          ui.error(`Unknown: pd dev ${devSubcmd}`);
+          ui.info('Usage: pd dev start | stop | status');
+          process.exit(1);
+        }
         break;
+      }
 
       case 'ci-gate':
         await ciGateCheck();
