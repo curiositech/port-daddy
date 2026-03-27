@@ -1,4 +1,5 @@
 import { Badge } from '@/components/ui/Badge'
+import { Surface } from '@/components/ui/Surface'
 import { Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { DocsCodeBlock as CodeBlock } from './DocsCodeBlock'
@@ -76,10 +77,8 @@ export function SdkFunctionPage({
       {params && params.length > 0 && (
         <div className="space-y-3">
           <h2 className="text-lg font-semibold text-[var(--text-primary)]">Parameters</h2>
-          <div
-            className="rounded-2xl overflow-hidden divide-y divide-[var(--border-subtle)]"
-            style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-          >
+          <Surface depth="raised" radius="2xl" padding="none" className="overflow-hidden divide-y divide-[var(--border-subtle)]">
+
             {params.map((param, i) => (
               <div key={i} className="p-4">
                 <div className="flex items-center gap-2">
@@ -90,7 +89,7 @@ export function SdkFunctionPage({
                 <p className="text-sm text-[var(--text-muted)] mt-1">{param.description}</p>
               </div>
             ))}
-          </div>
+          </Surface>
         </div>
       )}
 
@@ -98,13 +97,11 @@ export function SdkFunctionPage({
       {returns && (
         <div className="space-y-3">
           <h2 className="text-lg font-semibold text-[var(--text-primary)]">Returns</h2>
-          <div
-            className="p-5 rounded-2xl"
-            style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-          >
+          <Surface depth="raised" radius="2xl" className="p-5">
+
             <code className="text-sm font-mono text-[var(--brand-primary)]">{returns.type}</code>
             <p className="text-sm text-[var(--text-muted)] mt-1">{returns.description}</p>
-          </div>
+          </Surface>
         </div>
       )}
 

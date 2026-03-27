@@ -23,25 +23,25 @@ export function Spawn() {
           <motion.div className="flex items-center gap-4 mb-8">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Rocket className="text-[var(--brand-primary)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">The Orchestrator's Tool</motion.h2>
           </motion.div>
           <motion.p>
-            Launching an agent script is easy. Launching an agent that is **aware** of its swarm is hard. <code>pd spawn</code> is the orchestrator's command--it launches a sub-process and automatically wraps it in a managed Port Daddy session with full telemetry.
+            Launching an agent script is easy. Launching an agent that is <strong>aware</strong> of its swarm is hard. <code>pd spawn</code> is the orchestrator's command--it launches a sub-process and automatically wraps it in a managed Port Daddy session with full telemetry.
           </motion.p>
           <motion.div className="grid sm:grid-cols-3 gap-6 pt-4">
              <Surface depth="raised" radius="2xl" className="p-6 text-center space-y-3">
                 <Badge variant="teal" className="text-[8px] font-black uppercase tracking-widest">Automatic</Badge>
                 <motion.p className="text-xs font-bold m-0">Heartbeats</motion.p>
-             </motion.div>
+             </Surface>
              <Surface depth="raised" radius="2xl" className="p-6 text-center space-y-3">
                 <Badge variant="gold" className="text-[8px] font-black uppercase tracking-widest">Automatic</Badge>
                 <motion.p className="text-xs font-bold m-0">Session Logs</motion.p>
-             </motion.div>
+             </Surface>
              <Surface depth="raised" radius="2xl" className="p-6 text-center space-y-3">
                 <Badge variant="default" className="text-[8px] font-black uppercase tracking-widest">Automatic</Badge>
                 <motion.p className="text-xs font-bold m-0">Radio Wiring</motion.p>
-             </motion.div>
+             </Surface>
           </motion.div>
         </section>
 
@@ -50,7 +50,7 @@ export function Spawn() {
           <motion.div className="flex items-center gap-4">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Cpu className="text-[var(--brand-secondary)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">1. Summon an Agent</motion.h2>
           </motion.div>
 
@@ -64,11 +64,11 @@ export function Spawn() {
     -- "Fix the CSS centering in website-v2/Hero.tsx"`}
           </CodeBlock>
 
-          <Surface depth="inset" radius="2xl" padding="none" className="p-8 border-l-4 border-[var(--brand-secondary)]">
-             <motion.p className="m-0 text-sm italic opacity-60 font-medium">
-               Port Daddy intercepts the agent's stdout/stderr and automatically converts meaningful output into **Session Notes** that other agents can read.
-             </motion.p>
-          </blockquote>
+          <Surface depth="flat" radius="xl" padding="md" className="border-l-4 border-[var(--brand-secondary)]">
+            <p className="m-0 text-sm" style={{ color: 'var(--text-secondary)' }}>
+              Port Daddy intercepts the agent's stdout/stderr and automatically converts meaningful output into <strong>Session Notes</strong> that other agents can read.
+            </p>
+          </Surface>
         </section>
 
         {/* Step 2: Telemetry */}
@@ -76,7 +76,7 @@ export function Spawn() {
           <motion.div className="flex items-center gap-4">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Activity className="text-[var(--brand-accent)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">2. Monitor the Pulse</motion.h2>
           </motion.div>
 
@@ -94,16 +94,16 @@ export function Spawn() {
                       <motion.span className="text-sm font-bold">agent-7f3a (coder) is active</motion.span>
                    </motion.div>
                    <motion.span className="text-[10px] font-mono text-[var(--text-muted)]">CPU: 12%</motion.span>
-                </motion.div>
+                </Surface>
                 <Surface depth="inset" radius="2xl" padding="none" className="flex items-center justify-between p-4 opacity-40">
                    <motion.div className="flex items-center gap-4">
                       <RefreshCw size={16} />
                       <motion.span className="text-sm font-bold">Waiting for session note...</motion.span>
                    </motion.div>
                    <motion.span className="text-[10px] font-mono">Idle</motion.span>
-                </motion.div>
+                </Surface>
              </motion.div>
-          </motion.div>
+          </Surface>
         </section>
 
         {/* Vision Callout */}
@@ -120,7 +120,7 @@ export function Spawn() {
               <Shield size={14} className="animate-pulse" />
               Anchor Protocol v4 Secure
            </motion.div>
-        </motion.div>
+        </Surface>
       </motion.div>
     </TutorialLayout>
   )

@@ -23,7 +23,7 @@ export function AlwaysOn() {
           <motion.div className="flex items-center gap-4 mb-8">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Cpu className="text-[var(--brand-secondary)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">Beyond the Prompt</motion.h2>
           </motion.div>
           <motion.p>
@@ -31,25 +31,19 @@ export function AlwaysOn() {
           </motion.p>
           <motion.div className="grid sm:grid-cols-2 gap-8 pt-4">
              <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
-                <motion.div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-                >
+                <Surface depth="inset" radius="xl" padding="none" className="w-10 h-10 flex items-center justify-center">
                    <Activity size={20} className="text-[var(--brand-secondary)]" />
-                </motion.div>
+                </Surface>
                 <motion.h3 className="text-xl font-display font-black m-0">Persistent State</motion.h3>
                 <motion.p className="text-sm text-[var(--text-secondary)] m-0">Avatars can hold long-running variables, database connections, and cache in-memory across multiple user sessions.</motion.p>
-             </motion.div>
+             </Surface>
              <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
-                <motion.div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-                >
+                <Surface depth="inset" radius="xl" padding="none" className="w-10 h-10 flex items-center justify-center">
                    <Share2 size={20} className="text-[var(--brand-accent)]" />
-                </motion.div>
+                </Surface>
                 <motion.h3 className="text-xl font-display font-black m-0">Event Driven</motion.h3>
                 <motion.p className="text-sm text-[var(--text-secondary)] m-0">Instead of polling, Avatars wake up instantly when a message hits a channel they are subscribed to.</motion.p>
-             </motion.div>
+             </Surface>
           </motion.div>
         </section>
 
@@ -58,7 +52,7 @@ export function AlwaysOn() {
           <motion.div className="flex items-center gap-4">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Zap className="text-[var(--brand-primary)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">1. Spawn a Background Agent</motion.h2>
           </motion.div>
 
@@ -73,11 +67,11 @@ export function AlwaysOn() {
     -- "Review the test failures in src/auth/"`}
           </CodeBlock>
 
-          <Surface depth="inset" radius="2xl" padding="none" className="p-8 border-l-4 border-[var(--brand-primary)]">
-             <motion.p className="m-0 text-sm italic opacity-60 font-medium">
-               Note: The avatar will immediately claim its semantic identity. Any other agent trying to claim <code>infra:monitor</code> will be blocked by the daemon until the avatar releases it.
-             </motion.p>
-          </blockquote>
+          <Surface depth="flat" radius="xl" padding="md" className="border-l-4 border-[var(--brand-secondary)]">
+            <p className="m-0 text-sm" style={{ color: 'var(--text-secondary)' }}>
+              The avatar will immediately claim its semantic identity. Any other agent trying to claim <code>infra:monitor</code> will be blocked by the daemon until the avatar releases it.
+            </p>
+          </Surface>
         </section>
 
         {/* Step 2: Watching */}
@@ -85,7 +79,7 @@ export function AlwaysOn() {
           <motion.div className="flex items-center gap-4">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Terminal className="text-[var(--brand-secondary)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">2. Wire the Trigger</motion.h2>
           </motion.div>
 
@@ -110,19 +104,19 @@ export function AlwaysOn() {
                 <Surface depth="inset" radius="2xl" padding="none" className="flex items-center gap-4 p-4">
                    <Badge variant="default">Trigger</Badge>
                    <motion.span className="text-sm font-bold">Agent publishes to swarm:ci:failure</motion.span>
-                </motion.div>
+                </Surface>
                 <motion.div className="flex justify-center"><ArrowDown size={16} className="opacity-20" /></motion.div>
                 <Surface depth="raised" radius="2xl" className="flex items-center gap-4 p-4">
                    <Badge variant="teal">Action</Badge>
                    <motion.span className="text-sm font-bold">pd watch runs the --exec script</motion.span>
-                </motion.div>
+                </Surface>
                 <motion.div className="flex justify-center"><ArrowDown size={16} className="opacity-20" /></motion.div>
                 <Surface depth="inset" radius="2xl" padding="none" className="flex items-center gap-4 p-4">
                    <Badge variant="default">Resolve</Badge>
                    <motion.span className="text-sm font-bold">Script publishes result back to Swarm Radio</motion.span>
-                </motion.div>
+                </Surface>
              </motion.div>
-          </motion.div>
+          </Surface>
         </section>
 
         {/* Self-Healing Callout */}
@@ -139,7 +133,7 @@ export function AlwaysOn() {
               <Zap size={14} className="animate-pulse" />
               SQLite-Backed Persistence
            </motion.div>
-        </motion.div>
+        </Surface>
       </motion.div>
     </TutorialLayout>
   )

@@ -23,7 +23,7 @@ export function Monorepo() {
           <motion.div className="flex items-center gap-4 mb-8">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Layers className="text-[var(--brand-accent)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">The Monorepo Nightmare</motion.h2>
           </motion.div>
           <motion.p>
@@ -31,25 +31,19 @@ export function Monorepo() {
           </motion.p>
           <motion.div className="grid sm:grid-cols-2 gap-8 pt-4">
              <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
-                <motion.div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-                >
+                <Surface depth="inset" radius="xl" padding="none" className="w-10 h-10 flex items-center justify-center">
                    <Zap size={20} className="text-[var(--brand-secondary)]" />
-                </motion.div>
+                </Surface>
                 <motion.h3 className="text-xl font-display font-black m-0">Zero-Config DNS</motion.h3>
                 <motion.p className="text-sm text-[var(--text-secondary)] m-0">Services find each other via semantic names instead of hardcoded <code>localhost:3001</code> URLs.</motion.p>
-             </motion.div>
+             </Surface>
              <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
-                <motion.div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-                >
+                <Surface depth="inset" radius="xl" padding="none" className="w-10 h-10 flex items-center justify-center">
                    <Anchor size={20} className="text-[var(--brand-secondary)]" />
-                </motion.div>
+                </Surface>
                 <motion.h3 className="text-xl font-display font-black m-0">Atomic Assignment</motion.h3>
                 <motion.p className="text-sm text-[var(--text-secondary)] m-0">Ports are hashed from directory paths, ensuring the same service always gets the same port.</motion.p>
-             </motion.div>
+             </Surface>
           </motion.div>
         </section>
 
@@ -58,7 +52,7 @@ export function Monorepo() {
           <motion.div className="flex items-center gap-4">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Box className="text-[var(--brand-primary)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">1. Index the Fleet</motion.h2>
           </motion.div>
 
@@ -70,11 +64,11 @@ export function Monorepo() {
             {`$ pd scan ./services\n\n✓ Found 12 services in 1.4s\n  - services/auth (Next.js)\n  - services/api (Express)\n  - services/worker (Go)`}
           </CodeBlock>
 
-          <Surface depth="inset" radius="2xl" padding="none" className="p-8 border-l-4 border-[var(--brand-primary)]">
-             <motion.p className="m-0 text-sm italic opacity-60 font-medium">
-               Port Daddy creates a local SQLite registry of your services, allowing agents to query the fleet status at any time.
-             </motion.p>
-          </blockquote>
+          <Surface depth="flat" radius="xl" padding="md" className="border-l-4 border-[var(--brand-secondary)]">
+            <p className="m-0 text-sm" style={{ color: 'var(--text-secondary)' }}>
+              Port Daddy creates a local SQLite registry of your services, allowing agents to query the fleet status at any time.
+            </p>
+          </Surface>
         </section>
 
         {/* Step 2: Launching */}
@@ -82,7 +76,7 @@ export function Monorepo() {
           <motion.div className="flex items-center gap-4">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Activity className="text-[var(--brand-secondary)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">2. Bring the Stack Up</motion.h2>
           </motion.div>
 
@@ -105,7 +99,7 @@ export function Monorepo() {
                       <code className="text-xs text-[var(--text-secondary)]">localhost:3101</code>
                    </motion.div>
                    <Badge variant="teal">Healthy</Badge>
-                </motion.div>
+                </Surface>
                 <Surface depth="inset" radius="2xl" padding="none" className="flex items-center justify-between p-4">
                    <motion.div className="flex items-center gap-4">
                       <code className="text-xs text-[var(--brand-primary)]">api.pd.local</code>
@@ -113,9 +107,9 @@ export function Monorepo() {
                       <code className="text-xs text-[var(--text-secondary)]">localhost:3102</code>
                    </motion.div>
                    <Badge variant="teal">Healthy</Badge>
-                </motion.div>
+                </Surface>
              </motion.div>
-          </motion.div>
+          </Surface>
         </section>
 
         {/* Resilience Callout */}
@@ -132,7 +126,7 @@ export function Monorepo() {
               <Shield size={14} className="animate-pulse" />
               Service Mesh Active
            </motion.div>
-        </motion.div>
+        </Surface>
       </motion.div>
     </TutorialLayout>
   )

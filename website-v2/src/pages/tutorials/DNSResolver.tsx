@@ -23,7 +23,7 @@ export function DNSResolver() {
           <motion.div className="flex items-center gap-4 mb-8">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Globe className="text-[var(--brand-secondary)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">Beyond Localhost</motion.h2>
           </motion.div>
           <motion.p>
@@ -31,25 +31,19 @@ export function DNSResolver() {
           </motion.p>
           <motion.div className="grid sm:grid-cols-2 gap-8 pt-4">
              <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
-                <motion.div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-                >
+                <Surface depth="inset" radius="xl" padding="none" className="w-10 h-10 flex items-center justify-center">
                    <Zap size={20} className="text-[var(--brand-secondary)]" />
-                </motion.div>
+                </Surface>
                 <motion.h3 className="text-xl font-display font-black m-0">Zero Config</motion.h3>
                 <motion.p className="text-sm text-[var(--text-secondary)] m-0">Port Daddy automatically updates your system hosts file or provides a local DNS server.</motion.p>
-             </motion.div>
+             </Surface>
              <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
-                <motion.div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-                >
+                <Surface depth="inset" radius="xl" padding="none" className="w-10 h-10 flex items-center justify-center">
                    <Anchor size={20} className="text-[var(--brand-secondary)]" />
-                </motion.div>
+                </Surface>
                 <motion.h3 className="text-xl font-display font-black m-0">Semantic Mapping</motion.h3>
                 <motion.p className="text-sm text-[var(--text-secondary)] m-0">Map <code>project:stack:identity</code> strings directly to reachable network addresses.</motion.p>
-             </motion.div>
+             </Surface>
           </motion.div>
         </section>
 
@@ -58,7 +52,7 @@ export function DNSResolver() {
           <motion.div className="flex items-center gap-4">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Network className="text-[var(--brand-primary)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">1. Register a Name</motion.h2>
           </motion.div>
 
@@ -74,7 +68,7 @@ export function DNSResolver() {
              <motion.p className="m-0 text-sm italic opacity-60 font-medium">
                The daemon handles the complexity of OS-level DNS resolution, ensuring your browser and local tools can resolve these names instantly.
              </motion.p>
-          </blockquote>
+          </Surface>
         </section>
 
         {/* Step 2: Resolution */}
@@ -82,7 +76,7 @@ export function DNSResolver() {
           <motion.div className="flex items-center gap-4">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Search className="text-[var(--brand-secondary)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">2. Discovery in Code</motion.h2>
           </motion.div>
 
@@ -107,9 +101,9 @@ export function DNSResolver() {
                       <motion.span className="text-[10px] font-black uppercase text-[var(--text-muted)]">Resolved</motion.span>
                       <code className="text-xs font-bold">127.0.0.1:5432</code>
                    </motion.div>
-                </motion.div>
+                </Surface>
              </motion.div>
-          </motion.div>
+          </Surface>
         </section>
 
         {/* Vision Callout */}
@@ -126,7 +120,7 @@ export function DNSResolver() {
               <Shield size={14} className="animate-pulse" />
               Anchor Protocol v4 Active
            </motion.div>
-        </motion.div>
+        </Surface>
       </motion.div>
     </TutorialLayout>
   )

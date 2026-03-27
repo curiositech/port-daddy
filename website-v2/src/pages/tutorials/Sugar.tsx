@@ -23,7 +23,7 @@ export function Sugar() {
           <motion.div className="flex items-center gap-4 mb-8">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Sparkles className="text-[var(--brand-accent)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">Invisible Infrastructure</motion.h2>
           </motion.div>
           <motion.p>
@@ -31,25 +31,19 @@ export function Sugar() {
           </motion.p>
           <motion.div className="grid sm:grid-cols-2 gap-8 pt-4">
              <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
-                <motion.div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-                >
+                <Surface depth="inset" radius="xl" padding="none" className="w-10 h-10 flex items-center justify-center">
                    <Zap size={20} className="text-[var(--brand-secondary)]" />
-                </motion.div>
+                </Surface>
                 <motion.h3 className="text-xl font-display font-black m-0">Zero Config</motion.h3>
                 <motion.p className="text-sm text-[var(--text-secondary)] m-0">Sugar commands auto-detect your project root and existing sessions so you don't have to pass IDs.</motion.p>
-             </motion.div>
+             </Surface>
              <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
-                <motion.div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-                >
+                <Surface depth="inset" radius="xl" padding="none" className="w-10 h-10 flex items-center justify-center">
                    <Shield size={20} className="text-[var(--brand-secondary)]" />
-                </motion.div>
+                </Surface>
                 <motion.h3 className="text-xl font-display font-black m-0">Safe Defaults</motion.h3>
                 <motion.p className="text-sm text-[var(--text-secondary)] m-0">Built-in timeouts and retry logic ensure that your agent scripts are resilient to network blips.</motion.p>
-             </motion.div>
+             </Surface>
           </motion.div>
         </section>
 
@@ -58,7 +52,7 @@ export function Sugar() {
           <motion.div className="flex items-center gap-4">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Activity className="text-[var(--brand-primary)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">1. pd begin & pd done</motion.h2>
           </motion.div>
 
@@ -76,7 +70,7 @@ export function Sugar() {
              <motion.p className="m-0 text-sm italic opacity-60 font-medium">
                When the agent finishes, <code>pd done</code> releases all file claims and port assignments cleanly, closing the session timeline.
              </motion.p>
-          </blockquote>
+          </Surface>
         </section>
 
         {/* Step 2: Atomic Locks */}
@@ -84,7 +78,7 @@ export function Sugar() {
           <motion.div className="flex items-center gap-4">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Lock className="text-[var(--brand-accent)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">2. pd with-lock</motion.h2>
           </motion.div>
 
@@ -106,16 +100,16 @@ export function Sugar() {
                       <code className="text-xs">pd whoami</code>
                    </motion.div>
                    <motion.span className="text-[10px] font-mono text-[var(--text-muted)]">Identify current agent</motion.span>
-                </motion.div>
+                </Surface>
                 <Surface depth="inset" radius="2xl" padding="none" className="flex items-center justify-between p-4">
                    <motion.div className="flex items-center gap-4">
                       <Terminal size={14} className="opacity-40" />
                       <code className="text-xs">pd salvage</code>
                    </motion.div>
                    <motion.span className="text-[10px] font-mono text-[var(--text-muted)]">Recover orphaned work</motion.span>
-                </motion.div>
+                </Surface>
              </motion.div>
-          </motion.div>
+          </Surface>
         </section>
 
         {/* Vision Callout */}
@@ -132,7 +126,7 @@ export function Sugar() {
               <Zap size={14} className="animate-pulse" />
               Anchor Protocol v4 Active
            </motion.div>
-        </motion.div>
+        </Surface>
       </motion.div>
     </TutorialLayout>
   )
