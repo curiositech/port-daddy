@@ -119,7 +119,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Shell completions updated in all three shells (bash, zsh, fish) with new flags and `learn` command
 - 11 new CLI integration tests for flag alternatives and backward compatibility
 
-## [3.7.0] - 2026-03-02
+## [3.5.0] - 2026-03-02
 
 ### Added
 - `pd begin` — Register agent + start session in one command (replaces 3-command ceremony)

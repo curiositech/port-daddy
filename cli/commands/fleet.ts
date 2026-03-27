@@ -13,26 +13,43 @@ import * as ui from '../utils/ui.js';
 import { loadFleetConfig, createFleetRunner, type FleetConfig } from '../../lib/fleet-engine.js';
 
 // ─── Load .env.local / .env for API keys ────────────────────────────────────
-function loadEnvFile(dir: string): void {
-  for (const name of ['.env.local', '.env']) {
-    const envPath = join(dir, name);
-    if (existsSync(envPath)) {
-      const lines = readFileSync(envPath, 'utf-8').split('\n');
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed.startsWith('#')) continue;
-        const eqIdx = trimmed.indexOf('=');
-        if (eqIdx === -1) continue;
-        const key = trimmed.slice(0, eqIdx).trim();
-        const val = trimmed.slice(eqIdx + 1).trim();
-        if (!process.env[key]) process.env[key] = val;
+// Searches: cwd, project root, home directory. All found vars are merged.
+// Existing env vars take precedence (don't overwrite what's already set).
+function loadEnvFiles(): void {
+  const searchDirs = [
+    process.cwd(),
+    join(process.cwd(), '..'),  // parent (in case we're in a subdir)
+    process.env.HOME || '',
+  ];
+
+  const fileNames = ['.env.local', '.env', '.port-daddy-env'];
+
+  for (const dir of searchDirs) {
+    if (!dir) continue;
+    for (const name of fileNames) {
+      const envPath = join(dir, name);
+      if (existsSync(envPath)) {
+        const lines = readFileSync(envPath, 'utf-8').split('\n');
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed.startsWith('#')) continue;
+          const eqIdx = trimmed.indexOf('=');
+          if (eqIdx === -1) continue;
+          const key = trimmed.slice(0, eqIdx).trim();
+          let val = trimmed.slice(eqIdx + 1).trim();
+          // Strip surrounding quotes
+          if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+            val = val.slice(1, -1);
+          }
+          if (!process.env[key]) process.env[key] = val;
+        }
       }
     }
   }
 }
 
-// Load env on module init
-loadEnvFile(process.cwd());
+// Load env on module init — before any agent runs
+loadEnvFiles();
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FLEET_DIR = join(__dirname, '..', '..', 'fleet');
@@ -262,10 +279,14 @@ async function runAgentByName(agentName: string): Promise<void> {
     const args = ['-p', agent.prompt];
     if (agent.allowedTools) args.push('--allowedTools', agent.allowedTools);
 
+    // Ensure API keys are in the env for the child process
+    // loadEnvFiles() already set process.env, so spread it
+    const childEnv = { ...process.env, PD_URL };
+
     const child = spawn('claude', args, {
       cwd: process.cwd(),
       stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env, PD_URL },
+      env: childEnv,
     });
 
     let stdout = '';

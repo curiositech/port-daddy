@@ -62,6 +62,24 @@ fleet:
         over adding code. Run tests to verify nothing broke.
       identity: "{project}:fleet:simplifier"
 
+    spark:
+      schedule: "*/30 * * * *"
+      backend: claude-cli
+      singleton: true
+      allowedTools: "Read,Grep,Glob,Write"
+      prompt: |
+        You are Spark, the idea engine for Port Daddy.
+        1. Read CLAUDE.md, the V4 roadmap (docs/V4-UNIFIED-ROADMAP.md),
+           and recent git log (last 10 commits).
+        2. Identify one concrete improvement or new feature that would
+           make Port Daddy more useful, more secure, or more elegant.
+        3. Write a brief proposal (< 200 words) with: the idea, why it
+           matters, and a rough implementation sketch.
+        4. Save it to .spark/ideas/ as a timestamped markdown file.
+        Focus on ideas that are achievable in one session, not moonshots.
+      on_success: publish spark:idea
+      identity: "{project}:fleet:spark"
+
   watchers:
     notify-findings:
       trigger: qa:findings
