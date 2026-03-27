@@ -1,0 +1,83 @@
+# pd-fleet.yml — Port Daddy's own fleet configuration
+#
+# This file declares the background agents that help develop Port Daddy.
+# Run with: pd fleet up
+#
+# Requires: .env.local with ANTHROPIC_API_KEY (for claude-cli agents)
+# Backend is configurable per agent — swap claude-cli for ollama, custom, etc.
+
+fleet:
+  name: port-daddy-dev
+
+  agents:
+    gardener:
+      schedule: "*/10 * * * *"
+      backend: custom
+      prompt: "git status --porcelain"
+      on_success: publish git:status
+      identity: "{project}:fleet:gardener"
+
+    qa:
+      trigger: git:committed
+      backend: claude-cli
+      allowedTools: "Read,Grep,Glob,Bash(npm test*)"
+      prompt: |
+        Review the most recent commit. Read every changed file.
+        For each change, identify inputs that would break it.
+        If you find bugs, write a test that exposes each one.
+        If clean, just say CLEAN.
+      on_success: publish qa:clean
+      on_failure: publish qa:findings
+      identity: "{project}:fleet:qa"
+
+    test-hunter:
+      trigger: git:committed
+      backend: claude-cli
+      allowedTools: "Read,Grep,Glob,Write,Bash(npm test*)"
+      prompt: |
+        Run the test suite. Find modules below 50% coverage.
+        For each gap, write meaningful tests that exercise real
+        code paths. Save tests to the appropriate tests/ directory.
+      identity: "{project}:fleet:test-hunter"
+
+    documentarian:
+      trigger: git:committed
+      backend: claude-cli
+      allowedTools: "Read,Grep,Glob,Write"
+      prompt: |
+        Check if CLAUDE.md, README.md, CHANGELOG.md, and
+        features.manifest.json match the actual code.
+        If they diverge, fix the docs to match the code.
+        Code is truth; documentation follows.
+      identity: "{project}:fleet:documentarian"
+
+    simplifier:
+      trigger: git:committed
+      backend: claude-cli
+      worktree: true
+      allowedTools: "Read,Grep,Glob,Edit,Bash(npm test*)"
+      prompt: |
+        Review recently changed files for unnecessary complexity.
+        Simplify WITHOUT changing behavior. Prefer removing code
+        over adding code. Run tests to verify nothing broke.
+      identity: "{project}:fleet:simplifier"
+
+  watchers:
+    notify-findings:
+      trigger: qa:findings
+      exec: "echo 'QA found issues' | curl -s -X POST http://localhost:9877/notes -H 'Content-Type: application/json' -d '{\"content\":\"QA agent found issues — check qa:findings channel\",\"type\":\"warning\"}'"
+
+  channels:
+    git:committed:
+      description: "Fired after a successful commit"
+      consumers: [qa, test-hunter, documentarian, simplifier]
+
+    git:status:
+      description: "Gardener reports on uncommitted changes"
+
+    qa:clean:
+      description: "QA found no issues"
+
+    qa:findings:
+      description: "QA found bugs or issues"
+      consumers: [notify-findings]

@@ -10,23 +10,44 @@ import { fileURLToPath } from 'node:url';
 import { existsSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import * as ui from '../utils/ui.js';
+import { loadFleetConfig, createFleetRunner, type FleetConfig } from '../../lib/fleet-engine.js';
+
+// ─── Load .env.local / .env for API keys ────────────────────────────────────
+function loadEnvFile(dir: string): void {
+  for (const name of ['.env.local', '.env']) {
+    const envPath = join(dir, name);
+    if (existsSync(envPath)) {
+      const lines = readFileSync(envPath, 'utf-8').split('\n');
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) continue;
+        const eqIdx = trimmed.indexOf('=');
+        if (eqIdx === -1) continue;
+        const key = trimmed.slice(0, eqIdx).trim();
+        const val = trimmed.slice(eqIdx + 1).trim();
+        if (!process.env[key]) process.env[key] = val;
+      }
+    }
+  }
+}
+
+// Load env on module init
+loadEnvFile(process.cwd());
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FLEET_DIR = join(__dirname, '..', '..', 'fleet');
-const DOCK_MASTER_PID_FILE = '/tmp/pd-dock-master.pid';
-const FLEET_LOG = '/tmp/pd-fleet.log';
 const PD_URL = process.env.PD_URL || process.env.PORT_DADDY_URL || 'http://localhost:9876';
 
-function isDockMasterRunning(): { running: boolean; pid: number | null } {
-  if (!existsSync(DOCK_MASTER_PID_FILE)) return { running: false, pid: null };
+function isFleetRunning(): { running: boolean; pid: number | null; name: string | null } {
+  const stateFile = join(process.cwd(), '.portdaddy', 'fleet-state.json');
+  if (!existsSync(stateFile)) return { running: false, pid: null, name: null };
   try {
-    const pid = parseInt(readFileSync(DOCK_MASTER_PID_FILE, 'utf-8').trim(), 10);
-    process.kill(pid, 0); // throws if not running
-    return { running: true, pid };
+    const state = JSON.parse(readFileSync(stateFile, 'utf-8'));
+    process.kill(state.pid, 0); // throws if not running
+    return { running: true, pid: state.pid, name: state.name };
   } catch {
-    // Stale PID file
-    try { unlinkSync(DOCK_MASTER_PID_FILE); } catch {}
-    return { running: false, pid: null };
+    try { unlinkSync(stateFile); } catch {}
+    return { running: false, pid: null, name: null };
   }
 }
 
@@ -52,13 +73,16 @@ async function getFleetAgents(): Promise<Array<{ id: string; purpose: string; st
 
 // ─── Subcommands ────────────────────────────────────────────────────────────
 
+// Module-level fleet runner (persists for the lifetime of the CLI process)
+let activeRunner: ReturnType<typeof createFleetRunner> | null = null;
+
 async function fleetUp(): Promise<void> {
   if (!(await isDaemonUp())) {
     ui.error('Port Daddy daemon not running. Start it first: pd start');
     process.exit(1);
   }
 
-  const { running, pid } = isDockMasterRunning();
+  const { running, pid } = isFleetRunning();
   if (running) {
     ui.warn(`Fleet already running (Dock Master PID ${pid})`);
     ui.info('  Status: pd fleet status');
@@ -66,77 +90,78 @@ async function fleetUp(): Promise<void> {
     return;
   }
 
-  const dockMasterScript = join(FLEET_DIR, 'dock-master.sh');
-  if (!existsSync(dockMasterScript)) {
-    ui.error(`Dock Master script not found: ${dockMasterScript}`);
-    process.exit(1);
-  }
+  const projectDir = process.cwd();
+  const config = loadFleetConfig(projectDir);
 
-  ui.info('Starting Port Daddy Fleet...');
+  if (config) {
+    // ─── Declarative mode: pd-fleet.yml found ───────────────────────
+    ui.info(`Starting fleet "${config.name}" from pd-fleet.yml`);
+    ui.info(`  Agents: ${config.agents.length}`);
+    ui.info(`  Watchers: ${config.watchers.length}`);
+    ui.info(`  Channels: ${Object.keys(config.channels).length}`);
+    console.log('');
 
-  const child = spawn('zsh', [dockMasterScript], {
-    cwd: join(FLEET_DIR, '..'),
-    stdio: ['ignore', 'pipe', 'pipe'],
-    detached: true,
-    env: { ...process.env, PD_URL },
-  });
+    activeRunner = createFleetRunner(config, projectDir);
+    activeRunner.startAll();
 
-  child.unref();
+    // Save state so pd fleet status/stop can find it
+    const stateFile = join(projectDir, '.portdaddy', 'fleet-state.json');
+    const { mkdirSync } = await import('node:fs');
+    mkdirSync(join(projectDir, '.portdaddy'), { recursive: true });
+    writeFileSync(stateFile, JSON.stringify({
+      pid: process.pid,
+      name: config.name,
+      agents: config.agents.map(a => a.name),
+      watchers: config.watchers.map(w => w.name),
+      startedAt: new Date().toISOString(),
+    }));
 
-  // Pipe output to log file
-  const { createWriteStream } = await import('node:fs');
-  const logStream = createWriteStream(FLEET_LOG, { flags: 'a' });
-  child.stdout?.pipe(logStream);
-  child.stderr?.pipe(logStream);
+    for (const agent of config.agents) {
+      const mode = agent.schedule ? `schedule: ${agent.schedule}` : `trigger: ${agent.trigger}`;
+      ui.success(`  ${agent.name} (${agent.backend}) — ${mode}`);
+    }
+    for (const watcher of config.watchers) {
+      ui.success(`  ${watcher.name} (watcher) — trigger: ${watcher.trigger}`);
+    }
 
-  if (child.pid) {
-    writeFileSync(DOCK_MASTER_PID_FILE, String(child.pid));
-  }
+    console.log('');
+    ui.info('Fleet running. Press Ctrl+C to stop, or: pd fleet down');
 
-  // Wait briefly to verify it started
-  await new Promise(r => setTimeout(r, 2000));
+    // Keep the process alive (fleet runs in this process)
+    await new Promise<void>((resolve) => {
+      process.on('SIGINT', () => {
+        ui.info('Stopping fleet...');
+        activeRunner?.stopAll();
+        try { unlinkSync(stateFile); } catch {}
+        resolve();
+      });
+      process.on('SIGTERM', () => {
+        activeRunner?.stopAll();
+        try { unlinkSync(stateFile); } catch {}
+        resolve();
+      });
+    });
 
-  if (child.pid && isDockMasterRunning().running) {
-    ui.success(`Fleet started (Dock Master PID ${child.pid})`);
-    ui.info(`  Logs:   tail -f ${FLEET_LOG}`);
-    ui.info('  Status: pd fleet status');
-    ui.info('  Stop:   pd fleet down');
   } else {
-    ui.error('Fleet failed to start. Check: tail -20 /tmp/pd-fleet.log');
-    try { unlinkSync(DOCK_MASTER_PID_FILE); } catch {}
+    ui.error('No pd-fleet.yml found.');
+    ui.info('Create a pd-fleet.yml in your project root to define your agent fleet.');
+    ui.info('See: pd fleet help');
     process.exit(1);
   }
 }
 
 async function fleetDown(): Promise<void> {
-  let stopped = false;
-  const { running, pid } = isDockMasterRunning();
+  const { running, pid } = isFleetRunning();
+  const stateFile = join(process.cwd(), '.portdaddy', 'fleet-state.json');
 
   if (running && pid) {
     try {
-      // Kill process group
-      process.kill(-pid, 'SIGTERM');
-      stopped = true;
-    } catch {
-      try {
-        process.kill(pid, 'SIGTERM');
-        stopped = true;
-      } catch {}
-    }
-    try { unlinkSync(DOCK_MASTER_PID_FILE); } catch {}
-  }
-
-  // Also kill stray fleet processes
-  try {
-    const { execSync } = await import('node:child_process');
-    execSync('pkill -f "fleet/spark.sh" 2>/dev/null; pkill -f "fleet/dock-master.sh" 2>/dev/null', { stdio: 'ignore' });
-    stopped = true;
-  } catch {}
-
-  if (stopped) {
+      process.kill(pid, 'SIGTERM');
+    } catch {}
+    try { unlinkSync(stateFile); } catch {}
     ui.success('Fleet stopped');
   } else {
-    ui.info('No fleet was running');
+    ui.info('No fleet running');
   }
 }
 
@@ -145,12 +170,18 @@ async function fleetStatus(): Promise<void> {
   ui.info('Port Daddy Fleet');
   console.log('');
 
-  // Dock Master status
-  const { running, pid } = isDockMasterRunning();
+  const { running, pid, name } = isFleetRunning();
   if (running) {
-    ui.success(`Dock Master: running (PID ${pid})`);
+    ui.success(`Fleet "${name || 'unnamed'}": running (PID ${pid})`);
   } else {
-    ui.warn('Dock Master: not running');
+    // Check for pd-fleet.yml
+    const config = loadFleetConfig(process.cwd());
+    if (config) {
+      ui.warn(`Fleet "${config.name}" defined in pd-fleet.yml but not running`);
+      ui.info(`  Start with: pd fleet up`);
+    } else {
+      ui.warn('No fleet running, no pd-fleet.yml found');
+    }
   }
 
   // Fleet agents from PD registry
@@ -201,41 +232,94 @@ async function fleetStatus(): Promise<void> {
   }
 }
 
-async function runFleetScript(scriptName: string, args: string[] = []): Promise<void> {
-  const scriptPath = join(FLEET_DIR, scriptName);
-  if (!existsSync(scriptPath)) {
-    ui.error(`Fleet script not found: ${scriptPath}`);
+/**
+ * Run a single agent from the fleet config by name.
+ *
+ * For backends that need user auth (claude-cli), run locally via
+ * child process — not through the daemon API. The daemon doesn't
+ * have the user's Claude auth context.
+ *
+ * For simple backends (custom, ollama), use the daemon's spawn API.
+ */
+async function runAgentByName(agentName: string): Promise<void> {
+  const config = loadFleetConfig(process.cwd());
+  if (!config) {
+    ui.error('No pd-fleet.yml found');
     process.exit(1);
   }
 
-  const child = spawn('zsh', [scriptPath, ...args], {
-    cwd: join(FLEET_DIR, '..'),
-    stdio: 'inherit',
-    env: { ...process.env, PD_URL },
-  });
-
-  await new Promise<void>((resolve) => {
-    child.on('close', (code) => {
-      if (code !== 0) process.exitCode = code || 1;
-      resolve();
-    });
-  });
-}
-
-async function fleetLog(): Promise<void> {
-  if (!existsSync(FLEET_LOG)) {
-    ui.info('No fleet log found. Start fleet first: pd fleet up');
-    return;
+  const agent = config.agents.find(a => a.name === agentName);
+  if (!agent) {
+    ui.error(`Agent "${agentName}" not found in pd-fleet.yml`);
+    ui.info(`Available: ${config.agents.map(a => a.name).join(', ')}`);
+    process.exit(1);
   }
-  const content = readFileSync(FLEET_LOG, 'utf-8');
-  const lines = content.split('\n');
-  const tail = lines.slice(-50).join('\n');
-  console.log(tail);
+
+  ui.info(`Running ${agent.name} (${agent.backend})...`);
+
+  if (agent.backend === 'claude-cli') {
+    // Run locally — claude CLI needs user's auth context
+    const args = ['-p', agent.prompt];
+    if (agent.allowedTools) args.push('--allowedTools', agent.allowedTools);
+
+    const child = spawn('claude', args, {
+      cwd: process.cwd(),
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, PD_URL },
+    });
+
+    let stdout = '';
+    let stderr = '';
+    child.stdout?.on('data', (d: Buffer) => { stdout += d.toString(); });
+    child.stderr?.on('data', (d: Buffer) => { stderr += d.toString(); });
+
+    await new Promise<void>((resolve) => {
+      child.on('close', (code) => {
+        if (code === 0) {
+          ui.success(`${agent.name} completed`);
+          if (stdout.trim()) console.log(stdout.trim());
+        } else {
+          ui.error(`${agent.name} failed (exit ${code})`);
+          if (stderr.trim()) console.log(stderr.trim());
+          if (stdout.trim()) console.log(stdout.trim());
+          process.exitCode = 1;
+        }
+        resolve();
+      });
+    });
+
+  } else {
+    // Use daemon's spawn API for simple backends
+    const res = await fetch(`${PD_URL}/spawn`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        backend: agent.backend,
+        task: agent.prompt,
+        identity: agent.identity,
+        purpose: `Fleet agent: ${agent.name}`,
+        model: agent.model,
+        timeout: agent.timeout,
+        allowedTools: agent.allowedTools,
+      }),
+    });
+
+    const data = await res.json() as any;
+
+    if (data.status === 'completed') {
+      ui.success(`${agent.name} completed`);
+      if (data.output) console.log(data.output);
+    } else {
+      ui.error(`${agent.name} failed: ${data.error || 'unknown'}`);
+      if (data.output) console.log(data.output);
+      process.exitCode = 1;
+    }
+  }
 }
 
 // ─── Entry Point ────────────────────────────────────────────────────────────
 
-export async function handleFleet(positional: string[], options: Record<string, unknown>): Promise<void> {
+export async function handleFleet(positional: string[], _options: Record<string, unknown>): Promise<void> {
   const subcommand = positional[0] || 'help';
 
   switch (subcommand) {
@@ -251,78 +335,60 @@ export async function handleFleet(positional: string[], options: Record<string, 
       await fleetStatus();
       break;
 
-    case 'gardener':
-      await runFleetScript('git-gardener.sh');
-      break;
-
-    case 'qa':
-      await runFleetScript('qa-adversary.sh');
-      break;
-
-    case 'hunt':
-      await runFleetScript('test-gap-hunter.sh');
-      break;
-
-    case 'research':
-      if (!positional[1]) {
-        ui.error('Usage: pd fleet research "topic to research"');
-        process.exit(1);
-      }
-      await runFleetScript('research-scout.sh', positional.slice(1));
-      break;
-
-    case 'docs':
-      await runFleetScript('documentarian.sh');
-      break;
-
-    case 'simplify':
-      await runFleetScript('simplifier.sh');
-      break;
-
-    case 'spark':
-      await runFleetScript('spark.sh', positional.slice(1));
-      break;
-
-    case 'ideas':
-      await runFleetScript('spark.sh', ['ideas']);
-      break;
-
-    case 'log':
-      await fleetLog();
-      break;
-
     case 'help':
     case '--help':
-    case '-h':
+    case '-h': {
+      const config = loadFleetConfig(process.cwd());
       console.log('');
-      ui.info('Port Daddy Fleet — Background Agent Management');
+      ui.info('Port Daddy Fleet — Declarative Agent Management');
       console.log('');
       console.log('Usage: pd fleet <command>');
       console.log('');
-      console.log('Fleet lifecycle:');
-      console.log('  up              Start Dock Master + all watchers');
-      console.log('  down            Stop everything');
-      console.log('  status          Show fleet health and recent events');
-      console.log('  log             Show fleet log');
+      console.log('Lifecycle:');
+      console.log('  up              Start all agents from pd-fleet.yml');
+      console.log('  down            Stop all agents');
+      console.log('  status          Show fleet health');
       console.log('');
-      console.log('Run agents individually:');
-      console.log('  gardener        Auto-commit uncommitted changes');
-      console.log('  qa              Adversarial review of latest commit');
-      console.log('  hunt            Find and fill test coverage gaps');
-      console.log('  docs            Sync documentation to match code');
-      console.log('  simplify        Propose simplifications for latest commit');
-      console.log('  research "topic"  Deep research on a topic');
-      console.log('');
-      console.log('The idea engine:');
-      console.log('  spark           Run one ideation cycle');
-      console.log('  spark --loop    Run Spark continuously');
-      console.log('  spark ideas     List all ideas');
-      console.log('  ideas           Shortcut for spark ideas');
+      if (config) {
+        console.log(`Agents in pd-fleet.yml (${config.agents.length}):`);
+        for (const a of config.agents) {
+          const mode = a.schedule ? `schedule: ${a.schedule}` : `trigger: ${a.trigger}`;
+          console.log(`  ${a.name.padEnd(16)} ${a.backend.padEnd(12)} ${mode}`);
+        }
+        console.log('');
+        console.log('Run an agent once:');
+        console.log(`  pd fleet run <name>     Run a specific agent from pd-fleet.yml`);
+      } else {
+        console.log('No pd-fleet.yml found in current directory.');
+        console.log('Create one to define your agent fleet.');
+      }
       break;
+    }
 
-    default:
-      ui.error(`Unknown fleet command: ${subcommand}`);
-      ui.info('Run "pd fleet help" for usage');
-      process.exit(1);
+    case 'run': {
+      const agentName = positional[1];
+      if (!agentName) {
+        const config = loadFleetConfig(process.cwd());
+        ui.error('Usage: pd fleet run <agent-name>');
+        if (config) {
+          ui.info(`Available: ${config.agents.map(a => a.name).join(', ')}`);
+        }
+        process.exit(1);
+      }
+      await runAgentByName(agentName);
+      break;
+    }
+
+    default: {
+      // Try running it as an agent name
+      const config = loadFleetConfig(process.cwd());
+      if (config?.agents.find(a => a.name === subcommand)) {
+        await runAgentByName(subcommand);
+      } else {
+        ui.error(`Unknown: pd fleet ${subcommand}`);
+        ui.info('Run "pd fleet help" for usage');
+        process.exit(1);
+      }
+    }
   }
 }
