@@ -24,7 +24,7 @@ const STATUS_COLORS = {
 }
 
 const HARBOR_COLORS: Record<string, { fill: string; border: string }> = {
-  auth: { fill: 'color-mix(in srgb, var(--brand-secondary) 15%, transparent)', border: 'var(--p-teal-700)' },
+  auth: { fill: 'color-mix(in srgb, var(--brand-secondary) 15%, transparent)', border: 'var(--brand-secondary)' },
   ops: { fill: 'color-mix(in srgb, var(--brand-accent) 12%, transparent)', border: 'var(--p-gold-600)' },
 }
 

@@ -32,7 +32,7 @@ export function Hero() {
             <h1 className="text-3xl sm:text-4xl lg:text-[2.75rem] font-bold tracking-[-0.02em] leading-[1.15] mb-4 text-[var(--text-primary)]">
               Stop your agents from
               {' '}
-              <span className="bg-gradient-to-r from-[var(--brand-primary)] to-[var(--p-red-600)] bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-[var(--brand-primary)] to-[var(--status-error)] bg-clip-text text-transparent">
                 fighting each other.
               </span>
             </h1>

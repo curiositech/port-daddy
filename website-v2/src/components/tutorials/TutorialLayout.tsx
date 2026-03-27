@@ -165,7 +165,7 @@ export function TutorialLayout({
                  Instant Port
                </motion.div>
                <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em]">
-                 <Shield size={14} className="text-[var(--p-teal-400)]" />
+                 <Shield size={14} className="text-[var(--brand-secondary)]" />
                  Secure DNS
                </motion.div>
                <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em]">

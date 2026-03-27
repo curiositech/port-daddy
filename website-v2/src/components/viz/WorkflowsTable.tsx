@@ -33,7 +33,7 @@ export function WorkflowsTable() {
   };
 
   if (loading) return <motion.div className="p-8 text-center opacity-50 font-black uppercase tracking-widest text-[10px] font-sans">Hailing Pipelines...</motion.div>;
-  if (error) return <motion.div className="p-8 text-center text-[var(--p-red-400)] font-bold font-sans">Harbor Error: {error}</motion.div>;
+  if (error) return <motion.div className="p-8 text-center text-[var(--status-error)] font-bold font-sans">Harbor Error: {error}</motion.div>;
 
   return (
     <motion.div className="flex flex-col h-full bg-[var(--surface-raised)] rounded-3xl border border-[var(--border-default)] overflow-hidden shadow-sm font-sans">

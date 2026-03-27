@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Badge } from '@/components/ui/Badge'
+import { Surface } from '@/components/ui/Surface'
 import { Layout, Activity, Zap, Terminal, Globe, Share2, Heart } from 'lucide-react'
 
 export function Dashboard() {
@@ -81,14 +82,11 @@ export function Dashboard() {
             {`$ pd dashboard\n\n✓ Dashboard active at http://localhost:3144/dashboard`}
           </CodeBlock>
 
-          <blockquote
-            className="p-8 rounded-2xl border-l-4 border-[var(--brand-primary)]"
-            style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-          >
-             <motion.p className="m-0 text-sm italic opacity-60 font-medium">
-               The dashboard uses **WebSockets** to ensure that any signal published to Swarm Radio appears on your screen with sub-50ms latency.
-             </motion.p>
-          </blockquote>
+          <Surface depth="flat" radius="xl" padding="md" className="border-l-4 border-[var(--brand-secondary)]">
+            <p className="m-0 text-sm" style={{ color: 'var(--text-secondary)' }}>
+              The dashboard uses <strong>WebSockets</strong> to ensure that any signal published to Swarm Radio appears on your screen with sub-50ms latency.
+            </p>
+          </Surface>
         </section>
 
         {/* Step 2: Interaction */}

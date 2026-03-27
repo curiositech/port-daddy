@@ -44,7 +44,7 @@ export function AgentCard({ agent }: AgentCardProps) {
           </motion.div>
         </motion.div>
         {isA2A && (
-          <Badge variant="teal" className="bg-[var(--p-teal-400)]/15 text-[var(--p-teal-400)] border-[var(--p-teal-400)]/30 font-black text-[10px] tracking-widest px-2 py-0.5 uppercase font-sans">
+          <Badge variant="teal" className="bg-[var(--brand-secondary)]/15 text-[var(--brand-secondary)] border-[var(--brand-secondary)]/30 font-black text-[10px] tracking-widest px-2 py-0.5 uppercase font-sans">
             A2A Enabled
           </Badge>
         )}
@@ -101,7 +101,7 @@ export function AgentCard({ agent }: AgentCardProps) {
 
             <motion.div className="space-y-3 font-sans">
               <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] font-sans">
-                <Globe size={12} className="text-[var(--p-teal-400)]" /> Protocols
+                <Globe size={12} className="text-[var(--brand-secondary)]" /> Protocols
               </motion.div>
               <motion.div className="flex flex-wrap gap-2 font-sans">
                 {protocols.map((proto: string) => (
