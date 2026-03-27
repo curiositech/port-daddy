@@ -149,12 +149,26 @@ if (!isSilent && process.env.NODE_ENV !== 'production') {
 // DATABASE (schema lives in lib/db.ts — shared with CLI direct mode)
 // =============================================================================
 
-const DB_PATH: string = resolveDbPath();
-const PORT: number = parseInt(process.env.PORT_DADDY_PORT as string, 10) || config.service.port;
-const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || '/tmp/port-daddy.sock';
+// PORT_DADDY_PREFIX: nginx-style prefix directory that derives all state paths.
+// If set, DB/socket/PID/log/port-file all resolve relative to the prefix.
+// This enables isolated dev daemons alongside the stable production daemon.
+const PREFIX: string | undefined = process.env.PORT_DADDY_PREFIX;
+const IS_DEV_MODE: boolean = !!PREFIX;
+
+const DB_PATH: string = resolveDbPath(PREFIX ? join(PREFIX, 'port-daddy.db') : undefined);
+const PORT: number = parseInt(process.env.PORT_DADDY_PORT as string, 10) || (IS_DEV_MODE ? 9877 : config.service.port);
+const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || (PREFIX ? join(PREFIX, 'port-daddy.sock') : '/tmp/port-daddy.sock');
 const DISABLE_TCP: boolean = process.env.PORT_DADDY_NO_TCP === '1';
 const PID_FILE: string = SOCK_PATH + '.pid';
-const PORT_FILE: string = process.env.PORT_DADDY_PORT_FILE || '/tmp/port-daddy-port';
+const PORT_FILE: string = process.env.PORT_DADDY_PORT_FILE || (PREFIX ? join(PREFIX, 'port-daddy-port') : '/tmp/port-daddy-port');
+
+if (IS_DEV_MODE) {
+  // Ensure prefix directory exists
+  const { mkdirSync } = await import('node:fs');
+  mkdirSync(PREFIX!, { recursive: true });
+  console.error(`[Dev Mode] PREFIX=${PREFIX}`);
+  console.error(`[Dev Mode] DB=${DB_PATH} SOCK=${SOCK_PATH} PORT=${PORT}`);
+}
 
 // =============================================================================
 // DUPLICATE DAEMON DETECTION — must run before database init
