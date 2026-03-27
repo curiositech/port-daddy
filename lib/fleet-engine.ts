@@ -9,7 +9,8 @@
 
 import { readFileSync, existsSync } from 'node:fs';
 import { join, basename } from 'node:path';
-import { spawn, type ChildProcess } from 'node:child_process';
+import { spawn, execSync, type ChildProcess } from 'node:child_process';
+import { parse as parseYaml } from 'yaml';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -53,29 +54,13 @@ interface RunningAgent {
   startedAt: number;
 }
 
-// ─── YAML Parser (minimal, no dependency) ───────────────────────────────────
-// Handles the subset of YAML used in fleet files: key-value, nested objects,
-// arrays, multiline strings (|). Not a full YAML parser.
+// ─── YAML Parser ────────────────────────────────────────────────────────────
 
-function parseSimpleYaml(text: string): Record<string, unknown> {
-  // Use JSON as intermediate — convert YAML-like to JSON
-  // For production: use the 'yaml' npm package. This handles our fleet schema.
+function parseFleetYaml(text: string): Record<string, unknown> {
   try {
-    // Try JSON first (some users might use JSON)
     return JSON.parse(text);
   } catch {
-    // Minimal YAML parsing for fleet files
-  }
-
-  // For now, require the yaml package if available, otherwise error helpfully
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const yaml = require('yaml');
-    return yaml.parse(text);
-  } catch {
-    throw new Error(
-      'pd-fleet.yml requires the "yaml" package. Run: npm install yaml'
-    );
+    return parseYaml(text) as Record<string, unknown>;
   }
 }
 
@@ -91,7 +76,6 @@ function getTemplateVars(projectDir: string): Record<string, string> {
   let sha = 'unknown';
 
   try {
-    const { execSync } = require('node:child_process');
     branch = execSync('git rev-parse --abbrev-ref HEAD', { cwd: projectDir, encoding: 'utf-8' }).trim();
     sha = execSync('git rev-parse --short HEAD', { cwd: projectDir, encoding: 'utf-8' }).trim();
   } catch {}
@@ -125,15 +109,18 @@ export function loadFleetConfig(projectDir: string): FleetConfig | null {
   if (!configPath) return null;
 
   const raw = readFileSync(configPath, 'utf-8');
+  if (!raw.trim()) return null;  // Bug 4 fix: empty file
+
   const vars = getTemplateVars(projectDir);
   const resolved = resolveTemplates(raw, vars);
-  const parsed = parseSimpleYaml(resolved) as any;
+  const parsed = parseFleetYaml(resolved) as any;
+  if (!parsed || typeof parsed !== 'object') return null;
 
   const fleet = parsed.fleet || parsed;
 
-  // Normalize agents
+  // Normalize agents (supports both object and array format)
   const agents: FleetAgent[] = [];
-  if (fleet.agents && typeof fleet.agents === 'object') {
+  if (fleet.agents && typeof fleet.agents === 'object' && !Array.isArray(fleet.agents)) {
     for (const [name, spec] of Object.entries(fleet.agents)) {
       const s = spec as any;
       agents.push({
@@ -346,28 +333,27 @@ export function createFleetRunner(config: FleetConfig, projectDir: string) {
 // ─── Cron Helpers ───────────────────────────────────────────────────────────
 
 function parseCronInterval(cron: string): number {
-  // Simplified: support */N and common patterns
-  // */10 * * * *  → every 10 minutes
-  // */30 * * * *  → every 30 minutes
-  // 0 * * * *     → every hour
-  // 0 */4 * * *   → every 4 hours
+  const MIN_INTERVAL = 60000;  // 1 minute minimum — prevents runaway agents
+  const DEFAULT_INTERVAL = 600000;  // 10 minutes
 
   const parts = cron.trim().split(/\s+/);
-  if (parts.length < 5) return 600000; // default 10 min
+  if (parts.length < 5) return DEFAULT_INTERVAL;
 
   const [minute, hour] = parts;
 
   if (minute.startsWith('*/')) {
     const n = parseInt(minute.slice(2), 10);
-    return n * 60 * 1000;
+    if (isNaN(n) || n <= 0) return DEFAULT_INTERVAL;
+    return Math.max(n * 60 * 1000, MIN_INTERVAL);
   }
   if (hour.startsWith('*/')) {
     const n = parseInt(hour.slice(2), 10);
-    return n * 60 * 60 * 1000;
+    if (isNaN(n) || n <= 0) return DEFAULT_INTERVAL;
+    return Math.max(n * 60 * 60 * 1000, MIN_INTERVAL);
   }
   if (minute === '0' && hour === '*') {
     return 3600000; // every hour
   }
 
-  return 600000; // default 10 min
+  return DEFAULT_INTERVAL;
 }
