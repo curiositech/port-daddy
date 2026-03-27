@@ -1,7 +1,7 @@
 import { Badge } from '@/components/ui/Badge'
 import { Link } from 'react-router-dom'
-import { ArrowRight, Terminal, Copy, Check } from 'lucide-react'
-import { useState } from 'react'
+import { ArrowRight, Terminal } from 'lucide-react'
+import { DocsCodeBlock } from '@/components/docs/DocsCodeBlock'
 
 const SDK_MODULES = [
   {
@@ -42,25 +42,7 @@ const SDK_MODULES = [
 ]
 
 function CodeBlock({ code }: { code: string }) {
-  const [copied, setCopied] = useState(false)
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(code)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  return (
-    <div className="relative p-4 rounded-lg bg-[var(--code-bg)] border border-[var(--border-subtle)] font-mono text-sm group">
-      <button
-        onClick={handleCopy}
-        className="absolute right-3 top-3 p-1.5 rounded hover:bg-[var(--interactive-hover)] text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity"
-      >
-        {copied ? <Check size={14} className="text-[var(--success)]" /> : <Copy size={14} />}
-      </button>
-      <code className="text-[var(--text-secondary)]">{code}</code>
-    </div>
-  )
+  return <DocsCodeBlock code={code} language="typescript" />
 }
 
 export default function SdkOverview() {

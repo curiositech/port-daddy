@@ -45,14 +45,15 @@ function CodeBlock({ code, verify }: { code: string; verify: string }) {
 
   return (
     <div className="space-y-2">
-      <div className="relative p-4 rounded-lg bg-[var(--code-bg)] border border-[var(--border-subtle)] font-mono text-sm group">
+      <div className="relative p-4 rounded-[var(--radius-lg)] font-mono text-sm group" style={{ background: 'var(--code-bg)', boxShadow: 'var(--shadow-inset)' }}>
         <button
           onClick={handleCopy}
-          className="absolute right-3 top-3 p-1.5 rounded hover:bg-[var(--interactive-hover)] text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity"
+          className="absolute right-3 top-3 p-1.5 rounded hover:bg-[var(--interactive-hover)] opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+          style={{ color: 'var(--code-comment)' }}
         >
-          {copied ? <Check size={14} className="text-[var(--success)]" /> : <Copy size={14} />}
+          {copied ? <Check size={14} style={{ color: 'var(--code-dot-green)' }} /> : <Copy size={14} />}
         </button>
-        <code className="text-[var(--brand-primary)]">{code}</code>
+        <code style={{ color: 'var(--code-text)' }}>{code}</code>
       </div>
       <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
         <span>Verify:</span>

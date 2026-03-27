@@ -51,14 +51,14 @@ export default function PortsFeature() {
           The same identity always gets the same port, across restarts, across machines.
         </p>
         
-        <div className="p-6 rounded-xl bg-[var(--code-bg)] border border-[var(--border-subtle)] font-mono text-sm">
+        <div className="p-6 rounded-[var(--radius-xl)] font-mono text-sm" style={{ background: 'var(--code-bg)', boxShadow: 'var(--shadow-inset)' }}>
           <div className="text-[var(--text-muted)] mb-2"># Identity format: project:stack:context</div>
           <div className="text-[var(--brand-primary)]">$ pd claim myapp:api:main</div>
-          <div className="text-[var(--text-secondary)] mt-2">Port 3001 assigned to myapp:api:main</div>
+          <div style={{ color: 'var(--code-output)' }} className="font-mono mt-2">Port 3001 assigned to myapp:api:main</div>
           
           <div className="text-[var(--text-muted)] mt-6 mb-2"># Same identity, same port — idempotent</div>
           <div className="text-[var(--brand-primary)]">$ pd claim myapp:api:main</div>
-          <div className="text-[var(--text-secondary)] mt-2">Port 3001 assigned to myapp:api:main</div>
+          <div style={{ color: 'var(--code-output)' }} className="font-mono mt-2">Port 3001 assigned to myapp:api:main</div>
         </div>
       </div>
 
@@ -98,7 +98,7 @@ export default function PortsFeature() {
               <code className="text-lg font-mono text-[var(--brand-primary)]">pd claim &lt;identity&gt;</code>
             </div>
             <p className="text-[var(--text-secondary)] mb-3">Claim a port for a service. Idempotent — returns the same port on repeat calls.</p>
-            <div className="p-3 rounded-lg bg-[var(--code-bg)] font-mono text-sm">
+            <div className="p-3 rounded-lg font-mono text-sm" style={{ background: 'var(--code-bg)', color: 'var(--code-text)' }}>
               $ pd claim myapp:api:main --json
             </div>
           </div>
@@ -108,7 +108,7 @@ export default function PortsFeature() {
               <code className="text-lg font-mono text-[var(--brand-primary)]">pd release &lt;identity&gt;</code>
             </div>
             <p className="text-[var(--text-secondary)] mb-3">Release a port claim. Safe to call even if the port is not claimed.</p>
-            <div className="p-3 rounded-lg bg-[var(--code-bg)] font-mono text-sm">
+            <div className="p-3 rounded-lg font-mono text-sm" style={{ background: 'var(--code-bg)', color: 'var(--code-text)' }}>
               $ pd release myapp:api:main
             </div>
           </div>
@@ -118,7 +118,7 @@ export default function PortsFeature() {
               <code className="text-lg font-mono text-[var(--brand-primary)]">pd find &lt;identity&gt;</code>
             </div>
             <p className="text-[var(--text-secondary)] mb-3">Look up the port assigned to an identity without claiming a new one.</p>
-            <div className="p-3 rounded-lg bg-[var(--code-bg)] font-mono text-sm">
+            <div className="p-3 rounded-lg font-mono text-sm" style={{ background: 'var(--code-bg)', color: 'var(--code-text)' }}>
               $ pd find myapp:api:main --quiet<br/>
               3001
             </div>
@@ -129,7 +129,7 @@ export default function PortsFeature() {
               <code className="text-lg font-mono text-[var(--brand-primary)]">pd services</code>
             </div>
             <p className="text-[var(--text-secondary)] mb-3">List all active port claims with identity, port, and last-seen timestamp.</p>
-            <div className="p-3 rounded-lg bg-[var(--code-bg)] font-mono text-sm">
+            <div className="p-3 rounded-lg font-mono text-sm" style={{ background: 'var(--code-bg)', color: 'var(--code-text)' }}>
               $ pd services<br/>
               myapp:api:main 3001 5s ago<br/>
               myapp:frontend:main 3000 2s ago
@@ -146,13 +146,13 @@ export default function PortsFeature() {
           framework signatures (package.json, Cargo.toml, etc.).
         </p>
         
-        <div className="p-6 rounded-xl bg-[var(--code-bg)] border border-[var(--border-subtle)] font-mono text-sm">
+        <div className="p-6 rounded-[var(--radius-xl)] font-mono text-sm" style={{ background: 'var(--code-bg)', boxShadow: 'var(--shadow-inset)' }}>
           <div className="text-[var(--brand-primary)]">$ pd scan ./services</div>
-          <div className="text-[var(--text-secondary)] mt-2">Found 4 services:</div>
-          <div className="text-[var(--text-secondary)] mt-1 ml-4">myapp:api → 3001 (express)</div>
-          <div className="text-[var(--text-secondary)] ml-4">myapp:frontend → 3000 (vite)</div>
-          <div className="text-[var(--text-secondary)] ml-4">myapp:jobs → 3002 (bullmq)</div>
-          <div className="text-[var(--text-secondary)] ml-4">myapp:db-admin → 3003 (adminer)</div>
+          <div style={{ color: 'var(--code-output)' }} className="font-mono mt-2">Found 4 services:</div>
+          <div style={{ color: 'var(--code-output)' }} className="font-mono mt-1 ml-4">myapp:api → 3001 (express)</div>
+          <div style={{ color: 'var(--code-output)' }} className="font-mono ml-4">myapp:frontend → 3000 (vite)</div>
+          <div style={{ color: 'var(--code-output)' }} className="font-mono ml-4">myapp:jobs → 3002 (bullmq)</div>
+          <div style={{ color: 'var(--code-output)' }} className="font-mono ml-4">myapp:db-admin → 3003 (adminer)</div>
         </div>
       </div>
 
