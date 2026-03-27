@@ -66,10 +66,10 @@ export function Sugar() {
     --files "logs/*.log"`}
           </CodeBlock>
 
-          <Surface depth="inset" radius="2xl" padding="none" className="p-8 border-l-4 border-[var(--brand-primary)]">
-             <motion.p className="m-0 text-sm italic opacity-60 font-medium">
-               When the agent finishes, <code>pd done</code> releases all file claims and port assignments cleanly, closing the session timeline.
-             </motion.p>
+          <Surface depth="flat" radius="xl" padding="md" className="border-l-4 border-[var(--brand-secondary)]">
+            <p className="m-0 text-sm" style={{ color: 'var(--text-secondary)' }}>
+              When the agent finishes, <code>pd done</code> releases all file claims and port assignments cleanly, closing the session timeline.
+            </p>
           </Surface>
         </section>
 
