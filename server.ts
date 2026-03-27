@@ -53,6 +53,7 @@ import { initDatabase, closeDatabase, resolveDbPath } from './lib/db.js';
 // Route aggregator
 import { createRoutes } from './routes/index.js';
 import { createArbiterRoutes } from './routes/arbiter.js';
+import { createPheromoneRoutes } from './routes/pheromone.js';
 
 // Shared utilities
 import { getSystemPorts, startSystemPortsRefresh } from './shared/port-utils.js';
@@ -580,6 +581,7 @@ app.use(createRoutes({
 
 // Arbiter routes (separate from aggregator — takes Arbiter directly)
 app.use(createArbiterRoutes(arbiter));
+app.use(createPheromoneRoutes({ pheromones }));
 
 // =============================================================================
 // DASHBOARD SSE — push state changes instead of polling
