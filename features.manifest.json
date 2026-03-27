@@ -957,6 +957,21 @@
         "sdk": false
       }
     },
+    "arbiter": {
+      "description": "Runtime invariant enforcement — the sovereign's sword",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "GET /arbiter/status",
+        "GET /arbiter/violations",
+        "POST /arbiter/test-invariant/:name"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
+    },
     "fleet": {
       "description": "Background agent fleet management (gardener, QA, docs, research, simplifier)",
       "cli": [

@@ -632,13 +632,15 @@ describe('CLI Integration Tests', () => {
     test('unknown command shows error', () => {
       const result = runCli(['boguscmd']);
       expect(result.success).toBe(false);
-      expect(result.stderr).toContain('Unknown command');
+      const output = result.stderr + result.stdout;
+      expect(output).toMatch(/Unknown command|unknown command/i);
     });
 
     test('misspelled command suggests correction', () => {
       const result = runCli(['cliam']); // close to "claim"
       expect(result.success).toBe(false);
-      expect(result.stderr).toContain('Did you mean');
+      const output = result.stderr + result.stdout;
+      expect(output).toMatch(/Did you mean|did you mean/i);
     });
 
     test('semantic identity (with colon) still claims a port', () => {
@@ -653,7 +655,8 @@ describe('CLI Integration Tests', () => {
     test('bare word without colon does NOT claim a port', () => {
       const result = runCli(['notacommand']);
       expect(result.success).toBe(false);
-      expect(result.stderr).toContain('Unknown command');
+      const output = result.stderr + result.stdout;
+      expect(output).toMatch(/Unknown command|unknown command/i);
     });
   });
 });

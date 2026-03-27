@@ -392,3 +392,6 @@ When an agent dies, other agents in the same project should be notified.
 | `/spawn` | POST/GET | Launch AI agent / list spawned agents |
 | `/spawn/:agentId` | DELETE | Kill a spawned agent |
 | `/launch-hints` | GET | Context-aware startup hints |
+| `/arbiter/status` | GET | Arbiter status: rules, violations, uptime |
+| `/arbiter/violations` | GET | List recorded violations |
+| `/arbiter/test-invariant/:name` | POST | Inject test violation (for demos) |

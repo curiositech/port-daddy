@@ -232,6 +232,25 @@ Prevent agents from "stepping on" each other's files or DB migrations:
 pd with-lock db-migrations -- npm run migrate
 ```
 
+### The Arbiter (Runtime Invariant Enforcement)
+The Arbiter monitors every state transition against 6 formally-derived invariants:
+```bash
+# Check arbiter status
+curl http://localhost:9876/arbiter/status
+
+# Inject a test violation (for demos)
+curl -X POST http://localhost:9876/arbiter/test-invariant/NOTE_MONOTONICITY
+```
+Rules: PID squatting, capability escalation, note monotonicity, escrow positivity, lock owner validity, heartbeat freshness. In strict mode, critical violations trigger man-overboard salvage.
+
+### Note Encryption (Escrow Secrecy)
+Session notes are encrypted at rest with AES-256-GCM. Master key stored at `~/.port-daddy/master.key` (auto-generated on first boot). Per-session keys wrapped with the master key. Backward-compatible — existing plaintext notes remain readable. ProVerif-verified: attacker with database access cannot learn note content.
+
+### White Papers
+Two formal white papers are available at `/whitepaper` on the website:
+- **The Anchor Protocol** — Formally verified cryptographic identity for agent swarms (ProVerif + Kani/Rust)
+- **The Bonded Commons** — Pre-transactional trust infrastructure: Hobbes, Sen's impossibility, collateralized work contracts
+
 ---
 
 ## 🎛️ The Dashboard (HUD)

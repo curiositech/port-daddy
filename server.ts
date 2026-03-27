@@ -46,10 +46,13 @@ import { createPheromoneManager } from './lib/pheromone.js';
 import { createBarnacleWatcher } from './lib/barnacle-client.js';
 import { createReactiveOrchestrator } from './lib/orchestrator.js';
 import { createCorrelationEngine } from './lib/correlation.js';
+import { createArbiter } from './lib/arbiter.js';
+import { createNoteEncryption } from './lib/note-encryption.js';
 import { initDatabase, closeDatabase, resolveDbPath } from './lib/db.js';
 
 // Route aggregator
 import { createRoutes } from './routes/index.js';
+import { createArbiterRoutes } from './routes/arbiter.js';
 
 // Shared utilities
 import { getSystemPorts, startSystemPortsRefresh } from './shared/port-utils.js';
@@ -219,7 +222,8 @@ const agents = createAgents(db);
 const activityLog = createActivityLog(db);
 const webhooks = createWebhooks(db);
 const projects = createProjects(db);
-const sessions = createSessions(db);
+const noteEncryption = createNoteEncryption();
+const sessions = createSessions(db, noteEncryption);
 sessions.setActivityLog(activityLog);
 
 // Agent Inbox handles direct messages. Broadcast to "inbox:[agentId]" for real-time.
@@ -241,6 +245,11 @@ const briefing = createBriefing(db, { sessions, agents, resurrection, activityLo
 const spawner = createSpawner();
 const sugar = createSugar({ agents, sessions, activityLog });
 const harbors = createHarbors(db);
+const arbiter = createArbiter(
+  { activityLog, agents, sessions, locks, resurrection },
+  { strictMode: false }
+);
+console.error('[Arbiter] Runtime invariant enforcement active (' + 6 + ' rules, strictMode=false)');
 const pheromones = createPheromoneManager(db);
 pheromones.start();
 
@@ -554,6 +563,9 @@ app.use(createRoutes({
   VERSION, CODE_HASH, STARTED_AT, __dirname,
   cleanupStale, getSystemPorts
 }));
+
+// Arbiter routes (separate from aggregator — takes Arbiter directly)
+app.use(createArbiterRoutes(arbiter));
 
 // =============================================================================
 // DASHBOARD SSE — push state changes instead of polling
