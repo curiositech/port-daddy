@@ -20,10 +20,10 @@ lib/
   sessions.ts       # Sessions & Notes (agent coordination)
   locks.ts          # Distributed locks
   messaging.ts      # Pub/sub messaging
-  agents.ts         # Agent registry
+  agents.ts         # Agent registry with heartbeats
   activity.ts       # Activity logging
   webhooks.ts       # Webhook subscriptions
-  identity.ts       # Semantic ID parsing
+  identity.ts       # Semantic ID parsing (project:stack:context)
   detect.ts         # Framework detection (60+ frameworks)
   scan.ts           # Deep recursive project scanner
   projects.ts       # Project registry (CRUD against SQLite)
@@ -34,10 +34,53 @@ lib/
   client.ts         # JavaScript SDK (PortDaddy class)
   log-prefix.ts     # Color-coded log prefixes for orchestrator
   utils.ts          # Common utilities
+  db.ts             # SQLite connection + schema helpers
+  sugar.ts          # begin/done/whoami high-level operations
+  dns.ts            # Local DNS records (.local hostnames)
+  harbors.ts        # Harbor grouping for agent coordination
+  harbor-tokens.ts  # JWT tokens for harbor membership
+  resurrection.ts   # Salvage queue for dead agents
+  spawner.ts        # AI agent spawning (ollama/claude/gemini/aider)
+  watch.ts          # SSE subscriber with --exec + reconnect loop
+  briefing.ts       # Project briefing generation and retrieval
+  arbiter.ts        # Invariant enforcement / violation tracking
+  changelog.ts      # Daemon-side changelog entries
+  tunnel.ts         # Tunnel provider integration (ngrok, cloudflared)
+  agent-inbox.ts    # Per-agent message inbox
+  correlation.ts    # Request correlation IDs
+  fleet-engine.ts   # Declarative fleet YAML agent runner
+  note-encryption.ts # Encrypted session notes
+  pheromone.ts      # Pheromone trail pub/sub signal system
+  request.ts        # HTTP request helpers
+  resolver.ts       # DNS resolver configuration
+  worktree.ts       # Git worktree utilities
+  barnacle-client.ts # Barnacle (external) client integration
+  banner.ts         # Startup banner rendering
+  maritime.ts       # Maritime-themed label helpers
 routes/
-  index.ts          # Route registration
+  index.ts          # Route aggregator (registers all route modules)
+  services.ts       # /claim, /release, /services, /wait endpoints
+  sessions.ts       # /sessions, /notes, /files endpoints
   projects.ts       # /scan, /projects endpoints
-  sessions.ts       # /sessions, /notes endpoints
+  agents.ts         # /agents endpoints
+  activity.ts       # /activity endpoints
+  locks.ts          # /locks endpoints
+  messaging.ts      # /msg, /channels endpoints
+  webhooks.ts       # /webhooks endpoints
+  dns.ts            # /dns endpoints
+  harbors.ts        # /harbors endpoints
+  resurrection.ts   # /salvage (+ /resurrection deprecated aliases)
+  sugar.ts          # /sugar/begin, /sugar/done, /sugar/whoami
+  spawn.ts          # /spawn endpoints
+  briefing.ts       # /briefing endpoints
+  changelog.ts      # /changelog endpoints
+  tunnel.ts         # /tunnel, /tunnels endpoints
+  orchestrator.ts   # /orchestrator endpoints
+  health.ts         # /health endpoint
+  config.ts         # /config endpoint
+  launch.ts         # /launch-hints endpoint
+  info.ts           # /status, /metrics, /version endpoints
+  arbiter.ts        # /arbiter endpoints (wired directly in server.ts)
 bin/
   port-daddy-cli.ts # CLI entry point
 public/
@@ -48,7 +91,7 @@ completions/
   port-daddy.fish   # Fish tab completion
 tests/
   setup-unit.js     # In-memory SQLite factory for unit tests
-  unit/             # Unit tests (19 suites, 1283+ tests)
+  unit/             # Unit tests (47 suites)
   integration/      # Integration tests (require live daemon)
 docs/
   sdk.md                # Full SDK reference (moved from README)
@@ -341,28 +384,42 @@ When an agent dies, other agents in the same project should be notified.
 
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
-| `/claim/:id` | POST | Claim a port |
-| `/release/:id` | DELETE | Release a service |
+| **Services** | | |
+| `/claim` | POST | Claim a port (id in request body) |
+| `/release` | DELETE | Release a service (id in request body) |
 | `/services` | GET | List services |
+| `/services/:id` | GET | Get single service |
 | `/services/health` | GET | Health check all services |
 | `/services/health/:id` | GET | Health check single service |
+| `/wait/:id` | GET | SSE — wait for a service to be ready |
+| `/wait` | POST | Wait for a service by name |
+| **Locks** | | |
 | `/locks/:name` | POST/PUT/DELETE | Acquire/extend/release lock |
 | `/locks` | GET | List locks |
+| **Messaging** | | |
+| `/msg` | GET | List all channels |
 | `/msg/:channel` | POST/GET/DELETE | Publish/get/clear messages |
-| `/channels` | GET | List pub/sub channels |
-| `/subscribe/:channel` | GET | SSE subscription |
+| `/msg/:channel/poll` | GET | Long-poll for new messages |
+| `/msg/:channel/subscribe` | GET | SSE subscription |
+| `/channels` | GET | List pub/sub channels (alias) |
+| **Agents** | | |
 | `/agents/:id` | POST/DELETE | Register/unregister agent |
-| `/agents/:id/heartbeat` | PUT | Agent heartbeat |
+| `/agents/:id/heartbeat` | POST | Agent heartbeat |
+| **Webhooks** | | |
 | `/webhooks` | POST/GET | Create/list webhooks |
 | `/webhooks/events` | GET | List available webhook events |
 | `/webhooks/:id` | GET/PUT/DELETE | Get/update/delete webhook |
 | `/webhooks/:id/test` | POST | Send test delivery |
 | `/webhooks/:id/deliveries` | GET | List webhook deliveries |
+| **Sessions & Notes** | | |
 | `/sessions` | POST/GET | Start/list sessions |
 | `/sessions/:id` | GET/PUT/DELETE | Get/update/delete session |
 | `/sessions/:id/notes` | POST/GET | Add/get session notes |
-| `/sessions/:id/files` | POST/DELETE/GET | Claim/release/list files |
+| `/sessions/:id/files` | POST/DELETE | Claim/release session files |
 | `/notes` | POST/GET | Quick note / recent notes |
+| `/files` | GET | List all file claims |
+| `/files/who-owns` | GET | Find who owns a given file |
+| **Salvage (Resurrection)** | | |
 | `/salvage` | GET | List salvage queue entries |
 | `/salvage/pending` | GET | List agents pending salvage |
 | `/salvage/claim/:agentId` | POST | Claim dead agent's work |
@@ -370,28 +427,69 @@ When an agent dies, other agents in the same project should be notified.
 | `/salvage/abandon/:agentId` | POST | Return agent to queue |
 | `/salvage/:agentId` | DELETE | Dismiss agent from queue |
 | `/resurrection/*` | * | Deprecated aliases for /salvage/* |
+| **Changelog** | | |
 | `/changelog` | POST/GET | Add entry / list changelog |
 | `/changelog/identities` | GET | List all identities with changelog entries |
+| **Tunnels** | | |
 | `/tunnel/providers` | GET | Check which tunnel providers are installed |
 | `/tunnel/:id` | POST/DELETE/GET | Start/stop/status tunnel for service |
 | `/tunnels` | GET | List all active tunnels |
+| **Projects** | | |
 | `/scan` | POST | Deep-scan directory, register project |
 | `/projects` | GET | List registered projects |
 | `/projects/:id` | GET/DELETE | Get or remove a project |
+| **Activity** | | |
 | `/activity` | GET | Activity log |
+| `/activity` | DELETE | Clear activity log |
 | `/activity/summary` | GET | Activity summary by type |
 | `/activity/stats` | GET | Activity log statistics |
 | `/activity/range` | GET | Activity in time range |
+| `/activity/timeline` | GET | Activity timeline view |
+| `/activity/subscribe` | GET | SSE real-time activity stream |
+| **DNS** | | |
+| `/dns` | GET | List DNS records |
+| `/dns/:id` | POST/GET/DELETE | Create/get/delete DNS record |
+| `/dns/status` | GET | DNS service status |
+| `/dns/cleanup` | POST | Remove expired DNS records |
+| `/dns/setup` | POST | Configure system DNS |
+| `/dns/teardown` | POST | Remove system DNS config |
+| `/dns/sync` | POST | Sync DNS records to system |
+| `/dns/resolver` | GET | Get resolver configuration |
+| **Harbors** | | |
+| `/harbors` | POST/GET | Create/list harbors |
+| `/harbors/:name` | GET/DELETE | Get/delete harbor |
+| `/harbors/:name/enter` | POST | Agent enters harbor |
+| `/harbors/:name/leave` | POST | Agent leaves harbor |
+| `/harbors/:name/members` | GET | List harbor members |
+| `/harbors/agent/:agentId` | GET | List harbors for an agent |
+| **Orchestrator** | | |
+| `/orchestrator/up` | POST | Start orchestrated services |
+| `/orchestrator/down` | POST | Stop all services |
+| `/orchestrator/status` | GET | Service status |
+| `/orchestrator/rules` | GET/POST | Get/set orchestration rules |
+| **Sugar** | | |
+| `/sugar/begin` | POST | Register agent + start session atomically |
+| `/sugar/done` | POST | End session + unregister agent atomically |
+| `/sugar/whoami` | GET | Get current agent/session context |
+| **Briefing** | | |
+| `/briefing` | POST | Create a project briefing |
+| `/briefing/:project` | GET | Get project briefing |
+| **Spawn** | | |
+| `/spawn` | POST/GET | Launch AI agent / list spawned agents |
+| `/spawn/:id` | DELETE | Kill a spawned agent |
+| **System** | | |
+| `/ping` | GET | Liveness check |
+| `/status` | GET | Combined health + metrics + process info |
+| `/health` | GET | Daemon health check |
 | `/metrics` | GET | Daemon metrics |
 | `/config` | GET | Resolved configuration |
+| `/version` | GET | Version and code hash |
 | `/ports/active` | GET | List active port assignments |
 | `/ports/system` | GET | List system/well-known ports |
 | `/ports/cleanup` | POST | Release stale ports |
-| `/health` | GET | Daemon health check |
-| `/version` | GET | Version and code hash |
-| `/spawn` | POST/GET | Launch AI agent / list spawned agents |
-| `/spawn/:agentId` | DELETE | Kill a spawned agent |
 | `/launch-hints` | GET | Context-aware startup hints |
+| `/dashboard/events` | GET | SSE for real-time dashboard updates |
+| **Arbiter** | | |
 | `/arbiter/status` | GET | Arbiter status: rules, violations, uptime |
 | `/arbiter/violations` | GET | List recorded violations |
 | `/arbiter/test-invariant/:name` | POST | Inject test violation (for demos) |
