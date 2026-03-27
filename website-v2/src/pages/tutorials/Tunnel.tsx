@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Badge } from '@/components/ui/Badge'
+import { Surface } from '@/components/ui/Surface'
 import { Globe, Zap, Share2, Activity, Network, Lock as LockIcon } from 'lucide-react'
 
 export function Tunnel() {
@@ -81,14 +82,11 @@ export function Tunnel() {
             {'$ curl http://localhost:9876/tunnel/providers\n\n# Returns list of available providers (ngrok, cloudflare, localtunnel)'}
           </CodeBlock>
 
-          <blockquote
-            className="p-8 rounded-2xl border-l-4 border-[var(--brand-primary)]"
-            style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-          >
-             <motion.p className="m-0 text-sm italic opacity-60 font-medium">
-               Port Daddy uses a distributed network of **Lighthouses** to negotiate P2P connections, even behind restrictive NAT or corporate firewalls.
-             </motion.p>
-          </blockquote>
+          <Surface depth="flat" radius="xl" padding="md" className="border-l-4 border-[var(--brand-secondary)]">
+            <p className="m-0 text-sm" style={{ color: 'var(--text-secondary)' }}>
+              Port Daddy uses a distributed network of <strong>Lighthouses</strong> to negotiate P2P connections, even behind restrictive NAT or corporate firewalls.
+            </p>
+          </Surface>
         </section>
 
         {/* Step 2: Start a tunnel */}
@@ -149,7 +147,7 @@ export function Tunnel() {
            <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Simple Wrappers</Badge>
            <motion.h3 className="text-4xl font-display font-black m-0" style={{ color: 'var(--text-primary)' }}>No Magic. Just Plumbing.</motion.h3>
            <motion.p className="text-xl max-w-xl opacity-70">
-             Unlike standard VPNs, Port Daddy tunnels are **per-identity**. You don't expose your entire network--only the specific semantic identities you've explicitly claimed in your harbor.
+             Unlike standard VPNs, Port Daddy tunnels are <strong>per-identity</strong>. You don't expose your entire network--only the specific semantic identities you've explicitly claimed in your harbor.
            </motion.p>
            <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-secondary)]">
               <Activity size={14} className="animate-pulse" />

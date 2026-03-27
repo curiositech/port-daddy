@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Badge } from '@/components/ui/Badge'
+import { Surface } from '@/components/ui/Surface'
 import { Eye, Zap, Activity, Terminal, Shield, Share2, RefreshCw, Layers, ArrowDown } from 'lucide-react'
 
 export function Watch() {
@@ -83,14 +84,11 @@ export function Watch() {
     --filter "payload.status == 'ready'"`}
           </CodeBlock>
 
-          <blockquote
-            className="p-8 rounded-2xl border-l-4 border-[var(--brand-primary)]"
-            style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-          >
-             <motion.p className="m-0 text-sm italic opacity-60 font-medium">
-               Watchers run in the background. The daemon maintains the connection to Swarm Radio and ensures your script is only executed when the filter criteria are met.
-             </motion.p>
-          </blockquote>
+          <Surface depth="flat" radius="xl" padding="md" className="border-l-4 border-[var(--brand-secondary)]">
+            <p className="m-0 text-sm" style={{ color: 'var(--text-secondary)' }}>
+              Watchers run in the background. The daemon maintains the connection to Swarm Radio and ensures your script is only executed when the filter criteria are met.
+            </p>
+          </Surface>
         </section>
 
         {/* Step 2: Advanced Feedback */}
