@@ -356,7 +356,9 @@ function getLocalCodeHash(): string {
 
 // Check if daemon is running stale code
 // Returns true if daemon was restarted
+// Skip when PD_URL is explicitly set — the user chose which daemon to talk to
 async function checkDaemonFreshness(autoRestart: boolean = true): Promise<boolean> {
+  if (process.env.PD_URL || process.env.PORT_DADDY_URL) return false;
   try {
     const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/version`);
     if (!res.ok) return false;
