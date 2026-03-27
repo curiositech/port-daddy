@@ -2125,13 +2125,11 @@ async function main(): Promise<void> {
         await handleWhoOwns(positional[0], options);
         break;
 
-      // Fleet — background agent management
+      // Fleet — background agent management (TypeScript, not shell)
       case 'fleet': {
-        const fleetScript = join(dirname(fileURLToPath(import.meta.url)), '..', 'fleet', 'pd-fleet.sh');
-        const fleetArgs = [fleetScript, ...positional];
-        const { spawnSync: fleetSpawn } = await import('node:child_process');
-        const fleetResult = fleetSpawn('zsh', fleetArgs, { stdio: 'inherit', env: process.env });
-        process.exit(fleetResult.status ?? 1);
+        const { handleFleet } = await import('../cli/commands/fleet.js');
+        await handleFleet(positional, options);
+        break;
       }
 
       default: {
