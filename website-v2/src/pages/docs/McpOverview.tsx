@@ -88,7 +88,7 @@ export default function McpOverview() {
           Connect Port Daddy to any AI tool via the Model Context Protocol (MCP).
           Give your agents native access to port management, swarm coordination, and more.
         </p>
-        <p className="text-sm text-[var(--text-muted)] p-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] max-w-xl">
+        <p className="text-sm text-[var(--text-muted)] p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)] max-w-xl">
           Use this reference if your LLM (Claude, Cursor, Windsurf, etc.) needs to coordinate
           agents directly via tool calls. For terminal usage see the{' '}
           <a href="/docs/cli" className="text-[var(--brand-primary)] hover:underline">CLI reference</a>, or
@@ -98,7 +98,7 @@ export default function McpOverview() {
       </div>
 
       {/* What is MCP? */}
-      <div className="p-6 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+      <div className="p-6 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
         <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-4">What is MCP?</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           The Model Context Protocol is an open standard that allows AI tools to discover and use 
@@ -130,7 +130,7 @@ export default function McpOverview() {
         <p className="text-[var(--text-secondary)]">
           The fastest way to get started is using the init command:
         </p>
-        <div className="p-4 rounded-xl bg-[var(--bg-code)] border border-[var(--border-subtle)] font-mono text-sm">
+        <div className="p-4 rounded-xl bg-[var(--code-bg)] border border-[var(--border-subtle)] font-mono text-sm">
           <div className="text-[var(--text-muted)] mb-2"># Install the MCP server globally</div>
           <div className="text-[var(--brand-primary)]">$ pd mcp install --global</div>
           <div className="text-[var(--text-secondary)] mt-2">✓ MCP server installed</div>
@@ -147,7 +147,7 @@ export default function McpOverview() {
             <Link
               key={server.name}
               to={server.href}
-              className="group p-5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:shadow-[var(--shadow-md)] transition-all"
+              className="group p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:shadow-[var(--shadow-md)] transition-all"
             >
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 rounded-xl bg-[var(--interactive-hover)] flex items-center justify-center shrink-0 group-hover:bg-[var(--interactive-active)] transition-colors">
@@ -159,12 +159,12 @@ export default function McpOverview() {
                     <ArrowRight size={14} className="text-[var(--text-muted)] group-hover:text-[var(--brand-primary)] group-hover:translate-x-1 transition-all" />
                   </div>
                   <p className="text-sm text-[var(--text-muted)] mb-3">{server.description}</p>
-                  <code className="text-xs px-2 py-1 rounded bg-[var(--bg-code)] text-[var(--brand-primary)] font-mono">
+                  <code className="text-xs px-2 py-1 rounded bg-[var(--code-bg)] text-[var(--brand-primary)] font-mono">
                     {server.setup}
                   </code>
                   <div className="flex flex-wrap gap-2 mt-3">
                     {server.features.map(feature => (
-                      <span key={feature} className="text-xs px-2 py-1 rounded-full bg-[var(--bg-overlay)] text-[var(--text-muted)]">
+                      <span key={feature} className="text-xs px-2 py-1 rounded-full bg-[var(--surface-overlay)] text-[var(--text-muted)]">
                         {feature}
                       </span>
                     ))}
@@ -186,7 +186,7 @@ export default function McpOverview() {
           {TOOLS.map(tool => (
             <div 
               key={tool.name}
-              className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]"
+              className="p-4 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]"
             >
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -196,7 +196,7 @@ export default function McpOverview() {
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
                 {tool.parameters.map(param => (
-                  <code key={param} className="text-xs px-2 py-1 rounded bg-[var(--bg-code)] text-[var(--text-muted)] font-mono">
+                  <code key={param} className="text-xs px-2 py-1 rounded bg-[var(--code-bg)] text-[var(--text-muted)] font-mono">
                     {param}
                   </code>
                 ))}
@@ -212,7 +212,7 @@ export default function McpOverview() {
         <p className="text-[var(--text-secondary)]">
           The MCP server can be configured via environment variables or a config file:
         </p>
-        <div className="p-4 rounded-xl bg-[var(--bg-code)] border border-[var(--border-subtle)] font-mono text-sm">
+        <div className="p-4 rounded-xl bg-[var(--code-bg)] border border-[var(--border-subtle)] font-mono text-sm">
           <div className="text-[var(--text-muted)]"># ~/.portdaddy/mcp.json</div>
           <pre className="text-[var(--text-secondary)] mt-2">{`{
   "daemon": {
@@ -237,7 +237,7 @@ export default function McpOverview() {
         <p className="text-[var(--text-secondary)]">
           Once configured, simply ask your AI agent to use Port Daddy:
         </p>
-        <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+        <div className="p-4 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
           <div className="text-sm text-[var(--text-muted)] mb-2">Example prompts:</div>
           <ul className="space-y-2 text-[var(--text-secondary)]">
             <li>"Claim a port for the API service"</li>

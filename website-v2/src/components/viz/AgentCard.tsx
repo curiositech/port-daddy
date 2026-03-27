@@ -27,8 +27,8 @@ export function AgentCard({ agent }: AgentCardProps) {
   const protocols = agent.agentCard?.protocols || [];
 
   return (
-    <Card className="overflow-hidden border-[var(--border-default)] bg-[var(--bg-surface)] shadow-lg hover:shadow-xl transition-all font-sans rounded-3xl">
-      <CardHeader className="p-6 border-b border-[var(--border-subtle)] bg-[var(--bg-overlay)] flex flex-row items-center justify-between gap-4 font-sans">
+    <Card className="overflow-hidden border-[var(--border-default)] bg-[var(--surface-raised)] shadow-lg hover:shadow-xl transition-all font-sans rounded-3xl">
+      <CardHeader className="p-6 border-b border-[var(--border-subtle)] bg-[var(--surface-overlay)] flex flex-row items-center justify-between gap-4 font-sans">
         <motion.div className="flex items-center gap-4 font-sans">
           <motion.div className={`p-2.5 rounded-xl bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]`}>
             <Users size={20} />
@@ -56,7 +56,7 @@ export function AgentCard({ agent }: AgentCardProps) {
           <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] font-sans">
             <Shield size={12} /> Identity
           </motion.div>
-          <motion.code className="block p-3 rounded-xl bg-[var(--bg-overlay)] border border-[var(--border-subtle)] text-[11px] font-mono text-[var(--brand-primary)] truncate font-mono">
+          <motion.code className="block p-3 rounded-xl bg-[var(--surface-overlay)] border border-[var(--border-subtle)] text-[11px] font-mono text-[var(--brand-primary)] truncate font-mono">
             {agent.identity || 'anonymous'}
           </motion.code>
           <motion.p className="text-sm text-[var(--text-secondary)] font-medium leading-relaxed italic font-sans">
@@ -71,7 +71,7 @@ export function AgentCard({ agent }: AgentCardProps) {
               <motion.span className="flex items-center gap-1 font-sans"><Activity size={10} /> Progress</motion.span>
               <motion.span className="text-[var(--brand-primary)] font-mono">{agent.progress}</motion.span>
             </motion.div>
-            <motion.div className="h-1.5 w-full bg-[var(--bg-overlay)] rounded-full overflow-hidden">
+            <motion.div className="h-1.5 w-full bg-[var(--surface-overlay)] rounded-full overflow-hidden">
               <motion.div 
                 className="h-full bg-[var(--brand-primary)]"
                 initial={{ width: 0 }}
@@ -91,7 +91,7 @@ export function AgentCard({ agent }: AgentCardProps) {
               </motion.div>
               <motion.div className="flex flex-wrap gap-2 font-sans">
                 {capabilities.map((cap: string) => (
-                  <Badge key={cap} variant="default" className="text-[10px] font-black uppercase tracking-widest bg-[var(--bg-overlay)] border-[var(--border-subtle)] font-sans">
+                  <Badge key={cap} variant="default" className="text-[10px] font-black uppercase tracking-widest bg-[var(--surface-overlay)] border-[var(--border-subtle)] font-sans">
                     {cap}
                   </Badge>
                 ))}

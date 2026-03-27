@@ -24,7 +24,7 @@ export function Tunnel() {
               className="w-12 h-12 rounded-2xl flex items-center justify-center"
               style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
             >
-              <Globe className="text-[var(--p-blue-400)]" size={24} />
+              <Globe className="text-[var(--brand-secondary)]" size={24} />
             </motion.div>
             <motion.h2 className="m-0">Public URLs for Local Services</motion.h2>
           </motion.div>
@@ -151,7 +151,7 @@ export function Tunnel() {
            <motion.p className="text-xl max-w-xl opacity-70">
              Unlike standard VPNs, Port Daddy tunnels are **per-identity**. You don't expose your entire network--only the specific semantic identities you've explicitly claimed in your harbor.
            </motion.p>
-           <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--p-blue-400)]">
+           <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-secondary)]">
               <Activity size={14} className="animate-pulse" />
               Provider Detection Active
            </motion.div>

@@ -53,7 +53,7 @@ export function Sugar() {
                   className="w-10 h-10 rounded-xl flex items-center justify-center"
                   style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
                 >
-                   <Shield size={20} className="text-[var(--p-blue-400)]" />
+                   <Shield size={20} className="text-[var(--brand-secondary)]" />
                 </motion.div>
                 <motion.h3 className="text-xl font-display font-black m-0">Safe Defaults</motion.h3>
                 <motion.p className="text-sm text-[var(--text-secondary)] m-0">Built-in timeouts and retry logic ensure that your agent scripts are resilient to network blips.</motion.p>

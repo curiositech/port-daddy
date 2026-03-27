@@ -392,7 +392,7 @@ export function DocsLayout() {
   return (
     <>
       <Nav />
-      <div className="min-h-screen bg-[var(--bg-base)] flex pt-16">
+      <div className="min-h-screen bg-[var(--surface-base)] flex pt-16">
         {/* Mobile Overlay */}
         {mobileOpen && (
           <div
@@ -403,7 +403,7 @@ export function DocsLayout() {
 
         {/* Sidebar */}
         <aside
-          className={`fixed lg:sticky top-16 left-0 z-50 h-[calc(100vh-4rem)] w-72 bg-[var(--bg-surface)] border-r border-[var(--border-subtle)] overflow-y-auto transition-transform lg:translate-x-0 ${
+          className={`fixed lg:sticky top-16 left-0 z-50 h-[calc(100vh-4rem)] w-72 bg-[var(--surface-raised)] border-r border-[var(--border-subtle)] overflow-y-auto transition-transform lg:translate-x-0 ${
             mobileOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
@@ -470,7 +470,7 @@ export function DocsLayout() {
       {/* Main Content */}
       <main id="main-content" className="flex-1 min-w-0">
         {/* Mobile Header */}
-        <div className="lg:hidden sticky top-16 z-30 bg-[var(--bg-base)]/80 backdrop-blur-xl border-b border-[var(--border-subtle)] px-4 py-3 flex items-center gap-3">
+        <div className="lg:hidden sticky top-16 z-30 bg-[var(--surface-base)]/80 backdrop-blur-xl border-b border-[var(--border-subtle)] px-4 py-3 flex items-center gap-3">
           <button
             onClick={() => setMobileOpen(true)}
             className="p-2 rounded-lg hover:bg-[var(--interactive-hover)]"
@@ -496,7 +496,7 @@ export function DocsLayout() {
       </main>
 
         {/* Right Side - Table of Contents (desktop) */}
-        <aside className="hidden xl:block w-64 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto border-l border-[var(--border-subtle)] bg-[var(--bg-base)]">
+        <aside className="hidden xl:block w-64 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto border-l border-[var(--border-subtle)] bg-[var(--surface-base)]">
           <div className="p-6">
             <TableOfContents pathname={location.pathname} />
           </div>

@@ -119,13 +119,13 @@ export function LiveOrchestrationGraph({
             onClick={() => onSelectAgent?.(agent.id)}
           >
             <motion.div className="relative">
-               <motion.div className={`w-16 h-16 rounded-full bg-[var(--bg-overlay)] border-2 flex items-center justify-center shadow-xl transition-colors duration-300 ${agent.status === 'active' ? 'border-[var(--p-teal-500)] bg-[var(--p-teal-500)]/5' : 'border-[var(--border-subtle)]'}`}>
+               <motion.div className={`w-16 h-16 rounded-full bg-[var(--surface-overlay)] border-2 flex items-center justify-center shadow-xl transition-colors duration-300 ${agent.status === 'active' ? 'border-[var(--p-teal-500)] bg-[var(--p-teal-500)]/5' : 'border-[var(--border-subtle)]'}`}>
                   <SailorAgent size={32} />
                </motion.div>
                
                {agent.status === 'active' && (
                  <motion.div 
-                   className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[var(--p-teal-400)] border-2 border-[var(--bg-surface)]"
+                   className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[var(--p-teal-400)] border-2 border-[var(--surface-raised)]"
                    animate={{ scale: [1, 1.2, 1] }}
                    transition={{ duration: 2, repeat: Infinity }}
                  />
@@ -155,8 +155,8 @@ export function LiveOrchestrationGraph({
             animate={{ opacity: 0.6, scale: 1 }}
             transition={{ delay: 0.5 + i * 0.1 }}
           >
-            <motion.div className="w-12 h-12 rounded-xl bg-[var(--bg-overlay)] border border-dashed border-[var(--p-blue-500)]/40 flex items-center justify-center">
-               <Cpu size={20} className="text-[var(--p-blue-400)]" />
+            <motion.div className="w-12 h-12 rounded-xl bg-[var(--surface-overlay)] border border-dashed border-[var(--p-blue-500)]/40 flex items-center justify-center">
+               <Cpu size={20} className="text-[var(--brand-secondary)]" />
                <motion.div className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-[8px] font-black uppercase tracking-widest opacity-40">
                   {service.label}
                </motion.div>

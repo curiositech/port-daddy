@@ -103,7 +103,7 @@ export function Harbors() {
               className="w-12 h-12 rounded-2xl flex items-center justify-center"
               style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
             >
-              <Key className="text-[var(--p-blue-400)]" size={24} />
+              <Key className="text-[var(--brand-secondary)]" size={24} />
             </motion.div>
             <motion.h2 className="m-0">2. Enter the Harbor</motion.h2>
           </motion.div>
@@ -164,7 +164,7 @@ Token JTI burned — cannot be reused.`}
             The "JTI burned" message means Port Daddy records the token's unique identifier in a revocation list. Even if someone copies the raw JWT string, it will be rejected because the daemon checks the JTI against the revocation list on every request.
           </motion.p>
 
-          <blockquote className="bg-[var(--bg-surface)] p-10 rounded-[32px] border-l-8 border-[var(--brand-accent)]">
+          <blockquote className="bg-[var(--surface-raised)] p-10 rounded-[32px] border-l-8 border-[var(--brand-accent)]">
              <motion.p className="font-bold text-[var(--text-primary)] m-0 mb-4 text-xl font-display">Common Pitfall: Forgetting to Set a TTL</motion.p>
              <motion.p className="m-0 text-base">
                If you create a harbor without <code>--ttl</code>, tokens default to 2 hours. For production workflows, always set an explicit TTL that matches the expected duration of the task. A CI pipeline that runs in 10 minutes should use <code>--ttl 15m</code>, not the default.
@@ -186,25 +186,25 @@ Token JTI burned — cannot be reused.`}
           </motion.p>
 
           <motion.div className="space-y-4">
-            <motion.div className="p-6 rounded-[24px] bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+            <motion.div className="p-6 rounded-[24px] bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
               <motion.p className="font-bold text-[var(--text-primary)] m-0 mb-2">Security-sensitive reviews</motion.p>
               <motion.p className="text-sm m-0 text-[var(--text-secondary)] leading-relaxed">
                 When you want an agent to analyze code without being able to modify it. Use <code>code:read</code> + <code>notes:write</code> and nothing else.
               </motion.p>
             </motion.div>
-            <motion.div className="p-6 rounded-[24px] bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+            <motion.div className="p-6 rounded-[24px] bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
               <motion.p className="font-bold text-[var(--text-primary)] m-0 mb-2">Untrusted or experimental agents</motion.p>
               <motion.p className="text-sm m-0 text-[var(--text-secondary)] leading-relaxed">
                 When you are testing a new agent framework or prompt and do not fully trust its behavior yet. Harbors limit the blast radius if something goes wrong.
               </motion.p>
             </motion.div>
-            <motion.div className="p-6 rounded-[24px] bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+            <motion.div className="p-6 rounded-[24px] bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
               <motion.p className="font-bold text-[var(--text-primary)] m-0 mb-2">Multi-team projects</motion.p>
               <motion.p className="text-sm m-0 text-[var(--text-secondary)] leading-relaxed">
                 When different teams have different agents working on the same monorepo and you want to ensure the frontend team's agents cannot touch the backend's database migration files.
               </motion.p>
             </motion.div>
-            <motion.div className="p-6 rounded-[24px] bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+            <motion.div className="p-6 rounded-[24px] bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
               <motion.p className="font-bold text-[var(--text-primary)] m-0 mb-2">CI/CD pipelines</motion.p>
               <motion.p className="text-sm m-0 text-[var(--text-secondary)] leading-relaxed">
                 When you spawn agents as part of an automated pipeline and want each step to have only the permissions it needs. A test-runner agent does not need <code>tunnel:create</code>.

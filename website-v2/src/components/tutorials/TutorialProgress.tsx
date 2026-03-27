@@ -56,7 +56,7 @@ export function TutorialProgress({ currentNumber, isOpen: controlledOpen, onTogg
     <div className="w-full">
       {/* Progress Summary Bar */}
       <div 
-        className="flex items-center gap-4 p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] cursor-pointer hover:border-[var(--border-default)] transition-all"
+        className="flex items-center gap-4 p-4 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)] cursor-pointer hover:border-[var(--border-default)] transition-all"
         onClick={() => setIsOpen(!isOpen)}
       >
         <div className="flex-1">
@@ -70,7 +70,7 @@ export function TutorialProgress({ currentNumber, isOpen: controlledOpen, onTogg
           </div>
           
           {/* Progress bar */}
-          <div className="h-2 bg-[var(--bg-overlay)] rounded-full overflow-hidden">
+          <div className="h-2 bg-[var(--surface-overlay)] rounded-full overflow-hidden">
             <div 
               className="h-full bg-[var(--brand-primary)] rounded-full transition-all duration-500"
               style={{ width: `${progress}%` }}
@@ -91,7 +91,7 @@ export function TutorialProgress({ currentNumber, isOpen: controlledOpen, onTogg
 
       {/* Expanded Roadmap */}
       {isOpen && (
-        <div className="mt-3 p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] max-h-[60vh] overflow-y-auto">
+        <div className="mt-3 p-4 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)] max-h-[60vh] overflow-y-auto">
           <div className="space-y-1">
             {TUTORIALS.map((tutorial) => {
               const isCurrent = tutorial.number === currentNumber
@@ -113,7 +113,7 @@ export function TutorialProgress({ currentNumber, isOpen: controlledOpen, onTogg
                       ? 'bg-[var(--success)] text-white' 
                       : isCurrent
                       ? 'bg-[var(--brand-primary)] text-white'
-                      : 'bg-[var(--bg-overlay)] text-[var(--text-muted)]'
+                      : 'bg-[var(--surface-overlay)] text-[var(--text-muted)]'
                   }`}>
                     {isCompleted ? <Check size={14} /> : tutorial.number}
                   </div>

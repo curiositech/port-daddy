@@ -94,7 +94,7 @@ const EXAMPLES: Example[] = [
       'pd salvage --project myapp'
     ],
     icon: Sparkles,
-    color: 'var(--p-blue-400)'
+    color: 'var(--brand-secondary)'
   },
   {
     id: 'semantic-discovery',

@@ -24,7 +24,7 @@ export function Inbox() {
               className="w-12 h-12 rounded-2xl flex items-center justify-center"
               style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
             >
-              <Mail className="text-[var(--p-blue-400)]" size={24} />
+              <Mail className="text-[var(--brand-secondary)]" size={24} />
             </motion.div>
             <motion.h2 className="m-0">Beyond Stdout</motion.h2>
           </motion.div>
@@ -98,7 +98,7 @@ export function Inbox() {
               className="w-12 h-12 rounded-2xl flex items-center justify-center"
               style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
             >
-              <Terminal className="text-[var(--p-blue-400)]" size={24} />
+              <Terminal className="text-[var(--brand-secondary)]" size={24} />
             </motion.div>
             <motion.h2 className="m-0">2. Watch the Stream</motion.h2>
           </motion.div>

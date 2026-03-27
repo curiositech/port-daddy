@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { Surface } from '@/components/ui/Surface'
 import { cn } from '@/lib/utils'
 
 interface ReplayStep {
@@ -106,49 +107,43 @@ export function TerminalReplay() {
   }
 
   return (
-    <motion.div
-      className="rounded-2xl p-5"
-      style={{
-        background: 'var(--bg-surface)',
-        boxShadow: 'var(--shadow-neu-raised)',
-      }}
-    >
+    <Surface depth="raised" radius="2xl" padding="md">
       {/* Inset terminal */}
-      <motion.div
-        className="rounded-xl overflow-hidden"
+      <div
+        className="rounded-[var(--radius-lg)] overflow-hidden"
         style={{
-          background: 'var(--bg-code)',
-          boxShadow: 'var(--shadow-neu-inset)',
+          background: 'var(--code-bg)',
+          boxShadow: 'var(--shadow-inset)',
         }}
       >
         {/* Terminal header */}
-        <motion.div
+        <div
           className="flex items-center justify-between px-4 py-2"
-          style={{ borderBottom: '1px solid var(--codeblock-border)' }}
+          style={{ borderBottom: '1px solid var(--code-border)' }}
         >
-          <motion.div className="flex items-center gap-3">
-            <motion.div className="flex gap-1.5">
-              <motion.span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--codeblock-dot-red)' }} />
-              <motion.span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--codeblock-dot-amber)' }} />
-              <motion.span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--codeblock-dot-green)' }} />
-            </motion.div>
-            <motion.span className="text-xs font-mono" style={{ color: 'var(--codeblock-filename)' }}>
+          <div className="flex items-center gap-3">
+            <div className="flex gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--code-dot-red)' }} />
+              <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--code-dot-amber)' }} />
+              <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--code-dot-green)' }} />
+            </div>
+            <span className="text-xs font-mono" style={{ color: 'var(--code-comment)' }}>
               zsh — port-daddy demo
-            </motion.span>
-          </motion.div>
+            </span>
+          </div>
           {done && (
             <button
               onClick={restart}
               className="text-xs px-2 py-1 rounded transition-colors cursor-pointer"
-              style={{ color: 'var(--codeblock-dot-green)' }}
+              style={{ color: 'var(--code-dot-green)' }}
             >
               Replay
             </button>
           )}
-        </motion.div>
+        </div>
 
         {/* Terminal body */}
-        <motion.div
+        <div
           ref={scrollRef}
           className="overflow-y-auto p-4 font-mono text-sm leading-relaxed"
           style={{ minHeight: '320px', maxHeight: '420px', color: 'var(--code-output)' }}
@@ -168,50 +163,50 @@ export function TerminalReplay() {
 
         {/* Cursor when not typing a command */}
         {!isTyping && !done && (
-          <motion.div className="flex items-center gap-2">
-            <motion.span style={{ color: 'var(--code-prompt)' }}>$</motion.span>
+          <div className="flex items-center gap-2">
+            <span style={{ color: 'var(--code-prompt)' }}>$</span>
             <BlinkCursor />
-          </motion.div>
+          </div>
         )}
-      </motion.div>
-      </motion.div>
-    </motion.div>
+      </div>
+      </div>
+    </Surface>
   )
 }
 
 function TerminalLine({ step, text, isLast }: { step: ReplayStep; text: string; isLast: boolean }) {
-  if (step.type === 'blank') return <motion.div className="h-3" />
+  if (step.type === 'blank') return <div className="h-3" />
 
   if (step.type === 'comment') {
     return (
-      <motion.div style={{ color: 'var(--codeblock-filename)' }} className="select-none">
+      <div style={{ color: 'var(--code-comment)' }} className="select-none">
         {text}
-      </motion.div>
+      </div>
     )
   }
 
   if (step.type === 'command') {
     return (
-      <motion.div className="flex items-start gap-2">
-        <motion.span style={{ color: 'var(--code-prompt)', flexShrink: 0 }}>$</motion.span>
-        <motion.span style={{ color: 'var(--text-code)' }}>
+      <div className="flex items-start gap-2">
+        <span style={{ color: 'var(--code-prompt)', flexShrink: 0 }}>$</span>
+        <span style={{ color: 'var(--code-text)' }}>
           {text}
           {isLast && <BlinkCursor />}
-        </motion.span>
-      </motion.div>
+        </span>
+      </div>
     )
   }
 
   // output
   return (
-    <motion.div
+    <div
       style={{ color: 'var(--code-output)' }}
-      className={cn('pl-4', text.includes('⚠') ? '' : '')}
+      className={cn('pl-4')}
     >
-      <motion.span style={text.includes('⚠') ? { color: 'var(--status-warning)' } : {}}>
+      <span style={text.includes('⚠') ? { color: 'var(--status-warning)' } : {}}>
         {text}
-      </motion.span>
-    </motion.div>
+      </span>
+    </div>
   )
 }
 

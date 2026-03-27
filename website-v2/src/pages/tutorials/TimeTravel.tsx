@@ -24,7 +24,7 @@ export function TimeTravel() {
               className="w-12 h-12 rounded-2xl flex items-center justify-center"
               style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
             >
-              <History className="text-[var(--p-blue-400)]" size={24} />
+              <History className="text-[var(--brand-secondary)]" size={24} />
             </motion.div>
             <motion.h2 className="m-0">Why Event Ordering Matters</motion.h2>
           </motion.div>
@@ -105,7 +105,7 @@ $ curl http://localhost:9876/activity/stats`}
              </motion.div>
              <motion.div className="flex items-center gap-4 opacity-40">
                 <motion.span className="w-20" style={{ color: 'var(--code-text)' }}>12:04:12</motion.span>
-                <motion.span className="text-[var(--p-blue-400)]">[note]</motion.span>
+                <motion.span className="text-[var(--brand-secondary)]">[note]</motion.span>
                 <motion.span style={{ color: 'var(--code-text)' }}>'planner': Started decomposition</motion.span>
              </motion.div>
           </motion.div>
@@ -152,7 +152,7 @@ $ curl http://localhost:9876/activity/stats`}
            <motion.p className="text-xl max-w-xl opacity-70">
              The timeline isn't just a log--it's a <strong>ledger</strong>. It provides the historical evidence needed to train agents on "coordination failures," allowing your swarms to learn from their own race conditions over time.
            </motion.p>
-           <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--p-blue-400)]">
+           <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-secondary)]">
               <Zap size={14} className="animate-pulse" />
               SQLite WAL-Mode Active
            </motion.div>

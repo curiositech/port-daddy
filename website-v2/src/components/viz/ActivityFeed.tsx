@@ -32,9 +32,9 @@ function ActivityItem({ activity, isNote }: { activity: any; isNote?: boolean })
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, height: 0 }}
-      className={`flex items-start gap-4 p-3 rounded-xl hover:bg-[var(--interactive-hover)] transition-all border border-transparent hover:border-[var(--border-subtle)] font-sans ${isNote ? 'bg-[var(--bg-overlay)]/50' : ''}`}
+      className={`flex items-start gap-4 p-3 rounded-xl hover:bg-[var(--interactive-hover)] transition-all border border-transparent hover:border-[var(--border-subtle)] font-sans ${isNote ? 'bg-[var(--surface-overlay)]/50' : ''}`}
     >
-      <motion.div className={`p-2 rounded-lg shrink-0 ${isNote ? 'bg-[var(--brand-accent)]/10 text-[var(--brand-accent)]' : isError ? 'bg-[var(--status-error)]/10 text-[var(--status-error)]' : 'bg-[var(--bg-overlay)] text-[var(--brand-primary)]'}`}>
+      <motion.div className={`p-2 rounded-lg shrink-0 ${isNote ? 'bg-[var(--brand-accent)]/10 text-[var(--brand-accent)]' : isError ? 'bg-[var(--status-error)]/10 text-[var(--status-error)]' : 'bg-[var(--surface-overlay)] text-[var(--brand-primary)]'}`}>
         <Icon size={16} />
       </motion.div>
       <motion.div className="flex-1 min-w-0 font-sans">
@@ -67,8 +67,8 @@ export function ActivityFeed() {
   const displayItems = mode === 'live' ? liveActivities : historyEvents;
 
   return (
-    <motion.div className="flex flex-col h-full bg-[var(--bg-surface)] rounded-3xl border border-[var(--border-default)] overflow-hidden shadow-2xl font-sans">
-      <motion.div className="px-5 py-4 border-b border-[var(--border-subtle)] flex items-center justify-between bg-[var(--bg-overlay)] font-sans">
+    <motion.div className="flex flex-col h-full bg-[var(--surface-raised)] rounded-3xl border border-[var(--border-default)] overflow-hidden shadow-2xl font-sans">
+      <motion.div className="px-5 py-4 border-b border-[var(--border-subtle)] flex items-center justify-between bg-[var(--surface-overlay)] font-sans">
         <motion.div className="flex items-center gap-2 font-sans">
           {mode === 'live' ? <Activity size={18} className="text-[var(--brand-primary)]" /> : <History size={18} className="text-[var(--brand-accent)]" />}
           <motion.h2 className="font-bold text-xs uppercase tracking-[0.2em] text-[var(--text-primary)] font-sans">
@@ -76,7 +76,7 @@ export function ActivityFeed() {
           </motion.h2>
         </motion.div>
         
-        <motion.div className="flex bg-[var(--bg-base)] p-1 rounded-lg border border-[var(--border-subtle)] font-sans">
+        <motion.div className="flex bg-[var(--surface-base)] p-1 rounded-lg border border-[var(--border-subtle)] font-sans">
           <motion.button 
             onClick={() => setMode('live')}
             className={`px-3 py-1 rounded-md text-[10px] font-black uppercase transition-all font-sans ${mode === 'live' ? 'bg-[var(--brand-primary)] text-white shadow-lg' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
@@ -93,7 +93,7 @@ export function ActivityFeed() {
       </motion.div>
 
       {mode === 'live' && (
-        <motion.div className="px-5 py-2 bg-[var(--bg-overlay)]/50 border-b border-[var(--border-subtle)] flex items-center justify-between font-sans">
+        <motion.div className="px-5 py-2 bg-[var(--surface-overlay)]/50 border-b border-[var(--border-subtle)] flex items-center justify-between font-sans">
           <motion.div className="flex items-center gap-1.5 font-sans">
             <motion.div className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-[var(--status-success)] animate-pulse' : 'bg-[var(--status-error)]'}`} />
             <motion.span className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-muted)] font-sans">
