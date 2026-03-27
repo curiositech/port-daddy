@@ -134,7 +134,7 @@ pd pub global:swarm:events "new-task-ready"`}
            <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">The Ultimate Maturity</Badge>
            <motion.h3 className="text-4xl font-display font-black m-0" style={{ color: 'var(--text-primary)' }}>Global Intelligence.</motion.h3>
            <motion.p className="text-xl max-w-xl opacity-70">
-             Port Daddy v3.7 isn't just about your machine--it's about the **Mesh**. We're building the infrastructure for a world where agents cooperate across any network, forming vast, secure, and resilient autonomous organizations.
+             Port Daddy v3.7 isn't just about your machine--it's about the <strong>Mesh</strong>. We're building the infrastructure for a world where agents cooperate across any network, forming vast, secure, and resilient autonomous organizations.
            </motion.p>
            <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-primary)]">
               <Shield size={14} className="animate-pulse" />
