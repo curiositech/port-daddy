@@ -3,6 +3,7 @@ import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Badge } from '@/components/ui/Badge'
 import { Globe, Shield, Terminal, Network, Anchor, Cpu, Activity, Sparkles } from 'lucide-react'
+import { Surface } from '@/components/ui/Surface'
 
 export function RemoteHarbors() {
   return (
@@ -19,10 +20,7 @@ export function RemoteHarbors() {
         {/* Intro Section */}
         <section className="space-y-6">
           <motion.div className="flex items-center gap-4 mb-8">
-            <motion.div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center"
-              style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-            >
+            <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Globe className="text-[var(--brand-secondary)]" size={24} />
             </motion.div>
             <motion.h2 className="m-0">The Infinite Swarm</motion.h2>
@@ -31,23 +29,17 @@ export function RemoteHarbors() {
             **Remote Harbors** are the final piece of the Port Daddy architecture. They allow you to treat agents running on different machines--whether it's your teammate's laptop or a cloud-hosted GPU cluster--as part of a single, unified swarm.
           </motion.p>
           <motion.div className="grid sm:grid-cols-2 gap-8 pt-4">
-             <motion.div
-               className="p-8 rounded-2xl space-y-4"
-               style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-             >
+             <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
                 <motion.div
                   className="w-10 h-10 rounded-xl flex items-center justify-center"
                   style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
                 >
-                   <Anchor size={20} className="text-[var(--p-teal-400)]" />
+                   <Anchor size={20} className="text-[var(--brand-secondary)]" />
                 </motion.div>
                 <motion.h3 className="text-xl font-display font-black m-0">Global Lighthouses</motion.h3>
                 <motion.p className="text-sm text-[var(--text-secondary)] m-0">Public discovery nodes that negotiate secure, encrypted handshakes between daemons behind firewalls.</motion.p>
              </motion.div>
-             <motion.div
-               className="p-8 rounded-2xl space-y-4"
-               style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-             >
+             <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
                 <motion.div
                   className="w-10 h-10 rounded-xl flex items-center justify-center"
                   style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
@@ -63,10 +55,7 @@ export function RemoteHarbors() {
         {/* Step 1: Discovery */}
         <section className="space-y-8">
           <motion.div className="flex items-center gap-4">
-            <motion.div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center"
-              style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-            >
+            <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Network className="text-[var(--brand-primary)]" size={24} />
             </motion.div>
             <motion.h2 className="m-0">1. Summon a Lighthouse</motion.h2>
@@ -85,10 +74,7 @@ export function RemoteHarbors() {
 ✓ Latency: 42ms (Secure P2P)`}
           </CodeBlock>
 
-          <blockquote
-            className="p-8 rounded-2xl border-l-4 border-[var(--brand-primary)]"
-            style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-          >
+          <Surface depth="inset" radius="2xl" padding="none" className="p-8 border-l-4 border-[var(--brand-primary)]">
              <motion.p className="m-0 text-sm italic opacity-60 font-medium">
                In Port Daddy v3.7, all remote communication is strictly end-to-end encrypted using the **Noise Protocol** (Noise_XX). Even the lighthouse cannot see your agent traffic.
              </motion.p>
@@ -98,11 +84,8 @@ export function RemoteHarbors() {
         {/* Step 2: Global Calls */}
         <section className="space-y-8">
           <motion.div className="flex items-center gap-4">
-            <motion.div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center"
-              style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-            >
-              <Cpu className="text-[var(--p-purple-400)]" size={24} />
+            <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
+              <Cpu className="text-[var(--brand-accent)]" size={24} />
             </motion.div>
             <motion.h2 className="m-0">2. Hailing Remote Agents</motion.h2>
           </motion.div>
@@ -120,11 +103,8 @@ curl http://$(pd dns resolve gpu-swarm:vision-analyst)/analyze\\
 pd pub global:swarm:events "new-task-ready"`}
           </CodeBlock>
 
-          <motion.div
-            className="p-10 rounded-2xl space-y-8 relative overflow-hidden text-center"
-            style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-          >
-             <motion.div className="absolute inset-0 bg-gradient-to-b from-[var(--p-blue-500)]/5 to-transparent" />
+          <Surface depth="raised" radius="2xl" className="p-10 space-y-8 relative overflow-hidden text-center">
+             <motion.div className="absolute inset-0 bg-gradient-to-b from-[var(--brand-secondary)]/5 to-transparent" />
              <motion.p className="text-sm font-black uppercase tracking-widest opacity-40 m-0">The Global Mesh</motion.p>
 
              <motion.div className="flex items-center justify-center gap-12 pt-4">
@@ -133,7 +113,7 @@ pd pub global:swarm:events "new-task-ready"`}
                      className="w-16 h-16 rounded-full flex items-center justify-center"
                      style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
                    >
-                      <Terminal size={24} className="text-[var(--p-teal-400)]" />
+                      <Terminal size={24} className="text-[var(--brand-secondary)]" />
                    </motion.div>
                    <motion.span className="text-[10px] font-black uppercase text-[var(--text-muted)]">Local Dev</motion.span>
                 </motion.div>
@@ -159,11 +139,7 @@ pd pub global:swarm:events "new-task-ready"`}
         </section>
 
         {/* Vision Callout */}
-        <motion.div
-          className="p-16 rounded-2xl flex flex-col items-center text-center gap-8 relative overflow-hidden"
-          style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-          whileHover={{ scale: 1.01 }}
-        >
+        <Surface depth="raised" radius="2xl" className="p-16 flex flex-col items-center text-center gap-8 relative overflow-hidden">
            <motion.div className="absolute top-0 right-0 p-10 opacity-[0.03] pointer-events-none">
               <Activity size={400} />
            </motion.div>

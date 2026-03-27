@@ -59,7 +59,7 @@ export function BlogPostPage() {
               </motion.div>
               <motion.div className="h-1 w-1 rounded-full bg-[var(--border-strong)]" />
               <motion.div className="flex items-center gap-2">
-                 <User size={14} className="text-[var(--p-teal-400)]" />
+                 <User size={14} className="text-[var(--brand-secondary)]" />
                  {post.author}
               </motion.div>
            </motion.div>
@@ -133,7 +133,7 @@ export function BlogPostPage() {
            <motion.div className="space-y-6 max-w-3xl relative z-10">
               <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest shadow-xl">Protocol Safety</Badge>
               <motion.h3 className="text-4xl sm:text-7xl font-display font-black tracking-tight leading-[0.95]" style={{ color: 'var(--text-primary)' }}>
-                Soundness is <motion.span className="text-[var(--p-teal-400)]">Mandatory.</motion.span>
+                Soundness is <motion.span className="text-[var(--brand-secondary)]">Mandatory.</motion.span>
               </motion.h3>
               <motion.p className="text-2xl leading-relaxed text-[var(--text-secondary)]">
                 This engineering post was produced as part of our commitment to transparency and mathematical rigor. We believe the future of AI coordination must be built on a foundation of formal methods and verified protocols.

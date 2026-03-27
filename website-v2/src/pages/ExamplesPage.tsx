@@ -43,7 +43,7 @@ const EXAMPLES: Example[] = [
       'pd done'
     ],
     icon: Users,
-    color: 'var(--p-teal-400)'
+    color: 'var(--brand-secondary)'
   },
   {
     id: 'pub-sub-signaling',
@@ -149,7 +149,7 @@ const EXAMPLES: Example[] = [
       'pd unlock db-migration'
     ],
     icon: Shield,
-    color: 'var(--p-purple-400)'
+    color: 'var(--brand-accent)'
   }
 ]
 

@@ -84,8 +84,8 @@ export function IntegrationPage() {
            {/* Detailed Features */}
            <section className="space-y-12">
               <motion.div className="flex items-center gap-4 border-b border-[var(--border-subtle)] pb-8">
-                 <motion.div className="w-10 h-10 rounded-xl bg-[var(--p-teal-500)]/10 flex items-center justify-center border border-[var(--p-teal-500)]/20">
-                    <Sparkles size={20} className="text-[var(--p-teal-400)]" />
+                 <motion.div className="w-10 h-10 rounded-xl bg-[var(--brand-secondary)]/10 flex items-center justify-center border border-[var(--brand-secondary)]/20">
+                    <Sparkles size={20} className="text-[var(--brand-secondary)]" />
                  </motion.div>
                  <motion.h2 className="text-3xl font-display font-black m-0">Integration Capabilities</motion.h2>
               </motion.div>
@@ -101,7 +101,7 @@ export function IntegrationPage() {
                      transition={{ delay: i * 0.1 }}
                    >
                       <motion.div className="w-10 h-10 rounded-full bg-[var(--surface-overlay)] flex items-center justify-center shrink-0 border border-[var(--border-subtle)] group-hover:scale-110 transition-transform">
-                         <CheckCircle2 size={18} className="text-[var(--p-teal-400)]" />
+                         <CheckCircle2 size={18} className="text-[var(--brand-secondary)]" />
                       </motion.div>
                       <motion.p className="text-lg leading-relaxed text-[var(--text-secondary)] m-0 group-hover:text-[var(--text-primary)] transition-colors">{detail}</motion.p>
                    </motion.div>

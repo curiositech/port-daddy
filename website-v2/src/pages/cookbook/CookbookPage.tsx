@@ -139,7 +139,7 @@ export function CookbookPage() {
            <div className="space-y-4 sm:space-y-6 max-w-3xl relative z-10 flex flex-col items-center">
               <Badge variant="teal" className="px-4 sm:px-6 py-2 text-[10px] font-black uppercase tracking-widest">High-Fidelity Swarms</Badge>
               <h3 className="text-2xl sm:text-4xl lg:text-7xl font-display font-black tracking-tight leading-[0.95]" style={{ color: 'var(--text-primary)' }}>
-                Soundness by <span className="text-[var(--p-teal-400)]">Pattern.</span>
+                Soundness by <span className="text-[var(--brand-secondary)]">Pattern.</span>
               </h3>
               <p className="text-base sm:text-xl lg:text-2xl leading-relaxed text-[var(--text-secondary)]">
                 The Cookbook isn't just a list of commands—it's a library of <strong>proven state machines</strong>. Every recipe is designed to converge your swarm on a result while maintaining the absolute integrity of your harbor.

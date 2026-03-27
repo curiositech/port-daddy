@@ -83,7 +83,7 @@ function UnifiedTimeline() {
                     style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
                   >
                      {item.type === 'note' ? <MessageSquare size={14} className="text-[var(--brand-secondary)]" /> :
-                      item.type === 'port' ? <Anchor size={14} className="text-[var(--p-teal-400)]" /> :
+                      item.type === 'port' ? <Anchor size={14} className="text-[var(--brand-secondary)]" /> :
                       <Zap size={14} className="text-[var(--brand-accent)]" />}
                   </motion.div>
                   <motion.div className="w-[1px] h-full bg-gradient-to-b from-[var(--text-muted)] to-transparent opacity-20" />
@@ -149,10 +149,10 @@ export function DashboardPage() {
            {/* Stat cards with raised surfaces and inset value wells */}
            <motion.div className="grid grid-cols-2 sm:grid-cols-4 gap-6 w-full max-w-5xl">
               {[
-                { label: 'Active Agents', value: stats?.activeAgents || '0', icon: Users, color: 'var(--p-teal-400)' },
+                { label: 'Active Agents', value: stats?.activeAgents || '0', icon: Users, color: 'var(--brand-secondary)' },
                 { label: 'Harbors', value: stats?.activeHarbors || '0', icon: Shield, color: 'var(--brand-accent)' },
                 { label: 'Port Claims', value: stats?.activePorts || '0', icon: Anchor, color: 'var(--brand-secondary)' },
-                { label: 'Latency', value: '<5ms', icon: Zap, color: 'var(--p-purple-400)' }
+                { label: 'Latency', value: '<5ms', icon: Zap, color: 'var(--brand-accent)' }
               ].map((stat, i) => (
                 <motion.div
                   key={i}
