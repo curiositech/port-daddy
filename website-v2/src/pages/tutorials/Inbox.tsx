@@ -27,7 +27,7 @@ export function Inbox() {
             <motion.h2 className="m-0">Beyond Stdout</motion.h2>
           </motion.div>
           <motion.p>
-            In a multi-agent swarm, logs are noisy and hard to parse. Port Daddy provides every agent with a dedicated **Inbox**--a structured messaging endpoint where it can receive direct instructions or status updates from other members of the harbor.
+            In a multi-agent swarm, logs are noisy and hard to parse. Port Daddy provides every agent with a dedicated <strong>Inbox</strong>--a structured messaging endpoint where it can receive direct instructions or status updates from other members of the harbor.
           </motion.p>
           <motion.div className="grid sm:grid-cols-2 gap-8 pt-4">
              <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
@@ -64,10 +64,10 @@ export function Inbox() {
             {`$ pd msg send swarm:analyst:main '{"task": "generate-report", "priority": "high"}'\n\n✓ Message routed to agent-7f3a.\n✓ Status: Received.`}
           </CodeBlock>
 
-          <Surface depth="inset" radius="2xl" padding="none" className="p-8 border-l-4 border-[var(--brand-primary)]">
-             <motion.p className="m-0 text-sm italic opacity-60 font-medium">
-               The daemon ensures that the message is delivered even if the agent is currently busy, acting as a high-fidelity buffer between processes.
-             </motion.p>
+          <Surface depth="flat" radius="xl" padding="md" className="border-l-4 border-[var(--brand-secondary)]">
+            <p className="m-0 text-sm" style={{ color: 'var(--text-secondary)' }}>
+              The daemon ensures that the message is delivered even if the agent is currently busy, acting as a high-fidelity buffer between processes.
+            </p>
           </Surface>
         </section>
 
