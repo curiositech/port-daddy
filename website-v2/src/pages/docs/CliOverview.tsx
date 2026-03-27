@@ -115,7 +115,7 @@ export default function CliOverview() {
             <div className="mb-4">
               <div className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wide mb-2">Example</div>
               <div className="p-3 rounded-lg bg-[var(--code-bg)] font-mono text-sm overflow-x-auto">
-                <code className="text-[var(--text-secondary)]">{cmd.example}</code>
+                <code style={{ color: 'var(--code-text)' }}>{cmd.example}</code>
               </div>
             </div>
             
@@ -145,7 +145,7 @@ export default function CliOverview() {
       </div>
 
       {/* Quick Reference Card */}
-      <div className="p-6 rounded-xl bg-[var(--code-bg)] border border-[var(--border-subtle)]">
+      <div className="p-6 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
         <h3 className="font-semibold text-[var(--text-primary)] mb-4">Quick Reference</h3>
         <div className="grid sm:grid-cols-2 gap-4 text-sm">
           <div>
