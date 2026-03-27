@@ -23,7 +23,7 @@ export function TimeTravel() {
           <motion.div className="flex items-center gap-4 mb-8">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <History className="text-[var(--brand-secondary)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">Why Event Ordering Matters</motion.h2>
           </motion.div>
           <motion.p>
@@ -36,15 +36,15 @@ export function TimeTravel() {
              <Surface depth="raised" radius="2xl" className="p-6 text-center space-y-3">
                 <Badge variant="teal" className="text-[8px] font-black uppercase tracking-widest">Infra</Badge>
                 <motion.p className="text-xs font-bold m-0">Port Claims</motion.p>
-             </motion.div>
+             </Surface>
              <Surface depth="raised" radius="2xl" className="p-6 text-center space-y-3">
                 <Badge variant="gold" className="text-[8px] font-black uppercase tracking-widest">Signals</Badge>
                 <motion.p className="text-xs font-bold m-0">Pub/sub messages, SSE events</motion.p>
-             </motion.div>
+             </Surface>
              <Surface depth="raised" radius="2xl" className="p-6 text-center space-y-3">
                 <Badge variant="default" className="text-[8px] font-black uppercase tracking-widest">Cognition</Badge>
                 <motion.p className="text-xs font-bold m-0">Agent Notes</motion.p>
-             </motion.div>
+             </Surface>
           </motion.div>
         </section>
 
@@ -53,7 +53,7 @@ export function TimeTravel() {
           <motion.div className="flex items-center gap-4">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Search className="text-[var(--brand-primary)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">1. Query the Activity Log</motion.h2>
           </motion.div>
 
@@ -102,7 +102,7 @@ $ curl http://localhost:9876/activity/stats`}
           <motion.div className="flex items-center gap-4">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Activity className="text-[var(--brand-accent)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">2. Diagnose Common Problems</motion.h2>
           </motion.div>
 
@@ -110,12 +110,12 @@ $ curl http://localhost:9876/activity/stats`}
             The activity log is most useful for diagnosing race conditions between agents, finding lost work after crashes, and understanding why a service stopped responding.
           </motion.p>
 
-          <Surface depth="raised" radius="2xl" className="p-10 border-l-8 border-[var(--p-red-500)]">
+          <Surface depth="raised" radius="2xl" className="p-10 border-l-8 border-[var(--status-error)]">
              <motion.p className="font-bold text-[var(--text-primary)] m-0 mb-4 text-2xl font-display">Post-Mortem Integrity:</motion.p>
              <motion.p className="m-0 text-lg">
                Since the database is immutable, agents can't "delete their mistakes" to hide errors. This ensures a 100% audit trail for your autonomous organization.
              </motion.p>
-          </blockquote>
+          </Surface>
         </section>
 
         {/* Formal Verification Note */}
@@ -132,7 +132,7 @@ $ curl http://localhost:9876/activity/stats`}
               <Zap size={14} className="animate-pulse" />
               SQLite WAL-Mode Active
            </motion.div>
-        </motion.div>
+        </Surface>
       </motion.div>
     </TutorialLayout>
   )

@@ -23,7 +23,7 @@ export function MultiAgentOrchestration() {
           <motion.div className="flex items-center gap-4 mb-8">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Users className="text-[var(--brand-primary)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">Why Multi-Agent Coordination Matters</motion.h2>
           </motion.div>
           <motion.p>
@@ -41,13 +41,13 @@ export function MultiAgentOrchestration() {
                 <Surface depth="inset" radius="2xl" padding="none" className="flex items-center gap-4 p-4">
                    <motion.div className="w-2 h-2 rounded-full bg-[var(--brand-secondary)] pulse-active" />
                    <motion.span className="text-sm font-bold text-[var(--text-primary)]">Agent 'alpha' claiming src/auth/</motion.span>
-                </motion.div>
+                </Surface>
                 <Surface depth="inset" radius="2xl" padding="none" className="flex items-center gap-4 p-4 opacity-40">
                    <motion.div className="w-2 h-2 rounded-full bg-[var(--status-success)]" />
                    <motion.span className="text-sm font-bold text-[var(--text-secondary)]">Agent 'beta' watching for auth-ready signal...</motion.span>
-                </motion.div>
+                </Surface>
              </motion.div>
-          </motion.div>
+          </Surface>
         </section>
 
         {/* Step 1: File Claims */}
@@ -55,7 +55,7 @@ export function MultiAgentOrchestration() {
           <motion.div className="flex items-center gap-4">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <FileCode className="text-[var(--brand-accent)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">1. Announce Intent with File Claims</motion.h2>
           </motion.div>
 
@@ -72,11 +72,11 @@ Claimed 12 files.
 No conflicts with other active agents.`}
           </CodeBlock>
 
-          <Surface depth="inset" radius="2xl" padding="none" className="p-8 border-l-4 border-[var(--brand-accent)]">
-             <motion.p className="m-0 text-sm italic opacity-60 font-medium">
-               If another agent attempts to claim the same path, Port Daddy will return a <code>CONFLICT</code> error along with the ID of the agent currently holding the claim.
-             </motion.p>
-          </blockquote>
+          <Surface depth="flat" radius="xl" padding="md" className="border-l-4 border-[var(--brand-secondary)]">
+            <p className="m-0 text-sm" style={{ color: 'var(--text-secondary)' }}>
+              If another agent attempts to claim the same path, Port Daddy will return a <code>CONFLICT</code> error along with the ID of the agent currently holding the claim.
+            </p>
+          </Surface>
         </section>
 
         {/* Step 2: Pub/Sub */}
@@ -84,7 +84,7 @@ No conflicts with other active agents.`}
           <motion.div className="flex items-center gap-4">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <MessageSquare className="text-[var(--brand-secondary)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">2. Signal State Changes with Pub/Sub</motion.h2>
           </motion.div>
 
@@ -113,11 +113,11 @@ $ pd watch swarm:events --exec "npm test"
              <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
                 <Badge variant="default">The Broadcaster</Badge>
                 <motion.p className="text-sm opacity-60 m-0 leading-relaxed text-[var(--text-secondary)]">Publishes high-level events like "task_complete" or "error_detected".</motion.p>
-             </motion.div>
+             </Surface>
              <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
                 <Badge variant="teal">The Listener</Badge>
                 <motion.p className="text-sm opacity-60 m-0 leading-relaxed text-[var(--text-secondary)]">Reacts instantly to events, triggering the next step in the pipeline.</motion.p>
-             </motion.div>
+             </Surface>
           </motion.div>
         </section>
 
@@ -135,7 +135,7 @@ $ pd watch swarm:events --exec "npm test"
               <Activity size={14} className="animate-pulse" />
               Real-time Coordination Active
            </motion.div>
-        </motion.div>
+        </Surface>
       </motion.div>
     </TutorialLayout>
   )

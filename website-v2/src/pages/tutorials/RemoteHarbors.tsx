@@ -22,7 +22,7 @@ export function RemoteHarbors() {
           <motion.div className="flex items-center gap-4 mb-8">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Globe className="text-[var(--brand-secondary)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">The Infinite Swarm</motion.h2>
           </motion.div>
           <motion.p>
@@ -30,25 +30,19 @@ export function RemoteHarbors() {
           </motion.p>
           <motion.div className="grid sm:grid-cols-2 gap-8 pt-4">
              <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
-                <motion.div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-                >
+                <Surface depth="inset" radius="xl" padding="none" className="w-10 h-10 flex items-center justify-center">
                    <Anchor size={20} className="text-[var(--brand-secondary)]" />
-                </motion.div>
+                </Surface>
                 <motion.h3 className="text-xl font-display font-black m-0">Global Lighthouses</motion.h3>
                 <motion.p className="text-sm text-[var(--text-secondary)] m-0">Public discovery nodes that negotiate secure, encrypted handshakes between daemons behind firewalls.</motion.p>
-             </motion.div>
+             </Surface>
              <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
-                <motion.div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-                >
+                <Surface depth="inset" radius="xl" padding="none" className="w-10 h-10 flex items-center justify-center">
                    <Sparkles size={20} className="text-[var(--brand-accent)]" />
-                </motion.div>
+                </Surface>
                 <motion.h3 className="text-xl font-display font-black m-0">Compute Routing</motion.h3>
                 <motion.p className="text-sm text-[var(--text-secondary)] m-0">Re-route intensive agent tasks to remote harbors with more powerful hardware seamlessly.</motion.p>
-             </motion.div>
+             </Surface>
           </motion.div>
         </section>
 
@@ -57,7 +51,7 @@ export function RemoteHarbors() {
           <motion.div className="flex items-center gap-4">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Network className="text-[var(--brand-primary)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">1. Summon a Lighthouse</motion.h2>
           </motion.div>
 
@@ -78,7 +72,7 @@ export function RemoteHarbors() {
              <motion.p className="m-0 text-sm italic opacity-60 font-medium">
                In Port Daddy v3.7, all remote communication is strictly end-to-end encrypted using the **Noise Protocol** (Noise_XX). Even the lighthouse cannot see your agent traffic.
              </motion.p>
-          </blockquote>
+          </Surface>
         </section>
 
         {/* Step 2: Global Calls */}
@@ -86,7 +80,7 @@ export function RemoteHarbors() {
           <motion.div className="flex items-center gap-4">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Cpu className="text-[var(--brand-accent)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">2. Hailing Remote Agents</motion.h2>
           </motion.div>
 
@@ -109,12 +103,9 @@ pd pub global:swarm:events "new-task-ready"`}
 
              <motion.div className="flex items-center justify-center gap-12 pt-4">
                 <motion.div className="flex flex-col items-center gap-4">
-                   <motion.div
-                     className="w-16 h-16 rounded-full flex items-center justify-center"
-                     style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-                   >
+                   <Surface depth="inset" radius="full" padding="none" className="w-16 h-16 flex items-center justify-center">
                       <Terminal size={24} className="text-[var(--brand-secondary)]" />
-                   </motion.div>
+                   </Surface>
                    <motion.span className="text-[10px] font-black uppercase text-[var(--text-muted)]">Local Dev</motion.span>
                 </motion.div>
                 <motion.div className="flex-1 h-[2px] opacity-40" style={{ background: 'var(--brand-accent)' }} />
@@ -126,16 +117,13 @@ pd pub global:swarm:events "new-task-ready"`}
                 </motion.div>
                 <motion.div className="flex-1 h-[2px] opacity-40" style={{ background: 'var(--brand-accent)' }} />
                 <motion.div className="flex flex-col items-center gap-4">
-                   <motion.div
-                     className="w-16 h-16 rounded-full flex items-center justify-center"
-                     style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-                   >
+                   <Surface depth="inset" radius="full" padding="none" className="w-16 h-16 flex items-center justify-center">
                       <Cpu size={24} className="text-[var(--brand-accent)]" />
-                   </motion.div>
+                   </Surface>
                    <motion.span className="text-[10px] font-black uppercase text-[var(--text-muted)]">GPU Cluster</motion.span>
                 </motion.div>
              </motion.div>
-          </motion.div>
+          </Surface>
         </section>
 
         {/* Vision Callout */}
@@ -152,7 +140,7 @@ pd pub global:swarm:events "new-task-ready"`}
               <Shield size={14} className="animate-pulse" />
               Anchor Protocol v4 Verified
            </motion.div>
-        </motion.div>
+        </Surface>
       </motion.div>
     </TutorialLayout>
   )

@@ -43,7 +43,7 @@ export function GettingStarted() {
           <motion.div className="flex items-center gap-4">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Terminal className="text-[var(--brand-primary)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">1. Install</motion.h2>
           </motion.div>
 
@@ -53,13 +53,13 @@ export function GettingStarted() {
               <CodeBlock language="bash">
                 {`brew tap erichowens/port-daddy\nbrew install port-daddy`}
               </CodeBlock>
-            </motion.div>
+            </Surface>
             <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
               <Badge variant="default">Node.js / Global</Badge>
               <CodeBlock language="bash">
                 {`npm install -g port-daddy`}
               </CodeBlock>
-            </motion.div>
+            </Surface>
           </motion.div>
 
           <Surface depth="inset" radius="2xl" padding="none" className="p-10">
@@ -68,7 +68,7 @@ export function GettingStarted() {
              <motion.p className="mt-6 mb-0 text-sm italic opacity-60">
                The daemon is now listening on <code>localhost:9876</code>. It is your swarm's lighthouse.
              </motion.p>
-          </motion.div>
+          </Surface>
         </section>
 
         {/* Semantic Tokens */}
@@ -76,7 +76,7 @@ export function GettingStarted() {
           <motion.div className="flex items-center gap-4">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Cpu className="text-[var(--brand-accent)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">2. Claim Your Identity</motion.h2>
           </motion.div>
 
@@ -100,7 +100,7 @@ export function GettingStarted() {
           <motion.div className="flex items-center gap-4">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Globe className="text-[var(--brand-secondary)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">2. Your First Claim</motion.h2>
           </motion.div>
 
@@ -116,7 +116,7 @@ export function GettingStarted() {
                    <motion.p className="text-sm m-0 opacity-60">Uses <code>pd claim</code> to announce presence.</motion.p>
                 </motion.div>
                 <Badge variant="teal">Active</Badge>
-             </motion.div>
+             </Surface>
              <Surface depth="raised" radius="2xl" className="flex items-center gap-6 p-6">
                 <motion.div className="w-10 h-10 rounded-full bg-[var(--brand-accent)]/10 flex items-center justify-center text-[var(--brand-accent)] font-black">B</motion.div>
                 <motion.div className="flex-1">
@@ -124,7 +124,7 @@ export function GettingStarted() {
                    <motion.p className="text-sm m-0 opacity-60">Connected via <code>pd tunnel</code>.</motion.p>
                 </motion.div>
                 <Badge variant="default">Connected</Badge>
-             </motion.div>
+             </Surface>
           </motion.div>
 
           <motion.div className="pt-12 text-center">

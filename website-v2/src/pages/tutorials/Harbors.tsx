@@ -23,7 +23,7 @@ export function Harbors() {
           <motion.div className="flex items-center gap-4 mb-8">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Shield className="text-[var(--brand-primary)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">Why Harbors Exist</motion.h2>
           </motion.div>
           <motion.p>
@@ -35,12 +35,11 @@ export function Harbors() {
           <motion.p>
             <strong>Harbors</strong> solve this by letting you define exactly what each agent is allowed to do. A harbor is a named permission namespace -- think of it as a scoped role that you assign to a group of agents. Each harbor has a list of capabilities (like <code>code:read</code>, <code>notes:write</code>, <code>file:claim</code>), and agents inside the harbor receive a signed token that proves their permissions. The daemon verifies this token on every request.
           </motion.p>
-          <Surface depth="raised" radius="2xl" className="p-10 border-l-8 border-[var(--brand-secondary)]">
-             <motion.p className="font-bold text-[var(--text-primary)] m-0 mb-4 text-2xl font-display">Soundness by Design:</motion.p>
-             <motion.p className="m-0 text-lg">
-               In Port Daddy v3.7, every harbor operation is verified against a mathematical state machine. If an agent tries to claim a port it doesn't own, the daemon rejects the request instantly.
-             </motion.p>
-          </blockquote>
+          <Surface depth="flat" radius="xl" padding="md" className="border-l-4 border-[var(--brand-secondary)]">
+            <p className="m-0 text-sm" style={{ color: 'var(--text-secondary)' }}>
+              <strong>Soundness by Design:</strong> In Port Daddy v3.7, every harbor operation is verified against a mathematical state machine. If an agent tries to claim a port it doesn't own, the daemon rejects the request instantly.
+            </p>
+          </Surface>
         </section>
 
         {/* Step 1: Creation */}
@@ -48,7 +47,7 @@ export function Harbors() {
           <motion.div className="flex items-center gap-4">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Lock className="text-[var(--brand-accent)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">1. Create a Harbor</motion.h2>
           </motion.div>
 
@@ -72,13 +71,13 @@ export function Harbors() {
                 <motion.p className="text-sm m-0 leading-relaxed text-[var(--text-secondary)]">
                   Allows the agent to read source files and view session notes within the harbor. The agent can use <code>pd session files claim</code> to access files, but only in read mode.
                 </motion.p>
-             </motion.div>
+             </Surface>
              <Surface depth="inset" radius="2xl" padding="none" className="p-8 space-y-4">
                 <Badge variant="gold">Capability: notes:write</Badge>
                 <motion.p className="text-sm m-0 leading-relaxed text-[var(--text-secondary)]">
                   Allows the agent to post status updates and findings to the session timeline. Other agents (including those outside this harbor) can read these notes to see the review results.
                 </motion.p>
-             </motion.div>
+             </Surface>
           </motion.div>
         </section>
 
@@ -87,12 +86,12 @@ export function Harbors() {
           <motion.div className="flex items-center gap-4">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Key className="text-[var(--brand-secondary)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">2. Enter the Harbor</motion.h2>
           </motion.div>
 
           <motion.p>
-            When an agent enters a harbor, the daemon issues a unique **Harbor Card**--an HMAC-signed JWT that proves the agent's identity and permissions.
+            When an agent enters a harbor, the daemon issues a unique <strong>Harbor Card</strong>--an HMAC-signed JWT that proves the agent's identity and permissions.
           </motion.p>
 
           <CodeBlock language="bash">
@@ -147,12 +146,11 @@ Token JTI burned — cannot be reused.`}
             The "JTI burned" message means Port Daddy records the token's unique identifier in a revocation list. Even if someone copies the raw JWT string, it will be rejected because the daemon checks the JTI against the revocation list on every request.
           </motion.p>
 
-          <blockquote className="bg-[var(--surface-raised)] p-10 rounded-[32px] border-l-8 border-[var(--brand-accent)]">
-             <motion.p className="font-bold text-[var(--text-primary)] m-0 mb-4 text-xl font-display">Common Pitfall: Forgetting to Set a TTL</motion.p>
-             <motion.p className="m-0 text-base">
-               If you create a harbor without <code>--ttl</code>, tokens default to 2 hours. For production workflows, always set an explicit TTL that matches the expected duration of the task. A CI pipeline that runs in 10 minutes should use <code>--ttl 15m</code>, not the default.
-             </motion.p>
-          </blockquote>
+          <Surface depth="flat" radius="xl" padding="md" className="border-l-4 border-[var(--brand-secondary)]">
+            <p className="m-0 text-sm" style={{ color: 'var(--text-secondary)' }}>
+              <strong>Common Pitfall: Forgetting to Set a TTL.</strong> If you create a harbor without <code>--ttl</code>, tokens default to 2 hours. For production workflows, always set an explicit TTL that matches the expected duration of the task. A CI pipeline that runs in 10 minutes should use <code>--ttl 15m</code>, not the default.
+            </p>
+          </Surface>
         </section>
 
         {/* When to Use Harbors */}
@@ -214,7 +212,7 @@ Token JTI burned — cannot be reused.`}
               <Zap size={14} className="animate-pulse" />
               Verified Handshake Protocol
            </motion.div>
-        </motion.div>
+        </Surface>
       </motion.div>
     </TutorialLayout>
   )

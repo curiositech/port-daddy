@@ -24,7 +24,7 @@ export function Debugging() {
           <motion.div className="flex items-center gap-4 mb-8">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <AlertTriangle className="text-[var(--status-error)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">The Horror Story</motion.h2>
           </motion.div>
           <motion.p>
@@ -45,7 +45,7 @@ export function Debugging() {
           <motion.div className="flex items-center gap-4">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Search className="text-[var(--brand-primary)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">1. Identify the Squatter</motion.h2>
           </motion.div>
 
@@ -59,25 +59,19 @@ export function Debugging() {
 
           <motion.div className="grid sm:grid-cols-2 gap-8 pt-4">
              <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
-                <motion.div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-                >
+                <Surface depth="inset" radius="xl" padding="none" className="w-10 h-10 flex items-center justify-center">
                    <Activity size={20} className="text-[var(--brand-secondary)]" />
-                </motion.div>
+                </Surface>
                 <motion.h3 className="text-xl font-display font-black m-0">Live Health</motion.h3>
                 <motion.p className="text-sm text-[var(--text-secondary)] m-0">Port Daddy checks if the process is actually responding, not just squatting on the socket.</motion.p>
-             </motion.div>
+             </Surface>
              <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
-                <motion.div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-                >
+                <Surface depth="inset" radius="xl" padding="none" className="w-10 h-10 flex items-center justify-center">
                    <Shield size={20} className="text-[var(--brand-secondary)]" />
-                </motion.div>
+                </Surface>
                 <motion.h3 className="text-xl font-display font-black m-0">Owner Track</motion.h3>
                 <motion.p className="text-sm text-[var(--text-secondary)] m-0">See exactly which agent or harbor created the claim to avoid accidental kills.</motion.p>
-             </motion.div>
+             </Surface>
           </motion.div>
         </section>
 
@@ -86,7 +80,7 @@ export function Debugging() {
           <motion.div className="flex items-center gap-4">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Zap className="text-[var(--brand-secondary)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">2. Heal the Harbor</motion.h2>
           </motion.div>
 
@@ -114,7 +108,7 @@ export function Debugging() {
                    <motion.span className="text-[var(--status-error)] font-bold">UNHEALTHY (Connection Refused)</motion.span>
                 </motion.div>
              </motion.div>
-          </motion.div>
+          </Surface>
         </section>
 
         {/* Support CTA */}
@@ -134,7 +128,7 @@ export function Debugging() {
                 <ChevronRight size={16} />
               </motion.button>
            </Link>
-        </motion.div>
+        </Surface>
       </motion.div>
     </TutorialLayout>
   )

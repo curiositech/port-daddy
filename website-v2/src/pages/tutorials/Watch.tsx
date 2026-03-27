@@ -23,7 +23,7 @@ export function Watch() {
           <motion.div className="flex items-center gap-4 mb-8">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Eye className="text-[var(--brand-accent)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">Beyond Polling</motion.h2>
           </motion.div>
           <motion.p>
@@ -31,25 +31,19 @@ export function Watch() {
           </motion.p>
           <motion.div className="grid sm:grid-cols-2 gap-8 pt-4">
              <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
-                <motion.div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-                >
+                <Surface depth="inset" radius="xl" padding="none" className="w-10 h-10 flex items-center justify-center">
                    <Zap size={20} className="text-[var(--brand-secondary)]" />
-                </motion.div>
+                </Surface>
                 <motion.h3 className="text-xl font-display font-black m-0">Sub-50ms Reaction</motion.h3>
                 <motion.p className="text-sm text-[var(--text-secondary)] m-0">The moment an agent publishes a note or a message, your watcher script is spawned by the daemon.</motion.p>
-             </motion.div>
+             </Surface>
              <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
-                <motion.div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-                >
+                <Surface depth="inset" radius="xl" padding="none" className="w-10 h-10 flex items-center justify-center">
                    <Layers size={20} className="text-[var(--brand-secondary)]" />
-                </motion.div>
+                </Surface>
                 <motion.h3 className="text-xl font-display font-black m-0">Scriptable Swarms</motion.h3>
                 <motion.p className="text-sm text-[var(--text-secondary)] m-0">Use any local binary or shell script as a reactive "agent" that handles infrastructure tasks.</motion.p>
-             </motion.div>
+             </Surface>
           </motion.div>
         </section>
 
@@ -58,7 +52,7 @@ export function Watch() {
           <motion.div className="flex items-center gap-4">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Terminal className="text-[var(--brand-primary)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">1. Summon a Watcher</motion.h2>
           </motion.div>
 
@@ -84,7 +78,7 @@ export function Watch() {
           <motion.div className="flex items-center gap-4">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Share2 className="text-[var(--brand-secondary)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">2. Feedback Loops</motion.h2>
           </motion.div>
 
@@ -103,7 +97,7 @@ export function Watch() {
                       <motion.span className="text-sm font-bold">Agent 'coder' publishes "fix-done"</motion.span>
                    </motion.div>
                    <Badge variant="teal">Event</Badge>
-                </motion.div>
+                </Surface>
                 <motion.div className="flex justify-center"><ArrowDown size={16} className="opacity-20" /></motion.div>
                 <Surface depth="raised" radius="2xl" className="p-4 flex items-center justify-between">
                    <motion.div className="flex items-center gap-4">
@@ -111,7 +105,7 @@ export function Watch() {
                       <motion.span className="text-sm font-bold text-[var(--brand-primary)]">Watcher triggers './run-ci.sh'</motion.span>
                    </motion.div>
                    <Badge variant="gold">Action</Badge>
-                </motion.div>
+                </Surface>
                 <motion.div className="flex justify-center"><ArrowDown size={16} className="opacity-20" /></motion.div>
                 <Surface depth="inset" radius="2xl" padding="none" className="p-4 flex items-center justify-between opacity-60">
                    <motion.div className="flex items-center gap-4">
@@ -119,9 +113,9 @@ export function Watch() {
                       <motion.span className="text-sm font-bold">CI publishes "tests-pass" to Swarm Radio</motion.span>
                    </motion.div>
                    <Badge variant="default">Loop</Badge>
-                </motion.div>
+                </Surface>
              </motion.div>
-          </motion.div>
+          </Surface>
         </section>
 
         {/* Vision Callout */}
@@ -138,7 +132,7 @@ export function Watch() {
               <Shield size={14} className="animate-pulse" />
               Anchor Protocol v4 Secure
            </motion.div>
-        </motion.div>
+        </Surface>
       </motion.div>
     </TutorialLayout>
   )

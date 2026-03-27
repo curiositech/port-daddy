@@ -23,7 +23,7 @@ export function Inbox() {
           <motion.div className="flex items-center gap-4 mb-8">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Mail className="text-[var(--brand-secondary)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">Beyond Stdout</motion.h2>
           </motion.div>
           <motion.p>
@@ -31,25 +31,19 @@ export function Inbox() {
           </motion.p>
           <motion.div className="grid sm:grid-cols-2 gap-8 pt-4">
              <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
-                <motion.div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-                >
+                <Surface depth="inset" radius="xl" padding="none" className="w-10 h-10 flex items-center justify-center">
                    <Send size={20} className="text-[var(--brand-secondary)]" />
-                </motion.div>
+                </Surface>
                 <motion.h3 className="text-xl font-display font-black m-0">Direct Signals</motion.h3>
                 <motion.p className="text-sm text-[var(--text-secondary)] m-0">Send targeted JSON payloads to a specific agent identity without broadcasting to the whole mesh.</motion.p>
-             </motion.div>
+             </Surface>
              <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
-                <motion.div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-                >
+                <Surface depth="inset" radius="xl" padding="none" className="w-10 h-10 flex items-center justify-center">
                    <Activity size={20} className="text-[var(--brand-accent)]" />
-                </motion.div>
+                </Surface>
                 <motion.h3 className="text-xl font-display font-black m-0">Radio Stream</motion.h3>
                 <motion.p className="text-sm text-[var(--text-secondary)] m-0">Subscribe to any inbox live via SSE to monitor agent progress in your terminal or dashboard.</motion.p>
-             </motion.div>
+             </Surface>
           </motion.div>
         </section>
 
@@ -58,7 +52,7 @@ export function Inbox() {
           <motion.div className="flex items-center gap-4">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Zap className="text-[var(--brand-primary)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">1. Send a Signal</motion.h2>
           </motion.div>
 
@@ -74,7 +68,7 @@ export function Inbox() {
              <motion.p className="m-0 text-sm italic opacity-60 font-medium">
                The daemon ensures that the message is delivered even if the agent is currently busy, acting as a high-fidelity buffer between processes.
              </motion.p>
-          </blockquote>
+          </Surface>
         </section>
 
         {/* Step 2: Watching */}
@@ -82,7 +76,7 @@ export function Inbox() {
           <motion.div className="flex items-center gap-4">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Terminal className="text-[var(--brand-secondary)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">2. Watch the Stream</motion.h2>
           </motion.div>
 
@@ -101,23 +95,23 @@ export function Inbox() {
                 <Surface depth="inset" radius="2xl" padding="none" className="flex-1 p-6 text-center">
                    <Badge variant="teal" className="mb-2">Agent 'alpha'</Badge>
                    <motion.p className="text-[10px] text-[var(--text-muted)] font-mono">pd msg send...</motion.p>
-                </motion.div>
+                </Surface>
                 <motion.div className="shrink-0">
                    <ArrowRight size={20} className="text-[var(--brand-primary)] animate-pulse" />
                 </motion.div>
                 <Surface depth="raised" radius="2xl" className="flex-1 p-6 text-center">
                    <Badge variant="gold" className="mb-2">Daemon Inbox</Badge>
                    <motion.p className="text-[10px] text-[var(--text-muted)] font-mono">Persistent Queue</motion.p>
-                </motion.div>
+                </Surface>
                 <motion.div className="shrink-0">
                    <ArrowRight size={20} className="opacity-40" />
                 </motion.div>
                 <Surface depth="inset" radius="2xl" padding="none" className="flex-1 p-6 text-center opacity-60">
                    <Badge variant="default" className="mb-2">Agent 'beta'</Badge>
                    <motion.p className="text-[10px] text-[var(--text-muted)] font-mono">pd sub...</motion.p>
-                </motion.div>
+                </Surface>
              </motion.div>
-          </motion.div>
+          </Surface>
         </section>
 
         {/* Vision Callout */}
@@ -134,7 +128,7 @@ export function Inbox() {
               <Shield size={14} className="animate-pulse" />
               Anchor Protocol v4 Secure
            </motion.div>
-        </motion.div>
+        </Surface>
       </motion.div>
     </TutorialLayout>
   )

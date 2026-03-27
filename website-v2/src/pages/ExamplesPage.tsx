@@ -121,7 +121,7 @@ const EXAMPLES: Example[] = [
       'pd dns resolve myapp:api'
     ],
     icon: Search,
-    color: 'var(--p-green-400)'
+    color: 'var(--status-success)'
   },
   {
     id: 'distributed-locks',

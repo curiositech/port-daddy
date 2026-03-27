@@ -1,4 +1,5 @@
 import { Badge } from '@/components/ui/Badge'
+import { Surface } from '@/components/ui/Surface'
 import { Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { DocsCodeBlock as CodeBlock } from './DocsCodeBlock'
@@ -76,10 +77,8 @@ export function CommandPage({
       {usagePatterns && usagePatterns.length > 0 && (
         <div className="space-y-3">
           <h2 className="text-lg font-semibold text-[var(--text-primary)]">Usage Patterns</h2>
-          <div
-            className="p-5 rounded-2xl"
-            style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-          >
+          <Surface depth="raised" radius="2xl" className="p-5">
+
             <ul className="space-y-2">
               {usagePatterns.map((pattern, i) => (
                 <li key={i} className="font-mono text-sm text-[var(--text-secondary)]">
@@ -87,7 +86,7 @@ export function CommandPage({
                 </li>
               ))}
             </ul>
-          </div>
+          </Surface>
         </div>
       )}
 
@@ -95,17 +94,15 @@ export function CommandPage({
       {flags && flags.length > 0 && (
         <div className="space-y-3">
           <h2 className="text-lg font-semibold text-[var(--text-primary)]">Flags</h2>
-          <div
-            className="rounded-2xl overflow-hidden divide-y divide-[var(--border-subtle)]"
-            style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-          >
+          <Surface depth="raised" radius="2xl" padding="none" className="overflow-hidden divide-y divide-[var(--border-subtle)]">
+
             {flags.map((flag, i) => (
               <div key={i} className="p-4">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">{flag.flag}</code>
                 <p className="text-sm text-[var(--text-muted)] mt-1">{flag.description}</p>
               </div>
             ))}
-          </div>
+          </Surface>
         </div>
       )}
 
@@ -115,20 +112,25 @@ export function CommandPage({
           <h2 className="text-lg font-semibold text-[var(--text-primary)]">Subcommands</h2>
           <div className="grid gap-2">
             {subcommands.map((sub, i) => (
-              <Link
+              <Surface
                 key={i}
-                to={sub.href}
-                className="flex items-center justify-between p-4 rounded-2xl transition-all"
-                style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-                onMouseEnter={(e) => { e.currentTarget.style.boxShadow = 'var(--shadow-flat)' }}
-                onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'var(--shadow-raised)' }}
+                depth="raised"
+                radius="2xl"
+                padding="none"
+                interactive
+                className="transition-all"
               >
-                <div>
-                  <code className="text-sm font-mono text-[var(--brand-primary)]">{sub.name}</code>
-                  <p className="text-sm text-[var(--text-muted)] mt-1">{sub.description}</p>
-                </div>
-                <ArrowLeft size={16} className="text-[var(--text-muted)] rotate-180" />
-              </Link>
+                <Link
+                  to={sub.href}
+                  className="flex items-center justify-between p-4 no-underline"
+                >
+                  <div>
+                    <code className="text-sm font-mono text-[var(--brand-primary)]">{sub.name}</code>
+                    <p className="text-sm text-[var(--text-muted)] mt-1">{sub.description}</p>
+                  </div>
+                  <ArrowLeft size={16} className="text-[var(--text-muted)] rotate-180" />
+                </Link>
+              </Surface>
             ))}
           </div>
         </div>
