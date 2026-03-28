@@ -1,0 +1,1322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fleet Live</title>
+  <style>
+    :root {
+      --bg: #1a1a2e;
+      --surface: #16213e;
+      --surface-hover: #1a2744;
+      --surface-deep: #0f1729;
+      --border: #2a3a5e;
+      --border-subtle: #1e2d4a;
+      --text: #e0e0e0;
+      --text-dim: #7889a0;
+      --text-muted: #4a5a70;
+      --accent: #4a9d9e;
+      --accent-glow: rgba(74, 157, 158, 0.2);
+      --accent-dim: rgba(74, 157, 158, 0.08);
+      --red: #e74c3c;
+      --red-dim: rgba(231, 76, 60, 0.15);
+      --green: #2ecc71;
+      --green-dim: rgba(46, 204, 113, 0.15);
+      --orange: #e67e22;
+      --orange-dim: rgba(230, 126, 34, 0.15);
+      --blue: #3498db;
+      --yellow: #f0a500;
+      --purple: #9b59b6;
+      --teal: #1abc9c;
+      --grey: #7f8c8d;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      width: 400px;
+      max-height: 600px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      -webkit-font-smoothing: antialiased;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    /* ===================== HEADER ===================== */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: var(--surface-deep);
+      border-bottom: 1px solid var(--border-subtle);
+      flex-shrink: 0;
+      min-height: 40px;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .header-logo {
+      width: 18px;
+      height: 18px;
+      position: relative;
+    }
+
+    /* Anchor SVG icon */
+    .header-logo svg {
+      width: 18px;
+      height: 18px;
+      fill: var(--accent);
+    }
+
+    .header-title {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 2.5px;
+      color: var(--accent);
+      text-transform: uppercase;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .conn-status {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: 0.5px;
+    }
+
+    .conn-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 6px rgba(46, 204, 113, 0.5);
+      transition: all 0.4s ease;
+    }
+
+    .conn-dot.disconnected {
+      background: var(--red);
+      box-shadow: 0 0 6px rgba(231, 76, 60, 0.5);
+      animation: none;
+    }
+
+    .conn-dot.connected {
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { box-shadow: 0 0 4px rgba(46, 204, 113, 0.3); }
+      50% { box-shadow: 0 0 10px rgba(46, 204, 113, 0.7); }
+    }
+
+    .uptime-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ===================== AGENT RIBBON ===================== */
+    .agent-ribbon {
+      display: flex;
+      gap: 6px;
+      padding: 8px 14px;
+      overflow-x: auto;
+      background: var(--surface-deep);
+      border-bottom: 1px solid var(--border-subtle);
+      flex-shrink: 0;
+      scrollbar-width: none;
+    }
+    .agent-ribbon::-webkit-scrollbar { display: none; }
+
+    .agent-chip {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 9px 3px 7px;
+      border-radius: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border-subtle);
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-dim);
+      white-space: nowrap;
+      cursor: default;
+      transition: all 0.3s ease;
+      flex-shrink: 0;
+    }
+
+    .agent-chip.active {
+      border-color: var(--chip-color, var(--accent));
+      background: color-mix(in srgb, var(--chip-color, var(--accent)) 8%, var(--surface));
+      color: var(--text);
+      box-shadow: 0 0 8px color-mix(in srgb, var(--chip-color, var(--accent)) 20%, transparent);
+    }
+
+    .agent-chip-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--chip-color, var(--text-muted));
+      flex-shrink: 0;
+      transition: all 0.3s ease;
+    }
+
+    .agent-chip.active .agent-chip-dot {
+      box-shadow: 0 0 5px var(--chip-color, var(--accent));
+    }
+
+    /* ===================== STATS STRIP ===================== */
+    .stats-strip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1px;
+      background: var(--border-subtle);
+      border-bottom: 1px solid var(--border-subtle);
+      flex-shrink: 0;
+    }
+
+    .stat-cell {
+      background: var(--surface-deep);
+      padding: 7px 10px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+      line-height: 1.2;
+    }
+
+    .stat-label {
+      font-size: 9px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-top: 1px;
+    }
+
+    /* ===================== FILTER TABS ===================== */
+    .filter-bar {
+      display: flex;
+      gap: 2px;
+      padding: 6px 14px;
+      background: var(--surface-deep);
+      border-bottom: 1px solid var(--border-subtle);
+      flex-shrink: 0;
+    }
+
+    .filter-btn {
+      padding: 3px 10px;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text-dim);
+      font-size: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: inherit;
+      letter-spacing: 0.3px;
+    }
+
+    .filter-btn:hover {
+      color: var(--text);
+      background: var(--surface);
+    }
+
+    .filter-btn.active {
+      color: var(--accent);
+      background: var(--accent-dim);
+      border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+    }
+
+    .filter-spacer {
+      flex: 1;
+    }
+
+    .feed-count {
+      font-size: 10px;
+      color: var(--text-muted);
+      align-self: center;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ===================== LIVE FEED ===================== */
+    .feed-container {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      scroll-behavior: smooth;
+    }
+
+    .feed-container::-webkit-scrollbar {
+      width: 4px;
+    }
+    .feed-container::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .feed-container::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 2px;
+    }
+
+    .feed-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      color: var(--text-muted);
+      gap: 8px;
+    }
+
+    .feed-empty-icon {
+      width: 32px;
+      height: 32px;
+      border: 2px solid var(--border);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .feed-empty-icon::after {
+      content: '';
+      width: 12px;
+      height: 2px;
+      background: var(--border);
+      border-radius: 1px;
+    }
+
+    .feed-empty-text {
+      font-size: 12px;
+    }
+
+    /* ---- Feed Items ---- */
+    .feed-item {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border-subtle);
+      transition: background 0.2s ease;
+      animation: slide-in 0.3s ease-out;
+      position: relative;
+    }
+
+    .feed-item:hover {
+      background: var(--surface);
+    }
+
+    .feed-item.is-new {
+      animation: slide-in-glow 0.5s ease-out;
+    }
+
+    @keyframes slide-in {
+      from { opacity: 0; transform: translateY(-8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes slide-in-glow {
+      0% { opacity: 0; transform: translateY(-12px); background: var(--accent-dim); }
+      40% { background: var(--accent-dim); }
+      100% { opacity: 1; transform: translateY(0); background: transparent; }
+    }
+
+    /* age-based opacity */
+    .feed-item.age-old { opacity: 0.55; }
+    .feed-item.age-ancient { opacity: 0.35; }
+
+    .feed-item-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+
+    .feed-item-agent-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .feed-item-agent {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text);
+      flex-shrink: 0;
+    }
+
+    .feed-item-type {
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      padding: 1px 5px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    .type-note {
+      color: var(--blue);
+      background: rgba(52, 152, 219, 0.12);
+    }
+    .type-handoff {
+      color: var(--orange);
+      background: var(--orange-dim);
+    }
+    .type-session-start {
+      color: var(--green);
+      background: var(--green-dim);
+    }
+    .type-session-end {
+      color: var(--text-dim);
+      background: rgba(120, 137, 160, 0.12);
+    }
+    .type-claim {
+      color: var(--accent);
+      background: var(--accent-dim);
+    }
+    .type-violation {
+      color: var(--red);
+      background: var(--red-dim);
+    }
+    .type-agent {
+      color: var(--purple);
+      background: rgba(155, 89, 182, 0.12);
+    }
+    .type-sugar {
+      color: var(--yellow);
+      background: rgba(240, 165, 0, 0.12);
+    }
+
+    .feed-item-time {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-left: auto;
+      flex-shrink: 0;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .feed-item-content {
+      font-size: 12px;
+      color: var(--text-dim);
+      line-height: 1.45;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+
+    .feed-item-content.expanded {
+      -webkit-line-clamp: unset;
+      display: block;
+    }
+
+    .feed-item-session-purpose {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 3px;
+      font-style: italic;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* ---- Session cards in feed ---- */
+    .feed-item.session-card {
+      cursor: pointer;
+    }
+
+    .feed-item.session-card .session-status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .session-status-dot.active {
+      background: var(--green);
+      box-shadow: 0 0 5px rgba(46, 204, 113, 0.4);
+      animation: session-pulse 2.5s ease-in-out infinite;
+    }
+
+    .session-status-dot.completed {
+      background: var(--text-muted);
+    }
+
+    @keyframes session-pulse {
+      0%, 100% { box-shadow: 0 0 3px rgba(46, 204, 113, 0.2); }
+      50% { box-shadow: 0 0 8px rgba(46, 204, 113, 0.6); }
+    }
+
+    .session-notes-expand {
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px solid var(--border-subtle);
+      display: none;
+    }
+
+    .session-notes-expand.open {
+      display: block;
+      animation: expand-in 0.25s ease-out;
+    }
+
+    @keyframes expand-in {
+      from { opacity: 0; max-height: 0; }
+      to { opacity: 1; max-height: 200px; }
+    }
+
+    .session-note-item {
+      font-size: 11px;
+      color: var(--text-dim);
+      padding: 3px 0 3px 10px;
+      border-left: 2px solid var(--border);
+      margin-bottom: 3px;
+    }
+
+    .session-note-item .note-time {
+      font-size: 9px;
+      color: var(--text-muted);
+    }
+
+    /* ===================== SESSIONS SIDEBAR ===================== */
+    .sessions-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 14px;
+      background: var(--surface-deep);
+      border-top: 1px solid var(--border-subtle);
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background 0.2s ease;
+    }
+    .sessions-toggle:hover { background: var(--surface); }
+
+    .sessions-toggle-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-dim);
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+    }
+
+    .sessions-toggle-arrow {
+      font-size: 10px;
+      color: var(--text-muted);
+      transition: transform 0.2s ease;
+      /* CSS triangle instead of emoji */
+      width: 0;
+      height: 0;
+      border-left: 4px solid transparent;
+      border-right: 4px solid transparent;
+      border-top: 5px solid var(--text-muted);
+    }
+
+    .sessions-toggle-arrow.open {
+      transform: rotate(180deg);
+    }
+
+    .sessions-badge {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--green);
+      background: var(--green-dim);
+      padding: 1px 6px;
+      border-radius: 8px;
+    }
+
+    .sessions-panel {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+      background: var(--surface-deep);
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .sessions-panel.open {
+      max-height: 220px;
+      overflow-y: auto;
+    }
+
+    .sessions-panel::-webkit-scrollbar { width: 4px; }
+    .sessions-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .session-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 6px 14px;
+      border-bottom: 1px solid var(--border-subtle);
+      transition: background 0.15s ease;
+      cursor: default;
+    }
+    .session-row:hover { background: var(--surface); }
+    .session-row:last-child { border-bottom: none; }
+
+    .session-row-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 4px;
+    }
+
+    .session-row-dot.active {
+      background: var(--green);
+      box-shadow: 0 0 4px rgba(46, 204, 113, 0.4);
+      animation: session-pulse 2.5s ease-in-out infinite;
+    }
+    .session-row-dot.completed { background: var(--text-muted); }
+
+    .session-row-body { flex: 1; min-width: 0; }
+
+    .session-row-purpose {
+      font-size: 11px;
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .session-row.completed .session-row-purpose { color: var(--text-dim); }
+
+    .session-row-meta {
+      font-size: 9px;
+      color: var(--text-muted);
+      display: flex;
+      gap: 8px;
+      margin-top: 1px;
+    }
+
+    .session-row-age {
+      font-size: 10px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+      margin-top: 3px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ===================== LOADING STATE ===================== */
+    .loading-screen {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: var(--text-dim);
+    }
+
+    .loading-spinner {
+      width: 24px;
+      height: 24px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      font-size: 11px;
+      letter-spacing: 0.5px;
+    }
+
+    /* ===================== SCANLINES OVERLAY ===================== */
+    body::after {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      pointer-events: none;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.03) 2px,
+        rgba(0, 0, 0, 0.03) 4px
+      );
+      z-index: 999;
+    }
+
+    /* ===================== TIMESTAMP MARKER ===================== */
+    .time-marker {
+      padding: 4px 14px;
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      background: var(--surface-deep);
+      border-bottom: 1px solid var(--border-subtle);
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+
+    /* ===================== RESPONSIVE ===================== */
+    @media (max-width: 400px) {
+      body { width: 100vw; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-left">
+      <div class="header-logo">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2L12 5M12 5C10 5 8 6.5 8 9C8 11 9.5 12.5 12 13C14.5 12.5 16 11 16 9C16 6.5 14 5 12 5ZM12 13L12 19M8 17L16 17M5 21L19 21M12 19L12 21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        </svg>
+      </div>
+      <span class="header-title">Fleet Live</span>
+    </div>
+    <div class="header-right">
+      <span class="uptime-label" id="uptime"></span>
+      <div class="conn-status">
+        <div class="conn-dot disconnected" id="conn-dot"></div>
+        <span id="conn-label">...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- AGENT RIBBON -->
+  <div class="agent-ribbon" id="agent-ribbon"></div>
+
+  <!-- STATS STRIP -->
+  <div class="stats-strip">
+    <div class="stat-cell">
+      <div class="stat-value" id="stat-sessions">--</div>
+      <div class="stat-label">Sessions</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-value" id="stat-services">--</div>
+      <div class="stat-label">Services</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-value" id="stat-notes">--</div>
+      <div class="stat-label">Notes</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-value" id="stat-active">--</div>
+      <div class="stat-label">Active</div>
+    </div>
+  </div>
+
+  <!-- FILTER TABS -->
+  <div class="filter-bar">
+    <button class="filter-btn active" data-filter="all">All</button>
+    <button class="filter-btn" data-filter="notes">Notes</button>
+    <button class="filter-btn" data-filter="activity">Activity</button>
+    <button class="filter-btn" data-filter="sessions">Sessions</button>
+    <div class="filter-spacer"></div>
+    <span class="feed-count" id="feed-count"></span>
+  </div>
+
+  <!-- LIVE FEED -->
+  <div class="feed-container" id="feed-container">
+    <div class="loading-screen" id="loading">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">Connecting to daemon...</div>
+    </div>
+  </div>
+
+  <!-- SESSIONS SIDEBAR TOGGLE -->
+  <div class="sessions-toggle" id="sessions-toggle">
+    <div class="sessions-toggle-left">
+      <span>Sessions</span>
+      <span class="sessions-badge" id="sessions-active-badge">0</span>
+    </div>
+    <div class="sessions-toggle-arrow" id="sessions-arrow"></div>
+  </div>
+
+  <!-- SESSIONS PANEL -->
+  <div class="sessions-panel" id="sessions-panel"></div>
+
+<script>
+(function() {
+  'use strict';
+
+  // ===== CONFIG =====
+  const BASE = 'http://localhost:9876';
+  const FLEET_AGENTS = [
+    { name: 'gardener',      color: '#7f8c8d' },
+    { name: 'qa',            color: '#e74c3c' },
+    { name: 'test-hunter',   color: '#e67e22' },
+    { name: 'documentarian', color: '#3498db' },
+    { name: 'simplifier',    color: '#1abc9c' },
+    { name: 'cartographer',  color: '#2ecc71' },
+    { name: 'spark',         color: '#f0a500' },
+    { name: 'spider',        color: '#9b59b6' },
+  ];
+
+  // Interesting activity types (skip daemon noise)
+  const INTERESTING_ACTIVITY = new Set([
+    'service.claim', 'session.start', 'session.end',
+    'security.violation', 'agent.register', 'agent.unregister',
+    'sugar_begin', 'sugar_done',
+    'lock.acquire', 'lock.release',
+    'pheromone.spray', 'note.create',
+  ]);
+
+  // ===== STATE =====
+  let allFeedItems = [];
+  let allSessions = [];
+  let sessionNotesCache = {};  // sessionId -> [notes]
+  let currentFilter = 'all';
+  let sseSource = null;
+  let daemonStartTime = null;
+  let uptimeInterval = null;
+
+  // ===== DOM REFS =====
+  const $connDot = document.getElementById('conn-dot');
+  const $connLabel = document.getElementById('conn-label');
+  const $uptime = document.getElementById('uptime');
+  const $ribbon = document.getElementById('agent-ribbon');
+  const $feed = document.getElementById('feed-container');
+  const $loading = document.getElementById('loading');
+  const $statSessions = document.getElementById('stat-sessions');
+  const $statServices = document.getElementById('stat-services');
+  const $statNotes = document.getElementById('stat-notes');
+  const $statActive = document.getElementById('stat-active');
+  const $feedCount = document.getElementById('feed-count');
+  const $sessionsToggle = document.getElementById('sessions-toggle');
+  const $sessionsArrow = document.getElementById('sessions-arrow');
+  const $sessionsPanel = document.getElementById('sessions-panel');
+  const $sessionsActiveBadge = document.getElementById('sessions-active-badge');
+
+  // ===== UTILITIES =====
+  function relativeTime(ts) {
+    const now = Date.now();
+    const diff = now - ts;
+    if (diff < 0) return 'just now';
+    const seconds = Math.floor(diff / 1000);
+    if (seconds < 10) return 'just now';
+    if (seconds < 60) return seconds + 's ago';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return minutes + 'm ago';
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return hours + 'h ago';
+    const days = Math.floor(hours / 24);
+    if (days < 30) return days + 'd ago';
+    return Math.floor(days / 30) + 'mo ago';
+  }
+
+  function ageClass(ts) {
+    const diff = Date.now() - ts;
+    const days = diff / (1000 * 60 * 60 * 24);
+    if (days > 14) return 'age-ancient';
+    if (days > 3) return 'age-old';
+    return '';
+  }
+
+  function formatUptime(ms) {
+    if (!ms || ms < 0) return '';
+    const s = Math.floor(ms / 1000);
+    const m = Math.floor(s / 60);
+    const h = Math.floor(m / 60);
+    const d = Math.floor(h / 24);
+    if (d > 0) return d + 'd ' + (h % 24) + 'h';
+    if (h > 0) return h + 'h ' + (m % 60) + 'm';
+    if (m > 0) return m + 'm ' + (s % 60) + 's';
+    return s + 's';
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function agentColor(agentId) {
+    if (!agentId) return '#4a5a70';
+    const lower = agentId.toLowerCase();
+    for (const a of FLEET_AGENTS) {
+      if (lower.includes(a.name)) return a.color;
+    }
+    // Hash-based color for unknown agents
+    let hash = 0;
+    for (let i = 0; i < agentId.length; i++) {
+      hash = agentId.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const hue = Math.abs(hash) % 360;
+    return `hsl(${hue}, 50%, 55%)`;
+  }
+
+  function agentDisplayName(agentId) {
+    if (!agentId) return 'system';
+    // Check if it maps to a fleet agent
+    const lower = agentId.toLowerCase();
+    for (const a of FLEET_AGENTS) {
+      if (lower.includes(a.name)) return a.name;
+    }
+    // Truncate long agent IDs
+    if (agentId.length > 20) {
+      return agentId.substring(0, 16) + '...';
+    }
+    return agentId;
+  }
+
+  function typeInfo(item) {
+    switch (item.feedType) {
+      case 'note':
+        if (item.type === 'handoff') return { label: 'handoff', cls: 'type-handoff' };
+        return { label: 'note', cls: 'type-note' };
+      case 'activity':
+        if (item.type === 'security.violation') return { label: 'violation', cls: 'type-violation' };
+        if (item.type === 'service.claim') return { label: 'claim', cls: 'type-claim' };
+        if (item.type === 'session.start') return { label: 'start', cls: 'type-session-start' };
+        if (item.type === 'session.end') return { label: 'end', cls: 'type-session-end' };
+        if (item.type.startsWith('agent.')) return { label: 'agent', cls: 'type-agent' };
+        if (item.type.startsWith('sugar')) return { label: 'sugar', cls: 'type-sugar' };
+        if (item.type.startsWith('lock.')) return { label: 'lock', cls: 'type-claim' };
+        return { label: item.type.split('.').pop(), cls: 'type-note' };
+      case 'session':
+        if (item.status === 'active') return { label: 'active', cls: 'type-session-start' };
+        return { label: 'completed', cls: 'type-session-end' };
+      default:
+        return { label: 'event', cls: 'type-note' };
+    }
+  }
+
+  // ===== FETCH HELPERS =====
+  async function fetchJson(path) {
+    try {
+      const res = await fetch(BASE + path);
+      if (!res.ok) throw new Error(res.statusText);
+      return await res.json();
+    } catch (e) {
+      console.warn('Fetch failed:', path, e.message);
+      return null;
+    }
+  }
+
+  // ===== DATA LOADING =====
+  async function loadAll() {
+    const [notesData, sessionsData, activityData, servicesData, agentsData, spawnData] =
+      await Promise.all([
+        fetchJson('/notes?limit=50'),
+        fetchJson('/sessions'),
+        fetchJson('/activity?limit=200'),
+        fetchJson('/services'),
+        fetchJson('/agents'),
+        fetchJson('/spawn'),
+      ]);
+
+    // Build feed items
+    const items = [];
+
+    // Notes
+    if (notesData && notesData.notes) {
+      for (const n of notesData.notes) {
+        items.push({
+          id: 'note-' + n.id,
+          feedType: 'note',
+          type: n.type || 'note',
+          timestamp: n.createdAt,
+          content: n.content,
+          agentId: null,
+          sessionPurpose: n.sessionPurpose,
+          sessionId: n.sessionId,
+        });
+      }
+    }
+
+    // Activity (filtered)
+    if (activityData && activityData.entries) {
+      // Find daemon start time from most recent daemon.start
+      for (const e of activityData.entries) {
+        if (e.type === 'daemon.start') {
+          daemonStartTime = e.timestamp;
+          break;
+        }
+      }
+      for (const e of activityData.entries) {
+        if (INTERESTING_ACTIVITY.has(e.type)) {
+          items.push({
+            id: 'activity-' + e.id,
+            feedType: 'activity',
+            type: e.type,
+            timestamp: e.timestamp,
+            content: e.details || '',
+            agentId: e.agentId,
+            targetId: e.targetId,
+            metadata: e.metadata,
+          });
+        }
+      }
+    }
+
+    // Sessions as feed items (start events)
+    allSessions = (sessionsData && sessionsData.sessions) || [];
+    for (const s of allSessions) {
+      items.push({
+        id: 'session-' + s.id,
+        feedType: 'session',
+        type: 'session',
+        timestamp: s.createdAt,
+        content: s.purpose || 'Unnamed session',
+        agentId: s.agentId,
+        status: s.status,
+        sessionId: s.id,
+        completedAt: s.completedAt,
+      });
+    }
+
+    // Deduplicate by id and sort
+    const seen = new Set();
+    allFeedItems = items.filter(i => {
+      if (seen.has(i.id)) return false;
+      seen.add(i.id);
+      return true;
+    }).sort((a, b) => b.timestamp - a.timestamp);
+
+    // Update stats
+    const activeCount = allSessions.filter(s => s.status === 'active').length;
+    $statSessions.textContent = allSessions.length;
+    $statServices.textContent = (servicesData && servicesData.count) || 0;
+    $statNotes.textContent = (notesData && notesData.notes && notesData.notes.length) || 0;
+    $statActive.textContent = activeCount;
+    $sessionsActiveBadge.textContent = activeCount;
+
+    // Update agent ribbon
+    const activeAgents = new Set();
+    const registeredAgents = (agentsData && agentsData.agents) || [];
+    const spawnedAgents = (spawnData && spawnData.agents) || [];
+    for (const a of registeredAgents) activeAgents.add(a.id);
+    for (const a of spawnedAgents) activeAgents.add(a.id || a.name);
+    // Also consider agents from active sessions
+    for (const s of allSessions) {
+      if (s.status === 'active' && s.agentId) activeAgents.add(s.agentId);
+    }
+    renderRibbon(activeAgents);
+
+    // Render
+    $loading.style.display = 'none';
+    renderFeed();
+    renderSessionsPanel();
+    startUptimeTimer();
+  }
+
+  // ===== RENDERING =====
+  function renderRibbon(activeAgentIds) {
+    $ribbon.innerHTML = '';
+    for (const agent of FLEET_AGENTS) {
+      const isActive = [...activeAgentIds].some(id =>
+        id.toLowerCase().includes(agent.name)
+      );
+      const chip = document.createElement('div');
+      chip.className = 'agent-chip' + (isActive ? ' active' : '');
+      chip.style.setProperty('--chip-color', agent.color);
+      chip.innerHTML =
+        '<div class="agent-chip-dot" style="background:' + agent.color + '"></div>' +
+        '<span>' + agent.name + '</span>';
+      $ribbon.appendChild(chip);
+    }
+  }
+
+  function renderFeed() {
+    // Filter
+    let filtered = allFeedItems;
+    if (currentFilter === 'notes') {
+      filtered = filtered.filter(i => i.feedType === 'note');
+    } else if (currentFilter === 'activity') {
+      filtered = filtered.filter(i => i.feedType === 'activity');
+    } else if (currentFilter === 'sessions') {
+      filtered = filtered.filter(i => i.feedType === 'session');
+    }
+
+    $feedCount.textContent = filtered.length + ' items';
+
+    if (filtered.length === 0) {
+      $feed.innerHTML =
+        '<div class="feed-empty">' +
+        '<div class="feed-empty-icon"></div>' +
+        '<div class="feed-empty-text">No items match this filter</div>' +
+        '</div>';
+      return;
+    }
+
+    // Group by time periods for sticky headers
+    const groups = groupByTimePeriod(filtered);
+    let html = '';
+
+    for (const group of groups) {
+      html += '<div class="time-marker">' + escapeHtml(group.label) + '</div>';
+      for (const item of group.items) {
+        html += renderFeedItem(item);
+      }
+    }
+
+    $feed.innerHTML = html;
+
+    // Attach session card click handlers
+    $feed.querySelectorAll('.session-card').forEach(el => {
+      el.addEventListener('click', () => {
+        const notesEl = el.querySelector('.session-notes-expand');
+        if (notesEl) {
+          notesEl.classList.toggle('open');
+          if (notesEl.classList.contains('open') && notesEl.dataset.loaded !== 'true') {
+            loadSessionNotes(el.dataset.sessionId, notesEl);
+          }
+        }
+      });
+    });
+  }
+
+  function groupByTimePeriod(items) {
+    const groups = [];
+    let currentLabel = null;
+    let currentGroup = null;
+
+    for (const item of items) {
+      const label = getTimePeriodLabel(item.timestamp);
+      if (label !== currentLabel) {
+        currentLabel = label;
+        currentGroup = { label, items: [] };
+        groups.push(currentGroup);
+      }
+      currentGroup.items.push(item);
+    }
+    return groups;
+  }
+
+  function getTimePeriodLabel(ts) {
+    const now = Date.now();
+    const diff = now - ts;
+    const hours = diff / (1000 * 60 * 60);
+    const days = hours / 24;
+
+    if (hours < 1) return 'Last Hour';
+    if (hours < 6) return 'Today';
+    if (days < 1) return 'Earlier Today';
+    if (days < 2) return 'Yesterday';
+    if (days < 7) return 'This Week';
+    if (days < 14) return 'Last Week';
+    if (days < 30) return 'This Month';
+    return 'Older';
+  }
+
+  function renderFeedItem(item) {
+    const color = agentColor(item.agentId);
+    const name = agentDisplayName(item.agentId);
+    const info = typeInfo(item);
+    const age = ageClass(item.timestamp);
+
+    if (item.feedType === 'session') {
+      return renderSessionCard(item, color, name, info, age);
+    }
+
+    let content = escapeHtml(item.content || '');
+    // Truncate very long content
+    if (content.length > 200) {
+      content = content.substring(0, 200) + '...';
+    }
+
+    let purposeLine = '';
+    if (item.sessionPurpose) {
+      purposeLine = '<div class="feed-item-session-purpose">' +
+        escapeHtml(item.sessionPurpose) + '</div>';
+    }
+
+    return '<div class="feed-item ' + age + '">' +
+      '<div class="feed-item-header">' +
+        '<div class="feed-item-agent-dot" style="background:' + color + '"></div>' +
+        '<span class="feed-item-agent" style="color:' + color + '">' + escapeHtml(name) + '</span>' +
+        '<span class="feed-item-type ' + info.cls + '">' + info.label + '</span>' +
+        '<span class="feed-item-time">' + relativeTime(item.timestamp) + '</span>' +
+      '</div>' +
+      '<div class="feed-item-content">' + content + '</div>' +
+      purposeLine +
+    '</div>';
+  }
+
+  function renderSessionCard(item, color, name, info, age) {
+    const dotCls = item.status === 'active' ? 'active' : 'completed';
+    return '<div class="feed-item session-card ' + age + ' ' + dotCls + '" data-session-id="' + item.sessionId + '">' +
+      '<div class="feed-item-header">' +
+        '<div class="session-status-dot ' + dotCls + '"></div>' +
+        '<span class="feed-item-agent" style="color:' + color + '">' + escapeHtml(name) + '</span>' +
+        '<span class="feed-item-type ' + info.cls + '">' + info.label + '</span>' +
+        '<span class="feed-item-time">' + relativeTime(item.timestamp) + '</span>' +
+      '</div>' +
+      '<div class="feed-item-content">' + escapeHtml(item.content) + '</div>' +
+      '<div class="session-notes-expand" data-loaded="false"></div>' +
+    '</div>';
+  }
+
+  async function loadSessionNotes(sessionId, container) {
+    if (sessionNotesCache[sessionId]) {
+      renderSessionNotesInline(sessionNotesCache[sessionId], container);
+      return;
+    }
+    container.innerHTML = '<div style="font-size:10px;color:var(--text-muted);padding:4px 0;">Loading notes...</div>';
+    const data = await fetchJson('/sessions/' + encodeURIComponent(sessionId) + '/notes');
+    const notes = (data && data.notes) || [];
+    sessionNotesCache[sessionId] = notes;
+    container.dataset.loaded = 'true';
+    renderSessionNotesInline(notes, container);
+  }
+
+  function renderSessionNotesInline(notes, container) {
+    if (notes.length === 0) {
+      container.innerHTML = '<div style="font-size:10px;color:var(--text-muted);padding:4px 0;">No notes recorded</div>';
+      return;
+    }
+    let html = '';
+    for (const n of notes.slice(0, 8)) {
+      html += '<div class="session-note-item">' +
+        '<span class="note-time">' + relativeTime(n.createdAt) + '</span> ' +
+        escapeHtml((n.content || '').substring(0, 120)) +
+      '</div>';
+    }
+    if (notes.length > 8) {
+      html += '<div style="font-size:9px;color:var(--text-muted);padding:2px 0 2px 10px;">+ ' + (notes.length - 8) + ' more</div>';
+    }
+    container.innerHTML = html;
+  }
+
+  function renderSessionsPanel() {
+    const sorted = [...allSessions].sort((a, b) => {
+      // Active first, then by time
+      if (a.status === 'active' && b.status !== 'active') return -1;
+      if (b.status === 'active' && a.status !== 'active') return 1;
+      return b.createdAt - a.createdAt;
+    });
+
+    let html = '';
+    for (const s of sorted.slice(0, 20)) {
+      const dotCls = s.status === 'active' ? 'active' : 'completed';
+      const rowCls = s.status === 'completed' ? ' completed' : '';
+      const color = agentColor(s.agentId);
+      html += '<div class="session-row' + rowCls + '">' +
+        '<div class="session-row-dot ' + dotCls + '"></div>' +
+        '<div class="session-row-body">' +
+          '<div class="session-row-purpose">' + escapeHtml(s.purpose || 'Unnamed') + '</div>' +
+          '<div class="session-row-meta">' +
+            '<span style="color:' + color + '">' + agentDisplayName(s.agentId) + '</span>' +
+            '<span>' + s.status + '</span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="session-row-age">' + relativeTime(s.createdAt) + '</div>' +
+      '</div>';
+    }
+
+    $sessionsPanel.innerHTML = html;
+  }
+
+  // ===== SSE =====
+  function connectSSE() {
+    if (sseSource) {
+      sseSource.close();
+    }
+
+    sseSource = new EventSource(BASE + '/dashboard/events');
+
+    sseSource.onopen = function() {
+      $connDot.className = 'conn-dot connected';
+      $connLabel.textContent = 'live';
+    };
+
+    sseSource.onmessage = function(event) {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'connected') {
+          $connDot.className = 'conn-dot connected';
+          $connLabel.textContent = 'live';
+          return;
+        }
+        if (data.type === 'refresh') {
+          // Debounce: if multiple refreshes come in quick succession
+          clearTimeout(connectSSE._refreshTimeout);
+          connectSSE._refreshTimeout = setTimeout(() => {
+            loadAll();
+          }, 500);
+        }
+      } catch (e) {
+        // ignore parse errors
+      }
+    };
+
+    sseSource.onerror = function() {
+      $connDot.className = 'conn-dot disconnected';
+      $connLabel.textContent = 'offline';
+      // EventSource will auto-reconnect
+    };
+  }
+
+  // ===== UPTIME TIMER =====
+  function startUptimeTimer() {
+    if (uptimeInterval) clearInterval(uptimeInterval);
+    if (!daemonStartTime) return;
+
+    function update() {
+      const elapsed = Date.now() - daemonStartTime;
+      $uptime.textContent = 'up ' + formatUptime(elapsed);
+    }
+    update();
+    uptimeInterval = setInterval(update, 1000);
+  }
+
+  // ===== FILTER BUTTONS =====
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentFilter = btn.dataset.filter;
+      renderFeed();
+    });
+  });
+
+  // ===== SESSIONS TOGGLE =====
+  $sessionsToggle.addEventListener('click', () => {
+    $sessionsPanel.classList.toggle('open');
+    $sessionsArrow.classList.toggle('open');
+  });
+
+  // ===== PERIODIC RELATIVE TIME UPDATE =====
+  setInterval(() => {
+    // Update all visible timestamps
+    document.querySelectorAll('.feed-item-time').forEach(el => {
+      // We'd need stored timestamps to update these, so just re-render
+    });
+    // Re-render is cheap enough for this size
+    renderFeed();
+    renderSessionsPanel();
+  }, 30000);
+
+  // ===== INIT =====
+  loadAll();
+  connectSSE();
+
+})();
+</script>
+</body>
+</html>
