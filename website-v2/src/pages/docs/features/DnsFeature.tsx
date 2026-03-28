@@ -163,7 +163,7 @@ entries.forEach(e => console.log(\`\${e.name} → \${e.address}\`))`}
         <div>
           <div className="text-sm text-[var(--text-muted)] mb-1">Next Feature</div>
           <div className="font-semibold text-[var(--text-primary)]">Remote Harbors</div>
-          <div className="text-sm text-[var(--text-muted)]">Cross-machine coordination via Lighthouse servers</div>
+          <div className="text-sm text-[var(--text-muted)]">Cross-machine coordination via the local daemon</div>
         </div>
         <Link
           to="/docs/features/remote"

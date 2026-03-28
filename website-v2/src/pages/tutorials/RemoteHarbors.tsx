@@ -33,7 +33,7 @@ export function RemoteHarbors() {
                 <Surface depth="inset" radius="xl" padding="none" className="w-10 h-10 flex items-center justify-center">
                    <Anchor size={20} className="text-[var(--brand-secondary)]" />
                 </Surface>
-                <motion.h3 className="text-xl font-display font-black m-0">Global Lighthouses</motion.h3>
+                <motion.h3 className="text-xl font-display font-black m-0">Cross-Machine Sync (v4)</motion.h3>
                 <motion.p className="text-sm text-[var(--text-secondary)] m-0">Public discovery nodes that negotiate secure, encrypted handshakes between daemons behind firewalls.</motion.p>
              </Surface>
              <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
@@ -52,7 +52,7 @@ export function RemoteHarbors() {
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Network className="text-[var(--brand-primary)]" size={24} />
             </Surface>
-            <motion.h2 className="m-0">1. Summon a Lighthouse</motion.h2>
+            <motion.h2 className="m-0">1. Connect Instances (Planned)</motion.h2>
           </motion.div>
 
           <motion.p>
@@ -70,7 +70,7 @@ export function RemoteHarbors() {
 
           <Surface depth="flat" radius="xl" padding="md" className="border-l-4 border-[var(--brand-secondary)]">
             <p className="m-0 text-sm" style={{ color: 'var(--text-secondary)' }}>
-              In Port Daddy v3.7, all remote communication is strictly end-to-end encrypted using the <strong>Noise Protocol</strong> (Noise_XX). Even the lighthouse cannot see your agent traffic.
+              Remote Harbors are planned for Port Daddy v4. The design calls for end-to-end encrypted communication between daemon instances, but this is not yet implemented.
             </p>
           </Surface>
         </section>
@@ -138,7 +138,7 @@ pd pub global:swarm:events "new-task-ready"`}
            </motion.p>
            <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-primary)]">
               <Shield size={14} className="animate-pulse" />
-              Anchor Protocol v4 Verified
+              Planned for v4
            </motion.div>
         </Surface>
       </motion.div>

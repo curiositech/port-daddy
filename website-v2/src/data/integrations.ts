@@ -23,5 +23,89 @@ export const INTEGRATIONS: Integration[] = [
       'Session management: begin_session, end_session_full, whoami, and add_note tools built in.'
     ],
     setupCode: `pd mcp install\n# Claude Code now has Port Daddy tools available.`
+  },
+  {
+    id: 'cursor',
+    name: 'Cursor',
+    description: 'MCP integration for Cursor IDE. Port Daddy tools appear natively in Cursor\'s AI assistant for seamless port and session management.',
+    logo: 'cursor',
+    status: 'official',
+    category: 'IDE',
+    details: [
+      'MCP integration surfaces Port Daddy tools directly in Cursor\'s AI panel.',
+      'Automatic session creation when Cursor opens a project with a .portdaddy config.',
+      'File claims sync with Cursor\'s active editor tabs to prevent multi-agent collisions.'
+    ],
+    setupCode: `pd mcp install --editor cursor\n# Restart Cursor to activate Port Daddy tools.`
+  },
+  {
+    id: 'windsurf',
+    name: 'Windsurf',
+    description: 'MCP integration for Windsurf IDE. Enables AI flows to coordinate ports, sessions, and locks through Port Daddy\'s structured tools.',
+    logo: 'windsurf',
+    status: 'official',
+    category: 'IDE',
+    details: [
+      'MCP integration provides Port Daddy tools inside Windsurf\'s Cascade AI flows.',
+      'Automatic port assignment when Windsurf launches dev servers.',
+      'Session notes from Windsurf flows appear in the shared timeline for cross-agent visibility.'
+    ],
+    setupCode: `pd mcp install --editor windsurf\n# Restart Windsurf to activate Port Daddy tools.`
+  },
+  {
+    id: 'langchain',
+    name: 'LangChain',
+    description: 'Python SDK wrapper for LangChain agents. Gives chains and agents access to port claiming, sessions, and pub/sub coordination.',
+    logo: 'langchain',
+    status: 'community',
+    category: 'Framework',
+    details: [
+      'Thin Python wrapper around the Port Daddy HTTP API for LangChain tool integration.',
+      'LangChain Tool classes for claim, release, begin, done, note, and pub/sub operations.',
+      'Automatic session lifecycle tied to chain execution -- begin on start, done on completion.'
+    ],
+    setupCode: `pip install portdaddy-langchain\n\nfrom portdaddy_langchain import PortDaddyToolkit\ntools = PortDaddyToolkit(base_url="http://localhost:9876")`
+  },
+  {
+    id: 'crewai',
+    name: 'CrewAI',
+    description: 'Session-per-crew-member integration for CrewAI. Each crew member gets an isolated session with file claims and coordinated notes.',
+    logo: 'crewai',
+    status: 'community',
+    category: 'Framework',
+    details: [
+      'Each CrewAI agent automatically gets a dedicated Port Daddy session on task start.',
+      'File claims prevent crew members from editing the same files simultaneously.',
+      'Crew task handoffs trigger pub/sub messages so downstream agents react immediately.'
+    ],
+    setupCode: `pip install portdaddy-crewai\n\nfrom portdaddy_crewai import PortDaddyCrew\ncrew = PortDaddyCrew(project="myapp", agents=["researcher", "coder", "reviewer"])`
+  },
+  {
+    id: 'aider',
+    name: 'Aider',
+    description: 'CLI integration for Aider. pd begin wraps Aider sessions with automatic port assignment, notes, and salvage on crash.',
+    logo: 'aider',
+    status: 'community',
+    category: 'Infrastructure',
+    details: [
+      'pd spawn --backend aider launches Aider with a Port Daddy session pre-configured.',
+      'Session notes capture Aider\'s edit history for cross-agent context.',
+      'Automatic salvage: if Aider crashes, its session context enters the resurrection queue.'
+    ],
+    setupCode: `pd spawn --backend aider --identity myapp:coder -- "Fix the login bug"\n# Or wrap manually:\npd begin --identity myapp:coder && aider && pd done`
+  },
+  {
+    id: 'continue-dev',
+    name: 'Continue.dev',
+    description: 'IDE extension integration for Continue.dev. File claims prevent collisions when multiple Continue agents edit the same codebase.',
+    logo: 'continue',
+    status: 'preview',
+    category: 'IDE',
+    details: [
+      'File claims from Continue.dev sessions sync to Port Daddy to prevent multi-agent edit collisions.',
+      'Session notes from Continue conversations appear in the shared project timeline.',
+      'Port Daddy context is available as a Continue.dev context provider for agent awareness.'
+    ],
+    setupCode: `// In .continue/config.json\n{\n  "contextProviders": [{\n    "name": "portdaddy",\n    "params": { "baseUrl": "http://localhost:9876" }\n  }]\n}`
   }
 ];

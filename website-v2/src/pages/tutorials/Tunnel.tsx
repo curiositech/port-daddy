@@ -66,7 +66,7 @@ export function Tunnel() {
 
           <Surface depth="flat" radius="xl" padding="md" className="border-l-4 border-[var(--brand-secondary)]">
             <p className="m-0 text-sm" style={{ color: 'var(--text-secondary)' }}>
-              Port Daddy uses a distributed network of <strong>Lighthouses</strong> to negotiate P2P connections, even behind restrictive NAT or corporate firewalls.
+              Port Daddy doesn't implement its own tunneling — it spawns your existing tunnel provider's CLI (ngrok, cloudflared, or localtunnel), parses the public URL from its output, and stores it alongside your port claim for other agents to discover.
             </p>
           </Surface>
         </section>
@@ -88,23 +88,10 @@ export function Tunnel() {
             {'# Start a tunnel using ngrok for a claimed service\n$ curl -X POST http://localhost:9876/tunnel/myapp:api \\\n    -H "Content-Type: application/json" \\\n    -d \'{"provider": "ngrok"}\'\n\n# Response:\n# { "url": "https://abc123.ngrok.io", "provider": "ngrok", "port": 3102 }\n\n# Check tunnel status\n$ curl http://localhost:9876/tunnel/myapp:api\n\n# List all active tunnels\n$ curl http://localhost:9876/tunnels\n\n# Stop a tunnel\n$ curl -X DELETE http://localhost:9876/tunnel/myapp:api'}
           </CodeBlock>
 
-          <Surface depth="raised" radius="2xl" className="p-10 space-y-6 relative overflow-hidden">
-             <motion.div className="absolute inset-0 bg-gradient-to-r from-[var(--brand-secondary)]/5 to-[var(--brand-secondary)]/5" />
-             <motion.p className="text-sm font-black uppercase tracking-widest opacity-40 m-0 relative z-10">The Mesh Visualization</motion.p>
-             <motion.div className="flex items-center justify-between gap-10 relative z-10">
-                <Surface depth="inset" radius="2xl" padding="none" className="flex-1 p-6 text-center">
-                   <Badge variant="teal" className="mb-2">Local Harbor</Badge>
-                   <motion.p className="text-xs opacity-60 m-0">Agent 'A'</motion.p>
-                </Surface>
-                <motion.div className="flex-1 flex flex-col items-center">
-                   <motion.div className="h-[1px] w-full opacity-40" style={{ background: 'var(--brand-accent)' }} />
-                   <motion.span className="text-[8px] font-black uppercase tracking-widest opacity-40 mt-2">Noise Tunnel</motion.span>
-                </motion.div>
-                <Surface depth="inset" radius="2xl" padding="none" className="flex-1 p-6 text-center">
-                   <Badge variant="gold" className="mb-2">Remote Harbor</Badge>
-                   <motion.p className="text-xs opacity-60 m-0">Agent 'B'</motion.p>
-                </Surface>
-             </motion.div>
+          <Surface depth="flat" radius="xl" padding="md" className="border-l-4 border-[var(--brand-secondary)]">
+            <p className="m-0 text-sm" style={{ color: 'var(--text-secondary)' }}>
+              The tunnel URL is stored in the daemon's service registry. Other agents can discover it via <code>pd find</code> or the <code>/tunnel/:id</code> API endpoint, making it easy to share public URLs across your swarm automatically.
+            </p>
           </Surface>
         </section>
 

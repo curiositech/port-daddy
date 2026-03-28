@@ -94,15 +94,6 @@ export function HarborsSection() {
                <motion.span style={{ color: 'var(--brand-primary)' }}>Harbors.</motion.span>
              </motion.h2>
           </div>
-          <Surface depth="raised" radius="xl" padding="lg" className="text-left">
-            <Surface depth="inset" radius="lg" padding="none" className="w-10 h-10 flex items-center justify-center mb-4">
-              <Users size={20} className="text-[var(--brand-accent)]" />
-            </Surface>
-            <h3 className="font-semibold text-[var(--text-primary)] mb-2">Background Teams</h3>
-            <p className="text-sm text-[var(--text-muted)]">
-              Orchestrate groups of agents that coordinate to solve complex infra tasks.
-            </p>
-          </Surface>
         </motion.div>
 
           <motion.div className="grid sm:grid-cols-2 gap-8 w-full pt-8">
@@ -112,8 +103,8 @@ export function HarborsSection() {
                    <Shield style={{ color: 'var(--brand-primary)' }} size={28} />
                 </Surface>
                 <div className="space-y-2">
-                   <motion.h3 className="text-2xl font-display font-black m-0 text-center" style={{ color: 'var(--text-primary)' }}>Always-On Avatars</motion.h3>
-                   <motion.p className="text-base m-0 leading-relaxed text-center" style={{ color: 'var(--text-muted)' }}>Persistent processes that maintain harbor-scoped state across sessions.</motion.p>
+                   <motion.h3 className="text-2xl font-display font-black m-0 text-center" style={{ color: 'var(--text-primary)' }}>Always-On Avatars (v4)</motion.h3>
+                   <motion.p className="text-base m-0 leading-relaxed text-center" style={{ color: 'var(--text-muted)' }}>Will maintain persistent, harbor-scoped state across sessions.</motion.p>
                 </div>
              </Surface>
              {/* Background Teams card */}
@@ -122,8 +113,8 @@ export function HarborsSection() {
                    <Users style={{ color: 'var(--brand-accent)' }} size={28} />
                 </Surface>
                 <div className="space-y-2">
-                   <motion.h3 className="text-2xl font-display font-black m-0 text-center" style={{ color: 'var(--text-primary)' }}>Background Teams</motion.h3>
-                   <motion.p className="text-base m-0 leading-relaxed text-center" style={{ color: 'var(--text-muted)' }}>Orchestrate groups of agents that coordinate to solve complex infra tasks.</motion.p>
+                   <motion.h3 className="text-2xl font-display font-black m-0 text-center" style={{ color: 'var(--text-primary)' }}>Background Teams (Planned)</motion.h3>
+                   <motion.p className="text-base m-0 leading-relaxed text-center" style={{ color: 'var(--text-muted)' }}>Will orchestrate groups of agents that coordinate to solve complex infra tasks.</motion.p>
                 </div>
              </Surface>
           </motion.div>
@@ -159,7 +150,7 @@ export function HarborsSection() {
              viewport={{ once: true }}
            >
               <Activity size={16} style={{ color: 'var(--brand-primary)' }} />
-              <motion.span className="text-[10px] font-black uppercase tracking-[0.25em]" style={{ color: 'var(--text-muted)' }}>Formal Verification: Active</motion.span>
+              <motion.span className="text-[10px] font-black uppercase tracking-[0.25em]" style={{ color: 'var(--text-muted)' }}>HMAC Webhook Signing: Active</motion.span>
            </motion.div>
         </motion.div>
       </motion.div>

@@ -118,7 +118,7 @@ export function DNSResolver() {
            </motion.p>
            <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-secondary)]">
               <Shield size={14} className="animate-pulse" />
-              Anchor Protocol v4 Active
+              Local DNS Resolution
            </motion.div>
         </Surface>
       </motion.div>
