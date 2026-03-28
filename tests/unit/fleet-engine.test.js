@@ -1,14 +1,12 @@
-/**
- * Fleet Engine Tests — Expose bugs in lib/fleet-engine.ts
- *
- * Bugs targeted:
- *   1. parseCronInterval: */0 cron produces 0ms interval → runaway setInterval
- *   2. parseCronInterval: */abc cron produces NaN interval → runaway setInterval
- *   3. loadFleetConfig: YAML array-style agents corrupts names (numeric indices used)
- *   4. loadFleetConfig: empty YAML → parseFleetYaml returns null → TypeError on .agents
- *   5. runAgentOnce: onSuccess/onFailure check data.status === 'completed' but
- *      /spawn returns {status: 'spawned'} — callbacks are dead code
- */
+// Fleet Engine Tests -- Expose bugs in lib/fleet-engine.ts
+//
+// Bugs targeted:
+//   1. parseCronInterval: "*​/0" cron produces 0ms interval (runaway setInterval)
+//   2. parseCronInterval: "*​/abc" cron produces NaN interval (runaway setInterval)
+//   3. loadFleetConfig: YAML array-style agents corrupts names (numeric indices used)
+//   4. loadFleetConfig: empty YAML -> parseFleetYaml returns null -> TypeError on .agents
+//   5. runAgentOnce: onSuccess/onFailure check data.status === 'completed' but
+//      /spawn returns {status: 'spawned'} -- callbacks are dead code
 
 import { jest } from '@jest/globals';
 
@@ -30,6 +28,14 @@ const mockExecSync = jest.fn();
 jest.unstable_mockModule('node:child_process', () => ({
   spawn: mockSpawn,
   execSync: mockExecSync,
+}));
+
+// yaml must be available for fleet-engine to import
+jest.unstable_mockModule('yaml', () => ({
+  parse: (text) => {
+    // Use JSON.parse for test simplicity — tests provide JSON not YAML
+    try { return JSON.parse(text); } catch { return null; }
+  },
 }));
 
 // ─── Imports (after mocks) ───────────────────────────────────────────────────
@@ -159,9 +165,9 @@ test('BUG 4: empty pd-fleet.yml throws instead of returning null or empty config
 
 // ─── Bug 5: onSuccess/onFailure never fires (dead code) ──────────────────────
 
-test('BUG 5: onSuccess is never called because spawn returns status=spawned not completed', async () => {
-  // /spawn returns immediately with {status: 'spawned'}, not 'completed'.
-  // The engine checks data.status === 'completed', which never matches.
+test('FIX 5: onSuccess fires when spawn returns status=spawned', async () => {
+  // /spawn returns immediately with {status: 'spawned'}.
+  // The engine now correctly treats 'spawned' as a success (spawn was accepted).
   const publishFetch = jest.fn().mockResolvedValue({
     ok: true,
     json: async () => ({}),
@@ -195,8 +201,8 @@ test('BUG 5: onSuccess is never called because spawn returns status=spawned not 
   // Spawn was called
   expect(spawnCallCount).toBe(1);
 
-  // Publish was NOT called (because status === 'spawned', not 'completed')
-  expect(publishFetch).not.toHaveBeenCalled();
+  // Publish IS now called (status 'spawned' is treated as success)
+  expect(publishFetch).toHaveBeenCalledWith('http://localhost:9876/msg/fleet:done');
 });
 
 // ─── Valid cron patterns still work ──────────────────────────────────────────

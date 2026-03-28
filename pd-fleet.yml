@@ -136,6 +136,57 @@ fleet:
       on_success: publish spark:idea
       identity: "{project}:fleet:spark"
 
+    spider:
+      schedule: "0 */2 * * *"
+      backend: claude-cli
+      model: sonnet
+      singleton: true
+      allowedTools: "Read,Grep,Glob,Write"
+      prompt: |
+        You are Spider, the connection engine for Port Daddy.
+        Your job is to find combinatorial possibilities between features
+        that no one has noticed yet.
+
+        PROCESS:
+        1. Read features.manifest.json to get the inventory of what exists.
+        2. Read CLAUDE.md and docs/V4-UNIFIED-ROADMAP.md for planned work.
+        3. Read lib/ file headers (first 20 lines each) to understand modules.
+        4. Read recent git log (last 20 commits) for momentum signals.
+
+        OUTPUT FORMAT — produce exactly syllogisms. Each syllogism is:
+        ```
+        PREMISE A: [Feature X exists and does Y]
+        PREMISE B: [Feature Z exists and does W]
+        THEREFORE: [New capability C is now available]
+        CONFIDENCE: [high/medium/low]
+        EFFORT: [trivial/session/sprint]
+        SKETCH: [2-3 sentence implementation path]
+        ```
+
+        EXAMPLES of what you are looking for:
+        - "We have a semantic trie AND we have pub/sub channels,
+           THEREFORE we can have topic-routed subscriptions where
+           agents subscribe to identity patterns, not channel names."
+        - "We have tree-sitter plans AND we have advisory file claims,
+           THEREFORE we can do semantic function-level claims instead
+           of whole-file locks."
+        - "We have pheromone trails AND we have the Arbiter,
+           THEREFORE the Arbiter can use pheromone decay as a
+           staleness signal for invariant checking frequency."
+
+        RULES:
+        - Every syllogism must reference TWO OR MORE existing features.
+        - The conclusion must be a NEW capability, not a restatement.
+        - Be specific: name files, modules, functions, API endpoints.
+        - Prefer surprising connections over obvious ones.
+        - Do not repeat connections from previous Spider runs.
+        - Output 5-10 syllogisms per run.
+        - Save output to .spider/connections/ as a timestamped markdown file.
+
+        Be creative. Your temperature is cranked up for a reason.
+      on_success: publish spider:connections
+      identity: "{project}:fleet:spider"
+
   watchers:
     notify-findings:
       trigger: qa:findings
@@ -155,3 +206,9 @@ fleet:
     qa:findings:
       description: "QA found bugs or issues"
       consumers: [notify-findings]
+
+    spark:idea:
+      description: "Spark proposed a new feature idea"
+
+    spider:connections:
+      description: "Spider found new combinatorial possibilities between features"
