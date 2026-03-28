@@ -54,10 +54,55 @@ interface RunningAgent {
   startedAt: number;
 }
 
+// ─── YAML Shapes ───────────────────────────────────────────────────────────
+
+interface FleetYamlAgent {
+  schedule?: string;
+  trigger?: string;
+  backend?: string;
+  model?: string;
+  prompt?: string | number;
+  worktree?: boolean;
+  singleton?: boolean;
+  on_success?: string;
+  on_failure?: string;
+  identity?: string;
+  timeout?: number;
+  allowedTools?: string;
+  allowed_tools?: string;
+}
+
+interface FleetYamlWatcher {
+  trigger: string;
+  exec: string;
+  condition?: string;
+  confirm?: boolean;
+}
+
+interface FleetYamlChannel {
+  description?: string;
+  consumers?: string[];
+}
+
+interface FleetYamlRoot {
+  name?: string;
+  fleet?: {
+    name?: string;
+    agents?: Record<string, FleetYamlAgent> | FleetYamlAgent[];
+    watchers?: Record<string, FleetYamlWatcher>;
+    channels?: Record<string, FleetYamlChannel>;
+  };
+  agents?: Record<string, FleetYamlAgent> | FleetYamlAgent[];
+  watchers?: Record<string, FleetYamlWatcher>;
+  channels?: Record<string, FleetYamlChannel>;
+}
+
 // ─── YAML Parser ────────────────────────────────────────────────────────────
 
-function parseFleetYaml(text: string): Record<string, unknown> {
-  return parseYaml(text) as Record<string, unknown>;
+function parseFleetYaml(text: string): FleetYamlRoot | null {
+  const result = parseYaml(text);
+  if (!result || typeof result !== 'object') return null;
+  return result as FleetYamlRoot;
 }
 
 // ─── Template Resolution ────────────────────────────────────────────────────
@@ -74,7 +119,9 @@ function getTemplateVars(projectDir: string): Record<string, string> {
   try {
     branch = execSync('git rev-parse --abbrev-ref HEAD', { cwd: projectDir, encoding: 'utf-8' }).trim();
     sha = execSync('git rev-parse --short HEAD', { cwd: projectDir, encoding: 'utf-8' }).trim();
-  } catch {}
+  } catch {
+    // Not a git repo or git not available — defaults are fine
+  }
 
   return {
     project,
@@ -109,16 +156,16 @@ export function loadFleetConfig(projectDir: string): FleetConfig | null {
 
   const vars = getTemplateVars(projectDir);
   const resolved = resolveTemplates(raw, vars);
-  const parsed = parseFleetYaml(resolved) as any;
-  if (!parsed || typeof parsed !== 'object') return null;
+  const parsed = parseFleetYaml(resolved);
+  if (!parsed) return null;
 
   const fleet = parsed.fleet || parsed;
 
   // Normalize agents (supports both object and array format)
   const agents: FleetAgent[] = [];
-  if (fleet.agents && typeof fleet.agents === 'object' && !Array.isArray(fleet.agents)) {
-    for (const [name, spec] of Object.entries(fleet.agents)) {
-      const s = spec as any;
+  const rawAgents = fleet.agents;
+  if (rawAgents && typeof rawAgents === 'object' && !Array.isArray(rawAgents)) {
+    for (const [name, s] of Object.entries(rawAgents)) {
       agents.push({
         name,
         schedule: s.schedule,
@@ -140,8 +187,7 @@ export function loadFleetConfig(projectDir: string): FleetConfig | null {
   // Normalize watchers
   const watchers: FleetWatcher[] = [];
   if (fleet.watchers && typeof fleet.watchers === 'object') {
-    for (const [name, spec] of Object.entries(fleet.watchers)) {
-      const s = spec as any;
+    for (const [name, s] of Object.entries(fleet.watchers)) {
       watchers.push({
         name,
         trigger: s.trigger,
@@ -155,8 +201,7 @@ export function loadFleetConfig(projectDir: string): FleetConfig | null {
   // Channels
   const channels: FleetConfig['channels'] = {};
   if (fleet.channels && typeof fleet.channels === 'object') {
-    for (const [name, spec] of Object.entries(fleet.channels)) {
-      const s = spec as any;
+    for (const [name, s] of Object.entries(fleet.channels)) {
       channels[name] = {
         description: s.description || '',
         consumers: s.consumers,
@@ -238,6 +283,12 @@ export function createFleetRunner(config: FleetConfig, projectDir: string) {
     });
   }
 
+  interface SpawnResponse {
+    agentId?: string;
+    status?: string;
+    error?: string;
+  }
+
   async function runAgentOnce(agent: FleetAgent): Promise<void> {
     try {
       const body: Record<string, unknown> = {
@@ -256,25 +307,29 @@ export function createFleetRunner(config: FleetConfig, projectDir: string) {
         body: JSON.stringify(body),
       });
 
-      const data = await res.json() as any;
+      const data = (await res.json()) as SpawnResponse;
 
-      // Handle on_success / on_failure
-      if (data.status === 'completed' && agent.onSuccess) {
+      // /spawn returns status='spawned' immediately (async). Trigger callbacks
+      // on spawn acknowledgment — the actual completion is tracked by PD.
+      const succeeded = data.status === 'spawned' || data.status === 'completed';
+      const failed = data.status === 'failed' || !res.ok;
+
+      if (succeeded && agent.onSuccess) {
         const [action, channel] = agent.onSuccess.split(' ');
         if (action === 'publish' && channel) {
           await fetch(`${PD_URL}/msg/${channel}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ payload: `${agent.name} completed` }),
+            body: JSON.stringify({ payload: `${agent.name} spawned` }),
           });
         }
-      } else if (data.status === 'failed' && agent.onFailure) {
+      } else if (failed && agent.onFailure) {
         const [action, channel] = agent.onFailure.split(' ');
         if (action === 'publish' && channel) {
           await fetch(`${PD_URL}/msg/${channel}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ payload: `${agent.name} failed: ${data.error?.slice(0, 200)}` }),
+            body: JSON.stringify({ payload: `${agent.name} failed: ${(data.error ?? 'unknown').slice(0, 200)}` }),
           });
         }
       }
@@ -306,8 +361,14 @@ export function createFleetRunner(config: FleetConfig, projectDir: string) {
     for (const [name, record] of running) {
       if (record.interval) clearInterval(record.interval);
       if (record.process) {
-        try { process.kill(-record.process.pid!, 'SIGTERM'); } catch {
-          try { record.process.kill('SIGTERM'); } catch {}
+        const pid = record.process.pid;
+        if (pid) {
+          try { process.kill(-pid, 'SIGTERM'); } catch {
+            // Process group kill failed; try direct kill
+            try { record.process.kill('SIGTERM'); } catch { /* already dead */ }
+          }
+        } else {
+          try { record.process.kill('SIGTERM'); } catch { /* already dead */ }
         }
       }
       running.delete(name);

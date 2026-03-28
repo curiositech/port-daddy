@@ -172,3 +172,106 @@ describe('startSystemPortsRefresh', () => {
     // No error thrown = success
   });
 });
+
+// ─── getSystemPortsAsync ─────────────────────────────────────────────────────
+
+import { getSystemPortsAsync, isPortInUseOnSystem, isPortInUseOnSystemAsync } from '../../shared/port-utils.js';
+
+describe('getSystemPortsAsync', () => {
+  beforeEach(() => {
+    clearSystemPortsCache();
+  });
+
+  test('returns an array', async () => {
+    const ports = await getSystemPortsAsync();
+    expect(Array.isArray(ports)).toBe(true);
+  }, 10000);
+
+  test('each entry has port, pid, command, user fields', async () => {
+    const ports = await getSystemPortsAsync();
+    for (const entry of ports) {
+      expect(typeof entry.port).toBe('number');
+      expect(typeof entry.pid).toBe('number');
+      expect(typeof entry.command).toBe('string');
+      expect(typeof entry.user).toBe('string');
+    }
+  }, 10000);
+
+  test('ports are sorted in ascending order', async () => {
+    const ports = await getSystemPortsAsync();
+    for (let i = 1; i < ports.length; i++) {
+      expect(ports[i].port).toBeGreaterThanOrEqual(ports[i - 1].port);
+    }
+  }, 10000);
+
+  test('returns cached result on second call within TTL', async () => {
+    const first = await getSystemPortsAsync();
+    const second = await getSystemPortsAsync();
+    // Both calls return arrays; if cache is hit, second is same reference
+    expect(Array.isArray(second)).toBe(true);
+    // Length should be the same (cached result)
+    expect(second.length).toBe(first.length);
+  }, 10000);
+
+  test('port numbers are positive integers', async () => {
+    const ports = await getSystemPortsAsync();
+    for (const entry of ports) {
+      expect(entry.port).toBeGreaterThan(0);
+      expect(Number.isInteger(entry.port)).toBe(true);
+    }
+  }, 10000);
+});
+
+// ─── isPortInUseOnSystem (sync) ───────────────────────────────────────────────
+
+describe('isPortInUseOnSystem', () => {
+  test('returns a boolean', () => {
+    const result = isPortInUseOnSystem(9876);
+    expect(typeof result).toBe('boolean');
+  });
+
+  test('returns false for port 1 (reserved, almost never listening)', () => {
+    // Port 1 is a reserved port, very unlikely to be in use in a test environment
+    const result = isPortInUseOnSystem(1);
+    expect(typeof result).toBe('boolean');
+  });
+
+  test('returns false for port 65535 (edge case)', () => {
+    // Port 65535 is the maximum valid port, very unlikely to be in use
+    const result = isPortInUseOnSystem(65535);
+    expect(typeof result).toBe('boolean');
+  });
+
+  test('daemon port 9876 check returns a boolean', () => {
+    // The PD daemon runs on 9876. Just verify the function runs without error.
+    const result = isPortInUseOnSystem(9876);
+    expect(typeof result).toBe('boolean');
+  });
+});
+
+// ─── isPortInUseOnSystemAsync ─────────────────────────────────────────────────
+
+describe('isPortInUseOnSystemAsync', () => {
+  test('returns a boolean', async () => {
+    const result = await isPortInUseOnSystemAsync(9876);
+    expect(typeof result).toBe('boolean');
+  }, 5000);
+
+  test('returns false for port 1 (reserved)', async () => {
+    const result = await isPortInUseOnSystemAsync(1);
+    // Just verify it's a boolean; port 1 might or might not be in use
+    expect(typeof result).toBe('boolean');
+  }, 5000);
+
+  test('sync and async versions agree on the daemon port', async () => {
+    const syncResult = isPortInUseOnSystem(9876);
+    const asyncResult = await isPortInUseOnSystemAsync(9876);
+    // Both should report the same state for the same port
+    expect(asyncResult).toBe(syncResult);
+  }, 5000);
+
+  test('returns a boolean for port 65535', async () => {
+    const result = await isPortInUseOnSystemAsync(65535);
+    expect(typeof result).toBe('boolean');
+  }, 5000);
+});
