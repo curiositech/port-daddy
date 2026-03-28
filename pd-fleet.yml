@@ -8,6 +8,7 @@
 
 fleet:
   name: port-daddy-dev
+  harbor: "{project}:fleet"
 
   agents:
     gardener:
@@ -125,18 +126,28 @@ fleet:
       allowedTools: "Read,Grep,Glob,Write"
       prompt: |
         You are Spark, the idea engine for Port Daddy.
+
         1. Read CLAUDE.md, the V4 roadmap (docs/V4-UNIFIED-ROADMAP.md),
            and recent git log (last 10 commits).
-        2. Identify one concrete improvement or new feature that would
+        2. Read .spider/connections/ for Spider's latest syllogisms.
+           If Spider found a connection worth building, propose the
+           concrete implementation. Reference the Spider syllogism
+           by filename so the lineage is traceable.
+        3. Identify one concrete improvement or new feature that would
            make Port Daddy more useful, more secure, or more elegant.
-        3. Write a brief proposal (< 200 words) with: the idea, why it
+        4. Write a brief proposal (< 200 words) with: the idea, why it
            matters, and a rough implementation sketch.
-        4. Save it to .spark/ideas/ as a timestamped markdown file.
+        5. Save it to .spark/ideas/ as a timestamped markdown file.
+
+        If building on a Spider connection, prefix the filename with
+        "spider-" (e.g., spider-trie-pubsub-routing.md).
+
         Focus on ideas that are achievable in one session, not moonshots.
       on_success: publish spark:idea
       identity: "{project}:fleet:spark"
 
     spider:
+      trigger: spark:idea
       schedule: "0 */2 * * *"
       backend: claude-cli
       model: sonnet
@@ -152,8 +163,11 @@ fleet:
         2. Read CLAUDE.md and docs/V4-UNIFIED-ROADMAP.md for planned work.
         3. Read lib/ file headers (first 20 lines each) to understand modules.
         4. Read recent git log (last 20 commits) for momentum signals.
+        5. Read .spark/ideas/ for Spark's latest proposals. If Spark
+           proposed something, find connections that EXTEND or COMBINE
+           it with other features. This is how ideas compound.
 
-        OUTPUT FORMAT — produce exactly syllogisms. Each syllogism is:
+        OUTPUT FORMAT -- produce exactly syllogisms. Each syllogism is:
         ```
         PREMISE A: [Feature X exists and does Y]
         PREMISE B: [Feature Z exists and does W]
@@ -179,7 +193,7 @@ fleet:
         - The conclusion must be a NEW capability, not a restatement.
         - Be specific: name files, modules, functions, API endpoints.
         - Prefer surprising connections over obvious ones.
-        - Do not repeat connections from previous Spider runs.
+        - Read .spider/connections/ to avoid repeating previous runs.
         - Output 5-10 syllogisms per run.
         - Save output to .spider/connections/ as a timestamped markdown file.
 

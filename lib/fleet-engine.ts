@@ -40,6 +40,7 @@ export interface FleetWatcher {
 
 export interface FleetConfig {
   name: string;
+  harbor?: string;
   agents: FleetAgent[];
   watchers: FleetWatcher[];
   channels: Record<string, { description: string; consumers?: string[] }>;
@@ -86,8 +87,10 @@ interface FleetYamlChannel {
 
 interface FleetYamlRoot {
   name?: string;
+  harbor?: string;
   fleet?: {
     name?: string;
+    harbor?: string;
     agents?: Record<string, FleetYamlAgent> | FleetYamlAgent[];
     watchers?: Record<string, FleetYamlWatcher>;
     channels?: Record<string, FleetYamlChannel>;
@@ -211,9 +214,116 @@ export function loadFleetConfig(projectDir: string): FleetConfig | null {
 
   return {
     name: fleet.name || basename(projectDir),
+    harbor: fleet.harbor,
     agents,
     watchers,
     channels,
+  };
+}
+
+// ─── Topology Validation (CSP DAG Property) ────────────────────────────────
+
+export interface TopologyValidation {
+  valid: boolean;
+  cycles: string[][];
+  warnings: string[];
+}
+
+/**
+ * Validate that the fleet's trigger graph is a DAG (no cycles).
+ * A cycle means Agent A triggers Agent B which triggers Agent A — infinite loop.
+ */
+export function validateTopology(config: FleetConfig): TopologyValidation {
+  // Build adjacency list: agent -> agents it can trigger
+  // An agent "triggers" another if it publishes to a channel that the other consumes
+  const producerOf = new Map<string, string[]>(); // channel -> agents that publish to it
+  const consumerOf = new Map<string, string[]>(); // channel -> agents triggered by it
+
+  for (const agent of config.agents) {
+    // Agent publishes via onSuccess/onFailure
+    for (const hook of [agent.onSuccess, agent.onFailure]) {
+      if (!hook) continue;
+      const [action, channel] = hook.split(' ');
+      if (action === 'publish' && channel) {
+        const list = producerOf.get(channel) || [];
+        list.push(agent.name);
+        producerOf.set(channel, list);
+      }
+    }
+
+    // Agent consumes via trigger
+    if (agent.trigger) {
+      const list = consumerOf.get(agent.trigger) || [];
+      list.push(agent.name);
+      consumerOf.set(agent.trigger, list);
+    }
+  }
+
+  // Build directed graph: producer -> consumer (via shared channel)
+  const adj = new Map<string, Set<string>>();
+  for (const [channel, producers] of producerOf) {
+    const consumers = consumerOf.get(channel) || [];
+    for (const p of producers) {
+      for (const c of consumers) {
+        if (p === c) continue; // self-trigger is not a cycle
+        const edges = adj.get(p) || new Set();
+        edges.add(c);
+        adj.set(p, edges);
+      }
+    }
+  }
+
+  // Detect cycles via DFS with coloring
+  const WHITE = 0, GRAY = 1, BLACK = 2;
+  const color = new Map<string, number>();
+  const cycles: string[][] = [];
+
+  function dfs(node: string, path: string[]): void {
+    color.set(node, GRAY);
+    path.push(node);
+
+    for (const neighbor of adj.get(node) || []) {
+      const c = color.get(neighbor) || WHITE;
+      if (c === GRAY) {
+        // Found cycle — extract it from path
+        const cycleStart = path.indexOf(neighbor);
+        cycles.push([...path.slice(cycleStart), neighbor]);
+      } else if (c === WHITE) {
+        dfs(neighbor, path);
+      }
+    }
+
+    path.pop();
+    color.set(node, BLACK);
+  }
+
+  for (const agent of config.agents) {
+    if ((color.get(agent.name) || WHITE) === WHITE) {
+      dfs(agent.name, []);
+    }
+  }
+
+  // Warnings
+  const warnings: string[] = [];
+
+  // Check for orphan channels (declared but no producer)
+  for (const [channel] of Object.entries(config.channels)) {
+    if (!producerOf.has(channel) && !['git:committed'].includes(channel)) {
+      warnings.push(`Channel "${channel}" has no producer in the fleet`);
+    }
+  }
+
+  // Check for orphan producers (publish to undeclared channels)
+  for (const [channel] of producerOf) {
+    if (!config.channels[channel]) {
+      warnings.push(`Agent publishes to "${channel}" which is not declared in channels`);
+    }
+  }
+
+  return {
+    valid: cycles.length === 0,
+    cycles,
+    warnings,
   };
 }
 
@@ -348,13 +458,56 @@ export function createFleetRunner(config: FleetConfig, projectDir: string) {
     return parts.join(' ');
   }
 
+  async function ensureHarbor(): Promise<void> {
+    if (!config.harbor) return;
+    try {
+      // Create harbor (idempotent — daemon returns existing if it already exists)
+      const channels = Object.keys(config.channels);
+      await fetch(`${PD_URL}/harbors`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: config.harbor,
+          capabilities: config.agents.map(a => a.name),
+          channels,
+          agentPatterns: config.agents
+            .map(a => a.identity)
+            .filter(Boolean),
+        }),
+      });
+      console.error(`[Fleet] Harbor "${config.harbor}" ready`);
+    } catch (err) {
+      console.error(`[Fleet] Harbor setup failed:`, (err as Error).message);
+    }
+  }
+
+  async function enrollInHarbor(agentIdentity: string): Promise<void> {
+    if (!config.harbor) return;
+    try {
+      await fetch(`${PD_URL}/harbors/${encodeURIComponent(config.harbor)}/enter`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agentId: agentIdentity,
+          identity: agentIdentity,
+        }),
+      });
+    } catch {
+      // Non-critical — harbor enrollment is advisory
+    }
+  }
+
   function startAll(): void {
-    for (const agent of config.agents) {
-      startAgent(agent);
-    }
-    for (const watcher of config.watchers) {
-      startWatcher(watcher);
-    }
+    // Create the fleet harbor first, then start agents
+    ensureHarbor().then(() => {
+      for (const agent of config.agents) {
+        startAgent(agent);
+        if (agent.identity) enrollInHarbor(agent.identity);
+      }
+      for (const watcher of config.watchers) {
+        startWatcher(watcher);
+      }
+    });
   }
 
   function stopAll(): void {

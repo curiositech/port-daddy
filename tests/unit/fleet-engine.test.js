@@ -9,6 +9,9 @@
 //      /spawn returns {status: 'spawned'} -- callbacks are dead code
 
 import { jest } from '@jest/globals';
+import { readFileSync as realReadFileSync } from 'node:fs';
+import { join as realJoin } from 'node:path';
+import { parse as realYamlParse } from 'yaml';
 
 // ─── Mocks (must be set up before any import of the module under test) ───────
 
@@ -33,14 +36,14 @@ jest.unstable_mockModule('node:child_process', () => ({
 // yaml must be available for fleet-engine to import
 jest.unstable_mockModule('yaml', () => ({
   parse: (text) => {
-    // Use JSON.parse for test simplicity — tests provide JSON not YAML
-    try { return JSON.parse(text); } catch { return null; }
+    // Most tests pass JSON. Fall back to real YAML parser for actual YAML.
+    try { return JSON.parse(text); } catch { return realYamlParse(text); }
   },
 }));
 
 // ─── Imports (after mocks) ───────────────────────────────────────────────────
 
-const { loadFleetConfig, createFleetRunner } = await import('../../lib/fleet-engine.js');
+const { loadFleetConfig, createFleetRunner, validateTopology } = await import('../../lib/fleet-engine.js');
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -241,4 +244,124 @@ test('valid cron 0 */4 * * * returns 14400000ms', () => {
   const calls = setIntervalSpy.mock.calls;
   expect(calls.length).toBeGreaterThan(0);
   expect(calls[0][1]).toBe(14400000);
+});
+
+// ─── Topology Validation (CSP DAG Property) ─────────────────────────────────
+
+describe('validateTopology', () => {
+  test('acyclic topology validates clean', () => {
+    const config = {
+      name: 'test',
+      agents: [
+        { name: 'spark', schedule: '*/30 * * * *', backend: 'claude-cli', prompt: 'idea', onSuccess: 'publish spark:idea' },
+        { name: 'spider', trigger: 'spark:idea', backend: 'claude-cli', prompt: 'connect', onSuccess: 'publish spider:connections' },
+      ],
+      watchers: [],
+      channels: { 'spark:idea': { description: 'Spark ideas' }, 'spider:connections': { description: 'Spider connections' } },
+    };
+
+    const result = validateTopology(config);
+    expect(result.valid).toBe(true);
+    expect(result.cycles).toHaveLength(0);
+  });
+
+  test('detects direct cycle between two agents', () => {
+    const config = {
+      name: 'test',
+      agents: [
+        { name: 'a', trigger: 'ch-b', backend: 'claude-cli', prompt: 'x', onSuccess: 'publish ch-a' },
+        { name: 'b', trigger: 'ch-a', backend: 'claude-cli', prompt: 'y', onSuccess: 'publish ch-b' },
+      ],
+      watchers: [],
+      channels: { 'ch-a': { description: 'A output' }, 'ch-b': { description: 'B output' } },
+    };
+
+    const result = validateTopology(config);
+    expect(result.valid).toBe(false);
+    expect(result.cycles.length).toBeGreaterThan(0);
+  });
+
+  test('detects transitive cycle through three agents', () => {
+    const config = {
+      name: 'test',
+      agents: [
+        { name: 'a', trigger: 'ch-c', backend: 'claude-cli', prompt: 'x', onSuccess: 'publish ch-a' },
+        { name: 'b', trigger: 'ch-a', backend: 'claude-cli', prompt: 'y', onSuccess: 'publish ch-b' },
+        { name: 'c', trigger: 'ch-b', backend: 'claude-cli', prompt: 'z', onSuccess: 'publish ch-c' },
+      ],
+      watchers: [],
+      channels: { 'ch-a': { description: '' }, 'ch-b': { description: '' }, 'ch-c': { description: '' } },
+    };
+
+    const result = validateTopology(config);
+    expect(result.valid).toBe(false);
+    expect(result.cycles.length).toBeGreaterThan(0);
+  });
+
+  test('fan-out topology (one channel, many consumers) is valid', () => {
+    const config = {
+      name: 'test',
+      agents: [
+        { name: 'trigger', schedule: '*/10 * * * *', backend: 'custom', prompt: 'x', onSuccess: 'publish event' },
+        { name: 'a', trigger: 'event', backend: 'claude-cli', prompt: 'x' },
+        { name: 'b', trigger: 'event', backend: 'claude-cli', prompt: 'y' },
+        { name: 'c', trigger: 'event', backend: 'claude-cli', prompt: 'z' },
+      ],
+      watchers: [],
+      channels: { 'event': { description: 'Trigger event' } },
+    };
+
+    const result = validateTopology(config);
+    expect(result.valid).toBe(true);
+    expect(result.cycles).toHaveLength(0);
+  });
+
+  test('warns about orphan channels with no producer', () => {
+    const config = {
+      name: 'test',
+      agents: [
+        { name: 'a', trigger: 'orphan', backend: 'claude-cli', prompt: 'x' },
+      ],
+      watchers: [],
+      channels: { 'orphan': { description: 'No one publishes here' } },
+    };
+
+    const result = validateTopology(config);
+    expect(result.valid).toBe(true); // No cycle, but...
+    expect(result.warnings.length).toBeGreaterThan(0);
+    expect(result.warnings[0]).toContain('orphan');
+  });
+
+  test('self-trigger (agent publishes to its own trigger) is not a cycle', () => {
+    const config = {
+      name: 'test',
+      agents: [
+        { name: 'self', trigger: 'self:out', backend: 'claude-cli', prompt: 'x', onSuccess: 'publish self:out' },
+      ],
+      watchers: [],
+      channels: { 'self:out': { description: 'Self-loop' } },
+    };
+
+    // Self-triggers are filtered out (p === c check in validateTopology)
+    const result = validateTopology(config);
+    expect(result.valid).toBe(true);
+  });
+
+  test('Port Daddy actual fleet topology is valid', () => {
+    mockExistsSync.mockImplementation(p => p.endsWith('pd-fleet.yml'));
+    mockExecSync.mockReturnValue('main');
+
+    // Read real fleet YAML using pre-mock imports
+    const yamlContent = realReadFileSync(
+      realJoin(process.cwd(), 'pd-fleet.yml'), 'utf-8'
+    );
+    mockReadFileSync.mockReturnValue(yamlContent);
+
+    const config = loadFleetConfig('/tmp/proj');
+    expect(config).not.toBeNull();
+
+    const result = validateTopology(config);
+    expect(result.valid).toBe(true);
+    expect(result.cycles).toHaveLength(0);
+  });
 });
