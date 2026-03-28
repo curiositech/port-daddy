@@ -56,16 +56,16 @@ export function RemoteHarbors() {
           </motion.div>
 
           <motion.p>
-            Use the <code>harbor discover</code> command to find available remote lighthouses or join a private mesh using a secure invitation.
+            The planned <code>harbor discover</code> command will connect daemon instances across machines. This API is not yet available.
           </motion.p>
 
           <CodeBlock language="bash">
-            {`$ pd harbor discover --lighthouse global.portdaddy.dev\\
-    --invite pd-inv-7f3a-9921\\
+            {`# Planned for v4 — not yet implemented
+$ pd harbor discover --remote 192.168.1.10:9876
 
-✓ Identity Verified.
-✓ Linked to remote harbor: gpu-swarm-01
-✓ Latency: 42ms (Secure P2P)`}
+# Will output:
+# ✓ Connected to remote daemon
+# ✓ Syncing port claims and sessions`}
           </CodeBlock>
 
           <Surface depth="flat" radius="xl" padding="md" className="border-l-4 border-[var(--brand-secondary)]">
