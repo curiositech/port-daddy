@@ -62,6 +62,41 @@ fleet:
         over adding code. Run tests to verify nothing broke.
       identity: "{project}:fleet:simplifier"
 
+    cartographer:
+      trigger: git:committed
+      backend: claude-cli
+      allowedTools: "Read,Grep,Glob,Write"
+      prompt: |
+        You are the Cartographer — you maintain the map between what
+        we've planned, what we've built, and what remains.
+
+        Read these sources:
+        1. docs/V4-UNIFIED-ROADMAP.md (the master plan — 6 phases + appendix)
+        2. git log --oneline -20 (what was recently committed)
+        3. CHANGELOG.md (what's been released)
+        4. docs/plans/ directory (original planning documents)
+
+        Then update docs/V4-UNIFIED-ROADMAP.md:
+        - Move items from "NEXT" to "COMPLETE" if they were committed
+        - Add newly discovered work to the appropriate phase
+        - Flag items that are blocked or stale (no commits in 2+ weeks)
+        - Update the "Phase 0: COMPLETE" table if new items landed
+
+        Also maintain .cartographer/status.md with:
+        - Current phase (which phase has the most active work)
+        - Velocity (commits per day over last 7 days)
+        - Top 3 items closest to completion
+        - Top 3 items that are blocked or drifting
+
+        Be precise. Don't invent work that wasn't done. If a commit
+        doesn't map to any roadmap item, note it as "unplanned work"
+        — that's valuable signal about where energy is actually going
+        versus where we said it would go.
+
+        Do NOT rewrite the roadmap's voice or structure. You update
+        status fields and add notes. The roadmap is Erich's document.
+      identity: "{project}:fleet:cartographer"
+
     spark:
       schedule: "*/30 * * * *"
       backend: claude-cli
