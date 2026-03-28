@@ -123,7 +123,7 @@ export function Footer() {
             <span className="hidden sm:inline">&middot;</span>
             <div className="flex items-center gap-1.5">
               <ShieldCheck size={12} className="text-[var(--status-success)]" />
-              <span>Open Source · MIT License</span>
+              <span>Anchor Protocol Verified · MIT License</span>
             </div>
           </div>
 

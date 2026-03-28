@@ -96,7 +96,7 @@ export function DemoGallery() {
             <motion.span style={{ color: 'var(--brand-primary)' }}>Coordination.</motion.span>
           </motion.h2>
           <motion.p className="text-2xl sm:text-3xl max-w-4xl mx-auto leading-relaxed font-sans font-bold" style={{ color: 'var(--text-secondary)' }}>
-            These aren't mockups. These are <strong>high-fidelity recordings</strong> of Port Daddy coordinating live agent swarms.
+            These aren't mockups. These are <strong>high-fidelity recordings</strong> of the Anchor Protocol coordinating live agent swarms.
           </motion.p>
         </motion.div>
 
