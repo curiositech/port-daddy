@@ -82,9 +82,9 @@ function UnifiedTimeline() {
                     className="w-8 h-8 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform"
                     style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
                   >
-                     {item.type === 'note' ? <MessageSquare size={14} className="text-[var(--p-blue-400)]" /> :
-                      item.type === 'port' ? <Anchor size={14} className="text-[var(--p-teal-400)]" /> :
-                      <Zap size={14} className="text-[var(--p-amber-400)]" />}
+                     {item.type === 'note' ? <MessageSquare size={14} className="text-[var(--brand-secondary)]" /> :
+                      item.type === 'port' ? <Anchor size={14} className="text-[var(--brand-secondary)]" /> :
+                      <Zap size={14} className="text-[var(--brand-accent)]" />}
                   </motion.div>
                   <motion.div className="w-[1px] h-full bg-gradient-to-b from-[var(--text-muted)] to-transparent opacity-20" />
                </motion.div>
@@ -149,10 +149,10 @@ export function DashboardPage() {
            {/* Stat cards with raised surfaces and inset value wells */}
            <motion.div className="grid grid-cols-2 sm:grid-cols-4 gap-6 w-full max-w-5xl">
               {[
-                { label: 'Active Agents', value: stats?.activeAgents || '0', icon: Users, color: 'var(--p-teal-400)' },
-                { label: 'Harbors', value: stats?.activeHarbors || '0', icon: Shield, color: 'var(--p-amber-400)' },
-                { label: 'Port Claims', value: stats?.activePorts || '0', icon: Anchor, color: 'var(--p-blue-400)' },
-                { label: 'Latency', value: '<5ms', icon: Zap, color: 'var(--p-purple-400)' }
+                { label: 'Active Agents', value: stats?.activeAgents || '0', icon: Users, color: 'var(--brand-secondary)' },
+                { label: 'Harbors', value: stats?.activeHarbors || '0', icon: Shield, color: 'var(--brand-accent)' },
+                { label: 'Port Claims', value: stats?.activePorts || '0', icon: Anchor, color: 'var(--brand-secondary)' },
+                { label: 'Latency', value: '<5ms', icon: Zap, color: 'var(--brand-accent)' }
               ].map((stat, i) => (
                 <motion.div
                   key={i}
@@ -194,7 +194,7 @@ export function DashboardPage() {
                       className="flex items-center gap-2 px-3 py-1 rounded-full backdrop-blur-md"
                       style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-pressed)' }}
                     >
-                       <motion.div className="w-2 h-2 rounded-full bg-[var(--p-teal-400)] animate-pulse" />
+                       <motion.div className="w-2 h-2 rounded-full bg-[var(--brand-secondary)] animate-pulse" />
                        <motion.span className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Force-Directed</motion.span>
                     </motion.div>
                  </motion.div>
@@ -212,7 +212,7 @@ export function DashboardPage() {
                          className="w-12 h-12 rounded-2xl flex items-center justify-center"
                          style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
                        >
-                          <Activity size={24} className="text-[var(--p-teal-400)]" />
+                          <Activity size={24} className="text-[var(--brand-secondary)]" />
                        </motion.div>
                        <motion.h3 className="text-xl font-display font-black m-0">Harbor Health</motion.h3>
                     </motion.div>
@@ -227,7 +227,7 @@ export function DashboardPage() {
                          className="w-12 h-12 rounded-2xl flex items-center justify-center"
                          style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
                        >
-                          <Search size={24} className="text-[var(--p-amber-400)]" />
+                          <Search size={24} className="text-[var(--brand-accent)]" />
                        </motion.div>
                        <motion.h3 className="text-xl font-display font-black m-0">Conflict Monitor</motion.h3>
                     </motion.div>
@@ -257,7 +257,7 @@ export function DashboardPage() {
            <motion.div className="space-y-6 max-w-3xl relative z-10">
               <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Autonomous Maturity</Badge>
               <motion.h3 className="text-4xl sm:text-7xl font-display font-black tracking-tight leading-[0.95]" style={{ color: 'var(--text-primary)' }}>
-                System <motion.span className="text-[var(--p-teal-400)]">Visibility.</motion.span>
+                System <motion.span className="text-[var(--brand-secondary)]">Visibility.</motion.span>
               </motion.h3>
               <motion.p className="text-2xl leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
                 Multi-agent coordination is only as good as your ability to debug it. The HUD turns your local daemon into a transparent control plane, giving you the high-fidelity evidence needed to scale your swarm with confidence.

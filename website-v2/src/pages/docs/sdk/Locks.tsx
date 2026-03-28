@@ -14,7 +14,7 @@ function CodeBlock({ code, output }: { code: string; output?: string }) {
 
   return (
     <div className="space-y-2">
-      <div className="relative p-4 rounded-lg bg-[var(--bg-code)] border border-[var(--border-subtle)] font-mono text-sm group">
+      <div className="relative p-4 rounded-lg bg-[var(--code-bg)] border border-[var(--border-subtle)] font-mono text-sm group">
         <button
           onClick={handleCopy}
           className="absolute right-3 top-3 p-1.5 rounded hover:bg-[var(--interactive-hover)] text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity"
@@ -24,7 +24,7 @@ function CodeBlock({ code, output }: { code: string; output?: string }) {
         <code className="text-[var(--brand-primary)]">{code}</code>
       </div>
       {output && (
-        <div className="p-4 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] font-mono text-sm">
+        <div className="p-4 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)] font-mono text-sm">
           <div className="text-[var(--text-muted)] mb-1 text-xs uppercase tracking-wide">Output</div>
           <pre className="text-[var(--text-secondary)] whitespace-pre-wrap">{output}</pre>
         </div>
@@ -74,34 +74,34 @@ export default function LocksSdk() {
         <div className="space-y-3">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Parameters</h3>
           <div className="divide-y divide-[var(--border-subtle)] border border-[var(--border-subtle)] rounded-xl overflow-hidden">
-            <div className="p-4 bg-[var(--bg-surface)]">
+            <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">name</code>
                 <Badge variant="default" size="sm">required</Badge>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Unique name for this lock</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Unique name for this lock</p>
             </div>
-            <div className="p-4 bg-[var(--bg-surface)]">
+            <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.ttl</code>
                 <span className="text-xs text-[var(--text-muted)]">number</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Time-to-live in seconds (default: 60)</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Time-to-live in seconds (default: 60)</p>
             </div>
-            <div className="p-4 bg-[var(--bg-surface)]">
+            <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.wait</code>
                 <span className="text-xs text-[var(--text-muted)]">boolean</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Wait for lock instead of failing immediately</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Wait for lock instead of failing immediately</p>
             </div>
-            <div className="p-4 bg-[var(--bg-surface)]">
+            <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.timeout</code>
                 <span className="text-xs text-[var(--text-muted)]">number</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Max wait time in milliseconds (when wait=true)</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Max wait time in milliseconds (when wait=true)</p>
             </div>
           </div>
         </div>
@@ -176,13 +176,13 @@ if (!lock) {
         <div className="space-y-3">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Parameters</h3>
           <div className="divide-y divide-[var(--border-subtle)] border border-[var(--border-subtle)] rounded-xl overflow-hidden">
-            <div className="p-4 bg-[var(--bg-surface)]">
+            <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">name</code>
                 <Badge variant="default" size="sm">required</Badge>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">The lock name to release</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">The lock name to release</p>
             </div>
           </div>
         </div>
@@ -215,28 +215,28 @@ console.log(released) // true`}
         <div className="space-y-3">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Parameters</h3>
           <div className="divide-y divide-[var(--border-subtle)] border border-[var(--border-subtle)] rounded-xl overflow-hidden">
-            <div className="p-4 bg-[var(--bg-surface)]">
+            <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">name</code>
                 <Badge variant="default" size="sm">required</Badge>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Lock name</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Lock name</p>
             </div>
-            <div className="p-4 bg-[var(--bg-surface)]">
+            <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">fn</code>
                 <Badge variant="default" size="sm">required</Badge>
                 <span className="text-xs text-[var(--text-muted)]">() =&gt; Promise&lt;T&gt;</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Function to execute while holding the lock</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Function to execute while holding the lock</p>
             </div>
-            <div className="p-4 bg-[var(--bg-surface)]">
+            <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options</code>
                 <span className="text-xs text-[var(--text-muted)]">LockOptions</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Same options as acquireLock</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Same options as acquireLock</p>
             </div>
           </div>
         </div>
@@ -289,30 +289,30 @@ if (result === null) {
       </div>
 
       {/* Use Cases */}
-      <div className="p-6 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+      <div className="p-6 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
         <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-4">Common Use Cases</h2>
         <div className="grid sm:grid-cols-2 gap-4">
           <div>
             <h3 className="font-medium text-[var(--text-primary)] mb-2">File Modifications</h3>
-            <p className="text-sm text-[var(--text-tertiary)]">
+            <p className="text-sm text-[var(--text-muted)]">
               Prevent multiple agents from editing the same file simultaneously.
             </p>
           </div>
           <div>
             <h3 className="font-medium text-[var(--text-primary)] mb-2">Database Migrations</h3>
-            <p className="text-sm text-[var(--text-tertiary)]">
+            <p className="text-sm text-[var(--text-muted)]">
               Ensure only one agent runs migrations at a time.
             </p>
           </div>
           <div>
             <h3 className="font-medium text-[var(--text-primary)] mb-2">Build Processes</h3>
-            <p className="text-sm text-[var(--text-tertiary)]">
+            <p className="text-sm text-[var(--text-muted)]">
               Coordinate builds to avoid conflicts in output directories.
             </p>
           </div>
           <div>
             <h3 className="font-medium text-[var(--text-primary)] mb-2">Resource Allocation</h3>
-            <p className="text-sm text-[var(--text-tertiary)]">
+            <p className="text-sm text-[var(--text-muted)]">
               Coordinate access to limited external resources.
             </p>
           </div>
@@ -348,7 +348,7 @@ interface LockOptions {
         </Link>
         <Link 
           to="/docs/sdk/harbors"
-          className="flex items-center gap-2 text-sm text-[var(--brand-primary)] hover:text-[var(--brand-primary-hover)] transition-colors"
+          className="flex items-center gap-2 text-sm text-[var(--brand-primary)] hover:text-[var(--brand-primary)] transition-colors"
         >
           Harbors Module
           <ArrowLeft size={14} className="rotate-180" />

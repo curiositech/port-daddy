@@ -14,7 +14,7 @@ function CodeBlock({ code, output }: { code: string; output?: string }) {
 
   return (
     <div className="space-y-2">
-      <div className="relative p-4 rounded-lg bg-[var(--bg-code)] border border-[var(--border-subtle)] font-mono text-sm group">
+      <div className="relative p-4 rounded-lg bg-[var(--code-bg)] border border-[var(--border-subtle)] font-mono text-sm group">
         <button
           onClick={handleCopy}
           className="absolute right-3 top-3 p-1.5 rounded hover:bg-[var(--interactive-hover)] text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity"
@@ -24,7 +24,7 @@ function CodeBlock({ code, output }: { code: string; output?: string }) {
         <code className="text-[var(--brand-primary)]">{code}</code>
       </div>
       {output && (
-        <div className="p-4 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] font-mono text-sm">
+        <div className="p-4 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)] font-mono text-sm">
           <div className="text-[var(--text-muted)] mb-1 text-xs uppercase tracking-wide">Output</div>
           <pre className="text-[var(--text-secondary)] whitespace-pre-wrap">{output}</pre>
         </div>
@@ -74,26 +74,26 @@ export default function SessionsSdk() {
         <div className="space-y-3">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Parameters</h3>
           <div className="divide-y divide-[var(--border-subtle)] border border-[var(--border-subtle)] rounded-xl overflow-hidden">
-            <div className="p-4 bg-[var(--bg-surface)]">
+            <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.identity</code>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Semantic identity in format <code>project:stack:context</code></p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Semantic identity in format <code>project:stack:context</code></p>
             </div>
-            <div className="p-4 bg-[var(--bg-surface)]">
+            <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.purpose</code>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Description of what this agent is working on</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Description of what this agent is working on</p>
             </div>
-            <div className="p-4 bg-[var(--bg-surface)]">
+            <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.project</code>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Project name (inferred from identity if not provided)</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Project name (inferred from identity if not provided)</p>
             </div>
           </div>
         </div>
@@ -150,27 +150,27 @@ export default function SessionsSdk() {
         <div className="space-y-3">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Parameters</h3>
           <div className="divide-y divide-[var(--border-subtle)] border border-[var(--border-subtle)] rounded-xl overflow-hidden">
-            <div className="p-4 bg-[var(--bg-surface)]">
+            <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">sessionId</code>
                 <Badge variant="default" size="sm">required</Badge>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">The session ID to complete</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">The session ID to complete</p>
             </div>
-            <div className="p-4 bg-[var(--bg-surface)]">
+            <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.summary</code>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Summary of work completed</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Summary of work completed</p>
             </div>
-            <div className="p-4 bg-[var(--bg-surface)]">
+            <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.outcome</code>
                 <span className="text-xs text-[var(--text-muted)]">'success' | 'failure' | 'cancelled'</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Session outcome status</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Session outcome status</p>
             </div>
           </div>
         </div>
@@ -204,28 +204,28 @@ await pd.sessions.done(session.id)`}
         <div className="space-y-3">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Parameters</h3>
           <div className="divide-y divide-[var(--border-subtle)] border border-[var(--border-subtle)] rounded-xl overflow-hidden">
-            <div className="p-4 bg-[var(--bg-surface)]">
+            <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">sessionId</code>
                 <Badge variant="default" size="sm">required</Badge>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">The session ID to add note to</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">The session ID to add note to</p>
             </div>
-            <div className="p-4 bg-[var(--bg-surface)]">
+            <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">content</code>
                 <Badge variant="default" size="sm">required</Badge>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Note content</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Note content</p>
             </div>
-            <div className="p-4 bg-[var(--bg-surface)]">
+            <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">type</code>
                 <span className="text-xs text-[var(--text-muted)]">NoteType</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">
+              <p className="text-sm text-[var(--text-muted)] mt-1">
                 Note type: 'thought', 'decision', 'progress', 'blocker', 'handoff'
               </p>
             </div>
@@ -269,26 +269,26 @@ await pd.sessions.addNote(
         <div className="space-y-3">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Parameters</h3>
           <div className="divide-y divide-[var(--border-subtle)] border border-[var(--border-subtle)] rounded-xl overflow-hidden">
-            <div className="p-4 bg-[var(--bg-surface)]">
+            <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.sessionId</code>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Filter by session ID</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Filter by session ID</p>
             </div>
-            <div className="p-4 bg-[var(--bg-surface)]">
+            <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.type</code>
                 <span className="text-xs text-[var(--text-muted)]">NoteType</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Filter by note type</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Filter by note type</p>
             </div>
-            <div className="p-4 bg-[var(--bg-surface)]">
+            <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.limit</code>
                 <span className="text-xs text-[var(--text-muted)]">number</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Maximum number of notes to return</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Maximum number of notes to return</p>
             </div>
           </div>
         </div>
@@ -382,7 +382,7 @@ interface GetNotesOptions {
         </Link>
         <Link 
           to="/docs/sdk/locks"
-          className="flex items-center gap-2 text-sm text-[var(--brand-primary)] hover:text-[var(--brand-primary-hover)] transition-colors"
+          className="flex items-center gap-2 text-sm text-[var(--brand-primary)] hover:text-[var(--brand-primary)] transition-colors"
         >
           Locks Module
           <ArrowLeft size={14} className="rotate-180" />

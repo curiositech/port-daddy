@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
+import { Surface } from '@/components/ui/Surface'
 import {
   Code, Cpu, Layers, Share2, Zap,
   Terminal, ChevronRight, MessageSquare, Globe
@@ -26,7 +27,7 @@ export function AgentEcosystem() {
   return (
     <motion.section
       id="ecosystem"
-      className="py-24 px-6 sm:px-8 lg:px-10 font-sans relative overflow-hidden"
+      className="py-16 lg:py-24 px-6 lg:px-8 font-sans relative overflow-hidden"
       style={{ background: 'var(--surface-base)' }}
       initial={{ opacity: 0 }}
       whileInView={{ opacity: 1 }}
@@ -53,12 +54,9 @@ export function AgentEcosystem() {
         {/* Tools Grid */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
           {TOOLS.map((tool) => (
-            <div
-              key={tool.name}
-              className="group p-6 rounded-xl bg-[var(--bg-base)] border border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:shadow-[var(--shadow-md)] transition-all"
-            >
+            <div key={tool.name} className="group">
               <motion.div
-                className="h-full p-12 rounded-[56px] transition-all duration-300 flex flex-col items-center text-center gap-10"
+                className="h-full p-12 rounded-[var(--radius-4xl)] transition-all duration-300 flex flex-col items-center text-center gap-10"
                 style={{
                   background: 'var(--surface-raised)',
                   boxShadow: 'var(--shadow-raised)',
@@ -66,15 +64,9 @@ export function AgentEcosystem() {
                 whileHover={{ y: -12, boxShadow: 'var(--shadow-sm)' }}
               >
                 {/* Icon in inset circle */}
-                <motion.div
-                  className="w-20 h-20 rounded-[32px] flex items-center justify-center transition-all group-hover:scale-110"
-                  style={{
-                    background: 'var(--surface-base)',
-                    boxShadow: 'var(--shadow-inset)',
-                  }}
-                >
+                <Surface depth="inset" radius="3xl" padding="none" className="w-20 h-20 flex items-center justify-center transition-all group-hover:scale-110">
                   <tool.icon size={40} style={{ color: 'var(--brand-accent)' }} />
-                </motion.div>
+                </Surface>
 
                 <div className="space-y-4 flex-1 flex flex-col items-center">
                    <div className="flex flex-col items-center gap-3">
@@ -99,7 +91,7 @@ export function AgentEcosystem() {
 
         {/* Multi-Agent Coordination Example */}
         <motion.div
-          className="mt-24 p-20 rounded-[80px] relative overflow-hidden w-full flex flex-col items-center text-center"
+          className="mt-24 p-20 rounded-[var(--radius-4xl)] relative overflow-hidden w-full flex flex-col items-center text-center"
           style={{
             background: 'var(--surface-raised)',
             boxShadow: 'var(--shadow-raised)',
@@ -115,15 +107,15 @@ export function AgentEcosystem() {
            <div className="max-w-4xl relative z-10 space-y-12 flex flex-col items-center">
               <Badge variant="gold" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Coordination Pattern</Badge>
               <motion.h3 className="text-5xl sm:text-7xl font-display font-black leading-[0.95] m-0" style={{ color: 'var(--text-primary)' }}>
-                The <span style={{ color: 'var(--brand-accent)' }}>Lighthouse</span> <br /> Pattern.
+                The <span style={{ color: 'var(--brand-accent)' }}>Daemon</span> <br /> Pattern.
               </motion.h3>
               <motion.p className="text-2xl leading-relaxed opacity-80 max-w-2xl mx-auto" style={{ color: 'var(--text-secondary)' }}>
-                Teach your swarms to discover each other via a central daemon. One agent claims a semantic harbor, while others subscribe to its Swarm Radio channels for real-time state updates.
+                Your agents coordinate through a shared local daemon. One agent claims a port and publishes events, while others subscribe for updates — all through localhost:9876.
               </motion.p>
 
               <div className="w-full max-w-2xl pt-6">
                  <motion.div
-                   className="flex items-start gap-8 p-10 rounded-[48px] text-left group transition-all"
+                   className="flex items-start gap-8 p-10 rounded-[var(--radius-4xl)] text-left group transition-all"
                    style={{
                      background: 'var(--surface-raised)',
                      boxShadow: 'var(--shadow-sm)',
@@ -131,18 +123,12 @@ export function AgentEcosystem() {
                    whileHover={{ boxShadow: 'var(--shadow-raised)' }}
                  >
                     {/* Icon in inset circle */}
-                    <motion.div
-                      className="w-14 h-14 rounded-full flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform"
-                      style={{
-                        background: 'var(--surface-base)',
-                        boxShadow: 'var(--shadow-inset)',
-                      }}
-                    >
+                    <Surface depth="inset" radius="full" padding="none" className="w-14 h-14 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
                        <MessageSquare style={{ color: 'var(--brand-accent)' }} size={28} />
-                    </motion.div>
+                    </Surface>
                     <div className="space-y-3">
                        <motion.p className="font-black m-0 text-xl tracking-tight" style={{ color: 'var(--text-primary)' }}>Cross-Framework Signaling</motion.p>
-                       <motion.p className="text-base m-0 opacity-80 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>A LangChain agent can publish an event that a CrewAI task is waiting for, bridged instantly by the Port Daddy daemon.</motion.p>
+                       <motion.p className="text-base m-0 opacity-80 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>Agents from any framework publish and subscribe through the local daemon's REST API and SSE streams, enabling real-time coordination across tool boundaries.</motion.p>
                     </div>
                  </motion.div>
               </div>

@@ -33,14 +33,14 @@ export function WorkflowsTable() {
   };
 
   if (loading) return <motion.div className="p-8 text-center opacity-50 font-black uppercase tracking-widest text-[10px] font-sans">Hailing Pipelines...</motion.div>;
-  if (error) return <motion.div className="p-8 text-center text-[var(--p-red-400)] font-bold font-sans">Harbor Error: {error}</motion.div>;
+  if (error) return <motion.div className="p-8 text-center text-[var(--status-error)] font-bold font-sans">Harbor Error: {error}</motion.div>;
 
   return (
-    <motion.div className="flex flex-col h-full bg-[var(--bg-surface)] rounded-3xl border border-[var(--border-default)] overflow-hidden shadow-sm font-sans">
-      <motion.div className="px-8 py-6 border-b border-[var(--border-subtle)] flex items-center justify-between bg-[var(--bg-overlay)] font-sans">
+    <motion.div className="flex flex-col h-full bg-[var(--surface-raised)] rounded-3xl border border-[var(--border-default)] overflow-hidden shadow-sm font-sans">
+      <motion.div className="px-8 py-6 border-b border-[var(--border-subtle)] flex items-center justify-between bg-[var(--surface-overlay)] font-sans">
         <motion.div className="font-sans">
           <motion.h2 className="text-lg font-bold flex items-center gap-2 font-display">
-            <Zap size={20} className="text-[var(--p-amber-400)]" />
+            <Zap size={20} className="text-[var(--brand-accent)]" />
             Reactive Pipelines
           </motion.h2>
           <motion.p className="text-xs text-[var(--text-muted)] font-medium uppercase tracking-widest mt-1 font-sans">
@@ -48,7 +48,7 @@ export function WorkflowsTable() {
           </motion.p>
         </motion.div>
         <motion.button 
-          className="px-4 py-2 rounded-xl bg-[var(--brand-primary)] text-[var(--bg-base)] text-sm font-bold flex items-center gap-2 transition-all shadow-lg shadow-[var(--brand-primary)]/20 font-sans"
+          className="px-4 py-2 rounded-xl bg-[var(--brand-primary)] text-[var(--surface-base)] text-sm font-bold flex items-center gap-2 transition-all shadow-lg shadow-[var(--brand-primary)]/20 font-sans"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
         >
@@ -73,16 +73,16 @@ export function WorkflowsTable() {
                 key={rule.id}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="group hover:bg-[var(--bg-overlay)] transition-colors font-sans"
+                className="group hover:bg-[var(--surface-overlay)] transition-colors font-sans"
               >
                 <motion.td className="px-8 py-5 font-sans">
-                  <motion.div className={`w-2.5 h-2.5 rounded-full ${rule.enabled ? 'bg-[var(--status-success)] shadow-[0_0_8px_var(--status-success)]' : 'bg-[var(--text-disabled)]'}`} />
+                  <motion.div className={`w-2.5 h-2.5 rounded-full ${rule.enabled ? 'bg-[var(--status-success)] shadow-[0_0_8px_var(--status-success)]' : 'bg-[var(--text-muted)]'}`} />
                 </motion.td>
                 <motion.td className="px-4 py-5 font-sans">
                   <motion.span className="font-bold text-sm font-sans" style={{ color: 'var(--text-primary)' }}>{rule.name}</motion.span>
                 </motion.td>
                 <motion.td className="px-4 py-5 font-sans">
-                  <motion.code className="px-2 py-1 rounded bg-[var(--bg-overlay)] border border-[var(--border-subtle)] text-xs font-mono text-[var(--brand-primary)]">
+                  <motion.code className="px-2 py-1 rounded bg-[var(--surface-overlay)] border border-[var(--border-subtle)] text-xs font-mono text-[var(--brand-primary)]">
                     {rule.channelPattern}
                   </motion.code>
                 </motion.td>

@@ -7,6 +7,7 @@ import { TutorialProgress, useTutorialProgress } from './TutorialProgress'
 import { ReorientationPanel } from './ReorientationPanel'
 import { Clock, BookOpen, ChevronRight, Home, Layout, ArrowLeft, ArrowRight, Zap, Shield, Globe, Share2 } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
+import { useTutorialState } from '@/hooks/useTutorialState'
 
 // Nav height matches the h-16 (4rem / 64px) used in Nav.tsx
 const NAV_HEIGHT = '4rem'
@@ -42,54 +43,36 @@ export function TutorialLayout({
   
   const { markComplete } = useTutorialProgress()
   const [showProgress, setShowProgress] = React.useState(false)
-  const [hasReturned, setHasReturned] = React.useState(false)
   const location = useLocation()
+
+  const numericNumber = typeof number === 'string' ? parseInt(number, 10) : number
+  const { hasReturned, dismissReturn } = useTutorialState(numericNumber)
 
   // Scroll to top when navigating between tutorials
   React.useEffect(() => {
     window.scrollTo(0, 0)
   }, [location.pathname])
 
-  const numericNumber = typeof number === 'string' ? parseInt(number, 10) : number
-
-  // Track if user is returning to this tutorial
+  // Mark as complete when reaching bottom
   React.useEffect(() => {
-    const stored = localStorage.getItem('pd-last-tutorial')
-    const current = numericNumber
-    
-    if (stored && parseInt(stored) === current) {
-      const lastVisit = localStorage.getItem('pd-last-visit')
-      if (lastVisit) {
-        const hoursSince = (Date.now() - parseInt(lastVisit)) / (1000 * 60 * 60)
-        if (hoursSince > 0.5) { // Show reorientation if away for >30 min
-          setHasReturned(true)
-        }
-      }
-    }
-    
-    // Save current position
-    localStorage.setItem('pd-last-tutorial', current.toString())
-    localStorage.setItem('pd-last-visit', Date.now().toString())
-    
-    // Mark as complete when reaching bottom
     const handleScroll = () => {
       const scrolled = window.scrollY + window.innerHeight
       const height = document.documentElement.scrollHeight
       if (scrolled >= height - 200) {
-        markComplete(current)
+        markComplete(numericNumber)
       }
     }
-    
+
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
-  }, [number, markComplete])
+  }, [numericNumber, markComplete])
 
   return (
     <motion.div 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       className="min-h-screen font-sans flex flex-col selection:bg-[var(--brand-primary)] selection:text-white" 
-      style={{ background: 'var(--bg-base)', color: 'var(--text-primary)', paddingTop: NAV_HEIGHT }}
+      style={{ background: 'var(--surface-base)', color: 'var(--text-primary)', paddingTop: NAV_HEIGHT }}
     >
       {/* Progress Bar */}
       <motion.div
@@ -100,7 +83,7 @@ export function TutorialLayout({
       {/* Hero Section */}
       <motion.section
         className="py-20 px-4 sm:px-6 lg:px-8 border-b relative overflow-hidden shrink-0"
-        style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}
+        style={{ background: 'var(--surface-raised)', borderColor: 'var(--border-subtle)' }}
       >
         {/* Abstract background shapes */}
         <motion.div 
@@ -111,7 +94,7 @@ export function TutorialLayout({
         />
         <motion.div 
           className="absolute bottom-[-10%] left-[-5%] w-[400px] h-[400px] rounded-full blur-[100px] opacity-[0.08] pointer-events-none" 
-          style={{ background: 'radial-gradient(circle, var(--p-amber-500) 0%, transparent 70%)' }} 
+          style={{ background: 'radial-gradient(circle, var(--brand-accent) 0%, transparent 70%)' }} 
           animate={{ scale: [1, 1.2, 1], x: [0, -30, 0] }}
           transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}
         />
@@ -122,7 +105,7 @@ export function TutorialLayout({
             <ReorientationPanel 
               tutorialNumber={typeof number === 'string' ? parseInt(number, 10) : number}
               tutorialTitle={title}
-              onDismiss={() => setHasReturned(false)}
+              onDismiss={dismissReturn}
             />
           )}
           
@@ -178,16 +161,16 @@ export function TutorialLayout({
 
             <motion.div className="flex flex-wrap items-center justify-center gap-10 font-sans text-[var(--text-muted)]">
                <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em]">
-                 <Zap size={14} className="text-[var(--p-amber-400)]" />
+                 <Zap size={14} className="text-[var(--brand-accent)]" />
                  Instant Port
                </motion.div>
                <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em]">
-                 <Shield size={14} className="text-[var(--p-teal-400)]" />
+                 <Shield size={14} className="text-[var(--brand-secondary)]" />
                  Secure DNS
                </motion.div>
                <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em]">
-                 <Share2 size={14} className="text-[var(--p-blue-400)]" />
-                 P2P Tunnel
+                 <Share2 size={14} className="text-[var(--brand-secondary)]" />
+                 Pub/Sub Radio
                </motion.div>
             </motion.div>
           </motion.div>
@@ -209,7 +192,7 @@ export function TutorialLayout({
             prose-strong:text-[var(--text-primary)] prose-strong:font-black
             prose-ul:list-disc prose-ul:pl-8 prose-ul:mb-10 prose-ul:space-y-4
             prose-li:text-[var(--text-secondary)] prose-li:text-lg
-            prose-blockquote:border-l-4 prose-blockquote:border-[var(--brand-primary)] prose-blockquote:bg-[var(--bg-surface)] prose-blockquote:py-4 prose-blockquote:px-8 prose-blockquote:rounded-r-2xl prose-blockquote:italic"
+            prose-blockquote:border-l-4 prose-blockquote:border-[var(--brand-primary)] prose-blockquote:bg-[var(--surface-raised)] prose-blockquote:py-4 prose-blockquote:px-8 prose-blockquote:rounded-r-2xl prose-blockquote:italic"
         >
           {children}
         </motion.article>
@@ -222,8 +205,8 @@ export function TutorialLayout({
           {prev ? (
             <Link to={prev.href} className="group no-underline block">
               <motion.div 
-                className="h-full p-10 rounded-[40px] border transition-all duration-[var(--p-transition-spring)] hover:border-[var(--brand-primary)] hover:bg-[var(--interactive-hover)] flex flex-col items-start gap-4"
-                style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-surface)' }}
+                className="h-full p-10 rounded-[40px] border transition-all duration-300 hover:border-[var(--brand-primary)] hover:bg-[var(--interactive-hover)] flex flex-col items-start gap-4"
+                style={{ borderColor: 'var(--border-subtle)', background: 'var(--surface-raised)' }}
                 whileHover={{ x: -8 }}
               >
                 <motion.span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] text-[var(--text-muted)] font-sans group-hover:text-[var(--brand-primary)] transition-all">
@@ -238,8 +221,8 @@ export function TutorialLayout({
           {next ? (
             <Link to={next.href} className="group no-underline block">
               <motion.div 
-                className="h-full p-10 rounded-[40px] border-2 transition-all duration-[var(--p-transition-spring)] hover:bg-[var(--interactive-hover)] flex flex-col items-end text-right gap-4"
-                style={{ borderColor: 'var(--brand-primary)', background: 'var(--bg-surface)' }}
+                className="h-full p-10 rounded-[40px] border-2 transition-all duration-300 hover:bg-[var(--interactive-hover)] flex flex-col items-end text-right gap-4"
+                style={{ borderColor: 'var(--brand-primary)', background: 'var(--surface-raised)' }}
                 whileHover={{ x: 8 }}
               >
                 <motion.span className="flex items-center justify-end gap-2 text-[10px] font-black uppercase tracking-[0.25em] font-sans text-[var(--brand-primary)]">
@@ -252,7 +235,7 @@ export function TutorialLayout({
           ) : (
             <motion.div 
               className="sm:col-span-2 p-16 rounded-[60px] border border-dashed flex flex-col items-center text-center gap-8 relative overflow-hidden"
-              style={{ borderColor: 'var(--brand-primary)', background: 'var(--bg-overlay)' }}
+              style={{ borderColor: 'var(--brand-primary)', background: 'var(--surface-overlay)' }}
             >
               <motion.div 
                 className="absolute inset-0 opacity-[0.03] pointer-events-none"

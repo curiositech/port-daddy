@@ -52,7 +52,7 @@ export function ReorientationPanel({ tutorialNumber, tutorialTitle, onDismiss }:
                   window.scrollTo({ top: parseInt(savedPosition), behavior: 'smooth' })
                 }
               }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--brand-primary)] text-[var(--brand-on-primary)] text-sm font-medium hover:bg-[var(--brand-primary-hover)] transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--brand-primary)] text-[var(--text-inverse)] text-sm font-medium hover:bg-[var(--brand-primary)] transition-colors"
             >
               <Play size={14} />
               Continue where I left off
@@ -64,7 +64,7 @@ export function ReorientationPanel({ tutorialNumber, tutorialTitle, onDismiss }:
                 setDismissed(true)
                 onDismiss()
               }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--bg-surface)] text-[var(--text-secondary)] text-sm font-medium hover:bg-[var(--interactive-hover)] transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--surface-raised)] text-[var(--text-secondary)] text-sm font-medium hover:bg-[var(--interactive-hover)] transition-colors"
             >
               <Map size={14} />
               Browse all tutorials

@@ -3,6 +3,7 @@ import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Badge } from '@/components/ui/Badge'
 import { Shield, Lock, Key, Zap, ShieldCheck, AlertTriangle, Users } from 'lucide-react'
+import { Surface } from '@/components/ui/Surface'
 
 export function Harbors() {
   return (
@@ -20,12 +21,9 @@ export function Harbors() {
         {/* Why Harbors Exist */}
         <section className="space-y-6">
           <motion.div className="flex items-center gap-4 mb-8">
-            <motion.div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center"
-              style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-            >
+            <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Shield className="text-[var(--brand-primary)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">Why Harbors Exist</motion.h2>
           </motion.div>
           <motion.p>
@@ -37,26 +35,19 @@ export function Harbors() {
           <motion.p>
             <strong>Harbors</strong> solve this by letting you define exactly what each agent is allowed to do. A harbor is a named permission namespace -- think of it as a scoped role that you assign to a group of agents. Each harbor has a list of capabilities (like <code>code:read</code>, <code>notes:write</code>, <code>file:claim</code>), and agents inside the harbor receive a signed token that proves their permissions. The daemon verifies this token on every request.
           </motion.p>
-          <blockquote
-            className="p-10 rounded-2xl border-l-8 border-[var(--p-teal-500)]"
-            style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-          >
-             <motion.p className="font-bold text-[var(--text-primary)] m-0 mb-4 text-2xl font-display">Soundness by Design:</motion.p>
-             <motion.p className="m-0 text-lg">
-               In Port Daddy v3.7, every harbor operation is verified against a mathematical state machine. If an agent tries to claim a port it doesn't own, the daemon rejects the request instantly.
-             </motion.p>
-          </blockquote>
+          <Surface depth="flat" radius="xl" padding="md" className="border-l-4 border-[var(--brand-secondary)]">
+            <p className="m-0 text-sm" style={{ color: 'var(--text-secondary)' }}>
+              <strong>Soundness by Design:</strong> In Port Daddy v3.7, every harbor operation is verified against a mathematical state machine. If an agent tries to claim a port it doesn't own, the daemon rejects the request instantly.
+            </p>
+          </Surface>
         </section>
 
         {/* Step 1: Creation */}
         <section className="space-y-8">
           <motion.div className="flex items-center gap-4">
-            <motion.div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center"
-              style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-            >
-              <Lock className="text-[var(--p-amber-400)]" size={24} />
-            </motion.div>
+            <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
+              <Lock className="text-[var(--brand-accent)]" size={24} />
+            </Surface>
             <motion.h2 className="m-0">1. Create a Harbor</motion.h2>
           </motion.div>
 
@@ -75,41 +66,32 @@ export function Harbors() {
           </motion.p>
 
           <motion.div className="grid sm:grid-cols-2 gap-6">
-             <motion.div
-               className="p-8 rounded-2xl space-y-4"
-               style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-             >
+             <Surface depth="inset" radius="2xl" padding="none" className="p-8 space-y-4">
                 <Badge variant="teal">Capability: code:read</Badge>
                 <motion.p className="text-sm m-0 leading-relaxed text-[var(--text-secondary)]">
                   Allows the agent to read source files and view session notes within the harbor. The agent can use <code>pd session files claim</code> to access files, but only in read mode.
                 </motion.p>
-             </motion.div>
-             <motion.div
-               className="p-8 rounded-2xl space-y-4"
-               style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-             >
+             </Surface>
+             <Surface depth="inset" radius="2xl" padding="none" className="p-8 space-y-4">
                 <Badge variant="gold">Capability: notes:write</Badge>
                 <motion.p className="text-sm m-0 leading-relaxed text-[var(--text-secondary)]">
                   Allows the agent to post status updates and findings to the session timeline. Other agents (including those outside this harbor) can read these notes to see the review results.
                 </motion.p>
-             </motion.div>
+             </Surface>
           </motion.div>
         </section>
 
         {/* Step 2: Entrance */}
         <section className="space-y-8">
           <motion.div className="flex items-center gap-4">
-            <motion.div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center"
-              style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-            >
-              <Key className="text-[var(--p-blue-400)]" size={24} />
-            </motion.div>
+            <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
+              <Key className="text-[var(--brand-secondary)]" size={24} />
+            </Surface>
             <motion.h2 className="m-0">2. Enter the Harbor</motion.h2>
           </motion.div>
 
           <motion.p>
-            When an agent enters a harbor, the daemon issues a unique **Harbor Card**--an HMAC-signed JWT that proves the agent's identity and permissions.
+            When an agent enters a harbor, the daemon issues a unique <strong>Harbor Card</strong>--an HMAC-signed JWT that proves the agent's identity and permissions.
           </motion.p>
 
           <CodeBlock language="bash">
@@ -139,8 +121,8 @@ Expires: 2h from now`}
         {/* Step 3: What Happens When It Expires */}
         <section className="space-y-8">
           <motion.div className="flex items-center gap-4">
-            <motion.div className="w-12 h-12 rounded-2xl bg-[var(--interactive-active)] flex items-center justify-center border border-[var(--p-amber-400)]">
-              <AlertTriangle className="text-[var(--p-amber-400)]" size={24} />
+            <motion.div className="w-12 h-12 rounded-2xl bg-[var(--interactive-active)] flex items-center justify-center border border-[var(--brand-accent)]">
+              <AlertTriangle className="text-[var(--brand-accent)]" size={24} />
             </motion.div>
             <motion.h2 className="m-0">3. Token Expiration and Revocation</motion.h2>
           </motion.div>
@@ -164,12 +146,11 @@ Token JTI burned — cannot be reused.`}
             The "JTI burned" message means Port Daddy records the token's unique identifier in a revocation list. Even if someone copies the raw JWT string, it will be rejected because the daemon checks the JTI against the revocation list on every request.
           </motion.p>
 
-          <blockquote className="bg-[var(--bg-surface)] p-10 rounded-[32px] border-l-8 border-[var(--p-amber-500)]">
-             <motion.p className="font-bold text-[var(--text-primary)] m-0 mb-4 text-xl font-display">Common Pitfall: Forgetting to Set a TTL</motion.p>
-             <motion.p className="m-0 text-base">
-               If you create a harbor without <code>--ttl</code>, tokens default to 2 hours. For production workflows, always set an explicit TTL that matches the expected duration of the task. A CI pipeline that runs in 10 minutes should use <code>--ttl 15m</code>, not the default.
-             </motion.p>
-          </blockquote>
+          <Surface depth="flat" radius="xl" padding="md" className="border-l-4 border-[var(--brand-secondary)]">
+            <p className="m-0 text-sm" style={{ color: 'var(--text-secondary)' }}>
+              <strong>Common Pitfall: Forgetting to Set a TTL.</strong> If you create a harbor without <code>--ttl</code>, tokens default to 2 hours. For production workflows, always set an explicit TTL that matches the expected duration of the task. A CI pipeline that runs in 10 minutes should use <code>--ttl 15m</code>, not the default.
+            </p>
+          </Surface>
         </section>
 
         {/* When to Use Harbors */}
@@ -186,25 +167,25 @@ Token JTI burned — cannot be reused.`}
           </motion.p>
 
           <motion.div className="space-y-4">
-            <motion.div className="p-6 rounded-[24px] bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+            <motion.div className="p-6 rounded-[24px] bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
               <motion.p className="font-bold text-[var(--text-primary)] m-0 mb-2">Security-sensitive reviews</motion.p>
               <motion.p className="text-sm m-0 text-[var(--text-secondary)] leading-relaxed">
                 When you want an agent to analyze code without being able to modify it. Use <code>code:read</code> + <code>notes:write</code> and nothing else.
               </motion.p>
             </motion.div>
-            <motion.div className="p-6 rounded-[24px] bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+            <motion.div className="p-6 rounded-[24px] bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
               <motion.p className="font-bold text-[var(--text-primary)] m-0 mb-2">Untrusted or experimental agents</motion.p>
               <motion.p className="text-sm m-0 text-[var(--text-secondary)] leading-relaxed">
                 When you are testing a new agent framework or prompt and do not fully trust its behavior yet. Harbors limit the blast radius if something goes wrong.
               </motion.p>
             </motion.div>
-            <motion.div className="p-6 rounded-[24px] bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+            <motion.div className="p-6 rounded-[24px] bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
               <motion.p className="font-bold text-[var(--text-primary)] m-0 mb-2">Multi-team projects</motion.p>
               <motion.p className="text-sm m-0 text-[var(--text-secondary)] leading-relaxed">
                 When different teams have different agents working on the same monorepo and you want to ensure the frontend team's agents cannot touch the backend's database migration files.
               </motion.p>
             </motion.div>
-            <motion.div className="p-6 rounded-[24px] bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+            <motion.div className="p-6 rounded-[24px] bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
               <motion.p className="font-bold text-[var(--text-primary)] m-0 mb-2">CI/CD pipelines</motion.p>
               <motion.p className="text-sm m-0 text-[var(--text-secondary)] leading-relaxed">
                 When you spawn agents as part of an automated pipeline and want each step to have only the permissions it needs. A test-runner agent does not need <code>tunnel:create</code>.
@@ -218,11 +199,7 @@ Token JTI burned — cannot be reused.`}
         </section>
 
         {/* The Formal Verification Note */}
-        <motion.div
-          className="p-16 rounded-2xl flex flex-col items-center text-center gap-8 relative overflow-hidden"
-          style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-          whileHover={{ scale: 1.01 }}
-        >
+        <Surface depth="raised" radius="2xl" className="p-16 flex flex-col items-center text-center gap-8 relative overflow-hidden">
            <motion.div className="absolute top-0 right-0 p-10 opacity-[0.03] pointer-events-none">
               <ShieldCheck size={400} />
            </motion.div>
@@ -235,7 +212,7 @@ Token JTI burned — cannot be reused.`}
               <Zap size={14} className="animate-pulse" />
               Verified Handshake Protocol
            </motion.div>
-        </motion.div>
+        </Surface>
       </motion.div>
     </TutorialLayout>
   )

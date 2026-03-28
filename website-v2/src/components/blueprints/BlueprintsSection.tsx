@@ -15,7 +15,7 @@ const ICON_MAP: Record<string, typeof Code> = {
 
 export function BlueprintsSection() {
   return (
-    <section className="py-24 lg:py-32 bg-[var(--bg-surface)]">
+    <section className="py-24 lg:py-32 bg-[var(--surface-raised)]">
       <div className="max-w-[1200px] mx-auto px-6 lg:px-8">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
@@ -45,7 +45,7 @@ export function BlueprintsSection() {
               <Link
                 key={blueprint.id}
                 to={`/templates/${blueprint.id}`}
-                className="group block p-6 rounded-xl bg-[var(--bg-base)] border border-[var(--border-subtle)] hover:border-[var(--brand-primary)] hover:shadow-[var(--shadow-md)] transition-all"
+                className="group block p-6 rounded-xl bg-[var(--surface-base)] border border-[var(--border-subtle)] hover:border-[var(--brand-primary)] hover:shadow-[var(--shadow-md)] transition-all"
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="w-12 h-12 rounded-xl bg-[var(--interactive-hover)] flex items-center justify-center group-hover:bg-[var(--interactive-active)] transition-colors">
@@ -61,14 +61,14 @@ export function BlueprintsSection() {
                 <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-2">
                   {blueprint.title}
                 </h3>
-                <p className="text-[var(--text-tertiary)] leading-relaxed mb-4">
+                <p className="text-[var(--text-muted)] leading-relaxed mb-4">
                   {blueprint.description}
                 </p>
 
                 <div className="flex items-center justify-between pt-4 border-t border-[var(--border-subtle)]">
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-[var(--success)]" />
-                    <span className="text-xs font-medium text-[var(--text-tertiary)]">Ready to Spawn</span>
+                    <span className="text-xs font-medium text-[var(--text-muted)]">Ready to Spawn</span>
                   </div>
                   <span className="text-sm font-medium text-[var(--brand-primary)] group-hover:gap-3 transition-all flex items-center gap-2">
                     Inspect
@@ -81,7 +81,7 @@ export function BlueprintsSection() {
         </div>
 
         {/* Framework Support */}
-        <div className="p-8 lg:p-12 rounded-2xl bg-[var(--bg-base)] border border-[var(--border-subtle)]">
+        <div className="p-8 lg:p-12 rounded-2xl bg-[var(--surface-base)] border border-[var(--border-subtle)]">
           <div className="text-center mb-10">
             <Badge variant="gold" className="mb-4">Framework Support</Badge>
             <h3 className="text-2xl lg:text-3xl font-semibold text-[var(--text-primary)] mb-3">
@@ -98,12 +98,12 @@ export function BlueprintsSection() {
               { title: 'Crypto Auth', desc: 'Secure your CrewAI members with HMAC-signed cards.', icon: Shield },
               { title: 'Swarm Radio', desc: 'Low-latency inter-agent signaling for state sync.', icon: Radio }
             ].map((item, i) => (
-              <div key={i} className="p-5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-center">
+              <div key={i} className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)] text-center">
                 <div className="w-10 h-10 rounded-lg bg-[var(--interactive-hover)] flex items-center justify-center mx-auto mb-3">
                   <item.icon size={20} className="text-[var(--brand-primary)]" />
                 </div>
                 <h4 className="font-semibold text-[var(--text-primary)] mb-1">{item.title}</h4>
-                <p className="text-sm text-[var(--text-tertiary)]">{item.desc}</p>
+                <p className="text-sm text-[var(--text-muted)]">{item.desc}</p>
               </div>
             ))}
           </div>

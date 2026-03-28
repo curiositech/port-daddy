@@ -1,7 +1,8 @@
 import { Badge } from '@/components/ui/Badge'
+import { Surface } from '@/components/ui/Surface'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Copy, Check } from 'lucide-react'
-import { useState } from 'react'
+import { ArrowLeft } from 'lucide-react'
+import { DocsCodeBlock as CodeBlock } from './DocsCodeBlock'
 
 interface SdkFunctionPageProps {
   function: string
@@ -28,102 +29,6 @@ interface SdkFunctionPageProps {
     name: string
     href: string
   }>
-}
-
-function CodeBlock({ code, output }: { code: string; output?: string }) {
-  const [copied, setCopied] = useState(false)
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(code)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  const highlightLine = (line: string) => {
-    if (!line.trim()) return <span> </span>
-    if (line.startsWith('//')) return <span style={{ color: 'var(--code-comment)' }}>{line}</span>
-    if (line.startsWith('import ') || line.startsWith('export ') || line.startsWith('const ') || line.startsWith('await ') || line.startsWith('async '))
-      return <span style={{ color: 'var(--code-text)' }}>{line}</span>
-    return <span style={{ color: 'var(--code-output)' }}>{line}</span>
-  }
-
-  return (
-    <div className="space-y-3">
-      <div
-        className="rounded-2xl p-5 group"
-        style={{
-          background: 'var(--surface-raised)',
-          boxShadow: 'var(--shadow-raised)',
-        }}
-      >
-        <div
-          className="rounded-xl overflow-hidden"
-          style={{
-            background: 'var(--code-bg)',
-            boxShadow: 'var(--shadow-inset)',
-          }}
-        >
-          {/* Traffic lights + copy */}
-          <div
-            className="flex items-center justify-between px-4 py-2.5"
-            style={{ borderBottom: '1px solid var(--code-border)' }}
-          >
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--code-dot-red)' }} />
-              <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--code-dot-amber)' }} />
-              <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--code-dot-green)' }} />
-            </div>
-            <button
-              onClick={handleCopy}
-              className="p-1.5 rounded-lg transition-all cursor-pointer opacity-0 group-hover:opacity-100"
-              style={{ color: 'var(--code-comment)' }}
-            >
-              {copied ? <Check size={14} style={{ color: 'var(--code-dot-green)' }} /> : <Copy size={14} />}
-            </button>
-          </div>
-
-          <pre className="overflow-x-auto p-4 m-0 text-sm leading-relaxed">
-            <code className="font-mono">
-              {code.split('\n').map((line, i) => (
-                <div key={i}>{highlightLine(line)}</div>
-              ))}
-            </code>
-          </pre>
-        </div>
-      </div>
-
-      {output && (
-        <div
-          className="rounded-2xl p-5"
-          style={{
-            background: 'var(--surface-raised)',
-            boxShadow: 'var(--shadow-raised)',
-          }}
-        >
-          <div
-            className="rounded-xl overflow-hidden"
-            style={{
-              background: 'var(--code-bg)',
-              boxShadow: 'var(--shadow-inset)',
-            }}
-          >
-            <div
-              className="flex items-center gap-2 px-4 py-2.5"
-              style={{ borderBottom: '1px solid var(--code-border)' }}
-            >
-              <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--code-dot-red)' }} />
-              <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--code-dot-amber)' }} />
-              <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--code-dot-green)' }} />
-              <span className="ml-2 text-xs font-mono" style={{ color: 'var(--code-comment)' }}>output</span>
-            </div>
-            <pre className="overflow-x-auto p-4 m-0 text-sm leading-relaxed font-mono whitespace-pre-wrap" style={{ color: 'var(--code-output)' }}>
-              {output}
-            </pre>
-          </div>
-        </div>
-      )}
-    </div>
-  )
 }
 
 export function SdkFunctionPage({
@@ -165,17 +70,15 @@ export function SdkFunctionPage({
       {/* Signature */}
       <div className="space-y-3">
         <h2 className="text-lg font-semibold text-[var(--text-primary)]">Signature</h2>
-        <CodeBlock code={signature} />
+        <CodeBlock code={signature} language="typescript" />
       </div>
 
       {/* Parameters */}
       {params && params.length > 0 && (
         <div className="space-y-3">
           <h2 className="text-lg font-semibold text-[var(--text-primary)]">Parameters</h2>
-          <div
-            className="rounded-2xl overflow-hidden divide-y divide-[var(--border-subtle)]"
-            style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-          >
+          <Surface depth="raised" radius="2xl" padding="none" className="overflow-hidden divide-y divide-[var(--border-subtle)]">
+
             {params.map((param, i) => (
               <div key={i} className="p-4">
                 <div className="flex items-center gap-2">
@@ -183,10 +86,10 @@ export function SdkFunctionPage({
                   {param.required && <Badge variant="default" size="sm">required</Badge>}
                   <span className="text-xs text-[var(--text-muted)]">{param.type}</span>
                 </div>
-                <p className="text-sm text-[var(--text-tertiary)] mt-1">{param.description}</p>
+                <p className="text-sm text-[var(--text-muted)] mt-1">{param.description}</p>
               </div>
             ))}
-          </div>
+          </Surface>
         </div>
       )}
 
@@ -194,13 +97,11 @@ export function SdkFunctionPage({
       {returns && (
         <div className="space-y-3">
           <h2 className="text-lg font-semibold text-[var(--text-primary)]">Returns</h2>
-          <div
-            className="p-5 rounded-2xl"
-            style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-          >
+          <Surface depth="raised" radius="2xl" className="p-5">
+
             <code className="text-sm font-mono text-[var(--brand-primary)]">{returns.type}</code>
-            <p className="text-sm text-[var(--text-tertiary)] mt-1">{returns.description}</p>
-          </div>
+            <p className="text-sm text-[var(--text-muted)] mt-1">{returns.description}</p>
+          </Surface>
         </div>
       )}
 
@@ -211,7 +112,7 @@ export function SdkFunctionPage({
           {examples.map((ex, i) => (
             <div key={i} className="space-y-2">
               <p className="text-[var(--text-secondary)]">{ex.description}</p>
-              <CodeBlock code={ex.code} output={ex.output} />
+              <CodeBlock code={ex.code} output={ex.output} language="typescript" />
             </div>
           ))}
         </div>
@@ -249,7 +150,7 @@ export function SdkFunctionPage({
         </Link>
         <Link 
           to="/docs/sdk"
-          className="flex items-center gap-2 text-sm text-[var(--brand-primary)] hover:text-[var(--brand-primary-hover)] transition-colors"
+          className="flex items-center gap-2 text-sm text-[var(--brand-primary)] hover:text-[var(--brand-primary)] transition-colors"
         >
           All SDK Functions
           <ArrowLeft size={14} className="rotate-180" />

@@ -1,42 +1,39 @@
 import * as React from 'react'
-
 import { cn } from '@/lib/utils'
+import { Surface, type SurfaceProps } from './Surface'
 
 type CardVariant = 'default' | 'glass' | 'elevated' | 'inset'
 
-interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
-  variant?: CardVariant
+const variantToDepth: Record<CardVariant, SurfaceProps['depth']> = {
+  default: 'raised',
+  elevated: 'raised',
+  glass: 'flat',
+  inset: 'inset',
 }
 
-function Card({ variant = 'default', className, style, ...props }: CardProps) {
-  const variantStyles: Record<CardVariant, React.CSSProperties> = {
-    default: {
-      background: 'var(--bg-surface)',
-      boxShadow: 'var(--shadow-neu-raised)',
-    },
-    glass: {
-      background: 'var(--bg-glass)',
-      boxShadow: 'var(--shadow-neu-sm)',
-      backdropFilter: 'blur(12px)',
-    },
-    elevated: {
-      background: 'var(--bg-surface)',
-      boxShadow: 'var(--shadow-neu-raised)',
-    },
-    inset: {
-      background: 'var(--bg-overlay)',
-      boxShadow: 'var(--shadow-neu-inset)',
-    },
-  }
+interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
+  variant?: CardVariant
+  interactive?: boolean
+}
+
+function Card({ variant = 'default', interactive = false, className, style, ...props }: CardProps) {
+  const depth = variantToDepth[variant]
+  const glassStyle: React.CSSProperties | undefined = variant === 'glass'
+    ? { background: 'var(--surface-glass)', backdropFilter: 'blur(12px)' }
+    : undefined
 
   return (
-    <div
+    <Surface
+      depth={depth}
+      radius="2xl"
+      padding="none"
+      interactive={interactive}
       data-slot="card"
       className={cn(
-        'flex flex-col gap-6 rounded-2xl py-6 text-[var(--text-primary)] transition-all duration-200',
+        'flex flex-col gap-6 py-6 text-[var(--text-primary)]',
         className
       )}
-      style={{ ...variantStyles[variant], ...style }}
+      style={{ ...glassStyle, ...style }}
       {...props}
     />
   )
@@ -69,7 +66,7 @@ function CardDescription({ className, ...props }: React.HTMLAttributes<HTMLDivEl
   return (
     <div
       data-slot="card-description"
-      className={cn('text-sm text-muted-foreground', className)}
+      className={cn('text-sm text-[var(--text-muted)]', className)}
       {...props}
     />
   )

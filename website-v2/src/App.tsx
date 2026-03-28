@@ -8,7 +8,7 @@ import { Nav } from '@/components/landing/Nav'
 
 export default function App() {
   return (
-    <div className="min-h-screen bg-[var(--bg-base)] selection:bg-[var(--brand-primary)] selection:text-white">
+    <div className="min-h-screen bg-[var(--surface-base)] selection:bg-[var(--brand-primary)] selection:text-white">
       <Nav />
 
       <main id="main-content">

@@ -45,18 +45,19 @@ function CodeBlock({ code, verify }: { code: string; verify: string }) {
 
   return (
     <div className="space-y-2">
-      <div className="relative p-4 rounded-lg bg-[var(--bg-code)] border border-[var(--border-subtle)] font-mono text-sm group">
+      <div className="relative p-4 rounded-[var(--radius-lg)] font-mono text-sm group" style={{ background: 'var(--code-bg)', boxShadow: 'var(--shadow-inset)' }}>
         <button
           onClick={handleCopy}
-          className="absolute right-3 top-3 p-1.5 rounded hover:bg-[var(--interactive-hover)] text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity"
+          className="absolute right-3 top-3 p-1.5 rounded hover:bg-[var(--interactive-hover)] opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+          style={{ color: 'var(--code-comment)' }}
         >
-          {copied ? <Check size={14} className="text-[var(--success)]" /> : <Copy size={14} />}
+          {copied ? <Check size={14} style={{ color: 'var(--code-dot-green)' }} /> : <Copy size={14} />}
         </button>
-        <code className="text-[var(--brand-primary)]">{code}</code>
+        <code style={{ color: 'var(--code-text)' }}>{code}</code>
       </div>
       <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
         <span>Verify:</span>
-        <code className="text-[var(--text-tertiary)]">{verify}</code>
+        <code className="text-[var(--text-muted)]">{verify}</code>
       </div>
     </div>
   )
@@ -78,7 +79,7 @@ export default function QuickStart() {
       </div>
 
       {/* Prerequisites */}
-      <div className="p-5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+      <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
         <h2 className="font-semibold text-[var(--text-primary)] mb-3">Prerequisites</h2>
         <ul className="space-y-2 text-[var(--text-secondary)]">
           <li className="flex items-center gap-2">
@@ -126,28 +127,28 @@ export default function QuickStart() {
         <div className="grid sm:grid-cols-2 gap-3">
           <Link 
             to="/docs/features/radio"
-            className="flex items-center gap-2 p-3 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--interactive-hover)] transition-colors"
+            className="flex items-center gap-2 p-3 rounded-lg bg-[var(--surface-raised)] hover:bg-[var(--interactive-hover)] transition-colors"
           >
             <span className="text-[var(--text-primary)]">Swarm Radio</span>
             <ArrowRight size={14} className="text-[var(--text-muted)]" />
           </Link>
           <Link 
             to="/docs/features/harbors"
-            className="flex items-center gap-2 p-3 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--interactive-hover)] transition-colors"
+            className="flex items-center gap-2 p-3 rounded-lg bg-[var(--surface-raised)] hover:bg-[var(--interactive-hover)] transition-colors"
           >
             <span className="text-[var(--text-primary)]">Cryptographic Harbors</span>
             <ArrowRight size={14} className="text-[var(--text-muted)]" />
           </Link>
           <Link 
             to="/docs/mcp"
-            className="flex items-center gap-2 p-3 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--interactive-hover)] transition-colors"
+            className="flex items-center gap-2 p-3 rounded-lg bg-[var(--surface-raised)] hover:bg-[var(--interactive-hover)] transition-colors"
           >
             <span className="text-[var(--text-primary)]">MCP Integration</span>
             <ArrowRight size={14} className="text-[var(--text-muted)]" />
           </Link>
           <Link 
             to="/tutorials/getting-started"
-            className="flex items-center gap-2 p-3 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--interactive-hover)] transition-colors"
+            className="flex items-center gap-2 p-3 rounded-lg bg-[var(--surface-raised)] hover:bg-[var(--interactive-hover)] transition-colors"
           >
             <span className="text-[var(--text-primary)]">Full Tutorial</span>
             <ArrowRight size={14} className="text-[var(--text-muted)]" />

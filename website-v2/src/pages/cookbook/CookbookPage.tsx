@@ -23,7 +23,7 @@ export function CookbookPage() {
   return (
     <motion.div
       className="min-h-screen font-sans flex flex-col selection:bg-[var(--brand-primary)] selection:text-white"
-      style={{ background: 'var(--bg-base)', color: 'var(--text-primary)', paddingTop: 'var(--nav-height)' }}
+      style={{ background: 'var(--surface-base)', color: 'var(--text-primary)', paddingTop: 'var(--nav-height)' }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
     >
@@ -34,7 +34,7 @@ export function CookbookPage() {
       >
         <motion.div
           className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full blur-[140px] opacity-[0.1] pointer-events-none"
-          style={{ background: 'radial-gradient(circle, var(--p-amber-500) 0%, transparent 70%)' }}
+          style={{ background: 'radial-gradient(circle, var(--brand-accent) 0%, transparent 70%)' }}
         />
 
         <motion.div className="max-w-7xl mx-auto text-center flex flex-col items-center gap-6 sm:gap-10 relative z-10">
@@ -46,7 +46,7 @@ export function CookbookPage() {
             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
           >
             The <br />
-            <motion.span className="text-[var(--p-amber-400)]">Cookbook.</motion.span>
+            <motion.span className="text-[var(--brand-accent)]">Cookbook.</motion.span>
           </motion.h1>
           <motion.p
             className="text-base sm:text-2xl lg:text-3xl max-w-3xl leading-relaxed text-[var(--text-secondary)] font-medium"
@@ -87,8 +87,8 @@ export function CookbookPage() {
                          className="w-14 h-14 sm:w-20 sm:h-20 rounded-2xl sm:rounded-[32px] flex items-center justify-center group-hover:scale-110 transition-transform"
                          style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
                        >
-                          <Icon size={28} className="text-[var(--p-amber-400)] sm:hidden" />
-                          <Icon size={40} className="text-[var(--p-amber-400)] hidden sm:block" />
+                          <Icon size={28} className="text-[var(--brand-accent)] sm:hidden" />
+                          <Icon size={40} className="text-[var(--brand-accent)] hidden sm:block" />
                        </div>
                        <Badge variant={recipe.difficulty === 'advanced' ? 'default' : 'teal'} className="text-[8px] font-black uppercase tracking-widest px-3 py-1">
                           {recipe.difficulty}
@@ -96,7 +96,7 @@ export function CookbookPage() {
                     </div>
 
                     <div className="space-y-3 sm:space-y-4 flex-1">
-                      <h3 className="m-0 text-xl sm:text-3xl lg:text-4xl font-display font-black leading-tight text-[var(--text-primary)] group-hover:text-[var(--p-amber-400)] transition-colors">
+                      <h3 className="m-0 text-xl sm:text-3xl lg:text-4xl font-display font-black leading-tight text-[var(--text-primary)] group-hover:text-[var(--brand-accent)] transition-colors">
                         {recipe.title}
                       </h3>
                       <p className="m-0 text-sm sm:text-lg lg:text-xl leading-relaxed text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors">
@@ -109,7 +109,7 @@ export function CookbookPage() {
                           <div className="w-2 h-2 rounded-full bg-[var(--status-success)] pulse-active" />
                           <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] group-hover:text-[var(--text-secondary)]">Verified Recipe</span>
                        </div>
-                       <div className="flex items-center gap-2 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-[var(--p-amber-400)] group-hover:gap-4 transition-all">
+                       <div className="flex items-center gap-2 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-[var(--brand-accent)] group-hover:gap-4 transition-all">
                           Read Pattern
                           <ChevronRight size={14} />
                        </div>
@@ -139,7 +139,7 @@ export function CookbookPage() {
            <div className="space-y-4 sm:space-y-6 max-w-3xl relative z-10 flex flex-col items-center">
               <Badge variant="teal" className="px-4 sm:px-6 py-2 text-[10px] font-black uppercase tracking-widest">High-Fidelity Swarms</Badge>
               <h3 className="text-2xl sm:text-4xl lg:text-7xl font-display font-black tracking-tight leading-[0.95]" style={{ color: 'var(--text-primary)' }}>
-                Soundness by <span className="text-[var(--p-teal-400)]">Pattern.</span>
+                Soundness by <span className="text-[var(--brand-secondary)]">Pattern.</span>
               </h3>
               <p className="text-base sm:text-xl lg:text-2xl leading-relaxed text-[var(--text-secondary)]">
                 The Cookbook isn't just a list of commands—it's a library of <strong>proven state machines</strong>. Every recipe is designed to converge your swarm on a result while maintaining the absolute integrity of your harbor.
@@ -158,8 +158,8 @@ export function CookbookPage() {
                   className="p-4 sm:p-8 rounded-2xl sm:rounded-[40px] flex flex-col items-center gap-3 sm:gap-4"
                   style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
                 >
-                   <item.icon size={20} className="text-[var(--p-amber-400)] sm:hidden" />
-                   <item.icon size={24} className="text-[var(--p-amber-400)] hidden sm:block" />
+                   <item.icon size={20} className="text-[var(--brand-accent)] sm:hidden" />
+                   <item.icon size={24} className="text-[var(--brand-accent)] hidden sm:block" />
                    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">{item.label}</span>
                 </div>
               ))}

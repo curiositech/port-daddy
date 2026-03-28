@@ -1,7 +1,8 @@
 import { Badge } from '@/components/ui/Badge'
+import { Surface } from '@/components/ui/Surface'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Copy, Check } from 'lucide-react'
-import { useState } from 'react'
+import { ArrowLeft } from 'lucide-react'
+import { DocsCodeBlock as CodeBlock } from './DocsCodeBlock'
 
 interface CommandPageProps {
   command: string
@@ -28,117 +29,6 @@ interface CommandPageProps {
     name: string
     href: string
   }>
-}
-
-function CodeBlock({ code, output }: { code: string; output?: string }) {
-  const [copied, setCopied] = useState(false)
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(code)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  const highlightLine = (line: string) => {
-    if (!line.trim()) return <span> </span>
-    if (line.startsWith('#')) return <span style={{ color: 'var(--code-comment)' }}>{line}</span>
-    if (line.startsWith('$') || line.startsWith('pd ')) {
-      const cmd = line.startsWith('$') ? line.slice(2) : line
-      const prefix = line.startsWith('$') ? '$ ' : ''
-      return (
-        <>
-          {prefix && <span style={{ color: 'var(--code-prompt)' }}>{prefix}</span>}
-          <span style={{ color: 'var(--code-text)' }}>{cmd}</span>
-        </>
-      )
-    }
-    if (line.includes('ready') || line.includes('complete') || line.includes('passed') || line.includes('claimed') || line.includes('success'))
-      return <span style={{ color: 'var(--code-dot-green)' }}>{line}</span>
-    if (line.includes('WARNING') || line.includes('warning'))
-      return <span style={{ color: 'var(--code-dot-amber)' }}>{line}</span>
-    if (line.includes('ERROR') || line.includes('error'))
-      return <span style={{ color: 'var(--code-dot-red)' }}>{line}</span>
-    return <span style={{ color: 'var(--code-output)' }}>{line}</span>
-  }
-
-  return (
-    <div className="space-y-3">
-      <div
-        className="rounded-2xl p-5 group"
-        style={{
-          background: 'var(--surface-raised)',
-          boxShadow: 'var(--shadow-raised)',
-        }}
-      >
-        {/* Terminal inner */}
-        <div
-          className="rounded-xl overflow-hidden"
-          style={{
-            background: 'var(--code-bg)',
-            boxShadow: 'var(--shadow-inset)',
-          }}
-        >
-          {/* Traffic lights + copy */}
-          <div
-            className="flex items-center justify-between px-4 py-2.5"
-            style={{ borderBottom: '1px solid var(--code-border)' }}
-          >
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--code-dot-red)' }} />
-              <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--code-dot-amber)' }} />
-              <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--code-dot-green)' }} />
-            </div>
-            <button
-              onClick={handleCopy}
-              className="p-1.5 rounded-lg transition-all cursor-pointer opacity-0 group-hover:opacity-100"
-              style={{ color: 'var(--code-comment)' }}
-            >
-              {copied ? <Check size={14} style={{ color: 'var(--code-dot-green)' }} /> : <Copy size={14} />}
-            </button>
-          </div>
-
-          <pre className="overflow-x-auto p-4 m-0 text-sm leading-relaxed">
-            <code className="font-mono">
-              {code.split('\n').map((line, i) => (
-                <div key={i}>{highlightLine(line)}</div>
-              ))}
-            </code>
-          </pre>
-        </div>
-      </div>
-
-      {output && (
-        <div
-          className="rounded-2xl p-5"
-          style={{
-            background: 'var(--surface-raised)',
-            boxShadow: 'var(--shadow-raised)',
-          }}
-        >
-          <div
-            className="rounded-xl overflow-hidden"
-            style={{
-              background: 'var(--code-bg)',
-              boxShadow: 'var(--shadow-inset)',
-            }}
-          >
-            <div
-              className="flex items-center gap-2 px-4 py-2.5"
-              style={{ borderBottom: '1px solid var(--code-border)' }}
-            >
-              <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--code-dot-red)' }} />
-              <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--code-dot-amber)' }} />
-              <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--code-dot-green)' }} />
-              <span className="ml-2 text-xs font-mono" style={{ color: 'var(--code-comment)' }}>output</span>
-            </div>
-            <pre className="overflow-x-auto p-4 m-0 text-sm leading-relaxed font-mono whitespace-pre-wrap" style={{ color: 'var(--code-output)' }}>
-              {output}
-            </pre>
-          </div>
-        </div>
-      )}
-    </div>
-  )
 }
 
 export function CommandPage({
@@ -187,10 +77,8 @@ export function CommandPage({
       {usagePatterns && usagePatterns.length > 0 && (
         <div className="space-y-3">
           <h2 className="text-lg font-semibold text-[var(--text-primary)]">Usage Patterns</h2>
-          <div
-            className="p-5 rounded-2xl"
-            style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-          >
+          <Surface depth="raised" radius="2xl" className="p-5">
+
             <ul className="space-y-2">
               {usagePatterns.map((pattern, i) => (
                 <li key={i} className="font-mono text-sm text-[var(--text-secondary)]">
@@ -198,7 +86,7 @@ export function CommandPage({
                 </li>
               ))}
             </ul>
-          </div>
+          </Surface>
         </div>
       )}
 
@@ -206,17 +94,15 @@ export function CommandPage({
       {flags && flags.length > 0 && (
         <div className="space-y-3">
           <h2 className="text-lg font-semibold text-[var(--text-primary)]">Flags</h2>
-          <div
-            className="rounded-2xl overflow-hidden divide-y divide-[var(--border-subtle)]"
-            style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-          >
+          <Surface depth="raised" radius="2xl" padding="none" className="overflow-hidden divide-y divide-[var(--border-subtle)]">
+
             {flags.map((flag, i) => (
               <div key={i} className="p-4">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">{flag.flag}</code>
-                <p className="text-sm text-[var(--text-tertiary)] mt-1">{flag.description}</p>
+                <p className="text-sm text-[var(--text-muted)] mt-1">{flag.description}</p>
               </div>
             ))}
-          </div>
+          </Surface>
         </div>
       )}
 
@@ -226,20 +112,25 @@ export function CommandPage({
           <h2 className="text-lg font-semibold text-[var(--text-primary)]">Subcommands</h2>
           <div className="grid gap-2">
             {subcommands.map((sub, i) => (
-              <Link
+              <Surface
                 key={i}
-                to={sub.href}
-                className="flex items-center justify-between p-4 rounded-2xl transition-all"
-                style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-                onMouseEnter={(e) => { e.currentTarget.style.boxShadow = 'var(--shadow-flat)' }}
-                onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'var(--shadow-raised)' }}
+                depth="raised"
+                radius="2xl"
+                padding="none"
+                interactive
+                className="transition-all"
               >
-                <div>
-                  <code className="text-sm font-mono text-[var(--brand-primary)]">{sub.name}</code>
-                  <p className="text-sm text-[var(--text-tertiary)] mt-1">{sub.description}</p>
-                </div>
-                <ArrowLeft size={16} className="text-[var(--text-muted)] rotate-180" />
-              </Link>
+                <Link
+                  to={sub.href}
+                  className="flex items-center justify-between p-4 no-underline"
+                >
+                  <div>
+                    <code className="text-sm font-mono text-[var(--brand-primary)]">{sub.name}</code>
+                    <p className="text-sm text-[var(--text-muted)] mt-1">{sub.description}</p>
+                  </div>
+                  <ArrowLeft size={16} className="text-[var(--text-muted)] rotate-180" />
+                </Link>
+              </Surface>
             ))}
           </div>
         </div>
@@ -290,7 +181,7 @@ export function CommandPage({
         </Link>
         <Link 
           to="/docs/sdk"
-          className="flex items-center gap-2 text-sm text-[var(--brand-primary)] hover:text-[var(--brand-primary-hover)] transition-colors"
+          className="flex items-center gap-2 text-sm text-[var(--brand-primary)] hover:text-[var(--brand-primary)] transition-colors"
         >
           SDK Reference
           <ArrowLeft size={14} className="rotate-180" />

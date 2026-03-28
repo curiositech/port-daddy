@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
+import { Surface } from '@/components/ui/Surface'
 import { Anchor, Zap, RefreshCw, Cpu, Shield, ArrowRight, Terminal } from 'lucide-react'
 
 interface Step {
@@ -60,7 +61,7 @@ export function HowItWorks() {
   return (
     <motion.section
       id="how-it-works"
-      className="py-20 px-6 sm:px-8 lg:px-10 font-sans relative flex flex-col items-center text-center"
+      className="py-16 lg:py-24 px-6 lg:px-8 font-sans relative flex flex-col items-center text-center"
       style={{ background: 'var(--surface-base)' }}
       initial={{ opacity: 0 }}
       whileInView={{ opacity: 1 }}
@@ -99,15 +100,9 @@ export function HowItWorks() {
               <div className="space-y-12 w-full flex flex-col items-center">
                 <div className="flex items-center justify-between w-full max-w-[280px]">
                    {/* Icon in inset circle */}
-                   <motion.div
-                     className="w-24 h-24 rounded-[40px] flex items-center justify-center transition-all duration-500 group-hover:scale-110"
-                     style={{
-                       background: 'var(--surface-base)',
-                       boxShadow: 'var(--shadow-inset)',
-                     }}
-                   >
+                   <Surface depth="inset" radius="3xl" padding="none" className="w-24 h-24 flex items-center justify-center transition-all duration-500 group-hover:scale-110">
                      <step.icon size={48} style={{ color: 'var(--brand-accent)' }} />
-                   </motion.div>
+                   </Surface>
                    {/* Step number */}
                    <motion.span className="text-7xl font-display font-black opacity-10 group-hover:opacity-20 transition-opacity" style={{ color: 'var(--text-primary)' }}>
                      {step.number}
@@ -120,8 +115,8 @@ export function HowItWorks() {
                 </p>
 
                 {/* Code snippet in inset terminal */}
-                <motion.div
-                  className="w-full p-10 rounded-[56px] font-mono text-sm leading-relaxed relative overflow-hidden transition-all text-left"
+                <div
+                  className="w-full p-10 rounded-[var(--radius-4xl)] font-mono text-sm leading-relaxed relative overflow-hidden text-left"
                   style={{
                     background: 'var(--code-bg)',
                     boxShadow: 'var(--shadow-inset)',
@@ -135,7 +130,7 @@ export function HowItWorks() {
                        {line}
                      </div>
                    ))}
-                </motion.div>
+                </div>
               </div>
 
               {i < STEPS.length - 1 && (
@@ -148,16 +143,7 @@ export function HowItWorks() {
         </div>
 
         {/* Self-Healing / Always-On Highlight */}
-        <motion.div
-          className="p-16 sm:p-20 rounded-[100px] relative overflow-hidden flex flex-col items-center gap-12 w-full text-center"
-          style={{
-            background: 'var(--surface-raised)',
-            boxShadow: 'var(--shadow-raised)',
-          }}
-          initial={{ opacity: 0, scale: 0.98 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true }}
-        >
+        <Surface depth="raised" radius="4xl" padding="xl" className="relative overflow-hidden flex flex-col items-center gap-12 w-full text-center p-16 sm:p-20">
            <div className="flex-1 space-y-8 relative z-10 flex flex-col items-center">
               <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Autonomous Resilience</Badge>
               <motion.h3 className="text-4xl sm:text-6xl font-display font-black leading-[0.95] m-0" style={{ color: 'var(--text-primary)' }}>
@@ -169,17 +155,15 @@ export function HowItWorks() {
               <div className="flex flex-col sm:flex-row items-center gap-6 pt-6">
                  <div className="flex -space-x-6">
                     {[1,2,3].map(i => (
-                      <motion.div
+                      <Surface
                         key={i}
-                        className="w-16 h-16 rounded-full flex items-center justify-center"
-                        style={{
-                          background: 'var(--surface-base)',
-                          boxShadow: 'var(--shadow-inset)',
-                        }}
-                        whileHover={{ y: -8, zIndex: 10 }}
+                        depth="inset"
+                        radius="full"
+                        padding="none"
+                        className="w-16 h-16 flex items-center justify-center"
                       >
                          <Cpu size={28} style={{ color: 'var(--brand-primary)' }} />
-                      </motion.div>
+                      </Surface>
                     ))}
                  </div>
                  <div className="flex flex-col items-center">
@@ -191,26 +175,13 @@ export function HowItWorks() {
 
            <div className="flex-1 w-full relative max-w-md">
               <motion.div className="absolute inset-0 opacity-[0.05] blur-[140px] rounded-full" style={{ background: 'var(--brand-primary)' }} />
-              <motion.div
-                className="relative p-12 rounded-[64px] space-y-10"
-                style={{
-                  background: 'var(--surface-sunken)',
-                  boxShadow: 'var(--shadow-inset)',
-                }}
-              >
+              <Surface depth="inset" radius="4xl" padding="xl" className="relative space-y-10 p-12">
                  <div className="flex items-center justify-between">
                     <motion.span className="text-[10px] font-black uppercase tracking-[0.25em]" style={{ color: 'var(--text-muted)' }}>Resurrection Queue</motion.span>
                     <Badge variant="teal" className="px-3 py-1">Escrow Active</Badge>
                  </div>
                  <div className="space-y-6">
-                    <motion.div
-                      className="p-6 rounded-[32px] flex items-center justify-between"
-                      style={{
-                        background: 'var(--surface-raised)',
-                        boxShadow: 'var(--shadow-sm)',
-                      }}
-                      whileHover={{ scale: 1.02 }}
-                    >
+                    <Surface depth="raised" radius="3xl" padding="lg" className="flex items-center justify-between p-6">
                        <div className="flex items-center gap-5">
                           <RefreshCw size={24} className="animate-spin-slow" style={{ color: 'var(--brand-primary)' }} />
                           <div className="flex flex-col">
@@ -219,9 +190,9 @@ export function HowItWorks() {
                           </div>
                        </div>
                        <motion.span className="text-[10px] font-mono font-bold" style={{ color: 'var(--text-muted)' }}>2m ago</motion.span>
-                    </motion.div>
+                    </Surface>
                     <motion.div
-                      className="p-6 rounded-[32px] opacity-40 flex items-center justify-between"
+                      className="p-6 rounded-[var(--radius-3xl)] opacity-40 flex items-center justify-between"
                       style={{
                         background: 'var(--surface-raised)',
                         boxShadow: 'var(--shadow-flat)',
@@ -237,9 +208,9 @@ export function HowItWorks() {
                        <motion.span className="text-[10px] font-mono font-bold" style={{ color: 'var(--text-muted)' }}>Active</motion.span>
                     </motion.div>
                  </div>
-              </motion.div>
+              </Surface>
            </div>
-        </motion.div>
+        </Surface>
       </motion.div>
     </motion.section>
   )
