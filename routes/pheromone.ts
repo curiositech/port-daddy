@@ -14,6 +14,21 @@ import type { createSessions } from '../lib/sessions.js';
 type PheromoneManager = ReturnType<typeof createPheromoneManager>;
 type Sessions = ReturnType<typeof createSessions>;
 
+interface FileClaimRow {
+  file_path: string;
+  claimed_at: number;
+  released_at: number | null;
+  session_id: string;
+  agent_id: string | null;
+  session_status: string;
+  purpose: string | null;
+}
+
+/** Escape SQL LIKE wildcards (% and _) in user input */
+function escapeLike(str: string): string {
+  return str.replace(/[%_]/g, '\\$&');
+}
+
 interface PheromoneRouteDeps {
   pheromones: PheromoneManager;
   sessions: Sessions;
@@ -60,7 +75,8 @@ export function createPheromoneRoutes(deps: PheromoneRouteDeps): Router {
    */
   router.get('/pheromone/files', (_req: Request, res: Response) => {
     const pathPrefix = (_req.query.path as string) || '';
-    const maxDepth = parseInt(_req.query.depth as string) || 5;
+    const rawDepth = _req.query.depth !== undefined ? parseInt(_req.query.depth as string, 10) : 5;
+    const maxDepth = Number.isFinite(rawDepth) ? rawDepth : 5;
 
     try {
       // Query all active file claims from sessions
@@ -69,9 +85,9 @@ export function createPheromoneRoutes(deps: PheromoneRouteDeps): Router {
                s.agent_id, s.status as session_status, s.purpose
         FROM session_files sf
         JOIN sessions s ON s.id = sf.session_id
-        WHERE sf.file_path LIKE ?
+        WHERE sf.file_path LIKE ? ESCAPE '\\'
         ORDER BY sf.claimed_at DESC
-      `).all(pathPrefix ? `${pathPrefix}%` : '%') as any[];
+      `).all(pathPrefix ? `${escapeLike(pathPrefix)}%` : '%') as FileClaimRow[];
 
       // Compute per-file heat
       const now = Date.now();
@@ -123,9 +139,11 @@ export function createPheromoneRoutes(deps: PheromoneRouteDeps): Router {
         entry.lastActivity = Math.max(entry.lastActivity, claim.claimed_at);
       }
 
-      // Mark conflicts (multiple active agents on same file)
+      // Mark conflicts: multiple active claims on the same file = conflict
+      // Use activeClaims count, not agents array, because sessions without
+      // a registered agent (null agent_id) still represent concurrent work.
       for (const entry of fileHeat.values()) {
-        entry.conflict = entry.agents.length > 1;
+        entry.conflict = entry.activeClaims > 1;
       }
 
       // Build directory rollup
