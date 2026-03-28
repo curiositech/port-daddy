@@ -54,6 +54,8 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Always-On Avatars', href: '/docs/features/avatars' },
       { label: 'Time-Travel Debug', href: '/docs/features/timeline' },
       { label: 'Remote Harbors', href: '/docs/features/remote', badge: 'Preview' },
+      { label: 'Pheromone Trails', href: '/docs/features/pheromone', badge: 'New' },
+      { label: 'Fleet Agents', href: '/docs/features/fleet', badge: 'New' },
     ]
   },
 
@@ -102,6 +104,8 @@ const NAV_SECTIONS: NavSection[] = [
       // Tunnels
       { label: 'pd tunnel', href: '/docs/cli/tunnel' },
       { label: 'pd tunnel stop', href: '/docs/cli/tunnel-stop' },
+      // Fleet
+      { label: 'pd fleet', href: '/docs/cli/fleet', badge: 'New' },
     ]
   },
 

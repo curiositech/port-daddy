@@ -493,3 +493,8 @@ When an agent dies, other agents in the same project should be notified.
 | `/arbiter/status` | GET | Arbiter status: rules, violations, uptime |
 | `/arbiter/violations` | GET | List recorded violations |
 | `/arbiter/test-invariant/:name` | POST | Inject test violation (for demos) |
+| **Pheromone** | | |
+| `/pheromone/spray` | POST | Set a pheromone value on an entity (body: table, id, key, strength 0-1) |
+| `/pheromone/:table/:id` | GET | Read pheromone values for entity; applies read-time decay |
+| `/pheromone` | GET | List all non-zero pheromones across all tracked tables |
+| `/pheromone/files` | GET | File heat map from session file claims (query: path, depth) |

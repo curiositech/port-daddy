@@ -1,8 +1,8 @@
 # Port Daddy V4: Unified Roadmap
 
 **Author:** Erich Owens
-**Last Updated:** March 2026
-**Status:** Active — Phase 0 complete, Phase 1 in progress
+**Last Updated:** 2026-03-27
+**Status:** Active — Phase 0 complete, Phase 3 most active (fleet shipped, pheromone CLI shipped)
 
 This document synthesizes all V4 planning documents into a single sequenced roadmap. Nothing from the original documents has been discarded — ideas that aren't yet sequenced are preserved in the Appendix.
 
@@ -37,7 +37,7 @@ The formal foundation for this thesis is the **Bonded Commons** paper (Owens, 20
 
 ---
 
-## Phase 1: The Semantic Graph [NEXT]
+## Phase 1: The Semantic Graph [NEXT — NO COMMITS YET]
 
 *The nervous system. Agents navigate relationships, not flat registries.*
 
@@ -132,11 +132,11 @@ When credits are at stake, file claims can be enforced (not just advisory). This
 
 ---
 
-## Phase 3: Fleet & Memory
+## Phase 3: Fleet & Memory [IN PROGRESS]
 
 *Always-on agents, episodic memory, declarative swarm management.*
 
-### 3A. Declarative Fleet (`.portdaddy/fleet.yaml`)
+### 3A. Declarative Fleet (`.portdaddy/fleet.yaml`) [SHIPPED 2026-03-27]
 
 ```yaml
 project: myapp
@@ -154,6 +154,8 @@ agents:
 ```
 
 `pd fleet up/down/status` — like docker-compose for agent swarms.
+
+> **Cartographer — 2026-03-27:** Fleet engine shipped. `lib/fleet-engine.ts` reads a YAML file and drives agents via `pd spawn`. Port Daddy dogfoods this with its own `pd-fleet.yml` declaring 7 agents: gardener (schedule), qa / test-hunter / documentarian / simplifier / cartographer (trigger: git:committed), and spark (schedule, singleton). Backends `claude-cli` and `custom` both working. Schedule and trigger dispatch both working after first real QA agent run (`cc10bfd`). Convention is top-level `pd-fleet.yml` for now; project-level `.portdaddy/fleet.yaml` path not yet established.
 
 ### 3B. Episodic Memory
 
@@ -291,8 +293,10 @@ Pre-built always-on agent: daily brief, skill tracking, calendar awareness. The 
 ### A1. The SOMA Crossover (Bayesian Arbiter)
 From `ARBITER_DESIGN.md`: The Arbiter as a biological immune system. If it senses high "anomaly pheromones" around a semantic token, it lowers its intervention threshold — adaptive scrutiny based on accumulated evidence. The Arbiter isn't static rules; it's a macrophage that learns which tokens are under attack.
 
-### A2. Pheromone Evaporation (Stigmergic Coordination)
+### A2. Pheromone Evaporation (Stigmergic Coordination) [PARTIALLY SHIPPED 2026-03-27]
 From `STIGMERGIC_BACKLOG.md`: Metadata traces that fade over time. Agents "spray" annotations on semantic tokens; the daemon evaporates stale annotations. High-confidence tokens (annotated by Coder + Reviewer + Tester) trigger automatic merge. Logic implemented in `lib/pheromone.ts` but no CLI commands yet. Needs `pd pheromone spray/sniff` and dashboard visualization.
+
+> **Cartographer — 2026-03-27:** `pd pheromone spray/sniff/list` CLI commands shipped (`2b4339e`). Read-time decay (evaporation on read) shipped (`a8f3710`). File heat map via `GET /pheromone/files` shipped (`a930413`) — shows which files have the most session claim activity. **Remaining:** Dashboard visualization panel. This has graduated from "idea" to "mostly working feature" — only dashboard viz stands between it and full completion. Consider elevating to a named Phase 3E.
 
 ### A3. Stigmergic Merging
 From `WORKTREE_SWARMS.md`: Instead of human-driven merge, a "Janitor Agent" watches the token graph. When confidence_scent hits 0.95 across Coder + Reviewer + Tester annotations, it initiates `git merge` of all involved worktrees automatically. Requires the Semantic Token Graph (Phase 1) as infrastructure.
@@ -335,3 +339,17 @@ From `v4_thoughts.md`: Agents serve Agent Cards. Cross-tool discovery via the Go
 
 ### A16. Formal TLA+ Model Checking
 From `v4_thoughts.md`: Run TLC on the BondedCommons spec with concrete parameters. Report state space statistics. Publishable result for the papers. The `tlaplus-practitioner` skill is built and ready for this.
+
+---
+
+## Unplanned Work (Signal — Where Energy Actually Went)
+
+*Items that shipped but weren't in the roadmap. Not a complaint — this is useful signal about what felt urgent vs. what was planned.*
+
+| Shipped | Commit | Why It Happened |
+|---------|--------|-----------------|
+| `pd dev start/stop/status` — isolated dev daemon alongside stable | `790cdb2`, `3164375` | Needed to iterate without breaking the running stable daemon. Dev workflow gap exposed by the stable branch model. |
+| Security audit — 4 CRITICAL/HIGH/MEDIUM/LOW RCE fixes | `433d3eb`, `871a559`, `52b13d7`, `ff191b1` | Security audit found command injection in spawner, DNS rebinding, path traversal, and shell injection. Urgent. |
+| Website neumorphic design system overhaul | many commits 2026-03-25–26 | Design debt. The website had fictional content and inconsistent styling. Full CVA token system + Harbor Heritage palette. |
+| Spark fleet agent (idea engine) | `6a68547`, fleet YAML | Emerged from the fleet work. Spark runs every 30 min, generates ideas, publishes to `spark:idea` channel. |
+| Cartographer fleet agent (this agent) | `a930413`, `a8f3710`, fleet YAML | Emerged from needing automated roadmap tracking. The agent writes this file. |
