@@ -16,12 +16,12 @@ export function AboutPage() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen bg-[var(--bg-base)] flex flex-col pt-[var(--nav-height)] font-sans selection:bg-[var(--brand-primary)] selection:text-white"
+      className="min-h-screen bg-[var(--surface-base)] flex flex-col pt-[var(--nav-height)] font-sans selection:bg-[var(--brand-primary)] selection:text-white"
     >
       {/* Hero */}
       <motion.section
         className="py-24 px-6 sm:px-8 lg:px-10 border-b relative overflow-hidden"
-        style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}
+        style={{ background: 'var(--surface-raised)', borderColor: 'var(--border-subtle)' }}
       >
         <motion.div
           className="absolute top-0 right-0 w-[700px] h-[700px] rounded-full blur-[160px] opacity-[0.08] pointer-events-none"
@@ -325,7 +325,7 @@ export function AboutPage() {
 
           {/* CTA */}
           <motion.div
-            className="p-12 sm:p-16 rounded-[48px] border border-[var(--brand-primary)] bg-[var(--bg-surface)] flex flex-col items-center text-center gap-8"
+            className="p-12 sm:p-16 rounded-[48px] border border-[var(--brand-primary)] bg-[var(--surface-raised)] flex flex-col items-center text-center gap-8"
             {...fadeUp}
           >
             <h3 className="text-3xl sm:text-4xl font-display font-black m-0 text-[var(--text-primary)]">
@@ -343,7 +343,7 @@ export function AboutPage() {
                 </button>
               </Link>
               <Link to="/docs" className="no-underline">
-                <button className="px-10 py-5 rounded-full bg-[var(--bg-overlay)] text-[var(--text-primary)] border-2 border-[var(--border-strong)] font-black text-lg hover:bg-[var(--interactive-hover)] transition-all">
+                <button className="px-10 py-5 rounded-full bg-[var(--surface-overlay)] text-[var(--text-primary)] border-2 border-[var(--border-strong)] font-black text-lg hover:bg-[var(--interactive-hover)] transition-all">
                   Read the Docs
                 </button>
               </Link>

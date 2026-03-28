@@ -14,7 +14,7 @@ export function RoadmapPage() {
       title: 'Phase 2: Distributed Arbiters',
       status: 'preview',
       description: 'Introduction of ambient security agents that monitor Harbor state transitions in real-time, enforcing formally proven rules without human intervention.',
-      icon: <Lock className="w-8 h-8 text-[var(--p-teal-400)]" />
+      icon: <Lock className="w-8 h-8 text-[var(--brand-secondary)]" />
     },
     {
       title: 'Phase 3: Stigmergic Pheromones',

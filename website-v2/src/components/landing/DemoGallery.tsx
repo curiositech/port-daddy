@@ -76,7 +76,7 @@ export function DemoGallery() {
   return (
     <motion.section
       id="demo"
-      className="py-24 px-6 sm:px-8 lg:px-10 font-sans relative overflow-hidden"
+      className="py-16 lg:py-24 px-6 lg:px-8 font-sans relative overflow-hidden"
       style={{ background: 'var(--surface-base)' }}
       initial={{ opacity: 0 }}
       whileInView={{ opacity: 1 }}
@@ -96,7 +96,7 @@ export function DemoGallery() {
             <motion.span style={{ color: 'var(--brand-primary)' }}>Coordination.</motion.span>
           </motion.h2>
           <motion.p className="text-2xl sm:text-3xl max-w-4xl mx-auto leading-relaxed font-sans font-bold" style={{ color: 'var(--text-secondary)' }}>
-            These aren't mockups. These are <strong>high-fidelity recordings</strong> of the Anchor Protocol managing live agent swarms.
+            These aren't mockups. These are <strong>high-fidelity recordings</strong> of Port Daddy coordinating live agent swarms.
           </motion.p>
         </motion.div>
 
@@ -107,7 +107,7 @@ export function DemoGallery() {
               <motion.button
                 key={demo.id}
                 onClick={() => setActiveTab(demo.id)}
-                className="w-full max-w-md lg:max-w-none text-left p-12 rounded-[56px] transition-all duration-300 relative group overflow-hidden"
+                className="w-full max-w-md lg:max-w-none text-left p-12 rounded-[var(--radius-4xl)] transition-all duration-300 relative group overflow-hidden"
                 style={{
                   background: activeId === demo.id ? 'var(--surface-raised)' : 'var(--surface-base)',
                   boxShadow: activeId === demo.id ? 'var(--shadow-raised)' : 'var(--shadow-flat)',
@@ -135,9 +135,9 @@ export function DemoGallery() {
               </motion.button>
             ))}
 
-            {/* Automation notice - raised neumorphic */}
+            {/* Automation notice */}
             <motion.div
-              className="w-full max-w-md lg:max-w-none p-12 rounded-[56px] flex flex-col items-center text-center gap-6"
+              className="w-full max-w-md lg:max-w-none p-12 rounded-[var(--radius-4xl)] flex flex-col items-center text-center gap-6"
               style={{
                 background: 'var(--surface-raised)',
                 boxShadow: 'var(--shadow-raised)',
@@ -165,7 +165,7 @@ export function DemoGallery() {
               >
                 {/* Video display with inset frame */}
                 <div
-                  className="relative rounded-[80px] overflow-hidden group w-full aspect-video flex items-center justify-center"
+                  className="relative rounded-[var(--radius-4xl)] overflow-hidden group w-full aspect-video flex items-center justify-center"
                   style={{
                     background: 'var(--code-bg)',
                     boxShadow: 'var(--shadow-inset)',
@@ -175,7 +175,7 @@ export function DemoGallery() {
                    <motion.img
                      src={getGifSrc(activeDemo)}
                      alt={activeDemo.title}
-                     className="w-full h-auto relative z-0 scale-100 group-hover:scale-[1.05] transition-transform duration-[3s]"
+                     className="w-full h-auto relative z-0 scale-100 group-hover:scale-[1.02] transition-transform duration-700"
                    />
                    <div className="absolute bottom-12 left-12 right-12 z-20 flex justify-between items-center">
                       <div className="flex items-center gap-5">
@@ -186,12 +186,12 @@ export function DemoGallery() {
                    </div>
                 </div>
 
-                {/* Stat cards - raised neumorphic */}
+                {/* Stat cards */}
                 <div className="grid sm:grid-cols-3 gap-10 w-full">
                    {activeDemo.stats.map((stat, i) => (
                      <motion.div
                        key={i}
-                       className="p-10 rounded-[48px] text-center flex flex-col items-center gap-2"
+                       className="p-10 rounded-[var(--radius-4xl)] text-center flex flex-col items-center gap-2"
                        style={{
                          background: 'var(--surface-raised)',
                          boxShadow: 'var(--shadow-raised)',
@@ -204,9 +204,9 @@ export function DemoGallery() {
                    ))}
                 </div>
 
-                {/* Description panel - raised */}
+                {/* Description panel */}
                 <motion.div
-                  className="p-12 rounded-[56px] w-full text-center relative overflow-hidden"
+                  className="p-12 rounded-[var(--radius-4xl)] w-full text-center relative overflow-hidden"
                   style={{
                     background: 'var(--surface-raised)',
                     boxShadow: 'var(--shadow-raised)',

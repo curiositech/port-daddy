@@ -34,7 +34,7 @@ export function Graph3D({ services = [], agents = [] }: { services: any[], agent
   }, [services, agents])
 
   return (
-    <motion.div className="w-full h-full rounded-3xl overflow-hidden border border-[var(--border-subtle)] bg-[var(--bg-overlay)] font-sans">
+    <motion.div className="w-full h-full rounded-3xl overflow-hidden border border-[var(--border-subtle)] bg-[var(--surface-overlay)] font-sans">
       <ForceGraph3D
         ref={fgRef}
         graphData={data}

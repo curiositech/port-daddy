@@ -99,7 +99,7 @@ export default function DocsOverview() {
       </div>
 
       {/* The Problem */}
-      <div className="p-6 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+      <div className="p-6 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
         <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-4">The Problem</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed mb-4">
           When you run two or more AI agents at the same time -- say, one building an API and another
@@ -122,7 +122,7 @@ export default function DocsOverview() {
         </p>
         <Link
           to="/docs/quickstart"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--brand-primary)] text-[var(--brand-on-primary)] font-medium hover:bg-[var(--brand-primary-hover)] transition-colors"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--brand-primary)] text-[var(--text-inverse)] font-medium hover:bg-[var(--brand-primary)] transition-colors"
         >
           Quick Start
           <ArrowRight size={16} />
@@ -143,7 +143,7 @@ export default function DocsOverview() {
             <Link
               key={concept.title}
               to={concept.href}
-              className="group p-5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:shadow-[var(--shadow-md)] transition-all"
+              className="group p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:shadow-[var(--shadow-md)] transition-all"
             >
               <div className="flex items-start gap-4">
                 <div className="w-10 h-10 rounded-lg bg-[var(--interactive-hover)] flex items-center justify-center shrink-0 group-hover:bg-[var(--interactive-active)] transition-colors">
@@ -154,7 +154,7 @@ export default function DocsOverview() {
                     <span className="text-xs font-mono text-[var(--text-muted)]">{String(i + 1).padStart(2, '0')}</span>
                     <h3 className="font-semibold text-[var(--text-primary)]">{concept.title}</h3>
                   </div>
-                  <p className="text-sm text-[var(--text-tertiary)] leading-relaxed">{concept.description}</p>
+                  <p className="text-sm text-[var(--text-muted)] leading-relaxed">{concept.description}</p>
                 </div>
                 <ArrowRight size={16} className="text-[var(--text-muted)] group-hover:text-[var(--brand-primary)] shrink-0 mt-1" />
               </div>
@@ -179,7 +179,7 @@ export default function DocsOverview() {
             <Link
               key={iface.title}
               to={iface.href}
-              className="group p-5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:shadow-[var(--shadow-md)] transition-all"
+              className="group p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:shadow-[var(--shadow-md)] transition-all"
             >
               <div className="flex items-start gap-4">
                 <div
@@ -193,7 +193,7 @@ export default function DocsOverview() {
                     <h3 className="font-semibold text-[var(--text-primary)]">{iface.title}</h3>
                     <ArrowRight size={14} className="text-[var(--text-muted)] group-hover:text-[var(--brand-primary)] group-hover:translate-x-1 transition-all" />
                   </div>
-                  <p className="text-sm text-[var(--text-tertiary)] mt-1">{iface.description}</p>
+                  <p className="text-sm text-[var(--text-muted)] mt-1">{iface.description}</p>
                 </div>
               </div>
             </Link>

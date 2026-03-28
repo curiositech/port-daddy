@@ -1,7 +1,11 @@
 import * as React from 'react'
 import { motion, useScroll, useSpring } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
-import { Shield, Zap, Anchor, Share2, MessageSquare, Box, Copy, Check, ShieldCheck } from 'lucide-react'
+import { Surface } from '@/components/ui/Surface'
+import {
+  Shield, Zap, Anchor, Share2, MessageSquare, Box, Copy, Check,
+  ShieldCheck, RefreshCw, Cpu, History
+} from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
 
 /* ─── Documentation Data ─────────────────────────────────────────────────── */
@@ -10,7 +14,7 @@ interface DocSection {
   id: string
   title: string
   description: string
-  icon: any
+  icon: React.ElementType
   color: string
   commands: Array<{
     cmd: string
@@ -25,7 +29,7 @@ const SECTIONS: DocSection[] = [
     title: 'Atomic Identity',
     description: 'The foundation of Port Daddy. Map semantic project:stack:context strings to deterministic ports.',
     icon: Anchor,
-    color: 'var(--p-teal-400)',
+    color: 'var(--brand-secondary)',
     commands: [
       { cmd: 'pd claim <identity>', desc: 'Claim a stable port for an agent identity.', example: 'pd claim my-swarm:api:main' },
       { cmd: 'pd release <identity>', desc: 'Release a claim and free the port.', example: 'pd release my-swarm:api:main' },
@@ -33,11 +37,23 @@ const SECTIONS: DocSection[] = [
     ]
   },
   {
+    id: 'sessions',
+    title: 'Sessions & Notes',
+    description: 'Structured multi-agent coordination with immutable audit trails. Begin work, log progress, recover context.',
+    icon: History,
+    color: 'var(--brand-primary)',
+    commands: [
+      { cmd: 'pd begin <purpose>', desc: 'Start a new session with agent registration and port assignment.', example: 'pd begin "Refactor auth module" --identity myapp:api' },
+      { cmd: 'pd note <message>', desc: 'Log an immutable progress note to the current session.', example: 'pd note "JWT middleware extracted, tests green"' },
+      { cmd: 'pd done <summary>', desc: 'Complete the session, release resources, and archive notes.', example: 'pd done "Auth refactor complete with 100% test coverage"' }
+    ]
+  },
+  {
     id: 'coordination',
     title: 'Swarm Radio',
     description: 'Low-latency pub/sub signaling for real-time inter-agent state synchronization.',
     icon: MessageSquare,
-    color: 'var(--p-amber-400)',
+    color: 'var(--brand-accent)',
     commands: [
       { cmd: 'pd pub <channel> <msg>', desc: 'Broadcast a message to a named channel.', example: 'pd pub swarm:events "deploy-ready"' },
       { cmd: 'pd sub <channel>', desc: 'Subscribe to a real-time stream of events.', example: 'pd sub swarm:events' },
@@ -45,17 +61,53 @@ const SECTIONS: DocSection[] = [
     ]
   },
   {
+    id: 'locks',
+    title: 'Distributed Locks',
+    description: 'Mutual exclusion for shared resources. Prevent concurrent writes, coordinate database migrations.',
+    icon: Zap,
+    color: 'var(--brand-secondary)',
+    commands: [
+      { cmd: 'pd lock acquire <name>', desc: 'Acquire a named lock with optional TTL.', example: 'pd lock acquire db-migrations --ttl 300' },
+      { cmd: 'pd lock release <name>', desc: 'Release a held lock.', example: 'pd lock release db-migrations' },
+      { cmd: 'pd with-lock <name> <cmd>', desc: 'Run a command while holding a lock, auto-release on exit.', example: 'pd with-lock db-migrations npm run migrate' }
+    ]
+  },
+  {
+    id: 'salvage',
+    title: 'Agent Salvage',
+    description: 'When an agent crashes, its work is preserved. New agents can claim and continue dead agents\' sessions.',
+    icon: RefreshCw,
+    color: 'var(--brand-primary)',
+    commands: [
+      { cmd: 'pd salvage', desc: 'List all dead agents pending salvage with their preserved context.', example: 'pd salvage --project myapp' },
+      { cmd: 'pd salvage claim <id>', desc: 'Claim a dead agent\'s work — inherit its session, notes, and file claims.', example: 'pd salvage claim agent-x7y9' },
+      { cmd: 'pd agent register', desc: 'Register an agent with identity and purpose for crash recovery.', example: 'pd agent register --identity myapp:api --purpose "Auth refactor"' }
+    ]
+  },
+  {
     id: 'security',
     title: 'Cryptographic Harbors',
     description: 'Enforce permission boundaries using HMAC-signed capability tokens (Harbor Cards).',
     icon: Shield,
-    color: 'var(--p-blue-400)',
+    color: 'var(--brand-secondary)',
     commands: [
       { cmd: 'pd harbor create <name>', desc: 'Create a new namespace with scoped permissions.', example: 'pd harbor create security-team --cap "code:read"' },
       { cmd: 'pd harbor enter <name>', desc: 'Enter a harbor and receive an identity token.', example: 'pd harbor enter security-team' },
       { cmd: 'pd harbor list', desc: 'List all active cryptographic harbors.', example: 'pd harbor list' }
     ]
-  }
+  },
+  {
+    id: 'agents',
+    title: 'Agent Spawning',
+    description: 'Launch AI agents through Port Daddy with automatic identity, session management, and crash recovery.',
+    icon: Cpu,
+    color: 'var(--brand-accent)',
+    commands: [
+      { cmd: 'pd spawn --backend <name>', desc: 'Spawn an AI agent with a specific backend (claude-cli, ollama, etc).', example: 'pd spawn --backend claude-cli --identity myapp:fixer -- "Fix the login bug"' },
+      { cmd: 'pd spawned', desc: 'List all spawned agents with status and duration.', example: 'pd spawned' },
+      { cmd: 'pd spawn kill <id>', desc: 'Terminate a running spawned agent.', example: 'pd spawn kill spawned-8a2f' }
+    ]
+  },
 ]
 
 function CommandCard({ cmd, desc, example, color }: { cmd: string; desc: string; example: string; color: string }) {
@@ -67,24 +119,35 @@ function CommandCard({ cmd, desc, example, color }: { cmd: string; desc: string;
   }
 
   return (
-    <motion.div 
-      className="p-8 rounded-[40px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-6 group hover:border-[var(--border-strong)] transition-all shadow-xl flex flex-col items-center text-center"
-      whileHover={{ y: -4 }}
-    >
-       <motion.div className="space-y-4 w-full">
+    <Surface depth="raised" radius="3xl" padding="lg" interactive className="space-y-6 group flex flex-col items-center text-center p-8">
+       <div className="space-y-4 w-full">
           <code className="text-xl font-bold font-mono block" style={{ color }}>{cmd}</code>
-          <motion.p className="text-sm leading-relaxed m-0 font-medium" style={{ color: 'var(--text-muted)' }}>{desc}</motion.p>
-       </motion.div>
-       
-       <motion.div className="relative w-full rounded-2xl bg-[var(--bg-overlay)] p-6 font-mono text-xs overflow-hidden group-hover:bg-[var(--interactive-active)] transition-colors">
-          <motion.div className="flex items-center justify-between gap-4">
-             <motion.span className="truncate" style={{ color: 'var(--text-muted)' }}>{example}</motion.span>
-             <button onClick={handleCopy} className="shrink-0 text-[var(--brand-primary)] hover:opacity-100 transition-opacity">
+          <p className="text-sm leading-relaxed m-0 font-medium" style={{ color: 'var(--text-muted)' }}>{desc}</p>
+       </div>
+
+       {/* Inset code example with copy */}
+       <div
+         className="relative w-full rounded-[var(--radius-lg)] p-4 font-mono text-xs overflow-hidden"
+         style={{
+           background: 'var(--code-bg)',
+           boxShadow: 'var(--shadow-inset)',
+         }}
+       >
+          <div className="flex items-center justify-between gap-4">
+             <div className="truncate">
+               <span style={{ color: 'var(--code-prompt)' }}>$ </span>
+               <span style={{ color: 'var(--code-text)' }}>{example}</span>
+             </div>
+             <button
+               onClick={handleCopy}
+               className="shrink-0 cursor-pointer opacity-40 group-hover:opacity-100 transition-opacity"
+               style={{ color: 'var(--code-dot-green)' }}
+             >
                 {copied ? <Check size={14} /> : <Copy size={14} />}
              </button>
-          </motion.div>
-       </motion.div>
-    </motion.div>
+          </div>
+       </div>
+    </Surface>
   )
 }
 
@@ -97,26 +160,30 @@ export default function DocsPage() {
   })
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen bg-[var(--bg-base)] flex flex-col pt-[var(--nav-height)] font-sans selection:bg-[var(--brand-primary)] selection:text-white"
+      className="min-h-screen flex flex-col pt-16 font-sans selection:bg-[var(--brand-primary)] selection:text-white"
+      style={{ background: 'var(--surface-base)' }}
     >
       <motion.div
-        className="fixed top-0 left-0 right-0 h-1 bg-[var(--brand-primary)] z-[100] origin-left shadow-[0_0_12px_rgba(58,173,173,0.5)]"
-        style={{ scaleX, top: 'var(--nav-height)' }}
+        className="fixed top-16 left-0 right-0 h-1 bg-[var(--brand-primary)] z-[100] origin-left"
+        style={{ scaleX }}
       />
 
       {/* Hero Section */}
-      <motion.section className="py-20 px-6 sm:px-8 lg:px-10 border-b relative overflow-hidden" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}>
-        <motion.div 
-          className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full blur-[140px] opacity-[0.1] pointer-events-none" 
-          style={{ background: 'radial-gradient(circle, var(--brand-primary) 0%, transparent 70%)' }} 
+      <motion.section
+        className="py-16 lg:py-24 px-6 lg:px-8 border-b relative overflow-hidden"
+        style={{ background: 'var(--surface-raised)', borderColor: 'var(--border-subtle)' }}
+      >
+        <motion.div
+          className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full blur-[140px] opacity-[0.1] pointer-events-none"
+          style={{ background: 'radial-gradient(circle, var(--brand-primary) 0%, transparent 70%)' }}
         />
-        
+
         <motion.div className="max-w-7xl mx-auto text-center relative z-10 flex flex-col items-center gap-10">
-           <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-[0.25em] shadow-xl">Protocol Reference</Badge>
-           <motion.h1 
+           <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-[0.25em]">Protocol Reference</Badge>
+           <motion.h1
              className="text-6xl sm:text-9xl font-black tracking-tighter font-display leading-[0.9]"
              initial={{ opacity: 0, y: 32 }}
              animate={{ opacity: 1, y: 0 }}
@@ -124,22 +191,22 @@ export default function DocsPage() {
            >
              The <motion.span className="text-[var(--brand-primary)]">SDK Manual.</motion.span>
            </motion.h1>
-           <motion.p 
+           <motion.p
              className="text-2xl sm:text-3xl max-w-3xl leading-relaxed text-[var(--text-secondary)] font-medium"
              initial={{ opacity: 0, y: 20 }}
              animate={{ opacity: 1, y: 0 }}
              transition={{ duration: 0.8, delay: 0.1 }}
            >
-             Comprehensive enumeration of the Port Daddy primitives. Built for developers, agents, and architects.
+             Seven primitives that give your agent swarm atomic identity, coordination, resilience, and security. Every one is a single CLI command.
            </motion.p>
         </motion.div>
       </motion.section>
 
       {/* Main Content */}
-      <motion.main id="main-content" className="flex-1 py-24 px-6 sm:px-8 lg:px-10 max-w-7xl mx-auto w-full font-sans">
+      <motion.main id="main-content" className="flex-1 py-16 lg:py-24 px-6 lg:px-8 max-w-7xl mx-auto w-full font-sans">
         <motion.div className="space-y-32 flex flex-col items-center">
           {SECTIONS.map((section) => (
-            <motion.section 
+            <motion.section
               key={section.id}
               initial={{ opacity: 0, y: 40 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -148,68 +215,60 @@ export default function DocsPage() {
               id={section.id}
               className="space-y-16 flex flex-col items-center w-full"
             >
-               <motion.div className="flex flex-col items-center text-center gap-10 border-b border-[var(--border-subtle)] pb-16 w-full">
-                  <motion.div className="max-w-2xl flex flex-col items-center gap-8">
-                     <motion.div className="flex flex-col items-center gap-6">
-                        <motion.div 
-                          className="w-16 h-16 rounded-2xl flex items-center justify-center border shadow-lg"
-                          style={{ background: `${section.color}10`, borderColor: `${section.color}20` }}
-                        >
+               <div className="flex flex-col items-center text-center gap-10 border-b border-[var(--border-subtle)] pb-16 w-full">
+                  <div className="max-w-2xl flex flex-col items-center gap-8">
+                     <div className="flex flex-col items-center gap-6">
+                        <Surface depth="inset" radius="2xl" padding="none" className="w-16 h-16 flex items-center justify-center">
                            <section.icon size={32} style={{ color: section.color }} />
-                        </motion.div>
-                        <motion.h2 className="text-4xl sm:text-7xl font-display font-black tracking-tight m-0">{section.title}</motion.h2>
-                     </motion.div>
-                     <motion.p className="text-xl sm:text-2xl leading-relaxed m-0 font-medium" style={{ color: 'var(--text-secondary)' }}>
+                        </Surface>
+                        <h2 className="text-4xl sm:text-7xl font-display font-black tracking-tight m-0" style={{ color: 'var(--text-primary)' }}>{section.title}</h2>
+                     </div>
+                     <p className="text-xl sm:text-2xl leading-relaxed m-0 font-medium" style={{ color: 'var(--text-secondary)' }}>
                         {section.description}
-                     </motion.p>
-                  </motion.div>
-                  <Badge variant="default" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest bg-[var(--bg-overlay)]">Core Primitive</Badge>
-               </motion.div>
+                     </p>
+                  </div>
+                  <Badge variant="default" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Core Primitive</Badge>
+               </div>
 
-               <motion.div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8 w-full">
+               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8 w-full">
                   {section.commands.map((cmd, j) => (
                     <CommandCard key={j} {...cmd} color={section.color} />
                   ))}
-               </motion.div>
+               </div>
             </motion.section>
           ))}
         </motion.div>
 
-        {/* Impressively long additional info */}
-        <motion.div 
-          className="mt-32 p-20 rounded-[80px] border border-dashed border-[var(--border-strong)] bg-gradient-to-br from-[var(--bg-surface)] to-[var(--bg-base)] flex flex-col items-center text-center gap-12 relative overflow-hidden"
-          initial={{ opacity: 0, scale: 0.98 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true }}
-        >
-           <motion.div className="absolute top-0 right-0 p-10 opacity-[0.02] pointer-events-none">
+        {/* Bottom panel */}
+        <Surface depth="raised" radius="4xl" padding="xl" className="mt-32 flex flex-col items-center text-center gap-12 relative overflow-hidden p-20">
+           <div className="absolute top-0 right-0 p-10 opacity-[0.02] pointer-events-none">
               <Share2 size={600} />
-           </motion.div>
-           
-           <motion.div className="space-y-6 max-w-3xl relative z-10">
-              <Badge variant="gold" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest shadow-xl">Architectural Integrity</Badge>
-              <motion.h3 className="text-4xl sm:text-7xl font-display font-black tracking-tight leading-[0.95]" style={{ color: 'var(--text-primary)' }}>
-                System <motion.span className="text-[var(--p-amber-400)]">Soundness.</motion.span>
-              </motion.h3>
-              <motion.p className="text-2xl leading-relaxed text-[var(--text-secondary)]">
-                Port Daddy is built on a foundation of formal verification. We ensure that every command follows strictly defined state transitions, preventing "zombie" processes and unauthorized port claims across your entire swarm.
-              </motion.p>
-           </motion.div>
+           </div>
 
-           <motion.div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 w-full">
+           <div className="space-y-6 max-w-3xl relative z-10 flex flex-col items-center">
+              <Badge variant="gold" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Architectural Integrity</Badge>
+              <h3 className="text-4xl sm:text-7xl font-display font-black tracking-tight leading-[0.95]" style={{ color: 'var(--text-primary)' }}>
+                System <span className="text-[var(--brand-accent)]">Soundness.</span>
+              </h3>
+              <p className="text-2xl leading-relaxed text-[var(--text-secondary)]">
+                Port Daddy is built on a foundation of formal verification. We ensure that every command follows strictly defined state transitions, preventing "zombie" processes and unauthorized port claims across your entire swarm.
+              </p>
+           </div>
+
+           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 w-full">
               {[
                 { label: 'Unix Socket Native', icon: Zap },
                 { label: 'HMAC Handshake', icon: Shield },
                 { label: 'SQLite Persistent', icon: Box },
                 { label: 'Formal Verified', icon: ShieldCheck }
               ].map((item, i) => (
-                <motion.div key={i} className="p-8 rounded-[40px] bg-[var(--bg-overlay)] border border-[var(--border-subtle)] flex flex-col items-center gap-4">
+                <Surface key={i} depth="inset" radius="3xl" padding="lg" className="flex flex-col items-center gap-4 p-8">
                    <item.icon size={24} className="text-[var(--brand-primary)]" />
-                   <motion.span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">{item.label}</motion.span>
-                </motion.div>
+                   <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">{item.label}</span>
+                </Surface>
               ))}
-           </motion.div>
-        </motion.div>
+           </div>
+        </Surface>
       </motion.main>
 
       <Footer />

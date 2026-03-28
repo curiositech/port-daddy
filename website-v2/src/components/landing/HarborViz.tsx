@@ -18,14 +18,14 @@ const AGENTS: Agent[] = [
 ]
 
 const STATUS_COLORS = {
-  active: 'var(--p-teal-400)',
-  idle: 'var(--p-navy-300)',
-  dead: 'var(--p-red-500)',
+  active: 'var(--brand-secondary)',
+  idle: 'var(--text-muted)',
+  dead: 'var(--status-error)',
 }
 
-const HARBOR_COLORS: Record<string, string> = {
-  auth: 'rgba(58, 173, 173, 0.15)',
-  ops: 'rgba(251, 191, 36, 0.12)',
+const HARBOR_COLORS: Record<string, { fill: string; border: string }> = {
+  auth: { fill: 'color-mix(in srgb, var(--brand-secondary) 15%, transparent)', border: 'var(--brand-secondary)' },
+  ops: { fill: 'color-mix(in srgb, var(--brand-accent) 12%, transparent)', border: 'var(--brand-accent)' },
 }
 
 function polarToCart(cx: number, cy: number, r: number, angleDeg: number) {
@@ -43,8 +43,8 @@ export function HarborViz() {
   const agentR = 22
 
   const harbors = [
-    { name: 'auth', agents: AGENTS.filter(a => a.harbor === 'auth'), color: HARBOR_COLORS.auth, borderColor: 'var(--p-teal-700)' },
-    { name: 'ops', agents: AGENTS.filter(a => a.harbor === 'ops'), color: HARBOR_COLORS.ops, borderColor: 'var(--p-amber-600)' },
+    { name: 'auth', agents: AGENTS.filter(a => a.harbor === 'auth'), ...HARBOR_COLORS.auth },
+    { name: 'ops', agents: AGENTS.filter(a => a.harbor === 'ops'), ...HARBOR_COLORS.ops },
   ]
 
   return (
@@ -52,7 +52,7 @@ export function HarborViz() {
       <svg
         viewBox="0 0 440 440"
         className="w-full max-w-sm"
-        style={{ filter: 'drop-shadow(0 0 40px rgba(58, 173, 173, 0.15))' }}
+        style={{ filter: 'drop-shadow(0 0 40px color-mix(in srgb, var(--brand-secondary) 15%, transparent))' }}
       >
         {/* Orbit ring */}
         <circle
@@ -74,8 +74,8 @@ export function HarborViz() {
               <ellipse
                 cx={midX} cy={midY}
                 rx={55} ry={45}
-                fill={h.color}
-                stroke={h.borderColor}
+                fill={h.fill}
+                stroke={h.border}
                 strokeWidth="1.5"
                 strokeDasharray="3 4"
               />
@@ -84,7 +84,7 @@ export function HarborViz() {
                 y={midY - 52}
                 textAnchor="middle"
                 fontSize="10"
-                fill={h.borderColor}
+                fill={h.border}
                 fontFamily="monospace"
                 fontWeight="600"
                 letterSpacing="2"
@@ -98,7 +98,7 @@ export function HarborViz() {
         {/* Port Daddy core */}
         <motion.circle
           cx={cx} cy={cy} r={36}
-          fill="var(--bg-overlay)"
+          fill="var(--surface-overlay)"
           stroke="var(--brand-primary)"
           strokeWidth="2"
           animate={{ r: [36, 38, 36] }}
@@ -144,7 +144,7 @@ export function HarborViz() {
               {/* Agent node */}
               <motion.circle
                 cx={pos.x} cy={pos.y} r={agentR}
-                fill="var(--bg-elevated)"
+                fill="var(--surface-overlay)"
                 stroke={color}
                 strokeWidth="2"
                 animate={agent.status === 'active'
@@ -172,7 +172,7 @@ export function HarborViz() {
                   y={pos.y + (li === 0 ? -6 : 7)}
                   textAnchor="middle"
                   fontSize="8"
-                  fill={agent.status === 'dead' ? 'var(--text-disabled)' : 'var(--text-secondary)'}
+                  fill={agent.status === 'dead' ? 'var(--text-muted)' : 'var(--text-secondary)'}
                   fontFamily="monospace"
                 >
                   {line}

@@ -1,7 +1,7 @@
 import { Badge } from '@/components/ui/Badge'
 import { Link } from 'react-router-dom'
-import { ArrowRight, Terminal, Copy, Check } from 'lucide-react'
-import { useState } from 'react'
+import { ArrowRight, Terminal } from 'lucide-react'
+import { DocsCodeBlock } from '@/components/docs/DocsCodeBlock'
 
 const SDK_MODULES = [
   {
@@ -42,25 +42,7 @@ const SDK_MODULES = [
 ]
 
 function CodeBlock({ code }: { code: string }) {
-  const [copied, setCopied] = useState(false)
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(code)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  return (
-    <div className="relative p-4 rounded-lg bg-[var(--bg-code)] border border-[var(--border-subtle)] font-mono text-sm group">
-      <button
-        onClick={handleCopy}
-        className="absolute right-3 top-3 p-1.5 rounded hover:bg-[var(--interactive-hover)] text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity"
-      >
-        {copied ? <Check size={14} className="text-[var(--success)]" /> : <Copy size={14} />}
-      </button>
-      <code className="text-[var(--text-secondary)]">{code}</code>
-    </div>
-  )
+  return <DocsCodeBlock code={code} language="typescript" />
 }
 
 export default function SdkOverview() {
@@ -79,7 +61,7 @@ export default function SdkOverview() {
           Programmatic access to Port Daddy's port management, session tracking,
           and agent coordination features. Build multi-agent workflows with type safety.
         </p>
-        <p className="text-sm text-[var(--text-tertiary)] p-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] max-w-xl">
+        <p className="text-sm text-[var(--text-muted)] p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)] max-w-xl">
           Use this reference if you are writing JavaScript or TypeScript that coordinates agents
           programmatically. For terminal usage see the{' '}
           <a href="/docs/cli" className="text-[var(--brand-primary)] hover:underline">CLI reference</a>, or
@@ -138,7 +120,7 @@ await pd.sessions.done(session.id)`} />
             <Link
               key={module.name}
               to={module.href}
-              className="group p-5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:shadow-[var(--shadow-md)] transition-all"
+              className="group p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:shadow-[var(--shadow-md)] transition-all"
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
@@ -146,12 +128,12 @@ await pd.sessions.done(session.id)`} />
                     <h3 className="font-semibold text-[var(--text-primary)]">{module.name}</h3>
                     <Badge variant={module.badge === 'New' ? 'gold' : 'success'}>{module.badge}</Badge>
                   </div>
-                  <p className="text-sm text-[var(--text-tertiary)] mb-3">{module.description}</p>
+                  <p className="text-sm text-[var(--text-muted)] mb-3">{module.description}</p>
                   <div className="flex flex-wrap gap-2">
                     {module.functions.map(fn => (
                       <code 
                         key={fn}
-                        className="text-xs px-2 py-1 rounded bg-[var(--bg-code)] text-[var(--brand-primary)] font-mono"
+                        className="text-xs px-2 py-1 rounded bg-[var(--code-bg)] text-[var(--brand-primary)] font-mono"
                       >
                         {fn}
                       </code>
@@ -186,7 +168,7 @@ const pd = new PortDaddy({
       </div>
 
       {/* Type Safety */}
-      <div className="p-6 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+      <div className="p-6 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
         <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-4">Full Type Safety</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed mb-4">
           The SDK is written in TypeScript and provides complete type definitions:
@@ -208,11 +190,11 @@ const claim: PortClaim = await pd.ports.claim('myapp:api', options)`} />
         <div>
           <div className="text-sm text-[var(--text-muted)] mb-1">Also See</div>
           <div className="font-semibold text-[var(--text-primary)]">CLI Reference</div>
-          <div className="text-sm text-[var(--text-tertiary)]">Command-line interface documentation</div>
+          <div className="text-sm text-[var(--text-muted)]">Command-line interface documentation</div>
         </div>
         <Link 
           to="/docs/cli"
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--brand-primary)] text-[var(--brand-on-primary)] font-medium hover:bg-[var(--brand-primary-hover)] transition-colors"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--brand-primary)] text-[var(--text-inverse)] font-medium hover:bg-[var(--brand-primary)] transition-colors"
         >
           <Terminal size={16} />
           View CLI

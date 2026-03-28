@@ -34,7 +34,7 @@ export default function CliOverview() {
           Complete reference for the <code className="text-[var(--brand-primary)]">pd</code> CLI.
           Manage ports, agents, sessions, locks, and more.
         </p>
-        <p className="text-sm text-[var(--text-tertiary)] p-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] max-w-xl">
+        <p className="text-sm text-[var(--text-muted)] p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)] max-w-xl">
           Use this reference if you are running <code className="text-[var(--brand-primary)]">pd</code> commands
           from your terminal. For programmatic access see the{' '}
           <a href="/docs/sdk" className="text-[var(--brand-primary)] hover:underline">SDK</a>, or for
@@ -52,7 +52,7 @@ export default function CliOverview() {
             placeholder="Search commands..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--brand-primary)]"
+            className="w-full pl-10 pr-4 py-2 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--brand-primary)]"
           />
         </div>
         <div className="flex flex-wrap gap-2">
@@ -60,8 +60,8 @@ export default function CliOverview() {
             onClick={() => setActiveGroup(null)}
             className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
               activeGroup === null 
-                ? 'bg-[var(--brand-primary)] text-[var(--brand-on-primary)]' 
-                : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border border-[var(--border-subtle)] hover:border-[var(--border-default)]'
+                ? 'bg-[var(--brand-primary)] text-[var(--text-inverse)]' 
+                : 'bg-[var(--surface-raised)] text-[var(--text-secondary)] border border-[var(--border-subtle)] hover:border-[var(--border-default)]'
             }`}
           >
             All
@@ -72,8 +72,8 @@ export default function CliOverview() {
               onClick={() => setActiveGroup(group)}
               className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                 activeGroup === group 
-                  ? 'bg-[var(--brand-primary)] text-[var(--brand-on-primary)]' 
-                  : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border border-[var(--border-subtle)] hover:border-[var(--border-default)]'
+                  ? 'bg-[var(--brand-primary)] text-[var(--text-inverse)]' 
+                  : 'bg-[var(--surface-raised)] text-[var(--text-secondary)] border border-[var(--border-subtle)] hover:border-[var(--border-default)]'
               }`}
             >
               {group}
@@ -87,7 +87,7 @@ export default function CliOverview() {
         {filteredCommands.map((cmd, i) => (
           <div 
             key={i}
-            className="p-5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--border-default)] transition-colors"
+            className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)] hover:border-[var(--border-default)] transition-colors"
           >
             <div className="flex items-start justify-between gap-4 mb-3">
               <div className="flex-1 min-w-0">
@@ -96,7 +96,7 @@ export default function CliOverview() {
                   {cmd.short && (
                     <code className="text-sm font-mono text-[var(--text-muted)]">({cmd.short})</code>
                   )}
-                  <span className="text-xs px-2 py-1 rounded-full bg-[var(--bg-overlay)] text-[var(--text-muted)]">
+                  <span className="text-xs px-2 py-1 rounded-full bg-[var(--surface-overlay)] text-[var(--text-muted)]">
                     {cmd.group}
                   </span>
                 </div>
@@ -114,8 +114,8 @@ export default function CliOverview() {
             {/* Example */}
             <div className="mb-4">
               <div className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wide mb-2">Example</div>
-              <div className="p-3 rounded-lg bg-[var(--bg-code)] font-mono text-sm overflow-x-auto">
-                <code className="text-[var(--text-secondary)]">{cmd.example}</code>
+              <div className="p-3 rounded-lg bg-[var(--code-bg)] font-mono text-sm overflow-x-auto">
+                <code style={{ color: 'var(--code-text)' }}>{cmd.example}</code>
               </div>
             </div>
             
@@ -125,7 +125,7 @@ export default function CliOverview() {
                 <div className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wide mb-2">Flags</div>
                 <ul className="space-y-1">
                   {cmd.flags.map((flag, j) => (
-                    <li key={j} className="text-sm font-mono text-[var(--text-tertiary)]">
+                    <li key={j} className="text-sm font-mono text-[var(--text-muted)]">
                       {flag}
                     </li>
                   ))}
@@ -137,7 +137,7 @@ export default function CliOverview() {
             {cmd.output && (
               <div className="mt-4 pt-4 border-t border-[var(--border-subtle)]">
                 <div className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wide mb-2">Output</div>
-                <pre className="text-sm text-[var(--text-tertiary)] whitespace-pre-wrap font-mono">{cmd.output}</pre>
+                <pre className="text-sm text-[var(--text-muted)] whitespace-pre-wrap font-mono">{cmd.output}</pre>
               </div>
             )}
           </div>
@@ -145,24 +145,24 @@ export default function CliOverview() {
       </div>
 
       {/* Quick Reference Card */}
-      <div className="p-6 rounded-xl bg-[var(--bg-code)] border border-[var(--border-subtle)]">
+      <div className="p-6 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
         <h3 className="font-semibold text-[var(--text-primary)] mb-4">Quick Reference</h3>
         <div className="grid sm:grid-cols-2 gap-4 text-sm">
           <div>
             <code className="text-[var(--brand-primary)]">pd claim &lt;identity&gt;</code>
-            <p className="text-[var(--text-tertiary)] mt-1">Claim a stable port</p>
+            <p className="text-[var(--text-muted)] mt-1">Claim a stable port</p>
           </div>
           <div>
             <code className="text-[var(--brand-primary)]">pd begin</code>
-            <p className="text-[var(--text-tertiary)] mt-1">Start agent session</p>
+            <p className="text-[var(--text-muted)] mt-1">Start agent session</p>
           </div>
           <div>
             <code className="text-[var(--brand-primary)]">pd pub &lt;channel&gt;</code>
-            <p className="text-[var(--text-tertiary)] mt-1">Publish message</p>
+            <p className="text-[var(--text-muted)] mt-1">Publish message</p>
           </div>
           <div>
             <code className="text-[var(--brand-primary)]">pd harbor create</code>
-            <p className="text-[var(--text-tertiary)] mt-1">Create permission namespace</p>
+            <p className="text-[var(--text-muted)] mt-1">Create permission namespace</p>
           </div>
         </div>
       </div>

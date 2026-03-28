@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Badge } from '@/components/ui/Badge'
+import { Surface } from '@/components/ui/Surface'
 import { Layout, Activity, Zap, Terminal, Globe, Share2, Heart } from 'lucide-react'
 
 export function Dashboard() {
@@ -20,56 +21,38 @@ export function Dashboard() {
         {/* Intro Section */}
         <section className="space-y-6">
           <motion.div className="flex items-center gap-4 mb-8">
-            <motion.div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center"
-              style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-            >
+            <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Layout className="text-[var(--brand-primary)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">The Swarm HUD</motion.h2>
           </motion.div>
           <motion.p>
             The <strong>Port Daddy Dashboard</strong> (Heads-Up Display) provides a high-fidelity visual interface for your local daemon. It allows you to see the relationships between your agents, services, and harbors in real-time.
           </motion.p>
           <motion.div className="grid sm:grid-cols-2 gap-8 pt-4">
-             <motion.div
-               className="p-8 rounded-2xl space-y-4"
-               style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-             >
-                <motion.div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-                >
-                   <Share2 size={20} className="text-[var(--p-teal-400)]" />
-                </motion.div>
+             <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
+                <Surface depth="inset" radius="xl" padding="none" className="w-10 h-10 flex items-center justify-center">
+                   <Share2 size={20} className="text-[var(--brand-secondary)]" />
+                </Surface>
                 <motion.h3 className="text-xl font-display font-black m-0">Live Network Map</motion.h3>
                 <motion.p className="text-sm text-[var(--text-secondary)] m-0">A 2D force-directed graph showing which agents are connected to which harbors and tunnels.</motion.p>
-             </motion.div>
-             <motion.div
-               className="p-8 rounded-2xl space-y-4"
-               style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-             >
-                <motion.div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-                >
-                   <Activity size={20} className="text-[var(--p-amber-400)]" />
-                </motion.div>
+             </Surface>
+             <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
+                <Surface depth="inset" radius="xl" padding="none" className="w-10 h-10 flex items-center justify-center">
+                   <Activity size={20} className="text-[var(--brand-accent)]" />
+                </Surface>
                 <motion.h3 className="text-xl font-display font-black m-0">Swarm Radio Feed</motion.h3>
                 <motion.p className="text-sm text-[var(--text-secondary)] m-0">A unified chronological stream of every message, port claim, and session note across the mesh.</motion.p>
-             </motion.div>
+             </Surface>
           </motion.div>
         </section>
 
         {/* Step 1: Launching */}
         <section className="space-y-8">
           <motion.div className="flex items-center gap-4">
-            <motion.div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center"
-              style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-            >
+            <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Zap className="text-[var(--brand-primary)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">1. Summon the HUD</motion.h2>
           </motion.div>
 
@@ -81,25 +64,19 @@ export function Dashboard() {
             {`$ pd dashboard\n\n✓ Dashboard active at http://localhost:3144/dashboard`}
           </CodeBlock>
 
-          <blockquote
-            className="p-8 rounded-2xl border-l-4 border-[var(--brand-primary)]"
-            style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-          >
-             <motion.p className="m-0 text-sm italic opacity-60 font-medium">
-               The dashboard uses **WebSockets** to ensure that any signal published to Swarm Radio appears on your screen with sub-50ms latency.
-             </motion.p>
-          </blockquote>
+          <Surface depth="flat" radius="xl" padding="md" className="border-l-4 border-[var(--brand-secondary)]">
+            <p className="m-0 text-sm" style={{ color: 'var(--text-secondary)' }}>
+              The dashboard uses <strong>WebSockets</strong> to ensure that any signal published to Swarm Radio appears on your screen with sub-50ms latency.
+            </p>
+          </Surface>
         </section>
 
         {/* Step 2: Interaction */}
         <section className="space-y-8">
           <motion.div className="flex items-center gap-4">
-            <motion.div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center"
-              style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-            >
-              <Terminal className="text-[var(--p-blue-400)]" size={24} />
-            </motion.div>
+            <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
+              <Terminal className="text-[var(--brand-secondary)]" size={24} />
+            </Surface>
             <motion.h2 className="m-0">2. Real-time Intervention</motion.h2>
           </motion.div>
 
@@ -107,18 +84,12 @@ export function Dashboard() {
             The HUD isn't just for observation. You can manually eject rogue agents, clear stale port claims, and trigger pipeline rules directly from the interface.
           </motion.p>
 
-          <motion.div
-            className="p-10 rounded-2xl space-y-8 relative overflow-hidden"
-            style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-          >
-             <motion.div className="absolute inset-0 bg-gradient-to-tr from-[var(--p-teal-500)]/5 to-transparent" />
+          <Surface depth="raised" radius="2xl" className="p-10 space-y-8 relative overflow-hidden">
+             <motion.div className="absolute inset-0 bg-gradient-to-tr from-[var(--brand-secondary)]/5 to-transparent" />
              <motion.p className="text-sm font-black uppercase tracking-widest opacity-40 m-0">Visual Telemetry</motion.p>
 
              <motion.div className="grid sm:grid-cols-2 gap-6">
-                <motion.div
-                  className="p-6 rounded-2xl space-y-4"
-                  style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-                >
+                <Surface depth="inset" radius="2xl" padding="none" className="p-6 space-y-4">
                    <motion.div className="flex items-center justify-between">
                       <motion.span className="text-[10px] font-black uppercase text-[var(--text-muted)]">Lock Status</motion.span>
                       <Badge variant="gold">Contested</Badge>
@@ -129,16 +100,13 @@ export function Dashboard() {
                      style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-pressed)' }}
                    >
                       <motion.div
-                        className="h-full bg-[var(--p-amber-400)]"
+                        className="h-full bg-[var(--brand-accent)]"
                         animate={{ width: ['20%', '80%', '40%'] }}
                         transition={{ duration: 4, repeat: Infinity }}
                       />
                    </motion.div>
-                </motion.div>
-                <motion.div
-                  className="p-6 rounded-2xl space-y-4"
-                  style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-                >
+                </Surface>
+                <Surface depth="inset" radius="2xl" padding="none" className="p-6 space-y-4">
                    <motion.div className="flex items-center justify-between">
                       <motion.span className="text-[10px] font-black uppercase text-[var(--text-muted)]">Radio Traffic</motion.span>
                       <Badge variant="teal">High</Badge>
@@ -153,17 +121,13 @@ export function Dashboard() {
                         />
                       ))}
                    </motion.div>
-                </motion.div>
+                </Surface>
              </motion.div>
-          </motion.div>
+          </Surface>
         </section>
 
         {/* Vision Callout */}
-        <motion.div
-          className="p-16 rounded-2xl flex flex-col items-center text-center gap-8 relative overflow-hidden"
-          style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-          whileHover={{ scale: 1.01 }}
-        >
+        <Surface depth="raised" radius="2xl" className="p-16 flex flex-col items-center text-center gap-8 relative overflow-hidden">
            <motion.div className="absolute top-0 right-0 p-10 opacity-[0.03] pointer-events-none">
               <Heart size={400} />
            </motion.div>
@@ -176,7 +140,7 @@ export function Dashboard() {
               <Globe size={14} className="animate-spin-slow" />
               Unified Control Plane Active
            </motion.div>
-        </motion.div>
+        </Surface>
       </motion.div>
     </TutorialLayout>
   )

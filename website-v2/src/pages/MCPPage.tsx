@@ -235,7 +235,7 @@ export default function McpPage() {
                    className="w-20 h-20 rounded-2xl flex items-center justify-center"
                    style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
                  >
-                    <Layers size={40} className="text-[var(--p-teal-400)]" />
+                    <Layers size={40} className="text-[var(--brand-secondary)]" />
                  </motion.div>
                  <motion.h2 className="text-4xl sm:text-6xl font-display font-black tracking-tighter m-0 leading-[0.95] text-[var(--text-primary)]">Progressive Disclosure.</motion.h2>
               </div>
@@ -314,7 +314,7 @@ export default function McpPage() {
               <Badge variant="teal" className="px-8 py-3 text-[10px] font-black uppercase tracking-widest">Model Optimization</Badge>
               <motion.h3 className="text-4xl sm:text-6xl font-display font-black tracking-tight leading-[0.95] m-0 text-[var(--text-primary)]">
                 Built for <br />
-                <span className="text-[var(--p-teal-400)]">Intelligence.</span>
+                <span className="text-[var(--brand-secondary)]">Intelligence.</span>
               </motion.h3>
               <motion.p className="text-xl sm:text-2xl leading-relaxed text-[var(--text-secondary)] max-w-3xl mx-auto">
                 The Port Daddy MCP server isn't just a collection of APIs. It's a structured ontology designed to teach your models how to coordinate. We use precise descriptions and high-fidelity examples to ensure the model chooses the right primitive every time.

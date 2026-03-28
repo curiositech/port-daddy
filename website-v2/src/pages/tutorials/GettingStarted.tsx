@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Badge } from '@/components/ui/Badge'
+import { Surface } from '@/components/ui/Surface'
 import { Terminal, Users, Cpu, Globe } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 
@@ -40,57 +41,42 @@ export function GettingStarted() {
         {/* Installation */}
         <section className="space-y-8">
           <motion.div className="flex items-center gap-4">
-            <motion.div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center"
-              style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-            >
+            <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Terminal className="text-[var(--brand-primary)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">1. Install</motion.h2>
           </motion.div>
 
           <motion.div className="grid sm:grid-cols-2 gap-6">
-            <motion.div
-              className="p-8 rounded-2xl space-y-4"
-              style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-            >
+            <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
               <Badge variant="teal">macOS / Linux</Badge>
               <CodeBlock language="bash">
                 {`brew tap erichowens/port-daddy\nbrew install port-daddy`}
               </CodeBlock>
-            </motion.div>
-            <motion.div
-              className="p-8 rounded-2xl space-y-4"
-              style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-            >
+            </Surface>
+            <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
               <Badge variant="default">Node.js / Global</Badge>
               <CodeBlock language="bash">
                 {`npm install -g port-daddy`}
               </CodeBlock>
-            </motion.div>
+            </Surface>
           </motion.div>
 
-          <motion.div
-            className="p-10 rounded-2xl"
-            style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-          >
+          <Surface depth="inset" radius="2xl" padding="none" className="p-10">
              <motion.p className="text-sm uppercase tracking-widest font-black mb-6 opacity-40">Verification</motion.p>
              <CodeBlock language="bash">{`pd start`}</CodeBlock>
              <motion.p className="mt-6 mb-0 text-sm italic opacity-60">
                The daemon is now listening on <code>localhost:9876</code>. It is your swarm's lighthouse.
              </motion.p>
-          </motion.div>
+          </Surface>
         </section>
 
         {/* Semantic Tokens */}
         <section className="space-y-8">
           <motion.div className="flex items-center gap-4">
-            <motion.div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center"
-              style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-            >
-              <Cpu className="text-[var(--p-amber-400)]" size={24} />
-            </motion.div>
+            <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
+              <Cpu className="text-[var(--brand-accent)]" size={24} />
+            </Surface>
             <motion.h2 className="m-0">2. Claim Your Identity</motion.h2>
           </motion.div>
 
@@ -102,26 +88,19 @@ export function GettingStarted() {
             {`pd claim my-swarm:analyst:main`}
           </CodeBlock>
 
-          <blockquote
-            className="p-10 rounded-2xl border-l-8 border-[var(--p-teal-500)]"
-            style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-          >
-             <motion.p className="font-bold text-[var(--text-primary)] m-0 mb-4 text-2xl font-display">Why this matters for LangChain/CrewAI:</motion.p>
-             <motion.p className="m-0 text-lg">
-               When you wrap a Port Daddy identity in a LangChain Tool, your LLM doesn't need to know the IP address. It just needs the token. If the service moves, Port Daddy updates the DNS instantly.
-             </motion.p>
-          </blockquote>
+          <Surface depth="flat" radius="xl" padding="md" className="border-l-4 border-[var(--brand-secondary)]">
+            <p className="m-0 text-sm" style={{ color: 'var(--text-secondary)' }}>
+              <strong>Why this matters for LangChain/CrewAI:</strong> When you wrap a Port Daddy identity in a LangChain Tool, your LLM doesn't need to know the IP address. It just needs the token. If the service moves, Port Daddy updates the DNS instantly.
+            </p>
+          </Surface>
         </section>
 
         {/* Your First Claim */}
         <section className="space-y-8">
           <motion.div className="flex items-center gap-4">
-            <motion.div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center"
-              style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-            >
-              <Globe className="text-[var(--p-blue-400)]" size={24} />
-            </motion.div>
+            <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
+              <Globe className="text-[var(--brand-secondary)]" size={24} />
+            </Surface>
             <motion.h2 className="m-0">2. Your First Claim</motion.h2>
           </motion.div>
 
@@ -130,28 +109,22 @@ export function GettingStarted() {
           </motion.p>
 
           <motion.div className="grid gap-4">
-             <motion.div
-               className="flex items-center gap-6 p-6 rounded-2xl"
-               style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-             >
-                <motion.div className="w-10 h-10 rounded-full bg-[var(--p-teal-500)]/10 flex items-center justify-center text-[var(--p-teal-400)] font-black">A</motion.div>
+             <Surface depth="raised" radius="2xl" className="flex items-center gap-6 p-6">
+                <motion.div className="w-10 h-10 rounded-full bg-[var(--brand-secondary)]/10 flex items-center justify-center text-[var(--brand-secondary)] font-black">A</motion.div>
                 <motion.div className="flex-1">
                    <motion.p className="font-bold m-0 text-lg">Local Agent</motion.p>
                    <motion.p className="text-sm m-0 opacity-60">Uses <code>pd claim</code> to announce presence.</motion.p>
                 </motion.div>
                 <Badge variant="teal">Active</Badge>
-             </motion.div>
-             <motion.div
-               className="flex items-center gap-6 p-6 rounded-2xl"
-               style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-             >
-                <motion.div className="w-10 h-10 rounded-full bg-[var(--p-amber-500)]/10 flex items-center justify-center text-[var(--p-amber-400)] font-black">B</motion.div>
+             </Surface>
+             <Surface depth="raised" radius="2xl" className="flex items-center gap-6 p-6">
+                <motion.div className="w-10 h-10 rounded-full bg-[var(--brand-accent)]/10 flex items-center justify-center text-[var(--brand-accent)] font-black">B</motion.div>
                 <motion.div className="flex-1">
                    <motion.p className="font-bold m-0 text-lg">Remote Harbor</motion.p>
                    <motion.p className="text-sm m-0 opacity-60">Connected via <code>pd tunnel</code>.</motion.p>
                 </motion.div>
                 <Badge variant="default">Connected</Badge>
-             </motion.div>
+             </Surface>
           </motion.div>
 
           <motion.div className="pt-12 text-center">

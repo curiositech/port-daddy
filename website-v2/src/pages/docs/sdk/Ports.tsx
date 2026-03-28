@@ -14,7 +14,7 @@ function CodeBlock({ code, output }: { code: string; output?: string }) {
 
   return (
     <div className="space-y-2">
-      <div className="relative p-4 rounded-lg bg-[var(--bg-code)] border border-[var(--border-subtle)] font-mono text-sm group">
+      <div className="relative p-4 rounded-lg bg-[var(--code-bg)] border border-[var(--border-subtle)] font-mono text-sm group">
         <button
           onClick={handleCopy}
           className="absolute right-3 top-3 p-1.5 rounded hover:bg-[var(--interactive-hover)] text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity"
@@ -24,7 +24,7 @@ function CodeBlock({ code, output }: { code: string; output?: string }) {
         <code className="text-[var(--brand-primary)]">{code}</code>
       </div>
       {output && (
-        <div className="p-4 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] font-mono text-sm">
+        <div className="p-4 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)] font-mono text-sm">
           <div className="text-[var(--text-muted)] mb-1 text-xs uppercase tracking-wide">Output</div>
           <pre className="text-[var(--text-secondary)] whitespace-pre-wrap">{output}</pre>
         </div>
@@ -74,36 +74,36 @@ export default function PortsSdk() {
         <div className="space-y-3">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Parameters</h3>
           <div className="divide-y divide-[var(--border-subtle)] border border-[var(--border-subtle)] rounded-xl overflow-hidden">
-            <div className="p-4 bg-[var(--bg-surface)]">
+            <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">identity</code>
                 <Badge variant="default" size="sm">required</Badge>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">
+              <p className="text-sm text-[var(--text-muted)] mt-1">
                 Semantic identity in format <code>project:stack:context</code>
               </p>
             </div>
-            <div className="p-4 bg-[var(--bg-surface)]">
+            <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.project</code>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Project name (optional, inferred from identity)</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Project name (optional, inferred from identity)</p>
             </div>
-            <div className="p-4 bg-[var(--bg-surface)]">
+            <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.ttl</code>
                 <span className="text-xs text-[var(--text-muted)]">number</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Time-to-live in seconds (optional)</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Time-to-live in seconds (optional)</p>
             </div>
-            <div className="p-4 bg-[var(--bg-surface)]">
+            <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.preferredPort</code>
                 <span className="text-xs text-[var(--text-muted)]">number</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Preferred port number (optional, best effort)</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Preferred port number (optional, best effort)</p>
             </div>
           </div>
         </div>
@@ -160,13 +160,13 @@ console.log(claim1.port === claim2.port) // true`}
         <div className="space-y-3">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Parameters</h3>
           <div className="divide-y divide-[var(--border-subtle)] border border-[var(--border-subtle)] rounded-xl overflow-hidden">
-            <div className="p-4 bg-[var(--bg-surface)]">
+            <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">identity</code>
                 <Badge variant="default" size="sm">required</Badge>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">The identity to release</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">The identity to release</p>
             </div>
           </div>
         </div>
@@ -223,19 +223,19 @@ if (claim) {
         <div className="space-y-3">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Parameters</h3>
           <div className="divide-y divide-[var(--border-subtle)] border border-[var(--border-subtle)] rounded-xl overflow-hidden">
-            <div className="p-4 bg-[var(--bg-surface)]">
+            <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.project</code>
                 <span className="text-xs text-[var(--text-muted)]">string</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Filter by project name (optional)</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Filter by project name (optional)</p>
             </div>
-            <div className="p-4 bg-[var(--bg-surface)]">
+            <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.status</code>
                 <span className="text-xs text-[var(--text-muted)]">'active' | 'expired' | 'all'</span>
               </div>
-              <p className="text-sm text-[var(--text-tertiary)] mt-1">Filter by status (default: 'active')</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Filter by status (default: 'active')</p>
             </div>
           </div>
         </div>
@@ -301,7 +301,7 @@ interface ListServicesOptions {
         </Link>
         <Link 
           to="/docs/sdk/sessions"
-          className="flex items-center gap-2 text-sm text-[var(--brand-primary)] hover:text-[var(--brand-primary-hover)] transition-colors"
+          className="flex items-center gap-2 text-sm text-[var(--brand-primary)] hover:text-[var(--brand-primary)] transition-colors"
         >
           Sessions Module
           <ArrowLeft size={14} className="rotate-180" />

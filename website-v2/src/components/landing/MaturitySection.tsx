@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
+import { Surface } from '@/components/ui/Surface'
 import {
   ShieldCheck, Lock, Activity, Scale,
   Zap, Database, Network
@@ -8,8 +9,8 @@ import {
 const MATURITY_FEATURES = [
   {
     icon: ShieldCheck,
-    title: 'E2EE Networking',
-    description: 'V4 Anchor Protocol provides end-to-end encrypted tunnels via Noise Protocol (Noise_XX) over Lighthouses. Your agent data never touches our servers.',
+    title: 'Local-First Architecture',
+    description: 'All coordination happens through a local daemon on localhost:9876. No cloud dependency, no external services, no data leaving your machine.',
   },
   {
     icon: Lock,
@@ -41,7 +42,7 @@ const MATURITY_FEATURES = [
 export function MaturitySection() {
   return (
     <motion.section
-      className="py-24 px-6 sm:px-8 lg:px-10 relative overflow-hidden font-sans selection:bg-[var(--brand-primary)] selection:text-white"
+      className="py-16 lg:py-24 px-6 lg:px-8 relative overflow-hidden font-sans selection:bg-[var(--brand-primary)] selection:text-white"
       style={{ background: 'var(--surface-base)' }}
       initial={{ opacity: 0 }}
       whileInView={{ opacity: 1 }}
@@ -94,12 +95,9 @@ export function MaturitySection() {
         {/* Features Grid */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
           {MATURITY_FEATURES.map((feature) => (
-            <div
-              key={feature.title}
-              className="group p-6 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:shadow-[var(--shadow-md)] transition-all"
-            >
+            <div key={feature.title} className="group">
               <motion.div
-                className="h-full p-12 rounded-[56px] transition-all duration-300 flex flex-col items-center text-center gap-10"
+                className="h-full p-12 rounded-[var(--radius-4xl)] transition-all duration-300 flex flex-col items-center text-center gap-10"
                 style={{
                   background: 'var(--surface-raised)',
                   boxShadow: 'var(--shadow-raised)',
@@ -107,15 +105,9 @@ export function MaturitySection() {
                 whileHover={{ y: -12, boxShadow: 'var(--shadow-sm)' }}
               >
                 {/* Icon in inset circle */}
-                <motion.div
-                  className="w-20 h-20 rounded-[32px] flex items-center justify-center transition-all group-hover:scale-110"
-                  style={{
-                    background: 'var(--surface-base)',
-                    boxShadow: 'var(--shadow-inset)',
-                  }}
-                >
+                <Surface depth="inset" radius="3xl" padding="none" className="w-20 h-20 flex items-center justify-center transition-all group-hover:scale-110">
                   <feature.icon size={40} style={{ color: 'var(--brand-accent)' }} />
-                </motion.div>
+                </Surface>
 
                 <div className="space-y-4 flex-1">
                   <motion.h3 className="m-0 text-3xl font-display font-black leading-tight" style={{ color: 'var(--text-primary)' }}>
@@ -127,9 +119,7 @@ export function MaturitySection() {
                 </div>
 
                 {/* Maturity badge in inset surface */}
-                <motion.div
-                  className="w-full flex items-center justify-center pt-8"
-                >
+                <motion.div className="w-full flex items-center justify-center pt-8">
                    <motion.div
                      className="flex items-center gap-3 px-6 py-3 rounded-full"
                      style={{
@@ -148,7 +138,7 @@ export function MaturitySection() {
 
         {/* Call to stability */}
         <motion.div
-          className="mt-24 p-20 rounded-[80px] flex flex-col items-center text-center gap-12 relative overflow-hidden w-full"
+          className="mt-24 p-20 rounded-[var(--radius-4xl)] flex flex-col items-center text-center gap-12 relative overflow-hidden w-full"
           style={{
             background: 'var(--surface-raised)',
             boxShadow: 'var(--shadow-raised)',
@@ -162,12 +152,12 @@ export function MaturitySection() {
            </div>
 
            <div className="space-y-8 relative z-10 flex flex-col items-center">
-              <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Formal Verification</Badge>
+              <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">V4 Roadmap</Badge>
               <motion.h3 className="text-5xl sm:text-7xl font-display font-black tracking-tight leading-[0.95] m-0" style={{ color: 'var(--text-primary)' }}>
-                Soundness by <motion.span style={{ color: 'var(--brand-primary)' }}>Design.</motion.span>
+                What's <motion.span style={{ color: 'var(--brand-primary)' }}>Next.</motion.span>
               </motion.h3>
               <motion.p className="text-2xl leading-relaxed opacity-80 max-w-3xl" style={{ color: 'var(--text-secondary)' }}>
-                We are formally verifying the Anchor Protocol using ProVerif to ensure zero "executable attack paths" in the harbor handshake. Your swarm's security isn't an afterthought--it's mathematically proven.
+                V4 will bring end-to-end encrypted networking via Noise Protocol, formal verification with ProVerif, and enforced harbor permission boundaries. Here's what's on the roadmap.
               </motion.p>
               <motion.div className="flex flex-wrap justify-center gap-8 pt-6">
                  <motion.div
@@ -178,7 +168,7 @@ export function MaturitySection() {
                    }}
                  >
                     <Zap size={20} style={{ color: 'var(--brand-accent)' }} />
-                    <motion.span className="text-[10px] font-black uppercase tracking-widest opacity-80" style={{ color: 'var(--text-primary)' }}>ProVerif 2.05 Validated</motion.span>
+                    <motion.span className="text-[10px] font-black uppercase tracking-widest opacity-80" style={{ color: 'var(--text-primary)' }}>In Development</motion.span>
                  </motion.div>
                  <motion.div
                    className="flex items-center gap-3 px-8 py-4 rounded-full"
@@ -188,7 +178,7 @@ export function MaturitySection() {
                    }}
                  >
                     <Activity size={20} style={{ color: 'var(--brand-primary)' }} />
-                    <motion.span className="text-[10px] font-black uppercase tracking-widest opacity-80" style={{ color: 'var(--text-primary)' }}>HS256 Enforced</motion.span>
+                    <motion.span className="text-[10px] font-black uppercase tracking-widest opacity-80" style={{ color: 'var(--text-primary)' }}>Planned for v4</motion.span>
                  </motion.div>
               </motion.div>
            </div>

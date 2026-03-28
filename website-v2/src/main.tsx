@@ -24,6 +24,15 @@ import QuickStart from '@/pages/docs/QuickStart'
 import CliOverview from '@/pages/docs/CliOverview'
 import McpOverview from '@/pages/docs/McpOverview'
 import PortsFeature from '@/pages/docs/features/PortsFeature'
+import RadioFeature from '@/pages/docs/features/RadioFeature'
+import SessionsFeature from '@/pages/docs/features/SessionsFeature'
+import HarborsFeature from '@/pages/docs/features/HarborsFeature'
+import SalvageFeature from '@/pages/docs/features/SalvageFeature'
+import TimelineFeature from '@/pages/docs/features/TimelineFeature'
+import DnsFeature from '@/pages/docs/features/DnsFeature'
+import RemoteFeature from '@/pages/docs/features/RemoteFeature'
+import TunnelsFeature from '@/pages/docs/features/TunnelsFeature'
+import AvatarsFeature from '@/pages/docs/features/AvatarsFeature'
 
 // CLI Command Pages
 import ClaimCommand from '@/pages/docs/cli/ClaimCommand'
@@ -166,7 +175,7 @@ createRoot(document.getElementById('root')!).render(
           <Route element={<MainLayout />}>
             <Route path="/" element={<App />} />
             <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/docs" element={<DocsPage />} />
+            {/* DocsPage is now served via DocsLayout — use /docs-old for legacy */}
             <Route path="/examples" element={<ExamplesPage />} />
             <Route path="/mcp" element={<MCPPage />} />
             <Route path="/roadmap" element={<RoadmapPage />} />
@@ -188,6 +197,9 @@ createRoot(document.getElementById('root')!).render(
             <Route path="/tutorials/harbors" element={<Tutorials.Harbors />} />
             <Route path="/tutorials/dashboard" element={<Tutorials.Dashboard />} />
             <Route path="/tutorials/time-travel" element={<Tutorials.TimeTravel />} />
+            <Route path="/tutorials/pipelines" element={<Tutorials.Pipelines />} />
+            <Route path="/tutorials/watch" element={<Tutorials.Watch />} />
+            <Route path="/tutorials/remote-harbors" element={<Tutorials.RemoteHarbors />} />
 
             {/* Ecosystem */}
             <Route path="/cookbook" element={<CookbookPage />} />
@@ -209,8 +221,6 @@ createRoot(document.getElementById('root')!).render(
             {/* Overview */}
             <Route index element={<DocsOverview />} />
             <Route path="quickstart" element={<QuickStart />} />
-            <Route path="installation" element={<DocsOverview />} />
-            <Route path="concepts" element={<DocsOverview />} />
             
             {/* CLI */}
             <Route path="cli" element={<CliOverview />} />
@@ -256,26 +266,17 @@ createRoot(document.getElementById('root')!).render(
             <Route path="cli/tunnel" element={<TunnelCommand />} />
             <Route path="cli/tunnel-stop" element={<TunnelStopCommand />} />
             
-            {/* Legacy CLI category pages */}
-            <Route path="cli/ports" element={<CliOverview />} />
-            <Route path="cli/sessions" element={<CliOverview />} />
-            <Route path="cli/messaging" element={<CliOverview />} />
-            <Route path="cli/locks" element={<CliOverview />} />
-            <Route path="cli/harbors" element={<CliOverview />} />
-            <Route path="cli/dns" element={<CliOverview />} />
-            <Route path="cli/tunnels" element={<CliOverview />} />
-            
             {/* Features */}
             <Route path="features/ports" element={<PortsFeature />} />
-            <Route path="features/radio" element={<PortsFeature />} />
-            <Route path="features/harbors" element={<PortsFeature />} />
-            <Route path="features/avatars" element={<PortsFeature />} />
-            <Route path="features/salvage" element={<PortsFeature />} />
-            <Route path="features/timeline" element={<PortsFeature />} />
-            <Route path="features/dns" element={<PortsFeature />} />
-            <Route path="features/remote" element={<PortsFeature />} />
-            <Route path="features/sessions" element={<PortsFeature />} />
-            <Route path="features/tunnels" element={<PortsFeature />} />
+            <Route path="features/radio" element={<RadioFeature />} />
+            <Route path="features/harbors" element={<HarborsFeature />} />
+            <Route path="features/avatars" element={<AvatarsFeature />} />
+            <Route path="features/salvage" element={<SalvageFeature />} />
+            <Route path="features/timeline" element={<TimelineFeature />} />
+            <Route path="features/dns" element={<DnsFeature />} />
+            <Route path="features/remote" element={<RemoteFeature />} />
+            <Route path="features/sessions" element={<SessionsFeature />} />
+            <Route path="features/tunnels" element={<TunnelsFeature />} />
             
             {/* SDK - TypeScript */}
             <Route path="sdk" element={<SdkOverview />} />
@@ -363,15 +364,7 @@ createRoot(document.getElementById('root')!).render(
             
             {/* API */}
             <Route path="api" element={<DocsOverview />} />
-            <Route path="api/auth" element={<DocsOverview />} />
             <Route path="api/endpoints" element={<DocsOverview />} />
-            <Route path="api/webhooks" element={<DocsOverview />} />
-            
-            {/* Advanced */}
-            <Route path="advanced/architecture" element={<DocsOverview />} />
-            <Route path="advanced/security" element={<DocsOverview />} />
-            <Route path="advanced/performance" element={<DocsOverview />} />
-            <Route path="advanced/self-hosting" element={<DocsOverview />} />
           </Route>
 
           {/* Legacy Docs Redirect */}

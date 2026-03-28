@@ -1,10 +1,6 @@
 import React, { useEffect, useRef } from 'react'
 import mermaid from 'mermaid'
-
-// Port Daddy brand hex codes
-const BRAND_PRIMARY = '#3aadad';
-const BRAND_SECONDARY = '#56cccc';
-const BORDER_STRONG = '#e2e8f0';
+import { Surface } from './Surface'
 
 interface MermaidProps {
   chart: string
@@ -14,25 +10,34 @@ export const Mermaid: React.FC<MermaidProps> = ({ chart }) => {
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    // Read CSS custom properties at render time so theme changes are picked up
+    const root = document.documentElement
+    const style = getComputedStyle(root)
+    const primary = style.getPropertyValue('--brand-secondary').trim() || '#4A9D9E'
+    const surface = style.getPropertyValue('--surface-base').trim() || '#f8fafc'
+    const raised = style.getPropertyValue('--surface-raised').trim() || '#ffffff'
+    const border = style.getPropertyValue('--border-strong').trim() || '#e2e8f0'
+    const text = style.getPropertyValue('--text-primary').trim() || '#1E1B18'
+
     mermaid.initialize({
       startOnLoad: false,
       theme: 'default',
       securityLevel: 'loose',
       themeVariables: {
-        primaryColor: BRAND_PRIMARY,
+        primaryColor: primary,
         primaryTextColor: '#ffffff',
-        primaryBorderColor: BRAND_PRIMARY,
-        lineColor: BRAND_PRIMARY,
-        secondaryColor: BRAND_SECONDARY,
-        tertiaryColor: '#f8fafc',
-        mainBkg: '#ffffff',
-        nodeBorder: BRAND_PRIMARY,
-        clusterBkg: '#f8fafc',
-        clusterBorder: BORDER_STRONG,
-        defaultLinkColor: BRAND_PRIMARY,
-        titleColor: BRAND_PRIMARY,
-        edgeLabelBackground: '#ffffff',
-        nodeTextColor: '#000000' // Force high contrast black text for nodes
+        primaryBorderColor: primary,
+        lineColor: primary,
+        secondaryColor: primary,
+        tertiaryColor: surface,
+        mainBkg: raised,
+        nodeBorder: primary,
+        clusterBkg: surface,
+        clusterBorder: border,
+        defaultLinkColor: primary,
+        titleColor: primary,
+        edgeLabelBackground: raised,
+        nodeTextColor: text,
       }
     })
 
@@ -47,9 +52,12 @@ export const Mermaid: React.FC<MermaidProps> = ({ chart }) => {
   }, [chart])
 
   return (
-    <div 
-      className="mermaid-container my-12 flex justify-center p-10 rounded-[32px] border bg-white shadow-inner" 
-      ref={ref} 
+    <Surface
+      depth="inset"
+      radius="3xl"
+      padding="xl"
+      className="my-12 flex justify-center"
+      ref={ref}
     />
   )
 }

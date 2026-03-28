@@ -43,7 +43,7 @@ const EXAMPLES: Example[] = [
       'pd done'
     ],
     icon: Users,
-    color: 'var(--p-teal-400)'
+    color: 'var(--brand-secondary)'
   },
   {
     id: 'pub-sub-signaling',
@@ -68,7 +68,7 @@ const EXAMPLES: Example[] = [
       'curl -N http://localhost:9876/subscribe/build-results'
     ],
     icon: Radio,
-    color: 'var(--p-amber-400)'
+    color: 'var(--brand-accent)'
   },
   {
     id: 'spawn-agent-fleet',
@@ -94,7 +94,7 @@ const EXAMPLES: Example[] = [
       'pd salvage --project myapp'
     ],
     icon: Sparkles,
-    color: 'var(--p-blue-400)'
+    color: 'var(--brand-secondary)'
   },
   {
     id: 'semantic-discovery',
@@ -121,7 +121,7 @@ const EXAMPLES: Example[] = [
       'pd dns resolve myapp:api'
     ],
     icon: Search,
-    color: 'var(--p-green-400)'
+    color: 'var(--status-success)'
   },
   {
     id: 'distributed-locks',
@@ -149,7 +149,7 @@ const EXAMPLES: Example[] = [
       'pd unlock db-migration'
     ],
     icon: Shield,
-    color: 'var(--p-purple-400)'
+    color: 'var(--brand-accent)'
   }
 ]
 
@@ -274,7 +274,7 @@ export function ExamplesPage() {
               <Badge variant="gold" className="px-8 py-3 text-[10px] font-black uppercase tracking-widest">Architectural Integrity</Badge>
               <motion.h3 className="text-4xl sm:text-6xl font-display font-black tracking-tight leading-[0.95] m-0 text-[var(--text-primary)]">
                 One Mesh. <br />
-                <span className="text-[var(--p-amber-400)]">Infinite Logic.</span>
+                <span className="text-[var(--brand-accent)]">Infinite Logic.</span>
               </motion.h3>
               <motion.p className="text-xl sm:text-2xl leading-relaxed text-[var(--text-secondary)] max-w-3xl">
                 Port Daddy doesn't care about the intelligence of your agent. It cares about the <strong>reliability of the mesh</strong>. These patterns provide the hard infrastructure that allows soft logic to flourish.

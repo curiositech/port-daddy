@@ -21,7 +21,7 @@ export function TemplatePage() {
 
   return (
     <motion.div 
-      className="min-h-screen bg-[var(--bg-base)] flex flex-col pt-[var(--nav-height)] font-sans selection:bg-[var(--brand-primary)] selection:text-white"
+      className="min-h-screen bg-[var(--surface-base)] flex flex-col pt-[var(--nav-height)] font-sans selection:bg-[var(--brand-primary)] selection:text-white"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
     >
@@ -33,7 +33,7 @@ export function TemplatePage() {
       {/* Hero Section */}
       <motion.header 
         className="py-20 px-6 sm:px-8 lg:px-10 border-b relative overflow-hidden" 
-        style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}
+        style={{ background: 'var(--surface-raised)', borderColor: 'var(--border-subtle)' }}
       >
         <motion.div 
           className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full blur-[140px] opacity-[0.08] pointer-events-none" 
@@ -77,7 +77,7 @@ export function TemplatePage() {
 
            <motion.div className="flex flex-wrap justify-center gap-3">
               {bp.tags.map(tag => (
-                <Badge key={tag} variant="default" className="px-4 py-1.5 text-[8px] font-black uppercase tracking-widest bg-[var(--bg-overlay)]">{tag}</Badge>
+                <Badge key={tag} variant="default" className="px-4 py-1.5 text-[8px] font-black uppercase tracking-widest bg-[var(--surface-overlay)]">{tag}</Badge>
               ))}
            </motion.div>
         </motion.div>
@@ -96,7 +96,7 @@ export function TemplatePage() {
                  <motion.h2 className="text-3xl font-display font-black m-0">Bootstrap the Swarm</motion.h2>
               </motion.div>
               
-              <motion.div className="p-10 rounded-[48px] bg-[var(--bg-overlay)] border border-[var(--border-subtle)] space-y-8 shadow-2xl relative overflow-hidden">
+              <motion.div className="p-10 rounded-[48px] bg-[var(--surface-overlay)] border border-[var(--border-subtle)] space-y-8 shadow-2xl relative overflow-hidden">
                  <motion.div className="absolute top-0 right-0 p-8 opacity-5">
                     <Terminal size={100} />
                  </motion.div>
@@ -104,7 +104,7 @@ export function TemplatePage() {
                  <CodeBlock language="bash">
                    {`mkdir ${bp.id}\ncd ${bp.id}\n\npd init --template ${bp.id}\npd up`}
                  </CodeBlock>
-                 <motion.div className="flex items-center gap-3 p-4 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+                 <motion.div className="flex items-center gap-3 p-4 rounded-2xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
                     <Info size={16} className="text-[var(--brand-primary)] shrink-0" />
                     <motion.p className="text-sm m-0 text-[var(--text-secondary)]">This template includes pre-configured harbor cards and Swarm Radio channels.</motion.p>
                  </motion.div>
@@ -114,23 +114,23 @@ export function TemplatePage() {
            {/* Architecture */}
            <section className="space-y-12">
               <motion.div className="flex items-center gap-4 border-b border-[var(--border-subtle)] pb-8">
-                 <motion.div className="w-10 h-10 rounded-xl bg-[var(--p-teal-500)]/10 flex items-center justify-center border border-[var(--p-teal-500)]/20">
-                    <Layers size={20} className="text-[var(--p-teal-400)]" />
+                 <motion.div className="w-10 h-10 rounded-xl bg-[var(--brand-secondary)]/10 flex items-center justify-center border border-[var(--brand-secondary)]/20">
+                    <Layers size={20} className="text-[var(--brand-secondary)]" />
                  </motion.div>
                  <motion.h2 className="text-3xl font-display font-black m-0">Swarm Architecture</motion.h2>
               </motion.div>
 
               <motion.div className="grid sm:grid-cols-2 gap-8">
-                 <motion.div className="p-8 rounded-[32px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-4 group hover:border-[var(--brand-primary)] transition-colors">
-                    <motion.div className="w-10 h-10 rounded-xl bg-[var(--p-teal-500)]/10 flex items-center justify-center border border-[var(--p-teal-500)]/20">
-                       <Users size={20} className="text-[var(--p-teal-400)]" />
+                 <motion.div className="p-8 rounded-[32px] bg-[var(--surface-raised)] border border-[var(--border-subtle)] space-y-4 group hover:border-[var(--brand-primary)] transition-colors">
+                    <motion.div className="w-10 h-10 rounded-xl bg-[var(--brand-secondary)]/10 flex items-center justify-center border border-[var(--brand-secondary)]/20">
+                       <Users size={20} className="text-[var(--brand-secondary)]" />
                     </motion.div>
                     <motion.h3 className="text-xl font-display font-black m-0">Role-Based Agents</motion.h3>
                     <motion.p className="text-base text-[var(--text-secondary)] m-0 leading-relaxed">Dedicated identities for planners, coders, and reviewers with scoped file access.</motion.p>
                  </motion.div>
-                 <motion.div className="p-8 rounded-[32px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-4 group hover:border-[var(--p-amber-400)] transition-colors">
-                    <motion.div className="w-10 h-10 rounded-xl bg-[var(--p-amber-500)]/10 flex items-center justify-center border border-[var(--p-amber-500)]/20">
-                       <Zap size={20} className="text-[var(--p-amber-400)]" />
+                 <motion.div className="p-8 rounded-[32px] bg-[var(--surface-raised)] border border-[var(--border-subtle)] space-y-4 group hover:border-[var(--brand-accent)] transition-colors">
+                    <motion.div className="w-10 h-10 rounded-xl bg-[var(--brand-accent)]/10 flex items-center justify-center border border-[var(--brand-accent)]/20">
+                       <Zap size={20} className="text-[var(--brand-accent)]" />
                     </motion.div>
                     <motion.h3 className="text-xl font-display font-black m-0">Reactive Signaling</motion.h3>
                     <motion.p className="text-base text-[var(--text-secondary)] m-0 leading-relaxed">Pre-wired Swarm Radio channels for automatic handoffs and error reporting.</motion.p>
@@ -140,7 +140,7 @@ export function TemplatePage() {
 
            {/* Security Note */}
            <motion.div 
-             className="p-16 rounded-[60px] border border-dashed border-[var(--brand-primary)] bg-[var(--bg-overlay)] flex flex-col items-center text-center gap-8 relative overflow-hidden"
+             className="p-16 rounded-[60px] border border-dashed border-[var(--brand-primary)] bg-[var(--surface-overlay)] flex flex-col items-center text-center gap-8 relative overflow-hidden"
              whileHover={{ scale: 1.01 }}
            >
               <motion.div className="absolute top-0 right-0 p-10 opacity-[0.03] pointer-events-none">
@@ -153,7 +153,7 @@ export function TemplatePage() {
               </motion.p>
               <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-primary)]">
                  <Activity size={14} className="animate-pulse" />
-                 Anchor Protocol v4 Active
+                 Port Daddy v3.7
               </motion.div>
            </motion.div>
         </motion.div>

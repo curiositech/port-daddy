@@ -21,7 +21,7 @@ export function IntegrationPage() {
 
   return (
     <motion.div 
-      className="min-h-screen bg-[var(--bg-base)] flex flex-col pt-[var(--nav-height)] font-sans selection:bg-[var(--brand-primary)] selection:text-white"
+      className="min-h-screen bg-[var(--surface-base)] flex flex-col pt-[var(--nav-height)] font-sans selection:bg-[var(--brand-primary)] selection:text-white"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
     >
@@ -33,7 +33,7 @@ export function IntegrationPage() {
       {/* Hero Section */}
       <motion.header 
         className="py-20 px-6 sm:px-8 lg:px-10 border-b relative overflow-hidden" 
-        style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}
+        style={{ background: 'var(--surface-raised)', borderColor: 'var(--border-subtle)' }}
       >
         <motion.div 
           className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full blur-[140px] opacity-[0.08] pointer-events-none" 
@@ -84,8 +84,8 @@ export function IntegrationPage() {
            {/* Detailed Features */}
            <section className="space-y-12">
               <motion.div className="flex items-center gap-4 border-b border-[var(--border-subtle)] pb-8">
-                 <motion.div className="w-10 h-10 rounded-xl bg-[var(--p-teal-500)]/10 flex items-center justify-center border border-[var(--p-teal-500)]/20">
-                    <Sparkles size={20} className="text-[var(--p-teal-400)]" />
+                 <motion.div className="w-10 h-10 rounded-xl bg-[var(--brand-secondary)]/10 flex items-center justify-center border border-[var(--brand-secondary)]/20">
+                    <Sparkles size={20} className="text-[var(--brand-secondary)]" />
                  </motion.div>
                  <motion.h2 className="text-3xl font-display font-black m-0">Integration Capabilities</motion.h2>
               </motion.div>
@@ -94,14 +94,14 @@ export function IntegrationPage() {
                  {integration.details.map((detail, i) => (
                    <motion.div 
                      key={i}
-                     className="p-8 rounded-[32px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] flex items-start gap-6 group hover:border-[var(--brand-primary)] transition-colors"
+                     className="p-8 rounded-[32px] bg-[var(--surface-raised)] border border-[var(--border-subtle)] flex items-start gap-6 group hover:border-[var(--brand-primary)] transition-colors"
                      initial={{ opacity: 0, x: -20 }}
                      whileInView={{ opacity: 1, x: 0 }}
                      viewport={{ once: true }}
                      transition={{ delay: i * 0.1 }}
                    >
-                      <motion.div className="w-10 h-10 rounded-full bg-[var(--bg-overlay)] flex items-center justify-center shrink-0 border border-[var(--border-subtle)] group-hover:scale-110 transition-transform">
-                         <CheckCircle2 size={18} className="text-[var(--p-teal-400)]" />
+                      <motion.div className="w-10 h-10 rounded-full bg-[var(--surface-overlay)] flex items-center justify-center shrink-0 border border-[var(--border-subtle)] group-hover:scale-110 transition-transform">
+                         <CheckCircle2 size={18} className="text-[var(--brand-secondary)]" />
                       </motion.div>
                       <motion.p className="text-lg leading-relaxed text-[var(--text-secondary)] m-0 group-hover:text-[var(--text-primary)] transition-colors">{detail}</motion.p>
                    </motion.div>
@@ -112,19 +112,19 @@ export function IntegrationPage() {
            {/* Setup Guide */}
            <section className="space-y-12">
               <motion.div className="flex items-center gap-4 border-b border-[var(--border-subtle)] pb-8">
-                 <motion.div className="w-10 h-10 rounded-xl bg-[var(--p-amber-500)]/10 flex items-center justify-center border border-[var(--p-amber-500)]/20">
-                    <Terminal size={20} className="text-[var(--p-amber-400)]" />
+                 <motion.div className="w-10 h-10 rounded-xl bg-[var(--brand-accent)]/10 flex items-center justify-center border border-[var(--brand-accent)]/20">
+                    <Terminal size={20} className="text-[var(--brand-accent)]" />
                  </motion.div>
                  <motion.h2 className="text-3xl font-display font-black m-0">Quick Start</motion.h2>
               </motion.div>
 
-              <motion.div className="p-10 rounded-[48px] bg-[var(--bg-overlay)] border border-[var(--border-subtle)] space-y-8 shadow-2xl relative overflow-hidden">
+              <motion.div className="p-10 rounded-[48px] bg-[var(--surface-overlay)] border border-[var(--border-subtle)] space-y-8 shadow-2xl relative overflow-hidden">
                  <motion.div className="absolute top-0 right-0 p-8 opacity-5">
                     <Rocket size={100} />
                  </motion.div>
                  <motion.p className="text-sm font-black uppercase tracking-widest text-[var(--text-muted)] m-0">Terminal Setup</motion.p>
                  <CodeBlock language="bash">{integration.setupCode}</CodeBlock>
-                 <motion.div className="flex items-center gap-3 p-4 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+                 <motion.div className="flex items-center gap-3 p-4 rounded-2xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
                     <Info size={16} className="text-[var(--brand-primary)] shrink-0" />
                     <motion.p className="text-sm m-0 text-[var(--text-secondary)]">This integration requires Port Daddy v3.7.0+ running in the background.</motion.p>
                  </motion.div>
@@ -133,7 +133,7 @@ export function IntegrationPage() {
 
            {/* Documentation CTA */}
            <motion.div 
-             className="p-16 rounded-[60px] border border-dashed border-[var(--brand-primary)] bg-[var(--bg-overlay)] flex flex-col items-center text-center gap-8 relative overflow-hidden"
+             className="p-16 rounded-[60px] border border-dashed border-[var(--brand-primary)] bg-[var(--surface-overlay)] flex flex-col items-center text-center gap-8 relative overflow-hidden"
              whileHover={{ scale: 1.01 }}
            >
               <motion.div className="absolute top-0 right-0 p-10 opacity-[0.03] pointer-events-none">
@@ -146,7 +146,7 @@ export function IntegrationPage() {
               </motion.p>
               <Link to="/docs" className="no-underline">
                  <motion.button 
-                   className="px-10 py-5 rounded-full bg-[var(--brand-primary)] text-[var(--bg-base)] font-black text-sm flex items-center gap-2 transition-all shadow-xl"
+                   className="px-10 py-5 rounded-full bg-[var(--brand-primary)] text-[var(--surface-base)] font-black text-sm flex items-center gap-2 transition-all shadow-xl"
                    whileHover={{ scale: 1.05, y: -4 }}
                  >
                    VIEW SDK MANUAL

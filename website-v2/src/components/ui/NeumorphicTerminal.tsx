@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Copy, Check, Terminal } from 'lucide-react'
+import { Surface } from './Surface'
 
 interface NeumorphicTerminalProps {
   code: string
@@ -44,52 +45,37 @@ export function NeumorphicTerminal({
     } catch { /* */ }
   }
 
-  // All colors here use --code-* and --codeblock-* tokens which are designed
-  // for the always-dark terminal background, not page-level --text-* tokens
   const highlightBash = (line: string) => {
     if (!line.trim()) return <span> </span>
-    if (line.startsWith('#')) return <span className="text-[var(--codeblock-filename)]">{line}</span>
+    if (line.startsWith('#')) return <span className="text-[var(--code-comment)]">{line}</span>
     if (line.startsWith('$')) {
       const cmd = line.slice(2)
       return (
         <>
           <span className="text-[var(--code-prompt)]">$ </span>
-          <span className="text-[var(--text-code)]">{cmd}</span>
+          <span className="text-[var(--code-text)]">{cmd}</span>
         </>
       )
     }
-    // Output lines — check for special markers
     if (line.includes('ready') || line.includes('complete') || line.includes('passed') || line.includes('claimed'))
-      return <span className="text-[var(--codeblock-dot-green)]">{line}</span>
+      return <span className="text-[var(--code-dot-green)]">{line}</span>
     if (line.includes('WARNING') || line.includes('warning'))
-      return <span className="text-[var(--codeblock-dot-amber)]">{line}</span>
+      return <span className="text-[var(--code-dot-amber)]">{line}</span>
     if (line.includes('ERROR') || line.includes('error'))
-      return <span className="text-[var(--codeblock-dot-red)]">{line}</span>
+      return <span className="text-[var(--code-dot-red)]">{line}</span>
     return <span className="text-[var(--code-output)]">{line}</span>
   }
 
   const lines = displayedCode.split('\n')
 
   return (
-    <div
-      className="rounded-2xl p-6 transition-all duration-300"
-      style={{
-        background: 'var(--bg-surface)',
-        boxShadow: 'var(--shadow-neu-raised)',
-      }}
-    >
+    <Surface depth="raised" radius="2xl" padding="lg">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center"
-            style={{
-              background: 'var(--bg-base)',
-              boxShadow: 'var(--shadow-neu-inset)',
-            }}
-          >
+          <Surface depth="inset" radius="lg" padding="none" className="w-10 h-10 flex items-center justify-center">
             <Terminal size={18} className="text-[var(--brand-primary)]" />
-          </div>
+          </Surface>
           <div>
             <span className="text-sm font-semibold text-[var(--text-primary)]">{title}</span>
             <span className="text-xs text-[var(--text-muted)] ml-2">{language}</span>
@@ -98,10 +84,10 @@ export function NeumorphicTerminal({
 
         <button
           onClick={handleCopy}
-          className="w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer"
+          className="w-9 h-9 rounded-[var(--radius-lg)] flex items-center justify-center transition-all duration-200 cursor-pointer"
           style={{
-            background: 'var(--bg-base)',
-            boxShadow: 'var(--shadow-neu-sm)',
+            background: 'var(--surface-base)',
+            boxShadow: 'var(--shadow-sm)',
           }}
         >
           {copied ? (
@@ -114,16 +100,16 @@ export function NeumorphicTerminal({
 
       {/* Terminal body */}
       <div
-        className="rounded-xl p-5 overflow-x-auto"
+        className="rounded-[var(--radius-lg)] p-5 overflow-x-auto"
         style={{
-          background: 'var(--bg-code)',
-          boxShadow: 'var(--shadow-neu-inset)',
+          background: 'var(--code-bg)',
+          boxShadow: 'var(--shadow-inset)',
         }}
       >
-        <div className="flex items-center gap-2 mb-3 pb-2" style={{ borderBottom: '1px solid var(--codeblock-border)' }}>
-          <div className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--codeblock-dot-red)' }} />
-          <div className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--codeblock-dot-amber)' }} />
-          <div className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--codeblock-dot-green)' }} />
+        <div className="flex items-center gap-2 mb-3 pb-2" style={{ borderBottom: '1px solid var(--code-border)' }}>
+          <div className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--code-dot-red)' }} />
+          <div className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--code-dot-amber)' }} />
+          <div className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--code-dot-green)' }} />
         </div>
 
         <div className="font-mono text-sm leading-relaxed">
@@ -137,6 +123,6 @@ export function NeumorphicTerminal({
           ))}
         </div>
       </div>
-    </div>
+    </Surface>
   )
 }

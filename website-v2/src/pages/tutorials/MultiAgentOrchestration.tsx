@@ -3,6 +3,7 @@ import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Badge } from '@/components/ui/Badge'
 import { Share2, FileCode, MessageSquare, Activity, Users } from 'lucide-react'
+import { Surface } from '@/components/ui/Surface'
 
 export function MultiAgentOrchestration() {
   return (
@@ -20,12 +21,9 @@ export function MultiAgentOrchestration() {
         {/* Why This Matters */}
         <section className="space-y-6">
           <motion.div className="flex items-center gap-4 mb-8">
-            <motion.div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center"
-              style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-            >
+            <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Users className="text-[var(--brand-primary)]" size={24} />
-            </motion.div>
+            </Surface>
             <motion.h2 className="m-0">Why Multi-Agent Coordination Matters</motion.h2>
           </motion.div>
           <motion.p>
@@ -34,42 +32,30 @@ export function MultiAgentOrchestration() {
           <motion.p>
             Port Daddy does not try to be a high-level orchestration framework like CrewAI or LangGraph. Instead, it provides the <strong>low-level primitives</strong> that those frameworks (and your own scripts) need to coordinate safely: file claims for ownership, pub/sub channels for communication, and session notes for audit trails. Think of it as the coordination kernel that sits underneath whatever agent framework you are using.
           </motion.p>
-          <motion.div
-            className="p-10 rounded-2xl space-y-6"
-            style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-          >
+          <Surface depth="raised" radius="2xl" className="p-10 space-y-6">
              <motion.div className="flex items-center justify-between">
                 <motion.span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Live Example: Two Agents on One Project</motion.span>
                 <Badge variant="teal">Active Coordination</Badge>
              </motion.div>
              <motion.div className="space-y-4">
-                <motion.div
-                  className="flex items-center gap-4 p-4 rounded-2xl"
-                  style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-                >
-                   <motion.div className="w-2 h-2 rounded-full bg-[var(--p-teal-400)] pulse-active" />
+                <Surface depth="inset" radius="2xl" padding="none" className="flex items-center gap-4 p-4">
+                   <motion.div className="w-2 h-2 rounded-full bg-[var(--brand-secondary)] pulse-active" />
                    <motion.span className="text-sm font-bold text-[var(--text-primary)]">Agent 'alpha' claiming src/auth/</motion.span>
-                </motion.div>
-                <motion.div
-                  className="flex items-center gap-4 p-4 rounded-2xl opacity-40"
-                  style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-                >
+                </Surface>
+                <Surface depth="inset" radius="2xl" padding="none" className="flex items-center gap-4 p-4 opacity-40">
                    <motion.div className="w-2 h-2 rounded-full bg-[var(--status-success)]" />
                    <motion.span className="text-sm font-bold text-[var(--text-secondary)]">Agent 'beta' watching for auth-ready signal...</motion.span>
-                </motion.div>
+                </Surface>
              </motion.div>
-          </motion.div>
+          </Surface>
         </section>
 
         {/* Step 1: File Claims */}
         <section className="space-y-8">
           <motion.div className="flex items-center gap-4">
-            <motion.div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center"
-              style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-            >
-              <FileCode className="text-[var(--p-amber-400)]" size={24} />
-            </motion.div>
+            <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
+              <FileCode className="text-[var(--brand-accent)]" size={24} />
+            </Surface>
             <motion.h2 className="m-0">1. Announce Intent with File Claims</motion.h2>
           </motion.div>
 
@@ -86,25 +72,19 @@ Claimed 12 files.
 No conflicts with other active agents.`}
           </CodeBlock>
 
-          <blockquote
-            className="p-8 rounded-2xl border-l-4 border-[var(--p-amber-400)]"
-            style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-          >
-             <motion.p className="m-0 text-sm italic opacity-60 font-medium">
-               If another agent attempts to claim the same path, Port Daddy will return a <code>CONFLICT</code> error along with the ID of the agent currently holding the claim.
-             </motion.p>
-          </blockquote>
+          <Surface depth="flat" radius="xl" padding="md" className="border-l-4 border-[var(--brand-secondary)]">
+            <p className="m-0 text-sm" style={{ color: 'var(--text-secondary)' }}>
+              If another agent attempts to claim the same path, Port Daddy will return a <code>CONFLICT</code> error along with the ID of the agent currently holding the claim.
+            </p>
+          </Surface>
         </section>
 
         {/* Step 2: Pub/Sub */}
         <section className="space-y-8">
           <motion.div className="flex items-center gap-4">
-            <motion.div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center"
-              style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-            >
-              <MessageSquare className="text-[var(--p-blue-400)]" size={24} />
-            </motion.div>
+            <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
+              <MessageSquare className="text-[var(--brand-secondary)]" size={24} />
+            </Surface>
             <motion.h2 className="m-0">2. Signal State Changes with Pub/Sub</motion.h2>
           </motion.div>
 
@@ -130,29 +110,19 @@ $ pd watch swarm:events --exec "npm test"
           </motion.p>
 
           <motion.div className="grid sm:grid-cols-2 gap-6">
-             <motion.div
-               className="p-8 rounded-2xl space-y-4"
-               style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-             >
+             <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
                 <Badge variant="default">The Broadcaster</Badge>
                 <motion.p className="text-sm opacity-60 m-0 leading-relaxed text-[var(--text-secondary)]">Publishes high-level events like "task_complete" or "error_detected".</motion.p>
-             </motion.div>
-             <motion.div
-               className="p-8 rounded-2xl space-y-4"
-               style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-             >
+             </Surface>
+             <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
                 <Badge variant="teal">The Listener</Badge>
                 <motion.p className="text-sm opacity-60 m-0 leading-relaxed text-[var(--text-secondary)]">Reacts instantly to events, triggering the next step in the pipeline.</motion.p>
-             </motion.div>
+             </Surface>
           </motion.div>
         </section>
 
         {/* Coordination Pattern */}
-        <motion.div
-          className="p-16 rounded-2xl flex flex-col items-center text-center gap-8 relative overflow-hidden"
-          style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-          whileHover={{ scale: 1.01 }}
-        >
+        <Surface depth="raised" radius="2xl" className="p-16 flex flex-col items-center text-center gap-8 relative overflow-hidden">
            <motion.div className="absolute top-0 right-0 p-10 opacity-[0.03] pointer-events-none">
               <Share2 size={400} />
            </motion.div>
@@ -165,7 +135,7 @@ $ pd watch swarm:events --exec "npm test"
               <Activity size={14} className="animate-pulse" />
               Real-time Coordination Active
            </motion.div>
-        </motion.div>
+        </Surface>
       </motion.div>
     </TutorialLayout>
   )
