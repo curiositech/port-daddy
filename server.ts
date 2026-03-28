@@ -581,7 +581,7 @@ app.use(createRoutes({
 
 // Arbiter routes (separate from aggregator — takes Arbiter directly)
 app.use(createArbiterRoutes(arbiter));
-app.use(createPheromoneRoutes({ pheromones }));
+app.use(createPheromoneRoutes({ pheromones, sessions, db }));
 
 // =============================================================================
 // DASHBOARD SSE — push state changes instead of polling

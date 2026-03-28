@@ -1,22 +1,27 @@
 /**
  * Pheromone Routes — Stigmergic coordination API
  *
- * POST /pheromone/spray   — Set a pheromone value on an entity
- * GET  /pheromone/:table/:id — Read pheromone values for an entity
- * GET  /pheromone          — List all non-zero pheromones
+ * POST /pheromone/spray        — Set a pheromone value on an entity
+ * GET  /pheromone/files        — File heat map from session claims + pheromones
+ * GET  /pheromone/:table/:id   — Read pheromone values for an entity
+ * GET  /pheromone              — List all non-zero pheromones
  */
 
 import { Router, type Request, type Response } from 'express';
 import type { createPheromoneManager } from '../lib/pheromone.js';
+import type { createSessions } from '../lib/sessions.js';
 
 type PheromoneManager = ReturnType<typeof createPheromoneManager>;
+type Sessions = ReturnType<typeof createSessions>;
 
 interface PheromoneRouteDeps {
   pheromones: PheromoneManager;
+  sessions: Sessions;
+  db: any;
 }
 
 export function createPheromoneRoutes(deps: PheromoneRouteDeps): Router {
-  const { pheromones } = deps;
+  const { pheromones, sessions, db } = deps;
   const router = Router();
 
   /**
@@ -33,11 +38,11 @@ export function createPheromoneRoutes(deps: PheromoneRouteDeps): Router {
       return res.status(400).json({ success: false, error: 'id is required' });
     }
     if (!key || typeof key !== 'string') {
-      return res.status(400).json({ success: false, error: 'key is required (e.g., "confidence", "activity")' });
+      return res.status(400).json({ success: false, error: 'key is required' });
     }
     const str = typeof strength === 'number' ? strength : parseFloat(String(strength));
     if (isNaN(str) || str < 0 || str > 1) {
-      return res.status(400).json({ success: false, error: 'strength must be a number between 0 and 1' });
+      return res.status(400).json({ success: false, error: 'strength must be 0-1' });
     }
 
     const result = pheromones.spray(table, id, key, str);
@@ -49,31 +54,151 @@ export function createPheromoneRoutes(deps: PheromoneRouteDeps): Router {
   });
 
   /**
+   * GET /pheromone/files?path=src/&depth=3
+   * File heat map — aggregates pheromone-like signals from session file claims.
+   * Returns files ranked by activity (claim count, recency, active claims).
+   */
+  router.get('/pheromone/files', (_req: Request, res: Response) => {
+    const pathPrefix = (_req.query.path as string) || '';
+    const maxDepth = parseInt(_req.query.depth as string) || 5;
+
+    try {
+      // Query all active file claims from sessions
+      const claims = db.prepare(`
+        SELECT sf.file_path, sf.claimed_at, sf.released_at, sf.session_id,
+               s.agent_id, s.status as session_status, s.purpose
+        FROM session_files sf
+        JOIN sessions s ON s.id = sf.session_id
+        WHERE sf.file_path LIKE ?
+        ORDER BY sf.claimed_at DESC
+      `).all(pathPrefix ? `${pathPrefix}%` : '%') as any[];
+
+      // Compute per-file heat
+      const now = Date.now();
+      const fileHeat = new Map<string, {
+        path: string;
+        heat: number;
+        activeClaims: number;
+        totalClaims: number;
+        lastActivity: number;
+        agents: string[];
+        conflict: boolean;
+      }>();
+
+      for (const claim of claims) {
+        const path = claim.file_path;
+        let entry = fileHeat.get(path);
+        if (!entry) {
+          entry = {
+            path,
+            heat: 0,
+            activeClaims: 0,
+            totalClaims: 0,
+            lastActivity: 0,
+            agents: [],
+            conflict: false,
+          };
+          fileHeat.set(path, entry);
+        }
+
+        entry.totalClaims++;
+
+        // Active claim = not released and session is active
+        const isActive = !claim.released_at && claim.session_status === 'active';
+        if (isActive) {
+          entry.activeClaims++;
+          if (claim.agent_id && !entry.agents.includes(claim.agent_id)) {
+            entry.agents.push(claim.agent_id);
+          }
+        }
+
+        // Recency-weighted heat: exponential decay from claim time
+        const age = now - claim.claimed_at;
+        const recencyHeat = Math.exp(-age / (30 * 60 * 1000)); // half-life ~20 min
+        entry.heat = Math.min(1, entry.heat + recencyHeat * 0.3);
+
+        // Active claims add more heat
+        if (isActive) entry.heat = Math.min(1, entry.heat + 0.3);
+
+        entry.lastActivity = Math.max(entry.lastActivity, claim.claimed_at);
+      }
+
+      // Mark conflicts (multiple active agents on same file)
+      for (const entry of fileHeat.values()) {
+        entry.conflict = entry.agents.length > 1;
+      }
+
+      // Build directory rollup
+      const dirHeat = new Map<string, { path: string; heat: number; fileCount: number; conflictCount: number }>();
+
+      for (const entry of fileHeat.values()) {
+        const parts = entry.path.split('/');
+        for (let i = 1; i <= Math.min(parts.length - 1, maxDepth); i++) {
+          const dir = parts.slice(0, i).join('/') + '/';
+          let dirEntry = dirHeat.get(dir);
+          if (!dirEntry) {
+            dirEntry = { path: dir, heat: 0, fileCount: 0, conflictCount: 0 };
+            dirHeat.set(dir, dirEntry);
+          }
+          dirEntry.heat = Math.max(dirEntry.heat, entry.heat);
+          dirEntry.fileCount++;
+          if (entry.conflict) dirEntry.conflictCount++;
+        }
+      }
+
+      // Sort files by heat descending
+      const files = [...fileHeat.values()]
+        .sort((a, b) => b.heat - a.heat)
+        .slice(0, 50)
+        .map(f => ({
+          ...f,
+          heat: Math.round(f.heat * 1000) / 1000,
+          lastActivity: f.lastActivity ? new Date(f.lastActivity).toISOString() : null,
+        }));
+
+      // Sort directories by heat descending
+      const directories = [...dirHeat.values()]
+        .sort((a, b) => b.heat - a.heat)
+        .slice(0, 20)
+        .map(d => ({
+          ...d,
+          heat: Math.round(d.heat * 1000) / 1000,
+        }));
+
+      res.json({
+        success: true,
+        files,
+        directories,
+        summary: {
+          totalFiles: fileHeat.size,
+          activeConflicts: [...fileHeat.values()].filter(f => f.conflict).length,
+          hottestFile: files[0]?.path || null,
+          hottestDir: directories[0]?.path || null,
+        },
+      });
+    } catch (err) {
+      res.status(500).json({ success: false, error: (err as Error).message });
+    }
+  });
+
+  /**
    * GET /pheromone/:table/:id
-   * Read pheromone values for a specific entity.
    */
   router.get('/pheromone/:table/:id', (req: Request, res: Response) => {
     const { table, id } = req.params;
-
     const result = pheromones.sniff(table, id);
     if (!result.success) {
       return res.status(404).json({ success: false, error: `Entity not found: ${table}/${id}` });
     }
-
     res.json({ success: true, table, id, pheromones: result.pheromones });
   });
 
   /**
    * GET /pheromone
-   * List all entities with non-zero pheromones.
    */
   router.get('/pheromone', (_req: Request, res: Response) => {
     const results = pheromones.list();
-    res.json({
-      success: true,
-      count: results.length,
-      pheromones: results,
-    });
+    res.json({ success: true, count: results.length, pheromones: results });
   });
 
   return router;

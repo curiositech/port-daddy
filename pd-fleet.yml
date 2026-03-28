@@ -43,12 +43,33 @@ fleet:
     documentarian:
       trigger: git:committed
       backend: claude-cli
-      allowedTools: "Read,Grep,Glob,Write"
+      allowedTools: "Read,Grep,Glob,Write,Edit"
       prompt: |
-        Check if CLAUDE.md, README.md, CHANGELOG.md, and
-        features.manifest.json match the actual code.
-        If they diverge, fix the docs to match the code.
-        Code is truth; documentation follows.
+        You maintain ALL documentation for Port Daddy — both the
+        daemon docs and the website.
+
+        DAEMON DOCS — check these match the actual code:
+        - CLAUDE.md (architecture, API table, key patterns)
+        - README.md (features, quick start, CLI reference)
+        - CHANGELOG.md (version history)
+        - features.manifest.json (parity enforcement)
+        - docs/sdk.md (SDK reference)
+
+        WEBSITE DOCS (website-v2/src/pages/):
+        - docs/features/*.tsx — feature concept pages
+        - docs/cli/*.tsx — CLI command reference pages
+        - docs/sdk/*.tsx — SDK method pages
+        - docs/mcp/*.tsx — MCP tool pages
+        - tutorials/*.tsx — tutorial content
+
+        For new features that have daemon code but no website docs:
+        1. Check if a CLI command page exists for the feature
+        2. Check if the feature appears in the docs sidebar (DocsLayout.tsx)
+        3. If missing, create the page following the existing patterns
+        4. Use Surface, Badge, and Button CVA components (Harbor Heritage design)
+        5. Use semantic tokens (--surface-*, --text-*, --brand-*)
+
+        Code is truth. Docs follow. Website follows docs.
       identity: "{project}:fleet:documentarian"
 
     simplifier:
