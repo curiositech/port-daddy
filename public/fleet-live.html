@@ -19,14 +19,17 @@
       --accent-glow: rgba(74, 157, 158, 0.2);
       --accent-dim: rgba(74, 157, 158, 0.08);
       --red: #e74c3c;
-      --red-dim: rgba(231, 76, 60, 0.15);
+      --red-dim: rgba(231, 76, 60, 0.12);
       --green: #2ecc71;
-      --green-dim: rgba(46, 204, 113, 0.15);
+      --green-dim: rgba(46, 204, 113, 0.12);
       --orange: #e67e22;
-      --orange-dim: rgba(230, 126, 34, 0.15);
+      --orange-dim: rgba(230, 126, 34, 0.12);
       --blue: #3498db;
+      --blue-dim: rgba(52, 152, 219, 0.12);
       --yellow: #f0a500;
+      --yellow-dim: rgba(240, 165, 0, 0.12);
       --purple: #9b59b6;
+      --purple-dim: rgba(155, 89, 182, 0.12);
       --teal: #1abc9c;
       --grey: #7f8c8d;
     }
@@ -47,13 +50,27 @@
       line-height: 1.4;
     }
 
+    /* ===================== SCANLINES ===================== */
+    body::after {
+      content: '';
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      pointer-events: none;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent, transparent 3px,
+        rgba(0, 0, 0, 0.025) 3px, rgba(0, 0, 0, 0.025) 4px
+      );
+      z-index: 999;
+    }
+
     /* ===================== HEADER ===================== */
     .header {
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 10px 14px;
-      background: var(--surface-deep);
+      background: linear-gradient(180deg, var(--surface) 0%, var(--surface-deep) 100%);
       border-bottom: 1px solid var(--border-subtle);
       flex-shrink: 0;
       min-height: 40px;
@@ -68,14 +85,13 @@
     .header-logo {
       width: 18px;
       height: 18px;
-      position: relative;
     }
 
-    /* Anchor SVG icon */
     .header-logo svg {
       width: 18px;
       height: 18px;
-      fill: var(--accent);
+      stroke: var(--accent);
+      fill: none;
     }
 
     .header-title {
@@ -105,22 +121,21 @@
       width: 7px;
       height: 7px;
       border-radius: 50%;
-      background: var(--green);
-      box-shadow: 0 0 6px rgba(46, 204, 113, 0.5);
       transition: all 0.4s ease;
     }
 
     .conn-dot.disconnected {
       background: var(--red);
       box-shadow: 0 0 6px rgba(231, 76, 60, 0.5);
-      animation: none;
     }
 
     .conn-dot.connected {
-      animation: pulse-dot 2s ease-in-out infinite;
+      background: var(--green);
+      box-shadow: 0 0 6px rgba(46, 204, 113, 0.5);
+      animation: pulse-conn 2s ease-in-out infinite;
     }
 
-    @keyframes pulse-dot {
+    @keyframes pulse-conn {
       0%, 100% { box-shadow: 0 0 4px rgba(46, 204, 113, 0.3); }
       50% { box-shadow: 0 0 10px rgba(46, 204, 113, 0.7); }
     }
@@ -154,7 +169,7 @@
       border: 1px solid var(--border-subtle);
       font-size: 10px;
       font-weight: 600;
-      color: var(--text-dim);
+      color: var(--text-muted);
       white-space: nowrap;
       cursor: default;
       transition: all 0.3s ease;
@@ -163,23 +178,38 @@
 
     .agent-chip.active {
       border-color: var(--chip-color, var(--accent));
-      background: color-mix(in srgb, var(--chip-color, var(--accent)) 8%, var(--surface));
+      background: color-mix(in srgb, var(--chip-color, var(--accent)) 10%, var(--surface));
       color: var(--text);
-      box-shadow: 0 0 8px color-mix(in srgb, var(--chip-color, var(--accent)) 20%, transparent);
+      box-shadow: 0 0 10px color-mix(in srgb, var(--chip-color, var(--accent)) 20%, transparent);
     }
 
     .agent-chip-dot {
       width: 6px;
       height: 6px;
       border-radius: 50%;
-      background: var(--chip-color, var(--text-muted));
       flex-shrink: 0;
       transition: all 0.3s ease;
     }
 
     .agent-chip.active .agent-chip-dot {
-      box-shadow: 0 0 5px var(--chip-color, var(--accent));
+      box-shadow: 0 0 6px var(--chip-color, var(--accent));
     }
+
+    .agent-chip.selected {
+      border-color: var(--chip-color, var(--accent));
+      background: color-mix(in srgb, var(--chip-color, var(--accent)) 25%, var(--surface));
+      color: #fff;
+      box-shadow: 0 0 12px color-mix(in srgb, var(--chip-color, var(--accent)) 30%, transparent),
+                  inset 0 0 8px color-mix(in srgb, var(--chip-color, var(--accent)) 15%, transparent);
+    }
+
+    .feed-item-content.expandable { cursor: pointer; }
+    .feed-item-content .expand-toggle {
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 500;
+    }
+    .feed-item-content .content-full { white-space: pre-wrap; word-break: break-word; }
 
     /* ===================== STATS STRIP ===================== */
     .stats-strip {
@@ -198,12 +228,14 @@
     }
 
     .stat-value {
-      font-size: 16px;
+      font-size: 17px;
       font-weight: 700;
       color: var(--text);
       font-variant-numeric: tabular-nums;
       line-height: 1.2;
     }
+
+    .stat-value.highlight { color: var(--accent); }
 
     .stat-label {
       font-size: 9px;
@@ -248,9 +280,7 @@
       border-color: color-mix(in srgb, var(--accent) 30%, transparent);
     }
 
-    .filter-spacer {
-      flex: 1;
-    }
+    .filter-spacer { flex: 1; }
 
     .feed-count {
       font-size: 10px;
@@ -267,16 +297,9 @@
       scroll-behavior: smooth;
     }
 
-    .feed-container::-webkit-scrollbar {
-      width: 4px;
-    }
-    .feed-container::-webkit-scrollbar-track {
-      background: transparent;
-    }
-    .feed-container::-webkit-scrollbar-thumb {
-      background: var(--border);
-      border-radius: 2px;
-    }
+    .feed-container::-webkit-scrollbar { width: 4px; }
+    .feed-container::-webkit-scrollbar-track { background: transparent; }
+    .feed-container::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
     .feed-empty {
       display: flex;
@@ -306,47 +329,55 @@
       border-radius: 1px;
     }
 
-    .feed-empty-text {
-      font-size: 12px;
+    /* ---- Time period markers ---- */
+    .time-marker {
+      padding: 4px 14px;
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      background: var(--surface-deep);
+      border-bottom: 1px solid var(--border-subtle);
+      position: sticky;
+      top: 0;
+      z-index: 2;
     }
 
     /* ---- Feed Items ---- */
     .feed-item {
-      padding: 10px 14px;
+      padding: 9px 14px;
       border-bottom: 1px solid var(--border-subtle);
-      transition: background 0.2s ease;
-      animation: slide-in 0.3s ease-out;
+      transition: background 0.15s ease;
+      animation: slide-in 0.25s ease-out;
       position: relative;
     }
 
-    .feed-item:hover {
-      background: var(--surface);
-    }
+    .feed-item:hover { background: var(--surface); }
 
     .feed-item.is-new {
       animation: slide-in-glow 0.5s ease-out;
     }
 
     @keyframes slide-in {
-      from { opacity: 0; transform: translateY(-8px); }
+      from { opacity: 0; transform: translateY(-6px); }
       to { opacity: 1; transform: translateY(0); }
     }
 
     @keyframes slide-in-glow {
-      0% { opacity: 0; transform: translateY(-12px); background: var(--accent-dim); }
+      0% { opacity: 0; transform: translateY(-10px); background: var(--accent-dim); }
       40% { background: var(--accent-dim); }
       100% { opacity: 1; transform: translateY(0); background: transparent; }
     }
 
-    /* age-based opacity */
-    .feed-item.age-old { opacity: 0.55; }
-    .feed-item.age-ancient { opacity: 0.35; }
+    .feed-item.age-old { opacity: 0.5; }
+    .feed-item.age-ancient { opacity: 0.3; }
 
     .feed-item-header {
       display: flex;
       align-items: center;
       gap: 6px;
-      margin-bottom: 4px;
+      margin-bottom: 3px;
     }
 
     .feed-item-agent-dot {
@@ -359,7 +390,6 @@
     .feed-item-agent {
       font-size: 11px;
       font-weight: 600;
-      color: var(--text);
       flex-shrink: 0;
     }
 
@@ -368,43 +398,20 @@
       font-weight: 600;
       letter-spacing: 0.5px;
       text-transform: uppercase;
-      padding: 1px 5px;
+      padding: 1px 6px;
       border-radius: 3px;
       flex-shrink: 0;
     }
 
-    .type-note {
-      color: var(--blue);
-      background: rgba(52, 152, 219, 0.12);
-    }
-    .type-handoff {
-      color: var(--orange);
-      background: var(--orange-dim);
-    }
-    .type-session-start {
-      color: var(--green);
-      background: var(--green-dim);
-    }
-    .type-session-end {
-      color: var(--text-dim);
-      background: rgba(120, 137, 160, 0.12);
-    }
-    .type-claim {
-      color: var(--accent);
-      background: var(--accent-dim);
-    }
-    .type-violation {
-      color: var(--red);
-      background: var(--red-dim);
-    }
-    .type-agent {
-      color: var(--purple);
-      background: rgba(155, 89, 182, 0.12);
-    }
-    .type-sugar {
-      color: var(--yellow);
-      background: rgba(240, 165, 0, 0.12);
-    }
+    .type-note { color: var(--blue); background: var(--blue-dim); }
+    .type-handoff { color: var(--orange); background: var(--orange-dim); }
+    .type-session-start { color: var(--green); background: var(--green-dim); }
+    .type-session-end { color: var(--text-dim); background: rgba(120, 137, 160, 0.1); }
+    .type-claim { color: var(--accent); background: var(--accent-dim); }
+    .type-violation { color: var(--red); background: var(--red-dim); }
+    .type-agent { color: var(--purple); background: var(--purple-dim); }
+    .type-sugar { color: var(--yellow); background: var(--yellow-dim); }
+    .type-lock { color: var(--teal); background: rgba(26, 188, 156, 0.12); }
 
     .feed-item-time {
       font-size: 10px;
@@ -425,27 +432,83 @@
       -webkit-box-orient: vertical;
     }
 
-    .feed-item-content.expanded {
-      -webkit-line-clamp: unset;
-      display: block;
-    }
-
     .feed-item-session-purpose {
       font-size: 10px;
       color: var(--text-muted);
-      margin-top: 3px;
+      margin-top: 2px;
       font-style: italic;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
 
-    /* ---- Session cards in feed ---- */
-    .feed-item.session-card {
+    /* ---- Collapsed group (batch of similar events) ---- */
+    .feed-item-collapsed {
+      padding: 6px 14px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      gap: 6px;
       cursor: pointer;
+      transition: background 0.15s ease;
+      animation: slide-in 0.25s ease-out;
     }
 
-    .feed-item.session-card .session-status-dot {
+    .feed-item-collapsed:hover { background: var(--surface); }
+    .feed-item-collapsed.age-old { opacity: 0.5; }
+    .feed-item-collapsed.age-ancient { opacity: 0.3; }
+
+    .collapsed-count {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-dim);
+      background: var(--surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 1px 6px;
+      flex-shrink: 0;
+      min-width: 20px;
+      text-align: center;
+    }
+
+    .collapsed-text {
+      font-size: 11px;
+      color: var(--text-dim);
+      flex: 1;
+    }
+
+    .collapsed-expand-hint {
+      font-size: 9px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .collapsed-items {
+      display: none;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .collapsed-items.open { display: block; }
+
+    .collapsed-items .feed-item {
+      padding-left: 28px;
+      background: var(--surface-deep);
+      opacity: 0.75;
+    }
+
+    /* ---- Session cards ---- */
+    .feed-item.session-card {
+      cursor: pointer;
+      border-left: 3px solid transparent;
+      padding-left: 11px;
+    }
+
+    .feed-item.session-card.active-session {
+      border-left-color: var(--green);
+      background: var(--green-dim);
+    }
+
+    .session-status-dot {
       width: 6px;
       height: 6px;
       border-radius: 50%;
@@ -458,9 +521,7 @@
       animation: session-pulse 2.5s ease-in-out infinite;
     }
 
-    .session-status-dot.completed {
-      background: var(--text-muted);
-    }
+    .session-status-dot.completed { background: var(--text-muted); }
 
     @keyframes session-pulse {
       0%, 100% { box-shadow: 0 0 3px rgba(46, 204, 113, 0.2); }
@@ -476,12 +537,12 @@
 
     .session-notes-expand.open {
       display: block;
-      animation: expand-in 0.25s ease-out;
+      animation: expand-in 0.2s ease-out;
     }
 
     @keyframes expand-in {
-      from { opacity: 0; max-height: 0; }
-      to { opacity: 1; max-height: 200px; }
+      from { opacity: 0; }
+      to { opacity: 1; }
     }
 
     .session-note-item {
@@ -495,6 +556,7 @@
     .session-note-item .note-time {
       font-size: 9px;
       color: var(--text-muted);
+      margin-right: 4px;
     }
 
     /* ===================== SESSIONS SIDEBAR ===================== */
@@ -504,7 +566,7 @@
       justify-content: space-between;
       padding: 7px 14px;
       background: var(--surface-deep);
-      border-top: 1px solid var(--border-subtle);
+      border-top: 1px solid var(--border);
       cursor: pointer;
       flex-shrink: 0;
       transition: background 0.2s ease;
@@ -522,22 +584,6 @@
       text-transform: uppercase;
     }
 
-    .sessions-toggle-arrow {
-      font-size: 10px;
-      color: var(--text-muted);
-      transition: transform 0.2s ease;
-      /* CSS triangle instead of emoji */
-      width: 0;
-      height: 0;
-      border-left: 4px solid transparent;
-      border-right: 4px solid transparent;
-      border-top: 5px solid var(--text-muted);
-    }
-
-    .sessions-toggle-arrow.open {
-      transform: rotate(180deg);
-    }
-
     .sessions-badge {
       font-size: 10px;
       font-weight: 600;
@@ -547,12 +593,22 @@
       border-radius: 8px;
     }
 
+    .sessions-toggle-arrow {
+      width: 0;
+      height: 0;
+      border-left: 4px solid transparent;
+      border-right: 4px solid transparent;
+      border-top: 5px solid var(--text-muted);
+      transition: transform 0.2s ease;
+    }
+
+    .sessions-toggle-arrow.open { transform: rotate(180deg); }
+
     .sessions-panel {
       max-height: 0;
       overflow: hidden;
       transition: max-height 0.3s ease;
       background: var(--surface-deep);
-      border-top: 1px solid var(--border-subtle);
     }
 
     .sessions-panel.open {
@@ -570,7 +626,6 @@
       padding: 6px 14px;
       border-bottom: 1px solid var(--border-subtle);
       transition: background 0.15s ease;
-      cursor: default;
     }
     .session-row:hover { background: var(--surface); }
     .session-row:last-child { border-bottom: none; }
@@ -580,7 +635,7 @@
       height: 6px;
       border-radius: 50%;
       flex-shrink: 0;
-      margin-top: 4px;
+      margin-top: 5px;
     }
 
     .session-row-dot.active {
@@ -599,7 +654,7 @@
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-    .session-row.completed .session-row-purpose { color: var(--text-dim); }
+    .session-row.is-completed .session-row-purpose { color: var(--text-dim); }
 
     .session-row-meta {
       font-size: 9px;
@@ -637,47 +692,11 @@
       animation: spin 0.8s linear infinite;
     }
 
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
     .loading-text {
       font-size: 11px;
       letter-spacing: 0.5px;
-    }
-
-    /* ===================== SCANLINES OVERLAY ===================== */
-    body::after {
-      content: '';
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      pointer-events: none;
-      background: repeating-linear-gradient(
-        0deg,
-        transparent,
-        transparent 2px,
-        rgba(0, 0, 0, 0.03) 2px,
-        rgba(0, 0, 0, 0.03) 4px
-      );
-      z-index: 999;
-    }
-
-    /* ===================== TIMESTAMP MARKER ===================== */
-    .time-marker {
-      padding: 4px 14px;
-      font-size: 9px;
-      font-weight: 600;
-      color: var(--text-muted);
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      background: var(--surface-deep);
-      border-bottom: 1px solid var(--border-subtle);
-      position: sticky;
-      top: 0;
-      z-index: 2;
     }
 
     /* ===================== RESPONSIVE ===================== */
@@ -692,8 +711,8 @@
   <div class="header">
     <div class="header-left">
       <div class="header-logo">
-        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 2L12 5M12 5C10 5 8 6.5 8 9C8 11 9.5 12.5 12 13C14.5 12.5 16 11 16 9C16 6.5 14 5 12 5ZM12 13L12 19M8 17L16 17M5 21L19 21M12 19L12 21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2v3M12 5c-2 0-4 1.5-4 4 0 2 1.5 3.5 4 4 2.5-.5 4-2 4-4 0-2.5-2-4-4-4zM12 13v6M8 17h8M5 21h14M12 19v2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </div>
       <span class="header-title">Fleet Live</span>
@@ -713,20 +732,20 @@
   <!-- STATS STRIP -->
   <div class="stats-strip">
     <div class="stat-cell">
+      <div class="stat-value highlight" id="stat-active">--</div>
+      <div class="stat-label">Active</div>
+    </div>
+    <div class="stat-cell">
       <div class="stat-value" id="stat-sessions">--</div>
       <div class="stat-label">Sessions</div>
     </div>
     <div class="stat-cell">
       <div class="stat-value" id="stat-services">--</div>
-      <div class="stat-label">Services</div>
+      <div class="stat-label">Ports</div>
     </div>
     <div class="stat-cell">
       <div class="stat-value" id="stat-notes">--</div>
       <div class="stat-label">Notes</div>
-    </div>
-    <div class="stat-cell">
-      <div class="stat-value" id="stat-active">--</div>
-      <div class="stat-label">Active</div>
     </div>
   </div>
 
@@ -764,8 +783,8 @@
 (function() {
   'use strict';
 
-  // ===== CONFIG =====
   const BASE = 'http://localhost:9876';
+
   const FLEET_AGENTS = [
     { name: 'gardener',      color: '#7f8c8d' },
     { name: 'qa',            color: '#e74c3c' },
@@ -777,7 +796,6 @@
     { name: 'spider',        color: '#9b59b6' },
   ];
 
-  // Interesting activity types (skip daemon noise)
   const INTERESTING_ACTIVITY = new Set([
     'service.claim', 'session.start', 'session.end',
     'security.violation', 'agent.register', 'agent.unregister',
@@ -786,58 +804,62 @@
     'pheromone.spray', 'note.create',
   ]);
 
-  // ===== STATE =====
+  // How many consecutive same-type events before collapsing
+  const COLLAPSE_THRESHOLD = 3;
+
+  // State
   let allFeedItems = [];
   let allSessions = [];
-  let sessionNotesCache = {};  // sessionId -> [notes]
+  let sessionNotesCache = {};
   let currentFilter = 'all';
   let sseSource = null;
   let daemonStartTime = null;
   let uptimeInterval = null;
 
-  // ===== DOM REFS =====
-  const $connDot = document.getElementById('conn-dot');
-  const $connLabel = document.getElementById('conn-label');
-  const $uptime = document.getElementById('uptime');
-  const $ribbon = document.getElementById('agent-ribbon');
-  const $feed = document.getElementById('feed-container');
-  const $loading = document.getElementById('loading');
-  const $statSessions = document.getElementById('stat-sessions');
-  const $statServices = document.getElementById('stat-services');
-  const $statNotes = document.getElementById('stat-notes');
-  const $statActive = document.getElementById('stat-active');
-  const $feedCount = document.getElementById('feed-count');
-  const $sessionsToggle = document.getElementById('sessions-toggle');
-  const $sessionsArrow = document.getElementById('sessions-arrow');
-  const $sessionsPanel = document.getElementById('sessions-panel');
-  const $sessionsActiveBadge = document.getElementById('sessions-active-badge');
+  // Identity resolution map: agentId -> {name, identity, purpose, color}
+  const agentIdentityMap = new Map();
+
+  // DOM
+  const $ = id => document.getElementById(id);
+  const $connDot = $('conn-dot');
+  const $connLabel = $('conn-label');
+  const $uptime = $('uptime');
+  const $ribbon = $('agent-ribbon');
+  const $feed = $('feed-container');
+  const $loading = $('loading');
+  const $statActive = $('stat-active');
+  const $statSessions = $('stat-sessions');
+  const $statServices = $('stat-services');
+  const $statNotes = $('stat-notes');
+  const $feedCount = $('feed-count');
+  const $sessionsToggle = $('sessions-toggle');
+  const $sessionsArrow = $('sessions-arrow');
+  const $sessionsPanel = $('sessions-panel');
+  const $sessionsActiveBadge = $('sessions-active-badge');
 
   // ===== UTILITIES =====
-  function relativeTime(ts) {
-    const now = Date.now();
-    const diff = now - ts;
-    if (diff < 0) return 'just now';
-    const seconds = Math.floor(diff / 1000);
-    if (seconds < 10) return 'just now';
-    if (seconds < 60) return seconds + 's ago';
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return minutes + 'm ago';
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return hours + 'h ago';
-    const days = Math.floor(hours / 24);
+  function relTime(ts) {
+    const d = Date.now() - ts;
+    if (d < 10000) return 'just now';
+    const s = Math.floor(d / 1000);
+    if (s < 60) return s + 's ago';
+    const m = Math.floor(s / 60);
+    if (m < 60) return m + 'm ago';
+    const h = Math.floor(m / 60);
+    if (h < 24) return h + 'h ago';
+    const days = Math.floor(h / 24);
     if (days < 30) return days + 'd ago';
     return Math.floor(days / 30) + 'mo ago';
   }
 
   function ageClass(ts) {
-    const diff = Date.now() - ts;
-    const days = diff / (1000 * 60 * 60 * 24);
+    const days = (Date.now() - ts) / 86400000;
     if (days > 14) return 'age-ancient';
     if (days > 3) return 'age-old';
     return '';
   }
 
-  function formatUptime(ms) {
+  function fmtUptime(ms) {
     if (!ms || ms < 0) return '';
     const s = Math.floor(ms / 1000);
     const m = Math.floor(s / 60);
@@ -849,71 +871,103 @@
     return s + 's';
   }
 
-  function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
+  function esc(str) {
+    const el = document.createElement('span');
+    el.textContent = str;
+    return el.innerHTML;
   }
 
-  function agentColor(agentId) {
-    if (!agentId) return '#4a5a70';
-    const lower = agentId.toLowerCase();
+  function resolveAgent(id) {
+    if (!id) return null;
+    // Check identity map first (populated from /agents, /spawn, /sessions)
+    const mapped = agentIdentityMap.get(id);
+    if (mapped && mapped.identity) {
+      // Extract fleet agent name from identity like "port-daddy:fleet:spider"
+      const parts = mapped.identity.split(':');
+      const fleetName = parts.length >= 3 && parts[1] === 'fleet' ? parts[2] : null;
+      if (fleetName) return { fleetName, ...mapped };
+    }
+    // Fallback: substring match against known fleet agent names
+    const lo = id.toLowerCase();
     for (const a of FLEET_AGENTS) {
-      if (lower.includes(a.name)) return a.color;
+      if (lo.includes(a.name)) return { fleetName: a.name, name: a.name, identity: '', purpose: '' };
     }
-    // Hash-based color for unknown agents
-    let hash = 0;
-    for (let i = 0; i < agentId.length; i++) {
-      hash = agentId.charCodeAt(i) + ((hash << 5) - hash);
+    // Use purpose from map if available
+    if (mapped && mapped.purpose) {
+      const shortPurpose = mapped.purpose.length > 30
+        ? mapped.purpose.substring(0, 27) + '...'
+        : mapped.purpose;
+      return { fleetName: null, name: shortPurpose, identity: '', purpose: mapped.purpose };
     }
-    const hue = Math.abs(hash) % 360;
-    return `hsl(${hue}, 50%, 55%)`;
+    return null;
   }
 
-  function agentDisplayName(agentId) {
-    if (!agentId) return 'system';
-    // Check if it maps to a fleet agent
-    const lower = agentId.toLowerCase();
-    for (const a of FLEET_AGENTS) {
-      if (lower.includes(a.name)) return a.name;
+  function agentColor(id) {
+    if (!id) return 'var(--text-muted)';
+    const resolved = resolveAgent(id);
+    if (resolved && resolved.fleetName) {
+      const match = FLEET_AGENTS.find(a => a.name === resolved.fleetName);
+      if (match) return match.color;
     }
-    // Truncate long agent IDs
-    if (agentId.length > 20) {
-      return agentId.substring(0, 16) + '...';
+    // Hash fallback for non-fleet agents
+    let h = 0;
+    for (let i = 0; i < id.length; i++) h = id.charCodeAt(i) + ((h << 5) - h);
+    return 'hsl(' + (Math.abs(h) % 360) + ', 45%, 55%)';
+  }
+
+  function agentName(id) {
+    if (!id) return 'system';
+    const resolved = resolveAgent(id);
+    if (resolved) {
+      if (resolved.fleetName) return resolved.fleetName;
+      return resolved.name;
     }
-    return agentId;
+    return id.length > 25 ? id.substring(0, 22) + '...' : id;
   }
 
   function typeInfo(item) {
-    switch (item.feedType) {
-      case 'note':
-        if (item.type === 'handoff') return { label: 'handoff', cls: 'type-handoff' };
-        return { label: 'note', cls: 'type-note' };
-      case 'activity':
-        if (item.type === 'security.violation') return { label: 'violation', cls: 'type-violation' };
-        if (item.type === 'service.claim') return { label: 'claim', cls: 'type-claim' };
-        if (item.type === 'session.start') return { label: 'start', cls: 'type-session-start' };
-        if (item.type === 'session.end') return { label: 'end', cls: 'type-session-end' };
-        if (item.type.startsWith('agent.')) return { label: 'agent', cls: 'type-agent' };
-        if (item.type.startsWith('sugar')) return { label: 'sugar', cls: 'type-sugar' };
-        if (item.type.startsWith('lock.')) return { label: 'lock', cls: 'type-claim' };
-        return { label: item.type.split('.').pop(), cls: 'type-note' };
-      case 'session':
-        if (item.status === 'active') return { label: 'active', cls: 'type-session-start' };
-        return { label: 'completed', cls: 'type-session-end' };
-      default:
-        return { label: 'event', cls: 'type-note' };
+    if (item.feedType === 'note') {
+      if (item.type === 'handoff') return { label: 'handoff', cls: 'type-handoff' };
+      return { label: 'note', cls: 'type-note' };
     }
+    if (item.feedType === 'session') {
+      return item.status === 'active'
+        ? { label: 'active', cls: 'type-session-start' }
+        : { label: 'done', cls: 'type-session-end' };
+    }
+    // activity
+    const t = item.type;
+    if (t === 'security.violation') return { label: 'violation', cls: 'type-violation' };
+    if (t === 'service.claim') return { label: 'claim', cls: 'type-claim' };
+    if (t === 'session.start') return { label: 'start', cls: 'type-session-start' };
+    if (t === 'session.end') return { label: 'end', cls: 'type-session-end' };
+    if (t.startsWith('agent.')) return { label: 'agent', cls: 'type-agent' };
+    if (t.startsWith('sugar')) return { label: 'sugar', cls: 'type-sugar' };
+    if (t.startsWith('lock.')) return { label: 'lock', cls: 'type-lock' };
+    return { label: t.split('.').pop(), cls: 'type-note' };
   }
 
-  // ===== FETCH HELPERS =====
+  function periodLabel(ts) {
+    const h = (Date.now() - ts) / 3600000;
+    const d = h / 24;
+    if (h < 1) return 'Last Hour';
+    if (h < 6) return 'Today';
+    if (d < 1) return 'Earlier Today';
+    if (d < 2) return 'Yesterday';
+    if (d < 7) return 'This Week';
+    if (d < 14) return 'Last Week';
+    if (d < 30) return 'This Month';
+    return 'Older';
+  }
+
+  // ===== FETCH =====
   async function fetchJson(path) {
     try {
-      const res = await fetch(BASE + path);
-      if (!res.ok) throw new Error(res.statusText);
-      return await res.json();
+      const r = await fetch(BASE + path);
+      if (!r.ok) throw new Error(r.statusText);
+      return await r.json();
     } catch (e) {
-      console.warn('Fetch failed:', path, e.message);
+      console.warn('fetch fail:', path, e.message);
       return null;
     }
   }
@@ -922,15 +976,14 @@
   async function loadAll() {
     const [notesData, sessionsData, activityData, servicesData, agentsData, spawnData] =
       await Promise.all([
-        fetchJson('/notes?limit=50'),
+        fetchJson('/notes?limit=100'),
         fetchJson('/sessions'),
-        fetchJson('/activity?limit=200'),
+        fetchJson('/activity?limit=300'),
         fetchJson('/services'),
         fetchJson('/agents'),
         fetchJson('/spawn'),
       ]);
 
-    // Build feed items
     const items = [];
 
     // Notes
@@ -949,16 +1002,12 @@
       }
     }
 
-    // Activity (filtered)
+    // Activity (filtered to interesting)
     if (activityData && activityData.entries) {
-      // Find daemon start time from most recent daemon.start
       for (const e of activityData.entries) {
-        if (e.type === 'daemon.start') {
+        if (e.type === 'daemon.start' && !daemonStartTime) {
           daemonStartTime = e.timestamp;
-          break;
         }
-      }
-      for (const e of activityData.entries) {
         if (INTERESTING_ACTIVITY.has(e.type)) {
           items.push({
             id: 'activity-' + e.id,
@@ -974,7 +1023,7 @@
       }
     }
 
-    // Sessions as feed items (start events)
+    // Sessions
     allSessions = (sessionsData && sessionsData.sessions) || [];
     for (const s of allSessions) {
       items.push({
@@ -990,7 +1039,7 @@
       });
     }
 
-    // Deduplicate by id and sort
+    // Deduplicate and sort
     const seen = new Set();
     allFeedItems = items.filter(i => {
       if (seen.has(i.id)) return false;
@@ -998,27 +1047,54 @@
       return true;
     }).sort((a, b) => b.timestamp - a.timestamp);
 
-    // Update stats
+    // Stats
     const activeCount = allSessions.filter(s => s.status === 'active').length;
+    $statActive.textContent = activeCount;
     $statSessions.textContent = allSessions.length;
     $statServices.textContent = (servicesData && servicesData.count) || 0;
-    $statNotes.textContent = (notesData && notesData.notes && notesData.notes.length) || 0;
-    $statActive.textContent = activeCount;
+    $statNotes.textContent = (notesData && notesData.notes) ? notesData.notes.length : 0;
     $sessionsActiveBadge.textContent = activeCount;
 
-    // Update agent ribbon
-    const activeAgents = new Set();
-    const registeredAgents = (agentsData && agentsData.agents) || [];
-    const spawnedAgents = (spawnData && spawnData.agents) || [];
-    for (const a of registeredAgents) activeAgents.add(a.id);
-    for (const a of spawnedAgents) activeAgents.add(a.id || a.name);
-    // Also consider agents from active sessions
-    for (const s of allSessions) {
-      if (s.status === 'active' && s.agentId) activeAgents.add(s.agentId);
+    // Build agent identity map for display resolution
+    agentIdentityMap.clear();
+    for (const a of ((agentsData && agentsData.agents) || [])) {
+      const identity = [a.identity_project, a.identity_stack, a.identity_context]
+        .filter(Boolean).join(':');
+      agentIdentityMap.set(a.id, {
+        name: identity || a.purpose || a.id,
+        identity: identity,
+        purpose: a.purpose || '',
+      });
     }
-    renderRibbon(activeAgents);
+    // Spawned agents: identity often embedded in the spawn record
+    for (const a of ((spawnData && spawnData.agents) || [])) {
+      const id = a.id || a.name;
+      agentIdentityMap.set(id, {
+        name: a.identity || a.purpose || id,
+        identity: a.identity || '',
+        purpose: a.purpose || a.task || '',
+      });
+    }
+    // Sessions: map agentId -> purpose for display
+    for (const s of allSessions) {
+      if (s.agentId && !agentIdentityMap.has(s.agentId)) {
+        agentIdentityMap.set(s.agentId, {
+          name: s.purpose || s.agentId,
+          identity: s.identityProject || '',
+          purpose: s.purpose || '',
+        });
+      }
+    }
 
-    // Render
+    // Agent ribbon
+    const activeAgentIds = new Set();
+    for (const a of ((agentsData && agentsData.agents) || [])) activeAgentIds.add(a.id);
+    for (const a of ((spawnData && spawnData.agents) || [])) activeAgentIds.add(a.id || a.name);
+    for (const s of allSessions) {
+      if (s.status === 'active' && s.agentId) activeAgentIds.add(s.agentId);
+    }
+    renderRibbon(activeAgentIds);
+
     $loading.style.display = 'none';
     renderFeed();
     renderSessionsPanel();
@@ -1026,58 +1102,148 @@
   }
 
   // ===== RENDERING =====
-  function renderRibbon(activeAgentIds) {
-    $ribbon.innerHTML = '';
+  function renderRibbon(activeIds) {
+    $ribbon.textContent = '';
     for (const agent of FLEET_AGENTS) {
-      const isActive = [...activeAgentIds].some(id =>
-        id.toLowerCase().includes(agent.name)
-      );
+      const isActive = [...activeIds].some(id => id.toLowerCase().includes(agent.name));
+      const isSelected = activeAgentFilter && agentName(activeAgentFilter).toLowerCase() === agent.name;
       const chip = document.createElement('div');
-      chip.className = 'agent-chip' + (isActive ? ' active' : '');
+      chip.className = 'agent-chip' + (isActive ? ' active' : '') + (isSelected ? ' selected' : '');
       chip.style.setProperty('--chip-color', agent.color);
-      chip.innerHTML =
-        '<div class="agent-chip-dot" style="background:' + agent.color + '"></div>' +
-        '<span>' + agent.name + '</span>';
+      chip.style.cursor = 'pointer';
+      const dot = document.createElement('div');
+      dot.className = 'agent-chip-dot';
+      dot.style.background = agent.color;
+      const label = document.createElement('span');
+      label.textContent = agent.name;
+      chip.appendChild(dot);
+      chip.appendChild(label);
+      chip.addEventListener('click', () => {
+        const matchingItem = allFeedItems.find(i =>
+          i.agentId && agentName(i.agentId).toLowerCase() === agent.name
+        );
+        setAgentFilter(matchingItem ? matchingItem.agentId : agent.name);
+      });
       $ribbon.appendChild(chip);
     }
   }
 
+  // Collapse runs of identical-type events
+  function collapseRuns(items) {
+    const result = [];
+    let i = 0;
+    while (i < items.length) {
+      const item = items[i];
+      // Only collapse activity events, not notes or sessions
+      if (item.feedType === 'activity') {
+        let runEnd = i + 1;
+        while (runEnd < items.length &&
+               items[runEnd].feedType === 'activity' &&
+               items[runEnd].type === item.type) {
+          runEnd++;
+        }
+        const runLen = runEnd - i;
+        if (runLen >= COLLAPSE_THRESHOLD) {
+          result.push({
+            collapsed: true,
+            type: item.type,
+            count: runLen,
+            items: items.slice(i, runEnd),
+            timestamp: item.timestamp,
+            endTimestamp: items[runEnd - 1].timestamp,
+          });
+          i = runEnd;
+          continue;
+        }
+      }
+      result.push({ collapsed: false, item });
+      i++;
+    }
+    return result;
+  }
+
   function renderFeed() {
-    // Filter
     let filtered = allFeedItems;
-    if (currentFilter === 'notes') {
-      filtered = filtered.filter(i => i.feedType === 'note');
-    } else if (currentFilter === 'activity') {
-      filtered = filtered.filter(i => i.feedType === 'activity');
-    } else if (currentFilter === 'sessions') {
-      filtered = filtered.filter(i => i.feedType === 'session');
+    if (currentFilter === 'notes') filtered = filtered.filter(i => i.feedType === 'note');
+    else if (currentFilter === 'activity') filtered = filtered.filter(i => i.feedType === 'activity');
+    else if (currentFilter === 'sessions') filtered = filtered.filter(i => i.feedType === 'session');
+
+    // Agent filter: show only this agent's events
+    if (activeAgentFilter) {
+      const filterName = agentName(activeAgentFilter).toLowerCase();
+      filtered = filtered.filter(i => {
+        const itemName = agentName(i.agentId).toLowerCase();
+        return itemName === filterName;
+      });
     }
 
-    $feedCount.textContent = filtered.length + ' items';
+    $feedCount.textContent = filtered.length;
 
     if (filtered.length === 0) {
       $feed.innerHTML =
         '<div class="feed-empty">' +
-        '<div class="feed-empty-icon"></div>' +
-        '<div class="feed-empty-text">No items match this filter</div>' +
+          '<div class="feed-empty-icon"></div>' +
+          '<div style="font-size:12px">No items match this filter</div>' +
         '</div>';
       return;
     }
 
-    // Group by time periods for sticky headers
-    const groups = groupByTimePeriod(filtered);
+    // Group by time period, then collapse within each group
+    const groups = [];
+    let curLabel = null, curGroup = null;
+    for (const item of filtered) {
+      const label = periodLabel(item.timestamp);
+      if (label !== curLabel) {
+        curLabel = label;
+        curGroup = { label, items: [] };
+        groups.push(curGroup);
+      }
+      curGroup.items.push(item);
+    }
+
     let html = '';
+    let collapsedIdx = 0;
 
     for (const group of groups) {
-      html += '<div class="time-marker">' + escapeHtml(group.label) + '</div>';
-      for (const item of group.items) {
-        html += renderFeedItem(item);
+      html += '<div class="time-marker">' + esc(group.label) + '</div>';
+      const collapsed = collapseRuns(group.items);
+
+      for (const entry of collapsed) {
+        if (entry.collapsed) {
+          const info = typeInfo(entry.items[0]);
+          const age = ageClass(entry.timestamp);
+          const gid = 'cg-' + (collapsedIdx++);
+          const summaryText = entry.count + ' ' + info.label + ' events';
+
+          html += '<div class="feed-item-collapsed ' + age + '" data-group="' + gid + '">' +
+            '<span class="collapsed-count">' + entry.count + '</span>' +
+            '<span class="feed-item-type ' + info.cls + '">' + info.label + '</span>' +
+            '<span class="collapsed-text">' + esc(summaryText) + '</span>' +
+            '<span class="feed-item-time">' + relTime(entry.timestamp) + '</span>' +
+          '</div>';
+          html += '<div class="collapsed-items" id="' + gid + '">';
+          for (const sub of entry.items) {
+            html += renderItem(sub);
+          }
+          html += '</div>';
+        } else {
+          html += renderItem(entry.item);
+        }
       }
     }
 
     $feed.innerHTML = html;
 
-    // Attach session card click handlers
+    // Collapsed group toggles
+    $feed.querySelectorAll('.feed-item-collapsed').forEach(el => {
+      el.addEventListener('click', () => {
+        const gid = el.dataset.group;
+        const target = document.getElementById(gid);
+        if (target) target.classList.toggle('open');
+      });
+    });
+
+    // Session card expanders
     $feed.querySelectorAll('.session-card').forEach(el => {
       el.addEventListener('click', () => {
         const notesEl = el.querySelector('.session-notes-expand');
@@ -1089,85 +1255,117 @@
         }
       });
     });
+
+    // Note expand toggles
+    $feed.querySelectorAll('.feed-item-content.expandable').forEach(el => {
+      el.addEventListener('click', () => {
+        const expanded = el.dataset.expanded === 'true';
+        const preview = el.querySelector('.content-preview');
+        const full = el.querySelector('.content-full');
+        const toggle = el.querySelector('.expand-toggle');
+        if (expanded) {
+          preview.style.display = '';
+          full.style.display = 'none';
+          if (toggle) toggle.textContent = ' ...';
+          el.dataset.expanded = 'false';
+        } else {
+          preview.style.display = 'none';
+          full.style.display = '';
+          if (toggle) toggle.textContent = ' [collapse]';
+          el.dataset.expanded = 'true';
+        }
+      });
+    });
+
+    // Agent name click -> filter to that agent's timeline
+    $feed.querySelectorAll('.feed-item-agent[data-agent-filter]').forEach(el => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const agentId = el.dataset.agentFilter;
+        if (!agentId) return;
+        setAgentFilter(agentId);
+      });
+    });
   }
 
-  function groupByTimePeriod(items) {
-    const groups = [];
-    let currentLabel = null;
-    let currentGroup = null;
+  // ===== AGENT FILTER =====
+  let activeAgentFilter = null;
 
-    for (const item of items) {
-      const label = getTimePeriodLabel(item.timestamp);
-      if (label !== currentLabel) {
-        currentLabel = label;
-        currentGroup = { label, items: [] };
-        groups.push(currentGroup);
-      }
-      currentGroup.items.push(item);
+  function setAgentFilter(agentId) {
+    if (activeAgentFilter === agentId) {
+      // Toggle off
+      activeAgentFilter = null;
+      document.querySelectorAll('.agent-chip').forEach(c => c.classList.remove('selected'));
+    } else {
+      activeAgentFilter = agentId;
+      // Highlight matching chip
+      document.querySelectorAll('.agent-chip').forEach(c => {
+        const chipName = c.textContent.trim().toLowerCase();
+        const filterName = agentName(agentId).toLowerCase();
+        c.classList.toggle('selected', chipName === filterName);
+      });
     }
-    return groups;
+    renderFeed();
   }
 
-  function getTimePeriodLabel(ts) {
-    const now = Date.now();
-    const diff = now - ts;
-    const hours = diff / (1000 * 60 * 60);
-    const days = hours / 24;
-
-    if (hours < 1) return 'Last Hour';
-    if (hours < 6) return 'Today';
-    if (days < 1) return 'Earlier Today';
-    if (days < 2) return 'Yesterday';
-    if (days < 7) return 'This Week';
-    if (days < 14) return 'Last Week';
-    if (days < 30) return 'This Month';
-    return 'Older';
-  }
-
-  function renderFeedItem(item) {
+  function renderItem(item) {
+    if (item.feedType === 'session') return renderSessionCard(item);
     const color = agentColor(item.agentId);
-    const name = agentDisplayName(item.agentId);
+    const name = agentName(item.agentId);
     const info = typeInfo(item);
     const age = ageClass(item.timestamp);
+    const raw = esc(item.content || '');
+    const needsExpand = raw.length > 200;
+    const preview = needsExpand ? raw.substring(0, 200) : raw;
 
-    if (item.feedType === 'session') {
-      return renderSessionCard(item, color, name, info, age);
-    }
-
-    let content = escapeHtml(item.content || '');
-    // Truncate very long content
-    if (content.length > 200) {
-      content = content.substring(0, 200) + '...';
-    }
-
-    let purposeLine = '';
+    let purpose = '';
     if (item.sessionPurpose) {
-      purposeLine = '<div class="feed-item-session-purpose">' +
-        escapeHtml(item.sessionPurpose) + '</div>';
+      purpose = '<div class="feed-item-session-purpose">' + esc(item.sessionPurpose) + '</div>';
+    }
+
+    // Agent name is clickable — filters feed to this agent
+    const agentClick = ' data-agent-filter="' + esc(item.agentId || '') + '" style="cursor:pointer"';
+
+    let contentHtml;
+    if (needsExpand) {
+      contentHtml =
+        '<div class="feed-item-content expandable" data-expanded="false">' +
+          '<span class="content-preview">' + preview + '</span>' +
+          '<span class="content-full" style="display:none">' + raw + '</span>' +
+          '<span class="expand-toggle"> ...</span>' +
+        '</div>';
+    } else {
+      contentHtml = '<div class="feed-item-content">' + raw + '</div>';
     }
 
     return '<div class="feed-item ' + age + '">' +
       '<div class="feed-item-header">' +
         '<div class="feed-item-agent-dot" style="background:' + color + '"></div>' +
-        '<span class="feed-item-agent" style="color:' + color + '">' + escapeHtml(name) + '</span>' +
+        '<span class="feed-item-agent"' + agentClick + ' style="color:' + color + ';cursor:pointer">' + esc(name) + '</span>' +
         '<span class="feed-item-type ' + info.cls + '">' + info.label + '</span>' +
-        '<span class="feed-item-time">' + relativeTime(item.timestamp) + '</span>' +
+        '<span class="feed-item-time">' + relTime(item.timestamp) + '</span>' +
       '</div>' +
-      '<div class="feed-item-content">' + content + '</div>' +
-      purposeLine +
+      contentHtml +
+      purpose +
     '</div>';
   }
 
-  function renderSessionCard(item, color, name, info, age) {
+  function renderSessionCard(item) {
+    const color = agentColor(item.agentId);
+    const name = agentName(item.agentId);
+    const info = typeInfo(item);
+    const age = ageClass(item.timestamp);
     const dotCls = item.status === 'active' ? 'active' : 'completed';
-    return '<div class="feed-item session-card ' + age + ' ' + dotCls + '" data-session-id="' + item.sessionId + '">' +
+    const cardCls = item.status === 'active' ? ' active-session' : '';
+
+    return '<div class="feed-item session-card ' + age + cardCls + '" data-session-id="' + item.sessionId + '">' +
       '<div class="feed-item-header">' +
         '<div class="session-status-dot ' + dotCls + '"></div>' +
-        '<span class="feed-item-agent" style="color:' + color + '">' + escapeHtml(name) + '</span>' +
+        '<span class="feed-item-agent" style="color:' + color + '">' + esc(name) + '</span>' +
         '<span class="feed-item-type ' + info.cls + '">' + info.label + '</span>' +
-        '<span class="feed-item-time">' + relativeTime(item.timestamp) + '</span>' +
+        '<span class="feed-item-time">' + relTime(item.timestamp) + '</span>' +
       '</div>' +
-      '<div class="feed-item-content">' + escapeHtml(item.content) + '</div>' +
+      '<div class="feed-item-content">' + esc(item.content) + '</div>' +
       '<div class="session-notes-expand" data-loaded="false"></div>' +
     '</div>';
   }
@@ -1177,7 +1375,7 @@
       renderSessionNotesInline(sessionNotesCache[sessionId], container);
       return;
     }
-    container.innerHTML = '<div style="font-size:10px;color:var(--text-muted);padding:4px 0;">Loading notes...</div>';
+    container.innerHTML = '<div style="font-size:10px;color:var(--text-muted);padding:4px 0">Loading...</div>';
     const data = await fetchJson('/sessions/' + encodeURIComponent(sessionId) + '/notes');
     const notes = (data && data.notes) || [];
     sessionNotesCache[sessionId] = notes;
@@ -1186,103 +1384,92 @@
   }
 
   function renderSessionNotesInline(notes, container) {
-    if (notes.length === 0) {
-      container.innerHTML = '<div style="font-size:10px;color:var(--text-muted);padding:4px 0;">No notes recorded</div>';
+    if (!notes.length) {
+      container.innerHTML = '<div style="font-size:10px;color:var(--text-muted);padding:4px 0">No notes</div>';
       return;
     }
     let html = '';
-    for (const n of notes.slice(0, 8)) {
+    for (const n of notes.slice(0, 6)) {
       html += '<div class="session-note-item">' +
-        '<span class="note-time">' + relativeTime(n.createdAt) + '</span> ' +
-        escapeHtml((n.content || '').substring(0, 120)) +
+        '<span class="note-time">' + relTime(n.createdAt) + '</span>' +
+        esc((n.content || '').substring(0, 100)) +
       '</div>';
     }
-    if (notes.length > 8) {
-      html += '<div style="font-size:9px;color:var(--text-muted);padding:2px 0 2px 10px;">+ ' + (notes.length - 8) + ' more</div>';
+    if (notes.length > 6) {
+      html += '<div style="font-size:9px;color:var(--text-muted);padding:2px 0 2px 10px">+' + (notes.length - 6) + ' more</div>';
     }
     container.innerHTML = html;
   }
 
   function renderSessionsPanel() {
     const sorted = [...allSessions].sort((a, b) => {
-      // Active first, then by time
       if (a.status === 'active' && b.status !== 'active') return -1;
       if (b.status === 'active' && a.status !== 'active') return 1;
       return b.createdAt - a.createdAt;
     });
 
     let html = '';
-    for (const s of sorted.slice(0, 20)) {
+    for (const s of sorted.slice(0, 25)) {
       const dotCls = s.status === 'active' ? 'active' : 'completed';
-      const rowCls = s.status === 'completed' ? ' completed' : '';
+      const rowCls = s.status === 'completed' ? ' is-completed' : '';
       const color = agentColor(s.agentId);
       html += '<div class="session-row' + rowCls + '">' +
         '<div class="session-row-dot ' + dotCls + '"></div>' +
         '<div class="session-row-body">' +
-          '<div class="session-row-purpose">' + escapeHtml(s.purpose || 'Unnamed') + '</div>' +
+          '<div class="session-row-purpose">' + esc(s.purpose || 'Unnamed') + '</div>' +
           '<div class="session-row-meta">' +
-            '<span style="color:' + color + '">' + agentDisplayName(s.agentId) + '</span>' +
+            '<span style="color:' + color + '">' + agentName(s.agentId) + '</span>' +
             '<span>' + s.status + '</span>' +
           '</div>' +
         '</div>' +
-        '<div class="session-row-age">' + relativeTime(s.createdAt) + '</div>' +
+        '<div class="session-row-age">' + relTime(s.createdAt) + '</div>' +
       '</div>';
     }
-
     $sessionsPanel.innerHTML = html;
   }
 
   // ===== SSE =====
-  function connectSSE() {
-    if (sseSource) {
-      sseSource.close();
-    }
+  let refreshTimeout;
 
+  function connectSSE() {
+    if (sseSource) sseSource.close();
     sseSource = new EventSource(BASE + '/dashboard/events');
 
-    sseSource.onopen = function() {
+    sseSource.onopen = () => {
       $connDot.className = 'conn-dot connected';
       $connLabel.textContent = 'live';
     };
 
-    sseSource.onmessage = function(event) {
+    sseSource.onmessage = (ev) => {
       try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'connected') {
+        const d = JSON.parse(ev.data);
+        if (d.type === 'connected') {
           $connDot.className = 'conn-dot connected';
           $connLabel.textContent = 'live';
           return;
         }
-        if (data.type === 'refresh') {
-          // Debounce: if multiple refreshes come in quick succession
-          clearTimeout(connectSSE._refreshTimeout);
-          connectSSE._refreshTimeout = setTimeout(() => {
-            loadAll();
-          }, 500);
+        if (d.type === 'refresh') {
+          clearTimeout(refreshTimeout);
+          refreshTimeout = setTimeout(loadAll, 600);
         }
-      } catch (e) {
-        // ignore parse errors
-      }
+      } catch (e) { /* ignore */ }
     };
 
-    sseSource.onerror = function() {
+    sseSource.onerror = () => {
       $connDot.className = 'conn-dot disconnected';
       $connLabel.textContent = 'offline';
-      // EventSource will auto-reconnect
     };
   }
 
-  // ===== UPTIME TIMER =====
+  // ===== UPTIME =====
   function startUptimeTimer() {
     if (uptimeInterval) clearInterval(uptimeInterval);
     if (!daemonStartTime) return;
-
-    function update() {
-      const elapsed = Date.now() - daemonStartTime;
-      $uptime.textContent = 'up ' + formatUptime(elapsed);
+    function tick() {
+      $uptime.textContent = 'up ' + fmtUptime(Date.now() - daemonStartTime);
     }
-    update();
-    uptimeInterval = setInterval(update, 1000);
+    tick();
+    uptimeInterval = setInterval(tick, 1000);
   }
 
   // ===== FILTER BUTTONS =====
@@ -1301,13 +1488,8 @@
     $sessionsArrow.classList.toggle('open');
   });
 
-  // ===== PERIODIC RELATIVE TIME UPDATE =====
+  // ===== PERIODIC REFRESH =====
   setInterval(() => {
-    // Update all visible timestamps
-    document.querySelectorAll('.feed-item-time').forEach(el => {
-      // We'd need stored timestamps to update these, so just re-render
-    });
-    // Re-render is cheap enough for this size
     renderFeed();
     renderSessionsPanel();
   }, 30000);
