@@ -89,8 +89,60 @@ export function createPheromoneManager(db: Database.Database, config: PheromoneC
     return { success: true, pheromones: metadata.pheromones };
   }
 
+  // Track last evaporation time per entity for read-time decay
+  const lastDecayTime = new Map<string, number>();
+
+  /**
+   * Apply decay at read time based on elapsed time since last decay.
+   * Returns the decayed pheromones and writes them back if changed.
+   */
+  function decayOnRead(table: string, id: string, pheromones: Record<string, number>): Record<string, number> {
+    const cacheKey = `${table}:${id}`;
+    const now = Date.now();
+    const lastTime = lastDecayTime.get(cacheKey) || now;
+    const elapsed = now - lastTime;
+
+    if (elapsed < 1000) return pheromones; // less than 1 second, skip
+
+    // Calculate how many decay intervals have passed
+    const intervals = elapsed / config.intervalMs;
+    if (intervals < 0.1) return pheromones; // negligible
+
+    const factor = Math.pow(config.decayRate, intervals);
+    let changed = false;
+
+    for (const [key, value] of Object.entries(pheromones)) {
+      if (typeof value !== 'number') continue;
+      const decayed = value * factor;
+      if (decayed < 0.01) {
+        delete pheromones[key];
+        changed = true;
+      } else if (Math.abs(decayed - value) > 0.001) {
+        pheromones[key] = Math.round(decayed * 1000) / 1000; // 3 decimal places
+        changed = true;
+      }
+    }
+
+    lastDecayTime.set(cacheKey, now);
+
+    // Write back if values changed
+    if (changed) {
+      try {
+        const row = db.prepare(`SELECT metadata FROM ${table} WHERE id = ?`).get(id) as { metadata: string | null } | undefined;
+        if (row) {
+          const metadata = row.metadata ? JSON.parse(row.metadata) : {};
+          metadata.pheromones = pheromones;
+          db.prepare(`UPDATE ${table} SET metadata = ? WHERE id = ?`).run(JSON.stringify(metadata), id);
+        }
+      } catch {}
+    }
+
+    return pheromones;
+  }
+
   /**
    * Sniff pheromones: read all pheromone values for an entity.
+   * Applies read-time decay based on elapsed time since last access.
    */
   function sniff(table: string, id: string): { success: boolean; pheromones: Record<string, number> } {
     if (!ALLOWED_TABLES.has(table)) {
@@ -101,7 +153,12 @@ export function createPheromoneManager(db: Database.Database, config: PheromoneC
     if (!row) return { success: false, pheromones: {} };
 
     const metadata = row.metadata ? JSON.parse(row.metadata) : {};
-    return { success: true, pheromones: metadata.pheromones || {} };
+    const pheromones = metadata.pheromones || {};
+
+    // Decay on read — accurate values without waiting for the background tick
+    const decayed = decayOnRead(table, id, { ...pheromones });
+
+    return { success: true, pheromones: decayed };
   }
 
   /**
