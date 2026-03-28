@@ -243,6 +243,24 @@ curl -X POST http://localhost:9876/arbiter/test-invariant/NOTE_MONOTONICITY
 ```
 Rules: PID squatting, capability escalation, note monotonicity, escrow positivity, lock owner validity, heartbeat freshness. In strict mode, critical violations trigger man-overboard salvage.
 
+### Pheromone Trails (Ambient Signals)
+Agents spray numeric signals (0-1) onto entities. Signals decay over time at read, creating ambient awareness:
+```bash
+# Spray a signal onto a service
+pd pheromone spray --table services --id myapp:api --key urgency --strength 0.8
+
+# Sniff pheromone values (applies read-time decay)
+pd pheromone sniff --table services --id myapp:api
+
+# View file heat map (which files are most contested)
+curl http://localhost:9876/pheromone/files
+
+# List all non-zero pheromone trails
+pd pheromone list
+```
+
+Use cases: adaptive Arbiter thresholds, file contention detection, agent reputation scoring, hot-path identification.
+
 ### Note Encryption (Escrow Secrecy)
 Session notes are encrypted at rest with AES-256-GCM. Master key stored at `~/.port-daddy/master.key` (auto-generated on first boot). Per-session keys wrapped with the master key. Backward-compatible — existing plaintext notes remain readable. ProVerif-verified: attacker with database access cannot learn note content.
 

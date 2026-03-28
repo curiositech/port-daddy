@@ -654,6 +654,35 @@ List harbors an agent is currently in.
 
 ---
 
+## Arbiter
+
+### GET /arbiter/status
+Get Arbiter status: rules, violations count, uptime, strict mode.
+
+### GET /arbiter/violations
+List recorded invariant violations. Query params: `limit`, `since`.
+
+### POST /arbiter/test-invariant/:name
+Inject a test violation (for demos/testing). Body: `{ agentId }`.
+
+---
+
+## Pheromone
+
+### POST /pheromone/spray
+Set a pheromone value on an entity. Body: `{ table, id, key, strength }` where strength is 0-1.
+
+### GET /pheromone/:table/:id
+Read pheromone values for entity. Applies read-time exponential decay.
+
+### GET /pheromone
+List all non-zero pheromones across all tracked tables.
+
+### GET /pheromone/files
+File heat map from session file claims. Query params: `path` (filter prefix), `depth` (directory rollup depth).
+
+---
+
 ## Config
 
 ### GET /config

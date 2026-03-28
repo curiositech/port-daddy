@@ -1,5 +1,25 @@
 # Port Daddy - Developer Context
 
+## General Rules
+
+Avoid over-planning and extended exploration tangents. When the user asks for implementation, start writing code within 1-2 messages. Ask for approval on plans only when explicitly requested.
+
+## Debugging
+
+When debugging production issues, always read and reference user-provided error logs/console output BEFORE suggesting fixes. Never test with unauthenticated curl when the user reports authenticated browser errors.
+
+## Testing
+
+When writing tests, test actual business logic and money-path flows, not just schema validation. Never write tests that only validate Zod schemas when the goal is testing payment/checkout logic.
+
+## Agent Guidelines
+
+When using parallel sub-agents: 1) Ensure agents work on non-overlapping files to avoid merge conflicts, 2) Validate JSX/imports in agent output before committing, 3) Never attempt destructive git operations (rebase, force-push) without explicit user approval.
+
+## Deployment
+
+For Cloudflare Workers deployments: 1) Use raw fetch instead of heavy SDKs (e.g., Stripe SDK hangs—use fetch), 2) Verify all env vars/secrets are set in Cloudflare dashboard before deploying, 3) Confirm D1 migrations are applied to remote, not just local.
+
 ## What Is This?
 
 Port Daddy is the authoritative port manager for multi-agent development. It's a daemon running on `localhost:9876` that provides:
