@@ -30,7 +30,7 @@ const MATURITY_FEATURES = [
   {
     icon: Activity,
     title: 'High-Availability Daemon',
-    description: 'The Port Daddy core features zero-downtime reloads and WAL-mode persistence, ensuring your lighthouses stay lit even during host updates.',
+    description: 'The Port Daddy core features zero-downtime reloads and WAL-mode persistence, ensuring your daemon stays responsive even during host updates.',
   },
   {
     icon: Network,
