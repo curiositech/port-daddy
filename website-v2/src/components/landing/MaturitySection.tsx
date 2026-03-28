@@ -152,12 +152,12 @@ export function MaturitySection() {
            </div>
 
            <div className="space-y-8 relative z-10 flex flex-col items-center">
-              <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">V4 Roadmap</Badge>
+              <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Formal Verification</Badge>
               <motion.h3 className="text-5xl sm:text-7xl font-display font-black tracking-tight leading-[0.95] m-0" style={{ color: 'var(--text-primary)' }}>
-                What's <motion.span style={{ color: 'var(--brand-primary)' }}>Next.</motion.span>
+                Soundness by <motion.span style={{ color: 'var(--brand-primary)' }}>Design.</motion.span>
               </motion.h3>
               <motion.p className="text-2xl leading-relaxed opacity-80 max-w-3xl" style={{ color: 'var(--text-secondary)' }}>
-                V4 will bring end-to-end encrypted networking via Noise Protocol, formal verification with ProVerif, and enforced harbor permission boundaries. Here's what's on the roadmap.
+                The Anchor Protocol has been formally verified using ProVerif 2.05 across three evolutionary phases — symmetric HMAC, asymmetric Ed25519, and multi-hop delegation chains. All security queries proven TRUE. Harbor enforcement is advisory in v1; protocol-level enforcement ships in v4.
               </motion.p>
               <motion.div className="flex flex-wrap justify-center gap-8 pt-6">
                  <motion.div
@@ -168,7 +168,7 @@ export function MaturitySection() {
                    }}
                  >
                     <Zap size={20} style={{ color: 'var(--brand-accent)' }} />
-                    <motion.span className="text-[10px] font-black uppercase tracking-widest opacity-80" style={{ color: 'var(--text-primary)' }}>In Development</motion.span>
+                    <motion.span className="text-[10px] font-black uppercase tracking-widest opacity-80" style={{ color: 'var(--text-primary)' }}>ProVerif 2.05 Verified</motion.span>
                  </motion.div>
                  <motion.div
                    className="flex items-center gap-3 px-8 py-4 rounded-full"
@@ -178,7 +178,7 @@ export function MaturitySection() {
                    }}
                  >
                     <Activity size={20} style={{ color: 'var(--brand-primary)' }} />
-                    <motion.span className="text-[10px] font-black uppercase tracking-widest opacity-80" style={{ color: 'var(--text-primary)' }}>Planned for v4</motion.span>
+                    <motion.span className="text-[10px] font-black uppercase tracking-widest opacity-80" style={{ color: 'var(--text-primary)' }}>Enforcement in v4</motion.span>
                  </motion.div>
               </motion.div>
            </div>

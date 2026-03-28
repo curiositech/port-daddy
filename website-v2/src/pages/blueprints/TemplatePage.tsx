@@ -153,7 +153,7 @@ export function TemplatePage() {
               </motion.p>
               <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-primary)]">
                  <Activity size={14} className="animate-pulse" />
-                 Port Daddy v3.7
+                 Anchor Protocol Active
               </motion.div>
            </motion.div>
         </motion.div>
