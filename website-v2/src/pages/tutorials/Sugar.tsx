@@ -124,7 +124,7 @@ export function Sugar() {
            </motion.p>
            <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-primary)]">
               <Zap size={14} className="animate-pulse" />
-              Anchor Protocol v4 Active
+              Zero-Config Coordination
            </motion.div>
         </Surface>
       </motion.div>

@@ -16,8 +16,9 @@ export default function TunnelsFeature() {
           Tunnels
         </h1>
         <p className="text-xl text-[var(--text-secondary)] leading-relaxed max-w-3xl">
-          Expose local services to the internet via tunnel providers. Wraps ngrok, Cloudflare Tunnel,
-          and localtunnel with automatic lifecycle management tied to your port claims.
+          Expose local services to the internet via tunnel providers. Port Daddy wraps ngrok,
+          Cloudflare Tunnel, and localtunnel with automatic lifecycle management tied to your
+          port claims.
         </p>
       </div>
 
@@ -48,9 +49,14 @@ export default function TunnelsFeature() {
       <div className="space-y-6">
         <h2 className="text-2xl font-semibold text-[var(--text-primary)]">How It Works</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed">
-          Port Daddy wraps popular tunnel providers (ngrok, cloudflared, localtunnel) and ties
-          tunnel lifecycle to port claims. When a port is released, its tunnel is automatically
-          torn down. No orphaned tunnels, no manual cleanup.
+          Port Daddy spawns your tunnel provider's CLI as a child process, parses the public URL
+          from its stdout, and stores it alongside your port claim in SQLite. When you release the
+          port, the tunnel process is automatically killed. No orphaned tunnels, no manual cleanup.
+        </p>
+        <p className="text-[var(--text-secondary)] leading-relaxed">
+          The value is lifecycle management: tunnels are tied to port claims so they start and stop
+          together, provider detection finds what you have installed, and the public URL is
+          discoverable by other agents via the standard service list.
         </p>
 
         <DocsCodeBlock
@@ -75,8 +81,9 @@ myapp:web   → https://def456.ngrok.io   (ngrok, 2m uptime)`}
       <div className="space-y-4">
         <h2 className="text-2xl font-semibold text-[var(--text-primary)]">Supported Providers</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed">
-          Port Daddy auto-detects which providers are installed and picks the best available one.
-          You can override with the <code className="text-[var(--brand-primary)]">--provider</code> flag.
+          Port Daddy auto-detects which provider CLIs are installed on your system and picks the
+          best available one. You can override with the <code className="text-[var(--brand-primary)]">--provider</code> flag.
+          You must install the provider yourself — Port Daddy wraps them, it does not bundle them.
         </p>
 
         <div className="grid sm:grid-cols-3 gap-4">
@@ -137,7 +144,7 @@ myapp:web   → https://def456.ngrok.io   (ngrok, 2m uptime)`}
             <div className="flex items-center gap-2 mb-2">
               <code className="text-lg font-mono text-[var(--brand-primary)]">pd tunnel providers</code>
             </div>
-            <p className="text-[var(--text-secondary)] mb-3">Check which tunnel providers are installed on the system.</p>
+            <p className="text-[var(--text-secondary)] mb-3">Check which tunnel provider CLIs are installed on the system.</p>
             <div className="p-3 rounded-lg font-mono text-sm" style={{ background: 'var(--code-bg)', color: 'var(--code-text)' }}>
               $ pd tunnel providers
             </div>

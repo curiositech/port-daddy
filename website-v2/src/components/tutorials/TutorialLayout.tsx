@@ -170,7 +170,7 @@ export function TutorialLayout({
                </motion.div>
                <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em]">
                  <Share2 size={14} className="text-[var(--brand-secondary)]" />
-                 P2P Tunnel
+                 Pub/Sub Radio
                </motion.div>
             </motion.div>
           </motion.div>

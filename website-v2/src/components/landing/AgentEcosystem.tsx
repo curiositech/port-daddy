@@ -107,10 +107,10 @@ export function AgentEcosystem() {
            <div className="max-w-4xl relative z-10 space-y-12 flex flex-col items-center">
               <Badge variant="gold" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Coordination Pattern</Badge>
               <motion.h3 className="text-5xl sm:text-7xl font-display font-black leading-[0.95] m-0" style={{ color: 'var(--text-primary)' }}>
-                The <span style={{ color: 'var(--brand-accent)' }}>Lighthouse</span> <br /> Pattern.
+                The <span style={{ color: 'var(--brand-accent)' }}>Daemon</span> <br /> Pattern.
               </motion.h3>
               <motion.p className="text-2xl leading-relaxed opacity-80 max-w-2xl mx-auto" style={{ color: 'var(--text-secondary)' }}>
-                Teach your swarms to discover each other via a central daemon. One agent claims a semantic harbor, while others subscribe to its Swarm Radio channels for real-time state updates.
+                Your agents coordinate through a shared local daemon. One agent claims a port and publishes events, while others subscribe for updates — all through localhost:9876.
               </motion.p>
 
               <div className="w-full max-w-2xl pt-6">
@@ -128,7 +128,7 @@ export function AgentEcosystem() {
                     </Surface>
                     <div className="space-y-3">
                        <motion.p className="font-black m-0 text-xl tracking-tight" style={{ color: 'var(--text-primary)' }}>Cross-Framework Signaling</motion.p>
-                       <motion.p className="text-base m-0 opacity-80 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>A LangChain agent can publish an event that a CrewAI task is waiting for, bridged instantly by the Port Daddy daemon.</motion.p>
+                       <motion.p className="text-base m-0 opacity-80 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>Agents from any framework publish and subscribe through the local daemon's REST API and SSE streams, enabling real-time coordination across tool boundaries.</motion.p>
                     </div>
                  </motion.div>
               </div>

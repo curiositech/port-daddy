@@ -9,23 +9,33 @@ export default function RemoteFeature() {
       {/* Header */}
       <div className="space-y-4">
         <div className="flex items-center gap-2">
-          <Badge variant="teal">Feature</Badge>
-          <Badge variant="success">Distributed</Badge>
+          <Badge variant="gold">Coming in v4</Badge>
+          <Badge variant="default">Distributed</Badge>
         </div>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
-          Remote Harbors
+          Remote Harbors (v4)
         </h1>
         <p className="text-xl text-[var(--text-secondary)] leading-relaxed max-w-3xl">
-          Cross-machine coordination via Lighthouse servers. Connect Port Daddy instances
-          across your network into a peer-to-peer mesh with encrypted tunnels.
+          Cross-machine coordination for multi-agent development. Remote Harbors will connect
+          Port Daddy instances across your network, enabling shared port claims, sessions,
+          and messaging between machines.
         </p>
       </div>
 
-      {/* The Problem */}
+      {/* v4 Notice */}
+      <div className="p-5 rounded-xl border border-[var(--brand-accent)]/30 bg-[var(--brand-accent)]/5">
+        <p className="text-[var(--text-secondary)] leading-relaxed">
+          <strong className="text-[var(--text-primary)]">This feature is not yet available.</strong>{' '}
+          Remote Harbors are under active development for Port Daddy v4. The design below
+          reflects the planned architecture and API. Nothing described on this page works today.
+        </p>
+      </div>
+
+      {/* The Motivation */}
       <div className="p-6 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-        <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-4">The Problem</h2>
+        <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-4">The Motivation</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed mb-4">
-          Port Daddy runs locally by default, but real-world agent swarms span multiple machines.
+          Port Daddy runs locally by default, but real-world agent swarms can span multiple machines.
           Without cross-machine coordination:
         </p>
         <ul className="space-y-2 text-[var(--text-secondary)]">
@@ -44,114 +54,71 @@ export default function RemoteFeature() {
         </ul>
       </div>
 
-      {/* How It Works */}
+      {/* Planned Architecture */}
       <div className="space-y-6">
-        <h2 className="text-2xl font-semibold text-[var(--text-primary)]">How It Works</h2>
+        <h2 className="text-2xl font-semibold text-[var(--text-primary)]">Planned Architecture</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed">
-          Remote Harbors use a Lighthouse discovery server to connect Port Daddy instances into a
-          peer-to-peer mesh. All traffic is encrypted with the Noise Protocol framework. Once
-          connected, port claims, sessions, and messages sync automatically across machines.
-        </p>
-
-        <DocsCodeBlock
-          code={`# Start a Lighthouse discovery server
-$ pd lighthouse start --port 9877
-Lighthouse listening on 0.0.0.0:9877
-
-# Connect a remote harbor to the Lighthouse
-$ pd tunnel myapp:api --lighthouse 192.168.1.10:9877
-Noise tunnel established to 192.168.1.10:9877
-Syncing port claims... 4 services discovered
-Peer mesh: 3 harbors connected`}
-        />
-      </div>
-
-      {/* Architecture */}
-      <div className="space-y-4">
-        <h2 className="text-2xl font-semibold text-[var(--text-primary)]">Architecture</h2>
-        <p className="text-[var(--text-secondary)] leading-relaxed">
-          The mesh topology ensures no single point of failure. Peers discover each other
-          through the Lighthouse but communicate directly once connected.
+          The v4 design uses a Lighthouse discovery server to let Port Daddy instances find each
+          other and establish encrypted peer-to-peer connections. Once connected, port claims,
+          sessions, and pub/sub messages will sync automatically across machines.
         </p>
 
         <div className="grid sm:grid-cols-3 gap-4">
           <div className="p-4 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">Lighthouse</code>
-            <p className="text-sm text-[var(--text-muted)] mt-2">Discovery & rendezvous server</p>
+            <p className="text-sm text-[var(--text-muted)] mt-2">Discovery and rendezvous server</p>
             <p className="text-xs text-[var(--text-muted)] mt-1">Peers register and find each other</p>
           </div>
           <div className="p-4 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-            <code className="text-[var(--brand-primary)] font-mono">Noise Tunnels</code>
-            <p className="text-sm text-[var(--text-muted)] mt-2">Encrypted peer-to-peer channels</p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">Noise Protocol IK handshake</p>
+            <code className="text-[var(--brand-primary)] font-mono">Encrypted Tunnels</code>
+            <p className="text-sm text-[var(--text-muted)] mt-2">Secure peer-to-peer channels</p>
+            <p className="text-xs text-[var(--text-muted)] mt-1">All traffic encrypted in transit</p>
           </div>
           <div className="p-4 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-            <code className="text-[var(--brand-primary)] font-mono">Peer Mesh</code>
-            <p className="text-sm text-[var(--text-muted)] mt-2">Decentralized state sync</p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">Claims, sessions, messages flow</p>
+            <code className="text-[var(--brand-primary)] font-mono">State Sync</code>
+            <p className="text-sm text-[var(--text-muted)] mt-2">Distributed state replication</p>
+            <p className="text-xs text-[var(--text-muted)] mt-1">Claims, sessions, messages flow across machines</p>
           </div>
         </div>
       </div>
 
-      {/* CLI Commands */}
+      {/* Planned API */}
       <div className="space-y-6">
-        <h2 className="text-2xl font-semibold text-[var(--text-primary)]">CLI Commands</h2>
-
-        <div className="space-y-4">
-          <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-            <div className="flex items-center gap-2 mb-2">
-              <code className="text-lg font-mono text-[var(--brand-primary)]">pd tunnel &lt;identity&gt;</code>
-            </div>
-            <p className="text-[var(--text-secondary)] mb-3">Open an encrypted tunnel to a remote harbor for a given service identity.</p>
-            <div className="p-3 rounded-lg font-mono text-sm" style={{ background: 'var(--code-bg)', color: 'var(--code-text)' }}>
-              $ pd tunnel myapp:api --lighthouse 192.168.1.10:9877
-            </div>
-          </div>
-
-          <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-            <div className="flex items-center gap-2 mb-2">
-              <code className="text-lg font-mono text-[var(--brand-primary)]">pd tunnel stop &lt;identity&gt;</code>
-            </div>
-            <p className="text-[var(--text-secondary)] mb-3">Close the tunnel for a service. The remote harbor is notified and cleans up.</p>
-            <div className="p-3 rounded-lg font-mono text-sm" style={{ background: 'var(--code-bg)', color: 'var(--code-text)' }}>
-              $ pd tunnel stop myapp:api
-            </div>
-          </div>
-
-          <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-            <div className="flex items-center gap-2 mb-2">
-              <code className="text-lg font-mono text-[var(--brand-primary)]">pd tunnels</code>
-            </div>
-            <p className="text-[var(--text-secondary)] mb-3">List all active tunnels with remote peer addresses, latency, and uptime.</p>
-            <div className="p-3 rounded-lg font-mono text-sm" style={{ background: 'var(--code-bg)', color: 'var(--code-text)' }}>
-              $ pd tunnels --json
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* SDK Usage */}
-      <div className="space-y-4">
-        <h2 className="text-2xl font-semibold text-[var(--text-primary)]">SDK Usage</h2>
+        <h2 className="text-2xl font-semibold text-[var(--text-primary)]">Planned API</h2>
+        <p className="text-sm text-[var(--text-muted)] mb-2">
+          These commands do not exist yet. They represent the target CLI surface for v4.
+        </p>
 
         <DocsCodeBlock
-          language="typescript"
-          code={`import { PortDaddy } from '@port-daddy/sdk'
+          code={`# Start a Lighthouse discovery server (planned)
+$ pd lighthouse start --port 9877
+Lighthouse listening on 0.0.0.0:9877
 
-const pd = new PortDaddy()
+# Connect to a Lighthouse from another machine (planned)
+$ pd remote connect 192.168.1.10:9877
+Connected to Lighthouse at 192.168.1.10:9877
+Syncing port claims... 4 services discovered
 
-// Start a tunnel to a remote harbor
-await pd.tunnel.start('myapp:api', {
-  lighthouse: '192.168.1.10:9877'
-})
-
-// Check tunnel status
-const status = await pd.tunnel.status('myapp:api')
-console.log(\`Tunnel latency: \${status.latencyMs}ms\`)
-
-// Stop tunnel when done
-await pd.tunnel.stop('myapp:api')`}
+# List connected peers (planned)
+$ pd remote peers
+PEER              ADDRESS            SERVICES   LATENCY
+dev-laptop        192.168.1.20       3          2ms
+ci-server         192.168.1.30       1          5ms`}
         />
+      </div>
+
+      {/* What Works Today */}
+      <div className="space-y-4">
+        <h2 className="text-2xl font-semibold text-[var(--text-primary)]">What Works Today</h2>
+        <p className="text-[var(--text-secondary)] leading-relaxed">
+          While Remote Harbors are not yet available, you can use{' '}
+          <Link to="/docs/features/tunnels" className="text-[var(--brand-primary)] hover:underline">
+            Tunnels
+          </Link>{' '}
+          to expose local services to the internet via ngrok, Cloudflare Tunnel, or localtunnel.
+          Tunnels solve the "reach my localhost" problem today, while Remote Harbors will solve
+          the broader "shared coordination state" problem in v4.
+        </p>
       </div>
 
       {/* Next */}

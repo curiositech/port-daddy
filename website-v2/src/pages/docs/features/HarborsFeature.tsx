@@ -13,11 +13,21 @@ export default function HarborsFeature() {
           <Badge variant="success">Security</Badge>
         </div>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
-          Cryptographic Harbors
+          Harbors
         </h1>
         <p className="text-xl text-[var(--text-secondary)] leading-relaxed max-w-3xl">
-          HMAC-signed capability namespaces that enforce permission boundaries. Agents only
-          get access to what they need, verified cryptographically at the daemon.
+          Named capability scopes for multi-agent coordination. Harbors let you declare what each
+          agent role is intended to do, enabling discovery and structured collaboration.
+        </p>
+      </div>
+
+      {/* Advisory Notice */}
+      <div className="p-5 rounded-xl border border-[var(--brand-accent)]/30 bg-[var(--brand-accent)]/5">
+        <p className="text-[var(--text-secondary)] leading-relaxed">
+          <strong className="text-[var(--text-primary)]">Advisory in v1.</strong>{' '}
+          In the current release, harbor capabilities are advisory — they record intent and enable
+          discovery, but the daemon does not enforce them on every request. An agent that enters
+          a read-only harbor can still technically write. Protocol-level enforcement is planned for v4.
         </p>
       </div>
 
@@ -26,20 +36,20 @@ export default function HarborsFeature() {
         <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-4">The Problem</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed mb-4">
           In a multi-agent environment, every agent has full access to every operation by default.
-          This creates serious risks:
+          Without structure:
         </p>
         <ul className="space-y-2 text-[var(--text-secondary)]">
           <li className="flex items-start gap-2">
             <AlertCircle size={16} className="text-[var(--error)] mt-1 shrink-0" />
-            <span>A code-review agent can accidentally release ports or delete sessions</span>
+            <span>No way to express what an agent is supposed to do vs. what it can do</span>
           </li>
           <li className="flex items-start gap-2">
             <AlertCircle size={16} className="text-[var(--error)] mt-1 shrink-0" />
-            <span>No way to scope an agent to read-only access for specific resources</span>
+            <span>Hard to discover which agents are scoped to which resources</span>
           </li>
           <li className="flex items-start gap-2">
             <AlertCircle size={16} className="text-[var(--error)] mt-1 shrink-0" />
-            <span>Rogue or misconfigured agents can disrupt the entire swarm</span>
+            <span>No audit trail of intended permissions for post-incident review</span>
           </li>
         </ul>
       </div>
@@ -48,27 +58,25 @@ export default function HarborsFeature() {
       <div className="space-y-6">
         <h2 className="text-2xl font-semibold text-[var(--text-primary)]">How It Works</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed">
-          Harbors are named permission scopes with a defined set of capabilities. When an agent
-          enters a harbor, it receives an HMAC-signed JWT token. The daemon validates this token
-          on every request and enforces the capability list.
+          Harbors are named permission scopes with a declared set of capabilities. When an agent
+          enters a harbor, its intended scope is recorded. Other agents can query who is in which
+          harbor to understand the current division of responsibility.
         </p>
 
         <DocsCodeBlock
           code={`# Create a harbor with specific capabilities
 $ pd harbor create reviewer --cap "code:read,notes:write,sessions:read"
+Harbor "reviewer" created with 3 capabilities
 
-# Agent enters the harbor and receives a signed token
+# Agent enters the harbor (declares its intended scope)
 $ pd harbor enter reviewer
+Entered harbor: reviewer
 
-# The token is used automatically for subsequent requests
-$ pd note "Code review complete: looks good"
-
-# Attempting an unauthorized operation fails
-$ pd release myapp:api:main`}
-          output={`Harbor "reviewer" created with 3 capabilities
-Entered harbor: reviewer (token valid for 24h)
-Note added to session s-x7y8z9
-ERROR: capability denied — harbor "reviewer" lacks "ports:write"`}
+# List all harbors and who is in them
+$ pd harbors
+reviewer   code:read,notes:write,sessions:read     2 agents
+deployer   ports:read,ports:write,sessions:read    1 agent
+observer   sessions:read,notes:read,activity:read  0 agents`}
         />
       </div>
 
@@ -77,7 +85,8 @@ ERROR: capability denied — harbor "reviewer" lacks "ports:write"`}
         <h2 className="text-2xl font-semibold text-[var(--text-primary)]">Capability Model</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           Capabilities follow a <code className="text-[var(--brand-primary)]">resource:action</code> format.
-          Combine them to build precise permission scopes for each agent role.
+          Combine them to declare precise permission scopes for each agent role. In v1 these are
+          advisory labels; in v4 they will be enforced by the daemon.
         </p>
 
         <div className="grid sm:grid-cols-3 gap-4">
@@ -119,10 +128,10 @@ ERROR: capability denied — harbor "reviewer" lacks "ports:write"`}
             <div className="flex items-center gap-2 mb-2">
               <code className="text-lg font-mono text-[var(--brand-primary)]">pd harbor enter &lt;name&gt;</code>
             </div>
-            <p className="text-[var(--text-secondary)] mb-3">Enter a harbor and receive an HMAC-signed token for authenticated requests.</p>
+            <p className="text-[var(--text-secondary)] mb-3">Enter a harbor to declare your agent's intended scope.</p>
             <DocsCodeBlock
               code={`$ pd harbor enter deployer`}
-              output={`Entered harbor: deployer (token valid for 24h)
+              output={`Entered harbor: deployer
 Capabilities: ports:read, ports:write, sessions:read, notes:write`}
             />
           </div>
@@ -131,12 +140,12 @@ Capabilities: ports:read, ports:write, sessions:read, notes:write`}
             <div className="flex items-center gap-2 mb-2">
               <code className="text-lg font-mono text-[var(--brand-primary)]">pd harbors</code>
             </div>
-            <p className="text-[var(--text-secondary)] mb-3">List all defined harbors with their capabilities and active token count.</p>
+            <p className="text-[var(--text-secondary)] mb-3">List all defined harbors with their capabilities and active agent count.</p>
             <DocsCodeBlock
               code={`$ pd harbors`}
-              output={`reviewer   code:read,notes:write,sessions:read     2 tokens
-deployer   ports:read,ports:write,sessions:read    1 token
-observer   sessions:read,notes:read,activity:read  0 tokens`}
+              output={`reviewer   code:read,notes:write,sessions:read     2 agents
+deployer   ports:read,ports:write,sessions:read    1 agent
+observer   sessions:read,notes:read,activity:read  0 agents`}
             />
           </div>
         </div>
@@ -159,11 +168,14 @@ await pd.harbors.create('reviewer', {
   capabilities: ['code:read', 'notes:write', 'sessions:read']
 })
 
-// Enter the harbor (sets auth token for subsequent calls)
+// Enter the harbor (declares intent, advisory in v1)
 await pd.harbors.enter('reviewer')
 
-// All subsequent SDK calls are scoped to harbor capabilities
-await pd.sessions.addNote(sessionId, 'Review complete')`}
+// List harbors to see current agent scoping
+const harbors = await pd.harbors.list()
+harbors.forEach(h => {
+  console.log(\`\${h.name}: \${h.capabilities.join(', ')}\`)
+})`}
           />
         </div>
       </div>
