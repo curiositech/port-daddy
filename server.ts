@@ -47,6 +47,7 @@ import { createBarnacleWatcher } from './lib/barnacle-client.js';
 import { createReactiveOrchestrator } from './lib/orchestrator.js';
 import { createCorrelationEngine } from './lib/correlation.js';
 import { createArbiter } from './lib/arbiter.js';
+import { createSemanticIndex } from './lib/semantic-index.js';
 import { createNoteEncryption } from './lib/note-encryption.js';
 import { initDatabase, closeDatabase, resolveDbPath } from './lib/db.js';
 
@@ -260,6 +261,8 @@ const briefing = createBriefing(db, { sessions, agents, resurrection, activityLo
 const spawner = createSpawner();
 const sugar = createSugar({ agents, sessions, activityLog });
 const harbors = createHarbors(db);
+const semanticIndex = createSemanticIndex(db);
+semanticIndex.initialize();
 const arbiter = createArbiter(
   { activityLog, agents, sessions, locks, resurrection },
   { strictMode: false }
