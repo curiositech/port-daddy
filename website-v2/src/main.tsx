@@ -33,6 +33,8 @@ import DnsFeature from '@/pages/docs/features/DnsFeature'
 import RemoteFeature from '@/pages/docs/features/RemoteFeature'
 import TunnelsFeature from '@/pages/docs/features/TunnelsFeature'
 import AvatarsFeature from '@/pages/docs/features/AvatarsFeature'
+import PheromoneFeature from '@/pages/docs/features/PheromoneFeature'
+import FleetFeature from '@/pages/docs/features/FleetFeature'
 
 // CLI Command Pages
 import ClaimCommand from '@/pages/docs/cli/ClaimCommand'
@@ -66,6 +68,7 @@ import HarborLeaveCommand from '@/pages/docs/cli/HarborLeaveCommand'
 import HarborsCommand from '@/pages/docs/cli/HarborsCommand'
 import TunnelCommand from '@/pages/docs/cli/TunnelCommand'
 import TunnelStopCommand from '@/pages/docs/cli/TunnelStopCommand'
+import FleetCommand from '@/pages/docs/cli/FleetCommand'
 
 // SDK Module Pages
 import SdkOverview from '@/pages/docs/sdk'
@@ -265,6 +268,8 @@ createRoot(document.getElementById('root')!).render(
             {/* Tunnels */}
             <Route path="cli/tunnel" element={<TunnelCommand />} />
             <Route path="cli/tunnel-stop" element={<TunnelStopCommand />} />
+            {/* Fleet */}
+            <Route path="cli/fleet" element={<FleetCommand />} />
             
             {/* Features */}
             <Route path="features/ports" element={<PortsFeature />} />
@@ -277,6 +282,8 @@ createRoot(document.getElementById('root')!).render(
             <Route path="features/remote" element={<RemoteFeature />} />
             <Route path="features/sessions" element={<SessionsFeature />} />
             <Route path="features/tunnels" element={<TunnelsFeature />} />
+            <Route path="features/pheromone" element={<PheromoneFeature />} />
+            <Route path="features/fleet" element={<FleetFeature />} />
             
             {/* SDK - TypeScript */}
             <Route path="sdk" element={<SdkOverview />} />

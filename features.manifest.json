@@ -986,6 +986,22 @@
         "readme": true,
         "sdk": false
       }
+    },
+    "pheromone": {
+      "description": "Stigmergic evaporation system — agents spray/sniff numeric signals on entities; signals decay over time",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "POST /pheromone/spray",
+        "GET /pheromone/:table/:id",
+        "GET /pheromone",
+        "GET /pheromone/files"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
     }
   }
 }
