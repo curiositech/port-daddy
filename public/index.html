@@ -694,6 +694,51 @@
     .footer a:hover { color: var(--accent-soft); }
     .footer .farewell { color: var(--accent); font-style: italic; margin-bottom: 8px; }
 
+    /* ── Expandable Content ── */
+    .expandable {
+      max-height: 3.2em;
+      overflow: hidden;
+      position: relative;
+      cursor: pointer;
+      transition: max-height 0.25s ease;
+    }
+    .expandable.expanded {
+      max-height: none;
+      cursor: default;
+    }
+    .expandable:not(.expanded)::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 1.2em;
+      background: linear-gradient(transparent, var(--bg-card));
+      pointer-events: none;
+    }
+    .expand-toggle {
+      display: inline-block;
+      color: var(--accent);
+      font-size: 11px;
+      cursor: pointer;
+      margin-left: 4px;
+      opacity: 0.8;
+      transition: opacity 0.15s ease;
+    }
+    .expand-toggle:hover { opacity: 1; }
+
+    /* Agent fleet colors */
+    .agent-fleet-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+    }
+
     /* ── Responsive ── */
     @media (max-width: 768px) {
       .sidebar { transform: translateX(-100%); transition: transform 0.2s ease; }
@@ -1152,6 +1197,63 @@
       return d.innerHTML;
     }
 
+    /* ── Agent Identity Resolution ── */
+    var FLEET_AGENTS = ['gardener','qa','test-hunter','documentarian','simplifier','cartographer','spark','spider'];
+    var FLEET_COLORS = {
+      gardener: { bg: 'rgba(24,121,78,0.15)', fg: '#2da96a' },
+      qa: { bg: 'rgba(205,43,49,0.15)', fg: '#e05555' },
+      'test-hunter': { bg: 'rgba(229,160,0,0.15)', fg: '#E5A000' },
+      documentarian: { bg: 'rgba(0,102,204,0.15)', fg: '#3388DD' },
+      simplifier: { bg: 'rgba(110,86,207,0.15)', fg: '#6E56CF' },
+      cartographer: { bg: 'rgba(74,157,158,0.15)', fg: '#4a9d9e' },
+      spark: { bg: 'rgba(229,160,0,0.15)', fg: '#E5A000' },
+      spider: { bg: 'rgba(205,43,49,0.15)', fg: '#e05555' }
+    };
+
+    function resolveAgentDisplay(agentId, purpose) {
+      if (!agentId) return { name: 'system', color: '#7889a0', isFleet: false };
+      var lo = agentId.toLowerCase();
+      for (var i = 0; i < FLEET_AGENTS.length; i++) {
+        if (lo.indexOf(FLEET_AGENTS[i]) >= 0) {
+          var c = FLEET_COLORS[FLEET_AGENTS[i]];
+          return { name: FLEET_AGENTS[i], bg: c.bg, color: c.fg, isFleet: true, raw: agentId };
+        }
+      }
+      // Truncate long IDs but preserve short readable ones
+      var display = agentId.length > 25 ? agentId.substring(0, 22) + '...' : agentId;
+      // Use purpose as a secondary hint if the ID is opaque
+      if (purpose && /^(pid-|spawned-)/.test(agentId)) {
+        var purposeShort = purpose.length > 30 ? purpose.substring(0, 28) + '...' : purpose;
+        display = purposeShort;
+      }
+      return { name: display, color: 'var(--accent)', isFleet: false, raw: agentId };
+    }
+
+    function renderAgentBadge(agentId, purpose) {
+      var info = resolveAgentDisplay(agentId, purpose);
+      if (info.isFleet) {
+        return '<span class="agent-fleet-badge" style="background:' + info.bg + ';color:' + info.color + ';" title="' + escHtml(info.raw) + '">' + escHtml(info.name) + '</span>';
+      }
+      return '<span style="color:' + info.color + ';font-size:11px;" title="' + escHtml(info.raw || agentId || '') + '">' + escHtml(info.name) + '</span>';
+    }
+
+    /* ── Expandable Content ── */
+    var expandIdCounter = 0;
+    function truncateWithExpand(text, maxLen) {
+      if (!text) return '<span style="color:var(--text-muted);">--</span>';
+      var safeText = escHtml(text);
+      if (text.length <= (maxLen || 150)) return '<span>' + safeText + '</span>';
+      var id = 'exp-' + (++expandIdCounter);
+      var shortText = escHtml(text.substring(0, maxLen || 150));
+      return '<span id="' + id + '" class="expandable" onclick="toggleExpand(\'' + id + '\')" title="Click to expand">' + safeText + '</span>';
+    }
+
+    function toggleExpand(id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.classList.toggle('expanded');
+    }
+
     function syntaxHighlight(json) {
       if (typeof json === 'string') { try { json = JSON.parse(json); } catch (e) { return escHtml(json); } }
       var str = JSON.stringify(json, null, 2);
@@ -1208,17 +1310,21 @@
       var actItems = actData ? (actData.activity || []) : [];
       setHtml('dashboard-activity', actItems.length > 0 ? actItems.map(function(a) {
         var color = { claim: 'teal', release: 'blue', session: 'green', lock: 'yellow', agent: 'green' }[a.type] || 'blue';
+        var agentHtml = a.agentId ? ' ' + renderAgentBadge(a.agentId, a.purpose) : '';
         return '<div class="activity-item"><div class="activity-dot ' + color + '"></div>' +
           '<div class="activity-text">' + escHtml(a.action || a.type) +
-          (a.identity ? ' ' + highlightId(a.identity) : '') + '</div>' +
+          (a.identity ? ' ' + highlightId(a.identity) : '') + agentHtml + '</div>' +
           '<div class="activity-time">' + fmtTime(a.timestamp) + '</div></div>';
       }).join('') : '<div class="empty-state"><p>No recent activity</p></div>');
 
       var agentList = agents ? (agents.agents || []) : [];
-      var colors = ['var(--success)', 'var(--accent)', 'var(--info)', 'var(--warning)', 'var(--brass)'];
-      setHtml('dashboard-agents', agentList.length > 0 ? agentList.map(function(a, i) {
-        return '<div class="agent-item"><div class="agent-dot" style="background:' + colors[i % colors.length] + '"></div>' +
-          '<div class="agent-name">' + escHtml(a.name || a.id) + '</div></div>';
+      setHtml('dashboard-agents', agentList.length > 0 ? agentList.map(function(a) {
+        var info = resolveAgentDisplay(a.id, a.purpose);
+        var dotColor = info.isFleet ? info.color : 'var(--accent)';
+        return '<div class="agent-item"><div class="agent-dot" style="background:' + dotColor + '"></div>' +
+          '<div class="agent-name">' + renderAgentBadge(a.id, a.purpose) + '</div>' +
+          (a.purpose ? '<div style="color:var(--text-muted);font-size:11px;margin-left:auto;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + escHtml(a.purpose) + '">' + escHtml(a.purpose) + '</div>' : '') +
+          '</div>';
       }).join('') : '<div class="empty-state"><p>No active agents</p></div>');
     }
 
@@ -1254,9 +1360,9 @@
       var agents = data ? (data.agents || []) : [];
       updateBadge('agents', agents.length);
       if (!agents.length) { setHtml('agents-table', '<div class="empty-state"><p>No registered agents</p></div>'); return; }
-      setHtml('agents-table', '<table><thead><tr><th>ID</th><th>Name</th><th>Identity</th><th>Purpose</th><th>Last Heartbeat</th><th>Actions</th></tr></thead><tbody>' +
+      setHtml('agents-table', '<table><thead><tr><th>Agent</th><th>Identity</th><th>Purpose</th><th>Last Heartbeat</th><th>Actions</th></tr></thead><tbody>' +
         agents.map(function(a) {
-          return '<tr><td>' + highlightId(a.id) + '</td><td>' + escHtml(a.name || '--') + '</td><td>' + highlightId(a.identity || '--') + '</td><td>' + escHtml(a.purpose || '--') + '</td><td>' + timeAgo(a.lastHeartbeat) + '</td><td><button class="btn-sm danger" onclick="removeAgent(\'' + escHtml(a.id) + '\')">Remove</button></td></tr>';
+          return '<tr><td>' + renderAgentBadge(a.id, a.purpose) + '</td><td>' + highlightId(a.identity || '--') + '</td><td>' + truncateWithExpand(a.purpose, 80) + '</td><td>' + timeAgo(a.lastHeartbeat) + '</td><td><button class="btn-sm danger" onclick="removeAgent(\'' + escHtml(a.id) + '\')">Remove</button></td></tr>';
         }).join('') + '</tbody></table>');
     }
 
@@ -1279,7 +1385,7 @@
           var acts = s.status === 'active'
             ? '<div class="btn-actions"><button class="btn-sm danger" onclick="endSession(\'' + escHtml(s.id) + '\')">End</button><button class="btn-sm danger" onclick="abandonSession(\'' + escHtml(s.id) + '\')">Abandon</button><button class="btn-sm" onclick="viewNotes(\'' + escHtml(s.id) + '\')">Notes</button></div>'
             : '<button class="btn-sm" onclick="viewNotes(\'' + escHtml(s.id) + '\')">Notes</button>';
-          return '<tr><td class="mono" style="font-size:0.8em;color:var(--text-muted)">' + escHtml(s.id.slice(0,8)) + '</td><td>' + highlightId(s.agentId || '--') + '</td><td>' + statusBadge(s.status) + '</td><td>' + escHtml(s.purpose) + '</td><td>' + escHtml(s.phase || '--') + '</td><td>' + dur + '</td><td>' + acts + '</td></tr>';
+          return '<tr><td class="mono" style="font-size:0.8em;color:var(--text-muted)">' + escHtml(s.id.slice(0,8)) + '</td><td>' + renderAgentBadge(s.agentId, s.purpose) + '</td><td>' + statusBadge(s.status) + '</td><td>' + truncateWithExpand(s.purpose, 100) + '</td><td>' + escHtml(s.phase || '--') + '</td><td>' + dur + '</td><td>' + acts + '</td></tr>';
         }).join('') + '</tbody></table>');
     }
 
@@ -1302,7 +1408,8 @@
       var header = '<div style="display:flex;justify-content:space-between;margin-bottom:16px;"><span style="font-weight:600;color:var(--accent);">Notes for ' + escHtml(sid) + '</span></div>';
       var body = notes.length === 0 ? '<p style="color:var(--text-muted);">No notes yet</p>'
         : notes.map(function(n) {
-            return '<div style="padding:8px 0;border-bottom:1px solid var(--border);"><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-bottom:4px;"><span>' + escHtml(n.type) + '</span><span>' + fmtTime(n.createdAt || n.created_at) + '</span></div><div style="font-size:12px;color:var(--text-dim);">' + escHtml(n.content) + '</div></div>';
+            var contentHtml = n.content && n.content.length > 200 ? truncateWithExpand(n.content, 200) : escHtml(n.content || '');
+            return '<div style="padding:8px 0;border-bottom:1px solid var(--border);"><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-bottom:4px;"><span>' + escHtml(n.type) + '</span><span>' + fmtTime(n.createdAt || n.created_at) + '</span></div><div style="font-size:12px;color:var(--text-dim);">' + contentHtml + '</div></div>';
           }).join('');
       box.innerHTML = header + body;
       overlay.appendChild(box);
@@ -1408,8 +1515,8 @@
       }
       setHtml('inbox-content', '<table><thead><tr><th>From</th><th>Message</th><th>Type</th><th>Read</th><th>Received</th></tr></thead><tbody>' +
         msgs.map(function(m) {
-          return '<tr><td class="mono">' + escHtml(m.from || '--') + '</td>' +
-            '<td>' + escHtml(m.message || m.content || '') + '</td>' +
+          return '<tr><td>' + renderAgentBadge(m.from) + '</td>' +
+            '<td>' + truncateWithExpand(m.message || m.content || '', 120) + '</td>' +
             '<td><span class="badge badge-info">' + escHtml(m.type || 'message') + '</span></td>' +
             '<td>' + (m.read ? '<span class="badge badge-success">read</span>' : '<span class="badge badge-warning">unread</span>') + '</td>' +
             '<td>' + timeAgo(m.createdAt || m.timestamp) + '</td></tr>';
@@ -1425,8 +1532,12 @@
       if (!items.length) { setHtml('activity-content', '<div class="empty-state"><p>No activity</p></div>'); return; }
       setHtml('activity-content', '<div class="card">' + items.map(function(a) {
         var color = { claim: 'teal', release: 'blue', session: 'green', lock: 'yellow', agent: 'green' }[a.type] || 'blue';
-        var detail = (a.identity ? '<span class="mono">' + escHtml(a.identity) + '</span> ' : '') + escHtml(a.action || a.type);
-        if (a.details) detail += ' — ' + escHtml(typeof a.details === 'string' ? a.details : JSON.stringify(a.details));
+        var agentHtml = a.agentId ? ' ' + renderAgentBadge(a.agentId) : '';
+        var detail = (a.identity ? highlightId(a.identity) + ' ' : '') + escHtml(a.action || a.type) + agentHtml;
+        if (a.details) {
+          var detailStr = typeof a.details === 'string' ? a.details : JSON.stringify(a.details);
+          detail += ' — ' + (detailStr.length > 120 ? truncateWithExpand(detailStr, 120) : escHtml(detailStr));
+        }
         return '<div class="activity-item"><div class="activity-dot ' + color + '"></div><div class="activity-text">' + detail + '</div><div class="activity-time">' + fmtDate(a.timestamp) + '</div></div>';
       }).join('') + '</div>');
     }
@@ -1447,10 +1558,10 @@
       Object.keys(groups).sort().forEach(function(proj) {
         html += '<div style="margin-bottom:16px"><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:8px">' + escHtml(proj) + ' (' + groups[proj].length + ')</div>';
         groups[proj].forEach(function(a) {
-          var agentName = a.agent_name || a.name || a.id || a.agent_id;
+          var rawAgentId = a.agent_name || a.name || a.id || a.agent_id;
           var since = a.diedAt || a.detected_at || a.staleSince || a.lastHeartbeat;
-          html += '<div class="salvage-card"><div class="salvage-header"><div><div class="salvage-agent">' + escHtml(agentName) + '</div>' +
-            '<div class="salvage-detail">Purpose: ' + escHtml(a.purpose || '--') + '</div>' +
+          html += '<div class="salvage-card"><div class="salvage-header"><div><div class="salvage-agent">' + renderAgentBadge(rawAgentId, a.purpose) + '</div>' +
+            '<div class="salvage-detail">Purpose: ' + truncateWithExpand(a.purpose, 150) + '</div>' +
             '<div class="salvage-detail">Dead since: ' + (since ? fmtDate(since) : '?') + '</div></div>' +
             '<div class="btn-actions"><button class="btn-sm" onclick="claimSalvage(\'' + escHtml(a.agent_id || a.id) + '\')">Claim</button>' +
             '<button class="btn-sm danger" onclick="dismissSalvage(\'' + escHtml(a.agent_id || a.id) + '\')">Dismiss</button></div></div></div>';
@@ -1482,7 +1593,7 @@
       }
       if (b.activeAgents && b.activeAgents.length) {
         html += '<div class="briefing-section"><h3>Active Agents (' + b.activeAgents.length + ')</h3>';
-        b.activeAgents.forEach(function(a) { html += '<div class="briefing-item"><span class="mono">' + escHtml(a.name || a.id) + '</span>' + (a.purpose ? ' — ' + escHtml(a.purpose) : '') + '</div>'; });
+        b.activeAgents.forEach(function(a) { html += '<div class="briefing-item">' + renderAgentBadge(a.name || a.id, a.purpose) + (a.purpose ? ' — ' + escHtml(a.purpose) : '') + '</div>'; });
         html += '</div>';
       }
       if (b.activeLocks && b.activeLocks.length) {
@@ -1546,7 +1657,7 @@
         return '<div class="card" style="margin-bottom:12px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
           '<div style="font-weight:600;color:var(--accent);">' + escHtml(e.version || '') + ' — ' + escHtml(e.title) + '</div>' +
           '<span class="badge badge-' + ({ feature: 'active', bugfix: 'completed' }[e.category] || 'assigned') + '">' + escHtml(e.category) + '</span></div>' +
-          '<div style="font-size:12px;color:var(--text-dim);white-space:pre-wrap;">' + escHtml(e.description) + '</div></div>';
+          '<div style="font-size:12px;color:var(--text-dim);white-space:pre-wrap;">' + truncateWithExpand(e.description, 200) + '</div></div>';
       }).join(''));
     }
 
@@ -1668,10 +1779,35 @@
     /* ── Polling ── */
     var pollInterval = setInterval(refreshAll, 15000);
 
-    /* ── Init ── */
-    refreshAll();
-    var hash = location.hash.replace('#', '');
-    if (hash && document.getElementById('panel-' + hash)) switchPanel(hash);
+    /* ── Init: preload all panel data ── */
+    async function initDashboard() {
+      // Load the current panel first for perceived speed
+      var hash = location.hash.replace('#', '');
+      if (hash && document.getElementById('panel-' + hash)) {
+        switchPanel(hash);
+      } else {
+        refreshDashboard();
+      }
+      // Then eagerly load all other panels in the background so data is ready
+      // when the user navigates. This fetches real data from the daemon.
+      await refreshAll();
+      // Fire-and-forget background loads for panels that refreshAll doesn't cover
+      var bgPanels = ['services', 'agents', 'sessions', 'locks', 'channels',
+                      'dns', 'activity', 'salvage', 'webhooks', 'projects', 'changelog'];
+      var currentHash = hash || 'overview';
+      bgPanels.forEach(function(p) {
+        if (p !== currentHash) {
+          var fn = {
+            services: refreshServices, agents: refreshAgents, sessions: refreshSessions,
+            locks: refreshLocks, channels: refreshChannels, dns: refreshDns,
+            activity: refreshActivity, salvage: refreshSalvage,
+            webhooks: refreshWebhooks, projects: refreshProjects, changelog: refreshChangelog
+          };
+          if (fn[p]) fn[p]();
+        }
+      });
+    }
+    initDashboard();
   </script>
 </body>
 </html>
