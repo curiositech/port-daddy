@@ -739,6 +739,40 @@
       letter-spacing: 0.3px;
     }
 
+    /* ── Fleet Agent Cards ── */
+    .fleet-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+    .fleet-card {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-md);
+      padding: 14px; transition: border-color 0.2s;
+    }
+    .fleet-card:hover { border-color: var(--accent-dim); }
+    .fleet-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .fleet-card-name { font-weight: 600; font-size: 13px; }
+    .fleet-card-purpose { font-size: 11px; color: var(--text-dim); margin-bottom: 8px; line-height: 1.4; }
+    .heartbeat-bar {
+      height: 4px; border-radius: 2px; background: var(--bg-elevated); overflow: hidden; margin-top: 6px;
+    }
+    .heartbeat-bar-fill {
+      height: 100%; border-radius: 2px; transition: width 1s linear;
+    }
+    .heartbeat-fresh { background: var(--success); }
+    .heartbeat-aging { background: var(--warning); }
+    .heartbeat-stale { background: var(--danger); }
+    .fleet-card-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; }
+    .fleet-card-meta span { font-size: 10px; color: var(--text-muted); }
+
+    /* ── Pheromone Heat Map ── */
+    .heat-map { margin-bottom: 20px; }
+    .heat-map-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 10px; }
+    .heat-bar {
+      display: flex; align-items: center; gap: 8px; padding: 4px 0;
+      font-size: 11px; color: var(--text-dim);
+    }
+    .heat-bar-path { min-width: 200px; font-family: 'Geist Mono', 'SF Mono', monospace; font-size: 11px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .heat-bar-fill-wrap { flex: 1; height: 6px; background: var(--bg-elevated); border-radius: 3px; overflow: hidden; }
+    .heat-bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+    .heat-bar-value { min-width: 30px; text-align: right; font-variant-numeric: tabular-nums; }
+
     /* ── Responsive ── */
     @media (max-width: 768px) {
       .sidebar { transform: translateX(-100%); transition: transform 0.2s ease; }
@@ -827,20 +861,6 @@
         <span class="nav-label">Channels</span>
         <span class="nav-badge" id="badge-channels">0</span>
       </div>
-      <div class="nav-item" data-panel="dns" tabindex="0" role="tab">
-        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-globe"/></svg></span>
-        <span class="nav-label">DNS</span>
-        <span class="nav-badge" id="badge-dns">0</span>
-      </div>
-      <div class="nav-item" data-panel="integration" tabindex="0" role="tab">
-        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-pulse"/></svg></span>
-        <span class="nav-label">Integration</span>
-      </div>
-      <div class="nav-item" data-panel="inbox" tabindex="0" role="tab">
-        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-message"/></svg></span>
-        <span class="nav-label">Inbox</span>
-        <span class="nav-badge" id="badge-inbox">0</span>
-      </div>
     </div>
 
     <div class="sidebar-section">
@@ -908,6 +928,7 @@
       <!-- Dashboard Panel -->
       <div class="panel active" id="panel-overview">
         <div class="stats-grid" id="stats-grid"></div>
+        <div id="heat-map-container"></div>
         <div class="two-col">
           <div class="card">
             <div class="card-title">Recent Activity</div>
@@ -918,6 +939,7 @@
             <div id="dashboard-agents"></div>
           </div>
         </div>
+        <div id="active-sessions-overview"></div>
       </div>
 
       <!-- Services Panel -->
@@ -932,10 +954,10 @@
       <!-- Agents Panel -->
       <div class="panel" id="panel-agents">
         <div class="panel-header">
-          <div class="panel-title">Agents</div>
+          <div class="panel-title">Fleet Agents</div>
           <div class="panel-actions"><button class="cmd-btn" onclick="refreshAgents()">Refresh</button></div>
         </div>
-        <div class="table-wrap" id="agents-table"></div>
+        <div id="agents-content"></div>
       </div>
 
       <!-- Sessions Panel -->
@@ -973,35 +995,6 @@
         <div id="channels-content"></div>
       </div>
 
-      <!-- DNS Panel -->
-      <div class="panel" id="panel-dns">
-        <div class="panel-header">
-          <div class="panel-title">DNS Records</div>
-          <div class="panel-actions"><button class="cmd-btn" onclick="refreshDns()">Refresh</button></div>
-        </div>
-        <div class="table-wrap" id="dns-table"></div>
-      </div>
-
-      <!-- Integration Panel -->
-      <div class="panel" id="panel-integration">
-        <div class="panel-header">
-          <div class="panel-title">Integration Signals</div>
-          <div class="panel-actions"><button class="cmd-btn" onclick="refreshIntegration()">Refresh</button></div>
-        </div>
-        <div id="integration-content"></div>
-      </div>
-
-      <!-- Inbox Panel -->
-      <div class="panel" id="panel-inbox">
-        <div class="panel-header">
-          <div class="panel-title">Agent Inbox</div>
-          <div class="panel-actions">
-            <input type="text" id="inbox-agent-id" placeholder="Agent ID" style="background:var(--bg-input);border:1px solid var(--border);color:var(--text);padding:4px 10px;border-radius:var(--radius-sm);font-family:inherit;font-size:0.85em;width:180px;">
-            <button class="cmd-btn" onclick="refreshInbox()">Load</button>
-          </div>
-        </div>
-        <div id="inbox-content"></div>
-      </div>
 
       <!-- Activity Panel -->
       <div class="panel" id="panel-activity">
@@ -1105,6 +1098,22 @@
     var API = '';
     var currentPanel = 'overview';
 
+    /* Add sparkline gradient to the SVG sprite */
+    (function() {
+      var ns = 'http://www.w3.org/2000/svg';
+      var sparkGrad = document.createElementNS(ns, 'linearGradient');
+      sparkGrad.id = 'sparkFill';
+      sparkGrad.setAttribute('x1', '0'); sparkGrad.setAttribute('y1', '0');
+      sparkGrad.setAttribute('x2', '0'); sparkGrad.setAttribute('y2', '1');
+      var stop1 = document.createElementNS(ns, 'stop');
+      stop1.setAttribute('offset', '0%'); stop1.setAttribute('stop-color', 'var(--accent)');
+      var stop2 = document.createElementNS(ns, 'stop');
+      stop2.setAttribute('offset', '100%'); stop2.setAttribute('stop-color', 'transparent');
+      sparkGrad.appendChild(stop1);
+      sparkGrad.appendChild(stop2);
+      document.querySelector('svg[style*="display:none"]').appendChild(sparkGrad);
+    })();
+
     /* ── Navigation ── */
     document.querySelectorAll('.nav-item').forEach(function(item) {
       item.addEventListener('click', function() {
@@ -1134,7 +1143,6 @@
       var fn = {
         overview: refreshDashboard, services: refreshServices, agents: refreshAgents,
         sessions: refreshSessions, locks: refreshLocks, channels: refreshChannels,
-        dns: refreshDns, integration: refreshIntegration, inbox: refreshInbox,
         activity: refreshActivity, salvage: refreshSalvage, briefing: refreshBriefing,
         webhooks: refreshWebhooks, projects: refreshProjects, changelog: refreshChangelog,
         config: refreshConfig
@@ -1286,28 +1294,68 @@
       var results = await Promise.all([
         apiFetch('/health'), apiFetch('/version'), apiFetch('/services'),
         apiFetch('/locks'), apiFetch('/agents'), apiFetch('/channels'),
-        apiFetch('/sessions?limit=50')
+        apiFetch('/sessions?limit=50'), apiFetch('/activity?limit=200'),
+        apiFetch('/pheromone/files?depth=1')
       ]);
       var health = results[0], version = results[1], services = results[2];
-      var locks = results[3], agents = results[4], channels = results[5], sessions = results[6];
+      var locks = results[3], agents = results[4], channels = results[5];
+      var sessions = results[6], actAll = results[7], pheromoneData = results[8];
 
       var svcCount = services ? (services.services || []).length : 0;
       var agentCount = agents ? (agents.agents || []).length : 0;
       var lockCount = locks ? (locks.locks || []).length : 0;
       var chanCount = channels ? (channels.channels || []).length : 0;
-      var sessCount = sessions ? (sessions.sessions || []).filter(function(s) { return s.status === 'active'; }).length : 0;
+      var activeSessions = sessions ? (sessions.sessions || []).filter(function(s) { return s.status === 'active'; }) : [];
+      var sessCount = activeSessions.length;
       var uptime = version ? timeAgo(version.startedAt) : '--';
 
       updateBadge('services', svcCount); updateBadge('agents', agentCount);
       updateBadge('sessions', sessCount); updateBadge('locks', lockCount);
       updateBadge('channels', chanCount);
 
-      setHtml('stats-grid',
-        sc(svcCount, 'SERVICES') + sc(agentCount, 'AGENTS') + sc(lockCount, 'LOCKS') +
-        sc(chanCount, 'CHANNELS') + sc(sessCount, 'SESSIONS') + sc(uptime, 'UPTIME'));
+      /* Compute hourly event buckets for sparklines */
+      var actEntries = actAll ? (actAll.entries || actAll.activity || []) : [];
+      var hourBuckets = new Array(12).fill(0);
+      var sessHourBuckets = new Array(12).fill(0);
+      var claimHourBuckets = new Array(12).fill(0);
+      var now = Date.now();
+      actEntries.forEach(function(e) {
+        var ts = e.timestamp || 0;
+        var hoursAgo = Math.floor((now - ts) / 3600000);
+        if (hoursAgo >= 0 && hoursAgo < 12) {
+          hourBuckets[11 - hoursAgo]++;
+          if (e.type === 'session') sessHourBuckets[11 - hoursAgo]++;
+          if (e.type === 'claim') claimHourBuckets[11 - hoursAgo]++;
+        }
+      });
 
-      var actData = await apiFetch('/activity?limit=12');
-      var actItems = actData ? (actData.activity || []) : [];
+      setHtml('stats-grid',
+        sc(sessCount, 'ACTIVE SESSIONS', sessHourBuckets, 'var(--success)') +
+        sc(svcCount, 'SERVICES', claimHourBuckets, 'var(--info)') +
+        sc(actEntries.length, 'ACTIVITY', hourBuckets, '#4a9d9e') +
+        sc(uptime, 'UPTIME'));
+
+      /* Pheromone file heat map */
+      var heatHtml = '';
+      if (pheromoneData && pheromoneData.files && pheromoneData.files.length > 0) {
+        var topFiles = pheromoneData.files.slice(0, 8);
+        heatHtml = '<div class="heat-map"><div class="card"><div class="card-title">File Heat Map</div>' +
+          topFiles.map(function(f) {
+            var pct = Math.round(f.heat * 100);
+            var color = f.heat > 0.7 ? 'var(--danger)' : f.heat > 0.4 ? 'var(--warning)' : 'var(--success)';
+            var conflict = f.conflict ? ' <span style="color:var(--danger);font-weight:600;font-size:10px">CONFLICT</span>' : '';
+            return '<div class="heat-bar">' +
+              '<div class="heat-bar-path" title="' + escHtml(f.path) + '">' + escHtml(f.path) + conflict + '</div>' +
+              '<div class="heat-bar-fill-wrap"><div class="heat-bar-fill" style="width:' + pct + '%;background:' + color + '"></div></div>' +
+              '<div class="heat-bar-value">' + pct + '%</div>' +
+            '</div>';
+          }).join('') +
+          '</div></div>';
+      }
+      setHtml('heat-map-container', heatHtml);
+
+      /* Recent activity feed */
+      var actItems = actEntries.slice(0, 12);
       setHtml('dashboard-activity', actItems.length > 0 ? actItems.map(function(a) {
         var color = { claim: 'teal', release: 'blue', session: 'green', lock: 'yellow', agent: 'green' }[a.type] || 'blue';
         var agentHtml = a.agentId ? ' ' + renderAgentBadge(a.agentId, a.purpose) : '';
@@ -1317,6 +1365,7 @@
           '<div class="activity-time">' + fmtTime(a.timestamp) + '</div></div>';
       }).join('') : '<div class="empty-state"><p>No recent activity</p></div>');
 
+      /* Active agents */
       var agentList = agents ? (agents.agents || []) : [];
       setHtml('dashboard-agents', agentList.length > 0 ? agentList.map(function(a) {
         var info = resolveAgentDisplay(a.id, a.purpose);
@@ -1326,9 +1375,46 @@
           (a.purpose ? '<div style="color:var(--text-muted);font-size:11px;margin-left:auto;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + escHtml(a.purpose) + '">' + escHtml(a.purpose) + '</div>' : '') +
           '</div>';
       }).join('') : '<div class="empty-state"><p>No active agents</p></div>');
+
+      /* Active sessions summary */
+      if (activeSessions.length > 0) {
+        var sessHtml = '<div class="card" style="margin-top:20px"><div class="card-title">Active Sessions (' + activeSessions.length + ')</div>';
+        activeSessions.slice(0, 5).forEach(function(s) {
+          var dur = s.createdAt ? timeAgo(s.createdAt) : '--';
+          sessHtml += '<div class="activity-item">' +
+            '<div class="activity-dot green"></div>' +
+            '<div class="activity-content">' +
+              '<div class="type">' + renderAgentBadge(s.agentId, s.purpose) + '</div>' +
+              '<div class="details">' + escHtml(s.purpose || 'Unnamed session') + '</div>' +
+              '<div class="time">Started ' + dur + '</div>' +
+            '</div></div>';
+        });
+        if (activeSessions.length > 5) {
+          sessHtml += '<div style="text-align:center;padding:8px;font-size:11px;color:var(--text-muted)">+ ' + (activeSessions.length - 5) + ' more active sessions</div>';
+        }
+        sessHtml += '</div>';
+        setHtml('active-sessions-overview', sessHtml);
+      } else {
+        setHtml('active-sessions-overview', '');
+      }
     }
 
-    function sc(v, l) { return '<div class="stat-card"><div class="stat-value">' + v + '</div><div class="stat-label">' + l + '</div></div>'; }
+    function sparklineSvg(data, color) {
+      if (!data || data.length < 2) return '';
+      var w = 80, h = 24, max = Math.max.apply(null, data) || 1;
+      var pts = data.map(function(v, i) {
+        return (i / (data.length - 1) * w).toFixed(1) + ',' + (h - (v / max) * h).toFixed(1);
+      }).join(' ');
+      return '<svg width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '" style="display:block;margin-top:8px">' +
+        '<polyline points="' + pts + '" fill="none" stroke="' + (color || 'var(--accent)') + '" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>' +
+        '<polyline points="' + pts + ' ' + w + ',' + h + ' 0,' + h + '" fill="url(#sparkFill)" opacity="0.15"/>' +
+        '</svg>';
+    }
+
+    function sc(v, l, sparkData, color) {
+      return '<div class="stat-card"><div class="stat-value">' + v + '</div><div class="stat-label">' + l + '</div>' +
+        sparklineSvg(sparkData, color) + '</div>';
+    }
 
     /* ── Services ── */
     async function refreshServices() {
@@ -1359,11 +1445,34 @@
       var data = await apiFetch('/agents');
       var agents = data ? (data.agents || []) : [];
       updateBadge('agents', agents.length);
-      if (!agents.length) { setHtml('agents-table', '<div class="empty-state"><p>No registered agents</p></div>'); return; }
-      setHtml('agents-table', '<table><thead><tr><th>Agent</th><th>Identity</th><th>Purpose</th><th>Last Heartbeat</th><th>Actions</th></tr></thead><tbody>' +
-        agents.map(function(a) {
-          return '<tr><td>' + renderAgentBadge(a.id, a.purpose) + '</td><td>' + highlightId(a.identity || '--') + '</td><td>' + truncateWithExpand(a.purpose, 80) + '</td><td>' + timeAgo(a.lastHeartbeat) + '</td><td><button class="btn-sm danger" onclick="removeAgent(\'' + escHtml(a.id) + '\')">Remove</button></td></tr>';
-        }).join('') + '</tbody></table>');
+      if (!agents.length) { setHtml('agents-content', '<div class="empty-state"><p>No active agents</p></div>'); return; }
+
+      var now = Date.now();
+      var STALE_MS = 600000; // 10 minutes
+
+      var html = '<div class="fleet-grid">' + agents.map(function(a) {
+        var info = resolveAgentDisplay(a.id, a.purpose);
+        var hbAge = now - (a.lastHeartbeat || now);
+        var hbPct = Math.max(0, Math.min(100, 100 - (hbAge / STALE_MS * 100)));
+        var hbClass = hbPct > 60 ? 'heartbeat-fresh' : hbPct > 30 ? 'heartbeat-aging' : 'heartbeat-stale';
+        var dotColor = info.isFleet ? info.color : 'var(--accent)';
+
+        return '<div class="fleet-card">' +
+          '<div class="fleet-card-header">' +
+            '<div style="width:10px;height:10px;border-radius:50%;background:' + dotColor + ';flex-shrink:0"></div>' +
+            '<div class="fleet-card-name" style="color:' + dotColor + '">' + escHtml(info.name) + '</div>' +
+            '<button class="btn-sm danger" style="margin-left:auto;font-size:10px" onclick="removeAgent(\'' + escHtml(a.id) + '\')">Remove</button>' +
+          '</div>' +
+          (a.purpose ? '<div class="fleet-card-purpose">' + escHtml(a.purpose) + '</div>' : '') +
+          '<div class="heartbeat-bar"><div class="heartbeat-bar-fill ' + hbClass + '" style="width:' + hbPct + '%"></div></div>' +
+          '<div class="fleet-card-meta">' +
+            '<span>' + (a.identity || '--') + '</span>' +
+            '<span>hb ' + timeAgo(a.lastHeartbeat) + '</span>' +
+          '</div>' +
+        '</div>';
+      }).join('') + '</div>';
+
+      setHtml('agents-content', html);
     }
 
     async function removeAgent(id) {
@@ -1474,54 +1583,6 @@
       }).join('') + '<div style="text-align:right;margin-top:8px;"><button class="btn-sm" onclick="event.stopPropagation();expandedChannel=null;refreshChannels();">Close</button></div>';
     }
 
-    /* ── DNS ── */
-    async function refreshDns() {
-      var data = await apiFetch('/dns');
-      var records = data ? (data.records || []) : [];
-      updateBadge('dns', records.length);
-      if (!records.length) { setHtml('dns-table', '<div class="empty-state"><p>No DNS records</p></div>'); return; }
-      setHtml('dns-table', '<table><thead><tr><th>Identity</th><th>Hostname</th><th>Port</th><th>Updated</th></tr></thead><tbody>' +
-        records.map(function(r) {
-          return '<tr><td>' + highlightId(r.identity) + '</td><td style="color:var(--accent);font-weight:600;">' + escHtml(r.hostname) + '</td><td>' + r.port + '</td><td>' + timeAgo(r.updatedAt) + '</td></tr>';
-        }).join('') + '</tbody></table>');
-    }
-
-    /* ── Integration ── */
-    async function refreshIntegration() {
-      var data = await apiFetch('/channels');
-      var channels = data ? (data.channels || []) : [];
-      var integ = channels.filter(function(c) { return c.channel.indexOf('integration:') === 0; });
-      if (!integ.length) { setHtml('integration-content', '<div class="empty-state"><p>No integration signals</p></div>'); return; }
-      setHtml('integration-content', '<div class="channel-grid">' + integ.map(function(c) {
-        return '<div class="channel-card" onclick="switchPanel(\'channels\');expandedChannel=\'' + escHtml(c.channel) + '\';refreshChannels();">' +
-          '<div class="channel-name">' + escHtml(c.channel) + '</div>' +
-          '<div class="channel-count">' + c.count + ' signal' + (c.count !== 1 ? 's' : '') + '</div></div>';
-      }).join('') + '</div>');
-    }
-
-    /* ── Inbox ── */
-    async function refreshInbox() {
-      var agentId = document.getElementById('inbox-agent-id').value.trim();
-      if (!agentId) {
-        setHtml('inbox-content', '<div class="empty-state"><p>Enter an agent ID above to load inbox messages</p></div>');
-        return;
-      }
-      var data = await apiFetch('/agents/' + encodeURIComponent(agentId) + '/inbox');
-      var msgs = data ? (data.messages || []) : [];
-      updateBadge('inbox', msgs.filter(function(m) { return !m.read; }).length);
-      if (!msgs.length) {
-        setHtml('inbox-content', '<div class="empty-state"><p>No messages in inbox for <code>' + escHtml(agentId) + '</code></p></div>');
-        return;
-      }
-      setHtml('inbox-content', '<table><thead><tr><th>From</th><th>Message</th><th>Type</th><th>Read</th><th>Received</th></tr></thead><tbody>' +
-        msgs.map(function(m) {
-          return '<tr><td>' + renderAgentBadge(m.from) + '</td>' +
-            '<td>' + truncateWithExpand(m.message || m.content || '', 120) + '</td>' +
-            '<td><span class="badge badge-info">' + escHtml(m.type || 'message') + '</span></td>' +
-            '<td>' + (m.read ? '<span class="badge badge-success">read</span>' : '<span class="badge badge-warning">unread</span>') + '</td>' +
-            '<td>' + timeAgo(m.createdAt || m.timestamp) + '</td></tr>';
-        }).join('') + '</tbody></table>');
-    }
 
     /* ── Activity ── */
     async function refreshActivity() {
@@ -1676,7 +1737,7 @@
       refreshPanel(currentPanel);
       var results = await Promise.all([
         apiFetch('/services'), apiFetch('/agents'), apiFetch('/sessions?limit=50'),
-        apiFetch('/locks'), apiFetch('/channels'), apiFetch('/dns'),
+        apiFetch('/locks'), apiFetch('/channels'),
         apiFetch('/webhooks'), apiFetch('/projects')
       ]);
       updateBadge('services', results[0] ? (results[0].services || []).length : 0);
@@ -1684,9 +1745,8 @@
       updateBadge('sessions', results[2] ? (results[2].sessions || []).filter(function(s) { return s.status === 'active'; }).length : 0);
       updateBadge('locks', results[3] ? (results[3].locks || []).length : 0);
       updateBadge('channels', results[4] ? (results[4].channels || []).length : 0);
-      updateBadge('dns', results[5] ? (results[5].records || []).length : 0);
-      updateBadge('webhooks', results[6] ? (results[6].webhooks || []).length : 0);
-      updateBadge('projects', results[7] ? (results[7].projects || []).length : 0);
+      updateBadge('webhooks', results[5] ? (results[5].webhooks || []).length : 0);
+      updateBadge('projects', results[6] ? (results[6].projects || []).length : 0);
     }
 
     /* ── Terminal ── */
@@ -1770,7 +1830,7 @@
     document.getElementById('command-input').addEventListener('keydown', function(e) {
       if (e.key === 'Enter') {
         var val = this.value.trim().toLowerCase();
-        var panels = ['dashboard','services','agents','sessions','locks','channels','dns','integration','inbox','activity','salvage','briefing','webhooks','projects','changelog','config'];
+        var panels = ['dashboard','services','agents','sessions','locks','channels','activity','salvage','briefing','webhooks','projects','changelog','config'];
         var match = panels.find(function(p) { return p.indexOf(val) === 0; });
         if (match) { switchPanel(match); this.value = ''; this.blur(); }
       }
@@ -1793,13 +1853,13 @@
       await refreshAll();
       // Fire-and-forget background loads for panels that refreshAll doesn't cover
       var bgPanels = ['services', 'agents', 'sessions', 'locks', 'channels',
-                      'dns', 'activity', 'salvage', 'webhooks', 'projects', 'changelog'];
+                      'activity', 'salvage', 'webhooks', 'projects', 'changelog'];
       var currentHash = hash || 'overview';
       bgPanels.forEach(function(p) {
         if (p !== currentHash) {
           var fn = {
             services: refreshServices, agents: refreshAgents, sessions: refreshSessions,
-            locks: refreshLocks, channels: refreshChannels, dns: refreshDns,
+            locks: refreshLocks, channels: refreshChannels,
             activity: refreshActivity, salvage: refreshSalvage,
             webhooks: refreshWebhooks, projects: refreshProjects, changelog: refreshChangelog
           };
