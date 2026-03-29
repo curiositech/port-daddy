@@ -257,7 +257,11 @@ function SidebarSection({
   currentPath: string
 }) {
   const [isOpen, setIsOpen] = React.useState(() => {
-    return section.items.some(item => currentPath === item.href)
+    // Section opens if any item matches current path OR is a parent of it
+    return section.items.some(item =>
+      currentPath === item.href ||
+      (item.href !== '/docs' && currentPath.startsWith(item.href + '/'))
+    )
   })
 
   const Icon = section.icon
