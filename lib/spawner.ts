@@ -12,6 +12,37 @@
 import { randomBytes } from 'node:crypto';
 import { spawn as spawnChild } from 'node:child_process';
 import type { ChildProcess } from 'node:child_process';
+import { readFileSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
+
+// ─── Load .env.local for spawned agents ─────────────────────────────────────
+// The daemon runs via launchd which has no shell env. Spawned agents need
+// API keys that live in .env.local. Load once at module init.
+const _dotenvCache: Record<string, string> = {};
+function loadDotenvOnce(): Record<string, string> {
+  if (Object.keys(_dotenvCache).length > 0) return _dotenvCache;
+  for (const name of ['.env.local', '.env']) {
+    const p = join(process.cwd(), name);
+    if (!existsSync(p)) continue;
+    try {
+      const lines = readFileSync(p, 'utf-8').split('\n');
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) continue;
+        const eq = trimmed.indexOf('=');
+        if (eq < 1) continue;
+        const key = trimmed.slice(0, eq).trim();
+        let val = trimmed.slice(eq + 1).trim();
+        // Strip surrounding quotes
+        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+          val = val.slice(1, -1);
+        }
+        _dotenvCache[key] = val;
+      }
+    } catch { /* ignore read errors */ }
+  }
+  return _dotenvCache;
+}
 
 // =============================================================================
 // Types
@@ -172,7 +203,7 @@ function runAider(spec: SpawnSpec): Promise<{ output: string; error: string | nu
 
     const child = spawnChild('aider', args, {
       cwd: spec.workdir || process.cwd(),
-      env: { ...process.env, ...(spec.env || {}) },
+      env: { ...process.env, ...loadDotenvOnce(), ...(spec.env || {}) },
       timeout: spec.timeout || 300000,
     });
 
@@ -215,7 +246,7 @@ function runCustom(spec: SpawnSpec): Promise<{ output: string; error: string | n
     // ensures the command is executed in a controlled shell invocation.
     const child = spawnChild('/bin/sh', ['-c', spec.task], {
       cwd: spec.workdir || process.cwd(),
-      env: { ...process.env, ...(spec.env || {}) },
+      env: { ...process.env, ...loadDotenvOnce(), ...(spec.env || {}) },
       shell: false,
       timeout: spec.timeout || 300000,
     });
@@ -258,7 +289,7 @@ function runClaudeCli(spec: SpawnSpec): Promise<{ output: string; error: string 
 
     const child = spawnChild('claude', args, {
       cwd: spec.workdir || process.cwd(),
-      env: { ...process.env, ...(spec.env || {}) },
+      env: { ...process.env, ...loadDotenvOnce(), ...(spec.env || {}) },
       timeout: spec.timeout || 300000,
     });
 
