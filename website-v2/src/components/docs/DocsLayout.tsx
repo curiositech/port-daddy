@@ -257,7 +257,7 @@ function SidebarSection({
   currentPath: string
 }) {
   const [isOpen, setIsOpen] = React.useState(() => {
-    return section.items.some(item => currentPath === item.href || currentPath.startsWith(item.href + '/'))
+    return section.items.some(item => currentPath === item.href)
   })
 
   const Icon = section.icon
@@ -282,7 +282,7 @@ function SidebarSection({
             <SidebarItem
               key={item.href}
               {...item}
-              isActive={currentPath === item.href || currentPath.startsWith(item.href + '/')}
+              isActive={currentPath === item.href}
             />
           ))}
         </div>
