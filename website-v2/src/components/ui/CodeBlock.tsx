@@ -3,6 +3,83 @@ import { cn } from '@/lib/utils'
 import { Surface } from './Surface'
 import { Copy, Check, Terminal, FileCode } from 'lucide-react'
 
+/* ── Syntax highlighting ──────────────────────────────────────────────────── */
+
+function highlightBash(line: string): React.ReactNode {
+  if (!line.trim()) return '\u00A0'
+  if (line.trimStart().startsWith('#'))
+    return <span style={{ color: 'var(--code-comment)' }}>{line}</span>
+  if (line.trimStart().startsWith('$')) {
+    const indent = line.match(/^(\s*)/)?.[1] ?? ''
+    const rest = line.trimStart().slice(2)
+    return <>{indent}<span style={{ color: 'var(--code-prompt)', fontWeight: 600 }}>$ </span>{highlightArgs(rest)}</>
+  }
+  return <span style={{ color: 'var(--code-output)' }}>{line}</span>
+}
+
+function highlightArgs(text: string): React.ReactNode {
+  const tokens: React.ReactNode[] = []
+  const regex = /("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|(--?[\w-]+)|(&&|\||;)|(\S+)/g
+  let m: RegExpExecArray | null
+  let lastIndex = 0
+  let isFirst = true
+
+  while ((m = regex.exec(text)) !== null) {
+    if (m.index > lastIndex) tokens.push(text.slice(lastIndex, m.index))
+    lastIndex = m.index + m[0].length
+    const [full, str, flag, op, word] = m
+    if (str)
+      tokens.push(<span key={m.index} style={{ color: 'var(--code-string)' }}>{full}</span>)
+    else if (flag)
+      tokens.push(<span key={m.index} style={{ color: 'var(--code-flag)' }}>{full}</span>)
+    else if (op) {
+      tokens.push(<span key={m.index} style={{ color: 'var(--code-comment)' }}>{full}</span>)
+      isFirst = true
+    } else if (word) {
+      if (isFirst)
+        tokens.push(<span key={m.index} style={{ color: 'var(--code-command)', fontWeight: 600 }}>{full}</span>)
+      else
+        tokens.push(<span key={m.index} style={{ color: 'var(--code-text)' }}>{full}</span>)
+    }
+    if (word || str) isFirst = false
+  }
+  if (lastIndex < text.length) tokens.push(text.slice(lastIndex))
+  return <>{tokens}</>
+}
+
+function highlightTS(line: string): React.ReactNode {
+  if (!line.trim()) return '\u00A0'
+  if (line.trimStart().startsWith('//'))
+    return <span style={{ color: 'var(--code-comment)' }}>{line}</span>
+  const parts: React.ReactNode[] = []
+  const kwRegex = /\b(import|export|from|const|let|var|async|await|function|return|if|else|new|typeof|class|interface|type)\b/g
+  let last = 0
+  let m: RegExpExecArray | null
+  while ((m = kwRegex.exec(line)) !== null) {
+    if (m.index > last) parts.push(highlightTSStrings(line.slice(last, m.index)))
+    parts.push(<span key={m.index} style={{ color: 'var(--code-command)', fontWeight: 600 }}>{m[0]}</span>)
+    last = m.index + m[0].length
+  }
+  if (last < line.length) parts.push(highlightTSStrings(line.slice(last)))
+  return <>{parts}</>
+}
+
+function highlightTSStrings(text: string): React.ReactNode {
+  const strRegex = /('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|`(?:[^`\\]|\\.)*`)/g
+  const parts: React.ReactNode[] = []
+  let last = 0
+  let m: RegExpExecArray | null
+  while ((m = strRegex.exec(text)) !== null) {
+    if (m.index > last) parts.push(text.slice(last, m.index))
+    parts.push(<span key={m.index} style={{ color: 'var(--code-string)' }}>{m[0]}</span>)
+    last = m.index + m[0].length
+  }
+  if (last < text.length) parts.push(text.slice(last))
+  return <>{parts}</>
+}
+
+/* ── Component ───────────────────────────────────────────────────────────── */
+
 interface CodeBlockProps {
   children: React.ReactNode
   language?: string
@@ -76,7 +153,13 @@ export function CodeBlock({ children, language, filename, className, copyable = 
           <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--code-dot-amber)' }} />
           <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--code-dot-green)' }} />
         </div>
-        <pre className="overflow-x-auto px-2.5 py-1.5 m-0 text-sm leading-normal font-mono" style={{ color: 'var(--code-text)' }}>{textContent}</pre>
+        <pre className="overflow-x-auto px-2.5 py-1.5 m-0 text-sm leading-normal font-mono" style={{ color: 'var(--code-text)' }}>{
+          language === 'bash' || language === 'shell' || !language
+            ? textContent.split('\n').map((line, i) => <div key={i}>{highlightBash(line)}</div>)
+            : language === 'typescript' || language === 'javascript'
+            ? textContent.split('\n').map((line, i) => <div key={i}>{highlightTS(line)}</div>)
+            : textContent
+        }</pre>
       </div>
     </Surface>
   )
