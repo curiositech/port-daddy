@@ -6,7 +6,7 @@
 
 import type Database from 'better-sqlite3';
 import { matchesPattern } from './identity.js';
-import { parseExpires, tryParseJson } from './utils.js';
+import { parseExpires, tryParseJson, patternToSql } from './utils.js';
 
 // =============================================================================
 // CONSTANTS

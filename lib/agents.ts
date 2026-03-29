@@ -51,6 +51,7 @@ interface AgentRow {
   identity_stack: string | null;
   identity_context: string | null;
   purpose: string | null;
+  skills: string | null;
   // Liveness & readiness
   status: string;
   readiness: string | null;
@@ -113,6 +114,7 @@ interface AgentFormatted {
   identityStack: string | null;
   identityContext: string | null;
   purpose: string | null;
+  skills: string[];
   // Liveness & readiness
   status: string;
   readiness: ReadinessCheck[] | null;

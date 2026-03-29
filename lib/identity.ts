@@ -67,7 +67,7 @@ export function parseIdentity(id: string): ParsedIdentity {
     project,
     stack,
     context,
-    full: id,
+    full: id as SemanticIdentity,
     normalized: [project, stack, context].filter(Boolean).join(':'),
     hasWildcard: id.includes('*')
   };

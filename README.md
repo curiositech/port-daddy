@@ -1,4 +1,4 @@
-# ⚓ Port Daddy (v3.7.0)
+# ⚓ Port Daddy (v3.8.0)
 
 <p align="center">
   <img src="website-v2/public/img/hero-portdaddy.png" alt="Port Daddy — the harbormaster for your AI agents" width="600">
@@ -103,7 +103,7 @@ pd up     # Starts all services in dependency order with color-coded logs
 ### 🚁 Swarm Coordination
 - **pd begin / pd done**: Track **session_phases** (planning, in_progress, etc.).
 - **pd demo**: Interactive multi-agent coordination **demo**.
-- **pd fleet**: Background agent **fleet** management — gardener, QA adversary, documentarian, research scout, simplifier.
+- **pd fleet**: Declarative agent **fleet** from `pd-fleet.yml` — cron/trigger-based agents with pub/sub chaining.
 - **pd status / pd version**: View system **info** and metrics.
 
 ### Session Lifecycle
@@ -260,6 +260,55 @@ pd pheromone list
 ```
 
 Use cases: adaptive Arbiter thresholds, file contention detection, agent reputation scoring, hot-path identification.
+
+### Semantic Trie (O(k) Identity Lookups)
+Port Daddy indexes all identities (services, agents, sessions, harbors) in an in-memory Adaptive Radix Tree. Lookups are O(k) where k is key length — replacing SQL `LIKE` scans that degrade as the registry grows.
+
+```bash
+# These all resolve through the trie, not SQL:
+pd find 'myapp:*'              # Prefix search — all services under myapp
+pd find 'myapp:*:main'         # Wildcard — all stacks with context "main"
+pd find 'myapp:api:main'       # Exact lookup
+```
+
+The trie populates from SQLite on daemon startup and stays in sync on every register/claim/release. Harbor bitmask filtering enables O(1) scope checks for harbor membership.
+
+### Fleet Engine (Declarative Agent Orchestration)
+Declare your background agent fleet in a `pd-fleet.yml` file — like docker-compose for AI agent swarms:
+
+```yaml
+# pd-fleet.yml
+fleet:
+  name: my-project-dev
+  harbor: "{project}:fleet"
+
+  agents:
+    qa:
+      trigger: git:committed          # React to pub/sub events
+      backend: claude-cli
+      allowedTools: "Read,Grep,Glob,Bash(npm test*)"
+      prompt: |
+        Review the most recent commit. Find bugs. Write tests.
+
+    gardener:
+      schedule: "*/10 * * * *"        # Or run on a cron schedule
+      backend: custom
+      prompt: "git status --porcelain"
+      on_success: publish git:status  # Chain agents via channels
+
+  channels:
+    git:committed:
+      description: "Fired after a successful commit"
+      consumers: [qa]
+```
+
+```bash
+pd fleet up       # Start all agents
+pd fleet status   # View running agents
+pd fleet down     # Stop all agents
+```
+
+Each agent gets full PD coordination for free: registration, sessions, heartbeats, and salvage on crash. Supports `claude-cli`, `ollama`, `custom` (shell commands), and all `pd spawn` backends. Template variables (`{project}`) resolve from the YAML context.
 
 ### Note Encryption (Escrow Secrecy)
 Session notes are encrypted at rest with AES-256-GCM. Master key stored at `~/.port-daddy/master.key` (auto-generated on first boot). Per-session keys wrapped with the master key. Backward-compatible — existing plaintext notes remain readable. ProVerif-verified: attacker with database access cannot learn note content.

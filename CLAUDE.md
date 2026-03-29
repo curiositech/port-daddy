@@ -44,6 +44,8 @@ lib/
   activity.ts       # Activity logging
   webhooks.ts       # Webhook subscriptions
   identity.ts       # Semantic ID parsing (project:stack:context)
+  trie.ts           # Adaptive Radix Tree for O(k) identity lookups
+  semantic-index.ts # Live trie index populated from SQLite on startup
   detect.ts         # Framework detection (60+ frameworks)
   scan.ts           # Deep recursive project scanner
   projects.ts       # Project registry (CRUD against SQLite)

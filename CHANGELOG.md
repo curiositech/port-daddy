@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **V4 Unified Roadmap**: `docs/V4-UNIFIED-ROADMAP.md` — 6-phase plan with 16 appendix wild ideas preserved from original planning docs.
 - **Economist Brief**: `docs/ECONOMIST-BRIEF.md` — Handoff document for mechanism design collaboration on bond pricing.
 - **Note Encryption Design Doc**: `docs/NOTE_ENCRYPTION_DESIGN.md` — Full design, proof results, implementation, remaining gaps.
+- **Semantic Trie** (`lib/trie.ts`): In-memory Adaptive Radix Tree for O(k) identity lookups. Replaces SQL `LIKE` scans. Supports exact, prefix, and wildcard match with harbor bitmask filtering. 26 unit tests, 10k entries in <10ms.
+- **Semantic Index** (`lib/semantic-index.ts`): Live index that populates the trie from SQLite on startup (services, agents, sessions, harbors) and stays in sync on every register/claim/release.
+- **Fleet Engine** (`lib/fleet-engine.ts`): Declarative fleet management from `pd-fleet.yml`. Cron-scheduled and event-triggered agents, pub/sub chaining (`on_success: publish channel`), template variable resolution, singleton mode, worktree isolation. Like docker-compose for AI agent swarms.
+- **`pd-fleet.yml` schema**: Declarative YAML config for background agent fleets. Agents, watchers, and channels. Design: `docs/adr/0019-declarative-fleet-yaml.md`.
+- **`pd fleet up/down/status`**: CLI commands for fleet lifecycle management. Loads `.env.local` for API keys, runs agents locally (not through daemon) for auth context.
+- **Pheromone System** (`lib/pheromone.ts`): Stigmergic signal layer — spray/sniff/list with geometric read-time decay. File heat map via `GET /pheromone/files` aggregates session file claims into per-file contention scores. API: `POST /pheromone/spray`, `GET /pheromone/:table/:id`, `GET /pheromone`, `GET /pheromone/files`.
+- **`pd dev start/stop/status`**: Isolated dev daemon via `PORT_DADDY_PREFIX` (nginx -p pattern). Runs alongside the stable daemon on port 9877 with separate DB and socket.
 
 ### Fixed
 - CLI unknown command tests: Updated to check both stdout and stderr (clack/prompts renders to stdout)
