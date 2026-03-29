@@ -478,7 +478,7 @@ export function createReactiveOrchestrator(db: any, messaging: any, spawner: any
 
   function addRule(rule: OrchestratorRule) {
     const result = stmts.insert.run(rule.name, rule.channelPattern, rule.condition || null, rule.action, JSON.stringify(rule.payload), rule.enabled ? 1 : 0);
-    return { success: true, id: result.lastInsertRowid };
+    return { success: true, id: Number(result.lastInsertRowid) };
   }
 
   function listRules() {
