@@ -18,17 +18,15 @@ import { join } from 'node:path';
 // ─── Load .env.local for spawned agents ─────────────────────────────────────
 // The daemon runs via launchd which has no shell env. Spawned agents need
 // API keys that live in .env.local. Load once at module init.
-import { dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const __spawner_dirname = dirname(fileURLToPath(import.meta.url));
+// Derive module directory without import.meta.url (breaks Jest ESM mocks)
 const _dotenvCache: Record<string, string> = {};
 function loadDotenvOnce(): Record<string, string> {
   if (Object.keys(_dotenvCache).length > 0) return _dotenvCache;
-  // Search multiple locations: cwd, project root (parent of lib/), home dir
+  // Search multiple locations: cwd, project root, the dev checkout, home dir
   const searchDirs = [
     process.cwd(),
-    join(__spawner_dirname, '..'),  // project root (lib/ -> ..)
+    join(process.cwd(), '..'),                         // parent of cwd (worktree -> repo)
+    join(process.env.HOME || '', 'coding/port-daddy'), // dev checkout (worktree source)
     process.env.HOME || '',
   ];
   for (const dir of searchDirs) {
@@ -36,22 +34,22 @@ function loadDotenvOnce(): Record<string, string> {
     for (const name of ['.env.local', '.env']) {
       const p = join(dir, name);
       if (!existsSync(p)) continue;
-    try {
-      const lines = readFileSync(p, 'utf-8').split('\n');
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed.startsWith('#')) continue;
-        const eq = trimmed.indexOf('=');
-        if (eq < 1) continue;
-        const key = trimmed.slice(0, eq).trim();
-        let val = trimmed.slice(eq + 1).trim();
-        // Strip surrounding quotes
-        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
-          val = val.slice(1, -1);
+      try {
+        const lines = readFileSync(p, 'utf-8').split('\n');
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed.startsWith('#')) continue;
+          const eq = trimmed.indexOf('=');
+          if (eq < 1) continue;
+          const key = trimmed.slice(0, eq).trim();
+          let val = trimmed.slice(eq + 1).trim();
+          if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+            val = val.slice(1, -1);
+          }
+          _dotenvCache[key] = val;
         }
-        _dotenvCache[key] = val;
-      }
-    } catch { /* ignore read errors */ }
+      } catch { /* ignore read errors */ }
+    }
   }
   return _dotenvCache;
 }
@@ -292,16 +290,18 @@ function runClaudeCli(spec: SpawnSpec): Promise<{ output: string; error: string 
     if (spec.allowedTools) {
       args.push('--allowedTools', spec.allowedTools);
     }
-    if (spec.workdir) {
-      args.push('--cwd', spec.workdir);
-    }
-    if (spec.maxTokens) {
-      args.push('--max-tokens', String(spec.maxTokens));
-    }
+    // Note: --cwd and --max-tokens are not valid claude CLI flags.
+    // Use cwd on the spawn options instead (already done below).
+
+    const dotenv = loadDotenvOnce();
+    // Ensure ~/.local/bin is in PATH for claude binary discovery
+    const homeBin = join(process.env.HOME || '', '.local', 'bin');
+    const currentPath = process.env.PATH || '';
+    const augmentedPath = currentPath.includes('.local/bin') ? currentPath : `${homeBin}:${currentPath}`;
 
     const child = spawnChild('claude', args, {
       cwd: spec.workdir || process.cwd(),
-      env: { ...process.env, ...loadDotenvOnce(), ...(spec.env || {}) },
+      env: { ...process.env, ...dotenv, ...(spec.env || {}), PATH: augmentedPath },
       timeout: spec.timeout || 300000,
     });
 
