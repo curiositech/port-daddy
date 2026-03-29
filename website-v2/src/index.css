@@ -127,7 +127,7 @@ code:not(pre code) {
   border-radius: var(--radius-sm);
 }
 
-/* Code blocks — NO dark background, text sits on neumorphic surface */
+/* Code blocks — NO dark background, no inherited inline-code styles */
 pre {
   background: transparent !important;
   box-shadow: none !important;
@@ -135,6 +135,11 @@ pre {
 pre code {
   background: transparent !important;
   box-shadow: none !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  font-weight: inherit !important;
+  font-size: inherit !important;
+  color: inherit !important;
 }
 
 /* ─── Design System: Spacing & Layout ─────────────────────────────────────── */
