@@ -139,8 +139,11 @@ describe('batchCheckProcesses', () => {
   });
 
   test('handles mixed live and dead PIDs', async () => {
-    const result = await batchCheckProcesses([process.pid, 0]);
-    expect(result.has(process.pid)).toBe(true);
+    // Use PID 1 (init/launchd) — always alive, unlike process.pid which
+    // may not appear in `ps` output on some CI runners
+    const result = await batchCheckProcesses([1, 0]);
+    expect(result.has(1)).toBe(true);
+    expect(result.has(0)).toBe(false);
   });
 
   test('returns a Set of numbers', async () => {
