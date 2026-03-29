@@ -50,15 +50,12 @@ export function GettingStarted() {
           <motion.div className="grid sm:grid-cols-2 gap-6">
             <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
               <Badge variant="teal">macOS / Linux</Badge>
-              <CodeBlock language="bash">
-                {`brew tap erichowens/port-daddy\nbrew install port-daddy`}
-              </CodeBlock>
+              <CodeBlock language="bash">{`brew tap erichowens/port-daddy
+brew install port-daddy`}</CodeBlock>
             </Surface>
             <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
               <Badge variant="default">Node.js / Global</Badge>
-              <CodeBlock language="bash">
-                {`npm install -g port-daddy`}
-              </CodeBlock>
+              <CodeBlock language="bash">{`npm install -g port-daddy`}</CodeBlock>
             </Surface>
           </motion.div>
 
