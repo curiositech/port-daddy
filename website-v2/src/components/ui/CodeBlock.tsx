@@ -76,7 +76,7 @@ export function CodeBlock({ children, language, filename, className, copyable = 
           <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--code-dot-amber)' }} />
           <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--code-dot-green)' }} />
         </div>
-        <pre className="overflow-x-auto px-2.5 py-1.5 m-0 text-sm leading-normal"><code className="font-mono" style={{ color: 'var(--code-text)' }}>{textContent}</code></pre>
+        <pre className="overflow-x-auto px-2.5 py-1.5 m-0 text-sm leading-normal"><code className="font-mono block" style={{ color: 'var(--code-text)' }}>{textContent}</code></pre>
       </div>
     </Surface>
   )
