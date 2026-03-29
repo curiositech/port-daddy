@@ -7,6 +7,7 @@
 import type Database from 'better-sqlite3';
 import { parseIdentity, patternToSql } from './identity.js';
 import { parseExpires } from './utils.js';
+import type { SemanticIndex } from './semantic-index.js';
 
 const DEFAULT_RANGE: [number, number] = [3100, 9999];
 const RESERVED_PORTS = new Set([8080, 8000, 9876]);
@@ -67,10 +68,15 @@ interface FindOptions {
   limit?: number;
 }
 
+interface ServicesOptions {
+  semanticIndex?: SemanticIndex;
+}
+
 /**
  * Initialize the services module with a database connection
  */
-export function createServices(db: Database.Database) {
+export function createServices(db: Database.Database, options?: ServicesOptions) {
+  const semanticIndex = options?.semanticIndex;
   // Prepared statements
   const stmts = {
     getById: db.prepare('SELECT * FROM services WHERE id = ?'),
@@ -155,6 +161,17 @@ export function createServices(db: Database.Database) {
       result.get(row.service_id)![row.env] = row.url;
     }
     return result;
+  }
+
+  /**
+   * Batch-fetch full service rows by ID (for trie-accelerated lookups).
+   */
+  function batchFetchServices(ids: string[]): ServiceRow[] {
+    if (ids.length === 0) return [];
+    const placeholders = ids.map(() => '?').join(', ');
+    return db.prepare(
+      `SELECT * FROM services WHERE id IN (${placeholders})`
+    ).all(...ids) as ServiceRow[];
   }
 
   /**
@@ -297,6 +314,11 @@ export function createServices(db: Database.Database) {
         now
       );
 
+      // Keep trie in sync
+      semanticIndex?.index(parsed.normalized, {
+        type: 'service', id: parsed.normalized, identity: parsed.normalized,
+      });
+
       return {
         success: true,
         id: parsed.normalized,
@@ -325,7 +347,13 @@ export function createServices(db: Database.Database) {
     const { expired = false } = options;
 
     if (expired) {
-      // Release all expired services
+      // Pre-query expired IDs for trie cleanup
+      if (semanticIndex) {
+        const expiredRows = db.prepare(
+          'SELECT id FROM services WHERE expires_at IS NOT NULL AND expires_at < ?'
+        ).all(Date.now()) as { id: string }[];
+        for (const s of expiredRows) semanticIndex.unindex(s.id);
+      }
       const result = stmts.deleteExpired.run(Date.now());
       return {
         success: true,
@@ -335,19 +363,26 @@ export function createServices(db: Database.Database) {
     }
 
     if (parsed.hasWildcard) {
-      // Pattern-based release
-      const sqlPattern = patternToSql(idOrPattern);
-      const services = stmts.getByPattern.all(sqlPattern) as ServiceRow[];
+      // Pattern-based release — trie-accelerated when available
+      let services: ServiceRow[];
+      if (semanticIndex) {
+        const entries = semanticIndex.find(idOrPattern).filter(e => e.type === 'service');
+        services = entries.map(e => stmts.getById.get(e.id)).filter(Boolean) as ServiceRow[];
+      } else {
+        const sqlPattern = patternToSql(idOrPattern);
+        services = stmts.getByPattern.all(sqlPattern) as ServiceRow[];
+      }
 
       for (const svc of services) {
         stmts.deleteAllEndpoints.run(svc.id);
+        stmts.deleteById.run(svc.id);
+        semanticIndex?.unindex(svc.id);
       }
 
-      const result = stmts.deleteByPattern.run(sqlPattern);
       return {
         success: true,
-        released: result.changes,
-        message: `released ${result.changes} service(s) matching ${idOrPattern}`
+        released: services.length,
+        message: `released ${services.length} service(s) matching ${idOrPattern}`
       };
     }
 
@@ -359,6 +394,7 @@ export function createServices(db: Database.Database) {
 
     stmts.deleteAllEndpoints.run(parsed.normalized);
     stmts.deleteById.run(parsed.normalized);
+    semanticIndex?.unindex(parsed.normalized);
 
     return {
       success: true,
@@ -377,10 +413,7 @@ export function createServices(db: Database.Database) {
     let services: ServiceRow[];
 
     if (idOrPattern === '*' || idOrPattern === '*:*:*') {
-      // Use getByPattern('%') instead of getAllActive to include all statuses,
-      // consistent with pattern-based queries. getAllActive only returns
-      // 'assigned'/'running' which creates a silent asymmetry where find('*')
-      // returns fewer results than find('myapp:*').
+      // Full wildcard — SQL scan is optimal (trie would return all types, not just services)
       services = stmts.getByPattern.all('%') as ServiceRow[];
     } else {
       const parsed = parseIdentity(idOrPattern);
@@ -388,8 +421,14 @@ export function createServices(db: Database.Database) {
         return { success: false, error: parsed.error };
       }
 
-      const sqlPattern = patternToSql(idOrPattern);
-      services = stmts.getByPattern.all(sqlPattern) as ServiceRow[];
+      if (parsed.hasWildcard && semanticIndex) {
+        // Trie-accelerated wildcard lookup: O(k+m) vs SQL LIKE O(n)
+        const entries = semanticIndex.find(idOrPattern).filter(e => e.type === 'service');
+        services = batchFetchServices(entries.map(e => e.id));
+      } else {
+        const sqlPattern = patternToSql(idOrPattern);
+        services = stmts.getByPattern.all(sqlPattern) as ServiceRow[];
+      }
     }
 
     // Apply filters
@@ -542,7 +581,13 @@ export function createServices(db: Database.Database) {
   function cleanup() {
     const now = Date.now();
 
-    // 1. Remove expired services
+    // 1. Remove expired services (pre-query for trie cleanup)
+    if (semanticIndex) {
+      const expiredRows = db.prepare(
+        'SELECT id FROM services WHERE expires_at IS NOT NULL AND expires_at < ?'
+      ).all(now) as { id: string }[];
+      for (const s of expiredRows) semanticIndex.unindex(s.id);
+    }
     const expiredResult = stmts.deleteExpired.run(now);
     let cleaned = expiredResult.changes;
 
@@ -555,6 +600,7 @@ export function createServices(db: Database.Database) {
       if (svc.pid && !isPidAlive(svc.pid)) {
         stmts.deleteAllEndpoints.run(svc.id);
         stmts.deleteById.run(svc.id);
+        semanticIndex?.unindex(svc.id);
         cleaned++;
       }
     }
