@@ -7,15 +7,15 @@ const STEPS = [
   {
     number: '01',
     title: 'Install Port Daddy',
-    description: 'Install via Homebrew or download the binary directly.',
-    code: 'brew install erichowens/port-daddy',
+    description: 'Install globally via npm.',
+    code: 'npm install -g port-daddy',
     verify: 'pd --version'
   },
   {
     number: '02',
     title: 'Start the Daemon',
     description: 'The daemon runs in the background and manages all coordination.',
-    code: 'pd daemon start',
+    code: 'pd start',
     verify: 'pd status'
   },
   {

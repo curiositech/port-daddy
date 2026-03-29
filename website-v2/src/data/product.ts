@@ -45,7 +45,7 @@ export const PRODUCT_FEATURES = [
     title: 'Briefing Intelligence',
     description: 'Automatically generate high-fidelity project briefings for agents. Summarize session history, file claims, and decisions.',
     category: 'intelligence',
-    cli: 'pd briefing generate',
+    cli: 'pd briefing',
     status: 'new'
   },
   {

@@ -62,7 +62,7 @@ $ pd note "Added refresh token endpoint at /api/auth/refresh"
 $ pd note "Updated middleware to check token expiry"
 
 # Claim files to prevent conflicts
-$ pd files claim src/auth/refresh.ts
+$ pd session files add src/auth/refresh.ts
 
 # Complete the session
 $ pd done`}
@@ -169,11 +169,11 @@ Files:    1 claimed`}
 
           <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <div className="flex items-center gap-2 mb-2">
-              <code className="text-lg font-mono text-[var(--brand-primary)]">pd files claim &lt;path&gt;</code>
+              <code className="text-lg font-mono text-[var(--brand-primary)]">pd session files add &lt;path&gt;</code>
             </div>
             <p className="text-[var(--text-secondary)] mb-3">Claim a file to signal other agents you are editing it. Advisory, not enforced.</p>
             <DocsCodeBlock
-              code={`$ pd files claim src/auth/refresh.ts`}
+              code={`$ pd session files add src/auth/refresh.ts`}
               output={`File claimed: src/auth/refresh.ts`}
             />
           </div>
@@ -188,7 +188,7 @@ Files:    1 claimed`}
           <div className="text-sm font-medium text-[var(--text-muted)] mb-3">TypeScript</div>
           <DocsCodeBlock
             language="typescript"
-            code={`import { PortDaddy } from '@port-daddy/sdk'
+            code={`import { PortDaddy } from 'port-daddy'
 
 const pd = new PortDaddy()
 

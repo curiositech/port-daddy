@@ -85,7 +85,7 @@ export function DNSResolver() {
           </motion.p>
 
           <CodeBlock language="bash">
-            {`# Resolve an identity to an address\n$ pd dns resolve my-swarm:api\n\nlocalhost:3102`}
+            {`# Resolve an identity to an address\n$ pd dns lookup my-swarm:api\n\nlocalhost:3102`}
           </CodeBlock>
 
           <Surface depth="raised" radius="2xl" className="p-10 space-y-6 relative overflow-hidden">

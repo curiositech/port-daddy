@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
 import { Surface } from '@/components/ui/Surface'
 import {
-  Code, Cpu, Layers, Share2, Zap,
+  Code, Cpu, Layers,
   Terminal, ChevronRight, MessageSquare, Globe
 } from 'lucide-react'
 
@@ -15,12 +15,10 @@ interface AgentTool {
 }
 
 const TOOLS: AgentTool[] = [
-  { name: 'Claude Code', tagline: 'MCP native', how: 'pd mcp install → tools in every session', icon: Cpu, color: 'var(--brand-primary)' },
-  { name: 'LangChain', tagline: 'Unified Tools', how: 'Wrap identities in Tools for universal discovery', icon: Layers, color: 'var(--brand-accent)' },
-  { name: 'CrewAI', tagline: 'Swarm Logic', how: 'Assign one Port Daddy session per crew member', icon: Share2, color: 'var(--brand-primary)' },
-  { name: 'Gemini CLI', tagline: 'Google AI', how: 'Native extension for port & harbor control', icon: Zap, color: 'var(--brand-accent)' },
-  { name: 'Aider', tagline: 'Git-Native', how: 'pd begin wraps every autonomous session', icon: Code, color: 'var(--brand-primary)' },
-  { name: 'Continue.dev', tagline: 'IDE Context', how: 'File claims prevent multi-agent collisions', icon: Terminal, color: 'var(--brand-accent)' },
+  { name: 'Claude Code', tagline: 'MCP Native', how: 'pd mcp install gives every Claude Code session full Port Daddy tools — ports, sessions, notes, pub/sub', icon: Cpu, color: 'var(--brand-primary)' },
+  { name: 'Aider', tagline: 'pd spawn', how: 'pd spawn --backend aider launches Aider with Port Daddy coordination wired in automatically', icon: Code, color: 'var(--brand-accent)' },
+  { name: 'Ollama', tagline: 'Local LLM', how: 'pd spawn --backend ollama runs any local model with full session tracking and pub/sub', icon: Layers, color: 'var(--brand-primary)' },
+  { name: 'Any CLI Tool', tagline: 'Universal', how: 'pd spawn --backend custom wraps any command-line tool with Port Daddy coordination', icon: Terminal, color: 'var(--brand-accent)' },
 ]
 
 export function AgentEcosystem() {

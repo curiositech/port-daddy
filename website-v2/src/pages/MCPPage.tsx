@@ -11,9 +11,9 @@ import { Footer } from '@/components/layout/Footer'
 const INSTALL_STEPS = [
   {
     title: 'Install the Daemon',
-    description: 'Port Daddy requires the local control plane. Install it via Homebrew or npm.',
+    description: 'Port Daddy requires the local control plane. Install it via npm.',
     icon: Download,
-    code: 'brew install erichowens/tap/port-daddy'
+    code: 'npm install -g port-daddy'
   },
   {
     title: 'Initialize MCP',

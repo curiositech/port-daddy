@@ -69,7 +69,7 @@ export function AlwaysOn() {
 
           <Surface depth="flat" radius="xl" padding="md" className="border-l-4 border-[var(--brand-secondary)]">
             <p className="m-0 text-sm" style={{ color: 'var(--text-secondary)' }}>
-              The avatar will immediately claim its semantic identity. Any other agent trying to claim <code>infra:monitor</code> will be blocked by the daemon until the avatar releases it.
+              The avatar will immediately claim its semantic identity. Any other agent claiming <code>infra:monitor</code> will get the same port -- deterministic assignment means no conflicts.
             </p>
           </Surface>
         </section>

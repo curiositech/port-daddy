@@ -163,7 +163,7 @@ export default function PortsFeature() {
         <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
           <div className="text-sm font-medium text-[var(--text-muted)] mb-3">TypeScript</div>
           <pre className="text-sm font-mono text-[var(--text-secondary)] overflow-x-auto">
-{`import { PortDaddy } from '@port-daddy/sdk'
+{`import { PortDaddy } from 'port-daddy'
 
 const pd = new PortDaddy()
 

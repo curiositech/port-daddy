@@ -119,7 +119,7 @@ const EXAMPLES: Example[] = [
       '# → {"port": 3847, "identity": "myapp:api"}',
       '',
       '# DNS lookup',
-      'pd dns resolve myapp:api'
+      'pd dns lookup myapp:api'
     ],
     icon: Search,
     color: 'var(--status-success)'

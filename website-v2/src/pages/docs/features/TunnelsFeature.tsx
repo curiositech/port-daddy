@@ -61,7 +61,7 @@ export default function TunnelsFeature() {
 
         <DocsCodeBlock
           code={`# Expose a service via ngrok
-$ pd tunnel myapp:api --provider ngrok
+$ pd tunnel start myapp:api --provider ngrok
 Tunnel ready: https://abc123.ngrok.io → localhost:3001
 
 # Check which providers are installed
@@ -71,7 +71,7 @@ cloudflared   installed  (v2024.1.2)
 localtunnel   not found
 
 # List all active tunnels
-$ pd tunnels
+$ pd tunnel list
 myapp:api   → https://abc123.ngrok.io   (ngrok, 5m uptime)
 myapp:web   → https://def456.ngrok.io   (ngrok, 2m uptime)`}
         />
@@ -112,11 +112,11 @@ myapp:web   → https://def456.ngrok.io   (ngrok, 2m uptime)`}
         <div className="space-y-4">
           <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <div className="flex items-center gap-2 mb-2">
-              <code className="text-lg font-mono text-[var(--brand-primary)]">pd tunnel &lt;identity&gt; --provider &lt;name&gt;</code>
+              <code className="text-lg font-mono text-[var(--brand-primary)]">pd tunnel start &lt;identity&gt; --provider &lt;name&gt;</code>
             </div>
             <p className="text-[var(--text-secondary)] mb-3">Start a tunnel for a claimed service. Auto-selects provider if not specified.</p>
             <div className="p-3 rounded-lg font-mono text-sm" style={{ background: 'var(--code-bg)', color: 'var(--code-text)' }}>
-              $ pd tunnel myapp:api --provider ngrok
+              $ pd tunnel start myapp:api --provider ngrok
             </div>
           </div>
 
@@ -132,11 +132,11 @@ myapp:web   → https://def456.ngrok.io   (ngrok, 2m uptime)`}
 
           <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <div className="flex items-center gap-2 mb-2">
-              <code className="text-lg font-mono text-[var(--brand-primary)]">pd tunnels</code>
+              <code className="text-lg font-mono text-[var(--brand-primary)]">pd tunnel list</code>
             </div>
             <p className="text-[var(--text-secondary)] mb-3">List all active tunnels with public URLs, providers, and uptime.</p>
             <div className="p-3 rounded-lg font-mono text-sm" style={{ background: 'var(--code-bg)', color: 'var(--code-text)' }}>
-              $ pd tunnels --json
+              $ pd tunnel list --json
             </div>
           </div>
 
@@ -158,7 +158,7 @@ myapp:web   → https://def456.ngrok.io   (ngrok, 2m uptime)`}
 
         <DocsCodeBlock
           language="typescript"
-          code={`import { PortDaddy } from '@port-daddy/sdk'
+          code={`import { PortDaddy } from 'port-daddy'
 
 const pd = new PortDaddy()
 

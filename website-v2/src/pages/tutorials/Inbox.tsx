@@ -61,7 +61,7 @@ export function Inbox() {
           </motion.p>
 
           <CodeBlock language="bash">
-            {`$ pd msg send swarm:analyst:main '{"task": "generate-report", "priority": "high"}'\n\n✓ Message routed to agent-7f3a.\n✓ Status: Received.`}
+            {`$ pd pub swarm:analyst:main '{"task": "generate-report", "priority": "high"}'\n\n✓ Message routed to agent-7f3a.\n✓ Status: Received.`}
           </CodeBlock>
 
           <Surface depth="flat" radius="xl" padding="md" className="border-l-4 border-[var(--brand-secondary)]">
@@ -94,7 +94,7 @@ export function Inbox() {
              <motion.div className="flex items-center justify-between gap-10">
                 <Surface depth="inset" radius="2xl" padding="none" className="flex-1 p-6 text-center">
                    <Badge variant="teal" className="mb-2">Agent 'alpha'</Badge>
-                   <motion.p className="text-[10px] text-[var(--text-muted)] font-mono">pd msg send...</motion.p>
+                   <motion.p className="text-[10px] text-[var(--text-muted)] font-mono">pd pub...</motion.p>
                 </Surface>
                 <motion.div className="shrink-0">
                    <ArrowRight size={20} className="text-[var(--brand-primary)] animate-pulse" />

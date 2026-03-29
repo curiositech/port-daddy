@@ -49,13 +49,13 @@ export function GettingStarted() {
 
           <motion.div className="grid sm:grid-cols-2 gap-6">
             <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
-              <Badge variant="teal">macOS / Linux</Badge>
-              <CodeBlock language="bash">{`brew tap erichowens/port-daddy
-brew install port-daddy`}</CodeBlock>
+              <Badge variant="teal">npm (recommended)</Badge>
+              <CodeBlock language="bash">{`npm install -g port-daddy`}</CodeBlock>
             </Surface>
             <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
-              <Badge variant="default">Node.js / Global</Badge>
-              <CodeBlock language="bash">{`npm install -g port-daddy`}</CodeBlock>
+              <Badge variant="default">From source</Badge>
+              <CodeBlock language="bash">{`git clone https://github.com/curiositech/port-daddy.git
+cd port-daddy && npm install && npm link`}</CodeBlock>
             </Surface>
           </motion.div>
 
@@ -87,7 +87,7 @@ brew install port-daddy`}</CodeBlock>
 
           <Surface depth="flat" radius="xl" padding="md" className="border-l-4 border-[var(--brand-secondary)]">
             <p className="m-0 text-sm" style={{ color: 'var(--text-secondary)' }}>
-              <strong>Why this matters for LangChain/CrewAI:</strong> When you wrap a Port Daddy identity in a LangChain Tool, your LLM doesn't need to know the IP address. It just needs the token. If the service moves, Port Daddy updates the DNS instantly.
+              <strong>Why this matters:</strong> Your agent doesn't need to know the IP address or port number. It just needs the semantic token. If the service moves, Port Daddy updates the mapping instantly.
             </p>
           </Surface>
         </section>

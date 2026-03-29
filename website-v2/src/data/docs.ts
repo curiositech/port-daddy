@@ -257,10 +257,10 @@ export const CLI_COMMANDS: CliCommand[] = [
   },
   {
     group: 'DNS',
-    cmd: 'pd dns resolve <name>',
+    cmd: 'pd dns lookup <name>',
     description: 'Resolve a name to a port number.',
     flags: ['--quiet, -q   Output port number only'],
-    example: 'pd dns resolve myapp-api',
+    example: 'pd dns lookup myapp-api',
     output: '3001',
   },
   // Harbors

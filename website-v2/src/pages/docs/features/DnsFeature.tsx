@@ -59,7 +59,7 @@ $ pd dns register myapp:api localhost:3001
 Service registered: myapp:api → localhost:3001
 
 # Another agent resolves the name
-$ pd dns resolve myapp:api
+$ pd dns lookup myapp:api
 localhost:3001
 
 # List all registered DNS entries
@@ -114,11 +114,11 @@ myapp:worker     → localhost:3002   (8s ago)`}
 
           <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <div className="flex items-center gap-2 mb-2">
-              <code className="text-lg font-mono text-[var(--brand-primary)]">pd dns resolve &lt;name&gt;</code>
+              <code className="text-lg font-mono text-[var(--brand-primary)]">pd dns lookup &lt;name&gt;</code>
             </div>
             <p className="text-[var(--text-secondary)] mb-3">Resolve a name to its host:port. Returns the address or an error if not found.</p>
             <div className="p-3 rounded-lg font-mono text-sm" style={{ background: 'var(--code-bg)', color: 'var(--code-text)' }}>
-              $ pd dns resolve myapp:api --quiet{'\n'}
+              $ pd dns lookup myapp:api --quiet{'\n'}
               localhost:3001
             </div>
           </div>
@@ -141,7 +141,7 @@ myapp:worker     → localhost:3002   (8s ago)`}
 
         <DocsCodeBlock
           language="typescript"
-          code={`import { PortDaddy } from '@port-daddy/sdk'
+          code={`import { PortDaddy } from 'port-daddy'
 
 const pd = new PortDaddy()
 

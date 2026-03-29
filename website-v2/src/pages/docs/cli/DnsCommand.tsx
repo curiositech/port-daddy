@@ -9,11 +9,11 @@ export default function DnsCommand() {
       syntax="pd dns <subcommand>"
       subcommands={[
         { name: 'register <name> <port>', description: 'Register a name → port mapping', href: '/docs/cli/dns-register' },
-        { name: 'resolve <name>', description: 'Resolve a name to a port', href: '/docs/cli/dns-resolve' },
+        { name: 'lookup <name>', description: 'Resolve a name to a port', href: '/docs/cli/dns-lookup' },
       ]}
       usagePatterns={[
         'pd dns register myapp-api 3001',
-        'pd dns resolve myapp-api',
+        'pd dns lookup myapp-api',
       ]}
       examples={[
         {
@@ -23,7 +23,7 @@ export default function DnsCommand() {
         },
         {
           description: 'Resolve a name',
-          code: 'pd dns resolve myapp-api',
+          code: 'pd dns lookup myapp-api',
           output: `3001`
         },
       ]}
