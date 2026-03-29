@@ -18,12 +18,24 @@ import { join } from 'node:path';
 // ─── Load .env.local for spawned agents ─────────────────────────────────────
 // The daemon runs via launchd which has no shell env. Spawned agents need
 // API keys that live in .env.local. Load once at module init.
+import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __spawner_dirname = dirname(fileURLToPath(import.meta.url));
 const _dotenvCache: Record<string, string> = {};
 function loadDotenvOnce(): Record<string, string> {
   if (Object.keys(_dotenvCache).length > 0) return _dotenvCache;
-  for (const name of ['.env.local', '.env']) {
-    const p = join(process.cwd(), name);
-    if (!existsSync(p)) continue;
+  // Search multiple locations: cwd, project root (parent of lib/), home dir
+  const searchDirs = [
+    process.cwd(),
+    join(__spawner_dirname, '..'),  // project root (lib/ -> ..)
+    process.env.HOME || '',
+  ];
+  for (const dir of searchDirs) {
+    if (!dir) continue;
+    for (const name of ['.env.local', '.env']) {
+      const p = join(dir, name);
+      if (!existsSync(p)) continue;
     try {
       const lines = readFileSync(p, 'utf-8').split('\n');
       for (const line of lines) {
