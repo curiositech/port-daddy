@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
+import { Surface } from '@/components/ui/Surface'
 import { Shield, Network, Cpu, Lock, Waves } from 'lucide-react'
 
 export function RoadmapPage() {
@@ -34,15 +35,11 @@ export function RoadmapPage() {
     <div className="min-h-screen pt-32 pb-24" style={{ background: 'var(--surface-base)' }}>
       <div className="max-w-5xl mx-auto px-6 lg:px-8">
         <header className="mb-24 text-center max-w-3xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-8"
-            style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-          >
+          <Surface depth="inset" radius="full" padding="none" className="inline-flex items-center gap-2 px-4 py-1.5 mb-8">
+
             <Cpu size={14} className="text-[var(--brand-primary)]" />
             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)]">Roadmap to v4.0</span>
-          </motion.div>
+          </Surface>
 
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
@@ -71,15 +68,12 @@ export function RoadmapPage() {
               whileInView={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.1 }}
               viewport={{ once: true }}
-              className="group p-10 rounded-2xl transition-all flex flex-col md:flex-row gap-10 items-start"
-              style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
             >
-              <div
-                className="p-6 rounded-2xl group-hover:scale-110 transition-transform"
-                style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-              >
+            <Surface depth="raised" radius="2xl" padding="none" className="group p-10 transition-all flex flex-col md:flex-row gap-10 items-start">
+              <Surface depth="inset" radius="2xl" padding="none" className="p-6 group-hover:scale-110 transition-transform">
+
                 {phase.icon}
-              </div>
+              </Surface>
               <div className="flex-1 space-y-4">
                 <div className="flex items-center gap-4">
                   <h2 className="text-3xl font-display font-bold text-[var(--text-primary)]">{phase.title}</h2>
@@ -108,6 +102,7 @@ export function RoadmapPage() {
                   />
                 </div>
               </div>
+            </Surface>
             </motion.div>
           ))}
         </div>
@@ -117,12 +112,12 @@ export function RoadmapPage() {
           <div className="w-[2px] h-16" style={{ background: 'var(--brand-accent)' }} />
         </div>
 
-        <motion.footer
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          className="p-16 rounded-2xl text-center space-y-8"
-          style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-        >
+        <Surface depth="raised" radius="2xl" padding="none">
+          <motion.footer
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            className="p-16 text-center space-y-8"
+          >
           <h3 className="text-4xl font-display font-black text-[var(--text-primary)]">Ready to Build the Swarm?</h3>
           <p className="text-lg text-[var(--text-secondary)] max-w-xl mx-auto">
             Our formal verification models and TypeScript daemon are open source. Dive into the math and help us define the Anchor Protocol.
@@ -137,7 +132,8 @@ export function RoadmapPage() {
               style={{ background: 'var(--brand-primary)', boxShadow: 'var(--shadow-sm)' }}
             >Documentation</span>
           </div>
-        </motion.footer>
+          </motion.footer>
+        </Surface>
       </div>
     </div>
   )

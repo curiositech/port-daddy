@@ -108,13 +108,10 @@ export function TerminalReplay() {
 
   return (
     <Surface depth="raised" radius="2xl" padding="md">
-      {/* Inset terminal */}
+      {/* Recessed screen — thin bevel, no bg color */}
       <div
         className="rounded-[var(--radius-lg)] overflow-hidden"
-        style={{
-          background: 'var(--code-bg)',
-          boxShadow: 'var(--shadow-inset)',
-        }}
+        style={{ boxShadow: 'inset 1px 1px 3px var(--neu-shadow), inset -1px -1px 3px var(--neu-highlight)' }}
       >
         {/* Terminal header */}
         <div
@@ -122,7 +119,7 @@ export function TerminalReplay() {
           style={{ borderBottom: '1px solid var(--code-border)' }}
         >
           <div className="flex items-center gap-3">
-            <div className="flex gap-1.5">
+            <div className="flex gap-1.5" aria-hidden="true">
               <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--code-dot-red)' }} />
               <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--code-dot-amber)' }} />
               <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--code-dot-green)' }} />

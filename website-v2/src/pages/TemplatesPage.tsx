@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
+import { Surface } from '@/components/ui/Surface'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { MessageSquare, Gavel, Trash2, ArrowRight } from 'lucide-react'
 
@@ -57,15 +58,12 @@ export function TemplatesPage() {
               whileInView={{ opacity: 1, scale: 1 }}
               transition={{ delay: i * 0.1 }}
               viewport={{ once: true }}
-              className="p-8 rounded-2xl transition-all flex flex-col gap-6 group"
-              style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
             >
-              <div
-                className="w-14 h-14 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform"
-                style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-              >
+            <Surface depth="raised" radius="2xl" padding="none" className="p-8 transition-all flex flex-col gap-6 group">
+              <Surface depth="inset" radius="2xl" padding="none" className="w-14 h-14 flex items-center justify-center group-hover:scale-110 transition-transform">
+
                 {template.icon}
-              </div>
+              </Surface>
               <div className="space-y-4 flex-1">
                 <div className="flex items-center justify-between">
                   <h2 className="text-3xl font-display font-black text-text-primary">{template.title}</h2>
@@ -91,6 +89,7 @@ export function TemplatesPage() {
                   View Code <ArrowRight size={16} />
                 </motion.a>
               </div>
+            </Surface>
             </motion.div>
           ))}
         </div>

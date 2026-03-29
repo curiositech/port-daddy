@@ -1,3 +1,4 @@
+import { useEffect, useRef, useCallback } from 'react'
 import { BookOpen, Play, Search, X, Sparkles, Terminal, Github } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Surface } from './Surface'
@@ -38,10 +39,30 @@ const INTENTS = [
 ]
 
 export function IntentModal({ isOpen, onClose }: IntentModalProps) {
+  const firstLinkRef = useRef<HTMLAnchorElement>(null)
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      onClose()
+    }
+  }, [onClose])
+
+  useEffect(() => {
+    if (isOpen && firstLinkRef.current) {
+      firstLinkRef.current.focus()
+    }
+  }, [isOpen])
+
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+    <div
+      className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="intent-modal-heading"
+      onKeyDown={handleKeyDown}
+    >
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
@@ -61,7 +82,7 @@ export function IntentModal({ isOpen, onClose }: IntentModalProps) {
 
         {/* Header */}
         <div className="text-center mb-8">
-          <h2 className="text-2xl font-semibold text-[var(--text-primary)] mb-2">
+          <h2 id="intent-modal-heading" className="text-2xl font-semibold text-[var(--text-primary)] mb-2">
             Join the Agent Economy
           </h2>
           <p className="text-[var(--text-secondary)]">
@@ -71,11 +92,12 @@ export function IntentModal({ isOpen, onClose }: IntentModalProps) {
 
         {/* Intent options */}
         <div className="space-y-3">
-          {INTENTS.map((intent) => {
+          {INTENTS.map((intent, index) => {
             const Icon = intent.icon
             return (
               <Link
                 key={intent.id}
+                ref={index === 0 ? firstLinkRef : undefined}
                 to={intent.href}
                 onClick={onClose}
                 className={`flex items-start gap-4 p-4 rounded-[var(--radius-lg)] border transition-all group ${

@@ -82,7 +82,7 @@ export function TutorialLayout({
 
       {/* Hero Section */}
       <motion.section
-        className="py-20 px-4 sm:px-6 lg:px-8 border-b relative overflow-hidden shrink-0"
+        className="py-10 sm:py-16 lg:py-20 px-4 sm:px-6 lg:px-8 border-b relative overflow-hidden shrink-0"
         style={{ background: 'var(--surface-raised)', borderColor: 'var(--border-subtle)' }}
       >
         {/* Abstract background shapes */}
@@ -109,7 +109,7 @@ export function TutorialLayout({
             />
           )}
           
-          <motion.nav className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] mb-6 font-sans" style={{ color: 'var(--text-muted)' }}>
+          <motion.nav className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.25em] mb-6 font-sans" style={{ color: 'var(--text-muted)' }}>
             <Link to="/" className="hover:text-[var(--text-primary)] transition-all no-underline flex items-center gap-1.5 font-sans group">
               <Home size={12} className="group-hover:scale-110 transition-transform" />
               Home
@@ -142,17 +142,17 @@ export function TutorialLayout({
             className="flex flex-col items-center"
           >
             <motion.div className="flex items-center gap-5 mb-10 font-sans">
-              <Badge variant={level === 'Beginner' ? 'teal' : level === 'Intermediate' ? 'gold' : 'default'} className="px-5 py-2 text-[9px] font-black uppercase tracking-widest shadow-xl shadow-[var(--brand-primary)]/5">
+              <Badge variant={level === 'Beginner' ? 'teal' : level === 'Intermediate' ? 'gold' : 'default'} className="px-5 py-2 text-[11px] font-black uppercase tracking-widest shadow-xl shadow-[var(--brand-primary)]/5">
                 {level}
               </Badge>
               <motion.div className="h-[1px] w-12 bg-[var(--border-strong)] opacity-40" />
-              <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] font-mono">
+              <motion.div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] font-mono">
                 <Clock size={14} className="text-[var(--brand-primary)]" />
                 {readTime}
               </motion.div>
             </motion.div>
 
-            <motion.h1 className="text-6xl sm:text-8xl font-bold mb-10 tracking-tighter font-display" style={{ color: 'var(--text-primary)', lineHeight: 0.95 }}>
+            <motion.h1 className="text-4xl sm:text-6xl lg:text-8xl font-bold mb-10 tracking-tighter font-display" style={{ color: 'var(--text-primary)', lineHeight: 0.95 }}>
               {title}
             </motion.h1>
             <motion.p className="text-xl sm:text-2xl max-w-3xl leading-relaxed mb-14 mx-auto font-sans" style={{ color: 'var(--text-secondary)' }}>
@@ -160,15 +160,15 @@ export function TutorialLayout({
             </motion.p>
 
             <motion.div className="flex flex-wrap items-center justify-center gap-10 font-sans text-[var(--text-muted)]">
-               <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em]">
+               <motion.div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em]">
                  <Zap size={14} className="text-[var(--brand-accent)]" />
                  Instant Port
                </motion.div>
-               <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em]">
+               <motion.div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em]">
                  <Shield size={14} className="text-[var(--brand-secondary)]" />
                  Secure DNS
                </motion.div>
-               <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em]">
+               <motion.div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em]">
                  <Share2 size={14} className="text-[var(--brand-secondary)]" />
                  Pub/Sub Radio
                </motion.div>
@@ -205,11 +205,11 @@ export function TutorialLayout({
           {prev ? (
             <Link to={prev.href} className="group no-underline block">
               <motion.div 
-                className="h-full p-10 rounded-[40px] border transition-all duration-300 hover:border-[var(--brand-primary)] hover:bg-[var(--interactive-hover)] flex flex-col items-start gap-4"
+                className="h-full p-5 sm:p-8 lg:p-10 rounded-[40px] border transition-all duration-300 hover:border-[var(--brand-primary)] hover:bg-[var(--interactive-hover)] flex flex-col items-start gap-4"
                 style={{ borderColor: 'var(--border-subtle)', background: 'var(--surface-raised)' }}
                 whileHover={{ x: -8 }}
               >
-                <motion.span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] text-[var(--text-muted)] font-sans group-hover:text-[var(--brand-primary)] transition-all">
+                <motion.span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.25em] text-[var(--text-muted)] font-sans group-hover:text-[var(--brand-primary)] transition-all">
                   <ArrowLeft size={14} />
                   Previous
                 </motion.span>
@@ -221,11 +221,11 @@ export function TutorialLayout({
           {next ? (
             <Link to={next.href} className="group no-underline block">
               <motion.div 
-                className="h-full p-10 rounded-[40px] border-2 transition-all duration-300 hover:bg-[var(--interactive-hover)] flex flex-col items-end text-right gap-4"
+                className="h-full p-5 sm:p-8 lg:p-10 rounded-[40px] border-2 transition-all duration-300 hover:bg-[var(--interactive-hover)] flex flex-col items-end text-right gap-4"
                 style={{ borderColor: 'var(--brand-primary)', background: 'var(--surface-raised)' }}
                 whileHover={{ x: 8 }}
               >
-                <motion.span className="flex items-center justify-end gap-2 text-[10px] font-black uppercase tracking-[0.25em] font-sans text-[var(--brand-primary)]">
+                <motion.span className="flex items-center justify-end gap-2 text-[11px] font-black uppercase tracking-[0.25em] font-sans text-[var(--brand-primary)]">
                   Next Up
                   <ArrowRight size={14} />
                 </motion.span>
@@ -234,7 +234,7 @@ export function TutorialLayout({
             </Link>
           ) : (
             <motion.div 
-              className="sm:col-span-2 p-16 rounded-[60px] border border-dashed flex flex-col items-center text-center gap-8 relative overflow-hidden"
+              className="sm:col-span-2 p-6 sm:p-10 lg:p-16 rounded-3xl sm:rounded-[40px] lg:rounded-[60px] border border-dashed flex flex-col items-center text-center gap-8 relative overflow-hidden"
               style={{ borderColor: 'var(--brand-primary)', background: 'var(--surface-overlay)' }}
             >
               <motion.div 
@@ -244,7 +244,7 @@ export function TutorialLayout({
               >
                 <Globe size={600} />
               </motion.div>
-              <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Certification Ready</Badge>
+              <Badge variant="teal" className="px-6 py-2 text-[11px] font-black uppercase tracking-widest">Certification Ready</Badge>
               <motion.h3 className="text-5xl font-bold font-display m-0" style={{ color: 'var(--text-primary)' }}>Mastery Achieved.</motion.h3>
               <motion.p className="text-xl max-w-xl font-sans text-[var(--text-secondary)]">You've completed the core coordination series. Your harbor is ready for deployment.</motion.p>
               <Button size="lg" className="px-12 py-8 rounded-full text-lg font-black tracking-wide" onClick={() => window.location.href = '/docs'}>

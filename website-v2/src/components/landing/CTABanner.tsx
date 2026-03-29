@@ -29,7 +29,7 @@ export function CTABanner() {
         className="relative max-w-5xl mx-auto text-center flex flex-col items-center gap-8"
       >
         <motion.div className="flex flex-col items-center gap-6">
-           <Badge variant="teal" className="px-8 py-3 text-[10px] font-black uppercase tracking-[0.25em]">The Departure</Badge>
+           <Badge variant="teal" className="px-8 py-3 text-[11px] font-black uppercase tracking-[0.25em]">The Departure</Badge>
            {/* Anchor icon in inset circle */}
            <Surface depth="inset" radius="3xl" padding="none" className="w-24 h-24 flex items-center justify-center">
               <motion.div
@@ -93,17 +93,15 @@ export function CTABanner() {
         <motion.div className="pt-16 flex flex-col items-center gap-6">
            {/* Install command in inset terminal */}
            <motion.div
-             className="flex items-center gap-3 sm:gap-4 px-4 sm:px-8 py-3 sm:py-4 rounded-full font-mono text-[10px] sm:text-xs font-black uppercase tracking-widest"
+             className="flex items-center gap-3 sm:gap-4 px-4 sm:px-8 py-3 sm:py-4 rounded-full font-mono text-[11px] sm:text-xs font-black uppercase tracking-widest"
              style={{
-               background: 'var(--code-bg)',
-               boxShadow: 'var(--shadow-inset)',
                color: 'var(--text-muted)',
              }}
            >
               <Terminal size={18} style={{ color: 'var(--brand-primary)' }} />
               brew install erichowens/port-daddy
            </motion.div>
-           <motion.p className="text-[10px] font-black uppercase tracking-[0.3em] m-0" style={{ color: 'var(--text-muted)', opacity: 0.5 }}>Free · Open Source · MIT License</motion.p>
+           <motion.p className="text-[11px] font-black uppercase tracking-[0.3em] m-0" style={{ color: 'var(--text-muted)', opacity: 0.5 }}>Free · Open Source · MIT License</motion.p>
         </motion.div>
         </motion.div>
       </motion.div>

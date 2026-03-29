@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { Link } from 'react-router-dom'
 import { Check, Clock, MapPin, ChevronRight, Trophy } from 'lucide-react'
+import { Surface } from '@/components/ui/Surface'
 
 interface Tutorial {
   number: number
@@ -55,109 +56,124 @@ export function TutorialProgress({ currentNumber, isOpen: controlledOpen, onTogg
   return (
     <div className="w-full">
       {/* Progress Summary Bar */}
-      <div 
-        className="flex items-center gap-4 p-4 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)] cursor-pointer hover:border-[var(--border-default)] transition-all"
+      <Surface
+        depth="raised"
+        radius="2xl"
+        padding="lg"
+        interactive
+        className="flex items-center gap-6 cursor-pointer"
         onClick={() => setIsOpen(!isOpen)}
       >
-        <div className="flex-1">
-          <div className="flex items-center justify-between mb-2 gap-4">
-            <span className="text-sm font-medium text-[var(--text-primary)] whitespace-nowrap">
+        <div className="flex-1 space-y-3">
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
               Getting Started Series
             </span>
-            <span className="text-xs text-[var(--text-muted)] whitespace-nowrap">
+            <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
               {currentNumber} of {TUTORIALS.length} &middot; ~{TOTAL_TIME} min total
             </span>
           </div>
-          
-          {/* Progress bar */}
-          <div className="h-2 bg-[var(--surface-overlay)] rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-[var(--brand-primary)] rounded-full transition-all duration-500"
-              style={{ width: `${progress}%` }}
+
+          {/* Progress bar — inset track */}
+          <Surface depth="inset" radius="full" padding="none" className="h-3 overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{ width: `${progress}%`, background: 'var(--brand-primary)' }}
             />
-          </div>
-          
-          <div className="flex items-center justify-between mt-2 text-xs text-[var(--text-muted)]">
+          </Surface>
+
+          <div className="flex items-center justify-between text-xs" style={{ color: 'var(--text-muted)' }}>
             <span>{completedCount} completed</span>
             <span>{remainingCount} remaining (~{remainingTime} min)</span>
           </div>
         </div>
-        
-        <ChevronRight 
-          size={20} 
-          className={`text-[var(--text-muted)] transition-transform ${isOpen ? 'rotate-90' : ''}`} 
+
+        <ChevronRight
+          size={20}
+          className={`transition-transform ${isOpen ? 'rotate-90' : ''}`}
+          style={{ color: 'var(--text-muted)' }}
         />
-      </div>
+      </Surface>
 
       {/* Expanded Roadmap */}
       {isOpen && (
-        <div className="mt-3 p-4 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)] max-h-[60vh] overflow-y-auto">
-          <div className="space-y-1">
+        <Surface depth="inset" radius="2xl" padding="lg" className="mt-4 max-h-[60vh] overflow-y-auto">
+          <div className="space-y-2">
             {TUTORIALS.map((tutorial) => {
               const isCurrent = tutorial.number === currentNumber
               const isCompleted = tutorial.number < currentNumber
-              
+
               return (
                 <Link
                   key={tutorial.number}
                   to={tutorial.href}
-                  className={`flex items-center gap-3 p-3 rounded-lg transition-all ${
-                    isCurrent 
-                      ? 'bg-[var(--interactive-active)] border border-[var(--brand-primary)]/30' 
-                      : 'hover:bg-[var(--interactive-hover)]'
-                  }`}
+                  className="block"
                 >
-                  {/* Status indicator */}
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium shrink-0 ${
-                    isCompleted 
-                      ? 'bg-[var(--success)] text-white' 
-                      : isCurrent
-                      ? 'bg-[var(--brand-primary)] text-white'
-                      : 'bg-[var(--surface-overlay)] text-[var(--text-muted)]'
-                  }`}>
-                    {isCompleted ? <Check size={14} /> : tutorial.number}
-                  </div>
-                  
-                  {/* Tutorial info */}
-                  <div className="flex-1 min-w-0">
-                    <div className={`text-sm font-medium truncate ${
-                      isCurrent ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'
-                    }`}>
-                      {tutorial.title}
+                  <Surface
+                    depth={isCurrent ? 'pressed' : 'flat'}
+                    radius="xl"
+                    padding="none"
+                    className={`flex items-center gap-4 p-4 transition-all ${
+                      isCurrent ? '' : 'hover:opacity-80'
+                    }`}
+                  >
+                    {/* Status indicator */}
+                    <Surface
+                      depth="inset"
+                      radius="full"
+                      padding="none"
+                      className="w-8 h-8 flex items-center justify-center text-xs font-bold shrink-0"
+                      style={
+                        isCompleted
+                          ? { background: 'var(--status-success)', color: 'var(--text-inverse)' }
+                          : isCurrent
+                          ? { background: 'var(--brand-primary)', color: 'var(--text-inverse)' }
+                          : {}
+                      }
+                    >
+                      {isCompleted ? <Check size={14} /> : tutorial.number}
+                    </Surface>
+
+                    {/* Tutorial info */}
+                    <div className="flex-1 min-w-0">
+                      <div
+                        className="text-sm font-semibold truncate"
+                        style={{ color: isCurrent ? 'var(--text-primary)' : 'var(--text-secondary)' }}
+                      >
+                        {tutorial.title}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+                        <Clock size={12} />
+                        {tutorial.readTime}
+                        <span style={{ color: 'var(--border-default)' }}>&middot;</span>
+                        <span style={{
+                          color: tutorial.level === 'Beginner' ? 'var(--status-success)'
+                            : tutorial.level === 'Intermediate' ? 'var(--status-warning)'
+                            : 'var(--brand-primary)'
+                        }}>
+                          {tutorial.level}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
-                      <Clock size={12} />
-                      {tutorial.readTime}
-                      <span className="text-[var(--border-subtle)]">•</span>
-                      <span className={`
-                        ${tutorial.level === 'Beginner' ? 'text-green-500' : ''}
-                        ${tutorial.level === 'Intermediate' ? 'text-amber-500' : ''}
-                        ${tutorial.level === 'Advanced' ? 'text-red-500' : ''}
-                      `}>
-                        {tutorial.level}
-                      </span>
-                    </div>
-                  </div>
-                  
-                  {/* Current indicator */}
-                  {isCurrent && (
-                    <MapPin size={16} className="text-[var(--brand-primary)] shrink-0" />
-                  )}
+
+                    {isCurrent && (
+                      <MapPin size={16} style={{ color: 'var(--brand-primary)' }} className="shrink-0" />
+                    )}
+                  </Surface>
                 </Link>
               )
             })}
           </div>
-          
-          {/* Completion message */}
+
           {currentNumber === TUTORIALS.length && (
-            <div className="mt-4 p-4 rounded-lg bg-[var(--success)]/10 border border-[var(--success)]/20 text-center">
-              <Trophy size={24} className="mx-auto mb-2 text-[var(--success)]" />
-              <p className="text-sm font-medium text-[var(--text-primary)]">
+            <Surface depth="raised" radius="xl" padding="lg" className="mt-4 text-center">
+              <Trophy size={24} className="mx-auto mb-2" style={{ color: 'var(--status-success)' }} />
+              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
                 Congratulations! You've completed the series.
               </p>
-            </div>
+            </Surface>
           )}
-        </div>
+        </Surface>
       )}
     </div>
   )

@@ -41,8 +41,8 @@ export function AgentEcosystem() {
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
           className="text-center mb-16 flex flex-col items-center gap-12"
         >
-          <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-[0.25em]">The Integration Layer</Badge>
-          <motion.h2 className="text-5xl sm:text-7xl font-bold font-display tracking-tight leading-[0.9] mb-10" style={{ color: 'var(--text-primary)' }}>
+          <Badge variant="teal" className="px-6 py-2 text-[11px] font-black uppercase tracking-[0.25em]">The Integration Layer</Badge>
+          <motion.h2 className="text-3xl sm:text-5xl lg:text-7xl font-bold font-display tracking-tight leading-[0.9] mb-10" style={{ color: 'var(--text-primary)' }}>
             One protocol. <br />
             <motion.span style={{ color: 'var(--brand-primary)' }}>Any Agent.</motion.span>
           </motion.h2>
@@ -56,7 +56,7 @@ export function AgentEcosystem() {
           {TOOLS.map((tool) => (
             <div key={tool.name} className="group">
               <motion.div
-                className="h-full p-12 rounded-[var(--radius-4xl)] transition-all duration-300 flex flex-col items-center text-center gap-10"
+                className="h-full p-6 sm:p-8 lg:p-12 rounded-[var(--radius-4xl)] transition-all duration-300 flex flex-col items-center text-center gap-10"
                 style={{
                   background: 'var(--surface-raised)',
                   boxShadow: 'var(--shadow-raised)',
@@ -71,7 +71,7 @@ export function AgentEcosystem() {
                 <div className="space-y-4 flex-1 flex flex-col items-center">
                    <div className="flex flex-col items-center gap-3">
                       <motion.h3 className="m-0 text-3xl font-display font-black leading-tight" style={{ color: 'var(--text-primary)' }}>{tool.name}</motion.h3>
-                      <Badge variant="default" className="text-[8px] font-black uppercase tracking-widest px-3 py-1">{tool.tagline}</Badge>
+                      <Badge variant="default" className="text-[11px] font-black uppercase tracking-widest px-3 py-1">{tool.tagline}</Badge>
                    </div>
                    <motion.p className="m-0 text-lg opacity-80 leading-relaxed group-hover:opacity-100 transition-opacity" style={{ color: 'var(--text-secondary)' }}>
                      {tool.how}
@@ -91,7 +91,7 @@ export function AgentEcosystem() {
 
         {/* Multi-Agent Coordination Example */}
         <motion.div
-          className="mt-24 p-20 rounded-[var(--radius-4xl)] relative overflow-hidden w-full flex flex-col items-center text-center"
+          className="mt-24 p-6 sm:p-10 lg:p-20 rounded-[var(--radius-4xl)] relative overflow-hidden w-full flex flex-col items-center text-center"
           style={{
             background: 'var(--surface-raised)',
             boxShadow: 'var(--shadow-raised)',
@@ -105,7 +105,7 @@ export function AgentEcosystem() {
            </div>
 
            <div className="max-w-4xl relative z-10 space-y-12 flex flex-col items-center">
-              <Badge variant="gold" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Coordination Pattern</Badge>
+              <Badge variant="gold" className="px-6 py-2 text-[11px] font-black uppercase tracking-widest">Coordination Pattern</Badge>
               <motion.h3 className="text-5xl sm:text-7xl font-display font-black leading-[0.95] m-0" style={{ color: 'var(--text-primary)' }}>
                 The <span style={{ color: 'var(--brand-accent)' }}>Daemon</span> <br /> Pattern.
               </motion.h3>

@@ -118,7 +118,7 @@ export const TerminalLineStory: Story = {
   },
   render: () => (
     <div style={{
-      background: 'var(--code-bg, #1a1a2e)',
+      background: 'var(--code-bg, #1E1B18)', /* fallback: p-ebony-700 */
       padding: '1rem',
       borderRadius: '0.5rem',
       display: 'flex',

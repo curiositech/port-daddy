@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
+import { Surface } from '@/components/ui/Surface'
 import { Link } from 'react-router-dom'
 import { Boxes, ChevronRight, Puzzle, Sparkles, Zap, Globe, Shield, Terminal, MessageSquare, Anchor } from 'lucide-react'
 import { INTEGRATIONS } from '@/data/integrations'
@@ -21,10 +22,8 @@ export function IntegrationsPage() {
       animate={{ opacity: 1 }}
     >
       {/* Hero Section */}
-      <motion.section
-        className="py-12 sm:py-24 px-4 sm:px-6 lg:px-10 relative overflow-hidden flex flex-col items-center justify-center text-center"
-        style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-      >
+      <Surface depth="raised" radius="none" padding="none" className="py-12 sm:py-24 px-4 sm:px-6 lg:px-10 relative overflow-hidden flex flex-col items-center justify-center text-center">
+
         <motion.div
           className="absolute top-0 right-0 w-[800px] h-[800px] rounded-full blur-[160px] opacity-[0.1] pointer-events-none"
           style={{ background: 'radial-gradient(circle, var(--brand-primary) 0%, transparent 70%)' }}
@@ -50,7 +49,7 @@ export function IntegrationsPage() {
             Port Daddy is the universal coordination layer. Native integrations for the world's most powerful LLMs and agentic frameworks.
           </motion.p>
         </div>
-      </motion.section>
+      </Surface>
 
       {/* Grid Section */}
       <motion.main id="main-content" className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-12 sm:py-24 font-sans flex flex-col items-center">
@@ -67,22 +66,14 @@ export function IntegrationsPage() {
                 className="group"
               >
                 <Link to={`/integrations/${int.id}`} className="no-underline block h-full">
-                  <motion.div
-                    className="h-full p-6 sm:p-8 lg:p-12 rounded-2xl sm:rounded-[36px] lg:rounded-[56px] transition-all duration-300 flex flex-col items-center text-center gap-6 sm:gap-10"
-                    style={{
-                      background: 'var(--surface-raised)',
-                      boxShadow: 'var(--shadow-raised)',
-                    }}
-                    whileHover={{ y: -8, boxShadow: 'var(--shadow-flat)' }}
-                  >
+                  <Surface depth="raised" radius="2xl" padding="none" className="h-full p-6 sm:p-8 lg:p-12 sm:rounded-[36px] lg:rounded-[56px] transition-all duration-300 flex flex-col items-center text-center gap-6 sm:gap-10">
+
                     <div className="w-full flex flex-col items-center gap-4 sm:gap-6">
-                       <div
-                         className="w-14 h-14 sm:w-20 sm:h-20 rounded-2xl sm:rounded-[32px] flex items-center justify-center group-hover:scale-110 transition-transform"
-                         style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-                       >
+                       <Surface depth="inset" radius="2xl" padding="none" className="w-14 h-14 sm:w-20 sm:h-20 sm:rounded-[32px] flex items-center justify-center group-hover:scale-110 transition-transform">
+
                           <Icon size={24} className="text-[var(--brand-primary)] sm:hidden" />
                           <Icon size={32} className="text-[var(--brand-primary)] hidden sm:block" />
-                       </div>
+                       </Surface>
                        <Badge variant={int.status === 'official' ? 'teal' : 'default'} className="text-[8px] font-black uppercase tracking-widest px-4 py-1.5">
                           {int.status}
                        </Badge>
@@ -106,7 +97,7 @@ export function IntegrationsPage() {
                           <ChevronRight size={14} />
                        </div>
                     </div>
-                  </motion.div>
+                  </Surface>
                 </Link>
               </motion.div>
             )
@@ -114,16 +105,13 @@ export function IntegrationsPage() {
         </motion.div>
 
         {/* Vision Callout */}
-        <motion.div
-          className="mt-16 sm:mt-24 p-8 sm:p-16 lg:p-24 rounded-2xl sm:rounded-[60px] lg:rounded-[100px] flex flex-col items-center text-center gap-8 sm:gap-16 relative overflow-hidden w-full"
-          style={{
-            background: 'var(--surface-raised)',
-            boxShadow: 'var(--shadow-raised)',
-          }}
-          initial={{ opacity: 0, scale: 0.98 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true }}
-        >
+        <Surface depth="raised" radius="2xl" padding="none" className="mt-16 sm:mt-24 sm:rounded-[60px] lg:rounded-[100px] overflow-hidden w-full">
+          <motion.div
+            className="p-8 sm:p-16 lg:p-24 flex flex-col items-center text-center gap-8 sm:gap-16 relative"
+            initial={{ opacity: 0, scale: 0.98 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+          >
            <div className="absolute top-0 right-0 p-10 opacity-[0.02] pointer-events-none">
               <Boxes size={800} />
            </div>
@@ -146,10 +134,12 @@ export function IntegrationsPage() {
                 { label: 'Real-time Radio', icon: MessageSquare },
                 { label: 'Zero-Trust DNS', icon: Globe }
               ].map((item, i) => (
-                <div
+                <Surface
                   key={i}
-                  className="p-4 sm:p-10 rounded-2xl sm:rounded-[48px] flex flex-col items-center gap-3 sm:gap-6 group transition-all"
-                  style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
+                  depth="inset"
+                  radius="2xl"
+                  padding="none"
+                  className="p-4 sm:p-10 sm:rounded-[48px] flex flex-col items-center gap-3 sm:gap-6 group transition-all"
                 >
                    <div
                      className="w-10 h-10 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform"
@@ -159,10 +149,11 @@ export function IntegrationsPage() {
                       <item.icon size={28} className="text-[var(--brand-primary)] hidden sm:block" />
                    </div>
                    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.25em] text-[var(--text-muted)] group-hover:text-[var(--text-primary)] transition-colors text-center">{item.label}</span>
-                </div>
+                </Surface>
               ))}
            </div>
-        </motion.div>
+          </motion.div>
+        </Surface>
       </motion.main>
 
       <Footer />
