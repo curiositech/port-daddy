@@ -238,12 +238,12 @@ const locks = createLocks(db);
 // Cast services to the shape expected by createHealth — the actual runtime
 // object satisfies the interface but TS can't verify discriminated union compat.
 const health = createHealth(db, services as Parameters<typeof createHealth>[1]);
-const agents = createAgents(db);
+const agents = createAgents(db, { semanticIndex });
 const activityLog = createActivityLog(db);
 const webhooks = createWebhooks(db);
 const projects = createProjects(db);
 const noteEncryption = createNoteEncryption();
-const sessions = createSessions(db, noteEncryption);
+const sessions = createSessions(db, noteEncryption, { semanticIndex });
 sessions.setActivityLog(activityLog);
 
 // Agent Inbox handles direct messages. Broadcast to "inbox:[agentId]" for real-time.

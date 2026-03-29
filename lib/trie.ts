@@ -13,20 +13,22 @@
  *   - Wildcard match: trie.match('myapp:*:main') → all stacks with main context
  *   - Insert/delete with metadata
  *   - Harbor bitmask filtering (future: O(1) scope checks)
+ *   - 1:N values per key via entryId (multiple agents can share an identity)
  */
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 export interface TrieEntry<T = unknown> {
   key: string;
+  entryId?: string;   // For 1:N keys — dedup identifier
   value: T;
-  harbors?: bigint;  // 64-bit bitmask for harbor membership
+  harbors?: bigint;   // 64-bit bitmask for harbor membership
   insertedAt: number;
 }
 
 interface TrieNode<T> {
   children: Map<string, TrieNode<T>>;
-  entry: TrieEntry<T> | null;
+  entries: TrieEntry<T>[];
   /** Cumulative harbor bitmask of all descendants (for branch pruning) */
   harborMask: bigint;
   /** Count of entries in this subtree */
@@ -38,7 +40,7 @@ interface TrieNode<T> {
 export function createTrie<T = unknown>() {
   const root: TrieNode<T> = {
     children: new Map(),
-    entry: null,
+    entries: [],
     harborMask: 0n,
     size: 0,
   };
@@ -51,8 +53,11 @@ export function createTrie<T = unknown>() {
 
   /**
    * Insert a key-value pair into the trie.
+   *
+   * Without entryId: 1:1 mode — overwrites existing entry at this key (backward compat).
+   * With entryId: 1:N mode — multiple entries per key, deduped by entryId.
    */
-  function insert(key: string, value: T, harbors?: bigint): void {
+  function insert(key: string, value: T, harbors?: bigint, entryId?: string): void {
     const segments = getSegments(key);
     let node = root;
 
@@ -60,7 +65,7 @@ export function createTrie<T = unknown>() {
       if (!node.children.has(seg)) {
         node.children.set(seg, {
           children: new Map(),
-          entry: null,
+          entries: [],
           harborMask: 0n,
           size: 0,
         });
@@ -68,11 +73,32 @@ export function createTrie<T = unknown>() {
       node = node.children.get(seg)!;
     }
 
-    const isNew = node.entry === null;
-    node.entry = { key, value, harbors: harbors ?? 0n, insertedAt: Date.now() };
+    const newEntry: TrieEntry<T> = {
+      key, value, harbors: harbors ?? 0n, insertedAt: Date.now(), entryId,
+    };
+    let sizeChanged = false;
+
+    if (entryId !== undefined) {
+      // 1:N mode: dedup by entryId
+      const existingIdx = node.entries.findIndex(e => e.entryId === entryId);
+      if (existingIdx >= 0) {
+        node.entries[existingIdx] = newEntry;
+      } else {
+        node.entries.push(newEntry);
+        sizeChanged = true;
+      }
+    } else {
+      // 1:1 mode: overwrite first entry (backward compat)
+      if (node.entries.length === 0) {
+        node.entries.push(newEntry);
+        sizeChanged = true;
+      } else {
+        node.entries[0] = newEntry;
+      }
+    }
 
     // Update sizes and harbor masks up the path
-    if (isNew) {
+    if (sizeChanged) {
       let updateNode = root;
       updateNode.size++;
       if (harbors) updateNode.harborMask |= harbors;
@@ -93,7 +119,7 @@ export function createTrie<T = unknown>() {
   }
 
   /**
-   * Exact lookup.
+   * Exact lookup — returns the first entry at this key (backward compat).
    */
   function get(key: string): TrieEntry<T> | null {
     const segments = getSegments(key);
@@ -105,11 +131,27 @@ export function createTrie<T = unknown>() {
       node = child;
     }
 
-    return node.entry;
+    return node.entries.length > 0 ? node.entries[0] : null;
   }
 
   /**
-   * Delete a key from the trie. Returns true if the key existed.
+   * Get ALL entries at a key (for 1:N lookups).
+   */
+  function getAll(key: string): TrieEntry<T>[] {
+    const segments = getSegments(key);
+    let node = root;
+
+    for (const seg of segments) {
+      const child = node.children.get(seg);
+      if (!child) return [];
+      node = child;
+    }
+
+    return [...node.entries];
+  }
+
+  /**
+   * Delete ALL entries at a key. Returns true if any existed.
    */
   function remove(key: string): boolean {
     const segments = getSegments(key);
@@ -123,11 +165,12 @@ export function createTrie<T = unknown>() {
       node = child;
     }
 
-    if (!node.entry) return false;
-    node.entry = null;
+    if (node.entries.length === 0) return false;
+    const removedCount = node.entries.length;
+    node.entries = [];
 
     // Update sizes
-    for (const n of path) n.size--;
+    for (const n of path) n.size -= removedCount;
 
     // Prune empty leaf nodes (bottom-up)
     for (let i = segments.length - 1; i >= 0; i--) {
@@ -137,6 +180,46 @@ export function createTrie<T = unknown>() {
         parent.children.delete(segments[i]);
       } else {
         break;
+      }
+    }
+
+    return true;
+  }
+
+  /**
+   * Remove a specific entry by entryId from a key. Returns true if found.
+   * For 1:N keys where you need to remove one agent without affecting others.
+   */
+  function removeEntry(key: string, entryId: string): boolean {
+    const segments = getSegments(key);
+    const path: TrieNode<T>[] = [root];
+    let node = root;
+
+    for (const seg of segments) {
+      const child = node.children.get(seg);
+      if (!child) return false;
+      path.push(child);
+      node = child;
+    }
+
+    const idx = node.entries.findIndex(e => e.entryId === entryId);
+    if (idx < 0) return false;
+
+    node.entries.splice(idx, 1);
+
+    // Update sizes
+    for (const n of path) n.size--;
+
+    // Prune empty leaf nodes if this key is now empty
+    if (node.entries.length === 0) {
+      for (let i = segments.length - 1; i >= 0; i--) {
+        const parent = path[i];
+        const child = path[i + 1];
+        if (child.size === 0 && child.children.size === 0) {
+          parent.children.delete(segments[i]);
+        } else {
+          break;
+        }
       }
     }
 
@@ -188,9 +271,9 @@ export function createTrie<T = unknown>() {
     harborFilter?: bigint
   ): void {
     if (depth === segments.length) {
-      if (node.entry) {
-        if (!harborFilter || (node.entry.harbors && (node.entry.harbors & harborFilter))) {
-          results.push(node.entry);
+      for (const entry of node.entries) {
+        if (!harborFilter || (entry.harbors && (entry.harbors & harborFilter))) {
+          results.push(entry);
         }
       }
       return;
@@ -215,9 +298,9 @@ export function createTrie<T = unknown>() {
   }
 
   function collectEntries(node: TrieNode<T>, results: TrieEntry<T>[], harborFilter?: bigint): void {
-    if (node.entry) {
-      if (!harborFilter || (node.entry.harbors && (node.entry.harbors & harborFilter))) {
-        results.push(node.entry);
+    for (const entry of node.entries) {
+      if (!harborFilter || (entry.harbors && (entry.harbors & harborFilter))) {
+        results.push(entry);
       }
     }
     for (const [, child] of node.children) {
@@ -247,7 +330,7 @@ export function createTrie<T = unknown>() {
    */
   function clear(): void {
     root.children.clear();
-    root.entry = null;
+    root.entries = [];
     root.harborMask = 0n;
     root.size = 0;
   }
@@ -258,7 +341,8 @@ export function createTrie<T = unknown>() {
   function dump(): unknown {
     function dumpNode(node: TrieNode<T>): unknown {
       const result: Record<string, unknown> = {};
-      if (node.entry) result['_entry'] = node.entry.key;
+      if (node.entries.length === 1) result['_entry'] = node.entries[0].key;
+      if (node.entries.length > 1) result['_entries'] = node.entries.map(e => e.entryId ?? e.key);
       if (node.size) result['_size'] = node.size;
       for (const [key, child] of node.children) {
         result[key] = dumpNode(child);
@@ -271,7 +355,9 @@ export function createTrie<T = unknown>() {
   return {
     insert,
     get,
+    getAll,
     remove,
+    removeEntry,
     prefix,
     match,
     all,
