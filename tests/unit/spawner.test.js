@@ -1009,7 +1009,7 @@ describe('spawn — claude-cli backend', () => {
     expect(args).toContain('Read,Glob,Grep,Bash(git*),Write,Edit');
   });
 
-  test('passes --cwd when workdir specified', async () => {
+  test('uses cwd spawn option (not --cwd flag) when workdir specified', async () => {
     const spawner = createSpawner();
     resolveChildProcess(0, 'done');
 
@@ -1019,13 +1019,13 @@ describe('spawn — claude-cli backend', () => {
       workdir: '/tmp/my-project',
     });
 
+    // --cwd is not a valid claude CLI flag; workdir is passed as spawn option
     const args = cpSpawn.mock.calls[0][1];
-    expect(args).toContain('--cwd');
-    expect(args).toContain('/tmp/my-project');
+    expect(args).not.toContain('--cwd');
     expect(cpSpawn.mock.calls[0][2].cwd).toBe('/tmp/my-project');
   });
 
-  test('passes --max-tokens when maxTokens specified', async () => {
+  test('does not pass --max-tokens (not a valid claude CLI flag)', async () => {
     const spawner = createSpawner();
     resolveChildProcess(0, 'short response');
 
@@ -1036,11 +1036,10 @@ describe('spawn — claude-cli backend', () => {
     });
 
     const args = cpSpawn.mock.calls[0][1];
-    expect(args).toContain('--max-tokens');
-    expect(args).toContain('100');
+    expect(args).not.toContain('--max-tokens');
   });
 
-  test('passes all options together', async () => {
+  test('passes valid options together', async () => {
     const spawner = createSpawner();
     resolveChildProcess(0, 'full output');
 
@@ -1056,9 +1055,8 @@ describe('spawn — claude-cli backend', () => {
     expect(args).toEqual([
       '-p', 'Do everything',
       '--allowedTools', 'Read,Write',
-      '--cwd', '/tmp/test',
-      '--max-tokens', '500',
     ]);
+    expect(cpSpawn.mock.calls[0][2].cwd).toBe('/tmp/test');
   });
 
   test('handles non-zero exit code', async () => {
