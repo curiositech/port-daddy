@@ -181,10 +181,13 @@
   --code-bg:          transparent;
   --code-header-bg:   transparent;
   --code-border:      var(--border-subtle);
-  --code-text:        var(--p-ebony-600);
+  --code-text:        var(--p-ebony-700);
   --code-prompt:      var(--p-teal-700);
-  --code-output:      var(--p-ebony-300);
-  --code-comment:     var(--p-stone-800);   /* was stone-600 (2.61:1→5.13:1) */
+  --code-command:     var(--p-red-700);
+  --code-flag:        var(--p-teal-600);
+  --code-string:      var(--p-gold-700);
+  --code-output:      var(--p-ebony-400);
+  --code-comment:     var(--p-stone-800);
   --code-dot-red:     var(--p-red-500);
   --code-dot-amber:   var(--p-gold-500);
   --code-dot-green:   var(--p-teal-600);
@@ -279,12 +282,15 @@
   --code-header-bg:   transparent;
   --code-border:      var(--border-subtle);
   --code-text:        var(--p-ebony-50);
-  --code-prompt:      #7ABF7E;  /* bright sage — same as status-success dark; not in palette */
+  --code-prompt:      #7ABF7E;  /* bright sage */
+  --code-command:     var(--p-red-300);
+  --code-flag:        var(--p-teal-300);
+  --code-string:      var(--p-gold-300);
   --code-output:      var(--p-ebony-100);
-  --code-comment:     var(--p-stone-500);   /* was stone-700 (2.60:1→4.62:1) */
+  --code-comment:     var(--p-stone-500);
   --code-dot-red:     var(--p-red-400);
   --code-dot-amber:   var(--p-gold-300);
-  --code-dot-green:   #7ABF7E;  /* bright sage — same as status-success dark; not in palette */
+  --code-dot-green:   #7ABF7E;
 
   /* shadcn/ui compatibility */
   --background: var(--surface-base);
