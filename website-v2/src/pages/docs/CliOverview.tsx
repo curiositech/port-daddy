@@ -1,18 +1,12 @@
 import { useState } from 'react'
 import { Badge } from '@/components/ui/Badge'
+import { CodeBlock } from '@/components/ui/CodeBlock'
 import { CLI_COMMANDS, CLI_GROUPS } from '@/data/docs'
-import { Copy, Check, Search } from 'lucide-react'
+import { Search } from 'lucide-react'
 
 export default function CliOverview() {
-  const [copied, setCopied] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [activeGroup, setActiveGroup] = useState<string | null>(null)
-
-  const handleCopy = (text: string, id: string) => {
-    navigator.clipboard.writeText(text)
-    setCopied(id)
-    setTimeout(() => setCopied(null), 2000)
-  }
 
   const filteredCommands = CLI_COMMANDS.filter(cmd => {
     const matchesSearch = !search || 
@@ -89,35 +83,18 @@ export default function CliOverview() {
             key={i}
             className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)] hover:border-[var(--border-default)] transition-colors"
           >
-            <div className="flex items-start justify-between gap-4 mb-3">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-3 flex-wrap">
-                  <code className="text-lg font-mono text-[var(--brand-primary)]">{cmd.cmd}</code>
-                  {cmd.short && (
-                    <code className="text-sm font-mono text-[var(--text-muted)]">({cmd.short})</code>
-                  )}
-                  <span className="text-xs px-2 py-1 rounded-full bg-[var(--surface-overlay)] text-[var(--text-muted)]">
-                    {cmd.group}
-                  </span>
-                </div>
-              </div>
-              <button
-                onClick={() => handleCopy(cmd.example, `cmd-${i}`)}
-                className="p-2 rounded-lg hover:bg-[var(--interactive-hover)] text-[var(--text-muted)] transition-colors"
-              >
-                {copied === `cmd-${i}` ? <Check size={16} className="text-[var(--success)]" /> : <Copy size={16} />}
-              </button>
+            <div className="flex items-center gap-3 flex-wrap mb-3">
+              <code className="text-lg font-mono" style={{ color: 'var(--brand-primary)' }}>{cmd.cmd}</code>
+              {cmd.short && (
+                <code className="text-sm font-mono" style={{ color: 'var(--text-muted)' }}>({cmd.short})</code>
+              )}
+              <Badge variant="default" size="sm">{cmd.group}</Badge>
             </div>
-            
-            <p className="text-[var(--text-secondary)] mb-4 leading-relaxed">{cmd.description}</p>
-            
-            {/* Example */}
-            <div className="mb-4">
-              <div className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wide mb-2">Example</div>
-              <div className="p-3 rounded-lg bg-[var(--code-bg)] font-mono text-sm overflow-x-auto">
-                <code style={{ color: 'var(--code-text)' }}>{cmd.example}</code>
-              </div>
-            </div>
+
+            <p className="mb-4 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{cmd.description}</p>
+
+            {/* Example — CodeBlock has copy button built in */}
+            <CodeBlock language="bash">{cmd.example}</CodeBlock>
             
             {/* Flags */}
             {cmd.flags && cmd.flags.length > 0 && (

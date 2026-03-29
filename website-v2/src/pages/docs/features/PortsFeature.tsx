@@ -1,4 +1,5 @@
 import { Badge } from '@/components/ui/Badge'
+import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Link } from 'react-router-dom'
 import { ArrowRight, AlertCircle } from 'lucide-react'
 
@@ -51,15 +52,13 @@ export default function PortsFeature() {
           The same identity always gets the same port, across restarts, across machines.
         </p>
         
-        <div className="p-6 rounded-[var(--radius-xl)] font-mono text-sm" style={{ background: 'var(--code-bg)', boxShadow: 'var(--shadow-inset)' }}>
-          <div className="text-[var(--text-muted)] mb-2"># Identity format: project:stack:context</div>
-          <div className="text-[var(--brand-primary)]">$ pd claim myapp:api:main</div>
-          <div style={{ color: 'var(--code-output)' }} className="font-mono mt-2">Port 3001 assigned to myapp:api:main</div>
-          
-          <div className="text-[var(--text-muted)] mt-6 mb-2"># Same identity, same port — idempotent</div>
-          <div className="text-[var(--brand-primary)]">$ pd claim myapp:api:main</div>
-          <div style={{ color: 'var(--code-output)' }} className="font-mono mt-2">Port 3001 assigned to myapp:api:main</div>
-        </div>
+        <CodeBlock language="bash">{`# Identity format: project:stack:context
+$ pd claim myapp:api:main
+Port 3001 assigned to myapp:api:main
+
+# Same identity, same port — idempotent
+$ pd claim myapp:api:main
+Port 3001 assigned to myapp:api:main`}</CodeBlock>
       </div>
 
       {/* Identity Format */}
