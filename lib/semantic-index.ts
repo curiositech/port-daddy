@@ -4,6 +4,9 @@
  * Maintains a live index of all semantic identities in the daemon.
  * Populated from SQLite on startup, updated on every register/claim/release.
  * Provides O(k) wildcard lookups instead of SQL LIKE scans.
+ *
+ * Supports 1:N entries per key via entryId — multiple agents can share
+ * the same identity, and each can be independently removed.
  */
 
 import type Database from 'better-sqlite3';
@@ -54,7 +57,7 @@ export function createSemanticIndex(db: Database.Database) {
   function initialize(): void {
     if (initialized) return;
 
-    // Services (semantic IDs)
+    // Services (semantic IDs) — 1:1 keys (no entryId needed)
     try {
       const services = db.prepare('SELECT id, metadata FROM services').all() as ServiceRow[];
       for (const s of services) {
@@ -65,7 +68,7 @@ export function createSemanticIndex(db: Database.Database) {
       console.error('[SemanticIndex] Skipping services:', (err as Error).message);
     }
 
-    // Agents (with semantic identity)
+    // Agents (with semantic identity) — 1:N keys (use agent ID as entryId)
     try {
       const agents = db.prepare(
         'SELECT id, identity_project, identity_stack, identity_context, status FROM agents'
@@ -76,30 +79,30 @@ export function createSemanticIndex(db: Database.Database) {
         if (identity) {
           trie.insert(identity, {
             type: 'agent', id: a.id, identity, status: a.status,
-          });
+          }, undefined, a.id);
         }
       }
     } catch (err) {
       console.error('[SemanticIndex] Skipping agents:', (err as Error).message);
     }
 
-    // Sessions (with identity_project)
+    // Sessions (with identity_project) — 1:N keys (use session ID as entryId)
     try {
       const sessions = db.prepare(
         "SELECT id, identity_project, status FROM sessions WHERE status = 'active'"
       ).all() as SessionRow[];
       for (const s of sessions) {
         if (s.identity_project) {
-          trie.insert(`${s.identity_project}:session:${s.id.slice(0, 8)}`, {
+          trie.insert(s.identity_project, {
             type: 'session', id: s.id, identity: s.identity_project, status: s.status,
-          });
+          }, undefined, s.id);
         }
       }
     } catch (err) {
       console.error('[SemanticIndex] Skipping sessions:', (err as Error).message);
     }
 
-    // Harbors
+    // Harbors — 1:1 keys
     try {
       const harbors = db.prepare('SELECT name, scope FROM harbors').all() as HarborRow[];
       for (const h of harbors) {
@@ -114,25 +117,41 @@ export function createSemanticIndex(db: Database.Database) {
   }
 
   /**
-   * Index a new entry (called by modules on register/claim).
+   * Index a new entry. For 1:1 keys (services), omit entryId.
+   * For 1:N keys (agents, sessions), pass the entity's unique ID as entryId.
    */
-  function index(identity: string, entry: IndexEntry): void {
-    trie.insert(identity, entry);
+  function index(identity: string, entry: IndexEntry, entryId?: string): void {
+    trie.insert(identity, entry, undefined, entryId);
   }
 
   /**
-   * Remove an entry (called on unregister/release).
+   * Remove ALL entries at an identity key (1:1 removal for services).
    */
   function unindex(identity: string): boolean {
     return trie.remove(identity);
   }
 
   /**
-   * Exact lookup.
+   * Remove a specific entry by entryId from an identity key.
+   * For 1:N keys where you need to remove one agent without affecting others.
+   */
+  function unindexEntry(identity: string, entryId: string): boolean {
+    return trie.removeEntry(identity, entryId);
+  }
+
+  /**
+   * Exact lookup — returns the first entry (backward compat).
    */
   function lookup(identity: string): IndexEntry | null {
     const entry = trie.get(identity);
     return entry ? entry.value : null;
+  }
+
+  /**
+   * Get ALL entries at an exact identity key (for 1:N lookups).
+   */
+  function lookupAll(identity: string): IndexEntry[] {
+    return trie.getAll(identity).map(e => e.value);
   }
 
   /**
@@ -147,9 +166,8 @@ export function createSemanticIndex(db: Database.Database) {
       // Complex wildcard: 'myapp:*:main' or '*:api:*'
       return trie.match(pattern).map(e => e.value);
     }
-    // Exact match
-    const entry = lookup(pattern);
-    return entry ? [entry] : [];
+    // Exact match — return ALL entries at this key (not just first)
+    return trie.getAll(pattern).map(e => e.value);
   }
 
   /**
@@ -163,7 +181,9 @@ export function createSemanticIndex(db: Database.Database) {
     initialize,
     index,
     unindex,
+    unindexEntry,
     lookup,
+    lookupAll,
     find,
     all,
     size: () => trie.size(),

@@ -227,4 +227,119 @@ describe('Semantic Trie', () => {
       expect(elapsed).toBeLessThan(10); // < 10ms
     });
   });
+
+  describe('1:N multi-value keys (entryId)', () => {
+    test('stores multiple entries at the same key', () => {
+      trie.insert('myapp:api', { agent: 'alpha' }, undefined, 'alpha');
+      trie.insert('myapp:api', { agent: 'beta' }, undefined, 'beta');
+      expect(trie.size()).toBe(2);
+    });
+
+    test('getAll returns all entries at a key', () => {
+      trie.insert('myapp:api', { agent: 'alpha' }, undefined, 'alpha');
+      trie.insert('myapp:api', { agent: 'beta' }, undefined, 'beta');
+      const entries = trie.getAll('myapp:api');
+      expect(entries.length).toBe(2);
+      expect(entries.map(e => e.value.agent).sort()).toEqual(['alpha', 'beta']);
+    });
+
+    test('get returns first entry (backward compat)', () => {
+      trie.insert('myapp:api', { agent: 'alpha' }, undefined, 'alpha');
+      trie.insert('myapp:api', { agent: 'beta' }, undefined, 'beta');
+      const entry = trie.get('myapp:api');
+      expect(entry).not.toBeNull();
+      expect(entry.value.agent).toBe('alpha');
+    });
+
+    test('deduplicates by entryId on re-insert', () => {
+      trie.insert('myapp:api', { status: 'starting' }, undefined, 'alpha');
+      trie.insert('myapp:api', { status: 'ready' }, undefined, 'alpha');
+      expect(trie.size()).toBe(1);
+      const entries = trie.getAll('myapp:api');
+      expect(entries.length).toBe(1);
+      expect(entries[0].value.status).toBe('ready');
+    });
+
+    test('removeEntry removes specific entry by entryId', () => {
+      trie.insert('myapp:api', { agent: 'alpha' }, undefined, 'alpha');
+      trie.insert('myapp:api', { agent: 'beta' }, undefined, 'beta');
+      trie.insert('myapp:api', { agent: 'gamma' }, undefined, 'gamma');
+
+      const removed = trie.removeEntry('myapp:api', 'beta');
+      expect(removed).toBe(true);
+      expect(trie.size()).toBe(2);
+
+      const entries = trie.getAll('myapp:api');
+      expect(entries.length).toBe(2);
+      expect(entries.map(e => e.value.agent).sort()).toEqual(['alpha', 'gamma']);
+    });
+
+    test('removeEntry returns false for missing entryId', () => {
+      trie.insert('myapp:api', { agent: 'alpha' }, undefined, 'alpha');
+      expect(trie.removeEntry('myapp:api', 'nonexistent')).toBe(false);
+      expect(trie.size()).toBe(1);
+    });
+
+    test('removeEntry returns false for missing key', () => {
+      expect(trie.removeEntry('nonexistent', 'id')).toBe(false);
+    });
+
+    test('remove deletes ALL entries at a key', () => {
+      trie.insert('myapp:api', { agent: 'alpha' }, undefined, 'alpha');
+      trie.insert('myapp:api', { agent: 'beta' }, undefined, 'beta');
+      expect(trie.size()).toBe(2);
+
+      trie.remove('myapp:api');
+      expect(trie.size()).toBe(0);
+      expect(trie.getAll('myapp:api')).toEqual([]);
+    });
+
+    test('prefix search returns entries from all 1:N keys', () => {
+      trie.insert('myapp:api', { agent: 'alpha' }, undefined, 'alpha');
+      trie.insert('myapp:api', { agent: 'beta' }, undefined, 'beta');
+      trie.insert('myapp:web', { agent: 'gamma' }, undefined, 'gamma');
+
+      const results = trie.prefix('myapp');
+      expect(results.length).toBe(3);
+    });
+
+    test('match returns entries from all 1:N keys', () => {
+      trie.insert('myapp:api:main', { agent: 'alpha' }, undefined, 'alpha');
+      trie.insert('myapp:api:main', { agent: 'beta' }, undefined, 'beta');
+      trie.insert('myapp:web:main', { agent: 'gamma' }, undefined, 'gamma');
+
+      const results = trie.match('myapp:*:main');
+      expect(results.length).toBe(3);
+    });
+
+    test('mixed 1:1 and 1:N keys coexist', () => {
+      // 1:1 key (no entryId)
+      trie.insert('service:api:main', { type: 'service' });
+      // 1:N keys (with entryId)
+      trie.insert('myapp:api', { type: 'agent', id: 'a1' }, undefined, 'a1');
+      trie.insert('myapp:api', { type: 'agent', id: 'a2' }, undefined, 'a2');
+
+      expect(trie.size()).toBe(3);
+      expect(trie.get('service:api:main').value.type).toBe('service');
+      expect(trie.getAll('myapp:api').length).toBe(2);
+    });
+
+    test('removeEntry prunes empty leaf nodes', () => {
+      trie.insert('deep:nested:key', { x: 1 }, undefined, 'only');
+      trie.removeEntry('deep:nested:key', 'only');
+      expect(trie.size()).toBe(0);
+      // Verify the branch was pruned (no stale nodes)
+      expect(trie.get('deep:nested:key')).toBeNull();
+    });
+
+    test('getAll returns empty array for missing key', () => {
+      expect(trie.getAll('nonexistent')).toEqual([]);
+    });
+
+    test('entryId is preserved on entries', () => {
+      trie.insert('myapp:api', { agent: 'alpha' }, undefined, 'alpha-id');
+      const entries = trie.getAll('myapp:api');
+      expect(entries[0].entryId).toBe('alpha-id');
+    });
+  });
 });

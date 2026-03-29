@@ -8,6 +8,7 @@
 
 import type Database from 'better-sqlite3';
 import { parseIdentity, patternToSql } from './identity.js';
+import type { SemanticIndex } from './semantic-index.js';
 
 const DEFAULT_HEARTBEAT_INTERVAL = 30000;  // 30 seconds
 const DEFAULT_AGENT_TTL = 120000;          // 2 minutes without heartbeat = display as inactive
@@ -138,10 +139,15 @@ interface LocksLike {
   release(name: string, options: { force: boolean }): void;
 }
 
+interface AgentsOptions {
+  semanticIndex?: SemanticIndex;
+}
+
 /**
  * Initialize agent registry with database connection
  */
-export function createAgents(db: Database.Database) {
+export function createAgents(db: Database.Database, options?: AgentsOptions) {
+  const semanticIndex = options?.semanticIndex;
   // Ensure agents table exists
   db.exec(`
     CREATE TABLE IF NOT EXISTS agents (
@@ -240,6 +246,17 @@ export function createAgents(db: Database.Database) {
   };
 
   /**
+   * Batch-fetch full agent rows by ID (for trie-accelerated lookups).
+   */
+  function batchFetchAgents(ids: string[]): AgentRow[] {
+    if (ids.length === 0) return [];
+    const placeholders = ids.map(() => '?').join(', ');
+    return db.prepare(
+      `SELECT * FROM agents WHERE id IN (${placeholders}) ORDER BY last_heartbeat DESC`
+    ).all(...ids) as AgentRow[];
+  }
+
+  /**
    * Register an agent
    */
   function register(agentId: string, options: RegisterOptions = {}) {
@@ -332,6 +349,14 @@ export function createAgents(db: Database.Database) {
         null,  // readiness (set via heartbeat)
         null   // progress (set via heartbeat)
       );
+
+      // Keep trie in sync (1:N via entryId = agentId)
+      if (semanticIndex && identityProject) {
+        const identity = [identityProject, identityStack, identityContext].filter(Boolean).join(':');
+        semanticIndex.index(identity, {
+          type: 'agent', id: agentId, identity, status,
+        }, agentId);
+      }
 
       // Check for dead agents in the same project to alert the user
       let deadAgentsInProject = 0;
@@ -431,6 +456,13 @@ export function createAgents(db: Database.Database) {
     }
 
     stmts.unregister.run(agentId);
+
+    // Remove from trie (targeted 1:N removal by entryId)
+    if (semanticIndex) {
+      const identity = [existing.identity_project, existing.identity_stack, existing.identity_context]
+        .filter(Boolean).join(':');
+      if (identity) semanticIndex.unindexEntry(identity, agentId);
+    }
 
     return {
       success: true,
@@ -545,23 +577,31 @@ export function createAgents(db: Database.Database) {
     let agents: AgentRow[];
 
     // Use complex pattern matcher if wildcards are present or multiple filters are active
-    if (identityPrefix?.includes('*') || purpose?.includes('*') || skills?.includes('*') || 
+    if (identityPrefix?.includes('*') || purpose?.includes('*') || skills?.includes('*') ||
         (identityPrefix && purpose) || (identityPrefix && skills) || (purpose && skills)) {
-      const identityPattern = identityPrefix ? (identityPrefix.includes('*') ? patternToSql(identityPrefix) : identityPrefix + '%') : '%';
-      const purposePattern = purpose ? (purpose.includes('*') ? purpose.replace(/\*/g, '%') : '%' + purpose + '%') : null;
-      const skillsPattern = skills ? (skills.includes('*') ? skills.replace(/\*/g, '%') : '%' + skills + '%') : null;
+      if (identityPrefix?.includes('*') && !purpose && !skills && semanticIndex) {
+        // Trie-accelerated: identity-only wildcard with no purpose/skills filters
+        const entries = semanticIndex.find(identityPrefix).filter(e => e.type === 'agent');
+        agents = batchFetchAgents(entries.map(e => e.id));
+        if (activeOnly) agents = agents.filter(a => a.last_heartbeat > threshold);
+        if (worktreeId) agents = agents.filter(a => a.worktree_id === worktreeId);
+      } else {
+        const identityPattern = identityPrefix ? (identityPrefix.includes('*') ? patternToSql(identityPrefix) : identityPrefix + '%') : '%';
+        const purposePattern = purpose ? (purpose.includes('*') ? purpose.replace(/\*/g, '%') : '%' + purpose + '%') : null;
+        const skillsPattern = skills ? (skills.includes('*') ? skills.replace(/\*/g, '%') : '%' + skills + '%') : null;
 
-      agents = stmts.listByComplexPattern.all(
-        threshold,
-        activeOnly ? 1 : 0,
-        worktreeId,
-        worktreeId,
-        identityPattern,
-        purposePattern,
-        purposePattern,
-        skillsPattern,
-        skillsPattern
-      ) as AgentRow[];
+        agents = stmts.listByComplexPattern.all(
+          threshold,
+          activeOnly ? 1 : 0,
+          worktreeId,
+          worktreeId,
+          identityPattern,
+          purposePattern,
+          purposePattern,
+          skillsPattern,
+          skillsPattern
+        ) as AgentRow[];
+      }
     } else if (identityPrefix) {
       // Parse identity to get project (and optionally stack)
       const parsed = parseIdentity(identityPrefix);
@@ -612,8 +652,15 @@ export function createAgents(db: Database.Database) {
 
     if (options.identityPrefix) {
       if (options.identityPrefix.includes('*')) {
-        const sqlPattern = patternToSql(options.identityPrefix);
-        agents = stmts.listStaleByPattern.all(threshold, sqlPattern) as AgentRow[];
+        if (semanticIndex) {
+          // Trie-accelerated: get matching agent IDs, batch-fetch, filter by staleness
+          const entries = semanticIndex.find(options.identityPrefix).filter(e => e.type === 'agent');
+          const allMatching = batchFetchAgents(entries.map(e => e.id));
+          agents = allMatching.filter(a => a.last_heartbeat < threshold);
+        } else {
+          const sqlPattern = patternToSql(options.identityPrefix);
+          agents = stmts.listStaleByPattern.all(threshold, sqlPattern) as AgentRow[];
+        }
       } else {
         const parsed = parseIdentity(options.identityPrefix);
         if (parsed.valid) {

@@ -12,6 +12,7 @@ import { ActivityType } from './activity.js';
 import { getWorktreeId } from './worktree.js';
 import { patternToSql } from './identity.js';
 import type { NoteEncryption } from './note-encryption.js';
+import type { SemanticIndex } from './semantic-index.js';
 
 const MAX_NOTES_PER_SESSION = 500;
 
@@ -135,7 +136,8 @@ interface FileConflict {
 /**
  * Initialize the sessions module with a database connection
  */
-export function createSessions(db: Database.Database, noteEncryption?: NoteEncryption) {
+export function createSessions(db: Database.Database, noteEncryption?: NoteEncryption, options?: { semanticIndex?: SemanticIndex }) {
+  const semanticIndex = options?.semanticIndex;
   // In-memory cache: sessionId → unwrapped session key (avoids re-unwrap on every read)
   const sessionKeyCache = new Map<string, Buffer>();
   // Ensure tables exist (base schema without worktree_id for migration compatibility)
@@ -688,6 +690,13 @@ export function createSessions(db: Database.Database, noteEncryption?: NoteEncry
       result.conflicts = conflicts;
     }
 
+    // Keep trie in sync (1:N via entryId = sessionId)
+    if (semanticIndex && identityProject) {
+      semanticIndex.index(identityProject, {
+        type: 'session', id, identity: identityProject, status: 'active',
+      }, id);
+    }
+
     if (activityLog) {
       activityLog.log(ActivityType.SESSION_START, {
         details: `Session started: ${trimmedPurpose}`,
@@ -726,6 +735,11 @@ export function createSessions(db: Database.Database, noteEncryption?: NoteEncry
 
     // Update session status
     stmts.updateStatus.run(status, now, now, sessionId);
+
+    // Remove from trie (targeted 1:N removal by entryId)
+    if (semanticIndex && session.identity_project) {
+      semanticIndex.unindexEntry(session.identity_project, sessionId);
+    }
 
     if (activityLog) {
       activityLog.log(ActivityType.SESSION_END, {
