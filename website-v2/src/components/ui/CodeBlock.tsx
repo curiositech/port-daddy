@@ -25,12 +25,12 @@ export function CodeBlock({ children, language, filename, className, copyable = 
   const Icon = filename ? FileCode : Terminal
 
   return (
-    <Surface depth="raised" radius="2xl" padding="md" className={cn('transition-all duration-300', className)}>
+    <Surface depth="raised" radius="2xl" padding="sm" className={cn('transition-all duration-300', className)}>
       {/* Header */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-3">
-          <Surface depth="inset" radius="lg" padding="none" className="w-8 h-8 flex items-center justify-center">
-            <Icon size={14} className="text-[var(--brand-primary)]" />
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="flex items-center gap-2">
+          <Surface depth="inset" radius="lg" padding="none" className="w-7 h-7 flex items-center justify-center">
+            <Icon size={12} className="text-[var(--brand-primary)]" />
           </Surface>
           {filename && (
             <span className="text-xs font-mono text-[var(--text-muted)]">{filename}</span>
@@ -43,7 +43,7 @@ export function CodeBlock({ children, language, filename, className, copyable = 
           <>
             <button
               onClick={handleCopy}
-              className="w-11 h-11 rounded-[var(--radius-lg)] flex items-center justify-center transition-all duration-200 cursor-pointer"
+              className="w-8 h-8 rounded-[var(--radius-lg)] flex items-center justify-center transition-all duration-200 cursor-pointer"
               style={{
                 background: 'var(--surface-base)',
                 boxShadow: 'var(--shadow-sm)',
@@ -63,15 +63,15 @@ export function CodeBlock({ children, language, filename, className, copyable = 
 
       {/* Recessed screen — thin bevel, no bg color */}
       <div
-        className="rounded-[var(--radius-lg)] overflow-hidden"
+        className="rounded-[var(--radius-sm)] overflow-hidden"
         style={{ boxShadow: 'inset 1px 1px 3px var(--neu-shadow), inset -1px -1px 3px var(--neu-highlight)' }}
       >
-        <div className="flex items-center gap-2 px-3 py-1.5" style={{ borderBottom: '1px solid var(--code-border)' }} aria-hidden="true">
-          <span className="w-2 h-2 rounded-full" style={{ background: 'var(--code-dot-red)' }} />
-          <span className="w-2 h-2 rounded-full" style={{ background: 'var(--code-dot-amber)' }} />
-          <span className="w-2 h-2 rounded-full" style={{ background: 'var(--code-dot-green)' }} />
+        <div className="flex items-center gap-1.5 px-2.5 py-1" style={{ borderBottom: '1px solid var(--code-border)' }} aria-hidden="true">
+          <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--code-dot-red)' }} />
+          <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--code-dot-amber)' }} />
+          <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--code-dot-green)' }} />
         </div>
-        <pre className="overflow-x-auto px-3 py-2 m-0 text-sm leading-relaxed"><code className="font-mono" style={{ color: 'var(--code-text)' }}>{typeof children === 'string' ? children.trim() : children}</code></pre>
+        <pre className="overflow-x-auto px-2.5 py-1.5 m-0 text-sm leading-normal"><code className="font-mono" style={{ color: 'var(--code-text)' }}>{typeof children === 'string' ? children.trim() : children}</code></pre>
       </div>
     </Surface>
   )
