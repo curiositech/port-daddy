@@ -4,92 +4,101 @@ import { Surface } from '@/components/ui/Surface'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { MessageSquare, Gavel, Trash2, ArrowRight } from 'lucide-react'
 
+const REPO = 'https://github.com/curiositech/port-daddy'
+
 export function TemplatesPage() {
   const templates = [
     {
       title: 'Encrypted Messenger',
-      description: 'End-to-End Encrypted messaging between agents using asymmetric Harbor Cards and the inbox dead-drop.',
-      icon: <MessageSquare className="w-6 h-6 text-brand-primary" />,
+      description: 'Agent-to-agent DMs using the inbox dead-drop. Each agent gets a private inbox that other agents can write to.',
+      icon: <MessageSquare className="w-6 h-6" style={{ color: 'var(--brand-primary)' }} />,
       complexity: 'Beginner',
-      path: 'https://github.com/erichowens/port-daddy/tree/main/examples/inbox'
+      dir: 'examples/inbox',
+      files: ['agent-dm.sh', 'inbox-monitor.ts'],
     },
     {
-      title: 'Resource Auction',
-      description: 'Stigmergic task allocation. Agents bid on semantic tokens using pheromones to coordinate without a master.',
-      icon: <Gavel className="w-6 h-6 text-brand-secondary" />,
-      complexity: 'Advanced',
-      path: 'https://github.com/erichowens/port-daddy/tree/main/examples/coordination'
-    },
-    {
-      title: 'Auto-Reaper',
-      description: 'A lifecycle guard that watches for "Man Overboard" signals and automatically prunes zombie processes.',
-      icon: <Trash2 className="w-6 h-6 text-brand-accent" />,
+      title: 'File Edit Guard',
+      description: 'Coordination protocol that uses session file claims to prevent two agents from editing the same file simultaneously.',
+      icon: <Gavel className="w-6 h-6" style={{ color: 'var(--brand-secondary)' }} />,
       complexity: 'Intermediate',
-      path: 'https://github.com/erichowens/port-daddy/tree/main/examples/ci'
+      dir: 'examples/coordination',
+      files: ['file-edit-guard.ts', 'agent-protocol.ts'],
+    },
+    {
+      title: 'CI Integration',
+      description: 'GitHub Actions workflow that uses Port Daddy to coordinate parallel test runners and prevent port collisions.',
+      icon: <Trash2 className="w-6 h-6" style={{ color: 'var(--brand-accent)' }} />,
+      complexity: 'Beginner',
+      dir: 'examples/ci',
+      files: ['github-actions.yml'],
     }
   ];
 
   return (
     <div className="min-h-screen pt-32 pb-24" style={{ background: 'var(--surface-base)' }}>
-      <div className="max-w-6xl mx-auto px-6 lg:px-8">
-        <header className="mb-20">
+      <div className="max-w-4xl mx-auto px-6 lg:px-8">
+        <header className="mb-16">
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-5xl sm:text-8xl font-display font-black tracking-tighter mb-6 text-text-primary"
+            className="text-4xl sm:text-6xl font-display font-black tracking-tighter mb-6"
+            style={{ color: 'var(--text-primary)' }}
           >
-            Built on <span className="text-brand-primary">Anchor.</span>
+            Example <span style={{ color: 'var(--brand-primary)' }}>Templates.</span>
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="text-xl sm:text-2xl text-text-secondary max-w-3xl leading-relaxed font-bold"
+            className="text-lg max-w-2xl leading-relaxed"
+            style={{ color: 'var(--text-secondary)' }}
           >
-            Start building secure, coordinate agent swarms today. These exemplary templates show you exactly how to use our core primitives.
+            Working examples from the repo. Clone them, run them, modify them.
           </motion.p>
         </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
+        <div className="space-y-8">
           {templates.map((template, i) => (
             <motion.div
               key={template.title}
-              initial={{ opacity: 0, scale: 0.95 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              transition={{ delay: i * 0.1 }}
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.08 }}
               viewport={{ once: true }}
             >
-            <Surface depth="raised" radius="2xl" padding="none" className="p-8 transition-all flex flex-col gap-6 group">
-              <Surface depth="inset" radius="2xl" padding="none" className="w-14 h-14 flex items-center justify-center group-hover:scale-110 transition-transform">
-
-                {template.icon}
-              </Surface>
-              <div className="space-y-4 flex-1">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-3xl font-display font-black text-text-primary">{template.title}</h2>
-                  <Badge variant="default" className="text-[8px] font-black uppercase tracking-widest bg-bg-overlay border border-border-subtle text-text-muted">{template.complexity}</Badge>
+              <Surface depth="raised" radius="2xl" padding="lg" className="space-y-5">
+                <div className="flex items-start gap-4">
+                  <Surface depth="inset" radius="xl" padding="none" className="w-12 h-12 flex items-center justify-center shrink-0">
+                    {template.icon}
+                  </Surface>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h2 className="text-xl font-display font-black m-0" style={{ color: 'var(--text-primary)' }}>
+                        {template.title}
+                      </h2>
+                      <Badge variant="default" size="sm">{template.complexity}</Badge>
+                    </div>
+                    <p className="text-sm m-0" style={{ color: 'var(--text-secondary)' }}>
+                      {template.description}
+                    </p>
+                  </div>
                 </div>
-                <p className="text-lg text-text-secondary leading-relaxed font-bold">
-                  {template.description}
-                </p>
-              </div>
 
-              {/* Code preview area */}
-              <CodeBlock language="bash">
-                {'$ pd template clone ' + template.path}
-              </CodeBlock>
+                <CodeBlock language="bash">{`# Clone and explore
+git clone ${REPO}.git
+cd port-daddy/${template.dir}
+ls ${template.files.join(' ')}`}</CodeBlock>
 
-              <div className="mt-auto pt-4">
-                <motion.a
-                  className="inline-flex items-center gap-2 text-sm font-bold uppercase tracking-widest cursor-pointer px-6 py-3 rounded-xl"
-                  style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-sm)', color: 'var(--brand-primary)' }}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                <a
+                  href={`${REPO}/tree/main/${template.dir}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-sm font-semibold cursor-pointer"
+                  style={{ color: 'var(--brand-primary)' }}
                 >
-                  View Code <ArrowRight size={16} />
-                </motion.a>
-              </div>
-            </Surface>
+                  View on GitHub <ArrowRight size={14} />
+                </a>
+              </Surface>
             </motion.div>
           ))}
         </div>
