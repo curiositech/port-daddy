@@ -104,26 +104,48 @@ function DropdownNav({ section }: { section: NavSection }) {
   const location = useLocation()
   const isActive = location.pathname.startsWith(section.href)
 
-  const handleMouseEnter = () => {
+  const cancelClose = () => {
     if (closeTimeoutRef.current) {
       clearTimeout(closeTimeoutRef.current)
       closeTimeoutRef.current = null
     }
+  }
+
+  const scheduleClose = (delay = 150) => {
+    closeTimeoutRef.current = setTimeout(() => {
+      setIsOpen(false)
+    }, delay)
+  }
+
+  const handleMouseEnter = () => {
+    cancelClose()
     setIsOpen(true)
   }
 
   const handleMouseLeave = () => {
-    closeTimeoutRef.current = setTimeout(() => {
+    scheduleClose()
+  }
+
+  const handleFocus = () => {
+    cancelClose()
+    setIsOpen(true)
+  }
+
+  const handleBlur = () => {
+    // Delay so that clicking/tabbing to a child element cancels the close
+    scheduleClose(150)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape' && isOpen) {
       setIsOpen(false)
-    }, 150)
+    }
   }
 
   // Clean up timeout on unmount
   React.useEffect(() => {
     return () => {
-      if (closeTimeoutRef.current) {
-        clearTimeout(closeTimeoutRef.current)
-      }
+      cancelClose()
     }
   }, [])
 
@@ -132,6 +154,9 @@ function DropdownNav({ section }: { section: NavSection }) {
       className="relative"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      onKeyDown={handleKeyDown}
     >
       <Link
         to={section.href}
@@ -141,6 +166,8 @@ function DropdownNav({ section }: { section: NavSection }) {
             : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
         }`}
         style={isActive ? { boxShadow: 'var(--shadow-pressed)' } : undefined}
+        aria-expanded={isOpen}
+        aria-haspopup="true"
       >
         {section.label}
         {section.items && <ChevronDown size={14} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />}
@@ -153,6 +180,7 @@ function DropdownNav({ section }: { section: NavSection }) {
           <div className="absolute top-full left-0 pt-2 w-64 z-50">
             <div
               className="rounded-[var(--radius-lg)] py-2"
+              role="menu"
               style={{
                 background: 'var(--surface-raised)',
                 boxShadow: 'var(--shadow-raised)',
@@ -168,6 +196,7 @@ function DropdownNav({ section }: { section: NavSection }) {
                     target={isExternal ? '_blank' : undefined}
                     rel={isExternal ? 'noopener noreferrer' : undefined}
                     className="flex items-start gap-3 px-4 py-3 hover:bg-[var(--interactive-hover)] transition-colors"
+                    role="menuitem"
                     onClick={() => setIsOpen(false)}
                   >
                     <Icon size={18} className="text-[var(--text-muted)] mt-0.5" />
@@ -253,7 +282,7 @@ export function Nav() {
             <div className="flex items-center gap-2">
               <button
                 onClick={toggle}
-                className="w-9 h-9 rounded-full flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-all"
+                className="w-11 h-11 rounded-full flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-all"
                 style={{ boxShadow: 'var(--shadow-inset)' }}
                 aria-label="Toggle theme"
               >
@@ -288,7 +317,7 @@ export function Nav() {
               </Link>
 
               <button
-                className="lg:hidden p-2 rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-all"
+                className="lg:hidden w-11 h-11 flex items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-all"
                 onClick={() => setMobileOpen(!mobileOpen)}
                 aria-label="Toggle menu"
               >
@@ -305,6 +334,9 @@ export function Nav() {
             style={{
               background: 'var(--surface-raised)',
               boxShadow: 'var(--shadow-raised)',
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') setMobileOpen(false)
             }}
           >
             <div className="px-6 py-4 space-y-6">
@@ -327,7 +359,7 @@ export function Nav() {
                             to={item.href}
                             target={isExternal ? '_blank' : undefined}
                             rel={isExternal ? 'noopener noreferrer' : undefined}
-                            className="block py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                            className="block py-3 min-h-[44px] text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                             onClick={() => setMobileOpen(false)}
                           >
                             {item.label}

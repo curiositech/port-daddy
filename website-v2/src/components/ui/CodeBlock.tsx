@@ -40,45 +40,38 @@ export function CodeBlock({ children, language, filename, className, copyable = 
           )}
         </div>
         {copyable && (
-          <button
-            onClick={handleCopy}
-            className="w-8 h-8 rounded-[var(--radius-lg)] flex items-center justify-center transition-all duration-200 cursor-pointer"
-            style={{
-              background: 'var(--surface-base)',
-              boxShadow: 'var(--shadow-sm)',
-            }}
-            aria-label="Copy code"
-          >
-            {copied ? (
-              <Check size={12} className="text-[var(--code-dot-green)]" />
-            ) : (
-              <Copy size={12} className="text-[var(--text-muted)]" />
-            )}
-          </button>
+          <>
+            <button
+              onClick={handleCopy}
+              className="w-11 h-11 rounded-[var(--radius-lg)] flex items-center justify-center transition-all duration-200 cursor-pointer"
+              style={{
+                background: 'var(--surface-base)',
+                boxShadow: 'var(--shadow-sm)',
+              }}
+              aria-label={copied ? "Copied" : "Copy code"}
+            >
+              {copied ? (
+                <Check size={12} className="text-[var(--code-dot-green)]" />
+              ) : (
+                <Copy size={12} className="text-[var(--text-muted)]" />
+              )}
+            </button>
+            <span className="sr-only" aria-live="polite">{copied ? "Code copied to clipboard" : ""}</span>
+          </>
         )}
       </div>
 
-      {/* Code body — always dark, inset */}
+      {/* Recessed screen — thin bevel, no bg color */}
       <div
         className="rounded-[var(--radius-lg)] overflow-hidden"
-        style={{
-          background: 'var(--code-bg)',
-          boxShadow: 'var(--shadow-inset)',
-        }}
+        style={{ boxShadow: 'inset 1px 1px 3px var(--neu-shadow), inset -1px -1px 3px var(--neu-highlight)' }}
       >
-        {/* Traffic lights */}
-        <div
-          className="flex items-center gap-2 px-4 py-2"
-          style={{ borderBottom: '1px solid var(--code-border)' }}
-        >
-          <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--code-dot-red)' }} />
-          <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--code-dot-amber)' }} />
-          <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--code-dot-green)' }} />
+        <div className="flex items-center gap-2 px-3 py-1.5" style={{ borderBottom: '1px solid var(--code-border)' }} aria-hidden="true">
+          <span className="w-2 h-2 rounded-full" style={{ background: 'var(--code-dot-red)' }} />
+          <span className="w-2 h-2 rounded-full" style={{ background: 'var(--code-dot-amber)' }} />
+          <span className="w-2 h-2 rounded-full" style={{ background: 'var(--code-dot-green)' }} />
         </div>
-
-        <pre className="overflow-x-auto p-4 m-0 text-sm leading-relaxed">
-          <code className="font-mono" style={{ color: 'var(--code-text)' }}>{children}</code>
-        </pre>
+        <pre className="overflow-x-auto px-3 py-2 m-0 text-sm leading-relaxed"><code className="font-mono" style={{ color: 'var(--code-text)' }}>{typeof children === 'string' ? children.trim() : children}</code></pre>
       </div>
     </Surface>
   )

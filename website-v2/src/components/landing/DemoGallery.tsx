@@ -90,8 +90,8 @@ export function DemoGallery() {
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
           className="text-center mb-16 flex flex-col items-center gap-12"
         >
-          <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-[0.25em]">The Evidence</Badge>
-          <motion.h2 className="text-6xl sm:text-9xl font-bold font-display tracking-tight leading-[0.9] m-0" style={{ color: 'var(--text-primary)' }}>
+          <Badge variant="teal" className="px-6 py-2 text-[11px] font-black uppercase tracking-[0.25em]">The Evidence</Badge>
+          <motion.h2 className="text-4xl sm:text-6xl lg:text-9xl font-bold font-display tracking-tight leading-[0.9] m-0" style={{ color: 'var(--text-primary)' }}>
             Proof of <br />
             <motion.span style={{ color: 'var(--brand-primary)' }}>Coordination.</motion.span>
           </motion.h2>
@@ -100,14 +100,14 @@ export function DemoGallery() {
           </motion.p>
         </motion.div>
 
-        <div className="grid lg:grid-cols-12 gap-20 items-start w-full">
+        <div className="grid lg:grid-cols-12 gap-8 lg:gap-20 items-start w-full">
           {/* Tab Controls */}
           <div className="lg:col-span-4 space-y-8 flex flex-col items-center lg:items-stretch">
             {DEMOS.map((demo) => (
               <motion.button
                 key={demo.id}
                 onClick={() => setActiveTab(demo.id)}
-                className="w-full max-w-md lg:max-w-none text-left p-12 rounded-[var(--radius-4xl)] transition-all duration-300 relative group overflow-hidden"
+                className="w-full max-w-md lg:max-w-none text-left p-6 lg:p-12 rounded-[var(--radius-4xl)] transition-all duration-300 relative group overflow-hidden"
                 style={{
                   background: activeId === demo.id ? 'var(--surface-raised)' : 'var(--surface-base)',
                   boxShadow: activeId === demo.id ? 'var(--shadow-raised)' : 'var(--shadow-flat)',
@@ -117,7 +117,7 @@ export function DemoGallery() {
                 whileHover={{ scale: activeId === demo.id ? 1 : 1.02 }}
               >
                 <div className="flex items-center justify-between mb-8">
-                   <Badge variant={demo.badgeVariant === 'teal' ? 'teal' : demo.badgeVariant === 'gold' ? 'gold' : 'default'} className="text-[8px] font-black uppercase tracking-widest px-4 py-1.5">
+                   <Badge variant={demo.badgeVariant === 'teal' ? 'teal' : demo.badgeVariant === 'gold' ? 'gold' : 'default'} className="text-[11px] font-black uppercase tracking-widest px-4 py-1.5">
                      {demo.badge}
                    </Badge>
                    <Play size={16} style={{ color: activeId === demo.id ? 'var(--brand-primary)' : 'var(--text-muted)', opacity: activeId === demo.id ? 1 : 0.4 }} className={activeId === demo.id ? 'animate-pulse' : ''} />
@@ -137,7 +137,7 @@ export function DemoGallery() {
 
             {/* Automation notice */}
             <motion.div
-              className="w-full max-w-md lg:max-w-none p-12 rounded-[var(--radius-4xl)] flex flex-col items-center text-center gap-6"
+              className="w-full max-w-md lg:max-w-none p-6 lg:p-12 rounded-[var(--radius-4xl)] flex flex-col items-center text-center gap-6"
               style={{
                 background: 'var(--surface-raised)',
                 boxShadow: 'var(--shadow-raised)',
@@ -146,7 +146,7 @@ export function DemoGallery() {
             >
                <div className="flex items-center gap-3" style={{ color: 'var(--brand-primary)' }}>
                   <Activity size={24} />
-                  <span className="text-[10px] font-black uppercase tracking-[0.25em]">Automation Active</span>
+                  <span className="text-[11px] font-black uppercase tracking-[0.25em]">Automation Active</span>
                </div>
                <p className="text-base m-0 leading-relaxed font-sans font-bold" style={{ color: 'var(--text-secondary)' }}>Our automated screenshot service verifies these scenarios on every commit using Playwright + VHS.</p>
             </motion.div>
@@ -180,7 +180,7 @@ export function DemoGallery() {
                    <div className="absolute bottom-12 left-12 right-12 z-20 flex justify-between items-center">
                       <div className="flex items-center gap-5">
                          <div className="w-4 h-4 rounded-full" style={{ background: 'var(--brand-primary)', boxShadow: '0 0 20px var(--brand-primary)' }} />
-                         <span className="text-[10px] font-black uppercase tracking-[0.3em]" style={{ color: 'var(--text-inverse)' }}>Live Swarm Execution</span>
+                         <span className="text-[11px] font-black uppercase tracking-[0.3em]" style={{ color: 'var(--text-inverse)' }}>Live Swarm Execution</span>
                       </div>
                       <ExternalLink size={20} style={{ color: 'var(--text-inverse)', opacity: 0.6 }} />
                    </div>
@@ -199,14 +199,14 @@ export function DemoGallery() {
                        whileHover={{ y: -8, boxShadow: 'var(--shadow-sm)' }}
                      >
                         <div className="text-4xl font-display font-black leading-none" style={{ color: 'var(--brand-primary)' }}>{stat.value}</div>
-                        <div className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>{stat.label}</div>
+                        <div className="text-[11px] font-black uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>{stat.label}</div>
                      </motion.div>
                    ))}
                 </div>
 
                 {/* Description panel */}
                 <motion.div
-                  className="p-12 rounded-[var(--radius-4xl)] w-full text-center relative overflow-hidden"
+                  className="p-6 sm:p-8 lg:p-12 rounded-[var(--radius-4xl)] w-full text-center relative overflow-hidden"
                   style={{
                     background: 'var(--surface-raised)',
                     boxShadow: 'var(--shadow-raised)',

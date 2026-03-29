@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
+import { Surface } from '@/components/ui/Surface'
 import { NeumorphicTerminal } from '@/components/ui/NeumorphicTerminal'
 import { Sparkles, Shield, Layers, Anchor, Zap, Globe, Radio, Users, Search } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
@@ -162,10 +163,8 @@ export function ExamplesPage() {
       style={{ background: 'var(--surface-base)' }}
     >
       {/* Hero Section */}
-      <motion.section
-        className="py-20 px-6 sm:px-8 lg:px-10 relative overflow-hidden flex flex-col items-center justify-center text-center"
-        style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-      >
+      <Surface depth="raised" radius="none" padding="none" className="py-20 px-6 sm:px-8 lg:px-10 relative overflow-hidden flex flex-col items-center justify-center text-center">
+
         <motion.div
           className="absolute top-0 right-0 w-[800px] h-[800px] rounded-full blur-[160px] opacity-[0.1] pointer-events-none"
           style={{ background: 'radial-gradient(circle, var(--brand-primary) 0%, transparent 70%)' }}
@@ -191,7 +190,7 @@ export function ExamplesPage() {
              Stop reinventing coordination. Use these production-grade patterns for multi-agent orchestration, discovery, and resilience.
            </motion.p>
         </div>
-      </motion.section>
+      </Surface>
 
       {/* Examples Grid */}
       <motion.main id="main-content" className="flex-1 py-20 px-6 sm:px-8 lg:px-10 max-w-7xl mx-auto w-full font-sans flex flex-col items-center">
@@ -205,11 +204,8 @@ export function ExamplesPage() {
               transition={{ duration: 0.7, delay: i * 0.05, ease: [0.16, 1, 0.3, 1] }}
               className="group"
             >
-              <motion.div
-                className="p-16 rounded-2xl transition-all duration-500 flex flex-col lg:flex-row gap-8 items-center"
-                style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-                whileHover={{ boxShadow: `var(--shadow-raised), 0 40px 80px -20px ${ex.color}15` }}
-              >
+              <Surface depth="raised" radius="2xl" padding="none" className="p-16 transition-all duration-500 flex flex-col lg:flex-row gap-8 items-center">
+
                 <div className="flex-1 space-y-8 flex flex-col items-center lg:items-start text-center lg:text-left">
                    <div className="flex flex-col lg:flex-row items-center gap-8">
                       <motion.div
@@ -253,19 +249,19 @@ export function ExamplesPage() {
                      typewriterSpeed={0}
                    />
                 </div>
-              </motion.div>
+              </Surface>
             </motion.div>
           ))}
         </div>
 
         {/* Vision Callout */}
-        <motion.div
-          className="mt-20 p-24 rounded-2xl flex flex-col items-center text-center gap-8 relative overflow-hidden w-full mx-auto"
-          style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-          initial={{ opacity: 0, scale: 0.98 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true }}
-        >
+        <Surface depth="raised" radius="2xl" padding="none" className="mt-20 overflow-hidden w-full mx-auto">
+          <motion.div
+            className="p-24 flex flex-col items-center text-center gap-8 relative"
+            initial={{ opacity: 0, scale: 0.98 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+          >
            <div className="absolute top-0 right-0 p-10 opacity-[0.02] pointer-events-none">
               <Layers size={800} />
            </div>
@@ -293,17 +289,15 @@ export function ExamplesPage() {
                   className="p-10 rounded-2xl flex flex-col items-center gap-6 group transition-all"
                   style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-sm)' }}
                 >
-                   <motion.div
-                     className="w-14 h-14 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform"
-                     style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-                   >
+                   <Surface depth="inset" radius="2xl" padding="none" className="w-14 h-14 flex items-center justify-center group-hover:scale-110 transition-transform">
                       <item.icon size={28} className="text-[var(--brand-primary)]" />
-                   </motion.div>
+                   </Surface>
                    <motion.span className="text-[10px] font-black uppercase tracking-[0.25em] text-[var(--text-muted)] group-hover:text-[var(--text-primary)] transition-colors text-center">{item.title}</motion.span>
                 </motion.div>
               ))}
            </div>
-        </motion.div>
+          </motion.div>
+        </Surface>
       </motion.main>
 
       <Footer />

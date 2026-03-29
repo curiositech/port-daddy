@@ -49,63 +49,48 @@ export function DocsCodeBlock({ code, output, language = 'bash' }: DocsCodeBlock
   const highlightLine = language === 'typescript' ? highlightTypeScriptLine : highlightBashLine
 
   return (
-    <div className="space-y-3">
-      {/* Terminal — single dark block, no outer wrapper */}
+    <div className="group">
+      {/* Recessed screen — thin bevel, no bg color */}
       <div
-        className="rounded-[var(--radius-xl)] overflow-hidden group"
-        style={{
-          background: 'var(--code-bg)',
-          boxShadow: 'var(--shadow-inset)',
-        }}
+        className="rounded-[var(--radius-xl)] overflow-hidden"
+        style={{ boxShadow: 'inset 1px 1px 3px var(--neu-shadow), inset -1px -1px 3px var(--neu-highlight)' }}
       >
-        {/* Traffic lights + copy */}
-        <div
-          className="flex items-center justify-between px-4 py-2.5"
-          style={{ borderBottom: '1px solid var(--code-border)' }}
-        >
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--code-dot-red)' }} />
-            <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--code-dot-amber)' }} />
-            <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--code-dot-green)' }} />
+        <div className="flex items-center justify-between px-3 py-1.5" style={{ borderBottom: '1px solid var(--code-border)' }}>
+          <div className="flex items-center gap-2" aria-hidden="true">
+            <span className="w-2 h-2 rounded-full" style={{ background: 'var(--code-dot-red)' }} />
+            <span className="w-2 h-2 rounded-full" style={{ background: 'var(--code-dot-amber)' }} />
+            <span className="w-2 h-2 rounded-full" style={{ background: 'var(--code-dot-green)' }} />
           </div>
           <button
             onClick={handleCopy}
             className="p-1.5 rounded-lg transition-all cursor-pointer opacity-0 group-hover:opacity-100"
             style={{ color: 'var(--code-comment)' }}
+            aria-label={copied ? "Copied" : "Copy code"}
           >
             {copied ? <Check size={14} style={{ color: 'var(--code-dot-green)' }} /> : <Copy size={14} />}
           </button>
+          <span className="sr-only" aria-live="polite">{copied ? "Code copied to clipboard" : ""}</span>
         </div>
 
-        <pre className="overflow-x-auto p-4 m-0 text-sm leading-relaxed">
-          <code className="font-mono">
-            {code.split('\n').map((line, i) => (
+        <pre className="overflow-x-auto px-3 py-2 m-0 text-sm leading-relaxed"><code className="font-mono">{code.trim().split('\n').map((line, i) => (
               <div key={i}>{highlightLine(line)}</div>
-            ))}
-          </code>
-        </pre>
+            ))}</code></pre>
       </div>
 
       {output && (
         <div
-          className="rounded-[var(--radius-xl)] overflow-hidden"
-          style={{
-            background: 'var(--code-bg)',
-            boxShadow: 'var(--shadow-inset)',
-          }}
+          className="rounded-[var(--radius-xl)] overflow-hidden mt-3"
+          style={{ boxShadow: 'inset 1px 1px 3px var(--neu-shadow), inset -1px -1px 3px var(--neu-highlight)' }}
         >
-          <div
-            className="flex items-center gap-2 px-4 py-2.5"
-            style={{ borderBottom: '1px solid var(--code-border)' }}
-          >
-            <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--code-dot-red)' }} />
-            <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--code-dot-amber)' }} />
-            <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--code-dot-green)' }} />
+          <div className="flex items-center gap-2 px-3 py-1.5" style={{ borderBottom: '1px solid var(--code-border)' }}>
+            <div className="flex items-center gap-2" aria-hidden="true">
+              <span className="w-2 h-2 rounded-full" style={{ background: 'var(--code-dot-red)' }} />
+              <span className="w-2 h-2 rounded-full" style={{ background: 'var(--code-dot-amber)' }} />
+              <span className="w-2 h-2 rounded-full" style={{ background: 'var(--code-dot-green)' }} />
+            </div>
             <span className="ml-2 text-xs font-mono" style={{ color: 'var(--code-comment)' }}>output</span>
           </div>
-          <pre className="overflow-x-auto p-4 m-0 text-sm leading-relaxed font-mono whitespace-pre-wrap" style={{ color: 'var(--code-output)' }}>
-            {output}
-          </pre>
+          <pre className="overflow-x-auto px-3 py-2 m-0 text-sm leading-relaxed font-mono whitespace-pre-wrap" style={{ color: 'var(--code-output)' }}>{output?.trim()}</pre>
         </div>
       )}
     </div>

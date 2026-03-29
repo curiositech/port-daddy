@@ -86,24 +86,23 @@ export function Pipelines() {
             By chaining multiple rules, you build a <strong>Dynamic DAG</strong>. Each agent finishes its work by publishing a signal that triggers the next set of agents in the harbor.
           </motion.p>
 
-          <Surface depth="raised" radius="2xl" className="p-10 space-y-8 relative overflow-hidden">
-             <motion.div className="absolute inset-0 bg-gradient-to-b from-[var(--brand-secondary)]/5 to-transparent" />
-             <motion.p className="text-sm font-black uppercase tracking-widest opacity-40 m-0">The DAG Flow</motion.p>
+          <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
+             <Badge variant="default">The DAG Flow</Badge>
 
-             <motion.div className="grid gap-6">
-                <Surface depth="inset" radius="2xl" padding="none" className="flex items-center gap-6 p-6">
+             <motion.div className="grid gap-4">
+                <Surface depth="raised" radius="xl" className="flex items-center gap-4 p-4">
                    <Badge variant="teal" className="shrink-0">Node 01</Badge>
                    <motion.div className="flex-1">
                       <motion.p className="font-bold m-0 text-sm">Planner finishes task</motion.p>
-                      <code className="text-[10px] text-[var(--text-muted)]">pub task:ready</code>
+                      <code className="text-[10px]">pub task:ready</code>
                    </motion.div>
                 </Surface>
                 <motion.div className="flex justify-center"><ArrowDown size={16} className="opacity-20" /></motion.div>
-                <Surface depth="raised" radius="2xl" className="flex items-center gap-6 p-6">
-                   <Badge variant="gold" className="shrink-0 text-white bg-[var(--brand-primary)]">Auto-Action</Badge>
+                <Surface depth="raised" radius="xl" className="flex items-center gap-4 p-4">
+                   <Badge variant="teal" className="shrink-0">Node 02</Badge>
                    <motion.div className="flex-1">
-                      <motion.p className="font-bold m-0 text-sm text-[var(--brand-primary)]">Spawn Coder + Reviewer</motion.p>
-                      <code className="text-[10px] text-[var(--text-muted)]">pd spawn (x2)</code>
+                      <motion.p className="font-bold m-0 text-sm">Spawn Coder + Reviewer</motion.p>
+                      <code className="text-[10px]">pd spawn (x2)</code>
                    </motion.div>
                 </Surface>
              </motion.div>

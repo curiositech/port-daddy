@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
+import { Surface } from '@/components/ui/Surface'
 import { Link } from 'react-router-dom'
 import { Book, Shield, Activity, Zap, MessageSquare, UserMinus, ChevronRight, Share2, Anchor, Cpu, Search, RefreshCw, Layers } from 'lucide-react'
 import { COOKBOOK_RECIPES } from '@/data/cookbook'
@@ -28,10 +29,8 @@ export function CookbookPage() {
       animate={{ opacity: 1 }}
     >
       {/* Hero Section */}
-      <motion.section
-        className="py-12 sm:py-20 px-4 sm:px-6 lg:px-8 relative overflow-hidden"
-        style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-      >
+      <Surface depth="raised" radius="none" padding="none" className="py-12 sm:py-20 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+
         <motion.div
           className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full blur-[140px] opacity-[0.1] pointer-events-none"
           style={{ background: 'radial-gradient(circle, var(--brand-accent) 0%, transparent 70%)' }}
@@ -57,7 +56,7 @@ export function CookbookPage() {
             Don't build from scratch. Use these battle-tested recipes for coordinating autonomous agent swarms at scale.
           </motion.p>
         </motion.div>
-      </motion.section>
+      </Surface>
 
       {/* Grid Section */}
       <motion.main id="main-content" className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-12 sm:py-20 font-sans">
@@ -74,22 +73,14 @@ export function CookbookPage() {
                 className="group"
               >
                 <Link to={`/cookbook/${recipe.id}`} className="no-underline block h-full">
-                  <motion.div
-                    className="h-full p-6 sm:p-8 lg:p-12 rounded-2xl sm:rounded-[40px] lg:rounded-[56px] transition-all duration-300 flex flex-col items-start gap-6 sm:gap-10"
-                    style={{
-                      background: 'var(--surface-raised)',
-                      boxShadow: 'var(--shadow-raised)',
-                    }}
-                    whileHover={{ y: -8, boxShadow: 'var(--shadow-flat)' }}
-                  >
+                  <Surface depth="raised" radius="2xl" padding="none" className="h-full p-6 sm:p-8 lg:p-12 sm:rounded-[40px] lg:rounded-[56px] transition-all duration-300 flex flex-col items-start gap-6 sm:gap-10">
+
                     <div className="w-full flex justify-between items-start">
-                       <div
-                         className="w-14 h-14 sm:w-20 sm:h-20 rounded-2xl sm:rounded-[32px] flex items-center justify-center group-hover:scale-110 transition-transform"
-                         style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-                       >
+                       <Surface depth="inset" radius="2xl" padding="none" className="w-14 h-14 sm:w-20 sm:h-20 sm:rounded-[32px] flex items-center justify-center group-hover:scale-110 transition-transform">
+
                           <Icon size={28} className="text-[var(--brand-accent)] sm:hidden" />
                           <Icon size={40} className="text-[var(--brand-accent)] hidden sm:block" />
-                       </div>
+                       </Surface>
                        <Badge variant={recipe.difficulty === 'advanced' ? 'default' : 'teal'} className="text-[8px] font-black uppercase tracking-widest px-3 py-1">
                           {recipe.difficulty}
                        </Badge>
@@ -114,7 +105,7 @@ export function CookbookPage() {
                           <ChevronRight size={14} />
                        </div>
                     </div>
-                  </motion.div>
+                  </Surface>
                 </Link>
               </motion.div>
             )
@@ -122,16 +113,13 @@ export function CookbookPage() {
         </motion.div>
 
         {/* Vision Callout */}
-        <motion.div
-          className="mt-16 sm:mt-32 p-8 sm:p-14 lg:p-20 rounded-2xl sm:rounded-[48px] lg:rounded-[80px] flex flex-col items-center text-center gap-8 sm:gap-12 relative overflow-hidden"
-          style={{
-            background: 'var(--surface-raised)',
-            boxShadow: 'var(--shadow-raised)',
-          }}
-          initial={{ opacity: 0, scale: 0.98 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true }}
-        >
+        <Surface depth="raised" radius="2xl" padding="none" className="mt-16 sm:mt-32 sm:rounded-[48px] lg:rounded-[80px] overflow-hidden">
+          <motion.div
+            className="p-8 sm:p-14 lg:p-20 flex flex-col items-center text-center gap-8 sm:gap-12 relative"
+            initial={{ opacity: 0, scale: 0.98 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+          >
            <div className="absolute top-0 right-0 p-10 opacity-[0.02] pointer-events-none">
               <RefreshCw size={600} />
            </div>
@@ -153,18 +141,21 @@ export function CookbookPage() {
                 { label: 'Atomic Locks', icon: Anchor },
                 { label: 'Secure Radio', icon: Zap }
               ].map((item, i) => (
-                <div
+                <Surface
                   key={i}
-                  className="p-4 sm:p-8 rounded-2xl sm:rounded-[40px] flex flex-col items-center gap-3 sm:gap-4"
-                  style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
+                  depth="inset"
+                  radius="2xl"
+                  padding="none"
+                  className="p-4 sm:p-8 sm:rounded-[40px] flex flex-col items-center gap-3 sm:gap-4"
                 >
                    <item.icon size={20} className="text-[var(--brand-accent)] sm:hidden" />
                    <item.icon size={24} className="text-[var(--brand-accent)] hidden sm:block" />
                    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">{item.label}</span>
-                </div>
+                </Surface>
               ))}
            </div>
-        </motion.div>
+          </motion.div>
+        </Surface>
       </motion.main>
 
       <Footer />

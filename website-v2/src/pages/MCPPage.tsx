@@ -1,6 +1,7 @@
 
 import { motion, useScroll, useSpring } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
+import { Surface } from '@/components/ui/Surface'
 import { Terminal, Shield, Zap, History, Anchor, Globe, MessageSquare, Rocket, Mail, RefreshCw, Download, Search, Cpu, Layers, Activity } from 'lucide-react'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Footer } from '@/components/layout/Footer'
@@ -82,22 +83,17 @@ const CATEGORIES = [
 
 function ToolCard({ tool }: { tool: any }) {
   return (
-    <motion.div
-      className="p-12 rounded-2xl space-y-10 group transition-all relative overflow-hidden flex flex-col items-center text-center"
-      style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-      whileHover={{ y: -8 }}
-    >
+    <Surface depth="raised" radius="2xl" padding="none" className="p-12 space-y-10 group transition-all relative overflow-hidden flex flex-col items-center text-center">
+
        <div className="absolute top-0 right-0 p-10 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity">
           <tool.icon size={160} />
        </div>
 
        <div className="flex flex-col items-center gap-6 relative z-10">
-          <motion.div
-            className="w-20 h-20 rounded-2xl flex items-center justify-center"
-            style={{ background: `${tool.color}10`, boxShadow: 'var(--shadow-inset)' }}
-          >
+          <Surface depth="inset" radius="2xl" padding="none" className="w-20 h-20 flex items-center justify-center" style={{ background: `${tool.color}10` }}>
+
              <tool.icon size={40} style={{ color: tool.color }} />
-          </motion.div>
+          </Surface>
           <div className="space-y-2 flex flex-col items-center">
              <code className="text-2xl font-black font-mono" style={{ color: tool.color }}>{tool.name}</code>
              <span
@@ -114,7 +110,7 @@ function ToolCard({ tool }: { tool: any }) {
        <CodeBlock language="bash">
          {tool.example}
        </CodeBlock>
-    </motion.div>
+    </Surface>
   )
 }
 
@@ -141,10 +137,8 @@ export default function McpPage() {
       />
 
       {/* Hero Section */}
-      <motion.section
-        className="py-20 px-6 sm:px-8 lg:px-10 relative overflow-hidden flex flex-col items-center justify-center text-center"
-        style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-      >
+      <Surface depth="raised" radius="none" padding="none" className="py-20 px-6 sm:px-8 lg:px-10 relative overflow-hidden flex flex-col items-center justify-center text-center">
+
         <motion.div
           className="absolute top-0 right-0 w-[800px] h-[800px] rounded-full blur-[160px] opacity-[0.1] pointer-events-none"
           style={{ background: 'radial-gradient(circle, var(--brand-primary) 0%, transparent 70%)' }}
@@ -171,11 +165,8 @@ export default function McpPage() {
            </motion.p>
 
            <div className="flex flex-col items-center gap-8 pt-12 w-full">
-              <motion.div
-                className="inline-flex flex-col sm:flex-row items-center gap-6 px-12 py-8 rounded-2xl font-mono text-xl relative overflow-hidden group"
-                style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-                whileHover={{ scale: 1.02 }}
-              >
+              <Surface depth="raised" radius="2xl" padding="none" className="inline-flex flex-col sm:flex-row items-center gap-6 px-12 py-8 font-mono text-xl relative overflow-hidden group">
+
                  <div className="absolute inset-0 bg-gradient-to-r from-[var(--brand-primary)]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                  <div className="flex items-center gap-4 relative z-10">
                     <Terminal size={32} className="text-[var(--brand-primary)]" />
@@ -183,11 +174,11 @@ export default function McpPage() {
                  </div>
                  <div className="h-8 w-[1px] hidden sm:block relative z-10" style={{ background: 'var(--text-muted)' }} />
                  <motion.span className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] relative z-10">One Handshake</motion.span>
-              </motion.div>
+              </Surface>
               <motion.p className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--text-muted)] m-0">Supports Claude Code, Cursor, and Continue.dev</motion.p>
            </div>
         </div>
-      </motion.section>
+      </Surface>
 
       {/* Installation Guide */}
       <section className="py-24 bg-bg-surface border-b border-border-subtle">
@@ -231,12 +222,9 @@ export default function McpPage() {
            <div className="flex flex-col items-center text-center gap-8 pb-20 w-full max-w-4xl">
               <Badge variant="default" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Agent Experience (AX)</Badge>
               <div className="flex flex-col items-center gap-8">
-                 <motion.div
-                   className="w-20 h-20 rounded-2xl flex items-center justify-center"
-                   style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-                 >
+                 <Surface depth="inset" radius="2xl" padding="none" className="w-20 h-20 flex items-center justify-center">
                     <Layers size={40} className="text-[var(--brand-secondary)]" />
-                 </motion.div>
+                 </Surface>
                  <motion.h2 className="text-4xl sm:text-6xl font-display font-black tracking-tighter m-0 leading-[0.95] text-[var(--text-primary)]">Progressive Disclosure.</motion.h2>
               </div>
               <motion.p className="text-xl sm:text-2xl leading-relaxed text-[var(--text-secondary)] m-0 font-medium max-w-3xl mx-auto">
@@ -248,26 +236,24 @@ export default function McpPage() {
               {CATEGORIES.map((cat, i) => (
                 <motion.div
                   key={cat.id}
-                  className="p-10 rounded-2xl space-y-8 group transition-all text-center flex flex-col items-center"
-                  style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
                   initial={{ opacity: 0, y: 32 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.05 }}
                 >
+                <Surface depth="raised" radius="2xl" padding="none" className="p-10 space-y-8 group transition-all text-center flex flex-col items-center">
+
                    <div className="flex flex-col items-center gap-6">
-                      <motion.div
-                        className="w-16 h-16 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform"
-                        style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-                      >
+                      <Surface depth="inset" radius="2xl" padding="none" className="w-16 h-16 flex items-center justify-center group-hover:scale-110 transition-transform">
                          <cat.icon size={32} className="text-[var(--brand-primary)] opacity-40 group-hover:opacity-100 transition-opacity" />
-                      </motion.div>
+                      </Surface>
                       <span
                         className="inline-block px-3 py-1 text-[8px] font-black uppercase tracking-widest rounded-lg text-[var(--text-muted)]"
                         style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-pressed)' }}
                       >{cat.count} Tools</span>
                    </div>
                    <motion.h3 className="m-0 text-2xl font-display font-black leading-tight text-text-primary">{cat.label}</motion.h3>
+                </Surface>
                 </motion.div>
               ))}
            </div>
@@ -278,12 +264,9 @@ export default function McpPage() {
            <div className="flex flex-col items-center text-center gap-8 pb-20 w-full max-w-4xl">
               <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">The Standard Library</Badge>
               <div className="flex flex-col items-center gap-8">
-                 <motion.div
-                   className="w-20 h-20 rounded-2xl flex items-center justify-center"
-                   style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-                 >
+                 <Surface depth="inset" radius="2xl" padding="none" className="w-20 h-20 flex items-center justify-center">
                     <Zap size={40} className="text-[var(--brand-primary)]" />
-                 </motion.div>
+                 </Surface>
                  <motion.h2 className="text-4xl sm:text-6xl font-display font-black tracking-tighter m-0 leading-[0.95] text-[var(--text-primary)]">The Essential Set.</motion.h2>
               </div>
               <motion.p className="text-xl sm:text-2xl leading-relaxed text-[var(--text-secondary)] m-0 font-medium max-w-3xl mx-auto">
@@ -299,13 +282,13 @@ export default function McpPage() {
         </section>
 
         {/* Vision Callout */}
-        <motion.div
-          className="mt-32 p-24 rounded-2xl flex flex-col items-center text-center gap-8 relative overflow-hidden w-full mx-auto"
-          style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-          initial={{ opacity: 0, scale: 0.98 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true }}
-        >
+        <Surface depth="raised" radius="2xl" padding="none" className="mt-32 overflow-hidden w-full mx-auto">
+          <motion.div
+            className="p-24 flex flex-col items-center text-center gap-8 relative"
+            initial={{ opacity: 0, scale: 0.98 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+          >
            <div className="absolute top-0 right-0 p-10 opacity-[0.02] pointer-events-none">
               <Cpu size={800} />
            </div>
@@ -333,17 +316,15 @@ export default function McpPage() {
                   className="p-10 rounded-2xl flex flex-col items-center gap-6 group transition-all"
                   style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-sm)' }}
                 >
-                   <motion.div
-                     className="w-14 h-14 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform"
-                     style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-                   >
+                   <Surface depth="inset" radius="2xl" padding="none" className="w-14 h-14 flex items-center justify-center group-hover:scale-110 transition-transform">
                       <item.icon size={28} className="text-[var(--brand-primary)]" />
-                   </motion.div>
+                   </Surface>
                    <motion.span className="text-[10px] font-black uppercase tracking-[0.25em] text-[var(--text-muted)] group-hover:text-[var(--text-primary)] transition-colors text-center">{item.label}</motion.span>
                 </motion.div>
               ))}
            </div>
-        </motion.div>
+          </motion.div>
+        </Surface>
       </motion.main>
 
       <Footer />

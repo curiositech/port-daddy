@@ -62,12 +62,12 @@ export function GettingStarted() {
             </Surface>
           </motion.div>
 
-          <Surface depth="inset" radius="2xl" padding="none" className="p-10">
-             <motion.p className="text-sm uppercase tracking-widest font-black mb-6 opacity-40">Verification</motion.p>
-             <CodeBlock language="bash">{`pd start`}</CodeBlock>
-             <motion.p className="mt-6 mb-0 text-sm italic opacity-60">
-               The daemon is now listening on <code>localhost:9876</code>. It is your swarm's lighthouse.
-             </motion.p>
+          <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
+            <Badge variant="default">Verification</Badge>
+            <CodeBlock language="bash">{`pd start`}</CodeBlock>
+            <motion.p className="text-sm mb-0" style={{ color: 'var(--text-muted)' }}>
+              The daemon is now listening on <code>localhost:9876</code>. It is your swarm's lighthouse.
+            </motion.p>
           </Surface>
         </section>
 

@@ -20,13 +20,14 @@ export function NeumorphicTerminal({
   const [isTyping, setIsTyping] = useState(true)
 
   useEffect(() => {
+    const trimmed = code.trim()
     let currentIndex = 0
     setDisplayedCode('')
     setIsTyping(true)
 
     const interval = setInterval(() => {
-      if (currentIndex < code.length) {
-        setDisplayedCode(code.slice(0, currentIndex + 1))
+      if (currentIndex < trimmed.length) {
+        setDisplayedCode(trimmed.slice(0, currentIndex + 1))
         currentIndex++
       } else {
         setIsTyping(false)
@@ -46,7 +47,7 @@ export function NeumorphicTerminal({
   }
 
   const highlightBash = (line: string) => {
-    if (!line.trim()) return <span> </span>
+    if (!line.trim()) return <span>{'\u00A0'}</span>
     if (line.startsWith('#')) return <span className="text-[var(--code-comment)]">{line}</span>
     if (line.startsWith('$')) {
       const cmd = line.slice(2)
@@ -66,7 +67,14 @@ export function NeumorphicTerminal({
     return <span className="text-[var(--code-output)]">{line}</span>
   }
 
-  const lines = displayedCode.split('\n')
+  // Trim leading/trailing empty lines from displayed code
+  const lines = displayedCode.split('\n').filter((line, i, arr) => {
+    // Drop leading empty lines
+    if (i === 0 && !line.trim()) return false
+    // Drop trailing empty lines
+    if (i === arr.length - 1 && !line.trim()) return false
+    return true
+  })
 
   return (
     <Surface depth="raised" radius="2xl" padding="lg">
@@ -84,11 +92,12 @@ export function NeumorphicTerminal({
 
         <button
           onClick={handleCopy}
-          className="w-9 h-9 rounded-[var(--radius-lg)] flex items-center justify-center transition-all duration-200 cursor-pointer"
+          className="w-11 h-11 rounded-[var(--radius-lg)] flex items-center justify-center transition-all duration-200 cursor-pointer"
           style={{
             background: 'var(--surface-base)',
             boxShadow: 'var(--shadow-sm)',
           }}
+          aria-label={copied ? "Copied" : "Copy code"}
         >
           {copied ? (
             <Check size={14} className="text-[var(--status-success)]" />
@@ -96,23 +105,21 @@ export function NeumorphicTerminal({
             <Copy size={14} className="text-[var(--text-muted)]" />
           )}
         </button>
+        <span className="sr-only" aria-live="polite">{copied ? "Code copied to clipboard" : ""}</span>
       </div>
 
-      {/* Terminal body */}
+      {/* Recessed screen — thin bevel, no bg color */}
       <div
-        className="rounded-[var(--radius-lg)] p-5 overflow-x-auto"
-        style={{
-          background: 'var(--code-bg)',
-          boxShadow: 'var(--shadow-inset)',
-        }}
+        className="rounded-[var(--radius-lg)] overflow-hidden"
+        style={{ boxShadow: 'inset 1px 1px 3px var(--neu-shadow), inset -1px -1px 3px var(--neu-highlight)' }}
       >
-        <div className="flex items-center gap-2 mb-3 pb-2" style={{ borderBottom: '1px solid var(--code-border)' }}>
-          <div className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--code-dot-red)' }} />
-          <div className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--code-dot-amber)' }} />
-          <div className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--code-dot-green)' }} />
+        <div className="flex items-center gap-2 px-3 py-1.5" style={{ borderBottom: '1px solid var(--code-border)' }} aria-hidden="true">
+          <div className="w-2 h-2 rounded-full" style={{ background: 'var(--code-dot-red)' }} />
+          <div className="w-2 h-2 rounded-full" style={{ background: 'var(--code-dot-amber)' }} />
+          <div className="w-2 h-2 rounded-full" style={{ background: 'var(--code-dot-green)' }} />
         </div>
 
-        <div className="font-mono text-sm leading-relaxed">
+        <div className="font-mono text-sm leading-relaxed overflow-x-auto px-3 py-2">
           {lines.map((line, i) => (
             <div key={i} className="py-0.5">
               {highlightBash(line)}

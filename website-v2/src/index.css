@@ -18,7 +18,21 @@
   --color-brand-accent: var(--brand-accent);
 
   --color-border-subtle: var(--border-subtle);
+  --color-border-default: var(--border-default);
   --color-border-strong: var(--border-strong);
+
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-glass: var(--surface-glass);
+  --color-text-inverse: var(--text-inverse);
+
+  --color-status-success: var(--status-success);
+  --color-status-warning: var(--status-warning);
+  --color-status-error: var(--status-error);
+  --color-status-info: var(--status-info);
+
+  --color-interactive-hover: var(--interactive-hover);
+  --color-interactive-active: var(--interactive-active);
+  --color-interactive-focus: var(--interactive-focus);
 
   --font-display: var(--font-display);
   --font-sans: var(--font-sans);
@@ -55,10 +69,10 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  /* ── shadcn/ui radius token ──────────────────────────────────────────────── */
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
+  /* ── shadcn/ui radius tokens (namespaced to avoid colliding with tokens.css) ── */
+  --radius-shadcn-sm: calc(var(--radius) - 4px);
+  --radius-shadcn-md: calc(var(--radius) - 2px);
+  --radius-shadcn-lg: var(--radius);
 }
 
 /* Explicitly tell Tailwind to use .dark class for dark variants */
@@ -111,6 +125,16 @@ code:not(pre code) {
   box-shadow: var(--shadow-pressed);
   padding: 0.15em 0.5em;
   border-radius: var(--radius-sm);
+}
+
+/* Code blocks — NO dark background, text sits on neumorphic surface */
+pre {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+pre code {
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 /* ─── Design System: Spacing & Layout ─────────────────────────────────────── */
@@ -190,6 +214,27 @@ code:not(pre code) {
   backdrop-filter: blur(12px) saturate(160%);
   -webkit-backdrop-filter: blur(12px) saturate(160%);
   border: 1px solid var(--border-subtle);
+}
+
+/* ─── Accessibility ────────────────────────────────────────────────────────── */
+
+/* Global focus ring for keyboard navigation */
+*:focus-visible {
+  outline: 2px solid var(--interactive-focus);
+  outline-offset: 2px;
+}
+
+/* Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  html {
+    scroll-behavior: auto;
+  }
 }
 
 /* ─── Animations ───────────────────────────────────────────────────────────── */

@@ -149,42 +149,58 @@ export default function WhitepaperPage() {
         </div>
       </section>
 
-      {/* Paper Selector */}
+      {/* Paper Selector — radio cards */}
       <section className="px-6 sm:px-8 lg:px-10 pb-10">
         <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-6">
-          {PAPERS.map((p) => (
-            <Surface
-              key={p.id}
-              depth={activePaper === p.id ? 'inset' : 'raised'}
-              radius="2xl"
-              padding="lg"
-              interactive
-              className="text-left"
-              onClick={() => { setActivePaper(p.id); setIsLoading(true) }}
-            >
-              <div className="flex items-start justify-between mb-4">
-                <Badge variant={p.badgeVariant} size="sm">{p.badge}</Badge>
-                <FileText
-                  size={20}
-                  style={{ color: activePaper === p.id ? 'var(--brand-primary)' : 'var(--text-muted)' }}
-                />
-              </div>
-              <h2
-                className="text-xl font-bold tracking-tight mb-2"
-                style={{ color: activePaper === p.id ? 'var(--brand-primary)' : 'var(--text-primary)' }}
+          {PAPERS.map((p) => {
+            const isActive = activePaper === p.id
+            return (
+              <Surface
+                key={p.id}
+                depth={isActive ? 'inset' : 'raised'}
+                radius="2xl"
+                padding="lg"
+                interactive
+                className="text-left cursor-pointer"
+                onClick={() => { setActivePaper(p.id); setIsLoading(true) }}
               >
-                {p.title}
-              </h2>
-              <p className="text-sm leading-relaxed mb-4" style={{ color: 'var(--text-muted)' }}>
-                {p.subtitle}
-              </p>
-              <div className="flex items-center gap-4 text-xs" style={{ color: 'var(--text-muted)' }}>
-                <span>{p.date}</span>
-                <span>{p.pages} pages</span>
-                <span>{p.sizeKb} KB</span>
-              </div>
-            </Surface>
-          ))}
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    {/* Radio indicator */}
+                    <div
+                      className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
+                      style={{
+                        border: `2px solid ${isActive ? 'var(--brand-primary)' : 'var(--text-muted)'}`,
+                      }}
+                    >
+                      {isActive && (
+                        <div className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--brand-primary)' }} />
+                      )}
+                    </div>
+                    <Badge variant={p.badgeVariant} size="sm">{p.badge}</Badge>
+                  </div>
+                  <FileText
+                    size={20}
+                    style={{ color: isActive ? 'var(--brand-primary)' : 'var(--text-muted)' }}
+                  />
+                </div>
+                <h2
+                  className="text-xl font-bold tracking-tight mb-2"
+                  style={{ color: isActive ? 'var(--brand-primary)' : 'var(--text-primary)' }}
+                >
+                  {p.title}
+                </h2>
+                <p className="text-sm leading-relaxed mb-4" style={{ color: 'var(--text-muted)' }}>
+                  {p.subtitle}
+                </p>
+                <div className="flex items-center gap-4 text-xs" style={{ color: 'var(--text-muted)' }}>
+                  <span>{p.date}</span>
+                  <span>{p.pages} pages</span>
+                  <span>{p.sizeKb} KB</span>
+                </div>
+              </Surface>
+            )
+          })}
         </div>
       </section>
 
@@ -299,9 +315,16 @@ export default function WhitepaperPage() {
             How the Papers Relate
           </h2>
           <div className="grid md:grid-cols-3 gap-6 items-center">
-            <Surface depth="inset" radius="xl" padding="lg" className="text-center">
+            <Surface
+              depth={activePaper === 'anchor-protocol' ? 'inset' : 'raised'}
+              radius="xl"
+              padding="lg"
+              interactive
+              className="text-center cursor-pointer"
+              onClick={() => { setActivePaper('anchor-protocol'); setIsLoading(true); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+            >
               <Lock size={28} style={{ color: 'var(--brand-secondary)' }} className="mx-auto mb-3" />
-              <h3 className="font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
+              <h3 className="font-bold mb-2" style={{ color: activePaper === 'anchor-protocol' ? 'var(--brand-primary)' : 'var(--text-primary)' }}>
                 Anchor Protocol
               </h3>
               <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
@@ -310,19 +333,24 @@ export default function WhitepaperPage() {
             </Surface>
 
             <div className="flex items-center justify-center">
-              <motion.div
+              <span
                 className="text-lg font-display font-black tracking-tight"
                 style={{ color: 'var(--text-muted)' }}
-                animate={{ x: [0, 6, 0] }}
-                transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
               >
                 builds on &rarr;
-              </motion.div>
+              </span>
             </div>
 
-            <Surface depth="raised" radius="xl" padding="lg" className="text-center">
+            <Surface
+              depth={activePaper === 'bonded-commons' ? 'inset' : 'raised'}
+              radius="xl"
+              padding="lg"
+              interactive
+              className="text-center cursor-pointer"
+              onClick={() => { setActivePaper('bonded-commons'); setIsLoading(true); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+            >
               <Scale size={28} style={{ color: 'var(--brand-primary)' }} className="mx-auto mb-3" />
-              <h3 className="font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
+              <h3 className="font-bold mb-2" style={{ color: activePaper === 'bonded-commons' ? 'var(--brand-primary)' : 'var(--text-primary)' }}>
                 Bonded Commons
               </h3>
               <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>

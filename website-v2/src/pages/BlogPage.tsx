@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { blogPosts } from '@/data/blogData'
 import { Badge } from '@/components/ui/Badge'
+import { Surface } from '@/components/ui/Surface'
 import { Calendar, User, ArrowRight, ShieldCheck, Zap, Activity, BookOpen } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
 
@@ -13,10 +14,8 @@ export function BlogPage() {
       className="min-h-screen bg-[var(--surface-base)] flex flex-col pt-[var(--nav-height)] font-sans selection:bg-[var(--brand-primary)] selection:text-white"
     >
       {/* Hero Section */}
-      <motion.section
-        className="py-12 sm:py-20 px-4 sm:px-6 lg:px-10 relative overflow-hidden flex flex-col items-center justify-center text-center"
-        style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-raised)' }}
-      >
+      <Surface depth="raised" radius="none" padding="none" className="py-12 sm:py-20 px-4 sm:px-6 lg:px-10 relative overflow-hidden flex flex-col items-center justify-center text-center">
+
         <motion.div
           className="absolute top-0 right-0 w-[800px] h-[800px] rounded-full blur-[160px] opacity-[0.1] pointer-events-none"
           style={{ background: 'radial-gradient(circle, var(--brand-primary) 0%, transparent 70%)' }}
@@ -42,7 +41,7 @@ export function BlogPage() {
              Deep dives into protocol design, formal verification, and the mathematical underpinnings of autonomous coordination.
            </motion.p>
         </div>
-      </motion.section>
+      </Surface>
 
       {/* Blog Feed */}
       <motion.main id="main-content" className="flex-1 py-12 sm:py-20 px-4 sm:px-6 lg:px-10 max-w-5xl mx-auto w-full font-sans flex flex-col items-center">
@@ -57,14 +56,8 @@ export function BlogPage() {
               className="group w-full"
             >
               <Link to={`/blog/${post.slug}`} className="no-underline block">
-                <motion.div
-                  className="p-6 sm:p-10 lg:p-16 rounded-2xl sm:rounded-[48px] lg:rounded-[80px] transition-all duration-300 flex flex-col items-center text-center gap-6 sm:gap-8"
-                  style={{
-                    background: 'var(--surface-raised)',
-                    boxShadow: 'var(--shadow-raised)',
-                  }}
-                  whileHover={{ y: -8, boxShadow: 'var(--shadow-flat)' }}
-                >
+                <Surface depth="raised" radius="2xl" padding="none" className="p-6 sm:p-10 lg:p-16 sm:rounded-[48px] lg:rounded-[80px] transition-all duration-300 flex flex-col items-center text-center gap-6 sm:gap-8">
+
                   <div className="w-full flex flex-col items-center gap-4 sm:gap-6">
                      <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-8 text-[10px] font-black uppercase tracking-[0.3em] text-[var(--text-muted)] font-mono">
                         <div className="flex items-center gap-2 sm:gap-3">
@@ -113,23 +106,20 @@ export function BlogPage() {
                         <ArrowRight size={16} />
                      </div>
                   </div>
-                </motion.div>
+                </Surface>
               </Link>
             </motion.article>
           ))}
         </div>
 
         {/* Vision Callout */}
-        <motion.div
-          className="mt-12 sm:mt-20 p-8 sm:p-16 lg:p-24 rounded-2xl sm:rounded-[60px] lg:rounded-[100px] flex flex-col items-center text-center gap-6 sm:gap-8 relative overflow-hidden w-full mx-auto"
-          style={{
-            background: 'var(--surface-raised)',
-            boxShadow: 'var(--shadow-raised)',
-          }}
-          initial={{ opacity: 0, scale: 0.98 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true }}
-        >
+        <Surface depth="raised" radius="2xl" padding="none" className="mt-12 sm:mt-20 sm:rounded-[60px] lg:rounded-[100px] overflow-hidden w-full mx-auto">
+          <motion.div
+            className="p-8 sm:p-16 lg:p-24 flex flex-col items-center text-center gap-6 sm:gap-8 relative"
+            initial={{ opacity: 0, scale: 0.98 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+          >
            <div className="absolute top-0 right-0 p-10 opacity-[0.02] pointer-events-none">
               <BookOpen size={800} />
            </div>
@@ -151,13 +141,12 @@ export function BlogPage() {
                 { label: 'Noise Protocol', icon: Activity },
                 { label: 'Anchor V4', icon: Zap }
               ].map((item, i) => (
-                <motion.div
+                <Surface
                   key={i}
-                  className="p-6 sm:p-10 rounded-2xl sm:rounded-[48px] flex flex-col items-center gap-4 sm:gap-6 group transition-all"
-                  style={{
-                    background: 'var(--surface-sunken)',
-                    boxShadow: 'var(--shadow-inset)',
-                  }}
+                  depth="inset"
+                  radius="2xl"
+                  padding="none"
+                  className="p-6 sm:p-10 sm:rounded-[48px] flex flex-col items-center gap-4 sm:gap-6 group transition-all"
                 >
                    <div
                      className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform"
@@ -166,10 +155,11 @@ export function BlogPage() {
                       <item.icon size={24} className="text-[var(--brand-primary)]" />
                    </div>
                    <span className="text-[10px] font-black uppercase tracking-[0.25em] text-[var(--text-muted)] group-hover:text-[var(--text-primary)] transition-colors text-center">{item.label}</span>
-                </motion.div>
+                </Surface>
               ))}
            </div>
-        </motion.div>
+          </motion.div>
+        </Surface>
       </motion.main>
 
       <Footer />

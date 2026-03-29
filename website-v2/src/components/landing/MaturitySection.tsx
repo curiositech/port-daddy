@@ -66,10 +66,10 @@ export function MaturitySection() {
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
           >
-            <Badge variant="default" className="px-6 py-2 uppercase tracking-[0.25em] text-[10px] font-black">Infrastructure Maturity</Badge>
+            <Badge variant="default" className="px-6 py-2 uppercase tracking-[0.25em] text-[11px] font-black">Infrastructure Maturity</Badge>
           </motion.div>
           <motion.h2
-            className="text-5xl sm:text-7xl font-black tracking-tighter font-display leading-[0.9] m-0"
+            className="text-3xl sm:text-5xl lg:text-7xl font-black tracking-tighter font-display leading-[0.9] m-0"
             style={{ color: 'var(--text-primary)' }}
             initial={{ opacity: 0, y: 24 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -97,7 +97,7 @@ export function MaturitySection() {
           {MATURITY_FEATURES.map((feature) => (
             <div key={feature.title} className="group">
               <motion.div
-                className="h-full p-12 rounded-[var(--radius-4xl)] transition-all duration-300 flex flex-col items-center text-center gap-10"
+                className="h-full p-6 sm:p-8 lg:p-12 rounded-[var(--radius-4xl)] transition-all duration-300 flex flex-col items-center text-center gap-10"
                 style={{
                   background: 'var(--surface-raised)',
                   boxShadow: 'var(--shadow-raised)',
@@ -128,7 +128,7 @@ export function MaturitySection() {
                      }}
                    >
                       <motion.div className="w-2 h-2 rounded-full opacity-20 group-hover:opacity-100 transition-opacity" style={{ background: 'var(--brand-primary)' }} />
-                      <motion.span className="text-[10px] font-black uppercase tracking-widest opacity-30 group-hover:opacity-80" style={{ color: 'var(--text-muted)' }}>V4 Specs Included</motion.span>
+                      <motion.span className="text-[11px] font-black uppercase tracking-widest opacity-30 group-hover:opacity-80" style={{ color: 'var(--text-muted)' }}>V4 Specs Included</motion.span>
                    </motion.div>
                 </motion.div>
               </motion.div>
@@ -138,7 +138,7 @@ export function MaturitySection() {
 
         {/* Call to stability */}
         <motion.div
-          className="mt-24 p-20 rounded-[var(--radius-4xl)] flex flex-col items-center text-center gap-12 relative overflow-hidden w-full"
+          className="mt-24 p-6 sm:p-10 lg:p-20 rounded-[var(--radius-4xl)] flex flex-col items-center text-center gap-12 relative overflow-hidden w-full"
           style={{
             background: 'var(--surface-raised)',
             boxShadow: 'var(--shadow-raised)',
@@ -152,8 +152,8 @@ export function MaturitySection() {
            </div>
 
            <div className="space-y-8 relative z-10 flex flex-col items-center">
-              <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">V4 Roadmap</Badge>
-              <motion.h3 className="text-5xl sm:text-7xl font-display font-black tracking-tight leading-[0.95] m-0" style={{ color: 'var(--text-primary)' }}>
+              <Badge variant="teal" className="px-6 py-2 text-[11px] font-black uppercase tracking-widest">V4 Roadmap</Badge>
+              <motion.h3 className="text-3xl sm:text-5xl lg:text-7xl font-display font-black tracking-tight leading-[0.95] m-0" style={{ color: 'var(--text-primary)' }}>
                 What's <motion.span style={{ color: 'var(--brand-primary)' }}>Next.</motion.span>
               </motion.h3>
               <motion.p className="text-2xl leading-relaxed opacity-80 max-w-3xl" style={{ color: 'var(--text-secondary)' }}>
@@ -168,7 +168,7 @@ export function MaturitySection() {
                    }}
                  >
                     <Zap size={20} style={{ color: 'var(--brand-accent)' }} />
-                    <motion.span className="text-[10px] font-black uppercase tracking-widest opacity-80" style={{ color: 'var(--text-primary)' }}>In Development</motion.span>
+                    <motion.span className="text-[11px] font-black uppercase tracking-widest opacity-80" style={{ color: 'var(--text-primary)' }}>In Development</motion.span>
                  </motion.div>
                  <motion.div
                    className="flex items-center gap-3 px-8 py-4 rounded-full"
@@ -178,7 +178,7 @@ export function MaturitySection() {
                    }}
                  >
                     <Activity size={20} style={{ color: 'var(--brand-primary)' }} />
-                    <motion.span className="text-[10px] font-black uppercase tracking-widest opacity-80" style={{ color: 'var(--text-primary)' }}>Planned for v4</motion.span>
+                    <motion.span className="text-[11px] font-black uppercase tracking-widest opacity-80" style={{ color: 'var(--text-primary)' }}>Planned for v4</motion.span>
                  </motion.div>
               </motion.div>
            </div>
