@@ -171,7 +171,7 @@ export function createChangelog(db: Database.Database) {
 
       return {
         success: true,
-        id: result.lastInsertRowid as number,
+        id: Number(result.lastInsertRowid),
         identity: options.identity,
         ancestors: getAncestors(options.identity),
       };

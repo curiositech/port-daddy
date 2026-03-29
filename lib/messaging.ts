@@ -175,7 +175,7 @@ export function createMessaging(db: Database.Database) {
       const result = stmts.insert.run(trimmedChannel, payloadStr, contentType, sender, now, expiresAt);
 
       const message: MessagePayload = {
-        id: result.lastInsertRowid,
+        id: Number(result.lastInsertRowid),
         channel: trimmedChannel,
         payload: formatPayload(payloadStr, contentType),
         contentType,
@@ -188,7 +188,7 @@ export function createMessaging(db: Database.Database) {
 
       return {
         success: true,
-        id: result.lastInsertRowid,
+        id: Number(result.lastInsertRowid),
         message: `published to ${trimmedChannel}`
       };
     } catch (err) {
