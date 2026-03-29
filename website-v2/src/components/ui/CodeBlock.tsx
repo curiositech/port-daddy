@@ -14,9 +14,14 @@ interface CodeBlockProps {
 export function CodeBlock({ children, language, filename, className, copyable = true }: CodeBlockProps) {
   const [copied, setCopied] = React.useState(false)
 
+  // Extract text content from children, handling JSX whitespace nodes
+  const textContent = React.Children.toArray(children)
+    .map(c => (typeof c === 'string' ? c : ''))
+    .join('')
+    .trim()
+
   const handleCopy = () => {
-    const text = typeof children === 'string' ? children : ''
-    navigator.clipboard.writeText(text).then(() => {
+    navigator.clipboard.writeText(textContent).then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     })
@@ -71,7 +76,7 @@ export function CodeBlock({ children, language, filename, className, copyable = 
           <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--code-dot-amber)' }} />
           <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--code-dot-green)' }} />
         </div>
-        <pre className="overflow-x-auto px-2.5 py-1.5 m-0 text-sm leading-normal"><code className="font-mono" style={{ color: 'var(--code-text)' }}>{typeof children === 'string' ? children.trim() : children}</code></pre>
+        <pre className="overflow-x-auto px-2.5 py-1.5 m-0 text-sm leading-normal"><code className="font-mono" style={{ color: 'var(--code-text)' }}>{textContent}</code></pre>
       </div>
     </Surface>
   )
