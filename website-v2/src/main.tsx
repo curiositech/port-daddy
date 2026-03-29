@@ -19,6 +19,7 @@ import { RoadmapPage } from '@/pages/RoadmapPage'
 import { TemplatesPage } from '@/pages/TemplatesPage'
 
 // New Documentation Pages
+import ApiReference from '@/pages/docs/ApiReference'
 import DocsOverview from '@/pages/docs/DocsOverview'
 import QuickStart from '@/pages/docs/QuickStart'
 import CliOverview from '@/pages/docs/CliOverview'
@@ -370,8 +371,8 @@ createRoot(document.getElementById('root')!).render(
             <Route path="mcp/watch" element={<WatchTool />} />
             
             {/* API */}
-            <Route path="api" element={<DocsOverview />} />
-            <Route path="api/endpoints" element={<DocsOverview />} />
+            <Route path="api" element={<ApiReference />} />
+            <Route path="api/endpoints" element={<ApiReference />} />
           </Route>
 
           {/* Legacy Docs Redirect */}
