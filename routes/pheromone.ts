@@ -203,7 +203,7 @@ export function createPheromoneRoutes(deps: PheromoneRouteDeps): Router {
    * GET /pheromone/:table/:id
    */
   router.get('/pheromone/:table/:id', (req: Request, res: Response) => {
-    const { table, id } = req.params;
+    const { table, id } = req.params as { table: string; id: string };
     const result = pheromones.sniff(table, id);
     if (!result.success) {
       return res.status(404).json({ success: false, error: `Entity not found: ${table}/${id}` });

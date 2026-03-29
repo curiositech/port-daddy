@@ -2574,6 +2574,91 @@ class PortDaddy {
   async harborMemberships(agentId: string): Promise<ListHarborsResponse> {
     return this._request('GET', `/harbors/agent/${encodeURIComponent(agentId)}`) as Promise<ListHarborsResponse>;
   }
+
+  // ===========================================================================
+  // Pheromone -- Stigmergic ambient signals
+  // ===========================================================================
+
+  /**
+   * Spray a pheromone signal onto an entity.
+   * Signals are numeric (0-1) and decay over time on read.
+   *
+   * @example
+   * await pd.pheromoneSpray('services', 'myapp:api', 'urgency', 0.8);
+   */
+  async pheromoneSpray(table: string, id: string, key: string, strength: number): Promise<PheromoneSprayResponse> {
+    return this._request('POST', '/pheromone/spray', { table, id, key, strength }) as Promise<PheromoneSprayResponse>;
+  }
+
+  /**
+   * Sniff (read) pheromone values for an entity.
+   * Applies read-time decay — values decrease each time you read them.
+   *
+   * @example
+   * const { pheromones } = await pd.pheromoneSniff('services', 'myapp:api');
+   * console.log(pheromones); // { urgency: 0.72, staleness: 0.15 }
+   */
+  async pheromoneSniff(table: string, id: string): Promise<PheromoneSniffResponse> {
+    return this._request('GET', `/pheromone/${encodeURIComponent(table)}/${encodeURIComponent(id)}`) as Promise<PheromoneSniffResponse>;
+  }
+
+  /**
+   * List all non-zero pheromone trails across all tracked entities.
+   */
+  async pheromoneList(): Promise<PheromoneListResponse> {
+    return this._request('GET', '/pheromone') as Promise<PheromoneListResponse>;
+  }
+
+  /**
+   * Get file heat map — aggregates session file claims into per-file
+   * contention scores with recency-weighted decay.
+   *
+   * @example
+   * const { files, directories, summary } = await pd.fileHeatMap('src/');
+   * console.log(summary.hottestFile); // "src/auth.ts"
+   */
+  async fileHeatMap(pathPrefix?: string, depth?: number): Promise<FileHeatMapResponse> {
+    const params = new URLSearchParams();
+    if (pathPrefix) params.set('path', pathPrefix);
+    if (depth !== undefined) params.set('depth', String(depth));
+    const qs = params.toString() ? '?' + params.toString() : '';
+    return this._request('GET', `/pheromone/files${qs}`) as Promise<FileHeatMapResponse>;
+  }
+
+  // ===========================================================================
+  // Arbiter -- Runtime invariant enforcement
+  // ===========================================================================
+
+  /**
+   * Get Arbiter status: active rules, violation count, uptime.
+   *
+   * @example
+   * const status = await pd.arbiterStatus();
+   * console.log(status.rules); // ['PID_SQUATTING', 'CAP_ESCALATION', ...]
+   */
+  async arbiterStatus(): Promise<ArbiterStatusResponse> {
+    return this._request('GET', '/arbiter/status') as Promise<ArbiterStatusResponse>;
+  }
+
+  /**
+   * List recorded invariant violations.
+   */
+  async arbiterViolations(options: { limit?: number; offset?: number } = {}): Promise<ArbiterViolationsResponse> {
+    const params = new URLSearchParams();
+    if (options.limit) params.set('limit', String(options.limit));
+    if (options.offset) params.set('offset', String(options.offset));
+    const qs = params.toString() ? '?' + params.toString() : '';
+    return this._request('GET', `/arbiter/violations${qs}`) as Promise<ArbiterViolationsResponse>;
+  }
+
+  /**
+   * Inject a test violation (for demos and paper verification).
+   * Valid names: PID_SQUATTING, CAP_ESCALATION, NOTE_MONOTONICITY,
+   *              ESCROW_POSITIVE, LOCK_OWNER_VALID, HEARTBEAT_FRESHNESS
+   */
+  async arbiterTestInvariant(name: string): Promise<ArbiterTestResponse> {
+    return this._request('POST', `/arbiter/test-invariant/${encodeURIComponent(name)}`) as Promise<ArbiterTestResponse>;
+  }
 }
 
 // =============================================================================
@@ -2919,6 +3004,101 @@ interface LeaveHarborResponse {
   error?: string;
 }
 
+// =============================================================================
+// Pheromone types
+// =============================================================================
+
+interface PheromoneSprayResponse {
+  success: boolean;
+  table: string;
+  id: string;
+  key: string;
+  strength: number;
+  pheromones: Record<string, number>;
+}
+
+interface PheromoneSniffResponse {
+  success: boolean;
+  table: string;
+  id: string;
+  pheromones: Record<string, number>;
+}
+
+interface PheromoneTrail {
+  table: string;
+  id: string;
+  pheromones: Record<string, number>;
+}
+
+interface PheromoneListResponse {
+  success: boolean;
+  count: number;
+  pheromones: PheromoneTrail[];
+}
+
+interface FileHeatEntry {
+  path: string;
+  heat: number;
+  activeClaims: number;
+  totalClaims: number;
+  lastActivity: string | null;
+  agents: string[];
+  conflict: boolean;
+}
+
+interface DirHeatEntry {
+  path: string;
+  heat: number;
+  fileCount: number;
+  conflictCount: number;
+}
+
+interface FileHeatMapResponse {
+  success: boolean;
+  files: FileHeatEntry[];
+  directories: DirHeatEntry[];
+  summary: {
+    totalFiles: number;
+    activeConflicts: number;
+    hottestFile: string | null;
+    hottestDir: string | null;
+  };
+}
+
+// =============================================================================
+// Arbiter types
+// =============================================================================
+
+interface ArbiterViolation {
+  rule: string;
+  severity: string;
+  message: string;
+  timestamp: number;
+  details?: Record<string, unknown>;
+}
+
+interface ArbiterStatusResponse {
+  success: boolean;
+  active: boolean;
+  rules: string[];
+  ruleCount: number;
+  violationCount: number;
+  uptime: number;
+  strictMode: boolean;
+}
+
+interface ArbiterViolationsResponse {
+  success: boolean;
+  violations: ArbiterViolation[];
+  count: number;
+  total: number;
+}
+
+interface ArbiterTestResponse {
+  success: boolean;
+  violation: ArbiterViolation;
+}
+
 export { PortDaddy, PortDaddyError, ConnectionError };
 export type {
   WaitResponse,
@@ -2973,5 +3153,16 @@ export type {
   ListHarborsResponse,
   DestroyHarborResponse,
   LeaveHarborResponse,
+  PheromoneSprayResponse,
+  PheromoneSniffResponse,
+  PheromoneTrail,
+  PheromoneListResponse,
+  FileHeatEntry,
+  DirHeatEntry,
+  FileHeatMapResponse,
+  ArbiterViolation,
+  ArbiterStatusResponse,
+  ArbiterViolationsResponse,
+  ArbiterTestResponse,
 };
 export default PortDaddy;

@@ -703,6 +703,52 @@ interface AddChangelogOptions {
 
 ---
 
+## Pheromone Trails
+
+Stigmergic ambient signals — spray numeric values (0-1) onto entities. Values decay geometrically on read, creating ephemeral awareness.
+
+```javascript
+// Spray a signal onto an entity
+await pd.pheromoneSpray('services', 'myapp:api', 'urgency', 0.8);
+
+// Sniff values (applies read-time decay)
+const { pheromones } = await pd.pheromoneSniff('services', 'myapp:api');
+// { urgency: 0.72, staleness: 0.15 }
+
+// List all non-zero trails
+const { pheromones: all } = await pd.pheromoneList();
+
+// File heat map — which files are most contested?
+const { files, directories, summary } = await pd.fileHeatMap('src/');
+console.log(summary.hottestFile);      // "src/auth.ts"
+console.log(summary.activeConflicts);  // 2
+```
+
+**Use cases:** adaptive Arbiter thresholds, file contention detection, agent reputation scoring, hot-path identification.
+
+---
+
+## Arbiter (Observability)
+
+Read-only access to the Arbiter's invariant enforcement status. The Arbiter runs autonomously — these methods are for monitoring, not control.
+
+```javascript
+// Check Arbiter status
+const status = await pd.arbiterStatus();
+console.log(status.rules);          // ['PID_SQUATTING', 'CAP_ESCALATION', ...]
+console.log(status.violationCount); // 0
+
+// List violations
+const { violations } = await pd.arbiterViolations({ limit: 10 });
+
+// Inject a test violation (demos, integration tests)
+await pd.arbiterTestInvariant('NOTE_MONOTONICITY');
+```
+
+**Rules:** PID_SQUATTING, CAP_ESCALATION, NOTE_MONOTONICITY, ESCROW_POSITIVE, LOCK_OWNER_VALID, HEARTBEAT_FRESHNESS
+
+---
+
 ## Error Handling
 
 ```javascript

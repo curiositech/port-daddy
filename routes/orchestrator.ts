@@ -26,7 +26,7 @@ export function createOrchestratorRoutes(deps: OrchestratorRouteDeps) {
 
   router.post('/orchestrator/down', async (req: Request, res: Response) => {
     try {
-      await orchestrator.stopAll();
+      await (orchestrator as any).stop?.();
       res.json({ success: true, message: 'All services stopped' });
     } catch (error) {
       metrics.errors++;
