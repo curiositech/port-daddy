@@ -17,31 +17,41 @@ export function RemoteHarbors() {
       prev={{ title: 'The Session State Machine', href: '/tutorials/session-phases' }}
     >
       <motion.div className="space-y-16">
+        {/* Coming in v4 Banner */}
+        <Surface depth="flat" radius="2xl" padding="md" className="border-l-4 border-[var(--brand-accent)]">
+          <div className="flex items-center gap-3 mb-2">
+            <Badge variant="gold" className="px-4 py-1 text-[10px] font-black uppercase tracking-widest">Coming in v4</Badge>
+          </div>
+          <p className="m-0 text-sm" style={{ color: 'var(--text-secondary)' }}>
+            Remote Harbors are a <strong>planned feature</strong> for Port Daddy v4. None of the commands on this page exist yet. This tutorial describes the design vision and planned syntax for cross-machine agent coordination. Today, Port Daddy runs as a single-machine daemon on localhost:9876.
+          </p>
+        </Surface>
+
         {/* Intro Section */}
         <section className="space-y-6">
           <motion.div className="flex items-center gap-4 mb-8">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Globe className="text-[var(--brand-secondary)]" size={24} />
             </Surface>
-            <motion.h2 className="m-0">The Infinite Swarm</motion.h2>
+            <motion.h2 className="m-0">The Vision: Multi-Machine Coordination</motion.h2>
           </motion.div>
           <motion.p>
-            <strong>Remote Harbors</strong> are the final piece of the Port Daddy architecture. They allow you to treat agents running on different machines--whether it's your teammate's laptop or a cloud-hosted GPU cluster--as part of a single, unified swarm.
+            <strong>Remote Harbors</strong> will allow you to treat agents running on different machines -- whether a teammate's laptop or a cloud GPU cluster -- as part of a single coordinated swarm. This is the next major evolution of Port Daddy's architecture.
           </motion.p>
           <motion.div className="grid sm:grid-cols-2 gap-8 pt-4">
              <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
                 <Surface depth="inset" radius="xl" padding="none" className="w-10 h-10 flex items-center justify-center">
                    <Anchor size={20} className="text-[var(--brand-secondary)]" />
                 </Surface>
-                <motion.h3 className="text-xl font-display font-black m-0">Cross-Machine Sync (v4)</motion.h3>
-                <motion.p className="text-sm text-[var(--text-secondary)] m-0">Public discovery nodes that negotiate secure, encrypted handshakes between daemons behind firewalls.</motion.p>
+                <motion.h3 className="text-xl font-display font-black m-0">Cross-Machine Sync</motion.h3>
+                <motion.p className="text-sm text-[var(--text-secondary)] m-0">Planned: discovery nodes that negotiate secure, encrypted handshakes between daemons behind firewalls.</motion.p>
              </Surface>
              <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
                 <Surface depth="inset" radius="xl" padding="none" className="w-10 h-10 flex items-center justify-center">
                    <Sparkles size={20} className="text-[var(--brand-accent)]" />
                 </Surface>
                 <motion.h3 className="text-xl font-display font-black m-0">Compute Routing</motion.h3>
-                <motion.p className="text-sm text-[var(--text-secondary)] m-0">Re-route intensive agent tasks to remote harbors with more powerful hardware seamlessly.</motion.p>
+                <motion.p className="text-sm text-[var(--text-secondary)] m-0">Planned: route intensive agent tasks to remote harbors with more powerful hardware.</motion.p>
              </Surface>
           </motion.div>
         </section>
@@ -52,54 +62,59 @@ export function RemoteHarbors() {
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
               <Network className="text-[var(--brand-primary)]" size={24} />
             </Surface>
-            <motion.h2 className="m-0">1. Connect Instances (Planned)</motion.h2>
+            <motion.h2 className="m-0">1. Planned: Connect Instances</motion.h2>
           </motion.div>
 
           <motion.p>
-            Use the <code>harbor discover</code> command to find available remote lighthouses or join a private mesh using a secure invitation.
+            The design calls for a <code>harbor discover</code> command to find available remote lighthouses or join a private mesh using a secure invitation. This command does not exist yet.
           </motion.p>
 
           <CodeBlock language="bash">
-            {`$ pd harbor discover --lighthouse global.portdaddy.dev\\
-    --invite pd-inv-7f3a-9921\\
+            {`# PLANNED SYNTAX — not yet implemented
+$ pd harbor discover --lighthouse global.portdaddy.dev \\
+    --invite pd-inv-7f3a-9921
 
-✓ Identity Verified.
-✓ Linked to remote harbor: gpu-swarm-01
-✓ Latency: 42ms (Secure P2P)`}
+# Expected output (v4):
+# ✓ Identity Verified.
+# ✓ Linked to remote harbor: gpu-swarm-01
+# ✓ Latency: 42ms (Secure P2P)`}
           </CodeBlock>
 
           <Surface depth="flat" radius="xl" padding="md" className="border-l-4 border-[var(--brand-secondary)]">
             <p className="m-0 text-sm" style={{ color: 'var(--text-secondary)' }}>
-              Remote Harbors are planned for Port Daddy v4. The design calls for end-to-end encrypted communication between daemon instances, but this is not yet implemented.
+              The design calls for end-to-end encrypted communication between daemon instances. Today, you can expose a local service externally using <code>pd tunnel</code> with ngrok or cloudflared, but cross-daemon coordination is not yet available.
             </p>
           </Surface>
         </section>
 
-        {/* Step 2: Global Calls */}
+        {/* What exists today */}
         <section className="space-y-8">
           <motion.div className="flex items-center gap-4">
             <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
-              <Cpu className="text-[var(--brand-accent)]" size={24} />
+              <Terminal className="text-[var(--brand-accent)]" size={24} />
             </Surface>
-            <motion.h2 className="m-0">2. Hailing Remote Agents</motion.h2>
+            <motion.h2 className="m-0">2. What Works Today</motion.h2>
           </motion.div>
 
           <motion.p>
-            Once linked, remote identities appear in your local DNS registry. You can call remote agents or publish to their Swarm Radio channels exactly as if they were local.
+            While remote harbors are planned, Port Daddy already has building blocks for external access:
           </motion.p>
 
           <CodeBlock language="bash">
-            {`# Call an agent running on the remote GPU cluster\\
-curl http://$(pd dns resolve gpu-swarm:vision-analyst)/analyze\\
-    -d @image.png\\
+            {`# Expose a local service via tunnel (works today)
+pd tunnel myapp:api start --provider ngrok
 
-# Broadcast a signal to all linked daemons\\
-pd pub global:swarm:events "new-task-ready"`}
+# Local DNS for service discovery (works today)
+pd dns create myapp-api.local --port 3000
+
+# Pub/sub messaging between local agents (works today)
+pd pub deploy:events "build-complete"
+pd watch deploy:events --exec ./notify.sh`}
           </CodeBlock>
 
           <Surface depth="raised" radius="2xl" className="p-10 space-y-8 relative overflow-hidden text-center">
              <motion.div className="absolute inset-0 bg-gradient-to-b from-[var(--brand-secondary)]/5 to-transparent" />
-             <motion.p className="text-sm font-black uppercase tracking-widest opacity-40 m-0">The Global Mesh</motion.p>
+             <motion.p className="text-sm font-black uppercase tracking-widest opacity-40 m-0">The Vision: Global Mesh</motion.p>
 
              <motion.div className="flex items-center justify-center gap-12 pt-4">
                 <motion.div className="flex flex-col items-center gap-4">
@@ -120,7 +135,7 @@ pd pub global:swarm:events "new-task-ready"`}
                    <Surface depth="inset" radius="full" padding="none" className="w-16 h-16 flex items-center justify-center">
                       <Cpu size={24} className="text-[var(--brand-accent)]" />
                    </Surface>
-                   <motion.span className="text-[10px] font-black uppercase text-[var(--text-muted)]">GPU Cluster</motion.span>
+                   <motion.span className="text-[10px] font-black uppercase text-[var(--text-muted)]">GPU Cluster (v4)</motion.span>
                 </motion.div>
              </motion.div>
           </Surface>
@@ -131,10 +146,10 @@ pd pub global:swarm:events "new-task-ready"`}
            <motion.div className="absolute top-0 right-0 p-10 opacity-[0.03] pointer-events-none">
               <Activity size={400} />
            </motion.div>
-           <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">The Ultimate Maturity</Badge>
+           <Badge variant="gold" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Coming in v4</Badge>
            <motion.h3 className="text-4xl font-display font-black m-0" style={{ color: 'var(--text-primary)' }}>Global Intelligence.</motion.h3>
            <motion.p className="text-xl max-w-xl opacity-70">
-             Port Daddy v3.7 isn't just about your machine--it's about the <strong>Mesh</strong>. We're building the infrastructure for a world where agents cooperate across any network, forming vast, secure, and resilient autonomous organizations.
+             Port Daddy v4 will extend the daemon model across machines, enabling agents to cooperate across any network. Today, all coordination happens through your local daemon on localhost:9876. Remote harbors will bring the same primitives -- ports, sessions, pub/sub, salvage -- to a distributed mesh.
            </motion.p>
            <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-primary)]">
               <Shield size={14} className="animate-pulse" />

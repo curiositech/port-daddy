@@ -64,7 +64,7 @@ $ pd activity --type claim
 $ pd activity --since 1h
 
 # Get a summary of activity by type
-$ pd activity --summary`}
+$ pd activity`}
           output={`Recent activity:
   12:01:03  claim    myapp:api:main → port 3001
   12:01:05  claim    myapp:frontend:main → port 3000
@@ -149,11 +149,11 @@ $ pd activity --summary`}
 
           <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <div className="flex items-center gap-2 mb-2">
-              <code className="text-lg font-mono text-[var(--brand-primary)]">pd activity --summary</code>
+              <code className="text-lg font-mono text-[var(--brand-primary)]">pd activity</code>
             </div>
             <p className="text-[var(--text-secondary)] mb-3">Get an aggregate summary of activity grouped by operation type.</p>
             <DocsCodeBlock
-              code={`$ pd activity --summary`}
+              code={`$ pd activity`}
               output={`Activity summary:
   claim      142 events   last: 2s ago
   release     98 events   last: 5m ago
@@ -173,7 +173,7 @@ $ pd activity --summary`}
           <div className="text-sm font-medium text-[var(--text-muted)] mb-3">TypeScript</div>
           <DocsCodeBlock
             language="typescript"
-            code={`import { PortDaddy } from '@port-daddy/sdk'
+            code={`import { PortDaddy } from 'port-daddy'
 
 const pd = new PortDaddy()
 

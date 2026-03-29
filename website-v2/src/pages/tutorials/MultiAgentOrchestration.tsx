@@ -66,7 +66,7 @@ export function MultiAgentOrchestration() {
           <CodeBlock language="bash">
             {`# Agent A starts a session and claims files
 $ pd begin --identity my-swarm:refactor --purpose "Refactor middleware"
-$ pd files claim src/middleware/*.ts src/routes/auth.ts
+$ pd session files add src/middleware/*.ts src/routes/auth.ts
 
 Claimed 12 files.
 No conflicts with other active agents.`}

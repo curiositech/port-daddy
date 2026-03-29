@@ -76,10 +76,10 @@ export default function SdkOverview() {
         <p className="text-[var(--text-secondary)]">
           Install the SDK via npm, yarn, or pnpm:
         </p>
-        <CodeBlock code="npm install @port-daddy/sdk" />
+        <CodeBlock code="npm install port-daddy" />
         <div className="flex gap-4 text-sm text-[var(--text-muted)]">
-          <code>yarn add @port-daddy/sdk</code>
-          <code>pnpm add @port-daddy/sdk</code>
+          <code>yarn add port-daddy</code>
+          <code>pnpm add port-daddy</code>
         </div>
       </div>
 
@@ -89,7 +89,7 @@ export default function SdkOverview() {
         <p className="text-[var(--text-secondary)]">
           Get up and running in seconds:
         </p>
-        <CodeBlock code={`import { PortDaddy } from '@port-daddy/sdk'
+        <CodeBlock code={`import { PortDaddy } from 'port-daddy'
 
 const pd = new PortDaddy()
 
@@ -173,7 +173,7 @@ const pd = new PortDaddy({
         <p className="text-[var(--text-secondary)] leading-relaxed mb-4">
           The SDK is written in TypeScript and provides complete type definitions:
         </p>
-        <CodeBlock code={`import { PortClaimOptions, Session, PortClaim } from '@port-daddy/sdk'
+        <CodeBlock code={`import { PortClaimOptions, Session, PortClaim } from 'port-daddy'
 
 // All types are fully exported
 const options: PortClaimOptions = {

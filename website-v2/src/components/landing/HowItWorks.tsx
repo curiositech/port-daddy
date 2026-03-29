@@ -17,11 +17,11 @@ const STEPS: Step[] = [
     number: '01',
     title: 'Atomic Identity',
     description:
-      'Summon a session. Port Daddy assigns a stable port and cryptographic identity, checking for orphaned work from previous swarms.',
+      'Summon a session. Port Daddy assigns a stable port and semantic identity, checking for orphaned work from previous swarms.',
     code: [
-      '$ pd begin --identity swarm:analyst',
-      '[pd] Handshake complete · agent-7f3a',
-      '  Port 3102 assigned (deterministic)',
+      '$ pd begin "Analyzing data" --identity swarm:analyst',
+      '  Agent agent-7f3a ready',
+      '  Session started · port 3102 · identity swarm:analyst',
       '  Salvage: No dead agents detected',
     ],
     color: 'var(--brand-primary)',
@@ -33,11 +33,11 @@ const STEPS: Step[] = [
     description:
       'Claim files, acquire locks, and broadcast events on Swarm Radio. All inter-agent signaling happens through the local daemon.',
     code: [
-      '$ pd files claim src/models/*.py',
+      '$ pd session files add src/models/*.py',
       '  Claimed · 0 conflicts',
       '',
       '$ pd pub swarm:events "model-ready"',
-      '  Published to 12 subscribers',
+      '  Published to swarm:events',
     ],
     color: 'var(--brand-accent)',
     icon: Zap
@@ -48,9 +48,9 @@ const STEPS: Step[] = [
     description:
       'When a task finishes, pd done releases resources. If an agent crashes, work is escrowed for Always-On Avatars to salvage.',
     code: [
-      '$ pd done --note "Model training complete"',
-      '  Resources released',
-      '  Note pinned to harbor history',
+      '$ pd done "Model training complete"',
+      '  Session completed · agent unregistered',
+      '  Note pinned to session history',
     ],
     color: 'var(--brand-primary)',
     icon: RefreshCw

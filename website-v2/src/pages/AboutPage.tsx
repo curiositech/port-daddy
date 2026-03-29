@@ -171,7 +171,7 @@ export function AboutPage() {
                 runs <code>pd begin --identity myapp:api --purpose "Build REST endpoints"</code>.
                 Port Daddy registers it as an active agent, starts a session, and returns a session
                 ID. Claude Code then runs <code>pd claim myapp:api</code> to get a stable port for
-                the Express server and <code>pd files claim src/routes/ src/middleware/</code> to
+                the Express server and <code>pd session files add src/routes/ src/middleware/</code> to
                 announce which files it plans to touch.
               </p>
               <p>

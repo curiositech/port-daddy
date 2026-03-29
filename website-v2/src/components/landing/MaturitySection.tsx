@@ -15,7 +15,7 @@ const MATURITY_FEATURES = [
   {
     icon: Lock,
     title: 'Cryptographic Harbors',
-    description: 'Enforce permission boundaries at the daemon level. Agents without valid HMAC-signed tokens are strictly blocked from sensitive system-level resources.',
+    description: 'Define permission boundaries with HMAC-signed capability tokens. In v3, capabilities are advisory -- agents declare intent and the daemon tracks compliance. Enforced boundaries are planned for v4.',
   },
   {
     icon: Database,
@@ -24,18 +24,18 @@ const MATURITY_FEATURES = [
   },
   {
     icon: Scale,
-    title: 'Resource Enforcement',
-    description: 'Monitor real-time agent compute usage. Auto-salvage rogue processes that exceed memory or CPU quotas before they impact your host machine.',
+    title: 'Heartbeat Monitoring',
+    description: 'Auto-detect dead agents via heartbeat expiry and preserve their session notes and file claims for salvage. New agents inherit context and continue the work.',
   },
   {
     icon: Activity,
-    title: 'High-Availability Daemon',
-    description: 'The Port Daddy core features zero-downtime reloads and WAL-mode persistence, ensuring your lighthouses stay lit even during host updates.',
+    title: 'Always-On Daemon',
+    description: 'Installed as a launchd service with auto-restart on crash. WAL-mode SQLite persistence ensures your coordination state survives reboots and host updates.',
   },
   {
     icon: Network,
-    title: 'Universal Mesh Core',
-    description: 'Native Unix Sockets for peak local performance, falling back to secure TCP/Named Pipes for Windows, WSL2, and isolated container environments.',
+    title: 'Universal Access',
+    description: 'Unix socket for peak local performance, with TCP fallback for compatibility. Connect from any process on the host regardless of runtime or language.',
   }
 ]
 

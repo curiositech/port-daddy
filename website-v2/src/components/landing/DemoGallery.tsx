@@ -46,21 +46,6 @@ const DEMOS: Demo[] = [
       { value: 'ACID', label: 'backed' },
     ],
   },
-  {
-    id: 'auction',
-    gif: { light: '/gifs/auction-light.gif', dark: '/gifs/auction-dark.gif' },
-    title: 'Stigmergic Auction',
-    subtitle: 'Competitive task allocation',
-    badge: 'Pheromones',
-    badgeVariant: 'default',
-    description:
-      'Agents bid on shared goals by spraying pheromones on the concept graph. The highest confidence scent wins the resource lock, enabling masterless coordination.',
-    stats: [
-      { value: 'Dynamic', label: 'decay' },
-      { value: 'SOMA', label: 'inspired' },
-      { value: 'Swarm', label: 'ready' },
-    ],
-  },
 ]
 
 export function DemoGallery() {
@@ -96,7 +81,7 @@ export function DemoGallery() {
             <motion.span style={{ color: 'var(--brand-primary)' }}>Coordination.</motion.span>
           </motion.h2>
           <motion.p className="text-2xl sm:text-3xl max-w-4xl mx-auto leading-relaxed font-sans font-bold" style={{ color: 'var(--text-secondary)' }}>
-            These aren't mockups. These are <strong>high-fidelity recordings</strong> of Port Daddy coordinating live agent swarms.
+            Real features, real coordination. See Port Daddy's core primitives in action.
           </motion.p>
         </motion.div>
 

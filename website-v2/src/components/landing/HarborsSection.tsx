@@ -36,7 +36,7 @@ function HarborCard({ name, capabilities, delay = 0 }: { name: string; capabilit
         </motion.div>
 
         <motion.div className="space-y-4">
-          <motion.span className="text-[11px] font-black uppercase tracking-[0.2em] opacity-80 mb-2 block text-left" style={{ color: 'var(--text-muted)' }}>Signed Capabilities</motion.span>
+          <motion.span className="text-[11px] font-black uppercase tracking-[0.2em] opacity-80 mb-2 block text-left" style={{ color: 'var(--text-muted)' }}>Signed Capabilities <span className="normal-case tracking-normal opacity-60">(advisory in v3)</span></motion.span>
           <motion.div className="flex flex-wrap gap-2">
             {capabilities.map((cap, i) => {
               const config = CAPABILITIES.find(c => c.cap === cap) || CAPABILITIES[0]
@@ -93,6 +93,9 @@ export function HarborsSection() {
                Cryptographic <br />
                <motion.span style={{ color: 'var(--brand-primary)' }}>Harbors.</motion.span>
              </motion.h2>
+             <motion.p className="text-base max-w-2xl mx-auto leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+               Harbors group agents into named permission namespaces with HMAC-signed capability tokens. In v3, capabilities are advisory -- the daemon tracks declarations but does not block access. Enforced boundaries ship in v4.
+             </motion.p>
           </div>
         </motion.div>
 

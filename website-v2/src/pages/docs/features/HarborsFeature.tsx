@@ -159,7 +159,7 @@ observer   sessions:read,notes:read,activity:read  0 agents`}
           <div className="text-sm font-medium text-[var(--text-muted)] mb-3">TypeScript</div>
           <DocsCodeBlock
             language="typescript"
-            code={`import { PortDaddy } from '@port-daddy/sdk'
+            code={`import { PortDaddy } from 'port-daddy'
 
 const pd = new PortDaddy()
 

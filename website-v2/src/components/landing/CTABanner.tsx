@@ -99,7 +99,7 @@ export function CTABanner() {
              }}
            >
               <Terminal size={18} style={{ color: 'var(--brand-primary)' }} />
-              brew install erichowens/port-daddy
+              npm install -g port-daddy
            </motion.div>
            <motion.p className="text-[11px] font-black uppercase tracking-[0.3em] m-0" style={{ color: 'var(--text-muted)', opacity: 0.5 }}>Free · Open Source · MIT License</motion.p>
         </motion.div>
