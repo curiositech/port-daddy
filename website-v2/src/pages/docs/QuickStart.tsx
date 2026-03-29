@@ -1,51 +1,39 @@
 import { Badge } from '@/components/ui/Badge'
-import { CodeBlock as SharedCodeBlock } from '@/components/ui/CodeBlock'
+import { CodeBlock } from '@/components/ui/CodeBlock'
+import { Surface } from '@/components/ui/Surface'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Check } from 'lucide-react'
-import { useState } from 'react'
 
 const STEPS = [
   {
     number: '01',
     title: 'Install Port Daddy',
     description: 'Install globally via npm.',
-    code: 'npm install -g port-daddy',
-    verify: 'pd --version'
+    code: '$ npm install -g port-daddy',
+    verify: '$ pd --version\nport-daddy v3.8.0'
   },
   {
     number: '02',
     title: 'Start the Daemon',
     description: 'The daemon runs in the background and manages all coordination.',
-    code: 'pd start',
-    verify: 'pd status'
+    code: '$ pd start',
+    verify: '$ pd status\nPort Daddy is running on localhost:9876'
   },
   {
     number: '03',
     title: 'Claim Your First Port',
     description: 'Use semantic identities to claim stable ports for your services.',
-    code: 'pd claim myapp:api:main',
-    verify: 'pd services'
+    code: '$ pd claim myapp:api:main',
+    verify: '$ pd services\nmyapp:api:main → port 3001 (healthy)'
   },
   {
     number: '04',
     title: 'Begin an Agent Session',
     description: 'Register as an agent and start tracking your work.',
-    code: 'pd begin --identity myapp:coder --purpose "Initial setup"',
-    verify: 'pd whoami'
+    code: '$ pd begin "Initial setup" --identity myapp:coder',
+    verify: '$ pd whoami\nAgent: agent-7f3a\nSession: session-b2e4\nIdentity: myapp:coder'
   }
 ]
-
-function StepCodeBlock({ code, verify }: { code: string; verify: string }) {
-  return (
-    <div className="space-y-2">
-      <SharedCodeBlock language="bash">{code}</SharedCodeBlock>
-      <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
-        <span>Verify:</span>
-        <code>{verify}</code>
-      </div>
-    </div>
-  )
-}
 
 export default function QuickStart() {
   return (
@@ -53,111 +41,78 @@ export default function QuickStart() {
       {/* Header */}
       <div className="space-y-4">
         <Badge variant="teal">Quick Start</Badge>
-        <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
+        <h1 className="text-4xl font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>
           Get Started with Port Daddy
         </h1>
-        <p className="text-xl text-[var(--text-secondary)] leading-relaxed max-w-2xl">
-          Get up and running in minutes. Follow these steps to start coordinating 
-          your first agent swarm.
+        <p className="text-xl leading-relaxed max-w-2xl" style={{ color: 'var(--text-secondary)' }}>
+          Get up and running in four commands.
         </p>
       </div>
 
       {/* Prerequisites */}
-      <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-        <h2 className="font-semibold text-[var(--text-primary)] mb-3">Prerequisites</h2>
-        <ul className="space-y-2 text-[var(--text-secondary)]">
+      <Surface depth="raised" radius="xl" padding="lg">
+        <h2 className="font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Prerequisites</h2>
+        <ul className="space-y-2" style={{ color: 'var(--text-secondary)' }}>
           <li className="flex items-center gap-2">
-            <Check size={16} className="text-[var(--success)]" />
+            <Check size={16} style={{ color: 'var(--status-success)' }} />
             macOS, Linux, or WSL2 on Windows
           </li>
           <li className="flex items-center gap-2">
-            <Check size={16} className="text-[var(--success)]" />
-            npm or yarn
-          </li>
-          <li className="flex items-center gap-2">
-            <Check size={16} className="text-[var(--success)]" />
-            Node.js 18+ (for SDK features)
+            <Check size={16} style={{ color: 'var(--status-success)' }} />
+            Node.js 18+
           </li>
         </ul>
-      </div>
+      </Surface>
 
       {/* Steps */}
-      <div className="space-y-8">
+      <div className="space-y-6">
         {STEPS.map((step, i) => (
-          <div key={step.number} className="relative">
-            {i < STEPS.length - 1 && (
-              <div className="absolute left-6 top-16 bottom-0 w-px bg-[var(--border-subtle)]" />
-            )}
-            <div className="flex gap-6">
-              <div className="w-12 h-12 rounded-full bg-[var(--brand-primary)]/10 flex items-center justify-center shrink-0">
-                <span className="font-semibold text-[var(--brand-primary)]">{step.number}</span>
-              </div>
-              <div className="flex-1 space-y-3">
-                <h3 className="text-xl font-semibold text-[var(--text-primary)]">{step.title}</h3>
-                <p className="text-[var(--text-secondary)]">{step.description}</p>
-                <StepCodeBlock code={step.code} verify={step.verify} />
+          <Surface key={step.number} depth="raised" radius="xl" padding="lg" className="space-y-4">
+            <div className="flex items-center gap-4">
+              <Surface depth="inset" radius="full" padding="none" className="w-10 h-10 flex items-center justify-center shrink-0">
+                <span className="text-sm font-bold" style={{ color: 'var(--brand-primary)' }}>{step.number}</span>
+              </Surface>
+              <div>
+                <h3 className="text-lg font-semibold m-0" style={{ color: 'var(--text-primary)' }}>{step.title}</h3>
+                <p className="text-sm m-0" style={{ color: 'var(--text-muted)' }}>{step.description}</p>
               </div>
             </div>
-          </div>
+
+            <CodeBlock language="bash">{step.code}</CodeBlock>
+
+            <div className="space-y-1">
+              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Verify</span>
+              <CodeBlock language="bash" copyable={false}>{step.verify}</CodeBlock>
+            </div>
+          </Surface>
         ))}
       </div>
 
       {/* Next Steps */}
-      <div className="p-6 rounded-xl bg-gradient-to-br from-[var(--brand-primary)]/5 to-transparent border border-[var(--brand-primary)]/20">
-        <h2 className="font-semibold text-[var(--text-primary)] mb-3">Next Steps</h2>
-        <p className="text-[var(--text-secondary)] mb-4">
-          Now that you have Port Daddy running, explore these guides to build your first swarm:
+      <Surface depth="raised" radius="xl" padding="lg" className="space-y-4">
+        <h2 className="font-semibold" style={{ color: 'var(--text-primary)' }}>Next Steps</h2>
+        <p style={{ color: 'var(--text-secondary)' }}>
+          Now that you have Port Daddy running, explore these guides:
         </p>
         <div className="grid sm:grid-cols-2 gap-3">
-          <Link 
-            to="/docs/features/radio"
-            className="flex items-center gap-2 p-3 rounded-lg bg-[var(--surface-raised)] hover:bg-[var(--interactive-hover)] transition-colors"
-          >
-            <span className="text-[var(--text-primary)]">Swarm Radio</span>
-            <ArrowRight size={14} className="text-[var(--text-muted)]" />
-          </Link>
-          <Link 
-            to="/docs/features/harbors"
-            className="flex items-center gap-2 p-3 rounded-lg bg-[var(--surface-raised)] hover:bg-[var(--interactive-hover)] transition-colors"
-          >
-            <span className="text-[var(--text-primary)]">Cryptographic Harbors</span>
-            <ArrowRight size={14} className="text-[var(--text-muted)]" />
-          </Link>
-          <Link 
-            to="/docs/mcp"
-            className="flex items-center gap-2 p-3 rounded-lg bg-[var(--surface-raised)] hover:bg-[var(--interactive-hover)] transition-colors"
-          >
-            <span className="text-[var(--text-primary)]">MCP Integration</span>
-            <ArrowRight size={14} className="text-[var(--text-muted)]" />
-          </Link>
-          <Link 
-            to="/tutorials/getting-started"
-            className="flex items-center gap-2 p-3 rounded-lg bg-[var(--surface-raised)] hover:bg-[var(--interactive-hover)] transition-colors"
-          >
-            <span className="text-[var(--text-primary)]">Full Tutorial</span>
-            <ArrowRight size={14} className="text-[var(--text-muted)]" />
-          </Link>
+          {[
+            { label: 'Swarm Radio', to: '/docs/features/radio' },
+            { label: 'Harbors', to: '/docs/features/harbors' },
+            { label: 'MCP Integration', to: '/docs/mcp' },
+            { label: 'Full Tutorial', to: '/tutorials/getting-started' },
+          ].map(link => (
+            <Link
+              key={link.to}
+              to={link.to}
+              className="flex items-center justify-between p-3 rounded-lg transition-colors"
+              style={{ background: 'var(--interactive-hover)' }}
+            >
+              <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{link.label}</span>
+              <ArrowRight size={14} style={{ color: 'var(--text-muted)' }} />
+            </Link>
+          ))}
         </div>
-      </div>
-
-      {/* Help */}
-      <div className="text-center py-8">
-        <p className="text-[var(--text-muted)] mb-3">Need help?</p>
-        <div className="flex items-center justify-center gap-4">
-          <a 
-            href="https://github.com/erichowens/port-daddy/issues"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[var(--brand-primary)] hover:underline"
-          >
-            Open an Issue
-          </a>
-          <span className="text-[var(--border-subtle)]">|</span>
-          <Link to="/docs/cli" className="text-[var(--brand-primary)] hover:underline">
-            CLI Reference
-          </Link>
-        </div>
-      </div>
+      </Surface>
     </div>
   )
 }
