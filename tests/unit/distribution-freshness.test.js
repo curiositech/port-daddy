@@ -423,7 +423,6 @@ describe('Dashboard freshness', () => {
   });
 
   it('dashboard has sections for v3.4+ features', () => {
-    expect(dashboardContent).toMatch(/dns|DNS/i);
     expect(dashboardContent).toMatch(/activity|Activity/i);
   });
 

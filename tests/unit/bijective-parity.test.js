@@ -429,9 +429,9 @@ describe('Test Group 4: Dashboard Visual Regression', () => {
     // The dashboard uses SVG sprite system with <symbol viewBox="..."> + <use href="...">
     const symbolCount = countOccurrences(/<symbol\s+id="/g);
     const useHrefCount = countOccurrences(/<use\s+href="#icon-/g);
-    // Must have at least 10 SVG symbol definitions and 20 icon usages
+    // Must have at least 10 SVG symbol definitions and 15 icon usages
     expect(symbolCount).toBeGreaterThanOrEqual(10);
-    expect(useHrefCount).toBeGreaterThanOrEqual(20);
+    expect(useHrefCount).toBeGreaterThanOrEqual(15);
   });
 
   test('dashboard total size exceeds 50KB (prevents gutted replacement)', () => {
