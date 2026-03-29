@@ -228,7 +228,11 @@ const db: Database.Database = initDatabase({ dbPath: DB_PATH });
 // MODULE INITIALIZATION
 // =============================================================================
 
-const services = createServices(db);
+// Semantic Index must be created before modules that use it (services)
+// but initialized AFTER all table-creating modules have run.
+const semanticIndex = createSemanticIndex(db);
+
+const services = createServices(db, { semanticIndex });
 const messaging = createMessaging(db);
 const locks = createLocks(db);
 // Cast services to the shape expected by createHealth — the actual runtime
@@ -261,7 +265,7 @@ const briefing = createBriefing(db, { sessions, agents, resurrection, activityLo
 const spawner = createSpawner();
 const sugar = createSugar({ agents, sessions, activityLog });
 const harbors = createHarbors(db);
-const semanticIndex = createSemanticIndex(db);
+// Now that all modules have created their tables, populate the trie from SQLite
 semanticIndex.initialize();
 const arbiter = createArbiter(
   { activityLog, agents, sessions, locks, resurrection },
