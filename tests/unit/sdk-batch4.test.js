@@ -3,6 +3,10 @@
  * subscribe with reconnect, and machine-readable error codes.
  *
  * Tests the SDK client against a local mock HTTP server plus route-level error codes.
+ *
+ * Route tests share a SINGLE Express server (port 0) to avoid ephemeral port
+ * exhaustion (EADDRNOTAVAIL). Each describe swaps fresh routes + db via a
+ * delegation middleware — one server for all route tests instead of 30+.
  */
 
 import http from 'node:http';
@@ -18,7 +22,7 @@ import { createLocks } from '../../lib/locks.js';
 import { createSessions } from '../../lib/sessions.js';
 
 // ============================================================================
-// Mock HTTP server for SDK tests
+// Mock HTTP server for SDK tests (TCP — SDK client needs a URL)
 // ============================================================================
 
 let mockServer;
@@ -44,7 +48,15 @@ function createClient(opts = {}) {
   });
 }
 
+// ============================================================================
+// Shared Express server for route tests (single port 0, reused across all)
+// ============================================================================
+
+let routeServer;
+let currentRouter;
+
 beforeAll(async () => {
+  // --- Mock TCP server for SDK client tests ---
   mockServer = http.createServer((req, res) => {
     const chunks = [];
     req.on('data', c => chunks.push(c));
@@ -82,12 +94,25 @@ beforeAll(async () => {
 
   savedUrl = process.env.PORT_DADDY_URL;
   process.env.PORT_DADDY_URL = `http://localhost:${mockPort}`;
+
+  // --- Shared route server (single port 0, delegation middleware) ---
+  const routeApp = express();
+  routeApp.use(express.json());
+  routeApp.use((req, res, next) => {
+    if (currentRouter) return currentRouter(req, res, next);
+    res.status(503).json({ error: 'no router mounted' });
+  });
+
+  await new Promise((resolve) => {
+    routeServer = routeApp.listen(0, '127.0.0.1', resolve);
+  });
 });
 
 afterAll(async () => {
   if (savedUrl === undefined) delete process.env.PORT_DADDY_URL;
   else process.env.PORT_DADDY_URL = savedUrl;
   await new Promise(resolve => mockServer.close(resolve));
+  await new Promise(resolve => routeServer.close(resolve));
 });
 
 beforeEach(() => {
@@ -499,21 +524,18 @@ describe('SDK: expires type accepts string | number', () => {
 
 // =============================================================================
 // Route Error Codes: Services
+// (All route tests below use the shared routeServer via currentRouter delegation)
 // =============================================================================
 
 describe('Route error codes: services', () => {
-  let app;
-  let db;
   let services;
 
   beforeEach(() => {
-    db = createTestDb();
+    const db = createTestDb();
     const logger = createMockLogger();
     services = createServices(db);
 
-    app = express();
-    app.use(express.json());
-    app.use(createServicesRoutes({
+    currentRouter = createServicesRoutes({
       logger,
       metrics: { errors: 0, total_assignments: 0, total_releases: 0, validation_failures: 0 },
       services,
@@ -521,11 +543,11 @@ describe('Route error codes: services', () => {
       activityLog: { logService: { claim: () => {}, release: () => {} } },
       webhooks: { trigger: () => {} },
       config: { ports: { range_start: 3100, range_end: 9999, reserved: [] } }
-    }));
+    });
   });
 
   test('POST /claim returns IDENTITY_INVALID for bad id', async () => {
-    const res = await request(app)
+    const res = await request(routeServer)
       .post('/claim')
       .send({ id: '!!!bad!!!' })
       .expect(400);
@@ -535,7 +557,7 @@ describe('Route error codes: services', () => {
   });
 
   test('GET /services/:id returns SERVICE_NOT_FOUND', async () => {
-    const res = await request(app)
+    const res = await request(routeServer)
       .get('/services/nonexistent:svc')
       .expect(404);
 
@@ -543,7 +565,7 @@ describe('Route error codes: services', () => {
   });
 
   test('GET /services/:id returns IDENTITY_INVALID for bad id', async () => {
-    const res = await request(app)
+    const res = await request(routeServer)
       .get('/services/!!!bad!!!')
       .expect(400);
 
@@ -551,7 +573,7 @@ describe('Route error codes: services', () => {
   });
 
   test('DELETE /release returns IDENTITY_INVALID for bad id', async () => {
-    const res = await request(app)
+    const res = await request(routeServer)
       .delete('/release')
       .send({ id: '!!!bad!!!' })
       .expect(400);
@@ -560,7 +582,7 @@ describe('Route error codes: services', () => {
   });
 
   test('DELETE /release returns VALIDATION_ERROR when no id', async () => {
-    const res = await request(app)
+    const res = await request(routeServer)
       .delete('/release')
       .send({})
       .expect(400);
@@ -569,9 +591,7 @@ describe('Route error codes: services', () => {
   });
 
   test('DELETE /release returns success with released=0 for unknown service', async () => {
-    // Note: services.release() returns success:true, released:0 for nonexistent services
-    // This is expected behavior — the release operation itself succeeds (idempotent)
-    const res = await request(app)
+    const res = await request(routeServer)
       .delete('/release')
       .send({ id: 'nonexistent:svc' })
       .expect(200);
@@ -586,18 +606,14 @@ describe('Route error codes: services', () => {
 // =============================================================================
 
 describe('Route: wait routes', () => {
-  let app;
-  let db;
   let services;
 
   beforeEach(() => {
-    db = createTestDb();
+    const db = createTestDb();
     const logger = createMockLogger();
     services = createServices(db);
 
-    app = express();
-    app.use(express.json());
-    app.use(createServicesRoutes({
+    currentRouter = createServicesRoutes({
       logger,
       metrics: { errors: 0, total_assignments: 0, total_releases: 0, validation_failures: 0 },
       services,
@@ -605,18 +621,17 @@ describe('Route: wait routes', () => {
       activityLog: { logService: { claim: () => {}, release: () => {} } },
       webhooks: { trigger: () => {} },
       config: { ports: { range_start: 3100, range_end: 9999, reserved: [] } }
-    }));
+    });
   });
 
   test('GET /wait/:id returns service immediately if exists', async () => {
-    // First claim the service
     services.claim('myapp:api', {
       range: [3100, 9999],
       pid: process.pid,
       systemPorts: new Set()
     });
 
-    const res = await request(app)
+    const res = await request(routeServer)
       .get('/wait/myapp:api?timeout=1000')
       .expect(200);
 
@@ -628,7 +643,7 @@ describe('Route: wait routes', () => {
   });
 
   test('GET /wait/:id times out for nonexistent service', async () => {
-    const res = await request(app)
+    const res = await request(routeServer)
       .get('/wait/nonexistent:svc?timeout=300')
       .expect(408);
 
@@ -639,7 +654,7 @@ describe('Route: wait routes', () => {
   });
 
   test('GET /wait/:id validates identity', async () => {
-    const res = await request(app)
+    const res = await request(routeServer)
       .get('/wait/!!!bad!!!?timeout=100')
       .expect(400);
 
@@ -650,7 +665,7 @@ describe('Route: wait routes', () => {
     services.claim('svc-a:api', { range: [3100, 9999], pid: process.pid, systemPorts: new Set() });
     services.claim('svc-b:api', { range: [3100, 9999], pid: process.pid, systemPorts: new Set() });
 
-    const res = await request(app)
+    const res = await request(routeServer)
       .post('/wait')
       .send({ ids: ['svc-a:api', 'svc-b:api'], timeout: 1000 })
       .expect(200);
@@ -664,7 +679,7 @@ describe('Route: wait routes', () => {
   test('POST /wait times out if some services missing', async () => {
     services.claim('svc-a:api', { range: [3100, 9999], pid: process.pid, systemPorts: new Set() });
 
-    const res = await request(app)
+    const res = await request(routeServer)
       .post('/wait')
       .send({ ids: ['svc-a:api', 'svc-missing:api'], timeout: 300 })
       .expect(408);
@@ -676,7 +691,7 @@ describe('Route: wait routes', () => {
   });
 
   test('POST /wait validates empty ids', async () => {
-    const res = await request(app)
+    const res = await request(routeServer)
       .post('/wait')
       .send({ ids: [], timeout: 100 })
       .expect(400);
@@ -685,7 +700,7 @@ describe('Route: wait routes', () => {
   });
 
   test('POST /wait validates missing ids', async () => {
-    const res = await request(app)
+    const res = await request(routeServer)
       .post('/wait')
       .send({ timeout: 100 })
       .expect(400);
@@ -694,7 +709,7 @@ describe('Route: wait routes', () => {
   });
 
   test('POST /wait validates individual ids', async () => {
-    const res = await request(app)
+    const res = await request(routeServer)
       .post('/wait')
       .send({ ids: ['good:svc', '!!!bad!!!'], timeout: 100 })
       .expect(400);
@@ -708,36 +723,28 @@ describe('Route: wait routes', () => {
 // =============================================================================
 
 describe('Route error codes: locks', () => {
-  let app;
-  let db;
-  let locks;
-
   beforeEach(() => {
-    db = createTestDb();
+    const db = createTestDb();
     const logger = createMockLogger();
-    locks = createLocks(db);
+    const locks = createLocks(db);
 
-    app = express();
-    app.use(express.json());
-    app.use(createLocksRoutes({
+    currentRouter = createLocksRoutes({
       logger,
       metrics: { errors: 0 },
       locks,
       agents: { canAcquireLock: () => ({ allowed: true }) },
       activityLog: { logLock: { acquire: () => {}, release: () => {} } },
       webhooks: { trigger: () => {} }
-    }));
+    });
   });
 
   test('POST /locks/:name returns LOCK_HELD on conflict', async () => {
-    // Acquire first
-    await request(app)
+    await request(routeServer)
       .post('/locks/deploy')
       .send({ owner: 'agent-1', ttl: 60000 })
       .expect(200);
 
-    // Try to acquire again
-    const res = await request(app)
+    const res = await request(routeServer)
       .post('/locks/deploy')
       .send({ owner: 'agent-2', ttl: 60000 })
       .expect(409);
@@ -746,14 +753,12 @@ describe('Route error codes: locks', () => {
   });
 
   test('DELETE /locks/:name returns LOCK_NOT_FOUND for wrong owner', async () => {
-    // Acquire lock
-    await request(app)
+    await request(routeServer)
       .post('/locks/deploy')
       .send({ owner: 'agent-1', ttl: 60000 })
       .expect(200);
 
-    // Try to release with wrong owner
-    const res = await request(app)
+    const res = await request(routeServer)
       .delete('/locks/deploy')
       .send({ owner: 'agent-wrong' })
       .expect(403);
@@ -762,7 +767,7 @@ describe('Route error codes: locks', () => {
   });
 
   test('PUT /locks/:name returns LOCK_NOT_FOUND for non-existent lock', async () => {
-    const res = await request(app)
+    const res = await request(routeServer)
       .put('/locks/nonexistent')
       .send({ owner: 'agent-1', ttl: 60000 })
       .expect(400);
@@ -776,27 +781,23 @@ describe('Route error codes: locks', () => {
 // =============================================================================
 
 describe('Route error codes: sessions', () => {
-  let app;
-  let db;
   let sessionsMod;
 
   beforeEach(() => {
-    db = createTestDb();
+    const db = createTestDb();
     const logger = createMockLogger();
     sessionsMod = createSessions(db);
 
-    app = express();
-    app.use(express.json());
-    app.use(createSessionsRoutes({
+    currentRouter = createSessionsRoutes({
       sessions: sessionsMod,
       metrics: { errors: 0 },
       logger,
       activityLog: { log: () => {} }
-    }));
+    });
   });
 
   test('POST /sessions returns VALIDATION_ERROR for missing purpose', async () => {
-    const res = await request(app)
+    const res = await request(routeServer)
       .post('/sessions')
       .send({})
       .expect(400);
@@ -806,7 +807,7 @@ describe('Route error codes: sessions', () => {
   });
 
   test('GET /sessions/:id returns SESSION_NOT_FOUND', async () => {
-    const res = await request(app)
+    const res = await request(routeServer)
       .get('/sessions/session-nonexistent')
       .expect(404);
 
@@ -814,7 +815,7 @@ describe('Route error codes: sessions', () => {
   });
 
   test('PUT /sessions/:id returns SESSION_NOT_FOUND', async () => {
-    const res = await request(app)
+    const res = await request(routeServer)
       .put('/sessions/session-nonexistent')
       .send({ status: 'completed' })
       .expect(404);
@@ -823,7 +824,7 @@ describe('Route error codes: sessions', () => {
   });
 
   test('DELETE /sessions/:id returns SESSION_NOT_FOUND', async () => {
-    const res = await request(app)
+    const res = await request(routeServer)
       .delete('/sessions/session-nonexistent')
       .expect(404);
 
@@ -832,12 +833,12 @@ describe('Route error codes: sessions', () => {
 
   test('POST /sessions/:id/notes returns VALIDATION_ERROR for missing content', async () => {
     // First create a session
-    const session = await request(app)
+    const session = await request(routeServer)
       .post('/sessions')
       .send({ purpose: 'test' })
       .expect(200);
 
-    const res = await request(app)
+    const res = await request(routeServer)
       .post(`/sessions/${session.body.id}/notes`)
       .send({})
       .expect(400);
@@ -846,7 +847,7 @@ describe('Route error codes: sessions', () => {
   });
 
   test('POST /sessions/:id/notes returns SESSION_NOT_FOUND for bad session', async () => {
-    const res = await request(app)
+    const res = await request(routeServer)
       .post('/sessions/session-nonexistent/notes')
       .send({ content: 'hello' })
       .expect(404);
@@ -855,12 +856,12 @@ describe('Route error codes: sessions', () => {
   });
 
   test('POST /sessions/:id/files returns VALIDATION_ERROR for empty files', async () => {
-    const session = await request(app)
+    const session = await request(routeServer)
       .post('/sessions')
       .send({ purpose: 'test' })
       .expect(200);
 
-    const res = await request(app)
+    const res = await request(routeServer)
       .post(`/sessions/${session.body.id}/files`)
       .send({ files: [] })
       .expect(400);
@@ -869,7 +870,7 @@ describe('Route error codes: sessions', () => {
   });
 
   test('POST /notes returns VALIDATION_ERROR for empty content', async () => {
-    const res = await request(app)
+    const res = await request(routeServer)
       .post('/notes')
       .send({})
       .expect(400);
@@ -879,13 +880,13 @@ describe('Route error codes: sessions', () => {
 
   test('POST /sessions with conflicting files returns FILE_CONFLICT', async () => {
     // Create a session and claim files
-    const s1 = await request(app)
+    await request(routeServer)
       .post('/sessions')
       .send({ purpose: 'session-1', files: ['file-a.ts'] })
       .expect(200);
 
     // Try to create another session with the same files
-    const res = await request(app)
+    const res = await request(routeServer)
       .post('/sessions')
       .send({ purpose: 'session-2', files: ['file-a.ts'] })
       .expect(409);
@@ -899,18 +900,14 @@ describe('Route error codes: sessions', () => {
 // =============================================================================
 
 describe('Concurrent wait scenarios', () => {
-  let app;
-  let db;
   let services;
 
   beforeEach(() => {
-    db = createTestDb();
+    const db = createTestDb();
     const logger = createMockLogger();
     services = createServices(db);
 
-    app = express();
-    app.use(express.json());
-    app.use(createServicesRoutes({
+    currentRouter = createServicesRoutes({
       logger,
       metrics: { errors: 0, total_assignments: 0, total_releases: 0, validation_failures: 0 },
       services,
@@ -918,15 +915,13 @@ describe('Concurrent wait scenarios', () => {
       activityLog: { logService: { claim: () => {}, release: () => {} } },
       webhooks: { trigger: () => {} },
       config: { ports: { range_start: 3100, range_end: 9999, reserved: [] } }
-    }));
+    });
   });
 
   test('service appearing mid-wait resolves successfully', async () => {
-    // Start waiting in background
-    const waitPromise = request(app)
+    const waitPromise = request(routeServer)
       .get('/wait/late:svc?timeout=5000');
 
-    // Claim the service after a short delay
     await new Promise(resolve => setTimeout(resolve, 300));
     services.claim('late:svc', {
       range: [3100, 9999],
@@ -942,8 +937,8 @@ describe('Concurrent wait scenarios', () => {
   });
 
   test('multiple concurrent waiters for same service all resolve', async () => {
-    const wait1 = request(app).get('/wait/shared:svc?timeout=5000');
-    const wait2 = request(app).get('/wait/shared:svc?timeout=5000');
+    const wait1 = request(routeServer).get('/wait/shared:svc?timeout=5000');
+    const wait2 = request(routeServer).get('/wait/shared:svc?timeout=5000');
 
     await new Promise(resolve => setTimeout(resolve, 300));
     services.claim('shared:svc', {
@@ -967,7 +962,7 @@ describe('Concurrent wait scenarios', () => {
       systemPorts: new Set()
     });
 
-    const waitPromise = request(app)
+    const waitPromise = request(routeServer)
       .post('/wait')
       .send({ ids: ['first:svc', 'second:svc'], timeout: 5000 });
 
