@@ -1,0 +1,24 @@
+{
+  "hooks": {
+    "Edit": [
+      {
+        "matcher": "**/*.ts",
+        "command": ".claude/scripts/verify-build.sh"
+      },
+      {
+        "matcher": "**/*.tsx",
+        "command": ".claude/scripts/verify-build.sh"
+      }
+    ],
+    "Write": [
+      {
+        "matcher": "**/*.ts",
+        "command": ".claude/scripts/verify-build.sh"
+      },
+      {
+        "matcher": "**/*.tsx",
+        "command": ".claude/scripts/verify-build.sh"
+      }
+    ]
+  }
+}
