@@ -25,9 +25,21 @@ export function Hero() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, ease: 'easeOut' as const }}
           >
-            <p className="text-xs font-mono text-[var(--brand-accent)] tracking-wide mb-3 uppercase">
-              Multi-agent coordination
-            </p>
+            <Link to="/templates" className="no-underline">
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold mb-4 cursor-pointer"
+                style={{
+                  background: 'color-mix(in srgb, var(--brand-primary) 12%, transparent)',
+                  border: '1px solid color-mix(in srgb, var(--brand-primary) 25%, transparent)',
+                  color: 'var(--brand-primary)',
+                }}
+              >
+                <span>New</span>
+                <span style={{ color: 'var(--text-secondary)' }}>Fleet templates — drop-in AI agents for any repo</span>
+                <ArrowRight size={12} />
+              </motion.div>
+            </Link>
 
             <h1 className="text-3xl sm:text-4xl lg:text-[2.75rem] font-bold tracking-[-0.02em] leading-[1.15] mb-4 text-[var(--text-primary)]">
               Stop your agents from
