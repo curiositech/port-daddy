@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useTheme } from '@/lib/theme'
-import { Sun, Moon, Github, Menu, X, ChevronDown, BookOpen, GraduationCap, LayoutGrid } from 'lucide-react'
+import { Sun, Moon, Github, Menu, X, ChevronDown, BookOpen, GraduationCap, LayoutGrid, Bot } from 'lucide-react'
 
 interface NavItem {
   label: string
@@ -29,9 +29,15 @@ const NAV_STRUCTURE: NavSection[] = [
         icon: GraduationCap
       },
       {
+        label: 'Fleet Agents',
+        href: '/agents',
+        description: 'Meet the 8 agent archetypes',
+        icon: Bot
+      },
+      {
         label: 'Templates',
         href: '/templates',
-        description: 'Pre-configured project templates',
+        description: 'Drop-in fleet YAML configs',
         icon: LayoutGrid
       },
       {
