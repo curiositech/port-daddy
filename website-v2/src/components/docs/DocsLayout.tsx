@@ -46,7 +46,6 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: 'Pheromone Trails', href: '/docs/features/pheromone', badge: 'New' },
       { label: 'Fleet Agents', href: '/docs/features/fleet', badge: 'New' },
-      { label: 'Remote Harbors', href: '/docs/features/remote', badge: 'Preview' },
     ]
   },
 
@@ -64,6 +63,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Tunnels', href: '/docs/features/tunnels' },
       { label: 'Always-On Avatars', href: '/docs/features/avatars' },
       { label: 'Time-Travel Debug', href: '/docs/features/timeline' },
+      { label: 'Remote Harbors', href: '/docs/features/remote', badge: 'v4' },
     ]
   },
 
