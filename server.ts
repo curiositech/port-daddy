@@ -667,7 +667,24 @@ const ipcServer = DISABLE_IPC ? null : createIpcServer({
     logger.info('ipc_connect', { connId: conn.id });
   },
   onDisconnect: (conn) => {
-    logger.info('ipc_disconnect', { connId: conn.id, agentId: conn.agentId, framesIn: conn.framesIn, bytesIn: conn.bytesIn });
+    logger.info('ipc_disconnect', {
+      connId: conn.id, agentId: conn.agentId,
+      framesIn: conn.framesIn, bytesIn: conn.bytesIn,
+      subscriptions: conn.subscriptions.length, framesDropped: conn.framesDropped,
+    });
+    // Eagerly release locks held by the disconnected agent
+    // (faster than waiting for heartbeat timeout + TTL expiry)
+    if (conn.agentId) {
+      try {
+        const held = locks.list({ owner: conn.agentId });
+        for (const lock of held.locks || []) {
+          locks.release(lock.name, { owner: conn.agentId, force: false });
+        }
+        if (held.locks?.length) {
+          logger.info('ipc_lock_release', { agentId: conn.agentId, released: held.locks.length });
+        }
+      } catch {}
+    }
   },
   onError: (err, conn) => {
     logger.error('ipc_error', { error: err.message, connId: conn?.id, agentId: conn?.agentId });

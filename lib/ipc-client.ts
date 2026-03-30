@@ -62,6 +62,9 @@ export function createIpcClient(options: IpcClientOptions) {
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   let destroyed = false;
 
+  // Track active subscriptions for replay on reconnect
+  const activeSubscriptions = new Set<string>();
+
   // Pending request-response correlation map
   const pending = new Map<number, PendingRequest>();
 
@@ -81,6 +84,12 @@ export function createIpcClient(options: IpcClientOptions) {
       socket = net.connect(socketPath, () => {
         setState(ConnectionState.READY);
         reconnectAttempt = 0;
+
+        // Replay subscriptions from before disconnect
+        for (const channel of activeSubscriptions) {
+          send(Performative.SUBSCRIBE, { action: 'msg.subscribe', channel });
+        }
+
         resolve();
       });
 
@@ -228,9 +237,28 @@ export function createIpcClient(options: IpcClientOptions) {
     });
   }
 
+  /**
+   * Subscribe to a pub/sub channel. Messages arrive via onFrame callback
+   * as INFORM frames with payload.action='msg.delivery'.
+   * Survives reconnects — subscriptions are replayed automatically.
+   */
+  function subscribe(channel: string): boolean {
+    activeSubscriptions.add(channel);
+    return send(Performative.SUBSCRIBE, { action: 'msg.subscribe', channel });
+  }
+
+  /**
+   * Unsubscribe from a pub/sub channel.
+   */
+  function unsubscribe(channel: string): boolean {
+    activeSubscriptions.delete(channel);
+    return send(Performative.INFORM, { action: 'msg.unsubscribe', channel });
+  }
+
   /** Disconnect and stop reconnecting */
   function destroy(): void {
     destroyed = true;
+    activeSubscriptions.clear();
     if (reconnectTimer) clearTimeout(reconnectTimer);
     for (const [, req] of pending) {
       clearTimeout(req.timer);
@@ -252,8 +280,11 @@ export function createIpcClient(options: IpcClientOptions) {
     spray,
     publish,
     claim,
+    subscribe,
+    unsubscribe,
     destroy,
     get state() { return state; },
     get pendingCount() { return pending.size; },
+    get subscriptionCount() { return activeSubscriptions.size; },
   };
 }

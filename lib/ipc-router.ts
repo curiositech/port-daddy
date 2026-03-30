@@ -13,8 +13,9 @@
  * - QUERY_REF (read-only): port.find, salvage.list, pheromone.sniff
  */
 
-import { Performative, IpcAction } from './ipc-types.js';
+import { Performative, IpcAction, FIRE_AND_FORGET } from './ipc-types.js';
 import type { IpcFrame } from './ipc-types.js';
+import { encodeFrame } from './ipc-frame.js';
 import type { IpcConnection } from './ipc-server.js';
 import { verifyAgent, actionRequiresRegistration } from './ipc-auth.js';
 import type { AgentVerifier } from './ipc-auth.js';
@@ -158,12 +159,43 @@ export function createIpcRouter(deps: IpcRouterDeps) {
 
   handlers.set(IpcAction.SUBSCRIBE, (_p, conn) => {
     const channel = String(_p.channel);
-    const unsub = deps.messaging.subscribe(channel, (msg) => {
+
+    // Check if already subscribed on this connection
+    if (conn.subscriptions.some(s => s.channel === channel)) {
+      return { subscribed: true, channel, existing: true };
+    }
+
+    const unsub = deps.messaging.subscribe(channel, (msg: unknown) => {
       // Push subscription messages to the agent via IPC
-      // This is handled by the server's sendTo — we store the unsub
-      // and let the server handle the fan-out
+      const frame: IpcFrame = {
+        type: Performative.INFORM,
+        convId: FIRE_AND_FORGET,
+        payload: {
+          action: 'msg.delivery',
+          channel,
+          message: msg,
+          ts: Date.now(),
+        },
+      };
+      try {
+        const encoded = encodeFrame(frame);
+        const ok = conn.socket.write(encoded);
+        if (!ok) {
+          // Backpressured — frame is buffered by Node, but track it
+          conn.framesDropped++;
+        }
+        conn.framesOut++;
+        conn.bytesOut += encoded.length;
+      } catch {
+        // Socket dead — subscription will be cleaned up in onClose
+      }
     });
-    return { subscribed: true, channel };
+
+    if (unsub) {
+      conn.subscriptions.push({ channel, unsub });
+    }
+
+    return { subscribed: !!unsub, channel };
   });
 
   // Pheromone
@@ -178,6 +210,19 @@ export function createIpcRouter(deps: IpcRouterDeps) {
 
   handlers.set(IpcAction.SNIFF, (p) => {
     return deps.pheromones.sniff(String(p.table), String(p.id));
+  });
+
+  // Unsubscribe
+  handlers.set(IpcAction.UNSUBSCRIBE, (_p, conn) => {
+    const channel = String(_p.channel);
+    const idx = conn.subscriptions.findIndex(s => s.channel === channel);
+    if (idx === -1) {
+      return { unsubscribed: false, channel, reason: 'not_subscribed' };
+    }
+    const sub = conn.subscriptions[idx];
+    try { sub.unsub(); } catch {}
+    conn.subscriptions.splice(idx, 1);
+    return { unsubscribed: true, channel };
   });
 
   // Salvage

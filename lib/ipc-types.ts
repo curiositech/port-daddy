@@ -87,6 +87,7 @@ export const IpcAction = {
   // Messaging
   PUBLISH:        'msg.publish',
   SUBSCRIBE:      'msg.subscribe',
+  UNSUBSCRIBE:    'msg.unsubscribe',
 
   // Pheromone
   SPRAY:          'pheromone.spray',

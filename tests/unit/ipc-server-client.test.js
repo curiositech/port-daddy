@@ -420,4 +420,56 @@ describe('IPC Server + Client', () => {
     expect(conn.bytesIn).toBeGreaterThan(0);
     expect(conn.agentId).toBe('diag');
   });
+
+  test('client subscribe() tracks subscriptions for reconnect replay', async () => {
+    server = createIpcServer({ socketPath, onFrame: () => {} });
+    await server.start();
+
+    client = createIpcClient({ socketPath, agentId: 'sub-agent', reconnect: false });
+    await client.connect();
+
+    client.subscribe('build:done');
+    client.subscribe('test:results');
+    expect(client.subscriptionCount).toBe(2);
+
+    client.unsubscribe('build:done');
+    expect(client.subscriptionCount).toBe(1);
+  });
+
+  test('server cleans up subscriptions on client disconnect', async () => {
+    let subscribeCount = 0;
+    let unsubscribeCount = 0;
+
+    server = createIpcServer({
+      socketPath,
+      onFrame: (frame, conn) => {
+        if (frame.payload.action === 'msg.subscribe') {
+          subscribeCount++;
+          // Simulate adding a subscription to the connection
+          conn.subscriptions.push({
+            channel: String(frame.payload.channel),
+            unsub: () => { unsubscribeCount++; },
+          });
+        }
+      },
+    });
+    await server.start();
+
+    client = createIpcClient({ socketPath, agentId: 'cleanup-agent', reconnect: false });
+    await client.connect();
+
+    client.subscribe('ch1');
+    client.subscribe('ch2');
+    client.subscribe('ch3');
+    await new Promise(r => setTimeout(r, 50));
+
+    expect(subscribeCount).toBe(3);
+
+    // Disconnect — server should call all unsub() functions
+    client.destroy();
+    await new Promise(r => setTimeout(r, 100));
+
+    expect(unsubscribeCount).toBe(3);
+    expect(server.connectionCount).toBe(0);
+  });
 }, 15000);

@@ -73,6 +73,10 @@ export interface IpcConnection {
   framesIn: number;
   /** Frames sent total (diagnostics) */
   framesOut: number;
+  /** Active subscriptions — cleaned up on disconnect */
+  subscriptions: Array<{ channel: string; unsub: () => void }>;
+  /** Frames dropped due to backpressure (diagnostics) */
+  framesDropped: number;
 }
 
 export type FrameHandler = (
@@ -106,9 +110,9 @@ function safeWrite(conn: IpcConnection, buf: Buffer, onError?: (err: Error, conn
   // If draining, queue the write
   if (conn.draining) {
     if (conn.writeQueue.length >= MAX_WRITE_QUEUE) {
-      // Queue full — drop oldest non-response frame (backpressure policy)
-      // This is the ONLY place we drop, and we log it
-      onError?.(new Error(`IPC write queue full for ${conn.agentId ?? conn.id}, dropping frame`), conn);
+      // Queue full — drop frame and track it
+      conn.framesDropped++;
+      onError?.(new Error(`IPC write queue full for ${conn.agentId ?? conn.id}, dropping frame (${conn.framesDropped} total)`), conn);
       return false;
     }
     conn.writeQueue.push(buf);
@@ -202,6 +206,8 @@ export function createIpcServer(options: IpcServerOptions) {
           bytesOut: 0,
           framesIn: 0,
           framesOut: 0,
+          subscriptions: [],
+          framesDropped: 0,
         };
 
         connections.set(conn.id, conn);
@@ -313,6 +319,11 @@ export function createIpcServer(options: IpcServerOptions) {
           connections.delete(conn.id);
           conn.decoder.reset();
           conn.writeQueue.length = 0;
+          // Clean up all subscriptions — dead subscriber must not leave zombie callbacks
+          for (const sub of conn.subscriptions) {
+            try { sub.unsub(); } catch {}
+          }
+          conn.subscriptions.length = 0;
           options.onDisconnect?.(conn);
         });
 
