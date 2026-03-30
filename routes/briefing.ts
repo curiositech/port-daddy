@@ -5,7 +5,7 @@
  * GET  /briefing/:project — Return briefing as JSON (no disk write)
  */
 
-import { Router, type Request, type Response } from 'express';
+import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import { validateProjectRoot } from '../lib/utils.js';
 
 interface BriefingRouteDeps {
@@ -30,76 +30,62 @@ interface BriefingRouteDeps {
   };
 }
 
-export function createBriefingRoutes(deps: BriefingRouteDeps): Router {
-  const router = Router();
+
+// =============================================================================
+// Fastify plugin export
+// =============================================================================
+
+export const briefingPlugin: FastifyPluginAsync<{ deps: BriefingRouteDeps }> = async (fastify, opts) => {
+  const { deps } = opts;
   const { briefing } = deps;
 
-  /**
-   * POST /briefing — Generate .portdaddy/ briefing and write to disk
-   */
-  router.post('/briefing', (req: Request, res: Response): void => {
-    const { projectRoot, project, full } = req.body as {
-      projectRoot?: string;
-      project?: string;
-      full?: boolean;
-    };
+  fastify.post('/briefing', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { projectRoot, project, full } = request.body as any;
 
     if (!projectRoot || typeof projectRoot !== 'string') {
-      res.status(400).json({ success: false, error: 'projectRoot is required' });
-      return;
+      reply.code(400);
+      return { success: false, error: 'projectRoot is required' };
     }
 
     const validation = validateProjectRoot(projectRoot);
     if (!validation.ok) {
-      res.status(400).json({ success: false, error: validation.error });
-      return;
+      reply.code(400);
+      return { success: false, error: validation.error };
     }
 
     try {
       if (full) {
         const result = briefing.sync(projectRoot, { project, full: true });
-        if (!result.success) {
-          res.status(400).json(result);
-          return;
-        }
-        res.json(result);
+        if (!result.success) { reply.code(400); return result; }
+        return result;
       } else {
         const result = briefing.generate(projectRoot, { project });
-        if (!result.success) {
-          res.status(400).json(result);
-          return;
-        }
-        res.json(result);
+        if (!result.success) { reply.code(400); return result; }
+        return result;
       }
     } catch (err) {
-      res.status(500).json({ success: false, error: (err as Error).message });
+      reply.code(500);
+      return { success: false, error: (err as Error).message };
     }
   });
 
-  /**
-   * GET /briefing/:project — Return briefing data as JSON (no disk write)
-   */
-  router.get('/briefing/:project', (req: Request, res: Response): void => {
-    const { project } = req.params;
-    const projectRoot = (req.query.projectRoot as string) || process.cwd();
+  fastify.get('/briefing/:project', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { project } = request.params as any;
+    const projectRoot = ((request.query as any).projectRoot as string) || process.cwd();
 
     const validation = validateProjectRoot(projectRoot);
     if (!validation.ok) {
-      res.status(400).json({ success: false, error: validation.error });
-      return;
+      reply.code(400);
+      return { success: false, error: validation.error };
     }
 
     try {
-      const result = briefing.generate(projectRoot, { project: project as string, writeToDisk: false });
-      if (!result.success) {
-        res.status(400).json(result);
-        return;
-      }
-      res.json({ success: true, briefing: result.briefing });
+      const result = briefing.generate(projectRoot, { project, writeToDisk: false });
+      if (!result.success) { reply.code(400); return result; }
+      return { success: true, briefing: result.briefing };
     } catch (err) {
-      res.status(500).json({ success: false, error: (err as Error).message });
+      reply.code(500);
+      return { success: false, error: (err as Error).message };
     }
   });
-
-  return router;
-}
+};

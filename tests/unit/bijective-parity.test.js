@@ -94,8 +94,13 @@ function extractCanonicalCommands() {
  * Each createXxxRoutes() call represents an API surface area.
  */
 function extractRouteCategories() {
-  const matches = ROUTES_INDEX.matchAll(/create(\w+)Routes/g);
-  return [...matches].map(m => m[1].toLowerCase());
+  // Match both Express (createXxxRoutes) and Fastify (xxxPlugin) patterns
+  const expressMatches = [...ROUTES_INDEX.matchAll(/create(\w+)Routes/g)].map(m => m[1].toLowerCase());
+  const fastifyMatches = [...ROUTES_INDEX.matchAll(/(\w+)Plugin/g)]
+    .map(m => m[1].toLowerCase())
+    .filter(name => name !== 'fastify'); // exclude FastifyPluginAsync type references
+  const matches = expressMatches.length > 0 ? expressMatches : fastifyMatches;
+  return [...new Set(matches)]; // deduplicate
 }
 
 /**
@@ -304,16 +309,21 @@ describe('Test Group 3: API -> CLI Parity', () => {
     dns: ['dns'],
     briefing: ['briefing'],
     sugar: ['begin', 'done', 'whoami'],
-    launchhints: ['hints'],
+    launch: ['hints'],
+    // arbiter and pheromone are API-only (no CLI commands) — excluded from parity check
     spawn: ['spawn', 'spawned'],
     harbors: ['harbor', 'harbors'],
     orchestrator: ['up', 'down'],
   };
 
+  // API-only routes that have no CLI equivalent (accessed via curl or SDK)
+  const API_ONLY_ROUTES = new Set(['arbiter', 'pheromone']);
+
   test('all route modules have at least one corresponding CLI command', () => {
     const missingCoverage = [];
 
     for (const category of routeCategories) {
+      if (API_ONLY_ROUTES.has(category)) continue;
       const expectedCliCommands = ROUTE_TO_CLI_MAP[category];
       if (!expectedCliCommands) {
         missingCoverage.push(`Route category "${category}" has no CLI mapping defined`);
