@@ -16,6 +16,22 @@ function highlightBash(line: string): React.ReactNode {
   return <span style={{ color: 'var(--code-output)' }}>{line}</span>
 }
 
+/** Color semantic identities: project:stack:context */
+function highlightIdentity(id: string): React.ReactNode {
+  const parts = id.split(':')
+  const colors = ['var(--brand-secondary)', 'var(--brand-accent)', 'var(--brand-primary)']
+  return (
+    <>
+      {parts.map((part, i) => (
+        <React.Fragment key={i}>
+          {i > 0 && <span style={{ color: 'var(--text-muted)' }}>:</span>}
+          <span style={{ color: colors[i] || colors[colors.length - 1], fontWeight: 600 }}>{part}</span>
+        </React.Fragment>
+      ))}
+    </>
+  )
+}
+
 function highlightArgs(text: string): React.ReactNode {
   const tokens: React.ReactNode[] = []
   const regex = /("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|(--?[\w-]+)|(&&|\||;)|(\S+)/g
@@ -37,6 +53,8 @@ function highlightArgs(text: string): React.ReactNode {
     } else if (word) {
       if (isFirst)
         tokens.push(<span key={m.index} style={{ color: 'var(--code-command)', fontWeight: 600 }}>{full}</span>)
+      else if (full.includes(':') && /^[\w.*-]+:[\w.*-]+/.test(full))
+        tokens.push(<span key={m.index}>{highlightIdentity(full)}</span>)
       else
         tokens.push(<span key={m.index} style={{ color: 'var(--code-text)' }}>{full}</span>)
     }
