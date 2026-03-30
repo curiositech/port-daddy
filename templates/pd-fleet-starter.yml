@@ -1,0 +1,149 @@
+# pd-fleet.yml — Drop-in fleet for any project
+#
+# Copy this to your project root and run: pd fleet up
+# Requires: Port Daddy running (pd start) + ANTHROPIC_API_KEY in .env.local
+#
+# What you get:
+#   - QA reviews every commit for bugs
+#   - Documentarian keeps docs in sync with code
+#   - Cartographer tracks your roadmap against actual commits
+#   - Spark proposes one improvement every 30 minutes
+#   - Spider finds connections between features you haven't noticed
+#
+# Customize: change prompts, add agents, adjust schedules.
+# Delete agents you don't need. The fleet is yours.
+
+fleet:
+  name: "{project}"
+  harbor: "{project}:fleet"
+
+  agents:
+    # ── Triggered on every commit ──────────────────────────────────────────
+
+    qa:
+      trigger: git:committed
+      backend: claude-cli
+      allowedTools: "Read,Grep,Glob,Bash(npm test*)"
+      prompt: |
+        Review the most recent commit. Read every changed file.
+        For each change, identify inputs that would break it.
+        If you find bugs, write a test that exposes each one.
+        If clean, just say CLEAN.
+      on_success: publish qa:clean
+      on_failure: publish qa:findings
+      identity: "{project}:fleet:qa"
+
+    documentarian:
+      trigger: git:committed
+      backend: claude-cli
+      allowedTools: "Read,Grep,Glob,Write,Edit"
+      prompt: |
+        You maintain documentation for this project.
+        Check that docs match the actual code:
+        - README.md (features, setup, usage)
+        - CHANGELOG.md (version history)
+        - Any docs/ directory
+        - API reference if one exists
+        Code is truth. Docs follow.
+      identity: "{project}:fleet:documentarian"
+
+    cartographer:
+      trigger: git:committed
+      backend: claude-cli
+      allowedTools: "Read,Grep,Glob,Write"
+      prompt: |
+        You maintain the map between what was planned and what was built.
+
+        Read these sources:
+        1. Any roadmap or TODO file in the project
+        2. git log --oneline -20 (recent commits)
+        3. CHANGELOG.md (what's been released)
+
+        Update the roadmap:
+        - Mark items as complete if they were committed
+        - Flag items that are stale (no commits in 2+ weeks)
+        - Note unplanned work (commits that don't map to any roadmap item)
+
+        Save a status summary to .cartographer/status.md with:
+        - Current focus area
+        - Velocity (commits per day, last 7 days)
+        - Top 3 items closest to completion
+        - Top 3 items that are blocked or drifting
+
+        Be precise. Don't invent work that wasn't done.
+      identity: "{project}:fleet:cartographer"
+
+    # ── Scheduled (creative agents) ────────────────────────────────────────
+
+    spark:
+      schedule: "*/30 * * * *"
+      backend: claude-cli
+      singleton: true
+      allowedTools: "Read,Grep,Glob,Write"
+      prompt: |
+        You are Spark, the idea engine for this project.
+
+        1. Read the README and any roadmap/TODO files.
+        2. Read recent git log (last 10 commits).
+        3. Read .spider/connections/ if it exists.
+        4. Propose one concrete improvement: what it is, why it
+           matters, and a rough implementation sketch.
+        5. Save to .spark/ideas/ as a timestamped markdown file.
+
+        Focus on ideas achievable in one session, not moonshots.
+      on_success: publish spark:idea
+      identity: "{project}:fleet:spark"
+
+    spider:
+      trigger: spark:idea
+      schedule: "0 */2 * * *"
+      backend: claude-cli
+      singleton: true
+      allowedTools: "Read,Grep,Glob,Write"
+      prompt: |
+        You are Spider, the connection engine.
+        Find combinations of existing features that create new capabilities.
+
+        1. Read the project's source files (headers/exports).
+        2. Read recent git log and any roadmap.
+        3. Read .spark/ideas/ for recent proposals.
+
+        Output syllogisms:
+          PREMISE A: [Feature X exists and does Y]
+          PREMISE B: [Feature Z exists and does W]
+          THEREFORE: [New capability C is now available]
+          CONFIDENCE: [high/medium/low]
+          EFFORT: [trivial/session/sprint]
+          SKETCH: [2-3 sentence implementation path]
+
+        Save to .spider/connections/ as a timestamped markdown file.
+        Don't repeat previous runs.
+      on_success: publish spider:connections
+      identity: "{project}:fleet:spider"
+
+  # ── Watchers (react to agent output) ───────────────────────────────────
+
+  watchers:
+    notify-findings:
+      trigger: qa:findings
+      exec: "echo 'QA found issues — check qa:findings channel'"
+
+  # ── Channel topology ───────────────────────────────────────────────────
+
+  channels:
+    git:committed:
+      description: "Fired after every git commit (via post-commit hook)"
+      consumers: [qa, documentarian, cartographer]
+
+    qa:clean:
+      description: "QA found no issues"
+
+    qa:findings:
+      description: "QA found bugs or issues"
+      consumers: [notify-findings]
+
+    spark:idea:
+      description: "Spark proposed a new idea"
+
+    spider:connections:
+      description: "Spider found new feature connections"
