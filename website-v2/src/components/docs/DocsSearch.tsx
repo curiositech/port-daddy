@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { createPortal } from 'react-dom'
 import { Search, X, FileText, Terminal, Code, Cpu, ChevronRight } from 'lucide-react'
 
 interface SearchResult {
@@ -172,8 +173,8 @@ export function DocsSearch() {
         </kbd>
       </button>
 
-      {/* Search Modal */}
-      {isOpen && (
+      {/* Search Modal — portal to body so it escapes sidebar overflow */}
+      {isOpen && createPortal(
         <div className="fixed inset-0 z-[200] flex items-start justify-center pt-[20vh] p-4">
           {/* Backdrop */}
           <div 
@@ -308,7 +309,8 @@ export function DocsSearch() {
               <span>{results.length} results</span>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )
