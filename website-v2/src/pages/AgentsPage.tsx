@@ -203,40 +203,25 @@ fleet:
           </Surface>
         </motion.div>
 
-        {/* Scrolling marquee of agent icons */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
-          className="mb-16 overflow-hidden"
-        >
-          <div className="flex gap-6 animate-marquee" style={{
-            animation: 'marquee 30s linear infinite',
-          }}>
-            {[...AGENTS, ...AGENTS].map((agent, i) => (
-              <a
-                key={`${agent.slug}-${i}`}
-                href={`#${agent.slug}`}
-                className="flex-shrink-0 flex flex-col items-center gap-2 group no-underline"
-              >
-                <Surface depth="raised" radius="xl" padding="none" className="w-20 h-20 overflow-hidden">
-                  <img
-                    src={`/img/agents/${agent.slug}.png`}
-                    alt={agent.name}
-                    className="w-full h-full object-cover transition-transform group-hover:scale-110"
-                  />
-                </Surface>
-                <span className="text-[10px] font-bold" style={{ color: agent.color }}>{agent.name}</span>
-              </a>
-            ))}
-          </div>
-          <style>{`
-            @keyframes marquee {
-              0% { transform: translateX(0); }
-              100% { transform: translateX(-50%); }
-            }
-          `}</style>
-        </motion.div>
+        {/* Agent grid */}
+        <div className="flex flex-wrap justify-center gap-4 mb-16">
+          {AGENTS.map((agent) => (
+            <a
+              key={agent.slug}
+              href={`#${agent.slug}`}
+              className="flex flex-col items-center gap-2 group no-underline"
+            >
+              <Surface depth="raised" radius="xl" padding="none" className="w-16 h-16 overflow-hidden transition-all group-hover:shadow-[var(--shadow-sm)]">
+                <img
+                  src={`/img/agents/${agent.slug}.png`}
+                  alt={agent.name}
+                  className="w-full h-full object-cover"
+                />
+              </Surface>
+              <span className="text-[11px] font-bold" style={{ color: agent.color }}>{agent.name}</span>
+            </a>
+          ))}
+        </div>
 
         {/* Agent Cards — compact horizontal layout */}
         <div className="space-y-4">
