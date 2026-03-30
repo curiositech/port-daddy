@@ -1,0 +1,47 @@
+#!/usr/bin/env zsh
+# =============================================================================
+# Port Daddy Post-Commit Hook
+# =============================================================================
+# Publishes to the git:committed channel after every commit.
+# Fleet agents (QA, test-hunter, documentarian, simplifier, cartographer)
+# trigger on this channel and run automatically.
+#
+# Disable: chmod -x .git/hooks/post-commit
+# =============================================================================
+
+# Don't block the commit if Port Daddy isn't running
+PD_URL="${PD_URL:-http://localhost:9876}"
+
+# Gather commit info
+SHA=$(git rev-parse --short HEAD 2>/dev/null)
+MSG=$(git log -1 --pretty=%s 2>/dev/null)
+AUTHOR=$(git log -1 --pretty=%an 2>/dev/null)
+FILES_CHANGED=$(git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null | head -20 | tr '\n' ', ')
+BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+
+# Build payload
+PAYLOAD=$(cat <<ENDJSON
+{
+  "payload": {
+    "sha": "${SHA}",
+    "message": "${MSG}",
+    "author": "${AUTHOR}",
+    "branch": "${BRANCH}",
+    "files": "${FILES_CHANGED}"
+  }
+}
+ENDJSON
+)
+
+# Publish to git:committed channel (fire-and-forget, don't block commit)
+curl -s -X POST "${PD_URL}/msg/git:committed" \
+  -H 'Content-Type: application/json' \
+  -d "${PAYLOAD}" \
+  --connect-timeout 2 \
+  --max-time 3 \
+  >/dev/null 2>&1 &
+
+# Also run git-lfs post-commit if present
+command -v git-lfs >/dev/null 2>&1 && git lfs post-commit "$@"
+
+exit 0
