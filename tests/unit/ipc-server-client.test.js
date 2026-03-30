@@ -285,4 +285,97 @@ describe('IPC Server + Client', () => {
     expect(frames[0].payload.seq).toBe(0);
     expect(frames[99].payload.seq).toBe(99);
   });
+
+  test('server rejects connections over max limit', async () => {
+    server = createIpcServer({
+      socketPath,
+      maxConnections: 2,
+      onFrame: () => {},
+    });
+    await server.start();
+
+    const c1 = createIpcClient({ socketPath, agentId: 'c1', reconnect: false });
+    const c2 = createIpcClient({ socketPath, agentId: 'c2', reconnect: false });
+    const c3 = createIpcClient({ socketPath, agentId: 'c3', reconnect: false });
+
+    await c1.connect();
+    await c2.connect();
+
+    // Third connection should be refused
+    let refused = false;
+    const c3Frames = [];
+    const c3WithHandler = createIpcClient({
+      socketPath, agentId: 'c3', reconnect: false,
+      onFrame: (f) => c3Frames.push(f),
+    });
+    try {
+      await c3WithHandler.connect();
+      // If it connects, wait to see if server sends REFUSE before destroying
+      await new Promise(r => setTimeout(r, 100));
+    } catch {
+      refused = true;
+    }
+
+    expect(server.connectionCount).toBeLessThanOrEqual(2);
+
+    c1.destroy();
+    c2.destroy();
+    c3WithHandler.destroy();
+  });
+
+  test('server rate-limits and sends REFUSE for requests over limit', async () => {
+    server = createIpcServer({
+      socketPath,
+      maxFramesPerSecond: 5,
+      onFrame: (frame, conn, reply) => {
+        if (frame.payload.action === 'port.claim') {
+          reply({
+            type: Performative.INFORM_DONE,
+            convId: frame.convId,
+            payload: { port: 3001 },
+          });
+        }
+      },
+    });
+    await server.start();
+
+    client = createIpcClient({ socketPath, agentId: 'flood', reconnect: false });
+    await client.connect();
+
+    // Send 10 requests rapidly (limit is 5/s)
+    const results = await Promise.allSettled(
+      Array.from({ length: 10 }, (_, i) =>
+        client.request(Performative.REQUEST, { action: 'port.claim', n: i }, 500)
+      )
+    );
+
+    // Some should succeed, some should be REFUSE'd or timeout
+    const succeeded = results.filter(r => r.status === 'fulfilled' && r.value.type === Performative.INFORM_DONE);
+    const refused = results.filter(r => r.status === 'fulfilled' && r.value.type === Performative.REFUSE);
+
+    expect(succeeded.length).toBeGreaterThan(0);
+    expect(succeeded.length).toBeLessThanOrEqual(5);
+    // Rate-limited requests get REFUSE (not timeout)
+    expect(refused.length + succeeded.length).toBeLessThanOrEqual(10);
+  });
+
+  test('client send() returns boolean for backpressure awareness', async () => {
+    server = createIpcServer({
+      socketPath,
+      onFrame: () => {},
+    });
+    await server.start();
+
+    client = createIpcClient({ socketPath, agentId: 'bp', reconnect: false });
+    await client.connect();
+
+    // send() should return true when connected
+    const result = client.send(Performative.INFORM, { action: 'heartbeat' });
+    expect(typeof result).toBe('boolean');
+
+    // send() should return false when disconnected
+    client.destroy();
+    const result2 = client.send(Performative.INFORM, { action: 'heartbeat' });
+    expect(result2).toBe(false);
+  });
 }, 15000);

@@ -87,6 +87,12 @@ export function createIpcClient(options: IpcClientOptions) {
       socket.on('data', (chunk: Buffer) => {
         const frames = decoder.push(chunk);
         for (const frame of frames) {
+          // Server-initiated REFUSE = we're being disconnected or rate-limited
+          if (frame.type === Performative.REFUSE && frame.convId === FIRE_AND_FORGET) {
+            options.onFrame?.(frame);  // Let caller know
+            continue;
+          }
+
           // Check if this is a response to a pending request
           if (frame.convId !== FIRE_AND_FORGET && pending.has(frame.convId)) {
             const req = pending.get(frame.convId)!;
@@ -135,17 +141,21 @@ export function createIpcClient(options: IpcClientOptions) {
   /**
    * Send a fire-and-forget frame. No response expected.
    * Used for heartbeats, pheromone sprays, pub/sub publishes.
+   * Returns false if not connected or write failed.
    */
-  function send(type: IpcFrame['type'], payload: Record<string, unknown>): void {
-    if (!socket || state !== ConnectionState.READY) return;
+  function send(type: IpcFrame['type'], payload: Record<string, unknown>): boolean {
+    if (!socket || state !== ConnectionState.READY) return false;
     const frame: IpcFrame = {
       type,
       convId: FIRE_AND_FORGET,
       payload: { ...payload, agentId: options.agentId },
     };
     try {
-      socket.write(encodeFrame(frame));
-    } catch {}
+      const buf = encodeFrame(frame);
+      return socket.write(buf);  // false = backpressured, but data is buffered by Node
+    } catch {
+      return false;
+    }
   }
 
   /**
