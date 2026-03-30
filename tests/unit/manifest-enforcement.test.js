@@ -78,7 +78,18 @@ function extractServerRoutes() {
     // server.ts might not exist in some test environments
   }
 
-  return routes;
+  // Deduplicate: Fastify plugins register the same routes as Express routers,
+  // so the same METHOD+path appears twice per file. Keep unique method+path pairs.
+  const seen = new Set();
+  const unique = [];
+  for (const r of routes) {
+    const key = `${r.method} ${r.path}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push(r);
+    }
+  }
+  return unique;
 }
 
 /**
