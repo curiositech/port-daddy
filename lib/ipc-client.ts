@@ -81,7 +81,14 @@ export function createIpcClient(options: IpcClientOptions) {
       setState(ConnectionState.CONNECTING);
       decoder.reset();
 
+      // Connect with timeout — prevent indefinite hang if server backlog full
+      const connectTimeout = setTimeout(() => {
+        if (socket) socket.destroy();
+        reject(new Error(`IPC connect timeout (${requestTimeout}ms)`));
+      }, requestTimeout);
+
       socket = net.connect(socketPath, () => {
+        clearTimeout(connectTimeout);
         setState(ConnectionState.READY);
         reconnectAttempt = 0;
 
@@ -140,6 +147,7 @@ export function createIpcClient(options: IpcClientOptions) {
       });
 
       socket.on('error', (err) => {
+        clearTimeout(connectTimeout);
         if (state === ConnectionState.CONNECTING) {
           reject(err);
         }

@@ -170,6 +170,12 @@ export function createIpcServer(options: IpcServerOptions) {
 
   function start(): Promise<void> {
     return new Promise((resolve, reject) => {
+      // Guard: macOS limits sun_path to 104 bytes, Linux to 108
+      const MAX_SOCKET_PATH = process.platform === 'darwin' ? 104 : 108;
+      if (socketPath.length >= MAX_SOCKET_PATH) {
+        return reject(new Error(`IPC socket path too long: ${socketPath.length} bytes (max ${MAX_SOCKET_PATH}). Use a shorter path.`));
+      }
+
       // Clean up stale socket file
       if (existsSync(socketPath)) {
         try { unlinkSync(socketPath); } catch {}
