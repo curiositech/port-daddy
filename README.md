@@ -261,6 +261,24 @@ pd pheromone list
 
 Use cases: adaptive Arbiter thresholds, file contention detection, agent reputation scoring, hot-path identification.
 
+### Tuple Space (Shared Swarm Memory)
+Agents write typed tuples to a shared space. Other agents query by pattern. Based on Linda (Gelernter, 1985). Harbor-scoped for fleet isolation. TTL for auto-expiry.
+```bash
+# Spider writes a connection it discovered
+pd tuple out '["connection", "trie+pubsub=routing", "spider", 0.9]' --harbor myapp:fleet
+
+# Spark reads all connections with confidence > 0.7
+pd tuple rd '["connection", "*", "*", ">0.7"]' --harbor myapp:fleet
+
+# Take (remove) a processed task from the space
+pd tuple in '["task", "build-auth", "pending"]'
+
+# Scan all tuples in a harbor
+pd tuple scan --harbor myapp:fleet
+```
+
+Pattern matching: exact values, `*` wildcard, `>N`/`<N` numeric comparisons, `myapp:*` semantic identity prefixes.
+
 ### Semantic Trie (O(k) Identity Lookups)
 Port Daddy indexes all identities (services, agents, sessions, harbors) in an in-memory Adaptive Radix Tree. Lookups are O(k) where k is key length — replacing SQL `LIKE` scans that degrade as the registry grows.
 

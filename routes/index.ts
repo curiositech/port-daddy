@@ -35,6 +35,7 @@ import { briefingPlugin } from './briefing.js';
 // Arbiter and pheromone have different option shapes
 import { arbiterPlugin } from './arbiter.js';
 import { pheromonePlugin } from './pheromone.js';
+import { tuplesPlugin } from './tuples.js';
 
 type AnyDeps = Record<string, unknown>;
 
@@ -82,4 +83,10 @@ export async function registerAllRoutes(
   // These have different option shapes
   await fastify.register(arbiterPlugin, { arbiter } as any);
   await fastify.register(pheromonePlugin, { deps: pheromoneDeps } as any);
+
+  // Tuple space
+  const tupleDeps = (deps as any).tuples;
+  if (tupleDeps) {
+    await fastify.register(tuplesPlugin, { tuples: tupleDeps } as any);
+  }
 }

@@ -1002,6 +1002,33 @@
         "readme": true,
         "sdk": false
       }
+    },
+    "tuples": {
+      "description": "Linda-style tuple space — shared coordination data structure for agent swarms with pattern matching and harbor scoping",
+      "cli": [
+        "tuple"
+      ],
+      "sdk": [
+        "tupleOut",
+        "tupleRd",
+        "tupleIn",
+        "tupleScan",
+        "tupleCount"
+      ],
+      "routes": [
+        "POST /tuples",
+        "GET /tuples",
+        "DELETE /tuples",
+        "GET /tuples/scan",
+        "GET /tuples/count"
+      ],
+      "completions": [
+        "tuple"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": true
+      }
     }
   }
 }

@@ -47,6 +47,7 @@ import { createReactiveOrchestrator } from './lib/orchestrator.js';
 import { createCorrelationEngine } from './lib/correlation.js';
 import { createArbiter } from './lib/arbiter.js';
 import { createSemanticIndex } from './lib/semantic-index.js';
+import { createTupleSpace } from './lib/tuples.js';
 import { createNoteEncryption } from './lib/note-encryption.js';
 import { initDatabase, closeDatabase, resolveDbPath } from './lib/db.js';
 
@@ -251,6 +252,7 @@ const arbiter = createArbiter(
 console.error('[Arbiter] Runtime invariant enforcement active (6 rules, strictMode=false)');
 const pheromones = createPheromoneManager(db);
 pheromones.start();
+const tuples = createTupleSpace(db);
 
 const barnacle = createBarnacleWatcher(logger);
 barnacle.start();
@@ -512,7 +514,7 @@ await registerAllRoutes(
     db, logger, metrics, config,
     services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar,
-    harbors, orchestrator, correlationEngine, spawner,
+    harbors, orchestrator, correlationEngine, spawner, tuples,
     VERSION, CODE_HASH, STARTED_AT, __dirname,
     cleanupStale, getSystemPorts,
   },
