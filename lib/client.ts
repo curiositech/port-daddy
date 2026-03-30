@@ -18,6 +18,8 @@
 import http from 'node:http';
 import { existsSync } from 'node:fs';
 import type { PortDaddyClientOptions } from '../shared/types.js';
+import { createIpcClient } from './ipc-client.js';
+import { Performative } from './ipc-types.js';
 
 const DEFAULT_URL = 'http://localhost:9876';
 const DEFAULT_SOCK = '/tmp/port-daddy.sock';
@@ -1026,6 +1028,8 @@ class PortDaddy {
   agentId: string | undefined;
   pid: number;
   timeout: number;
+  private _ipc: ReturnType<typeof createIpcClient> | null = null;
+  private _ipcPath: string;
 
   /**
    * Create a new Port Daddy client.
@@ -1036,6 +1040,29 @@ class PortDaddy {
     this.agentId = options.agentId || process.env.PORT_DADDY_AGENT;
     this.pid = options.pid || process.pid;
     this.timeout = options.timeout || 5000;
+    this._ipcPath = process.env.PORT_DADDY_IPC || '/tmp/port-daddy.ipc';
+  }
+
+  /**
+   * Get or create the binary IPC client for fire-and-forget operations.
+   * Lazily connects on first use. Returns null if IPC socket doesn't exist.
+   */
+  private _getIpc(): ReturnType<typeof createIpcClient> | null {
+    if (this._ipc) return this._ipc;
+    if (!this.agentId) return null;
+    if (!existsSync(this._ipcPath)) return null;
+
+    this._ipc = createIpcClient({
+      socketPath: this._ipcPath,
+      agentId: this.agentId,
+      reconnect: true,
+      requestTimeout: this.timeout,
+    });
+    this._ipc.connect().catch(() => {
+      // Connection failed — fall back to HTTP silently
+      this._ipc = null;
+    });
+    return this._ipc;
   }
 
   // ===========================================================================
@@ -1565,6 +1592,15 @@ class PortDaddy {
     if (!this.agentId) {
       throw new PortDaddyError('agentId required for heartbeat', 0, null);
     }
+
+    // Fast path: binary IPC fire-and-forget (~3us vs ~200us HTTP)
+    const ipc = this._getIpc();
+    if (ipc && ipc.state === 'ready') {
+      ipc.heartbeat();
+      return { success: true, agentId: this.agentId, lastHeartbeat: Date.now(), message: 'ipc' };
+    }
+
+    // Fallback: HTTP POST
     return this._request('POST', `/agents/${encodeURIComponent(this.agentId)}/heartbeat`) as Promise<HeartbeatResponse>;
   }
 
@@ -2742,6 +2778,16 @@ class PortDaddy {
     if (harbor) params.set('harbor', harbor);
     const qs = params.toString() ? '?' + params.toString() : '';
     return this._request('GET', `/tuples/count${qs}`) as Promise<TupleCountResponse>;
+  }
+
+  /**
+   * Destroy the IPC connection (if active). Call on process exit.
+   */
+  destroyIpc(): void {
+    if (this._ipc) {
+      this._ipc.destroy();
+      this._ipc = null;
+    }
   }
 }
 
