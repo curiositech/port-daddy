@@ -1,37 +1,7 @@
 import { Badge } from '@/components/ui/Badge'
+import { DocsCodeBlock as CodeBlock } from '@/components/docs/DocsCodeBlock'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Copy, Check } from 'lucide-react'
-import { useState } from 'react'
-
-function CodeBlock({ code, output }: { code: string; output?: string }) {
-  const [copied, setCopied] = useState(false)
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(code)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  return (
-    <div className="space-y-2">
-      <div className="relative p-4 rounded-lg bg-[var(--code-bg)] border border-[var(--border-subtle)] font-mono text-sm group">
-        <button
-          onClick={handleCopy}
-          className="absolute right-3 top-3 p-1.5 rounded hover:bg-[var(--interactive-hover)] text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity"
-        >
-          {copied ? <Check size={14} className="text-[var(--success)]" /> : <Copy size={14} />}
-        </button>
-        <code className="text-[var(--brand-primary)]">{code}</code>
-      </div>
-      {output && (
-        <div className="p-4 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)] font-mono text-sm">
-          <div className="text-[var(--text-muted)] mb-1 text-xs uppercase tracking-wide">Output</div>
-          <pre className="text-[var(--text-secondary)] whitespace-pre-wrap">{output}</pre>
-        </div>
-      )}
-    </div>
-  )
-}
+import { ArrowLeft } from 'lucide-react'
 
 export default function HarborsSdk() {
   return (
@@ -64,8 +34,8 @@ export default function HarborsSdk() {
       <div className="p-6 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
         <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-4">What are Harbors?</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed mb-4">
-          A Harbor is a capability-based security boundary. Agents must present a valid 
-          Harbor Card to enter and perform operations within the harbor. Think of it as 
+          A Harbor is a capability-based security boundary. Agents must present a valid
+          Harbor Card to enter and perform operations within the harbor. Think of it as
           a secure workspace with fine-grained permissions.
         </p>
         <div className="grid sm:grid-cols-3 gap-4 text-sm">
@@ -93,7 +63,7 @@ export default function HarborsSdk() {
           </p>
         </div>
 
-        <CodeBlock code={`createHarbor(name: string, options?: HarborOptions): Promise<Harbor>`} />
+        <CodeBlock language="typescript" code={`createHarbor(name: string, options?: HarborOptions): Promise<Harbor>`} />
 
         <div className="space-y-3">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Parameters</h3>
@@ -132,10 +102,11 @@ export default function HarborsSdk() {
 
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Examples</h3>
-          
+
           <div className="space-y-2">
             <p className="text-[var(--text-secondary)]">Basic harbor with read/write capabilities</p>
-            <CodeBlock 
+            <CodeBlock
+              language="typescript"
               code={`const harbor = await pd.harbors.createHarbor('production-db', {
   capabilities: ['read', 'write'],
   allowedIdentities: ['myapp:api:*', 'myapp:admin:*'],
@@ -154,7 +125,8 @@ export default function HarborsSdk() {
 
           <div className="space-y-2">
             <p className="text-[var(--text-secondary)]">Read-only harbor for reporting agents</p>
-            <CodeBlock 
+            <CodeBlock
+              language="typescript"
               code={`const harbor = await pd.harbors.createHarbor('analytics-readonly', {
   capabilities: ['read'],
   allowedIdentities: ['myapp:analytics:*'],
@@ -174,7 +146,7 @@ export default function HarborsSdk() {
           </p>
         </div>
 
-        <CodeBlock code={`enterHarbor(name: string, token: string): Promise<HarborSession>`} />
+        <CodeBlock language="typescript" code={`enterHarbor(name: string, token: string): Promise<HarborSession>`} />
 
         <div className="space-y-3">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Parameters</h3>
@@ -200,15 +172,16 @@ export default function HarborsSdk() {
 
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Examples</h3>
-          <CodeBlock 
+          <CodeBlock
+            language="typescript"
             code={`// Enter a harbor
 try {
   const session = await pd.harbors.enterHarbor('production-db', harborToken)
   console.log(\`Entered harbor with capabilities: \${session.capabilities.join(', ')}\`)
-  
+
   // Perform restricted operations
   await performDatabaseWork()
-  
+
 } catch (error) {
   console.error('Failed to enter harbor:', error.message)
 }`}
@@ -232,7 +205,7 @@ try {
           </p>
         </div>
 
-        <CodeBlock code={`issueHarborCard(agentId: string, capabilities: string[], options?: CardOptions): Promise<HarborCard>`} />
+        <CodeBlock language="typescript" code={`issueHarborCard(agentId: string, capabilities: string[], options?: CardOptions): Promise<HarborCard>`} />
 
         <div className="space-y-3">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Parameters</h3>
@@ -280,10 +253,11 @@ try {
 
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Examples</h3>
-          
+
           <div className="space-y-2">
             <p className="text-[var(--text-secondary)]">Issue a card with read-only access</p>
-            <CodeBlock 
+            <CodeBlock
+              language="typescript"
               code={`const card = await pd.harbors.issueHarborCard('agent-001', ['read'], {
   harborName: 'production-db',
   ttl: 1800 // 30 minutes
@@ -301,7 +275,8 @@ try {
 
           <div className="space-y-2">
             <p className="text-[var(--text-secondary)]">Issue restricted card with path limitations</p>
-            <CodeBlock 
+            <CodeBlock
+              language="typescript"
               code={`const card = await pd.harbors.issueHarborCard('agent-002', ['read', 'write'], {
   harborName: 'production-db',
   ttl: 3600,
@@ -321,7 +296,7 @@ try {
         <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-4">Security Model</h2>
         <div className="space-y-4 text-[var(--text-secondary)]">
           <p>
-            Harbors implement a capability-based security model inspired by capability systems 
+            Harbors implement a capability-based security model inspired by capability systems
             like Capsicum and Cloudflare Workers' sandboxing:
           </p>
           <ul className="space-y-2 ml-4">
@@ -336,7 +311,7 @@ try {
       {/* Types */}
       <div className="space-y-4 pt-8 border-t border-[var(--border-subtle)]">
         <h2 className="text-2xl font-semibold text-[var(--text-primary)]">Type Definitions</h2>
-        <CodeBlock code={`interface Harbor {
+        <CodeBlock language="typescript" code={`interface Harbor {
   name: string
   capabilities: string[]
   allowedIdentities: string[]
@@ -381,14 +356,14 @@ interface CardOptions {
 
       {/* Navigation */}
       <div className="flex items-center justify-between pt-8 border-t border-[var(--border-subtle)]">
-        <Link 
+        <Link
           to="/docs/sdk/locks"
           className="flex items-center gap-2 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
         >
           <ArrowLeft size={14} />
           Locks Module
         </Link>
-        <Link 
+        <Link
           to="/docs/sdk"
           className="flex items-center gap-2 text-sm text-[var(--brand-primary)] hover:text-[var(--brand-primary)] transition-colors"
         >

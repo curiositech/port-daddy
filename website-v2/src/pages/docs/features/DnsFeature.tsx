@@ -1,4 +1,5 @@
 import { Badge } from '@/components/ui/Badge'
+import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Link } from 'react-router-dom'
 import { ArrowRight, AlertCircle } from 'lucide-react'
 import { DocsCodeBlock } from '@/components/docs/DocsCodeBlock'
@@ -107,9 +108,7 @@ myapp:worker     → localhost:3002   (8s ago)`}
               <code className="text-lg font-mono text-[var(--brand-primary)]">pd dns register &lt;name&gt; &lt;host:port&gt;</code>
             </div>
             <p className="text-[var(--text-secondary)] mb-3">Register a semantic name pointing to a host:port pair. Overwrites any existing entry.</p>
-            <div className="p-3 rounded-lg font-mono text-sm" style={{ background: 'var(--code-bg)', color: 'var(--code-text)' }}>
-              $ pd dns register myapp:api localhost:3001
-            </div>
+            <CodeBlock language="bash">{`$ pd dns register myapp:api localhost:3001`}</CodeBlock>
           </div>
 
           <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
@@ -117,10 +116,8 @@ myapp:worker     → localhost:3002   (8s ago)`}
               <code className="text-lg font-mono text-[var(--brand-primary)]">pd dns lookup &lt;name&gt;</code>
             </div>
             <p className="text-[var(--text-secondary)] mb-3">Resolve a name to its host:port. Returns the address or an error if not found.</p>
-            <div className="p-3 rounded-lg font-mono text-sm" style={{ background: 'var(--code-bg)', color: 'var(--code-text)' }}>
-              $ pd dns lookup myapp:api --quiet{'\n'}
-              localhost:3001
-            </div>
+            <CodeBlock language="bash">{`$ pd dns lookup myapp:api --quiet
+localhost:3001`}</CodeBlock>
           </div>
 
           <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
@@ -128,9 +125,7 @@ myapp:worker     → localhost:3002   (8s ago)`}
               <code className="text-lg font-mono text-[var(--brand-primary)]">pd dns list</code>
             </div>
             <p className="text-[var(--text-secondary)] mb-3">List all registered DNS entries with names, addresses, and last-updated timestamps.</p>
-            <div className="p-3 rounded-lg font-mono text-sm" style={{ background: 'var(--code-bg)', color: 'var(--code-text)' }}>
-              $ pd dns list --json
-            </div>
+            <CodeBlock language="bash">{`$ pd dns list --json`}</CodeBlock>
           </div>
         </div>
       </div>

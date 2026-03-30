@@ -204,6 +204,7 @@ createRoot(document.getElementById('root')!).render(
             <Route path="/tutorials/pipelines" element={<Tutorials.Pipelines />} />
             <Route path="/tutorials/watch" element={<Tutorials.Watch />} />
             <Route path="/tutorials/remote-harbors" element={<Tutorials.RemoteHarbors />} />
+            <Route path="/tutorials/fleet" element={<Tutorials.Fleet />} />
 
             {/* Ecosystem */}
             <Route path="/cookbook" element={<CookbookPage />} />
