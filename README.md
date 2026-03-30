@@ -1,4 +1,4 @@
-# ⚓ Port Daddy (v3.8.0)
+# ⚓ Port Daddy (v3.8.2)
 
 <p align="center">
   <img src="website-v2/public/img/hero-portdaddy.png" alt="Port Daddy — the harbormaster for your AI agents" width="600">
@@ -43,6 +43,7 @@ pd done "Auth complete"
 - **Agentic Control Plane:** A live 2D/3D dashboard (`*.pd.local`) to visualize active agents, service health, and message traffic.
 - **Automatic Salvage:** Captures session state and notes from "zombie" agents that crash mid-task, allowing others to recover their work.
 - **Local DNS Resolver:** Access your services at `http://api.pd.local` instead of magic port numbers.
+- **Binary IPC:** High-frequency agent communication over Unix domain socket with MessagePack encoding, FIPA-grounded performatives, and 20 documented failure mode mitigations.
 
 ---
 
