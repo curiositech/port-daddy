@@ -683,7 +683,9 @@ const ipcServer = DISABLE_IPC ? null : createIpcServer({
         if (held.locks?.length) {
           logger.info('ipc_lock_release', { agentId: conn.agentId, released: held.locks.length });
         }
-      } catch {}
+      } catch (err) {
+        logger.error('ipc_lock_release_failed', { agentId: conn.agentId, error: (err as Error).message });
+      }
     }
   },
   onError: (err, conn) => {

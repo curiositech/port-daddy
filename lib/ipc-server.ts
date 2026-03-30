@@ -43,6 +43,7 @@ const MAX_CONNECTIONS = 256;
 const MAX_FRAMES_PER_SECOND = 500;     // per connection
 const MAX_PROTOCOL_VIOLATIONS = 3;     // strikes before disconnect
 const MAX_WRITE_QUEUE = 64;            // max queued outbound frames per connection
+const MAX_SUBSCRIPTIONS = 64;          // per connection — prevents memory exhaustion
 const RATE_LIMIT_WINDOW_MS = 1000;
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -338,9 +339,16 @@ export function createIpcServer(options: IpcServerOptions) {
         reject(err);
       });
 
+      // Set restrictive umask BEFORE bind to avoid TOCTOU permission gap
+      const prevUmask = process.umask(0o077);
       server.listen(socketPath, () => {
-        // Restrict permissions: owner only
-        try { chmodSync(socketPath, 0o600); } catch {}
+        process.umask(prevUmask);  // Restore
+        // Belt-and-suspenders: also chmod explicitly
+        try {
+          chmodSync(socketPath, 0o600);
+        } catch (err) {
+          options.onError?.(new Error(`Failed to chmod IPC socket: ${(err as Error).message}`));
+        }
         resolve();
       });
     });

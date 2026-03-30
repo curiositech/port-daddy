@@ -65,6 +65,15 @@ export interface IpcRouterDeps {
   };
 }
 
+// ─── Input Validation ───────────────────────────────────────────────────────
+
+/** Validate and coerce a payload field to string[]. Returns null if invalid. */
+function asStringArray(val: unknown): string[] | null {
+  if (!Array.isArray(val)) return null;
+  if (!val.every(v => typeof v === 'string')) return null;
+  return val;
+}
+
 // ─── Route Handler Type ─────────────────────────────────────────────────────
 
 type RouteHandler = (
@@ -117,17 +126,15 @@ export function createIpcRouter(deps: IpcRouterDeps) {
   });
 
   handlers.set(IpcAction.FILES_CLAIM, (p) => {
-    return deps.sessions.claimFiles(
-      String(p.sessionId),
-      p.paths as string[],
-    );
+    const paths = asStringArray(p.paths);
+    if (!paths) return { error: 'paths must be an array of strings' };
+    return deps.sessions.claimFiles(String(p.sessionId), paths);
   });
 
   handlers.set(IpcAction.FILES_RELEASE, (p) => {
-    return deps.sessions.releaseFiles(
-      String(p.sessionId),
-      p.paths as string[],
-    );
+    const paths = asStringArray(p.paths);
+    if (!paths) return { error: 'paths must be an array of strings' };
+    return deps.sessions.releaseFiles(String(p.sessionId), paths);
   });
 
   // Ports
@@ -163,6 +170,11 @@ export function createIpcRouter(deps: IpcRouterDeps) {
     // Check if already subscribed on this connection
     if (conn.subscriptions.some(s => s.channel === channel)) {
       return { subscribed: true, channel, existing: true };
+    }
+
+    // Guard: subscription limit per connection
+    if (conn.subscriptions.length >= 64) {
+      return { subscribed: false, channel, error: 'subscription_limit', limit: 64 };
     }
 
     const unsub = deps.messaging.subscribe(channel, (msg: unknown) => {
@@ -274,7 +286,6 @@ export function createIpcRouter(deps: IpcRouterDeps) {
           error: 'unknown_action',
           action,
           message: `No handler for action '${action}'`,
-          available: Array.from(handlers.keys()),
         },
       });
       return;

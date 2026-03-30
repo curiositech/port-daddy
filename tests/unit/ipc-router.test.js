@@ -195,9 +195,8 @@ describe('IPC Router', () => {
     expect(replies[0].type).toBe(Performative.NOT_UNDERSTOOD);
     expect(replies[0].payload.error).toBe('unknown_action');
     expect(replies[0].payload.action).toBe('nonexistent.action');
-    expect(replies[0].payload.available).toContain(IpcAction.HEARTBEAT);
-    expect(replies[0].payload.available).toContain(IpcAction.CLAIM);
-    expect(replies[0].payload.available.length).toBeGreaterThanOrEqual(15);
+    // available list removed for security (don't enumerate API surface)
+    expect(replies[0].payload.available).toBeUndefined();
   });
 
   test('FAILURE when handler throws includes error message and action', () => {

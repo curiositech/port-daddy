@@ -16,8 +16,11 @@
  */
 
 import { pack, unpack } from 'msgpackr';
-import { HEADER_SIZE, MAX_PAYLOAD_SIZE } from './ipc-types.js';
+import { HEADER_SIZE, MAX_PAYLOAD_SIZE, Performative } from './ipc-types.js';
 import type { IpcFrame, PerformativeCode } from './ipc-types.js';
+
+/** Valid performative type codes — reject frames with unknown types */
+const VALID_TYPES = new Set<number>(Object.values(Performative));
 
 // ─── Encode ─────────────────────────────────────────────────────────────────
 
@@ -87,8 +90,14 @@ export function createFrameDecoder() {
           continue;
         }
 
-        // Decode header
-        const type = buffer.readUInt8(0) as PerformativeCode;
+        // Decode header — validate type is a known performative
+        const rawType = buffer.readUInt8(0);
+        if (!VALID_TYPES.has(rawType)) {
+          // Unknown performative — skip frame, count as protocol violation
+          buffer = buffer.subarray(frameLen);
+          continue;
+        }
+        const type = rawType as PerformativeCode;
         const convId = buffer.readUInt32BE(1);
 
         // Decode payload
