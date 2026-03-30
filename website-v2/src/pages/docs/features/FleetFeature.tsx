@@ -94,7 +94,7 @@ Fleet running. Press Ctrl+C to stop, or: pd fleet down`}
         </p>
 
         <DocsCodeBlock
-          language="yaml"
+          language="bash"
           code={`fleet:
   name: myapp-dev
 

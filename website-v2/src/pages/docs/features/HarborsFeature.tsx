@@ -159,7 +159,7 @@ observer   sessions:read,notes:read,activity:read  0 agents`}
           <code>pd-fleet.yml</code> and all agents join it on startup:
         </p>
         <DocsCodeBlock
-          language="yaml"
+          language="bash"
           code={`fleet:
   name: my-project
   harbor: "{project}:fleet"   # All agents join this harbor

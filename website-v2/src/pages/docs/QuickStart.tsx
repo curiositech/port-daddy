@@ -66,7 +66,7 @@ export default function QuickStart() {
 
       {/* Steps */}
       <div className="space-y-6">
-        {STEPS.map((step, i) => (
+        {STEPS.map((step) => (
           <Surface key={step.number} depth="raised" radius="xl" padding="lg" className="space-y-4">
             <div className="flex items-center gap-4">
               <Surface depth="inset" radius="full" padding="none" className="w-10 h-10 flex items-center justify-center shrink-0">
