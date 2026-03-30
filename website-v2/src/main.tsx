@@ -190,6 +190,7 @@ createRoot(document.getElementById('root')!).render(
             {/* Academy */}
             <Route path="/tutorials" element={<TutorialsPage />} />
             <Route path="/tutorials/getting-started" element={<Tutorials.GettingStarted />} />
+            <Route path="/tutorials/semantic-identities" element={<Tutorials.SemanticIdentities />} />
             <Route path="/tutorials/multi-agent" element={<Tutorials.MultiAgentOrchestration />} />
             <Route path="/tutorials/monorepo" element={<Tutorials.Monorepo />} />
             <Route path="/tutorials/debugging" element={<Tutorials.Debugging />} />

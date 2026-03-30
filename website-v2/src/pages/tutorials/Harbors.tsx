@@ -1,8 +1,7 @@
-import { motion } from 'framer-motion'
 import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Badge } from '@/components/ui/Badge'
-import { Shield, Lock, Key, Zap, ShieldCheck, AlertTriangle, Users } from 'lucide-react'
+import { Shield, Lock, Key, Zap, AlertTriangle, Users } from 'lucide-react'
 import { Surface } from '@/components/ui/Surface'
 
 export function Harbors() {
@@ -17,24 +16,24 @@ export function Harbors() {
       prev={{ title: 'Multi-Agent Flow', href: '/tutorials/multi-agent' }}
       next={{ title: 'Agent Spawning', href: '/tutorials/always-on' }}
     >
-      <motion.div className="space-y-16">
+      <div className="space-y-12">
         {/* Why Harbors Exist */}
-        <section className="space-y-6">
-          <motion.div className="flex items-center gap-4 mb-8">
-            <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
-              <Shield className="text-[var(--brand-primary)]" size={24} />
-            </Surface>
-            <motion.h2 className="m-0">Why Harbors Exist</motion.h2>
-          </motion.div>
-          <motion.p>
+        <section className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[var(--surface-sunken)] flex items-center justify-center">
+              <Shield className="text-[var(--brand-primary)]" size={20} />
+            </div>
+            <h2 className="m-0">Why Harbors Exist</h2>
+          </div>
+          <p>
             When you run an AI coding agent, you typically give it full access to your project directory and all its environment variables. That is fine for a single trusted agent, but it becomes a real problem when you are running three or four agents simultaneously on the same codebase.
-          </motion.p>
-          <motion.p>
+          </p>
+          <p>
             Consider this scenario: you spawn a security review agent that should only <strong>read</strong> source code and write notes about what it finds. Without harbors, that agent has the same permissions as every other agent -- it can modify files, acquire locks, create tunnels, and publish to any pub/sub channel. If the agent misbehaves (or if its prompt is poorly constructed), it can accidentally overwrite files or interfere with other agents' work.
-          </motion.p>
-          <motion.p>
+          </p>
+          <p>
             <strong>Harbors</strong> solve this by letting you define exactly what each agent is allowed to do. A harbor is a named permission namespace -- think of it as a scoped role that you assign to a group of agents. Each harbor has a list of capabilities (like <code>code:read</code>, <code>notes:write</code>, <code>file:claim</code>), and agents inside the harbor receive a signed token that proves their permissions. The daemon verifies this token on every request.
-          </motion.p>
+          </p>
           <Surface depth="flat" radius="xl" padding="md" className="border-l-4 border-[var(--brand-secondary)]">
             <p className="m-0 text-sm" style={{ color: 'var(--text-secondary)' }}>
               <strong>Soundness by Design:</strong> In Port Daddy v3.7, every harbor operation is verified against a mathematical state machine. If an agent tries to claim a port it doesn't own, the daemon rejects the request instantly.
@@ -43,17 +42,17 @@ export function Harbors() {
         </section>
 
         {/* Step 1: Creation */}
-        <section className="space-y-8">
-          <motion.div className="flex items-center gap-4">
-            <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
-              <Lock className="text-[var(--brand-accent)]" size={24} />
-            </Surface>
-            <motion.h2 className="m-0">1. Create a Harbor</motion.h2>
-          </motion.div>
+        <section className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[var(--surface-sunken)] flex items-center justify-center">
+              <Lock className="text-[var(--brand-accent)]" size={20} />
+            </div>
+            <h2 className="m-0">1. Create a Harbor</h2>
+          </div>
 
-          <motion.p>
+          <p>
             Start by defining the boundary. We will create a harbor called <code>security-review</code> with read-only code access and the ability to write session notes. Nothing else -- no file modifications, no lock acquisition, no tunnel creation.
-          </motion.p>
+          </p>
 
           <CodeBlock language="bash">
             {`$ pd harbor create my-swarm:security-review \\
@@ -61,38 +60,38 @@ export function Harbors() {
     --ttl 2h`}
           </CodeBlock>
 
-          <motion.p>
+          <p>
             The <code>--ttl 2h</code> flag is important. It means tokens issued for this harbor expire after two hours. When the token expires, the agent loses all access automatically. You do not need to remember to revoke anything. This is especially useful for short-lived review tasks where you want permissions to self-destruct.
-          </motion.p>
+          </p>
 
-          <motion.div className="grid sm:grid-cols-2 gap-6">
-             <Surface depth="inset" radius="2xl" padding="none" className="p-8 space-y-4">
-                <Badge variant="teal">Capability: code:read</Badge>
-                <motion.p className="text-sm m-0 leading-relaxed text-[var(--text-secondary)]">
-                  Allows the agent to read source files and view session notes within the harbor. The agent can use <code>pd session files claim</code> to access files, but only in read mode.
-                </motion.p>
-             </Surface>
-             <Surface depth="inset" radius="2xl" padding="none" className="p-8 space-y-4">
-                <Badge variant="gold">Capability: notes:write</Badge>
-                <motion.p className="text-sm m-0 leading-relaxed text-[var(--text-secondary)]">
-                  Allows the agent to post status updates and findings to the session timeline. Other agents (including those outside this harbor) can read these notes to see the review results.
-                </motion.p>
-             </Surface>
-          </motion.div>
+          <div className="space-y-3">
+            <div className="p-4 rounded-xl bg-[var(--surface-sunken)]">
+              <Badge variant="teal">Capability: code:read</Badge>
+              <p className="text-sm m-0 mt-2 leading-relaxed text-[var(--text-secondary)]">
+                Allows the agent to read source files and view session notes within the harbor. The agent can use <code>pd session files claim</code> to access files, but only in read mode.
+              </p>
+            </div>
+            <div className="p-4 rounded-xl bg-[var(--surface-sunken)]">
+              <Badge variant="gold">Capability: notes:write</Badge>
+              <p className="text-sm m-0 mt-2 leading-relaxed text-[var(--text-secondary)]">
+                Allows the agent to post status updates and findings to the session timeline. Other agents (including those outside this harbor) can read these notes to see the review results.
+              </p>
+            </div>
+          </div>
         </section>
 
         {/* Step 2: Entrance */}
-        <section className="space-y-8">
-          <motion.div className="flex items-center gap-4">
-            <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
-              <Key className="text-[var(--brand-secondary)]" size={24} />
-            </Surface>
-            <motion.h2 className="m-0">2. Enter the Harbor</motion.h2>
-          </motion.div>
+        <section className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[var(--surface-sunken)] flex items-center justify-center">
+              <Key className="text-[var(--brand-secondary)]" size={20} />
+            </div>
+            <h2 className="m-0">2. Enter the Harbor</h2>
+          </div>
 
-          <motion.p>
+          <p>
             When an agent enters a harbor, the daemon issues a unique <strong>Harbor Card</strong>--an HMAC-signed JWT that proves the agent's identity and permissions.
-          </motion.p>
+          </p>
 
           <CodeBlock language="bash">
             {`$ pd harbor enter my-swarm:security-review
@@ -103,9 +102,9 @@ Caps:   code:read, notes:write
 Expires: 2h from now`}
           </CodeBlock>
 
-          <motion.p>
+          <p>
             You can pass this token to a spawned agent so it inherits the harbor's permissions automatically:
-          </motion.p>
+          </p>
 
           <CodeBlock language="bash">
             {`$ pd spawn --backend claude --model claude-haiku-4-5 \\
@@ -113,27 +112,27 @@ Expires: 2h from now`}
     -- "Review src/auth/ for vulnerabilities"`}
           </CodeBlock>
 
-          <motion.p>
+          <p>
             The spawned agent receives the Harbor Card as an environment variable and includes it in every request to the daemon. If it tries to do something its capabilities do not allow -- like acquiring a lock or creating a tunnel -- the daemon rejects the request with a clear error explaining which capability is missing.
-          </motion.p>
+          </p>
         </section>
 
         {/* Step 3: What Happens When It Expires */}
-        <section className="space-y-8">
-          <motion.div className="flex items-center gap-4">
-            <motion.div className="w-12 h-12 rounded-2xl bg-[var(--interactive-active)] flex items-center justify-center border border-[var(--brand-accent)]">
-              <AlertTriangle className="text-[var(--brand-accent)]" size={24} />
-            </motion.div>
-            <motion.h2 className="m-0">3. Token Expiration and Revocation</motion.h2>
-          </motion.div>
+        <section className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[var(--surface-sunken)] flex items-center justify-center border border-[var(--brand-accent)]">
+              <AlertTriangle className="text-[var(--brand-accent)]" size={20} />
+            </div>
+            <h2 className="m-0">3. Token Expiration and Revocation</h2>
+          </div>
 
-          <motion.p>
+          <p>
             When a token expires, the agent can no longer make any requests to the daemon. This is intentional -- it forces you to think about how long an agent actually needs access. A security review that should take 30 minutes does not need a 24-hour token.
-          </motion.p>
+          </p>
 
-          <motion.p>
+          <p>
             You can also revoke a token early by leaving the harbor:
-          </motion.p>
+          </p>
 
           <CodeBlock language="bash">
             {`$ pd harbor leave my-swarm:security-review
@@ -142,9 +141,9 @@ Left harbor: my-swarm:security-review
 Token JTI burned — cannot be reused.`}
           </CodeBlock>
 
-          <motion.p>
+          <p>
             The "JTI burned" message means Port Daddy records the token's unique identifier in a revocation list. Even if someone copies the raw JWT string, it will be rejected because the daemon checks the JTI against the revocation list on every request.
-          </motion.p>
+          </p>
 
           <Surface depth="flat" radius="xl" padding="md" className="border-l-4 border-[var(--brand-secondary)]">
             <p className="m-0 text-sm" style={{ color: 'var(--text-secondary)' }}>
@@ -154,66 +153,61 @@ Token JTI burned — cannot be reused.`}
         </section>
 
         {/* When to Use Harbors */}
-        <section className="space-y-8">
-          <motion.div className="flex items-center gap-4">
-            <motion.div className="w-12 h-12 rounded-2xl bg-[var(--interactive-active)] flex items-center justify-center border border-[var(--brand-primary)]">
-              <Users className="text-[var(--brand-primary)]" size={24} />
-            </motion.div>
-            <motion.h2 className="m-0">When to Use Harbors</motion.h2>
-          </motion.div>
+        <section className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[var(--surface-sunken)] flex items-center justify-center border border-[var(--brand-primary)]">
+              <Users className="text-[var(--brand-primary)]" size={20} />
+            </div>
+            <h2 className="m-0">When to Use Harbors</h2>
+          </div>
 
-          <motion.p>
+          <p>
             Harbors add a layer of ceremony, so they are not necessary for every workflow. Here are the cases where they provide real value:
-          </motion.p>
+          </p>
 
-          <motion.div className="space-y-4">
-            <motion.div className="p-6 rounded-[24px] bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-              <motion.p className="font-bold text-[var(--text-primary)] m-0 mb-2">Security-sensitive reviews</motion.p>
-              <motion.p className="text-sm m-0 text-[var(--text-secondary)] leading-relaxed">
+          <div className="space-y-3">
+            <div className="p-4 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+              <p className="font-bold text-[var(--text-primary)] m-0 mb-1">Security-sensitive reviews</p>
+              <p className="text-sm m-0 text-[var(--text-secondary)]">
                 When you want an agent to analyze code without being able to modify it. Use <code>code:read</code> + <code>notes:write</code> and nothing else.
-              </motion.p>
-            </motion.div>
-            <motion.div className="p-6 rounded-[24px] bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-              <motion.p className="font-bold text-[var(--text-primary)] m-0 mb-2">Untrusted or experimental agents</motion.p>
-              <motion.p className="text-sm m-0 text-[var(--text-secondary)] leading-relaxed">
+              </p>
+            </div>
+            <div className="p-4 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+              <p className="font-bold text-[var(--text-primary)] m-0 mb-1">Untrusted or experimental agents</p>
+              <p className="text-sm m-0 text-[var(--text-secondary)]">
                 When you are testing a new agent framework or prompt and do not fully trust its behavior yet. Harbors limit the blast radius if something goes wrong.
-              </motion.p>
-            </motion.div>
-            <motion.div className="p-6 rounded-[24px] bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-              <motion.p className="font-bold text-[var(--text-primary)] m-0 mb-2">Multi-team projects</motion.p>
-              <motion.p className="text-sm m-0 text-[var(--text-secondary)] leading-relaxed">
+              </p>
+            </div>
+            <div className="p-4 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+              <p className="font-bold text-[var(--text-primary)] m-0 mb-1">Multi-team projects</p>
+              <p className="text-sm m-0 text-[var(--text-secondary)]">
                 When different teams have different agents working on the same monorepo and you want to ensure the frontend team's agents cannot touch the backend's database migration files.
-              </motion.p>
-            </motion.div>
-            <motion.div className="p-6 rounded-[24px] bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-              <motion.p className="font-bold text-[var(--text-primary)] m-0 mb-2">CI/CD pipelines</motion.p>
-              <motion.p className="text-sm m-0 text-[var(--text-secondary)] leading-relaxed">
+              </p>
+            </div>
+            <div className="p-4 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+              <p className="font-bold text-[var(--text-primary)] m-0 mb-1">CI/CD pipelines</p>
+              <p className="text-sm m-0 text-[var(--text-secondary)]">
                 When you spawn agents as part of an automated pipeline and want each step to have only the permissions it needs. A test-runner agent does not need <code>tunnel:create</code>.
-              </motion.p>
-            </motion.div>
-          </motion.div>
+              </p>
+            </div>
+          </div>
 
-          <motion.p>
+          <p>
             If you are the only developer and you trust all your agents, you can skip harbors entirely. They are opt-in, and Port Daddy works fine without them. But the moment you add a third party -- a teammate's agent, a CI-spawned process, or an experimental LLM -- harbors become essential.
-          </motion.p>
+          </p>
         </section>
 
         {/* The Formal Verification Note */}
-        <Surface depth="raised" radius="2xl" className="p-16 flex flex-col items-center text-center gap-8 relative overflow-hidden">
-           <motion.div className="absolute top-0 right-0 p-10 opacity-[0.03] pointer-events-none">
-              <ShieldCheck size={400} />
-           </motion.div>
-           <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Implementation Detail</Badge>
-           <motion.h3 className="text-4xl font-display font-black m-0" style={{ color: 'var(--text-primary)' }}>HMAC-SHA256 Signing</motion.h3>
-           <motion.p className="text-xl max-w-xl text-[var(--text-secondary)]">
+        <Surface depth="raised" radius="xl" className="p-6 space-y-4">
+           <div className="flex items-center gap-3">
+             <Zap size={18} className="text-[var(--brand-primary)]" />
+             <p className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] m-0">Implementation Detail</p>
+           </div>
+           <p className="m-0 text-[var(--text-secondary)]">
              Harbor Cards are standard JWTs signed with HMAC-SHA256 using a per-daemon secret key. The daemon generates this key on first run and stores it in the SQLite database. Tokens cannot be forged without access to the daemon's database file, and each token's JTI (unique identifier) is tracked so it can be revoked independently.
-           </motion.p>
-           <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-primary)]">
-              <Zap size={14} className="animate-pulse" />
-              Verified Handshake Protocol
-           </motion.div>
+           </p>
         </Surface>
-      </motion.div>
+      </div>
     </TutorialLayout>
   )
 }

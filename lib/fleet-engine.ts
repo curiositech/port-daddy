@@ -23,6 +23,8 @@ export interface FleetAgent {
   prompt: string;
   worktree?: boolean;
   singleton?: boolean;
+  respawn?: boolean;       // auto-respawn on death
+  maxRespawns?: number;    // circuit breaker (default: 3)
   onSuccess?: string;      // "publish channel:name"
   onFailure?: string;
   identity?: string;
@@ -65,6 +67,8 @@ interface FleetYamlAgent {
   prompt?: string | number;
   worktree?: boolean;
   singleton?: boolean;
+  respawn?: boolean;
+  max_respawns?: number;
   on_success?: string;
   on_failure?: string;
   identity?: string;
@@ -178,6 +182,8 @@ export function loadFleetConfig(projectDir: string): FleetConfig | null {
         prompt: typeof s.prompt === 'string' ? s.prompt.trim() : String(s.prompt || ''),
         worktree: s.worktree || false,
         singleton: s.singleton || false,
+        respawn: s.respawn || false,
+        maxRespawns: s.max_respawns ?? 3,
         onSuccess: s.on_success,
         onFailure: s.on_failure,
         identity: s.identity,
@@ -497,6 +503,90 @@ export function createFleetRunner(config: FleetConfig, projectDir: string) {
     }
   }
 
+  // ─── Auto-Respawn ──────────────────────────────────────────────────────
+
+  const respawnCounts = new Map<string, number>();
+
+  function startRespawnWatcher(): void {
+    const respawnAgents = config.agents.filter(a => a.respawn);
+    if (respawnAgents.length === 0) return;
+
+    // Build identity -> agent lookup
+    const identityToAgent = new Map<string, FleetAgent>();
+    for (const a of respawnAgents) {
+      if (a.identity) identityToAgent.set(a.identity, a);
+      identityToAgent.set(a.name, a);
+    }
+
+    // Subscribe to resurrection channel via SSE
+    const http = require('node:http') as typeof import('node:http');
+    const url = new URL(`${PD_URL}/msg/resurrection/subscribe`);
+
+    function connect() {
+      const req = http.get(url, (res) => {
+        res.setEncoding('utf-8');
+        let buffer = '';
+
+        res.on('data', (chunk: string) => {
+          buffer += chunk;
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            try {
+              const event = JSON.parse(line.slice(6));
+              if (event.event !== 'dead' && event.event !== 'stale') continue;
+
+              // Find the fleet agent by identity or name
+              const deadId = event.agentId || '';
+              let agent: FleetAgent | undefined;
+              for (const [key, a] of identityToAgent) {
+                if (deadId.includes(key) || deadId.includes(a.name)) {
+                  agent = a;
+                  break;
+                }
+              }
+
+              if (!agent) continue;
+
+              // Circuit breaker
+              const count = respawnCounts.get(agent.name) || 0;
+              if (count >= (agent.maxRespawns ?? 3)) {
+                console.error(`[Fleet] ${agent.name} hit respawn limit (${count}/${agent.maxRespawns ?? 3}). Not respawning.`);
+                continue;
+              }
+
+              console.error(`[Fleet] Auto-respawning ${agent.name} (death #${count + 1})`);
+              respawnCounts.set(agent.name, count + 1);
+
+              // Claim salvage first, then re-spawn
+              fetch(`${PD_URL}/salvage/claim/${encodeURIComponent(deadId)}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: '{}',
+              }).then(() => runAgentOnce(agent!)).catch(() => runAgentOnce(agent!));
+            } catch { /* ignore parse errors */ }
+          }
+        });
+
+        res.on('end', () => {
+          // SSE disconnected — reconnect after 5s
+          setTimeout(connect, 5000);
+        });
+      });
+
+      req.on('error', () => {
+        setTimeout(connect, 5000);
+      });
+
+      req.setTimeout(0); // No timeout on SSE
+    }
+
+    connect();
+    console.error(`[Fleet] Auto-respawn watcher active for: ${respawnAgents.map(a => a.name).join(', ')}`);
+  }
+
   function startAll(): void {
     // Create the fleet harbor first, then start agents
     ensureHarbor().then(() => {
@@ -507,6 +597,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string) {
       for (const watcher of config.watchers) {
         startWatcher(watcher);
       }
+      startRespawnWatcher();
     });
   }
 

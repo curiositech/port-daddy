@@ -683,6 +683,41 @@ File heat map from session file claims. Query params: `path` (filter prefix), `d
 
 ---
 
+## Tuple Space
+
+### POST /tuples
+Write a tuple to the tuple space.
+
+**Body:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `tuple` | array | yes | Tuple values (any JSON array) |
+| `harbor` | string | no | Harbor scope for namespace isolation |
+| `writtenBy` | string | no | Agent identity that wrote the tuple |
+| `ttl` | number | no | Time-to-live in milliseconds |
+
+### GET /tuples
+Read tuples matching a pattern (non-destructive).
+
+**Query params:** `pattern` (JSON array with null for wildcards), `harbor`, `limit`.
+
+### DELETE /tuples
+Take (consume) tuples matching a pattern (destructive read).
+
+**Query/Body:** Same as GET /tuples.
+
+### GET /tuples/scan
+List all tuples, optionally scoped to a harbor.
+
+**Query params:** `harbor`, `limit`.
+
+### GET /tuples/count
+Count tuples, optionally scoped to a harbor.
+
+**Query params:** `harbor`.
+
+---
+
 ## Config
 
 ### GET /config

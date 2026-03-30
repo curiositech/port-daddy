@@ -1,4 +1,4 @@
-# ⚓ Port Daddy (v3.8.0)
+# ⚓ Port Daddy (v3.8.2)
 
 <p align="center">
   <img src="website-v2/public/img/hero-portdaddy.png" alt="Port Daddy — the harbormaster for your AI agents" width="600">
@@ -43,6 +43,7 @@ pd done "Auth complete"
 - **Agentic Control Plane:** A live 2D/3D dashboard (`*.pd.local`) to visualize active agents, service health, and message traffic.
 - **Automatic Salvage:** Captures session state and notes from "zombie" agents that crash mid-task, allowing others to recover their work.
 - **Local DNS Resolver:** Access your services at `http://api.pd.local` instead of magic port numbers.
+- **Binary IPC:** High-frequency agent communication over Unix domain socket with MessagePack encoding, FIPA-grounded performatives, and 20 documented failure mode mitigations.
 
 ---
 
@@ -260,6 +261,24 @@ pd pheromone list
 ```
 
 Use cases: adaptive Arbiter thresholds, file contention detection, agent reputation scoring, hot-path identification.
+
+### Tuple Space (Shared Swarm Memory)
+Agents write typed tuples to a shared space. Other agents query by pattern. Based on Linda (Gelernter, 1985). Harbor-scoped for fleet isolation. TTL for auto-expiry.
+```bash
+# Spider writes a connection it discovered
+pd tuple out '["connection", "trie+pubsub=routing", "spider", 0.9]' --harbor myapp:fleet
+
+# Spark reads all connections with confidence > 0.7
+pd tuple rd '["connection", "*", "*", ">0.7"]' --harbor myapp:fleet
+
+# Take (remove) a processed task from the space
+pd tuple in '["task", "build-auth", "pending"]'
+
+# Scan all tuples in a harbor
+pd tuple scan --harbor myapp:fleet
+```
+
+Pattern matching: exact values, `*` wildcard, `>N`/`<N` numeric comparisons, `myapp:*` semantic identity prefixes.
 
 ### Semantic Trie (O(k) Identity Lookups)
 Port Daddy indexes all identities (services, agents, sessions, harbors) in an in-memory Adaptive Radix Tree. Lookups are O(k) where k is key length — replacing SQL `LIKE` scans that degrade as the registry grows.

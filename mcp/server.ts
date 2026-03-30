@@ -127,9 +127,18 @@ const ESSENTIAL_TOOL_NAMES = new Set([
   'add_note',
   'acquire_lock',
   'list_services',
+  // Magic tools — high-level composed operations for vibe coders
+  'fleet_init',
+  'swarm_awareness',
+  'catch_me_up',
+  'spawn_agent',
 ]);
 
 const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> = {
+  'magic': {
+    description: 'High-level composed tools: fleet setup, swarm awareness, catch-me-up briefings, agent spawning, file heat maps, agent messaging',
+    tools: ['fleet_init', 'fleet_status', 'swarm_awareness', 'catch_me_up', 'file_heat', 'talk_to_agent', 'spawn_agent'],
+  },
   'session-lifecycle': {
     description: 'Start/end sessions, manage agent registration (sugar commands)',
     tools: ['begin_session', 'end_session_full', 'whoami'],
@@ -197,6 +206,10 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
   'system': {
     description: 'Daemon status, version, metrics, config, and launch hints',
     tools: ['daemon_status', 'get_version', 'get_metrics', 'get_config', 'wait_for_service', 'get_launch_hints'],
+  },
+  'tuples': {
+    description: 'Shared tuple space for swarm coordination — write, read, take, scan, count',
+    tools: ['tuple_out', 'tuple_read', 'tuple_take', 'tuple_scan', 'tuple_count'],
   },
 };
 
@@ -1726,6 +1739,164 @@ const TOOLS = [
       },
     },
   },
+  // ── Magic Tools (high-level composed operations for vibe coders) ──────
+  {
+    name: 'fleet_init',
+    description:
+      '[Magic] Set up a background agent fleet in the current project. Creates pd-fleet.yml ' +
+      '(5 agents: QA, documentarian, cartographer, spark, spider), installs a git post-commit hook, ' +
+      'and creates output directories. After this, every git commit triggers your fleet automatically.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        cwd: { type: 'string', description: 'Project directory to initialize fleet in' },
+      },
+    },
+  },
+  {
+    name: 'fleet_status',
+    description:
+      '[Magic] What is the fleet doing right now? Returns all spawned agents, their status, ' +
+      'recent fleet channel messages, and the latest output from spark/spider/cartographer.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {},
+    },
+  },
+  {
+    name: 'swarm_awareness',
+    description:
+      '[Magic] Who else is working here? Returns all active agents with their identities, purposes, ' +
+      'file claims, session notes, and heartbeat freshness. One call to understand the whole swarm.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        project: { type: 'string', description: 'Filter to a specific project (e.g. "myapp"). Omit for all.' },
+      },
+    },
+  },
+  {
+    name: 'catch_me_up',
+    description:
+      '[Magic] What happened while I was away? Returns a synthesis of: recent activity, ' +
+      'session notes from active and completed sessions, dead agents in the salvage queue, ' +
+      'and any fleet agent output (spark ideas, spider connections, cartographer status).',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        since_minutes: { type: 'number', description: 'How far back to look (default: 60 minutes)' },
+      },
+    },
+  },
+  {
+    name: 'file_heat',
+    description:
+      '[Magic] Which files are agents fighting over? Returns the pheromone file heat map — ' +
+      'files ranked by contention, with conflict markers where multiple agents claim the same file.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        path: { type: 'string', description: 'Filter to a directory prefix (e.g. "src/lib/")' },
+      },
+    },
+  },
+  {
+    name: 'talk_to_agent',
+    description:
+      '[Magic] Send a message to a specific fleet agent by name. Uses the agent inbox for ' +
+      'direct delivery. The agent will see the message on its next run.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        agent: { type: 'string', description: 'Agent name or identity (e.g. "spider", "myapp:fleet:qa")' },
+        message: { type: 'string', description: 'The message to send' },
+        type: { type: 'string', description: 'Message type (default: "request")' },
+      },
+      required: ['agent', 'message'],
+    },
+  },
+  {
+    name: 'spawn_agent',
+    description:
+      '[Magic] Launch a background AI agent with a task. The agent gets its own session, ' +
+      'heartbeat, and coordination — all automatic. Returns the agent ID for tracking.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        task: { type: 'string', description: 'What the agent should do' },
+        identity: { type: 'string', description: 'Semantic identity (e.g. "myapp:fleet:custom-agent")' },
+        backend: { type: 'string', description: 'LLM backend: claude-cli (default), ollama, custom' },
+        allowed_tools: { type: 'string', description: 'Comma-separated tool list (e.g. "Read,Grep,Glob,Write")' },
+      },
+      required: ['task'],
+    },
+  },
+  // ── Tuple Space ──────────────────────────────────────────────────────
+  {
+    name: 'tuple_out',
+    description:
+      '[Coordination] Write a typed tuple to the shared space. Other agents can read it by pattern. Scoped to harbors for fleet isolation.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        fields: { type: 'array', description: 'Tuple fields as a JSON array (e.g. ["connection", "trie+pubsub", "spider", 0.9])' },
+        harbor: { type: 'string', description: 'Harbor scope (e.g. "myapp:fleet"). Omit for global.' },
+        written_by: { type: 'string', description: 'Agent identity that wrote this tuple' },
+        ttl_ms: { type: 'number', description: 'Time-to-live in milliseconds. Tuple auto-expires after this.' },
+      },
+      required: ['fields'],
+    },
+  },
+  {
+    name: 'tuple_read',
+    description:
+      '[Coordination] Read tuples matching a pattern. Use null in pattern positions as wildcards (e.g. ["connection", null] matches any tuple starting with "connection").',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        pattern: { type: 'array', description: 'Pattern to match — use null for wildcard positions (e.g. ["connection", null])' },
+        harbor: { type: 'string', description: 'Harbor scope. Omit for global.' },
+        limit: { type: 'number', description: 'Maximum number of tuples to return (default: 50)' },
+      },
+    },
+  },
+  {
+    name: 'tuple_take',
+    description:
+      '[Coordination] Take (atomically read + remove) tuples matching a pattern. Like tuple_read but removes matched tuples from the space.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        pattern: { type: 'array', description: 'Pattern to match — use null for wildcard positions' },
+        harbor: { type: 'string', description: 'Harbor scope. Omit for global.' },
+        limit: { type: 'number', description: 'Maximum number of tuples to take (default: 1)' },
+      },
+    },
+  },
+  {
+    name: 'tuple_scan',
+    description:
+      '[Coordination] List all tuples in a harbor (or global space). Useful for debugging and visibility.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        harbor: { type: 'string', description: 'Harbor scope. Omit for global.' },
+        limit: { type: 'number', description: 'Maximum number of tuples to return (default: 100)' },
+      },
+    },
+  },
+  {
+    name: 'tuple_count',
+    description:
+      '[Coordination] Count tuples matching a pattern (or all tuples in a harbor).',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        pattern: { type: 'array', description: 'Pattern to match — use null for wildcard positions. Omit to count all.' },
+        harbor: { type: 'string', description: 'Harbor scope. Omit for global.' },
+      },
+    },
+  },
   {
     name: 'pd_discover',
     description:
@@ -1733,7 +1904,7 @@ const TOOLS = [
       'In default mode, only essential tools are loaded. Use this to discover ' +
       'additional tools by category, then call them directly by name. ' +
       'Categories: session-lifecycle, ports, sessions, notes, locks, messaging, agents, inbox, ' +
-      'webhooks, integration, dns, briefing, tunnels, projects, changelog, activity, system.',
+      'webhooks, integration, dns, briefing, tunnels, projects, changelog, activity, system, tuples.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -2481,6 +2652,147 @@ async function handleTool(
       break;
     }
 
+    // ── Magic Tools (composed high-level operations) ───────────────────
+
+    case 'fleet_init': {
+      const cwd = (args.cwd as string) || process.cwd();
+      const { execFileSync } = await import('node:child_process');
+      try {
+        const output = execFileSync('pd', ['fleet', 'init'], { cwd, encoding: 'utf-8', timeout: 30000 });
+        return JSON.stringify({ success: true, output: output.trim(), next_step: 'Run pd fleet up to start the agents, or commit something to trigger them.' });
+      } catch (e) {
+        return JSON.stringify({ success: false, error: (e as Error).message });
+      }
+    }
+
+    case 'fleet_status': {
+      const [spawned, channels, notes] = await Promise.all([
+        GET('/spawn'),
+        GET('/msg'),
+        GET('/notes?limit=10'),
+      ]);
+      const agents = (spawned.data as Record<string, unknown>)?.agents ?? [];
+      const msgs = (channels.data as Record<string, unknown>)?.channels ?? [];
+      const recentNotes = (notes.data as Record<string, unknown>)?.notes ?? [];
+      return JSON.stringify({ agents, channels: msgs, recent_notes: recentNotes }, null, 2);
+    }
+
+    case 'swarm_awareness': {
+      const project = args.project as string | undefined;
+      const qs = project ? `?identityPrefix=${encodeURIComponent(project)}` : '';
+      const [agentsRes, sessionsRes, filesRes, salvageRes] = await Promise.all([
+        GET(`/agents${qs}`),
+        GET('/sessions?limit=20'),
+        GET('/files'),
+        GET(`/salvage/pending${project ? '?project=' + encodeURIComponent(project) : ''}`),
+      ]);
+      return JSON.stringify({
+        active_agents: (agentsRes.data as Record<string, unknown>)?.agents ?? [],
+        sessions: (sessionsRes.data as Record<string, unknown>)?.sessions ?? [],
+        file_claims: (filesRes.data as Record<string, unknown>)?.claims ?? (filesRes.data as Record<string, unknown>)?.files ?? [],
+        dead_agents: (salvageRes.data as Record<string, unknown>)?.agents ?? [],
+      }, null, 2);
+    }
+
+    case 'catch_me_up': {
+      const mins = (args.since_minutes as number) || 60;
+      const since = Date.now() - mins * 60 * 1000;
+      const [actRes, notesRes, salvageRes, spawnRes] = await Promise.all([
+        GET(`/activity?limit=30&since=${since}`),
+        GET('/notes?limit=20'),
+        GET('/salvage/pending'),
+        GET('/spawn'),
+      ]);
+      const activity = (actRes.data as Record<string, unknown>)?.entries ?? (actRes.data as Record<string, unknown>)?.activity ?? [];
+      const allNotes = (notesRes.data as Record<string, unknown>)?.notes ?? [];
+      const salvage = (salvageRes.data as Record<string, unknown>)?.agents ?? [];
+      const spawned = (spawnRes.data as Record<string, unknown>)?.agents ?? [];
+      return JSON.stringify({
+        summary: `Last ${mins} minutes: ${(activity as unknown[]).length} events, ${(allNotes as unknown[]).length} notes, ${(salvage as unknown[]).length} dead agents, ${(spawned as unknown[]).length} spawned agents`,
+        activity, notes: allNotes, salvage_queue: salvage, spawned_agents: spawned,
+      }, null, 2);
+    }
+
+    case 'file_heat': {
+      const path = args.path as string | undefined;
+      const qs = path ? `?path=${encodeURIComponent(path)}&depth=2` : '?depth=2';
+      res = await GET(`/pheromone/files${qs}`);
+      break;
+    }
+
+    case 'talk_to_agent': {
+      const agent = args.agent as string;
+      const message = args.message as string;
+      const type = (args.type as string) || 'request';
+      const candidates = [agent, `fleet:${agent}`, `port-daddy:fleet:${agent}`];
+      for (const target of candidates) {
+        try {
+          const r = await POST(`/agents/${encodeURIComponent(target)}/inbox`, {
+            type, content: message, from: 'mcp-user',
+          });
+          if (r.status >= 200 && r.status < 300) {
+            return JSON.stringify({ success: true, delivered_to: target, type, message });
+          }
+        } catch { /* try next candidate */ }
+      }
+      await POST(`/msg/${encodeURIComponent(agent)}`, { payload: { type, message, from: 'mcp-user' } });
+      return JSON.stringify({ success: true, delivered_via: 'channel', channel: agent, message });
+    }
+
+    case 'spawn_agent': {
+      const task = args.task as string;
+      const identity = args.identity as string | undefined;
+      const backend = (args.backend as string) || 'claude-cli';
+      const allowedTools = args.allowed_tools as string | undefined;
+      const body: Record<string, unknown> = { backend, task };
+      if (identity) body.identity = identity;
+      if (allowedTools) body.allowedTools = allowedTools;
+      body.purpose = task.slice(0, 80);
+      res = await POST('/spawn', body);
+      break;
+    }
+
+    // ── Tuple Space ──────────────────────────────────────────────────
+    case 'tuple_out': {
+      res = await POST('/tuples', {
+        fields: args.fields,
+        harbor: args.harbor,
+        writtenBy: args.written_by,
+        ttlMs: args.ttl_ms,
+      });
+      break;
+    }
+    case 'tuple_read': {
+      const qs = new URLSearchParams();
+      if (args.pattern) qs.set('pattern', JSON.stringify(args.pattern));
+      if (args.harbor) qs.set('harbor', args.harbor as string);
+      if (args.limit) qs.set('limit', String(args.limit));
+      res = await GET('/tuples?' + qs.toString());
+      break;
+    }
+    case 'tuple_take': {
+      res = await DELETE('/tuples', {
+        pattern: args.pattern,
+        harbor: args.harbor,
+        limit: args.limit,
+      });
+      break;
+    }
+    case 'tuple_scan': {
+      const qs = new URLSearchParams();
+      if (args.harbor) qs.set('harbor', args.harbor as string);
+      if (args.limit) qs.set('limit', String(args.limit));
+      res = await GET('/tuples/scan?' + qs.toString());
+      break;
+    }
+    case 'tuple_count': {
+      const qs = new URLSearchParams();
+      if (args.pattern) qs.set('pattern', JSON.stringify(args.pattern));
+      if (args.harbor) qs.set('harbor', args.harbor as string);
+      res = await GET('/tuples/count?' + qs.toString());
+      break;
+    }
+
     case 'pd_discover': {
       const category = args.category as string | undefined;
       if (category) {
@@ -2532,7 +2844,7 @@ async function handleTool(
 const server = new Server(
   {
     name: 'port-daddy',
-    version: '3.8.0',
+    version: '3.8.2',
   },
   {
     capabilities: {

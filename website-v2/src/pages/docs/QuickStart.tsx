@@ -37,7 +37,7 @@ const STEPS = [
 
 export default function QuickStart() {
   return (
-    <div className="space-y-12">
+    <div className="space-y-8">
       {/* Header */}
       <div className="space-y-4">
         <Badge variant="teal">Quick Start</Badge>

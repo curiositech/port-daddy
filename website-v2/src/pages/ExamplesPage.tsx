@@ -163,15 +163,15 @@ export function ExamplesPage() {
       style={{ background: 'var(--surface-base)' }}
     >
       {/* Hero Section */}
-      <Surface depth="raised" radius="none" padding="none" className="py-20 px-6 sm:px-8 lg:px-10 relative overflow-hidden flex flex-col items-center justify-center text-center">
+      <Surface depth="raised" radius="none" padding="none" className="py-14 px-6 sm:px-8 lg:px-10 relative overflow-hidden flex flex-col items-center justify-center text-center">
 
         <motion.div
           className="absolute top-0 right-0 w-[800px] h-[800px] rounded-full blur-[160px] opacity-[0.1] pointer-events-none"
           style={{ background: 'radial-gradient(circle, var(--brand-primary) 0%, transparent 70%)' }}
         />
 
-        <div className="max-w-5xl mx-auto relative z-10 flex flex-col items-center gap-8">
-           <Badge variant="teal" className="px-8 py-3 text-[10px] font-black uppercase tracking-[0.25em]">The Coordination Library</Badge>
+        <div className="max-w-5xl mx-auto relative z-10 flex flex-col items-center gap-5">
+           <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-[0.25em]">The Coordination Library</Badge>
            <motion.h1
              className="text-4xl sm:text-6xl font-black tracking-tighter font-display leading-[0.85] m-0 text-[var(--text-primary)]"
              initial={{ opacity: 0, y: 32 }}
@@ -193,8 +193,8 @@ export function ExamplesPage() {
       </Surface>
 
       {/* Examples Grid */}
-      <motion.main id="main-content" className="flex-1 py-20 px-6 sm:px-8 lg:px-10 max-w-7xl mx-auto w-full font-sans flex flex-col items-center">
-        <div className="grid gap-8 w-full">
+      <motion.main id="main-content" className="flex-1 py-12 px-6 sm:px-8 lg:px-10 max-w-7xl mx-auto w-full font-sans flex flex-col items-center">
+        <div className="grid gap-5 w-full">
           {EXAMPLES.map((ex, i) => (
             <motion.div
               key={ex.id}
@@ -204,10 +204,10 @@ export function ExamplesPage() {
               transition={{ duration: 0.7, delay: i * 0.05, ease: [0.16, 1, 0.3, 1] }}
               className="group"
             >
-              <Surface depth="raised" radius="2xl" padding="none" className="p-16 transition-all duration-500 flex flex-col lg:flex-row gap-8 items-center">
+              <Surface depth="raised" radius="2xl" padding="none" className="p-6 transition-all duration-500 flex flex-col lg:flex-row gap-5 items-center">
 
-                <div className="flex-1 space-y-8 flex flex-col items-center lg:items-start text-center lg:text-left">
-                   <div className="flex flex-col lg:flex-row items-center gap-8">
+                <div className="flex-1 space-y-5 flex flex-col items-center lg:items-start text-center lg:text-left">
+                   <div className="flex flex-col lg:flex-row items-center gap-5">
                       <motion.div
                         className="w-24 h-24 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 duration-500"
                         style={{ background: `${ex.color}10`, boxShadow: 'var(--shadow-inset)' }}
@@ -222,13 +222,13 @@ export function ExamplesPage() {
                             <div className="h-1 w-1 rounded-full" style={{ background: 'var(--text-muted)' }} />
                             <motion.span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">{ex.difficulty}</motion.span>
                          </div>
-                         <motion.h2 className="m-0 text-4xl sm:text-6xl font-display font-black tracking-tight leading-tight text-[var(--text-primary)]">{ex.title}</motion.h2>
+                         <motion.h2 className="m-0 text-2xl sm:text-4xl font-display font-black tracking-tight leading-tight text-[var(--text-primary)]">{ex.title}</motion.h2>
                       </div>
                    </div>
 
                    <motion.p className="text-xl sm:text-2xl leading-relaxed text-[var(--text-secondary)] m-0 max-w-xl">{ex.description}</motion.p>
 
-                   <div className="grid sm:grid-cols-2 gap-8 w-full">
+                   <div className="grid sm:grid-cols-2 gap-4 w-full">
                       {ex.what.map((point, j) => (
                         <motion.div key={j} className="flex items-start gap-4 group/item">
                            <div className="mt-2 w-2 h-2 rounded-full shrink-0 group-hover/item:scale-150 transition-transform" style={{ background: ex.color }} />
@@ -255,9 +255,9 @@ export function ExamplesPage() {
         </div>
 
         {/* Vision Callout */}
-        <Surface depth="raised" radius="2xl" padding="none" className="mt-20 overflow-hidden w-full mx-auto">
+        <Surface depth="raised" radius="2xl" padding="none" className="mt-14 overflow-hidden w-full mx-auto">
           <motion.div
-            className="p-24 flex flex-col items-center text-center gap-8 relative"
+            className="p-6 flex flex-col items-center text-center gap-5 relative"
             initial={{ opacity: 0, scale: 0.98 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
@@ -266,9 +266,9 @@ export function ExamplesPage() {
               <Layers size={800} />
            </div>
 
-           <div className="max-w-4xl relative z-10 space-y-10 flex flex-col items-center">
-              <Badge variant="gold" className="px-8 py-3 text-[11px] font-black uppercase tracking-widest">Infrastructure, Not Orchestration</Badge>
-              <motion.h3 className="text-4xl sm:text-6xl font-display font-black tracking-tight leading-[0.95] m-0 text-[var(--text-primary)]">
+           <div className="max-w-4xl relative z-10 space-y-6 flex flex-col items-center">
+              <Badge variant="gold" className="px-6 py-2 text-[11px] font-black uppercase tracking-widest">Infrastructure, Not Orchestration</Badge>
+              <motion.h3 className="text-2xl sm:text-4xl font-display font-black tracking-tight leading-[0.95] m-0 text-[var(--text-primary)]">
                 You write the agents. <br />
                 <span className="text-[var(--brand-accent)]">We keep them from colliding.</span>
               </motion.h3>
@@ -277,7 +277,7 @@ export function ExamplesPage() {
               </motion.p>
            </div>
 
-           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 w-full max-w-6xl relative z-10">
+           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full max-w-6xl relative z-10">
               {[
                 { title: 'Atomic Identity', icon: Anchor },
                 { title: 'Swarm Radio', icon: Zap },
@@ -286,7 +286,7 @@ export function ExamplesPage() {
               ].map((item, i) => (
                 <motion.div
                   key={i}
-                  className="p-10 rounded-2xl flex flex-col items-center gap-6 group transition-all"
+                  className="p-6 rounded-2xl flex flex-col items-center gap-4 group transition-all"
                   style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-sm)' }}
                 >
                    <Surface depth="inset" radius="2xl" padding="none" className="w-14 h-14 flex items-center justify-center group-hover:scale-110 transition-transform">

@@ -25,7 +25,7 @@ export function Hero() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, ease: 'easeOut' as const }}
           >
-            <Link to="/templates" className="no-underline">
+            <Link to="/mcp" className="no-underline">
               <motion.div
                 whileHover={{ scale: 1.02 }}
                 className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold mb-4 cursor-pointer"
@@ -36,7 +36,7 @@ export function Hero() {
                 }}
               >
                 <span>New</span>
-                <span style={{ color: 'var(--text-secondary)' }}>Fleet templates — drop-in AI agents for any repo</span>
+                <span style={{ color: 'var(--text-secondary)' }}>Fleet + auto-respawn — background agents that never die</span>
                 <ArrowRight size={12} />
               </motion.div>
             </Link>
@@ -49,9 +49,30 @@ export function Hero() {
               </span>
             </h1>
 
-            <p className="text-sm lg:text-base text-[var(--text-secondary)] leading-relaxed mb-6 max-w-md">
-              Port Daddy is a daemon that gives every AI agent its own port, coordinates file access, and recovers work when they crash. One install. Zero config.
+            <p className="text-sm lg:text-base text-[var(--text-secondary)] leading-relaxed mb-5 max-w-md">
+              Port Daddy coordinates AI agents — atomic ports, pub/sub messaging, file claims, and automatic work recovery. One install. Zero config. Works with Claude, OpenAI, Gemini, Ollama, or any LLM.
             </p>
+
+            {/* Feature pills */}
+            <div className="flex flex-wrap gap-2 mb-6 max-w-md">
+              {[
+                'Background fleet agents',
+                'Auto-respawn on crash',
+                'Works with any LLM',
+              ].map((label) => (
+                <span
+                  key={label}
+                  className="text-xs font-semibold px-3 py-1 rounded-full"
+                  style={{
+                    background: 'color-mix(in srgb, var(--brand-secondary) 10%, transparent)',
+                    border: '1px solid color-mix(in srgb, var(--brand-secondary) 20%, transparent)',
+                    color: 'var(--text-secondary)',
+                  }}
+                >
+                  {label}
+                </span>
+              ))}
+            </div>
 
             <div className="flex flex-wrap items-center gap-3">
               <Button
@@ -63,9 +84,9 @@ export function Hero() {
                 Get Started
                 <ArrowRight size={16} />
               </Button>
-              <Link to="/docs">
+              <Link to="/mcp">
                 <Button variant="ghost" size="lg" className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">
-                  Read the Docs
+                  MCP Integration
                 </Button>
               </Link>
             </div>

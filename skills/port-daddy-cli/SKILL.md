@@ -1,397 +1,225 @@
 ---
 name: port-daddy-cli
-description: Multi-agent coordination via Port Daddy. Use when starting dev servers, coordinating with other agents, preventing file conflicts, salvaging dead agents' work, or tracking changes. Activate on "port conflict", "claim port", "coordinate agents", "start session", "leave note", "file conflict", "dev server", "salvage", "changelog".
+description: "Multi-agent coordination daemon. Ports, sessions, file claims, pub/sub, fleet agents, tuple space, pheromone trails, salvage. Use when coordinating multiple AI agents, claiming ports, starting sessions, leaving notes, spawning background agents, or reading shared state. Works with Claude, OpenAI, Gemini, Ollama — any LLM."
 ---
+
+## What Port Daddy Does
+
+Port Daddy is a local daemon that coordinates AI agents. It gives every agent its own port, tracks who's working on what, recovers work when agents crash, and runs background fleets that fire on every git commit.
+
+**One install. Zero config. Works with any LLM.**
 
 ## Quick Start
 
-1. `pd begin "what I'm working on"` -- registers you + starts session
-2. `pd note "progress update"` -- log notes as you work
-3. `pd done` -- wraps up session + unregisters
+```bash
+npm install -g port-daddy
+pd start                              # Daemon on localhost:9876
+pd begin "Building auth module"       # Start session
+pd whoami                             # Check current context
+pd note "JWT validation working"      # Leave breadcrumbs
+pd done                               # End session
+```
 
-## MCP Progressive Disclosure
+## MCP Tools (Progressive Disclosure)
 
-The MCP server uses **tiered tool loading** to keep context windows lean. By default, only 9 tools are exposed:
+**Essential (always loaded):**
+`begin_session`, `end_session_full`, `whoami`, `claim_port`, `release_port`, `add_note`, `acquire_lock`, `list_services`, `fleet_init`, `swarm_awareness`, `catch_me_up`, `spawn_agent`, `pd_discover`
 
-**Essential (always loaded):** `begin_session`, `end_session_full`, `whoami`, `claim_port`, `release_port`, `add_note`, `acquire_lock`, `list_services`, `pd_discover`
+**Magic tools (high-level, one call does many things):**
+- `fleet_init` — Set up background agent fleet in one call
+- `swarm_awareness` — Who else is working here? Agents, sessions, files, dead agents
+- `catch_me_up` — What happened while I was away? Activity + notes + salvage
+- `spawn_agent` — Launch a background AI agent with a task
+- `file_heat` — Which files are agents fighting over?
+- `talk_to_agent` — Send a DM to a fleet agent by name
+- `fleet_status` — What is the fleet doing right now?
 
-**To access more tools:** Call `pd_discover` with a category name (e.g. `pd_discover({category: "dns"})`) to see full schemas, then call those tools directly.
+**Categories (call `pd_discover` to access):**
+magic, session-lifecycle, ports, sessions, notes, locks, messaging, agents, inbox, webhooks, integration, dns, briefing, tunnels, projects, changelog, activity, tuples, system
 
-**Categories:** session-lifecycle, ports, sessions, notes, locks, messaging, agents, integration, dns, briefing, tunnels, system
+## Core Concepts
 
-**Full mode:** Pass `--full` to `pd mcp` or set `PORT_DADDY_MCP_FULL=1` to load all 45 tools.
+### Semantic Identities: `project:stack:context`
 
-## CLI to MCP Tool Mapping
-
-| CLI Command | MCP Tool | Tier |
-|-------------|----------|------|
-| `pd begin` | `begin_session` | Essential |
-| `pd done` | `end_session_full` | Essential |
-| `pd whoami` | `whoami` | Essential |
-| `pd note` | `add_note` | Essential |
-| `pd claim` | `claim_port` | Essential |
-| `pd release` | `release_port` | Essential |
-| `pd lock` | `acquire_lock` | Essential |
-| `pd find` | `list_services` | Essential |
-| -- | `pd_discover` | Essential (meta) |
-| `pd salvage` | `check_salvage` | Standard |
-| `pd session start` | `start_session` | Standard |
-| `pd session end` | `end_session` | Standard |
-| `pd sessions` | `list_sessions` | Standard |
-| `pd notes` | `list_notes` | Standard |
-| `pd session files add` | `claim_files` | Standard |
-| `pd agent register` | `register_agent` | Standard |
-| `pd agent heartbeat` | `agent_heartbeat` | Standard |
-| `pd agents` | `list_agents` | Standard |
-| `pd salvage claim` | `claim_salvage` | Standard |
-| `pd unlock` | `release_lock` | Standard |
-| `pd locks` | `list_locks` | Standard |
-| `pd health` | `health_check` | Standard |
-| `pd status` | `daemon_status` | Standard |
-| `pd pub` | `publish_message` | Advanced |
-| `pd sub` (polling) | `get_messages` | Advanced |
-| `pd tunnel start` | `start_tunnel` | Advanced |
-| `pd tunnel stop` | `stop_tunnel` | Advanced |
-| `pd tunnel list` | `list_tunnels` | Advanced |
-| `pd scan` | `scan_project` | Advanced |
-| `pd log` | `activity_log` | Advanced |
-
-# Port Daddy -- The Authoritative Port Manager
-
-**Your ports. My rules. Zero conflicts.**
-
-Port Daddy eliminates the chaos of multi-agent development. No more port collisions. No more wondering what another agent touched. No more lost context between sessions.
-
-## The Compulsory Registration Pattern
-
-**Every agent session should start with registration.** This unlocks resurrection:
+Every service gets a name. The name IS the port — deterministic hashing.
 
 ```bash
-# At session start - register yourself
-pd agent register --agent claude-$(date +%s) --name "Feature Builder" --type claude-code --purpose "Implementing dark mode"
-
-# Send heartbeats every 5 minutes (agents marked stale at 10min, dead at 20min)
-pd agent heartbeat --agent <your-id>
-
-# Check if another agent died mid-task (do this BEFORE starting new work)
-pd salvage
+pd claim myapp:api:main           # Always gets the same port
+pd claim myapp:api:feature-auth   # Different port, same project
+pd find 'myapp:*'                 # Wildcard query across project
 ```
 
-Registration is the cost of entry to resurrection. If you die, another agent can pick up your work.
+### Sessions & Notes
 
-## Quick Reference
+Sessions track what each agent is doing. Notes are immutable — once written, never editable.
 
 ```bash
-# Ports
-pd claim myapp:api:main          # Get a stable port (always same for this identity)
-pd claim myapp -q                # Quiet mode — just the port number
-pd find "myapp:*"                # Find all myapp services
-pd release myapp:api:main        # Release when done
-
-# Sessions (multi-agent coordination)
-pd session start "Implementing dark mode" --files src/theme.ts src/components/ThemeProvider.tsx
-pd note "Created ThemeProvider skeleton, CSS variables approach"
-pd note "Blocked on design tokens — need @design-agent input" --type handoff
-pd session done "Dark mode complete, tested in Chrome/Safari"
-
-# File conflicts
-pd session files add src/api/auth.ts    # Claim a file mid-session
-pd sessions --files                      # See who has what files
-
-# Locks (critical sections)
-pd lock deployment --owner agent-1 --ttl 300
-pd unlock deployment --owner agent-1
+pd begin --identity myapp:api --purpose "Building auth"
+pd note "Found SQL injection in token validation"
+pd note "Patched. Tests green."
+pd done
 ```
 
-## Core Philosophy
-
-### 1. Identity Convention: `project:stack:context`
-
-Every service gets a semantic identity. Port Daddy hashes this to a stable port.
-
-| Identity | Port | Use Case |
-|----------|------|----------|
-| `myapp:api:main` | 9234 | Main API server |
-| `myapp:api:feature-auth` | 9847 | Feature branch API |
-| `myapp:frontend` | 9156 | Frontend dev server |
-| `myapp:db:test` | 9523 | Test database |
-
-**Same identity = same port, every time.** No more "what port was that on?"
-
-### 2. Sessions Are Mutable, Notes Are Immutable
-
-Sessions have a lifecycle:
-```
-active → completed
-active → abandoned
+If an agent crashes, its session enters the salvage queue. Another agent claims the work:
+```bash
+pd salvage --project myapp        # See dead agents
+pd salvage claim dead-agent-42    # Pick up their work
 ```
 
-Notes are append-only. You can never edit or delete a note. They form the permanent record of what happened. If you wrote it, it happened.
-
-**Why?** When debugging "what went wrong?", you need the full timeline. Edited notes lie.
-
-### 3. File Claims Are Advisory
-
-`pd session files add src/auth.ts` doesn't lock the file. It announces your intent. Other agents see the conflict and can coordinate.
-
-**Why?** Hard locks cause deadlocks. Advisory claims cause conversations.
-
-## Workflows
-
-### Starting a Dev Server
+### File Claims (Advisory)
 
 ```bash
-# 1. Claim your port
-PORT=$(pd claim myproject:api -q)
-
-# 2. Start with that port
-npm run dev -- --port $PORT
-
-# Or export for the whole shell
-eval $(pd claim myproject:api --export)
-npm run dev  # Uses $PORT automatically
+pd session files claim src/auth/*.ts
+# Another agent tries:
+pd session files claim src/auth/login.ts
+# → CONFLICT: claimed by agent 'myapp:api'
 ```
 
-### Multi-Agent Coordination
-
-**Agent A** (starting work):
-```bash
-pd session start "Refactoring auth system" --files src/auth/*.ts
-pd note "Splitting monolithic auth.ts into separate modules"
-```
-
-**Agent B** (checking before touching auth):
-```bash
-pd sessions --files
-# Output:
-# session-a1b2 (active, 12m) - Refactoring auth system
-#   Files: src/auth/*.ts
-#   Notes: 1
-
-# Sees conflict, coordinates:
-pd note "Need to touch src/auth/types.ts — coordinating with @agent-a"
-```
-
-**Agent A** (completing):
-```bash
-pd note "Auth refactor done: auth.ts → login.ts, session.ts, types.ts"
-pd session done "Refactored auth into 3 modules, all tests passing"
-```
-
-### Leaving Breadcrumbs
-
-Notes support inline markup for cross-referencing:
-
-```bash
-pd note "Fixed CORS bug in #file:server.ts:142"
-pd note "Handing off to @agent-frontend for UI integration" --type handoff
-pd note "Committed: abc123 - CORS headers for API gateway" --type commit
-pd note "WARNING: Don't touch auth until tests stabilized" --type warning
-```
-
-### Critical Sections with Locks
-
-```bash
-# Only one agent can deploy at a time
-pd lock deployment --owner $(hostname) --ttl 300
-
-# Do the deployment...
-npm run deploy
-
-# Release
-pd unlock deployment --owner agent-1
-```
-
-Locks auto-expire after TTL (default 60s). Use `--wait` to block until available:
-
-```bash
-pd lock deployment --owner agent-1 --wait --timeout 30000
-```
-
-Use `pd with-lock` to hold a lock for the duration of a command:
-
-```bash
-pd with-lock deployment -- npm run deploy
-```
+Claims are advisory — they warn, not lock. Hard locks cause deadlocks. Advisory claims cause conversations.
 
 ### Integration Signals
 
-Coordinate readiness between services with integration signals:
+Agents declare readiness and dependencies via integration channels:
 
 ```bash
-# Signal that your service is ready for integration
-pd integration ready myapp:api --capabilities "auth,users,billing"
-
-# Signal that your service needs another service
-pd integration needs myapp:frontend --requires myapp:api
-
-# Check integration status
-pd integration status myapp
+pd integration ready api             # "My API is ready"
+pd integration needs database        # "I need the database"
 ```
 
-## Direct Mode (No Daemon)
+### Pub/Sub Messaging
 
-Core operations work without the daemon running:
+Agents signal each other through channels:
 
 ```bash
-# These work even if daemon is down (direct SQLite)
-pd claim myapp -q
-pd session start "Quick fix"
-pd note "Fixed the thing"
-pd session done
+# Agent A finishes
+pd pub myapp:events "auth-ready"
+
+# Agent B was watching
+pd watch myapp:events --exec "npm test"
 ```
 
-**Tier 1 (no daemon):** claim, release, find, lock, unlock, session, note, notes, status
-**Tier 2 (daemon required):** pub/sub, SSE, webhooks, orchestration (up/down)
+This is how fleet agents chain: QA publishes to `qa:findings`, a notifier reacts.
+
+### Distributed Locks
+
+```bash
+pd with-lock deployment -- npm run deploy
+# Or manually:
+pd lock db-migration --ttl 300
+pd unlock db-migration
+```
+
+## Fleet: Background Agents
+
+Declare agents in YAML. They fire on git commits, cron schedules, or when other agents publish messages.
+
+```bash
+pd fleet init     # Creates pd-fleet.yml + git hook
+pd fleet up       # Starts the fleet
+git commit -m "fix auth"  # QA, docs, cartographer fire automatically
+```
+
+The starter fleet includes: QA, Documentarian, Cartographer, Spark (ideas), Spider (connections).
+
+```yaml
+# pd-fleet.yml
+fleet:
+  name: myapp
+  harbor: "{project}:fleet"
+  agents:
+    qa:
+      trigger: git:committed
+      respawn: true              # Auto-respawn on death
+      max_respawns: 3            # Circuit breaker
+      backend: claude-cli
+      prompt: "Review the last commit for bugs..."
+    spark:
+      schedule: "*/30 * * * *"
+      backend: claude-cli
+      prompt: "Propose one improvement..."
+```
+
+**Works with any LLM backend:** `claude-cli`, `ollama`, `gemini`, `aider`, `custom` (any shell command).
+
+### Auto-Respawn
+
+Agents with `respawn: true` automatically restart when they die. The fleet engine subscribes to the resurrection channel, claims the dead agent's salvage, and re-spawns with the same config. Circuit breaker stops after `max_respawns` deaths.
+
+## Tuple Space (Shared Swarm Memory)
+
+Agents write typed tuples. Other agents query by pattern. Based on Linda (Gelernter, 1985).
+
+```bash
+# Spider writes a discovery
+pd tuple out '["connection","trie+pubsub=routing","spider",0.9]' --harbor myapp:fleet
+
+# Spark reads connections with confidence > 0.7
+pd tuple rd '["connection","*","*",">0.7"]' --harbor myapp:fleet
+
+# Take (remove) a processed task
+pd tuple in '["task","build-auth","pending"]'
+```
+
+Pattern matching: exact values, `*` wildcard, `>N`/`<N` numeric, `myapp:*` identity prefixes.
+
+## Pheromone Trails (Ambient Signals)
+
+Agents spray numeric signals (0-1) onto entities. Signals decay over time automatically.
+
+```bash
+pd pheromone spray --table services --id myapp:api --key urgency --strength 0.8
+pd pheromone sniff --table services --id myapp:api
+# → urgency: 0.62 (decayed from 0.8 twenty minutes ago)
+```
+
+File heat map shows which files agents are fighting over:
+```bash
+curl http://localhost:9876/pheromone/files
+```
 
 ## Dashboard
 
-Open `http://localhost:9876` for a visual overview of:
-- Active services and their ports
-- Running sessions and file claims
-- Recent notes timeline
-- Lock status
+- **Main:** `http://localhost:9876` — sparklines, fleet cards, heat map, 12 panels
+- **Fleet Live:** `http://localhost:9876/fleet-live.html` — real-time fleet monitoring
+- **Menu Bar App:** `cd fleet-live-app && ./build.sh` — macOS native
 
-## When to Use Port Daddy
+## CLI Quick Reference
 
-| Situation | Action |
-|-----------|--------|
-| Starting any dev server | `pd claim <identity> -q` |
-| Multi-file refactoring | `pd session start` + claim files |
-| Handing off to another agent | `pd note --type handoff` |
-| Critical section (deploy, migrate) | `pd lock` |
-| Debugging "what happened?" | `pd notes` or `pd sessions` |
-| Port conflict | `pd find "*"` to see what's claimed |
+| Command | Purpose |
+|---------|---------|
+| `pd begin` / `pd done` | Start/end session |
+| `pd note` / `pd notes` | Write/read notes |
+| `pd claim` / `pd release` | Port management |
+| `pd find` | Wildcard service search |
+| `pd lock` / `pd unlock` | Distributed locks |
+| `pd pub` / `pd watch` | Pub/sub messaging |
+| `pd fleet init/up/down` | Fleet management |
+| `pd spawn` / `pd spawned` | Launch/list agents |
+| `pd salvage` | Dead agent recovery |
+| `pd tuple out/rd/in` | Shared tuple space |
+| `pd pheromone spray/sniff` | Ambient signals |
+| `pd status` | Daemon health |
 
-## Anti-Patterns
+## When to Use What
 
-**Don't:**
-- Use raw port numbers (`--port 3000`) — they collide
-- Edit files without checking `pd sessions --files`
-- Forget to end sessions — stale sessions confuse future agents
-- Skip notes — your future self (or another agent) needs context
+| Need | Use |
+|------|-----|
+| Port conflicts | `pd claim myapp:api -q` |
+| Multi-file work | `pd begin` + `pd session files claim` |
+| Agent-to-agent signaling | `pd pub` + `pd watch` |
+| Background automation | `pd fleet init` + `pd fleet up` |
+| Shared knowledge | `pd tuple out` / `pd tuple rd` |
+| Ambient awareness | `pd pheromone spray` / `pd pheromone sniff` |
+| Dead agent recovery | `pd salvage` |
+| Critical sections | `pd with-lock` |
 
-**Do:**
-- Always claim ports through Port Daddy
-- Start sessions for non-trivial work
-- Leave notes liberally — they're cheap
-- End sessions when done (even if abandoning)
+## V4 Roadmap (Planned, Not Built)
 
-## Worktree-Aware Development
+These features are designed but not yet implemented:
+- **Float Plans** — collateralized work contracts with credit escrow
+- **Episodic Memory** — `pd memory store/recall/forget` with semantic embeddings
+- **Remote Harbors** — cross-machine coordination via Lighthouse discovery
+- **Semantic Conflict Prediction** — tree-sitter AST analysis for symbol-level file claims
+- **Governance Channels** — agents vote on rule changes (Ostrom Principle 3)
 
-Port Daddy tracks which git worktree you're in. Sessions automatically scope to the worktree:
-
-```bash
-# Main worktree
-cd ~/coding/myproject
-pd session start "Feature A"  # session-a1b2 in main worktree
-
-# Chaos testing worktree
-cd ~/coding/myproject-chaos
-pd session start "Breaking things"  # session-c3d4 in chaos worktree
-
-# See all sessions across worktrees
-pd sessions --all-worktrees
-```
-
-### Multi-Daemon Development
-
-For developing Port Daddy itself:
-
-```bash
-# Production daemon (your daily driver)
-pd claim port-daddy:daemon:prod      # → 9876
-
-# Development daemon (testing changes)  
-cd ~/coding/port-daddy
-PORT=$(pd claim port-daddy:daemon:dev -q)  # → 9877
-npm run dev -- --port $PORT
-
-# Chaos daemon (adversarial testing)
-cd ~/coding/port-daddy-chaos  
-PORT=$(pd claim port-daddy:daemon:chaos -q)  # → 9878
-npm run dev -- --port $PORT
-```
-
-## Local DNS for Ports (Experimental)
-
-Instead of remembering `localhost:9234`, use semantic names:
-
-```bash
-# Register a DNS name for your service
-pd claim myapp:api --dns
-# Now accessible at: http://myapp-api.local
-
-# Works with any claimed service
-pd claim frontend:react --dns
-# → http://frontend-react.local
-
-# List DNS registrations
-pd dns list
-# myapp-api.local      → 127.0.0.1:9234
-# frontend-react.local → 127.0.0.1:9156
-```
-
-**Requirements:** macOS (uses mDNS/Bonjour), or Linux with avahi-daemon.
-
-## Agent Resurrection (Salvage)
-
-When an agent dies mid-task, its work isn't lost. Port Daddy captures session state and notes:
-
-```bash
-# At session start, check if someone died with unfinished work
-pd salvage
-
-# Sample output:
-# Dead agent: builder-1 (died 15 minutes ago)
-#   Purpose: Building the payment API
-#   Session: session-a1b2c3 (active, 3 notes)
-#   Last note: "Finished Stripe integration, starting PayPal"
-#   Files: src/payments/stripe.ts, src/payments/paypal.ts
-
-# Claim the dead agent's session and continue their work
-pd salvage --claim builder-1
-
-# Clear salvage queue after you've reviewed it
-pd salvage --clear
-```
-
-**Always check salvage before starting new work.** Someone might have died mid-task.
-
-## Changelog (Hierarchical Change Tracking)
-
-Record meaningful changes with identity-based rollup:
-
-```bash
-# Record a change
-pd changelog add myapp:api:auth "Added JWT refresh token endpoint" --type feature
-
-# With detailed description
-pd changelog add myapp:frontend "Fixed mobile nav overlap" --type fix \
-  --description "Nav was overlapping content on iOS Safari viewport"
-
-# List recent changes
-pd changelog list
-
-# Filter by identity (includes children)
-pd changelog list --identity myapp:api
-
-# Different formats
-pd changelog list --format tree
-pd changelog list --format keep-a-changelog
-```
-
-Changes roll up hierarchically:
-- `myapp:api:auth` appears under `myapp:api` which appears under `myapp`
-- Query `myapp` to see all changes across the entire project
-
-### Change Types
-
-| Type | When to use |
-|------|-------------|
-| `feature` | New functionality |
-| `fix` | Bug fixes |
-| `refactor` | Code restructuring |
-| `docs` | Documentation updates |
-| `chore` | Maintenance tasks |
-| `breaking` | Breaking changes |
+See `docs/V4-UNIFIED-ROADMAP.md` for the full plan with 6 phases and 16 appendix ideas.

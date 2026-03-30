@@ -1,8 +1,7 @@
-import { motion } from 'framer-motion'
 import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Badge } from '@/components/ui/Badge'
-import { MessageSquare, Zap, Terminal, Shield, Mail, Send, Activity, ArrowRight } from 'lucide-react'
+import { Zap, Terminal, Shield, Mail, Send, Activity, ArrowRight } from 'lucide-react'
 import { Surface } from '@/components/ui/Surface'
 
 export function Inbox() {
@@ -17,119 +16,101 @@ export function Inbox() {
       prev={{ title: 'Identity Discovery', href: '/tutorials/dns' }}
       next={{ title: 'Swarm Bootstrapping', href: '/tutorials/spawn' }}
     >
-      <motion.div className="space-y-16">
+      <div className="space-y-12">
         {/* Concept Section */}
-        <section className="space-y-6">
-          <motion.div className="flex items-center gap-4 mb-8">
-            <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
-              <Mail className="text-[var(--brand-secondary)]" size={24} />
-            </Surface>
-            <motion.h2 className="m-0">Beyond Stdout</motion.h2>
-          </motion.div>
-          <motion.p>
-            In a multi-agent swarm, logs are noisy and hard to parse. Port Daddy provides every agent with a dedicated <strong>Inbox</strong>--a structured messaging endpoint where it can receive direct instructions or status updates from other members of the harbor.
-          </motion.p>
-          <motion.div className="grid sm:grid-cols-2 gap-8 pt-4">
-             <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
-                <Surface depth="inset" radius="xl" padding="none" className="w-10 h-10 flex items-center justify-center">
-                   <Send size={20} className="text-[var(--brand-secondary)]" />
-                </Surface>
-                <motion.h3 className="text-xl font-display font-black m-0">Direct Signals</motion.h3>
-                <motion.p className="text-sm text-[var(--text-secondary)] m-0">Send targeted JSON payloads to a specific agent identity without broadcasting to the whole mesh.</motion.p>
-             </Surface>
-             <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
-                <Surface depth="inset" radius="xl" padding="none" className="w-10 h-10 flex items-center justify-center">
-                   <Activity size={20} className="text-[var(--brand-accent)]" />
-                </Surface>
-                <motion.h3 className="text-xl font-display font-black m-0">Radio Stream</motion.h3>
-                <motion.p className="text-sm text-[var(--text-secondary)] m-0">Subscribe to any inbox live via SSE to monitor agent progress in your terminal or dashboard.</motion.p>
-             </Surface>
-          </motion.div>
+        <section className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-[var(--surface-inset)]">
+              <Mail className="text-[var(--brand-secondary)]" size={20} />
+            </div>
+            <h2 className="m-0">Beyond Stdout</h2>
+          </div>
+          <p>
+            In a multi-agent swarm, logs are noisy and hard to parse. Port Daddy provides every agent with a dedicated <strong>Inbox</strong> -- a structured messaging endpoint where it can receive direct instructions or status updates from other members of the harbor.
+          </p>
+          <div className="space-y-3 pt-2">
+            <p className="text-sm text-[var(--text-secondary)] m-0">
+              <Send size={14} className="inline text-[var(--brand-secondary)] mr-1" />
+              <strong>Direct Signals</strong> -- Send targeted JSON payloads to a specific agent identity without broadcasting to the whole mesh.
+            </p>
+            <p className="text-sm text-[var(--text-secondary)] m-0">
+              <Activity size={14} className="inline text-[var(--brand-accent)] mr-1" />
+              <strong>Radio Stream</strong> -- Subscribe to any inbox live via SSE to monitor agent progress in your terminal or dashboard.
+            </p>
+          </div>
         </section>
 
         {/* Step 1: Sending */}
-        <section className="space-y-8">
-          <motion.div className="flex items-center gap-4">
-            <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
-              <Zap className="text-[var(--brand-primary)]" size={24} />
-            </Surface>
-            <motion.h2 className="m-0">1. Send a Signal</motion.h2>
-          </motion.div>
+        <section className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-[var(--surface-inset)]">
+              <Zap className="text-[var(--brand-primary)]" size={20} />
+            </div>
+            <h2 className="m-0">1. Send a Signal</h2>
+          </div>
 
-          <motion.p>
+          <p>
             Use the <code>msg send</code> command to route a message to an agent's inbox. You can send raw text or complex JSON objects.
-          </motion.p>
+          </p>
 
           <CodeBlock language="bash">
             {`$ pd pub swarm:analyst:main '{"task": "generate-report", "priority": "high"}'\n\n✓ Message routed to agent-7f3a.\n✓ Status: Received.`}
           </CodeBlock>
 
-          <Surface depth="flat" radius="xl" padding="md" className="border-l-4 border-[var(--brand-secondary)]">
-            <p className="m-0 text-sm" style={{ color: 'var(--text-secondary)' }}>
-              The daemon ensures that the message is delivered even if the agent is currently busy, acting as a high-fidelity buffer between processes.
-            </p>
-          </Surface>
+          <p className="m-0 text-sm border-l-4 border-[var(--brand-secondary)] pl-4" style={{ color: 'var(--text-secondary)' }}>
+            The daemon ensures that the message is delivered even if the agent is currently busy, acting as a high-fidelity buffer between processes.
+          </p>
         </section>
 
         {/* Step 2: Watching */}
-        <section className="space-y-8">
-          <motion.div className="flex items-center gap-4">
-            <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
-              <Terminal className="text-[var(--brand-secondary)]" size={24} />
-            </Surface>
-            <motion.h2 className="m-0">2. Watch the Stream</motion.h2>
-          </motion.div>
+        <section className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-[var(--surface-inset)]">
+              <Terminal className="text-[var(--brand-secondary)]" size={20} />
+            </div>
+            <h2 className="m-0">2. Watch the Stream</h2>
+          </div>
 
-          <motion.p>
+          <p>
             Want to see what an agent is receiving? Use <code>msg watch</code> to open a real-time SSE stream of an inbox.
-          </motion.p>
+          </p>
 
           <CodeBlock language="bash">
             {`$ pd msg watch swarm:analyst:main\n\n[12:04:38] INCOMING: {"task": "generate-report"}\n[12:04:42] ACK: Processing started...`}
           </CodeBlock>
 
-          <Surface depth="raised" radius="2xl" className="p-10 space-y-6 relative overflow-hidden">
-             <motion.div className="absolute inset-0 bg-gradient-to-r from-[var(--brand-secondary)]/5 to-transparent" />
-             <motion.p className="text-sm font-black uppercase tracking-widest text-[var(--text-muted)] m-0">The Inter-Agent Bridge</motion.p>
-             <motion.div className="flex items-center justify-between gap-10">
-                <Surface depth="inset" radius="2xl" padding="none" className="flex-1 p-6 text-center">
-                   <Badge variant="teal" className="mb-2">Agent 'alpha'</Badge>
-                   <motion.p className="text-[10px] text-[var(--text-muted)] font-mono">pd pub...</motion.p>
-                </Surface>
-                <motion.div className="shrink-0">
-                   <ArrowRight size={20} className="text-[var(--brand-primary)] animate-pulse" />
-                </motion.div>
-                <Surface depth="raised" radius="2xl" className="flex-1 p-6 text-center">
-                   <Badge variant="gold" className="mb-2">Daemon Inbox</Badge>
-                   <motion.p className="text-[10px] text-[var(--text-muted)] font-mono">Persistent Queue</motion.p>
-                </Surface>
-                <motion.div className="shrink-0">
-                   <ArrowRight size={20} className="opacity-40" />
-                </motion.div>
-                <Surface depth="inset" radius="2xl" padding="none" className="flex-1 p-6 text-center opacity-60">
-                   <Badge variant="default" className="mb-2">Agent 'beta'</Badge>
-                   <motion.p className="text-[10px] text-[var(--text-muted)] font-mono">pd sub...</motion.p>
-                </Surface>
-             </motion.div>
+          <Surface depth="inset" radius="xl" className="p-5 space-y-3">
+            <p className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] m-0">The Inter-Agent Bridge</p>
+            <div className="flex items-center justify-between text-xs font-mono gap-4">
+              <span>
+                <Badge variant="teal" className="mr-2">alpha</Badge>
+                <code className="text-[var(--text-muted)]">pd pub...</code>
+              </span>
+              <ArrowRight size={14} className="text-[var(--brand-primary)] shrink-0" />
+              <span>
+                <Badge variant="gold" className="mr-2">Daemon</Badge>
+                <code className="text-[var(--text-muted)]">Queue</code>
+              </span>
+              <ArrowRight size={14} className="opacity-40 shrink-0" />
+              <span className="opacity-60">
+                <Badge variant="default" className="mr-2">beta</Badge>
+                <code className="text-[var(--text-muted)]">pd sub...</code>
+              </span>
+            </div>
           </Surface>
         </section>
 
         {/* Vision Callout */}
-        <Surface depth="raised" radius="2xl" className="p-16 flex flex-col items-center text-center gap-8 relative overflow-hidden">
-           <motion.div className="absolute top-0 right-0 p-10 opacity-[0.03] pointer-events-none">
-              <MessageSquare size={400} />
-           </motion.div>
-           <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Coordination Maturity</Badge>
-           <motion.h3 className="text-4xl font-display font-black m-0" style={{ color: 'var(--text-primary)' }}>Swarm Radio.</motion.h3>
-           <motion.p className="text-xl max-w-xl text-[var(--text-secondary)]">
-             The inbox system is the foundation of <strong>Swarm Radio</strong>. In Port Daddy v3.7, we've moved beyond simple text logs to a structured, auditable communication mesh where every signal has an owner and a destination.
-           </motion.p>
-           <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-secondary)]">
-              <Shield size={14} className="animate-pulse" />
-              SQLite-Backed Persistence
-           </motion.div>
-        </Surface>
-      </motion.div>
+        <section className="p-6 text-center space-y-4">
+          <p className="text-lg max-w-xl mx-auto text-[var(--text-secondary)]">
+            The inbox system is the foundation of <strong>Swarm Radio</strong>. In Port Daddy v3.7, we've moved beyond simple text logs to a structured, auditable communication mesh where every signal has an owner and a destination.
+          </p>
+          <div className="flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-secondary)]">
+            <Shield size={14} />
+            SQLite-Backed Persistence
+          </div>
+        </section>
+      </div>
     </TutorialLayout>
   )
 }

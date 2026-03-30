@@ -314,6 +314,7 @@ describe('Test Group 3: API -> CLI Parity', () => {
     spawn: ['spawn', 'spawned'],
     harbors: ['harbor', 'harbors'],
     orchestrator: ['up', 'down'],
+    tuples: ['tuple'],
   };
 
   // API-only routes that have no CLI equivalent (accessed via curl or SDK)

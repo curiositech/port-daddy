@@ -5,7 +5,7 @@ import { DocsCodeBlock } from '@/components/docs/DocsCodeBlock'
 
 export default function FleetFeature() {
   return (
-    <div className="space-y-12">
+    <div className="space-y-10">
       {/* Header */}
       <div className="space-y-4">
         <div className="flex items-center gap-2">
@@ -15,7 +15,7 @@ export default function FleetFeature() {
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Fleet Agents
         </h1>
-        <p className="text-xl text-[var(--text-secondary)] leading-relaxed max-w-3xl">
+        <p className="text-lg text-[var(--text-secondary)] leading-relaxed max-w-3xl">
           Declare your background agent workforce in a single YAML file. Port Daddy reads
           <code className="text-[var(--brand-primary)] font-mono text-sm mx-1">pd-fleet.yml</code>
           and manages scheduled agents, channel-triggered agents, and watchers —
@@ -24,9 +24,9 @@ export default function FleetFeature() {
       </div>
 
       {/* The Problem */}
-      <div className="p-6 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-        <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-4">The Problem</h2>
-        <p className="text-[var(--text-secondary)] leading-relaxed mb-4">
+      <div>
+        <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3">The Problem</h2>
+        <p className="text-[var(--text-secondary)] leading-relaxed mb-3">
           Running background AI agents on a project requires wiring together scheduling,
           triggering, identity, coordination, and error recovery. Without a fleet layer:
         </p>
@@ -47,8 +47,8 @@ export default function FleetFeature() {
       </div>
 
       {/* How It Works */}
-      <div className="space-y-6">
-        <h2 className="text-2xl font-semibold text-[var(--text-primary)]">How It Works</h2>
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">How It Works</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           Drop a <code className="text-[var(--brand-primary)] font-mono text-sm">pd-fleet.yml</code> in your project root.
           Run <code className="text-[var(--brand-primary)] font-mono text-sm">pd fleet up</code>.
@@ -86,8 +86,8 @@ Fleet running. Press Ctrl+C to stop, or: pd fleet down`}
       </div>
 
       {/* Fleet YAML */}
-      <div className="space-y-6">
-        <h2 className="text-2xl font-semibold text-[var(--text-primary)]">pd-fleet.yml Schema</h2>
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">pd-fleet.yml Schema</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           The fleet file has three sections: <strong>agents</strong>, <strong>watchers</strong>,
           and <strong>channels</strong>. Template variables in curly braces are resolved at startup.
@@ -148,41 +148,40 @@ Fleet running. Press Ctrl+C to stop, or: pd fleet down`}
       </div>
 
       {/* Agent Types */}
-      <div className="space-y-4">
-        <h2 className="text-2xl font-semibold text-[var(--text-primary)]">Agent Types</h2>
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Agent Types</h2>
 
-        <div className="grid sm:grid-cols-2 gap-4">
-          <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-            <div className="font-semibold text-[var(--text-primary)] mb-2">Scheduled agents</div>
-            <p className="text-sm text-[var(--text-secondary)] mb-3">
+        <div className="space-y-3">
+          <div className="border-l-4 border-[var(--brand-primary)] pl-4">
+            <div className="font-semibold text-[var(--text-primary)]">Scheduled agents</div>
+            <p className="text-sm text-[var(--text-secondary)] mt-1">
               Run on a cron interval. Use simplified cron syntax:
-              <code className="block mt-1 text-[var(--brand-primary)] font-mono text-xs">*/10 * * * *</code>
-              <code className="block text-[var(--brand-primary)] font-mono text-xs">*/2 * * * *</code>
+              <code className="ml-2 text-[var(--brand-primary)] font-mono text-xs">*/10 * * * *</code>
             </p>
             <p className="text-xs text-[var(--text-muted)]">Minimum interval: 1 minute</p>
           </div>
 
-          <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-            <div className="font-semibold text-[var(--text-primary)] mb-2">Triggered agents</div>
-            <p className="text-sm text-[var(--text-secondary)] mb-3">
+          <div className="border-l-4 border-[var(--brand-primary)] pl-4">
+            <div className="font-semibold text-[var(--text-primary)]">Triggered agents</div>
+            <p className="text-sm text-[var(--text-secondary)] mt-1">
               Subscribe to a pub/sub channel and run each time a message arrives.
               Uses <code className="text-[var(--brand-primary)] font-mono text-xs">pd watch</code> internally.
             </p>
             <p className="text-xs text-[var(--text-muted)]">Message payload available as env var PD_MESSAGE</p>
           </div>
 
-          <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-            <div className="font-semibold text-[var(--text-primary)] mb-2">Watchers</div>
-            <p className="text-sm text-[var(--text-secondary)] mb-3">
+          <div className="border-l-4 border-[var(--brand-primary)] pl-4">
+            <div className="font-semibold text-[var(--text-primary)]">Watchers</div>
+            <p className="text-sm text-[var(--text-secondary)] mt-1">
               Like triggered agents but run a raw shell command instead of an AI backend.
               Good for notifications, git operations, or lightweight automation.
             </p>
             <p className="text-xs text-[var(--text-muted)]">exec runs in project directory</p>
           </div>
 
-          <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-            <div className="font-semibold text-[var(--text-primary)] mb-2">Singletons</div>
-            <p className="text-sm text-[var(--text-secondary)] mb-3">
+          <div className="border-l-4 border-[var(--brand-primary)] pl-4">
+            <div className="font-semibold text-[var(--text-primary)]">Singletons</div>
+            <p className="text-sm text-[var(--text-secondary)] mt-1">
               Add <code className="text-[var(--brand-primary)] font-mono text-xs">singleton: true</code> to prevent
               multiple concurrent runs of the same agent — useful for expensive agents
               that should not overlap.
@@ -193,9 +192,9 @@ Fleet running. Press Ctrl+C to stop, or: pd fleet down`}
       </div>
 
       {/* Backends */}
-      <div className="space-y-4">
-        <h2 className="text-2xl font-semibold text-[var(--text-primary)]">Backends</h2>
-        <div className="space-y-3">
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Backends</h2>
+        <div className="space-y-2">
           {[
             { name: 'claude-cli', desc: 'Runs the Claude CLI directly. Uses your local auth context. Best for agents that need full Claude capabilities.' },
             { name: 'ollama', desc: 'Runs a local Ollama model via HTTP. Needs ollama running at localhost:11434.' },
@@ -203,7 +202,7 @@ Fleet running. Press Ctrl+C to stop, or: pd fleet down`}
             { name: 'gemini', desc: 'Runs Gemini via the Google SDK. Needs GOOGLE_API_KEY.' },
             { name: 'custom', desc: 'Runs the prompt as a shell command. The prompt field is the command to execute.' },
           ].map(({ name, desc }) => (
-            <div key={name} className="flex items-start gap-3 p-4 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+            <div key={name} className="flex items-start gap-3 border-l-4 border-[var(--border-subtle)] pl-4 py-1">
               <code className="text-sm font-mono font-semibold text-[var(--brand-primary)] shrink-0 mt-0.5 w-24">{name}</code>
               <span className="text-sm text-[var(--text-secondary)]">{desc}</span>
             </div>
@@ -212,20 +211,20 @@ Fleet running. Press Ctrl+C to stop, or: pd fleet down`}
       </div>
 
       {/* Template Variables */}
-      <div className="space-y-4">
-        <h2 className="text-2xl font-semibold text-[var(--text-primary)]">Template Variables</h2>
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Template Variables</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           Use <code className="text-[var(--brand-primary)] font-mono text-sm">{'{variable}'}</code> anywhere in the YAML.
           Variables are resolved at fleet startup:
         </p>
-        <div className="grid sm:grid-cols-2 gap-3">
+        <div className="grid sm:grid-cols-2 gap-2">
           {[
             { v: '{project}', desc: 'Directory basename (e.g., myapp)' },
             { v: '{project_dir}', desc: 'Absolute path to the project root' },
             { v: '{branch}', desc: 'Current git branch (e.g., main)' },
             { v: '{sha}', desc: 'Short git commit SHA (e.g., a930413)' },
           ].map(({ v, desc }) => (
-            <div key={v} className="flex items-center gap-3 p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+            <div key={v} className="flex items-center gap-3 border-l-4 border-[var(--border-subtle)] pl-4 py-1">
               <code className="text-sm font-mono text-[var(--brand-primary)] shrink-0">{v}</code>
               <span className="text-sm text-[var(--text-secondary)]">{desc}</span>
             </div>
@@ -234,8 +233,8 @@ Fleet running. Press Ctrl+C to stop, or: pd fleet down`}
       </div>
 
       {/* Config file locations */}
-      <div className="space-y-4">
-        <h2 className="text-2xl font-semibold text-[var(--text-primary)]">Config File Locations</h2>
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Config File Locations</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           The fleet engine checks these paths in order, using the first one found:
         </p>
@@ -248,7 +247,7 @@ pd-fleet.yaml         # project root (alt extension)
       </div>
 
       {/* Next */}
-      <div className="flex items-center justify-between p-6 rounded-xl bg-gradient-to-r from-[var(--brand-primary)]/5 to-transparent border border-[var(--brand-primary)]/20">
+      <div className="flex items-center justify-between p-5 rounded-xl bg-gradient-to-r from-[var(--brand-primary)]/5 to-transparent border border-[var(--brand-primary)]/20">
         <div>
           <div className="text-sm text-[var(--text-muted)] mb-1">CLI Reference</div>
           <div className="font-semibold text-[var(--text-primary)]">pd fleet</div>

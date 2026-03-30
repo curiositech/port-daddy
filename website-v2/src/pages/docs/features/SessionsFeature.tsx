@@ -5,7 +5,7 @@ import { DocsCodeBlock } from '@/components/docs/DocsCodeBlock'
 
 export default function SessionsFeature() {
   return (
-    <div className="space-y-12">
+    <div className="space-y-10">
       {/* Header */}
       <div className="space-y-4">
         <div className="flex items-center gap-2">
@@ -15,16 +15,16 @@ export default function SessionsFeature() {
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Sessions & Notes
         </h1>
-        <p className="text-xl text-[var(--text-secondary)] leading-relaxed max-w-3xl">
+        <p className="text-lg text-[var(--text-secondary)] leading-relaxed max-w-3xl">
           Structured work tracking with an immutable audit trail. Every agent session is logged,
           every note is append-only, and file claims prevent conflicts before they happen.
         </p>
       </div>
 
       {/* The Problem */}
-      <div className="p-6 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-        <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-4">The Problem</h2>
-        <p className="text-[var(--text-secondary)] leading-relaxed mb-4">
+      <div>
+        <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3">The Problem</h2>
+        <p className="text-[var(--text-secondary)] leading-relaxed mb-3">
           AI agents work fast, but they leave no trace. When something goes wrong or an agent
           crashes mid-task, the team faces:
         </p>
@@ -45,8 +45,8 @@ export default function SessionsFeature() {
       </div>
 
       {/* How It Works */}
-      <div className="space-y-6">
-        <h2 className="text-2xl font-semibold text-[var(--text-primary)]">How It Works</h2>
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">How It Works</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           Sessions track the lifecycle of an agent's work. Notes are immutable, append-only
           records within a session. File claims are advisory locks that warn agents about
@@ -75,64 +75,58 @@ Session s-a1b2c3 completed (3 notes, 1 file claim)`}
       </div>
 
       {/* Session Lifecycle */}
-      <div className="space-y-4">
-        <h2 className="text-2xl font-semibold text-[var(--text-primary)]">Session Lifecycle</h2>
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Session Lifecycle</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           Sessions move through a simple state machine. Notes and file claims accumulate
           during the active phase and persist after completion for audit purposes.
         </p>
 
         <div className="grid sm:grid-cols-3 gap-4">
-          <div className="p-4 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+          <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">active</code>
-            <p className="text-sm text-[var(--text-muted)] mt-2">Work in progress</p>
+            <p className="text-sm text-[var(--text-muted)] mt-1">Work in progress</p>
             <p className="text-xs text-[var(--text-muted)] mt-1">Notes and file claims accepted</p>
           </div>
-          <div className="p-4 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+          <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">completed</code>
-            <p className="text-sm text-[var(--text-muted)] mt-2">Work finished normally</p>
+            <p className="text-sm text-[var(--text-muted)] mt-1">Work finished normally</p>
             <p className="text-xs text-[var(--text-muted)] mt-1">Read-only, audit trail preserved</p>
           </div>
-          <div className="p-4 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+          <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">abandoned</code>
-            <p className="text-sm text-[var(--text-muted)] mt-2">Agent crashed or timed out</p>
+            <p className="text-sm text-[var(--text-muted)] mt-1">Agent crashed or timed out</p>
             <p className="text-xs text-[var(--text-muted)] mt-1">Eligible for salvage by another agent</p>
           </div>
         </div>
       </div>
 
       {/* CLI Commands */}
-      <div className="space-y-6">
-        <h2 className="text-2xl font-semibold text-[var(--text-primary)]">CLI Commands</h2>
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">CLI Commands</h2>
 
-        <div className="space-y-4">
-          <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-            <div className="flex items-center gap-2 mb-2">
-              <code className="text-lg font-mono text-[var(--brand-primary)]">pd begin</code>
-            </div>
-            <p className="text-[var(--text-secondary)] mb-3">Start a new session with an identity and purpose. Returns a session ID for subsequent commands.</p>
+        <div className="space-y-3">
+          <div className="border-l-4 border-[var(--brand-primary)] pl-4">
+            <code className="font-mono text-[var(--brand-primary)]">pd begin</code>
+            <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">Start a new session with an identity and purpose. Returns a session ID for subsequent commands.</p>
             <DocsCodeBlock
               code={`$ pd begin --identity myapp:api:auth --purpose "Implement JWT refresh"`}
               output={`Session s-a1b2c3 started`}
             />
           </div>
 
-          <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-            <div className="flex items-center gap-2 mb-2">
-              <code className="text-lg font-mono text-[var(--brand-primary)]">pd note &lt;text&gt;</code>
-            </div>
-            <p className="text-[var(--text-secondary)] mb-3">Add an immutable note to the current session. Notes can never be edited or deleted individually.</p>
+          <div className="border-l-4 border-[var(--brand-primary)] pl-4">
+            <code className="font-mono text-[var(--brand-primary)]">pd note &lt;text&gt;</code>
+            <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">Add an immutable note to the current session. Notes can never be edited or deleted individually.</p>
             <DocsCodeBlock
               code={`$ pd note "Refactored auth middleware to support refresh tokens"
 $ pd note "Found edge case: expired refresh tokens return 401 not 403"`}
             />
           </div>
 
-          <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-            <div className="flex items-center gap-2 mb-2">
-              <code className="text-lg font-mono text-[var(--brand-primary)]">pd notes</code>
-            </div>
-            <p className="text-[var(--text-secondary)] mb-3">List recent notes across all sessions, or filter by session ID.</p>
+          <div className="border-l-4 border-[var(--brand-primary)] pl-4">
+            <code className="font-mono text-[var(--brand-primary)]">pd notes</code>
+            <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">List recent notes across all sessions, or filter by session ID.</p>
             <DocsCodeBlock
               code={`$ pd notes --session s-a1b2c3`}
               output={`[12:01] Refactored auth middleware to support refresh tokens
@@ -141,22 +135,18 @@ $ pd note "Found edge case: expired refresh tokens return 401 not 403"`}
             />
           </div>
 
-          <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-            <div className="flex items-center gap-2 mb-2">
-              <code className="text-lg font-mono text-[var(--brand-primary)]">pd done</code>
-            </div>
-            <p className="text-[var(--text-secondary)] mb-3">Complete the current session. Releases file claims and marks the session as finished.</p>
+          <div className="border-l-4 border-[var(--brand-primary)] pl-4">
+            <code className="font-mono text-[var(--brand-primary)]">pd done</code>
+            <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">Complete the current session. Releases file claims and marks the session as finished.</p>
             <DocsCodeBlock
               code={`$ pd done`}
               output={`Session s-a1b2c3 completed (3 notes, 1 file claim)`}
             />
           </div>
 
-          <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-            <div className="flex items-center gap-2 mb-2">
-              <code className="text-lg font-mono text-[var(--brand-primary)]">pd whoami</code>
-            </div>
-            <p className="text-[var(--text-secondary)] mb-3">Show the current active session, identity, and purpose.</p>
+          <div className="border-l-4 border-[var(--brand-primary)] pl-4">
+            <code className="font-mono text-[var(--brand-primary)]">pd whoami</code>
+            <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">Show the current active session, identity, and purpose.</p>
             <DocsCodeBlock
               code={`$ pd whoami`}
               output={`Session:  s-a1b2c3
@@ -167,11 +157,9 @@ Files:    1 claimed`}
             />
           </div>
 
-          <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-            <div className="flex items-center gap-2 mb-2">
-              <code className="text-lg font-mono text-[var(--brand-primary)]">pd session files add &lt;path&gt;</code>
-            </div>
-            <p className="text-[var(--text-secondary)] mb-3">Claim a file to signal other agents you are editing it. Advisory, not enforced.</p>
+          <div className="border-l-4 border-[var(--brand-primary)] pl-4">
+            <code className="font-mono text-[var(--brand-primary)]">pd session files add &lt;path&gt;</code>
+            <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">Claim a file to signal other agents you are editing it. Advisory, not enforced.</p>
             <DocsCodeBlock
               code={`$ pd session files add src/auth/refresh.ts`}
               output={`File claimed: src/auth/refresh.ts`}
@@ -181,14 +169,12 @@ Files:    1 claimed`}
       </div>
 
       {/* SDK Usage */}
-      <div className="space-y-4">
-        <h2 className="text-2xl font-semibold text-[var(--text-primary)]">SDK Usage</h2>
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">SDK Usage</h2>
 
-        <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-          <div className="text-sm font-medium text-[var(--text-muted)] mb-3">TypeScript</div>
-          <DocsCodeBlock
-            language="typescript"
-            code={`import { PortDaddy } from 'port-daddy'
+        <DocsCodeBlock
+          language="typescript"
+          code={`import { PortDaddy } from 'port-daddy'
 
 const pd = new PortDaddy()
 
@@ -204,12 +190,11 @@ await pd.sessions.addNote(session.id, 'Updated auth middleware')
 
 // Complete the session
 await pd.sessions.done(session.id)`}
-          />
-        </div>
+        />
       </div>
 
       {/* Next */}
-      <div className="flex items-center justify-between p-6 rounded-xl bg-gradient-to-r from-[var(--brand-primary)]/5 to-transparent border border-[var(--brand-primary)]/20">
+      <div className="flex items-center justify-between p-5 rounded-xl bg-gradient-to-r from-[var(--brand-primary)]/5 to-transparent border border-[var(--brand-primary)]/20">
         <div>
           <div className="text-sm text-[var(--text-muted)] mb-1">Next Feature</div>
           <div className="font-semibold text-[var(--text-primary)]">Atomic Port Assignment</div>

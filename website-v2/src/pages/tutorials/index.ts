@@ -1,4 +1,5 @@
 export { GettingStarted } from './GettingStarted'
+export { SemanticIdentities } from './SemanticIdentities'
 export { MultiAgentOrchestration } from './MultiAgentOrchestration'
 export { Monorepo } from './Monorepo'
 export { Debugging } from './Debugging'

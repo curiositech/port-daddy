@@ -5,6 +5,22 @@ All notable changes to Port Daddy will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.8.2] - 2026-03-30
+
+### Added
+- **Binary IPC Protocol (Phase 4B)**: High-frequency agent communication over Unix domain socket (`/tmp/port-daddy.ipc`) with MessagePack encoding. 7-byte header, 70-80% bandwidth reduction vs HTTP JSON. 13 FIPA performatives (INFORM, REQUEST, QUERY_REF, REFUSE, FAILURE, NOT_UNDERSTOOD, etc.). Fire-and-forget for heartbeats, pheromone sprays, pub/sub publish (~3us vs ~200us HTTP). Request-response with `conv_id` correlation for claims, locks, sessions. Pub/sub subscriptions with dead-man cleanup. Auto-reconnect client with subscription replay. SDK fast paths: `heartbeat()`, `pheromoneSpray()`, `publish()` auto-use IPC when available. 20 failure modes documented in ADR 0020.
+- **IPC Security Hardening**: Rate limiting (500 frames/sec per connection), connection limit (256 max with REFUSE for excess), 3-strike protocol violation budget (malformed frames disconnect), backpressure via write queue + drain events. TOCTOU fix: `umask(0o077)` before socket bind. Performative type validation rejects unknown codes. Subscription limit: 64 per connection. Input validation: `asStringArray()` for array payload fields. Connect timeout on client prevents indefinite hang. Socket path length validation (macOS 104 / Linux 108 byte limits). Lock release on IPC disconnect (faster than heartbeat TTL). API surface enumeration removed from NOT_UNDERSTOOD responses.
+- **API Reference Page**: `/docs/api` page with 93 REST endpoints, searchable, grouped by category, with curl examples. Docs sidebar gains "New in v3.8" section hoisted above Concepts. Dead search link (`/docs/concepts`) fixed. Sidebar highlight fix (exact path match, no `startsWith` overflow). CLI overview rewritten as clean grouped index.
+
+### Fixed
+- **Website Content Truth Audit**: 23 false claims removed (`brew install`, `pd daemon start`, `pd files claim`, etc.). 2 fictional tutorials rewritten (Pipelines to `pd watch`, RemoteHarbors to Coming in v4). 4 fake integrations replaced with real ones (Claude Code MCP, Aider, Ollama, custom). 38 CLI command syntax fixes across 16 files. SDK import path fixed (`@port-daddy/sdk` to `port-daddy`). Installation updated: `npm install -g` (no homebrew formula).
+- **WCAG 2.1 AA Contrast Fixes**: `--text-muted`, `--text-secondary`, `--code-comment` tokens updated. Global `focus-visible` ring + `prefers-reduced-motion`. Responsive padding across 7 landing components. Touch targets bumped to 44px minimum (nav, copy buttons). Keyboard navigation for dropdown menus (`aria-expanded`, `role=menu`). IntentModal focus trap + `aria-modal`.
+- **Terminal Component Consolidation**: 55 raw code blocks migrated to shared `CodeBlock` component. Syntax highlighting: commands (red/bold), flags (teal), strings (gold). 3 terminal components unified into 1.
+- **Typography Fixes**: Heading line-heights, dark mode weight compensation, prose `max-width`. Search modal via portal (escapes sidebar overflow).
+
+### Changed
+- **Fleet QA Improvements**: Anti-tautology test rules for QA and test-hunter agents. Framework-agnostic quality rules (Jest/Vitest/pytest/Go).
+
 ## [3.8.1] - 2026-03-29
 
 ### Changed

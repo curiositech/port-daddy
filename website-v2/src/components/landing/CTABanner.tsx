@@ -92,15 +92,23 @@ export function CTABanner() {
 
         <motion.div className="pt-16 flex flex-col items-center gap-6">
            {/* Install command in inset terminal */}
-           <motion.div
-             className="flex items-center gap-3 sm:gap-4 px-4 sm:px-8 py-3 sm:py-4 rounded-full font-mono text-[11px] sm:text-xs font-black uppercase tracking-widest"
-             style={{
-               color: 'var(--text-muted)',
-             }}
-           >
-              <Terminal size={18} style={{ color: 'var(--brand-primary)' }} />
-              npm install -g port-daddy
-           </motion.div>
+           <div className="flex flex-col sm:flex-row gap-4 sm:gap-8 items-center">
+             <motion.div
+               className="flex items-center gap-3 sm:gap-4 px-4 sm:px-8 py-3 sm:py-4 rounded-full font-mono text-[11px] sm:text-xs font-black uppercase tracking-widest"
+               style={{ color: 'var(--text-muted)' }}
+             >
+                <Terminal size={18} style={{ color: 'var(--brand-primary)' }} />
+                npm install -g port-daddy
+             </motion.div>
+             <span className="text-[var(--text-muted)] opacity-30 hidden sm:block">or</span>
+             <motion.div
+               className="flex items-center gap-3 sm:gap-4 px-4 sm:px-8 py-3 sm:py-4 rounded-full font-mono text-[11px] sm:text-xs font-black uppercase tracking-widest"
+               style={{ color: 'var(--text-muted)' }}
+             >
+                <Terminal size={18} style={{ color: 'var(--brand-primary)' }} />
+                brew install curiositech/tap/port-daddy
+             </motion.div>
+           </div>
            <motion.p className="text-[11px] font-black uppercase tracking-[0.3em] m-0" style={{ color: 'var(--text-muted)', opacity: 0.5 }}>Free · Open Source · MIT License</motion.p>
         </motion.div>
         </motion.div>

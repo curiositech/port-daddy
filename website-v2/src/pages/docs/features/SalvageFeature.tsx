@@ -5,7 +5,7 @@ import { DocsCodeBlock } from '@/components/docs/DocsCodeBlock'
 
 export default function SalvageFeature() {
   return (
-    <div className="space-y-12">
+    <div className="space-y-10">
       {/* Header */}
       <div className="space-y-4">
         <div className="flex items-center gap-2">
@@ -15,7 +15,7 @@ export default function SalvageFeature() {
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Agent Salvage
         </h1>
-        <p className="text-xl text-[var(--text-secondary)] leading-relaxed max-w-3xl">
+        <p className="text-lg text-[var(--text-secondary)] leading-relaxed max-w-3xl">
           When an agent dies mid-task, its work context is preserved in the resurrection queue.
           Another agent can claim the dead agent's sessions, notes, and file claims to continue
           exactly where it left off.
@@ -23,9 +23,9 @@ export default function SalvageFeature() {
       </div>
 
       {/* The Problem */}
-      <div className="p-6 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-        <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-4">The Problem</h2>
-        <p className="text-[var(--text-secondary)] leading-relaxed mb-4">
+      <div>
+        <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3">The Problem</h2>
+        <p className="text-[var(--text-secondary)] leading-relaxed mb-3">
           AI agents are not immortal. They crash, lose connections, exceed context windows, or
           simply time out. Without crash recovery:
         </p>
@@ -46,8 +46,8 @@ export default function SalvageFeature() {
       </div>
 
       {/* How It Works */}
-      <div className="space-y-6">
-        <h2 className="text-2xl font-semibold text-[var(--text-primary)]">How It Works</h2>
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">How It Works</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           Agents register with an identity and send periodic heartbeats. When heartbeats stop,
           the daemon marks the agent as stale (10 min), then dead (20 min). Dead agents with
@@ -83,43 +83,41 @@ Claimed agent-abc123 — session s-a1b2c3 transferred
       </div>
 
       {/* Salvage Lifecycle */}
-      <div className="space-y-4">
-        <h2 className="text-2xl font-semibold text-[var(--text-primary)]">Salvage Lifecycle</h2>
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Salvage Lifecycle</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           The resurrection pipeline moves agents through a series of states, from healthy
           to salvaged. Context is preserved at every step.
         </p>
 
         <div className="grid sm:grid-cols-4 gap-4">
-          <div className="p-4 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+          <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">alive</code>
-            <p className="text-sm text-[var(--text-muted)] mt-2">Heartbeat within 10 min</p>
+            <p className="text-sm text-[var(--text-muted)] mt-1">Heartbeat within 10 min</p>
           </div>
-          <div className="p-4 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+          <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">stale</code>
-            <p className="text-sm text-[var(--text-muted)] mt-2">No heartbeat for 10 min</p>
+            <p className="text-sm text-[var(--text-muted)] mt-1">No heartbeat for 10 min</p>
           </div>
-          <div className="p-4 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+          <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">dead</code>
-            <p className="text-sm text-[var(--text-muted)] mt-2">No heartbeat for 20 min</p>
+            <p className="text-sm text-[var(--text-muted)] mt-1">No heartbeat for 20 min</p>
           </div>
-          <div className="p-4 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+          <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">salvaged</code>
-            <p className="text-sm text-[var(--text-muted)] mt-2">Work claimed by new agent</p>
+            <p className="text-sm text-[var(--text-muted)] mt-1">Work claimed by new agent</p>
           </div>
         </div>
       </div>
 
       {/* CLI Commands */}
-      <div className="space-y-6">
-        <h2 className="text-2xl font-semibold text-[var(--text-primary)]">CLI Commands</h2>
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">CLI Commands</h2>
 
-        <div className="space-y-4">
-          <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-            <div className="flex items-center gap-2 mb-2">
-              <code className="text-lg font-mono text-[var(--brand-primary)]">pd agent register --identity &lt;id&gt;</code>
-            </div>
-            <p className="text-[var(--text-secondary)] mb-3">Register an agent with a semantic identity and purpose. Enables heartbeat tracking and salvage eligibility.</p>
+        <div className="space-y-3">
+          <div className="border-l-4 border-[var(--brand-primary)] pl-4">
+            <code className="font-mono text-[var(--brand-primary)]">pd agent register --identity &lt;id&gt;</code>
+            <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">Register an agent with a semantic identity and purpose. Enables heartbeat tracking and salvage eligibility.</p>
             <DocsCodeBlock
               code={`$ pd agent register --identity myapp:api:auth --purpose "Building JWT refresh"`}
               output={`Agent agent-abc123 registered (myapp:api:auth)
@@ -127,11 +125,9 @@ WARNING: 2 dead agent(s) in myapp:*. Run: pd salvage --project myapp`}
             />
           </div>
 
-          <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-            <div className="flex items-center gap-2 mb-2">
-              <code className="text-lg font-mono text-[var(--brand-primary)]">pd salvage</code>
-            </div>
-            <p className="text-[var(--text-secondary)] mb-3">List all agents in the resurrection queue. Filter by project or stack for targeted recovery.</p>
+          <div className="border-l-4 border-[var(--brand-primary)] pl-4">
+            <code className="font-mono text-[var(--brand-primary)]">pd salvage</code>
+            <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">List all agents in the resurrection queue. Filter by project or stack for targeted recovery.</p>
             <DocsCodeBlock
               code={`$ pd salvage --project myapp`}
               output={`Salvage queue for myapp:
@@ -140,11 +136,9 @@ WARNING: 2 dead agent(s) in myapp:*. Run: pd salvage --project myapp`}
             />
           </div>
 
-          <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-            <div className="flex items-center gap-2 mb-2">
-              <code className="text-lg font-mono text-[var(--brand-primary)]">pd salvage claim &lt;agent-id&gt;</code>
-            </div>
-            <p className="text-[var(--text-secondary)] mb-3">Claim a dead agent's work. Transfers sessions, notes, and file claims to the claiming agent.</p>
+          <div className="border-l-4 border-[var(--brand-primary)] pl-4">
+            <code className="font-mono text-[var(--brand-primary)]">pd salvage claim &lt;agent-id&gt;</code>
+            <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">Claim a dead agent's work. Transfers sessions, notes, and file claims to the claiming agent.</p>
             <DocsCodeBlock
               code={`$ pd salvage claim agent-abc123`}
               output={`Claimed agent-abc123 — session s-a1b2c3 transferred
@@ -156,14 +150,12 @@ WARNING: 2 dead agent(s) in myapp:*. Run: pd salvage --project myapp`}
       </div>
 
       {/* SDK Usage */}
-      <div className="space-y-4">
-        <h2 className="text-2xl font-semibold text-[var(--text-primary)]">SDK Usage</h2>
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">SDK Usage</h2>
 
-        <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-          <div className="text-sm font-medium text-[var(--text-muted)] mb-3">TypeScript</div>
-          <DocsCodeBlock
-            language="typescript"
-            code={`import { PortDaddy } from 'port-daddy'
+        <DocsCodeBlock
+          language="typescript"
+          code={`import { PortDaddy } from 'port-daddy'
 
 const pd = new PortDaddy()
 
@@ -179,12 +171,11 @@ if (queue.length > 0) {
 
 // Continue where the dead agent left off
 await pd.sessions.addNote(salvaged.sessionId, 'Resuming JWT refresh work')`}
-          />
-        </div>
+        />
       </div>
 
       {/* Next */}
-      <div className="flex items-center justify-between p-6 rounded-xl bg-gradient-to-r from-[var(--brand-primary)]/5 to-transparent border border-[var(--brand-primary)]/20">
+      <div className="flex items-center justify-between p-5 rounded-xl bg-gradient-to-r from-[var(--brand-primary)]/5 to-transparent border border-[var(--brand-primary)]/20">
         <div>
           <div className="text-sm text-[var(--text-muted)] mb-1">Next Feature</div>
           <div className="font-semibold text-[var(--text-primary)]">Activity Timeline</div>

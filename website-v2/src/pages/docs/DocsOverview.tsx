@@ -84,9 +84,9 @@ const INTERFACES = [
 
 export default function DocsOverview() {
   return (
-    <div className="space-y-16">
+    <div className="space-y-10">
       {/* Hero */}
-      <div className="space-y-6">
+      <div className="space-y-4">
         <Badge variant="teal">Documentation</Badge>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           What is Port Daddy?
@@ -99,7 +99,7 @@ export default function DocsOverview() {
       </div>
 
       {/* The Problem */}
-      <div className="p-6 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+      <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
         <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-4">The Problem</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed mb-4">
           When you run two or more AI agents at the same time -- say, one building an API and another
@@ -115,7 +115,7 @@ export default function DocsOverview() {
       </div>
 
       {/* Quick Start CTA */}
-      <div className="p-6 rounded-xl bg-gradient-to-br from-[var(--brand-primary)]/5 to-transparent border border-[var(--brand-primary)]/20">
+      <div className="p-5 rounded-xl bg-gradient-to-br from-[var(--brand-primary)]/5 to-transparent border border-[var(--brand-primary)]/20">
         <h2 className="font-semibold text-[var(--text-primary)] mb-2">Ready to try it?</h2>
         <p className="text-[var(--text-secondary)] mb-4">
           Install Port Daddy and claim your first port in under two minutes.
@@ -130,7 +130,7 @@ export default function DocsOverview() {
       </div>
 
       {/* Concepts */}
-      <div className="space-y-6">
+      <div className="space-y-4">
         <div>
           <h2 className="text-2xl font-semibold text-[var(--text-primary)] mb-2">Core Concepts</h2>
           <p className="text-[var(--text-secondary)]">
@@ -164,7 +164,7 @@ export default function DocsOverview() {
       </div>
 
       {/* Which interface should I use? */}
-      <div className="space-y-6">
+      <div className="space-y-4">
         <div>
           <h2 className="text-2xl font-semibold text-[var(--text-primary)] mb-2">
             Which reference should I read?

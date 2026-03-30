@@ -1171,6 +1171,68 @@ _pd_cmd_harbors() {
     '(-j --json)'{-j,--json}'[JSON output]'
 }
 
+_pd_cmd_tuple() {
+  local -a tuple_subcmds
+  tuple_subcmds=(
+    'out:write a tuple into the space'
+    'rd:read (copy) matching tuples'
+    'in:take (remove) matching tuples'
+    'scan:list all tuples in the space'
+    'count:count tuples in the space'
+  )
+
+  local state subcmd
+  _arguments -C '1:subcommand:->subcommand' '*::args:->args'
+
+  case "$state" in
+    subcommand)
+      _describe 'tuple subcommand' tuple_subcmds
+      ;;
+    args)
+      subcmd="${words[1]}"
+      case "$subcmd" in
+        out)
+          _arguments \
+            '--harbor[scope to a harbor namespace]:harbor name:' \
+            '--ttl[time-to-live in milliseconds]:ttl:' \
+            '--as[agent ID]:agent ID:_pd_complete_agents' \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+            '1:fields JSON:'
+          ;;
+        rd|read)
+          _arguments \
+            '--harbor[scope to a harbor namespace]:harbor name:' \
+            '--limit[max results]:limit:' \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+            '1:pattern JSON:'
+          ;;
+        in|take)
+          _arguments \
+            '--harbor[scope to a harbor namespace]:harbor name:' \
+            '--limit[max tuples to take]:limit:' \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+            '1:pattern JSON:'
+          ;;
+        scan)
+          _arguments \
+            '--harbor[scope to a harbor namespace]:harbor name:' \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[suppress output]'
+          ;;
+        count)
+          _arguments \
+            '--harbor[scope to a harbor namespace]:harbor name:' \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[suppress output]'
+          ;;
+      esac
+      ;;
+  esac
+}
+
 _pd_cmd_inbox() {
   local -a inbox_subcmds
   inbox_subcmds=(
@@ -1291,6 +1353,8 @@ _port_daddy() {
     # Harbors (named permission namespaces)
     'harbor:create, enter, leave, show, or destroy a harbor'
     'harbors:list all active harbors'
+    # Tuple space
+    'tuple:Linda-style tuple space (out, rd, in, scan, count)'
     # System & Monitoring
     'dashboard:open web dashboard in browser'
     'channels:list pub/sub channels'
@@ -1412,6 +1476,7 @@ _port_daddy() {
         watch)                  _pd_cmd_watch ;;
         harbor)                 _pd_cmd_harbor ;;
         harbors)                _pd_cmd_harbors ;;
+        tuple)                  _pd_cmd_tuple ;;
         version|help)       ;;
         *)                  ;;
       esac

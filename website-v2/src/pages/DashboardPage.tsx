@@ -9,7 +9,7 @@ import { Surface } from '@/components/ui/Surface'
 import {
   Users, Zap, MessageSquare,
   History,
-  Anchor, Radio, Search, Activity, Share2, Layout,
+  Anchor, Radio, Search, Activity, Share2,
   Shield, RefreshCw
 } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
@@ -37,7 +37,7 @@ function UnifiedTimeline() {
   return (
     <Surface depth="raised" radius="2xl" padding="none" className="flex flex-col h-full overflow-hidden font-sans relative">
 
-      <Surface depth="inset" radius="none" padding="none" className="px-10 py-8 backdrop-blur-md flex items-center justify-between sticky top-0 z-10 font-sans">
+      <Surface depth="inset" radius="none" padding="none" className="px-6 py-5 backdrop-blur-md flex items-center justify-between sticky top-0 z-10 font-sans">
 
         <motion.div className="flex items-center gap-4 font-sans">
           <History size={24} className="text-[var(--brand-primary)]" />
@@ -60,9 +60,9 @@ function UnifiedTimeline() {
         </motion.div>
       </Surface>
 
-      <motion.div className="flex-1 overflow-y-auto p-10 font-sans space-y-6">
+      <motion.div className="flex-1 overflow-y-auto p-6 font-sans space-y-4">
         {allItems.length === 0 ? (
-          <motion.div className="h-full flex flex-col items-center justify-center gap-6" style={{ color: 'var(--text-muted)' }}>
+          <motion.div className="h-full flex flex-col items-center justify-center gap-4" style={{ color: 'var(--text-muted)' }}>
              <Radio size={64} className="opacity-20" />
              <motion.p className="text-sm font-black uppercase tracking-widest">Waiting for swarm signals...</motion.p>
           </motion.div>
@@ -72,7 +72,7 @@ function UnifiedTimeline() {
               key={item.id || i}
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
-              className="flex items-start gap-6 group"
+              className="flex items-start gap-4 group"
             >
                <motion.div className="pt-1 flex flex-col items-center gap-2 shrink-0">
                   <Surface depth="inset" radius="xl" padding="none" className="w-8 h-8 flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -109,15 +109,15 @@ export function DashboardPage() {
       style={{ background: 'var(--surface-base)' }}
     >
       {/* Hero Section */}
-      <Surface depth="raised" radius="none" padding="none" className="py-24 px-6 sm:px-8 lg:px-10 relative overflow-hidden">
+      <Surface depth="raised" radius="none" padding="none" className="py-14 px-6 sm:px-8 lg:px-10 relative overflow-hidden">
 
         <motion.div
           className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full blur-[140px] opacity-[0.08] pointer-events-none"
           style={{ background: 'radial-gradient(circle, var(--brand-primary) 0%, transparent 70%)' }}
         />
 
-        <motion.div className="max-w-7xl mx-auto flex flex-col items-center text-center gap-16 relative z-10">
-           <motion.div className="max-w-3xl flex flex-col items-center gap-10">
+        <motion.div className="max-w-7xl mx-auto flex flex-col items-center text-center gap-10 relative z-10">
+           <motion.div className="max-w-3xl flex flex-col items-center gap-6">
               <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-[0.25em]">Live Telemetry</Badge>
               <motion.h1
                 className="text-6xl sm:text-8xl font-black tracking-tighter font-display leading-[0.95] m-0"
@@ -140,7 +140,7 @@ export function DashboardPage() {
            </motion.div>
 
            {/* Stat cards with raised surfaces and inset value wells */}
-           <motion.div className="grid grid-cols-2 sm:grid-cols-4 gap-6 w-full max-w-5xl">
+           <motion.div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full max-w-5xl">
               {[
                 { label: 'Active Agents', value: stats?.activeAgents || '0', icon: Users, color: 'var(--brand-secondary)' },
                 { label: 'Harbors', value: stats?.activeHarbors || '0', icon: Shield, color: 'var(--brand-accent)' },
@@ -152,7 +152,7 @@ export function DashboardPage() {
                   depth="raised"
                   radius="2xl"
                   padding="none"
-                  className="p-8 text-center space-y-2 group transition-all"
+                  className="p-5 text-center space-y-2 group transition-all"
                 >
                    <Surface depth="inset" radius="xl" padding="none" className="w-10 h-10 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
                       <stat.icon size={20} style={{ color: stat.color }} />
@@ -170,15 +170,15 @@ export function DashboardPage() {
       </Surface>
 
       {/* Main Grid */}
-      <motion.main id="main-content" className="flex-1 py-16 px-6 sm:px-8 lg:px-10 max-w-7xl mx-auto w-full font-sans">
-        <motion.div className="grid lg:grid-cols-12 gap-10 min-h-[800px]">
+      <motion.main id="main-content" className="flex-1 py-10 px-6 sm:px-8 lg:px-10 max-w-7xl mx-auto w-full font-sans">
+        <motion.div className="grid lg:grid-cols-12 gap-5 min-h-[800px]">
 
            {/* Left Column: Visual Graph */}
-           <motion.div className="lg:col-span-8 space-y-10">
+           <motion.div className="lg:col-span-8 space-y-5">
               {/* 3D visualization wrapped in neumorphic surface */}
-              <Surface depth="raised" radius="2xl" padding="none" className="p-10 h-[600px] relative overflow-hidden group">
+              <Surface depth="raised" radius="2xl" padding="none" className="p-6 h-[600px] relative overflow-hidden group">
 
-                 <motion.div className="absolute top-8 left-8 z-10 flex items-center gap-4">
+                 <motion.div className="absolute top-6 left-6 z-10 flex items-center gap-4">
                     <Badge variant="default" className="px-4 py-1.5 text-[10px] font-black uppercase tracking-widest">Network Topology</Badge>
                     <motion.div
                       className="flex items-center gap-2 px-3 py-1 rounded-full backdrop-blur-md"
@@ -192,8 +192,8 @@ export function DashboardPage() {
               </Surface>
 
               {/* Control panels as raised surfaces */}
-              <motion.div className="grid sm:grid-cols-2 gap-10">
-                 <Surface depth="raised" radius="2xl" padding="none" className="p-10 space-y-6 group transition-colors">
+              <motion.div className="grid sm:grid-cols-2 gap-5">
+                 <Surface depth="raised" radius="2xl" padding="none" className="p-6 space-y-4 group transition-colors">
                     <motion.div className="flex items-center gap-4">
                        <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
                           <Activity size={24} className="text-[var(--brand-secondary)]" />
@@ -202,7 +202,7 @@ export function DashboardPage() {
                     </motion.div>
                     <motion.p className="text-base m-0 leading-relaxed" style={{ color: 'var(--text-muted)' }}>Real-time verification of agent signatures and capability token expiry.</motion.p>
                  </Surface>
-                 <Surface depth="raised" radius="2xl" padding="none" className="p-10 space-y-6 group transition-colors">
+                 <Surface depth="raised" radius="2xl" padding="none" className="p-6 space-y-4 group transition-colors">
                     <motion.div className="flex items-center gap-4">
                        <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
                           <Search size={24} className="text-[var(--brand-accent)]" />
@@ -221,28 +221,24 @@ export function DashboardPage() {
         </motion.div>
 
         {/* Vision Callout */}
-        <Surface depth="raised" radius="2xl" padding="none" className="mt-32 overflow-hidden">
+        <Surface depth="raised" radius="2xl" padding="none" className="mt-16 overflow-hidden">
           <motion.div
-            className="p-20 flex flex-col items-center text-center gap-12 relative"
+            className="p-6 flex flex-col items-center text-center gap-5 relative"
             initial={{ opacity: 0, scale: 0.98 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
           >
-           <motion.div className="absolute top-0 right-0 p-10 opacity-[0.02] pointer-events-none">
-              <Layout size={600} />
-           </motion.div>
-
-           <motion.div className="space-y-6 max-w-3xl relative z-10">
+           <motion.div className="space-y-4 max-w-3xl relative z-10">
               <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Autonomous Maturity</Badge>
-              <motion.h3 className="text-4xl sm:text-7xl font-display font-black tracking-tight leading-[0.95]" style={{ color: 'var(--text-primary)' }}>
+              <motion.h3 className="text-2xl sm:text-4xl font-display font-black tracking-tight leading-[0.95]" style={{ color: 'var(--text-primary)' }}>
                 System <motion.span className="text-[var(--brand-secondary)]">Visibility.</motion.span>
               </motion.h3>
-              <motion.p className="text-2xl leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+              <motion.p className="text-lg leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
                 Multi-agent coordination is only as good as your ability to debug it. The HUD turns your local daemon into a transparent control plane, giving you the high-fidelity evidence needed to scale your swarm with confidence.
               </motion.p>
            </motion.div>
 
-           <motion.div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 w-full max-w-5xl">
+           <motion.div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full max-w-5xl">
               {[
                 { label: 'Live Graph', icon: Share2 },
                 { label: 'Radio Feed', icon: Zap },
@@ -251,7 +247,7 @@ export function DashboardPage() {
               ].map((item, i) => (
                 <motion.div
                   key={i}
-                  className="p-8 rounded-2xl flex flex-col items-center gap-4"
+                  className="p-5 rounded-2xl flex flex-col items-center gap-4"
                   style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-sm)' }}
                 >
                    <item.icon size={24} className="text-[var(--brand-primary)]" />

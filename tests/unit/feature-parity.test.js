@@ -379,10 +379,13 @@ describe('Manifest Completeness', () => {
       briefing: 'briefing',
       sugar: 'sugar',
       info: 'system',
-      launchhints: 'launch_hints',
       spawn: 'spawn',
       harbors: 'harbors',
       orchestrator: 'orchestrator',
+      tuples: 'tuples',
+      arbiter: 'arbiter',
+      pheromone: 'pheromone',
+      launch: 'launch_hints',
     };
 
     const unmapped = routeModules.filter(mod => {

@@ -26,6 +26,27 @@ fleet:
         Review the most recent commit. Read every changed file.
         For each change, identify inputs that would break it.
         If you find bugs, write a test that exposes each one.
+
+        ALSO: Audit existing tests for the changed files. Flag:
+        1. TAUTOLOGIES — tests that pass regardless of correctness
+           (e.g., checking buf.length > 0 instead of roundtripping,
+           asserting a mock returns what you told it to return)
+        2. MOCK ECHOES — mocks return hardcoded values and assertions
+           just check those same values without verifying the system
+           under test called the mock with the correct arguments
+        3. MISSING NEGATIVE PATHS — no test for failure, refusal,
+           bad input, timeout, disconnect, or empty/null/zero
+        4. COVERAGE THEATER — test calls a function with no
+           assertions, or asserts only on type/shape not value
+
+        Framework-agnostic rules (apply to Jest, Vitest, pytest, Go, etc.):
+        - Spy on dependencies and assert call args (jest.fn/vi.fn/
+          unittest.mock.patch/Mock/spy). The pattern is universal.
+        - Every test must FAIL if the code under test is a no-op.
+          If replacing the function body with `return {}` still passes
+          the test, the test is worthless.
+        - Assert on values, not types. `toBe(3001)` not `toBeNumber()`.
+        - Test the contract between caller and callee, not internal state.
         If clean, just say CLEAN.
       on_success: publish qa:clean
       on_failure: publish qa:findings
@@ -39,6 +60,22 @@ fleet:
         Run the test suite. Find modules below 50% coverage.
         For each gap, write meaningful tests that exercise real
         code paths. Save tests to the appropriate tests/ directory.
+
+        QUALITY RULES (framework-agnostic — apply to any test runner):
+        - Spy on every dependency and assert it was called with the
+          right args. (jest.fn/vi.fn/unittest.mock/sinon.spy — the
+          concept is the same: record calls, assert on them.)
+        - The no-op test: if you replace the function body with
+          `return {}` or `pass`, does the test still pass? If yes,
+          the test is worthless. Rewrite it.
+        - Assert on values, not shapes. `toBe(3001)` not `toBeDefined()`.
+        - Test error paths: throw, timeout, bad input, disconnect, null.
+        - Test boundaries: empty input, max size, zero, off-by-one.
+        - After writing, RUN the tests and verify they PASS.
+        - Verify the BUILD passes too (not just type-check). In JS:
+          `npx vite build` or `npx esbuild`. In Python: `python -m
+          py_compile`. In Go: `go build ./...`. The compiler catches
+          things the test runner doesn't.
       identity: "{project}:fleet:test-hunter"
 
     documentarian:

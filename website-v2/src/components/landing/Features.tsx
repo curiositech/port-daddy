@@ -37,7 +37,7 @@ export function Features() {
             Everything your agents need to cooperate.
           </h2>
           <p className="text-base text-[var(--text-secondary)] leading-relaxed">
-            Nine primitives that turn a collection of scripts into a production-grade autonomous system. Each one is a single CLI command.
+            Ten primitives that turn a collection of scripts into a production-grade autonomous system. Each one is a single CLI command.
           </p>
         </div>
 

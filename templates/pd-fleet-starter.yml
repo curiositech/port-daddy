@@ -23,6 +23,8 @@ fleet:
     qa:
       trigger: git:committed
       backend: claude-cli
+      respawn: true                      # Auto-respawn if this agent dies
+      max_respawns: 3                    # Circuit breaker — stop after 3 deaths
       allowedTools: "Read,Grep,Glob,Bash(npm test*)"
       prompt: |
         Review the most recent commit. Read every changed file.
