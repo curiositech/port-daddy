@@ -25,7 +25,7 @@ export function Hero() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, ease: 'easeOut' as const }}
           >
-            <Link to="/templates" className="no-underline">
+            <Link to="/docs/features/pheromone" className="no-underline">
               <motion.div
                 whileHover={{ scale: 1.02 }}
                 className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold mb-4 cursor-pointer"
@@ -36,7 +36,7 @@ export function Hero() {
                 }}
               >
                 <span>New</span>
-                <span style={{ color: 'var(--text-secondary)' }}>Fleet templates — drop-in AI agents for any repo</span>
+                <span style={{ color: 'var(--text-secondary)' }}>Pheromone Trails — stigmergic signals between agents</span>
                 <ArrowRight size={12} />
               </motion.div>
             </Link>

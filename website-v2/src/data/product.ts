@@ -65,6 +65,14 @@ export const PRODUCT_FEATURES = [
     status: 'new'
   },
   {
+    id: 'pheromone-trails',
+    title: 'Pheromone Trails',
+    description: 'Stigmergic signals that decay over time. Agents spray confidence, contention, or danger markers on files and entities. Swarms self-organize without centralized planning.',
+    category: 'intelligence',
+    cli: 'pd pheromone spray <entity>',
+    status: 'new'
+  },
+  {
     id: 'activity-log',
     title: 'Activity Log',
     description: 'Append-only timeline that interleaves infrastructure events with agent notes and radio traffic. Immutable audit trail.',
