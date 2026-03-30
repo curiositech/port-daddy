@@ -267,13 +267,13 @@ export function ExamplesPage() {
            </div>
 
            <div className="max-w-4xl relative z-10 space-y-10 flex flex-col items-center">
-              <Badge variant="gold" className="px-8 py-3 text-[10px] font-black uppercase tracking-widest">Architectural Integrity</Badge>
+              <Badge variant="gold" className="px-8 py-3 text-[11px] font-black uppercase tracking-widest">Infrastructure, Not Orchestration</Badge>
               <motion.h3 className="text-4xl sm:text-6xl font-display font-black tracking-tight leading-[0.95] m-0 text-[var(--text-primary)]">
-                One Mesh. <br />
-                <span className="text-[var(--brand-accent)]">Infinite Logic.</span>
+                You write the agents. <br />
+                <span className="text-[var(--brand-accent)]">We keep them from colliding.</span>
               </motion.h3>
               <motion.p className="text-xl sm:text-2xl leading-relaxed text-[var(--text-secondary)] max-w-3xl">
-                Port Daddy doesn't care about the intelligence of your agent. It cares about the <strong>reliability of the mesh</strong>. These patterns provide the hard infrastructure that allows soft logic to flourish.
+                Port Daddy handles ports, locks, messaging, and crash recovery so your agents can focus on the task. These patterns show how real teams coordinate without stepping on each other.
               </motion.p>
            </div>
 
