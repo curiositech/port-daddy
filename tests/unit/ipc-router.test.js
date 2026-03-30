@@ -19,7 +19,7 @@ function createMockDeps() {
       isRegistered: jest.fn((id) => id.startsWith('registered-') ? { id } : null),
     },
     sessions: {
-      start: jest.fn((opts) => ({ sessionId: 'sess-001', ...opts })),
+      start: jest.fn((purpose, opts) => ({ sessionId: 'sess-001', purpose, ...opts })),
       end: jest.fn((id, opts) => ({ sessionId: id, ended: true })),
       addNote: jest.fn((sid, content) => ({ sessionId: sid, content, added: true })),
       claimFiles: jest.fn((sid, paths) => ({ sessionId: sid, paths, claimed: true })),

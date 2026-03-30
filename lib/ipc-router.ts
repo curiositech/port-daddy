@@ -35,10 +35,10 @@ export interface IpcRouterDeps {
     isRegistered?: (id: string) => { id: string; identity?: string; purpose?: string } | null;
   };
   sessions: {
-    start: (options: Record<string, unknown>) => unknown;
+    start: (purpose: string, options?: Record<string, unknown>) => unknown;
     end: (id: string, options?: Record<string, unknown>) => unknown;
     addNote: (sessionId: string, content: string, options?: Record<string, unknown>) => unknown;
-    claimFiles: (sessionId: string, paths: string[]) => unknown;
+    claimFiles: (sessionId: string, paths: string[], options?: Record<string, unknown>) => unknown;
     releaseFiles: (sessionId: string, paths: string[]) => unknown;
   };
   locks: {
@@ -99,7 +99,7 @@ export function createIpcRouter(deps: IpcRouterDeps) {
   // Sessions
   handlers.set(IpcAction.BEGIN, (p) => {
     if (deps.sugar) return deps.sugar.begin(p);
-    return deps.sessions.start(p);
+    return deps.sessions.start(String(p.purpose ?? ''), p);
   });
 
   handlers.set(IpcAction.DONE, (p) => {

@@ -50,6 +50,8 @@ import { createSemanticIndex } from './lib/semantic-index.js';
 import { createTupleSpace } from './lib/tuples.js';
 import { createNoteEncryption } from './lib/note-encryption.js';
 import { initDatabase, closeDatabase, resolveDbPath } from './lib/db.js';
+import { createIpcServer } from './lib/ipc-server.js';
+import { createIpcRouter } from './lib/ipc-router.js';
 
 // Fastify route aggregator (Phase 3 — native Fastify plugins, no Express bridge)
 import { registerAllRoutes } from './routes/index.js';
@@ -155,6 +157,8 @@ const DB_PATH: string = resolveDbPath(PREFIX ? join(PREFIX, 'port-daddy.db') : u
 const PORT: number = parseInt(process.env.PORT_DADDY_PORT as string, 10) || (IS_DEV_MODE ? 9877 : config.service.port);
 const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || (PREFIX ? join(PREFIX, 'port-daddy.sock') : '/tmp/port-daddy.sock');
 const DISABLE_TCP: boolean = process.env.PORT_DADDY_NO_TCP === '1';
+const IPC_PATH: string = process.env.PORT_DADDY_IPC || (PREFIX ? join(PREFIX, 'port-daddy.ipc') : '/tmp/port-daddy.ipc');
+const DISABLE_IPC: boolean = process.env.PORT_DADDY_NO_IPC === '1';
 const PID_FILE: string = SOCK_PATH + '.pid';
 const PORT_FILE: string = process.env.PORT_DADDY_PORT_FILE || (PREFIX ? join(PREFIX, 'port-daddy-port') : '/tmp/port-daddy-port');
 
@@ -619,6 +623,7 @@ function shutdown(signal: string): void {
     logger.error('shutdown_logging_failed', { error: (e as Error).message });
   }
   systemPortsRefresh.stop();
+  if (ipcServer) ipcServer.stop().catch(() => {});
   closeDatabase(db);
   try { unlinkSync(SOCK_PATH); } catch {}
   try { unlinkSync(PID_FILE); } catch {}
@@ -641,6 +646,35 @@ function onReady(): void {
 }
 
 // =============================================================================
+// IPC Server (binary protocol for agent hot path)
+// =============================================================================
+
+const ipcRouter = createIpcRouter({
+  services,
+  agents,
+  sessions,
+  locks,
+  messaging,
+  pheromones,
+  resurrection,
+  sugar,
+});
+
+const ipcServer = DISABLE_IPC ? null : createIpcServer({
+  socketPath: IPC_PATH,
+  onFrame: ipcRouter.handleFrame,
+  onConnect: (conn) => {
+    logger.info('ipc_connect', { connId: conn.id });
+  },
+  onDisconnect: (conn) => {
+    logger.info('ipc_disconnect', { connId: conn.id, agentId: conn.agentId, framesIn: conn.framesIn, bytesIn: conn.bytesIn });
+  },
+  onError: (err, conn) => {
+    logger.error('ipc_error', { error: err.message, connId: conn?.id, agentId: conn?.agentId });
+  },
+});
+
+// =============================================================================
 // LISTEN (Fastify: unix socket primary, TCP secondary)
 // =============================================================================
 // Fastify can only listen on one address per .listen() call. For dual-listen
@@ -652,9 +686,19 @@ await app.ready();
 // Primary: Unix domain socket
 try { unlinkSync(SOCK_PATH); } catch {}
 const sockServer = http.createServer((req, res) => { app.routing(req, res); });
-sockServer.listen(SOCK_PATH, () => {
+sockServer.listen(SOCK_PATH, async () => {
   try { writeFileSync(PID_FILE, String(process.pid)); } catch {}
   logger.info('socket_started', { socket: SOCK_PATH, version: VERSION });
+
+  // Tertiary: Binary IPC socket for agent hot path
+  if (ipcServer) {
+    try {
+      await ipcServer.start();
+      logger.info('ipc_started', { socket: IPC_PATH, actions: ipcRouter.actions.length });
+    } catch (err) {
+      logger.error('ipc_start_failed', { error: (err as Error).message });
+    }
+  }
 
   // Secondary: TCP for dashboard/browser access
   if (!DISABLE_TCP) {
@@ -690,7 +734,8 @@ sockServer.listen(SOCK_PATH, () => {
           const portNote: string = tryPort !== PORT ? ` (fallback from ${PORT})` : '';
           console.log(`
   Port Daddy v${VERSION}   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Socket:     ${SOCK_PATH}
+  HTTP:       ${SOCK_PATH}
+  IPC:        ${ipcServer ? IPC_PATH : 'disabled'}
   Dashboard:  http://${config.service.host}:${tryPort}/${portNote}
   Database:   ${DB_PATH}
   Port range: ${config.ports.range_start}-${config.ports.range_end}
