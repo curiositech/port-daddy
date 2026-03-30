@@ -151,6 +151,30 @@ observer   sessions:read,notes:read,activity:read  0 agents`}
         </div>
       </div>
 
+      {/* Fleet Harbors */}
+      <div className="space-y-4">
+        <h2 className="text-2xl font-semibold text-[var(--text-primary)]">Fleet Harbors</h2>
+        <p className="text-[var(--text-secondary)] leading-relaxed">
+          Fleet agents share a common harbor automatically. Declare <code>harbor</code> in your{' '}
+          <code>pd-fleet.yml</code> and all agents join it on startup:
+        </p>
+        <DocsCodeBlock
+          language="yaml"
+          code={`fleet:
+  name: my-project
+  harbor: "{project}:fleet"   # All agents join this harbor
+
+  agents:
+    qa:
+      identity: "{project}:fleet:qa"
+      # ...`}
+        />
+        <p className="text-sm text-[var(--text-secondary)]">
+          Query your fleet with <code>pd find &apos;my-project:fleet:*&apos;</code> to see all agents,
+          or <code>pd harbors my-project:fleet members</code> for the full member list.
+        </p>
+      </div>
+
       {/* SDK Usage */}
       <div className="space-y-4">
         <h2 className="text-2xl font-semibold text-[var(--text-primary)]">SDK Usage</h2>
