@@ -204,7 +204,8 @@ const MCP_EXEMPT_FEATURES = new Set([
   'harbors',        // CLI/SDK-only; v1 advisory namespaces, MCP tools deferred to v4
   'arbiter',        // Internal invariant enforcement; admin-only API, not user-facing MCP
   'pheromone',      // Internal signal system; admin API for debugging, MCP deferred to v4
-  'tuples',         // Tuple space — MCP tools exist but routes/manifest not yet added
+  'merge_queue',    // API-only merge queue; no CLI or MCP tools yet
+  'symbols',        // API-only symbol index; no CLI or MCP tools yet
 ]);
 
 // ============================================================================

@@ -728,6 +728,40 @@ console.log(summary.activeConflicts);  // 2
 
 ---
 
+## Tuple Space
+
+Linda-style shared coordination data structure. Agents write typed tuples, query by pattern, and optionally consume (take) tuples. Supports harbor scoping for namespace isolation.
+
+```javascript
+// Write a tuple (non-destructive — it stays until taken or expired)
+await pd.tupleOut(['task', 'build-auth', { priority: 1 }], {
+  harbor: 'myapp:fleet',
+  writtenBy: 'agent-planner',
+});
+
+// Read tuples matching a pattern (non-destructive — leaves tuples in place)
+const { tuples } = await pd.tupleRd(['task', null], {
+  harbor: 'myapp:fleet',
+  limit: 10,
+});
+
+// Take tuples (destructive — removes from tuple space)
+const { taken } = await pd.tupleIn(['task', null], {
+  harbor: 'myapp:fleet',
+  limit: 1,
+});
+
+// Scan all tuples in a harbor
+const { tuples: all, count } = await pd.tupleScan('myapp:fleet');
+
+// Count tuples in a harbor
+const { count } = await pd.tupleCount('myapp:fleet');
+```
+
+**Pattern matching:** `null` matches any value. String patterns support `*` wildcards and `>N`/`<N` numeric comparisons.
+
+---
+
 ## Arbiter (Observability)
 
 Read-only access to the Arbiter's invariant enforcement status. The Arbiter runs autonomously — these methods are for monitoring, not control.

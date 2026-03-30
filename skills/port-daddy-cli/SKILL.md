@@ -15,6 +15,7 @@ Port Daddy is a local daemon that coordinates AI agents. It gives every agent it
 npm install -g port-daddy
 pd start                              # Daemon on localhost:9876
 pd begin "Building auth module"       # Start session
+pd whoami                             # Check current context
 pd note "JWT validation working"      # Leave breadcrumbs
 pd done                               # End session
 ```
@@ -75,6 +76,15 @@ pd session files claim src/auth/login.ts
 ```
 
 Claims are advisory — they warn, not lock. Hard locks cause deadlocks. Advisory claims cause conversations.
+
+### Integration Signals
+
+Agents declare readiness and dependencies via integration channels:
+
+```bash
+pd integration ready api             # "My API is ready"
+pd integration needs database        # "I need the database"
+```
 
 ### Pub/Sub Messaging
 

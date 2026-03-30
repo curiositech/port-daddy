@@ -1003,6 +1003,49 @@
         "sdk": false
       }
     },
+    "merge_queue": {
+      "description": "Ordered merge queue with conflict prediction and orchestrator plugins",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "POST /merge/submit",
+        "GET /merge/queue",
+        "GET /merge/queue/:param",
+        "POST /merge/queue/reorder",
+        "POST /merge/execute/:param",
+        "DELETE /merge/queue/:param",
+        "GET /merge/predict",
+        "POST /merge/inspect/:param",
+        "GET /merge/stats",
+        "GET /merge/plugins",
+        "PUT /merge/plugins/active"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "API-only — accessed via curl or SDK; no CLI commands yet"
+    },
+    "symbols": {
+      "description": "AST-based symbol extraction, dependency tracking, and conflict prediction",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "POST /symbols/parse",
+        "GET /symbols/stats",
+        "GET /symbols",
+        "GET /symbols/file/*",
+        "GET /dependencies",
+        "POST /conflicts/predict"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "API-only — accessed via curl or SDK; no CLI commands yet"
+    },
     "tuples": {
       "description": "Linda-style tuple space — shared coordination data structure for agent swarms with pattern matching and harbor scoping",
       "cli": [

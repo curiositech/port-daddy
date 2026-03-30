@@ -623,6 +623,24 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
 
       // Launch hints
       'get_launch_hints': 'launch_hints',
+
+      // Fleet (magic tools)
+      'fleet_init': 'fleet',
+      'fleet_status': 'fleet',
+
+      // Swarm awareness (magic tools)
+      'swarm_awareness': 'system',
+      'catch_me_up': 'system',
+      'file_heat': 'pheromone',
+      'talk_to_agent': 'inbox',
+      'spawn_agent': 'spawn',
+
+      // Tuples
+      'tuple_out': 'tuples',
+      'tuple_read': 'tuples',
+      'tuple_take': 'tuples',
+      'tuple_scan': 'tuples',
+      'tuple_count': 'tuples',
     };
 
     const unmapped = [];
