@@ -1,7 +1,6 @@
 import * as React from 'react'
 import { cn } from '@/lib/utils'
-import { Surface } from './Surface'
-import { Copy, Check, Terminal, FileCode } from 'lucide-react'
+import { Copy, Check } from 'lucide-react'
 
 /* ── Syntax highlighting ──────────────────────────────────────────────────── */
 
@@ -104,64 +103,41 @@ export function CodeBlock({ children, language, filename, className, copyable = 
     })
   }
 
-  const Icon = filename ? FileCode : Terminal
-
   return (
-    <Surface depth="raised" radius="2xl" padding="sm" className={cn('transition-all duration-300', className)}>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-1.5">
-        <div className="flex items-center gap-2">
-          <Surface depth="inset" radius="lg" padding="none" className="w-7 h-7 flex items-center justify-center">
-            <Icon size={12} className="text-[var(--brand-primary)]" />
-          </Surface>
-          {filename && (
-            <span className="text-xs font-mono text-[var(--text-muted)]">{filename}</span>
-          )}
-          {language && !filename && (
-            <span className="text-xs font-mono text-[var(--text-muted)] uppercase tracking-wider">{language}</span>
-          )}
-        </div>
-        {copyable && (
-          <>
-            <button
-              onClick={handleCopy}
-              className="w-8 h-8 rounded-[var(--radius-lg)] flex items-center justify-center transition-all duration-200 cursor-pointer"
-              style={{
-                background: 'var(--surface-base)',
-                boxShadow: 'var(--shadow-sm)',
-              }}
-              aria-label={copied ? "Copied" : "Copy code"}
-            >
-              {copied ? (
-                <Check size={12} className="text-[var(--code-dot-green)]" />
-              ) : (
-                <Copy size={12} className="text-[var(--text-muted)]" />
-              )}
-            </button>
-            <span className="sr-only" aria-live="polite">{copied ? "Code copied to clipboard" : ""}</span>
-          </>
+    <div
+      className={cn('rounded-[var(--radius-md)] overflow-hidden relative group', className)}
+      style={{ boxShadow: 'inset 1px 1px 3px var(--neu-shadow), inset -1px -1px 3px var(--neu-highlight)' }}
+    >
+      {/* Compact header: dots + filename + copy */}
+      <div className="flex items-center gap-1.5 px-3 py-1.5" style={{ borderBottom: '1px solid var(--code-border)' }}>
+        <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--code-dot-red)' }} aria-hidden="true" />
+        <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--code-dot-amber)' }} aria-hidden="true" />
+        <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--code-dot-green)' }} aria-hidden="true" />
+        {(filename || language) && (
+          <span className="ml-2 text-[10px] font-mono text-[var(--text-muted)] uppercase tracking-wider">{filename || language}</span>
         )}
+        {copyable && (
+          <button
+            onClick={handleCopy}
+            className="ml-auto w-6 h-6 rounded-md flex items-center justify-center transition-opacity duration-150 opacity-0 group-hover:opacity-100 cursor-pointer"
+            style={{ background: 'var(--surface-base)' }}
+            aria-label={copied ? "Copied" : "Copy code"}
+          >
+            {copied ? <Check size={10} className="text-[var(--code-dot-green)]" /> : <Copy size={10} className="text-[var(--text-muted)]" />}
+          </button>
+        )}
+        <span className="sr-only" aria-live="polite">{copied ? "Code copied to clipboard" : ""}</span>
       </div>
 
-      {/* Recessed screen — thin bevel, no bg color */}
-      <div
-        className="rounded-[var(--radius-sm)] overflow-hidden"
-        style={{ boxShadow: 'inset 1px 1px 3px var(--neu-shadow), inset -1px -1px 3px var(--neu-highlight)' }}
-      >
-        <div className="flex items-center gap-1.5 px-2.5 py-1" style={{ borderBottom: '1px solid var(--code-border)' }} aria-hidden="true">
-          <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--code-dot-red)' }} />
-          <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--code-dot-amber)' }} />
-          <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--code-dot-green)' }} />
-        </div>
-        <pre className="overflow-x-auto px-2.5 py-1.5 m-0 text-sm leading-normal font-mono" style={{ color: 'var(--code-text)' }}>{
-          language === 'bash' || language === 'shell' || !language
-            ? textContent.split('\n').map((line, i) => <div key={i}>{highlightBash(line)}</div>)
-            : language === 'typescript' || language === 'javascript'
-            ? textContent.split('\n').map((line, i) => <div key={i}>{highlightTS(line)}</div>)
-            : textContent
-        }</pre>
-      </div>
-    </Surface>
+      {/* Code */}
+      <pre className="overflow-x-auto px-3 py-2 m-0 text-[13px] leading-snug font-mono" style={{ color: 'var(--code-text)' }}>{
+        language === 'bash' || language === 'shell' || !language
+          ? textContent.split('\n').map((line, i) => <div key={i}>{highlightBash(line)}</div>)
+          : language === 'typescript' || language === 'javascript'
+          ? textContent.split('\n').map((line, i) => <div key={i}>{highlightTS(line)}</div>)
+          : textContent
+      }</pre>
+    </div>
   )
 }
 
