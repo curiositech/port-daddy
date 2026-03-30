@@ -20,10 +20,11 @@ export function createPheromoneManager(db: Database.Database, config: PheromoneC
   // Pre-built statements per table — eliminates SQL interpolation entirely.
   // Table names are compile-time constants from ALLOWED_TABLES, never user input.
   // Some tables may not exist yet (created lazily), so prep is best-effort.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const tableStmts: Record<string, {
-    selectAll: ReturnType<typeof db.prepare> | null;
-    selectById: ReturnType<typeof db.prepare> | null;
-    update: ReturnType<typeof db.prepare> | null;
+    selectAll: any;
+    selectById: any;
+    update: any;
   }> = {};
 
   for (const t of ALLOWED_TABLES) {

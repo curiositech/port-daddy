@@ -22,7 +22,7 @@ import { createIpcClient } from './ipc-client.js';
 import { Performative } from './ipc-types.js';
 
 const DEFAULT_URL = 'http://localhost:9876';
-const DEFAULT_SOCK = '/tmp/port-daddy.sock';
+import { DEFAULT_SOCK, DEFAULT_IPC } from '../shared/paths.js';
 
 // =============================================================================
 // Connection target types (internal)
@@ -1040,7 +1040,7 @@ class PortDaddy {
     this.agentId = options.agentId || process.env.PORT_DADDY_AGENT;
     this.pid = options.pid || process.pid;
     this.timeout = options.timeout || 5000;
-    this._ipcPath = process.env.PORT_DADDY_IPC || '/tmp/port-daddy.ipc';
+    this._ipcPath = process.env.PORT_DADDY_IPC || DEFAULT_IPC;
   }
 
   /**

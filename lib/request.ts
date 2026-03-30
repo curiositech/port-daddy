@@ -15,7 +15,7 @@
 import http from 'node:http';
 import { existsSync } from 'node:fs';
 
-const DEFAULT_SOCK = '/tmp/port-daddy.sock';
+import { DEFAULT_SOCK } from '../shared/paths.js';
 const DEFAULT_URL = 'http://localhost:9876';
 
 /** Connection target -- either a Unix socket or a TCP host:port pair. */

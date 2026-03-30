@@ -16,7 +16,7 @@ import { EventEmitter } from 'node:events';
 import type { Transform } from 'node:stream';
 import { createPrefixer } from './log-prefix.js';
 
-const DEFAULT_SOCK = '/tmp/port-daddy.sock';
+import { DEFAULT_SOCK } from '../shared/paths.js';
 
 // =============================================================================
 // Internal types

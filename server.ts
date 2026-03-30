@@ -155,12 +155,13 @@ const IS_DEV_MODE: boolean = !!PREFIX;
 
 const DB_PATH: string = resolveDbPath(PREFIX ? join(PREFIX, 'port-daddy.db') : undefined);
 const PORT: number = parseInt(process.env.PORT_DADDY_PORT as string, 10) || (IS_DEV_MODE ? 9877 : config.service.port);
-const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || (PREFIX ? join(PREFIX, 'port-daddy.sock') : '/tmp/port-daddy.sock');
+import { DEFAULT_SOCK, DEFAULT_IPC, DEFAULT_PID_FILE, DEFAULT_PORT_FILE } from './shared/paths.js';
+const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || (PREFIX ? join(PREFIX, 'port-daddy.sock') : DEFAULT_SOCK);
 const DISABLE_TCP: boolean = process.env.PORT_DADDY_NO_TCP === '1';
-const IPC_PATH: string = process.env.PORT_DADDY_IPC || (PREFIX ? join(PREFIX, 'port-daddy.ipc') : '/tmp/port-daddy.ipc');
+const IPC_PATH: string = process.env.PORT_DADDY_IPC || (PREFIX ? join(PREFIX, 'port-daddy.ipc') : DEFAULT_IPC);
 const DISABLE_IPC: boolean = process.env.PORT_DADDY_NO_IPC === '1';
-const PID_FILE: string = SOCK_PATH + '.pid';
-const PORT_FILE: string = process.env.PORT_DADDY_PORT_FILE || (PREFIX ? join(PREFIX, 'port-daddy-port') : '/tmp/port-daddy-port');
+const PID_FILE: string = PREFIX ? join(PREFIX, 'daemon.pid') : DEFAULT_PID_FILE;
+const PORT_FILE: string = process.env.PORT_DADDY_PORT_FILE || (PREFIX ? join(PREFIX, 'daemon.port') : DEFAULT_PORT_FILE);
 
 if (IS_DEV_MODE) {
   const { mkdirSync } = await import('node:fs');

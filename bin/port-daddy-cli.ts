@@ -93,10 +93,10 @@ import {
 const __dirname: string = dirname(fileURLToPath(import.meta.url));
 const PORT_DADDY_URL: string = process.env.PORT_DADDY_URL || 'http://localhost:9876';
 
-// Default Unix socket path — the primary transport for CLI->daemon communication.
+import { DEFAULT_SOCK as _DEFAULT_SOCK, DEFAULT_PORT_FILE as _DEFAULT_PORT_FILE } from '../shared/paths.js';
+// Primary transport for CLI->daemon communication.
 // Falls back to TCP (PORT_DADDY_URL) if socket doesn't exist.
-const DEFAULT_SOCK: string = '/tmp/port-daddy.sock';
-const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || DEFAULT_SOCK;
+const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || _DEFAULT_SOCK;
 
 // =============================================================================
 // Direct-DB Mode: Tier 1 commands work without the daemon

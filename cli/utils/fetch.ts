@@ -9,10 +9,9 @@ import http from 'node:http';
 import type { IncomingMessage, ClientRequest } from 'node:http';
 import { existsSync, readFileSync } from 'node:fs';
 
-// Default Unix socket path — the primary transport for CLI->daemon communication.
-const DEFAULT_SOCK: string = '/tmp/port-daddy.sock';
+import { DEFAULT_SOCK, DEFAULT_PORT_FILE } from '../../shared/paths.js';
 const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || DEFAULT_SOCK;
-const PORT_FILE: string = process.env.PORT_DADDY_PORT_FILE || '/tmp/port-daddy-port';
+const PORT_FILE: string = process.env.PORT_DADDY_PORT_FILE || DEFAULT_PORT_FILE;
 const PORT_DADDY_URL: string = process.env.PORT_DADDY_URL || 'http://localhost:9876';
 const BARNACLE_URL: string = process.env.PORT_DADDY_BARNACLE_URL || 'http://localhost:9875';
 

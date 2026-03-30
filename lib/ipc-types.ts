@@ -130,8 +130,9 @@ export const HEADER_SIZE = 7;
 /** Maximum payload size: 64KB (2 bytes = 65535) */
 export const MAX_PAYLOAD_SIZE = 65535;
 
-/** IPC socket path (alongside the HTTP socket) */
-export const IPC_SOCK_PATH = '/tmp/port-daddy.ipc';
+/** IPC socket path — imports from shared/paths for ~/.port-daddy/ default */
+import { DEFAULT_IPC } from '../shared/paths.js';
+export const IPC_SOCK_PATH = DEFAULT_IPC;
 
 /** Conversation ID 0 = fire-and-forget (no response expected) */
 export const FIRE_AND_FORGET = 0;
