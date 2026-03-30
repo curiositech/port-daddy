@@ -123,8 +123,8 @@ export function TutorialsPage() {
       style={{ background: 'var(--surface-base)' }}
     >
       {/* Hero Section */}
-      <section className="pt-32 pb-20 px-6 sm:px-8 lg:px-12 flex flex-col items-center text-center">
-        <div className="max-w-5xl mx-auto flex flex-col items-center gap-8">
+      <section className="pt-24 pb-14 px-6 sm:px-8 lg:px-12 flex flex-col items-center text-center">
+        <div className="max-w-5xl mx-auto flex flex-col items-center gap-5">
           <Badge variant="red" size="lg" className="px-6 py-2 text-[10px] font-black uppercase tracking-[0.2em]">
             Academy of Coordination
           </Badge>
@@ -163,8 +163,8 @@ export function TutorialsPage() {
       </section>
 
       {/* Tutorials Grid */}
-      <main className="flex-1 py-16 px-6 sm:px-8 lg:px-12 max-w-7xl mx-auto w-full">
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+      <main className="flex-1 py-10 px-6 sm:px-8 lg:px-12 max-w-7xl mx-auto w-full">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {TUTORIALS.map((tutorial, i) => (
             <motion.div
               key={tutorial.slug}
@@ -180,7 +180,7 @@ export function TutorialsPage() {
                   radius="2xl"
                   padding="lg"
                   interactive
-                  className="h-full flex flex-col items-center text-center gap-6"
+                  className="h-full flex flex-col items-center text-center gap-4"
                 >
                   {/* Icon */}
                   <div
@@ -259,18 +259,18 @@ export function TutorialsPage() {
 
         {/* Verification Callout */}
         <motion.div
-          className="mt-20"
+          className="mt-14"
           initial={{ opacity: 0, scale: 0.98 }}
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
         >
-          <Surface depth="flat" radius="2xl" padding="xl" className="flex flex-col items-center text-center gap-10 relative overflow-hidden">
+          <Surface depth="flat" radius="2xl" padding="xl" className="flex flex-col items-center text-center gap-6 relative overflow-hidden">
             {/* Ghost anchor */}
             <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none">
               <Anchor size={400} style={{ color: 'var(--text-primary)' }} />
             </div>
 
-            <div className="space-y-6 max-w-3xl relative z-10 flex flex-col items-center">
+            <div className="space-y-4 max-w-3xl relative z-10 flex flex-col items-center">
               <Badge variant="teal" size="lg" className="px-6 py-2 text-[10px] font-black uppercase tracking-[0.2em]">
                 Automated Verification
               </Badge>
@@ -288,7 +288,7 @@ export function TutorialsPage() {
               </p>
             </div>
 
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 w-full max-w-4xl relative z-10">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full max-w-4xl relative z-10">
               {[
                 { label: 'VHS Recorded', icon: Play },
                 { label: 'Playwright Verified', icon: Shield },

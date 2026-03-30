@@ -1,11 +1,11 @@
 import { Badge } from '@/components/ui/Badge'
 import { Link } from 'react-router-dom'
-import { ArrowRight, Bot, Clock, Shield, GitCommit, Zap, RefreshCw, FileText } from 'lucide-react'
+import { ArrowRight, GitCommit, Zap, Clock, Shield, RefreshCw, FileText } from 'lucide-react'
 import { DocsCodeBlock } from '@/components/docs/DocsCodeBlock'
 
 export default function AvatarsFeature() {
   return (
-    <div className="space-y-12">
+    <div className="space-y-10">
       {/* Header */}
       <div className="space-y-4">
         <div className="flex items-center gap-2">
@@ -15,71 +15,77 @@ export default function AvatarsFeature() {
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Always-On Fleet Agents
         </h1>
-        <p className="text-xl text-[var(--text-secondary)] leading-relaxed max-w-3xl">
+        <p className="text-lg text-[var(--text-secondary)] leading-relaxed max-w-3xl">
           Background AI agents that run while you sleep. Declare them in YAML, wire them to git commits or cron schedules, and let them do QA, docs, roadmap tracking, and creative ideation automatically.
         </p>
       </div>
 
       {/* Quick Start */}
-      <div className="p-6 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-        <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-4">Get Started in 30 Seconds</h2>
+      <div>
+        <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3">Get Started in 30 Seconds</h2>
         <DocsCodeBlock code={`cd ~/my-project
 pd fleet init          # Creates pd-fleet.yml + git hook
 pd fleet up            # Starts 5 agents
 git commit -m "test"   # QA, docs, cartographer fire automatically`} />
-        <p className="text-sm text-[var(--text-muted)] mt-3">
+        <p className="text-sm text-[var(--text-muted)] mt-2">
           Requires <code>ANTHROPIC_API_KEY</code> in <code>.env.local</code>.
         </p>
       </div>
 
       {/* How It Works */}
-      <div className="space-y-6">
-        <h2 className="text-2xl font-semibold text-[var(--text-primary)]">How It Works</h2>
-        <div className="grid sm:grid-cols-3 gap-4">
-          <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)] space-y-3">
-            <FileText size={20} className="text-[var(--brand-primary)]" />
-            <h3 className="text-sm font-bold text-[var(--text-primary)] m-0">1. Declare</h3>
-            <p className="text-xs text-[var(--text-secondary)] m-0 leading-relaxed">
-              Write a <code>pd-fleet.yml</code> at your project root. Each agent has a name, a trigger, a backend, and a prompt.
-            </p>
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">How It Works</h2>
+        <div className="space-y-3">
+          <div className="flex items-start gap-3 border-l-4 border-[var(--brand-primary)] pl-4">
+            <FileText size={16} className="text-[var(--brand-primary)] mt-0.5 shrink-0" />
+            <div>
+              <h3 className="text-sm font-bold text-[var(--text-primary)] m-0">1. Declare</h3>
+              <p className="text-xs text-[var(--text-secondary)] m-0 leading-relaxed">
+                Write a <code>pd-fleet.yml</code> at your project root. Each agent has a name, a trigger, a backend, and a prompt.
+              </p>
+            </div>
           </div>
-          <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)] space-y-3">
-            <GitCommit size={20} className="text-[var(--brand-secondary)]" />
-            <h3 className="text-sm font-bold text-[var(--text-primary)] m-0">2. Wire</h3>
-            <p className="text-xs text-[var(--text-secondary)] m-0 leading-relaxed">
-              A git post-commit hook publishes to the <code>git:committed</code> channel. Fleet agents trigger automatically on every commit.
-            </p>
+          <div className="flex items-start gap-3 border-l-4 border-[var(--brand-secondary)] pl-4">
+            <GitCommit size={16} className="text-[var(--brand-secondary)] mt-0.5 shrink-0" />
+            <div>
+              <h3 className="text-sm font-bold text-[var(--text-primary)] m-0">2. Wire</h3>
+              <p className="text-xs text-[var(--text-secondary)] m-0 leading-relaxed">
+                A git post-commit hook publishes to the <code>git:committed</code> channel. Fleet agents trigger automatically on every commit.
+              </p>
+            </div>
           </div>
-          <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)] space-y-3">
-            <Bot size={20} className="text-[var(--brand-accent)]" />
-            <h3 className="text-sm font-bold text-[var(--text-primary)] m-0">3. Run</h3>
-            <p className="text-xs text-[var(--text-secondary)] m-0 leading-relaxed">
-              <code>pd fleet up</code> starts everything. Agents spawn, do their work, publish results, and chain to downstream agents.
-            </p>
+          <div className="flex items-start gap-3 border-l-4 border-[var(--brand-accent)] pl-4">
+            <Zap size={16} className="text-[var(--brand-accent)] mt-0.5 shrink-0" />
+            <div>
+              <h3 className="text-sm font-bold text-[var(--text-primary)] m-0">3. Run</h3>
+              <p className="text-xs text-[var(--text-secondary)] m-0 leading-relaxed">
+                <code>pd fleet up</code> starts everything. Agents spawn, do their work, publish results, and chain to downstream agents.
+              </p>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Activation Modes */}
-      <div className="space-y-6">
-        <h2 className="text-2xl font-semibold text-[var(--text-primary)]">Two Activation Modes</h2>
-        <div className="grid sm:grid-cols-2 gap-4">
-          <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)] space-y-3">
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Two Activation Modes</h2>
+        <div className="space-y-3">
+          <div className="border-l-4 border-[var(--brand-secondary)] pl-4">
             <div className="flex items-center gap-2">
-              <Zap size={16} className="text-[var(--brand-secondary)]" />
+              <Zap size={14} className="text-[var(--brand-secondary)]" />
               <h3 className="text-sm font-bold text-[var(--text-primary)] m-0">Triggered</h3>
             </div>
-            <p className="text-xs text-[var(--text-secondary)] m-0">
+            <p className="text-xs text-[var(--text-secondary)] m-0 mt-1">
               Fires when a message arrives on a pub/sub channel. Reactive, event-driven. Good for: code review, docs sync, roadmap updates.
             </p>
             <DocsCodeBlock code={`qa:\n  trigger: git:committed\n  backend: claude-cli`} />
           </div>
-          <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)] space-y-3">
+          <div className="border-l-4 border-[var(--brand-secondary)] pl-4">
             <div className="flex items-center gap-2">
-              <Clock size={16} className="text-[var(--brand-secondary)]" />
+              <Clock size={14} className="text-[var(--brand-secondary)]" />
               <h3 className="text-sm font-bold text-[var(--text-primary)] m-0">Scheduled</h3>
             </div>
-            <p className="text-xs text-[var(--text-secondary)] m-0">
+            <p className="text-xs text-[var(--text-secondary)] m-0 mt-1">
               Runs on a cron interval. Periodic, ambient. Good for: health checks, idea generation, cleanup, status reports.
             </p>
             <DocsCodeBlock code={`spark:\n  schedule: "*/30 * * * *"\n  backend: claude-cli`} />
@@ -91,8 +97,8 @@ git commit -m "test"   # QA, docs, cartographer fire automatically`} />
       </div>
 
       {/* Agent Chaining */}
-      <div className="space-y-4">
-        <h2 className="text-2xl font-semibold text-[var(--text-primary)]">Agent Chaining</h2>
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Agent Chaining</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           One agent&apos;s output becomes another agent&apos;s trigger. <code>on_success: publish channel</code> pushes
           a message to a pub/sub channel. Any agent with <code>trigger: channel</code> fires automatically.
@@ -110,16 +116,16 @@ spider:
       </div>
 
       {/* Safety */}
-      <div className="space-y-4">
-        <h2 className="text-2xl font-semibold text-[var(--text-primary)]">Safety</h2>
-        <div className="grid sm:grid-cols-2 gap-3">
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Safety</h2>
+        <div className="space-y-2">
           {[
             { icon: <Shield size={14} />, title: 'Scoped tools', desc: 'Each agent declares exactly which tools it can use' },
             { icon: <RefreshCw size={14} />, title: 'Singleton mode', desc: 'Prevents duplicate instances from fast triggers' },
             { icon: <GitCommit size={14} />, title: 'DAG validation', desc: 'Cycle detection at config time, not runtime' },
             { icon: <FileText size={14} />, title: 'Immutable notes', desc: 'Session notes cannot be edited or deleted' },
           ].map(item => (
-            <div key={item.title} className="flex items-start gap-3 p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+            <div key={item.title} className="flex items-start gap-3 border-l-4 border-[var(--border-subtle)] pl-4 py-1">
               <span className="text-[var(--brand-primary)] mt-0.5">{item.icon}</span>
               <div>
                 <p className="text-xs font-bold text-[var(--text-primary)] m-0">{item.title}</p>
@@ -131,27 +137,27 @@ spider:
       </div>
 
       {/* Templates */}
-      <div className="space-y-4">
-        <h2 className="text-2xl font-semibold text-[var(--text-primary)]">Templates</h2>
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Templates</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           Two template packs ship with Port Daddy:
         </p>
-        <div className="grid sm:grid-cols-2 gap-4">
-          <div className="p-4 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+        <div className="space-y-2">
+          <div className="border-l-4 border-[var(--brand-primary)] pl-4 py-1">
             <p className="text-sm font-bold text-[var(--text-primary)] m-0">Starter Fleet</p>
             <p className="text-xs text-[var(--text-secondary)] m-0 mt-1">QA, Documentarian, Cartographer, Spark, Spider. Commit-triggered.</p>
-            <code className="text-xs text-[var(--brand-primary)] mt-2 block">pd fleet init</code>
+            <code className="text-xs text-[var(--brand-primary)] mt-1 block">pd fleet init</code>
           </div>
-          <div className="p-4 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+          <div className="border-l-4 border-[var(--brand-primary)] pl-4 py-1">
             <p className="text-sm font-bold text-[var(--text-primary)] m-0">Always-On Fleet</p>
             <p className="text-xs text-[var(--text-secondary)] m-0 mt-1">Health monitor, lock janitor, session reaper, dep watcher, changelog writer.</p>
-            <code className="text-xs text-[var(--brand-primary)] mt-2 block">templates/pd-fleet-always-on.yml</code>
+            <code className="text-xs text-[var(--brand-primary)] mt-1 block">templates/pd-fleet-always-on.yml</code>
           </div>
         </div>
       </div>
 
       {/* Next */}
-      <div className="flex items-center justify-between p-6 rounded-xl bg-gradient-to-r from-[var(--brand-primary)]/5 to-transparent border border-[var(--brand-primary)]/20">
+      <div className="flex items-center justify-between p-5 rounded-xl bg-gradient-to-r from-[var(--brand-primary)]/5 to-transparent border border-[var(--brand-primary)]/20">
         <div>
           <div className="text-sm text-[var(--text-muted)] mb-1">Learn More</div>
           <div className="font-semibold text-[var(--text-primary)]">Fleet Tutorial</div>

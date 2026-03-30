@@ -3,10 +3,11 @@ import { motion, useScroll, useSpring } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
 import { Surface } from '@/components/ui/Surface'
 import {
-  Shield, Zap, Anchor, Share2, MessageSquare, Box, Copy, Check,
+  Shield, Zap, Anchor, MessageSquare, Box, Copy, Check,
   ShieldCheck, RefreshCw, Cpu, History
 } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
+
 
 /* ─── Documentation Data ─────────────────────────────────────────────────── */
 
@@ -119,8 +120,8 @@ function CommandCard({ cmd, desc, example, color }: { cmd: string; desc: string;
   }
 
   return (
-    <Surface depth="raised" radius="3xl" padding="lg" interactive className="space-y-6 group flex flex-col items-center text-center p-8">
-       <div className="space-y-4 w-full">
+    <Surface depth="raised" radius="3xl" padding="lg" interactive className="space-y-4 group flex flex-col items-center text-center p-5">
+       <div className="space-y-3 w-full">
           <code className="text-xl font-bold font-mono block" style={{ color }}>{cmd}</code>
           <p className="text-sm leading-relaxed m-0 font-medium" style={{ color: 'var(--text-muted)' }}>{desc}</p>
        </div>
@@ -173,7 +174,7 @@ export default function DocsPage() {
 
       {/* Hero Section */}
       <motion.section
-        className="py-16 lg:py-24 px-6 lg:px-8 border-b relative overflow-hidden"
+        className="py-12 lg:py-16 px-6 lg:px-8 border-b relative overflow-hidden"
         style={{ background: 'var(--surface-raised)', borderColor: 'var(--border-subtle)' }}
       >
         <motion.div
@@ -181,7 +182,7 @@ export default function DocsPage() {
           style={{ background: 'radial-gradient(circle, var(--brand-primary) 0%, transparent 70%)' }}
         />
 
-        <motion.div className="max-w-7xl mx-auto text-center relative z-10 flex flex-col items-center gap-10">
+        <motion.div className="max-w-7xl mx-auto text-center relative z-10 flex flex-col items-center gap-6">
            <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-[0.25em]">Protocol Reference</Badge>
            <motion.h1
              className="text-6xl sm:text-9xl font-black tracking-tighter font-display leading-[0.9]"
@@ -203,8 +204,8 @@ export default function DocsPage() {
       </motion.section>
 
       {/* Main Content */}
-      <motion.main id="main-content" className="flex-1 py-16 lg:py-24 px-6 lg:px-8 max-w-7xl mx-auto w-full font-sans">
-        <motion.div className="space-y-32 flex flex-col items-center">
+      <motion.main id="main-content" className="flex-1 py-10 lg:py-14 px-6 lg:px-8 max-w-7xl mx-auto w-full font-sans">
+        <motion.div className="space-y-20 flex flex-col items-center">
           {SECTIONS.map((section) => (
             <motion.section
               key={section.id}
@@ -213,15 +214,15 @@ export default function DocsPage() {
               viewport={{ once: true }}
               transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
               id={section.id}
-              className="space-y-16 flex flex-col items-center w-full"
+              className="space-y-10 flex flex-col items-center w-full"
             >
-               <div className="flex flex-col items-center text-center gap-10 border-b border-[var(--border-subtle)] pb-16 w-full">
-                  <div className="max-w-2xl flex flex-col items-center gap-8">
-                     <div className="flex flex-col items-center gap-6">
+               <div className="flex flex-col items-center text-center gap-6 border-b border-[var(--border-subtle)] pb-10 w-full">
+                  <div className="max-w-2xl flex flex-col items-center gap-5">
+                     <div className="flex flex-col items-center gap-4">
                         <Surface depth="inset" radius="2xl" padding="none" className="w-16 h-16 flex items-center justify-center">
                            <section.icon size={32} style={{ color: section.color }} />
                         </Surface>
-                        <h2 className="text-4xl sm:text-7xl font-display font-black tracking-tight m-0" style={{ color: 'var(--text-primary)' }}>{section.title}</h2>
+                        <h2 className="text-2xl sm:text-4xl font-display font-black tracking-tight m-0" style={{ color: 'var(--text-primary)' }}>{section.title}</h2>
                      </div>
                      <p className="text-xl sm:text-2xl leading-relaxed m-0 font-medium" style={{ color: 'var(--text-secondary)' }}>
                         {section.description}
@@ -230,7 +231,7 @@ export default function DocsPage() {
                   <Badge variant="default" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Core Primitive</Badge>
                </div>
 
-               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8 w-full">
+               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
                   {section.commands.map((cmd, j) => (
                     <CommandCard key={j} {...cmd} color={section.color} />
                   ))}
@@ -240,29 +241,26 @@ export default function DocsPage() {
         </motion.div>
 
         {/* Bottom panel */}
-        <Surface depth="raised" radius="4xl" padding="xl" className="mt-32 flex flex-col items-center text-center gap-12 relative overflow-hidden p-20">
-           <div className="absolute top-0 right-0 p-10 opacity-[0.02] pointer-events-none">
-              <Share2 size={600} />
-           </div>
+        <Surface depth="raised" radius="4xl" padding="xl" className="mt-16 flex flex-col items-center text-center gap-5 relative overflow-hidden p-6">
 
-           <div className="space-y-6 max-w-3xl relative z-10 flex flex-col items-center">
+           <div className="space-y-4 max-w-3xl relative z-10 flex flex-col items-center">
               <Badge variant="gold" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Architectural Integrity</Badge>
-              <h3 className="text-4xl sm:text-7xl font-display font-black tracking-tight leading-[0.95]" style={{ color: 'var(--text-primary)' }}>
+              <h3 className="text-2xl sm:text-4xl font-display font-black tracking-tight leading-[0.95]" style={{ color: 'var(--text-primary)' }}>
                 System <span className="text-[var(--brand-accent)]">Soundness.</span>
               </h3>
-              <p className="text-2xl leading-relaxed text-[var(--text-secondary)]">
+              <p className="text-lg leading-relaxed text-[var(--text-secondary)]">
                 Port Daddy is built on a foundation of formal verification. We ensure that every command follows strictly defined state transitions, preventing "zombie" processes and unauthorized port claims across your entire swarm.
               </p>
            </div>
 
-           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 w-full">
+           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
               {[
                 { label: 'Unix Socket Native', icon: Zap },
                 { label: 'HMAC Handshake', icon: Shield },
                 { label: 'SQLite Persistent', icon: Box },
                 { label: 'Formal Verified', icon: ShieldCheck }
               ].map((item, i) => (
-                <Surface key={i} depth="inset" radius="3xl" padding="lg" className="flex flex-col items-center gap-4 p-8">
+                <Surface key={i} depth="inset" radius="3xl" padding="lg" className="flex flex-col items-center gap-4 p-5">
                    <item.icon size={24} className="text-[var(--brand-primary)]" />
                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">{item.label}</span>
                 </Surface>

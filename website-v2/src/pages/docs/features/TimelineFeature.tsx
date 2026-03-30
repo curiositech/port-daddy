@@ -5,7 +5,7 @@ import { DocsCodeBlock } from '@/components/docs/DocsCodeBlock'
 
 export default function TimelineFeature() {
   return (
-    <div className="space-y-12">
+    <div className="space-y-10">
       {/* Header */}
       <div className="space-y-4">
         <div className="flex items-center gap-2">
@@ -15,16 +15,16 @@ export default function TimelineFeature() {
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Activity Timeline
         </h1>
-        <p className="text-xl text-[var(--text-secondary)] leading-relaxed max-w-3xl">
+        <p className="text-lg text-[var(--text-secondary)] leading-relaxed max-w-3xl">
           An append-only audit trail of every operation across the daemon. Filter by type,
           time range, or identity to reconstruct exactly what happened and when.
         </p>
       </div>
 
       {/* The Problem */}
-      <div className="p-6 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-        <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-4">The Problem</h2>
-        <p className="text-[var(--text-secondary)] leading-relaxed mb-4">
+      <div>
+        <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3">The Problem</h2>
+        <p className="text-[var(--text-secondary)] leading-relaxed mb-3">
           With multiple agents operating concurrently, understanding what happened — and in what
           order — is critical for debugging, auditing, and post-mortems. Without a timeline:
         </p>
@@ -45,8 +45,8 @@ export default function TimelineFeature() {
       </div>
 
       {/* How It Works */}
-      <div className="space-y-6">
-        <h2 className="text-2xl font-semibold text-[var(--text-primary)]">How It Works</h2>
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">How It Works</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           Every operation that hits the daemon is logged to an append-only SQLite table with
           a timestamp, operation type, identity, and details. The log is queryable by type,
@@ -76,42 +76,40 @@ $ pd activity`}
       </div>
 
       {/* Event Types */}
-      <div className="space-y-4">
-        <h2 className="text-2xl font-semibold text-[var(--text-primary)]">Event Types</h2>
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Event Types</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           The timeline captures every category of daemon operation, giving you complete
           visibility into the system.
         </p>
 
         <div className="grid sm:grid-cols-3 gap-4">
-          <div className="p-4 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+          <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">claim / release</code>
-            <p className="text-sm text-[var(--text-muted)] mt-2">Port assignments</p>
+            <p className="text-sm text-[var(--text-muted)] mt-1">Port assignments</p>
             <p className="text-xs text-[var(--text-muted)] mt-1">Who claimed what port and when</p>
           </div>
-          <div className="p-4 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+          <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">lock / unlock</code>
-            <p className="text-sm text-[var(--text-muted)] mt-2">Distributed locks</p>
+            <p className="text-sm text-[var(--text-muted)] mt-1">Distributed locks</p>
             <p className="text-xs text-[var(--text-muted)] mt-1">Lock acquisition and release events</p>
           </div>
-          <div className="p-4 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+          <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">session / note</code>
-            <p className="text-sm text-[var(--text-muted)] mt-2">Work tracking</p>
+            <p className="text-sm text-[var(--text-muted)] mt-1">Work tracking</p>
             <p className="text-xs text-[var(--text-muted)] mt-1">Session lifecycle and note additions</p>
           </div>
         </div>
       </div>
 
       {/* CLI Commands */}
-      <div className="space-y-6">
-        <h2 className="text-2xl font-semibold text-[var(--text-primary)]">CLI Commands</h2>
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">CLI Commands</h2>
 
-        <div className="space-y-4">
-          <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-            <div className="flex items-center gap-2 mb-2">
-              <code className="text-lg font-mono text-[var(--brand-primary)]">pd activity</code>
-            </div>
-            <p className="text-[var(--text-secondary)] mb-3">Show recent activity across all operations. Defaults to the last 50 entries.</p>
+        <div className="space-y-3">
+          <div className="border-l-4 border-[var(--brand-primary)] pl-4">
+            <code className="font-mono text-[var(--brand-primary)]">pd activity</code>
+            <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">Show recent activity across all operations. Defaults to the last 50 entries.</p>
             <DocsCodeBlock
               code={`$ pd activity`}
               output={`12:01:03  claim    myapp:api:main → port 3001
@@ -122,11 +120,9 @@ $ pd activity`}
             />
           </div>
 
-          <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-            <div className="flex items-center gap-2 mb-2">
-              <code className="text-lg font-mono text-[var(--brand-primary)]">pd activity --type &lt;type&gt;</code>
-            </div>
-            <p className="text-[var(--text-secondary)] mb-3">Filter activity by operation type. Useful for tracing specific categories of events.</p>
+          <div className="border-l-4 border-[var(--brand-primary)] pl-4">
+            <code className="font-mono text-[var(--brand-primary)]">pd activity --type &lt;type&gt;</code>
+            <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">Filter activity by operation type. Useful for tracing specific categories of events.</p>
             <DocsCodeBlock
               code={`$ pd activity --type claim`}
               output={`12:01:03  claim  myapp:api:main → port 3001
@@ -135,11 +131,9 @@ $ pd activity`}
             />
           </div>
 
-          <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-            <div className="flex items-center gap-2 mb-2">
-              <code className="text-lg font-mono text-[var(--brand-primary)]">pd activity --since &lt;duration&gt;</code>
-            </div>
-            <p className="text-[var(--text-secondary)] mb-3">Show activity within a time window. Supports human-friendly durations like 1h, 30m, 2d.</p>
+          <div className="border-l-4 border-[var(--brand-primary)] pl-4">
+            <code className="font-mono text-[var(--brand-primary)]">pd activity --since &lt;duration&gt;</code>
+            <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">Show activity within a time window. Supports human-friendly durations like 1h, 30m, 2d.</p>
             <DocsCodeBlock
               code={`$ pd activity --since 1h`}
               output={`Activity in the last 1 hour:
@@ -147,11 +141,9 @@ $ pd activity`}
             />
           </div>
 
-          <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-            <div className="flex items-center gap-2 mb-2">
-              <code className="text-lg font-mono text-[var(--brand-primary)]">pd activity</code>
-            </div>
-            <p className="text-[var(--text-secondary)] mb-3">Get an aggregate summary of activity grouped by operation type.</p>
+          <div className="border-l-4 border-[var(--brand-primary)] pl-4">
+            <code className="font-mono text-[var(--brand-primary)]">pd activity</code>
+            <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">Get an aggregate summary of activity grouped by operation type.</p>
             <DocsCodeBlock
               code={`$ pd activity`}
               output={`Activity summary:
@@ -166,14 +158,12 @@ $ pd activity`}
       </div>
 
       {/* SDK Usage */}
-      <div className="space-y-4">
-        <h2 className="text-2xl font-semibold text-[var(--text-primary)]">SDK Usage</h2>
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">SDK Usage</h2>
 
-        <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-          <div className="text-sm font-medium text-[var(--text-muted)] mb-3">TypeScript</div>
-          <DocsCodeBlock
-            language="typescript"
-            code={`import { PortDaddy } from 'port-daddy'
+        <DocsCodeBlock
+          language="typescript"
+          code={`import { PortDaddy } from 'port-daddy'
 
 const pd = new PortDaddy()
 
@@ -191,12 +181,11 @@ const lastHour = await pd.activity.list({
   since: '1h',
   type: 'claim'
 })`}
-          />
-        </div>
+        />
       </div>
 
       {/* Next */}
-      <div className="flex items-center justify-between p-6 rounded-xl bg-gradient-to-r from-[var(--brand-primary)]/5 to-transparent border border-[var(--brand-primary)]/20">
+      <div className="flex items-center justify-between p-5 rounded-xl bg-gradient-to-r from-[var(--brand-primary)]/5 to-transparent border border-[var(--brand-primary)]/20">
         <div>
           <div className="text-sm text-[var(--text-muted)] mb-1">Next Feature</div>
           <div className="font-semibold text-[var(--text-primary)]">DNS & Tunnels</div>

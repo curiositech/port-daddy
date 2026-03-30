@@ -5,7 +5,7 @@ import { DocsCodeBlock } from '@/components/docs/DocsCodeBlock'
 
 export default function PheromoneFeature() {
   return (
-    <div className="space-y-12">
+    <div className="space-y-10">
       {/* Header */}
       <div className="space-y-4">
         <div className="flex items-center gap-2">
@@ -15,7 +15,7 @@ export default function PheromoneFeature() {
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Pheromone Trails
         </h1>
-        <p className="text-xl text-[var(--text-secondary)] leading-relaxed max-w-3xl">
+        <p className="text-lg text-[var(--text-secondary)] leading-relaxed max-w-3xl">
           Stigmergic coordination for agent swarms. Agents spray numeric signals onto
           services, sessions, and projects. Signals decay over time — hot spots show
           where work is concentrated, cold spots show what's been abandoned.
@@ -23,9 +23,9 @@ export default function PheromoneFeature() {
       </div>
 
       {/* The Problem */}
-      <div className="p-6 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-        <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-4">The Problem</h2>
-        <p className="text-[var(--text-secondary)] leading-relaxed mb-4">
+      <div>
+        <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3">The Problem</h2>
+        <p className="text-[var(--text-secondary)] leading-relaxed mb-3">
           When many agents work in parallel on the same codebase, they need to know
           where other agents are focused — without explicit coordination messages.
           Traditional approaches have costs:
@@ -47,8 +47,8 @@ export default function PheromoneFeature() {
       </div>
 
       {/* How It Works */}
-      <div className="space-y-6">
-        <h2 className="text-2xl font-semibold text-[var(--text-primary)]">How It Works</h2>
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">How It Works</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           Pheromones are numeric values (0.0–1.0) stored in an entity's metadata under
           arbitrary keys. An agent <em>sprays</em> a pheromone to mark interest or activity.
@@ -91,8 +91,8 @@ curl http://localhost:9876/pheromone`}
       </div>
 
       {/* Decay Model */}
-      <div className="space-y-4">
-        <h2 className="text-2xl font-semibold text-[var(--text-primary)]">Decay Model</h2>
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Decay Model</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           Decay is exponential. The default rate is <strong>0.95 per minute</strong> — a value
           sprayed at strength 1.0 drops below 0.5 in about 14 minutes and below 0.01
@@ -100,15 +100,15 @@ curl http://localhost:9876/pheromone`}
         </p>
 
         <div className="grid sm:grid-cols-3 gap-4">
-          <div className="p-4 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+          <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <div className="text-lg font-mono font-semibold text-[var(--brand-primary)]">1.0</div>
             <div className="text-sm text-[var(--text-muted)] mt-1">Just sprayed — maximum signal</div>
           </div>
-          <div className="p-4 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+          <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <div className="text-lg font-mono font-semibold text-[var(--brand-primary)]">0.5</div>
             <div className="text-sm text-[var(--text-muted)] mt-1">~14 min ago — recent activity</div>
           </div>
-          <div className="p-4 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+          <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <div className="text-lg font-mono font-semibold text-[var(--text-muted)]">&lt;0.01</div>
             <div className="text-sm text-[var(--text-muted)] mt-1">~90 min ago — auto-pruned</div>
           </div>
@@ -116,8 +116,8 @@ curl http://localhost:9876/pheromone`}
       </div>
 
       {/* File Heat Map */}
-      <div className="space-y-4">
-        <h2 className="text-2xl font-semibold text-[var(--text-primary)]">File Heat Map</h2>
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">File Heat Map</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           The <code className="text-[var(--brand-primary)] font-mono text-sm">GET /pheromone/files</code> endpoint
           aggregates session file claims into a heat map. Files with active claims score high;
@@ -151,14 +151,14 @@ curl 'http://localhost:9876/pheromone/files?path=src/lib/&depth=3'`}
       </div>
 
       {/* Pheromone Keys */}
-      <div className="space-y-4">
-        <h2 className="text-2xl font-semibold text-[var(--text-primary)]">Suggested Keys</h2>
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Suggested Keys</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           Keys are free-form strings. Use whatever names make sense for your workflow.
           These are conventions the Port Daddy fleet uses:
         </p>
 
-        <div className="grid sm:grid-cols-2 gap-4">
+        <div className="space-y-2">
           {[
             { key: 'focus', desc: 'Agent is actively working on this entity' },
             { key: 'review', desc: 'Agent is reviewing this entity' },
@@ -167,7 +167,7 @@ curl 'http://localhost:9876/pheromone/files?path=src/lib/&depth=3'`}
             { key: 'risky', desc: 'Agent flagged this as high-risk' },
             { key: 'stale', desc: 'Agent believes this needs attention' },
           ].map(({ key, desc }) => (
-            <div key={key} className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)] flex items-start gap-3">
+            <div key={key} className="flex items-start gap-3 border-l-4 border-[var(--border-subtle)] pl-4 py-1">
               <code className="text-[var(--brand-primary)] font-mono text-sm shrink-0 mt-0.5">{key}</code>
               <span className="text-sm text-[var(--text-secondary)]">{desc}</span>
             </div>
@@ -176,10 +176,10 @@ curl 'http://localhost:9876/pheromone/files?path=src/lib/&depth=3'`}
       </div>
 
       {/* API Reference */}
-      <div className="space-y-4">
-        <h2 className="text-2xl font-semibold text-[var(--text-primary)]">API Endpoints</h2>
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">API Endpoints</h2>
 
-        <div className="space-y-3">
+        <div className="space-y-2">
           {[
             {
               method: 'POST',
@@ -202,7 +202,7 @@ curl 'http://localhost:9876/pheromone/files?path=src/lib/&depth=3'`}
               desc: 'File heat map from session file claims. Query: ?path= ?depth=',
             },
           ].map(({ method, path, desc }) => (
-            <div key={path} className="flex items-start gap-3 p-4 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+            <div key={path} className="flex items-start gap-3 border-l-4 border-[var(--border-subtle)] pl-4 py-1">
               <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded shrink-0 mt-0.5 ${
                 method === 'POST'
                   ? 'bg-[var(--badge-teal-bg)] text-[var(--badge-teal-text)]'
@@ -220,7 +220,7 @@ curl 'http://localhost:9876/pheromone/files?path=src/lib/&depth=3'`}
       </div>
 
       {/* Next */}
-      <div className="flex items-center justify-between p-6 rounded-xl bg-gradient-to-r from-[var(--brand-primary)]/5 to-transparent border border-[var(--brand-primary)]/20">
+      <div className="flex items-center justify-between p-5 rounded-xl bg-gradient-to-r from-[var(--brand-primary)]/5 to-transparent border border-[var(--brand-primary)]/20">
         <div>
           <div className="text-sm text-[var(--text-muted)] mb-1">Next Feature</div>
           <div className="font-semibold text-[var(--text-primary)]">Fleet Agents</div>

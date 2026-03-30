@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Footer } from '@/components/layout/Footer'
 import { ArrowRight, Terminal, Shield, Radio, History, Anchor, Users } from 'lucide-react'
 
+
 const fadeUp = {
   initial: { opacity: 0, y: 24 },
   whileInView: { opacity: 1, y: 0 },
@@ -28,7 +29,7 @@ export function AboutPage() {
           style={{ background: 'radial-gradient(circle, var(--brand-primary) 0%, transparent 70%)' }}
         />
 
-        <motion.div className="max-w-3xl mx-auto relative z-10 flex flex-col items-center text-center gap-8">
+        <motion.div className="max-w-3xl mx-auto relative z-10 flex flex-col items-center text-center gap-5">
           <Badge
             variant="teal"
             className="px-6 py-2 text-[10px] font-black uppercase tracking-[0.25em]"
@@ -56,11 +57,11 @@ export function AboutPage() {
       </motion.section>
 
       {/* Main Content - Long-form prose */}
-      <motion.main className="flex-1 max-w-3xl mx-auto w-full px-6 sm:px-8 lg:px-10 py-20">
-        <article className="space-y-20">
+      <motion.main className="flex-1 max-w-3xl mx-auto w-full px-6 sm:px-8 lg:px-10 py-12">
+        <article className="space-y-16">
 
           {/* Section 1: The Problem */}
-          <motion.section className="space-y-8" {...fadeUp}>
+          <motion.section className="space-y-5" {...fadeUp}>
             <div className="flex items-center gap-4">
               <div
                 className="w-12 h-12 rounded-2xl flex items-center justify-center border"
@@ -68,12 +69,12 @@ export function AboutPage() {
               >
                 <Users className="text-[var(--brand-primary)]" size={24} />
               </div>
-              <h2 className="text-3xl sm:text-4xl font-display font-black tracking-tight m-0 text-[var(--text-primary)]">
+              <h2 className="text-2xl sm:text-3xl font-display font-black tracking-tight m-0 text-[var(--text-primary)]">
                 The Problem: Agent Chaos
               </h2>
             </div>
 
-            <div className="space-y-6 text-lg leading-relaxed text-[var(--text-secondary)]">
+            <div className="space-y-4 text-lg leading-relaxed text-[var(--text-secondary)]">
               <p>
                 Imagine you have Claude Code building the API layer of your app while Cursor is
                 working on the frontend and a third Gemini CLI agent is writing database migrations.
@@ -107,7 +108,7 @@ export function AboutPage() {
           </motion.section>
 
           {/* Section 2: What Port Daddy Does */}
-          <motion.section className="space-y-8" {...fadeUp}>
+          <motion.section className="space-y-5" {...fadeUp}>
             <div className="flex items-center gap-4">
               <div
                 className="w-12 h-12 rounded-2xl flex items-center justify-center border"
@@ -115,12 +116,12 @@ export function AboutPage() {
               >
                 <Anchor className="text-[var(--brand-primary)]" size={24} />
               </div>
-              <h2 className="text-3xl sm:text-4xl font-display font-black tracking-tight m-0 text-[var(--text-primary)]">
+              <h2 className="text-2xl sm:text-3xl font-display font-black tracking-tight m-0 text-[var(--text-primary)]">
                 What Port Daddy Actually Does
               </h2>
             </div>
 
-            <div className="space-y-6 text-lg leading-relaxed text-[var(--text-secondary)]">
+            <div className="space-y-4 text-lg leading-relaxed text-[var(--text-secondary)]">
               <p>
                 Port Daddy is a single daemon that runs on <code>localhost:9876</code>. It starts when
                 your machine boots and stays running in the background. Every agent, script, and dev
@@ -147,7 +148,7 @@ export function AboutPage() {
           </motion.section>
 
           {/* Section 3: How It Works, Step by Step */}
-          <motion.section className="space-y-8" {...fadeUp}>
+          <motion.section className="space-y-5" {...fadeUp}>
             <div className="flex items-center gap-4">
               <div
                 className="w-12 h-12 rounded-2xl flex items-center justify-center border"
@@ -155,12 +156,12 @@ export function AboutPage() {
               >
                 <Terminal className="text-[var(--brand-primary)]" size={24} />
               </div>
-              <h2 className="text-3xl sm:text-4xl font-display font-black tracking-tight m-0 text-[var(--text-primary)]">
+              <h2 className="text-2xl sm:text-3xl font-display font-black tracking-tight m-0 text-[var(--text-primary)]">
                 A Concrete Example
               </h2>
             </div>
 
-            <div className="space-y-6 text-lg leading-relaxed text-[var(--text-secondary)]">
+            <div className="space-y-4 text-lg leading-relaxed text-[var(--text-secondary)]">
               <p>
                 You are working on a full-stack app. You want Claude Code to build the API and Cursor
                 to build the frontend, running simultaneously. Here is what that looks like with Port
@@ -199,7 +200,7 @@ export function AboutPage() {
           </motion.section>
 
           {/* Section 4: Core Concepts */}
-          <motion.section className="space-y-8" {...fadeUp}>
+          <motion.section className="space-y-5" {...fadeUp}>
             <div className="flex items-center gap-4">
               <div
                 className="w-12 h-12 rounded-2xl flex items-center justify-center border"
@@ -207,12 +208,12 @@ export function AboutPage() {
               >
                 <Radio className="text-[var(--brand-primary)]" size={24} />
               </div>
-              <h2 className="text-3xl sm:text-4xl font-display font-black tracking-tight m-0 text-[var(--text-primary)]">
+              <h2 className="text-2xl sm:text-3xl font-display font-black tracking-tight m-0 text-[var(--text-primary)]">
                 Core Concepts, In Order of Complexity
               </h2>
             </div>
 
-            <div className="space-y-6 text-lg leading-relaxed text-[var(--text-secondary)]">
+            <div className="space-y-4 text-lg leading-relaxed text-[var(--text-secondary)]">
               <p>
                 <strong>Semantic Identities</strong> are the addressing system.
                 Everything in Port Daddy is referenced by a string
@@ -251,7 +252,7 @@ export function AboutPage() {
           </motion.section>
 
           {/* Section 5: The Maritime Metaphor */}
-          <motion.section className="space-y-8" {...fadeUp}>
+          <motion.section className="space-y-5" {...fadeUp}>
             <div className="flex items-center gap-4">
               <div
                 className="w-12 h-12 rounded-2xl flex items-center justify-center border"
@@ -259,12 +260,12 @@ export function AboutPage() {
               >
                 <History className="text-[var(--brand-primary)]" size={24} />
               </div>
-              <h2 className="text-3xl sm:text-4xl font-display font-black tracking-tight m-0 text-[var(--text-primary)]">
+              <h2 className="text-2xl sm:text-3xl font-display font-black tracking-tight m-0 text-[var(--text-primary)]">
                 About the Maritime Theme
               </h2>
             </div>
 
-            <div className="space-y-6 text-lg leading-relaxed text-[var(--text-secondary)]">
+            <div className="space-y-4 text-lg leading-relaxed text-[var(--text-secondary)]">
               <p>
                 You will notice a lot of nautical language throughout Port Daddy: harbors, salvage,
                 lighthouses, signal flags. This is not just decoration. The metaphor maps cleanly to
@@ -290,7 +291,7 @@ export function AboutPage() {
           </motion.section>
 
           {/* Section 6: Who Is This For */}
-          <motion.section className="space-y-8" {...fadeUp}>
+          <motion.section className="space-y-5" {...fadeUp}>
             <div className="flex items-center gap-4">
               <div
                 className="w-12 h-12 rounded-2xl flex items-center justify-center border"
@@ -298,12 +299,12 @@ export function AboutPage() {
               >
                 <Shield className="text-[var(--brand-primary)]" size={24} />
               </div>
-              <h2 className="text-3xl sm:text-4xl font-display font-black tracking-tight m-0 text-[var(--text-primary)]">
+              <h2 className="text-2xl sm:text-3xl font-display font-black tracking-tight m-0 text-[var(--text-primary)]">
                 Who This Is For
               </h2>
             </div>
 
-            <div className="space-y-6 text-lg leading-relaxed text-[var(--text-secondary)]">
+            <div className="space-y-4 text-lg leading-relaxed text-[var(--text-secondary)]">
               <p>
                 Port Daddy is for developers who run more than one AI coding agent at the same
                 time. If you use Claude Code, Cursor, Gemini CLI, Aider, or any combination of
@@ -325,17 +326,17 @@ export function AboutPage() {
 
           {/* CTA */}
           <motion.div
-            className="p-12 sm:p-16 rounded-[48px] border border-[var(--brand-primary)] bg-[var(--surface-raised)] flex flex-col items-center text-center gap-8"
+            className="p-6 sm:p-8 rounded-[48px] border border-[var(--brand-primary)] bg-[var(--surface-raised)] flex flex-col items-center text-center gap-5"
             {...fadeUp}
           >
-            <h3 className="text-3xl sm:text-4xl font-display font-black m-0 text-[var(--text-primary)]">
+            <h3 className="text-2xl sm:text-3xl font-display font-black m-0 text-[var(--text-primary)]">
               Ready to try it?
             </h3>
             <p className="text-lg text-[var(--text-secondary)] max-w-lg m-0">
               Port Daddy installs in under a minute. The Getting Started tutorial walks you from
               zero to a coordinated two-agent workflow in five minutes.
             </p>
-            <div className="flex flex-wrap justify-center gap-6">
+            <div className="flex flex-wrap justify-center gap-4">
               <Link to="/tutorials/getting-started" className="no-underline">
                 <button className="px-10 py-5 rounded-full bg-[var(--brand-primary)] text-white font-black text-lg hover:scale-105 transition-transform flex items-center gap-2">
                   Getting Started

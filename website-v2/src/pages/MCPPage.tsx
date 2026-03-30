@@ -83,13 +83,13 @@ const CATEGORIES = [
 
 function ToolCard({ tool }: { tool: any }) {
   return (
-    <Surface depth="raised" radius="2xl" padding="none" className="p-12 space-y-10 group transition-all relative overflow-hidden flex flex-col items-center text-center">
+    <Surface depth="raised" radius="2xl" padding="none" className="p-6 space-y-5 group transition-all relative overflow-hidden flex flex-col items-center text-center">
 
-       <div className="absolute top-0 right-0 p-10 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity">
-          <tool.icon size={160} />
+       <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity">
+          <tool.icon size={120} />
        </div>
 
-       <div className="flex flex-col items-center gap-6 relative z-10">
+       <div className="flex flex-col items-center gap-4 relative z-10">
           <Surface depth="inset" radius="2xl" padding="none" className="w-20 h-20 flex items-center justify-center" style={{ background: `${tool.color}10` }}>
 
              <tool.icon size={40} style={{ color: tool.color }} />
@@ -137,15 +137,15 @@ export default function McpPage() {
       />
 
       {/* Hero Section */}
-      <Surface depth="raised" radius="none" padding="none" className="py-20 px-6 sm:px-8 lg:px-10 relative overflow-hidden flex flex-col items-center justify-center text-center">
+      <Surface depth="raised" radius="none" padding="none" className="py-14 px-6 sm:px-8 lg:px-10 relative overflow-hidden flex flex-col items-center justify-center text-center">
 
         <motion.div
           className="absolute top-0 right-0 w-[800px] h-[800px] rounded-full blur-[160px] opacity-[0.1] pointer-events-none"
           style={{ background: 'radial-gradient(circle, var(--brand-primary) 0%, transparent 70%)' }}
         />
 
-        <div className="max-w-5xl mx-auto relative z-10 flex flex-col items-center gap-8">
-           <Badge variant="teal" className="px-8 py-3 text-[10px] font-black uppercase tracking-[0.25em]">Model Context Protocol</Badge>
+        <div className="max-w-5xl mx-auto relative z-10 flex flex-col items-center gap-5">
+           <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-[0.25em]">Model Context Protocol</Badge>
            <motion.h1
              className="text-4xl sm:text-6xl font-black tracking-tighter font-display leading-[0.85] m-0 text-[var(--text-primary)]"
              initial={{ opacity: 0, y: 32 }}
@@ -164,8 +164,8 @@ export default function McpPage() {
              One install command to give your agents the coordination infrastructure they deserve. 60+ production-grade tools for the modern swarm.
            </motion.p>
 
-           <div className="flex flex-col items-center gap-8 pt-12 w-full">
-              <Surface depth="raised" radius="2xl" padding="none" className="inline-flex flex-col sm:flex-row items-center gap-6 px-12 py-8 font-mono text-xl relative overflow-hidden group">
+           <div className="flex flex-col items-center gap-5 pt-8 w-full">
+              <Surface depth="raised" radius="2xl" padding="none" className="inline-flex flex-col sm:flex-row items-center gap-4 px-8 py-5 font-mono text-xl relative overflow-hidden group">
 
                  <div className="absolute inset-0 bg-gradient-to-r from-[var(--brand-primary)]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                  <div className="flex items-center gap-4 relative z-10">
@@ -181,14 +181,14 @@ export default function McpPage() {
       </Surface>
 
       {/* Installation Guide */}
-      <section className="py-24 bg-bg-surface border-b border-border-subtle">
+      <section className="py-14 bg-bg-surface border-b border-border-subtle">
         <div className="max-w-7xl mx-auto px-6 lg:px-12 flex flex-col items-center">
-           <div className="text-center mb-20 space-y-6">
+           <div className="text-center mb-10 space-y-4">
               <Badge variant="default" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest bg-bg-overlay border border-border-strong text-text-primary">Getting Started</Badge>
-              <h2 className="text-4xl sm:text-6xl font-display font-black text-text-primary tracking-tighter">Instant Integration.</h2>
+              <h2 className="text-2xl sm:text-4xl font-display font-black text-text-primary tracking-tighter">Instant Integration.</h2>
            </div>
 
-           <div className="grid md:grid-cols-3 gap-12 w-full">
+           <div className="grid md:grid-cols-3 gap-5 w-full">
               {INSTALL_STEPS.map((step, i) => (
                 <motion.div 
                   key={step.title}
@@ -196,7 +196,7 @@ export default function McpPage() {
                   whileInView={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.1 }}
                   viewport={{ once: true }}
-                  className="p-10 rounded-[48px] bg-bg-base border border-border-subtle flex flex-col gap-8 group hover:border-brand-primary transition-all shadow-lg"
+                  className="p-6 rounded-[48px] bg-bg-base border border-border-subtle flex flex-col gap-5 group hover:border-brand-primary transition-all shadow-lg"
                 >
                    <div className="w-14 h-14 rounded-2xl bg-bg-overlay border border-border-subtle flex items-center justify-center group-hover:scale-110 transition-transform">
                       <step.icon size={28} className="text-brand-primary" />
@@ -215,24 +215,24 @@ export default function McpPage() {
       </section>
 
       {/* Main Content */}
-      <motion.main className="flex-1 py-20 px-6 sm:px-8 lg:px-10 max-w-7xl mx-auto w-full font-sans flex flex-col items-center">
+      <motion.main className="flex-1 py-12 px-6 sm:px-8 lg:px-10 max-w-7xl mx-auto w-full font-sans flex flex-col items-center">
 
         {/* Progressive Disclosure */}
-        <section className="mb-32 space-y-20 w-full flex flex-col items-center">
-           <div className="flex flex-col items-center text-center gap-8 pb-20 w-full max-w-4xl">
+        <section className="mb-16 space-y-10 w-full flex flex-col items-center">
+           <div className="flex flex-col items-center text-center gap-5 pb-10 w-full max-w-4xl">
               <Badge variant="default" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Agent Experience (AX)</Badge>
-              <div className="flex flex-col items-center gap-8">
-                 <Surface depth="inset" radius="2xl" padding="none" className="w-20 h-20 flex items-center justify-center">
-                    <Layers size={40} className="text-[var(--brand-secondary)]" />
+              <div className="flex flex-col items-center gap-5">
+                 <Surface depth="inset" radius="2xl" padding="none" className="w-16 h-16 flex items-center justify-center">
+                    <Layers size={32} className="text-[var(--brand-secondary)]" />
                  </Surface>
-                 <motion.h2 className="text-4xl sm:text-6xl font-display font-black tracking-tighter m-0 leading-[0.95] text-[var(--text-primary)]">Progressive Disclosure.</motion.h2>
+                 <motion.h2 className="text-2xl sm:text-4xl font-display font-black tracking-tighter m-0 leading-[0.95] text-[var(--text-primary)]">Progressive Disclosure.</motion.h2>
               </div>
               <motion.p className="text-xl sm:text-2xl leading-relaxed text-[var(--text-secondary)] m-0 font-medium max-w-3xl mx-auto">
                  Agents shouldn't be overwhelmed by complexity. Port Daddy exposes <strong>8 essential tools</strong> by default. Call <code>pd_discover()</code> to unlock advanced categories as the task requires.
               </motion.p>
            </div>
 
-           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8 w-full">
+           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
               {CATEGORIES.map((cat, i) => (
                 <motion.div
                   key={cat.id}
@@ -241,9 +241,9 @@ export default function McpPage() {
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.05 }}
                 >
-                <Surface depth="raised" radius="2xl" padding="none" className="p-10 space-y-8 group transition-all text-center flex flex-col items-center">
+                <Surface depth="raised" radius="2xl" padding="none" className="p-6 space-y-5 group transition-all text-center flex flex-col items-center">
 
-                   <div className="flex flex-col items-center gap-6">
+                   <div className="flex flex-col items-center gap-4">
                       <Surface depth="inset" radius="2xl" padding="none" className="w-16 h-16 flex items-center justify-center group-hover:scale-110 transition-transform">
                          <cat.icon size={32} className="text-[var(--brand-primary)] opacity-40 group-hover:opacity-100 transition-opacity" />
                       </Surface>
@@ -260,21 +260,21 @@ export default function McpPage() {
         </section>
 
         {/* Essential 8 Tools */}
-        <section className="space-y-20 w-full flex flex-col items-center">
-           <div className="flex flex-col items-center text-center gap-8 pb-20 w-full max-w-4xl">
+        <section className="space-y-10 w-full flex flex-col items-center">
+           <div className="flex flex-col items-center text-center gap-5 pb-10 w-full max-w-4xl">
               <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">The Standard Library</Badge>
-              <div className="flex flex-col items-center gap-8">
-                 <Surface depth="inset" radius="2xl" padding="none" className="w-20 h-20 flex items-center justify-center">
-                    <Zap size={40} className="text-[var(--brand-primary)]" />
+              <div className="flex flex-col items-center gap-5">
+                 <Surface depth="inset" radius="2xl" padding="none" className="w-16 h-16 flex items-center justify-center">
+                    <Zap size={32} className="text-[var(--brand-primary)]" />
                  </Surface>
-                 <motion.h2 className="text-4xl sm:text-6xl font-display font-black tracking-tighter m-0 leading-[0.95] text-[var(--text-primary)]">The Essential Set.</motion.h2>
+                 <motion.h2 className="text-2xl sm:text-4xl font-display font-black tracking-tighter m-0 leading-[0.95] text-[var(--text-primary)]">The Essential Set.</motion.h2>
               </div>
               <motion.p className="text-xl sm:text-2xl leading-relaxed text-[var(--text-secondary)] m-0 font-medium max-w-3xl mx-auto">
                  The primitives every agent needs to be a productive member of the swarm. Optimized for context window efficiency and sub-50ms latency.
               </motion.p>
            </div>
 
-           <div className="grid lg:grid-cols-2 gap-12 w-full">
+           <div className="grid lg:grid-cols-2 gap-5 w-full">
               {ESSENTIAL_TOOLS.map((tool) => (
                 <ToolCard key={tool.name} tool={tool} />
               ))}
@@ -282,9 +282,9 @@ export default function McpPage() {
         </section>
 
         {/* Vision Callout */}
-        <Surface depth="raised" radius="2xl" padding="none" className="mt-32 overflow-hidden w-full mx-auto">
+        <Surface depth="raised" radius="2xl" padding="none" className="mt-16 overflow-hidden w-full mx-auto">
           <motion.div
-            className="p-24 flex flex-col items-center text-center gap-8 relative"
+            className="p-6 flex flex-col items-center text-center gap-5 relative"
             initial={{ opacity: 0, scale: 0.98 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
@@ -293,9 +293,9 @@ export default function McpPage() {
               <Cpu size={800} />
            </div>
 
-           <div className="space-y-10 max-w-4xl relative z-10 flex flex-col items-center">
-              <Badge variant="teal" className="px-8 py-3 text-[10px] font-black uppercase tracking-widest">Model Optimization</Badge>
-              <motion.h3 className="text-4xl sm:text-6xl font-display font-black tracking-tight leading-[0.95] m-0 text-[var(--text-primary)]">
+           <div className="space-y-6 max-w-4xl relative z-10 flex flex-col items-center">
+              <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Model Optimization</Badge>
+              <motion.h3 className="text-2xl sm:text-4xl font-display font-black tracking-tight leading-[0.95] m-0 text-[var(--text-primary)]">
                 Built for <br />
                 <span className="text-[var(--brand-secondary)]">Intelligence.</span>
               </motion.h3>
@@ -304,7 +304,7 @@ export default function McpPage() {
               </motion.p>
            </div>
 
-           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 w-full max-w-6xl relative z-10">
+           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full max-w-6xl relative z-10">
               {[
                 { label: 'Token Efficient', icon: Zap },
                 { label: 'Latency Aware', icon: Activity },
@@ -313,7 +313,7 @@ export default function McpPage() {
               ].map((item, i) => (
                 <motion.div
                   key={i}
-                  className="p-10 rounded-2xl flex flex-col items-center gap-6 group transition-all"
+                  className="p-6 rounded-2xl flex flex-col items-center gap-4 group transition-all"
                   style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-sm)' }}
                 >
                    <Surface depth="inset" radius="2xl" padding="none" className="w-14 h-14 flex items-center justify-center group-hover:scale-110 transition-transform">

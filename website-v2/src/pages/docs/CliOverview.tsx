@@ -81,7 +81,7 @@ const GROUPS = [
 
 export default function CliOverview() {
   return (
-    <div className="space-y-10">
+    <div className="space-y-8">
       {/* Header */}
       <div className="space-y-3">
         <div className="flex items-center gap-3">

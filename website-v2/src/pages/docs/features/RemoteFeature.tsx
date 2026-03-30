@@ -5,7 +5,7 @@ import { DocsCodeBlock } from '@/components/docs/DocsCodeBlock'
 
 export default function RemoteFeature() {
   return (
-    <div className="space-y-12">
+    <div className="space-y-10">
       {/* Header */}
       <div className="space-y-4">
         <div className="flex items-center gap-2">
@@ -15,7 +15,7 @@ export default function RemoteFeature() {
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Remote Harbors (v4)
         </h1>
-        <p className="text-xl text-[var(--text-secondary)] leading-relaxed max-w-3xl">
+        <p className="text-lg text-[var(--text-secondary)] leading-relaxed max-w-3xl">
           Cross-machine coordination for multi-agent development. Remote Harbors will connect
           Port Daddy instances across your network, enabling shared port claims, sessions,
           and messaging between machines.
@@ -23,18 +23,16 @@ export default function RemoteFeature() {
       </div>
 
       {/* v4 Notice */}
-      <div className="p-5 rounded-xl border border-[var(--brand-accent)]/30 bg-[var(--brand-accent)]/5">
-        <p className="text-[var(--text-secondary)] leading-relaxed">
-          <strong className="text-[var(--text-primary)]">This feature is not yet available.</strong>{' '}
-          Remote Harbors are under active development for Port Daddy v4. The design below
-          reflects the planned architecture and API. Nothing described on this page works today.
-        </p>
-      </div>
+      <p className="text-[var(--text-secondary)] leading-relaxed border-l-4 border-[var(--brand-accent)] pl-4">
+        <strong className="text-[var(--text-primary)]">This feature is not yet available.</strong>{' '}
+        Remote Harbors are under active development for Port Daddy v4. The design below
+        reflects the planned architecture and API. Nothing described on this page works today.
+      </p>
 
       {/* The Motivation */}
-      <div className="p-6 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-        <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-4">The Motivation</h2>
-        <p className="text-[var(--text-secondary)] leading-relaxed mb-4">
+      <div>
+        <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3">The Motivation</h2>
+        <p className="text-[var(--text-secondary)] leading-relaxed mb-3">
           Port Daddy runs locally by default, but real-world agent swarms can span multiple machines.
           Without cross-machine coordination:
         </p>
@@ -55,8 +53,8 @@ export default function RemoteFeature() {
       </div>
 
       {/* Planned Architecture */}
-      <div className="space-y-6">
-        <h2 className="text-2xl font-semibold text-[var(--text-primary)]">Planned Architecture</h2>
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Planned Architecture</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           The v4 design uses a Lighthouse discovery server to let Port Daddy instances find each
           other and establish encrypted peer-to-peer connections. Once connected, port claims,
@@ -64,27 +62,27 @@ export default function RemoteFeature() {
         </p>
 
         <div className="grid sm:grid-cols-3 gap-4">
-          <div className="p-4 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+          <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">Lighthouse</code>
-            <p className="text-sm text-[var(--text-muted)] mt-2">Discovery and rendezvous server</p>
+            <p className="text-sm text-[var(--text-muted)] mt-1">Discovery and rendezvous server</p>
             <p className="text-xs text-[var(--text-muted)] mt-1">Peers register and find each other</p>
           </div>
-          <div className="p-4 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+          <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">Encrypted Tunnels</code>
-            <p className="text-sm text-[var(--text-muted)] mt-2">Secure peer-to-peer channels</p>
+            <p className="text-sm text-[var(--text-muted)] mt-1">Secure peer-to-peer channels</p>
             <p className="text-xs text-[var(--text-muted)] mt-1">All traffic encrypted in transit</p>
           </div>
-          <div className="p-4 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+          <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">State Sync</code>
-            <p className="text-sm text-[var(--text-muted)] mt-2">Distributed state replication</p>
+            <p className="text-sm text-[var(--text-muted)] mt-1">Distributed state replication</p>
             <p className="text-xs text-[var(--text-muted)] mt-1">Claims, sessions, messages flow across machines</p>
           </div>
         </div>
       </div>
 
       {/* Planned API */}
-      <div className="space-y-6">
-        <h2 className="text-2xl font-semibold text-[var(--text-primary)]">Planned API</h2>
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Planned API</h2>
         <p className="text-sm text-[var(--text-muted)] mb-2">
           These commands do not exist yet. They represent the target CLI surface for v4.
         </p>
@@ -108,8 +106,8 @@ ci-server         192.168.1.30       1          5ms`}
       </div>
 
       {/* What Works Today */}
-      <div className="space-y-4">
-        <h2 className="text-2xl font-semibold text-[var(--text-primary)]">What Works Today</h2>
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">What Works Today</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           While Remote Harbors are not yet available, you can use{' '}
           <Link to="/docs/features/tunnels" className="text-[var(--brand-primary)] hover:underline">
@@ -122,7 +120,7 @@ ci-server         192.168.1.30       1          5ms`}
       </div>
 
       {/* Next */}
-      <div className="flex items-center justify-between p-6 rounded-xl bg-gradient-to-r from-[var(--brand-primary)]/5 to-transparent border border-[var(--brand-primary)]/20">
+      <div className="flex items-center justify-between p-5 rounded-xl bg-gradient-to-r from-[var(--brand-primary)]/5 to-transparent border border-[var(--brand-primary)]/20">
         <div>
           <div className="text-sm text-[var(--text-muted)] mb-1">Next Feature</div>
           <div className="font-semibold text-[var(--text-primary)]">Tunnels</div>

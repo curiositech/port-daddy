@@ -75,7 +75,7 @@ const TOOLS = [
 
 export default function McpOverview() {
   return (
-    <div className="space-y-12">
+    <div className="space-y-8">
       {/* Header */}
       <div className="space-y-4">
         <div className="flex items-center gap-2">
@@ -99,8 +99,8 @@ export default function McpOverview() {
       </div>
 
       {/* What is MCP? */}
-      <div className="p-6 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-        <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-4">What is MCP?</h2>
+      <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+        <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-3">What is MCP?</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           The Model Context Protocol is an open standard that allows AI tools to discover and use 
           external capabilities. With Port Daddy's MCP server, your agents can:
@@ -139,7 +139,7 @@ $ pd mcp install --global
       </div>
 
       {/* Supported Platforms */}
-      <div className="space-y-6">
+      <div className="space-y-4">
         <h2 className="text-2xl font-semibold text-[var(--text-primary)]">Supported Platforms</h2>
         <div className="grid gap-4">
           {MCP_SERVERS.map(server => (
@@ -176,7 +176,7 @@ $ pd mcp install --global
       </div>
 
       {/* Available Tools */}
-      <div className="space-y-6">
+      <div className="space-y-4">
         <h2 className="text-2xl font-semibold text-[var(--text-primary)]">Available Tools</h2>
         <p className="text-[var(--text-secondary)]">
           These tools are exposed to any MCP-compatible client:
@@ -246,7 +246,7 @@ $ pd mcp install --global
       </div>
 
       {/* Learn More */}
-      <div className="flex items-center justify-between p-6 rounded-xl bg-gradient-to-r from-[var(--brand-primary)]/5 to-transparent border border-[var(--brand-primary)]/20">
+      <div className="flex items-center justify-between p-5 rounded-xl bg-gradient-to-r from-[var(--brand-primary)]/5 to-transparent border border-[var(--brand-primary)]/20">
         <div>
           <div className="text-sm text-[var(--text-muted)] mb-1">Learn More</div>
           <div className="font-semibold text-[var(--text-primary)]">MCP Specification</div>

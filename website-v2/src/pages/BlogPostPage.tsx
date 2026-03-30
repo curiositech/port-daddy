@@ -35,8 +35,8 @@ export function BlogPostPage() {
       />
 
       {/* Hero Section */}
-      <motion.header 
-        className="py-20 px-6 sm:px-8 lg:px-10 border-b relative overflow-hidden" 
+      <motion.header
+        className="py-14 px-6 sm:px-8 lg:px-10 border-b relative overflow-hidden"
         style={{ background: 'var(--surface-raised)', borderColor: 'var(--border-subtle)' }}
       >
         <motion.div 
@@ -44,7 +44,7 @@ export function BlogPostPage() {
           style={{ background: 'radial-gradient(circle, var(--brand-primary) 0%, transparent 70%)' }} 
         />
         
-        <motion.div className="max-w-4xl mx-auto relative z-10 flex flex-col items-center text-center gap-10">
+        <motion.div className="max-w-4xl mx-auto relative z-10 flex flex-col items-center text-center gap-6">
            <Link to="/blog" className="no-underline group">
               <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] text-[var(--text-muted)] group-hover:text-[var(--brand-primary)] transition-all">
                  <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform" />
@@ -52,7 +52,7 @@ export function BlogPostPage() {
               </motion.div>
            </Link>
 
-           <motion.div className="flex items-center gap-6 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] font-mono">
+           <motion.div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] font-mono">
               <motion.div className="flex items-center gap-2">
                  <Calendar size={14} className="text-[var(--brand-primary)]" />
                  {post.date}
@@ -82,7 +82,7 @@ export function BlogPostPage() {
       </motion.header>
 
       {/* Main Content */}
-      <motion.main id="main-content" className="flex-1 py-24 px-6 sm:px-8 lg:px-10 font-sans relative">
+      <motion.main id="main-content" className="flex-1 py-14 px-6 sm:px-8 lg:px-10 font-sans relative">
         <div className="max-w-3xl mx-auto w-full">
           <motion.article 
             initial={{ opacity: 0, y: 20 }}
@@ -90,14 +90,14 @@ export function BlogPostPage() {
             transition={{ duration: 0.7, delay: 0.2 }}
             className="prose prose-invert prose-lg max-w-none 
             prose-headings:font-display prose-headings:font-black prose-headings:tracking-tight prose-headings:text-[var(--text-primary)]
-            prose-h2:text-4xl prose-h2:mt-24 prose-h2:mb-10 prose-h2:pb-4 prose-h2:border-b prose-h2:border-[var(--border-subtle)]
-            prose-h3:text-2xl prose-h3:mt-16 prose-h3:mb-6
-            prose-p:text-[var(--text-secondary)] prose-p:leading-relaxed prose-p:mb-8 prose-p:text-xl
+            prose-h2:text-2xl prose-h2:mt-16 prose-h2:mb-6 prose-h2:pb-4 prose-h2:border-b prose-h2:border-[var(--border-subtle)]
+            prose-h3:text-xl prose-h3:mt-10 prose-h3:mb-4
+            prose-p:text-[var(--text-secondary)] prose-p:leading-relaxed prose-p:mb-6 prose-p:text-lg
             prose-code:text-[var(--brand-primary)] prose-code:bg-[var(--interactive-active)] prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none prose-code:font-mono prose-code:font-bold
             prose-strong:text-[var(--text-primary)] prose-strong:font-black
-            prose-ul:list-disc prose-ul:pl-8 prose-ul:mb-10 prose-ul:space-y-4
+            prose-ul:list-disc prose-ul:pl-8 prose-ul:mb-6 prose-ul:space-y-3
             prose-li:text-[var(--text-secondary)] prose-li:text-lg
-            prose-blockquote:border-l-4 prose-blockquote:border-[var(--brand-primary)] prose-blockquote:bg-[var(--surface-raised)] prose-blockquote:py-8 prose-blockquote:px-10 prose-blockquote:rounded-r-3xl prose-blockquote:italic prose-blockquote:text-2xl"
+            prose-blockquote:border-l-4 prose-blockquote:border-[var(--brand-primary)] prose-blockquote:bg-[var(--surface-raised)] prose-blockquote:py-5 prose-blockquote:px-6 prose-blockquote:rounded-r-3xl prose-blockquote:italic prose-blockquote:text-xl"
         >
           <ReactMarkdown
             components={{
@@ -120,8 +120,8 @@ export function BlogPostPage() {
         </div>
 
         {/* Impressively long additional context */}
-        <motion.div 
-          className="mt-32 p-20 rounded-[80px] border border-dashed border-[var(--border-strong)] bg-[var(--surface-overlay)] flex flex-col items-center text-center gap-12 relative overflow-hidden"
+        <motion.div
+          className="mt-20 p-10 rounded-[80px] border border-dashed border-[var(--border-strong)] bg-[var(--surface-overlay)] flex flex-col items-center text-center gap-6 relative overflow-hidden"
           initial={{ opacity: 0, scale: 0.98 }}
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
@@ -130,15 +130,15 @@ export function BlogPostPage() {
               <ShieldCheck size={600} />
            </motion.div>
            
-           <motion.div className="space-y-6 max-w-3xl relative z-10">
+           <motion.div className="space-y-4 max-w-3xl relative z-10">
               <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest shadow-xl">Protocol Safety</Badge>
-              <motion.h3 className="text-4xl sm:text-7xl font-display font-black tracking-tight leading-[0.95]" style={{ color: 'var(--text-primary)' }}>
+              <motion.h3 className="text-2xl sm:text-4xl font-display font-black tracking-tight leading-[0.95]" style={{ color: 'var(--text-primary)' }}>
                 Soundness is <motion.span className="text-[var(--brand-secondary)]">Mandatory.</motion.span>
               </motion.h3>
-              <motion.p className="text-2xl leading-relaxed text-[var(--text-secondary)]">
+              <motion.p className="text-lg leading-relaxed text-[var(--text-secondary)]">
                 This engineering post was produced as part of our commitment to transparency and mathematical rigor. We believe the future of AI coordination must be built on a foundation of formal methods and verified protocols.
               </motion.p>
-              <motion.div className="flex flex-wrap justify-center gap-6 pt-4">
+              <motion.div className="flex flex-wrap justify-center gap-4 pt-4">
                  <motion.div className="flex items-center gap-3 px-6 py-3 rounded-full bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
                     <Share2 size={16} className="text-[var(--brand-primary)]" />
                     <motion.span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Share Protocol Insights</motion.span>
