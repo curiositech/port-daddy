@@ -173,6 +173,15 @@ const TOOL_FEATURE_MAP = {
 
   // Launch hints
   'get_launch_hints': 'launch_hints',
+
+  // Magic tools (high-level composed operations)
+  'fleet_init': 'fleet',
+  'fleet_status': 'fleet',
+  'swarm_awareness': 'agents',
+  'catch_me_up': 'activity',
+  'file_heat': 'pheromone',
+  'talk_to_agent': 'inbox',
+  'spawn_agent': 'spawn',
 };
 
 /**
@@ -609,10 +618,11 @@ describe('MCP tiered tool loading', () => {
     'begin_session', 'end_session_full', 'whoami',
     'claim_port', 'release_port', 'add_note',
     'acquire_lock', 'list_services',
+    'fleet_init', 'swarm_awareness', 'catch_me_up', 'spawn_agent',
   ];
 
   const CATEGORY_NAMES = [
-    'session-lifecycle', 'ports', 'sessions', 'notes', 'locks',
+    'magic', 'session-lifecycle', 'ports', 'sessions', 'notes', 'locks',
     'messaging', 'agents', 'inbox', 'webhooks', 'integration', 'dns', 'briefing',
     'tunnels', 'projects', 'changelog', 'activity', 'system',
   ];
@@ -660,10 +670,10 @@ describe('MCP tiered tool loading', () => {
     }
   });
 
-  it('tiered mode should expose 9 tools (8 essential + pd_discover)', () => {
+  it('tiered mode should expose 13 tools (12 essential + pd_discover)', () => {
     // In default (non-full) mode, only essential + pd_discover are listed
     const tieredCount = ESSENTIAL_NAMES.length + 1; // +1 for pd_discover
-    expect(tieredCount).toBe(9);
+    expect(tieredCount).toBe(13);
   });
 });
 
