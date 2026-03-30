@@ -1238,6 +1238,13 @@ class PortDaddy {
    * Publish a message to a channel.
    */
   async publish(channel: string, payload: unknown, options: PublishOptions = {}): Promise<PublishResponse> {
+    // Fast path: binary IPC fire-and-forget
+    const ipc = this._getIpc();
+    if (ipc && ipc.state === 'ready') {
+      ipc.publish(channel, typeof payload === 'string' ? payload : JSON.stringify(payload));
+      return { success: true, id: 0, message: 'ipc' };
+    }
+
     return this._request('POST', `/msg/${encodeURIComponent(channel)}`, {
       payload: payload as Record<string, unknown>,
       ...options,
@@ -2623,6 +2630,13 @@ class PortDaddy {
    * await pd.pheromoneSpray('services', 'myapp:api', 'urgency', 0.8);
    */
   async pheromoneSpray(table: string, id: string, key: string, strength: number): Promise<PheromoneSprayResponse> {
+    // Fast path: binary IPC fire-and-forget
+    const ipc = this._getIpc();
+    if (ipc && ipc.state === 'ready') {
+      ipc.spray(table, id, key, strength);
+      return { success: true, table, id, key, strength, pheromones: { [key]: strength } };
+    }
+
     return this._request('POST', '/pheromone/spray', { table, id, key, strength }) as Promise<PheromoneSprayResponse>;
   }
 
