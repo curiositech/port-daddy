@@ -8,6 +8,7 @@
 
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 
 interface SugarRouteDeps {
   sugar: {
@@ -128,3 +129,111 @@ export function createSugarRoutes(deps: SugarRouteDeps): Router {
 
   return router;
 }
+
+// =============================================================================
+// Fastify plugin export
+// =============================================================================
+export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (fastify, opts) => {
+  const { deps } = opts;
+  const { sugar, metrics, logger } = deps;
+
+  // POST /sugar/begin
+  fastify.post('/sugar/begin', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const { purpose, identity, agentId, type, files, force, metadata } = request.body as any;
+
+      if (!purpose || typeof purpose !== 'string') {
+        reply.code(400);
+        return {
+          success: false,
+          error: 'purpose must be a non-empty string',
+          code: 'VALIDATION_ERROR',
+        };
+      }
+
+      const result = sugar.begin({
+        purpose,
+        identity,
+        agentId,
+        type,
+        files,
+        force,
+        metadata,
+      });
+
+      if (!result.success) {
+        const status = result.code === 'AGENT_REGISTRATION_FAILED' ? 400 : 500;
+        reply.code(status);
+        return result;
+      }
+
+      logger.info('sugar_begin', {
+        agentId: result.agentId,
+        sessionId: result.sessionId,
+        identity,
+        purpose,
+      });
+
+      return result;
+    } catch (error) {
+      metrics.errors++;
+      logger.error('sugar_begin_error', { error: (error as Error).message });
+      reply.code(500);
+      return { error: 'internal server error' };
+    }
+  });
+
+  // POST /sugar/done
+  fastify.post('/sugar/done', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const { agentId, sessionId, note, status } = request.body as any;
+
+      const VALID_DONE_STATUSES = new Set(['completed', 'abandoned']);
+      if (status && !VALID_DONE_STATUSES.has(status)) {
+        reply.code(400);
+        return {
+          success: false,
+          error: `Invalid status "${status}". Must be one of: completed, abandoned`,
+          code: 'VALIDATION_ERROR',
+        };
+      }
+
+      const result = sugar.done({ agentId, sessionId, note, status });
+
+      if (!result.success) {
+        const httpStatus = result.code === 'NO_ACTIVE_SESSION' ? 404 : 500;
+        reply.code(httpStatus);
+        return result;
+      }
+
+      logger.info('sugar_done', {
+        agentId: result.agentId,
+        sessionId: result.sessionId,
+        status: result.sessionStatus,
+      });
+
+      return result;
+    } catch (error) {
+      metrics.errors++;
+      logger.error('sugar_done_error', { error: (error as Error).message });
+      reply.code(500);
+      return { error: 'internal server error' };
+    }
+  });
+
+  // GET /sugar/whoami
+  fastify.get('/sugar/whoami', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const agentId = typeof (request.query as any).agentId === 'string' ? (request.query as any).agentId : undefined;
+
+      const result = sugar.whoami({ agentId });
+
+      return result;
+    } catch (error) {
+      metrics.errors++;
+      logger.error('sugar_whoami_error', { error: (error as Error).message });
+      reply.code(500);
+      return { error: 'internal server error' };
+    }
+  });
+};

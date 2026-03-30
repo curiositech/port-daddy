@@ -10,6 +10,7 @@
 
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 
 interface StaleAgent {
   id: string;
@@ -308,3 +309,143 @@ export function createResurrectionRoutes(deps: ResurrectionRouteDeps): Router {
 
   return router;
 }
+
+// =============================================================================
+// Fastify plugin (dual-export)
+// =============================================================================
+export const resurrectionPlugin: FastifyPluginAsync<{ deps: ResurrectionRouteDeps }> = async (fastify, opts) => {
+  const { logger, metrics, resurrection, messaging } = opts.deps;
+
+  // Shared handler implementations as async functions
+
+  async function fHandlePending(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const { project, stack } = request.query as any;
+      return resurrection.pending({
+        project: project as string | undefined,
+        stack: stack as string | undefined
+      });
+    } catch (error) {
+      metrics.errors++;
+      logger.error('salvage_pending_failed', { error: (error as Error).message });
+      reply.code(500);
+      return { error: 'internal server error' };
+    }
+  }
+
+  async function fHandleList(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const { limit, project, stack } = request.query as any;
+      return resurrection.list({
+        limit: limit ? parseInt(limit as string, 10) : undefined,
+        project: project as string | undefined,
+        stack: stack as string | undefined
+      });
+    } catch (error) {
+      metrics.errors++;
+      reply.code(500);
+      return { error: 'internal server error' };
+    }
+  }
+
+  async function fHandleClaim(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const agentId = (request.params as any).agentId as string;
+      const result = resurrection.claim(agentId);
+
+      if (!result.success) {
+        reply.code(400);
+        return { error: result.error };
+      }
+
+      messaging.publish('salvage', JSON.stringify({
+        event: 'claimed',
+        agentId,
+        claimedBy: (request.body as any)?.newAgentId || 'unknown'
+      }));
+
+      logger.info('salvage_claimed', { agentId });
+      return result;
+    } catch (error) {
+      metrics.errors++;
+      logger.error('salvage_claim_failed', { error: (error as Error).message });
+      reply.code(500);
+      return { error: 'internal server error' };
+    }
+  }
+
+  async function fHandleComplete(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const oldAgentId = (request.params as any).agentId as string;
+      const { newAgentId } = request.body as any;
+
+      if (!newAgentId) {
+        reply.code(400);
+        return { error: 'newAgentId required' };
+      }
+
+      const result = resurrection.complete(oldAgentId, newAgentId);
+
+      logger.info('salvage_complete', { oldAgentId, newAgentId });
+      return result;
+    } catch (error) {
+      metrics.errors++;
+      logger.error('salvage_complete_failed', { error: (error as Error).message });
+      reply.code(500);
+      return { error: 'internal server error' };
+    }
+  }
+
+  async function fHandleAbandon(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const agentId = (request.params as any).agentId as string;
+      const result = resurrection.abandon(agentId);
+
+      messaging.publish('salvage', JSON.stringify({
+        event: 'abandoned',
+        agentId
+      }));
+
+      logger.info('salvage_abandoned', { agentId });
+      return result;
+    } catch (error) {
+      metrics.errors++;
+      reply.code(500);
+      return { error: 'internal server error' };
+    }
+  }
+
+  async function fHandleDismiss(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const agentId = (request.params as any).agentId as string;
+      const result = resurrection.dismiss(agentId);
+
+      logger.info('salvage_dismissed', { agentId });
+      return result;
+    } catch (error) {
+      metrics.errors++;
+      reply.code(500);
+      return { error: 'internal server error' };
+    }
+  }
+
+  // PRIMARY ROUTES: /salvage/*
+  fastify.get('/salvage/pending', fHandlePending);
+  fastify.get('/salvage', fHandleList);
+  fastify.post('/salvage/claim/:agentId', fHandleClaim);
+  fastify.post('/salvage/complete/:agentId', fHandleComplete);
+  fastify.post('/salvage/abandon/:agentId', fHandleAbandon);
+  fastify.delete('/salvage/:agentId', fHandleDismiss);
+
+  // DEPRECATED ALIASES: /resurrection/*
+  fastify.get('/resurrection/pending', fHandlePending);
+  fastify.get('/resurrection', fHandleList);
+  fastify.post('/resurrection/claim/:agentId', fHandleClaim);
+  fastify.post('/resurrection/complete/:agentId', fHandleComplete);
+  fastify.post('/resurrection/abandon/:agentId', fHandleAbandon);
+  fastify.delete('/resurrection/:agentId', fHandleDismiss);
+
+  // Reap aliases
+  fastify.post('/resurrection/reap', fHandlePending);
+  fastify.post('/salvage/reap', fHandlePending);
+};
