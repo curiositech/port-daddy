@@ -53,10 +53,8 @@ import { createSemanticIndex } from './lib/semantic-index.js';
 import { createNoteEncryption } from './lib/note-encryption.js';
 import { initDatabase, closeDatabase, resolveDbPath } from './lib/db.js';
 
-// Route aggregator (Express — will be replaced by Fastify plugins in Phase 2-3)
-import { createRoutes } from './routes/index.js';
-import { createArbiterRoutes } from './routes/arbiter.js';
-import { createPheromoneRoutes } from './routes/pheromone.js';
+// Fastify route aggregator (Phase 3 — native Fastify plugins, no Express bridge)
+import { registerAllRoutes } from './routes/index-fastify.js';
 
 // Shared utilities
 import { getSystemPorts, startSystemPortsRefresh } from './shared/port-utils.js';
@@ -508,30 +506,22 @@ app.get('/ping', async () => {
 });
 
 // =============================================================================
-// ROUTES (Express routes via @fastify/express during transition)
+// ROUTES (native Fastify plugins — Phase 3)
 // =============================================================================
-// Phase 2 will add Fastify plugin exports to each route file.
-// For now, use @fastify/express compatibility to mount Express routes.
-// This is temporary — removed in Phase 5 switchover.
 
-// TODO: Phase 2 — replace with Fastify plugin registration:
-// await app.register(registerAllRoutes, { deps: { ... } });
-
-// For Phase 1 shell, mount Express routes via compatibility layer
-import fastifyExpress from '@fastify/express';
-await app.register(fastifyExpress);
-
-app.use(createRoutes({
-  db, logger, metrics, config,
-  services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
-  agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar,
-  harbors, orchestrator, correlationEngine, spawner,
-  VERSION, CODE_HASH, STARTED_AT, __dirname,
-  cleanupStale, getSystemPorts
-}));
-
-app.use(createArbiterRoutes(arbiter));
-app.use(createPheromoneRoutes({ pheromones, sessions, db }));
+await registerAllRoutes(
+  app,
+  {
+    db, logger, metrics, config,
+    services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
+    agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar,
+    harbors, orchestrator, correlationEngine, spawner,
+    VERSION, CODE_HASH, STARTED_AT, __dirname,
+    cleanupStale, getSystemPorts,
+  },
+  arbiter,
+  { pheromones, sessions, db },
+);
 
 // =============================================================================
 // DASHBOARD SSE (Fastify raw reply pattern)

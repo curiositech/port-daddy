@@ -164,72 +164,11 @@ export const healthPlugin: FastifyPluginAsync<{ deps: HealthRouteDeps }> = async
     }
   });
 
-  // GET /wait/:id
-  fastify.get('/wait/:id', async (request: FastifyRequest, reply: FastifyReply) => {
-    try {
-      const id = (request.params as any).id as string;
-      const idValidation = validateIdentity(id);
-      if (!idValidation.valid) {
-        reply.code(400);
-        return { error: idValidation.error };
-      }
-
-      const timeout = Math.min(parseInt((request.query as any).timeout as string, 10) || 60000, 300000);
-
-      const result = await health.waitFor(id, { timeout });
-      return result;
-
-    } catch (error) {
-      if ((error as Error).message.includes('Timeout')) {
-        reply.code(408);
-        return { success: false, error: (error as Error).message };
-      }
-      metrics.errors++;
-      logger.error('wait_for_failed', { id: (request.params as any).id as string, error: (error as Error).message });
-      reply.code(500);
-      return { error: 'internal server error' };
-    }
-  });
-
-  // POST /wait
-  fastify.post('/wait', async (request: FastifyRequest, reply: FastifyReply) => {
-    try {
-      const { services: serviceIds, timeout } = request.body as any;
-
-      if (!Array.isArray(serviceIds) || serviceIds.length === 0) {
-        reply.code(400);
-        return { error: 'services must be a non-empty array' };
-      }
-
-      if (serviceIds.length > 20) {
-        reply.code(400);
-        return { error: 'too many services (max 20)' };
-      }
-
-      for (const id of serviceIds) {
-        const validation = validateIdentity(id);
-        if (!validation.valid) {
-          reply.code(400);
-          return { error: `invalid service id '${id}': ${validation.error}` };
-        }
-      }
-
-      const safeTimeout = Math.min(timeout || 60000, 300000);
-
-      const result = await health.waitForAll(serviceIds, { timeout: safeTimeout });
-      return result;
-
-    } catch (error) {
-      if ((error as Error).message.includes('Timeout')) {
-        reply.code(408);
-        return { success: false, error: (error as Error).message };
-      }
-      metrics.errors++;
-      logger.error('wait_for_all_failed', { error: (error as Error).message });
-      reply.code(500);
-      return { error: 'internal server error' };
-    }
-  });
+  // NOTE: /wait/:id and POST /wait are NOT registered here in Fastify.
+  // In Express, these shadowed the servicesPlugin versions (health mounted first).
+  // In Fastify, duplicate routes throw. servicesPlugin owns the /wait endpoints
+  // (tested, full-featured with polling loops). Health-specific wait logic
+  // remains available via health.waitFor() / health.waitForAll() if needed.
 
   // GET /services/health
   fastify.get('/services/health', async (_request: FastifyRequest, reply: FastifyReply) => {
