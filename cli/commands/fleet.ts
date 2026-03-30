@@ -79,6 +79,97 @@ async function getFleetAgents(): Promise<Array<{ id: string; purpose: string; st
   }
 }
 
+// ─── Template paths ─────────────────────────────────────────────────────────
+
+function getTemplatePath(name: string): string {
+  // Templates are at <project-root>/templates/ relative to this file (cli/commands/)
+  return join(__dirname, '..', '..', 'templates', name);
+}
+
+// ─── fleet init ─────────────────────────────────────────────────────────────
+
+async function fleetInit(): Promise<void> {
+  const cwd = process.cwd();
+  const fleetPath = join(cwd, 'pd-fleet.yml');
+  const hookDir = join(cwd, '.git', 'hooks');
+  const hookPath = join(hookDir, 'post-commit');
+
+  // Check if already initialized
+  if (existsSync(fleetPath)) {
+    ui.warn('pd-fleet.yml already exists in this directory');
+    ui.info('Edit it to customize your fleet, then run: pd fleet up');
+    return;
+  }
+
+  // Copy fleet template
+  const templateSrc = getTemplatePath('pd-fleet-starter.yml');
+  if (!existsSync(templateSrc)) {
+    ui.error('Fleet template not found. Is Port Daddy installed correctly?');
+    process.exit(1);
+  }
+
+  writeFileSync(fleetPath, readFileSync(templateSrc, 'utf-8'));
+  ui.success('Created pd-fleet.yml with 5 agents: QA, documentarian, cartographer, spark, spider');
+
+  // Install git hook if .git exists
+  if (existsSync(join(cwd, '.git'))) {
+    const hookSrc = getTemplatePath('post-commit-hook');
+    if (existsSync(hookSrc)) {
+      if (existsSync(hookPath)) {
+        // Append to existing hook instead of overwriting
+        const existing = readFileSync(hookPath, 'utf-8');
+        if (existing.includes('git:committed')) {
+          ui.info('Git post-commit hook already publishes to git:committed');
+        } else {
+          const hookContent = readFileSync(hookSrc, 'utf-8');
+          // Strip the shebang from the appended content
+          const withoutShebang = hookContent.replace(/^#!.*\n/, '');
+          writeFileSync(hookPath, existing.trimEnd() + '\n\n# --- Port Daddy fleet trigger ---\n' + withoutShebang);
+          const { chmodSync } = await import('node:fs');
+          chmodSync(hookPath, 0o755);
+          ui.success('Added fleet trigger to existing .git/hooks/post-commit');
+        }
+      } else {
+        mkdirSync(hookDir, { recursive: true });
+        writeFileSync(hookPath, readFileSync(hookSrc, 'utf-8'));
+        const { chmodSync } = await import('node:fs');
+        chmodSync(hookPath, 0o755);
+        ui.success('Installed .git/hooks/post-commit (publishes to git:committed)');
+      }
+    }
+  } else {
+    ui.warn('No .git directory found — skipping post-commit hook');
+    ui.info('Run this inside a git repo to get automatic fleet triggers on commit');
+  }
+
+  // Create output directories
+  mkdirSync(join(cwd, '.spark', 'ideas'), { recursive: true });
+  mkdirSync(join(cwd, '.spider', 'connections'), { recursive: true });
+  mkdirSync(join(cwd, '.cartographer'), { recursive: true });
+
+  // Add to .gitignore if it exists
+  const gitignorePath = join(cwd, '.gitignore');
+  if (existsSync(gitignorePath)) {
+    const gitignore = readFileSync(gitignorePath, 'utf-8');
+    const additions: string[] = [];
+    if (!gitignore.includes('.spark/')) additions.push('.spark/');
+    if (!gitignore.includes('.spider/')) additions.push('.spider/');
+    if (!gitignore.includes('.cartographer/')) additions.push('.cartographer/');
+    if (additions.length > 0) {
+      writeFileSync(gitignorePath, gitignore.trimEnd() + '\n\n# Port Daddy fleet output\n' + additions.join('\n') + '\n');
+      ui.info(`Added ${additions.join(', ')} to .gitignore`);
+    }
+  }
+
+  console.log('');
+  ui.info('Next steps:');
+  console.log('  1. Add ANTHROPIC_API_KEY to .env.local');
+  console.log('  2. Edit pd-fleet.yml to customize agent prompts');
+  console.log('  3. Run: pd fleet up');
+  console.log('  4. Commit something — watch the agents fire');
+  console.log('');
+}
+
 // ─── Subcommands ────────────────────────────────────────────────────────────
 
 // Module-level fleet runner (persists for the lifetime of the CLI process)
@@ -348,6 +439,10 @@ export async function handleFleet(positional: string[], _options: Record<string,
       await fleetStatus();
       break;
 
+    case 'init':
+      await fleetInit();
+      break;
+
     case 'help':
     case '--help':
     case '-h': {
@@ -358,6 +453,7 @@ export async function handleFleet(positional: string[], _options: Record<string,
       console.log('Usage: pd fleet <command>');
       console.log('');
       console.log('Lifecycle:');
+      console.log('  init            Create pd-fleet.yml + git hook in current project');
       console.log('  up              Start all agents from pd-fleet.yml');
       console.log('  down            Stop all agents');
       console.log('  status          Show fleet health');
