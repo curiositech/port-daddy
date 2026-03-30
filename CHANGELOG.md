@@ -5,6 +5,23 @@ All notable changes to Port Daddy will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.8.1] - 2026-03-29
+
+### Changed
+- **Express → Fastify**: Complete HTTP framework migration. Same API surface, same endpoints, same behavior — faster engine. All 23 route files converted to Fastify plugins. `express`, `cors`, `express-rate-limit`, and `supertest` removed from dependencies.
+- **Trie-accelerated query paths**: Wildcard service lookups (`myapp:*`) now use the semantic trie instead of SQL `LIKE` scans. O(k+m) vs O(n). Wired into `services.ts` find/release, `agents.ts` list/listStale.
+- **1:N semantic trie**: Trie now supports multiple values per key via `entryId`. Agents sharing an identity are individually addressable. 14 new trie tests (40 total).
+- **Trie sync on register/unregister**: Agent and session lifecycle events keep the semantic index in sync — `agents.ts` indexes on register, unindexes on unregister; `sessions.ts` indexes on start, unindexes on end.
+
+### Fixed
+- **BigInt serialization**: `lastInsertRowid` wrapped in `Number()` in `messaging.ts`, `changelog.ts`, `orchestrator.ts` — prevents `fast-json-stringify` errors.
+- **Ephemeral port exhaustion**: `sdk-batch4.test.js` consolidated from 30+ Express servers to 1 shared server, then migrated to `fastify.inject()` (zero servers needed).
+- **Missing briefing route**: `briefingPlugin` was absent from the Fastify route aggregator — added.
+- **Duplicate /wait route**: `/wait/:id` existed in both health and services routes (shadowed in Express, error in Fastify). Removed from health; services owns the wait endpoints.
+
+### Added
+- **IPC Protocol Design**: `docs/IPC-PROTOCOL-DESIGN.md` — FIPA-grounded binary IPC design for Phase 4B. Covers communicative act mapping, 4 interaction protocols, MessagePack frame format (7-byte header, 70-80% bandwidth reduction), dual-socket architecture.
+
 ## [3.8.0] - 2026-03-27
 
 ### Added
