@@ -4,7 +4,7 @@ import { useTheme } from '@/lib/theme'
 import {
   Terminal, Code, Cpu, Globe, BookOpen,
   ChevronRight, Menu, ExternalLink,
-  Home, Search, Layers
+  Home, Search, Layers, Sparkles
 } from 'lucide-react'
 import { DocsSearch } from './DocsSearch'
 import { Nav } from '@/components/landing/Nav'
@@ -39,7 +39,18 @@ const NAV_SECTIONS: NavSection[] = [
     ]
   },
 
-  // ── 2. Concepts & Features ────────────────
+  // ── 2. New Features ───────────────────────
+  {
+    title: 'New in v3.8',
+    icon: Sparkles,
+    items: [
+      { label: 'Pheromone Trails', href: '/docs/features/pheromone', badge: 'New' },
+      { label: 'Fleet Agents', href: '/docs/features/fleet', badge: 'New' },
+      { label: 'Remote Harbors', href: '/docs/features/remote', badge: 'Preview' },
+    ]
+  },
+
+  // ── 3. Concepts & Features ────────────────
   {
     title: 'Concepts',
     icon: Layers,
@@ -53,9 +64,6 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Tunnels', href: '/docs/features/tunnels' },
       { label: 'Always-On Avatars', href: '/docs/features/avatars' },
       { label: 'Time-Travel Debug', href: '/docs/features/timeline' },
-      { label: 'Remote Harbors', href: '/docs/features/remote', badge: 'Preview' },
-      { label: 'Pheromone Trails', href: '/docs/features/pheromone', badge: 'New' },
-      { label: 'Fleet Agents', href: '/docs/features/fleet', badge: 'New' },
     ]
   },
 

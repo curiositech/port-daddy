@@ -110,7 +110,7 @@ export function TutorialProgress({ currentNumber, isOpen: controlledOpen, onTogg
                   className="block"
                 >
                   <Surface
-                    depth={isCurrent ? 'pressed' : 'flat'}
+                    depth={isCurrent ? 'inset' : 'flat'}
                     radius="xl"
                     padding="none"
                     className={`flex items-center gap-4 p-4 transition-all ${

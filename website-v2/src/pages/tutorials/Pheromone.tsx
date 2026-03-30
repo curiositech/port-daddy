@@ -1,9 +1,8 @@
 import { motion } from 'framer-motion'
 import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
 import { CodeBlock } from '@/components/ui/CodeBlock'
-import { Badge } from '@/components/ui/Badge'
 import { Surface } from '@/components/ui/Surface'
-import { Flame, Droplets, MapPin, AlertTriangle, Timer, Eye, BarChart3, Shield } from 'lucide-react'
+import { Flame, Droplets, MapPin, AlertTriangle, Timer, Eye, BarChart3 } from 'lucide-react'
 
 export function Pheromone() {
   return (
@@ -15,7 +14,7 @@ export function Pheromone() {
       level="Intermediate"
       readTime="8 min read"
       prev={{ title: 'Fleet Agents', href: '/tutorials/fleet' }}
-      next={null}
+      next={undefined}
     >
       <motion.div className="space-y-16">
         {/* Intro */}
@@ -50,7 +49,7 @@ export function Pheromone() {
             An agent that just spent 5 minutes working on a file can announce its intensity:
           </motion.p>
 
-          <CodeBlock language="bash" title="Spray a pheromone">{`# Mark a service as "hot" (being actively worked on)
+          <CodeBlock language="bash">{`# Mark a service as "hot" (being actively worked on)
 pd pheromone spray --table services --id myapp:api:main --key urgency --strength 0.8
 
 # Mark an agent's work quality
@@ -79,7 +78,7 @@ curl -X POST http://localhost:9876/pheromone/spray \\
             Here&apos;s the key insight: <strong>pheromones decay when you read them, not when you write them.</strong> Every time an agent sniffs a signal, the value returned reflects how much time has passed since it was sprayed. Old signals are weaker. Fresh signals are strong.
           </motion.p>
 
-          <CodeBlock language="bash" title="Sniff pheromone values">{`# Read all pheromone values for an entity
+          <CodeBlock language="bash">{`# Read all pheromone values for an entity
 pd pheromone sniff --table services --id myapp:api:main
 
 # Response:
@@ -116,7 +115,7 @@ pd pheromone sniff --table services --id myapp:api:main
             The file heat map aggregates session file claims into per-file contention scores. Files claimed by multiple active sessions glow red. Files with a single owner glow green. Files nobody has touched are cold.
           </motion.p>
 
-          <CodeBlock language="bash" title="File heat map">{`# See which files are hottest right now
+          <CodeBlock language="bash">{`# See which files are hottest right now
 curl http://localhost:9876/pheromone/files
 
 # Filter to a directory

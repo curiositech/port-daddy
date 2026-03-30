@@ -4,9 +4,9 @@ import { Badge } from '@/components/ui/Badge'
 import { Surface } from '@/components/ui/Surface'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import {
-  Bot, Shield, FileText, Map, Zap, Network, Eye, Clock,
-  ArrowRight, GitCommit, Wrench, Heart, BookOpen, Search,
-  Terminal, Copy,
+  Shield, Map, Zap, Network, Eye, Clock,
+  ArrowRight, GitCommit, Heart, BookOpen, Search,
+  Terminal,
 } from 'lucide-react'
 
 const AGENTS = [

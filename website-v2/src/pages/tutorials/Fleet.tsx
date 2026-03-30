@@ -3,7 +3,7 @@ import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Badge } from '@/components/ui/Badge'
 import { Surface } from '@/components/ui/Surface'
-import { Bot, GitCommit, Clock, Radio, Network, Eye, Zap, Shield, FileText, ArrowRight } from 'lucide-react'
+import { Bot, GitCommit, Clock, Radio, Eye, Zap, Shield, FileText, ArrowRight } from 'lucide-react'
 
 export function Fleet() {
   return (
@@ -15,7 +15,7 @@ export function Fleet() {
       level="Intermediate"
       readTime="12 min read"
       prev={{ title: 'Remote Harbors', href: '/tutorials/remote-harbors' }}
-      next={null}
+      next={undefined}
     >
       <motion.div className="space-y-16">
         {/* Intro */}
@@ -67,7 +67,7 @@ export function Fleet() {
             Create a file called <code>pd-fleet.yml</code> at your project root. This is the manifest &mdash; it declares every agent, what triggers it, and what it does.
           </motion.p>
 
-          <CodeBlock language="yaml" title="pd-fleet.yml">{`fleet:
+          <CodeBlock language="bash">{`fleet:
   name: my-project
   harbor: "{project}:fleet"    # Shared identity for all fleet agents
 
@@ -140,7 +140,7 @@ export function Fleet() {
             The fleet triggers on <code>git:committed</code>, but who publishes to that channel? You do &mdash; with a git post-commit hook. This runs automatically after every <code>git commit</code>.
           </motion.p>
 
-          <CodeBlock language="bash" title=".git/hooks/post-commit">{`#!/usr/bin/env zsh
+          <CodeBlock language="bash">{`#!/usr/bin/env zsh
 # Fire-and-forget: publish commit info to Port Daddy
 PD_URL="\${PD_URL:-http://localhost:9876}"
 
@@ -234,7 +234,7 @@ exit 0`}</CodeBlock>
                 <code>spark:idea</code>
               </motion.div>
               <motion.div className="flex items-center gap-3 text-xs text-[var(--text-secondary)]">
-                <Badge variant="purple">Spider</Badge>
+                <Badge variant="default">Spider</Badge>
                 <span>triggers on that idea, finds connections</span>
                 <ArrowRight size={14} className="flex-shrink-0" />
                 <code>spider:connections</code>
@@ -262,7 +262,7 @@ exit 0`}</CodeBlock>
             <motion.h2 className="m-0">5. See What They Did</motion.h2>
           </motion.div>
 
-          <CodeBlock language="bash" title="Fleet commands">{`pd fleet up       # Start the fleet
+          <CodeBlock language="bash">{`pd fleet up       # Start the fleet
 pd fleet status   # What's running?
 pd fleet down     # Stop everything`}</CodeBlock>
 

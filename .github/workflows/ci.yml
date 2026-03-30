@@ -27,6 +27,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Type check
+        run: npx tsc --noEmit
+
       - name: Run unit tests
         run: node --experimental-vm-modules node_modules/jest/bin/jest.js --selectProjects unit
 

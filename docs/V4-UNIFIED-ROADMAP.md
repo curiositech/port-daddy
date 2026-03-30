@@ -192,17 +192,21 @@ Visual fleet management, watch hooks with message history, spawn agent form, fle
 
 *The kernel upgrade. Hardened for production workloads.*
 
-### 4A. Bun/Fastify Migration
+### 4A. Bun/Fastify Migration [IN PROGRESS]
 
 Replace Express with Fastify on Bun for 20,000+ req/sec. Single-file binary compilation via `bun build --compile`.
+
+> **Cartographer — 2026-03-29:** Fastify server shell complete (`6b49e7e` on main). Express bridge in place (existing routes served through Fastify during migration). BigInt serialization fixed and Fastify deps added (`9176f38`). Route conversion in progress — main branch ahead of stable. A parallel agent (`cozy-jumping-zebra`, step 4) is wiring the trie into query paths; do NOT touch `lib/trie.ts`, `lib/semantic-index.ts`, or `lib/identity.ts` until that agent completes.
 
 ### 4B. Unix Domain Sockets / Named Pipes
 
 Binary IPC (MessagePack/CBOR) for high-frequency heartbeats. Reduces HTTP overhead for local agent communication.
 
-### 4C. Radix Trie (In-Memory Semantic Index)
+### 4C. Radix Trie (In-Memory Semantic Index) [COMPLETE]
 
 Adaptive Radix Tree for sub-millisecond wildcard resolution. Harbor Bitmasks for O(1) scope filtering. SQLite as persistence/recovery only — trie is the hot path.
+
+> **Cartographer — 2026-03-29:** Trie complete. `lib/trie.ts` (ART implementation), `lib/semantic-index.ts` (live index populated from SQLite on startup), wired into `lib/identity.ts`. Trie query path wired into `services.ts` (`0f944bf`). 1:N support added — a single semantic token can now map to multiple backing services (`0a2aaf9`), wired into agents and sessions. This closed out 4C entirely.
 
 ### 4D. Backpressure
 
@@ -353,3 +357,5 @@ From `v4_thoughts.md`: Run TLC on the BondedCommons spec with concrete parameter
 | Website neumorphic design system overhaul | many commits 2026-03-25–26 | Design debt. The website had fictional content and inconsistent styling. Full CVA token system + Harbor Heritage palette. |
 | Spark fleet agent (idea engine) | `6a68547`, fleet YAML | Emerged from the fleet work. Spark runs every 30 min, generates ideas, publishes to `spark:idea` channel. |
 | Cartographer fleet agent (this agent) | `a930413`, `a8f3710`, fleet YAML | Emerged from needing automated roadmap tracking. The agent writes this file. |
+| 1:N trie support — semantic token maps to multiple services | `0a2aaf9` | Required for real workloads: multiple agents claiming the same semantic identity. Discovered while wiring the trie into agents + sessions. Ships with Phase 4C as part of closing it out. |
+| Ephemeral port exhaustion fix in sdk-batch4 tests | `d6fc776` | Test suite was hitting OS-level port limits under parallel test runs. Fixed before it could cause flaky CI. Surfaced by the Phase 4A Fastify prep work increasing port churn. |

@@ -147,10 +147,10 @@
   --text-muted:       var(--p-stone-800);   /* was stone-700 (3.48:1→5.13:1) */
   --text-inverse:     var(--p-stone-50);
 
-  /* Brand */
-  --brand-primary:    var(--p-red-500);
-  --brand-secondary:  var(--p-teal-500);
-  --brand-accent:     var(--p-gold-400);
+  /* Brand — AA contrast on sandstone (all ≥4.5:1) */
+  --brand-primary:    var(--p-red-700);     /* #8B2920 — 5.07:1 on stone-300 */
+  --brand-secondary:  var(--p-teal-700);    /* #2D6566 — 4.85:1 on stone-300 */
+  --brand-accent:     var(--p-gold-600);    /* #866538 — 4.68:1 on stone-300 */
 
   /* Interactive */
   --interactive-hover:   rgba(30, 27, 24, 0.06);
@@ -253,9 +253,10 @@
   --text-muted:       var(--p-ebony-100);   /* was stone-700 (2.90:1→6.49:1) */
   --text-inverse:     var(--p-ebony-700);
 
-  --brand-primary:    var(--p-red-400);
-  --brand-secondary:  var(--p-teal-400);
-  --brand-accent:     var(--p-gold-300);
+  /* Brand — vivid + AA on ebony (all ≥4.5:1) */
+  --brand-primary:    var(--p-red-300);     /* #E58072 — 6.83:1 on ebony-700 */
+  --brand-secondary:  var(--p-teal-300);    /* #7CC4C5 — 8.23:1 on ebony-700 */
+  --brand-accent:     var(--p-gold-200);    /* #E4C899 — 10.13:1 on ebony-700 */
 
   --interactive-hover:   rgba(232, 224, 212, 0.05);
   --interactive-active:  rgba(217, 90, 74, 0.14);
