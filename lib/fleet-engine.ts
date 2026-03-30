@@ -455,10 +455,15 @@ export function createFleetRunner(config: FleetConfig, projectDir: string) {
   }
 
   function buildSpawnCommand(agent: FleetAgent): string {
+    // Validate identity to prevent shell injection via YAML config
+    const identity = agent.identity || `fleet:${agent.name}`;
+    if (!/^[a-zA-Z0-9.:_*-]+$/.test(identity)) {
+      throw new Error(`Invalid fleet agent identity: ${identity}`);
+    }
     const parts = [
       'npx', 'tsx', join(projectDir, 'bin', 'port-daddy-cli.ts'),
       'spawn', '--backend', agent.backend,
-      '--identity', agent.identity || `fleet:${agent.name}`,
+      '--identity', identity,
       '-q', '--', JSON.stringify(agent.prompt),
     ];
     return parts.join(' ');

@@ -511,13 +511,11 @@ export function createReactiveOrchestrator(db: any, messaging: any, spawner: any
         await spawner.spawn(spec);
       } else if (rule.action === 'exec') {
         const cmd = rule.payload.cmd;
-        // Validate command before execution (defense-in-depth)
-        if (/[;&|`$()\{\}!<>]/.test(cmd)) {
-          console.error(`[orchestrator] Blocked exec rule "${rule.name}": command contains shell metacharacters`);
-          return;
-        }
+        // Split command into executable + args — no shell interpretation
+        const parts = cmd.split(/\s+/).filter(Boolean);
+        if (parts.length === 0) return;
         const env = { ...process.env, PD_CHANNEL: msg.channel, PD_MESSAGE: JSON.stringify(msg.payload) };
-        const child = spawn(cmd, { shell: true, env });
+        const child = spawn(parts[0], parts.slice(1), { shell: false, env });
         child.stdout?.on('data', (d: Buffer) => console.log(`[orchestrator:${rule.name}] ${d}`));
         child.stderr?.on('data', (d: Buffer) => console.error(`[orchestrator:${rule.name}] ${d}`));
       }

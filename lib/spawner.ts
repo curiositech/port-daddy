@@ -241,19 +241,17 @@ function runAider(spec: SpawnSpec): Promise<{ output: string; error: string | nu
 
 function runCustom(spec: SpawnSpec): Promise<{ output: string; error: string | null; child: ChildProcess }> {
   return new Promise((resolve) => {
-    // Reject obvious shell injection patterns
-    const DANGEROUS_PATTERNS = /[;&|`$(){}!<>]/;
+    // Reject shell injection: metacharacters, newlines, control chars
+    const DANGEROUS_PATTERNS = /[;&|`$(){}!<>\n\r\t\x00-\x1f\x7f]/;
     if (DANGEROUS_PATTERNS.test(spec.task)) {
       return resolve({
         output: '',
-        error: 'Command contains shell metacharacters. Use explicit arguments instead of shell syntax.',
+        error: 'Command contains shell metacharacters or control characters. Use explicit arguments instead of shell syntax.',
         child: null as any
       });
     }
 
-    // SECURITY: Use explicit /bin/sh -c instead of shell: true.
-    // The dangerous pattern check above catches metacharacters; this
-    // ensures the command is executed in a controlled shell invocation.
+    // Execute via /bin/sh -c with shell: false (no double-interpretation)
     const child = spawnChild('/bin/sh', ['-c', spec.task], {
       cwd: spec.workdir || process.cwd(),
       env: { ...process.env, ...loadDotenvOnce(), ...(spec.env || {}) },

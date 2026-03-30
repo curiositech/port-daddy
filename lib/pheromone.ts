@@ -17,6 +17,46 @@ const ALLOWED_TABLES = new Set(['services', 'projects', 'sessions', 'agents', 'l
 
 export function createPheromoneManager(db: Database.Database, config: PheromoneConfig = { decayRate: 0.95, intervalMs: 60000 }) {
 
+  // Pre-built statements per table — eliminates SQL interpolation entirely.
+  // Table names are compile-time constants from ALLOWED_TABLES, never user input.
+  // Some tables may not exist yet (created lazily), so prep is best-effort.
+  const tableStmts: Record<string, {
+    selectAll: ReturnType<typeof db.prepare> | null;
+    selectById: ReturnType<typeof db.prepare> | null;
+    update: ReturnType<typeof db.prepare> | null;
+  }> = {};
+
+  for (const t of ALLOWED_TABLES) {
+    try {
+      tableStmts[t] = {
+        selectAll: db.prepare(`SELECT id, metadata FROM ${t} WHERE metadata IS NOT NULL`),
+        selectById: db.prepare(`SELECT metadata FROM ${t} WHERE id = ?`),
+        update: db.prepare(`UPDATE ${t} SET metadata = ? WHERE id = ?`),
+      };
+    } catch {
+      // Table doesn't exist yet — will be created by its own module
+      tableStmts[t] = { selectAll: null, selectById: null, update: null };
+    }
+  }
+
+  /** Get pre-built statements for a table, or null if not allowed/available */
+  function getStmts(table: string) {
+    if (!ALLOWED_TABLES.has(table)) return null;
+    const s = tableStmts[table];
+    if (!s || !s.selectById) {
+      // Table may have been created after init — try to prepare now
+      try {
+        tableStmts[table] = {
+          selectAll: db.prepare(`SELECT id, metadata FROM ${table} WHERE metadata IS NOT NULL`),
+          selectById: db.prepare(`SELECT metadata FROM ${table} WHERE id = ?`),
+          update: db.prepare(`UPDATE ${table} SET metadata = ? WHERE id = ?`),
+        };
+        return tableStmts[table];
+      } catch { return null; }
+    }
+    return s;
+  }
+
   /**
    * Run one evaporation cycle.
    * Scans all services, projects, and sessions for pheromones in metadata.
@@ -26,20 +66,19 @@ export function createPheromoneManager(db: Database.Database, config: PheromoneC
       const tables = ['services', 'projects', 'sessions'];
 
       for (const table of tables) {
-        if (!ALLOWED_TABLES.has(table)) {
-          throw new Error(`pheromone: invalid table name: ${table}`);
-        }
+        const s = getStmts(table);
+        if (!s || !s.selectAll) continue;
         try {
-          const rows = db.prepare(`SELECT id, metadata FROM ${table} WHERE metadata IS NOT NULL`).all() as any[];
-          
+          const rows = s.selectAll.all() as any[];
+
           for (const row of rows) {
             try {
               if (!row.metadata) continue;
               const metadata = JSON.parse(row.metadata);
-              
+
               if (metadata && metadata.pheromones && typeof metadata.pheromones === 'object') {
                 let changed = false;
-                
+
                 for (const [key, value] of Object.entries(metadata.pheromones)) {
                   if (typeof value === 'number') {
                     metadata.pheromones[key] = value * config.decayRate;
@@ -49,9 +88,9 @@ export function createPheromoneManager(db: Database.Database, config: PheromoneC
                     changed = true;
                   }
                 }
-                
-                if (changed) {
-                  db.prepare(`UPDATE ${table} SET metadata = ? WHERE id = ?`).run(JSON.stringify(metadata), row.id);
+
+                if (changed && s.update) {
+                  s.update.run(JSON.stringify(metadata), row.id);
                 }
               }
             } catch (e) {
