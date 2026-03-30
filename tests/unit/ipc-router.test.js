@@ -42,7 +42,20 @@ function createMockDeps() {
 }
 
 function mockConn(agentId = null) {
-  return { id: 'test-conn', agentId, state: 'ready' };
+  const written = [];
+  return {
+    id: 'test-conn',
+    agentId,
+    state: 'ready',
+    subscriptions: [],
+    framesDropped: 0,
+    framesOut: 0,
+    bytesOut: 0,
+    socket: {
+      write: jest.fn((buf) => { written.push(buf); return true; }),
+    },
+    _written: written,  // for test assertions
+  };
 }
 
 describe('IPC Router', () => {
@@ -271,6 +284,113 @@ describe('IPC Router', () => {
 
     expect(replies).toHaveLength(0);
     expect(deps.agents.heartbeat).toHaveBeenCalledWith('nobody', expect.any(Object));
+  });
+
+  test('msg.subscribe wires into messaging.subscribe and tracks on connection', () => {
+    const deps = createMockDeps();
+    const mockUnsub = jest.fn();
+    deps.messaging.subscribe.mockReturnValue(mockUnsub);
+    const router = createIpcRouter(deps);
+    const conn = mockConn('sub-agent');
+    const replies = [];
+
+    router.handleFrame(
+      { type: Performative.REQUEST, convId: 30, payload: { action: IpcAction.SUBSCRIBE, channel: 'build:done', agentId: 'sub-agent' } },
+      conn,
+      (f) => replies.push(f),
+    );
+
+    // messaging.subscribe was called with the channel
+    expect(deps.messaging.subscribe).toHaveBeenCalledWith('build:done', expect.any(Function));
+    // Subscription tracked on connection
+    expect(conn.subscriptions).toHaveLength(1);
+    expect(conn.subscriptions[0].channel).toBe('build:done');
+    // Response
+    expect(replies[0].type).toBe(Performative.INFORM_DONE);
+    expect(replies[0].payload.result.subscribed).toBe(true);
+  });
+
+  test('msg.subscribe returns existing:true for duplicate subscription', () => {
+    const deps = createMockDeps();
+    deps.messaging.subscribe.mockReturnValue(jest.fn());
+    const router = createIpcRouter(deps);
+    const conn = mockConn('dup-agent');
+    // Pre-populate a subscription
+    conn.subscriptions.push({ channel: 'build:done', unsub: jest.fn() });
+    const replies = [];
+
+    router.handleFrame(
+      { type: Performative.REQUEST, convId: 31, payload: { action: IpcAction.SUBSCRIBE, channel: 'build:done', agentId: 'dup-agent' } },
+      conn,
+      (f) => replies.push(f),
+    );
+
+    // messaging.subscribe NOT called (duplicate)
+    expect(deps.messaging.subscribe).not.toHaveBeenCalled();
+    // Still only 1 subscription
+    expect(conn.subscriptions).toHaveLength(1);
+    expect(replies[0].payload.result.existing).toBe(true);
+  });
+
+  test('msg.subscribe callback pushes INFORM frames to subscriber socket', () => {
+    const deps = createMockDeps();
+    let capturedCallback;
+    deps.messaging.subscribe.mockImplementation((channel, cb) => {
+      capturedCallback = cb;
+      return jest.fn();
+    });
+    const router = createIpcRouter(deps);
+    const conn = mockConn('push-agent');
+
+    router.handleFrame(
+      { type: Performative.REQUEST, convId: 32, payload: { action: IpcAction.SUBSCRIBE, channel: 'events', agentId: 'push-agent' } },
+      conn,
+      () => {},
+    );
+
+    // Simulate a message arriving on the channel
+    capturedCallback({ type: 'build_complete', hash: 'abc123' });
+
+    // The server should have written an INFORM frame to the socket
+    expect(conn.socket.write).toHaveBeenCalledTimes(1);
+    expect(conn.framesOut).toBe(1);
+    expect(conn.bytesOut).toBeGreaterThan(0);
+  });
+
+  test('msg.unsubscribe removes subscription and calls unsub function', () => {
+    const deps = createMockDeps();
+    const mockUnsub = jest.fn();
+    const router = createIpcRouter(deps);
+    const conn = mockConn('unsub-agent');
+    // Pre-populate subscription
+    conn.subscriptions.push({ channel: 'events', unsub: mockUnsub });
+    const replies = [];
+
+    router.handleFrame(
+      { type: Performative.REQUEST, convId: 33, payload: { action: IpcAction.UNSUBSCRIBE, channel: 'events', agentId: 'unsub-agent' } },
+      conn,
+      (f) => replies.push(f),
+    );
+
+    expect(mockUnsub).toHaveBeenCalledTimes(1);
+    expect(conn.subscriptions).toHaveLength(0);
+    expect(replies[0].payload.result.unsubscribed).toBe(true);
+  });
+
+  test('msg.unsubscribe on non-existent channel returns not_subscribed', () => {
+    const deps = createMockDeps();
+    const router = createIpcRouter(deps);
+    const conn = mockConn('ghost-sub');
+    const replies = [];
+
+    router.handleFrame(
+      { type: Performative.REQUEST, convId: 34, payload: { action: IpcAction.UNSUBSCRIBE, channel: 'nonexistent', agentId: 'ghost-sub' } },
+      conn,
+      (f) => replies.push(f),
+    );
+
+    expect(replies[0].payload.result.unsubscribed).toBe(false);
+    expect(replies[0].payload.result.reason).toBe('not_subscribed');
   });
 
   test('all IPC actions have registered handlers', () => {
