@@ -3,24 +3,23 @@
 /**
  * Port Daddy - Semantic Port Management Service
  *
- * Features:
- * - Semantic identities: project:stack:context
- * - Service directory: local/tunnel/dev/staging/prod URLs
- * - Pub/sub messaging for agent coordination
- * - Agent registry, distributed locks, webhooks
+ * Fastify-based HTTP server with native plugin architecture.
+ * Unix domain socket primary, TCP secondary for dashboard access.
  */
 
-import express from 'express';
-import type { Request, Response, NextFunction, Express } from 'express';
+import Fastify from 'fastify';
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import fastifyCors from '@fastify/cors';
+import fastifyRateLimit from '@fastify/rate-limit';
+import fastifyStatic from '@fastify/static';
+import http from 'node:http';
 import Database from 'better-sqlite3';
-import cors from 'cors';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { readFileSync, existsSync, readdirSync, unlinkSync, writeFileSync } from 'fs';
 import { createHash } from 'crypto';
 import { createConnection } from 'net';
 import winston from 'winston';
-import rateLimit from 'express-rate-limit';
 
 // Core modules
 import { createServices } from './lib/services.js';
@@ -51,10 +50,8 @@ import { createSemanticIndex } from './lib/semantic-index.js';
 import { createNoteEncryption } from './lib/note-encryption.js';
 import { initDatabase, closeDatabase, resolveDbPath } from './lib/db.js';
 
-// Route aggregator
-import { createRoutes } from './routes/index.js';
-import { createArbiterRoutes } from './routes/arbiter.js';
-import { createPheromoneRoutes } from './routes/pheromone.js';
+// Fastify route aggregator (Phase 3 — native Fastify plugins, no Express bridge)
+import { registerAllRoutes } from './routes/index.js';
 
 // Shared utilities
 import { getSystemPorts, startSystemPortsRefresh } from './shared/port-utils.js';
@@ -62,7 +59,7 @@ import { getSystemPorts, startSystemPortsRefresh } from './shared/port-utils.js'
 const __dirname: string = dirname(fileURLToPath(import.meta.url));
 
 // =============================================================================
-// CONFIGURATION
+// CONFIGURATION (identical to server.ts)
 // =============================================================================
 
 interface PortDaddyServerConfig {
@@ -89,11 +86,10 @@ const pkg: { version: string } = existsSync(pkgPath) ? JSON.parse(readFileSync(p
 const VERSION: string = pkg.version;
 
 // =============================================================================
-// CODE HASH (stale daemon detection)
+// CODE HASH (identical to server.ts)
 // =============================================================================
 
 function calculateCodeHash(): string {
-  // Dynamically discover all .ts files in lib/ — no more parallel lists to maintain
   const libDir: string = join(__dirname, 'lib');
   const libFiles: string[] = existsSync(libDir)
     ? readdirSync(libDir).filter((f: string) => f.endsWith('.ts')).sort().map((f: string) => `lib/${f}`)
@@ -114,7 +110,7 @@ const CODE_HASH: string = calculateCodeHash();
 const STARTED_AT: number = Date.now();
 
 // =============================================================================
-// LOGGING
+// LOGGING (identical to server.ts)
 // =============================================================================
 
 const isSilent: boolean = process.env.PORT_DADDY_SILENT === '1';
@@ -148,12 +144,9 @@ if (!isSilent && process.env.NODE_ENV !== 'production') {
 }
 
 // =============================================================================
-// DATABASE (schema lives in lib/db.ts — shared with CLI direct mode)
+// DATABASE + PATHS (identical to server.ts)
 // =============================================================================
 
-// PORT_DADDY_PREFIX: nginx-style prefix directory that derives all state paths.
-// If set, DB/socket/PID/log/port-file all resolve relative to the prefix.
-// This enables isolated dev daemons alongside the stable production daemon.
 const PREFIX: string | undefined = process.env.PORT_DADDY_PREFIX;
 const IS_DEV_MODE: boolean = !!PREFIX;
 
@@ -165,7 +158,6 @@ const PID_FILE: string = SOCK_PATH + '.pid';
 const PORT_FILE: string = process.env.PORT_DADDY_PORT_FILE || (PREFIX ? join(PREFIX, 'port-daddy-port') : '/tmp/port-daddy-port');
 
 if (IS_DEV_MODE) {
-  // Ensure prefix directory exists
   const { mkdirSync } = await import('node:fs');
   mkdirSync(PREFIX!, { recursive: true });
   console.error(`[Dev Mode] PREFIX=${PREFIX}`);
@@ -173,15 +165,12 @@ if (IS_DEV_MODE) {
 }
 
 // =============================================================================
-// DUPLICATE DAEMON DETECTION — must run before database init
+// DUPLICATE DAEMON DETECTION (identical to server.ts)
 // =============================================================================
-// If the socket exists, probe it. If a daemon is already alive, exit immediately.
-// This prevents multiple daemons stomping each other's socket and hanging.
 
 if (existsSync(SOCK_PATH)) {
   const isAlive: boolean = await new Promise<boolean>((resolve) => {
     const conn = createConnection({ path: SOCK_PATH }, () => {
-      // Socket accepted connection — send a minimal HTTP request
       conn.write('GET /health HTTP/1.0\r\nHost: localhost\r\n\r\n');
     });
     conn.on('data', (data: Buffer) => {
@@ -193,24 +182,18 @@ if (existsSync(SOCK_PATH)) {
   });
 
   if (isAlive) {
-    // Read existing PID from pidfile if available
     let existingPid = '?';
     try { existingPid = readFileSync(PID_FILE, 'utf-8').trim(); } catch {}
     console.error(`Port Daddy already running (PID ${existingPid}). Not starting a second daemon.`);
     process.exit(0);
   }
-  // Socket exists but is stale — clean it up and proceed
   try { unlinkSync(SOCK_PATH); } catch {}
   try { unlinkSync(PID_FILE); } catch {}
 }
 
 // =============================================================================
-// SLEEP DETECTION
+// SLEEP DETECTION (identical to server.ts)
 // =============================================================================
-// Laptops sleep. When macOS sleeps, agent heartbeats stop but the cleanup
-// interval keeps running on wake. Without a grace period, the reaper would
-// immediately mark agents as dead. We detect sleep via time gaps and pause
-// the reaper for a grace period.
 
 let lastWakeCheck: number = Date.now();
 let sleepGraceUntil: number = 0;
@@ -225,18 +208,14 @@ function isInSleepGracePeriod(): boolean {
 const db: Database.Database = initDatabase({ dbPath: DB_PATH });
 
 // =============================================================================
-// MODULE INITIALIZATION
+// MODULE INITIALIZATION (identical to server.ts)
 // =============================================================================
 
-// Semantic Index must be created before modules that use it (services)
-// but initialized AFTER all table-creating modules have run.
 const semanticIndex = createSemanticIndex(db);
 
 const services = createServices(db, { semanticIndex });
 const messaging = createMessaging(db);
 const locks = createLocks(db);
-// Cast services to the shape expected by createHealth — the actual runtime
-// object satisfies the interface but TS can't verify discriminated union compat.
 const health = createHealth(db, services as Parameters<typeof createHealth>[1]);
 const agents = createAgents(db, { semanticIndex });
 const activityLog = createActivityLog(db);
@@ -246,7 +225,6 @@ const noteEncryption = createNoteEncryption();
 const sessions = createSessions(db, noteEncryption, { semanticIndex });
 sessions.setActivityLog(activityLog);
 
-// Agent Inbox handles direct messages. Broadcast to "inbox:[agentId]" for real-time.
 const agentInbox = createAgentInbox(db, (agentId, message) => {
   messaging.publish(`inbox:${agentId}`, {
     ...message,
@@ -265,13 +243,12 @@ const briefing = createBriefing(db, { sessions, agents, resurrection, activityLo
 const spawner = createSpawner();
 const sugar = createSugar({ agents, sessions, activityLog });
 const harbors = createHarbors(db);
-// Now that all modules have created their tables, populate the trie from SQLite
 semanticIndex.initialize();
 const arbiter = createArbiter(
   { activityLog, agents, sessions, locks, resurrection },
   { strictMode: false }
 );
-console.error('[Arbiter] Runtime invariant enforcement active (' + 6 + ' rules, strictMode=false)');
+console.error('[Arbiter] Runtime invariant enforcement active (6 rules, strictMode=false)');
 const pheromones = createPheromoneManager(db);
 pheromones.start();
 
@@ -281,22 +258,17 @@ barnacle.start();
 const orchestrator = createReactiveOrchestrator(db, messaging, spawner);
 const correlationEngine = createCorrelationEngine(activityLog, sessions);
 
-// Wire resurrection events to broadcast on the radio
+// Wire resurrection events (identical to server.ts)
 resurrection.on('agent:stale', (agent) => {
   messaging.publish('resurrection', JSON.stringify({
-    event: 'stale',
-    agentId: agent.id,
-    name: agent.name,
-    purpose: agent.purpose,
-    lastHeartbeat: agent.lastHeartbeat,
-    staleSince: agent.staleSince
+    event: 'stale', agentId: agent.id, name: agent.name,
+    purpose: agent.purpose, lastHeartbeat: agent.lastHeartbeat, staleSince: agent.staleSince
   }));
   logger.info('agent_stale', { agentId: agent.id, name: agent.name });
 });
 
 resurrection.on('agent:dead', (agent) => {
-  // Zombie protocol: abandon any active sessions owned by this dead agent.
-  harbors.leaveAll(agent.id);  // remove from all harbors
+  harbors.leaveAll(agent.id);
   const zombied = sessions.abandonByAgent(agent.id);
   if (zombied > 0) {
     logger.warn('zombie_sessions_abandoned', { agentId: agent.id, count: zombied });
@@ -305,20 +277,12 @@ resurrection.on('agent:dead', (agent) => {
       metadata: { agentId: agent.id, zombied }
     });
   }
-
   messaging.publish('resurrection', JSON.stringify({
-    event: 'dead',
-    agentId: agent.id,
-    name: agent.name,
-    purpose: agent.purpose,
-    lastHeartbeat: agent.lastHeartbeat,
-    staleSince: agent.staleSince,
-    zombiedSessions: zombied
+    event: 'dead', agentId: agent.id, name: agent.name, purpose: agent.purpose,
+    lastHeartbeat: agent.lastHeartbeat, staleSince: agent.staleSince, zombiedSessions: zombied
   }));
-  // Also broadcast on general agent channel
   messaging.publish('agents', JSON.stringify({
-    event: 'dead',
-    agentId: agent.id,
+    event: 'dead', agentId: agent.id,
     message: `Agent ${agent.name || agent.id} is dead and queued for resurrection`
   }));
   logger.warn('agent_dead', { agentId: agent.id, name: agent.name });
@@ -329,15 +293,9 @@ resurrection.on('agent:dead', (agent) => {
 });
 
 resurrection.on('agent:resurrected', (oldAgentId, newAgentId) => {
-  messaging.publish('resurrection', JSON.stringify({
-    event: 'resurrected',
-    oldAgentId,
-    newAgentId
-  }));
+  messaging.publish('resurrection', JSON.stringify({ event: 'resurrected', oldAgentId, newAgentId }));
   messaging.publish('agents', JSON.stringify({
-    event: 'resurrected',
-    oldAgentId,
-    newAgentId,
+    event: 'resurrected', oldAgentId, newAgentId,
     message: `Agent ${oldAgentId} has been resurrected as ${newAgentId}`
   }));
   logger.info('agent_resurrected', { oldAgentId, newAgentId });
@@ -356,48 +314,34 @@ interface DaemonMetrics {
 }
 
 const metrics: DaemonMetrics = {
-  total_assignments: 0,
-  total_releases: 0,
-  total_cleanups: 0,
-  ports_freed_by_cleanup: 0,
-  validation_failures: 0,
-  race_condition_retries: 0,
-  messages_published: 0,
-  errors: 0,
-  uptime_start: Date.now()
+  total_assignments: 0, total_releases: 0, total_cleanups: 0,
+  ports_freed_by_cleanup: 0, validation_failures: 0, race_condition_retries: 0,
+  messages_published: 0, errors: 0, uptime_start: Date.now()
 };
 
 // =============================================================================
-// BACKGROUND TASKS
+// BACKGROUND TASKS (identical to server.ts)
 // =============================================================================
 
-// Populate system ports cache asynchronously (never blocks event loop)
 const systemPortsRefresh = startSystemPortsRefresh();
 
 // =============================================================================
-// CLEANUP
+// CLEANUP (identical to server.ts)
 // =============================================================================
 
 function cleanupStale(): ReturnType<typeof services.cleanup> {
-  // Service TTL + message cleanup are safe during grace period (explicit timestamps)
   const serviceResult = services.cleanup();
   messaging.cleanup();
 
-  // During post-sleep grace, skip agent reaping — heartbeats couldn't be sent while asleep
   if (isInSleepGracePeriod()) {
     logger.info('sleep_grace_active', {
       message: 'Skipping agent reaping during post-sleep grace period',
       graceUntil: new Date(sleepGraceUntil).toISOString()
     });
   } else {
-    // Check agents for staleness and queue for resurrection BEFORE cleanup deletes them.
-    // Uses set-based queries instead of N*M nested loop for performance.
     interface AgentListItem {
-      id: string;
-      name: string | null;
-      isActive: boolean;
-      lastHeartbeat: number;
-      metadata?: { purpose?: string } | null;
+      id: string; name: string | null; isActive: boolean;
+      lastHeartbeat: number; metadata?: { purpose?: string } | null;
     }
 
     const allAgents = agents.list();
@@ -407,22 +351,17 @@ function cleanupStale(): ReturnType<typeof services.cleanup> {
       const inactiveIds = inactiveAgents.map(a => a.id);
       const placeholders = inactiveIds.map(() => '?').join(', ');
 
-      // Fetch the most-recent active session per inactive agent in one query
       interface AgentSessionRow { agent_id: string; session_id: string }
       const agentSessionRows = db.prepare(`
-        SELECT agent_id, id AS session_id
-        FROM sessions
-        WHERE agent_id IN (${placeholders})
-          AND status = 'active'
-        GROUP BY agent_id
-        HAVING MAX(updated_at)
+        SELECT agent_id, id AS session_id FROM sessions
+        WHERE agent_id IN (${placeholders}) AND status = 'active'
+        GROUP BY agent_id HAVING MAX(updated_at)
       `).all(...inactiveIds) as AgentSessionRow[];
 
       const agentSessionMap = new Map<string, string>(
         agentSessionRows.map(r => [r.agent_id, r.session_id])
       );
 
-      // Batch-fetch all notes for those sessions in one JOIN query
       const sessionIds = agentSessionRows.map(r => r.session_id);
       const notesBySession = new Map<string, string[]>();
 
@@ -430,16 +369,13 @@ function cleanupStale(): ReturnType<typeof services.cleanup> {
         const notePlaceholders = sessionIds.map(() => '?').join(', ');
         interface NoteRow { session_id: string; content: string }
         const noteRows = db.prepare(`
-          SELECT session_id, content
-          FROM session_notes
+          SELECT session_id, content FROM session_notes
           WHERE session_id IN (${notePlaceholders})
           ORDER BY session_id, created_at ASC
         `).all(...sessionIds) as NoteRow[];
 
         for (const row of noteRows) {
-          if (!notesBySession.has(row.session_id)) {
-            notesBySession.set(row.session_id, []);
-          }
+          if (!notesBySession.has(row.session_id)) notesBySession.set(row.session_id, []);
           notesBySession.get(row.session_id)!.push(row.content);
         }
       }
@@ -447,14 +383,10 @@ function cleanupStale(): ReturnType<typeof services.cleanup> {
       for (const agent of inactiveAgents) {
         const sessionId = agentSessionMap.get(agent.id);
         const notes = sessionId ? (notesBySession.get(sessionId) ?? []) : [];
-
         resurrection.check({
-          id: agent.id,
-          name: agent.name || agent.id,
-          purpose: agent.metadata?.purpose,
-          sessionId,
-          lastHeartbeat: agent.lastHeartbeat,
-          notes
+          id: agent.id, name: agent.name || agent.id,
+          purpose: agent.metadata?.purpose, sessionId,
+          lastHeartbeat: agent.lastHeartbeat, notes
         });
       }
     }
@@ -474,142 +406,145 @@ function cleanupStale(): ReturnType<typeof services.cleanup> {
   sessions.cleanup();
   agentInbox.cleanup();
   resurrection.cleanup();
-
-  // Passive WAL checkpoint: flush completed WAL frames back into the main
-  // database file without blocking readers/writers. Keeps WAL size bounded
-  // between the wal_autocheckpoint=200 page threshold and manual cleanup runs.
   db.pragma('wal_checkpoint(PASSIVE)');
-
   metrics.total_cleanups++;
   return serviceResult;
 }
 
 // =============================================================================
-// EXPRESS APP + ROUTES
+// FASTIFY APP + PLUGINS
 // =============================================================================
 
-const app: Express = express();
+const app: FastifyInstance = Fastify({
+  bodyLimit: 10240,  // 10kb (replaces express.json({ limit: '10kb' }))
+  logger: false,     // We use winston, not pino
+});
 
-app.use(rateLimit({
-  windowMs: config.security.rate_limit.window_ms,
+// --- CORS (replaces cors middleware) ---
+await app.register(fastifyCors, {
+  origin: /^https?:\/\/(localhost|127\.0\.0\.1|dashboard\.pd\.local)(:\d+)?$/,
+  credentials: true
+});
+
+// --- Rate Limiting (replaces express-rate-limit) ---
+await app.register(fastifyRateLimit, {
   max: config.security.rate_limit.max_requests,
-  keyGenerator: (req: Request): string => {
-    if (req.body?.project && typeof req.body.project === 'string') {
-      return `project:${req.body.project.substring(0, 50)}`;
+  timeWindow: config.security.rate_limit.window_ms,
+  keyGenerator: (request: FastifyRequest): string => {
+    const body = request.body as Record<string, unknown> | undefined;
+    if (body?.project && typeof body.project === 'string') {
+      return `project:${body.project.substring(0, 50)}`;
     }
-    if (req.body?.id && typeof req.body.id === 'string') {
-      return `id:${req.body.id.substring(0, 50)}`;
+    if (body?.id && typeof body.id === 'string') {
+      return `id:${body.id.substring(0, 50)}`;
     }
-    return `pid:${req.headers['x-pid'] || 'unknown'}`;
+    return `pid:${request.headers['x-pid'] || 'unknown'}`;
   },
-  skip: (req: Request): boolean => {
-    // Skip rate limiting for health checks
-    if (req.path === '/health' || req.path === '/version') return true;
-    // Skip for Unix socket connections (no remote address = local socket)
-    const ip = req.ip || req.socket.remoteAddress || '';
+  allowList: (request: FastifyRequest): boolean => {
+    if (request.url === '/health' || request.url === '/version') return true;
+    const ip = request.ip || '';
     if (!ip) return true;
-    // Skip for localhost/loopback (this is a local dev tool)
     if (ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1') return true;
     return false;
   },
-  message: { error: 'Too many requests, please slow down' },
-  standardHeaders: true,
-  legacyHeaders: false
-}));
-
-app.use(cors({
-  origin: /^https?:\/\/(localhost|127\.0\.0\.1|dashboard\.pd\.local)(:\d+)?$/,
-  credentials: true
-}));
-
-// DNS rebinding protection: validate Host header
-app.use((req: Request, res: Response, next: NextFunction): void => {
-  const host = (req.headers.host || '').replace(/:\d+$/, ''); // strip port
-  const allowedHosts = ['localhost', '127.0.0.1', '[::1]', '::1', ''];
-  if (!allowedHosts.includes(host) && !host.endsWith('.local')) {
-    res.status(403).json({ error: 'Invalid Host header' });
-    return;
-  }
-  next();
+  errorResponseBuilder: () => ({ error: 'Too many requests, please slow down' }),
 });
 
-app.use((req: Request, res: Response, next: NextFunction): void => {
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('Referrer-Policy', 'no-referrer');
-  res.setHeader(
+// --- Static Files (replaces express.static) ---
+await app.register(fastifyStatic, {
+  root: join(__dirname, 'public'),
+  prefix: '/',
+  decorateReply: false,  // Don't decorate reply with sendFile — we only serve static
+});
+
+// --- DNS Rebinding Protection (replaces custom middleware) ---
+app.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) => {
+  const host = (request.headers.host || '').replace(/:\d+$/, '');
+  const allowedHosts = ['localhost', '127.0.0.1', '[::1]', '::1', ''];
+  if (!allowedHosts.includes(host) && !host.endsWith('.local')) {
+    reply.code(403);
+    return { error: 'Invalid Host header' };
+  }
+});
+
+// --- Security Headers (replaces custom middleware) ---
+app.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) => {
+  reply.header('X-Content-Type-Options', 'nosniff');
+  reply.header('X-Frame-Options', 'DENY');
+  reply.header('Referrer-Policy', 'no-referrer');
+  reply.header(
     'Content-Security-Policy',
     "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://localhost:* http://localhost:*; img-src 'self' data:; frame-ancestors 'none';"
   );
-  next();
 });
 
-app.use(express.json({ limit: '10kb' }));
-app.use(express.static(join(__dirname, 'public')));
-
-app.use((req: Request, res: Response, next: NextFunction): void => {
-  const start: number = Date.now();
-  res.on('finish', () => {
-    logger.info('request', {
-      method: req.method,
-      path: req.path,
-      status: res.statusCode,
-      duration_ms: Date.now() - start
-    });
+// --- Request Logging (replaces custom middleware) ---
+app.addHook('onResponse', async (request: FastifyRequest, reply: FastifyReply) => {
+  logger.info('request', {
+    method: request.method,
+    path: request.url,
+    status: reply.statusCode,
+    duration_ms: reply.elapsedTime,
   });
-  next();
 });
 
-// Broadcast dashboard updates after mutating requests
-app.use((req: Request, res: Response, next: NextFunction): void => {
-  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
-    res.on('finish', () => {
-      if (res.statusCode >= 200 && res.statusCode < 300) {
-        broadcastDashboard('refresh', { trigger: req.path });
-      }
-    });
+// --- Dashboard Broadcast on Mutations (replaces custom middleware) ---
+app.addHook('onResponse', async (request: FastifyRequest, reply: FastifyReply) => {
+  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(request.method)) {
+    if (reply.statusCode >= 200 && reply.statusCode < 300) {
+      broadcastDashboard('refresh', { trigger: request.url });
+    }
   }
-  next();
 });
 
-app.get('/ping', (req, res) => {
-  res.json({ status: 'ok', pid: process.pid });
+// --- Ping route ---
+app.get('/ping', async () => {
+  return { status: 'ok', pid: process.pid };
 });
 
-// Mount all routes via aggregator
-app.use(createRoutes({
-  db, logger, metrics, config,
-  services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
-  agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar,
-  harbors, orchestrator, correlationEngine, spawner,
-  VERSION, CODE_HASH, STARTED_AT, __dirname,
-  cleanupStale, getSystemPorts
-}));
-
-// Arbiter routes (separate from aggregator — takes Arbiter directly)
-app.use(createArbiterRoutes(arbiter));
-app.use(createPheromoneRoutes({ pheromones, sessions, db }));
-
 // =============================================================================
-// DASHBOARD SSE — push state changes instead of polling
+// ROUTES (native Fastify plugins — Phase 3)
 // =============================================================================
 
-const dashboardClients = new Set<Response>();
+await registerAllRoutes(
+  app,
+  {
+    db, logger, metrics, config,
+    services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
+    agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar,
+    harbors, orchestrator, correlationEngine, spawner,
+    VERSION, CODE_HASH, STARTED_AT, __dirname,
+    cleanupStale, getSystemPorts,
+  },
+  arbiter,
+  { pheromones, sessions, db },
+);
 
-app.get('/dashboard/events', (req: Request, res: Response): void => {
+// =============================================================================
+// DASHBOARD SSE (Fastify raw reply pattern)
+// =============================================================================
+
+const dashboardClients = new Set<http.ServerResponse>();
+
+app.get('/dashboard/events', async (request: FastifyRequest, reply: FastifyReply) => {
   if (dashboardClients.size >= 20) {
-    res.status(429).json({ error: 'too many dashboard connections' });
-    return;
+    reply.code(429);
+    return { error: 'too many dashboard connections' };
   }
-  res.writeHead(200, {
+
+  // Take control of the raw response — Fastify won't send its own
+  reply.hijack();
+  const raw = reply.raw;
+
+  raw.writeHead(200, {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
     'Connection': 'keep-alive',
     'X-Accel-Buffering': 'no',
   });
-  res.write('data: {"type":"connected"}\n\n');
-  dashboardClients.add(res);
-  req.on('close', () => { dashboardClients.delete(res); });
+  raw.write('data: {"type":"connected"}\n\n');
+  dashboardClients.add(raw);
+  request.raw.on('close', () => { dashboardClients.delete(raw); });
 });
 
 function broadcastDashboard(event: string, data?: Record<string, unknown>): void {
@@ -620,46 +555,40 @@ function broadcastDashboard(event: string, data?: Record<string, unknown>): void
   }
 }
 
-// Broadcast on state-changing operations (hooked into cleanup cycle)
 const originalCleanup = cleanupStale;
 function cleanupStaleWithBroadcast(): ReturnType<typeof services.cleanup> {
   const result = originalCleanup();
-  if (dashboardClients.size > 0) {
-    broadcastDashboard('refresh');
-  }
+  if (dashboardClients.size > 0) broadcastDashboard('refresh');
   return result;
 }
 
-// Replace the cleanup interval to use the broadcasting version
-// (The interval is set up later in the listen callback)
-
-// Global error handler
-app.use((err: Error & { type?: string }, req: Request, res: Response, _next: NextFunction): void => {
+// --- Global Error Handler (replaces 4-arg Express middleware) ---
+app.setErrorHandler((err: Error & { type?: string; statusCode?: number }, request: FastifyRequest, reply: FastifyReply) => {
   logger.error('unhandled_error', {
     error: err.message,
     type: err.type || err.name,
-    path: req.path,
-    method: req.method
+    path: request.url,
+    method: request.method
   });
 
-  if (err.type === 'entity.too.large') {
-    res.status(413).json({ error: 'request payload too large' });
-    return;
+  if (err.type === 'entity.too.large' || err.statusCode === 413) {
+    reply.code(413);
+    return { error: 'request payload too large' };
   }
-  if (err.type === 'entity.parse.failed') {
-    res.status(400).json({ error: 'invalid JSON' });
-    return;
+  if (err.type === 'entity.parse.failed' || (err.statusCode === 400 && err.message?.includes('JSON'))) {
+    reply.code(400);
+    return { error: 'invalid JSON' };
   }
-  res.status(500).json({ error: 'internal server error' });
+  reply.code(500);
+  return { error: 'internal server error' };
 });
 
 // =============================================================================
-// LIFECYCLE
+// LIFECYCLE (identical to server.ts)
 // =============================================================================
 
 setInterval(() => cleanupStale(), config.cleanup.interval_ms);
 
-// Sleep detection loop
 setInterval(() => {
   const now = Date.now();
   const elapsed = now - lastWakeCheck;
@@ -689,7 +618,6 @@ function shutdown(signal: string): void {
   }
   systemPortsRefresh.stop();
   closeDatabase(db);
-  // Clean up socket file, PID file, and port file
   try { unlinkSync(SOCK_PATH); } catch {}
   try { unlinkSync(PID_FILE); } catch {}
   try { unlinkSync(PORT_FILE); } catch {}
@@ -701,25 +629,32 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 
 function onReady(): void {
   activityLog.log(ActivityType.DAEMON_START, {
-    details: `Port Daddy v${VERSION} started`,
+    details: `Port Daddy v${VERSION} started (Fastify)`,
     metadata: { port: PORT, pid: process.pid, codeHash: CODE_HASH, socket: SOCK_PATH }
   });
-
   webhooks.trigger(WebhookEvent.DAEMON_START, {
     version: VERSION, port: PORT, pid: process.pid
   });
   webhooks.retryPending();
 }
 
-// Primary listener: Unix domain socket (no port needed)
+// =============================================================================
+// LISTEN (Fastify: unix socket primary, TCP secondary)
+// =============================================================================
+// Fastify can only listen on one address per .listen() call. For dual-listen
+// (unix socket + TCP), we use app.routing to share the handler with a second
+// http.Server for TCP.
+
+await app.ready();
+
+// Primary: Unix domain socket
 try { unlinkSync(SOCK_PATH); } catch {}
-app.listen(SOCK_PATH, () => {
-  // Write PID file so other daemons (and pd doctor) can identify us
+const sockServer = http.createServer((req, res) => { app.routing(req, res); });
+sockServer.listen(SOCK_PATH, () => {
   try { writeFileSync(PID_FILE, String(process.pid)); } catch {}
   logger.info('socket_started', { socket: SOCK_PATH, version: VERSION });
 
-  // Also listen on TCP for dashboard/browser access (unless disabled)
-  // If preferred port is busy, try up to 11 consecutive ports (9876-9886)
+  // Secondary: TCP for dashboard/browser access
   if (!DISABLE_TCP) {
     const MAX_PORT_ATTEMPTS: number = 11;
     function tryListenTcp(attempt: number = 0): void {
@@ -732,8 +667,8 @@ app.listen(SOCK_PATH, () => {
         }
         return;
       }
-      const server = app.listen(tryPort, config.service.host);
-      server.on('error', (err: NodeJS.ErrnoException) => {
+      const tcpServer = http.createServer((req, res) => { app.routing(req, res); });
+      tcpServer.on('error', (err: NodeJS.ErrnoException) => {
         if (err.code === 'EADDRINUSE') {
           logger.warn('tcp_port_busy', { port: tryPort, nextAttempt: tryPort + 1 });
           tryListenTcp(attempt + 1);
@@ -745,15 +680,14 @@ app.listen(SOCK_PATH, () => {
           }
         }
       });
-      server.on('listening', () => {
+      tcpServer.on('listening', () => {
         try { writeFileSync(PORT_FILE, String(tryPort), { mode: 0o644 }); } catch {}
         logger.info('tcp_started', { port: tryPort, host: config.service.host, version: VERSION });
         onReady();
         if (!isSilent) {
           const portNote: string = tryPort !== PORT ? ` (fallback from ${PORT})` : '';
           console.log(`
-  Port Daddy v${VERSION}
-  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Port Daddy v${VERSION}   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   Socket:     ${SOCK_PATH}
   Dashboard:  http://${config.service.host}:${tryPort}/${portNote}
   Database:   ${DB_PATH}
@@ -764,13 +698,13 @@ app.listen(SOCK_PATH, () => {
           `);
         }
       });
+      tcpServer.listen(tryPort, config.service.host);
     }
     tryListenTcp();
   } else {
-    // Socket-only mode (used by ephemeral test daemons)
     onReady();
     if (!isSilent) {
-      console.log(`Port Daddy v${VERSION} listening on ${SOCK_PATH}`);
+      console.log(`Port Daddy v${VERSION} (Fastify) listening on ${SOCK_PATH}`);
     }
   }
 });

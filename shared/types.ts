@@ -4,7 +4,6 @@
  * Shared type definitions for the daemon, SDK, CLI, and tests.
  */
 
-import type { Request, Response, NextFunction } from 'express';
 import type Database from 'better-sqlite3';
 
 // =============================================================================
@@ -214,7 +213,6 @@ export interface PortDaddyConfig {
 // Express Middleware Types
 // =============================================================================
 
-export type RouteHandler = (req: Request, res: Response, next?: NextFunction) => void | Promise<void>;
 
 export interface DaemonContext {
   db: Database.Database;
