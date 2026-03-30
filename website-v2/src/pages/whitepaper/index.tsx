@@ -254,10 +254,7 @@ export default function WhitepaperPage() {
         <div className="max-w-5xl mx-auto">
           <Surface depth="raised" radius="2xl" padding="none" className="overflow-hidden">
             {/* PDF Toolbar */}
-            <div
-              className="flex items-center justify-between px-6 py-4"
-              style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-            >
+            <Surface depth="inset" radius="none" padding="none" className="flex items-center justify-between px-6 py-4">
               <div className="flex items-center gap-3">
                 <FileText size={18} style={{ color: 'var(--brand-primary)' }} />
                 <span className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
@@ -275,7 +272,7 @@ export default function WhitepaperPage() {
                   </a>
                 </Button>
               </div>
-            </div>
+            </Surface>
 
             {/* PDF Embed */}
             <div className="relative aspect-[1/1.4] w-full" style={{ background: 'var(--surface-sunken)' }}>

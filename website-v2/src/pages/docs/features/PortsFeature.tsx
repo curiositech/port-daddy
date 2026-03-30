@@ -16,7 +16,7 @@ export default function PortsFeature() {
           Atomic Port Assignment
         </h1>
         <p className="text-xl text-[var(--text-secondary)] leading-relaxed max-w-3xl">
-          Deterministic hashing ensures semantic identities like <code>myapp:api</code> always
+          Deterministic hashing ensures semantic identities like <code>myapp:api</code> always 
           map to the same port across restarts and swarms. No more port conflicts.
         </p>
       </div>
@@ -25,7 +25,7 @@ export default function PortsFeature() {
       <div className="p-6 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
         <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-4">The Problem</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed mb-4">
-          When multiple AI agents work on the same project, they often need to spin up services
+          When multiple AI agents work on the same project, they often need to spin up services 
           on specific ports. Without coordination, this leads to:
         </p>
         <ul className="space-y-2 text-[var(--text-secondary)]">
@@ -48,10 +48,10 @@ export default function PortsFeature() {
       <div className="space-y-6">
         <h2 className="text-2xl font-semibold text-[var(--text-primary)]">How It Works</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed">
-          Port Daddy uses deterministic hashing to map semantic identities to ports.
+          Port Daddy uses deterministic hashing to map semantic identities to ports. 
           The same identity always gets the same port, across restarts, across machines.
         </p>
-
+        
         <CodeBlock language="bash">{`# Identity format: project:stack:context
 $ pd claim myapp:api:main
 Port 3001 assigned to myapp:api:main
@@ -67,7 +67,7 @@ Port 3001 assigned to myapp:api:main`}</CodeBlock>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           Identities follow a hierarchical format: <code className="text-[var(--brand-primary)]">project:stack:context</code>
         </p>
-
+        
         <div className="grid sm:grid-cols-3 gap-4">
           <div className="p-4 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">project</code>
@@ -90,7 +90,7 @@ Port 3001 assigned to myapp:api:main`}</CodeBlock>
       {/* CLI Commands */}
       <div className="space-y-6">
         <h2 className="text-2xl font-semibold text-[var(--text-primary)]">CLI Commands</h2>
-
+        
         <div className="space-y-4">
           <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <div className="flex items-center gap-2 mb-2">
@@ -133,10 +133,10 @@ myapp:frontend:main 3000 2s ago`}</CodeBlock>
       <div className="space-y-4">
         <h2 className="text-2xl font-semibold text-[var(--text-primary)]">Auto-Detection</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed">
-          Port Daddy can scan your project and automatically detect services based on
+          Port Daddy can scan your project and automatically detect services based on 
           framework signatures (package.json, Cargo.toml, etc.).
         </p>
-
+        
         <CodeBlock language="bash">{`$ pd scan ./services
 Found 4 services:
     myapp:api → 3001 (express)
@@ -148,7 +148,7 @@ Found 4 services:
       {/* SDK Example */}
       <div className="space-y-4">
         <h2 className="text-2xl font-semibold text-[var(--text-primary)]">SDK Usage</h2>
-
+        
         <CodeBlock language="typescript">{`import { PortDaddy } from 'port-daddy'
 
 const pd = new PortDaddy()
@@ -168,7 +168,7 @@ await pd.release('myapp:api:main')`}</CodeBlock>
           <div className="font-semibold text-[var(--text-primary)]">Swarm Radio</div>
           <div className="text-sm text-[var(--text-muted)]">Pub/sub messaging for agent coordination</div>
         </div>
-        <Link
+        <Link 
           to="/docs/features/radio"
           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--brand-primary)] text-[var(--text-inverse)] font-medium hover:bg-[var(--brand-primary)] transition-colors"
         >
