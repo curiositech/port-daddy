@@ -97,7 +97,7 @@ set -l __pd_commands \
     'agent' 'agents' 'log' 'activity' \
     'session' 'sessions' 'note' 'notes' \
     'salvage' 'resurrection' 'changelog' 'dns' 'files' 'who-owns' 'integration' 'briefing' 'history' 'inbox' \
-    'begin' 'b' 'done' 'whoami' 'w' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'watch' 'harbor' 'harbors' \
+    'begin' 'b' 'done' 'whoami' 'w' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'watch' 'harbor' 'harbors' 'tuple' \
     'up' 'down' \
     'bench' 'demo' 'fleet' \
     'dashboard' 'channels' 'webhook' 'webhooks' 'metrics' 'config' 'health' 'ports' \
@@ -174,6 +174,9 @@ for prog in port-daddy pd
     # Harbors (named permission namespaces)
     complete -c $prog -n __pd_needs_command -a harbor -d 'Create, enter, leave, show, or destroy a harbor'
     complete -c $prog -n __pd_needs_command -a harbors -d 'List all active harbors'
+
+    # Tuple space
+    complete -c $prog -n __pd_needs_command -a tuple -d 'Linda-style tuple space (out, rd, in, scan, count)'
 
     # System & Monitoring
     complete -c $prog -n __pd_needs_command -a dashboard -d 'Open web dashboard'
@@ -571,4 +574,13 @@ for prog in port-daddy pd
 
     # harbors
     complete -c $prog -n "__pd_using_command harbors" -l json -d 'JSON output'
+
+    # tuple
+    complete -c $prog -n "__pd_using_command tuple" -x -a 'out rd in scan count'
+    complete -c $prog -n "__pd_using_command tuple" -l harbor -d 'Scope to a harbor namespace' -x
+    complete -c $prog -n "__pd_using_command tuple" -l ttl -d 'Time-to-live in milliseconds (out only)' -x
+    complete -c $prog -n "__pd_using_command tuple" -l as -d 'Agent ID' -x -a '(__pd_agent_ids)'
+    complete -c $prog -n "__pd_using_command tuple" -l limit -d 'Max results (rd/in only)' -x
+    complete -c $prog -n "__pd_using_command tuple" -s j -l json -d 'JSON output'
+    complete -c $prog -n "__pd_using_command tuple" -s q -l quiet -d 'Suppress output'
 end

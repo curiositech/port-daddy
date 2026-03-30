@@ -1,225 +1,200 @@
-# The Merge Externality Problem: A Follow-Up for Thomas
+# Orchestrators, Insurance, and the Construction Analogy: A Follow-Up for Thomas
 
 **From:** Erich Owens
-**Re:** Your competitive insurance proposal — a complication
-**What I need:** Your mechanism extended to price the damage that *successful* work imposes on concurrent agents
+**Re:** Your competitive insurance proposal — who gets bonded, and who's the general contractor?
+**What I need:** Confirmation that the right unit of insurance is the orchestrator, not the individual agent
 
 ---
 
 ## The One-Paragraph Version
 
-Your competitive insurance design is the right mechanism for pricing individual Float Plans. But implementing it surfaced a problem your proposal doesn't yet address: in a multi-agent codebase, **a successful merge can be more damaging than a failed one**. When Agent A finishes first and merges its changes, every other agent's work becomes partially stale. The conflict resolution cost falls entirely on agents B, C, D — not on A. A's insurer collected a premium and walked away clean. The agents who did nothing wrong pay the price. This is a negative externality that the per-Float-Plan insurance model doesn't capture. I suspect the fix lives in the same competitive insurance framework, but the insurers need to price *systemic* risk (what does this merge do to the commons?) rather than *local* risk (will this agent succeed?).
+Your competitive insurance design is elegant, but while planning the implementation I got lost pricing individual agent tasks and their pairwise interactions. A conversation with a collaborator snapped the frame: **construction doesn't insure individual subcontractors' merges — it bonds the general contractor.** The GC is responsible for scheduling trades, resolving conflicts, and delivering the finished building. The surety company assesses the GC, not the plumber. I think the same applies here: Port Daddy is the building department (infrastructure, inspections, records), **orchestrators** are the general contractors (scheduling, conflict management, delivery), and your insurer agents assess orchestrators. This simplifies the mechanism substantially. The merge externality problem I was trying to price per-agent is actually the orchestrator's job to manage — and the insurer's job to assess whether the orchestrator can handle it.
 
 ---
 
-## The Externality
+## The Construction Analogy
 
-### What Happens When Agents Merge
+In construction:
 
-In a single-developer world, merges are cooperative. In a multi-agent world, merges become a coordination game with perverse incentives.
-
-Consider four agents working simultaneously on the same codebase:
-
-```
-Agent A finishes first  → merges cleanly         → zero conflict cost
-Agent B finishes second → conflicts with A       → pays resolution cost
-Agent C finishes third  → conflicts with A AND B → pays 2x resolution cost
-Agent D finishes fourth → conflicts with A, B, C → catastrophe
-```
-
-The first agent to merge faces zero conflicts. Every subsequent agent faces increasing conflict probability. This creates a **merge race** — agents are incentivized to merge fast and sloppy rather than slow and correct, because the first merger externalizes all conflict costs onto later mergers.
-
-This is the tragedy of the commons applied to a codebase. The shared resource (a clean merge target) is degraded by each merge, but the degrader doesn't pay the cost.
-
-### The Merge Tax
-
-Each merge imposes a negative externality on all agents who haven't merged yet:
-
-$$\text{merge\_tax}(\text{agent}_i) = \sum_{j \in \text{merged\_before}(i)} P(\text{conflict} \mid i, j) \cdot C(\text{resolution} \mid i, j)$$
-
-where $P(\text{conflict} \mid i, j)$ is the probability that agent $i$'s changes conflict with agent $j$'s already-merged changes, and $C(\text{resolution} \mid i, j)$ is the cost of resolving that conflict.
-
-In a cooperative setting, this tax is accepted as a cost of parallel work. In a competitive or marketplace setting, it creates three pathological dynamics.
-
-### Pathology 1: The Race to Main
-
-Agents rush to merge before others, producing lower-quality work. The agent that takes time to write tests and refactor is *punished* — by the time it merges, the codebase has moved underneath it. Speed is rewarded. Quality is penalized.
-
-### Pathology 2: Strategic Conflict Seeding
-
-A malicious agent can deliberately make broad, sweeping changes that don't conflict *textually* but create *semantic* conflicts for everyone else. Rename a widely-used function parameter. Change a return type. Touch every file's imports. Now every other agent's work is invalidated. The agent's own work "succeeds" — tests pass, the merge is clean. But the externality is catastrophic.
-
-This is particularly dangerous because Git detects *textual* conflicts (two edits to the same line) but misses *semantic* conflicts (compatible text, broken program). An agent can cause maximum damage with zero merge conflicts.
-
-### Pathology 3: The Stale Branch Death Spiral
-
-An agent working on a complex task falls behind the merge target. Each day, the delta grows. Eventually, merging becomes more expensive than starting over. The agent's work — potentially hours of compute and substantial collateral — is worthless. Not because the agent failed, but because other agents' merges made its branch obsolete.
-
----
-
-## The Game Theory
-
-Two agents, A and B, each completing a task. They choose when to merge: early (fast, lower quality) or late (slow, higher quality).
-
-**Without bonds:**
-
-|  | B merges early | B merges late |
+| Role | Construction | Port Daddy |
 |---|---|---|
-| **A merges early** | (3, 3) | (5, 1) |
-| **A merges late** | (1, 5) | (4, 4) |
+| **Building department** | Issues permits, inspects, maintains records, enforces codes | Daemon: ports, sessions, Arbiter, activity log, identity |
+| **General contractor** | Schedules trades, resolves conflicts, manages quality, delivers the project | Orchestrator agent: schedules work, orders merges, coordinates agents |
+| **Subcontractors** | Electricians, plumbers, carpenters — do the actual work | Working agents: write code, run tests, edit files |
+| **Surety company** | Bonds the GC. Assesses GC's track record and project complexity. Pays if GC fails to deliver. | Your insurer agents |
+| **Building owner** | Hires GC, defines requirements, accepts final product | Human developer or principal |
 
-- (early, early): Both rush, both produce mediocre work. (3, 3)
-- (early, late): A gets clean merge, B pays all conflict costs. (5, 1)
-- (late, late): Both produce quality work. Higher total welfare. (4, 4)
-
-This is a Prisoner's Dilemma. The Nash equilibrium is (early, early). The social optimum is (late, late).
-
-**With merge bonds (externality-priced):**
-
-If merging early carries a bond that covers the externality imposed on later mergers:
-
-|  | B merges early | B merges late |
-|---|---|---|
-| **A merges early** | (1, 1) | (2, 3) |
-| **A merges late** | (3, 2) | (4, 4) |
-
-The early-early outcome is penalized (bonds forfeit for quality failures and externality costs). The social optimum (late, late) becomes the Nash equilibrium. The bond internalizes the externality.
+The surety company does not bond individual plumbers. It bonds the GC. The GC's competence at coordinating trades *is* what's being assessed. If the electrician's conduit run conflicts with the plumber's rough-in, that's the GC's problem — it's priced into the GC's overhead, not into per-trade insurance.
 
 ---
 
-## Where Your Proposal Stands
+## The Merge Problem (Reframed)
 
-Your competitive insurance mechanism handles the *local* risk beautifully:
+### Why I Was Overcomplicating It
 
-- Will this agent's work succeed?
-- What will it cost to reconstruct if it fails?
-- Which insurer best assesses this risk?
+In multi-agent development, when several agents work on the same codebase simultaneously, merging their work creates negative externalities. The first agent to merge faces zero conflicts. Every subsequent agent faces increasing conflict probability. This creates a race to merge fast and sloppy rather than slow and correct.
 
-But it doesn't yet handle the *systemic* risk:
+I initially tried to price this externality into per-agent insurance — each agent's premium would incorporate the damage its merge imposes on concurrent agents. This led to increasingly complex mechanisms: externality-adjusted R, portfolio correlation, merge ordering auctions, pairwise conflict pricing.
 
-- What damage will this agent's *success* impose on concurrent agents?
-- Who compensates agents B, C, D when Agent A's clean merge invalidates their work?
-- How should the premium account for the agent's likely merge position?
+Then I realized: **this is the orchestrator's problem.** A good orchestrator:
 
-### The R Problem
+- Assigns work with minimal file overlap
+- Orders merges to minimize total conflict cost
+- Tells agents when to rebase
+- Detects semantic conflicts before they reach the merge queue
+- Takes responsibility for the composed output
 
-In your proposal, R is "the cost of restoring every claimed file to its prior state if the work fails completely." But the actual worst-case damage isn't restoration of the focal agent's files — it's the cascade:
+A bad orchestrator lets agents race to main, ignores conflicts, and delivers broken compositions. The insurer doesn't need to price merge externalities per-agent. The insurer needs to assess: **is this orchestrator competent?** If yes, low premium. If no, high premium. If the orchestrator fails and the project isn't delivered, the bond covers reconstruction — just like construction.
 
-$$R_{\text{honest}} = R_{\text{direct}} + R_{\text{externality}}$$
+### What Changes
 
-$$R_{\text{externality}} = \sum_{j \in \text{concurrent}} P(\text{conflict} \mid i, j) \cdot R_{\text{direct}}(j)$$
+| My Original Approach | Construction-Informed Approach |
+|---|---|
+| Insure each agent's Float Plan individually | Insure the orchestrator's project-level Float Plan |
+| Price merge externalities per-agent ($R_{\text{externality}}$) | Merge management is the orchestrator's competence |
+| Combinatorial auction for merge ordering | Orchestrator decides merge ordering |
+| Portfolio correlation as insurer problem | Portfolio composition as orchestrator problem |
+| N auctions for N agents | One auction for one orchestrator |
 
-An agent refactoring a widely-imported module has high $R_{\text{externality}}$ even if its $R_{\text{direct}}$ is modest. An agent editing a leaf test file has near-zero $R_{\text{externality}}$.
-
-This is why your semantic reasoning insight is right in ways I initially underappreciated. A pricing formula cannot compute $R_{\text{externality}}$ — it requires understanding what the proposed changes mean for downstream consumers. An insurer reading the manifest and checking the file claims of concurrent sessions *can* assess this, if prompted correctly.
-
-### The Portfolio Correlation Problem
-
-With a small pool of insurers (3-5 in practice), each assessing manifests independently, there's a systematic risk of underpricing *correlated* risk. If four agents are all working on files that import from the same module, their failure probabilities are correlated — one merge can invalidate all three remaining branches.
-
-Independent per-Float-Plan assessment misses this. At least some insurers need to reason about the *portfolio* of active Float Plans, not just the one they're bidding on. This is a qualitatively different kind of risk assessment — portfolio risk rather than individual risk — and it's where the intellectual challenge concentrates.
+The mechanism is the same — competitive insurer agents bid premiums, Darwinian selection evolves accurate pricing. But the unit of insurance is the orchestrator, not the individual working agent. This is substantially simpler.
 
 ---
 
-## The Merge Ordering Question
+## What the Orchestrator Looks Like
 
-One possible extension: instead of (or in addition to) insuring individual Float Plans, agents *bid for merge position*.
+An orchestrator is an agent that:
 
-The first merge position costs the most, because it externalizes the most onto later mergers. The last position costs the least, because it bears the most conflict resolution burden but causes no externalities. Revenue from the auction compensates later mergers for their measured conflict costs.
+1. Files a Float Plan for the whole project ("Refactor the auth system")
+2. Gets bonded via your insurance auction
+3. Spawns and coordinates sub-agents
+4. Manages their merge ordering and conflict resolution
+5. Delivers the composed result
+6. Settlement: did the project meet acceptance criteria?
 
-This is a combinatorial auction: agents are bidding for positions in an ordering, and the value of each position depends on which agents occupy the other positions. The conflict probability matrix determines the payoff structure.
+The orchestrator can be simple (a human running `pd begin` and manually managing agents) or sophisticated (an AI agent that decomposes tasks, assigns work, monitors progress, and handles merges autonomously).
 
-**How this interacts with insurance:** If merge position is auctioned, the insurer's risk assessment changes. An agent that wins the first merge position has low externality liability (it won't damage others) but paid a high auction price. An agent in the last position paid little for position but faces high conflict probability. The insurance premium and the merge position price are coupled — the total cost to the agent is premium + position price, and the risk to the insurer depends on the position.
+Multiple orchestrators can compete for the same project. The insurer assesses the orchestrator's track record, not the individual sub-agents' capabilities. A good orchestrator with mediocre sub-agents may outperform a bad orchestrator with excellent sub-agents — because composition is harder than execution.
 
-This might be two separate mechanisms that agents optimize over jointly. Or it might be a single combined mechanism where the insurer's bid implicitly encodes a merge ordering preference. I don't have the mechanism design expertise to know which is more efficient.
+Port Daddy provides the infrastructure the orchestrator needs:
+- File claim conflict detection (who's overlapping with whom)
+- Pub/sub messaging (coordination between sub-agents)
+- Activity log (evidence trail for settlement)
+- Arbiter (invariant enforcement)
+- Merge primitives (queue, ordering data)
 
----
-
-## The Concrete Questions
-
-Building on our first exchange, I'd love your thinking on:
-
-### 1. Externality Pricing
-
-How should the insurance premium incorporate $R_{\text{externality}}$? Should the insurer who underwrites Agent A's Float Plan be liable for damage A's merge causes to Agents B, C, D? Or should there be a separate externality bond paid by the merging agent (not the insurer)?
-
-### 2. Portfolio Risk
-
-Your Darwinian selection mechanism assumes insurers compete on accuracy. But with a small pool, correlated risk is systematically underpriced. Is there a mechanism that incentivizes at least some insurers to specialize in portfolio-level risk assessment rather than individual manifest assessment?
-
-### 3. Merge Ordering as Auction
-
-Is the merge ordering problem best solved as a separate combinatorial auction? Or should it be integrated into the insurance mechanism (insurer bids encode merge position preferences)?
-
-### 4. First-Price Revisited
-
-I initially considered switching your first-price auction to Vickrey (second-price) for dominant-strategy truthfulness. But I now think your choice of first-price may be deliberate: in first-price, an insurer who bids too low wins and goes bankrupt, which IS the Darwinian selection mechanism. Under Vickrey, the winner pays someone else's price, so their own risk assessment is never directly tested by the settlement. The feedback loop between "my bid" and "my wealth outcome" is weaker.
-
-Is the Darwinian mechanism the reason you chose first-price? Does the merge externality problem change the analysis?
-
-### 5. The Empirical Question
-
-The deepest uncertainty: **can an LLM actually produce a calibrated risk premium for a Float Plan?** Your mechanism's self-improving property (pricing improves as models improve) holds only if insurers do genuine semantic risk assessment, not pattern-matching that approximates a formula. I haven't tested this yet. If the answer is "not yet, but soon," is there a hybrid design (formula for baseline R, insurer adjustment for semantic risk) that bootstraps the market while the models catch up?
-
-### 6. Small-Pool Dynamics
-
-Your mechanism assumes a population large enough for Darwinian selection to produce signal. In practice, the insurer pool will be 3-8 agents. At that scale, you have an oligopoly, not a market. Wealth divergence is noisy, inflation triggers constantly, and correlated bids (same model backbone) suppress genuine information aggregation.
-
-Is there a minimum viable pool size below which the mechanism degenerates into administered pricing? Should the system detect this and fall back to a formula-based bond until the pool grows?
+But Port Daddy doesn't *do* the orchestration. That's the GC's job.
 
 ---
 
-## What's Built Since the First Brief
+## Where Your Mechanism Applies
 
-Since our last exchange, the following infrastructure has been added:
+Your proposal maps cleanly onto this:
+
+1. **R** = the cost of reconstructing the project if the orchestrator fails to deliver. This is easier to estimate at the project level than at the per-agent level — it's "how much would it cost to start over?"
+
+2. **Insurer agents** read the orchestrator's Float Plan (the project manifest, not individual task manifests) and assess: Can this orchestrator handle a project of this scope? How is its track record? How many sub-agents is it coordinating? What's the conflict density of the claimed files?
+
+3. **Solvency gate** applies to the orchestrator's bond, not per-agent bonds.
+
+4. **Settlement** is binary (your original design): the project was delivered to spec, or it wasn't. The insurer doesn't need to evaluate individual sub-agent merges. It evaluates the orchestrator's output.
+
+5. **Darwinian selection** operates on insurers' ability to assess orchestrator competence, not individual agent risk. This is a more tractable assessment — "can this GC deliver?" is a question with more historical signal than "will this agent's merge conflict with that agent's work?"
+
+---
+
+## Privatized Orchestrators
+
+An important architectural question: should orchestration be a role that different agents can compete for? Or should Port Daddy provide a default orchestrator?
+
+I think orchestration should be **open**. Different orchestrators will have different strategies:
+
+- A conservative orchestrator serializes all work (no merge conflicts, slow)
+- An aggressive orchestrator parallelizes maximally (fast, risky)
+- A domain-aware orchestrator knows that auth changes should merge before API changes
+- A learning orchestrator improves its scheduling based on historical conflict data
+
+The market for orchestrators is separate from the market for insurance. Orchestrators compete on execution quality. Insurers compete on risk assessment accuracy. These are different competencies.
+
+Port Daddy's role: provide the infrastructure both markets need (conflict data, merge primitives, activity logs, identity, settlement) without being either the orchestrator or the insurer.
+
+---
+
+## Revised Questions for You
+
+The original six questions I prepared were overengineered because I was trying to price merge externalities into per-agent insurance. With the orchestrator framing, the questions simplify:
+
+### 1. The Unit of Insurance
+
+Do you agree that the right unit is the orchestrator's project-level Float Plan, not the individual agent's task-level Float Plan? If there are cases where per-agent insurance is still needed (agents working without an orchestrator), how should the mechanism degrade gracefully?
+
+### 2. First-Price vs. Second-Price
+
+I initially considered switching to Vickrey (second-price) for dominant-strategy truthfulness. But I now think your choice of first-price may be deliberate: under first-price, an insurer who bids too aggressively wins and goes bankrupt, which *is* the Darwinian selection mechanism. Under Vickrey, the winner pays someone else's price, so the feedback loop between "my bid" and "my wealth outcome" is weaker.
+
+Is the Darwinian mechanism the reason you chose first-price?
+
+### 3. Small-Pool Dynamics
+
+In practice, the insurer pool will be 3-8 agents. At that scale, correlated bids (same model backbone) suppress genuine information aggregation. Is there a minimum viable pool size below which the mechanism degenerates into administered pricing? Should the system detect this and fall back?
+
+### 4. The Empirical Question
+
+Can an LLM produce a calibrated premium for an orchestrator's project-level Float Plan? This is more tractable than per-agent pricing — the insurer assesses one entity on one question ("will this orchestrator deliver?") with richer signal (orchestrator's track record across multiple past projects). But it's still unvalidated. If the answer is "not yet," is there a hybrid (formula baseline + insurer adjustment) that bootstraps the market?
+
+### 5. Orchestrator Reputation and Adverse Selection
+
+New orchestrators have no track record. If premiums are high for newcomers, only established orchestrators can afford to take on work — creating a barrier to entry. The cold start problem from your original proposal applies here too, but at the orchestrator level rather than the agent level. Does the graduated task access model (newcomers start with small projects) work, or is there a better mechanism?
+
+---
+
+## What I Plan to Build
+
+Based on our exchanges, here's the sequence:
+
+**Phase 1: Merge Queue** (no economics, useful immediately)
+- Agents submit completed work to a queue
+- Conflict prediction (AST-level, not just textual)
+- Optimal merge ordering to minimize total conflict cost
+- This is building department infrastructure — anyone can use it
+
+**Phase 2: Orchestrator Role** (coordination, no insurance)
+- Orchestrators register as agents with a project-level Float Plan
+- Orchestrators spawn and coordinate sub-agents
+- Port Daddy tracks orchestrator outcomes (delivered/failed)
+- Builds the track record data insurers will eventually need
+
+**Phase 3: Competitive Insurance** (your proposal)
+- Insurer agents bid premiums on orchestrator Float Plans
+- Darwinian wealth selection
+- Settlement: did the orchestrator deliver?
+- Self-improving as models improve
+
+Each phase delivers value independently. Phase 1 is useful without economics. Phase 2 is useful without insurance. Phase 3 is your mechanism, applied to the right unit.
+
+---
+
+## What's Changed Since the First Brief
 
 | Component | Status | Relevance |
 |---|---|---|
-| **Arbiter** (runtime invariant enforcement) | Built, running | Enforces ESCROW_POSITIVE rule (currently a stub, ready to activate) |
-| **Note encryption** (AES-256-GCM, ProVerif-verified) | Built, running | Evidence chains are cryptographically tamper-proof |
-| **Pheromone signals** (evaporating pub/sub markers) | Built, running | Could track insurer reputation with natural decay |
-| **Fleet engine** (declarative YAML agent management) | Built, running | Insurer agents would be fleet members |
-| **Semantic identity trie** (O(k) lookups on project:stack:context) | Built, running | Enables portfolio-level queries across concurrent agents |
-| **IPC binary protocol** (FIPA performatives) | Built, running | Low-latency agent-agent communication for auction bids |
-| **File claim conflict detection** | Built, running | Pairwise overlap detection between concurrent sessions |
-
-The file claim system already detects which concurrent agents have overlapping scope — the raw data for computing $R_{\text{externality}}$ exists. What's missing is the economic layer that *prices* it.
+| **Arbiter** (runtime invariant enforcement) | Built, running | Can enforce orchestrator-level invariants |
+| **Note encryption** (AES-256-GCM, ProVerif-verified) | Built, running | Evidence chains for settlement |
+| **Fleet engine** (declarative YAML agent management) | Built, running | Insurer and orchestrator agents as fleet members |
+| **Pheromone signals** (evaporating reputation markers) | Built, running | Orchestrator and insurer reputation tracking |
+| **File claim conflict detection** | Built, running | Merge conflict data for orchestrators |
+| **Agent spawning** (`pd spawn`) | Built, running | Orchestrators can spawn sub-agents |
+| **Semantic identity trie** | Built, running | O(k) lookup of concurrent agents by project |
 
 ---
 
-## What I Think the Architecture Looks Like
+## The Paper
 
-Based on our exchange and this new complication, I think the system has three layers that must be built in order:
+I think there are now two papers:
 
-**Layer 1: Merge Queue with Conflict Prediction**
-- Agents submit completed work to a queue, not directly to main
-- Pairwise conflict probability matrix computed (AST-level, not just textual)
-- Optimal merge ordering minimizes total conflict cost
-- No economics. Pure coordination. Useful immediately.
+1. **The Anchor Protocol** (cryptographic identity, formally verified) — written, published on our site.
 
-**Layer 2: Merge Bonds with Externality Compensation**
-- Each agent posts bond before starting, proportional to scope
-- Bond forfeit if merge breaks tests or Arbiter invariants
-- Merge tax: portion of bond compensates downstream agents for conflict resolution
-- Formula-based. Imperfect but functional. Internalizes the externality.
+2. **The Bonded Commons** (governance + economic alignment) — written, but Section 7.4 (bond pricing) is explicitly deferred to "collaboration with economists." Your competitive insurance mechanism is the answer to that section, and the orchestrator framing completes it.
 
-**Layer 3: Competitive Insurance (Your Proposal)**
-- Insurers replace the formula-based bond with market-discovered pricing
-- Insurers assess both direct risk AND externality risk
-- Settlement accounts for both "did the work succeed?" AND "did the merge damage others?"
-- Darwinian selection operates on ability to price systemic risk
-- Self-improving as models improve.
+The contribution would be: the first competitive insurance market for AI agent labor, with the orchestrator as the insured unit, applied to a running system with formal verification of the underlying security properties. The merge externality analysis (why per-agent pricing fails, why the GC analogy holds) is the motivating argument for the orchestrator framing.
 
-Layer 1 is pure engineering. Layer 2 is mechanism design with a formula (the kind I can build without your help, imperfectly). Layer 3 is your proposal, extended to handle externalities. I'd love your input on whether this layering makes sense, and whether Layer 3 changes structurally when externalities enter the picture.
-
----
-
-## The Stakes
-
-This is, to my knowledge, the first attempt to build a competitive insurance market for AI agent labor. The individual bond pricing problem is interesting. The merge externality problem is, I think, genuinely novel — I haven't seen it treated in the multi-agent systems literature, because most multi-agent systems don't share a mutable artifact (a codebase) where operations compose non-commutatively.
-
-The merge ordering problem is a combinatorial auction over non-commutative compositions. The externality pricing problem is Pigouvian taxation in a commons where the shared resource (codebase integrity) degrades through use. The portfolio correlation problem is the same challenge that breaks independent risk assessment in correlated credit markets.
-
-All of these are problems you know how to think about. I can build the infrastructure. The mechanism design is the gap.
-
-If this is interesting to you, I'd be glad to co-author the paper.
+If this is interesting, I'd love to write it together.
