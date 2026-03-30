@@ -1,37 +1,7 @@
 import { Badge } from '@/components/ui/Badge'
+import { DocsCodeBlock as CodeBlock } from '@/components/docs/DocsCodeBlock'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Copy, Check } from 'lucide-react'
-import { useState } from 'react'
-
-function CodeBlock({ code, output }: { code: string; output?: string }) {
-  const [copied, setCopied] = useState(false)
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(code)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  return (
-    <div className="space-y-2">
-      <div className="relative p-4 rounded-lg bg-[var(--code-bg)] border border-[var(--border-subtle)] font-mono text-sm group">
-        <button
-          onClick={handleCopy}
-          className="absolute right-3 top-3 p-1.5 rounded hover:bg-[var(--interactive-hover)] text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity"
-        >
-          {copied ? <Check size={14} className="text-[var(--success)]" /> : <Copy size={14} />}
-        </button>
-        <code className="text-[var(--brand-primary)]">{code}</code>
-      </div>
-      {output && (
-        <div className="p-4 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)] font-mono text-sm">
-          <div className="text-[var(--text-muted)] mb-1 text-xs uppercase tracking-wide">Output</div>
-          <pre className="text-[var(--text-secondary)] whitespace-pre-wrap">{output}</pre>
-        </div>
-      )}
-    </div>
-  )
-}
+import { ArrowLeft } from 'lucide-react'
 
 export default function PortsSdk() {
   return (
@@ -69,7 +39,7 @@ export default function PortsSdk() {
           </p>
         </div>
 
-        <CodeBlock code={`claimPort(identity: string, options?: PortClaimOptions): Promise<PortClaim>`} />
+        <CodeBlock language="typescript" code={`claimPort(identity: string, options?: PortClaimOptions): Promise<PortClaim>`} />
 
         <div className="space-y-3">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Parameters</h3>
@@ -110,10 +80,11 @@ export default function PortsSdk() {
 
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Examples</h3>
-          
+
           <div className="space-y-2">
             <p className="text-[var(--text-secondary)]">Basic usage — claim a port for an API service</p>
-            <CodeBlock 
+            <CodeBlock
+              language="typescript"
               code={`const claim = await pd.ports.claim('myapp:api:main')
 console.log(claim.port) // 3001`}
               output={`{
@@ -128,7 +99,8 @@ console.log(claim.port) // 3001`}
 
           <div className="space-y-2">
             <p className="text-[var(--text-secondary)]">With TTL — port auto-releases after 1 hour</p>
-            <CodeBlock 
+            <CodeBlock
+              language="typescript"
               code={`const claim = await pd.ports.claim('myapp:worker:temp', {
   ttl: 3600 // 1 hour
 })`}
@@ -137,7 +109,8 @@ console.log(claim.port) // 3001`}
 
           <div className="space-y-2">
             <p className="text-[var(--text-secondary)]">Idempotent — same call returns same port</p>
-            <CodeBlock 
+            <CodeBlock
+              language="typescript"
               code={`const claim1 = await pd.ports.claim('myapp:api:main')
 const claim2 = await pd.ports.claim('myapp:api:main')
 console.log(claim1.port === claim2.port) // true`}
@@ -155,7 +128,7 @@ console.log(claim1.port === claim2.port) // true`}
           </p>
         </div>
 
-        <CodeBlock code={`releasePort(identity: string): Promise<boolean>`} />
+        <CodeBlock language="typescript" code={`releasePort(identity: string): Promise<boolean>`} />
 
         <div className="space-y-3">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Parameters</h3>
@@ -173,7 +146,8 @@ console.log(claim1.port === claim2.port) // true`}
 
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Examples</h3>
-          <CodeBlock 
+          <CodeBlock
+            language="typescript"
             code={`// Release when service shuts down
 await pd.ports.release('myapp:api:main')
 
@@ -193,11 +167,12 @@ console.log(released) // true`}
           </p>
         </div>
 
-        <CodeBlock code={`findPort(identity: string): Promise<PortClaim | null>`} />
+        <CodeBlock language="typescript" code={`findPort(identity: string): Promise<PortClaim | null>`} />
 
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Examples</h3>
-          <CodeBlock 
+          <CodeBlock
+            language="typescript"
             code={`// Check if a service is already running
 const claim = await pd.ports.findPort('myapp:api:main')
 if (claim) {
@@ -218,7 +193,7 @@ if (claim) {
           </p>
         </div>
 
-        <CodeBlock code={`listServices(options?: ListServicesOptions): Promise<PortClaim[]>`} />
+        <CodeBlock language="typescript" code={`listServices(options?: ListServicesOptions): Promise<PortClaim[]>`} />
 
         <div className="space-y-3">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Parameters</h3>
@@ -242,7 +217,8 @@ if (claim) {
 
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Examples</h3>
-          <CodeBlock 
+          <CodeBlock
+            language="typescript"
             code={`// List all services in a project
 const services = await pd.ports.listServices({ project: 'myapp' })
 console.log(services)`}
@@ -267,7 +243,7 @@ console.log(services)`}
       {/* Types */}
       <div className="space-y-4 pt-8 border-t border-[var(--border-subtle)]">
         <h2 className="text-2xl font-semibold text-[var(--text-primary)]">Type Definitions</h2>
-        <CodeBlock code={`interface PortClaim {
+        <CodeBlock language="typescript" code={`interface PortClaim {
   identity: string
   port: number
   claimedAt: string
@@ -292,14 +268,14 @@ interface ListServicesOptions {
 
       {/* Navigation */}
       <div className="flex items-center justify-between pt-8 border-t border-[var(--border-subtle)]">
-        <Link 
+        <Link
           to="/docs/sdk"
           className="flex items-center gap-2 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
         >
           <ArrowLeft size={14} />
           SDK Overview
         </Link>
-        <Link 
+        <Link
           to="/docs/sdk/sessions"
           className="flex items-center gap-2 text-sm text-[var(--brand-primary)] hover:text-[var(--brand-primary)] transition-colors"
         >

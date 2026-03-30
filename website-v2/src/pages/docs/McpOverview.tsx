@@ -1,4 +1,5 @@
 import { Badge } from '@/components/ui/Badge'
+import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Cpu, Terminal, Code, ExternalLink, Check } from 'lucide-react'
 
@@ -130,13 +131,11 @@ export default function McpOverview() {
         <p className="text-[var(--text-secondary)]">
           The fastest way to get started is using the init command:
         </p>
-        <div className="p-4 rounded-xl bg-[var(--code-bg)] border border-[var(--border-subtle)] font-mono text-sm">
-          <div className="text-[var(--text-muted)] mb-2"># Install the MCP server globally</div>
-          <div className="text-[var(--brand-primary)]">$ pd mcp install --global</div>
-          <div className="text-[var(--text-secondary)] mt-2">✓ MCP server installed</div>
-          <div className="text-[var(--text-secondary)]">✓ Claude Code configured</div>
-          <div className="text-[var(--text-secondary)]">✓ Cursor settings updated</div>
-        </div>
+        <CodeBlock language="bash">{`# Install the MCP server globally
+$ pd mcp install --global
+✓ MCP server installed
+✓ Claude Code configured
+✓ Cursor settings updated`}</CodeBlock>
       </div>
 
       {/* Supported Platforms */}
@@ -212,9 +211,8 @@ export default function McpOverview() {
         <p className="text-[var(--text-secondary)]">
           The MCP server can be configured via environment variables or a config file:
         </p>
-        <div className="p-4 rounded-xl bg-[var(--code-bg)] border border-[var(--border-subtle)] font-mono text-sm">
-          <div className="text-[var(--text-muted)]"># ~/.portdaddy/mcp.json</div>
-          <pre className="text-[var(--text-secondary)] mt-2">{`{
+        <CodeBlock language="bash">{`# ~/.portdaddy/mcp.json
+{
   "daemon": {
     "socket": "/tmp/port-daddy.sock",
     "timeout": 30000
@@ -227,8 +225,7 @@ export default function McpOverview() {
     "level": "info",
     "file": "~/.portdaddy/mcp.log"
   }
-}`}</pre>
-        </div>
+}`}</CodeBlock>
       </div>
 
       {/* Example Usage */}

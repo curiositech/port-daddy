@@ -1,4 +1,5 @@
 import { Badge } from '@/components/ui/Badge'
+import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Link } from 'react-router-dom'
 import { ArrowRight, AlertCircle } from 'lucide-react'
 import { DocsCodeBlock } from '@/components/docs/DocsCodeBlock'
@@ -115,9 +116,7 @@ myapp:web   → https://def456.ngrok.io   (ngrok, 2m uptime)`}
               <code className="text-lg font-mono text-[var(--brand-primary)]">pd tunnel start &lt;identity&gt; --provider &lt;name&gt;</code>
             </div>
             <p className="text-[var(--text-secondary)] mb-3">Start a tunnel for a claimed service. Auto-selects provider if not specified.</p>
-            <div className="p-3 rounded-lg font-mono text-sm" style={{ background: 'var(--code-bg)', color: 'var(--code-text)' }}>
-              $ pd tunnel start myapp:api --provider ngrok
-            </div>
+            <CodeBlock language="bash">{`$ pd tunnel start myapp:api --provider ngrok`}</CodeBlock>
           </div>
 
           <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
@@ -125,9 +124,7 @@ myapp:web   → https://def456.ngrok.io   (ngrok, 2m uptime)`}
               <code className="text-lg font-mono text-[var(--brand-primary)]">pd tunnel stop &lt;identity&gt;</code>
             </div>
             <p className="text-[var(--text-secondary)] mb-3">Tear down the tunnel for a service. Also happens automatically when the port is released.</p>
-            <div className="p-3 rounded-lg font-mono text-sm" style={{ background: 'var(--code-bg)', color: 'var(--code-text)' }}>
-              $ pd tunnel stop myapp:api
-            </div>
+            <CodeBlock language="bash">{`$ pd tunnel stop myapp:api`}</CodeBlock>
           </div>
 
           <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
@@ -135,9 +132,7 @@ myapp:web   → https://def456.ngrok.io   (ngrok, 2m uptime)`}
               <code className="text-lg font-mono text-[var(--brand-primary)]">pd tunnel list</code>
             </div>
             <p className="text-[var(--text-secondary)] mb-3">List all active tunnels with public URLs, providers, and uptime.</p>
-            <div className="p-3 rounded-lg font-mono text-sm" style={{ background: 'var(--code-bg)', color: 'var(--code-text)' }}>
-              $ pd tunnel list --json
-            </div>
+            <CodeBlock language="bash">{`$ pd tunnel list --json`}</CodeBlock>
           </div>
 
           <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
@@ -145,9 +140,7 @@ myapp:web   → https://def456.ngrok.io   (ngrok, 2m uptime)`}
               <code className="text-lg font-mono text-[var(--brand-primary)]">pd tunnel providers</code>
             </div>
             <p className="text-[var(--text-secondary)] mb-3">Check which tunnel provider CLIs are installed on the system.</p>
-            <div className="p-3 rounded-lg font-mono text-sm" style={{ background: 'var(--code-bg)', color: 'var(--code-text)' }}>
-              $ pd tunnel providers
-            </div>
+            <CodeBlock language="bash">{`$ pd tunnel providers`}</CodeBlock>
           </div>
         </div>
       </div>

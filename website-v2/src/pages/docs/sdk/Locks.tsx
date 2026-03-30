@@ -1,37 +1,7 @@
 import { Badge } from '@/components/ui/Badge'
+import { DocsCodeBlock as CodeBlock } from '@/components/docs/DocsCodeBlock'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Copy, Check } from 'lucide-react'
-import { useState } from 'react'
-
-function CodeBlock({ code, output }: { code: string; output?: string }) {
-  const [copied, setCopied] = useState(false)
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(code)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  return (
-    <div className="space-y-2">
-      <div className="relative p-4 rounded-lg bg-[var(--code-bg)] border border-[var(--border-subtle)] font-mono text-sm group">
-        <button
-          onClick={handleCopy}
-          className="absolute right-3 top-3 p-1.5 rounded hover:bg-[var(--interactive-hover)] text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity"
-        >
-          {copied ? <Check size={14} className="text-[var(--success)]" /> : <Copy size={14} />}
-        </button>
-        <code className="text-[var(--brand-primary)]">{code}</code>
-      </div>
-      {output && (
-        <div className="p-4 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)] font-mono text-sm">
-          <div className="text-[var(--text-muted)] mb-1 text-xs uppercase tracking-wide">Output</div>
-          <pre className="text-[var(--text-secondary)] whitespace-pre-wrap">{output}</pre>
-        </div>
-      )}
-    </div>
-  )
-}
+import { ArrowLeft } from 'lucide-react'
 
 export default function LocksSdk() {
   return (
@@ -69,7 +39,7 @@ export default function LocksSdk() {
           </p>
         </div>
 
-        <CodeBlock code={`acquireLock(name: string, options?: LockOptions): Promise<Lock | null>`} />
+        <CodeBlock language="typescript" code={`acquireLock(name: string, options?: LockOptions): Promise<Lock | null>`} />
 
         <div className="space-y-3">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Parameters</h3>
@@ -108,10 +78,11 @@ export default function LocksSdk() {
 
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Examples</h3>
-          
+
           <div className="space-y-2">
             <p className="text-[var(--text-secondary)]">Basic usage — acquire a lock</p>
-            <CodeBlock 
+            <CodeBlock
+              language="typescript"
               code={`const lock = await pd.locks.acquireLock('database-migration', {
   ttl: 300 // 5 minutes
 })
@@ -135,7 +106,8 @@ if (lock) {
 
           <div className="space-y-2">
             <p className="text-[var(--text-secondary)]">Wait for lock with timeout</p>
-            <CodeBlock 
+            <CodeBlock
+              language="typescript"
               code={`const lock = await pd.locks.acquireLock('config-file', {
   wait: true,
   timeout: 10000 // Wait up to 10 seconds
@@ -150,7 +122,8 @@ if (lock) {
 
           <div className="space-y-2">
             <p className="text-[var(--text-secondary)]">Immediate fail if locked</p>
-            <CodeBlock 
+            <CodeBlock
+              language="typescript"
               code={`// Without wait option, returns null immediately if locked
 const lock = await pd.locks.acquireLock('build-artifacts')
 if (!lock) {
@@ -171,7 +144,7 @@ if (!lock) {
           </p>
         </div>
 
-        <CodeBlock code={`releaseLock(name: string): Promise<boolean>`} />
+        <CodeBlock language="typescript" code={`releaseLock(name: string): Promise<boolean>`} />
 
         <div className="space-y-3">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Parameters</h3>
@@ -189,7 +162,8 @@ if (!lock) {
 
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Examples</h3>
-          <CodeBlock 
+          <CodeBlock
+            language="typescript"
             code={`// Release lock when done
 await pd.locks.releaseLock('database-migration')
 
@@ -205,12 +179,12 @@ console.log(released) // true`}
         <div className="space-y-2">
           <h2 className="text-2xl font-semibold text-[var(--text-primary)]">withLock()</h2>
           <p className="text-[var(--text-secondary)]">
-            Execute a function with automatic lock acquisition and release. 
+            Execute a function with automatic lock acquisition and release.
             The lock is released even if the function throws an error.
           </p>
         </div>
 
-        <CodeBlock code={`withLock<T>(name: string, fn: () => Promise<T>, options?: LockOptions): Promise<T | null>`} />
+        <CodeBlock language="typescript" code={`withLock<T>(name: string, fn: () => Promise<T>, options?: LockOptions): Promise<T | null>`} />
 
         <div className="space-y-3">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Parameters</h3>
@@ -243,10 +217,11 @@ console.log(released) // true`}
 
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Examples</h3>
-          
+
           <div className="space-y-2">
             <p className="text-[var(--text-secondary)]">Automatic lock management</p>
-            <CodeBlock 
+            <CodeBlock
+              language="typescript"
               code={`import { writeFile } from 'fs/promises'
 
 // Lock is acquired before the function runs
@@ -255,13 +230,13 @@ const result = await pd.locks.withLock('package-json', async () => {
   // Read current package.json
   const pkg = await readFile('package.json', 'utf8')
   const data = JSON.parse(pkg)
-  
+
   // Modify dependencies
   data.dependencies['new-lib'] = '^1.0.0'
-  
+
   // Write back
   await writeFile('package.json', JSON.stringify(data, null, 2))
-  
+
   return data
 }, { ttl: 30 })
 
@@ -273,7 +248,8 @@ if (result) {
 
           <div className="space-y-2">
             <p className="text-[var(--text-secondary)]">Handling lock failures</p>
-            <CodeBlock 
+            <CodeBlock
+              language="typescript"
               code={`const result = await pd.locks.withLock('critical-section', async () => {
   return await performCriticalOperation()
 })
@@ -322,7 +298,7 @@ if (result === null) {
       {/* Types */}
       <div className="space-y-4 pt-8 border-t border-[var(--border-subtle)]">
         <h2 className="text-2xl font-semibold text-[var(--text-primary)]">Type Definitions</h2>
-        <CodeBlock code={`interface Lock {
+        <CodeBlock language="typescript" code={`interface Lock {
   name: string
   holder: string
   acquiredAt: string
@@ -339,14 +315,14 @@ interface LockOptions {
 
       {/* Navigation */}
       <div className="flex items-center justify-between pt-8 border-t border-[var(--border-subtle)]">
-        <Link 
+        <Link
           to="/docs/sdk/sessions"
           className="flex items-center gap-2 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
         >
           <ArrowLeft size={14} />
           Sessions Module
         </Link>
-        <Link 
+        <Link
           to="/docs/sdk/harbors"
           className="flex items-center gap-2 text-sm text-[var(--brand-primary)] hover:text-[var(--brand-primary)] transition-colors"
         >

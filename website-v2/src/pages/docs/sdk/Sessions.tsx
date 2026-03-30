@@ -1,37 +1,7 @@
 import { Badge } from '@/components/ui/Badge'
+import { DocsCodeBlock as CodeBlock } from '@/components/docs/DocsCodeBlock'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Copy, Check } from 'lucide-react'
-import { useState } from 'react'
-
-function CodeBlock({ code, output }: { code: string; output?: string }) {
-  const [copied, setCopied] = useState(false)
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(code)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  return (
-    <div className="space-y-2">
-      <div className="relative p-4 rounded-lg bg-[var(--code-bg)] border border-[var(--border-subtle)] font-mono text-sm group">
-        <button
-          onClick={handleCopy}
-          className="absolute right-3 top-3 p-1.5 rounded hover:bg-[var(--interactive-hover)] text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity"
-        >
-          {copied ? <Check size={14} className="text-[var(--success)]" /> : <Copy size={14} />}
-        </button>
-        <code className="text-[var(--brand-primary)]">{code}</code>
-      </div>
-      {output && (
-        <div className="p-4 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)] font-mono text-sm">
-          <div className="text-[var(--text-muted)] mb-1 text-xs uppercase tracking-wide">Output</div>
-          <pre className="text-[var(--text-secondary)] whitespace-pre-wrap">{output}</pre>
-        </div>
-      )}
-    </div>
-  )
-}
+import { ArrowLeft } from 'lucide-react'
 
 export default function SessionsSdk() {
   return (
@@ -69,7 +39,7 @@ export default function SessionsSdk() {
           </p>
         </div>
 
-        <CodeBlock code={`beginSession(options?: BeginSessionOptions): Promise<Session>`} />
+        <CodeBlock language="typescript" code={`beginSession(options?: BeginSessionOptions): Promise<Session>`} />
 
         <div className="space-y-3">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Parameters</h3>
@@ -100,10 +70,11 @@ export default function SessionsSdk() {
 
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Examples</h3>
-          
+
           <div className="space-y-2">
             <p className="text-[var(--text-secondary)]">Basic usage — start a session</p>
-            <CodeBlock 
+            <CodeBlock
+              language="typescript"
               code={`const session = await pd.sessions.begin({
   identity: 'myapp:api',
   purpose: 'Fix authentication bug'
@@ -121,7 +92,8 @@ export default function SessionsSdk() {
 
           <div className="space-y-2">
             <p className="text-[var(--text-secondary)]">Minimal session with auto-generated identity</p>
-            <CodeBlock 
+            <CodeBlock
+              language="typescript"
               code={`const session = await pd.sessions.begin()`}
               output={`{
   "id": "xyz789-ghi012",
@@ -145,7 +117,7 @@ export default function SessionsSdk() {
           </p>
         </div>
 
-        <CodeBlock code={`doneSession(sessionId: string, options?: DoneSessionOptions): Promise<Session>`} />
+        <CodeBlock language="typescript" code={`doneSession(sessionId: string, options?: DoneSessionOptions): Promise<Session>`} />
 
         <div className="space-y-3">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Parameters</h3>
@@ -177,7 +149,8 @@ export default function SessionsSdk() {
 
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Examples</h3>
-          <CodeBlock 
+          <CodeBlock
+            language="typescript"
             code={`// Complete a session
 await pd.sessions.done(session.id, {
   summary: 'Fixed auth bug and added tests',
@@ -199,7 +172,7 @@ await pd.sessions.done(session.id)`}
           </p>
         </div>
 
-        <CodeBlock code={`addNote(sessionId: string, content: string, type?: NoteType): Promise<SessionNote>`} />
+        <CodeBlock language="typescript" code={`addNote(sessionId: string, content: string, type?: NoteType): Promise<SessionNote>`} />
 
         <div className="space-y-3">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Parameters</h3>
@@ -234,7 +207,8 @@ await pd.sessions.done(session.id)`}
 
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Examples</h3>
-          <CodeBlock 
+          <CodeBlock
+            language="typescript"
             code={`// Add a progress note
 await pd.sessions.addNote(session.id, 'API endpoints implemented', 'progress')
 
@@ -264,7 +238,7 @@ await pd.sessions.addNote(
           </p>
         </div>
 
-        <CodeBlock code={`getNotes(options?: GetNotesOptions): Promise<SessionNote[]>`} />
+        <CodeBlock language="typescript" code={`getNotes(options?: GetNotesOptions): Promise<SessionNote[]>`} />
 
         <div className="space-y-3">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Parameters</h3>
@@ -295,7 +269,8 @@ await pd.sessions.addNote(
 
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Examples</h3>
-          <CodeBlock 
+          <CodeBlock
+            language="typescript"
             code={`// Get all notes for a session
 const notes = await pd.sessions.getNotes({ sessionId: session.id })
 
@@ -330,7 +305,7 @@ const recent = await pd.sessions.getNotes({ limit: 10 })`}
       {/* Types */}
       <div className="space-y-4 pt-8 border-t border-[var(--border-subtle)]">
         <h2 className="text-2xl font-semibold text-[var(--text-primary)]">Type Definitions</h2>
-        <CodeBlock code={`interface Session {
+        <CodeBlock language="typescript" code={`interface Session {
   id: string
   agentId: string
   identity: string
@@ -373,14 +348,14 @@ interface GetNotesOptions {
 
       {/* Navigation */}
       <div className="flex items-center justify-between pt-8 border-t border-[var(--border-subtle)]">
-        <Link 
+        <Link
           to="/docs/sdk/ports"
           className="flex items-center gap-2 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
         >
           <ArrowLeft size={14} />
           Ports Module
         </Link>
-        <Link 
+        <Link
           to="/docs/sdk/locks"
           className="flex items-center gap-2 text-sm text-[var(--brand-primary)] hover:text-[var(--brand-primary)] transition-colors"
         >

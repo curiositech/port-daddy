@@ -16,7 +16,7 @@ export default function PortsFeature() {
           Atomic Port Assignment
         </h1>
         <p className="text-xl text-[var(--text-secondary)] leading-relaxed max-w-3xl">
-          Deterministic hashing ensures semantic identities like <code>myapp:api</code> always 
+          Deterministic hashing ensures semantic identities like <code>myapp:api</code> always
           map to the same port across restarts and swarms. No more port conflicts.
         </p>
       </div>
@@ -25,7 +25,7 @@ export default function PortsFeature() {
       <div className="p-6 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
         <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-4">The Problem</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed mb-4">
-          When multiple AI agents work on the same project, they often need to spin up services 
+          When multiple AI agents work on the same project, they often need to spin up services
           on specific ports. Without coordination, this leads to:
         </p>
         <ul className="space-y-2 text-[var(--text-secondary)]">
@@ -48,10 +48,10 @@ export default function PortsFeature() {
       <div className="space-y-6">
         <h2 className="text-2xl font-semibold text-[var(--text-primary)]">How It Works</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed">
-          Port Daddy uses deterministic hashing to map semantic identities to ports. 
+          Port Daddy uses deterministic hashing to map semantic identities to ports.
           The same identity always gets the same port, across restarts, across machines.
         </p>
-        
+
         <CodeBlock language="bash">{`# Identity format: project:stack:context
 $ pd claim myapp:api:main
 Port 3001 assigned to myapp:api:main
@@ -67,7 +67,7 @@ Port 3001 assigned to myapp:api:main`}</CodeBlock>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           Identities follow a hierarchical format: <code className="text-[var(--brand-primary)]">project:stack:context</code>
         </p>
-        
+
         <div className="grid sm:grid-cols-3 gap-4">
           <div className="p-4 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">project</code>
@@ -90,16 +90,14 @@ Port 3001 assigned to myapp:api:main`}</CodeBlock>
       {/* CLI Commands */}
       <div className="space-y-6">
         <h2 className="text-2xl font-semibold text-[var(--text-primary)]">CLI Commands</h2>
-        
+
         <div className="space-y-4">
           <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <div className="flex items-center gap-2 mb-2">
               <code className="text-lg font-mono text-[var(--brand-primary)]">pd claim &lt;identity&gt;</code>
             </div>
             <p className="text-[var(--text-secondary)] mb-3">Claim a port for a service. Idempotent — returns the same port on repeat calls.</p>
-            <div className="p-3 rounded-lg font-mono text-sm" style={{ background: 'var(--code-bg)', color: 'var(--code-text)' }}>
-              $ pd claim myapp:api:main --json
-            </div>
+            <CodeBlock language="bash">{`$ pd claim myapp:api:main --json`}</CodeBlock>
           </div>
 
           <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
@@ -107,9 +105,7 @@ Port 3001 assigned to myapp:api:main`}</CodeBlock>
               <code className="text-lg font-mono text-[var(--brand-primary)]">pd release &lt;identity&gt;</code>
             </div>
             <p className="text-[var(--text-secondary)] mb-3">Release a port claim. Safe to call even if the port is not claimed.</p>
-            <div className="p-3 rounded-lg font-mono text-sm" style={{ background: 'var(--code-bg)', color: 'var(--code-text)' }}>
-              $ pd release myapp:api:main
-            </div>
+            <CodeBlock language="bash">{`$ pd release myapp:api:main`}</CodeBlock>
           </div>
 
           <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
@@ -117,10 +113,8 @@ Port 3001 assigned to myapp:api:main`}</CodeBlock>
               <code className="text-lg font-mono text-[var(--brand-primary)]">pd find &lt;identity&gt;</code>
             </div>
             <p className="text-[var(--text-secondary)] mb-3">Look up the port assigned to an identity without claiming a new one.</p>
-            <div className="p-3 rounded-lg font-mono text-sm" style={{ background: 'var(--code-bg)', color: 'var(--code-text)' }}>
-              $ pd find myapp:api:main --quiet<br/>
-              3001
-            </div>
+            <CodeBlock language="bash">{`$ pd find myapp:api:main --quiet
+3001`}</CodeBlock>
           </div>
 
           <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
@@ -128,11 +122,9 @@ Port 3001 assigned to myapp:api:main`}</CodeBlock>
               <code className="text-lg font-mono text-[var(--brand-primary)]">pd services</code>
             </div>
             <p className="text-[var(--text-secondary)] mb-3">List all active port claims with identity, port, and last-seen timestamp.</p>
-            <div className="p-3 rounded-lg font-mono text-sm" style={{ background: 'var(--code-bg)', color: 'var(--code-text)' }}>
-              $ pd services<br/>
-              myapp:api:main 3001 5s ago<br/>
-              myapp:frontend:main 3000 2s ago
-            </div>
+            <CodeBlock language="bash">{`$ pd services
+myapp:api:main 3001 5s ago
+myapp:frontend:main 3000 2s ago`}</CodeBlock>
           </div>
         </div>
       </div>
@@ -141,28 +133,23 @@ Port 3001 assigned to myapp:api:main`}</CodeBlock>
       <div className="space-y-4">
         <h2 className="text-2xl font-semibold text-[var(--text-primary)]">Auto-Detection</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed">
-          Port Daddy can scan your project and automatically detect services based on 
+          Port Daddy can scan your project and automatically detect services based on
           framework signatures (package.json, Cargo.toml, etc.).
         </p>
-        
-        <div className="p-6 rounded-[var(--radius-xl)] font-mono text-sm" style={{ background: 'var(--code-bg)', boxShadow: 'var(--shadow-inset)' }}>
-          <div className="text-[var(--brand-primary)]">$ pd scan ./services</div>
-          <div style={{ color: 'var(--code-output)' }} className="font-mono mt-2">Found 4 services:</div>
-          <div style={{ color: 'var(--code-output)' }} className="font-mono mt-1 ml-4">myapp:api → 3001 (express)</div>
-          <div style={{ color: 'var(--code-output)' }} className="font-mono ml-4">myapp:frontend → 3000 (vite)</div>
-          <div style={{ color: 'var(--code-output)' }} className="font-mono ml-4">myapp:jobs → 3002 (bullmq)</div>
-          <div style={{ color: 'var(--code-output)' }} className="font-mono ml-4">myapp:db-admin → 3003 (adminer)</div>
-        </div>
+
+        <CodeBlock language="bash">{`$ pd scan ./services
+Found 4 services:
+    myapp:api → 3001 (express)
+    myapp:frontend → 3000 (vite)
+    myapp:jobs → 3002 (bullmq)
+    myapp:db-admin → 3003 (adminer)`}</CodeBlock>
       </div>
 
       {/* SDK Example */}
       <div className="space-y-4">
         <h2 className="text-2xl font-semibold text-[var(--text-primary)]">SDK Usage</h2>
-        
-        <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-          <div className="text-sm font-medium text-[var(--text-muted)] mb-3">TypeScript</div>
-          <pre className="text-sm font-mono text-[var(--text-secondary)] overflow-x-auto">
-{`import { PortDaddy } from 'port-daddy'
+
+        <CodeBlock language="typescript">{`import { PortDaddy } from 'port-daddy'
 
 const pd = new PortDaddy()
 
@@ -171,9 +158,7 @@ const port = await pd.claim('myapp:api:main')
 console.log(\`Server running on port \${port}\`)
 
 // Release when done
-await pd.release('myapp:api:main')`}
-          </pre>
-        </div>
+await pd.release('myapp:api:main')`}</CodeBlock>
       </div>
 
       {/* Next */}
@@ -183,7 +168,7 @@ await pd.release('myapp:api:main')`}
           <div className="font-semibold text-[var(--text-primary)]">Swarm Radio</div>
           <div className="text-sm text-[var(--text-muted)]">Pub/sub messaging for agent coordination</div>
         </div>
-        <Link 
+        <Link
           to="/docs/features/radio"
           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--brand-primary)] text-[var(--text-inverse)] font-medium hover:bg-[var(--brand-primary)] transition-colors"
         >
