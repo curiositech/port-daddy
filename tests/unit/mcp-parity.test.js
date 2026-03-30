@@ -182,6 +182,13 @@ const TOOL_FEATURE_MAP = {
   'file_heat': 'pheromone',
   'talk_to_agent': 'inbox',
   'spawn_agent': 'spawn',
+
+  // Tuple Space
+  'tuple_out': 'tuples',
+  'tuple_read': 'tuples',
+  'tuple_take': 'tuples',
+  'tuple_scan': 'tuples',
+  'tuple_count': 'tuples',
 };
 
 /**
@@ -197,6 +204,7 @@ const MCP_EXEMPT_FEATURES = new Set([
   'harbors',        // CLI/SDK-only; v1 advisory namespaces, MCP tools deferred to v4
   'arbiter',        // Internal invariant enforcement; admin-only API, not user-facing MCP
   'pheromone',      // Internal signal system; admin API for debugging, MCP deferred to v4
+  'tuples',         // Tuple space — MCP tools exist but routes/manifest not yet added
 ]);
 
 // ============================================================================
@@ -624,7 +632,7 @@ describe('MCP tiered tool loading', () => {
   const CATEGORY_NAMES = [
     'magic', 'session-lifecycle', 'ports', 'sessions', 'notes', 'locks',
     'messaging', 'agents', 'inbox', 'webhooks', 'integration', 'dns', 'briefing',
-    'tunnels', 'projects', 'changelog', 'activity', 'system',
+    'tunnels', 'projects', 'changelog', 'activity', 'system', 'tuples',
   ];
 
   it('ESSENTIAL_TOOL_NAMES in server matches expected set', () => {

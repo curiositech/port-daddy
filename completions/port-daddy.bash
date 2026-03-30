@@ -111,6 +111,8 @@ _port_daddy() {
     spawn spawned watch
     # Harbors (named permission namespaces)
     harbor harbors
+    # Tuple space
+    tuple
     # System & Monitoring
     dashboard channels webhook webhooks metrics config health ports
     # Orchestration
@@ -1477,6 +1479,34 @@ _port_daddy() {
     # -----------------------------------------------------------------------
     harbors)
       _pd_opts '--json'
+      ;;
+
+    # -----------------------------------------------------------------------
+    # tuple  out|rd|in|scan|count  [args]  [options]
+    # -----------------------------------------------------------------------
+    tuple)
+      local subcmd="${words[2]:-}"
+      case "$subcmd" in
+        '')
+          COMPREPLY=( $(compgen -W "out rd in scan count" -- "$cur") )
+          ;;
+        out)
+          _pd_opts '--harbor --ttl --as --json --quiet'
+          ;;
+        rd|read)
+          _pd_opts '--harbor --limit --json --quiet'
+          ;;
+        in|take)
+          _pd_opts '--harbor --limit --json --quiet'
+          ;;
+        scan)
+          _pd_opts '--harbor --json --quiet'
+          ;;
+        count)
+          _pd_opts '--harbor --json --quiet'
+          ;;
+        *) _pd_opts '' ;;
+      esac
       ;;
 
     # -----------------------------------------------------------------------

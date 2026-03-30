@@ -86,6 +86,8 @@ import {
   handleHarborCreate, handleHarborEnter, handleHarborLeave, handleHarborShow, handleHarborDestroy, handleHarbors,
   // Demo
   handleDemo,
+  // Tuples
+  handleTuple,
 } from '../cli/commands/index.js';
 
 const __dirname: string = dirname(fileURLToPath(import.meta.url));
@@ -121,7 +123,7 @@ const TIER_2_COMMANDS: Set<string> = new Set([
   'up', 'down',
   'channels', 'webhook', 'webhooks',
   'metrics', 'health', 'dashboard',
-  'bench', 'demo'
+  'bench', 'demo', 'tuple'
 ]);
 
 /**
@@ -788,7 +790,7 @@ const ALL_COMMANDS: string[] = [
   'services', 'dns', 'briefing', 'integration',
   'b', 'w', 'who-owns', 'history', 'tutorial', 'files',
   'spawn', 'spawned', 'watch',
-  'harbor', 'harbors', 'demo', 'fleet',
+  'harbor', 'harbors', 'demo', 'fleet', 'tuple',
 ];
 
 /** Simple Levenshtein distance for short strings */
@@ -2131,6 +2133,11 @@ async function main(): Promise<void> {
         await handleFleet(positional, options);
         break;
       }
+
+      // Tuples — Linda-style tuple space coordination
+      case 'tuple':
+        await handleTuple(positional, options);
+        break;
 
       default: {
         // Check for misspelled commands first

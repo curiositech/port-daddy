@@ -207,6 +207,10 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     description: 'Daemon status, version, metrics, config, and launch hints',
     tools: ['daemon_status', 'get_version', 'get_metrics', 'get_config', 'wait_for_service', 'get_launch_hints'],
   },
+  'tuples': {
+    description: 'Shared tuple space for swarm coordination — write, read, take, scan, count',
+    tools: ['tuple_out', 'tuple_read', 'tuple_take', 'tuple_scan', 'tuple_count'],
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -1827,6 +1831,72 @@ const TOOLS = [
       required: ['task'],
     },
   },
+  // ── Tuple Space ──────────────────────────────────────────────────────
+  {
+    name: 'tuple_out',
+    description:
+      '[Coordination] Write a typed tuple to the shared space. Other agents can read it by pattern. Scoped to harbors for fleet isolation.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        fields: { type: 'array', description: 'Tuple fields as a JSON array (e.g. ["connection", "trie+pubsub", "spider", 0.9])' },
+        harbor: { type: 'string', description: 'Harbor scope (e.g. "myapp:fleet"). Omit for global.' },
+        written_by: { type: 'string', description: 'Agent identity that wrote this tuple' },
+        ttl_ms: { type: 'number', description: 'Time-to-live in milliseconds. Tuple auto-expires after this.' },
+      },
+      required: ['fields'],
+    },
+  },
+  {
+    name: 'tuple_read',
+    description:
+      '[Coordination] Read tuples matching a pattern. Use null in pattern positions as wildcards (e.g. ["connection", null] matches any tuple starting with "connection").',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        pattern: { type: 'array', description: 'Pattern to match — use null for wildcard positions (e.g. ["connection", null])' },
+        harbor: { type: 'string', description: 'Harbor scope. Omit for global.' },
+        limit: { type: 'number', description: 'Maximum number of tuples to return (default: 50)' },
+      },
+    },
+  },
+  {
+    name: 'tuple_take',
+    description:
+      '[Coordination] Take (atomically read + remove) tuples matching a pattern. Like tuple_read but removes matched tuples from the space.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        pattern: { type: 'array', description: 'Pattern to match — use null for wildcard positions' },
+        harbor: { type: 'string', description: 'Harbor scope. Omit for global.' },
+        limit: { type: 'number', description: 'Maximum number of tuples to take (default: 1)' },
+      },
+    },
+  },
+  {
+    name: 'tuple_scan',
+    description:
+      '[Coordination] List all tuples in a harbor (or global space). Useful for debugging and visibility.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        harbor: { type: 'string', description: 'Harbor scope. Omit for global.' },
+        limit: { type: 'number', description: 'Maximum number of tuples to return (default: 100)' },
+      },
+    },
+  },
+  {
+    name: 'tuple_count',
+    description:
+      '[Coordination] Count tuples matching a pattern (or all tuples in a harbor).',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        pattern: { type: 'array', description: 'Pattern to match — use null for wildcard positions. Omit to count all.' },
+        harbor: { type: 'string', description: 'Harbor scope. Omit for global.' },
+      },
+    },
+  },
   {
     name: 'pd_discover',
     description:
@@ -1834,7 +1904,7 @@ const TOOLS = [
       'In default mode, only essential tools are loaded. Use this to discover ' +
       'additional tools by category, then call them directly by name. ' +
       'Categories: session-lifecycle, ports, sessions, notes, locks, messaging, agents, inbox, ' +
-      'webhooks, integration, dns, briefing, tunnels, projects, changelog, activity, system.',
+      'webhooks, integration, dns, briefing, tunnels, projects, changelog, activity, system, tuples.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -2679,6 +2749,47 @@ async function handleTool(
       if (allowedTools) body.allowedTools = allowedTools;
       body.purpose = task.slice(0, 80);
       res = await POST('/spawn', body);
+      break;
+    }
+
+    // ── Tuple Space ──────────────────────────────────────────────────
+    case 'tuple_out': {
+      res = await POST('/tuples', {
+        fields: args.fields,
+        harbor: args.harbor,
+        writtenBy: args.written_by,
+        ttlMs: args.ttl_ms,
+      });
+      break;
+    }
+    case 'tuple_read': {
+      const qs = new URLSearchParams();
+      if (args.pattern) qs.set('pattern', JSON.stringify(args.pattern));
+      if (args.harbor) qs.set('harbor', args.harbor as string);
+      if (args.limit) qs.set('limit', String(args.limit));
+      res = await GET('/tuples?' + qs.toString());
+      break;
+    }
+    case 'tuple_take': {
+      res = await DELETE('/tuples', {
+        pattern: args.pattern,
+        harbor: args.harbor,
+        limit: args.limit,
+      });
+      break;
+    }
+    case 'tuple_scan': {
+      const qs = new URLSearchParams();
+      if (args.harbor) qs.set('harbor', args.harbor as string);
+      if (args.limit) qs.set('limit', String(args.limit));
+      res = await GET('/tuples/scan?' + qs.toString());
+      break;
+    }
+    case 'tuple_count': {
+      const qs = new URLSearchParams();
+      if (args.pattern) qs.set('pattern', JSON.stringify(args.pattern));
+      if (args.harbor) qs.set('harbor', args.harbor as string);
+      res = await GET('/tuples/count?' + qs.toString());
       break;
     }
 

@@ -2659,6 +2659,90 @@ class PortDaddy {
   async arbiterTestInvariant(name: string): Promise<ArbiterTestResponse> {
     return this._request('POST', `/arbiter/test-invariant/${encodeURIComponent(name)}`) as Promise<ArbiterTestResponse>;
   }
+
+  // ===========================================================================
+  // Tuple Space -- Linda-style coordination primitives
+  // ===========================================================================
+
+  /**
+   * Write a tuple into the tuple space (Linda `out`).
+   *
+   * @example
+   * await pd.tupleOut(['task', 'build', { priority: 1 }], { harbor: 'myapp', writtenBy: 'agent-1' });
+   */
+  async tupleOut(
+    fields: unknown[],
+    options: { harbor?: string; writtenBy?: string; ttlMs?: number } = {}
+  ): Promise<TupleOutResponse> {
+    return this._request('POST', '/tuples', {
+      fields,
+      harbor: options.harbor,
+      writtenBy: options.writtenBy,
+      ttlMs: options.ttlMs,
+    }) as Promise<TupleOutResponse>;
+  }
+
+  /**
+   * Read (non-destructive) tuples matching a pattern (Linda `rd`).
+   * Use `null` in pattern positions as wildcards.
+   *
+   * @example
+   * const { tuples } = await pd.tupleRd(['task', null], { harbor: 'myapp', limit: 10 });
+   */
+  async tupleRd(
+    pattern: unknown[],
+    options: { harbor?: string; limit?: number } = {}
+  ): Promise<TupleRdResponse> {
+    const params = new URLSearchParams();
+    params.set('pattern', JSON.stringify(pattern));
+    if (options.harbor) params.set('harbor', options.harbor);
+    if (options.limit !== undefined) params.set('limit', String(options.limit));
+    return this._request('GET', `/tuples?${params.toString()}`) as Promise<TupleRdResponse>;
+  }
+
+  /**
+   * Take (destructive read) tuples matching a pattern (Linda `in`).
+   * Matched tuples are removed from the space.
+   *
+   * @example
+   * const { taken } = await pd.tupleIn(['task', null], { harbor: 'myapp', limit: 1 });
+   */
+  async tupleIn(
+    pattern: unknown[],
+    options: { harbor?: string; limit?: number } = {}
+  ): Promise<TupleInResponse> {
+    return this._request('DELETE', '/tuples', {
+      pattern,
+      harbor: options.harbor,
+      limit: options.limit,
+    }) as Promise<TupleInResponse>;
+  }
+
+  /**
+   * Scan all tuples in the space, optionally filtered by harbor.
+   *
+   * @example
+   * const { tuples, count } = await pd.tupleScan('myapp');
+   */
+  async tupleScan(harbor?: string): Promise<TupleScanResponse> {
+    const params = new URLSearchParams();
+    if (harbor) params.set('harbor', harbor);
+    const qs = params.toString() ? '?' + params.toString() : '';
+    return this._request('GET', `/tuples/scan${qs}`) as Promise<TupleScanResponse>;
+  }
+
+  /**
+   * Count tuples in the space, optionally filtered by harbor.
+   *
+   * @example
+   * const { count } = await pd.tupleCount('myapp');
+   */
+  async tupleCount(harbor?: string): Promise<TupleCountResponse> {
+    const params = new URLSearchParams();
+    if (harbor) params.set('harbor', harbor);
+    const qs = params.toString() ? '?' + params.toString() : '';
+    return this._request('GET', `/tuples/count${qs}`) as Promise<TupleCountResponse>;
+  }
 }
 
 // =============================================================================
@@ -3099,6 +3183,47 @@ interface ArbiterTestResponse {
   violation: ArbiterViolation;
 }
 
+// =============================================================================
+// Tuple Space types
+// =============================================================================
+
+interface TupleEntry {
+  id: number;
+  harbor: string | null;
+  fields: unknown[];
+  writtenBy: string | null;
+  createdAt: number;
+  expiresAt: number | null;
+}
+
+interface TupleOutResponse {
+  success: boolean;
+  tuple: TupleEntry;
+}
+
+interface TupleRdResponse {
+  success: boolean;
+  tuples: TupleEntry[];
+  count: number;
+}
+
+interface TupleInResponse {
+  success: boolean;
+  taken: TupleEntry[];
+  count: number;
+}
+
+interface TupleScanResponse {
+  success: boolean;
+  tuples: TupleEntry[];
+  count: number;
+}
+
+interface TupleCountResponse {
+  success: boolean;
+  count: number;
+}
+
 export { PortDaddy, PortDaddyError, ConnectionError };
 export type {
   WaitResponse,
@@ -3164,5 +3289,11 @@ export type {
   ArbiterStatusResponse,
   ArbiterViolationsResponse,
   ArbiterTestResponse,
+  TupleEntry,
+  TupleOutResponse,
+  TupleRdResponse,
+  TupleInResponse,
+  TupleScanResponse,
+  TupleCountResponse,
 };
 export default PortDaddy;

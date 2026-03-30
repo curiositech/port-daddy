@@ -28,3 +28,4 @@ export * from './spawn.js';
 export * from './harbors.js';
 export * from './bench.js';
 export * from './demo.js';
+export * from './tuples.js';
