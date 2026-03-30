@@ -15,7 +15,7 @@ const SEARCH_INDEX: SearchResult[] = [
   // Overview
   { title: 'Introduction', href: '/docs', category: 'Getting Started', icon: FileText, description: 'What is Port Daddy and why use it' },
   { title: 'Quick Start', href: '/docs/quickstart', category: 'Getting Started', icon: FileText, description: 'Get up and running in 5 minutes' },
-  { title: 'Core Concepts', href: '/docs/concepts', category: 'Getting Started', icon: FileText, description: 'Ports, sessions, harbors, and more' },
+  { title: 'Ports & Identities', href: '/docs/features/ports', category: 'Getting Started', icon: FileText, description: 'Core concept: semantic identities and deterministic ports' },
   
   // CLI - Ports
   { title: 'pd claim', href: '/docs/cli/claim', category: 'CLI', icon: Terminal, description: 'Claim a port for a service' },
@@ -80,10 +80,19 @@ const SEARCH_INDEX: SearchResult[] = [
   
   // Features
   { title: 'Atomic Ports', href: '/docs/features/ports', category: 'Features', icon: FileText, description: 'Port management system' },
+  { title: 'Sessions & Notes', href: '/docs/features/sessions', category: 'Features', icon: FileText, description: 'Agent session lifecycle' },
   { title: 'Swarm Radio', href: '/docs/features/radio', category: 'Features', icon: FileText, description: 'Pub/sub messaging' },
   { title: 'Cryptographic Harbors', href: '/docs/features/harbors', category: 'Features', icon: FileText, description: 'Permission namespaces' },
+  { title: 'Semantic DNS', href: '/docs/features/dns', category: 'Features', icon: FileText, description: 'Local DNS resolution' },
+  { title: 'Tunnels', href: '/docs/features/tunnels', category: 'Features', icon: FileText, description: 'Public URL exposure' },
   { title: 'Always-On Avatars', href: '/docs/features/avatars', category: 'Features', icon: FileText, description: 'Background agents' },
   { title: 'Self-Healing', href: '/docs/features/salvage', category: 'Features', icon: FileText, description: 'Automatic recovery' },
+  { title: 'Pheromone Trails', href: '/docs/features/pheromone', category: 'Features', icon: FileText, description: 'Stigmergic signaling' },
+  { title: 'Fleet Agents', href: '/docs/features/fleet', category: 'Features', icon: FileText, description: 'Declarative background agents' },
+  { title: 'Activity Timeline', href: '/docs/features/timeline', category: 'Features', icon: FileText, description: 'Audit log and replay' },
+
+  // API
+  { title: 'REST API Reference', href: '/docs/api', category: 'API', icon: Code, description: '93 endpoints with curl examples' },
 ]
 
 export function DocsSearch() {
