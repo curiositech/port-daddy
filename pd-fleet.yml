@@ -26,7 +26,21 @@ fleet:
         Review the most recent commit. Read every changed file.
         For each change, identify inputs that would break it.
         If you find bugs, write a test that exposes each one.
-        If clean, just say CLEAN.
+
+        ALSO: Audit existing tests for the changed files. Flag:
+        1. TAUTOLOGIES — tests that pass regardless of correctness
+           (e.g., checking buf.length > 0 instead of roundtripping)
+        2. MOCK ECHOES — tests where mocks return hardcoded values
+           and assertions just check the same hardcoded values
+           without verifying the SUT called the mock correctly
+        3. MISSING NEGATIVE PATHS — no test for what happens when
+           the operation fails, is refused, or gets bad input
+        4. COVERAGE THEATER — test calls a function with no
+           assertions, or asserts only on type not value
+
+        Use jest.fn() and toHaveBeenCalledWith() to verify call args.
+        Every test must assert something that would FAIL if the code
+        were broken. If clean, just say CLEAN.
       on_success: publish qa:clean
       on_failure: publish qa:findings
       identity: "{project}:fleet:qa"
@@ -39,6 +53,15 @@ fleet:
         Run the test suite. Find modules below 50% coverage.
         For each gap, write meaningful tests that exercise real
         code paths. Save tests to the appropriate tests/ directory.
+
+        QUALITY RULES for tests you write:
+        - Every mock must be jest.fn() with toHaveBeenCalledWith
+        - Every test must have at least one assertion that would
+          FAIL if the code under test were replaced with a no-op
+        - Test error paths: what happens on throw, timeout, bad input?
+        - Test boundary conditions: empty input, max size, zero, null
+        - After writing, run the tests and verify they PASS
+        - Run: npx vite build 2>&1 | tail -5 (not just tsc)
       identity: "{project}:fleet:test-hunter"
 
     documentarian:
