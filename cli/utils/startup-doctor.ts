@@ -9,7 +9,8 @@ import { existsSync, unlinkSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { createInterface } from 'node:readline';
 
-const SOCK_PATH = process.env.PORT_DADDY_SOCK || '/tmp/port-daddy.sock';
+import { DEFAULT_SOCK } from '../../shared/paths.js';
+const SOCK_PATH = process.env.PORT_DADDY_SOCK || DEFAULT_SOCK;
 
 export interface Diagnosis {
   issue: string;
