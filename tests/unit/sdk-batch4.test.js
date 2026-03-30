@@ -4,19 +4,16 @@
  *
  * Tests the SDK client against a local mock HTTP server plus route-level error codes.
  *
- * Route tests share a SINGLE Express server (port 0) to avoid ephemeral port
- * exhaustion (EADDRNOTAVAIL). Each describe swaps fresh routes + db via a
- * delegation middleware — one server for all route tests instead of 30+.
+ * Route tests use Fastify inject() with fresh app instances per describe block.
  */
 
 import http from 'node:http';
-import request from 'supertest';
-import express from 'express';
+import Fastify from 'fastify';
 import { PortDaddy, PortDaddyError } from '../../lib/client.js';
 import { createTestDb, createMockLogger } from '../setup-unit.js';
-import { createServicesRoutes } from '../../routes/services.js';
-import { createLocksRoutes } from '../../routes/locks.js';
-import { createSessionsRoutes } from '../../routes/sessions.js';
+import { servicesPlugin } from '../../routes/services.js';
+import { locksPlugin } from '../../routes/locks.js';
+import { sessionsPlugin } from '../../routes/sessions.js';
 import { createServices } from '../../lib/services.js';
 import { createLocks } from '../../lib/locks.js';
 import { createSessions } from '../../lib/sessions.js';
@@ -47,13 +44,6 @@ function createClient(opts = {}) {
     ...opts,
   });
 }
-
-// ============================================================================
-// Shared Express server for route tests (single port 0, reused across all)
-// ============================================================================
-
-let routeServer;
-let currentRouter;
 
 beforeAll(async () => {
   // --- Mock TCP server for SDK client tests ---
@@ -94,25 +84,12 @@ beforeAll(async () => {
 
   savedUrl = process.env.PORT_DADDY_URL;
   process.env.PORT_DADDY_URL = `http://localhost:${mockPort}`;
-
-  // --- Shared route server (single port 0, delegation middleware) ---
-  const routeApp = express();
-  routeApp.use(express.json());
-  routeApp.use((req, res, next) => {
-    if (currentRouter) return currentRouter(req, res, next);
-    res.status(503).json({ error: 'no router mounted' });
-  });
-
-  await new Promise((resolve) => {
-    routeServer = routeApp.listen(0, '127.0.0.1', resolve);
-  });
 });
 
 afterAll(async () => {
   if (savedUrl === undefined) delete process.env.PORT_DADDY_URL;
   else process.env.PORT_DADDY_URL = savedUrl;
   await new Promise(resolve => mockServer.close(resolve));
-  await new Promise(resolve => routeServer.close(resolve));
 });
 
 beforeEach(() => {
@@ -524,80 +501,79 @@ describe('SDK: expires type accepts string | number', () => {
 
 // =============================================================================
 // Route Error Codes: Services
-// (All route tests below use the shared routeServer via currentRouter delegation)
+// (Route tests use Fastify inject() with fresh app instances per describe)
 // =============================================================================
 
 describe('Route error codes: services', () => {
+  let app;
   let services;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     const db = createTestDb();
     const logger = createMockLogger();
     services = createServices(db);
 
-    currentRouter = createServicesRoutes({
-      logger,
-      metrics: { errors: 0, total_assignments: 0, total_releases: 0, validation_failures: 0 },
-      services,
-      agents: { canClaimService: () => ({ allowed: true }) },
-      activityLog: { logService: { claim: () => {}, release: () => {} } },
-      webhooks: { trigger: () => {} },
-      config: { ports: { range_start: 3100, range_end: 9999, reserved: [] } }
+    app = Fastify();
+    await app.register(servicesPlugin, {
+      deps: {
+        logger,
+        metrics: { errors: 0, total_assignments: 0, total_releases: 0, validation_failures: 0 },
+        services,
+        agents: { canClaimService: () => ({ allowed: true }) },
+        activityLog: { logService: { claim: () => {}, release: () => {} } },
+        webhooks: { trigger: () => {} },
+        config: { ports: { range_start: 3100, range_end: 9999, reserved: [] } }
+      }
     });
+    await app.ready();
+  });
+
+  afterEach(async () => {
+    await app.close();
   });
 
   test('POST /claim returns IDENTITY_INVALID for bad id', async () => {
-    const res = await request(routeServer)
-      .post('/claim')
-      .send({ id: '!!!bad!!!' })
-      .expect(400);
+    const res = await app.inject({ method: 'POST', url: '/claim', payload: { id: '!!!bad!!!' } });
 
-    expect(res.body.code).toBe('IDENTITY_INVALID');
-    expect(res.body.error).toBeDefined();
+    expect(res.statusCode).toBe(400);
+    expect(res.json().code).toBe('IDENTITY_INVALID');
+    expect(res.json().error).toBeDefined();
   });
 
   test('GET /services/:id returns SERVICE_NOT_FOUND', async () => {
-    const res = await request(routeServer)
-      .get('/services/nonexistent:svc')
-      .expect(404);
+    const res = await app.inject({ method: 'GET', url: '/services/nonexistent:svc' });
 
-    expect(res.body.code).toBe('SERVICE_NOT_FOUND');
+    expect(res.statusCode).toBe(404);
+    expect(res.json().code).toBe('SERVICE_NOT_FOUND');
   });
 
   test('GET /services/:id returns IDENTITY_INVALID for bad id', async () => {
-    const res = await request(routeServer)
-      .get('/services/!!!bad!!!')
-      .expect(400);
+    const res = await app.inject({ method: 'GET', url: '/services/!!!bad!!!' });
 
-    expect(res.body.code).toBe('IDENTITY_INVALID');
+    expect(res.statusCode).toBe(400);
+    expect(res.json().code).toBe('IDENTITY_INVALID');
   });
 
   test('DELETE /release returns IDENTITY_INVALID for bad id', async () => {
-    const res = await request(routeServer)
-      .delete('/release')
-      .send({ id: '!!!bad!!!' })
-      .expect(400);
+    const res = await app.inject({ method: 'DELETE', url: '/release', payload: { id: '!!!bad!!!' } });
 
-    expect(res.body.code).toBe('IDENTITY_INVALID');
+    expect(res.statusCode).toBe(400);
+    expect(res.json().code).toBe('IDENTITY_INVALID');
   });
 
   test('DELETE /release returns VALIDATION_ERROR when no id', async () => {
-    const res = await request(routeServer)
-      .delete('/release')
-      .send({})
-      .expect(400);
+    const res = await app.inject({ method: 'DELETE', url: '/release', payload: {} });
 
-    expect(res.body.code).toBe('VALIDATION_ERROR');
+    expect(res.statusCode).toBe(400);
+    expect(res.json().code).toBe('VALIDATION_ERROR');
   });
 
   test('DELETE /release returns success with released=0 for unknown service', async () => {
-    const res = await request(routeServer)
-      .delete('/release')
-      .send({ id: 'nonexistent:svc' })
-      .expect(200);
+    const res = await app.inject({ method: 'DELETE', url: '/release', payload: { id: 'nonexistent:svc' } });
 
-    expect(res.body.success).toBe(true);
-    expect(res.body.released).toBe(0);
+    expect(res.statusCode).toBe(200);
+    expect(res.json().success).toBe(true);
+    expect(res.json().released).toBe(0);
   });
 });
 
@@ -606,22 +582,31 @@ describe('Route error codes: services', () => {
 // =============================================================================
 
 describe('Route: wait routes', () => {
+  let app;
   let services;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     const db = createTestDb();
     const logger = createMockLogger();
     services = createServices(db);
 
-    currentRouter = createServicesRoutes({
-      logger,
-      metrics: { errors: 0, total_assignments: 0, total_releases: 0, validation_failures: 0 },
-      services,
-      agents: { canClaimService: () => ({ allowed: true }) },
-      activityLog: { logService: { claim: () => {}, release: () => {} } },
-      webhooks: { trigger: () => {} },
-      config: { ports: { range_start: 3100, range_end: 9999, reserved: [] } }
+    app = Fastify();
+    await app.register(servicesPlugin, {
+      deps: {
+        logger,
+        metrics: { errors: 0, total_assignments: 0, total_releases: 0, validation_failures: 0 },
+        services,
+        agents: { canClaimService: () => ({ allowed: true }) },
+        activityLog: { logService: { claim: () => {}, release: () => {} } },
+        webhooks: { trigger: () => {} },
+        config: { ports: { range_start: 3100, range_end: 9999, reserved: [] } }
+      }
     });
+    await app.ready();
+  });
+
+  afterEach(async () => {
+    await app.close();
   });
 
   test('GET /wait/:id returns service immediately if exists', async () => {
@@ -631,90 +616,77 @@ describe('Route: wait routes', () => {
       systemPorts: new Set()
     });
 
-    const res = await request(routeServer)
-      .get('/wait/myapp:api?timeout=1000')
-      .expect(200);
+    const res = await app.inject({ method: 'GET', url: '/wait/myapp:api?timeout=1000' });
 
-    expect(res.body.success).toBe(true);
-    expect(res.body.services).toHaveLength(1);
-    expect(res.body.services[0].id).toBe('myapp:api');
-    expect(res.body.resolved).toBe(1);
-    expect(res.body.timedOut).toBe(false);
+    expect(res.statusCode).toBe(200);
+    expect(res.json().success).toBe(true);
+    expect(res.json().services).toHaveLength(1);
+    expect(res.json().services[0].id).toBe('myapp:api');
+    expect(res.json().resolved).toBe(1);
+    expect(res.json().timedOut).toBe(false);
   });
 
   test('GET /wait/:id times out for nonexistent service', async () => {
-    const res = await request(routeServer)
-      .get('/wait/nonexistent:svc?timeout=300')
-      .expect(408);
+    const res = await app.inject({ method: 'GET', url: '/wait/nonexistent:svc?timeout=300' });
 
-    expect(res.body.success).toBe(false);
-    expect(res.body.code).toBe('TIMEOUT');
-    expect(res.body.timedOut).toBe(true);
-    expect(res.body.resolved).toBe(0);
+    expect(res.statusCode).toBe(408);
+    expect(res.json().success).toBe(false);
+    expect(res.json().code).toBe('TIMEOUT');
+    expect(res.json().timedOut).toBe(true);
+    expect(res.json().resolved).toBe(0);
   });
 
   test('GET /wait/:id validates identity', async () => {
-    const res = await request(routeServer)
-      .get('/wait/!!!bad!!!?timeout=100')
-      .expect(400);
+    const res = await app.inject({ method: 'GET', url: '/wait/!!!bad!!!?timeout=100' });
 
-    expect(res.body.code).toBe('IDENTITY_INVALID');
+    expect(res.statusCode).toBe(400);
+    expect(res.json().code).toBe('IDENTITY_INVALID');
   });
 
   test('POST /wait returns all services immediately if they exist', async () => {
     services.claim('svc-a:api', { range: [3100, 9999], pid: process.pid, systemPorts: new Set() });
     services.claim('svc-b:api', { range: [3100, 9999], pid: process.pid, systemPorts: new Set() });
 
-    const res = await request(routeServer)
-      .post('/wait')
-      .send({ ids: ['svc-a:api', 'svc-b:api'], timeout: 1000 })
-      .expect(200);
+    const res = await app.inject({ method: 'POST', url: '/wait', payload: { ids: ['svc-a:api', 'svc-b:api'], timeout: 1000 } });
 
-    expect(res.body.success).toBe(true);
-    expect(res.body.services).toHaveLength(2);
-    expect(res.body.resolved).toBe(2);
-    expect(res.body.timedOut).toBe(false);
+    expect(res.statusCode).toBe(200);
+    expect(res.json().success).toBe(true);
+    expect(res.json().services).toHaveLength(2);
+    expect(res.json().resolved).toBe(2);
+    expect(res.json().timedOut).toBe(false);
   });
 
   test('POST /wait times out if some services missing', async () => {
     services.claim('svc-a:api', { range: [3100, 9999], pid: process.pid, systemPorts: new Set() });
 
-    const res = await request(routeServer)
-      .post('/wait')
-      .send({ ids: ['svc-a:api', 'svc-missing:api'], timeout: 300 })
-      .expect(408);
+    const res = await app.inject({ method: 'POST', url: '/wait', payload: { ids: ['svc-a:api', 'svc-missing:api'], timeout: 300 } });
 
-    expect(res.body.success).toBe(false);
-    expect(res.body.code).toBe('TIMEOUT');
-    expect(res.body.resolved).toBe(1);
-    expect(res.body.requested).toBe(2);
+    expect(res.statusCode).toBe(408);
+    expect(res.json().success).toBe(false);
+    expect(res.json().code).toBe('TIMEOUT');
+    expect(res.json().resolved).toBe(1);
+    expect(res.json().requested).toBe(2);
   });
 
   test('POST /wait validates empty ids', async () => {
-    const res = await request(routeServer)
-      .post('/wait')
-      .send({ ids: [], timeout: 100 })
-      .expect(400);
+    const res = await app.inject({ method: 'POST', url: '/wait', payload: { ids: [], timeout: 100 } });
 
-    expect(res.body.code).toBe('VALIDATION_ERROR');
+    expect(res.statusCode).toBe(400);
+    expect(res.json().code).toBe('VALIDATION_ERROR');
   });
 
   test('POST /wait validates missing ids', async () => {
-    const res = await request(routeServer)
-      .post('/wait')
-      .send({ timeout: 100 })
-      .expect(400);
+    const res = await app.inject({ method: 'POST', url: '/wait', payload: { timeout: 100 } });
 
-    expect(res.body.code).toBe('VALIDATION_ERROR');
+    expect(res.statusCode).toBe(400);
+    expect(res.json().code).toBe('VALIDATION_ERROR');
   });
 
   test('POST /wait validates individual ids', async () => {
-    const res = await request(routeServer)
-      .post('/wait')
-      .send({ ids: ['good:svc', '!!!bad!!!'], timeout: 100 })
-      .expect(400);
+    const res = await app.inject({ method: 'POST', url: '/wait', payload: { ids: ['good:svc', '!!!bad!!!'], timeout: 100 } });
 
-    expect(res.body.code).toBe('IDENTITY_INVALID');
+    expect(res.statusCode).toBe(400);
+    expect(res.json().code).toBe('IDENTITY_INVALID');
   });
 });
 
@@ -723,56 +695,54 @@ describe('Route: wait routes', () => {
 // =============================================================================
 
 describe('Route error codes: locks', () => {
-  beforeEach(() => {
+  let app;
+
+  beforeEach(async () => {
     const db = createTestDb();
     const logger = createMockLogger();
     const locks = createLocks(db);
 
-    currentRouter = createLocksRoutes({
-      logger,
-      metrics: { errors: 0 },
-      locks,
-      agents: { canAcquireLock: () => ({ allowed: true }) },
-      activityLog: { logLock: { acquire: () => {}, release: () => {} } },
-      webhooks: { trigger: () => {} }
+    app = Fastify();
+    await app.register(locksPlugin, {
+      deps: {
+        logger,
+        metrics: { errors: 0 },
+        locks,
+        agents: { canAcquireLock: () => ({ allowed: true }) },
+        activityLog: { logLock: { acquire: () => {}, release: () => {} } },
+        webhooks: { trigger: () => {} }
+      }
     });
+    await app.ready();
+  });
+
+  afterEach(async () => {
+    await app.close();
   });
 
   test('POST /locks/:name returns LOCK_HELD on conflict', async () => {
-    await request(routeServer)
-      .post('/locks/deploy')
-      .send({ owner: 'agent-1', ttl: 60000 })
-      .expect(200);
+    await app.inject({ method: 'POST', url: '/locks/deploy', payload: { owner: 'agent-1', ttl: 60000 } });
 
-    const res = await request(routeServer)
-      .post('/locks/deploy')
-      .send({ owner: 'agent-2', ttl: 60000 })
-      .expect(409);
+    const res = await app.inject({ method: 'POST', url: '/locks/deploy', payload: { owner: 'agent-2', ttl: 60000 } });
 
-    expect(res.body.code).toBe('LOCK_HELD');
+    expect(res.statusCode).toBe(409);
+    expect(res.json().code).toBe('LOCK_HELD');
   });
 
   test('DELETE /locks/:name returns LOCK_NOT_FOUND for wrong owner', async () => {
-    await request(routeServer)
-      .post('/locks/deploy')
-      .send({ owner: 'agent-1', ttl: 60000 })
-      .expect(200);
+    await app.inject({ method: 'POST', url: '/locks/deploy', payload: { owner: 'agent-1', ttl: 60000 } });
 
-    const res = await request(routeServer)
-      .delete('/locks/deploy')
-      .send({ owner: 'agent-wrong' })
-      .expect(403);
+    const res = await app.inject({ method: 'DELETE', url: '/locks/deploy', payload: { owner: 'agent-wrong' } });
 
-    expect(res.body.code).toBe('LOCK_NOT_FOUND');
+    expect(res.statusCode).toBe(403);
+    expect(res.json().code).toBe('LOCK_NOT_FOUND');
   });
 
   test('PUT /locks/:name returns LOCK_NOT_FOUND for non-existent lock', async () => {
-    const res = await request(routeServer)
-      .put('/locks/nonexistent')
-      .send({ owner: 'agent-1', ttl: 60000 })
-      .expect(400);
+    const res = await app.inject({ method: 'PUT', url: '/locks/nonexistent', payload: { owner: 'agent-1', ttl: 60000 } });
 
-    expect(res.body.code).toBe('LOCK_NOT_FOUND');
+    expect(res.statusCode).toBe(400);
+    expect(res.json().code).toBe('LOCK_NOT_FOUND');
   });
 });
 
@@ -781,117 +751,103 @@ describe('Route error codes: locks', () => {
 // =============================================================================
 
 describe('Route error codes: sessions', () => {
+  let app;
   let sessionsMod;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     const db = createTestDb();
     const logger = createMockLogger();
     sessionsMod = createSessions(db);
 
-    currentRouter = createSessionsRoutes({
-      sessions: sessionsMod,
-      metrics: { errors: 0 },
-      logger,
-      activityLog: { log: () => {} }
+    app = Fastify();
+    await app.register(sessionsPlugin, {
+      deps: {
+        sessions: sessionsMod,
+        metrics: { errors: 0 },
+        logger,
+        activityLog: { log: () => {} }
+      }
     });
+    await app.ready();
+  });
+
+  afterEach(async () => {
+    await app.close();
   });
 
   test('POST /sessions returns VALIDATION_ERROR for missing purpose', async () => {
-    const res = await request(routeServer)
-      .post('/sessions')
-      .send({})
-      .expect(400);
+    const res = await app.inject({ method: 'POST', url: '/sessions', payload: {} });
 
-    expect(res.body.code).toBe('VALIDATION_ERROR');
-    expect(res.body.error).toContain('purpose');
+    expect(res.statusCode).toBe(400);
+    expect(res.json().code).toBe('VALIDATION_ERROR');
+    expect(res.json().error).toContain('purpose');
   });
 
   test('GET /sessions/:id returns SESSION_NOT_FOUND', async () => {
-    const res = await request(routeServer)
-      .get('/sessions/session-nonexistent')
-      .expect(404);
+    const res = await app.inject({ method: 'GET', url: '/sessions/session-nonexistent' });
 
-    expect(res.body.code).toBe('SESSION_NOT_FOUND');
+    expect(res.statusCode).toBe(404);
+    expect(res.json().code).toBe('SESSION_NOT_FOUND');
   });
 
   test('PUT /sessions/:id returns SESSION_NOT_FOUND', async () => {
-    const res = await request(routeServer)
-      .put('/sessions/session-nonexistent')
-      .send({ status: 'completed' })
-      .expect(404);
+    const res = await app.inject({ method: 'PUT', url: '/sessions/session-nonexistent', payload: { status: 'completed' } });
 
-    expect(res.body.code).toBe('SESSION_NOT_FOUND');
+    expect(res.statusCode).toBe(404);
+    expect(res.json().code).toBe('SESSION_NOT_FOUND');
   });
 
   test('DELETE /sessions/:id returns SESSION_NOT_FOUND', async () => {
-    const res = await request(routeServer)
-      .delete('/sessions/session-nonexistent')
-      .expect(404);
+    const res = await app.inject({ method: 'DELETE', url: '/sessions/session-nonexistent' });
 
-    expect(res.body.code).toBe('SESSION_NOT_FOUND');
+    expect(res.statusCode).toBe(404);
+    expect(res.json().code).toBe('SESSION_NOT_FOUND');
   });
 
   test('POST /sessions/:id/notes returns VALIDATION_ERROR for missing content', async () => {
     // First create a session
-    const session = await request(routeServer)
-      .post('/sessions')
-      .send({ purpose: 'test' })
-      .expect(200);
+    const session = await app.inject({ method: 'POST', url: '/sessions', payload: { purpose: 'test' } });
+    const sessionId = session.json().id;
 
-    const res = await request(routeServer)
-      .post(`/sessions/${session.body.id}/notes`)
-      .send({})
-      .expect(400);
+    const res = await app.inject({ method: 'POST', url: `/sessions/${sessionId}/notes`, payload: {} });
 
-    expect(res.body.code).toBe('VALIDATION_ERROR');
+    expect(res.statusCode).toBe(400);
+    expect(res.json().code).toBe('VALIDATION_ERROR');
   });
 
   test('POST /sessions/:id/notes returns SESSION_NOT_FOUND for bad session', async () => {
-    const res = await request(routeServer)
-      .post('/sessions/session-nonexistent/notes')
-      .send({ content: 'hello' })
-      .expect(404);
+    const res = await app.inject({ method: 'POST', url: '/sessions/session-nonexistent/notes', payload: { content: 'hello' } });
 
-    expect(res.body.code).toBe('SESSION_NOT_FOUND');
+    expect(res.statusCode).toBe(404);
+    expect(res.json().code).toBe('SESSION_NOT_FOUND');
   });
 
   test('POST /sessions/:id/files returns VALIDATION_ERROR for empty files', async () => {
-    const session = await request(routeServer)
-      .post('/sessions')
-      .send({ purpose: 'test' })
-      .expect(200);
+    const session = await app.inject({ method: 'POST', url: '/sessions', payload: { purpose: 'test' } });
+    const sessionId = session.json().id;
 
-    const res = await request(routeServer)
-      .post(`/sessions/${session.body.id}/files`)
-      .send({ files: [] })
-      .expect(400);
+    const res = await app.inject({ method: 'POST', url: `/sessions/${sessionId}/files`, payload: { files: [] } });
 
-    expect(res.body.code).toBe('VALIDATION_ERROR');
+    expect(res.statusCode).toBe(400);
+    expect(res.json().code).toBe('VALIDATION_ERROR');
   });
 
   test('POST /notes returns VALIDATION_ERROR for empty content', async () => {
-    const res = await request(routeServer)
-      .post('/notes')
-      .send({})
-      .expect(400);
+    const res = await app.inject({ method: 'POST', url: '/notes', payload: {} });
 
-    expect(res.body.code).toBe('VALIDATION_ERROR');
+    expect(res.statusCode).toBe(400);
+    expect(res.json().code).toBe('VALIDATION_ERROR');
   });
 
   test('POST /sessions with conflicting files returns FILE_CONFLICT', async () => {
     // Create a session and claim files
-    await request(routeServer)
-      .post('/sessions')
-      .send({ purpose: 'session-1', files: ['file-a.ts'] })
-      .expect(200);
+    await app.inject({ method: 'POST', url: '/sessions', payload: { purpose: 'session-1', files: ['file-a.ts'] } });
 
     // Try to create another session with the same files
-    const res = await request(routeServer)
-      .post('/sessions')
-      .send({ purpose: 'session-2', files: ['file-a.ts'] })
-      .expect(409);
+    const res = await app.inject({ method: 'POST', url: '/sessions', payload: { purpose: 'session-2', files: ['file-a.ts'] } });
 
-    expect(res.body.code).toBe('FILE_CONFLICT');
+    expect(res.statusCode).toBe(409);
+    expect(res.json().code).toBe('FILE_CONFLICT');
   });
 });
 
@@ -900,27 +856,35 @@ describe('Route error codes: sessions', () => {
 // =============================================================================
 
 describe('Concurrent wait scenarios', () => {
+  let app;
   let services;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     const db = createTestDb();
     const logger = createMockLogger();
     services = createServices(db);
 
-    currentRouter = createServicesRoutes({
-      logger,
-      metrics: { errors: 0, total_assignments: 0, total_releases: 0, validation_failures: 0 },
-      services,
-      agents: { canClaimService: () => ({ allowed: true }) },
-      activityLog: { logService: { claim: () => {}, release: () => {} } },
-      webhooks: { trigger: () => {} },
-      config: { ports: { range_start: 3100, range_end: 9999, reserved: [] } }
+    app = Fastify();
+    await app.register(servicesPlugin, {
+      deps: {
+        logger,
+        metrics: { errors: 0, total_assignments: 0, total_releases: 0, validation_failures: 0 },
+        services,
+        agents: { canClaimService: () => ({ allowed: true }) },
+        activityLog: { logService: { claim: () => {}, release: () => {} } },
+        webhooks: { trigger: () => {} },
+        config: { ports: { range_start: 3100, range_end: 9999, reserved: [] } }
+      }
     });
+    await app.ready();
+  });
+
+  afterEach(async () => {
+    await app.close();
   });
 
   test('service appearing mid-wait resolves successfully', async () => {
-    const waitPromise = request(routeServer)
-      .get('/wait/late:svc?timeout=5000');
+    const waitPromise = app.inject({ method: 'GET', url: '/wait/late:svc?timeout=5000' });
 
     await new Promise(resolve => setTimeout(resolve, 300));
     services.claim('late:svc', {
@@ -931,14 +895,14 @@ describe('Concurrent wait scenarios', () => {
 
     const res = await waitPromise;
 
-    expect(res.status).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(res.body.services[0].id).toBe('late:svc');
+    expect(res.statusCode).toBe(200);
+    expect(res.json().success).toBe(true);
+    expect(res.json().services[0].id).toBe('late:svc');
   });
 
   test('multiple concurrent waiters for same service all resolve', async () => {
-    const wait1 = request(routeServer).get('/wait/shared:svc?timeout=5000');
-    const wait2 = request(routeServer).get('/wait/shared:svc?timeout=5000');
+    const wait1 = app.inject({ method: 'GET', url: '/wait/shared:svc?timeout=5000' });
+    const wait2 = app.inject({ method: 'GET', url: '/wait/shared:svc?timeout=5000' });
 
     await new Promise(resolve => setTimeout(resolve, 300));
     services.claim('shared:svc', {
@@ -949,10 +913,10 @@ describe('Concurrent wait scenarios', () => {
 
     const [res1, res2] = await Promise.all([wait1, wait2]);
 
-    expect(res1.status).toBe(200);
-    expect(res2.status).toBe(200);
-    expect(res1.body.services[0].id).toBe('shared:svc');
-    expect(res2.body.services[0].id).toBe('shared:svc');
+    expect(res1.statusCode).toBe(200);
+    expect(res2.statusCode).toBe(200);
+    expect(res1.json().services[0].id).toBe('shared:svc');
+    expect(res2.json().services[0].id).toBe('shared:svc');
   });
 
   test('POST /wait resolves when last service appears', async () => {
@@ -962,9 +926,7 @@ describe('Concurrent wait scenarios', () => {
       systemPorts: new Set()
     });
 
-    const waitPromise = request(routeServer)
-      .post('/wait')
-      .send({ ids: ['first:svc', 'second:svc'], timeout: 5000 });
+    const waitPromise = app.inject({ method: 'POST', url: '/wait', payload: { ids: ['first:svc', 'second:svc'], timeout: 5000 } });
 
     await new Promise(resolve => setTimeout(resolve, 300));
     services.claim('second:svc', {
@@ -975,8 +937,8 @@ describe('Concurrent wait scenarios', () => {
 
     const res = await waitPromise;
 
-    expect(res.status).toBe(200);
-    expect(res.body.resolved).toBe(2);
-    expect(res.body.timedOut).toBe(false);
+    expect(res.statusCode).toBe(200);
+    expect(res.json().resolved).toBe(2);
+    expect(res.json().timedOut).toBe(false);
   });
 });

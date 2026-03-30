@@ -2,7 +2,7 @@
  * Unit Tests for GET /pheromone/files route (routes/pheromone.ts)
  *
  * Exercises the file heat map endpoint with a real in-memory SQLite db.
- * Each test wires up a minimal Express app and makes real HTTP requests.
+ * Uses Fastify inject() — no real HTTP server needed.
  *
  * Bugs exposed:
  *  1. depth=0 silently becomes depth=5 (parseInt("0") || 5)
@@ -11,8 +11,8 @@
  */
 
 import { describe, test, expect, beforeEach, afterEach } from '@jest/globals';
-import express from 'express';
-import { createPheromoneRoutes } from '../../routes/pheromone.js';
+import Fastify from 'fastify';
+import { pheromonePlugin } from '../../routes/pheromone.js';
 import { createTestDb } from '../setup-unit.js';
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -39,27 +39,17 @@ function stubPheromones() {
   };
 }
 
-function createApp() {
-  const app = express();
-  app.use(express.json());
-  app.use(createPheromoneRoutes({ pheromones: stubPheromones(), sessions: null, db }));
+async function createApp() {
+  const app = Fastify();
+  await app.register(pheromonePlugin, { deps: { pheromones: stubPheromones(), sessions: null, db } });
+  await app.ready();
   return app;
 }
 
-/** Make a GET request; returns { status, body } */
+/** Make a GET request via inject; returns { status, body } */
 async function get(app, path) {
-  return new Promise((resolve) => {
-    const server = app.listen(0, async () => {
-      const port = server.address().port;
-      try {
-        const res = await fetch(`http://localhost:${port}${path}`);
-        const body = await res.json();
-        resolve({ status: res.status, body });
-      } finally {
-        server.close();
-      }
-    });
-  });
+  const res = await app.inject({ method: 'GET', url: path });
+  return { status: res.statusCode, body: res.json() };
 }
 
 // ─── test data helpers ────────────────────────────────────────────────────────
@@ -87,7 +77,8 @@ function insertFileClaim(sessionId, filePath, releasedAt = null) {
 
 describe('GET /pheromone/files — basic', () => {
   test('returns success with empty arrays when no claims exist', async () => {
-    const { status, body } = await get(createApp(), '/pheromone/files');
+    const app = await createApp();
+    const { status, body } = await get(app, '/pheromone/files');
     expect(status).toBe(200);
     expect(body.success).toBe(true);
     expect(body.files).toEqual([]);
@@ -96,17 +87,20 @@ describe('GET /pheromone/files — basic', () => {
     expect(body.summary.activeConflicts).toBe(0);
     expect(body.summary.hottestFile).toBeNull();
     expect(body.summary.hottestDir).toBeNull();
+    await app.close();
   });
 
   test('returns a file entry when a claim exists', async () => {
     insertSession('sess-1');
     insertFileClaim('sess-1', 'lib/foo.ts');
 
-    const { status, body } = await get(createApp(), '/pheromone/files');
+    const app = await createApp();
+    const { status, body } = await get(app, '/pheromone/files');
     expect(status).toBe(200);
     expect(body.files).toHaveLength(1);
     expect(body.files[0].path).toBe('lib/foo.ts');
     expect(body.files[0].heat).toBeGreaterThan(0);
+    await app.close();
   });
 
   test('active claim adds extra heat vs released claim', async () => {
@@ -118,7 +112,8 @@ describe('GET /pheromone/files — basic', () => {
     insertSession('sess-done', 'agent-2', 'completed');
     insertFileClaim('sess-done', 'src/cold.ts', NOW - 1);  // released
 
-    const { body } = await get(createApp(), '/pheromone/files');
+    const app = await createApp();
+    const { body } = await get(app, '/pheromone/files');
     const hot = body.files.find(f => f.path === 'src/hot.ts');
     const cold = body.files.find(f => f.path === 'src/cold.ts');
 
@@ -128,16 +123,19 @@ describe('GET /pheromone/files — basic', () => {
     expect(cold.activeClaims).toBe(0);
     // Active file should be hotter
     expect(hot.heat).toBeGreaterThan(cold.heat);
+    await app.close();
   });
 
   test('returns directory rollup for nested file paths', async () => {
     insertSession('sess-1');
     insertFileClaim('sess-1', 'src/lib/utils.ts');
 
-    const { body } = await get(createApp(), '/pheromone/files');
+    const app = await createApp();
+    const { body } = await get(app, '/pheromone/files');
     const dirPaths = body.directories.map(d => d.path);
     expect(dirPaths).toContain('src/');
     expect(dirPaths).toContain('src/lib/');
+    await app.close();
   });
 });
 
@@ -154,24 +152,28 @@ describe('Bug: depth=0 silently becomes depth=5', () => {
     insertSession('sess-1');
     insertFileClaim('sess-1', 'src/lib/utils.ts');
 
-    const { body } = await get(createApp(), '/pheromone/files?depth=0');
+    const app = await createApp();
+    const { body } = await get(app, '/pheromone/files?depth=0');
 
-    // With correct behavior, depth=0 should mean no directory rollup → empty directories
+    // With correct behavior, depth=0 should mean no directory rollup -> empty directories
     // This test will FAIL until the bug is fixed:
     expect(body.directories).toEqual([]);
+    await app.close();
   });
 
   test('depth=1 returns only top-level directories', async () => {
     insertSession('sess-1');
     insertFileClaim('sess-1', 'src/lib/deep/utils.ts');
 
-    const { body } = await get(createApp(), '/pheromone/files?depth=1');
+    const app = await createApp();
+    const { body } = await get(app, '/pheromone/files?depth=1');
     const dirPaths = body.directories.map(d => d.path);
 
     // Only 'src/' should appear; 'src/lib/' and deeper should not
     expect(dirPaths).toContain('src/');
     expect(dirPaths).not.toContain('src/lib/');
     expect(dirPaths).not.toContain('src/lib/deep/');
+    await app.close();
   });
 });
 
@@ -190,17 +192,20 @@ describe('Bug: LIKE wildcard injection in path= filter', () => {
     // that matches '/', making 'lib/foo.ts' pass the filter `lib_%`
     insertFileClaim('sess-1', 'lib/foo.ts');
 
+    const app = await createApp();
+
     // Requesting path=libX should NOT match lib/foo.ts
-    const { body: withX } = await get(createApp(), '/pheromone/files?path=libX');
+    const { body: withX } = await get(app, '/pheromone/files?path=libX');
     const libXPaths = withX.files.map(f => f.path);
     expect(libXPaths).not.toContain('lib/foo.ts');
 
     // Requesting path=lib_ (underscore) should NOT match lib/foo.ts either
     // because 'lib_' is not a prefix of 'lib/foo.ts' in a literal sense.
     // This test will FAIL until the bug is fixed (underscore is treated as LIKE wildcard):
-    const { body: withUnderscore } = await get(createApp(), '/pheromone/files?path=lib_');
+    const { body: withUnderscore } = await get(app, '/pheromone/files?path=lib_');
     const underscorePaths = withUnderscore.files.map(f => f.path);
     expect(underscorePaths).not.toContain('lib/foo.ts');
+    await app.close();
   });
 
   test('path filter with percent should not expand to a wildcard', async () => {
@@ -208,15 +213,18 @@ describe('Bug: LIKE wildcard injection in path= filter', () => {
     insertFileClaim('sess-1', 'src/foo.ts');
     insertFileClaim('sess-1', 'lib/bar.ts');
 
+    const app = await createApp();
+
     // path=s% would become LIKE 's%%' which matches everything starting with 's',
     // but should only match literal paths starting with 's%'.
     // The filter should NOT return lib/bar.ts.
     // This test exercises that % in path isn't treated as a LIKE wildcard.
-    const { body } = await get(createApp(), '/pheromone/files?path=s%25');  // URL-encoded %
+    const { body } = await get(app, '/pheromone/files?path=s%25');  // URL-encoded %
     const paths = body.files.map(f => f.path);
 
     // 'lib/bar.ts' does not start with 's%', so should not appear
     expect(paths).not.toContain('lib/bar.ts');
+    await app.close();
   });
 });
 
@@ -246,7 +254,8 @@ describe('Bug: conflict detection misses null-agent sessions', () => {
     insertFileClaim('sess-a', 'src/shared.ts');
     insertFileClaim('sess-b', 'src/shared.ts');
 
-    const { body } = await get(createApp(), '/pheromone/files');
+    const app = await createApp();
+    const { body } = await get(app, '/pheromone/files');
     const sharedFile = body.files.find(f => f.path === 'src/shared.ts');
 
     expect(sharedFile).toBeDefined();
@@ -255,6 +264,7 @@ describe('Bug: conflict detection misses null-agent sessions', () => {
     // This will FAIL until the bug is fixed:
     expect(sharedFile.conflict).toBe(true);
     expect(body.summary.activeConflicts).toBe(1);
+    await app.close();
   });
 
   test('one named-agent and one null-agent on the same file should also be a conflict', async () => {
@@ -268,7 +278,8 @@ describe('Bug: conflict detection misses null-agent sessions', () => {
     insertFileClaim('sess-named', 'src/shared.ts');
     insertFileClaim('sess-anon', 'src/shared.ts');
 
-    const { body } = await get(createApp(), '/pheromone/files');
+    const app = await createApp();
+    const { body } = await get(app, '/pheromone/files');
     const sharedFile = body.files.find(f => f.path === 'src/shared.ts');
 
     expect(sharedFile).toBeDefined();
@@ -278,6 +289,7 @@ describe('Bug: conflict detection misses null-agent sessions', () => {
     // 'sess-named' contributes agent-alpha; 'sess-anon' contributes nothing.
     // So agents.length = 1, and conflict stays false.
     expect(sharedFile.conflict).toBe(true);
+    await app.close();
   });
 
   test('two sessions with different named agents are correctly detected as conflict', async () => {
@@ -288,10 +300,12 @@ describe('Bug: conflict detection misses null-agent sessions', () => {
     insertFileClaim('sess-1', 'src/shared.ts');
     insertFileClaim('sess-2', 'src/shared.ts');
 
-    const { body } = await get(createApp(), '/pheromone/files');
+    const app = await createApp();
+    const { body } = await get(app, '/pheromone/files');
     const sharedFile = body.files.find(f => f.path === 'src/shared.ts');
 
     expect(sharedFile.conflict).toBe(true);
     expect(body.summary.activeConflicts).toBe(1);
+    await app.close();
   });
 });
