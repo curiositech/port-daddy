@@ -17,6 +17,7 @@ import { BlogPage } from '@/pages/BlogPage'
 import { BlogPostPage } from '@/pages/BlogPostPage'
 import { RoadmapPage } from '@/pages/RoadmapPage'
 import { TemplatesPage } from '@/pages/TemplatesPage'
+import { AgentsPage } from '@/pages/AgentsPage'
 
 // New Documentation Pages
 import ApiReference from '@/pages/docs/ApiReference'
@@ -184,6 +185,7 @@ createRoot(document.getElementById('root')!).render(
             <Route path="/mcp" element={<MCPPage />} />
             <Route path="/roadmap" element={<RoadmapPage />} />
             <Route path="/templates" element={<TemplatesPage />} />
+            <Route path="/agents" element={<AgentsPage />} />
 
             {/* Academy */}
             <Route path="/tutorials" element={<TutorialsPage />} />
