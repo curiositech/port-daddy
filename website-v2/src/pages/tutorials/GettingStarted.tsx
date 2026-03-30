@@ -47,17 +47,19 @@ export function GettingStarted() {
             <motion.h2 className="m-0">1. Install</motion.h2>
           </motion.div>
 
-          <motion.div className="grid sm:grid-cols-2 gap-6">
-            <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
+          <div className="space-y-4">
+            <Surface depth="raised" radius="2xl" className="p-6 space-y-3">
               <Badge variant="teal">npm (recommended)</Badge>
               <CodeBlock language="bash">{`npm install -g port-daddy`}</CodeBlock>
             </Surface>
-            <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
+            <Surface depth="raised" radius="2xl" className="p-6 space-y-3">
               <Badge variant="default">From source</Badge>
               <CodeBlock language="bash">{`git clone https://github.com/curiositech/port-daddy.git
-cd port-daddy && npm install && npm link`}</CodeBlock>
+cd port-daddy
+npm install
+npm link`}</CodeBlock>
             </Surface>
-          </motion.div>
+          </div>
 
           <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
             <Badge variant="default">Verification</Badge>
