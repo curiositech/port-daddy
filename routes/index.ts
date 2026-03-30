@@ -1,82 +1,85 @@
 /**
- * Routes Aggregator
+ * Fastify Route Aggregator
  *
- * Collects all route modules and mounts them on the Express app.
- * Each route module exports a factory function that accepts dependencies.
+ * Registers all Fastify route plugins. Replaces routes/index.ts (Express).
+ * Each plugin receives deps via opts.deps (except arbiterPlugin which takes opts.arbiter).
  *
- * The deps object is constructed in server.ts with all required fields.
- * Each route factory defines its own narrow *RouteDeps interface for what it
- * destructures — this aggregator bridges the two with a structural cast.
+ * Order matters: health routes before services routes (health routes have
+ * more specific paths like /services/health/:id that must match before
+ * the generic /services/:id catch-all).
  */
 
-import { Router } from 'express';
+import type { FastifyInstance } from 'fastify';
 
-import { createServicesRoutes } from './services.js';
-import { createMessagingRoutes } from './messaging.js';
-import { createLocksRoutes } from './locks.js';
-import { createAgentsRoutes } from './agents.js';
-import { createHealthRoutes } from './health.js';
-import { createActivityRoutes } from './activity.js';
-import { createWebhooksRoutes } from './webhooks.js';
-import { createConfigRoutes } from './config.js';
-import { createProjectsRoutes } from './projects.js';
-import { createSessionsRoutes } from './sessions.js';
-import { createInfoRoutes } from './info.js';
-import { createResurrectionRoutes } from './resurrection.js';
-import { createChangelogRoutes } from './changelog.js';
-import { createTunnelRoutes } from './tunnel.js';
-import { createDnsRoutes } from './dns.js';
-import { createBriefingRoutes } from './briefing.js';
-import { createSugarRoutes } from './sugar.js';
-import { createLaunchHintsRoutes } from './launch.js';
-import { createSpawnRoutes } from './spawn.js';
-import { createHarborsRoutes } from './harbors.js';
-import { createOrchestratorRoutes } from './orchestrator.js';
+import { infoPlugin } from './info.js';
+import { healthPlugin } from './health.js';
+import { servicesPlugin } from './services.js';
+import { messagingPlugin } from './messaging.js';
+import { locksPlugin } from './locks.js';
+import { agentsPlugin } from './agents.js';
+import { activityPlugin } from './activity.js';
+import { webhooksPlugin } from './webhooks.js';
+import { configPlugin } from './config.js';
+import { projectsPlugin } from './projects.js';
+import { sessionsPlugin } from './sessions.js';
+import { resurrectionPlugin } from './resurrection.js';
+import { changelogPlugin } from './changelog.js';
+import { tunnelPlugin } from './tunnel.js';
+import { dnsPlugin } from './dns.js';
+import { sugarPlugin } from './sugar.js';
+import { launchPlugin } from './launch.js';
+import { spawnPlugin } from './spawn.js';
+import { harborsPlugin } from './harbors.js';
+import { orchestratorPlugin } from './orchestrator.js';
+import { briefingPlugin } from './briefing.js';
+// Arbiter and pheromone have different option shapes
+import { arbiterPlugin } from './arbiter.js';
+import { pheromonePlugin } from './pheromone.js';
 
-// Each route factory defines its own deps interface (e.g. ServicesRouteDeps,
-// InfoRouteDeps). Rather than duplicating those 10 interfaces here, we use a
-// structural cast via `unknown`. This is safe because:
-// 1. server.ts constructs the deps object with every field all routes need
-// 2. Each route factory validates at destructure time what it actually uses
-// 3. The route-level interfaces provide full type safety within each file
 type AnyDeps = Record<string, unknown>;
 
 /**
- * Create and configure all routes
+ * Register all Fastify route plugins.
  *
- * @param deps - Dependencies for route handlers (constructed in server.ts)
- * @returns Express router with all routes mounted
+ * @param fastify - Fastify instance
+ * @param deps - Dependencies object (constructed in server-fastify.ts)
+ * @param arbiter - Arbiter instance (separate from deps)
+ * @param pheromoneDeps - Pheromone route deps (different shape from main deps)
  */
-export function createRoutes(deps: AnyDeps): Router {
-  const router = Router();
-
+export async function registerAllRoutes(
+  fastify: FastifyInstance,
+  deps: AnyDeps,
+  arbiter: unknown,
+  pheromoneDeps: AnyDeps,
+): Promise<void> {
   // Info routes first (health/version are high-frequency, low-latency)
-  router.use(createInfoRoutes(deps as unknown as Parameters<typeof createInfoRoutes>[0]));
+  await fastify.register(infoPlugin, { deps } as any);
 
-  // Health routes BEFORE services (health routes are more specific: /services/health/:id)
-  // Must come before the generic /services/:id catch-all
-  router.use(createHealthRoutes(deps as unknown as Parameters<typeof createHealthRoutes>[0]));
+  // Health routes BEFORE services (more specific paths must match first)
+  await fastify.register(healthPlugin, { deps } as any);
 
-  // V2 API routes
-  router.use(createServicesRoutes(deps as unknown as Parameters<typeof createServicesRoutes>[0]));
-  router.use(createMessagingRoutes(deps as unknown as Parameters<typeof createMessagingRoutes>[0]));
-  router.use(createLocksRoutes(deps as unknown as Parameters<typeof createLocksRoutes>[0]));
-  router.use(createAgentsRoutes(deps as unknown as Parameters<typeof createAgentsRoutes>[0]));
-  router.use(createActivityRoutes(deps as unknown as Parameters<typeof createActivityRoutes>[0]));
-  router.use(createWebhooksRoutes(deps as unknown as Parameters<typeof createWebhooksRoutes>[0]));
-  router.use(createConfigRoutes(deps as unknown as Parameters<typeof createConfigRoutes>[0]));
-  router.use(createProjectsRoutes(deps as unknown as Parameters<typeof createProjectsRoutes>[0]));
-  router.use(createSessionsRoutes(deps as unknown as Parameters<typeof createSessionsRoutes>[0]));
-  router.use(createResurrectionRoutes(deps as unknown as Parameters<typeof createResurrectionRoutes>[0]));
-  router.use(createChangelogRoutes(deps as unknown as Parameters<typeof createChangelogRoutes>[0]));
-  router.use(createTunnelRoutes(deps as unknown as Parameters<typeof createTunnelRoutes>[0]));
-  router.use(createDnsRoutes(deps as unknown as Parameters<typeof createDnsRoutes>[0]));
-  router.use(createBriefingRoutes(deps as unknown as Parameters<typeof createBriefingRoutes>[0]));
-  router.use(createSugarRoutes(deps as unknown as Parameters<typeof createSugarRoutes>[0]));
-  router.use(createLaunchHintsRoutes(deps as unknown as Parameters<typeof createLaunchHintsRoutes>[0]));
-  router.use(createSpawnRoutes(deps as unknown as Parameters<typeof createSpawnRoutes>[0]));
-  router.use(createHarborsRoutes(deps as unknown as Parameters<typeof createHarborsRoutes>[0]));
-  router.use(createOrchestratorRoutes(deps as unknown as Parameters<typeof createOrchestratorRoutes>[0]));
+  // Core API routes
+  await fastify.register(servicesPlugin, { deps } as any);
+  await fastify.register(messagingPlugin, { deps } as any);
+  await fastify.register(locksPlugin, { deps } as any);
+  await fastify.register(agentsPlugin, { deps } as any);
+  await fastify.register(activityPlugin, { deps } as any);
+  await fastify.register(webhooksPlugin, { deps } as any);
+  await fastify.register(configPlugin, { deps } as any);
+  await fastify.register(projectsPlugin, { deps } as any);
+  await fastify.register(sessionsPlugin, { deps } as any);
+  await fastify.register(resurrectionPlugin, { deps } as any);
+  await fastify.register(changelogPlugin, { deps } as any);
+  await fastify.register(tunnelPlugin, { deps } as any);
+  await fastify.register(dnsPlugin, { deps } as any);
+  await fastify.register(sugarPlugin, { deps } as any);
+  await fastify.register(launchPlugin, { deps } as any);
+  await fastify.register(spawnPlugin, { deps } as any);
+  await fastify.register(harborsPlugin, { deps } as any);
+  await fastify.register(orchestratorPlugin, { deps } as any);
+  await fastify.register(briefingPlugin, { deps } as any);
 
-  return router;
+  // These have different option shapes
+  await fastify.register(arbiterPlugin, { arbiter } as any);
+  await fastify.register(pheromonePlugin, { deps: pheromoneDeps } as any);
 }
