@@ -25,7 +25,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Pheromone System** (`lib/pheromone.ts`): Stigmergic signal layer — spray/sniff/list with geometric read-time decay. File heat map via `GET /pheromone/files` aggregates session file claims into per-file contention scores. API: `POST /pheromone/spray`, `GET /pheromone/:table/:id`, `GET /pheromone`, `GET /pheromone/files`.
 - **`pd dev start/stop/status`**: Isolated dev daemon via `PORT_DADDY_PREFIX` (nginx -p pattern). Runs alongside the stable daemon on port 9877 with separate DB and socket.
 
+- **Spider Agent**: Fleet agent that finds combinatorial connections between existing features. Outputs syllogisms: "We have X AND Y, THEREFORE Z is now possible." Uses Sonnet model with high creativity. Produced 15 real connections (S1-S15) across two runs.
+- **Spark-Spider Dialogue**: Asymmetric CSP pattern — Spider triggers on `spark:idea` (channel), Spark reads `.spider/connections/` (file). No cycles by construction. Ideas compound across runs.
+- **Fleet Harbor**: `fleet.harbor` field in `pd-fleet.yml` — creates a named harbor on `pd fleet up`, auto-enrolls all agents. Shared semantic origin for trie lookups and scoped messaging.
+- **Topology Validation**: `validateTopology()` in fleet-engine.ts — static DAG check on the trigger graph. Detects cycles, warns about orphan channels. 7 unit tests including real `pd-fleet.yml` validation.
+- **CSP Protocol Specification**: `docs/FLEET-CSP-PROTOCOL.md` — formal process definitions for all fleet agents in CSP notation, channel topology properties, gather policies, TLA+ spec, Arbiter integration plan.
+- **Fleet Live Dashboard** (`public/fleet-live.html`): 1322-line real-time dashboard for fleet monitoring. Fetches from 6 daemon endpoints, unified feed with time-period grouping, agent ribbon with clickable filters, expandable notes, SSE live updates.
+- **Fleet Live macOS App** (`fleet-live-app/`): SwiftUI menu-bar app wrapping WKWebView. SF Symbol in menu bar, 400x600 popover, daemon health check, no dock icon. Builds with `./build.sh`.
+- **Git Post-Commit Hook** (`hooks/post-commit`): Publishes commit SHA, message, author, branch, and changed files to `git:committed` channel after every commit. Fire-and-forget (curl in background). Fleet agents trigger automatically.
+- **Fleet Tutorial** (`website-v2/src/pages/tutorials/Fleet.tsx`): "Fleet: Agents That Run While You Sleep" — 7 sections covering YAML config, git hooks, triggers vs schedules, Spark-Spider dialogue, harbors, monitoring, and safety guardrails.
+- **Build Verification Hook** (`.claude/settings.json`): Claude Code hook that runs `tsc --noEmit` on every Edit/Write to TypeScript files. Blocks edits that introduce type errors.
+
 ### Fixed
+- **semantic-index.ts**: Fixed broken `find()` method (dead `identity()` closure instead of `pattern`), replaced 4x `as any[]` with typed row interfaces, replaced silent `catch {}` with diagnostic logging
+- **fleet-engine.ts**: Replaced 5x `as any` with typed interfaces, fixed Bug 5 (`onSuccess` now fires on `status='spawned'`), fixed unsafe `pid!` assertion, removed invalid `--cwd` and `--max-tokens` CLI flags
+- **fleet-engine.test.js**: Fixed fatal JSDoc `*/0 cron` that terminated comment block early (made entire suite unparseable)
+- **routes/pheromone.ts**: Fixed `depth=0` falsy bug (`parseInt("0")||5`), fixed LIKE wildcard injection (escape `%` and `_`), fixed null-agent conflict detection (use `activeClaims` count, not `agents.length`)
+- **Version consistency**: Bumped mcp/server.ts, plugin.json, mcp-server.json from 3.7.0 to 3.8.0
+- **Parity gaps**: Added pheromone section to README, arbiter/pheromone endpoints to API reference, MCP exemptions for admin-only features
+- **Spawner `.env.local` loading**: Spawned agents now inherit API keys from `.env.local` (searches cwd, parent, dev checkout, home). Augments PATH with `~/.local/bin` for `claude` binary discovery.
+- **Dashboard identity resolution**: Both dashboards now resolve PIDs/spawned IDs to fleet agent names using identity map from `/agents`, `/spawn`, `/sessions` data
+- **Dashboard expandable content**: Notes and purposes click-to-expand instead of truncating at 180 chars with no recourse
+- **Dashboard eager loading**: All 11 data panels populate on page open (was showing "No data" until user clicked each tab)
+- **Dashboard sparklines**: Stat cards now show 12-hour activity sparklines as inline SVGs
+- **Dashboard fleet cards**: Agents panel uses status cards with heartbeat depletion bars instead of a flat table
+- **Dashboard heat map**: Pheromone file heat map on overview panel, color-coded with CONFLICT badges
+- **Dashboard consolidation**: Removed 3 dead panels (Integration, DNS, Inbox) — sidebar reduced from 15 to 12 items
 - CLI unknown command tests: Updated to check both stdout and stderr (clack/prompts renders to stdout)
 - Manifest enforcement: Added arbiter routes to `features.manifest.json`
 - Missing `@clack/prompts` dependency added to package.json
