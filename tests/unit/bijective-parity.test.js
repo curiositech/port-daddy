@@ -312,6 +312,7 @@ describe('Test Group 3: API -> CLI Parity', () => {
     launch: ['hints'],
     // arbiter and pheromone are API-only (no CLI commands) — excluded from parity check
     spawn: ['spawn', 'spawned'],
+    fleet: ['fleet'],
     harbors: ['harbor', 'harbors'],
     orchestrator: ['up', 'down'],
     tuples: ['tuple'],

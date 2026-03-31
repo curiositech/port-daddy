@@ -1,8 +1,14 @@
-# Port Daddy HTTP API Reference
+# Port Daddy HTTP API Reference (v3.8.2)
 
 Base URL: `http://localhost:9876`
+Unix Socket: `~/.port-daddy/daemon.sock`
+IPC Socket: `~/.port-daddy/daemon.ipc` (binary MessagePack, for high-frequency operations)
 
-All endpoints accept and return JSON. Rate limited to 100 req/min per IP.
+All HTTP endpoints accept and return JSON. Rate limited to 100 req/min per IP.
+
+**Transport options:**
+- **HTTP** (TCP or Unix socket) — full API, request-response
+- **Binary IPC** (Unix domain socket) — MessagePack-encoded, 7-byte header, ~3us latency for fire-and-forget. Supports heartbeats, pheromone sprays, pub/sub publish, claims, locks, sessions. The SDK uses IPC automatically when available; falls back to HTTP.
 
 ---
 
@@ -186,9 +192,14 @@ Register an agent.
 | `id` | string | yes | Unique agent identifier |
 | `name` | string | no | Human-readable name |
 | `type` | string | no | Agent type (e.g., 'ci', 'dev', 'sdk') |
+| `identity` | string | no | Semantic identity (`project:stack:context`) for context-aware salvage |
+| `purpose` | string | no | Human-readable description of what the agent is doing |
+| `worktreeId` | string | no | Git worktree identifier |
 | `metadata` | object | no | Arbitrary metadata |
 | `maxServices` | number | no | Max concurrent services |
 | `maxLocks` | number | no | Max concurrent locks |
+
+Response includes `salvageHint` if dead agents exist in the same project.
 
 ### POST /agents/:id/heartbeat
 Send a heartbeat to keep registration alive.
@@ -243,7 +254,40 @@ Delete a webhook.
 ## System
 
 ### GET /health
-Health check. Returns status, version, uptime, active port count.
+Health check. Returns status, version, uptime, active port count, and fleet summary.
+
+```json
+{
+  "status": "ok",
+  "version": "3.8.2",
+  "uptime_seconds": 3600,
+  "active_ports": 4,
+  "pid": 12345,
+  "fleet": { "running": true, "projects": 2, "agents": 5, "watchers": 1 }
+}
+```
+`fleet` is `undefined` when the fleet subsystem is not running.
+
+### GET /status
+Combined health + metrics + process info. Includes detailed fleet breakdown.
+
+```json
+{
+  "status": "ok",
+  "version": "3.8.2",
+  "pid": 12345,
+  "uptimeSeconds": 3600,
+  "uptimeHuman": "1h 0m",
+  "metrics": { "activePorts": 4, "memoryRSS": 52428800 },
+  "fleet": {
+    "running": true,
+    "startedAt": 1711234567890,
+    "projects": [{ "name": "my-app", "agents": 3, "watchers": 1 }],
+    "totalAgents": 5,
+    "totalWatchers": 1
+  }
+}
+```
 
 ### GET /version
 Version info. Returns version string, code hash, uptime, PID.
@@ -341,25 +385,30 @@ List all available webhook event types.
 
 ## Salvage (Agent Resurrection)
 
-### GET /resurrection/pending
-Check for dead agents with unfinished work. Returns agents that died mid-task.
+### GET /salvage/pending
+Check for dead agents with unfinished work. Returns agents that died mid-task. Query params: `project`, `stack`.
 
-### GET /resurrection
-List all entries in the resurrection queue.
+### GET /salvage
+List all entries in the salvage queue. Query params: `project`, `stack`, `all`, `limit`.
 
-### POST /resurrection/claim/:agentId
+### POST /salvage/claim/:agentId
 Claim a dead agent's session to continue their work.
 
 **Body:** `{ "claimedBy": "new-agent-id" }`
 
-### POST /resurrection/complete/:agentId
-Mark resurrection as complete.
+### POST /salvage/complete/:agentId
+Mark salvage as complete.
 
-### POST /resurrection/abandon/:agentId
-Return agent to the resurrection queue.
+### POST /salvage/abandon/:agentId
+Return agent to the salvage queue.
 
-### DELETE /resurrection/:agentId
-Remove agent from resurrection queue (reviewed/dismissed).
+### DELETE /salvage/:agentId
+Remove agent from salvage queue (reviewed/dismissed).
+
+### POST /salvage/reap
+Trigger the reaper to move dead agents (stale heartbeats) into the salvage queue.
+
+*Note: `/resurrection/*` routes are deprecated aliases for `/salvage/*`.*
 
 ---
 
@@ -595,16 +644,20 @@ Check who owns a specific file path.
 ## Spawn
 
 ### POST /spawn
-Launch an AI agent (Ollama, Claude, Gemini, Aider, custom).
+Launch an AI agent with full PD coordination (registration, sessions, heartbeats, salvage on crash).
 
 **Body:**
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `backend` | string | yes | `ollama`, `claude`, `gemini`, `aider`, `custom` |
+| `backend` | string | yes | `ollama`, `claude`, `claude-cli`, `gemini`, `aider`, `custom` |
 | `model` | string | no | Model name override |
 | `identity` | string | no | Semantic identity (`project:stack:context`) |
 | `purpose` | string | no | Human-readable task description |
 | `task` | string | yes | The task/prompt for the agent |
+| `allowedTools` | string | no | Comma-separated tool list (claude-cli backend only) |
+| `maxTokens` | number | no | Max output tokens |
+| `workdir` | string | no | Working directory for the agent |
+| `timeout` | number | no | Timeout in milliseconds |
 
 ### GET /spawn
 List active spawned agents.
@@ -715,6 +768,103 @@ List all tuples, optionally scoped to a harbor.
 Count tuples, optionally scoped to a harbor.
 
 **Query params:** `harbor`.
+
+---
+
+## Fleet
+
+As of v3.8.2, the Port Daddy daemon auto-discovers `pd-fleet.yml` files in registered projects on boot and runs fleets as a persistent subsystem. These endpoints manage the daemon-level fleet.
+
+The CLI (`pd fleet up/down/status`) also supports a terminal-attached mode that reads `pd-fleet.yml` directly without the daemon fleet subsystem.
+
+### GET /fleet
+Aggregated fleet status across all managed projects.
+
+**Response:**
+```json
+{
+  "success": true,
+  "running": true,
+  "startedAt": 1711234567890,
+  "fleets": [
+    {
+      "project": "my-app",
+      "projectDir": "/Users/you/coding/my-app",
+      "agents": [{ "name": "qa", "type": "claude-cli", "running": true, "uptime": 3600000 }],
+      "watchers": 1,
+      "channels": 3,
+      "startedAt": 1711234567890
+    }
+  ],
+  "totalAgents": 5,
+  "totalWatchers": 2
+}
+```
+
+---
+
+### GET /fleet/:project
+Specific project's fleet status by project name.
+
+**Response:** `{ "success": true, "fleet": { ...same shape as fleets[] above... } }`
+
+404 if no fleet running for that project name.
+
+---
+
+### POST /fleet/start
+Start all daemon fleets (re-discovers projects), or a specific project.
+
+**Body (optional):** `{ "projectDir": "/path/to/project" }`
+
+Without `projectDir`: starts all fleets, same as daemon boot.
+With `projectDir`: starts that project's fleet and begins watching `pd-fleet.yml` for hot-reload.
+
+---
+
+### POST /fleet/stop
+Stop all fleets, or a specific project.
+
+**Body (optional):** `{ "projectDir": "/path/to/project" }`
+
+---
+
+### POST /fleet/reload
+Re-read all `pd-fleet.yml` configs and restart changed fleets. Equivalent to `SIGHUP`.
+
+**Response:** `{ "success": true, "message": "Fleet daemon reloaded with 3 project(s)", "fleets": ["my-app", "other-app"] }`
+
+---
+
+### POST /fleet/register
+Register a project directory for daemon fleet management. Starts the fleet immediately and watches for config changes.
+
+**Body:** `{ "projectDir": "/absolute/path/to/project" }` (required)
+
+Returns 400 if `projectDir` is missing or the project has no `pd-fleet.yml`.
+
+---
+
+### GET /fleet/events
+SSE stream of all fleet lifecycle events from the `fleet:events` pub/sub channel.
+
+**Event types:** `agent_started`, `agent_stopped`, `agent_failed`, `fleet_reloaded`, `schedule_fired`, `trigger_fired`
+
+**Event shape:**
+```
+data: {"type":"agent_started","agent":"qa","identity":"my-app:qa:main","project":"my-app","timestamp":1711234567890}
+
+data: {"type":"agent_failed","agent":"qa","project":"my-app","timestamp":1711234567890,"error":"Exit code 1"}
+```
+
+Heartbeat comment (`: heartbeat`) sent every 30s to detect dead connections.
+
+---
+
+## Dashboard Events
+
+### GET /dashboard/events
+SSE stream of real-time dashboard updates. Falls back to 15s polling.
 
 ---
 

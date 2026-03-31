@@ -93,6 +93,19 @@ fleet:
         - features.manifest.json (parity enforcement)
         - docs/sdk.md (SDK reference)
 
+        SKILL — the Claude/agent skill at skills/port-daddy-cli/:
+        - SKILL.md — the main skill file. Must reflect current features.
+          If a new command, MCP tool, or concept was added, update:
+          * The MCP Tools table (if new MCP tool)
+          * The CLI Quick Reference table (if new CLI command)
+          * The Decision Matrix (if new use case)
+          * The Core Concepts section (if new concept)
+        - references/api-reference.md — full HTTP API reference
+        - references/sdk-reference.md — JavaScript SDK reference
+        - references/multi-agent-patterns.md — coordination patterns
+        The skill is how other agents learn to USE Port Daddy.
+        It must be accurate, compelling, and up to date.
+
         WEBSITE DOCS (website-v2/src/pages/):
         - docs/features/*.tsx — feature concept pages
         - docs/cli/*.tsx — CLI command reference pages
@@ -107,7 +120,7 @@ fleet:
         4. Use Surface, Badge, and Button CVA components (Harbor Heritage design)
         5. Use semantic tokens (--surface-*, --text-*, --brand-*)
 
-        Code is truth. Docs follow. Website follows docs.
+        Code is truth. Docs follow. Skill follows docs. Website follows docs.
       identity: "{project}:fleet:documentarian"
 
     simplifier:

@@ -60,7 +60,7 @@ beforeAll(() => {
   mcpServerSource = readFile('mcp/server.ts');
   pluginJson = readJSON('.claude-plugin/plugin.json');
   mcpManifest = readJSON('mcp-server.json');
-  skillContent = readFile('skills/port-daddy-cli/SKILL.md');
+  skillContent = readFile('skills/port-daddy/SKILL.md');
   dashboardContent = readFile('public/index.html');
   apiReference = readFile('skills/port-daddy-cli/references/api-reference.md');
   sdkReference = readFile('skills/port-daddy-cli/references/sdk-reference.md');
@@ -244,7 +244,7 @@ describe('Claude plugin manifest', () => {
   it('plugin.json exists with required fields', () => {
     expect(pluginJson).not.toBeNull();
     expect(pluginJson.name).toBe('port-daddy');
-    expect(pluginJson.skills).toContain('port-daddy-cli');
+    expect(pluginJson.skills).toContain('port-daddy');
   });
 
   it('marketplace.json exists and references plugin', () => {

@@ -12,28 +12,41 @@
 import { randomBytes } from 'node:crypto';
 import { spawn as spawnChild } from 'node:child_process';
 import type { ChildProcess } from 'node:child_process';
-import { readFileSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync, existsSync, statSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 // ─── Load .env.local for spawned agents ─────────────────────────────────────
 // The daemon runs via launchd which has no shell env. Spawned agents need
 // API keys that live in .env.local. Load once at module init.
-// Derive module directory without import.meta.url (breaks Jest ESM mocks)
+// Only load from trusted locations: project root and home directory.
+const __spawner_dirname = dirname(fileURLToPath(import.meta.url));
 const _dotenvCache: Record<string, string> = {};
 function loadDotenvOnce(): Record<string, string> {
   if (Object.keys(_dotenvCache).length > 0) return _dotenvCache;
-  // Search multiple locations: cwd, project root, the dev checkout, home dir
+  // Only two trusted locations: project root and home directory
   const searchDirs = [
-    process.cwd(),
-    join(process.cwd(), '..'),                         // parent of cwd (worktree -> repo)
-    join(process.env.HOME || '', 'coding/port-daddy'), // dev checkout (worktree source)
-    process.env.HOME || '',
+    join(__spawner_dirname, '..'),  // project root (parent of lib/)
+    process.env.HOME || '',         // home directory
   ];
+  const currentUid = process.getuid?.();
   for (const dir of searchDirs) {
     if (!dir) continue;
     for (const name of ['.env.local', '.env']) {
       const p = join(dir, name);
       if (!existsSync(p)) continue;
+      // Verify file ownership — skip files not owned by current user
+      if (currentUid !== undefined) {
+        try {
+          const st = statSync(p);
+          if (st.uid !== currentUid) {
+            console.warn(`[spawner] Skipping ${p}: owned by uid ${st.uid}, expected ${currentUid}`);
+            continue;
+          }
+        } catch {
+          continue; // stat failed — skip
+        }
+      }
       try {
         const lines = readFileSync(p, 'utf-8').split('\n');
         for (const line of lines) {

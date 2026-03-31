@@ -1,8 +1,8 @@
 # Port Daddy V4: Unified Roadmap
 
 **Author:** Erich Owens
-**Last Updated:** 2026-03-27
-**Status:** Active — Phase 0 complete, Phase 3 most active (fleet shipped, pheromone CLI shipped)
+**Last Updated:** 2026-03-31
+**Status:** Active — Phase 0 complete, Phase 4 partially complete (Fastify ✅, Trie ✅, Binary IPC ✅, Backpressure ⚡), Phase 3 largely done (fleet, pheromone, Fleet Live Dashboard all shipped)
 
 This document synthesizes all V4 planning documents into a single sequenced roadmap. Nothing from the original documents has been discarded — ideas that aren't yet sequenced are preserved in the Appendix.
 
@@ -37,7 +37,9 @@ The formal foundation for this thesis is the **Bonded Commons** paper (Owens, 20
 
 ---
 
-## Phase 1: The Semantic Graph [NEXT — NO COMMITS YET]
+## Phase 1: The Semantic Graph [NEXT — NO COMMITS YET, SOME STUBS BUILT]
+
+> **Cartographer — 2026-03-31:** Three sub-modules that belong in Phase 1 were built in the 2026-03-30 session as parallel agent output: `lib/symbol-index.ts` (tree-sitter WASM, symbol extraction, dependency tracking, conflict prediction — maps to 1C), `lib/orchestrator-plugins.ts` (plugin registry + default FIFO orchestrator — adjacent to 1D), and `lib/merge-queue.ts` + `routes/merge-queue.ts` (11 endpoints, maps to Appendix A3 Stigmergic Merging). All three are built but **not yet wired into server.ts**. They sit in the filesystem waiting for the graph proper to land. Next step per CLAUDE.md: wire tree-sitter first, then merge queue. These are not "done" — they're stubs that need the unified edge table (1A) to be useful.
 
 *The nervous system. Agents navigate relationships, not flat registries.*
 
@@ -132,11 +134,11 @@ When credits are at stake, file claims can be enforced (not just advisory). This
 
 ---
 
-## Phase 3: Fleet & Memory [IN PROGRESS]
+## Phase 3: Fleet & Memory [MOSTLY DONE — 3B and 3C outstanding]
 
 *Always-on agents, episodic memory, declarative swarm management.*
 
-### 3A. Declarative Fleet (`.portdaddy/fleet.yaml`) [SHIPPED 2026-03-27]
+### 3A. Declarative Fleet (`.portdaddy/fleet.yaml`) [SHIPPED 2026-03-27, EXTENDED 2026-03-29/30]
 
 ```yaml
 project: myapp
@@ -156,6 +158,8 @@ agents:
 `pd fleet up/down/status` — like docker-compose for agent swarms.
 
 > **Cartographer — 2026-03-27:** Fleet engine shipped. `lib/fleet-engine.ts` reads a YAML file and drives agents via `pd spawn`. Port Daddy dogfoods this with its own `pd-fleet.yml` declaring 7 agents: gardener (schedule), qa / test-hunter / documentarian / simplifier / cartographer (trigger: git:committed), and spark (schedule, singleton). Backends `claude-cli` and `custom` both working. Schedule and trigger dispatch both working after first real QA agent run (`cc10bfd`). Convention is top-level `pd-fleet.yml` for now; project-level `.portdaddy/fleet.yaml` path not yet established.
+>
+> **Cartographer — 2026-03-31:** Fleet extended significantly. `pd fleet init` added (`91c40af`) — creates a starter fleet YAML for any project. Drop-in fleet templates shipped (`1e70137`) — pre-built templates (docs watcher, adversarial tester, etc.) via `website-v2/src/pages/tutorials/Fleet.tsx`. **Auto-respawn** added (`26c4ed2`) — fleet agents restart automatically on crash; singleton mode enforced at fleet level. Fleet tutorial live on website (7 sections). Git post-commit hook (`dd820c6`) publishes commit metadata to `git:committed` channel — fleet agents trigger automatically. QA agent rules generalized to be framework-agnostic (Jest/Vitest/pytest/Go) and anti-tautology rules added. Core is complete; `.portdaddy/fleet.yaml` convention still not formalized.
 
 ### 3B. Episodic Memory
 
@@ -180,37 +184,45 @@ pd memory episodes [--agent <id>]
 - `.env` port import
 - Recursive monorepo scanning with depth control
 
-### 3D. Dashboard Fleet Panel
+### 3D. Dashboard Fleet Panel [SHIPPED 2026-03-27, STANDALONE]
 
 Visual fleet management, watch hooks with message history, spawn agent form, fleet.yaml editor.
+
+> **Cartographer — 2026-03-31:** A standalone Fleet Live Dashboard shipped (`public/fleet-live.html`, 1322 lines) — not a panel in the main dashboard but a separate monitoring page. Features: fetches from 6 daemon endpoints, unified feed with time-period grouping, agent ribbon with clickable filters, expandable notes, SSE live updates. A matching macOS menu-bar app (`fleet-live-app/`, SwiftUI + WKWebView) wraps it as a native menu-bar popover. The roadmap item envisioned a panel inside the main dashboard (with fleet.yaml editor) — that hasn't happened. The standalone page covers monitoring; editing and spawn form remain unbuilt.
 
 **Deliverable:** Agents run continuously, learn across sessions, and are managed declaratively.
 
 ---
 
-## Phase 4: Resilience & Performance
+## Phase 4: Resilience & Performance [PARTIALLY SHIPPED — 4A/4B/4C/4D done, 4E/4F remain]
+
+> **Cartographer — 2026-03-31:** Phase 4 went from 0% to ~70% complete in a 3-day burst (2026-03-29 to 2026-03-30). The Fastify migration, Radix Trie, Binary IPC, and IPC backpressure all shipped. This is now the most recently active phase. What remains: `pd self-test --adversarial` (4E) and Windows Named Pipe hardening (4F). Neither has any commits.
 
 *The kernel upgrade. Hardened for production workloads.*
 
-### 4A. Bun/Fastify Migration [IN PROGRESS]
+### 4A. Bun/Fastify Migration [FASTIFY SHIPPED v3.8.1, BUN NOT STARTED]
 
 Replace Express with Fastify on Bun for 20,000+ req/sec. Single-file binary compilation via `bun build --compile`.
 
-> **Cartographer — 2026-03-29:** Fastify server shell complete (`6b49e7e` on main). Express bridge in place (existing routes served through Fastify during migration). BigInt serialization fixed and Fastify deps added (`9176f38`). Route conversion in progress — main branch ahead of stable. A parallel agent (`cozy-jumping-zebra`, step 4) is wiring the trie into query paths; do NOT touch `lib/trie.ts`, `lib/semantic-index.ts`, or `lib/identity.ts` until that agent completes.
+> **Cartographer — 2026-03-31:** Fastify migration complete (`b8a8ae0`, 2026-03-29). All 23 route files converted to Fastify plugins. `express`, `cors`, `express-rate-limit`, `supertest` removed. Same API surface, same endpoints. BigInt serialization fixed, ephemeral port exhaustion eliminated with `fastify.inject()`. **Bun** (single-file binary) has zero commits — this half of 4A is not started.
 
-### 4B. Unix Domain Sockets / Named Pipes
+### 4B. Unix Domain Sockets / Named Pipes [COMPLETE v3.8.2]
 
 Binary IPC (MessagePack/CBOR) for high-frequency heartbeats. Reduces HTTP overhead for local agent communication.
 
-### 4C. Radix Trie (In-Memory Semantic Index) [COMPLETE]
+> **Cartographer — 2026-03-31:** Shipped across 6 commits on 2026-03-30 (`73447b9` through `962222d`). IPC server + client (Wave 1), router + auth (Wave 2), wired into server.ts (Wave 3), SDK heartbeat fast-path (Wave 4), pheromone spray + pub/sub publish over IPC, pub/sub subscriptions with dead-man cleanup. 7-byte MessagePack header, 70-80% bandwidth reduction vs HTTP JSON. 13 FIPA performatives. ~3µs fire-and-forget vs ~200µs HTTP. Security hardened: rate limiting (500 frames/sec/conn), connection limit (256), 3-strike violation budget, TOCTOU socket fix, connect timeout, socket path length validation. 20 failure modes documented in ADR 0020. Lock release on IPC disconnect (faster than heartbeat TTL). **Complete as specified.**
+
+### 4C. Radix Trie (In-Memory Semantic Index) [COMPLETE v3.8.0–3.8.1]
 
 Adaptive Radix Tree for sub-millisecond wildcard resolution. Harbor Bitmasks for O(1) scope filtering. SQLite as persistence/recovery only — trie is the hot path.
 
-> **Cartographer — 2026-03-29:** Trie complete. `lib/trie.ts` (ART implementation), `lib/semantic-index.ts` (live index populated from SQLite on startup), wired into `lib/identity.ts`. Trie query path wired into `services.ts` (`0f944bf`). 1:N support added — a single semantic token can now map to multiple backing services (`0a2aaf9`), wired into agents and sessions. This closed out 4C entirely.
+> **Cartographer — 2026-03-31:** `lib/trie.ts` shipped in 3.8.0 with 26 tests, 10k entries in <10ms. `lib/semantic-index.ts` populates trie from SQLite on startup (services, agents, sessions, harbors). In 3.8.1: trie-accelerated wildcard lookups in `services.ts` and `agents.ts` (replaces SQL `LIKE` scans), 1:N support via `entryId` (40 total trie tests), trie sync on agent/session lifecycle events. Harbor bitmask filtering implemented. **Complete as specified.**
 
-### 4D. Backpressure
+### 4D. Backpressure [IPC-LEVEL DONE v3.8.2, HTTP-LEVEL NOT STARTED]
 
 Socket-level backpressure when SQLite WAL commits lag. Forces agents to pause rather than bloating daemon RAM.
+
+> **Cartographer — 2026-03-31:** IPC write-queue + drain event backpressure shipped (`3b81580`). When write queue exceeds threshold, new writes pause until the socket drains — this prevents agent output from bloating daemon RAM when the client is slow. The roadmap item specified "SQLite WAL commits lag" as the trigger — that specific coupling is not yet implemented. HTTP-level backpressure has zero commits. Partial credit: the IPC path (which is the hot path for high-frequency agents) is protected.
 
 ### 4E. `pd self-test --adversarial`
 
@@ -297,10 +309,12 @@ Pre-built always-on agent: daily brief, skill tracking, calendar awareness. The 
 ### A1. The SOMA Crossover (Bayesian Arbiter)
 From `ARBITER_DESIGN.md`: The Arbiter as a biological immune system. If it senses high "anomaly pheromones" around a semantic token, it lowers its intervention threshold — adaptive scrutiny based on accumulated evidence. The Arbiter isn't static rules; it's a macrophage that learns which tokens are under attack.
 
-### A2. Pheromone Evaporation (Stigmergic Coordination) [PARTIALLY SHIPPED 2026-03-27]
+### A2. Pheromone Evaporation (Stigmergic Coordination) [SHIPPED 2026-03-27, DASHBOARD VIZ DONE v3.8.0]
 From `STIGMERGIC_BACKLOG.md`: Metadata traces that fade over time. Agents "spray" annotations on semantic tokens; the daemon evaporates stale annotations. High-confidence tokens (annotated by Coder + Reviewer + Tester) trigger automatic merge. Logic implemented in `lib/pheromone.ts` but no CLI commands yet. Needs `pd pheromone spray/sniff` and dashboard visualization.
 
 > **Cartographer — 2026-03-27:** `pd pheromone spray/sniff/list` CLI commands shipped (`2b4339e`). Read-time decay (evaporation on read) shipped (`a8f3710`). File heat map via `GET /pheromone/files` shipped (`a930413`) — shows which files have the most session claim activity. **Remaining:** Dashboard visualization panel. This has graduated from "idea" to "mostly working feature" — only dashboard viz stands between it and full completion. Consider elevating to a named Phase 3E.
+>
+> **Cartographer — 2026-03-31:** Dashboard visualization is **done**. The pheromone file heat map on the overview panel shipped in 3.8.0 — color-coded with CONFLICT badges per file. Additionally, pheromone spray and pub/sub publish now route over the binary IPC fast path (3.8.2). Also in 3.8.2: pheromone IPC path (spray + sniff) wired into SDK fast paths. **This appendix item is now fully complete.** The only remaining open question is whether auto-merge at 0.95 confidence scent (the full A3 vision) gets built — that requires Phase 1 graph infrastructure.
 
 ### A3. Stigmergic Merging
 From `WORKTREE_SWARMS.md`: Instead of human-driven merge, a "Janitor Agent" watches the token graph. When confidence_scent hits 0.95 across Coder + Reviewer + Tester annotations, it initiates `git merge` of all involved worktrees automatically. Requires the Semantic Token Graph (Phase 1) as infrastructure.
@@ -357,5 +371,12 @@ From `v4_thoughts.md`: Run TLC on the BondedCommons spec with concrete parameter
 | Website neumorphic design system overhaul | many commits 2026-03-25–26 | Design debt. The website had fictional content and inconsistent styling. Full CVA token system + Harbor Heritage palette. |
 | Spark fleet agent (idea engine) | `6a68547`, fleet YAML | Emerged from the fleet work. Spark runs every 30 min, generates ideas, publishes to `spark:idea` channel. |
 | Cartographer fleet agent (this agent) | `a930413`, `a8f3710`, fleet YAML | Emerged from needing automated roadmap tracking. The agent writes this file. |
-| 1:N trie support — semantic token maps to multiple services | `0a2aaf9` | Required for real workloads: multiple agents claiming the same semantic identity. Discovered while wiring the trie into agents + sessions. Ships with Phase 4C as part of closing it out. |
-| Ephemeral port exhaustion fix in sdk-batch4 tests | `d6fc776` | Test suite was hitting OS-level port limits under parallel test runs. Fixed before it could cause flaky CI. Surfaced by the Phase 4A Fastify prep work increasing port churn. |
+| Tuple Space (`lib/tuples.ts`) — Linda-style shared coordination | `8cfce3f`, `305e063`, `f6acdbf` | Emerged from fleet coordination needs. Gives agents a shared scratchpad: `out/rd/take` with wildcard pattern matching, harbor scoping, TTL. 24 unit tests. Fully wired: CLI, SDK, MCP, completions. Not in any phase — new primitive. |
+| 7 Magic MCP Tools (vibe coder suite) | `26c4ed2` | `fleet_init`, `fleet_status`, `swarm_awareness`, `catch_me_up`, `acquire_lock`, `add_note`, `pd_discover`. UX-driven: one-call answers to "what's happening here?" Emerged from dogfooding the MCP during fleet work. |
+| Auto-respawn for fleet agents | `1081e65` | Fleet agents were dying silently. Auto-respawn in `fleet-engine.ts` restarts crashed agents; singleton mode prevents duplicate spawns. Not planned — discovered from operating the fleet. |
+| Security audit continued (webhook secrets, file permissions, dotenv pinning) | `f91195e`, `d466103`, `f6b27b7` | Follow-on from March 2026 audit. Webhook secrets encrypted at rest, runtime files migrated from `/tmp/` to `~/.port-daddy/` (world-readable → user-only), dotenv paths pinned to prevent traversal. Driven by security debt backlog, not feature work. |
+| Website overhaul Phase 2 (content truth audit + A11y + UX compression) | many commits 2026-03-29–30 | 23 false claims removed, 38 CLI syntax fixes, WCAG AA contrast, responsive padding, 55 raw code blocks unified into `CodeBlock` component, all 40+ pages compressed. Driven by website content being fictional/misleading. |
+| **Orchestrator plugins + Merge queue + Symbol index stubs** — built but not wired | `7b46248` | Built as parallel agent output 2026-03-30. `lib/orchestrator-plugins.ts` (plugin registry + default FIFO), `lib/merge-queue.ts` + `routes/merge-queue.ts` (11 endpoints), `lib/symbol-index.ts` (tree-sitter WASM). None wired into server.ts. These stub out Phase 1 (symbol index → 1C) and Appendix A3 (merge queue → stigmergic merging). Energy signal: the 2026-03-30 session prioritized building these foundations even before Phase 1 formally started. |
+| **OpenAPI 3.1 specification** (`docs/openapi.yaml`) — 96 paths, 125 operations | listed in [Unreleased] | Single source of truth for the HTTP API. Not in any roadmap phase. Emerged from SDK documentation maintenance. |
+| **Drop-in fleet templates + `pd fleet init`** | `1e70137`, `91c40af` | Pre-built fleet YAML templates for any project type. `pd fleet init` creates a starter fleet. Not in the original 3A spec — emerged from making fleet approachable for projects that aren't Port Daddy itself. |
+| **VHS CI demo workflow** (`.github/workflows/`) | `d85e30d` | Automated terminal recording with VHS + ffmpeg + daemon startup. Not in roadmap. Closest roadmap item is Appendix A12 (Asciinema Demo Engine) — different toolchain, same intent. |

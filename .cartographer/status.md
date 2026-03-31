@@ -1,59 +1,56 @@
 # Cartographer Status
 
-**Last updated:** 2026-03-29
-**Updated by:** Cartographer (manual session — reviewing commits since cb2c866)
+**Last updated:** 2026-03-31
+**Updated by:** Cartographer fleet agent (pd-fleet.yml → cartographer)
 
 ---
 
 ## Current Phase
 
-**Phase 4: Resilience & Performance** is now the most active development area, running in parallel with ongoing Phase 3 work.
+**Phase 4: Resilience & Performance** is now the most recently active phase — 4B (IPC), 4C (Trie), and the Fastify half of 4A shipped in a 3-day burst ending 2026-03-30. Phase 3 is largely complete (fleet engine, Fleet Live dashboard, pheromone all shipped). Phase 2 remains blocked on the economist.
 
-Phase 4C (Radix Trie) is **COMPLETE**. Trie built, live semantic index on startup, 1:N support, wired into services/agents/sessions query paths. A parallel agent (`cozy-jumping-zebra`, step 4) is finishing the last wiring pass — `lib/trie.ts`, `lib/semantic-index.ts`, `lib/identity.ts` are **off-limits** until that agent completes.
-
-Phase 4A (Fastify migration) is **IN PROGRESS** on main: server shell complete, Express bridge in place, route conversion ongoing. Not yet promoted to stable.
-
-Phase 3 (Fleet & Memory) is mostly shipped. Pheromone dashboard panel is the one notable remaining gap.
-
-Phase 2 (Economy) remains blocked on the economist contact for bond pricing function $\pi$.
+The actual commit energy flow: Phase 3 fleet → Phase 4 IPC/trie/Fastify → Security hardening (unplanned) → Website truth audit (unplanned). Phase 1 (Semantic Graph) has pre-work on disk (symbol-index, merge-queue, orchestrator-plugins — built by parallel agents, not wired) but hasn't started as a phase.
 
 ---
 
 ## Velocity
 
-**8 commits since cb2c866** (2026-03-27 to 2026-03-29)
+**157 commits in the last 7 days** (2026-03-24 to 2026-03-31)
+**~22.4 commits/day**
 
-Split between:
-- Website fixes (QuickStart, sidebar, API reference, syntax highlighting, content audit)
-- Trie/semantic-index wiring (two commits: services.ts + agents/sessions 1:N)
-- Fastify shell + prep (on main, not yet stable)
+| Date | Commits | Driver |
+|------|---------|--------|
+| 2026-03-25 | 13 | Website design system + neumorphic tokens |
+| 2026-03-26 | 9 | Website fixes, CodeBlock unification |
+| 2026-03-27 | 34 | Fleet engine, Pheromone CLI, Arbiter, v3.8.0 |
+| 2026-03-28 | 12 | Fastify Phase 1–3, trie wiring |
+| 2026-03-29 | 48 | Fastify completion (22 route files), v3.8.1 |
+| 2026-03-30 | 31 | IPC Waves 1–4, security hardening, parallel agent output |
+| 2026-03-31 | 1 | Security fixes (post-release) |
+
+This is the highest velocity window recorded. Previous high was ~9.7/day. Three concurrent bursts drove it: Fastify migration, IPC protocol 6-wave build-out, and website truth audit. Expect regression to 2–4/day baseline after sprint ends.
 
 ---
 
 ## Top 3 Closest to Completion
 
-1. **Phase 4A — Fastify Migration**
-   - Fastify server shell: ✅ DONE (`6b49e7e` on main)
-   - Express bridge (existing routes): ✅ DONE
-   - BigInt serialization + Fastify deps: ✅ DONE (`9176f38`)
-   - Route conversion: ⏳ IN PROGRESS
-   - Promoted to stable: ❌ Not yet
-   - **Unblocked. One push to complete route conversion.**
+1. **Phase 3B — Episodic Memory**
+   - SQL schema, CLI interface, and recall API fully designed in the roadmap
+   - Ollama integration already in use for `pd spawn` — local embeddings are feasible
+   - Note encryption (Phase 0) is already in place for at-rest protection
+   - Fleet is live and operational — agents need memory to compound across sessions
+   - **No technical blocker. One focused session could ship the core.**
 
-2. **Appendix A2 — Pheromone system**
-   - Spray/sniff/list CLI: ✅ DONE
-   - Read-time decay: ✅ DONE
-   - File heat map (`/pheromone/files`): ✅ DONE
-   - Dashboard visualization panel: ❌ Missing
-   - **One panel away from done.**
+2. **Phase 4E — `pd self-test --adversarial`**
+   - Test infrastructure (`V4-TEST-SUITE.md`) already written
+   - IPC + Fastify foundation is solid — easy to write chaos tests against
+   - Daemon is now stable enough to test adversarially
+   - **Zero commits but high leverage: a Seaworthiness Report sells itself.**
 
-3. **Phase 4C trie wiring (cozy-jumping-zebra step 4)**
-   - ART trie + semantic index: ✅ DONE
-   - 1:N support: ✅ DONE
-   - services.ts query path: ✅ DONE
-   - agents + sessions wiring: ✅ DONE
-   - Final wiring pass (parallel agent): ⏳ IN PROGRESS
-   - **Do not touch trie/semantic-index/identity until agent completes.**
+3. **Phase 1 wiring — Semantic Graph stubs → live endpoints**
+   - `lib/symbol-index.ts` (1395 lines), `lib/merge-queue.ts` (610 lines), `lib/orchestrator-plugins.ts` (426 lines) all built and tested
+   - Routes exist (`routes/symbols.ts`, `routes/merge-queue.ts`)
+   - **Only step remaining: wire into `server.ts`** — the graph schema (1A) is the real gap, not the code
 
 ---
 
@@ -61,31 +58,33 @@ Split between:
 
 1. **Phase 2 — The Economy** (explicitly blocked)
    - Blocked on economist for bond pricing function $\pi$
-   - No signal on whether the economist conversation has happened
+   - `docs/ECONOMIST-BRIEF.md` + `docs/ECONOMIST-BRIEF-2-ORCHESTRATORS.md` both written
+   - No signal on whether that conversation has happened
    - Nothing to build until pricing function is designed
+   - **Drift risk:** As Phase 4 infrastructure matures, the pressure to ship the economy increases — but the open problem remains open.
 
-2. **Phase 3B — Episodic Memory** (no commits)
-   - Designed in the roadmap (SQL schema, CLI, recall API)
-   - Ollama available for local embeddings
-   - No technical blocker — hasn't been started
+2. **Phase 1 — Unified Edge Table (1A)** (no commits on the core piece)
+   - Three Phase 1-adjacent modules exist on disk but depend on `graph_edges` table
+   - The table schema is designed (in the roadmap) but no migration written
+   - Stubs without the table are inert
+   - **One migration away from activating ~2500 lines of waiting code.**
 
-3. **Phase 1 — Semantic Graph** (no commits)
-   - Still stated as a prerequisite for Phase 2
-   - Zero commits
-   - Phase 4C trie work is adjacent but not the same thing — trie is a performance layer, not the typed edge graph Phase 1 describes
+3. **Phase 4A (Bun) + 4E + 4F** (zero commits)
+   - Bun single-file binary: zero commits. Fastify is done; Bun is the remaining half of 4A.
+   - `pd self-test --adversarial` (4E): zero commits. The adversarial test suite design exists.
+   - Windows Named Pipe hardening (4F): zero commits. Platform-specific, low priority on macOS.
+   - **No active drift — just haven't started.**
 
 ---
 
 ## Observations for Erich
 
-- **Phase 4C is done.** The trie is live, 1:N support is shipped, and query paths are wired. This is a clean completion — update the roadmap and close the chapter.
+- **Phase 4 is 70% done in one sprint.** Fastify, Trie, IPC, and IPC backpressure all shipped. This was unplanned — Phase 4 wasn't the stated priority. The energy went where the problems were obvious and the wins were fast. That's fine. The remaining Phase 4 work (Bun binary, self-test) is lower leverage than starting Phase 1.
 
-- **The cozy-jumping-zebra agent is mid-task.** It owns `lib/trie.ts`, `lib/semantic-index.ts`, and `lib/identity.ts`. Don't touch those files until it signals completion.
+- **The Phase 1 stubs are a gift from the parallel agents.** ~2500 lines of tested code (symbol-index, merge-queue, orchestrator-plugins) sit ready to wire. The graph_edges migration is the bottleneck. Writing it is a 1-hour task, not a week.
 
-- **Phase 4A (Fastify) has real momentum.** The shell + bridge pattern is already proven. Route-by-route conversion is mechanical at this point. This could be done in one focused session.
+- **Tuple Space is a new primitive not in any phase.** Linda-style coordination (out/rd/take with harbor scoping) is live and fully wired. It's not clear where this fits in the V4 narrative yet. It might be the foundation for episodic memory or for the Economy's work queue. Worth naming it.
 
-- **The unplanned 1:N trie work was the right call.** Multiple agents claiming the same semantic token is a real production requirement, not a nice-to-have. Shipping it as part of 4C rather than a separate ticket was correct.
+- **Security hardening is recurring unplanned work.** Three separate security audit sessions (March 2026, March 27, March 30-31) have each found new issues. This isn't a sign of bad code — it's a sign the codebase is being taken seriously. But it consumes sprint bandwidth. Consider scheduling a quarterly security pass rather than reacting.
 
-- **Ephemeral port exhaustion was a real CI risk.** The fix (`d6fc776`) was small and surgical — good maintenance hygiene before the Fastify work increases port churn further.
-
-- **Website content audit (`e637c5c`) killed 23 false claims.** This is ongoing housekeeping: every unplanned website sprint improves docs quality but doesn't advance the product roadmap. Worth noting the ratio.
+- **The website content truth audit was the right call.** 23 false claims and 38 CLI syntax errors would have damaged trust with any new users. Content debt compounds just like technical debt.

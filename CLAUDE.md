@@ -70,7 +70,8 @@ lib/
   tunnel.ts         # Tunnel provider integration (ngrok, cloudflared)
   agent-inbox.ts    # Per-agent message inbox
   correlation.ts    # Request correlation IDs
-  fleet-engine.ts   # Declarative fleet YAML agent runner
+  fleet-engine.ts   # Declarative fleet YAML agent runner (FleetConfig, FleetRunner, FleetLimits, FleetEvent)
+  fleet-daemon.ts   # Always-on fleet subsystem — auto-starts FleetRunners on daemon boot; SIGHUP reloads
   note-encryption.ts # Encrypted session notes
   pheromone.ts      # Pheromone trail pub/sub signal system
   request.ts        # HTTP request helpers
@@ -98,6 +99,7 @@ routes/
   changelog.ts      # /changelog endpoints
   tunnel.ts         # /tunnel, /tunnels endpoints
   orchestrator.ts   # /orchestrator endpoints
+  fleet.ts          # /fleet endpoints (daemon fleet management)
   health.ts         # /health endpoint
   config.ts         # /config endpoint
   launch.ts         # /launch-hints endpoint
@@ -333,6 +335,41 @@ Fish completions are historically the worst — double-check fish.
 
 **Update this section for every feature in progress.**
 
+### Fleet Daemon — Always-On Fleet Subsystem — DONE (v3.8.2)
+
+Daemon auto-discovers `pd-fleet.yml` in registered projects and starts fleet runners on boot. Survives terminal close via launchd `KeepAlive`. Config file changes trigger hot-reload. SIGHUP reloads all fleets. Fleet limits (concurrency + hourly rate) enforced at spawn time.
+
+| Surface | Status | Notes |
+|---------|--------|-------|
+| `lib/fleet-daemon.ts` | ✅ DONE | `createFleetDaemon()` — start/stop/reload/startProject/stopProject/getStatus/listProjects |
+| `lib/fleet-engine.ts` | ✅ DONE | Added `FleetLimits`, `FleetEvent`, `FleetRunnerOptions.onEvent`, resource quota enforcement |
+| `routes/fleet.ts` | ✅ DONE | 7 endpoints: GET/fleet, GET/fleet/:project, POST/fleet/start|stop|reload|register, GET/fleet/events |
+| `routes/index.ts` | ✅ DONE | `fleetDeps` optional param wired |
+| `routes/info.ts` | ✅ DONE | `/health` and `/status` now include `fleet` subsection |
+| `server.ts` | ✅ DONE | `createFleetDaemon()` wired; `fleetDaemon.start()` in `onReady()`; SIGHUP handler; graceful `stop()` in shutdown |
+| `features.manifest.json` | ✅ DONE | Fleet entry updated: new description, 7 routes listed |
+| `CLAUDE.md` | ✅ DONE | Architecture table + API table updated |
+| `README.md` | ✅ DONE | Two fleet modes (CLI + daemon), limits YAML, HTTP API curl examples |
+| `SKILL.md` | ✅ DONE | Daemon mode, two-mode usage, HTTP API, resource limits |
+| `skills/.../api-reference.md` | ✅ DONE | Full fleet endpoint docs with request/response shapes |
+| `features.manifest.json` | ✅ DONE | `docs.readme: true`; fleet subcommand completions listed |
+
+**Key pd-fleet.yml additions:**
+```yaml
+fleet:
+  limits:
+    max_concurrent_spawns: 2      # Max parallel agent runs
+    max_spawns_per_hour: 20       # Hourly rate cap
+```
+
+**Key API additions:**
+```bash
+curl http://localhost:9876/fleet                          # Global status
+curl http://localhost:9876/fleet/my-project              # Per-project status
+curl -X POST http://localhost:9876/fleet/reload          # SIGHUP equivalent
+curl -X GET  http://localhost:9876/fleet/events          # SSE lifecycle stream
+```
+
 ### pd spawn + pd watch — DONE (v3.6)
 
 | Surface | Status | Notes |
@@ -520,3 +557,11 @@ When an agent dies, other agents in the same project should be notified.
 | `/pheromone/:table/:id` | GET | Read pheromone values for entity; applies read-time decay |
 | `/pheromone` | GET | List all non-zero pheromones across all tracked tables |
 | `/pheromone/files` | GET | File heat map from session file claims (query: path, depth) |
+| **Fleet Daemon** | | |
+| `/fleet` | GET | Aggregated fleet status across all managed projects |
+| `/fleet/:project` | GET | Specific project's fleet status |
+| `/fleet/start` | POST | Start all fleets, or specific project (body: `{ projectDir? }`) |
+| `/fleet/stop` | POST | Stop all fleets, or specific project (body: `{ projectDir? }`) |
+| `/fleet/reload` | POST | Re-read all pd-fleet.yml configs and restart changed fleets |
+| `/fleet/register` | POST | Register a project directory for daemon fleet management (body: `{ projectDir }`) |
+| `/fleet/events` | GET | SSE stream of all fleet lifecycle events (`fleet:events` channel) |

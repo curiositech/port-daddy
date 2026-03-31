@@ -13,8 +13,8 @@
  */
 
 import { randomBytes, createCipheriv, createDecipheriv } from 'node:crypto';
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, statSync, chmodSync } from 'node:fs';
+import { join } from 'node:path';
 import { homedir } from 'node:os';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -63,12 +63,41 @@ export interface NoteEncryption {
   isEncrypted(content: string): boolean;
 }
 
+// ─── Permission Verification ────────────────────────────────────────────────
+
+/**
+ * Verify and repair file/directory permissions. Returns true if permissions
+ * are now correct; throws if they cannot be fixed.
+ */
+function verifyPermissions(path: string, expectedMode: number, label: string): void {
+  const actual = statSync(path).mode & 0o777;
+  if (actual === expectedMode) return;
+
+  const actualOctal = '0o' + actual.toString(8);
+  const expectedOctal = '0o' + expectedMode.toString(8);
+  console.error(
+    `[NoteEncryption] WARNING: ${label} has permissions ${actualOctal}, expected ${expectedOctal} — attempting to fix`
+  );
+
+  try {
+    chmodSync(path, expectedMode);
+    console.error(`[NoteEncryption] Fixed ${label} permissions to ${expectedOctal}`);
+  } catch (chmodErr) {
+    throw new Error(
+      `Cannot fix permissions on ${label} (${path}): ${(chmodErr as Error).message}. ` +
+      `Refusing to start with exposed key file.`
+    );
+  }
+}
+
 // ─── Implementation ─────────────────────────────────────────────────────────
 
 export function createNoteEncryption(): NoteEncryption {
   let masterKey: Buffer | null = null;
 
-  // Load or generate master key
+  // Load or generate master key. IO failures (missing file, full disk) disable
+  // encryption gracefully. Permission failures propagate — callers must not start
+  // with a key file that has insecure permissions.
   try {
     if (existsSync(MASTER_KEY_PATH)) {
       masterKey = readFileSync(MASTER_KEY_PATH);
@@ -80,15 +109,23 @@ export function createNoteEncryption(): NoteEncryption {
 
     if (!masterKey) {
       masterKey = randomBytes(KEY_LENGTH);
-      mkdirSync(MASTER_KEY_DIR, { recursive: true });
+      mkdirSync(MASTER_KEY_DIR, { recursive: true, mode: 0o700 });
       writeFileSync(MASTER_KEY_PATH, masterKey, { mode: 0o600 });
       console.error('[NoteEncryption] Generated new master key at', MASTER_KEY_PATH);
     } else {
       console.error('[NoteEncryption] Master key loaded');
     }
   } catch (err) {
+    masterKey = null; // Ensure encryption is truly disabled if initialization fails
     console.error('[NoteEncryption] Failed to load/generate master key:', (err as Error).message);
     console.error('[NoteEncryption] Note encryption DISABLED — notes will be stored plaintext');
+  }
+
+  // Permission verification is outside the graceful-degradation catch block.
+  // If permissions are unfixable, this throws — callers must not proceed.
+  if (masterKey) {
+    verifyPermissions(MASTER_KEY_DIR, 0o700, 'key directory');
+    verifyPermissions(MASTER_KEY_PATH, 0o600, 'master key file');
   }
 
   function encrypt(plaintext: Buffer, key: Buffer): EncryptedPayload {

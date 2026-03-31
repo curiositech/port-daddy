@@ -293,13 +293,17 @@ pd find 'myapp:api:main'       # Exact lookup
 The trie populates from SQLite on daemon startup and stays in sync on every register/claim/release. Harbor bitmask filtering enables O(1) scope checks for harbor membership.
 
 ### Fleet Engine (Declarative Agent Orchestration)
-Declare your background agent fleet in a `pd-fleet.yml` file — like docker-compose for AI agent swarms:
+Declare your background agent fleet in a `pd-fleet.yml` file — like docker-compose for AI agent swarms. **As of v3.8.2, the Port Daddy daemon auto-discovers and starts your fleet on boot** — no terminal to keep open.
 
 ```yaml
 # pd-fleet.yml
 fleet:
   name: my-project-dev
   harbor: "{project}:fleet"
+
+  limits:
+    max_concurrent_spawns: 2        # At most 2 agents running in parallel
+    max_spawns_per_hour: 20         # Rate cap (Ostrom Principle 2)
 
   agents:
     qa:
@@ -321,13 +325,24 @@ fleet:
       consumers: [qa]
 ```
 
+**Two fleet modes:**
+- **CLI mode** (`pd fleet up`): Manual, runs while your terminal session is open.
+- **Daemon mode** (automatic): The Port Daddy daemon scans all registered projects for `pd-fleet.yml` on boot and starts their fleets automatically. Survives terminal close, system sleep, and daemon restarts (via launchd `KeepAlive`). Editing `pd-fleet.yml` triggers a hot-reload automatically.
+
 ```bash
-pd fleet up       # Start all agents
+# CLI mode
+pd fleet init     # Create pd-fleet.yml + git post-commit hook (first-time setup)
+pd fleet up       # Start all agents (foreground, terminal-attached)
 pd fleet status   # View running agents
 pd fleet down     # Stop all agents
+
+# Daemon mode (always-on)
+curl http://localhost:9876/fleet              # Global fleet status
+curl -X POST http://localhost:9876/fleet/reload   # Reload all configs (same as SIGHUP)
+curl http://localhost:9876/fleet/events       # SSE stream of lifecycle events
 ```
 
-Each agent gets full PD coordination for free: registration, sessions, heartbeats, and salvage on crash. Supports `claude-cli`, `ollama`, `custom` (shell commands), and all `pd spawn` backends. Template variables (`{project}`) resolve from the YAML context.
+Each agent gets full PD coordination for free: registration, sessions, heartbeats, and salvage on crash. Supports `claude-cli`, `ollama`, `custom` (shell commands), and all `pd spawn` backends. Template variables (`{project}`) resolve from the YAML context. Fleet lifecycle events publish to the `fleet:events` channel for dashboard and menu bar subscriptions.
 
 ### Note Encryption (Escrow Secrecy)
 Session notes are encrypted at rest with AES-256-GCM. Master key stored at `~/.port-daddy/master.key` (auto-generated on first boot). Per-session keys wrapped with the master key. Backward-compatible — existing plaintext notes remain readable. ProVerif-verified: attacker with database access cannot learn note content.
