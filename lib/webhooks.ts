@@ -15,7 +15,10 @@
  * - Delivery status tracking
  */
 
-import { createHmac, randomUUID } from 'crypto';
+import { createHmac, randomUUID, randomBytes, createCipheriv, createDecipheriv } from 'crypto';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { homedir } from 'node:os';
 import type Database from 'better-sqlite3';
 import dns from 'node:dns/promises';
 import { isPrivateHost } from './utils.js';
@@ -32,6 +35,81 @@ const CLEANUP_RETENTION_DAYS = 7;
 const RESPONSE_BODY_MAX_LENGTH = 1000;
 
 // PRIVATE_IP_PATTERNS and isPrivateHost imported from ./utils.js
+
+// =============================================================================
+// SECRET ENCRYPTION (AES-256-GCM, same master key as note-encryption)
+// =============================================================================
+
+const MASTER_KEY_PATH = join(homedir(), '.port-daddy', 'master.key');
+const ENC_ALGORITHM = 'aes-256-gcm' as const;
+const ENC_KEY_LENGTH = 32;
+const ENC_IV_LENGTH = 12;
+
+let _masterKey: Buffer | null = null;
+
+function getMasterKey(): Buffer | null {
+  if (_masterKey) return _masterKey;
+  try {
+    if (existsSync(MASTER_KEY_PATH)) {
+      const key = readFileSync(MASTER_KEY_PATH);
+      if (key.length === ENC_KEY_LENGTH) {
+        _masterKey = key;
+        return _masterKey;
+      }
+    }
+  } catch {
+    // Master key unavailable — secrets stored plaintext
+  }
+  return null;
+}
+
+/** Encrypt a plaintext secret into a JSON envelope: {"v":1,"ct":"...","iv":"...","tag":"..."} */
+function encryptSecret(plaintext: string): string {
+  const key = getMasterKey();
+  if (!key) return plaintext; // No master key → store plaintext (graceful degradation)
+
+  const iv = randomBytes(ENC_IV_LENGTH);
+  const cipher = createCipheriv(ENC_ALGORITHM, key, iv);
+  const ciphertext = Buffer.concat([cipher.update(Buffer.from(plaintext, 'utf8')), cipher.final()]);
+  const tag = cipher.getAuthTag();
+
+  return JSON.stringify({
+    v: 1,
+    ct: ciphertext.toString('base64'),
+    iv: iv.toString('base64'),
+    tag: tag.toString('base64'),
+  });
+}
+
+/** Decrypt a secret. Handles both encrypted envelopes and legacy plaintext. */
+function decryptSecret(stored: string): string {
+  // Legacy plaintext: anything that doesn't look like our JSON envelope
+  if (!stored.startsWith('{')) return stored;
+
+  let parsed: { v?: number; ct?: string; iv?: string; tag?: string };
+  try {
+    parsed = JSON.parse(stored);
+  } catch {
+    return stored; // Not valid JSON → treat as plaintext
+  }
+
+  if (parsed.v !== 1 || !parsed.ct || !parsed.iv || !parsed.tag) return stored;
+
+  const key = getMasterKey();
+  if (!key) return stored; // Can't decrypt without master key — return raw
+
+  try {
+    const iv = Buffer.from(parsed.iv, 'base64');
+    const ciphertext = Buffer.from(parsed.ct, 'base64');
+    const tag = Buffer.from(parsed.tag, 'base64');
+
+    const decipher = createDecipheriv(ENC_ALGORITHM, key, iv);
+    decipher.setAuthTag(tag);
+    return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
+  } catch {
+    return stored; // Decryption failed — return raw (wrong key?)
+  }
+}
 
 export const WebhookEvent = {
   SERVICE_CLAIM: 'service.claim',
@@ -223,7 +301,8 @@ export function createWebhooks(db: Database.Database) {
     const id = randomUUID();
     const now = Date.now();
 
-    stmts.insert.run(id, url, secret || null, JSON.stringify(events), filterPattern || null, 1, now, metadata ? JSON.stringify(metadata) : null);
+    const encryptedSecret = secret ? encryptSecret(secret) : null;
+    stmts.insert.run(id, url, encryptedSecret, JSON.stringify(events), filterPattern || null, 1, now, metadata ? JSON.stringify(metadata) : null);
 
     return { success: true, id, url, events, message: 'Webhook registered' };
   }
@@ -403,7 +482,7 @@ export function createWebhooks(db: Database.Database) {
         deliveryId,
         webhookId: webhook.id,
         url: webhook.url,
-        secret: webhook.secret,
+        secret: webhook.secret ? decryptSecret(webhook.secret) : null,
         payload
       });
       queued++;
@@ -526,7 +605,7 @@ export function createWebhooks(db: Database.Database) {
         deliveryId: delivery.id,
         webhookId: webhook.id,
         url: webhook.url,
-        secret: webhook.secret,
+        secret: webhook.secret ? decryptSecret(webhook.secret) : null,
         payload: JSON.parse(delivery.payload)
       });
       queued++;
@@ -564,8 +643,9 @@ export function createWebhooks(db: Database.Database) {
         'X-PortDaddy-Timestamp': String(payload.timestamp)
       };
 
-      if (webhook.secret) {
-        headers['X-PortDaddy-Signature'] = `sha256=${signPayload(payload, webhook.secret)}`;
+      const secret = webhook.secret ? decryptSecret(webhook.secret) : null;
+      if (secret) {
+        headers['X-PortDaddy-Signature'] = `sha256=${signPayload(payload, secret)}`;
       }
 
       const response = await fetch(webhook.url, {

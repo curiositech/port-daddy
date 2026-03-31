@@ -13,8 +13,8 @@
  */
 
 import { randomBytes, createCipheriv, createDecipheriv } from 'node:crypto';
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, statSync, chmodSync } from 'node:fs';
+import { join } from 'node:path';
 import { homedir } from 'node:os';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -63,6 +63,33 @@ export interface NoteEncryption {
   isEncrypted(content: string): boolean;
 }
 
+// ─── Permission Verification ────────────────────────────────────────────────
+
+/**
+ * Verify and repair file/directory permissions. Returns true if permissions
+ * are now correct; throws if they cannot be fixed.
+ */
+function verifyPermissions(path: string, expectedMode: number, label: string): void {
+  const actual = statSync(path).mode & 0o777;
+  if (actual === expectedMode) return;
+
+  const actualOctal = '0o' + actual.toString(8);
+  const expectedOctal = '0o' + expectedMode.toString(8);
+  console.error(
+    `[NoteEncryption] WARNING: ${label} has permissions ${actualOctal}, expected ${expectedOctal} — attempting to fix`
+  );
+
+  try {
+    chmodSync(path, expectedMode);
+    console.error(`[NoteEncryption] Fixed ${label} permissions to ${expectedOctal}`);
+  } catch (chmodErr) {
+    throw new Error(
+      `Cannot fix permissions on ${label} (${path}): ${(chmodErr as Error).message}. ` +
+      `Refusing to start with exposed key file.`
+    );
+  }
+}
+
 // ─── Implementation ─────────────────────────────────────────────────────────
 
 export function createNoteEncryption(): NoteEncryption {
@@ -75,12 +102,16 @@ export function createNoteEncryption(): NoteEncryption {
       if (masterKey.length !== KEY_LENGTH) {
         console.error('[NoteEncryption] Master key wrong length, regenerating');
         masterKey = null;
+      } else {
+        // Verify permissions on existing key file and its parent directory
+        verifyPermissions(MASTER_KEY_DIR, 0o700, 'key directory');
+        verifyPermissions(MASTER_KEY_PATH, 0o600, 'master key file');
       }
     }
 
     if (!masterKey) {
       masterKey = randomBytes(KEY_LENGTH);
-      mkdirSync(MASTER_KEY_DIR, { recursive: true });
+      mkdirSync(MASTER_KEY_DIR, { recursive: true, mode: 0o700 });
       writeFileSync(MASTER_KEY_PATH, masterKey, { mode: 0o600 });
       console.error('[NoteEncryption] Generated new master key at', MASTER_KEY_PATH);
     } else {
