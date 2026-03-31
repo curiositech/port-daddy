@@ -95,17 +95,15 @@ function verifyPermissions(path: string, expectedMode: number, label: string): v
 export function createNoteEncryption(): NoteEncryption {
   let masterKey: Buffer | null = null;
 
-  // Load or generate master key
+  // Load or generate master key. IO failures (missing file, full disk) disable
+  // encryption gracefully. Permission failures propagate — callers must not start
+  // with a key file that has insecure permissions.
   try {
     if (existsSync(MASTER_KEY_PATH)) {
       masterKey = readFileSync(MASTER_KEY_PATH);
       if (masterKey.length !== KEY_LENGTH) {
         console.error('[NoteEncryption] Master key wrong length, regenerating');
         masterKey = null;
-      } else {
-        // Verify permissions on existing key file and its parent directory
-        verifyPermissions(MASTER_KEY_DIR, 0o700, 'key directory');
-        verifyPermissions(MASTER_KEY_PATH, 0o600, 'master key file');
       }
     }
 
@@ -118,8 +116,16 @@ export function createNoteEncryption(): NoteEncryption {
       console.error('[NoteEncryption] Master key loaded');
     }
   } catch (err) {
+    masterKey = null; // Ensure encryption is truly disabled if initialization fails
     console.error('[NoteEncryption] Failed to load/generate master key:', (err as Error).message);
     console.error('[NoteEncryption] Note encryption DISABLED — notes will be stored plaintext');
+  }
+
+  // Permission verification is outside the graceful-degradation catch block.
+  // If permissions are unfixable, this throws — callers must not proceed.
+  if (masterKey) {
+    verifyPermissions(MASTER_KEY_DIR, 0o700, 'key directory');
+    verifyPermissions(MASTER_KEY_PATH, 0o600, 'master key file');
   }
 
   function encrypt(plaintext: Buffer, key: Buffer): EncryptedPayload {

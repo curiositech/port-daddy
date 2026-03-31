@@ -658,9 +658,11 @@ _pd_cmd_demo() {
 _pd_cmd_fleet() {
   local -a fleet_subcmds
   fleet_subcmds=(
-    'up:start Dock Master and all fleet watchers'
+    'init:create pd-fleet.yml and git hook in current project'
+    'up:start all fleet agents (CLI mode, terminal-attached)'
     'down:stop all fleet agents'
     'status:show fleet health and recent events'
+    'run:run a specific agent from pd-fleet.yml once'
     'log:show fleet log'
     'gardener:auto-commit uncommitted changes'
     'qa:adversarial review of latest commit'

@@ -1,82 +1,90 @@
 # Cartographer Status
 
-**Last updated:** 2026-03-27
+**Last updated:** 2026-03-31
 **Updated by:** Cartographer fleet agent (pd-fleet.yml → cartographer)
 
 ---
 
 ## Current Phase
 
-**Phase 3: Fleet & Memory** is where the most active work is happening.
+**Phase 4: Resilience & Performance** is now the most recently active phase — 4B (IPC), 4C (Trie), and the Fastify half of 4A shipped in a 3-day burst ending 2026-03-30. Phase 3 is largely complete (fleet engine, Fleet Live dashboard, pheromone all shipped). Phase 2 remains blocked on the economist.
 
-Phase 1 (Semantic Graph) is the stated "NEXT" phase in the roadmap, but actual commit energy has been going to Phase 3 (fleet YAML engine, fleet agents) and the Appendix A2 pheromone system. This is not a detour — fleet infrastructure is concrete and shippable. Phase 1 (the graph) is higher-risk and longer-payoff.
-
-Phase 2 (Economy) is explicitly blocked on external input: the bond pricing function from Erich's economist contact.
+The actual commit energy flow: Phase 3 fleet → Phase 4 IPC/trie/Fastify → Security hardening (unplanned) → Website truth audit (unplanned). Phase 1 (Semantic Graph) has pre-work on disk (symbol-index, merge-queue, orchestrator-plugins — built by parallel agents, not wired) but hasn't started as a phase.
 
 ---
 
 ## Velocity
 
-**68 commits in the last 7 days** (2026-03-21 to 2026-03-27)
-**~9.7 commits/day**
+**157 commits in the last 7 days** (2026-03-24 to 2026-03-31)
+**~22.4 commits/day**
 
-This is unusually high — driven by the website neumorphic overhaul (many small fix commits) + fleet feature burst. Expect regression toward 2-4/day baseline after this sprint.
+| Date | Commits | Driver |
+|------|---------|--------|
+| 2026-03-25 | 13 | Website design system + neumorphic tokens |
+| 2026-03-26 | 9 | Website fixes, CodeBlock unification |
+| 2026-03-27 | 34 | Fleet engine, Pheromone CLI, Arbiter, v3.8.0 |
+| 2026-03-28 | 12 | Fastify Phase 1–3, trie wiring |
+| 2026-03-29 | 48 | Fastify completion (22 route files), v3.8.1 |
+| 2026-03-30 | 31 | IPC Waves 1–4, security hardening, parallel agent output |
+| 2026-03-31 | 1 | Security fixes (post-release) |
+
+This is the highest velocity window recorded. Previous high was ~9.7/day. Three concurrent bursts drove it: Fastify migration, IPC protocol 6-wave build-out, and website truth audit. Expect regression to 2–4/day baseline after sprint ends.
 
 ---
 
 ## Top 3 Closest to Completion
 
-1. **Appendix A2 — Pheromone system** (`lib/pheromone.ts`)
-   - Spray/sniff/list CLI: ✅ DONE
-   - Read-time decay: ✅ DONE
-   - File heat map (`/pheromone/files`): ✅ DONE
-   - Dashboard visualization panel: ❌ Missing
-   - **One panel away from done.** Could be completed in a single session.
+1. **Phase 3B — Episodic Memory**
+   - SQL schema, CLI interface, and recall API fully designed in the roadmap
+   - Ollama integration already in use for `pd spawn` — local embeddings are feasible
+   - Note encryption (Phase 0) is already in place for at-rest protection
+   - Fleet is live and operational — agents need memory to compound across sessions
+   - **No technical blocker. One focused session could ship the core.**
 
-2. **Phase 3A — Declarative Fleet**
-   - `lib/fleet-engine.ts`: ✅ DONE
-   - `pd fleet up/down/status` CLI: ✅ DONE
-   - `pd-fleet.yml` with 7 live agents: ✅ DONE
-   - Schedule + trigger dispatch: ✅ DONE
-   - Project-level `.portdaddy/fleet.yaml` convention: ❌ Not documented
-   - Dashboard fleet panel (Phase 3D): ❌ Not built
-   - **Core is done. Docs + dashboard remain.**
+2. **Phase 4E — `pd self-test --adversarial`**
+   - Test infrastructure (`V4-TEST-SUITE.md`) already written
+   - IPC + Fastify foundation is solid — easy to write chaos tests against
+   - Daemon is now stable enough to test adversarially
+   - **Zero commits but high leverage: a Seaworthiness Report sells itself.**
 
-3. **Phase 3D — Dashboard Fleet Panel**
-   - Fleet engine is now built and running
-   - The dashboard already has 15 panels — adding one more is well-grooved
-   - Depends on 3A being solid (it is)
-   - **Next logical dashboard work.**
+3. **Phase 1 wiring — Semantic Graph stubs → live endpoints**
+   - `lib/symbol-index.ts` (1395 lines), `lib/merge-queue.ts` (610 lines), `lib/orchestrator-plugins.ts` (426 lines) all built and tested
+   - Routes exist (`routes/symbols.ts`, `routes/merge-queue.ts`)
+   - **Only step remaining: wire into `server.ts`** — the graph schema (1A) is the real gap, not the code
 
 ---
 
 ## Top 3 Blocked or Drifting
 
-1. **Phase 1 — Semantic Graph** (no commits)
-   - Stated as "NEXT" since the roadmap was written
-   - Zero commits against it
-   - Not blocked technically — just hasn't started
-   - Risk: each day Phase 3 ships without the graph means more code that assumes flat registries
-
-2. **Phase 2 — The Economy** (explicitly blocked)
+1. **Phase 2 — The Economy** (explicitly blocked)
    - Blocked on economist for bond pricing function $\pi$
-   - `docs/ECONOMIST-BRIEF.md` was written to hand off — no signal on whether that conversation has happened
+   - `docs/ECONOMIST-BRIEF.md` + `docs/ECONOMIST-BRIEF-2-ORCHESTRATORS.md` both written
+   - No signal on whether that conversation has happened
    - Nothing to build until pricing function is designed
+   - **Drift risk:** As Phase 4 infrastructure matures, the pressure to ship the economy increases — but the open problem remains open.
 
-3. **Phase 3B — Episodic Memory** (no commits)
-   - The SQL schema, CLI interface, and recall API are designed in the roadmap
-   - Ollama is already used for spawning — local embeddings are feasible
-   - No technical blocker, just hasn't been started
-   - Drifting: no commits in the window since this was planned
+2. **Phase 1 — Unified Edge Table (1A)** (no commits on the core piece)
+   - Three Phase 1-adjacent modules exist on disk but depend on `graph_edges` table
+   - The table schema is designed (in the roadmap) but no migration written
+   - Stubs without the table are inert
+   - **One migration away from activating ~2500 lines of waiting code.**
+
+3. **Phase 4A (Bun) + 4E + 4F** (zero commits)
+   - Bun single-file binary: zero commits. Fastify is done; Bun is the remaining half of 4A.
+   - `pd self-test --adversarial` (4E): zero commits. The adversarial test suite design exists.
+   - Windows Named Pipe hardening (4F): zero commits. Platform-specific, low priority on macOS.
+   - **No active drift — just haven't started.**
 
 ---
 
 ## Observations for Erich
 
-- **Fleet is real now.** The YAML engine works and Port Daddy is eating its own dog food with 7 live agents including this one. Phase 3A deserves to move from [IN PROGRESS] to [SHIPPED] once the dashboard panel and docs convention are settled.
+- **Phase 4 is 70% done in one sprint.** Fastify, Trie, IPC, and IPC backpressure all shipped. This was unplanned — Phase 4 wasn't the stated priority. The energy went where the problems were obvious and the wins were fast. That's fine. The remaining Phase 4 work (Bun binary, self-test) is lower leverage than starting Phase 1.
 
-- **Pheromone is one dashboard panel away from a complete feature.** The CLI, decay, and heat map are all live. This would be a satisfying quick win.
+- **The Phase 1 stubs are a gift from the parallel agents.** ~2500 lines of tested code (symbol-index, merge-queue, orchestrator-plugins) sit ready to wire. The graph_edges migration is the bottleneck. Writing it is a 1-hour task, not a week.
 
-- **Phase 1 (Semantic Graph) is the stated priority but has zero momentum.** If the economy (Phase 2) is what this all points toward, the graph IS the prerequisite. Worth a deliberate decision: is the graph getting deprioritized permanently, or is it next sprint?
+- **Tuple Space is a new primitive not in any phase.** Linda-style coordination (out/rd/take with harbor scoping) is live and fully wired. It's not clear where this fits in the V4 narrative yet. It might be the foundation for episodic memory or for the Economy's work queue. Worth naming it.
 
-- **The unplanned security audit was the right call.** Four RCE vulnerabilities including command injection in the spawner. These don't appear in the roadmap but were genuinely urgent — correct to fix immediately.
+- **Security hardening is recurring unplanned work.** Three separate security audit sessions (March 2026, March 27, March 30-31) have each found new issues. This isn't a sign of bad code — it's a sign the codebase is being taken seriously. But it consumes sprint bandwidth. Consider scheduling a quarterly security pass rather than reacting.
+
+- **The website content truth audit was the right call.** 23 false claims and 38 CLI syntax errors would have damaged trust with any new users. Content debt compounds just like technical debt.

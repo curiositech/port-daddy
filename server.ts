@@ -52,6 +52,7 @@ import { createNoteEncryption } from './lib/note-encryption.js';
 import { initDatabase, closeDatabase, resolveDbPath } from './lib/db.js';
 import { createIpcServer } from './lib/ipc-server.js';
 import { createIpcRouter } from './lib/ipc-router.js';
+import { createFleetDaemon } from './lib/fleet-daemon.js';
 
 // Fastify route aggregator (Phase 3 — native Fastify plugins, no Express bridge)
 import { registerAllRoutes } from './routes/index.js';
@@ -264,6 +265,14 @@ barnacle.start();
 
 const orchestrator = createReactiveOrchestrator(db, messaging, spawner);
 const correlationEngine = createCorrelationEngine(activityLog, sessions);
+
+// Fleet daemon — always-on fleet subsystem (multi-project)
+const fleetDaemon = createFleetDaemon({
+  projects,
+  messaging,
+  logger,
+  daemonDir: __dirname,
+});
 
 // Wire resurrection events (identical to server.ts)
 resurrection.on('agent:stale', (agent) => {
@@ -519,7 +528,7 @@ await registerAllRoutes(
     db, logger, metrics, config,
     services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar,
-    harbors, orchestrator, correlationEngine, spawner, tuples,
+    harbors, orchestrator, correlationEngine, spawner, tuples, fleetDaemon,
     VERSION, CODE_HASH, STARTED_AT, __dirname,
     cleanupStale, getSystemPorts,
   },
@@ -623,6 +632,8 @@ function shutdown(signal: string): void {
   } catch (e) {
     logger.error('shutdown_logging_failed', { error: (e as Error).message });
   }
+  // Stop fleet runners before closing DB (graceful drain)
+  try { fleetDaemon.stop(); } catch {}
   systemPortsRefresh.stop();
   if (ipcServer) ipcServer.stop().catch(() => {});
   closeDatabase(db);
@@ -634,6 +645,15 @@ function shutdown(signal: string): void {
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGHUP', () => {
+  logger.info('sighup_received', { action: 'fleet_reload' });
+  try {
+    fleetDaemon.reload();
+    logger.info('fleet_reloaded_via_sighup');
+  } catch (err) {
+    logger.error('fleet_reload_failed', { error: (err as Error).message });
+  }
+});
 
 function onReady(): void {
   activityLog.log(ActivityType.DAEMON_START, {
@@ -644,6 +664,21 @@ function onReady(): void {
     version: VERSION, port: PORT, pid: process.pid
   });
   webhooks.retryPending();
+
+  // Start fleet daemon — auto-discovers pd-fleet.yml in registered projects
+  try {
+    fleetDaemon.start();
+    const status = fleetDaemon.getStatus();
+    if (status.fleets.length > 0) {
+      logger.info('fleet_daemon_active', {
+        fleets: status.fleets.map(f => f.project),
+        totalAgents: status.totalAgents,
+        totalWatchers: status.totalWatchers,
+      });
+    }
+  } catch (err) {
+    logger.error('fleet_daemon_start_failed', { error: (err as Error).message });
+  }
 }
 
 // =============================================================================

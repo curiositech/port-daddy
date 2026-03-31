@@ -81,8 +81,11 @@ function encryptSecret(plaintext: string): string {
   });
 }
 
-/** Decrypt a secret. Handles both encrypted envelopes and legacy plaintext. */
-function decryptSecret(stored: string): string {
+/** Decrypt a secret. Handles both encrypted envelopes and legacy plaintext.
+ * Returns null when a v1 envelope cannot be decrypted (key unavailable or
+ * decryption failed), so callers skip HMAC signing rather than signing with
+ * the raw ciphertext JSON as the key. */
+function decryptSecret(stored: string): string | null {
   // Legacy plaintext: anything that doesn't look like our JSON envelope
   if (!stored.startsWith('{')) return stored;
 
@@ -96,7 +99,7 @@ function decryptSecret(stored: string): string {
   if (parsed.v !== 1 || !parsed.ct || !parsed.iv || !parsed.tag) return stored;
 
   const key = getMasterKey();
-  if (!key) return stored; // Can't decrypt without master key — return raw
+  if (!key) return stored; // No master key — treat stored value as plaintext (backward compat)
 
   try {
     const iv = Buffer.from(parsed.iv, 'base64');
@@ -106,8 +109,12 @@ function decryptSecret(stored: string): string {
     const decipher = createDecipheriv(ENC_ALGORITHM, key, iv);
     decipher.setAuthTag(tag);
     return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
-  } catch {
-    return stored; // Decryption failed — return raw (wrong key?)
+  } catch (err) {
+    // GCM auth tag mismatch — key rotation or tampered envelope.
+    // Return null to omit signing; using ciphertext JSON as a signing key
+    // produces signatures that no receiver can verify.
+    console.error(`[webhooks] decryptSecret: decryption failed (key mismatch?), skipping HMAC signing — ${(err as Error).message}`);
+    return null;
   }
 }
 

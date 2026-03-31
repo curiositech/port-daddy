@@ -50,39 +50,45 @@ export default function FleetFeature() {
       <div className="space-y-4">
         <h2 className="text-lg font-semibold text-[var(--text-primary)]">How It Works</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed">
-          Drop a <code className="text-[var(--brand-primary)] font-mono text-sm">pd-fleet.yml</code> in your project root.
-          Run <code className="text-[var(--brand-primary)] font-mono text-sm">pd fleet up</code>.
-          Port Daddy reads the YAML, resolves template variables (project name, branch, git SHA),
-          and starts all declared agents and watchers. Each agent auto-registers with Port Daddy,
-          so you get salvage, sessions, and notes for free.
+          Fleet agents run in two modes. Both read the same
+          <code className="text-[var(--brand-primary)] font-mono text-sm mx-1">pd-fleet.yml</code>
+          and use the same YAML schema.
         </p>
 
-        <DocsCodeBlock
-          language="bash"
-          code={`# Start the entire fleet
-pd fleet up
-
-# Check status
-pd fleet status
-
-# Run one agent manually
-pd fleet run qa
-
-# Stop the fleet
-pd fleet down`}
-          output={`Starting fleet "myapp-dev" from pd-fleet.yml
-  Agents: 4
-  Watchers: 1
-  Channels: 3
-
-  gardener   (custom)     schedule: */10 * * * *
-  qa         (claude-cli) trigger: git:committed
-  test-hunter(claude-cli) trigger: git:committed
-  spark      (claude-cli) schedule: */30 * * * *
-  notify-qa  (watcher)    trigger: qa:findings
-
-Fleet running. Press Ctrl+C to stop, or: pd fleet down`}
-        />
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div className="border border-[var(--border-subtle)] rounded-xl p-4 space-y-2">
+            <div className="font-semibold text-[var(--text-primary)]">CLI Mode</div>
+            <p className="text-sm text-[var(--text-secondary)]">
+              Runs in your terminal. Stops when you close the terminal or press Ctrl+C.
+              Good for development and one-off fleet runs.
+            </p>
+            <DocsCodeBlock
+              language="bash"
+              code={`pd fleet init    # First-time setup
+pd fleet up      # Start (runs until Ctrl+C)
+pd fleet status  # Inspect
+pd fleet down    # Stop`}
+            />
+          </div>
+          <div className="border border-[var(--border-subtle)] rounded-xl p-4 space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-[var(--text-primary)]">Daemon Mode</span>
+              <Badge variant="teal">v3.8.2</Badge>
+            </div>
+            <p className="text-sm text-[var(--text-secondary)]">
+              The Port Daddy daemon auto-discovers <code className="font-mono text-xs text-[var(--brand-primary)]">pd-fleet.yml</code> in
+              all registered projects on boot. Fleets survive terminal close, system sleep,
+              and restarts. Editing the config file triggers a hot-reload automatically.
+            </p>
+            <DocsCodeBlock
+              language="bash"
+              code={`# No command needed — daemon starts fleets on boot
+curl localhost:9876/fleet          # Status
+curl -XPOST localhost:9876/fleet/reload  # Reload configs
+curl localhost:9876/fleet/events   # SSE stream`}
+            />
+          </div>
+        </div>
       </div>
 
       {/* Fleet YAML */}
@@ -97,6 +103,11 @@ Fleet running. Press Ctrl+C to stop, or: pd fleet down`}
           language="bash"
           code={`fleet:
   name: myapp-dev
+  harbor: "{project}:fleet"      # All agents share this harbor namespace
+
+  limits:
+    max_concurrent_spawns: 2     # At most 2 agents running in parallel
+    max_spawns_per_hour: 20      # Rate cap (Ostrom Principle 2)
 
   agents:
     # Scheduled agent — runs every 10 minutes
@@ -112,6 +123,8 @@ Fleet running. Press Ctrl+C to stop, or: pd fleet down`}
       trigger: git:committed
       backend: claude-cli
       allowed_tools: "Read,Grep,Glob,Bash(npm test*)"
+      respawn: true              # Auto-restart on crash
+      max_respawns: 3            # Circuit breaker — stop after 3 failures
       prompt: |
         Review the most recent commit for bugs.
         Write failing tests for any issues found.

@@ -36,6 +36,7 @@ import { briefingPlugin } from './briefing.js';
 import { arbiterPlugin } from './arbiter.js';
 import { pheromonePlugin } from './pheromone.js';
 import { tuplesPlugin } from './tuples.js';
+import { fleetPlugin } from './fleet.js';
 
 type AnyDeps = Record<string, unknown>;
 
@@ -88,5 +89,10 @@ export async function registerAllRoutes(
   const tupleDeps = (deps as any).tuples;
   if (tupleDeps) {
     await fastify.register(tuplesPlugin, { tuples: tupleDeps } as any);
+  }
+
+  // Fleet daemon (always-on fleet management) — fleetDaemon, messaging, logger are in deps
+  if ((deps as any).fleetDaemon) {
+    await fastify.register(fleetPlugin, { deps } as any);
   }
 }

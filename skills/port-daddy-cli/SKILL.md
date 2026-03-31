@@ -184,16 +184,26 @@ High-frequency agent communication over a Unix domain socket with MessagePack en
 
 You don't need to use IPC directly. The SDK and CLI use it transparently for hot-path operations.
 
-## Fleet: Background Agents (v3.8.0)
+## Fleet: Background Agents (v3.8.2)
 
-Declare agents in YAML. They fire on git commits, cron schedules, or pub/sub messages. Auto-respawn on crash with circuit breaker.
+Declare agents in YAML. They fire on git commits, cron schedules, or pub/sub messages. Auto-respawn on crash with circuit breaker. **As of v3.8.2, fleets run inside the daemon process** — they start automatically on daemon boot and survive terminal close.
+
+**Two modes:**
 
 ```bash
+# CLI mode — manual, terminal-attached
 pd fleet init     # Creates pd-fleet.yml + git hook
-pd fleet up       # Starts the fleet
-git commit -m "fix auth"  # QA, docs, cartographer fire automatically
+pd fleet up       # Starts the fleet (runs until Ctrl+C or pd fleet down)
 pd fleet status   # What is the fleet doing?
 pd fleet down     # Stop the fleet
+
+# Daemon mode — always-on (automatic)
+# Place pd-fleet.yml in a registered project root.
+# The daemon auto-discovers it on boot and starts the fleet.
+curl http://localhost:9876/fleet              # Global status across all projects
+curl http://localhost:9876/fleet/my-project  # Per-project status
+curl -XPOST http://localhost:9876/fleet/reload  # Reload after editing pd-fleet.yml
+curl http://localhost:9876/fleet/events      # SSE lifecycle stream
 ```
 
 The starter fleet includes: **QA** (bug hunting), **Documentarian** (docs sync), **Cartographer** (roadmap tracking), **Spark** (idea generation), **Spider** (cross-feature connections).
@@ -203,6 +213,11 @@ The starter fleet includes: **QA** (bug hunting), **Documentarian** (docs sync),
 fleet:
   name: myapp
   harbor: "{project}:fleet"
+
+  limits:
+    max_concurrent_spawns: 2        # Max parallel agent runs
+    max_spawns_per_hour: 20         # Hourly rate cap (rate limiting)
+
   agents:
     qa:
       trigger: git:committed        # React to pub/sub events
@@ -228,9 +243,12 @@ fleet:
 - Works with any LLM backend: `claude-cli`, `ollama`, `gemini`, `aider`, `custom`
 - Template variables (`{project}`) resolve from the YAML context
 - `on_success: publish <channel>` chains agents via pub/sub (DAG topology validated at startup)
-- Fleet harbor auto-created on `pd fleet up` — all agents share a semantic namespace
+- Fleet harbor auto-created on start — all agents share a semantic namespace
 - Each agent gets full PD coordination: registration, sessions, heartbeats, salvage on crash
 - Auto-respawn with `respawn: true` and `max_respawns` circuit breaker
+- **Daemon mode**: fleet auto-discovered from registered projects on daemon boot; editing `pd-fleet.yml` triggers hot-reload; SIGHUP reloads all fleets
+- **Resource limits**: `limits.max_concurrent_spawns` and `limits.max_spawns_per_hour` prevent runaway agents
+- Lifecycle events published to `fleet:events` channel for dashboard/menu bar subscriptions
 
 ## Tuple Space: Shared Swarm Memory (v3.8.0)
 
@@ -338,10 +356,16 @@ Override via environment variables: `PORT_DADDY_SOCK`, `PORT_DADDY_IPC`, `PORT_D
 | `pd session files claim` | Advisory file claims |
 | **Fleet & Agents** | |
 | `pd fleet init` | Create pd-fleet.yml + git hook |
-| `pd fleet up/down/status` | Start/stop/inspect the fleet |
+| `pd fleet up/down/status` | Start/stop/inspect the fleet (CLI-attached mode) |
 | `pd spawn` / `pd spawned` | Launch/list background agents |
 | `pd spawn kill` | Kill a spawned agent |
 | `pd salvage` | Dead agent recovery |
+| **Fleet Daemon HTTP** | |
+| `GET /fleet` | Aggregated daemon fleet status (all projects) |
+| `GET /fleet/:project` | Status for a specific project's fleet |
+| `POST /fleet/start\|stop\|reload` | Manage daemon-managed fleets |
+| `POST /fleet/register` | Register project dir for fleet management |
+| `GET /fleet/events` | SSE stream of fleet lifecycle events |
 | **Swarm Memory** | |
 | `pd tuple out/rd/in` | Write/read/take tuples |
 | `pd tuple scan/count` | List/count tuples |
@@ -364,7 +388,9 @@ Override via environment variables: `PORT_DADDY_SOCK`, `PORT_DADDY_IPC`, `PORT_D
 | Need to coordinate with other agents | `pd begin` + `pd session files claim` |
 | Agent-to-agent signaling | `pd pub` + `pd watch` |
 | Direct message to a specific agent | `talk_to_agent` MCP tool or `pd inbox send` |
-| Background automation | `pd fleet init` + `pd fleet up` |
+| Background automation (terminal-attached) | `pd fleet init` + `pd fleet up` |
+| Background automation (always-on, survives terminal) | Place `pd-fleet.yml` in registered project; daemon auto-starts it |
+| Reload fleet after editing pd-fleet.yml | `curl -XPOST localhost:9876/fleet/reload` or `kill -HUP <daemon-pid>` |
 | Share knowledge across agents | `pd tuple out` / `pd tuple rd` |
 | Track "hotness" of resources | `pd pheromone spray` / `sniff` |
 | See file contention at a glance | `file_heat` MCP tool or `pd pheromone files` |

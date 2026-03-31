@@ -1509,6 +1509,20 @@ _port_daddy() {
       esac
       ;;
 
+    # fleet  init|up|down|status|run|help  [agent-name]
+    fleet)
+      local subcmd="${words[2]:-}"
+      case "$subcmd" in
+        '')
+          COMPREPLY=( $(compgen -W "init up down status run help" -- "$cur") )
+          ;;
+        run)
+          COMPREPLY=()  # agent names from pd-fleet.yml — no live lookup
+          ;;
+        *) _pd_opts '' ;;
+      esac
+      ;;
+
     # -----------------------------------------------------------------------
     *)
       if [[ "$cur" == -* ]]; then

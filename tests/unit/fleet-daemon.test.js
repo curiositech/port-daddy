@@ -1,0 +1,482 @@
+// Fleet Daemon Tests — lib/fleet-daemon.ts
+//
+// Tests the always-on fleet subsystem that runs inside the daemon process.
+// Verifies: multi-project loading, start/stop lifecycle, event publishing,
+// project registration, graceful stop on shutdown.
+
+import { jest } from '@jest/globals';
+import { join } from 'node:path';
+
+// ─── Mocks ─────────────────────────────────────────────────────────────────
+
+const mockExistsSync = jest.fn();
+const mockReadFileSync = jest.fn();
+
+const mockFsWatch = jest.fn(() => ({ close: jest.fn() }));
+
+jest.unstable_mockModule('node:fs', () => ({
+  existsSync: mockExistsSync,
+  readFileSync: mockReadFileSync,
+  writeFileSync: jest.fn(),
+  unlinkSync: jest.fn(),
+  mkdirSync: jest.fn(),
+  watch: mockFsWatch,
+}));
+
+// Mock fleet-engine to avoid real process spawning
+const mockStartAll = jest.fn();
+const mockStopAll = jest.fn();
+const mockGetStatus = jest.fn(() => []);
+const mockLoadFleetConfig = jest.fn();
+const mockCreateFleetRunner = jest.fn(() => ({
+  startAll: mockStartAll,
+  stopAll: mockStopAll,
+  getStatus: mockGetStatus,
+  startAgent: jest.fn(),
+  config: { agents: [], watchers: [], channels: {}, name: 'test' },
+}));
+const mockValidateTopology = jest.fn(() => ({ valid: true, cycles: [], warnings: [] }));
+
+jest.unstable_mockModule('../../lib/fleet-engine.js', () => ({
+  loadFleetConfig: mockLoadFleetConfig,
+  createFleetRunner: mockCreateFleetRunner,
+  validateTopology: mockValidateTopology,
+  findFleetConfigPath: jest.fn((dir) => `${dir}/pd-fleet.yml`),
+}));
+
+// Mock child_process (fleet-engine imports it)
+jest.unstable_mockModule('node:child_process', () => ({
+  spawn: jest.fn(),
+  execSync: jest.fn(() => 'main'),
+}));
+
+// ─── Import after mocks ────────────────────────────────────────────────────
+
+const { createFleetDaemon } = await import('../../lib/fleet-daemon.js');
+
+// ─── Helpers ───────────────────────────────────────────────────────────────
+
+function makeDeps(overrides = {}) {
+  return {
+    projects: {
+      list: jest.fn(() => []),
+    },
+    messaging: {
+      publish: jest.fn(),
+      subscribe: jest.fn(() => jest.fn()),
+    },
+    logger: {
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+    },
+    daemonDir: '/test/daemon',
+    ...overrides,
+  };
+}
+
+function makeConfig(name = 'test-project') {
+  return {
+    name,
+    agents: [
+      { name: 'qa', backend: 'claude-cli', prompt: 'Review code', trigger: 'git:committed' },
+      { name: 'spark', backend: 'claude-cli', prompt: 'Generate ideas', schedule: '*/30 * * * *' },
+    ],
+    watchers: [{ name: 'notify', trigger: 'qa:findings', exec: 'echo findings' }],
+    channels: { 'git:committed': { description: 'Post-commit' } },
+  };
+}
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  // Default: no fleet configs found
+  mockExistsSync.mockReturnValue(false);
+  mockLoadFleetConfig.mockReturnValue(null);
+});
+
+// ─── Tests ─────────────────────────────────────────────────────────────────
+
+describe('createFleetDaemon', () => {
+  test('start() with no fleet configs does nothing gracefully', () => {
+    const deps = makeDeps();
+    const daemon = createFleetDaemon(deps);
+
+    daemon.start();
+
+    const status = daemon.getStatus();
+    expect(status.running).toBe(true);
+    expect(status.fleets).toHaveLength(0);
+    expect(status.totalAgents).toBe(0);
+  });
+
+  test('start() discovers and starts daemon dir fleet', () => {
+    const deps = makeDeps();
+    const config = makeConfig('port-daddy');
+
+    // pd-fleet.yml exists in daemon dir
+    mockExistsSync.mockImplementation((path) =>
+      path === join('/test/daemon', 'pd-fleet.yml')
+    );
+    mockLoadFleetConfig.mockReturnValue(config);
+    mockGetStatus.mockReturnValue([
+      { name: 'qa', type: 'triggered', running: true, uptime: 0 },
+      { name: 'spark', type: 'scheduled', running: true, uptime: 0 },
+    ]);
+
+    const daemon = createFleetDaemon(deps);
+    daemon.start();
+
+    expect(mockLoadFleetConfig).toHaveBeenCalledWith('/test/daemon');
+    expect(mockCreateFleetRunner).toHaveBeenCalledWith(
+      config,
+      '/test/daemon',
+      expect.objectContaining({ onEvent: expect.any(Function) })
+    );
+    expect(mockStartAll).toHaveBeenCalledTimes(1);
+
+    const status = daemon.getStatus();
+    expect(status.running).toBe(true);
+    expect(status.fleets).toHaveLength(1);
+    expect(status.fleets[0].project).toBe('port-daddy');
+    expect(status.totalAgents).toBe(2);
+  });
+
+  test('start() discovers registered project fleets', () => {
+    const deps = makeDeps({
+      projects: {
+        list: jest.fn(() => [
+          { id: 'bosun', root: '/test/bosun', tags: null },
+          { id: 'jbuds', root: '/test/jbuds', tags: ['web'] },
+        ]),
+      },
+    });
+
+    const bosunConfig = makeConfig('bosun');
+    const jbudsConfig = makeConfig('jbuds');
+
+    mockExistsSync.mockImplementation((path) => {
+      return path === join('/test/bosun', 'pd-fleet.yml') ||
+             path === join('/test/jbuds', 'pd-fleet.yml');
+    });
+
+    mockLoadFleetConfig.mockImplementation((dir) => {
+      if (dir === '/test/bosun') return bosunConfig;
+      if (dir === '/test/jbuds') return jbudsConfig;
+      return null;
+    });
+    mockGetStatus.mockReturnValue([]);
+
+    const daemon = createFleetDaemon(deps);
+    daemon.start();
+
+    expect(mockStartAll).toHaveBeenCalledTimes(2);
+    expect(daemon.getStatus().fleets).toHaveLength(2);
+  });
+
+  test('stop() stops all runners and clears state', () => {
+    const deps = makeDeps();
+    mockExistsSync.mockImplementation((path) =>
+      path === join('/test/daemon', 'pd-fleet.yml')
+    );
+    mockLoadFleetConfig.mockReturnValue(makeConfig());
+    mockGetStatus.mockReturnValue([]);
+
+    const daemon = createFleetDaemon(deps);
+    daemon.start();
+    expect(daemon.getStatus().running).toBe(true);
+
+    daemon.stop();
+    expect(mockStopAll).toHaveBeenCalledTimes(1);
+    expect(daemon.getStatus().running).toBe(false);
+    expect(daemon.getStatus().fleets).toHaveLength(0);
+  });
+
+  test('stop() is idempotent', () => {
+    const daemon = createFleetDaemon(makeDeps());
+    daemon.stop(); // not started
+    daemon.stop(); // double stop
+    expect(mockStopAll).not.toHaveBeenCalled();
+  });
+
+  test('start() is idempotent', () => {
+    const deps = makeDeps();
+    mockExistsSync.mockImplementation((path) =>
+      path === join('/test/daemon', 'pd-fleet.yml')
+    );
+    mockLoadFleetConfig.mockReturnValue(makeConfig());
+    mockGetStatus.mockReturnValue([]);
+
+    const daemon = createFleetDaemon(deps);
+    daemon.start();
+    daemon.start(); // double start
+    expect(mockStartAll).toHaveBeenCalledTimes(1);
+  });
+
+  test('reload() stops then starts', () => {
+    const deps = makeDeps();
+    mockExistsSync.mockImplementation((path) =>
+      path === join('/test/daemon', 'pd-fleet.yml')
+    );
+    mockLoadFleetConfig.mockReturnValue(makeConfig());
+    mockGetStatus.mockReturnValue([]);
+
+    const daemon = createFleetDaemon(deps);
+    daemon.start();
+
+    jest.clearAllMocks();
+    mockExistsSync.mockImplementation((path) =>
+      path === join('/test/daemon', 'pd-fleet.yml')
+    );
+    mockLoadFleetConfig.mockReturnValue(makeConfig());
+    mockGetStatus.mockReturnValue([]);
+
+    daemon.reload();
+    expect(mockStopAll).toHaveBeenCalledTimes(1);
+    expect(mockStartAll).toHaveBeenCalledTimes(1);
+  });
+
+  test('startProject() adds a new project fleet', () => {
+    const deps = makeDeps();
+    const config = makeConfig('new-project');
+    mockLoadFleetConfig.mockReturnValue(config);
+    mockGetStatus.mockReturnValue([]);
+
+    const daemon = createFleetDaemon(deps);
+    const result = daemon.startProject('/test/new-project');
+
+    expect(result.success).toBe(true);
+    expect(mockStartAll).toHaveBeenCalledTimes(1);
+    expect(daemon.getStatus().fleets).toHaveLength(1);
+  });
+
+  test('startProject() rejects if already running', () => {
+    const deps = makeDeps();
+    mockLoadFleetConfig.mockReturnValue(makeConfig());
+    mockGetStatus.mockReturnValue([]);
+
+    const daemon = createFleetDaemon(deps);
+    daemon.startProject('/test/project');
+    const result = daemon.startProject('/test/project');
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('already running');
+  });
+
+  test('startProject() rejects if no pd-fleet.yml', () => {
+    const deps = makeDeps();
+    mockLoadFleetConfig.mockReturnValue(null);
+
+    const daemon = createFleetDaemon(deps);
+    const result = daemon.startProject('/test/empty');
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('No pd-fleet.yml');
+  });
+
+  test('stopProject() removes a specific project fleet', () => {
+    const deps = makeDeps();
+    mockLoadFleetConfig.mockReturnValue(makeConfig());
+    mockGetStatus.mockReturnValue([]);
+
+    const daemon = createFleetDaemon(deps);
+    daemon.startProject('/test/project');
+    expect(daemon.getStatus().fleets).toHaveLength(1);
+
+    const result = daemon.stopProject('/test/project');
+    expect(result.success).toBe(true);
+    expect(mockStopAll).toHaveBeenCalledTimes(1);
+    expect(daemon.getStatus().fleets).toHaveLength(0);
+  });
+
+  test('stopProject() rejects if not running', () => {
+    const daemon = createFleetDaemon(makeDeps());
+    const result = daemon.stopProject('/test/nonexistent');
+    expect(result.success).toBe(false);
+  });
+
+  test('listProjects() returns managed project dirs', () => {
+    const deps = makeDeps();
+    mockLoadFleetConfig.mockReturnValue(makeConfig());
+    mockGetStatus.mockReturnValue([]);
+
+    const daemon = createFleetDaemon(deps);
+    daemon.startProject('/test/a');
+    daemon.startProject('/test/b');
+
+    expect(daemon.listProjects()).toEqual(['/test/a', '/test/b']);
+  });
+});
+
+describe('event publishing', () => {
+  test('onEvent callback publishes to identity channel and fleet:events', () => {
+    const deps = makeDeps();
+    const config = makeConfig();
+    mockExistsSync.mockImplementation((path) =>
+      path === join('/test/daemon', 'pd-fleet.yml')
+    );
+    mockLoadFleetConfig.mockReturnValue(config);
+    mockGetStatus.mockReturnValue([]);
+
+    const daemon = createFleetDaemon(deps);
+    daemon.start();
+
+    // Extract the onEvent callback that was passed to createFleetRunner
+    const onEvent = mockCreateFleetRunner.mock.calls[0][2]?.onEvent;
+    expect(onEvent).toBeDefined();
+
+    // Simulate an agent_started event
+    onEvent({
+      type: 'agent_started',
+      agent: 'qa',
+      identity: 'port-daddy:fleet:qa',
+      project: 'port-daddy',
+      timestamp: 1000,
+      details: { backend: 'claude-cli' },
+    });
+
+    // Should publish to identity channel
+    expect(deps.messaging.publish).toHaveBeenCalledWith(
+      'port-daddy:fleet:qa',
+      expect.objectContaining({
+        type: 'agent_started',
+        agent: 'qa',
+        project: 'port-daddy',
+      })
+    );
+
+    // Should also publish to fleet:events channel
+    expect(deps.messaging.publish).toHaveBeenCalledWith(
+      'fleet:events',
+      expect.objectContaining({
+        type: 'agent_started',
+        identity: 'port-daddy:fleet:qa',
+      })
+    );
+  });
+
+  test('agent_failed events are logged at warn level', () => {
+    const deps = makeDeps();
+    mockExistsSync.mockImplementation((path) =>
+      path === join('/test/daemon', 'pd-fleet.yml')
+    );
+    mockLoadFleetConfig.mockReturnValue(makeConfig());
+    mockGetStatus.mockReturnValue([]);
+
+    const daemon = createFleetDaemon(deps);
+    daemon.start();
+
+    const onEvent = mockCreateFleetRunner.mock.calls[0][2]?.onEvent;
+    onEvent({
+      type: 'agent_failed',
+      agent: 'qa',
+      identity: 'port-daddy:fleet:qa',
+      project: 'port-daddy',
+      timestamp: 1000,
+      details: { error: 'spawn failed' },
+    });
+
+    expect(deps.logger.warn).toHaveBeenCalledWith(
+      'fleet_agent_failed',
+      expect.objectContaining({ agent: 'qa', error: 'spawn failed' })
+    );
+  });
+});
+
+describe('topology validation', () => {
+  test('logs warning for invalid topology but still starts', () => {
+    const deps = makeDeps();
+    mockExistsSync.mockImplementation((path) =>
+      path === join('/test/daemon', 'pd-fleet.yml')
+    );
+    mockLoadFleetConfig.mockReturnValue(makeConfig());
+    mockValidateTopology.mockReturnValue({
+      valid: false,
+      cycles: [['a', 'b', 'a']],
+      warnings: ['orphan channel: stale'],
+    });
+    mockGetStatus.mockReturnValue([]);
+
+    const daemon = createFleetDaemon(deps);
+    daemon.start();
+
+    expect(deps.logger.warn).toHaveBeenCalledWith(
+      'fleet_topology_invalid',
+      expect.objectContaining({ cycles: [['a', 'b', 'a']] })
+    );
+    // Still starts despite invalid topology
+    expect(mockStartAll).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('env loading', () => {
+  test('does not overwrite existing env vars', () => {
+    const deps = makeDeps();
+    const originalKey = process.env.ANTHROPIC_API_KEY;
+    process.env.ANTHROPIC_API_KEY = 'existing-key';
+
+    // Simulate .env.local with a different key
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockImplementation((path) => {
+      if (typeof path === 'string' && path.endsWith('.env.local')) {
+        return 'ANTHROPIC_API_KEY=should-not-overwrite\nNEW_VAR=new-value';
+      }
+      return '';
+    });
+    mockLoadFleetConfig.mockReturnValue(null);
+
+    const daemon = createFleetDaemon(deps);
+    daemon.start();
+
+    // Existing key preserved
+    expect(process.env.ANTHROPIC_API_KEY).toBe('existing-key');
+    // New key loaded
+    expect(process.env.NEW_VAR).toBe('new-value');
+
+    // Cleanup
+    if (originalKey !== undefined) {
+      process.env.ANTHROPIC_API_KEY = originalKey;
+    } else {
+      delete process.env.ANTHROPIC_API_KEY;
+    }
+    delete process.env.NEW_VAR;
+  });
+});
+
+describe('error resilience', () => {
+  test('handles project scan failure gracefully', () => {
+    const deps = makeDeps({
+      projects: {
+        list: jest.fn(() => { throw new Error('DB locked'); }),
+      },
+    });
+    mockExistsSync.mockReturnValue(false);
+
+    const daemon = createFleetDaemon(deps);
+    daemon.start(); // should not throw
+
+    expect(deps.logger.error).toHaveBeenCalledWith(
+      'fleet_project_scan_failed',
+      expect.objectContaining({ error: 'DB locked' })
+    );
+    expect(daemon.getStatus().running).toBe(true);
+  });
+
+  test('handles fleet runner stopAll failure gracefully', () => {
+    const deps = makeDeps();
+    mockExistsSync.mockImplementation((path) =>
+      path === join('/test/daemon', 'pd-fleet.yml')
+    );
+    mockLoadFleetConfig.mockReturnValue(makeConfig());
+    mockGetStatus.mockReturnValue([]);
+    mockStopAll.mockImplementation(() => { throw new Error('kill ESRCH'); });
+
+    const daemon = createFleetDaemon(deps);
+    daemon.start();
+    daemon.stop(); // should not throw despite stopAll failure
+
+    expect(deps.logger.error).toHaveBeenCalledWith(
+      'fleet_stop_failed',
+      expect.objectContaining({ error: 'kill ESRCH' })
+    );
+  });
+});

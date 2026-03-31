@@ -10,6 +10,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { join, basename } from 'node:path';
 import { spawn, execSync, type ChildProcess } from 'node:child_process';
+import { get as httpGet } from 'node:http';
 import { parse as parseYaml } from 'yaml';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -40,9 +41,17 @@ export interface FleetWatcher {
   confirm?: boolean;
 }
 
+export interface FleetLimits {
+  /** Max concurrent spawns for this project's fleet (default: unlimited) */
+  maxConcurrentSpawns?: number;
+  /** Max spawns per hour (rate limit, default: unlimited) */
+  maxSpawnsPerHour?: number;
+}
+
 export interface FleetConfig {
   name: string;
   harbor?: string;
+  limits?: FleetLimits;
   agents: FleetAgent[];
   watchers: FleetWatcher[];
   channels: Record<string, { description: string; consumers?: string[] }>;
@@ -89,12 +98,19 @@ interface FleetYamlChannel {
   consumers?: string[];
 }
 
+interface FleetYamlLimits {
+  max_concurrent_spawns?: number;
+  max_spawns_per_hour?: number;
+}
+
 interface FleetYamlRoot {
   name?: string;
   harbor?: string;
+  limits?: FleetYamlLimits;
   fleet?: {
     name?: string;
     harbor?: string;
+    limits?: FleetYamlLimits;
     agents?: Record<string, FleetYamlAgent> | FleetYamlAgent[];
     watchers?: Record<string, FleetYamlWatcher>;
     channels?: Record<string, FleetYamlChannel>;
@@ -140,22 +156,19 @@ function getTemplateVars(projectDir: string): Record<string, string> {
 
 // ─── Fleet Config Loader ────────────────────────────────────────────────────
 
-export function loadFleetConfig(projectDir: string): FleetConfig | null {
-  const candidates = [
-    join(projectDir, 'pd-fleet.yml'),
-    join(projectDir, 'pd-fleet.yaml'),
-    join(projectDir, '.portdaddy', 'fleet.yml'),
-    join(projectDir, '.portdaddy', 'fleet.yaml'),
-  ];
+const FLEET_CONFIG_NAMES = ['pd-fleet.yml', 'pd-fleet.yaml', '.portdaddy/fleet.yml', '.portdaddy/fleet.yaml'];
 
-  let configPath: string | null = null;
-  for (const p of candidates) {
-    if (existsSync(p)) {
-      configPath = p;
-      break;
-    }
+/** Returns the first fleet config path that exists in projectDir, or null. */
+export function findFleetConfigPath(projectDir: string): string | null {
+  for (const name of FLEET_CONFIG_NAMES) {
+    const p = join(projectDir, name);
+    if (existsSync(p)) return p;
   }
+  return null;
+}
 
+export function loadFleetConfig(projectDir: string): FleetConfig | null {
+  const configPath = findFleetConfigPath(projectDir);
   if (!configPath) return null;
 
   const raw = readFileSync(configPath, 'utf-8');
@@ -218,9 +231,17 @@ export function loadFleetConfig(projectDir: string): FleetConfig | null {
     }
   }
 
+  // Parse limits
+  const rawLimits = fleet.limits;
+  const limits: FleetLimits | undefined = rawLimits ? {
+    maxConcurrentSpawns: rawLimits.max_concurrent_spawns,
+    maxSpawnsPerHour: rawLimits.max_spawns_per_hour,
+  } : undefined;
+
   return {
     name: fleet.name || basename(projectDir),
     harbor: fleet.harbor,
+    limits,
     agents,
     watchers,
     channels,
@@ -251,17 +272,15 @@ export function validateTopology(config: FleetConfig): TopologyValidation {
       if (!hook) continue;
       const [action, channel] = hook.split(' ');
       if (action === 'publish' && channel) {
-        const list = producerOf.get(channel) || [];
-        list.push(agent.name);
-        producerOf.set(channel, list);
+        if (!producerOf.has(channel)) producerOf.set(channel, []);
+        producerOf.get(channel)!.push(agent.name);
       }
     }
 
     // Agent consumes via trigger
     if (agent.trigger) {
-      const list = consumerOf.get(agent.trigger) || [];
-      list.push(agent.name);
-      consumerOf.set(agent.trigger, list);
+      if (!consumerOf.has(agent.trigger)) consumerOf.set(agent.trigger, []);
+      consumerOf.get(agent.trigger)!.push(agent.name);
     }
   }
 
@@ -337,8 +356,55 @@ export function validateTopology(config: FleetConfig): TopologyValidation {
 
 const PD_URL = process.env.PD_URL || process.env.PORT_DADDY_URL || 'http://localhost:9876';
 
-export function createFleetRunner(config: FleetConfig, projectDir: string) {
+// ─── Lifecycle Events ──────────────────────────────────────────────────────
+
+export interface FleetEvent {
+  type: 'agent_started' | 'agent_completed' | 'agent_failed' | 'watcher_started' | 'watcher_triggered' | 'fleet_started' | 'fleet_stopped';
+  agent?: string;
+  identity?: string;
+  project?: string;
+  timestamp: number;
+  details?: Record<string, unknown>;
+}
+
+export type FleetEventCallback = (event: FleetEvent) => void;
+
+export interface FleetRunnerOptions {
+  onEvent?: FleetEventCallback;
+}
+
+export function createFleetRunner(config: FleetConfig, projectDir: string, options?: FleetRunnerOptions) {
   const running = new Map<string, RunningAgent>();
+  const emit = options?.onEvent ?? (() => {});
+  const project = config.name;
+
+  // ─── Resource quota enforcement (Ostrom Principle 2) ────────────────────
+  let activeSpawns = 0;
+  const spawnTimestamps: number[] = [];  // rolling window for per-hour rate limit
+
+  function canSpawn(): { allowed: boolean; reason?: string } {
+    const limits = config.limits;
+    if (!limits) return { allowed: true };
+
+    // Concurrency limit
+    if (limits.maxConcurrentSpawns !== undefined && activeSpawns >= limits.maxConcurrentSpawns) {
+      return { allowed: false, reason: `concurrent spawn limit (${limits.maxConcurrentSpawns}) reached` };
+    }
+
+    // Hourly rate limit
+    if (limits.maxSpawnsPerHour !== undefined) {
+      const oneHourAgo = Date.now() - 3600000;
+      // Prune old timestamps
+      while (spawnTimestamps.length > 0 && spawnTimestamps[0] < oneHourAgo) {
+        spawnTimestamps.shift();
+      }
+      if (spawnTimestamps.length >= limits.maxSpawnsPerHour) {
+        return { allowed: false, reason: `hourly spawn limit (${limits.maxSpawnsPerHour}/hr) reached` };
+      }
+    }
+
+    return { allowed: true };
+  }
 
   function startAgent(agent: FleetAgent): void {
     if (running.has(agent.name)) return; // already running
@@ -397,6 +463,11 @@ export function createFleetRunner(config: FleetConfig, projectDir: string) {
       process: watchProc,
       startedAt: Date.now(),
     });
+    emit({
+      type: 'watcher_started', agent: watcher.name, project,
+      identity: `${project}:fleet:${watcher.name}`,
+      timestamp: Date.now(), details: { trigger: watcher.trigger },
+    });
   }
 
   interface SpawnResponse {
@@ -405,7 +476,41 @@ export function createFleetRunner(config: FleetConfig, projectDir: string) {
     error?: string;
   }
 
+  async function fireHook(hook: string, payload: string): Promise<void> {
+    const [action, channel] = hook.split(' ');
+    if (action === 'publish' && channel) {
+      await fetch(`${PD_URL}/msg/${channel}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payload }),
+      });
+    }
+  }
+
   async function runAgentOnce(agent: FleetAgent): Promise<void> {
+    const identity = agent.identity || `${project}:fleet:${agent.name}`;
+
+    // Enforce resource quotas before spawning
+    const quota = canSpawn();
+    if (!quota.allowed) {
+      emit({
+        type: 'agent_failed', agent: agent.name, identity, project,
+        timestamp: Date.now(), details: { error: `quota: ${quota.reason}` },
+      });
+      console.error(`[Fleet] ${agent.name} blocked by quota: ${quota.reason}`);
+      return;
+    }
+
+    activeSpawns++;
+    if (config.limits?.maxSpawnsPerHour !== undefined) {
+      spawnTimestamps.push(Date.now());
+    }
+
+    emit({
+      type: 'agent_started', agent: agent.name, identity, project,
+      timestamp: Date.now(), details: { backend: agent.backend },
+    });
+
     try {
       const body: Record<string, unknown> = {
         backend: agent.backend,
@@ -430,27 +535,32 @@ export function createFleetRunner(config: FleetConfig, projectDir: string) {
       const succeeded = data.status === 'spawned' || data.status === 'completed';
       const failed = data.status === 'failed' || !res.ok;
 
+      if (succeeded) {
+        emit({
+          type: 'agent_completed', agent: agent.name, identity, project,
+          timestamp: Date.now(), details: { agentId: data.agentId, status: data.status },
+        });
+      }
+      if (failed) {
+        emit({
+          type: 'agent_failed', agent: agent.name, identity, project,
+          timestamp: Date.now(), details: { error: data.error, status: data.status },
+        });
+      }
+
       if (succeeded && agent.onSuccess) {
-        const [action, channel] = agent.onSuccess.split(' ');
-        if (action === 'publish' && channel) {
-          await fetch(`${PD_URL}/msg/${channel}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ payload: `${agent.name} spawned` }),
-          });
-        }
+        await fireHook(agent.onSuccess, `${agent.name} spawned`);
       } else if (failed && agent.onFailure) {
-        const [action, channel] = agent.onFailure.split(' ');
-        if (action === 'publish' && channel) {
-          await fetch(`${PD_URL}/msg/${channel}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ payload: `${agent.name} failed: ${(data.error ?? 'unknown').slice(0, 200)}` }),
-          });
-        }
+        await fireHook(agent.onFailure, `${agent.name} failed: ${(data.error ?? 'unknown').slice(0, 200)}`);
       }
     } catch (err) {
+      emit({
+        type: 'agent_failed', agent: agent.name, identity, project,
+        timestamp: Date.now(), details: { error: (err as Error).message },
+      });
       console.error(`[Fleet] Agent ${agent.name} error:`, (err as Error).message);
+    } finally {
+      activeSpawns = Math.max(0, activeSpawns - 1);
     }
   }
 
@@ -511,6 +621,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string) {
   // ─── Auto-Respawn ──────────────────────────────────────────────────────
 
   const respawnCounts = new Map<string, number>();
+  let respawnWatcherStopped = false;
 
   function startRespawnWatcher(): void {
     const respawnAgents = config.agents.filter(a => a.respawn);
@@ -524,11 +635,10 @@ export function createFleetRunner(config: FleetConfig, projectDir: string) {
     }
 
     // Subscribe to resurrection channel via SSE
-    const http = require('node:http') as typeof import('node:http');
     const url = new URL(`${PD_URL}/msg/resurrection/subscribe`);
 
     function connect() {
-      const req = http.get(url, (res) => {
+      const req = httpGet(url, (res) => {
         res.setEncoding('utf-8');
         let buffer = '';
 
@@ -571,18 +681,21 @@ export function createFleetRunner(config: FleetConfig, projectDir: string) {
                 headers: { 'Content-Type': 'application/json' },
                 body: '{}',
               }).then(() => runAgentOnce(agent!)).catch(() => runAgentOnce(agent!));
-            } catch { /* ignore parse errors */ }
+            } catch (e) {
+              if (!(e instanceof SyntaxError)) {
+                console.error('[Fleet] Respawn handler error:', (e as Error).message);
+              }
+            }
           }
         });
 
         res.on('end', () => {
-          // SSE disconnected — reconnect after 5s
-          setTimeout(connect, 5000);
+          if (!respawnWatcherStopped) setTimeout(connect, 5000);
         });
       });
 
       req.on('error', () => {
-        setTimeout(connect, 5000);
+        if (!respawnWatcherStopped) setTimeout(connect, 5000);
       });
 
       req.setTimeout(0); // No timeout on SSE
@@ -603,10 +716,17 @@ export function createFleetRunner(config: FleetConfig, projectDir: string) {
         startWatcher(watcher);
       }
       startRespawnWatcher();
+      emit({
+        type: 'fleet_started', project, timestamp: Date.now(),
+        details: { agents: config.agents.length, watchers: config.watchers.length },
+      });
+    }).catch((err: Error) => {
+      console.error(`[Fleet] Failed to start fleet "${project}":`, err.message);
     });
   }
 
   function stopAll(): void {
+    respawnWatcherStopped = true;
     for (const [name, record] of running) {
       if (record.interval) clearInterval(record.interval);
       if (record.process) {
@@ -622,6 +742,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string) {
       }
       running.delete(name);
     }
+    emit({ type: 'fleet_stopped', project, timestamp: Date.now() });
   }
 
   function getStatus(): Array<{ name: string; type: string; running: boolean; uptime: number }> {

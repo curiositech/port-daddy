@@ -254,7 +254,40 @@ Delete a webhook.
 ## System
 
 ### GET /health
-Health check. Returns status, version, uptime, active port count.
+Health check. Returns status, version, uptime, active port count, and fleet summary.
+
+```json
+{
+  "status": "ok",
+  "version": "3.8.2",
+  "uptime_seconds": 3600,
+  "active_ports": 4,
+  "pid": 12345,
+  "fleet": { "running": true, "projects": 2, "agents": 5, "watchers": 1 }
+}
+```
+`fleet` is `undefined` when the fleet subsystem is not running.
+
+### GET /status
+Combined health + metrics + process info. Includes detailed fleet breakdown.
+
+```json
+{
+  "status": "ok",
+  "version": "3.8.2",
+  "pid": 12345,
+  "uptimeSeconds": 3600,
+  "uptimeHuman": "1h 0m",
+  "metrics": { "activePorts": 4, "memoryRSS": 52428800 },
+  "fleet": {
+    "running": true,
+    "startedAt": 1711234567890,
+    "projects": [{ "name": "my-app", "agents": 3, "watchers": 1 }],
+    "totalAgents": 5,
+    "totalWatchers": 1
+  }
+}
+```
 
 ### GET /version
 Version info. Returns version string, code hash, uptime, PID.
@@ -740,7 +773,91 @@ Count tuples, optionally scoped to a harbor.
 
 ## Fleet
 
-Fleet agents are managed via the CLI (`pd fleet up/down/status/init`) which reads `pd-fleet.yml` directly. The fleet engine runs agents locally (not through the daemon HTTP API) for authentication context. Fleet agents use the standard `/spawn`, `/agents`, `/sessions`, and `/msg` endpoints for coordination.
+As of v3.8.2, the Port Daddy daemon auto-discovers `pd-fleet.yml` files in registered projects on boot and runs fleets as a persistent subsystem. These endpoints manage the daemon-level fleet.
+
+The CLI (`pd fleet up/down/status`) also supports a terminal-attached mode that reads `pd-fleet.yml` directly without the daemon fleet subsystem.
+
+### GET /fleet
+Aggregated fleet status across all managed projects.
+
+**Response:**
+```json
+{
+  "success": true,
+  "running": true,
+  "startedAt": 1711234567890,
+  "fleets": [
+    {
+      "project": "my-app",
+      "projectDir": "/Users/you/coding/my-app",
+      "agents": [{ "name": "qa", "type": "claude-cli", "running": true, "uptime": 3600000 }],
+      "watchers": 1,
+      "channels": 3,
+      "startedAt": 1711234567890
+    }
+  ],
+  "totalAgents": 5,
+  "totalWatchers": 2
+}
+```
+
+---
+
+### GET /fleet/:project
+Specific project's fleet status by project name.
+
+**Response:** `{ "success": true, "fleet": { ...same shape as fleets[] above... } }`
+
+404 if no fleet running for that project name.
+
+---
+
+### POST /fleet/start
+Start all daemon fleets (re-discovers projects), or a specific project.
+
+**Body (optional):** `{ "projectDir": "/path/to/project" }`
+
+Without `projectDir`: starts all fleets, same as daemon boot.
+With `projectDir`: starts that project's fleet and begins watching `pd-fleet.yml` for hot-reload.
+
+---
+
+### POST /fleet/stop
+Stop all fleets, or a specific project.
+
+**Body (optional):** `{ "projectDir": "/path/to/project" }`
+
+---
+
+### POST /fleet/reload
+Re-read all `pd-fleet.yml` configs and restart changed fleets. Equivalent to `SIGHUP`.
+
+**Response:** `{ "success": true, "message": "Fleet daemon reloaded with 3 project(s)", "fleets": ["my-app", "other-app"] }`
+
+---
+
+### POST /fleet/register
+Register a project directory for daemon fleet management. Starts the fleet immediately and watches for config changes.
+
+**Body:** `{ "projectDir": "/absolute/path/to/project" }` (required)
+
+Returns 400 if `projectDir` is missing or the project has no `pd-fleet.yml`.
+
+---
+
+### GET /fleet/events
+SSE stream of all fleet lifecycle events from the `fleet:events` pub/sub channel.
+
+**Event types:** `agent_started`, `agent_stopped`, `agent_failed`, `fleet_reloaded`, `schedule_fired`, `trigger_fired`
+
+**Event shape:**
+```
+data: {"type":"agent_started","agent":"qa","identity":"my-app:qa:main","project":"my-app","timestamp":1711234567890}
+
+data: {"type":"agent_failed","agent":"qa","project":"my-app","timestamp":1711234567890,"error":"Exit code 1"}
+```
+
+Heartbeat comment (`: heartbeat`) sent every 30s to detect dead connections.
 
 ---
 

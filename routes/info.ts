@@ -6,7 +6,7 @@
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
-import rateLimit from 'express-rate-limit';
+import type { createFleetDaemon } from '../lib/fleet-daemon.js';
 import { formatUptime } from '../shared/port-utils.js';
 
 interface SystemPort {
@@ -57,15 +57,8 @@ interface InfoRouteDeps {
   __dirname: string;
   cleanupStale: () => unknown[];
   getSystemPorts: () => SystemPort[];
+  fleetDaemon?: ReturnType<typeof createFleetDaemon>;
 }
-
-/**
- * Create info routes
- *
- * @param deps - Dependencies
- * @returns Express router
- */
-
 
 // =============================================================================
 // Fastify plugin export
@@ -104,12 +97,19 @@ export const infoPlugin: FastifyPluginAsync<{ deps: InfoRouteDeps }> = async (fa
   // GET /health
   fastify.get('/health', async (_request: FastifyRequest, _reply: FastifyReply) => {
     const active_ports = services.count();
+    const fleet = deps.fleetDaemon?.getStatus();
     return {
       status: 'ok',
       version: VERSION,
       uptime_seconds: Math.floor(process.uptime()),
       active_ports,
-      pid: process.pid
+      pid: process.pid,
+      fleet: fleet ? {
+        running: fleet.running,
+        projects: fleet.fleets.length,
+        agents: fleet.totalAgents,
+        watchers: fleet.totalWatchers,
+      } : undefined,
     };
   });
 
@@ -117,6 +117,7 @@ export const infoPlugin: FastifyPluginAsync<{ deps: InfoRouteDeps }> = async (fa
   fastify.get('/status', async (_request: FastifyRequest, _reply: FastifyReply) => {
     const active_ports = services.count();
     const uptime_seconds = Math.floor(process.uptime());
+    const fleet = deps.fleetDaemon?.getStatus();
     return {
       status: 'ok',
       version: VERSION,
@@ -128,7 +129,18 @@ export const infoPlugin: FastifyPluginAsync<{ deps: InfoRouteDeps }> = async (fa
         activePorts: active_ports,
         memoryRSS: process.memoryUsage().rss,
         avgResponseMs: 0.85,
-      }
+      },
+      fleet: fleet ? {
+        running: fleet.running,
+        startedAt: fleet.startedAt,
+        projects: fleet.fleets.map(f => ({
+          name: f.project,
+          agents: f.agents.length,
+          watchers: f.watchers,
+        })),
+        totalAgents: fleet.totalAgents,
+        totalWatchers: fleet.totalWatchers,
+      } : undefined,
     };
   });
 
