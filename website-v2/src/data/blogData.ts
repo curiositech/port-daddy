@@ -35,14 +35,13 @@ $ brew install port-daddy
 $ pd begin --identity myapp:api --purpose "Add user CRUD endpoints"
 \`\`\`
 
-That single \`pd begin\` just did six things atomically:
+That single \`pd begin\` just did five things atomically:
 
 1. **Registered your agent** with the daemon (heartbeat tracking starts)
 2. **Started a session** with your purpose attached
 3. **Wrote a context file** to \`.portdaddy/current.json\` so any script can discover you
 4. **Checked the salvage queue** for dead agents in \`myapp:*\` (more on this in a future post)
-5. **Claimed a port** for \`myapp:api\` — deterministic, collision-free
-6. **Logged the activity** to the immutable audit trail
+5. **Logged the activity** to the immutable audit trail
 
 When you're done:
 
@@ -208,15 +207,12 @@ This means you can:
 
 <!-- terminal -->
 \`\`\`bash
-# Find all services for a project
-$ pd services --filter myapp
-
 # Find who's running on what port
 $ pd services
-NAME                 PORT    PID    IDENTITY
-myapp-api            3146    8823   myapp:api:main
-myapp-frontend       3147    8901   myapp:frontend:main
-myapp-api-auth       3291    9102   myapp:api:feature-auth
+NAME                 PORT    IDENTITY
+myapp-api            3146    myapp:api:main
+myapp-frontend       3147    myapp:frontend:main
+myapp-api-auth       3291    myapp:api:feature-auth
 \`\`\`
 
 Compare that to "it's on localhost:8432." Which one tells you what's running and who owns it?
@@ -311,7 +307,7 @@ Here's the lifecycle:
 stateDiagram-v2
     [*] --> Active: pd begin
     Active --> Active: heartbeat (5 min)
-    Active --> Stale: no heartbeat (10 min)
+    Active --> Stale: no heartbeat (12 min)
     Stale --> Dead: no heartbeat (20 min)
     Dead --> SalvageQueue: reaper moves
     SalvageQueue --> Claimed: new agent claims
@@ -319,7 +315,7 @@ stateDiagram-v2
 \`\`\`
 
 1. **Active** — Agent is registered and heartbeating every 5 minutes. Everything is normal.
-2. **Stale** — No heartbeat for 10 minutes. Maybe the agent is thinking hard. Maybe it's dying. The daemon watches.
+2. **Stale** — No heartbeat for 12 minutes. Maybe the agent is thinking hard. Maybe it's dying. The daemon watches.
 3. **Dead** — No heartbeat for 20 minutes. The agent is gone. The daemon's reaper process moves it to the salvage queue.
 4. **Salvage Queue** — The dead agent's session, notes, and file claims are preserved. Another agent can claim the work and continue.
 
@@ -396,8 +392,9 @@ while true; do
   CONTEXT=""
   if [ -n "$DEAD_AGENT" ]; then
     # Claim the dead agent's work
+    SESSION_ID=$(echo "$SALVAGE" | jq -r '.[0].sessionId // empty')
     pd salvage claim "$DEAD_AGENT" 2>/dev/null
-    NOTES=$(pd notes --agent "$DEAD_AGENT" --json 2>/dev/null)
+    NOTES=$(pd notes --session "$SESSION_ID" --json 2>/dev/null)
     CONTEXT="Previous agent ($DEAD_AGENT) crashed. Its notes: $NOTES. Continue from where it stopped."
   fi
 
@@ -535,10 +532,9 @@ The math proves that Agent B can never have more power than Agent A. If Agent A 
 
 ## What We Learned
 
-Running these proofs gave us the confidence to ship v3.8.0. We verified three critical layers:
+Running these proofs gave us the confidence to ship v3.8.0. We verified two critical layers:
 1. **Design Soundness**: The protocol logic is tight.
-2. **Memory Safety**: The Rust core doesn't crash or leak.
-3. **Side-Channel Mitigation**: Equality checks are constant-time to prevent timing attacks.
+2. **Side-Channel Mitigation**: Equality checks are constant-time to prevent timing attacks.
 
 If you want to geek out on the actual proof files, they're sitting in the /analyses directory of the repo. Check them out and let's build something indestructible.
 
@@ -623,9 +619,6 @@ $ pd lock db-migrations
 # Acquire with a custom TTL (10 minutes)
 $ pd lock db-migrations --ttl 600000
 
-# Try once, fail immediately if taken
-$ pd lock db-migrations --try
-
 # Extend a lock you already hold
 $ pd lock extend db-migrations --ttl 300000
 
@@ -638,8 +631,6 @@ $ pd locks --json
 \`\`\`
 
 The queued behavior is the default and usually what you want. When Agent B calls \`pd lock db-migrations\` and Agent A holds it, Agent B's request blocks until the lock is available. The daemon manages the queue -- first come, first served.
-
-The \`--try\` flag is for cases where waiting doesn't make sense. A CI pipeline that should skip if another deploy is running. A health check that should report "busy" instead of blocking. A cron job that should silently exit if the previous run hasn't finished.
 
 TTL tuning depends on your use case. Migrations against a large database? Set it to 10 minutes. A quick file write? 30 seconds is plenty. The default of 5 minutes is conservative enough for most operations. If your operation takes longer than the TTL, the lock will expire while you're still working -- so err on the side of too long, not too short.
 
@@ -1023,7 +1014,7 @@ fi
 
 <!-- terminal -->
 \`\`\`bash
-# Limit concurrent executions (default: 5)
+# Limit concurrent executions (default: 3)
 $ pd watch alerts --exec ./alert.sh --max-concurrent 1
 
 # Minimum interval between executions (debounce)
@@ -1317,7 +1308,7 @@ You can use both \`schedule\` and \`trigger\` on the same agent. The Spider runs
 Port Daddy handles everything else automatically:
 - **Heartbeats** -- Each agent sends a heartbeat every 5 minutes. The daemon detects death if heartbeats stop.
 - **Resurrection** -- Dead agents enter the salvage queue. Their notes, file claims, and session context are preserved for a replacement.
-- **Identity** -- Each agent gets a semantic identity (\`{project}:fleet:{name}\`). You can query all fleet agents for a project with \`pd agents --filter fleet\`.
+- **Identity** -- Each agent gets a semantic identity (\`{project}:fleet:{name}\`). You can see all fleet agents with \`pd agents\`.
 - **Coordination** -- Agents that use \`pd begin\`/\`pd done\` get sessions, notes, and file claims for free. The fleet engine wires this up automatically.
 
 The whole point of Fleet is that agents should be declared, not coded. Your \`pd-fleet.yml\` is the infrastructure manifest for your AI workforce. Version control it. Review changes to it. Treat it with the same seriousness as your \`docker-compose.yml\` or your Terraform files.
@@ -1542,8 +1533,7 @@ The fleet runs while you sleep. Spark dreams. Spider connects. The codebase gets
 ---
 
 ### Further Reading
-- [Fleet Management](/blog/fleet-management) --- How to declare and run your fleet
-- [The Pheromone Trail](/blog/pheromone-trail) --- Stigmergic coordination for AI agents
+- [Fleet Management](/blog/fleet-agents-as-infrastructure) --- How to declare and run your fleet
 - [Fleet documentation](/docs) --- Full YAML schema and fleet CLI commands
 - [Pub/Sub for Your Dev Environment](/blog/pubsub-self-healing-pipeline) --- The messaging layer that carries the creative loop
     `
