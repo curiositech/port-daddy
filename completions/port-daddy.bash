@@ -121,6 +121,8 @@ _port_daddy() {
     bench demo fleet
     # Project (+ alias)
     scan s projects p doctor diagnose hints
+    # Project onboarding
+    init
     # Daemon lifecycle
     start stop restart install uninstall dev ci-gate mcp
     # Info

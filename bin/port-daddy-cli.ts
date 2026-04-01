@@ -252,6 +252,7 @@ function printLaunchHints(hints: {
     const body = [
       `I haven't seen ${name} before. Here's what I can do:`,
       '',
+      '  pd init          Full project onboarding (scan, fleet, MCP, git hook)',
       '  pd scan          Detect all services in this project',
       '  pd learn         Interactive tutorial (5 min)',
       '  pd mcp install   Add to your AI agent\'s MCP config',
@@ -778,7 +779,7 @@ Run: pd learn`,
 const ALL_COMMANDS: string[] = [
   'claim', 'c', 'release', 'r', 'find', 'f', 'list', 'l', 'ps', 'url', 'env',
   'pub', 'publish', 'sub', 'subscribe', 'wait', 'lock', 'unlock', 'locks',
-  'up', 'down', 'scan', 's', 'projects', 'p',
+  'up', 'down', 'init', 'scan', 's', 'projects', 'p',
   'agent', 'agents', 'inbox', 'log', 'activity',
   'session', 'sessions', 'note', 'notes',
   'begin', 'done', 'whoami', 'with-lock', 'learn',
@@ -1755,6 +1756,13 @@ async function main(): Promise<void> {
         await handleDown(options);
         break;
 
+      // Project onboarding
+      case 'init': {
+        const { handleInit } = await import('../cli/commands/init.js');
+        await handleInit(options);
+        break;
+      }
+
       // Project setup (single-letter aliases: s, p)
       case 's':
       case 'scan':
@@ -2032,6 +2040,12 @@ async function main(): Promise<void> {
         break;
 
       case 'mcp': {
+        const mcpSub = positional[0];
+        if (mcpSub === 'install') {
+          const { handleMcpInstall } = await import('../cli/commands/mcp-install.js');
+          await handleMcpInstall(options);
+          break;
+        }
         // Launch MCP server (stdio transport for Claude Code / Desktop)
         const { spawn } = await import('node:child_process');
         const mcpPath = new URL('../mcp/server.ts', import.meta.url).pathname;

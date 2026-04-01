@@ -817,7 +817,7 @@
       }
     },
     "tutorial": {
-      "description": "Interactive tutorial — learn Port Daddy step by step",
+      "description": "Interactive tutorial \u2014 learn Port Daddy step by step",
       "cli": [
         "learn",
         "tutorial"
@@ -894,7 +894,7 @@
       }
     },
     "fleet": {
-      "description": "Always-on fleet management — daemon auto-starts fleet runners from pd-fleet.yml on boot; hot-reload on config change; resource limits (max_concurrent_spawns, max_spawns_per_hour); lifecycle events on fleet:events channel",
+      "description": "Always-on fleet management \u2014 daemon auto-starts fleet runners from pd-fleet.yml on boot; hot-reload on config change; resource limits (max_concurrent_spawns, max_spawns_per_hour); lifecycle events on fleet:events channel",
       "cli": [
         "fleet"
       ],
@@ -917,7 +917,7 @@
       }
     },
     "harbors": {
-      "description": "Named permission namespaces for agent coordination — agents enter/leave harbors and declare capabilities",
+      "description": "Named permission namespaces for agent coordination \u2014 agents enter/leave harbors and declare capabilities",
       "cli": [
         "harbor",
         "harbors"
@@ -981,7 +981,7 @@
       }
     },
     "arbiter": {
-      "description": "Runtime invariant enforcement — the sovereign's sword",
+      "description": "Runtime invariant enforcement \u2014 the sovereign's sword",
       "cli": [],
       "sdk": [],
       "routes": [
@@ -996,7 +996,7 @@
       }
     },
     "pheromone": {
-      "description": "Stigmergic evaporation system — agents spray/sniff numeric signals on entities; signals decay over time",
+      "description": "Stigmergic evaporation system \u2014 agents spray/sniff numeric signals on entities; signals decay over time",
       "cli": [],
       "sdk": [],
       "routes": [
@@ -1033,7 +1033,7 @@
         "readme": false,
         "sdk": false
       },
-      "_note": "API-only — accessed via curl or SDK; no CLI commands yet"
+      "_note": "API-only \u2014 accessed via curl or SDK; no CLI commands yet"
     },
     "symbols": {
       "description": "AST-based symbol extraction, dependency tracking, and conflict prediction",
@@ -1052,10 +1052,10 @@
         "readme": false,
         "sdk": false
       },
-      "_note": "API-only — accessed via curl or SDK; no CLI commands yet"
+      "_note": "API-only \u2014 accessed via curl or SDK; no CLI commands yet"
     },
     "tuples": {
-      "description": "Linda-style tuple space — shared coordination data structure for agent swarms with pattern matching and harbor scoping",
+      "description": "Linda-style tuple space \u2014 shared coordination data structure for agent swarms with pattern matching and harbor scoping",
       "cli": [
         "tuple"
       ],
@@ -1079,6 +1079,21 @@
       "docs": {
         "readme": true,
         "sdk": true
+      }
+    },
+    "init": {
+      "description": "Project onboarding \u2014 scan stack, create fleet, configure MCP, install git hook",
+      "cli": [
+        "init"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "init"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
       }
     }
   }

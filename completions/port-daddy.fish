@@ -103,6 +103,7 @@ set -l __pd_commands \
     'dashboard' 'channels' 'webhook' 'webhooks' 'metrics' 'config' 'health' 'ports' \
     'scan' 's' 'projects' 'p' 'doctor' 'diagnose' 'hints' \
     'start' 'stop' 'restart' 'status' 'install' 'uninstall' 'dev' 'ci-gate' 'mcp' \
+    'init' \
     'version' 'help'
 
 # Register each command for both `port-daddy` and `pd`
@@ -230,6 +231,8 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a dev -d 'Start daemon in foreground'
     complete -c $prog -n __pd_needs_command -a ci-gate -d 'Exit non-zero if daemon is stale'
     complete -c $prog -n __pd_needs_command -a mcp -d 'Start MCP server for Claude Code'
+    complete -c $prog -n '__pd_is_cmd mcp' -a install -d 'Configure MCP for all detected AI editors'
+    complete -c $prog -n __pd_needs_command -a init -d 'Set up Port Daddy for this project (scan, fleet, MCP, git hook)'
 
     # Sugar (compound commands)
     complete -c $prog -n __pd_needs_command -a begin -d 'Begin a work session (register + start)'

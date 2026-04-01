@@ -1390,7 +1390,8 @@ _port_daddy() {
     'uninstall:uninstall the system service'
     'dev:start daemon in development mode (foreground)'
     'ci-gate:exit non-zero if daemon is running stale code'
-    'mcp:start MCP server for Claude Code / Claude Desktop'
+    'mcp:start MCP server for Claude Code / Claude Desktop (pd mcp install to configure)'
+    'init:set up Port Daddy for this project (scan, fleet, MCP, git hook)'
     # Info
     'version:print version information'
     'help:show help'
@@ -1450,6 +1451,7 @@ _port_daddy() {
         s|scan)             _pd_cmd_scan ;;
         p|projects)         _pd_cmd_projects ;;
         doctor|diagnose)    _pd_cmd_doctor ;;
+        init)               ;; # no subcommands
         start|stop|restart|status|install|uninstall|dev|ci-gate)
                             _pd_cmd_daemon ;;
         dashboard)              _pd_cmd_dashboard ;;
@@ -1479,6 +1481,7 @@ _port_daddy() {
         harbor)                 _pd_cmd_harbor ;;
         harbors)                _pd_cmd_harbors ;;
         tuple)                  _pd_cmd_tuple ;;
+        mcp)                _arguments '1:subcommand:(start install)' ;;
         version|help)       ;;
         *)                  ;;
       esac
