@@ -1,11 +1,12 @@
+import React from 'react'
 import { Link } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { blogPosts } from '@/data/blogData'
 import { Badge } from '@/components/ui/Badge'
 import { Surface } from '@/components/ui/Surface'
 import { Button } from '@/components/ui/Button'
-import { Calendar, User, ArrowRight, Terminal, Copy, Check, Anchor, Ship, Compass, Shield, Zap, Radio, BookOpen } from 'lucide-react'
+import { Calendar, User, ArrowRight, Terminal, Copy, Check, Anchor, Ship, Compass, Shield, Zap, Radio, BookOpen, Package, Code } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
 
 // Hero image mapping — matches blog slug to generated Ideogram hero
@@ -41,96 +42,147 @@ const tagVariant = (tag: string): 'teal' | 'red' | 'gold' | 'default' | 'success
 }
 
 // Install method tabs
-type InstallMethod = 'brew' | 'npx' | 'mcp'
-const installCommands: Record<InstallMethod, { cmd: string; label: string; description: string }> = {
-  brew: {
-    cmd: 'brew install port-daddy && pd status',
-    label: 'Homebrew',
-    description: 'Install the daemon. Auto-starts on login.',
-  },
-  npx: {
-    cmd: 'npx port-daddy claim myapp:api -q',
-    label: 'npx',
-    description: 'Zero install. Claim a port. Daemon auto-starts.',
-  },
-  mcp: {
-    cmd: 'pd mcp install',
-    label: 'MCP',
-    description: '44 tools for Claude Code. Sessions, salvage, pub/sub.',
-  },
+interface InstallTab {
+  id: string
+  label: string
+  cmd: string
+  description: string
+  icon: React.ReactNode
+  featured?: boolean
 }
 
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false)
-  return (
-    <button
-      onClick={(e) => {
-        e.preventDefault()
-        e.stopPropagation()
-        navigator.clipboard.writeText(text)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
-      }}
-      className="p-1.5 rounded-lg transition-all hover:scale-110"
-      style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-sm)' }}
-      title="Copy command"
-    >
-      {copied ? <Check size={14} className="text-[var(--status-success)]" /> : <Copy size={14} className="text-[var(--text-muted)]" />}
-    </button>
-  )
+const installTabs: InstallTab[] = [
+  {
+    id: 'init',
+    label: 'pd init',
+    cmd: 'pd init',
+    description: 'One command: detects your stack, configures MCP in every AI editor, installs a fleet, and adds a git hook that fires agents on every commit.',
+    icon: <Zap size={14} />,
+    featured: true,
+  },
+  {
+    id: 'brew',
+    label: 'Homebrew',
+    cmd: 'brew install curiositech/tap/port-daddy && pd status',
+    description: 'Install the always-on daemon. Auto-starts on login via launchd. Survives terminal close.',
+    icon: <Package size={14} />,
+  },
+  {
+    id: 'mcp',
+    label: 'MCP',
+    cmd: 'pd mcp install',
+    description: '44 tools wired into Claude Code. Sessions, salvage, pub/sub, locks, fleet — all from your editor.',
+    icon: <Terminal size={14} />,
+  },
+  {
+    id: 'npx',
+    label: 'npx',
+    cmd: 'npx port-daddy claim myapp:api -q',
+    description: 'Zero install. Claim a port by identity. Daemon auto-starts if not running.',
+    icon: <Code size={14} />,
+  },
+]
+
+function TypewriterText({ text, speed = 40 }: { text: string; speed?: number }) {
+  const [displayed, setDisplayed] = useState('')
+  const [idx, setIdx] = useState(0)
+
+  useEffect(() => {
+    setDisplayed('')
+    setIdx(0)
+  }, [text])
+
+  useEffect(() => {
+    if (idx < text.length) {
+      const t = setTimeout(() => {
+        setDisplayed(prev => prev + text[idx])
+        setIdx(prev => prev + 1)
+      }, speed)
+      return () => clearTimeout(t)
+    }
+  }, [idx, text, speed])
+
+  return <span>{displayed}<span className="animate-pulse opacity-60">▋</span></span>
 }
 
 function InstallTerminal() {
-  const [method, setMethod] = useState<InstallMethod>('brew')
-  const current = installCommands[method]
+  const [activeId, setActiveId] = useState('init')
+  const [copied, setCopied] = useState(false)
+  const tab = installTabs.find(t => t.id === activeId) ?? installTabs[0]
+
+  function copy() {
+    navigator.clipboard.writeText(tab.cmd)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
   return (
     <Surface depth="raised" radius="2xl" padding="none" className="overflow-hidden w-full max-w-2xl">
-      {/* Terminal chrome */}
-      <div className="flex items-center justify-between px-5 py-3" style={{ background: 'var(--surface-overlay)', borderBottom: '1px solid var(--border-subtle)' }}>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full" style={{ background: 'var(--brand-primary)', opacity: 0.8 }} />
-          <div className="w-3 h-3 rounded-full" style={{ background: 'var(--brand-accent)', opacity: 0.6 }} />
-          <div className="w-3 h-3 rounded-full" style={{ background: 'var(--brand-secondary)', opacity: 0.6 }} />
-        </div>
-        <div className="flex gap-1">
-          {(Object.keys(installCommands) as InstallMethod[]).map((m) => (
-            <button
-              key={m}
-              onClick={() => setMethod(m)}
-              className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${
-                method === m ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
-              }`}
-              style={method === m ? { background: 'var(--surface-raised)', boxShadow: 'var(--shadow-sm)' } : {}}
-            >
-              {installCommands[m].label}
-            </button>
-          ))}
-        </div>
+      {/* Tab bar */}
+      <div className="flex items-center gap-1 px-3 pt-3 pb-0" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+        {installTabs.map(t => (
+          <button
+            key={t.id}
+            onClick={() => setActiveId(t.id)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-t-lg text-[11px] font-bold uppercase tracking-widest transition-all relative"
+            style={{
+              color: activeId === t.id
+                ? (t.featured ? 'var(--brand-secondary)' : 'var(--brand-primary)')
+                : 'var(--text-muted)',
+              background: activeId === t.id ? 'var(--surface-overlay)' : 'transparent',
+              borderBottom: activeId === t.id
+                ? `2px solid ${t.featured ? 'var(--brand-secondary)' : 'var(--brand-primary)'}`
+                : '2px solid transparent',
+            }}
+          >
+            {t.icon}
+            {t.label}
+            {t.featured && activeId !== t.id && (
+              <span className="ml-1 px-1 py-0.5 rounded text-[8px] font-black uppercase"
+                style={{ background: 'rgba(204,61,46,0.15)', color: 'var(--brand-secondary)' }}>
+                new
+              </span>
+            )}
+          </button>
+        ))}
       </div>
 
       {/* Command area */}
       <AnimatePresence mode="wait">
         <motion.div
-          key={method}
-          initial={{ opacity: 0, y: 8 }}
+          key={activeId}
+          initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -8 }}
-          transition={{ duration: 0.2 }}
-          className="px-5 py-4 flex items-center justify-between gap-3"
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.18 }}
+          className="px-5 py-5 flex items-center justify-between gap-3"
           style={{ background: 'var(--surface-overlay)' }}
         >
           <div className="flex items-center gap-3 font-mono text-sm overflow-x-auto">
             <span className="text-[var(--brand-primary)] select-none shrink-0">$</span>
-            <span className="text-[var(--text-primary)] whitespace-nowrap">{current.cmd}</span>
+            <span className="text-[var(--text-primary)] whitespace-nowrap">
+              <TypewriterText text={tab.cmd} speed={35} />
+            </span>
           </div>
-          <CopyButton text={current.cmd} />
+          <button
+            onClick={copy}
+            className="shrink-0 p-1.5 rounded-lg transition-all hover:scale-110"
+            style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-sm)' }}
+            title="Copy"
+          >
+            {copied
+              ? <Check size={14} className="text-[var(--status-success)]" />
+              : <Copy size={14} className="text-[var(--text-muted)]" />}
+          </button>
         </motion.div>
       </AnimatePresence>
 
       {/* Description */}
-      <div className="px-5 py-3" style={{ borderTop: '1px solid var(--border-subtle)' }}>
-        <p className="text-[11px] text-[var(--text-muted)] m-0 font-medium">{current.description}</p>
+      <div className="px-5 py-3 flex items-start gap-2" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+        <span style={{ color: tab.featured ? 'var(--brand-secondary)' : 'var(--brand-primary)' }} className="mt-0.5 shrink-0">
+          {tab.icon}
+        </span>
+        <p className="text-[11px] text-[var(--text-muted)] m-0 font-medium leading-relaxed">{tab.description}</p>
       </div>
     </Surface>
   )
