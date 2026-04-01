@@ -49,3 +49,6 @@ vite-output.log
 daemon-error.log
 *.cjs
 STRATEGY_private_gitignore/
+apps/FleetBar/.build/
+.firecrawl/
+.windags/

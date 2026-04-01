@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.portdaddy.fleetbar</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/erichowens/coding/port-daddy/apps/FleetBar/.build/arm64-apple-macosx/debug/FleetBar</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Auto-restart on crash, not on clean exit -->
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/erichowens/coding/port-daddy/apps/FleetBar</string>
+
+    <key>StandardOutPath</key>
+    <string>/Users/erichowens/.port-daddy/fleetbar-stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/erichowens/.port-daddy/fleetbar-stderr.log</string>
+
+    <!-- Menu bar app — needs GUI access, low priority -->
+    <key>Nice</key>
+    <integer>10</integer>
+
+    <key>ProcessType</key>
+    <string>Interactive</string>
+</dict>
+</plist>

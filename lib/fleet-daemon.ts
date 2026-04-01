@@ -122,9 +122,22 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
   let isRunning = false;
   let startedAt: number | null = null;
 
+  // ─── Recent event ring buffer per project (for prompt endpoint) ─────────
+  const MAX_RECENT = 20;
+  const recentEvents = new Map<string, FleetEvent[]>();
+
+  function recordEvent(event: FleetEvent): void {
+    const project = event.project || '_global';
+    let ring = recentEvents.get(project);
+    if (!ring) { ring = []; recentEvents.set(project, ring); }
+    ring.push(event);
+    if (ring.length > MAX_RECENT) ring.shift();
+  }
+
   // ─── Event handler: publish to identity channels ────────────────────────
 
   function handleEvent(event: FleetEvent): void {
+    recordEvent(event);
     // Publish to the agent's identity channel for targeted subscriptions
     if (event.identity) {
       messaging.publish(event.identity, {
@@ -410,6 +423,60 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
     return [...fleets.keys()];
   }
 
+  /** Get recent events for a project (for prompt endpoint). */
+  function getRecentEvents(project: string, since?: number): FleetEvent[] {
+    const ring = recentEvents.get(project);
+    if (!ring) return [];
+    if (since) return ring.filter(e => e.timestamp > since);
+    return [...ring];
+  }
+
+  /**
+   * Get a one-line prompt string for a project's fleet status.
+   * Returns empty string if nothing worth showing.
+   *
+   * Format: "fleet: qa ✓  tests ✓  docs updated"
+   * Only shows events since `since` timestamp (prevents stale output).
+   */
+  function getPromptLine(project: string, since?: number): string {
+    // Find the fleet by project name (not dir path)
+    const managed = [...fleets.values()].find(f => f.projectName === project);
+    if (!managed) return '';
+
+    const cutoff = since || (Date.now() - 60000); // default: last 60 seconds
+    const recent = getRecentEvents(project, cutoff);
+    if (recent.length === 0) return '';
+
+    // Collapse to latest event per agent
+    const byAgent = new Map<string, FleetEvent>();
+    for (const e of recent) {
+      if (e.agent) byAgent.set(e.agent, e);
+    }
+
+    const parts: string[] = [];
+    for (const [agent, event] of byAgent) {
+      switch (event.type) {
+        case 'agent_started':
+          parts.push(`${agent} ...`);
+          break;
+        case 'agent_completed':
+          parts.push(`${agent} \u2713`);
+          break;
+        case 'agent_failed': {
+          const reason = (event.details as Record<string, unknown>)?.error;
+          const short = typeof reason === 'string' ? reason.slice(0, 30) : 'failed';
+          parts.push(`${agent} \u2717 ${short}`);
+          break;
+        }
+        default:
+          break;
+      }
+    }
+
+    if (parts.length === 0) return '';
+    return `fleet: ${parts.join('  ')}`;
+  }
+
   return {
     start,
     stop,
@@ -418,5 +485,7 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
     stopProject,
     getStatus,
     listProjects,
+    getRecentEvents,
+    getPromptLine,
   };
 }
