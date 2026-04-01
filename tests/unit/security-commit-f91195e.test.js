@@ -248,8 +248,10 @@ describe('webhooks: HMAC signature value correctness', () => {
   // [GAP] MISSING NEGATIVE: secret that looks EXACTLY like a valid cipher
   // envelope (has v:1, ct, iv, tag) but no master key → returned as-is.
   // The HMAC must equal HMAC(the-full-json-string, plaintext), not garbage.
-  test('secret that looks like a cipher envelope is returned verbatim when no key', async () => {
-    // This is a plausible pre-migration secret that was stored as plaintext JSON
+  test('secret that looks like a cipher envelope produces NO signature when no key', async () => {
+    // A v1 envelope stored without a master key available cannot be decrypted.
+    // The correct behavior is to omit the signature entirely — never use the
+    // raw JSON envelope as an HMAC key (that would leak ciphertext structure).
     const envelopeSecret = JSON.stringify({ v: 1, ct: 'YWJj', iv: 'ZGVm', tag: 'Z2hp' });
 
     webhooks.register('https://example.com/hook', { secret: envelopeSecret });
@@ -258,14 +260,8 @@ describe('webhooks: HMAC signature value correctness', () => {
     await waitFor(() => mockFetch.calls.length > 0, 2000);
     const call = mockFetch.calls[0];
 
-    const body = JSON.parse(call.opts.body);
-    // Without a master key, decryptSecret returns the stored string as-is.
-    // The HMAC must be computed with that full JSON string.
-    const expectedSig = `sha256=${createHmac('sha256', envelopeSecret)
-      .update(JSON.stringify(body))
-      .digest('hex')}`;
-
-    expect(call.opts.headers['X-PortDaddy-Signature']).toBe(expectedSig);
+    // No signature — decryptSecret returns null when master key is unavailable
+    expect(call.opts.headers['X-PortDaddy-Signature']).toBeUndefined();
   });
 });
 
