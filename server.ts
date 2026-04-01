@@ -53,6 +53,9 @@ import { initDatabase, closeDatabase, resolveDbPath } from './lib/db.js';
 import { createIpcServer } from './lib/ipc-server.js';
 import { createIpcRouter } from './lib/ipc-router.js';
 import { createFleetDaemon } from './lib/fleet-daemon.js';
+import { createOrchestratorRegistry } from './lib/orchestrator-plugins.js';
+import { createSymbolIndex } from './lib/symbol-index.js';
+import { createMergeQueue } from './lib/merge-queue.js';
 
 // Fastify route aggregator (Phase 3 — native Fastify plugins, no Express bridge)
 import { registerAllRoutes } from './routes/index.js';
@@ -259,6 +262,11 @@ console.error('[Arbiter] Runtime invariant enforcement active (6 rules, strictMo
 const pheromones = createPheromoneManager(db);
 pheromones.start();
 const tuples = createTupleSpace(db);
+
+// Phase 1 — Semantic Graph modules (orchestrator plugins, symbol index, merge queue)
+const orchestratorRegistry = createOrchestratorRegistry(db, { activityLog });
+const symbolIndex = createSymbolIndex(db);
+const mergeQueue = createMergeQueue(db, { orchestratorRegistry, activityLog });
 
 const barnacle = createBarnacleWatcher(logger);
 barnacle.start();
@@ -529,6 +537,7 @@ await registerAllRoutes(
     services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar,
     harbors, orchestrator, correlationEngine, spawner, tuples, fleetDaemon,
+    orchestratorRegistry, symbolIndex, mergeQueue,
     VERSION, CODE_HASH, STARTED_AT, __dirname,
     cleanupStale, getSystemPorts,
   },

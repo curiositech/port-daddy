@@ -6,6 +6,7 @@ interface NeumorphicTerminalProps {
   title?: string
   language?: string
   typewriterSpeed?: number
+  animate?: boolean
 }
 
 export function NeumorphicTerminal({
@@ -13,12 +14,14 @@ export function NeumorphicTerminal({
   title,
   language = 'bash',
   typewriterSpeed = 25,
+  animate = true,
 }: NeumorphicTerminalProps) {
-  const [displayedCode, setDisplayedCode] = useState('')
-  const [isTyping, setIsTyping] = useState(true)
+  const trimmed = code.trim()
+  const [displayedCode, setDisplayedCode] = useState(animate ? '' : trimmed)
+  const [isTyping, setIsTyping] = useState(animate)
 
   useEffect(() => {
-    const trimmed = code.trim()
+    if (!animate) return
     let currentIndex = 0
     setDisplayedCode('')
     setIsTyping(true)
@@ -34,7 +37,7 @@ export function NeumorphicTerminal({
     }, typewriterSpeed)
 
     return () => clearInterval(interval)
-  }, [code, typewriterSpeed])
+  }, [trimmed, typewriterSpeed, animate])
 
   const cursor = isTyping ? '|' : ''
 

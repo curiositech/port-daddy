@@ -29,9 +29,10 @@ Port Daddy fixes all of that with two commands and zero configuration. Let me sh
 
 ## The 2-Command Workflow
 
+<!-- terminal -->
 \`\`\`bash
-brew install port-daddy
-pd begin --identity myapp:api --purpose "Add user CRUD endpoints"
+$ brew install port-daddy
+$ pd begin --identity myapp:api --purpose "Add user CRUD endpoints"
 \`\`\`
 
 That single \`pd begin\` just did six things atomically:
@@ -45,8 +46,9 @@ That single \`pd begin\` just did six things atomically:
 
 When you're done:
 
+<!-- terminal -->
 \`\`\`bash
-pd done
+$ pd done
 \`\`\`
 
 That's it. Session closed, agent unregistered, activity logged. Everything you did between \`begin\` and \`done\` — every note, every file claim, every heartbeat — is preserved in SQLite and queryable forever.
@@ -55,13 +57,9 @@ That's it. Session closed, agent unregistered, activity logged. Everything you d
 
 Here's where it gets useful. Any script, hook, pre-commit check, or spawned sub-agent can ask the daemon a simple question: *who am I?*
 
+<!-- terminal -->
 \`\`\`bash
-pd whoami
-\`\`\`
-
-Returns your full context:
-
-\`\`\`json
+$ pd whoami
 {
   "agent": "claude-a1b2c3",
   "identity": "myapp:api:main",
@@ -78,6 +76,7 @@ This means your CI scripts can adapt to who's running them. Your pre-commit hook
 
 The real power move is making coordination invisible. Add this to your \`.zshrc\`:
 
+<!-- code -->
 \`\`\`bash
 alias codestart='pd begin --identity $(basename $PWD):dev --purpose'
 alias codestop='pd done'
@@ -85,16 +84,18 @@ alias codestop='pd done'
 
 Now starting a coordinated session is:
 
+<!-- terminal -->
 \`\`\`bash
-codestart "Refactoring the auth module"
+$ codestart "Refactoring the auth module"
 # ... work ...
-codestop
+$ codestop
 \`\`\`
 
 For AI agents, you can wire it into the spawn command directly:
 
+<!-- terminal -->
 \`\`\`bash
-pd spawn --backend claude-cli \\
+$ pd spawn --backend claude-cli \\
   --identity myapp:api \\
   --purpose "Add user CRUD endpoints" \\
   -- "Build the user model and REST routes"
@@ -116,13 +117,14 @@ None of these are mandatory. \`pd begin\` and \`pd done\` work perfectly without
 
 The whole philosophy is opt-in depth. Two commands to start. Add notes when you want. Claim files when you need to. The daemon is always watching, always logging, never in your way.
 
+<!-- terminal -->
 \`\`\`bash
 # The minimum viable workflow
-pd begin --identity myapp:dev --purpose "Ship the feature"
-pd note "Started. Database schema looks clean."
+$ pd begin --identity myapp:dev --purpose "Ship the feature"
+$ pd note "Started. Database schema looks clean."
 # ... 45 minutes of work ...
-pd note "Done. Added 3 routes, 2 models, 14 tests."
-pd done
+$ pd note "Done. Added 3 routes, 2 models, 14 tests."
+$ pd done
 \`\`\`
 
 Five minutes to install, five seconds to start a session, and zero seconds wasted on coordination overhead. That's the pitch.
@@ -166,15 +168,18 @@ What you actually want is deterministic, collision-free port assignment that sur
 
 ## Atomic Port Claims in 30 Seconds
 
+<!-- terminal -->
 \`\`\`bash
-PORT=$(pd claim myapp:api -q)
-echo $PORT  # 3146 — deterministic, always the same for this identity
+$ PORT=$(pd claim myapp:api -q)
+$ echo $PORT
+3146  # deterministic, always the same for this identity
 \`\`\`
 
 That's the whole API. Give it a semantic identity, get back a port. Same identity always maps to the same port — deterministic hashing. If you crash and restart, you get the same port. If another agent tries to claim the same identity, they get the same port (idempotent). If they use a different identity, they get a different port. No collisions. No randomness. No .env files.
 
 Wire it into your dev scripts:
 
+<!-- code -->
 \`\`\`bash
 # package.json
 {
@@ -191,6 +196,7 @@ Now your frontend and API will never collide, even if you start them in any orde
 
 The identity string \`myapp:api:main\` isn't just a label — it's a queryable coordinate in a three-part namespace:
 
+<!-- code -->
 \`\`\`
 project : stack : context
 myapp   : api   : main
@@ -200,16 +206,17 @@ myapp   : frontend : main
 
 This means you can:
 
+<!-- terminal -->
 \`\`\`bash
 # Find all services for a project
-pd services --filter myapp
+$ pd services --filter myapp
 
 # Find who's running on what port
-pd services
-# NAME                 PORT    PID    IDENTITY
-# myapp-api            3146    8823   myapp:api:main
-# myapp-frontend       3147    8901   myapp:frontend:main
-# myapp-api-auth       3291    9102   myapp:api:feature-auth
+$ pd services
+NAME                 PORT    PID    IDENTITY
+myapp-api            3146    8823   myapp:api:main
+myapp-frontend       3147    8901   myapp:frontend:main
+myapp-api-auth       3291    9102   myapp:api:feature-auth
 \`\`\`
 
 Compare that to "it's on localhost:8432." Which one tells you what's running and who owns it?
@@ -220,6 +227,7 @@ When you're juggling four services across two branches with three AI agents, sem
 
 For projects with multiple services, Port Daddy can start everything in the right order with health checks and dependency resolution. Create a \`.portdaddyrc\` in your project root:
 
+<!-- code -->
 \`\`\`json
 {
   "services": {
@@ -244,14 +252,16 @@ For projects with multiple services, Port Daddy can start everything in the righ
 
 Then:
 
+<!-- terminal -->
 \`\`\`bash
-pd up
+$ pd up
 \`\`\`
 
 Port Daddy starts services in dependency order — db first, then api (after db is healthy), then frontend (after api is healthy). Each gets a deterministic port. Each gets color-coded log output. If api crashes, frontend knows. No port collisions. No startup race conditions.
 
+<!-- terminal -->
 \`\`\`bash
-pd down  # Graceful shutdown, reverse order
+$ pd down  # Graceful shutdown, reverse order
 \`\`\`
 
 It's \`docker-compose\` for your local dev environment, except it works with bare processes, doesn't require Docker, and assigns ports intelligently instead of hoping for the best.
@@ -296,6 +306,7 @@ Port Daddy's agent resurrection system (we call it "salvage" — this is a harbo
 
 Here's the lifecycle:
 
+<!-- figure: Agent lifecycle -- from registration through death to salvage queue -->
 \`\`\`mermaid
 stateDiagram-v2
     [*] --> Active: pd begin
@@ -318,13 +329,10 @@ The critical insight: agents that use \`pd begin\` get heartbeats automatically.
 
 When you start a new agent, the first thing it should do is check for dead agents in the same project:
 
+<!-- terminal -->
 \`\`\`bash
-pd salvage --project myapp
-\`\`\`
+$ pd salvage --project myapp
 
-Output:
-
-\`\`\`
 SALVAGE QUEUE — myapp
 
   Agent         Identity         Dead Since    Notes   Files
@@ -332,15 +340,12 @@ SALVAGE QUEUE — myapp
   claude-b2     myapp:tests      22 min ago    3       5
 \`\`\`
 
-Seven notes. Three claimed files. That's not a dead agent — that's a treasure map.
+Seven notes. Three claimed files. That's not a dead agent — that's a treasure map. Read the dead agent's notes:
 
-Read the dead agent's notes:
-
+<!-- terminal -->
 \`\`\`bash
-pd notes --session $DEAD_SESSION_ID
-\`\`\`
+$ pd notes --session $DEAD_SESSION_ID
 
-\`\`\`
 [14:23] Started auth module refactor. Moving from JWT to session tokens.
 [14:31] Users table migrated. Added session_tokens table.
 [14:38] Found race condition in lib/db/pool.ts — concurrent connections
@@ -351,19 +356,21 @@ pd notes --session $DEAD_SESSION_ID
 [15:02] Pool fix 60% done. Semaphore added but release() path untested.
 \`\`\`
 
-Now you know exactly where the agent stopped, what it discovered, and what's left. Claim the work:
+Now you know exactly where the agent stopped, what it discovered, and what's left:
 
+<!-- terminal -->
 \`\`\`bash
-pd salvage claim claude-a1
+$ pd salvage claim claude-a1
 \`\`\`
 
 The dead agent's session is transferred to you. Its notes are now in your session history. Its file claims are yours. You continue from note 7, not from scratch.
 
 For AI agents, you can pass this context directly:
 
+<!-- terminal -->
 \`\`\`bash
-NOTES=$(pd notes --session $DEAD_SESSION_ID --json)
-pd spawn --backend claude-cli \\
+$ NOTES=$(pd notes --session $DEAD_SESSION_ID --json)
+$ pd spawn --backend claude-cli \\
   --identity myapp:api \\
   --purpose "Continue auth refactor (salvaged from claude-a1)" \\
   -- "Previous agent crashed. Here are its notes: $NOTES. Continue from where it left off."
@@ -373,6 +380,7 @@ pd spawn --backend claude-cli \\
 
 Manual salvage is good. Automatic salvage is better. The Phoenix Pattern is a wrapper that detects agent death, checks the salvage queue, and spawns a replacement with full context — zero human intervention.
 
+<!-- code -->
 \`\`\`bash
 #!/bin/bash
 # phoenix.sh — auto-respawn with salvage context
@@ -406,8 +414,9 @@ done
 
 Run it:
 
+<!-- terminal -->
 \`\`\`bash
-./phoenix.sh "Refactor the auth module to use session tokens"
+$ ./phoenix.sh "Refactor the auth module to use session tokens"
 \`\`\`
 
 The first agent works until it crashes. The phoenix loop detects the crash, finds the dead agent in the salvage queue, reads its notes, and spawns a replacement with full context. The replacement picks up mid-sentence. If it crashes too, the cycle repeats.
@@ -433,13 +442,14 @@ We're working on mental model snapshots — a structured summary that agents wri
 
 For now, the single best thing you can do is **teach your agents to write notes**. An agent that drops a \`pd note\` every few minutes is an agent whose death is a minor inconvenience, not a catastrophe.
 
+<!-- terminal -->
 \`\`\`bash
 # Teach your agents this pattern
-pd note "Starting: will refactor auth module. Plan: 1) migrate table, 2) new routes, 3) tests"
+$ pd note "Starting: will refactor auth module. Plan: 1) migrate table, 2) new routes, 3) tests"
 # ... work ...
-pd note "Table migrated. Found race condition in pool.ts. Will fix after routes."
+$ pd note "Table migrated. Found race condition in pool.ts. Will fix after routes."
 # ... work ...
-pd note "Routes done. 14 tests passing. Starting pool fix next."
+$ pd note "Routes done. 14 tests passing. Starting pool fix next."
 \`\`\`
 
 Three notes. Thirty seconds of agent time. The difference between losing 45 minutes of work and losing zero.
@@ -484,6 +494,7 @@ We modeled this using symbolic analysis. Instead of looking at individual bits, 
 
 ProVerif explored every possible path, including attackers sniffing the network and trying to replay old tokens. The result? It's impossible. Trust is anchored.
 
+<!-- figure: Anchor Protocol handshake -- Ed25519 signature verification with algorithm pinning -->
 \`\`\`mermaid
 sequenceDiagram
     autonumber
@@ -507,6 +518,7 @@ You might have heard of JWT algorithm confusion. It's when a verifier is tricked
 
 We verified that our implementation is immune to this. The verifier doesn't care what the token says it is. It forces an Ed25519 check every single time. It's like a bouncer who doesn't care if your ID says you're the owner; they're checking the holographic seal no matter what.
 
+<!-- code -->
 \`\`\`proverif
 (* The SECURE Harbor logic we proved *)
 let SecureHarbor(k: key) =
@@ -561,8 +573,9 @@ The fix? One line.
 
 ## \`pd with-lock\`: The One-Line Fix
 
+<!-- terminal -->
 \`\`\`bash
-pd with-lock db-migrations npm run migrate
+$ pd with-lock db-migrations npm run migrate
 \`\`\`
 
 That's the entire solution. Here's what happens:
@@ -574,6 +587,7 @@ That's the entire solution. Here's what happens:
 
 If Agent B tries to run \`pd with-lock db-migrations npm run migrate\` while Agent A holds the lock, it waits. Not crashes. Not fails. Waits. When Agent A's migration completes and the lock is released, Agent B's migration runs against a clean, fully-migrated schema.
 
+<!-- figure: Distributed lock serialization -- Agent B waits for Agent A to release before running -->
 \`\`\`mermaid
 sequenceDiagram
     participant A as Agent A
@@ -601,25 +615,26 @@ The TTL is the safety net. If Agent A's terminal gets killed, the process gets O
 
 \`pd with-lock\` is syntactic sugar for the common case. When you need finer control, the raw lock API gives you everything:
 
+<!-- terminal -->
 \`\`\`bash
 # Acquire a lock (waits in queue if taken)
-pd lock db-migrations
+$ pd lock db-migrations
 
 # Acquire with a custom TTL (10 minutes)
-pd lock db-migrations --ttl 600000
+$ pd lock db-migrations --ttl 600000
 
 # Try once, fail immediately if taken
-pd lock db-migrations --try
+$ pd lock db-migrations --try
 
 # Extend a lock you already hold
-pd lock extend db-migrations --ttl 300000
+$ pd lock extend db-migrations --ttl 300000
 
 # Release explicitly
-pd unlock db-migrations
+$ pd unlock db-migrations
 
 # See all active locks
-pd locks
-pd locks --json
+$ pd locks
+$ pd locks --json
 \`\`\`
 
 The queued behavior is the default and usually what you want. When Agent B calls \`pd lock db-migrations\` and Agent A holds it, Agent B's request blocks until the lock is available. The daemon manages the queue -- first come, first served.
@@ -634,27 +649,30 @@ These are copy-paste ready. Adjust the lock names and commands for your project.
 
 **Recipe 1: Migration Lock**
 
+<!-- terminal -->
 \`\`\`bash
 # In your package.json scripts or Makefile
-pd with-lock db-migrations -- npm run migrate
+$ pd with-lock db-migrations -- npm run migrate
 \`\`\`
 
 Prevents concurrent schema changes. Works with any migration tool -- Prisma, Drizzle, Alembic, Flyway, raw SQL files. The lock doesn't care what the command does; it just guarantees mutual exclusion.
 
 **Recipe 2: Build Lock**
 
+<!-- terminal -->
 \`\`\`bash
 # Prevent concurrent builds from clobbering dist/
-pd with-lock build:myapp -- npm run build
+$ pd with-lock build:myapp -- npm run build
 \`\`\`
 
 Two agents running \`next build\` at the same time will fight over the \`.next\` directory. The second build reads half-written files from the first. The result is a corrupt build artifact that deploys and crashes in production. A build lock makes this impossible.
 
 **Recipe 3: Deploy Lock**
 
+<!-- terminal -->
 \`\`\`bash
 # Only one deploy at a time, 10 minute TTL
-pd with-lock deploy --ttl 600000 -- ./deploy.sh
+$ pd with-lock deploy --ttl 600000 -- ./deploy.sh
 \`\`\`
 
 Deployments are the most dangerous operation to run concurrently. Two deploys overlapping can leave your infrastructure in a half-old, half-new state that neither deployment script knows how to handle. This is especially critical with blue-green or rolling deploys where the orchestrator assumes it's the only one running.
@@ -663,6 +681,7 @@ Deployments are the most dangerous operation to run concurrently. Two deploys ov
 
 If you're building automation in JavaScript/TypeScript, the [SDK](/docs) has a \`withLock\` method that handles acquire, execute, and release with automatic TTL extension:
 
+<!-- code -->
 \`\`\`typescript
 import { PortDaddy } from 'port-daddy';
 const pd = new PortDaddy();
@@ -724,46 +743,47 @@ Here's the real workflow I used to run 4 agents against the Port Daddy codebase 
 
 **Agent 1: API routes**
 
+<!-- terminal -->
 \`\`\`bash
-pd begin --identity portdaddy:api --purpose "Add tunnel endpoints"
+$ pd begin --identity portdaddy:api --purpose "Add tunnel endpoints"
 # Session started: sess-a1b2c3
-pd session files claim sess-a1b2c3 routes/tunnel.ts lib/tunnel.ts tests/unit/tunnel.test.ts
-pd note "Working on tunnel CRUD: create, delete, list, status"
+$ pd session files claim sess-a1b2c3 routes/tunnel.ts lib/tunnel.ts tests/unit/tunnel.test.ts
+$ pd note "Working on tunnel CRUD: create, delete, list, status"
 \`\`\`
 
 **Agent 2: CLI commands**
 
+<!-- terminal -->
 \`\`\`bash
-pd begin --identity portdaddy:cli --purpose "Add tunnel CLI commands"
-pd session files claim sess-d4e5f6 cli/commands/tunnel.ts completions/port-daddy.bash completions/port-daddy.zsh completions/port-daddy.fish
-pd note "Adding pd tunnel start/stop/list to all CLI surfaces"
+$ pd begin --identity portdaddy:cli --purpose "Add tunnel CLI commands"
+$ pd session files claim sess-d4e5f6 cli/commands/tunnel.ts completions/port-daddy.bash completions/port-daddy.zsh completions/port-daddy.fish
+$ pd note "Adding pd tunnel start/stop/list to all CLI surfaces"
 \`\`\`
 
 **Agent 3: SDK methods**
 
+<!-- terminal -->
 \`\`\`bash
-pd begin --identity portdaddy:sdk --purpose "Add tunnel SDK methods"
-pd session files claim sess-g7h8i9 lib/client.ts docs/sdk.md
-pd note "Adding startTunnel, stopTunnel, listTunnels to SDK"
+$ pd begin --identity portdaddy:sdk --purpose "Add tunnel SDK methods"
+$ pd session files claim sess-g7h8i9 lib/client.ts docs/sdk.md
+$ pd note "Adding startTunnel, stopTunnel, listTunnels to SDK"
 \`\`\`
 
 **Agent 4: Tests**
 
+<!-- terminal -->
 \`\`\`bash
-pd begin --identity portdaddy:tests --purpose "Write tunnel integration tests"
-pd session files claim sess-j0k1l2 tests/integration/tunnel.test.ts tests/unit/tunnel-cli.test.ts
-pd note "Writing integration tests against live daemon"
+$ pd begin --identity portdaddy:tests --purpose "Write tunnel integration tests"
+$ pd session files claim sess-j0k1l2 tests/integration/tunnel.test.ts tests/unit/tunnel-cli.test.ts
+$ pd note "Writing integration tests against live daemon"
 \`\`\`
 
 Now check the map:
 
+<!-- terminal -->
 \`\`\`bash
-pd files
-\`\`\`
+$ pd files
 
-Output:
-
-\`\`\`
 FILE CLAIMS
 
   File                              Owner              Session
@@ -786,14 +806,10 @@ Zero overlap. Every agent has a clear territory. Every file has exactly one owne
 
 What happens when Agent B tries to claim a file that Agent A already owns?
 
+<!-- terminal -->
 \`\`\`bash
 # Agent 3 (SDK) decides it also needs to touch lib/tunnel.ts
-pd session files claim sess-g7h8i9 lib/tunnel.ts
-\`\`\`
-
-The response:
-
-\`\`\`json
+$ pd session files claim sess-g7h8i9 lib/tunnel.ts
 {
   "claimed": ["lib/tunnel.ts"],
   "conflicts": [
@@ -818,11 +834,9 @@ The point is: Agent 3 can't accidentally clobber Agent 1's work because it *know
 
 You can also check ownership for a specific file:
 
+<!-- terminal -->
 \`\`\`bash
-pd who-owns lib/tunnel.ts
-\`\`\`
-
-\`\`\`
+$ pd who-owns lib/tunnel.ts
 lib/tunnel.ts is claimed by portdaddy:api (session sess-a1b2c3)
 \`\`\`
 
@@ -830,16 +844,18 @@ lib/tunnel.ts is claimed by portdaddy:api (session sess-a1b2c3)
 
 The advanced pattern uses git worktrees to give each agent its own branch. This eliminates even the *possibility* of file-level conflicts during development -- each agent has a full copy of the repo.
 
+<!-- terminal -->
 \`\`\`bash
 # Create worktrees for each agent
-git worktree add ../pd-agent-api    -b feat/tunnel-api
-git worktree add ../pd-agent-cli    -b feat/tunnel-cli
-git worktree add ../pd-agent-sdk    -b feat/tunnel-sdk
-git worktree add ../pd-agent-tests  -b feat/tunnel-tests
+$ git worktree add ../pd-agent-api    -b feat/tunnel-api
+$ git worktree add ../pd-agent-cli    -b feat/tunnel-cli
+$ git worktree add ../pd-agent-sdk    -b feat/tunnel-sdk
+$ git worktree add ../pd-agent-tests  -b feat/tunnel-tests
 \`\`\`
 
 Each agent works in its own directory on its own branch. File claims still matter because they document the *intended* partition for merge time.
 
+<!-- figure: Four-agent worktree merge strategy -- merge in decreasing file-count order -->
 \`\`\`mermaid
 graph TD
     A[main branch] --> B[feat/tunnel-api]
@@ -905,27 +921,29 @@ Port Daddy's pub/sub eliminates you from the loop entirely.
 
 The mental model is simple: channels are named pipes. Anyone can publish. Anyone can subscribe. Messages are JSON. The daemon routes them.
 
+<!-- terminal -->
 \`\`\`bash
 # Publish a message to a channel
-pd pub build:done '{"status":"success","commit":"a1b2c3"}'
+$ pd pub build:done '{"status":"success","commit":"a1b2c3"}'
 
 # Subscribe to a channel (SSE stream -- stays open)
-pd sub build:done
+$ pd sub build:done
 
 # List active channels
-pd channels
+$ pd channels
 
 # Clear a channel
-pd channels clear build:done
+$ pd channels clear build:done
 \`\`\`
 
 When Agent A publishes to \`build:done\`, every subscriber on that channel gets the message immediately via Server-Sent Events. No polling. No files. No databases to query. Real-time push.
 
 You can also long-poll if SSE doesn't fit your use case:
 
+<!-- terminal -->
 \`\`\`bash
 # Block until a message arrives (or timeout)
-curl http://localhost:9876/msg/build:done/poll?timeout=30000
+$ curl http://localhost:9876/msg/build:done/poll?timeout=30000
 \`\`\`
 
 The channel namespace is flat and convention-based. I use \`project:event\` naming -- \`myapp:tests:passed\`, \`myapp:deploy:started\`, \`myapp:migration:done\`. Pick a convention and stick with it.
@@ -936,21 +954,24 @@ Here's the migration-to-tests handoff, automated:
 
 **Agent A (migrator):**
 
+<!-- terminal -->
 \`\`\`bash
-pd begin --identity myapp:migrator --purpose "Run schema migrations"
-pd with-lock db-migrations -- npm run migrate
-pd pub migration:done '{"tables":["users","session_tokens"],"status":"success"}'
-pd done
+$ pd begin --identity myapp:migrator --purpose "Run schema migrations"
+$ pd with-lock db-migrations -- npm run migrate
+$ pd pub migration:done '{"tables":["users","session_tokens"],"status":"success"}'
+$ pd done
 \`\`\`
 
 **Agent B (tester) -- launched with a subscription:**
 
+<!-- terminal -->
 \`\`\`bash
-pd watch migration:done --exec './run-tests.sh'
+$ pd watch migration:done --exec './run-tests.sh'
 \`\`\`
 
 When Agent A publishes to \`migration:done\`, Agent B's \`run-tests.sh\` fires automatically. No human in the loop. The \`pd watch\` command keeps an SSE connection open and runs the script on every message.
 
+<!-- figure: Event-driven pipeline topology -- each agent publishes to downstream channels -->
 \`\`\`mermaid
 graph LR
     A[Agent A: Migrator] -->|pd pub migration:done| PD((Port Daddy))
@@ -967,8 +988,9 @@ Each agent only knows about its own input channel and its own output channel. Ag
 
 \`pd watch\` is the command that makes pub/sub practical. It subscribes to a channel and runs a script every time a message arrives. The message content is available as environment variables:
 
+<!-- terminal -->
 \`\`\`bash
-pd watch deployments --exec ./handle-deploy.sh
+$ pd watch deployments --exec ./handle-deploy.sh
 \`\`\`
 
 Inside \`handle-deploy.sh\`, you get:
@@ -980,6 +1002,7 @@ Inside \`handle-deploy.sh\`, you get:
 | \`PD_CHANNEL\` | Channel name (e.g., \`deployments\`) |
 | \`PD_TIMESTAMP\` | ISO 8601 timestamp |
 
+<!-- code -->
 \`\`\`bash
 #!/bin/bash
 # handle-deploy.sh
@@ -998,15 +1021,16 @@ fi
 
 \`pd watch\` has built-in safety guards:
 
+<!-- terminal -->
 \`\`\`bash
 # Limit concurrent executions (default: 5)
-pd watch alerts --exec ./alert.sh --max-concurrent 1
+$ pd watch alerts --exec ./alert.sh --max-concurrent 1
 
 # Minimum interval between executions (debounce)
-pd watch builds --exec ./build.sh --min-interval 5000
+$ pd watch builds --exec ./build.sh --min-interval 5000
 
 # Execution timeout
-pd watch deploys --exec ./deploy.sh --timeout 60000
+$ pd watch deploys --exec ./deploy.sh --timeout 60000
 \`\`\`
 
 The \`--max-concurrent 1\` flag is critical for operations that must not overlap -- deploys, migrations, anything that touches shared state. Messages that arrive while the script is running are dropped (not queued), and a rate-limit warning is logged.
@@ -1017,6 +1041,7 @@ The \`--max-concurrent 1\` flag is critical for operations that must not overlap
 
 Here's the complete system: code commit triggers tests, test failure spawns a fix agent, fix agent commits, tests run again. The loop closes automatically.
 
+<!-- code -->
 \`\`\`bash
 #!/bin/bash
 # self-healing-pipeline.sh -- run each watcher in the background
@@ -1041,6 +1066,7 @@ The key scripts:
 
 **\`run-tests.sh\`:**
 
+<!-- code -->
 \`\`\`bash
 #!/bin/bash
 pd begin --identity myapp:tester --purpose "Automated test run"
@@ -1060,6 +1086,7 @@ pd done
 
 **\`spawn-fixer.sh\`:**
 
+<!-- code -->
 \`\`\`bash
 #!/bin/bash
 FAILURES=$(echo "$PD_MESSAGE_CONTENT" | jq -r '.output')
@@ -1079,15 +1106,16 @@ The entire coordination layer is pub/sub messages. No shared files. No polling. 
 
 You can inspect the pipeline state at any time:
 
+<!-- terminal -->
 \`\`\`bash
 # What channels are active?
-pd channels
+$ pd channels
 
 # What messages have been published?
-pd msg tests:failed
+$ pd msg tests:failed
 
 # Who's running right now?
-pd agents
+$ pd agents
 \`\`\`
 
 The [MCP integration](/mcp) also exposes pub/sub, so AI agents with MCP tool access can publish and subscribe without shelling out to the CLI.
@@ -1128,6 +1156,7 @@ Fleet is a YAML file that declares your agent swarm. You describe what each agen
 
 Here's the minimum viable fleet:
 
+<!-- code -->
 \`\`\`yaml
 fleet:
   name: my-project
@@ -1151,28 +1180,32 @@ The \`pd-fleet.yml\` lives in your repo root, version-controlled alongside your 
 
 ## \`pd fleet up/down/status\`
 
+<!-- terminal -->
 \`\`\`bash
 # Initialize a fleet config (creates pd-fleet.yml + post-commit hook)
-pd fleet init
+$ pd fleet init
 
 # Start all agents
-pd fleet up
+$ pd fleet up
 
 # Check what's running
-pd fleet status
+$ pd fleet status
 
 # Stop everything
-pd fleet down
+$ pd fleet down
 
 # Run a specific agent once (for testing)
-pd fleet run qa
+$ pd fleet run qa
 \`\`\`
 
 \`pd fleet up\` reads \`pd-fleet.yml\`, spawns each agent via \`pd spawn\`, wires up the pub/sub triggers, and starts the schedulers. Each agent gets a Port Daddy identity, a session, and a heartbeat. If an agent dies, the daemon's reaper detects it and it enters the [salvage queue](/blog/dead-agents-tell-tales).
 
 \`pd fleet status\` shows the live state:
 
-\`\`\`
+<!-- terminal -->
+\`\`\`bash
+$ pd fleet status
+
 FLEET: port-daddy-dev
 
   Agent           Backend      Schedule/Trigger    Status    Last Run
@@ -1194,6 +1227,7 @@ FLEET: port-daddy-dev
 
 Port Daddy ships with a \`pd-fleet.yml\` that we use for our own development. These agents run continuously in the background while we work. Here's what each one does:
 
+<!-- figure: Fleet agent topology -- commit-triggered agents run in parallel, Spark and Spider form a creative feedback loop -->
 \`\`\`mermaid
 graph TB
     GIT[post-commit hook] -->|git:committed| QA[QA Agent]
@@ -1229,6 +1263,7 @@ The topology is a DAG. Commits trigger the core 5 agents (QA, test-hunter, docum
 
 A minimal fleet agent is 5 lines of YAML:
 
+<!-- code -->
 \`\`\`yaml
 fleet:
   name: my-project
@@ -1244,6 +1279,7 @@ That runs ESLint every 5 minutes. No AI. No LLM. Just a cron-scheduled shell com
 
 For AI agents, specify a backend and a prompt:
 
+<!-- code -->
 \`\`\`yaml
     reviewer:
       trigger: git:committed
@@ -1286,12 +1322,13 @@ Port Daddy handles everything else automatically:
 
 The whole point of Fleet is that agents should be declared, not coded. Your \`pd-fleet.yml\` is the infrastructure manifest for your AI workforce. Version control it. Review changes to it. Treat it with the same seriousness as your \`docker-compose.yml\` or your Terraform files.
 
+<!-- terminal -->
 \`\`\`bash
 # Get started in 30 seconds
-pd fleet init        # creates pd-fleet.yml + post-commit hook
+$ pd fleet init        # creates pd-fleet.yml + post-commit hook
 # Edit pd-fleet.yml to add your agents
-pd fleet up          # launch the swarm
-pd fleet status      # see what's running
+$ pd fleet up          # launch the swarm
+$ pd fleet status      # see what's running
 \`\`\`
 
 441 orphaned sessions taught me that manual agent management is a losing game. Declare your agents. Let the daemon manage them. Go think about architecture.
@@ -1318,6 +1355,7 @@ pd fleet status      # see what's running
 
 I woke up on a Wednesday morning, opened my terminal, and found this waiting for me:
 
+<!-- syllogism: S1_ARBITER_ADAPTIVE_THRESHOLDS.md -->
 \`\`\`
 PREMISE A: The Arbiter checks every state transition against six
 hard-coded invariant rules with fixed enforcement levels.
@@ -1346,6 +1384,7 @@ By morning, I had a concrete plan for a feature I hadn't imagined, grounded in c
 
 Spark runs every 30 minutes. Its job is simple: read the codebase, read the roadmap, propose one concrete improvement.
 
+<!-- code -->
 \`\`\`yaml
 # From pd-fleet.yml
 spark:
@@ -1368,6 +1407,7 @@ Every idea publishes to the \`spark:idea\` channel. Anything listening --- Spide
 
 Spider is the connection engine. It reads the feature manifest, the codebase, and Spark's latest ideas. Then it produces **formal syllogisms**: pairs of existing features whose composition implies a new, unbuilt capability.
 
+<!-- code -->
 \`\`\`yaml
 spider:
   trigger: spark:idea
@@ -1392,6 +1432,7 @@ In one run, Spider produced 10 connections. Here are three that changed how I th
 
 ### S2: Salvage Queue + Agent Inbox = Auto-Briefing
 
+<!-- syllogism: S2_SALVAGE_INBOX_AUTO_BRIEFING.md -->
 \`\`\`
 PREMISE A: The salvage system captures a dead agent's full session
 context when a new agent claims the resurrection slot.
@@ -1410,6 +1451,7 @@ Two systems that had never been connected. The salvage system knows everything a
 
 ### S9: Worktree Detection + Semantic Trie = Auto-Namespaced Identities
 
+<!-- syllogism: S9_WORKTREE_AUTO_NAMESPACE.md -->
 \`\`\`
 PREMISE A: Worktree detection identifies the current git branch
 and worktree ID at daemon startup.
@@ -1429,6 +1471,7 @@ This solved a problem we'd been fighting for weeks --- worktree agents colliding
 
 ### S10: Spawner + Pheromone = Reputation-Based Backend Selection
 
+<!-- syllogism: S10_SPAWNER_PHEROMONE_REPUTATION.md -->
 \`\`\`
 PREMISE A: The spawner selects agent backends by explicit flag,
 with no awareness of past performance.
@@ -1450,6 +1493,7 @@ This is the reputation system from Phase 2 of the roadmap, bootstrapped entirely
 
 Here's what makes this more than two independent agents:
 
+<!-- figure: Spark-Spider creative feedback loop -- ideas and connections compound via pub/sub -->
 \`\`\`mermaid
 graph LR
     Spark["Spark\\n(proposes ideas)"] -->|spark:idea| Spider["Spider\\n(finds connections)"]
@@ -1476,20 +1520,21 @@ The fleet doesn't replace me. It generates options. I choose which to build. But
 
 ## Running It Yourself
 
+<!-- terminal -->
 \`\`\`bash
 # The fleet is declared in pd-fleet.yml
-pd fleet up
+$ pd fleet up
 
 # Watch the creative loop in real-time
-pd watch spark:idea --exec 'echo "Spark: $PD_MESSAGE_CONTENT"' &
-pd watch spider:connections --exec 'echo "Spider: $PD_MESSAGE_CONTENT"' &
+$ pd watch spark:idea --exec 'echo "Spark: $PD_MESSAGE_CONTENT"' &
+$ pd watch spider:connections --exec 'echo "Spider: $PD_MESSAGE_CONTENT"' &
 
 # Or just check in the morning
-ls .spark/ideas/
-ls .spider/connections/
+$ ls .spark/ideas/
+$ ls .spider/connections/
 
 # Read what they found
-cat .spider/connections/$(ls -t .spider/connections/ | head -1)
+$ cat .spider/connections/$(ls -t .spider/connections/ | head -1)
 \`\`\`
 
 The fleet runs while you sleep. Spark dreams. Spider connects. The codebase gets better on its own.

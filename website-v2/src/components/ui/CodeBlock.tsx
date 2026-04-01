@@ -19,7 +19,7 @@ function highlightBash(line: string): React.ReactNode {
 /** Color semantic identities: project:stack:context */
 function highlightIdentity(id: string): React.ReactNode {
   const parts = id.split(':')
-  const colors = ['var(--brand-secondary)', 'var(--brand-accent)', 'var(--brand-primary)']
+  const colors = ['var(--channel-scope)', 'var(--channel-topic)', 'var(--channel-qualifier)']
   return (
     <>
       {parts.map((part, i) => (
@@ -123,7 +123,7 @@ export function CodeBlock({ children, language, filename, className, copyable = 
 
   return (
     <div
-      className={cn('rounded-[var(--radius-md)] overflow-hidden relative group', className)}
+      className={cn('code-block-wrapper rounded-[var(--radius-md)] overflow-hidden relative group', className)}
       style={{ boxShadow: 'inset 1px 1px 3px var(--neu-shadow), inset -1px -1px 3px var(--neu-highlight)' }}
     >
       {/* Compact header: dots + filename + copy */}
