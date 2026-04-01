@@ -497,6 +497,8 @@ export function demo(): void {
 }
 
 // Run demo if executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+// import.meta.main works correctly in both Node.js and Bun compiled binaries
+// (import.meta.url === file://... evaluates true for ALL bundled modules in Bun)
+if (import.meta.main) {
   demo();
 }
