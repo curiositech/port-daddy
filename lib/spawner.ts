@@ -314,6 +314,7 @@ function runClaudeCli(spec: SpawnSpec): Promise<{ output: string; error: string 
       cwd: spec.workdir || process.cwd(),
       env: { ...process.env, ...dotenv, ...(spec.env || {}), PATH: augmentedPath },
       timeout: spec.timeout || 300000,
+      stdio: ['ignore', 'pipe', 'pipe'],  // Close stdin immediately, pipe stdout/stderr
     });
 
     const stdout: string[] = [];
