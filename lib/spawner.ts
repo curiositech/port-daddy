@@ -304,7 +304,13 @@ function runClaudeCli(spec: SpawnSpec): Promise<{ output: string; error: string 
     // Note: --cwd and --max-tokens are not valid claude CLI flags.
     // Use cwd on the spawn options instead (already done below).
 
-    const dotenv = loadDotenvOnce();
+    // Strip ANTHROPIC_API_KEY from dotenv before passing to the claude subprocess.
+    // The claude CLI manages its own authentication (OAuth or its own key storage).
+    // Injecting ANTHROPIC_API_KEY from a .env file overrides that and causes
+    // "Invalid API key · Fix external API key" when the dotenv key is wrong or stale.
+    // Explicit user-provided keys via spec.env are still respected.
+    const { ANTHROPIC_API_KEY: _dropped, ...dotenvSafe } = loadDotenvOnce();
+
     // Ensure ~/.local/bin is in PATH for claude binary discovery
     const homeBin = join(process.env.HOME || '', '.local', 'bin');
     const currentPath = process.env.PATH || '';
@@ -312,7 +318,7 @@ function runClaudeCli(spec: SpawnSpec): Promise<{ output: string; error: string 
 
     const child = spawnChild('claude', args, {
       cwd: spec.workdir || process.cwd(),
-      env: { ...process.env, ...dotenv, ...(spec.env || {}), PATH: augmentedPath },
+      env: { ...process.env, ...dotenvSafe, ...(spec.env || {}), PATH: augmentedPath },
       timeout: spec.timeout || 300000,
       stdio: ['ignore', 'pipe', 'pipe'],  // Close stdin immediately, pipe stdout/stderr
     });

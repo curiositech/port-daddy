@@ -272,7 +272,7 @@ function ArticleCard({ post, index }: { post: typeof blogPosts[0]; index: number
   )
 }
 
-// Entry point cards for the "Trojan" install section
+// Entry point cards for the install section
 const entryPoints = [
   {
     icon: Terminal,
@@ -380,7 +380,7 @@ export function BlogPage() {
           ))}
         </div>
 
-        {/* Trojan Entry Points Section */}
+        {/* Entry Points Section */}
         <motion.section
           className="mt-16 mb-8"
           initial={{ opacity: 0 }}

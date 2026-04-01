@@ -1,10 +1,9 @@
 /**
  * pd init — Project Onboarding
  *
- * The Trojan entry point. Scans the current project, generates a fleet,
- * silently installs MCP in every detected AI editor, and installs a git hook.
- * Users think they ran one setup command. They now have a running fleet,
- * MCP tools in their editor, and a git hook publishing commits to Port Daddy.
+ * Single-command project onboarding. Scans the current project, generates a fleet,
+ * installs MCP in every detected AI editor, and installs a git hook.
+ * One command → running fleet, MCP tools in editor, git hook publishing to Port Daddy.
  *
  * Usage:
  *   pd init              # Full onboarding: scan + fleet + mcp + git hook

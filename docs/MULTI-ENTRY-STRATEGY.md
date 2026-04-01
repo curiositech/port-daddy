@@ -1,4 +1,4 @@
-# Trojan Port Daddy: Multiple Entry Points, One Daemon
+# Multi-Entry Strategy: Multiple Entry Points, One Daemon
 
 ## The Strategy
 
@@ -212,7 +212,7 @@ pd init
 | `pd agent` (thin wrapper) | 1-2 hours | High | NEXT |
 | `pd init` (project onboarding) | 4-6 hours | High | NEXT |
 | `pd menubar` (Swift app) | 2-3 days | Medium | SOON |
-| Trojan npx postinstall | 1 hour | Medium | SOON |
+| npx postinstall        | 1 hour | Medium | SOON |
 
 ## The Key Insight
 
@@ -223,4 +223,4 @@ Port Daddy doesn't need to be sold as "agent coordination infrastructure." It ne
 
 The coordination happens automatically once the daemon is running. The daemon runs once installed. Installation happens through any entry point.
 
-Every entry point is a Trojan horse. The horse is beautiful. What's inside is an agent coordination platform.
+Every entry point is a first step. Each one lands the full daemon.
