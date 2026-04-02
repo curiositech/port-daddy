@@ -36,6 +36,7 @@ import { createActivityLog } from '../lib/activity.js';
 import { highlightChannel, flag, SignalFlags, ANSI as marANSI } from '../lib/maritime.js';
 import { BANNER, TAGLINE } from '../lib/banner.js';
 import * as ui from '../cli/utils/ui.js';
+import PKG from '../package.json' with { type: 'json' };
 
 // Command modules (extracted from this file)
 import {
@@ -1155,10 +1156,7 @@ async function executeDirectMode(
       // In direct mode, we can't check daemon health — just report DB state
       const svc = getDirectServices();
       const result = svc.find('*');
-      const pkgPath = join(__dirname, '..', 'package.json');
-      const ver = existsSync(pkgPath)
-        ? (JSON.parse(readFileSync(pkgPath, 'utf8')) as { version: string }).version
-        : 'unknown';
+      const ver = PKG.version;
 
       console.log('Port Daddy daemon is not running (direct-DB mode)');
       console.log(`  Version: ${ver}`);
@@ -1594,9 +1592,7 @@ async function main(): Promise<void> {
   }
 
   if (command === '--version' || command === '-V') {
-    const pkgPath: string = join(__dirname, '..', 'package.json');
-    const pkg: { version: string } = JSON.parse(readFileSync(pkgPath, 'utf8')) as { version: string };
-    console.log(pkg.version);
+    console.log(PKG.version);
     process.exit(0);
   }
 

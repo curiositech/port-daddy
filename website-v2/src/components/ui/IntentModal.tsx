@@ -147,7 +147,7 @@ export function IntentModal({ isOpen, onClose }: IntentModalProps) {
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
             <a
-              href="https://github.com/erichowens/port-daddy"
+              href="https://github.com/curiositech/port-daddy"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"

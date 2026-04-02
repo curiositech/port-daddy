@@ -1,0 +1,81 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-ring: var(--ring);
+}
+
+/* ── Dark mode (default) ─────────────────────────────────────────── */
+:root {
+  --radius: 0.5rem;
+  --background: #0A0908;
+  --foreground: #D4C5A9;
+  --border: rgba(255,255,255,0.08);
+  --muted: #2A2622;
+  --muted-foreground: #A8967E;
+  --ring: #CC3D2E;
+
+  --pd-bg:        #0A0908;
+  --pd-header:    #0D0B09;
+  --pd-surface:   #1E1B18;
+  --pd-surface-2: #2A2520;
+  --pd-surface-3: #221F1C;
+  --pd-border:    #3A3530;
+  --pd-border-2:  #2A2622;
+  --pd-line:      #3A3530;
+  --pd-code:      #141210;
+  --pd-text:      #D4C5A9;
+  --pd-muted:     #6B5D4F;
+  --pd-dim:       #8B7355;
+  --pd-accent:    #CC3D2E;
+}
+
+/* ── Light mode ──────────────────────────────────────────────────── */
+html[data-theme="light"] {
+  --background: #F9F5EE;
+  --foreground: #2C2520;
+  --border: rgba(0,0,0,0.08);
+  --muted: #EEE6D9;
+  --muted-foreground: #7A6854;
+  --ring: #CC3D2E;
+
+  --pd-bg:        #F9F5EE;
+  --pd-header:    #F1EBE0;
+  --pd-surface:   #FFFFFF;
+  --pd-surface-2: #EEE6D9;
+  --pd-surface-3: #F5EDE2;
+  --pd-border:    #D5CCC0;
+  --pd-border-2:  #E5DDD0;
+  --pd-line:      #8A8078;
+  --pd-code:      #F5EFE6;
+  --pd-text:      #2C2520;
+  --pd-muted:     #7A6854;
+  --pd-dim:       #A08060;
+  --pd-accent:    #CC3D2E;
+}
+
+@layer base {
+  * { @apply border-border; box-sizing: border-box; }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    margin: 0;
+  }
+  #root { min-height: 100vh; }
+}
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(212,197,169,0.15); border-radius: 2px; }
