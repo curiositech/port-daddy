@@ -2942,6 +2942,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 server.setRequestHandler(ListResourcesRequestSchema, async () => ({
   resources: [
     {
+      uri: 'port-daddy://skill',
+      name: 'Port Daddy Agent Skill',
+      description: 'Complete guide for AI agents on how to use Port Daddy — read this to understand available tools, patterns, and best practices',
+      mimeType: 'text/markdown',
+    },
+    {
       uri: 'port-daddy://services',
       name: 'Active Services',
       description: 'All currently claimed services with their ports',
@@ -2978,6 +2984,29 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => ({
 server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
   const { uri } = request.params;
   let res: ApiResponse;
+
+  // Skill resource — serve SKILL.md directly (no daemon call needed)
+  if (uri === 'port-daddy://skill') {
+    const { readFileSync, existsSync } = await import('node:fs');
+    const { join, dirname } = await import('node:path');
+    const { fileURLToPath } = await import('node:url');
+    const mcpDir = dirname(fileURLToPath(import.meta.url));
+
+    // Search for skill in multiple locations
+    const candidates = [
+      join(mcpDir, '..', 'skills', 'port-daddy-cli', 'SKILL.md'),
+      join(mcpDir, '..', 'skills', 'port-daddy', 'SKILL.md'),
+      join(process.env.HOME || '', '.port-daddy', 'skills', 'SKILL.md'),
+    ];
+    const skillPath = candidates.find(p => existsSync(p));
+    const skillContent = skillPath
+      ? readFileSync(skillPath, 'utf-8')
+      : '# Port Daddy\n\nSkill document not found. Run `pd mcp install` to install.';
+
+    return {
+      contents: [{ uri, mimeType: 'text/markdown', text: skillContent }],
+    };
+  }
 
   switch (uri) {
     case 'port-daddy://services':

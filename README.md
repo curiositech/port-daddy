@@ -69,8 +69,7 @@ pd done "Auth complete"
 ### 2. Install CLI
 ```bash
 # Via Homebrew (macOS)
-brew tap erichowens/port-daddy
-brew install port-daddy
+brew install curiositech/tap/port-daddy
 
 # Via npm
 npm install -g port-daddy
@@ -406,7 +405,7 @@ Commit this to your repo so every developer gets the same deterministic port map
 
 ### Setup
 ```bash
-git clone https://github.com/erichowens/port-daddy
+git clone https://github.com/curiositech/port-daddy
 npm install
 npm run dev # Starts daemon and website in dev mode
 ```
@@ -439,6 +438,6 @@ Created by **[Erichs Owens](https://github.com/erichowens)** at **[curiositech](
 ---
 
 ## ⚓ Support & Contact
-- **Issues:** [GitHub Issue Tracker](https://github.com/erichowens/port-daddy/issues)
+- **Issues:** [GitHub Issue Tracker](https://github.com/curiositech/port-daddy/issues)
 - **Help:** Run `pd help` or `pd learn` for the interactive tutorial.
 - **Vibe:** Ambitious, CUTE and CHARMING. 🚩

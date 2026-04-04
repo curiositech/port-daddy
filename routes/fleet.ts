@@ -103,6 +103,18 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
     return { success: result.success, error: result.error };
   });
 
+  // GET /fleet/prompt — One-line fleet status for shell integration
+  fastify.get('/fleet/prompt', async (request: FastifyRequest) => {
+    const query = request.query as { project?: string; since?: string };
+    const project = query.project;
+    if (!project) {
+      return { success: false, error: 'project query param required' };
+    }
+    const since = query.since ? parseInt(query.since, 10) : undefined;
+    const line = fleetDaemon.getPromptLine(project, since);
+    return { success: true, line };
+  });
+
   // GET /fleet/events — SSE stream of fleet lifecycle events
   fastify.get('/fleet/events', async (request: FastifyRequest, reply: FastifyReply) => {
     const clientIp: string = request.ip || 'unknown';

@@ -6,7 +6,9 @@
  */
 
 /** Whether stdout is a terminal (not a pipe or redirect) */
-export const IS_TTY: boolean = (process.stderr.isTTY ?? false) || !!process.env.FORCE_COLOR;
+export const IS_TTY: boolean = 
+  (process.env.NO_COLOR === undefined || process.env.NO_COLOR === '') &&
+  ((process.stderr.isTTY ?? false) || !!process.env.FORCE_COLOR);
 
 /** Print a Unicode separator line (only in TTY mode) */
 export function separator(width: number = 75): void {

@@ -1304,8 +1304,10 @@ _port_daddy() {
     # Agent coordination
     'pub:publish a message to a channel'
     'publish:publish a message to a channel (alias for pub)'
+    'broadcast:publish a message to a channel (alias for pub)'
     'sub:subscribe to a channel (streaming)'
     'subscribe:subscribe to a channel (alias for sub)'
+    'listen:subscribe to a channel (alias for sub)'
     'wait:wait until a service is claimed'
     'lock:acquire a distributed lock'
     'unlock:release a distributed lock'
@@ -1313,6 +1315,7 @@ _port_daddy() {
     # Agent registry
     'agent:manage an agent (register/heartbeat/unregister)'
     'agents:list registered agents'
+    'swarm:list registered agents (alias for agents)'
     # Activity
     'log:tail the activity log'
     'activity:show activity summary or stats'
@@ -1390,7 +1393,8 @@ _port_daddy() {
     'uninstall:uninstall the system service'
     'dev:start daemon in development mode (foreground)'
     'ci-gate:exit non-zero if daemon is running stale code'
-    'mcp:start MCP server for Claude Code / Claude Desktop'
+    'mcp:start MCP server for Claude Code / Claude Desktop (pd mcp install to configure)'
+    'init:set up Port Daddy for this project (scan, fleet, MCP, git hook)'
     # Info
     'version:print version information'
     'help:show help'
@@ -1426,14 +1430,14 @@ _port_daddy() {
         env)                _pd_cmd_env ;;
         tunnel)             _pd_cmd_tunnel ;;
         dns)                _pd_cmd_dns ;;
-        pub|publish)        _pd_cmd_pub ;;
-        sub|subscribe)      _pd_cmd_sub ;;
+        pub|publish|broadcast) _pd_cmd_pub ;;
+        sub|subscribe|listen) _pd_cmd_sub ;;
         wait)               _pd_cmd_wait ;;
         lock)               _pd_cmd_lock ;;
         unlock)             _pd_cmd_unlock ;;
         locks)              _pd_cmd_locks ;;
         agent)              _pd_cmd_agent ;;
-        agents)             _pd_cmd_agents ;;
+        agents|swarm)        _pd_cmd_agents ;;
         log)                _pd_cmd_log ;;
         activity)           _pd_cmd_activity ;;
         session)            _pd_cmd_session ;;
@@ -1450,6 +1454,7 @@ _port_daddy() {
         s|scan)             _pd_cmd_scan ;;
         p|projects)         _pd_cmd_projects ;;
         doctor|diagnose)    _pd_cmd_doctor ;;
+        init)               ;; # no subcommands
         start|stop|restart|status|install|uninstall|dev|ci-gate)
                             _pd_cmd_daemon ;;
         dashboard)              _pd_cmd_dashboard ;;
@@ -1479,6 +1484,7 @@ _port_daddy() {
         harbor)                 _pd_cmd_harbor ;;
         harbors)                _pd_cmd_harbors ;;
         tuple)                  _pd_cmd_tuple ;;
+        mcp)                _arguments '1:subcommand:(start install)' ;;
         version|help)       ;;
         *)                  ;;
       esac

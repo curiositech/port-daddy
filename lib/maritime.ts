@@ -66,8 +66,8 @@
  * Respects NO_COLOR env var (https://no-color.org/) and non-TTY stdout.
  */
 export const COLOR_ENABLED: boolean =
-  !process.env.NO_COLOR &&
-  !process.env.CI_NO_COLOR &&
+  (process.env.NO_COLOR === undefined || process.env.NO_COLOR === '') &&
+  (process.env.CI_NO_COLOR === undefined || process.env.CI_NO_COLOR === '') &&
   (process.stdout.isTTY === true || process.env.FORCE_COLOR !== undefined);
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -497,6 +497,8 @@ export function demo(): void {
 }
 
 // Run demo if executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+// import.meta.main works correctly in both Node.js and Bun compiled binaries
+// (import.meta.url === file://... evaluates true for ALL bundled modules in Bun)
+if (import.meta.main) {
   demo();
 }

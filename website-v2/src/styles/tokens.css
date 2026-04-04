@@ -75,6 +75,18 @@
   --p-ebony-800: #161412;
   --p-ebony-900: #100E0C;
 
+  /* Palette: Green (harbor sage — introduced for maritime signal tokens) */
+  --p-green-50:  #EEF6EF;
+  --p-green-100: #D4EBDA;
+  --p-green-200: #A8D6B3;
+  --p-green-300: #7ABF7E;
+  --p-green-400: #5DA862;
+  --p-green-500: #4A7A5A;
+  --p-green-600: #3A6248;
+  --p-green-700: #2D4E3A;
+  --p-green-800: #1F3829;
+  --p-green-900: #132219;
+
   /* Spacing scale (4px base) */
   --space-0:  0;
   --space-1:  4px;
@@ -167,6 +179,31 @@
   --status-warning:   #B8860B;  /* dark goldenrod — not in palette; sits between p-gold-600 (#866538) and p-gold-500 (#A68050) */
   --status-error:     var(--p-red-500);
   --status-info:      var(--p-teal-500);
+
+  /* Maritime: Signal Flags (ADR-0010) */
+  --signal-charlie:  var(--status-success);
+  --signal-november: var(--status-error);
+  --signal-kilo:     var(--status-info);
+  --signal-uniform:  var(--status-warning);
+  --signal-victor:   var(--p-red-700);
+  --signal-lima:     var(--p-stone-700);
+
+  /* Maritime: Channel Token Colors (identity coloring) */
+  --channel-scope:     var(--brand-secondary);
+  --channel-topic:     var(--brand-accent);
+  --channel-qualifier: var(--p-green-500);
+  --channel-sep:       var(--text-muted);
+
+  /* Maritime: Agent Voice Colors (radio messages) */
+  --voice-mayday:    var(--p-red-700);
+  --voice-pan-pan:   var(--p-gold-600);
+  --voice-securite:  var(--p-teal-700);
+  --voice-hail:      var(--p-green-500);
+  --voice-roger:     var(--p-green-500);
+  --voice-wilco:     var(--p-green-500);
+  --voice-report:    var(--text-primary);
+  --voice-over:      var(--text-muted);
+  --voice-out:       var(--text-muted);
 
   /* Neumorphic depth (the magic sauce) */
   --neu-shadow:       var(--p-stone-500);
@@ -270,6 +307,31 @@
   --status-warning:   var(--p-gold-300);
   --status-error:     var(--p-red-400);
   --status-info:      var(--p-teal-400);
+
+  /* Maritime: Signal Flags (dark theme) */
+  --signal-charlie:  var(--status-success);
+  --signal-november: var(--status-error);
+  --signal-kilo:     var(--status-info);
+  --signal-uniform:  var(--status-warning);
+  --signal-victor:   var(--p-red-300);
+  --signal-lima:     var(--p-stone-500);
+
+  /* Maritime: Channel Token Colors (dark theme) */
+  --channel-scope:     var(--brand-secondary);
+  --channel-topic:     var(--brand-accent);
+  --channel-qualifier: var(--p-green-300);
+  --channel-sep:       var(--text-muted);
+
+  /* Maritime: Agent Voice Colors (dark theme) */
+  --voice-mayday:    var(--p-red-300);
+  --voice-pan-pan:   var(--p-gold-300);
+  --voice-securite:  var(--p-teal-300);
+  --voice-hail:      var(--p-green-300);
+  --voice-roger:     var(--p-green-300);
+  --voice-wilco:     var(--p-green-300);
+  --voice-report:    var(--text-primary);
+  --voice-over:      var(--text-muted);
+  --voice-out:       var(--text-muted);
 
   --neu-shadow:       var(--p-ebony-900);
   --neu-highlight:    var(--p-ebony-500);

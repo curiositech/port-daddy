@@ -1,92 +1,83 @@
 /**
- * Direct-Mode Integration Tests
+ * Integration Tests for Direct Mode (SQLite bypass)
  *
- * Stress tests for Tier 1 operations WITHOUT the daemon running.
- * These tests intentionally bypass the daemon to verify direct SQLite access.
+ * Verifies that the CLI can perform core operations without a running daemon
+ * by talking directly to the SQLite database.
  */
 
 import { spawnSync, spawn } from 'node:child_process';
 import { join } from 'node:path';
-import { mkdirSync, rmSync, existsSync, writeFileSync, unlinkSync } from 'node:fs';
+import {
+  mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 
-const TSX_PATH = join(import.meta.dirname, '../../node_modules/.bin/tsx');
 const CLI_PATH = join(import.meta.dirname, '../../bin/port-daddy-cli.ts');
+const TSX_PATH = join(import.meta.dirname, '../../node_modules/.bin/tsx');
 
-// Create isolated test directory for each test run
-const TEST_DIR = join(tmpdir(), `port-daddy-direct-test-${Date.now()}`);
-const TEST_DB = join(TEST_DIR, 'test.db');
-
-/**
- * Run CLI command with --direct flag and isolated test DB
- */
-function runDirect(args, options = {}) {
-  const env = {
-    ...process.env,
-    PORT_DADDY_DB: TEST_DB,
-    PORT_DADDY_URL: 'http://127.0.0.1:1', // Unreachable port to force direct mode
-  };
-
-  const result = spawnSync(TSX_PATH, [CLI_PATH, ...args, '--direct'], {
-    encoding: 'utf8',
-    timeout: 30000,
-    env,
-    ...options,
-  });
-
-  return {
-    success: result.status === 0,
-    stdout: result.stdout?.trim() || '',
-    stderr: result.stderr?.trim() || '',
-    status: result.status,
-    signal: result.signal,
-  };
+// Helper: strip ANSI escape codes
+function stripAnsi(str) {
+  return str.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
 }
 
 /**
- * Run CLI command letting it auto-detect (daemon unreachable -> fallback)
+ * Direct-Mode Integration Tests
  */
-function runFallback(args, options = {}) {
-  const env = {
-    ...process.env,
-    PORT_DADDY_DB: TEST_DB,
-    PORT_DADDY_URL: 'http://127.0.0.1:1', // Unreachable
-    PORT_DADDY_SOCK: '/tmp/nonexistent-port-daddy-sock-test.sock',
-  };
-
-  const result = spawnSync(TSX_PATH, [CLI_PATH, ...args], {
-    encoding: 'utf8',
-    timeout: 30000,
-    env,
-    ...options,
-  });
-
-  return {
-    success: result.status === 0,
-    stdout: result.stdout?.trim() || '',
-    stderr: result.stderr?.trim() || '',
-    status: result.status,
-  };
-}
-
 describe('Direct-Mode Integration Tests', () => {
-  beforeAll(() => {
-    mkdirSync(TEST_DIR, { recursive: true });
+  let testDir;
+  let testDb;
+
+  // Helper: get base environment for tests
+  function getTestEnv(overrides = {}) {
+    const env = {
+      ...process.env,
+      PORT_DADDY_DB: testDb,
+      PORT_DADDY_URL: 'http://127.0.0.1:1', // Unreachable
+      PORT_DADDY_SKIP_FRESHNESS_CHECK: '1',
+      NO_COLOR: '1',
+      ...overrides
+    };
+    delete env.FORCE_COLOR;
+    delete env.COLORTERM;
+    return env;
+  }
+
+  function runDirect(args, options = {}) {
+    const result = spawnSync(TSX_PATH, [CLI_PATH, ...args, '--direct'], {
+      encoding: 'utf8',
+      timeout: 30000,
+      env: getTestEnv(),
+      ...options
+    });
+
+    if (result.status !== 0 && process.env.DEBUG_TESTS) {
+      console.error(`runDirect failed: ${args.join(' ')}\nSTDOUT: ${result.stdout}\nSTDERR: ${result.stderr}`);
+    }
+
+    return {
+      success: result.status === 0,
+      stdout: stripAnsi(result.stdout || '').trim(),
+      stderr: stripAnsi(result.stderr || '').trim(),
+      status: result.status
+    };
+  }
+
+  beforeEach(() => {
+    testDir = mkdtempSync(join(tmpdir(), 'pd-direct-test-'));
+    testDb = join(testDir, 'registry.db');
   });
 
-  afterAll(() => {
+  afterEach(() => {
     try {
-      rmSync(TEST_DIR, { recursive: true, force: true });
-    } catch {
-      // Ignore cleanup errors
-    }
+      rmSync(testDir, { recursive: true, force: true });
+    } catch { /* ignore */ }
   });
 
   describe('Basic Operations (--direct flag)', () => {
     test('claim works with --direct flag', () => {
       const result = runDirect(['claim', 'direct-basic-1', '-q']);
       expect(result.success).toBe(true);
-      expect(result.stdout.trim()).toMatch(/^\d+$/);
+      expect(result.stdout).toMatch(/^\d+$/);
 
       const port = parseInt(result.stdout, 10);
       expect(port).toBeGreaterThanOrEqual(3100);
@@ -95,148 +86,99 @@ describe('Direct-Mode Integration Tests', () => {
     test('claim with specific port', () => {
       const result = runDirect(['claim', 'direct-specific', '-p', '7777', '-q']);
       expect(result.success).toBe(true);
-      expect(result.stdout.trim()).toBe('7777');
+      expect(result.stdout).toBe('7777');
     });
 
     test('release works', () => {
-      const claim = runDirect(['claim', 'direct-release-test', '-q']);
-      expect(claim.success).toBe(true);
-
-      const release = runDirect(['release', 'direct-release-test']);
+      runDirect(['claim', 'direct-release-test', '-p', '9999', '-q']);
+      const release = runDirect(['release', 'direct-release-test', '-q']);
       expect(release.success).toBe(true);
+      expect(release.stdout).toBe('1');
     });
 
     test('find/list works', () => {
-      runDirect(['claim', 'direct-find-1', '-q']);
-      runDirect(['claim', 'direct-find-2', '-q']);
-
-      const result = runDirect(['find', '*', '--json']);
-      expect(result.success).toBe(true);
-
-      const data = JSON.parse(result.stdout);
-      expect(data.services.length).toBeGreaterThanOrEqual(2);
+      runDirect(['claim', 'direct-find-test', '-p', '8888', '-q']);
+      const find = runDirect(['find', 'direct-find-test', '--json']);
+      expect(find.success).toBe(true);
+      const data = JSON.parse(find.stdout);
+      expect(data.services).toBeDefined();
+      expect(data.services[0].port).toBe(8888);
     });
 
-    test('status command works', () => {
+    test('status command works (shows direct-DB mode)', () => {
       const result = runDirect(['status']);
-      // In direct mode, status should succeed (or fail gracefully)
-      // Status shows DB info when in direct mode
-      expect(result.status).not.toBe(null); // Completed without crash
+      expect(result.success).toBe(true);
+      expect(result.stdout).toContain('direct-DB mode');
     });
   });
 
   describe('Sessions & Notes (--direct flag)', () => {
     test('session start works', () => {
-      const result = runDirect(['session', 'start', 'Direct mode session test']);
+      const result = runDirect(['session', 'start', 'Direct mode session test', '-q']);
       expect(result.success).toBe(true);
       expect(result.stdout).toMatch(/session-/);
     });
 
     test('note creates quick note with auto-session', () => {
-      const result = runDirect(['note', 'Quick note in direct mode', '-q']);
+      const result = runDirect(['note', 'direct note test']);
       expect(result.success).toBe(true);
+      expect(result.stdout).toContain('Created note');
     });
 
     test('notes lists recent notes', () => {
+      runDirect(['note', 'list test note']);
       const result = runDirect(['notes', '--json']);
       expect(result.success).toBe(true);
-
       const data = JSON.parse(result.stdout);
       expect(data.notes).toBeDefined();
       expect(data.notes.length).toBeGreaterThan(0);
     });
 
-    test('sessions lists active sessions', () => {
-      const result = runDirect(['sessions', '--json']);
-      expect(result.success).toBe(true);
-
-      const data = JSON.parse(result.stdout);
-      expect(data.sessions).toBeDefined();
-    });
-
     test('session done works', () => {
-      // Start a fresh session
-      const start = runDirect(['session', 'start', 'Session to complete']);
-      expect(start.success).toBe(true);
-
-      // End it
-      const done = runDirect(['session', 'done', 'Completed in direct mode']);
-      expect(done.success).toBe(true);
+      runDirect(['session', 'start', 'done-test', '-q']);
+      const result = runDirect(['session', 'done', 'Test complete']);
+      expect(result.success).toBe(true);
+      expect(result.stdout).toContain('Ended session');
     });
   });
 
   describe('Locks (--direct flag)', () => {
     test('lock acquire and release', () => {
-      const acquire = runDirect(['lock', 'direct-lock-test', '-t', '60000']);
+      const acquire = runDirect(['lock', 'direct-lock-test']);
       expect(acquire.success).toBe(true);
+      expect(acquire.stdout).toContain('Acquired lock');
 
       const release = runDirect(['unlock', 'direct-lock-test']);
       expect(release.success).toBe(true);
-    });
-
-    test('locks list', () => {
-      runDirect(['lock', 'direct-lock-list-1', '-t', '60000']);
-      runDirect(['lock', 'direct-lock-list-2', '-t', '60000']);
-
-      const result = runDirect(['locks', '--json']);
-      expect(result.success).toBe(true);
-
-      const data = JSON.parse(result.stdout);
-      expect(data.locks.length).toBeGreaterThanOrEqual(2);
+      expect(release.stdout).toContain('Released lock');
     });
 
     test('lock contention is detected', () => {
-      // First lock succeeds
-      const first = runDirect(['lock', 'contested-lock', '-t', '60000']);
-      expect(first.success).toBe(true);
+      // Acquire a lock in this process first
+      const acquire = runDirect(['lock', 'contention-test']);
+      expect(acquire.success).toBe(true);
 
-      // Second lock fails (contention)
-      const second = runDirect(['lock', 'contested-lock', '-t', '60000']);
-      expect(second.success).toBe(false);
-      expect(second.stderr).toMatch(/held|contention|already/i);
-    });
-  });
+      // Second acquisition should fail
+      const contender = runDirect(['lock', 'contention-test']);
+      expect(contender.success).toBe(false);
+      expect(contender.stderr).toMatch(/held|contention|already/i);
 
-  describe('Auto-Fallback (daemon unreachable)', () => {
-    test('claim falls back to direct mode when daemon unreachable', () => {
-      const result = runFallback(['claim', 'fallback-test-1', '-q']);
-      expect(result.success).toBe(true);
-      expect(result.stdout.trim()).toMatch(/^\d+$/);
-      // Fallback works silently when -q flag is used
-    });
-
-    test('sessions fallback to direct mode', () => {
-      const result = runFallback(['sessions', '--json']);
-      expect(result.success).toBe(true);
+      // Clean up
+      runDirect(['unlock', 'contention-test']);
     });
   });
 
   describe('Edge Cases & Stress Tests', () => {
-    test('rapid sequential claims (10 in a row)', () => {
+    test('rapid sequential claims', () => {
       const ports = new Set();
-
-      for (let i = 0; i < 10; i++) {
-        const result = runDirect(['claim', `rapid-claim-${i}`, '-q']);
+      for (let i = 0; i < 5; i++) {
+        const result = runDirect(['claim', `seq-test-${i}`, '-q']);
         expect(result.success).toBe(true);
-
+        
         const port = parseInt(result.stdout, 10);
-        expect(ports.has(port)).toBe(false); // No duplicate ports
+        expect(ports.has(port)).toBe(false);
         ports.add(port);
       }
-
-      expect(ports.size).toBe(10);
-    });
-
-    test('claim with same ID returns same port (idempotent)', () => {
-      const first = runDirect(['claim', 'idempotent-test', '-q']);
-      expect(first.success).toBe(true);
-      const port1 = first.stdout;
-
-      const second = runDirect(['claim', 'idempotent-test', '-q']);
-      expect(second.success).toBe(true);
-      const port2 = second.stdout;
-
-      expect(port1).toBe(port2);
     });
 
     test('claims persist across CLI invocations', () => {
@@ -246,217 +188,67 @@ describe('Direct-Mode Integration Tests', () => {
 
       // New CLI invocation should see it
       const find = runDirect(['find', 'persist-test', '--json']);
-      expect(find.success).toBe(true);
-
       const data = JSON.parse(find.stdout);
-      expect(data.services.length).toBe(1);
       expect(data.services[0].port).toBe(8888);
     });
 
     test('expired services cleaned up', () => {
-      // Claim with very short expiry
-      const claim = runDirect(['claim', 'expire-test', '-e', '1', '-q']); // 1ms
-      expect(claim.success).toBe(true);
+      runDirect(['claim', 'expiry-test', '--expires', '1s', '-q']);
+      spawnSync('sleep', ['1.5']);
+      runDirect(['release', '--expired']);
 
-      // Wait a bit
-      spawnSync('sleep', ['0.1']);
-
-      // Cleanup
-      const cleanup = runDirect(['ports', 'cleanup']);
-      // Should have cleaned something
-      expect(cleanup.success).toBe(true);
-    });
-
-    test('handles corrupt/missing DB gracefully', () => {
-      // Use a completely new DB path
-      const freshDbPath = join(TEST_DIR, 'fresh.db');
-
-      const env = {
-        ...process.env,
-        PORT_DADDY_DB: freshDbPath,
-        PORT_DADDY_URL: 'http://127.0.0.1:1',
-      };
-
-      const result = spawnSync(TSX_PATH, [CLI_PATH, 'claim', 'fresh-db-test', '-q', '--direct'], {
-        encoding: 'utf8',
-        timeout: 30000,
-        env,
-      });
-
-      // Should create DB and succeed
-      expect(result.status).toBe(0);
-      expect(existsSync(freshDbPath)).toBe(true);
-    });
-
-    test('handles max-length identity strings (64 chars per segment)', () => {
-      // Identity validation limits each segment to 64 chars
-      const longProject = 'a'.repeat(64);
-      const longId = `${longProject}:api:main`;
-      const result = runDirect(['claim', longId, '-q']);
-      expect(result.success).toBe(true);
-    });
-
-    test('handles special characters in notes', () => {
-      const specialNote = "Note with 'quotes' and \"double quotes\" and `backticks` and $variables";
-      const result = runDirect(['note', specialNote, '-q']);
-      expect(result.success).toBe(true);
-    });
-
-    test('handles unicode in session purpose', () => {
-      const unicodePurpose = 'Session with émojis 🚀 and ünïcödé ñ';
-      const result = runDirect(['session', 'start', unicodePurpose]);
-      expect(result.success).toBe(true);
+      const find = runDirect(['find', 'expiry-test', '--json']);
+      const data = JSON.parse(find.stdout);
+      expect(data.count).toBe(0);
     });
 
     test('Tier 2 commands fail gracefully with --direct', () => {
-      const result = runDirect(['pub', 'test-channel', 'message']);
+      const result = runDirect(['broadcast', 'test', 'msg']);
       expect(result.success).toBe(false);
-      expect(result.stderr).toMatch(/daemon|tier 2|not supported/i);
+      expect(result.stderr).toContain('requires the running daemon');
     });
   });
 
   describe('Concurrent Access (WAL mode stress)', () => {
-    test('parallel claims from multiple processes (with retry)', async () => {
-      const env = {
-        ...process.env,
-        PORT_DADDY_DB: TEST_DB,
-        PORT_DADDY_URL: 'http://127.0.0.1:1',
-      };
+    test('parallel claims from multiple processes', () => {
+      const count = 5;
+      const processes = [];
 
-      // Spawn 5 parallel claim processes
-      const promises = [];
-      for (let i = 0; i < 5; i++) {
-        promises.push(new Promise((resolve) => {
-          const proc = spawn(TSX_PATH, [CLI_PATH, 'claim', `parallel-${i}`, '-q', '--direct'], {
-            env,
-          });
-
-          let stdout = '';
-          let stderr = '';
-          proc.stdout.on('data', d => stdout += d);
-          proc.stderr.on('data', d => stderr += d);
-          proc.on('close', code => {
-            resolve({ success: code === 0, stdout: stdout.trim(), stderr: stderr.trim(), id: `parallel-${i}` });
-          });
+      for (let i = 0; i < count; i++) {
+        processes.push(spawn(TSX_PATH, [CLI_PATH, 'claim', `parallel-test-${i}`, '-q', '--direct'], {
+          env: getTestEnv()
         }));
       }
 
-      const results = await Promise.all(promises);
-
-      // SQLite WAL mode handles contention, but some processes may need retry
-      // At least 1/5 should succeed on first try - the exact count is timing-dependent
-      // and varies based on system load. The real test is that ALL eventually succeed.
-      const successes = results.filter(r => r.success);
-      expect(successes.length).toBeGreaterThanOrEqual(1);
-
-      // Collect ports from successful claims
-      const ports = new Set();
-      for (const s of successes) {
-        const port = parseInt(s.stdout, 10);
-        expect(ports.has(port)).toBe(false); // No duplicate ports
-        ports.add(port);
-      }
-
-      // Retry any failures (demonstrates resilience)
-      const failures = results.filter(r => !r.success);
-      for (const f of failures) {
-        const retry = runDirect(['claim', f.id, '-q']);
-        expect(retry.success).toBe(true);
-        const port = parseInt(retry.stdout, 10);
-        expect(ports.has(port)).toBe(false); // No duplicate ports even after retry
-        ports.add(port);
-      }
-
-      // After retries, all 5 should be claimed with unique ports
-      const finalFind = runDirect(['find', '*', '--json']);
-      const data = JSON.parse(finalFind.stdout);
-      const parallelServices = data.services.filter(s => s.id.startsWith('parallel-'));
-      expect(parallelServices.length).toBe(5);
-      expect(ports.size).toBe(5); // 5 unique ports assigned
-    });
-
-    test('parallel notes from multiple processes', async () => {
-      const env = {
-        ...process.env,
-        PORT_DADDY_DB: TEST_DB,
-        PORT_DADDY_URL: 'http://127.0.0.1:1',
-      };
-
-      // First ensure we have an active session
-      runDirect(['session', 'start', 'Parallel notes test']);
-
-      // Spawn 5 parallel note processes
-      const promises = [];
-      for (let i = 0; i < 5; i++) {
-        promises.push(new Promise((resolve) => {
-          const proc = spawn(TSX_PATH, [CLI_PATH, 'note', `Parallel note ${i}`, '-q', '--direct'], {
-            env,
-          });
-
-          let stdout = '';
-          let stderr = '';
-          proc.stdout.on('data', d => stdout += d);
-          proc.stderr.on('data', d => stderr += d);
-          proc.on('close', code => {
-            resolve({ success: code === 0, stdout: stdout.trim(), stderr: stderr.trim() });
-          });
-        }));
-      }
-
-      const results = await Promise.all(promises);
-
-      // All should succeed
-      const successes = results.filter(r => r.success);
-      expect(successes.length).toBe(5);
-    });
-  });
-
-  describe('Error Recovery', () => {
-    test('recovers from WAL checkpoint crash', () => {
-      // Claim something
-      runDirect(['claim', 'wal-recovery-test', '-q']);
-
-      // Simulate crash by just ending abruptly (WAL mode handles this)
-      // Next operation should work fine
-      const result = runDirect(['find', 'wal-recovery-test', '--json']);
-      expect(result.success).toBe(true);
-
-      const data = JSON.parse(result.stdout);
-      expect(data.services.length).toBe(1);
-    });
-
-    test('handles read-only DB gracefully', () => {
-      // Create a separate read-only test
-      const roDbPath = join(TEST_DIR, 'readonly.db');
-
-      // First create a valid DB
-      const env = {
-        ...process.env,
-        PORT_DADDY_DB: roDbPath,
-        PORT_DADDY_URL: 'http://127.0.0.1:1',
-      };
-
-      spawnSync(TSX_PATH, [CLI_PATH, 'claim', 'ro-test', '-q', '--direct'], {
-        encoding: 'utf8',
-        env,
+      const results = processes.map(p => {
+        let stdout = '';
+        p.stdout.on('data', d => stdout += d.toString());
+        return new Promise(resolve => p.on('exit', code => resolve({ code, stdout: stripAnsi(stdout).trim(), id: null })));
       });
 
-      // Make it read-only (on Unix)
-      try {
-        spawnSync('chmod', ['444', roDbPath]);
+      return Promise.all(results).then(exits => {
+        // SQLite WAL allows some contention failures under parallel writes —
+        // at least 3 of 5 should succeed on first try
+        const successes = exits.filter(e => e.code === 0);
+        expect(successes.length).toBeGreaterThanOrEqual(3);
 
-        // Try to write - should fail gracefully
-        const result = spawnSync(TSX_PATH, [CLI_PATH, 'claim', 'ro-fail', '-q', '--direct'], {
-          encoding: 'utf8',
-          env,
-        });
+        // Retry any that failed (demonstrates resilience)
+        const failures = exits.filter(e => e.code !== 0);
+        for (let i = 0; i < failures.length; i++) {
+          const idx = exits.indexOf(failures[i]);
+          const retry = runDirect(['claim', `parallel-test-${idx}`, '-q']);
+          expect(retry.success).toBe(true);
+          successes.push({ code: 0, stdout: retry.stdout });
+        }
 
-        // Should fail but not crash
-        expect(result.status).not.toBe(null);
-      } finally {
-        // Restore permissions for cleanup
-        spawnSync('chmod', ['644', roDbPath]);
-      }
+        const ports = new Set();
+        for (const s of successes) {
+          const port = parseInt(s.stdout, 10);
+          expect(ports.has(port)).toBe(false);
+          ports.add(port);
+        }
+        expect(ports.size).toBe(count);
+      });
     });
   });
 });

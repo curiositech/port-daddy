@@ -39,6 +39,10 @@ export function outro(message: string): void {
  * Log a success message.
  */
 export function success(message: string): void {
+  if (!IS_TTY) {
+    console.log(`SUCCESS: ${message}`);
+    return;
+  }
   p.log.success(message);
 }
 
@@ -46,6 +50,10 @@ export function success(message: string): void {
  * Log an error message.
  */
 export function error(message: string): void {
+  if (!IS_TTY) {
+    console.error(`ERROR: ${message}`);
+    return;
+  }
   p.log.error(message);
 }
 
@@ -53,6 +61,10 @@ export function error(message: string): void {
  * Log a warning message.
  */
 export function warn(message: string): void {
+  if (!IS_TTY) {
+    console.error(`WARN: ${message}`);
+    return;
+  }
   p.log.warn(message);
 }
 
@@ -60,6 +72,10 @@ export function warn(message: string): void {
  * Log an informational message.
  */
 export function info(message: string): void {
+  if (!IS_TTY) {
+    console.log(`INFO: ${message}`);
+    return;
+  }
   p.log.info(message);
 }
 
@@ -67,6 +83,10 @@ export function info(message: string): void {
  * Log a plain message (no icon).
  */
 export function message(msg: string): void {
+  if (!IS_TTY) {
+    console.error(msg);
+    return;
+  }
   p.log.message(msg);
 }
 
@@ -74,6 +94,10 @@ export function message(msg: string): void {
  * Log a step — for multi-step flows.
  */
 export function step(msg: string): void {
+  if (!IS_TTY) {
+    console.error(`STEP: ${msg}`);
+    return;
+  }
   p.log.step(msg);
 }
 

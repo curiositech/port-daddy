@@ -361,8 +361,11 @@ function isProcessAlive(pid: number): boolean {
 
 function writePidFile(dir: string): void {
   try {
-    fsWriteFileSync(getPidFile(dir), String(process.pid));
-  } catch { /* best effort */ }
+    const path = getPidFile(dir);
+    fsWriteFileSync(path, String(process.pid));
+  } catch (err) {
+    // ignore
+  }
 }
 
 function removePidFile(dir: string): void {

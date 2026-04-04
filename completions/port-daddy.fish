@@ -93,8 +93,8 @@ complete -c pd -s V -l version -d 'Print version'
 # ---------------------------------------------------------------------------
 set -l __pd_commands \
     'claim' 'c' 'release' 'r' 'find' 'f' 'list' 'l' 'ps' 'services' 'url' 'env' 'tunnel' \
-    'pub' 'publish' 'sub' 'subscribe' 'wait' 'lock' 'unlock' 'locks' \
-    'agent' 'agents' 'log' 'activity' \
+    'pub' 'publish' 'broadcast' 'sub' 'subscribe' 'listen' 'wait' 'lock' 'unlock' 'locks' \
+    'agent' 'agents' 'swarm' 'log' 'activity' \
     'session' 'sessions' 'note' 'notes' \
     'salvage' 'resurrection' 'changelog' 'dns' 'files' 'who-owns' 'integration' 'briefing' 'history' 'inbox' \
     'begin' 'b' 'done' 'whoami' 'w' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'watch' 'harbor' 'harbors' 'tuple' \
@@ -103,6 +103,7 @@ set -l __pd_commands \
     'dashboard' 'channels' 'webhook' 'webhooks' 'metrics' 'config' 'health' 'ports' \
     'scan' 's' 'projects' 'p' 'doctor' 'diagnose' 'hints' \
     'start' 'stop' 'restart' 'status' 'install' 'uninstall' 'dev' 'ci-gate' 'mcp' \
+    'init' \
     'version' 'help'
 
 # Register each command for both `port-daddy` and `pd`
@@ -126,8 +127,10 @@ for prog in port-daddy pd
     # Agent coordination
     complete -c $prog -n __pd_needs_command -a pub -d 'Publish a message to a channel'
     complete -c $prog -n __pd_needs_command -a publish -d 'Publish a message (alias)'
+    complete -c $prog -n __pd_needs_command -a broadcast -d 'Publish a message (alias)'
     complete -c $prog -n __pd_needs_command -a sub -d 'Subscribe to a channel'
     complete -c $prog -n __pd_needs_command -a subscribe -d 'Subscribe to a channel (alias)'
+    complete -c $prog -n __pd_needs_command -a listen -d 'Subscribe to a channel (alias)'
     complete -c $prog -n __pd_needs_command -a wait -d 'Wait until a service is claimed'
     complete -c $prog -n __pd_needs_command -a lock -d 'Acquire a distributed lock'
     complete -c $prog -n __pd_needs_command -a unlock -d 'Release a distributed lock'
@@ -136,6 +139,7 @@ for prog in port-daddy pd
     # Agent registry
     complete -c $prog -n __pd_needs_command -a agent -d 'Manage an agent'
     complete -c $prog -n __pd_needs_command -a agents -d 'List registered agents'
+    complete -c $prog -n __pd_needs_command -a swarm -d 'List registered agents (alias)'
 
     # Activity
     complete -c $prog -n __pd_needs_command -a log -d 'Tail the activity log'
@@ -230,6 +234,8 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a dev -d 'Start daemon in foreground'
     complete -c $prog -n __pd_needs_command -a ci-gate -d 'Exit non-zero if daemon is stale'
     complete -c $prog -n __pd_needs_command -a mcp -d 'Start MCP server for Claude Code'
+    complete -c $prog -n '__pd_is_cmd mcp' -a install -d 'Configure MCP for all detected AI editors'
+    complete -c $prog -n __pd_needs_command -a init -d 'Set up Port Daddy for this project (scan, fleet, MCP, git hook)'
 
     # Sugar (compound commands)
     complete -c $prog -n __pd_needs_command -a begin -d 'Begin a work session (register + start)'
@@ -316,13 +322,13 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command env" -l file -d 'Write env vars to file' -r
     complete -c $prog -n "__pd_using_command env" -x -a '(__pd_service_ids)'
 
-    # pub / publish
-    complete -c $prog -n "__pd_using_command pub publish" -s m -l message -d 'Message payload (JSON or text)' -x
-    complete -c $prog -n "__pd_using_command pub publish" -l sender -d 'Sender agent ID' -x -a '(__pd_agent_ids)'
-    complete -c $prog -n "__pd_using_command pub publish" -x -a '(__pd_channels)'
+    # pub / publish / broadcast
+    complete -c $prog -n "__pd_using_command pub publish broadcast" -s m -l message -d 'Message payload (JSON or text)' -x
+    complete -c $prog -n "__pd_using_command pub publish broadcast" -l sender -d 'Sender agent ID' -x -a '(__pd_agent_ids)'
+    complete -c $prog -n "__pd_using_command pub publish broadcast" -x -a '(__pd_channels)'
 
-    # sub / subscribe
-    complete -c $prog -n "__pd_using_command sub subscribe" -x -a '(__pd_channels)'
+    # sub / subscribe / listen
+    complete -c $prog -n "__pd_using_command sub subscribe listen" -x -a '(__pd_channels)'
 
     # wait
     complete -c $prog -n "__pd_using_command wait" -l timeout -d 'Timeout in seconds' -x

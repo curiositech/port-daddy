@@ -421,6 +421,61 @@ async function runAgentByName(agentName: string, preloadedConfig?: ReturnType<ty
   }
 }
 
+// ─── fleet prompt ───────────────────────────────────────────────────────────
+
+async function fleetPrompt(): Promise<void> {
+  // Detect project name from cwd (basename of git root, or cwd itself)
+  let projectName: string;
+  try {
+    const { execFileSync } = await import('node:child_process');
+    const root = execFileSync('git', ['rev-parse', '--show-toplevel'], {
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim();
+    projectName = root.split('/').pop() || '';
+  } catch {
+    projectName = process.cwd().split('/').pop() || '';
+  }
+
+  if (!projectName) return; // silent exit — no project detected
+
+  // Read last-check timestamp to avoid repeating old events
+  const stateDir = join(process.cwd(), '.portdaddy');
+  const promptStateFile = join(stateDir, 'prompt-last-check');
+  let since: number | undefined;
+  try {
+    since = parseInt(readFileSync(promptStateFile, 'utf-8').trim(), 10);
+  } catch {
+    // No state file — show events from last 60s
+  }
+
+  try {
+    const url = new URL(`${PD_URL}/fleet/prompt`);
+    url.searchParams.set('project', projectName);
+    if (since) url.searchParams.set('since', String(since));
+
+    const res = await fetch(url.toString());
+    if (!res.ok) return; // silent — daemon might be down
+
+    const data = await res.json() as { success: boolean; line: string };
+    if (data.line) {
+      process.stdout.write(data.line + '\n');
+    }
+
+    // Update last-check timestamp
+    try {
+      const { mkdirSync, writeFileSync: fsWrite } = await import('node:fs');
+      mkdirSync(stateDir, { recursive: true });
+      fsWrite(promptStateFile, String(Date.now()));
+    } catch {
+      // Non-critical
+    }
+  } catch {
+    // Silent — daemon not running, network error, etc.
+    // The prompt hook must NEVER slow down or error the shell.
+  }
+}
+
 // ─── Entry Point ────────────────────────────────────────────────────────────
 
 export async function handleFleet(positional: string[], _options: Record<string, unknown>): Promise<void> {
@@ -441,6 +496,10 @@ export async function handleFleet(positional: string[], _options: Record<string,
 
     case 'init':
       await fleetInit();
+      break;
+
+    case 'prompt':
+      await fleetPrompt();
       break;
 
     case 'help':

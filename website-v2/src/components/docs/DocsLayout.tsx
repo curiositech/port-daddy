@@ -46,6 +46,8 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: 'Pheromone Trails', href: '/docs/features/pheromone', badge: 'New' },
       { label: 'Fleet Agents', href: '/docs/features/fleet', badge: 'New' },
+      { label: 'Tuple Space', href: '/docs/features/tuples', badge: 'New' },
+      { label: 'Arbiter', href: '/docs/features/arbiter', badge: 'New' },
     ]
   },
 
@@ -112,8 +114,10 @@ const NAV_SECTIONS: NavSection[] = [
       // Tunnels
       { label: 'pd tunnel', href: '/docs/cli/tunnel' },
       { label: 'pd tunnel stop', href: '/docs/cli/tunnel-stop' },
-      // Fleet
+      // Fleet & Init
       { label: 'pd fleet', href: '/docs/cli/fleet', badge: 'New' },
+      { label: 'pd init', href: '/docs/cli/init', badge: 'New' },
+      { label: 'pd mcp install', href: '/docs/cli/mcp-install', badge: 'New' },
     ]
   },
 
@@ -471,7 +475,7 @@ export function DocsLayout() {
           {/* Footer Links */}
           <div className="mt-4 px-2 space-y-2">
             <a 
-              href="https://github.com/erichowens/port-daddy" 
+              href="https://github.com/curiositech/port-daddy" 
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"

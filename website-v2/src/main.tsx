@@ -37,6 +37,8 @@ import TunnelsFeature from '@/pages/docs/features/TunnelsFeature'
 import AvatarsFeature from '@/pages/docs/features/AvatarsFeature'
 import PheromoneFeature from '@/pages/docs/features/PheromoneFeature'
 import FleetFeature from '@/pages/docs/features/FleetFeature'
+import TuplesFeature from '@/pages/docs/features/TuplesFeature'
+import ArbiterFeature from '@/pages/docs/features/ArbiterFeature'
 
 // CLI Command Pages
 import ClaimCommand from '@/pages/docs/cli/ClaimCommand'
@@ -71,6 +73,8 @@ import HarborsCommand from '@/pages/docs/cli/HarborsCommand'
 import TunnelCommand from '@/pages/docs/cli/TunnelCommand'
 import TunnelStopCommand from '@/pages/docs/cli/TunnelStopCommand'
 import FleetCommand from '@/pages/docs/cli/FleetCommand'
+import InitCommand from '@/pages/docs/cli/InitCommand'
+import McpInstallCommand from '@/pages/docs/cli/McpInstallCommand'
 
 // SDK Module Pages
 import SdkOverview from '@/pages/docs/sdk'
@@ -276,6 +280,8 @@ createRoot(document.getElementById('root')!).render(
             <Route path="cli/tunnel-stop" element={<TunnelStopCommand />} />
             {/* Fleet */}
             <Route path="cli/fleet" element={<FleetCommand />} />
+            <Route path="cli/init" element={<InitCommand />} />
+            <Route path="cli/mcp-install" element={<McpInstallCommand />} />
             
             {/* Features */}
             <Route path="features/ports" element={<PortsFeature />} />
@@ -290,6 +296,8 @@ createRoot(document.getElementById('root')!).render(
             <Route path="features/tunnels" element={<TunnelsFeature />} />
             <Route path="features/pheromone" element={<PheromoneFeature />} />
             <Route path="features/fleet" element={<FleetFeature />} />
+            <Route path="features/tuples" element={<TuplesFeature />} />
+            <Route path="features/arbiter" element={<ArbiterFeature />} />
             
             {/* SDK - TypeScript */}
             <Route path="sdk" element={<SdkOverview />} />

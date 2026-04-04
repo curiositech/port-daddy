@@ -1,151 +1,319 @@
+import { useMemo } from 'react'
 import { useParams, Link, Navigate } from 'react-router-dom'
 import { motion, useScroll, useSpring } from 'framer-motion'
 import ReactMarkdown from 'react-markdown'
 import { blogPosts } from '@/data/blogData'
 import { Mermaid } from '@/components/ui/Mermaid'
+import { CodeBlock } from '@/components/ui/CodeBlock'
+import { NeumorphicTerminal } from '@/components/ui/NeumorphicTerminal'
 import { Badge } from '@/components/ui/Badge'
-import { Calendar, User, ArrowLeft, Share2, ShieldCheck } from 'lucide-react'
+import { Surface } from '@/components/ui/Surface'
+import { BlogComments } from '@/components/blog/BlogComments'
+import { Calendar, User, ArrowLeft } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
+
+const heroImages: Record<string, string> = {
+  'zero-to-multi-agent-in-5-minutes': '/img/blog/zero-to-multi-agent-hero.png',
+  'the-port-collision-that-ate-my-saturday': '/img/blog/port-collision-hero.png',
+  'dead-agents-tell-tales': '/img/blog/dead-agents-hero.png',
+  'distributed-locks-two-agents-one-migration': '/img/blog/distributed-locks-hero.png',
+  'four-agents-zero-clobber': '/img/blog/four-agents-hero.png',
+  'pubsub-self-healing-test-pipeline': '/img/blog/pub-sub-hero.png',
+  'fleet-agents-as-infrastructure': '/img/blog/fleet-management-hero.png',
+  'spark-and-spider-the-creative-engine': '/img/blog/spark-spider-hero.png',
+  'formal-verification-anchor-protocol': '/img/hero-portdaddy.png',
+}
+
+// ─── Directive system ─────────────────────────────────────────────────────
+// HTML comments in markdown declare how the NEXT code block should render:
+//   <!-- terminal -->           → NeumorphicTerminal (CLI input/output)
+//   <!-- syllogism: FILENAME --> → Document card with filename header
+//   <!-- code -->               → CodeBlock (explicit, same as default)
+//   <!-- figure: CAPTION -->    → Mermaid diagram with caption text
+//
+// Unmarked code blocks default to CodeBlock. Mermaid blocks default to
+// figure with auto-caption unless overridden.
+
+interface Directive {
+  type: 'terminal' | 'syllogism' | 'code' | 'figure'
+  arg?: string  // filename for syllogism, caption for figure
+}
+
+/**
+ * Pre-scan markdown content and extract directive comments.
+ * Returns: cleaned content (directives stripped) + a map from
+ * code-block index (0-based order of appearance) to its directive.
+ */
+function extractDirectives(content: string): { cleaned: string; directives: Map<number, Directive> } {
+  const directives = new Map<number, Directive>()
+  const directivePattern = /<!--\s*(terminal|syllogism|code|figure)(?::\s*(.+?))?\s*-->\s*\n/g
+
+  // Find all code fences and all directives, map by position
+  const fencePattern = /^```/gm
+  const fencePositions: number[] = []
+  let fm
+  while ((fm = fencePattern.exec(content)) !== null) {
+    fencePositions.push(fm.index)
+  }
+
+  // For each directive, find which code fence it precedes
+  let codeBlockIndex = 0
+  let cleaned = content
+  const removals: Array<{ start: number; end: number }> = []
+
+  let dm
+  while ((dm = directivePattern.exec(content)) !== null) {
+    const directiveEnd = dm.index + dm[0].length
+    const type = dm[1] as Directive['type']
+    const arg = dm[2]?.trim()
+
+    // Find the next code fence after this directive
+    const nextFencePos = fencePositions.find(p => p >= directiveEnd)
+    if (nextFencePos !== undefined) {
+      // Count which code block this fence starts (fences come in pairs: open/close)
+      const blockIndex = Math.floor(fencePositions.filter(p => p <= nextFencePos).length / 2)
+      // Fences are pairs — opening fence at even indices (0, 2, 4...) maps to block 0, 1, 2...
+      const openingFenceIndex = fencePositions.indexOf(nextFencePos)
+      if (openingFenceIndex % 2 === 0) {
+        directives.set(openingFenceIndex / 2, { type, arg })
+      }
+    }
+
+    removals.push({ start: dm.index, end: directiveEnd })
+  }
+
+  // Strip directive comments from content (reverse order to preserve indices)
+  for (const r of removals.reverse()) {
+    cleaned = cleaned.slice(0, r.start) + cleaned.slice(r.end)
+  }
+
+  return { cleaned, directives }
+}
+
+/** Render a syllogism as a document card */
+function SyllogismCard({ text, filename }: { text: string; filename: string }) {
+  return (
+    <Surface depth="inset" radius="xl" padding="none" className="my-8 max-w-xl">
+      <div className="flex items-center gap-2 px-4 py-2 border-b border-border-subtle">
+        <span className="w-1.5 h-1.5 rounded-full bg-signal-charlie" />
+        <span className="text-xs font-mono font-bold text-text-muted tracking-wider">{filename}</span>
+      </div>
+      <div className="px-5 py-4 font-mono text-sm leading-relaxed whitespace-pre-wrap text-text-secondary">
+        {text.split('\n').map((line, i) => {
+          if (line.startsWith('PREMISE')) return <div key={i} className="text-channel-scope">{line}</div>
+          if (line.startsWith('THEREFORE')) return <div key={i} className="text-signal-charlie font-bold mt-2">{line}</div>
+          if (line.startsWith('CONFIDENCE') || line.startsWith('EFFORT')) return <div key={i} className="text-text-muted mt-2 text-xs">{line}</div>
+          return <div key={i}>{line || '\u00A0'}</div>
+        })}
+      </div>
+    </Surface>
+  )
+}
 
 export function BlogPostPage() {
   const { slug } = useParams<{ slug: string }>()
   const post = blogPosts.find(p => p.slug === slug)
   const { scrollYProgress } = useScroll()
-  
+
   const scaleX = useSpring(scrollYProgress, {
     stiffness: 100,
     damping: 30,
     restDelta: 0.001
   })
 
+  // Pre-process directives from markdown content
+  const { cleaned, directives } = useMemo(() => {
+    if (!post) return { cleaned: '', directives: new Map() }
+    return extractDirectives(post.content.replace(/^\s*#\s+.+\n/, ''))
+  }, [post])
+
   if (!post) {
     return <Navigate to="/blog" replace />
   }
 
+  const currentIndex = blogPosts.findIndex(p => p.slug === slug)
+  const nextPost = currentIndex >= 0 && currentIndex < blogPosts.length - 1 ? blogPosts[currentIndex + 1] : null
+  const prevPost = currentIndex > 0 ? blogPosts[currentIndex - 1] : null
+  const heroImg = heroImages[post.slug]
+
+  // Track code block index across renders
+  let codeBlockCounter = 0
+
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen bg-[var(--surface-base)] flex flex-col pt-[var(--nav-height)] font-sans selection:bg-[var(--brand-primary)] selection:text-white"
+      className="min-h-screen bg-bg-base flex flex-col pt-[var(--nav-height)] font-sans selection:bg-brand-primary selection:text-text-inverse"
     >
       {/* Progress Bar */}
       <motion.div
-        className="fixed top-0 left-0 right-0 h-1 bg-[var(--brand-primary)] z-[100] origin-left shadow-[0_0_12px_rgba(58,173,173,0.5)]"
+        className="fixed left-0 right-0 h-1 bg-brand-primary z-50 origin-left"
         style={{ scaleX, top: 'var(--nav-height)' }}
       />
 
       {/* Hero Section */}
-      <motion.header
-        className="py-14 px-6 sm:px-8 lg:px-10 border-b relative overflow-hidden"
-        style={{ background: 'var(--surface-raised)', borderColor: 'var(--border-subtle)' }}
-      >
-        <motion.div 
-          className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full blur-[140px] opacity-[0.08] pointer-events-none" 
-          style={{ background: 'radial-gradient(circle, var(--brand-primary) 0%, transparent 70%)' }} 
-        />
-        
-        <motion.div className="max-w-4xl mx-auto relative z-10 flex flex-col items-center text-center gap-6">
-           <Link to="/blog" className="no-underline group">
-              <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] text-[var(--text-muted)] group-hover:text-[var(--brand-primary)] transition-all">
-                 <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform" />
-                 Back to Journal
-              </motion.div>
-           </Link>
+      <motion.header className="py-16 lg:py-20 px-6 sm:px-8 lg:px-10 border-b border-border-default bg-surface-sunken relative overflow-hidden">
+        <div className="max-w-4xl mx-auto relative z-10 flex flex-col items-center text-center gap-6">
+          <Link to="/blog" className="no-underline group">
+            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-text-muted group-hover:text-brand-primary transition-all">
+              <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform" />
+              Back to Journal
+            </div>
+          </Link>
 
-           <motion.div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] font-mono">
-              <motion.div className="flex items-center gap-2">
-                 <Calendar size={14} className="text-[var(--brand-primary)]" />
-                 {post.date}
-              </motion.div>
-              <motion.div className="h-1 w-1 rounded-full bg-[var(--border-strong)]" />
-              <motion.div className="flex items-center gap-2">
-                 <User size={14} className="text-[var(--brand-secondary)]" />
-                 {post.author}
-              </motion.div>
-           </motion.div>
+          <div className="flex items-center gap-4 text-xs font-black uppercase tracking-wider text-text-muted font-mono">
+            <div className="flex items-center gap-2">
+              <Calendar size={14} className="text-brand-primary" />
+              {post.date}
+            </div>
+            <div className="h-1 w-1 rounded-full bg-border-strong" />
+            <div className="flex items-center gap-2">
+              <User size={14} className="text-brand-secondary" />
+              {post.author}
+            </div>
+          </div>
 
-           <motion.h1 
-             className="text-5xl sm:text-7xl font-black tracking-tighter font-display leading-[1.05]"
-             initial={{ opacity: 0, y: 24 }}
-             animate={{ opacity: 1, y: 0 }}
-             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-           >
-             {post.title}
-           </motion.h1>
+          <motion.h1
+            className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tighter font-display leading-none text-text-primary"
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+          >
+            {post.title}
+          </motion.h1>
 
-           <motion.div className="flex flex-wrap justify-center gap-3">
-              {post.tags.map(tag => (
-                <Badge key={tag} variant="default" className="px-4 py-1.5 text-[8px] font-black uppercase tracking-widest bg-[var(--surface-overlay)]">{tag}</Badge>
-              ))}
-           </motion.div>
-        </motion.div>
+          <div className="flex flex-wrap justify-center gap-3">
+            {post.tags.map(tag => (
+              <Badge key={tag} variant="default" className="px-3 py-1 text-xs font-bold uppercase tracking-wider">{tag}</Badge>
+            ))}
+          </div>
+        </div>
       </motion.header>
 
+      {/* Hero Image */}
+      {heroImg && (
+        <div className="w-full max-w-4xl mx-auto px-6 -mt-8 relative z-10">
+          <Surface depth="raised" radius="2xl" padding="none" className="overflow-hidden">
+            <img src={heroImg} alt={post.title} className="w-full h-auto object-cover max-h-96" />
+          </Surface>
+        </div>
+      )}
+
       {/* Main Content */}
-      <motion.main id="main-content" className="flex-1 py-14 px-6 sm:px-8 lg:px-10 font-sans relative">
-        <div className="max-w-3xl mx-auto w-full">
-          <motion.article 
+      <motion.main id="main-content" className="flex-1 py-12 lg:py-16 px-6 sm:px-8 lg:px-10 relative">
+        <div className="max-w-prose mx-auto w-full">
+          <motion.article
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.2 }}
-            className="prose prose-invert prose-lg max-w-none 
-            prose-headings:font-display prose-headings:font-black prose-headings:tracking-tight prose-headings:text-[var(--text-primary)]
-            prose-h2:text-2xl prose-h2:mt-16 prose-h2:mb-6 prose-h2:pb-4 prose-h2:border-b prose-h2:border-[var(--border-subtle)]
-            prose-h3:text-xl prose-h3:mt-10 prose-h3:mb-4
-            prose-p:text-[var(--text-secondary)] prose-p:leading-relaxed prose-p:mb-6 prose-p:text-lg
-            prose-code:text-[var(--brand-primary)] prose-code:bg-[var(--interactive-active)] prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none prose-code:font-mono prose-code:font-bold
-            prose-strong:text-[var(--text-primary)] prose-strong:font-black
-            prose-ul:list-disc prose-ul:pl-8 prose-ul:mb-6 prose-ul:space-y-3
-            prose-li:text-[var(--text-secondary)] prose-li:text-lg
-            prose-blockquote:border-l-4 prose-blockquote:border-[var(--brand-primary)] prose-blockquote:bg-[var(--surface-raised)] prose-blockquote:py-5 prose-blockquote:px-6 prose-blockquote:rounded-r-3xl prose-blockquote:italic prose-blockquote:text-xl"
-        >
-          <ReactMarkdown
-            components={{
-              code({ node, inline, className, children, ...props }: any) {
-                const match = /language-(\w+)/.exec(className || '')
-                if (!inline && match && match[1] === 'mermaid') {
-                  return <Mermaid chart={String(children).replace(/\n$/, '')} />
-                }
-                return (
-                  <code className={className} {...props}>
-                    {children}
-                  </code>
-                )
-              }
-            }}
+            className="blog-article"
           >
-            {post.content}
-          </ReactMarkdown>
-        </motion.article>
+            <ReactMarkdown
+              components={{
+                // ── Structural overrides only. Typography comes from .blog-article CSS. ──
+
+                pre({ children }: any) {
+                  const codeChild = Array.isArray(children) ? children[0] : children
+                  if (codeChild?.props) {
+                    const cls = codeChild.props.className || ''
+                    const match = /language-(\w+)/.exec(cls)
+                    const lang = match?.[1]
+                    const text = String(codeChild.props.children).replace(/\n$/, '')
+                    const blockIndex = codeBlockCounter++
+                    const directive = directives.get(blockIndex)
+
+                    if (lang === 'mermaid') {
+                      return (
+                        <figure>
+                          <Mermaid chart={text} />
+                          <figcaption>{directive?.arg || 'Diagram'}</figcaption>
+                        </figure>
+                      )
+                    }
+
+                    if (directive?.type === 'terminal') {
+                      return <NeumorphicTerminal code={text} language="bash" animate={false} />
+                    }
+
+                    if (directive?.type === 'syllogism') {
+                      return <SyllogismCard text={text} filename={directive.arg || 'SYLLOGISM.md'} />
+                    }
+
+                    if (directive?.type === 'figure') {
+                      return (
+                        <figure>
+                          <CodeBlock language={lang}>{text}</CodeBlock>
+                          <figcaption>{directive.arg}</figcaption>
+                        </figure>
+                      )
+                    }
+
+                    return <CodeBlock language={lang}>{text}</CodeBlock>
+                  }
+                  return <pre>{children}</pre>
+                },
+
+                // Internal links use React Router
+                a({ href, children }: any) {
+                  if (href?.startsWith('/')) return <Link to={href}>{children}</Link>
+                  return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>
+                },
+
+                // Tables need overflow wrapper
+                table({ children }: any) {
+                  return <div className="overflow-x-auto"><table>{children}</table></div>
+                },
+
+                // Images get figure treatment
+                img({ src, alt }: any) {
+                  return (
+                    <figure>
+                      <img src={src} alt={alt} />
+                      {alt && <figcaption>{alt}</figcaption>}
+                    </figure>
+                  )
+                },
+              }}
+            >
+              {cleaned}
+            </ReactMarkdown>
+          </motion.article>
         </div>
 
-        {/* Impressively long additional context */}
-        <motion.div
-          className="mt-20 p-10 rounded-[80px] border border-dashed border-[var(--border-strong)] bg-[var(--surface-overlay)] flex flex-col items-center text-center gap-6 relative overflow-hidden"
-          initial={{ opacity: 0, scale: 0.98 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true }}
-        >
-           <motion.div className="absolute top-0 right-0 p-10 opacity-[0.02] pointer-events-none">
-              <ShieldCheck size={600} />
-           </motion.div>
-           
-           <motion.div className="space-y-4 max-w-3xl relative z-10">
-              <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest shadow-xl">Protocol Safety</Badge>
-              <motion.h3 className="text-2xl sm:text-4xl font-display font-black tracking-tight leading-[0.95]" style={{ color: 'var(--text-primary)' }}>
-                Soundness is <motion.span className="text-[var(--brand-secondary)]">Mandatory.</motion.span>
-              </motion.h3>
-              <motion.p className="text-lg leading-relaxed text-[var(--text-secondary)]">
-                This engineering post was produced as part of our commitment to transparency and mathematical rigor. We believe the future of AI coordination must be built on a foundation of formal methods and verified protocols.
-              </motion.p>
-              <motion.div className="flex flex-wrap justify-center gap-4 pt-4">
-                 <motion.div className="flex items-center gap-3 px-6 py-3 rounded-full bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-                    <Share2 size={16} className="text-[var(--brand-primary)]" />
-                    <motion.span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Share Protocol Insights</motion.span>
-                 </motion.div>
-              </motion.div>
-           </motion.div>
-        </motion.div>
+        {/* Prev / Next Navigation */}
+        {(prevPost || nextPost) && (
+          <div className="mt-16 max-w-prose mx-auto grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {prevPost ? (
+              <Link to={`/blog/${prevPost.slug}`} className="no-underline group">
+                <Surface depth="flat" radius="2xl" padding="md" interactive>
+                  <div className="text-xs font-black uppercase tracking-widest text-text-muted mb-2 flex items-center gap-1">
+                    <ArrowLeft size={12} /> Previous
+                  </div>
+                  <div className="text-base font-display font-bold text-text-primary group-hover:text-brand-primary transition-colors leading-snug">
+                    {prevPost.title}
+                  </div>
+                </Surface>
+              </Link>
+            ) : <div />}
+            {nextPost && (
+              <Link to={`/blog/${nextPost.slug}`} className="no-underline group text-right">
+                <Surface depth="flat" radius="2xl" padding="md" interactive>
+                  <div className="text-xs font-black uppercase tracking-widest text-text-muted mb-2 flex items-center gap-1 justify-end">
+                    Next <ArrowLeft size={12} className="rotate-180" />
+                  </div>
+                  <div className="text-base font-display font-bold text-text-primary group-hover:text-brand-primary transition-colors leading-snug">
+                    {nextPost.title}
+                  </div>
+                </Surface>
+              </Link>
+            )}
+          </div>
+        )}
+
+        {/* Comments */}
+        <div className="mt-16 max-w-prose mx-auto">
+          <BlogComments slug={post.slug} />
+        </div>
       </motion.main>
 
       <Footer />

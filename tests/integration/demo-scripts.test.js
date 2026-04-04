@@ -187,7 +187,17 @@ describe('Demo 2 — agents (pd begin / pd note / pd pub / pd salvage / pd lock 
 
   test('agent is gone after pd done', async () => {
     if (!agentId) return;
-    const res = await request(`/agents/${encodeURIComponent(agentId)}`);
+    // Small delay — pd done may close keep-alive connections
+    await new Promise(r => setTimeout(r, 500));
+    let res;
+    for (let i = 0; i < 3; i++) {
+      try {
+        res = await request(`/agents/${encodeURIComponent(agentId)}`);
+        break;
+      } catch {
+        await new Promise(r => setTimeout(r, 300));
+      }
+    }
     // Agent should be deleted or show as inactive
     expect(res.status === 404 || res.data?.active === false).toBe(true);
   });

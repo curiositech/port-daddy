@@ -99,7 +99,11 @@ function decryptSecret(stored: string): string | null {
   if (parsed.v !== 1 || !parsed.ct || !parsed.iv || !parsed.tag) return stored;
 
   const key = getMasterKey();
-  if (!key) return stored; // No master key — treat stored value as plaintext (backward compat)
+  if (!key) {
+    // No master key but value is a v1 envelope — can't decrypt, don't use as plaintext
+    console.error('[webhooks] decryptSecret: master key unavailable, cannot decrypt envelope');
+    return null;
+  }
 
   try {
     const iv = Buffer.from(parsed.iv, 'base64');

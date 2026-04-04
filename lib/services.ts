@@ -269,7 +269,11 @@ export function createServices(db: Database.Database, options?: ServicesOptions)
       const conflict = stmts.getByPort.get(preferredPort) as ServiceRow | undefined;
       if (!conflict) {
         port = preferredPort;
+      } else {
+        if (process.env.DEBUG_TESTS) console.error(`[DEBUG] Port conflict for ${preferredPort}: ${conflict.id}`);
       }
+    } else if (preferredPort) {
+      if (process.env.DEBUG_TESTS) console.error(`[DEBUG] Port ${preferredPort} rejected: reserved=${RESERVED_PORTS.has(preferredPort)}, system=${systemPorts.has(preferredPort)}`);
     }
 
     if (!port) {

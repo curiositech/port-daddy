@@ -19,13 +19,17 @@ describe('Agent Inbox Real-time Integration', () => {
     pd = new PortDaddy({ agentId, socketPath: sockPath });
 
     // Ensure agent is registered
-    await request('/agents', {
+    const reg = await request('/agents', {
       method: 'POST',
       body: {
-        agentId,
+        id: agentId,
         purpose: 'Testing real-time inbox'
       }
     });
+    if (!reg.ok) {
+      console.error(`[DEBUG] Agent registration failed: HTTP ${reg.status}`, reg.text);
+    }
+    expect(reg.ok).toBe(true);
   });
 
   afterAll(async () => {
@@ -38,7 +42,16 @@ describe('Agent Inbox Real-time Integration', () => {
 
     sub.on('connected', async () => {
       // Once connected, send a message to this agent
-      await pd.inboxSend(agentId, testContent, { from: 'system-test', type: 'hail' });
+      try {
+        await pd.inboxSend(agentId, testContent, { from: 'system-test', type: 'hail' });
+      } catch (err) {
+        console.error(`[DEBUG] inboxSend failed: ${err.message}`, {
+          agentId,
+          content: testContent,
+          options: { from: 'system-test', type: 'hail' }
+        });
+        done(err);
+      }
     });
 
     const timer = setTimeout(() => {

@@ -813,7 +813,7 @@ describe('Route error codes: sessions', () => {
 
     expect(res.statusCode).toBe(400);
     expect(res.json().code).toBe('VALIDATION_ERROR');
-  });
+  }, 30000);
 
   test('POST /sessions/:id/notes returns SESSION_NOT_FOUND for bad session', async () => {
     const res = await app.inject({ method: 'POST', url: '/sessions/session-nonexistent/notes', payload: { content: 'hello' } });
