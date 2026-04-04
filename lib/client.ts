@@ -1070,8 +1070,9 @@ class PortDaddy {
   // ===========================================================================
 
   /** @private */
-  _headers(): Record<string, string> {
-    const h: Record<string, string> = { 'Content-Type': 'application/json' };
+  _headers(hasBody: boolean = false): Record<string, string> {
+    const h: Record<string, string> = {};
+    if (hasBody) h['Content-Type'] = 'application/json';
     if (this.agentId) h['X-Agent-Id'] = this.agentId;
     if (this.pid) h['X-Pid'] = String(this.pid);
     return h;
@@ -1096,8 +1097,8 @@ class PortDaddy {
   /** @private */
   async _request(method: string, path: string, body?: Record<string, unknown>): Promise<unknown> {
     const target = this._resolveTarget();
-    const headers = this._headers();
     const jsonBody = body !== undefined ? JSON.stringify(body) : null;
+    const headers = this._headers(jsonBody !== null);
 
     if (jsonBody) {
       headers['Content-Length'] = String(Buffer.byteLength(jsonBody));
@@ -1122,6 +1123,7 @@ class PortDaddy {
 
           if (res.statusCode! < 200 || res.statusCode! >= 300) {
             const msg = (data as Record<string, string> | null)?.error || `HTTP ${res.statusCode}`;
+            if (process.env.DEBUG_TESTS) console.error(`[DEBUG] SDK Request failed: ${method} ${path} -> HTTP ${res.statusCode}`, data);
             reject(new PortDaddyError(msg, res.statusCode!, data));
             return;
           }

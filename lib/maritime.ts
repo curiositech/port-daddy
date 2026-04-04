@@ -66,8 +66,8 @@
  * Respects NO_COLOR env var (https://no-color.org/) and non-TTY stdout.
  */
 export const COLOR_ENABLED: boolean =
-  !process.env.NO_COLOR &&
-  !process.env.CI_NO_COLOR &&
+  (process.env.NO_COLOR === undefined || process.env.NO_COLOR === '') &&
+  (process.env.CI_NO_COLOR === undefined || process.env.CI_NO_COLOR === '') &&
   (process.stdout.isTTY === true || process.env.FORCE_COLOR !== undefined);
 
 // ─────────────────────────────────────────────────────────────────────────────

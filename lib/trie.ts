@@ -229,26 +229,43 @@ export function createTrie<T = unknown>() {
   /**
    * Prefix search: find all entries whose key starts with the given prefix.
    * Supports wildcard segments: 'myapp:*' matches all stacks under myapp.
+   * Also supports partial segment prefixes: 'pre*' matches 'prefix-a'.
    */
   function prefix(pattern: string, harborFilter?: bigint): TrieEntry<T>[] {
     const results: TrieEntry<T>[] = [];
-    const segments = getSegments(pattern.replace(/\*$/, '').replace(/:$/, ''));
+    // Remove trailing wildcard and colon for segment navigation
+    const cleanPattern = pattern.replace(/\*$/, '').replace(/:$/, '');
+    
+    if (cleanPattern === '') {
+      collectEntries(root, results, harborFilter);
+      return results;
+    }
 
-    // Navigate to the prefix node
+    const segments = getSegments(cleanPattern);
+    const lastSeg = segments[segments.length - 1];
+    const parentSegments = segments.slice(0, -1);
+
+    // Navigate to the parent node of the last segment
     let node = root;
-    for (const seg of segments) {
+    for (const seg of parentSegments) {
       if (seg === '' || seg === '*') break;
       const child = node.children.get(seg);
       if (!child) return results;
 
-      // Harbor bitmask pruning: skip branches that don't contain the target harbor
+      // Harbor bitmask pruning
       if (harborFilter && !(child.harborMask & harborFilter)) return results;
 
       node = child;
     }
 
-    // Collect all entries under this node
-    collectEntries(node, results, harborFilter);
+    // Look for all children of 'node' that start with 'lastSeg'
+    for (const [seg, child] of node.children) {
+      if (seg.startsWith(lastSeg)) {
+        if (harborFilter && !(child.harborMask & harborFilter)) continue;
+        collectEntries(child, results, harborFilter);
+      }
+    }
+
     return results;
   }
 

@@ -444,6 +444,14 @@ const app: FastifyInstance = Fastify({
   logger: false,     // We use winston, not pino
 });
 
+// --- Request Logging (Debug) ---
+if (process.env.DEBUG_TESTS) {
+  app.addHook('preHandler', async (request: FastifyRequest) => {
+    console.error(`[DEBUG] INCOMING: ${request.method} ${request.url}`);
+    if (request.body) console.error(`[DEBUG] BODY: ${JSON.stringify(request.body)}`);
+  });
+}
+
 // --- CORS (replaces cors middleware) ---
 await app.register(fastifyCors, {
   origin: /^https?:\/\/(localhost|127\.0\.0\.1|dashboard\.pd\.local)(:\d+)?$/,

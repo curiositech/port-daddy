@@ -9,6 +9,7 @@
 
 import { spawn, spawnSync } from 'node:child_process';
 import type { ChildProcess, SpawnSyncReturns } from 'node:child_process';
+
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
@@ -119,10 +120,10 @@ const TIER_1_COMMANDS: Set<string> = new Set([
 ]);
 
 const TIER_2_COMMANDS: Set<string> = new Set([
-  'pub', 'publish', 'sub', 'subscribe', 'wait',
+  'pub', 'publish', 'sub', 'subscribe', 'wait', 'broadcast', 'listen',
   'agent', 'agents',
-  'up', 'down',
-  'channels', 'webhook', 'webhooks',
+  'up', 'down', 'watch', 'swarm', 'fleet',
+  'channels', 'webhook', 'webhooks', 'tunnel', 'dns', 'inbox',
   'metrics', 'health', 'dashboard',
   'bench', 'demo', 'tuple'
 ]);
@@ -361,8 +362,8 @@ function getLocalCodeHash(): string {
 // Check if daemon is running stale code
 // Returns true if daemon was restarted
 // Skip when PD_URL is explicitly set — the user chose which daemon to talk to
-async function checkDaemonFreshness(autoRestart: boolean = true): Promise<boolean> {
-  if (process.env.PD_URL || process.env.PORT_DADDY_URL) return false;
+async function checkDaemonFreshness(autoRestart: boolean = true, quiet: boolean = false): Promise<boolean> {
+  if (process.env.PD_URL || process.env.PORT_DADDY_URL || process.env.PORT_DADDY_SKIP_FRESHNESS_CHECK) return false;
   try {
     const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/version`);
     if (!res.ok) return false;
@@ -371,7 +372,7 @@ async function checkDaemonFreshness(autoRestart: boolean = true): Promise<boolea
     const localHash: string = getLocalCodeHash();
 
     if (data.codeHash && data.codeHash !== localHash) {
-      ui.warn('Daemon is running stale code — auto-restarting...');
+      if (!quiet) ui.warn('Daemon is running stale code — auto-restarting...');
 
       if (autoRestart) {
 
@@ -387,8 +388,14 @@ async function checkDaemonFreshness(autoRestart: boolean = true): Promise<boolea
         const serverScript: string = join(__dirname, '..', 'server.ts');
         const tsxBinPath: string = join(__dirname, '..', 'node_modules', '.bin', 'tsx');
         const child: ChildProcess = spawn(tsxBinPath, [serverScript], {
-          stdio: 'ignore',
-          detached: true
+          stdio: quiet ? 'ignore' : 'inherit',
+          detached: true,
+          env: {
+            ...process.env,
+            // Ensure child daemon uses same socket/db as its killer
+            PORT_DADDY_SOCK: SOCK_PATH,
+            PORT_DADDY_DB: resolveDbPath()
+          }
         });
         child.unref();
 
@@ -398,17 +405,19 @@ async function checkDaemonFreshness(autoRestart: boolean = true): Promise<boolea
           try {
             const healthRes: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/health`);
             if (healthRes.ok) {
-              ui.success('Daemon restarted with fresh code');
+              if (!quiet) ui.success('Daemon restarted with fresh code');
               return true;
             }
           } catch {}
         }
-        ui.error('Failed to restart daemon');
+        if (!quiet) ui.error('Failed to restart daemon');
         process.exit(1);
       } else {
         // No auto-restart (CI mode)
-        console.error('   Run: port-daddy restart');
-        console.error('');
+        if (!quiet) {
+          console.error('   Run: port-daddy restart');
+          console.error('');
+        }
         return false;
       }
     }
@@ -779,9 +788,9 @@ Run: pd learn`,
 
 const ALL_COMMANDS: string[] = [
   'claim', 'c', 'release', 'r', 'find', 'f', 'list', 'l', 'ps', 'url', 'env',
-  'pub', 'publish', 'sub', 'subscribe', 'wait', 'lock', 'unlock', 'locks',
+  'pub', 'publish', 'broadcast', 'sub', 'subscribe', 'listen', 'wait', 'lock', 'unlock', 'locks',
   'up', 'down', 'init', 'scan', 's', 'projects', 'p',
-  'agent', 'agents', 'inbox', 'log', 'activity',
+  'agent', 'agents', 'swarm', 'inbox', 'log', 'activity',
   'session', 'sessions', 'note', 'notes',
   'begin', 'done', 'whoami', 'with-lock', 'learn',
   'n', 'u', 'd',
@@ -875,6 +884,7 @@ async function executeDirectMode(
 
       const svc = getDirectServices();
       const claimOpts: Record<string, unknown> = {};
+      if (process.env.DEBUG_TESTS) console.error(`[DEBUG] executeDirectMode claim options: ${JSON.stringify(options)}`);
       if (options.port) claimOpts.port = parseInt(options.port as string, 10);
       if (options.range) {
         const [min, max] = (options.range as string).split('-').map((n: string) => parseInt(n, 10));
@@ -1599,8 +1609,10 @@ async function main(): Promise<void> {
   // Check for stale daemon before running commands (skip for daemon management and --direct mode)
   const hasDirectFlag: boolean = args.includes('--direct');
   const skipFreshnessCheck: boolean = hasDirectFlag || ['start', 'stop', 'restart', 'install', 'uninstall', 'status', 'version', 'dev', 'ci-gate', 'doctor', 'diagnose', 'up', 'down', 'dashboard'].includes(command as string);
+  const isQuiet: boolean = args.includes('--quiet') || args.includes('-q') || args.includes('--json') || args.includes('-j');
+  
   if (!skipFreshnessCheck) {
-    await checkDaemonFreshness();
+    await checkDaemonFreshness(true, isQuiet);
   }
 
   // Parse options
@@ -1719,11 +1731,13 @@ async function main(): Promise<void> {
       // Agent coordination
       case 'pub':
       case 'publish':
+      case 'broadcast':
         await handlePub(positional[0], positional.slice(1).join(' ') || (options.message as string | undefined), options);
         break;
 
       case 'sub':
       case 'subscribe':
+      case 'listen':
         await handleSub(positional[0], options);
         break;
 
@@ -1776,6 +1790,7 @@ async function main(): Promise<void> {
         break;
 
       case 'agents':
+      case 'swarm':
         await handleAgents(options);
         break;
 

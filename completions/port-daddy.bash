@@ -88,9 +88,9 @@ _port_daddy() {
     # Service management (+ single-letter aliases)
     claim c release r find f list l services ps status url env tunnel
     # Agent coordination
-    pub publish sub subscribe wait lock unlock locks
+    pub publish broadcast sub subscribe listen wait lock unlock locks
     # Agent registry
-    agent agents
+    agent agents swarm
     # Activity
     log activity
     # Sessions & Notes
@@ -400,9 +400,9 @@ _port_daddy() {
     # -----------------------------------------------------------------------
     # pub / publish  <channel> <message> [--sender ID]
     # -----------------------------------------------------------------------
-    pub|publish)
+    pub|publish|broadcast)
       case "$prev" in
-        pub|publish)
+        pub|publish|broadcast)
           # First arg: channel name
           if [[ "$cur" == -* ]]; then
             _pd_opts '--message -m --sender'
@@ -426,9 +426,9 @@ _port_daddy() {
     # -----------------------------------------------------------------------
     # sub / subscribe  <channel>
     # -----------------------------------------------------------------------
-    sub|subscribe)
+    sub|subscribe|listen)
       case "$prev" in
-        sub|subscribe)
+        sub|subscribe|listen)
           if [[ "$cur" == -* ]]; then
             _pd_opts ''
           else
@@ -595,7 +595,7 @@ _port_daddy() {
     # -----------------------------------------------------------------------
     # agents  [--active]
     # -----------------------------------------------------------------------
-    agents)
+    agents|swarm)
       _pd_opts '--active'
       ;;
 

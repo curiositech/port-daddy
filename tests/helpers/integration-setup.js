@@ -78,32 +78,50 @@ export function request(path, options = {}) {
   });
 }
 
+// Helper: strip ANSI escape codes
+function stripAnsi(str) {
+  return str.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
+}
+
 /**
  * Run CLI command against ephemeral daemon.
  */
 export function runCli(args, options = {}) {
-  const { sockPath } = getDaemonState();
-  const cliPath = join(import.meta.dirname, '../../bin/port-daddy-cli.js');
+  const { sockPath, dbPath } = getDaemonState();
+  const cliPath = join(import.meta.dirname, '../../bin/port-daddy-cli.ts');
 
   // Use --direct to silence daemon-unreachable warnings if we are intentionally 
   // bypassing the socket (useful for debugging)
   const finalArgs = [...args];
   
+  const testEnv = {
+    ...process.env,
+    PORT_DADDY_SOCK: sockPath,
+    PORT_DADDY_DB: dbPath,
+    // Clear PORT_DADDY_URL so CLI uses socket
+    PORT_DADDY_URL: '',
+    // Skip freshness check during integration tests to avoid noise and races
+    PORT_DADDY_SKIP_FRESHNESS_CHECK: '1',
+    // Force non-interactive mode
+    PORT_DADDY_NON_INTERACTIVE: '1',
+    NO_COLOR: '1',
+    CI: '1'
+  };
+
+  // Ensure color-forcing variables are removed so NO_COLOR is respected without warnings
+  delete testEnv.FORCE_COLOR;
+  delete testEnv.COLORTERM;
+  
   const result = spawnSync(TSX_PATH, [cliPath, ...finalArgs], {
     encoding: 'utf-8',
     timeout: 10000,
-    env: {
-      ...process.env,
-      PORT_DADDY_SOCK: sockPath,
-      // Clear PORT_DADDY_URL so CLI uses socket
-      PORT_DADDY_URL: ''
-    },
+    env: testEnv,
     ...options
   });
 
   return {
-    stdout: result.stdout?.trim() || '',
-    stderr: result.stderr?.trim() || '',
+    stdout: stripAnsi(result.stdout || '').trim(),
+    stderr: stripAnsi(result.stderr || '').trim(),
     status: result.status,
     success: result.status === 0
   };

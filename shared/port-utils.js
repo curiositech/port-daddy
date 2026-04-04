@@ -30,14 +30,12 @@ let systemPortsCache = { data: null, timestamp: 0 };
  * @returns {boolean} Whether the process is alive
  */
 export function isProcessAlive(pid) {
+  if (pid <= 0) return false;
   try {
-    const result = spawnSync('ps', ['-p', String(pid)], {
-      stdio: 'ignore',
-      timeout: 1000
-    });
-    return result.status === 0;
-  } catch {
-    return false;
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    return e.code === 'EPERM';
   }
 }
 

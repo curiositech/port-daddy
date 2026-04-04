@@ -44,12 +44,14 @@ export async function startEphemeralDaemon(options = {}) {
       PORT_DADDY_SILENT: '1',
       NODE_ENV: 'test'
     },
-    stdio: ['ignore', 'pipe', 'pipe'],
+    stdio: ['ignore', 'pipe', process.env.DEBUG_TESTS ? 'inherit' : 'pipe'],
     detached: false
   });
 
   let stderr = '';
-  child.stderr.on('data', (chunk) => { stderr += chunk.toString(); });
+  if (child.stderr) {
+    child.stderr.on('data', (chunk) => { stderr += chunk.toString(); });
+  }
 
   // Wait for socket to appear and daemon to respond to /health
   const startedAt = Date.now();

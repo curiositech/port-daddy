@@ -136,6 +136,8 @@
         "publish",
         "sub",
         "subscribe",
+        "broadcast",
+        "listen",
         "channels"
       ],
       "sdk": [
@@ -160,6 +162,8 @@
         "publish",
         "sub",
         "subscribe",
+        "broadcast",
+        "listen",
         "channels"
       ],
       "docs": {
@@ -171,7 +175,8 @@
       "description": "Agent registration and heartbeats",
       "cli": [
         "agent",
-        "agents"
+        "agents",
+        "swarm"
       ],
       "sdk": [
         "register",
@@ -190,7 +195,8 @@
       ],
       "completions": [
         "agent",
-        "agents"
+        "agents",
+        "swarm"
       ],
       "docs": {
         "readme": true,
