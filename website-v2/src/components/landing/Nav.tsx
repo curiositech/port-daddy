@@ -231,6 +231,7 @@ export function Nav() {
   const [mobileOpen, setMobileOpen] = React.useState(false)
   const [scrolled, setScrolled] = React.useState(false)
   const { theme, toggle } = useTheme()
+  const location = useLocation()
 
   React.useEffect(() => {
     const handleScroll = () => {
@@ -277,8 +278,18 @@ export function Nav() {
               </span>
             </Link>
 
-            {/* Desktop Navigation - Simplified (3 items with dropdowns) */}
+            {/* Desktop Navigation */}
             <div className="hidden lg:flex items-center gap-1">
+              <Link
+                to="/"
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors no-underline ${
+                  location.pathname === '/'
+                    ? 'text-[var(--text-primary)]'
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                }`}
+              >
+                Home
+              </Link>
               {NAV_STRUCTURE.map((section) => (
                 <DropdownNav key={section.label} section={section} />
               ))}
