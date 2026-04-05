@@ -132,6 +132,51 @@ async function pdCoordinate(path: string, body: Record<string, unknown>): Promis
 }
 
 // =============================================================================
+// Shared child-process runner (eliminates 3x copy-paste)
+// =============================================================================
+
+interface ChildRunOpts {
+  cmd: string;
+  args: string[];
+  cwd?: string;
+  env?: Record<string, string | undefined>;
+  timeout?: number;
+  stdio?: ('ignore' | 'pipe')[];
+}
+
+function runChild(opts: ChildRunOpts): Promise<{ output: string; error: string | null; child: ChildProcess }> {
+  return new Promise((resolve) => {
+    const child = spawnChild(opts.cmd, opts.args, {
+      cwd: opts.cwd || process.cwd(),
+      env: opts.env as NodeJS.ProcessEnv,
+      timeout: opts.timeout || 300000,
+      shell: false,
+      ...(opts.stdio ? { stdio: opts.stdio as any } : {}),
+    });
+
+    const stdout: string[] = [];
+    const stderr: string[] = [];
+
+    child.stdout?.on('data', (data: Buffer) => stdout.push(data.toString()));
+    child.stderr?.on('data', (data: Buffer) => stderr.push(data.toString()));
+
+    child.on('close', (code) => {
+      const out = stdout.join('');
+      const errText = stderr.join('');
+      if (code !== 0) {
+        resolve({ output: out, error: errText || `${opts.cmd} exited with code ${code}`, child });
+      } else {
+        resolve({ output: out + (errText ? `\nstderr: ${errText}` : ''), error: null, child });
+      }
+    });
+
+    child.on('error', (err) => {
+      resolve({ output: '', error: `Failed to start ${opts.cmd}: ${err.message}`, child });
+    });
+  });
+}
+
+// =============================================================================
 // Backend implementations
 // =============================================================================
 
@@ -220,128 +265,62 @@ async function runGemini(spec: SpawnSpec, model: string): Promise<{ output: stri
 }
 
 function runAider(spec: SpawnSpec): Promise<{ output: string; error: string | null }> {
-  return new Promise((resolve) => {
-    const files = spec.files || [];
-    const args = ['--yes', '--no-stream', '--message', spec.task, ...files];
-
-    const child = spawnChild('aider', args, {
-      cwd: spec.workdir || process.cwd(),
-      env: { ...process.env, ...loadDotenvOnce(), ...(spec.env || {}) },
-      timeout: spec.timeout || 300000,
-    });
-
-    const stdout: string[] = [];
-    const stderr: string[] = [];
-
-    child.stdout?.on('data', (data: Buffer) => stdout.push(data.toString()));
-    child.stderr?.on('data', (data: Buffer) => stderr.push(data.toString()));
-
-    child.on('close', (code) => {
-      const output = stdout.join('');
-      const errText = stderr.join('');
-      if (code !== 0) {
-        resolve({ output, error: errText || `aider exited with code ${code}` });
-      } else {
-        resolve({ output: output + (errText ? `\nstderr: ${errText}` : ''), error: null });
-      }
-    });
-
-    child.on('error', (err) => {
-      resolve({ output: '', error: `Failed to start aider: ${err.message}` });
-    });
+  const files = spec.files || [];
+  return runChild({
+    cmd: 'aider',
+    args: ['--yes', '--no-stream', '--message', spec.task, ...files],
+    cwd: spec.workdir,
+    env: { ...process.env, ...loadDotenvOnce(), ...(spec.env || {}) },
+    timeout: spec.timeout,
   });
 }
 
 function runCustom(spec: SpawnSpec): Promise<{ output: string; error: string | null; child: ChildProcess }> {
-  return new Promise((resolve) => {
-    // Reject shell injection: metacharacters, newlines, control chars
-    const DANGEROUS_PATTERNS = /[;&|`$(){}!<>\n\r\t\x00-\x1f\x7f]/;
-    if (DANGEROUS_PATTERNS.test(spec.task)) {
-      return resolve({
-        output: '',
-        error: 'Command contains shell metacharacters or control characters. Use explicit arguments instead of shell syntax.',
-        child: null as any
-      });
-    }
-
-    // Execute via /bin/sh -c with shell: false (no double-interpretation)
-    const child = spawnChild('/bin/sh', ['-c', spec.task], {
-      cwd: spec.workdir || process.cwd(),
-      env: { ...process.env, ...loadDotenvOnce(), ...(spec.env || {}) },
-      shell: false,
-      timeout: spec.timeout || 300000,
+  // Reject shell injection: metacharacters, newlines, control chars
+  const DANGEROUS_PATTERNS = /[;&|`$(){}!<>\n\r\t\x00-\x1f\x7f]/;
+  if (DANGEROUS_PATTERNS.test(spec.task)) {
+    return Promise.resolve({
+      output: '',
+      error: 'Command contains shell metacharacters or control characters. Use explicit arguments instead of shell syntax.',
+      child: null as any
     });
+  }
 
-    const stdout: string[] = [];
-    const stderr: string[] = [];
-
-    child.stdout?.on('data', (data: Buffer) => stdout.push(data.toString()));
-    child.stderr?.on('data', (data: Buffer) => stderr.push(data.toString()));
-
-    child.on('close', (code) => {
-      const output = stdout.join('');
-      const errText = stderr.join('');
-      if (code !== 0) {
-        resolve({ output, error: errText || `command exited with code ${code}`, child });
-      } else {
-        resolve({ output: output + (errText ? `\nstderr: ${errText}` : ''), error: null, child });
-      }
-    });
-
-    child.on('error', (err) => {
-      resolve({ output: '', error: `Failed to start command: ${err.message}`, child });
-    });
+  return runChild({
+    cmd: '/bin/sh',
+    args: ['-c', spec.task],
+    cwd: spec.workdir,
+    env: { ...process.env, ...loadDotenvOnce(), ...(spec.env || {}) },
+    timeout: spec.timeout,
   });
 }
 
 function runClaudeCli(spec: SpawnSpec): Promise<{ output: string; error: string | null }> {
-  return new Promise((resolve) => {
-    const args = ['-p', spec.task];
+  const args = ['-p', spec.task];
+  if (spec.allowedTools) {
+    args.push('--allowedTools', spec.allowedTools);
+  }
 
-    if (spec.allowedTools) {
-      args.push('--allowedTools', spec.allowedTools);
-    }
-    // Note: --cwd and --max-tokens are not valid claude CLI flags.
-    // Use cwd on the spawn options instead (already done below).
+  // Strip ANTHROPIC_API_KEY from BOTH dotenv AND process.env before passing to
+  // the claude subprocess. The claude CLI manages its own authentication (OAuth).
+  // Any ANTHROPIC_API_KEY in the environment overrides OAuth and causes
+  // "Invalid API key" when the key is wrong, stale, or for a different account.
+  // Explicit user-provided keys via spec.env are still respected (spread last).
+  const { ANTHROPIC_API_KEY: _dropped, ...dotenvSafe } = loadDotenvOnce();
+  const { ANTHROPIC_API_KEY: _droppedEnv, ...processEnvSafe } = process.env;
 
-    // Strip ANTHROPIC_API_KEY from dotenv before passing to the claude subprocess.
-    // The claude CLI manages its own authentication (OAuth or its own key storage).
-    // Injecting ANTHROPIC_API_KEY from a .env file overrides that and causes
-    // "Invalid API key · Fix external API key" when the dotenv key is wrong or stale.
-    // Explicit user-provided keys via spec.env are still respected.
-    const { ANTHROPIC_API_KEY: _dropped, ...dotenvSafe } = loadDotenvOnce();
+  // Ensure ~/.local/bin is in PATH for claude binary discovery
+  const homeBin = join(process.env.HOME || '', '.local', 'bin');
+  const currentPath = process.env.PATH || '';
+  const augmentedPath = currentPath.includes('.local/bin') ? currentPath : `${homeBin}:${currentPath}`;
 
-    // Ensure ~/.local/bin is in PATH for claude binary discovery
-    const homeBin = join(process.env.HOME || '', '.local', 'bin');
-    const currentPath = process.env.PATH || '';
-    const augmentedPath = currentPath.includes('.local/bin') ? currentPath : `${homeBin}:${currentPath}`;
-
-    const child = spawnChild('claude', args, {
-      cwd: spec.workdir || process.cwd(),
-      env: { ...process.env, ...dotenvSafe, ...(spec.env || {}), PATH: augmentedPath },
-      timeout: spec.timeout || 300000,
-      stdio: ['ignore', 'pipe', 'pipe'],  // Close stdin immediately, pipe stdout/stderr
-    });
-
-    const stdout: string[] = [];
-    const stderr: string[] = [];
-
-    child.stdout?.on('data', (data: Buffer) => stdout.push(data.toString()));
-    child.stderr?.on('data', (data: Buffer) => stderr.push(data.toString()));
-
-    child.on('close', (code) => {
-      const output = stdout.join('');
-      const errText = stderr.join('');
-      if (code !== 0) {
-        resolve({ output, error: errText || `claude exited with code ${code}` });
-      } else {
-        resolve({ output, error: null });
-      }
-    });
-
-    child.on('error', (err) => {
-      resolve({ output: '', error: `Failed to start claude CLI: ${err.message}` });
-    });
+  return runChild({
+    cmd: 'claude',
+    args,
+    cwd: spec.workdir,
+    env: { ...processEnvSafe, ...dotenvSafe, ...(spec.env || {}), PATH: augmentedPath },
+    timeout: spec.timeout,
+    stdio: ['ignore', 'pipe', 'pipe'],
   });
 }
 
@@ -366,6 +345,12 @@ const DEFAULT_MODELS: Record<SpawnSpec['backend'], string> = {
 export function createSpawner(_deps: {} = {}) {
   // In-memory registry of active spawned agents
   const agents = new Map<string, AgentRecord>();
+
+  /** Hard ceiling on concurrent running agents. Prevents fork bombs.
+   *  Fleet YAML limits are per-project; this is the global safety net.
+   *  Set high enough for normal fleet operation (8 agents + manual spawns)
+   *  but low enough to prevent a runaway trigger from eating all PIDs. */
+  const MAX_CONCURRENT_RUNNING = 20;
 
   const MAX_AGENT_RECORDS = 1000;
   const ONE_HOUR = 60 * 60 * 1000;
@@ -399,6 +384,22 @@ export function createSpawner(_deps: {} = {}) {
    */
   async function spawn(spec: SpawnSpec): Promise<SpawnResult> {
     cleanupStaleAgents();
+
+    // Hard global limit — never exceed MAX_CONCURRENT_RUNNING processes
+    const running = [...agents.values()].filter(a => a.status === 'running').length;
+    if (running >= MAX_CONCURRENT_RUNNING) {
+      return {
+        agentId: 'blocked',
+        backend: spec.backend,
+        model: spec.model || DEFAULT_MODELS[spec.backend],
+        status: 'failed',
+        output: null,
+        error: `Spawn blocked: ${running} agents already running (limit: ${MAX_CONCURRENT_RUNNING}). Wait for one to finish.`,
+        startedAt: Date.now(),
+        completedAt: Date.now(),
+      };
+    }
+
     const agentId = `spawned-${randomBytes(6).toString('hex')}`;
     const model = spec.model || DEFAULT_MODELS[spec.backend];
     const startedAt = Date.now();
@@ -438,52 +439,25 @@ export function createSpawner(_deps: {} = {}) {
     }, 30000);
 
     try {
-      let output: string;
-      let error: string | null;
+      let result: { output: string; error: string | null };
 
       switch (spec.backend) {
-        case 'ollama': {
-          const result = await runOllama(spec, model);
-          output = result.output;
-          error = result.error;
-          break;
-        }
-        case 'claude': {
-          const result = await runClaude(spec, model);
-          output = result.output;
-          error = result.error;
-          break;
-        }
-        case 'gemini': {
-          const result = await runGemini(spec, model);
-          output = result.output;
-          error = result.error;
-          break;
-        }
-        case 'claude-cli': {
-          const result = await runClaudeCli(spec);
-          output = result.output;
-          error = result.error;
-          break;
-        }
-        case 'aider': {
-          const result = await runAider(spec);
-          output = result.output;
-          error = result.error;
-          break;
-        }
+        case 'ollama':    result = await runOllama(spec, model); break;
+        case 'claude':    result = await runClaude(spec, model); break;
+        case 'gemini':    result = await runGemini(spec, model); break;
+        case 'claude-cli': result = await runClaudeCli(spec); break;
+        case 'aider':     result = await runAider(spec); break;
         case 'custom': {
-          const result = await runCustom(spec);
-          output = result.output;
-          error = result.error;
-          record.childProcess = result.child;
+          const r = await runCustom(spec);
+          record.childProcess = r.child;
+          result = r;
           break;
         }
-        default: {
-          output = '';
-          error = `Unknown backend: ${String(spec.backend)}`;
-        }
+        default:
+          result = { output: '', error: `Unknown backend: ${String(spec.backend)}` };
       }
+
+      const { output, error } = result;
 
       const completedAt = Date.now();
       const status: SpawnResult['status'] = error ? 'failed' : 'completed';

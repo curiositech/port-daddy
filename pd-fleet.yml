@@ -10,6 +10,10 @@ fleet:
   name: port-daddy-dev
   harbor: "{project}:fleet"
 
+  limits:
+    max_concurrent_spawns: 2
+    max_spawns_per_hour: 10
+
   agents:
     gardener:
       schedule: "*/10 * * * *"
