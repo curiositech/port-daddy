@@ -374,6 +374,15 @@ Override via environment variables: `PORT_DADDY_SOCK`, `PORT_DADDY_IPC`, `PORT_D
 | Who else is working right now? | `swarm_awareness` MCP tool |
 | Check for invariant violations | `pd arbiter status` |
 
+## Spawner Backend Notes (Background Agents)
+
+When using `pd spawn --backend claude-cli` or fleet agents with `backend: claude-cli`:
+- **Stdin is closed automatically** (`stdio: ['ignore', 'pipe', 'pipe']`) — no "no stdin data" warnings
+- **ANTHROPIC_API_KEY is filtered** — claude CLI's OAuth auth flow takes precedence over env-based API keys
+- **Other env vars preserved** — custom env from `spec.env` is applied last (highest priority)
+
+This ensures background fleet agents run cleanly without authentication conflicts or 3-second stdin timeouts.
+
 ## Common Issues
 
 ### Port Daddy daemon not running

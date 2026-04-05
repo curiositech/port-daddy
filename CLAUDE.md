@@ -62,7 +62,7 @@ lib/
   harbors.ts        # Harbor grouping for agent coordination
   harbor-tokens.ts  # JWT tokens for harbor membership
   resurrection.ts   # Salvage queue for dead agents
-  spawner.ts        # AI agent spawning (ollama/claude/gemini/aider)
+  spawner.ts        # AI agent spawning (ollama/claude/gemini/aider). Closes stdin for claude-cli (stdio: ['ignore', 'pipe', 'pipe']). Strips ANTHROPIC_API_KEY from env to preserve claude CLI's OAuth auth flow.
   watch.ts          # SSE subscriber with --exec + reconnect loop
   briefing.ts       # Project briefing generation and retrieval
   arbiter.ts        # Invariant enforcement / violation tracking
@@ -78,6 +78,11 @@ lib/
   resolver.ts       # DNS resolver configuration
   worktree.ts       # Git worktree utilities
   barnacle-client.ts # Barnacle (external) client integration
+  cost-tracker.ts   # LLM cost recording, budget checks, model pricing
+  counters.ts       # ODS-style time-bucketed operational metrics (in-memory batching → SQLite)
+  orchestrator-plugins.ts # Plugin registry for merge orchestrators (default FIFO, hot-swap)
+  merge-queue.ts    # SQLite merge queue with conflict prediction, orchestrator delegation
+  symbol-index.ts   # Tree-sitter WASM symbol extraction, dependency tracking, conflict prediction
   banner.ts         # Startup banner rendering
   maritime.ts       # Maritime-themed label helpers
 routes/
@@ -104,6 +109,7 @@ routes/
   config.ts         # /config endpoint
   launch.ts         # /launch-hints endpoint
   info.ts           # /status, /metrics, /version endpoints
+  observability.ts   # /metrics/counters, /metrics/cost, /metrics/golden endpoints
   arbiter.ts        # /arbiter endpoints (wired directly in server.ts)
 bin/
   port-daddy-cli.ts # CLI entry point
@@ -565,3 +571,14 @@ When an agent dies, other agents in the same project should be notified.
 | `/fleet/reload` | POST | Re-read all pd-fleet.yml configs and restart changed fleets |
 | `/fleet/register` | POST | Register a project directory for daemon fleet management (body: `{ projectDir }`) |
 | `/fleet/events` | GET | SSE stream of all fleet lifecycle events (`fleet:events` channel) |
+| `/fleet/prompt` | GET | One-line fleet status for shell prompt integration (query: `project`, `since`) |
+| `/fleet/config/:project` | GET | Raw YAML + parsed config + topology validation for a project |
+| `/fleet/config/:project` | PUT | Write YAML config, validate, reload fleet (body: `{ yaml }`) |
+| `/fleet/models` | GET | Available backend + model catalog (claude-cli, ollama, custom, etc.) |
+| **Observability** | | |
+| `/metrics/counters` | GET | Counter summary (last 24h); `?key=` for single key time-bucketed, `?groupBy=hour\|minute` |
+| `/metrics/counters/top` | GET | Top N dimension values for a counter (`?key=&dim=&n=10`) |
+| `/metrics/golden` | GET | Golden signals (RED): rate/min, error%, avg duration, cost/hr |
+| `/metrics/cost` | GET | Cost summary by project + backend (`?since=86400`, `?project=`) |
+| `/metrics/cost/recent` | GET | Most recent cost events (`?limit=50`) |
+| `/metrics/cost/budget/:project` | GET | Budget check (`?limit=10` USD, `?since=86400` window) |
