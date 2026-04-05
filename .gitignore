@@ -50,5 +50,7 @@ daemon-error.log
 *.cjs
 STRATEGY_private_gitignore/
 apps/FleetBar/.build/
+**/build/
+fleet-live-app/build/
 .firecrawl/
 .windags/
