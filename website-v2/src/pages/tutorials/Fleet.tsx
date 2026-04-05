@@ -10,12 +10,12 @@ export function Fleet() {
     <TutorialLayout
       title="Fleet: Agents That Run While You Sleep"
       description="Declare your background agent fleet in YAML. Wire it to git commits. Watch QA, docs, and idea engines run automatically on every push."
-      number={17}
-      total={17}
+      number={18}
+      total={19}
       level="Intermediate"
       readTime="12 min read"
-      prev={{ title: 'Remote Harbors', href: '/tutorials/remote-harbors' }}
-      next={undefined}
+      prev={{ title: 'Multiplayer Localhost', href: '/tutorials/remote-harbors' }}
+      next={{ title: 'Pheromone Trails', href: '/tutorials/pheromone' }}
     >
       <motion.div className="space-y-16">
         {/* Intro */}

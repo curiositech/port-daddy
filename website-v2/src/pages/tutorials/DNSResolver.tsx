@@ -49,15 +49,15 @@ export function DNSResolver() {
           </div>
 
           <p>
-            When you claim an identity, Port Daddy can automatically register a corresponding <code>.pd.local</code> hostname.
+            First claim a port for your service, then register a DNS hostname that points to it.
           </p>
 
           <CodeBlock language="bash">
-            {`$ pd claim my-swarm:api --dns auth.pd.local\n\n✓ Port 3102 assigned.\n✓ DNS Registered: http://auth.pd.local -> localhost:3102`}
+            {`# Step 1: Claim a port for your service\n$ pd claim my-swarm:api\n\n✓ Port 3102 assigned to my-swarm:api\n\n# Step 2: Register a DNS hostname\n$ pd dns register --hostname auth.pd.local --port 3102 --service my-swarm:api\n\n✓ DNS Registered: auth.pd.local -> localhost:3102`}
           </CodeBlock>
 
           <p className="m-0 text-sm border-l-4 border-[var(--brand-secondary)] pl-4" style={{ color: 'var(--text-secondary)' }}>
-            The daemon handles the complexity of OS-level DNS resolution, ensuring your browser and local tools can resolve these names instantly.
+            The daemon manages DNS records in SQLite. Use <code>pd dns list</code> to see all registered hostnames and <code>pd dns cleanup</code> to remove stale entries.
           </p>
         </section>
 
@@ -75,7 +75,7 @@ export function DNSResolver() {
           </p>
 
           <CodeBlock language="bash">
-            {`# Resolve an identity to an address\n$ pd dns lookup my-swarm:api\n\nlocalhost:3102`}
+            {`# Resolve a hostname to a port\n$ pd dns lookup auth.pd.local\n\nlocalhost:3102\n\n# List all registered DNS records\n$ pd dns list\n\n# Check DNS system status\n$ pd dns status`}
           </CodeBlock>
 
           <Surface depth="inset" radius="xl" className="p-5 space-y-3">
@@ -96,7 +96,7 @@ export function DNSResolver() {
         {/* Vision Callout */}
         <section className="p-6 text-center space-y-4">
           <p className="text-lg max-w-xl mx-auto opacity-70">
-            In Port Daddy v3.7, we've decoupled address from identity. Your agents no longer "search" for services -- they declare an intent to communicate, and the daemon handles the routing.
+            Port Daddy decouples address from identity. Your agents no longer hardcode port numbers -- they register semantic hostnames, and the daemon handles the resolution.
           </p>
           <div className="flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-secondary)]">
             <Shield size={14} />

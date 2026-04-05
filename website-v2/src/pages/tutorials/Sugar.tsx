@@ -13,7 +13,7 @@ export function Sugar() {
       level="Beginner"
       readTime="5 min read"
       prev={{ title: 'The Agent Inbox', href: '/tutorials/inbox' }}
-      next={{ title: 'Swarm Bootstrapping', href: '/tutorials/spawn' }}
+      next={{ title: 'pd spawn: Agent Fleets', href: '/tutorials/pd-spawn' }}
     >
       <div className="space-y-12">
         {/* Intro Section */}

@@ -14,7 +14,7 @@ export function Inbox() {
       level="Intermediate"
       readTime="10 min read"
       prev={{ title: 'Identity Discovery', href: '/tutorials/dns' }}
-      next={{ title: 'Swarm Bootstrapping', href: '/tutorials/spawn' }}
+      next={{ title: 'pd spawn: Agent Fleets', href: '/tutorials/pd-spawn' }}
     >
       <div className="space-y-12">
         {/* Concept Section */}

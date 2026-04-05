@@ -13,7 +13,7 @@ export function Watch() {
       total={16}
       level="Intermediate"
       readTime="10 min read"
-      prev={{ title: 'Swarm Bootstrapping', href: '/tutorials/spawn' }}
+      prev={{ title: 'pd spawn: Agent Fleets', href: '/tutorials/pd-spawn' }}
       next={{ title: 'The Session State Machine', href: '/tutorials/session-phases' }}
     >
       <div className="space-y-12">

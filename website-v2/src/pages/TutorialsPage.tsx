@@ -2,10 +2,34 @@ import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
 import { Surface } from '@/components/ui/Surface'
 import { Link } from 'react-router-dom'
-import { Clock, Play, Zap, Shield, Globe, Sparkles, Anchor, Share2, Layers, Search, Box, History } from 'lucide-react'
+import { Clock, Play, Zap, Shield, Globe, Sparkles, Anchor, Share2, Layers, Search, Box, History, Terminal, Mail, Candy, Eye, Monitor, Workflow, Radio, Ship, Bot, Droplets } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
+import { TUTORIALS as TUTORIALS_DATA } from '@/data/tutorials'
 
-interface Tutorial {
+// Map slugs to icons
+const ICON_MAP: Record<string, any> = {
+  'getting-started': Sparkles,
+  'multi-agent': Share2,
+  'monorepo': Box,
+  'debugging': Search,
+  'tunnel': Globe,
+  'dns': Globe,
+  'session-phases': Workflow,
+  'inbox': Mail,
+  'sugar': Candy,
+  'always-on': Eye,
+  'pd-spawn': Bot,
+  'harbors': Shield,
+  'dashboard': Monitor,
+  'time-travel': History,
+  'pipelines': Layers,
+  'watch': Radio,
+  'remote-harbors': Ship,
+  'fleet': Bot,
+  'pheromone': Droplets,
+}
+
+interface TutorialWithIcon {
   slug: string
   number: string
   title: string
@@ -17,96 +41,10 @@ interface Tutorial {
   icon: any
 }
 
-const TUTORIALS: Tutorial[] = [
-  {
-    slug: 'getting-started',
-    number: '01',
-    title: 'Getting Started',
-    description: 'Install Port Daddy, start the daemon, and see how two AI agents coordinate on the same project without stepping on each other.',
-    level: 'beginner',
-    time: '10 min',
-    tags: ['Install', 'Sessions', 'Coordination'],
-    href: '/tutorials/getting-started',
-    icon: Sparkles
-  },
-  {
-    slug: 'multi-agent',
-    number: '02',
-    title: 'Multi-Agent Flow',
-    description: 'Coordinate multiple agents on the same project. Advisory locks, file claims, and signaling.',
-    level: 'intermediate',
-    time: '12 min',
-    tags: ['Sessions', 'Radio', 'Files'],
-    href: '/tutorials/multi-agent',
-    icon: Share2
-  },
-  {
-    slug: 'harbors',
-    number: '03',
-    title: 'Secure Harbors',
-    description: 'Define cryptographic permission boundaries and issue HMAC-signed tokens to your swarms.',
-    level: 'advanced',
-    time: '15 min',
-    tags: ['Security', 'JWT', 'Harbors'],
-    href: '/tutorials/harbors',
-    icon: Shield
-  },
-  {
-    slug: 'monorepo',
-    number: '04',
-    title: 'Fleet Management',
-    description: 'Scan your monorepo, assign ports atomically, and orchestrate a full mesh with one command.',
-    level: 'intermediate',
-    time: '10 min',
-    tags: ['Monorepo', 'Mesh', 'Scan'],
-    href: '/tutorials/monorepo',
-    icon: Box
-  },
-  {
-    slug: 'debugging',
-    number: '05',
-    title: 'Conflict Detection',
-    description: 'Turn 2am EADDRINUSE errors into 5-second diagnoses using the semantic registry.',
-    level: 'intermediate',
-    time: '14 min',
-    tags: ['Health', 'Audit', 'Registry'],
-    href: '/tutorials/debugging',
-    icon: Search
-  },
-  {
-    slug: 'tunnel',
-    number: '06',
-    title: 'Tunnels',
-    description: 'Expose local services to the internet with ngrok, cloudflared, or localtunnel. Port Daddy manages the tunnel lifecycle.',
-    level: 'beginner',
-    time: '6 min',
-    tags: ['Tunnel', 'ngrok', 'Expose'],
-    href: '/tutorials/tunnel',
-    icon: Globe
-  },
-  {
-    slug: 'time-travel',
-    number: '07',
-    title: 'Activity Log',
-    description: 'Inspect the append-only event timeline. Correlate infrastructure events with agent notes to debug coordination issues.',
-    level: 'intermediate',
-    time: '8 min',
-    tags: ['Timeline', 'Audit', 'Logs'],
-    href: '/tutorials/time-travel',
-    icon: History
-  },
-  {
-    slug: 'pipelines',
-    number: '08',
-    title: 'Reactive Pipelines',
-    description: 'Turn your harbor into an event-driven DAG. Auto-spawn agents based on swarm signals.',
-    level: 'advanced',
-    time: '12 min',
-    tags: ['DAG', 'Automation', 'Signals'],
-    href: '/tutorials/pipelines',
-    icon: Layers
-  }
-]
+const TUTORIALS: TutorialWithIcon[] = TUTORIALS_DATA.map(t => ({
+  ...t,
+  icon: ICON_MAP[t.slug] || Terminal,
+}))
 
 const LEVEL_BADGE: Record<string, 'teal' | 'gold' | 'red'> = {
   beginner: 'teal',

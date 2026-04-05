@@ -7,8 +7,8 @@ import { Layout, Activity, Zap, Terminal, Share2 } from 'lucide-react'
 export function Dashboard() {
   return (
     <TutorialLayout
-      title="Visual Control Plane"
-      description="Coordination is hard to visualize in a terminal. Learn to use the Port Daddy HUD to monitor network graphs, lock contention, and real-time swarm telemetry."
+      title="Live Dashboard"
+      description="Coordination is hard to visualize in a terminal. The Port Daddy dashboard gives you real-time panels for services, agents, sessions, locks, and system health."
       number={8}
       total={16}
       level="Beginner"
@@ -23,19 +23,19 @@ export function Dashboard() {
             <div className="w-10 h-10 flex items-center justify-center rounded-xl" style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-pressed)' }}>
               <Layout className="text-[var(--brand-primary)]" size={20} />
             </div>
-            <h2 className="m-0">The Swarm HUD</h2>
+            <h2 className="m-0">The Dashboard</h2>
           </div>
           <p>
-            The <strong>Port Daddy Dashboard</strong> (Heads-Up Display) provides a high-fidelity visual interface for your local daemon. It allows you to see the relationships between your agents, services, and harbors in real-time.
+            The <strong>Port Daddy Dashboard</strong> is a single-page web UI served directly by the daemon. It gives you real-time panels showing services, agents, sessions, locks, messaging, DNS, activity, salvage queue, and system health -- all auto-refreshing.
           </p>
           <div className="space-y-3 pt-2">
             <div className="flex items-start gap-3">
               <Share2 size={18} className="text-[var(--brand-secondary)] mt-0.5 shrink-0" />
-              <p className="m-0 text-sm"><strong>Live Network Map</strong> -- A 2D force-directed graph showing which agents are connected to which harbors and tunnels.</p>
+              <p className="m-0 text-sm"><strong>15 Live Panels</strong> -- Services, Agents, Sessions, Locks, Messaging, DNS, Activity, Salvage, Integration, Briefing, Sugar Context, Ports, Projects, Health, and Notes.</p>
             </div>
             <div className="flex items-start gap-3">
               <Activity size={18} className="text-[var(--brand-accent)] mt-0.5 shrink-0" />
-              <p className="m-0 text-sm"><strong>Swarm Radio Feed</strong> -- A unified chronological stream of every message, port claim, and session note across the mesh.</p>
+              <p className="m-0 text-sm"><strong>SSE Real-Time Updates</strong> -- The dashboard subscribes to Server-Sent Events at <code>/dashboard/events</code> for live updates without polling.</p>
             </div>
           </div>
         </section>
@@ -46,19 +46,19 @@ export function Dashboard() {
             <div className="w-10 h-10 flex items-center justify-center rounded-xl" style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-pressed)' }}>
               <Zap className="text-[var(--brand-primary)]" size={20} />
             </div>
-            <h2 className="m-0">1. Summon the HUD</h2>
+            <h2 className="m-0">1. Open the Dashboard</h2>
           </div>
 
           <p>
-            Launch the dashboard from your terminal. It runs as a local web app served directly from the daemon.
+            The dashboard is served automatically by the daemon. Just open the daemon URL in your browser -- no separate command needed.
           </p>
 
           <CodeBlock language="bash">
-            {`$ pd dashboard\n\n✓ Dashboard active at http://localhost:3144/dashboard`}
+            {`# The daemon runs on port 9876 by default\nopen http://localhost:9876\n\n# Or check the status to see the URL\n$ pd status\nPort Daddy daemon is running on http://localhost:9876`}
           </CodeBlock>
 
           <p className="m-0 text-sm border-l-4 border-[var(--brand-secondary)] pl-4" style={{ color: 'var(--text-secondary)' }}>
-            The dashboard uses <strong>WebSockets</strong> to ensure that any signal published to Swarm Radio appears on your screen with sub-50ms latency.
+            The dashboard uses <strong>Server-Sent Events</strong> for real-time updates. New port claims, session notes, and agent heartbeats appear on your screen within milliseconds.
           </p>
         </section>
 
@@ -72,7 +72,7 @@ export function Dashboard() {
           </div>
 
           <p>
-            The HUD isn't just for observation. You can manually eject rogue agents, clear stale port claims, and trigger pipeline rules directly from the interface.
+            The dashboard isn't just for observation. You can inspect lock contention, view session note timelines, and monitor agent heartbeats directly from the interface.
           </p>
 
           <Surface depth="raised" radius="2xl" className="p-5 space-y-4 relative overflow-hidden">
@@ -116,7 +116,7 @@ export function Dashboard() {
            <Badge variant="teal" className="px-4 py-1 text-[10px] font-black uppercase tracking-widest">Visual Maturity</Badge>
            <p className="text-lg font-bold m-0" style={{ color: 'var(--text-primary)' }}>See Your Swarm.</p>
            <p className="max-w-xl mx-auto text-[var(--text-secondary)] m-0">
-             Multi-agent coordination is often a "black box." The HUD turns that box transparent, allowing you to debug complex social dynamics between agents just as easily as you debug code.
+             Multi-agent coordination is often a "black box." The dashboard turns that box transparent, allowing you to debug complex social dynamics between agents just as easily as you debug code.
            </p>
         </Surface>
       </div>
