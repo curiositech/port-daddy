@@ -22,6 +22,9 @@ const heroImages: Record<string, string> = {
   'fleet-agents-as-infrastructure': '/img/blog/fleet-management-hero.png',
   'spark-and-spider-the-creative-engine': '/img/blog/spark-spider-hero.png',
   'formal-verification-anchor-protocol': '/img/hero-portdaddy.png',
+  'port-daddy-for-teams': '/img/blog/teams-hero.png',
+  'claude-code-port-daddy-integration': '/img/blog/claude-code-hero.png',
+  'performance-at-scale': '/img/blog/performance-hero.png',
 }
 
 // ─── Directive system ─────────────────────────────────────────────────────
