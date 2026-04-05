@@ -6,7 +6,7 @@ import { Surface } from '@/components/ui/Surface'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Footer } from '@/components/layout/Footer'
 import {
-  Terminal, Zap, RefreshCw, Users, MessageSquare, Anchor,
+  Terminal, Zap, Users, MessageSquare, Anchor,
   Activity, Database, Cpu, Search, Radio, GitBranch,
   ArrowRight, CheckCircle, Download, Layers, Globe
 } from 'lucide-react'
@@ -319,7 +319,7 @@ function PubSubSection() {
         </motion.div>
 
         {/* Trigger hint */}
-        <Surface depth="sunken" radius="xl" padding="none"
+        <Surface depth="inset" radius="xl" padding="none"
           className="mt-6 p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <Zap size={20} className="shrink-0" style={{ color: 'var(--brand-primary)' }} />
           <div>
@@ -404,7 +404,7 @@ fleet:
         Propose one codebase improvement.`}
             </CodeBlock>
 
-            <Surface depth="sunken" radius="xl" padding="none" className="p-4">
+            <Surface depth="inset" radius="xl" padding="none" className="p-4">
               <p className="text-[10px] font-black uppercase tracking-widest mb-3"
                 style={{ color: 'var(--text-muted)' }}>
                 Respawn lifecycle
@@ -466,7 +466,7 @@ function TupleSection() {
                 { op: 'tuple_count', desc: 'Count by pattern' },
                 { op: 'pd tuple', desc: 'CLI access' },
               ].map(item => (
-                <Surface key={item.op} depth="sunken" radius="lg" padding="none"
+                <Surface key={item.op} depth="inset" radius="lg" padding="none"
                   className="p-3 text-center">
                   <code className="text-[11px] font-black font-mono block mb-1"
                     style={{ color: 'var(--brand-primary)' }}>
