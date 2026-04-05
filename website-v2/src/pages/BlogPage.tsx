@@ -6,7 +6,7 @@ import { blogPosts } from '@/data/blogData'
 import { Badge } from '@/components/ui/Badge'
 import { Surface } from '@/components/ui/Surface'
 import { Button } from '@/components/ui/Button'
-import { Calendar, User, ArrowRight, Terminal, Copy, Check, Anchor, Ship, Compass, Shield, Zap, Radio, BookOpen, Package, Code } from 'lucide-react'
+import { Calendar, User, ArrowRight, Terminal, Copy, Check, Anchor, Ship, Compass, Shield, Zap, BookOpen, Package, Code, Activity } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
 
 // Hero image mapping — matches blog slug to generated Ideogram hero
@@ -324,45 +324,61 @@ function ArticleCard({ post, index }: { post: typeof blogPosts[0]; index: number
   )
 }
 
-// Entry point cards for the install section
+// Feature cards — the six superpowers
 const entryPoints = [
   {
     icon: Terminal,
     title: 'Port Manager',
-    description: 'Never fight port conflicts again. Deterministic assignment by identity.',
+    description: 'Deterministic port assignment by semantic identity. `myapp:api` always gets the same port. No conflicts, no config.',
     cmd: 'pd claim myapp:api',
+    accent: 'primary' as const,
   },
   {
     icon: Ship,
-    title: 'Agent Fleet',
-    description: '8 background agents. QA, docs, tests, ideas. Declared in YAML.',
+    title: 'Always-On Fleet',
+    description: '8 agents running while you sleep. Gardener prunes dead code. QA hunts regressions. Spark invents. Declared in YAML, never babysit.',
     cmd: 'pd fleet up',
+    accent: 'secondary' as const,
+    badge: 'fleet',
   },
   {
-    icon: Radio,
-    title: 'Pub/Sub + Tuples',
-    description: 'Event-driven coordination. Self-healing pipelines. Linda tuple space.',
-    cmd: 'pd watch test-results --exec ./fix.sh',
+    icon: Activity,
+    title: 'Pheromone Trails',
+    description: 'Stigmergic coordination. Agents leave chemical signals on files and sessions. Hot paths pulse. Cold paths fade. Your codebase thinks.',
+    cmd: 'pd pheromone spray',
+    accent: 'primary' as const,
+    badge: 'new',
   },
   {
     icon: Shield,
-    title: 'Formal Safety',
-    description: 'The Arbiter enforces invariants from TLA+ specs. ProVerif-proven crypto.',
+    title: 'Formally Verified',
+    description: 'The Arbiter enforces TLA+ invariants at runtime. Cryptographic sessions proven in ProVerif. White papers. No hand-waving.',
     cmd: 'pd arbiter status',
+    accent: 'secondary' as const,
+    badge: 'security',
   },
   {
     icon: Compass,
     title: 'Agent Salvage',
-    description: 'Dead agents leave notes. New agents pick up where they left off.',
+    description: 'Dead agents leave immutable notes. New agents claim their sessions. Zero context lost — ever. The work always continues.',
     cmd: 'pd salvage --project myapp',
+    accent: 'primary' as const,
   },
   {
     icon: Anchor,
     title: 'MCP Integration',
-    description: '44 tools for Claude Code. Sessions, notes, claims, locks, spawn.',
+    description: '44 tools wired into Claude Code, Cursor, Windsurf. Sessions, salvage, fleet, locks — from inside the chat, no terminal.',
     cmd: 'pd mcp install',
+    accent: 'primary' as const,
   },
 ]
+
+// Badge labels for feature cards
+const featureBadgeLabel: Record<string, { label: string; color: string }> = {
+  new: { label: 'New', color: 'var(--brand-primary)' },
+  fleet: { label: 'Fleet', color: '#C4851A' },
+  security: { label: 'Proven', color: 'var(--brand-secondary)' },
+}
 
 export function BlogPage() {
   const [featured, ...rest] = blogPosts
@@ -373,31 +389,56 @@ export function BlogPage() {
       animate={{ opacity: 1 }}
       className="min-h-screen bg-[var(--surface-base)] flex flex-col pt-[var(--nav-height)] font-sans selection:bg-[var(--brand-primary)] selection:text-white"
     >
-      {/* Hero Section */}
-      <Surface depth="raised" radius="none" padding="none" className="py-14 sm:py-20 px-4 sm:px-6 lg:px-10 relative overflow-hidden">
-        {/* Background blobs */}
+      {/* ===== HERO + FEATURES ===== */}
+      <Surface depth="raised" radius="none" padding="none" className="pb-16 sm:pb-20 px-4 sm:px-6 lg:px-10 relative overflow-hidden">
+
+        {/* Background: ambient blobs */}
         <div
-          className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full blur-[160px] opacity-[0.08] pointer-events-none"
+          className="absolute top-[-80px] right-[-80px] w-[700px] h-[700px] rounded-full blur-[180px] opacity-[0.07] pointer-events-none"
           style={{ background: 'radial-gradient(circle, var(--brand-primary) 0%, transparent 70%)' }}
         />
         <div
-          className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full blur-[120px] opacity-[0.06] pointer-events-none"
+          className="absolute bottom-[-40px] left-[-80px] w-[500px] h-[500px] rounded-full blur-[140px] opacity-[0.05] pointer-events-none"
           style={{ background: 'radial-gradient(circle, var(--brand-secondary) 0%, transparent 70%)' }}
         />
+        {/* Subtle dot grid */}
+        <div
+          className="absolute inset-0 opacity-[0.025] pointer-events-none"
+          style={{
+            backgroundImage: 'radial-gradient(circle, var(--text-primary) 1px, transparent 1px)',
+            backgroundSize: '28px 28px',
+          }}
+        />
 
-        <div className="max-w-5xl mx-auto relative z-10 flex flex-col items-center text-center gap-6">
-          <Badge variant="teal" className="px-5 py-2 text-[9px] font-black uppercase tracking-[0.25em]">
-            Engineering Log
-          </Badge>
+        {/* Upper hero: copy + terminal */}
+        <div className="max-w-5xl mx-auto pt-14 sm:pt-20 relative z-10 flex flex-col items-center text-center gap-5">
+
+          {/* Badges row */}
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <Badge variant="teal" className="px-4 py-1.5 text-[9px] font-black uppercase tracking-[0.25em]">
+              Engineering Log
+            </Badge>
+            <Badge variant="red" className="px-4 py-1.5 text-[9px] font-black uppercase tracking-[0.25em]">
+              Pheromones
+            </Badge>
+            <Badge variant="gold" className="px-4 py-1.5 text-[9px] font-black uppercase tracking-[0.25em]">
+              Fleet v2
+            </Badge>
+            <Badge variant="default" className="px-4 py-1.5 text-[9px] font-black uppercase tracking-[0.25em]">
+              ProVerif Security
+            </Badge>
+          </div>
 
           <motion.h1
-            className="text-4xl sm:text-5xl lg:text-7xl font-black tracking-tighter font-display leading-[0.9] m-0 text-[var(--text-primary)]"
+            className="text-4xl sm:text-5xl lg:text-[4.5rem] font-black tracking-tighter font-display leading-[0.92] m-0 text-[var(--text-primary)] max-w-4xl"
             initial={{ opacity: 0, y: 32 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
           >
-            The Control{' '}
-            <span className="text-[var(--brand-primary)]">Plane.</span>
+            Agents that{' '}
+            <span className="text-[var(--brand-primary)]">coordinate.</span>
+            {' '}Daemons that{' '}
+            <span className="text-[var(--brand-secondary)]">never sleep.</span>
           </motion.h1>
 
           <motion.p
@@ -406,12 +447,14 @@ export function BlogPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.1 }}
           >
-            Protocol design, formal verification, fleet agents, and the infrastructure behind autonomous coordination.
+            8 fleet agents working while you're offline. Pheromone trails connecting what would have been coincidences.
+            Cryptographic session security proven on paper. Dead agents that leave notes.{' '}
+            <span className="font-semibold text-[var(--text-primary)]">One command to wire it all.</span>
           </motion.p>
 
           {/* Install terminal */}
           <motion.div
-            className="w-full flex justify-center pt-2"
+            className="w-full flex justify-center pt-1"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
@@ -419,10 +462,85 @@ export function BlogPage() {
             <InstallTerminal />
           </motion.div>
         </div>
+
+        {/* Divider with label */}
+        <div className="max-w-5xl mx-auto mt-14 sm:mt-16 mb-8 relative z-10">
+          <div className="flex items-center gap-4">
+            <div className="h-px flex-1" style={{ background: 'var(--border-subtle)' }} />
+            <span className="text-[9px] font-black uppercase tracking-[0.3em]" style={{ color: 'var(--text-muted)' }}>
+              One daemon · Six superpowers
+            </span>
+            <div className="h-px flex-1" style={{ background: 'var(--border-subtle)' }} />
+          </div>
+        </div>
+
+        {/* Feature grid — hoisted into hero */}
+        <div className="max-w-5xl mx-auto relative z-10">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {entryPoints.map((ep, i) => {
+              const badgeMeta = ep.badge ? featureBadgeLabel[ep.badge] : null
+              return (
+                <motion.div
+                  key={ep.title}
+                  initial={{ opacity: 0, y: 24 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.3 + i * 0.07, ease: [0.16, 1, 0.3, 1] }}
+                >
+                  <Surface depth="raised" radius="xl" padding="md" interactive className="sm:rounded-[20px] h-full flex flex-col gap-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                          style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-pressed)' }}
+                        >
+                          <ep.icon
+                            size={16}
+                            style={{ color: ep.accent === 'secondary' ? 'var(--brand-secondary)' : 'var(--brand-primary)' }}
+                          />
+                        </div>
+                        <h3 className="m-0 text-sm font-display font-black tracking-tight text-[var(--text-primary)]">
+                          {ep.title}
+                        </h3>
+                      </div>
+                      {badgeMeta && (
+                        <span
+                          className="shrink-0 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest"
+                          style={{ background: `${badgeMeta.color}18`, color: badgeMeta.color }}
+                        >
+                          {badgeMeta.label}
+                        </span>
+                      )}
+                    </div>
+                    <p className="m-0 text-[12.5px] leading-relaxed text-[var(--text-secondary)] flex-1">
+                      {ep.description}
+                    </p>
+                    <div
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg font-mono text-[10.5px]"
+                      style={{ background: 'var(--surface-overlay)' }}
+                    >
+                      <span className="select-none" style={{ color: 'var(--brand-primary)' }}>$</span>
+                      <span className="truncate" style={{ color: 'var(--text-muted)' }}>{ep.cmd}</span>
+                    </div>
+                  </Surface>
+                </motion.div>
+              )
+            })}
+          </div>
+        </div>
       </Surface>
 
-      {/* Featured Article */}
+      {/* ===== BLOG ARTICLES ===== */}
       <main id="main-content" className="flex-1 py-10 sm:py-14 px-4 sm:px-6 lg:px-10 max-w-5xl mx-auto w-full">
+
+        {/* Section label */}
+        <div className="flex items-center gap-4 mb-8">
+          <div className="h-px flex-1" style={{ background: 'var(--border-subtle)' }} />
+          <Badge variant="teal" className="px-4 py-1.5 text-[9px] font-black uppercase tracking-[0.25em]">
+            Engineering Log
+          </Badge>
+          <div className="h-px flex-1" style={{ background: 'var(--border-subtle)' }} />
+        </div>
+
         <FeaturedArticle post={featured} />
 
         {/* Article Grid */}
@@ -432,71 +550,14 @@ export function BlogPage() {
           ))}
         </div>
 
-        {/* Entry Points Section */}
-        <motion.section
-          className="mt-16 mb-8"
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-        >
-          <div className="text-center mb-8">
-            <Badge variant="gold" className="px-5 py-2 text-[9px] font-black uppercase tracking-[0.25em] mb-4">
-              Every Entry Point
-            </Badge>
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-display font-black tracking-tight text-[var(--text-primary)] m-0">
-              One daemon.{' '}
-              <span className="text-[var(--brand-primary)]">Six superpowers.</span>
-            </h2>
-            <p className="text-base sm:text-lg text-[var(--text-secondary)] mt-3 max-w-2xl mx-auto">
-              Install for port management. Discover agent coordination, formal verification, fleet intelligence, and a tuple space.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {entryPoints.map((ep, i) => (
-              <motion.div
-                key={ep.title}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: i * 0.08 }}
-              >
-                <Surface depth="raised" radius="xl" padding="md" interactive className="sm:rounded-[20px] h-full flex flex-col gap-3">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                      style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-pressed)' }}
-                    >
-                      <ep.icon size={18} className="text-[var(--brand-primary)]" />
-                    </div>
-                    <h3 className="m-0 text-sm font-display font-black tracking-tight text-[var(--text-primary)]">
-                      {ep.title}
-                    </h3>
-                  </div>
-                  <p className="m-0 text-[13px] leading-relaxed text-[var(--text-secondary)] flex-1">
-                    {ep.description}
-                  </p>
-                  <div
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg font-mono text-[11px]"
-                    style={{ background: 'var(--surface-overlay)' }}
-                  >
-                    <span className="text-[var(--brand-primary)] select-none">$</span>
-                    <span className="text-[var(--text-muted)] truncate">{ep.cmd}</span>
-                  </div>
-                </Surface>
-              </motion.div>
-            ))}
-          </div>
-        </motion.section>
-
         {/* Docs CTA */}
-        <Surface depth="raised" radius="2xl" padding="lg" className="sm:rounded-[32px] text-center flex flex-col items-center gap-4">
-          <BookOpen size={32} className="text-[var(--brand-primary)]" />
+        <Surface depth="raised" radius="2xl" padding="lg" className="sm:rounded-[32px] text-center flex flex-col items-center gap-4 mt-12">
+          <BookOpen size={28} className="text-[var(--brand-primary)]" />
           <h3 className="text-xl sm:text-2xl font-display font-black tracking-tight text-[var(--text-primary)] m-0">
             Read the docs. Run the daemon.
           </h3>
           <p className="text-sm sm:text-base text-[var(--text-secondary)] max-w-lg m-0">
-            API reference, tutorials, MCP integration guide, and the full CLI reference.
+            API reference, tutorials, MCP integration guide, white papers, and the full CLI reference.
           </p>
           <div className="flex flex-wrap gap-3 justify-center">
             <Link to="/docs">
@@ -505,8 +566,8 @@ export function BlogPage() {
             <Link to="/tutorials">
               <Button variant="secondary" size="md">Tutorials</Button>
             </Link>
-            <Link to="/mcp">
-              <Button variant="outline" size="md">MCP Tools</Button>
+            <Link to="/whitepaper">
+              <Button variant="outline" size="md">White Papers</Button>
             </Link>
           </div>
         </Surface>
