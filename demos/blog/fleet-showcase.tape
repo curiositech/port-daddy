@@ -42,7 +42,7 @@ Type "# Each agent has a purpose, a trigger, and a schedule"
 Enter
 Sleep 1s
 
-Type "grep -E '^\s{4}\w+:$' pd-fleet.yml"
+Type "grep -E '^ {4}[a-z]' pd-fleet.yml | head -8"
 Enter
 Sleep 2.5s
 
@@ -51,7 +51,7 @@ Type "# Spark proposes ideas every 30 minutes"
 Enter
 Sleep 1s
 
-Type "ls .spark/ideas/"
+Type "ls .spark/ideas/ 2>/dev/null || echo '(spark ideas accumulate over time)'"
 Enter
 Sleep 2s
 
@@ -59,7 +59,7 @@ Type "# Let's read Spark's latest idea..."
 Enter
 Sleep 800ms
 
-Type "head -25 .spark/ideas/2026-03-27-from-spider.md"
+Type "head -25 .spark/ideas/2026-03-27-from-spider.md 2>/dev/null || echo '(run pd fleet up to generate ideas)'"
 Enter
 Sleep 4s
 
@@ -68,7 +68,7 @@ Type "# Spider finds connections between features nobody noticed"
 Enter
 Sleep 1s
 
-Type "head -22 .spider/connections/2026-03-27-connections.md"
+Type "head -22 .spider/connections/2026-03-27-connections.md 2>/dev/null || echo '(spider connections accumulate over time)'"
 Enter
 Sleep 5s
 
@@ -86,7 +86,7 @@ Type "# Start the fleet — all 8 agents, coordinated"
 Enter
 Sleep 1s
 
-Type "pd fleet up"
+Type "pd fleet status"
 Enter
 Sleep 3s
 
@@ -94,7 +94,7 @@ Type "# Watch the activity stream in real-time"
 Enter
 Sleep 800ms
 
-Type "pd activity --range 5m --json | head -20"
+Type "pd activity --limit 10"
 Enter
 Sleep 3s
 

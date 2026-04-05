@@ -32,7 +32,7 @@ Type "# Step 1: Spark had an idea at 5:09 PM"
 Enter
 Sleep 1.5s
 
-Type "cat .spark/ideas/2026-03-27-pheromone-cli.md"
+Type "cat .spark/ideas/2026-03-27-pheromone-cli.md 2>/dev/null || echo '(spark ideas appear after pd fleet up runs)'"
 Enter
 Sleep 6s
 
@@ -47,18 +47,18 @@ Type "# Including this one — Spark's pheromone CLI + the Arbiter = adaptive th
 Enter
 Sleep 1.5s
 
-Type "sed -n '9,21p' .spider/connections/2026-03-27-connections.md"
+Type "head -30 .spider/connections/2026-03-27-connections.md 2>/dev/null || echo '(spider connections appear after pd fleet up runs)'"
 Enter
 Sleep 6s
 
 # The implementation proposal
 Type ""
 Enter
-Type "# Step 3: Spark read Spider's S2, and proposed a concrete implementation"
+Type "# Step 3: Spark read Spider's connections, and proposed a concrete implementation"
 Enter
 Sleep 1.5s
 
-Type "head -45 .spark/ideas/2026-03-27-from-spider.md"
+Type "head -45 .spark/ideas/2026-03-27-from-spider.md 2>/dev/null || echo '(implementation proposals accumulate over time)'"
 Enter
 Sleep 6s
 
@@ -69,11 +69,11 @@ Type "# The conversation happened on pub/sub channels. No human orchestrated it.
 Enter
 Sleep 1.5s
 
-Type "pd msg spark:idea"
+Type "pd channels"
 Enter
 Sleep 2s
 
-Type "pd msg spider:connections"
+Type "pd notes --limit 8"
 Enter
 Sleep 2s
 
