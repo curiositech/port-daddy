@@ -45,6 +45,30 @@ const BACKEND_CATALOG = [
 export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (fastify, opts) => {
   const { fleetDaemon, messaging } = opts.deps;
 
+  function resolveFleetRecord(projectOrDir: string, reply: FastifyReply) {
+    const fleets = fleetDaemon.getStatus().fleets;
+    const exactDirMatch = fleets.find((fleet) => fleet.projectDir === projectOrDir);
+    if (exactDirMatch) return exactDirMatch;
+
+    const nameMatches = fleets.filter((fleet) => fleet.project === projectOrDir);
+    if (nameMatches.length === 1) return nameMatches[0];
+    if (nameMatches.length > 1) {
+      reply.code(409).send({
+        success: false,
+        error: `Fleet "${projectOrDir}" is ambiguous across multiple directories`,
+        code: 'AMBIGUOUS_FLEET',
+        matches: nameMatches.map((fleet) => ({
+          project: fleet.project,
+          projectDir: fleet.projectDir,
+        })),
+      });
+      return null;
+    }
+
+    reply.code(404).send({ success: false, error: `No fleet running for project: ${projectOrDir}` });
+    return null;
+  }
+
   // GET /fleet — Aggregated status
   fastify.get('/fleet', async () => {
     const status = fleetDaemon.getStatus();
@@ -54,12 +78,8 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
   // GET /fleet/:project — Specific project status
   fastify.get('/fleet/:project', async (request: FastifyRequest, reply: FastifyReply) => {
     const { project } = request.params as { project: string };
-    const status = fleetDaemon.getStatus();
-    const fleet = status.fleets.find(f => f.project === project);
-    if (!fleet) {
-      reply.code(404);
-      return { success: false, error: `No fleet running for project: ${project}` };
-    }
+    const fleet = resolveFleetRecord(project, reply);
+    if (!fleet) return;
     return { success: true, fleet };
   });
 
@@ -134,8 +154,8 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
 
   /** Resolve fleet + config path, or send 404. Returns null if reply was sent. */
   function resolveFleetConfig(project: string, reply: FastifyReply) {
-    const fleet = fleetDaemon.getStatus().fleets.find(f => f.project === project);
-    if (!fleet) { reply.code(404).send({ success: false, error: `No fleet for: ${project}` }); return null; }
+    const fleet = resolveFleetRecord(project, reply);
+    if (!fleet) return null;
     const configPath = findFleetConfigPath(fleet.projectDir);
     if (!configPath) { reply.code(404).send({ success: false, error: 'No pd-fleet.yml found' }); return null; }
     return { fleet, configPath };

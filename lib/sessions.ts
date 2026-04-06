@@ -723,9 +723,13 @@ export function createSessions(db: Database.Database, noteEncryption?: NoteEncry
     const now = Date.now();
     const { note, status = 'completed' } = options;
 
-    // Add handoff note if provided
+    // Add handoff note if provided, preserving the same encryption path as addNote().
     if (note) {
-      stmts.insertNote.run(sessionId, note, 'handoff', now);
+      const trimmedNote = note.trim();
+      if (trimmedNote) {
+        const storedNote = maybeEncrypt(sessionId, trimmedNote);
+        stmts.insertNote.run(sessionId, storedNote, 'handoff', now);
+      }
     }
 
     // Release all active file claims

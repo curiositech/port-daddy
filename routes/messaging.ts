@@ -65,9 +65,10 @@ export const messagingPlugin: FastifyPluginAsync<{ deps: MessagingRouteDeps }> =
         return { error: channelValidation.error };
       }
 
-      const { payload, sender, expires } = request.body as any;
+      const { payload, content, sender, expires } = request.body as any;
+      const publishPayload = payload ?? content;
 
-      const result = messaging.publish((request.params as any).channel, payload || {}, { sender, expires });
+      const result = messaging.publish((request.params as any).channel, publishPayload, { sender, expires });
       if (!result.success) {
         reply.code(400);
         return { error: result.error };

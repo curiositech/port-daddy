@@ -37,6 +37,7 @@ import { arbiterPlugin } from './arbiter.js';
 import { pheromonePlugin } from './pheromone.js';
 import { tuplesPlugin } from './tuples.js';
 import { fleetPlugin } from './fleet.js';
+import { observabilityPlugin } from './observability.js';
 import { mergeQueuePlugin } from './merge-queue.js';
 import { symbolsPlugin } from './symbols.js';
 
@@ -96,6 +97,11 @@ export async function registerAllRoutes(
   // Fleet daemon (always-on fleet management) — fleetDaemon, messaging, logger are in deps
   if ((deps as any).fleetDaemon) {
     await fastify.register(fleetPlugin, { deps } as any);
+  }
+
+  // Observability (counters + cost tracking)
+  if ((deps as any).counters && (deps as any).costTracker) {
+    await fastify.register(observabilityPlugin, { deps } as any);
   }
 
   // Phase 1 — Semantic Graph routes (merge queue, symbol index)

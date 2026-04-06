@@ -11,6 +11,19 @@ import { createTestDb } from '../setup-unit.js';
 import { createSessions } from '../../lib/sessions.js';
 import { ActivityType } from '../../lib/activity.js';
 
+function createMockNoteEncryption() {
+  const sessionKey = Buffer.alloc(32, 7);
+  return {
+    isEnabled: () => true,
+    generateSessionKey: () => sessionKey,
+    wrapSessionKey: () => 'wrapped-session-key',
+    unwrapSessionKey: () => sessionKey,
+    encryptNote: (plaintext) => `enc:${plaintext}`,
+    decryptNote: (encrypted) => encrypted.startsWith('enc:') ? encrypted.slice(4) : null,
+    isEncrypted: (content) => content.startsWith('enc:'),
+  };
+}
+
 describe('Sessions Module', () => {
   let db;
   let sessions;
@@ -125,6 +138,23 @@ describe('Sessions Module', () => {
       const got = sessions.get(started.id);
       expect(got.notes).toHaveLength(1);
       expect(got.notes[0].content).toBe('Left off at step 3');
+      expect(got.notes[0].type).toBe('handoff');
+    });
+
+    it('should encrypt handoff notes when note encryption is enabled', () => {
+      const encryptedSessions = createSessions(db, createMockNoteEncryption());
+      const started = encryptedSessions.start('Encrypted work item');
+
+      encryptedSessions.end(started.id, { note: 'Sensitive handoff detail' });
+
+      const row = db.prepare(
+        'SELECT content FROM session_notes WHERE session_id = ? ORDER BY created_at ASC LIMIT 1'
+      ).get(started.id);
+
+      expect(row.content).toBe('enc:Sensitive handoff detail');
+
+      const got = encryptedSessions.get(started.id);
+      expect(got.notes[0].content).toBe('Sensitive handoff detail');
       expect(got.notes[0].type).toBe('handoff');
     });
 

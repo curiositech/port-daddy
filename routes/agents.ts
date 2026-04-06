@@ -53,6 +53,14 @@ interface AgentsRouteDeps {
   messaging: {
     publish(channel: string, message: string): { success: boolean };
   };
+  fleetDaemon?: {
+    hailAgent(agentId: string, context?: { project?: string; source?: 'inbox' | 'manual' | 'trigger' | 'schedule'; channel?: string; from?: string | null; message?: unknown; messageContent?: string }): Promise<{
+      success: boolean;
+      error?: string;
+      project?: string;
+      agent?: string;
+    }>;
+  };
 }
 
 /**
@@ -67,7 +75,7 @@ interface AgentsRouteDeps {
 // Fastify plugin (dual-export)
 // =============================================================================
 export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async (fastify, opts) => {
-  const { logger, metrics, agents, agentInbox, activityLog, webhooks, messaging } = opts.deps;
+  const { logger, metrics, agents, agentInbox, activityLog, webhooks, messaging, fleetDaemon } = opts.deps;
 
   // POST /agents - Register an agent
   fastify.post('/agents', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -234,7 +242,7 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
   fastify.post('/agents/:id/inbox', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const agentId = (request.params as any).id as string;
-      const { content, from, type } = request.body as any;
+      const { content, from, type, wake, project } = request.body as any;
 
       if (!content) {
         reply.code(400);
@@ -255,7 +263,33 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
       }
 
       logger.info('inbox_message_sent', { agentId, from, messageId: result.messageId });
-      return result;
+      let wakeResult: { success: boolean; error?: string; project?: string; agent?: string } | undefined;
+      if (wake === true && fleetDaemon?.hailAgent) {
+        wakeResult = await fleetDaemon.hailAgent(agentId, {
+          project: typeof project === 'string' ? project : undefined,
+          source: 'inbox',
+          from: typeof from === 'string' ? from : null,
+          message: content,
+          messageContent: String(content),
+        });
+        if (!wakeResult.success) {
+          reply.code(409);
+          return {
+            success: false,
+            error: wakeResult.error,
+            messageId: result.messageId,
+            delivered: true,
+            woke: false,
+          };
+        }
+      }
+
+      return {
+        ...result,
+        delivered: true,
+        woke: wake === true,
+        wake: wakeResult,
+      };
     } catch (error) {
       metrics.errors++;
       logger.error('inbox_send_failed', { error: (error as Error).message });
