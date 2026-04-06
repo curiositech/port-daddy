@@ -1,6 +1,6 @@
 # Repo Cleanup And Distribution
 
-Last updated: 2026-04-05
+Last updated: 2026-04-06
 
 This document defines the cleanup direction for making Port Daddy coherent for current work and legible for outside developers later.
 
@@ -19,6 +19,7 @@ This document defines the cleanup direction for making Port Daddy coherent for c
 Keep:
 - `apps/FleetBar`
   - canonical native companion
+  - native shell for the real `/fleet-ui/` control plane, not a separate shadow dashboard
 - `fleet-config-ui`
   - canonical deep control plane
 - `public/app-surgery.html`

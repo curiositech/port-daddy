@@ -26,6 +26,75 @@ import {
 } from './api';
 import type { FleetConfig, TopologyValidation } from './types';
 
+type MainTab = 'Fleet' | 'Activity' | 'Sorties' | 'YAML';
+type RightRailTab = 'Activity' | 'Channels' | 'Inbox';
+type ControlSurface = 'flow' | 'activity' | 'channels' | 'inbox' | 'sorties' | 'yaml';
+
+function canUseWindow(): boolean {
+  return typeof window !== 'undefined';
+}
+
+function normalizeSurface(value: string | null): ControlSurface {
+  switch (value) {
+    case 'activity':
+    case 'channels':
+    case 'inbox':
+    case 'sorties':
+    case 'yaml':
+    case 'flow':
+      return value;
+    default:
+      return 'flow';
+  }
+}
+
+function surfaceToMainTab(surface: ControlSurface): MainTab {
+  switch (surface) {
+    case 'activity':
+      return 'Activity';
+    case 'sorties':
+      return 'Sorties';
+    case 'yaml':
+      return 'YAML';
+    default:
+      return 'Fleet';
+  }
+}
+
+function surfaceToRightRail(surface: ControlSurface): RightRailTab {
+  switch (surface) {
+    case 'channels':
+      return 'Channels';
+    case 'inbox':
+      return 'Inbox';
+    default:
+      return 'Activity';
+  }
+}
+
+function deriveSurface(activeTab: MainTab, rightRailTab: RightRailTab): ControlSurface {
+  if (activeTab === 'Activity') return 'activity';
+  if (activeTab === 'Sorties') return 'sorties';
+  if (activeTab === 'YAML') return 'yaml';
+  if (rightRailTab === 'Channels') return 'channels';
+  if (rightRailTab === 'Inbox') return 'inbox';
+  return 'flow';
+}
+
+function readInitialRoute(): { project: string | null; surface: ControlSurface } {
+  if (!canUseWindow()) {
+    return { project: null, surface: 'flow' };
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const project = params.get('project');
+  const surface = normalizeSurface(params.get('surface'));
+  return {
+    project: project && project.trim() ? project.trim() : null,
+    surface,
+  };
+}
+
 // ─── Header ───────────────────────────────────────────────────────────────────
 
 function Header({
@@ -147,16 +216,17 @@ function summarizeChannelPayload(payload: unknown): string {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function App() {
+  const initialRoute = useMemo(() => readInitialRoute(), []);
   const [theme, toggleTheme] = useTheme();
   const [daemonUrl, setDaemonUrlState] = useState(() => getDaemonUrl());
   const [daemonChoices, setDaemonChoices] = useState(() => getDaemonChoices());
   const fleet = useFleet(daemonUrl);
-  const [selectedProjectName, setSelectedProjectName] = useState<string | null>(null);
+  const [selectedProjectName, setSelectedProjectName] = useState<string | null>(initialRoute.project);
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
   const [configAgent, setConfigAgent] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('Fleet');
-  const [rightRailTab, setRightRailTab] = useState<'Activity' | 'Channels' | 'Inbox'>('Activity');
+  const [activeTab, setActiveTab] = useState<MainTab>(surfaceToMainTab(initialRoute.surface));
+  const [rightRailTab, setRightRailTab] = useState<RightRailTab>(surfaceToRightRail(initialRoute.surface));
 
   const projects = useMemo(() => {
     if (!fleet.status) return [];
@@ -169,10 +239,29 @@ export default function App() {
   const selectedProject = fleet.status?.fleets.find(f => f.project === selectedProjectName) ?? null;
 
   useEffect(() => {
+    if (fleet.loading || !selectedProjectName) return;
+    if (projects.some((project) => project.id === selectedProjectName)) return;
+    setSelectedProjectName(null);
+  }, [fleet.loading, projects, selectedProjectName]);
+
+  useEffect(() => {
     if (selectedProjectName && !fleet.configs.has(selectedProjectName)) {
       fleet.loadConfig(selectedProjectName);
     }
   }, [selectedProjectName, fleet]);
+
+  useEffect(() => {
+    if (!canUseWindow()) return;
+    const next = new URL(window.location.href);
+    const surface = deriveSurface(activeTab, rightRailTab);
+    next.searchParams.set('surface', surface);
+    if (selectedProjectName) {
+      next.searchParams.set('project', selectedProjectName);
+    } else {
+      next.searchParams.delete('project');
+    }
+    window.history.replaceState({}, '', next);
+  }, [activeTab, rightRailTab, selectedProjectName]);
 
   const projectConfig = selectedProjectName ? fleet.configs.get(selectedProjectName) : undefined;
   const fleetConfig: FleetConfig | null = projectConfig?.parsed ?? null;
@@ -246,6 +335,7 @@ export default function App() {
     setSelectedAgent(null);
     setSelectedChannel(null);
     setConfigAgent(null);
+    setActiveTab('Fleet');
     setRightRailTab('Activity');
   };
 
@@ -285,7 +375,7 @@ export default function App() {
   const daemonRunning = fleet.status?.running ?? false;
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden" style={{ backgroundColor: 'var(--pd-bg)', fontFamily: 'ui-sans-serif, system-ui, sans-serif' }}>
+    <div className="flex flex-col h-screen w-screen overflow-hidden" style={{ backgroundColor: 'var(--pd-bg)', fontFamily: 'var(--pd-font-ui)' }}>
       <Header
         project={selectedProjectName ?? undefined}
         daemonRunning={daemonRunning}
@@ -348,7 +438,7 @@ export default function App() {
 
             {/* Col 1-2, Row 2: Tabs */}
             <div className="overflow-hidden flex flex-col" style={{ gridColumn: '1 / 3', gridRow: 2, borderRight: '1px solid var(--pd-border)' }}>
-              <TabBar tabs={['Fleet', 'Activity', 'Sorties', 'YAML']} active={activeTab} onChange={setActiveTab} />
+              <TabBar tabs={['Fleet', 'Activity', 'Sorties', 'YAML']} active={activeTab} onChange={(tab) => setActiveTab(tab as MainTab)} />
               <div className="flex-1 overflow-y-auto">
                 {activeTab === 'Fleet' && fleetConfig && (
                   <div className="p-4">

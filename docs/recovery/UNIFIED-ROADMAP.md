@@ -96,6 +96,7 @@ Immediate ships:
 - daemon health and error surfacing
 - fleet config warnings
 - cost warnings and budget exhaustion
+- native control window that shells the real `/fleet-ui/` surface instead of a second shadow dashboard
 - QA/Spark/Spider/documentarian briefings
 - suggestion cards for onboarding and remediation
 
@@ -117,6 +118,7 @@ Why now:
 Immediate ships:
 - preserve the main-screen activity rail
 - keep real channel logs alive
+- make Flow, YAML, inbox, and sortie surfaces deep-linkable from the native companion
 - restore stronger story, causality, and suggestion affordances
 - merge the best of `public/fleet-live.html` and `public/fleet-config.html` into `fleet-config-ui`
 - turn `SortiePanel` into a mission workspace, not just a raw launch form

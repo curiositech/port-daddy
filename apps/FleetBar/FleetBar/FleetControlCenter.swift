@@ -1,303 +1,372 @@
 import SwiftUI
 
+private enum ControlPlaneSurface: String, CaseIterable, Identifiable {
+    case flow
+    case activity
+    case channels
+    case inbox
+    case sorties
+    case yaml
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .flow: return "Flow"
+        case .activity: return "Activity"
+        case .channels: return "Channels"
+        case .inbox: return "Inbox"
+        case .sorties: return "Sorties"
+        case .yaml: return "YAML"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .flow: return "point.3.connected.trianglepath.dotted"
+        case .activity: return "waveform.path.ecg"
+        case .channels: return "dot.radiowaves.left.and.right"
+        case .inbox: return "tray.full"
+        case .sorties: return "paperplane"
+        case .yaml: return "curlybraces"
+        }
+    }
+}
+
 struct FleetControlCenter: View {
     @ObservedObject var store: FleetStore
     @ObservedObject var costStore: CostStore
+    @Environment(\.openURL) private var openURL
+
+    @AppStorage("fleet.control.surface") private var selectedSurfaceRaw = ControlPlaneSurface.flow.rawValue
+    @AppStorage("fleet.control.project") private var selectedProjectStorage = ""
+
+    @State private var reloadToken = UUID()
+    @State private var webLoading = true
+    @State private var webError: String?
+
+    private var selectedSurface: ControlPlaneSurface {
+        get { ControlPlaneSurface(rawValue: selectedSurfaceRaw) ?? .flow }
+        nonmutating set { selectedSurfaceRaw = newValue.rawValue }
+    }
+
+    private var selectedProjectId: String? {
+        get { selectedProjectStorage.isEmpty ? nil : selectedProjectStorage }
+        nonmutating set { selectedProjectStorage = newValue ?? "" }
+    }
+
+    private var selectedProjectLabel: String {
+        selectedProjectId ?? "All projects"
+    }
+
+    private var controlPlaneURL: URL? {
+        guard var components = URLComponents(string: "\(store.daemonURL)/fleet-ui/") else {
+            return nil
+        }
+
+        var queryItems = [
+            URLQueryItem(name: "daemon", value: store.daemonURL),
+            URLQueryItem(name: "surface", value: selectedSurface.rawValue),
+        ]
+        if let selectedProjectId, !selectedProjectId.isEmpty {
+            queryItems.append(URLQueryItem(name: "project", value: selectedProjectId))
+        }
+        components.queryItems = queryItems
+        return components.url
+    }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: Fleet.Space.l) {
-                header
-                controlStrip
-                CostDashboard(store: costStore)
-                daemonTruth
-                projectsSection
-            }
-            .padding(Fleet.Space.xxl)
+        VStack(spacing: 0) {
+            topBar
+            Divider()
+            surfaceStrip
+            Divider()
+            content
         }
-        .frame(minWidth: 860, minHeight: 620)
+        .frame(minWidth: 1180, minHeight: 780)
         .background(.regularMaterial)
         .task {
-            await store.refresh()
-            await costStore.refresh()
+            await refreshAll()
+        }
+        .onReceive(store.$projects) { _ in
+            syncProjectSelection()
         }
     }
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: Fleet.Space.s) {
-            Text("Fleet Control Center")
-                .font(.system(size: 24, weight: .semibold))
-
-            HStack(spacing: Fleet.Space.s) {
-                Label(store.isDaemonRunning ? "Daemon live" : "Daemon offline",
-                      systemImage: store.isDaemonRunning ? "dot.radiowaves.left.and.right" : "bolt.slash")
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(store.isDaemonRunning ? Fleet.Color.healthy : Fleet.Color.failure)
-
-                Text(store.daemonLabel)
-                    .font(.system(.caption, design: .monospaced))
-                    .foregroundStyle(.secondary)
-
-                Text(store.isCanonicalDaemon ? "stable 9876" : "custom daemon")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(store.isCanonicalDaemon ? Fleet.Color.active : Fleet.Color.warning)
-                    .padding(.horizontal, Fleet.Space.s)
-                    .padding(.vertical, 4)
-                    .background(
-                        (store.isCanonicalDaemon ? Fleet.Color.active : Fleet.Color.warning).opacity(0.1),
-                        in: RoundedRectangle(cornerRadius: Fleet.Radius.standard, style: .continuous)
-                    )
-            }
-
-            Text("Native fleet controls stay pointed at one daemon. Stable 9876 is the default operator surface; dev daemons should only be used when you explicitly opt into them.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-    }
-
-    private var controlStrip: some View {
-        HStack(spacing: Fleet.Space.m) {
-            ActionButton(
-                title: store.isDaemonRunning ? "Reload Fleet" : "Start Daemon",
-                subtitle: store.isDaemonRunning ? "Refresh configs and status" : "Kick the launch agent or CLI",
-                icon: store.isDaemonRunning ? "arrow.clockwise" : "play.fill",
-                color: store.isDaemonRunning ? Fleet.Color.active : Fleet.Color.healthy
-            ) {
-                Task {
-                    if store.isDaemonRunning {
-                        await store.reloadFleet()
-                        await costStore.refresh()
-                    } else {
-                        store.startDaemon()
-                    }
-                }
-            }
-
-            ActionButton(
-                title: store.projects.isEmpty ? "Start Fleet" : "Stop Fleet",
-                subtitle: store.projects.isEmpty ? "Start registered project fleets" : "Stop the registered fleets",
-                icon: store.projects.isEmpty ? "bolt.fill" : "stop.fill",
-                color: store.projects.isEmpty ? Fleet.Color.healthy : Fleet.Color.failure
-            ) {
-                Task {
-                    if store.projects.isEmpty {
-                        await store.startFleet()
-                    } else {
-                        await store.stopFleet()
-                    }
-                    await costStore.refresh()
-                }
-            }
-
-            ActionButton(
-                title: "Refresh Spend",
-                subtitle: "Pull live cost and budget state",
-                icon: "dollarsign.circle",
-                color: Fleet.Color.warning
-            ) {
-                Task { await costStore.refresh() }
-            }
-        }
-    }
-
-    private var daemonTruth: some View {
-        VStack(alignment: .leading, spacing: Fleet.Space.s) {
-            Text("Operator truth")
-                .font(.headline)
-
-            VStack(alignment: .leading, spacing: Fleet.Space.s) {
-                TruthRow(
-                    title: "Connection",
-                    message: store.isConnected ? "Live SSE stream attached." : "Polling fallback or disconnected.",
-                    tone: store.isConnected ? Fleet.Color.healthy : Fleet.Color.warning
-                )
-                TruthRow(
-                    title: "Project count",
-                    message: "\(store.projects.count) project fleets loaded, \(store.totalAgents) total agents, \(store.totalActive) active right now.",
-                    tone: store.totalActive > 0 ? Fleet.Color.active : Fleet.Color.dormant
-                )
-                TruthRow(
-                    title: "Default target",
-                    message: store.isCanonicalDaemon
-                        ? "This companion is pointed at the canonical stable daemon."
-                        : "This companion is pointed at a non-canonical daemon. That should be an intentional override, not the default state.",
-                    tone: store.isCanonicalDaemon ? Fleet.Color.active : Fleet.Color.warning
-                )
-            }
-        }
-        .padding(Fleet.Space.l)
-        .background(
-            Color.primary.opacity(0.03),
-            in: RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous)
-        )
-    }
-
-    private var projectsSection: some View {
+    private var topBar: some View {
         VStack(alignment: .leading, spacing: Fleet.Space.m) {
-            Text("Project fleets")
-                .font(.headline)
+            HStack(alignment: .center, spacing: Fleet.Space.m) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Fleet Control Center")
+                        .font(.system(size: 24, weight: .semibold))
 
-            if store.projects.isEmpty {
-                RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous)
-                    .fill(Color.primary.opacity(0.03))
-                    .overlay(
-                        VStack(alignment: .leading, spacing: Fleet.Space.s) {
-                            Text("No registered fleets")
-                                .font(.subheadline.weight(.semibold))
-                            Text("Add a pd-fleet.yml to a project and register it with the stable daemon. The menu bar should show one coherent fleet, not a split-brain view across multiple daemons.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(Fleet.Space.l)
-                    )
-                    .frame(height: 120)
-            } else {
-                LazyVStack(spacing: Fleet.Space.m) {
-                    ForEach(store.projects) { project in
-                        ProjectSnapshotCard(project: project)
-                    }
-                }
-            }
-        }
-    }
-}
-
-private struct ActionButton: View {
-    let title: String
-    let subtitle: String
-    let icon: String
-    let color: Color
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: Fleet.Space.s) {
-                Image(systemName: icon)
-                    .foregroundStyle(color)
-                    .font(.system(size: 16, weight: .semibold))
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
-                Text(subtitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.leading)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(Fleet.Space.l)
-            .background(
-                color.opacity(0.08),
-                in: RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous)
-            )
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-private struct TruthRow: View {
-    let title: String
-    let message: String
-    let tone: Color
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(tone)
-            Text(message)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
-
-private struct ProjectSnapshotCard: View {
-    let project: FleetProject
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Fleet.Space.m) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(project.id)
-                        .font(.headline)
-                    if let startedAt = project.startedAt {
-                        Text("Started \(startedAt.formatted(date: .abbreviated, time: .shortened))")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+                    Text("One native shell around the real control plane. Flow, YAML, inbox, and sorties should all come from the same daemon-backed surface.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
 
                 Spacer()
 
                 HStack(spacing: Fleet.Space.s) {
-                    SnapshotBadge(count: project.activeCount, label: "active", color: Fleet.Color.healthy)
-                    SnapshotBadge(count: project.idleCount, label: "idle", color: Fleet.Color.dormant)
-                    if project.failedCount > 0 {
-                        SnapshotBadge(count: project.failedCount, label: "failed", color: Fleet.Color.failure)
-                    }
+                    statusBadge(
+                        title: store.isDaemonRunning ? "Daemon live" : "Daemon offline",
+                        value: store.daemonLabel,
+                        color: store.isDaemonRunning ? Fleet.Color.healthy : Fleet.Color.failure
+                    )
+                    statusBadge(
+                        title: "Spend today",
+                        value: String(format: "$%.2f", costStore.todaySpend),
+                        color: costStore.overBudgetProjectCount > 0
+                            ? Fleet.Color.failure
+                            : costStore.nearBudgetProjectCount > 0
+                                ? Fleet.Color.warning
+                                : Fleet.Color.active
+                    )
+                    statusBadge(
+                        title: "Agents",
+                        value: "\(store.totalActive) active / \(store.totalAgents)",
+                        color: store.totalActive > 0 ? Fleet.Color.active : Fleet.Color.dormant
+                    )
                 }
             }
 
-            Divider()
-
-            LazyVStack(spacing: Fleet.Space.s) {
-                ForEach(project.agents) { agent in
-                    HStack {
-                        Image(systemName: Fleet.agentIcon(for: agent.name))
-                            .foregroundStyle(agent.status == .running ? Fleet.Color.healthy : agent.status == .failed ? Fleet.Color.failure : .secondary)
-                            .frame(width: 18)
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(agent.name)
-                                .font(.subheadline.weight(.medium))
-                            Text(agent.status.rawValue)
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-
-                        Spacer()
-
-                        if let lastEvent = agent.lastEvent {
-                            Text(lastEvent.replacingOccurrences(of: "_", with: " "))
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
+            HStack(spacing: Fleet.Space.m) {
+                Menu {
+                    Button("All projects") {
+                        selectedProjectId = nil
+                    }
+                    Divider()
+                    ForEach(store.projects) { project in
+                        Button(project.id) {
+                            selectedProjectId = project.id
                         }
                     }
+                } label: {
+                    Label(selectedProjectLabel, systemImage: "folder")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.primary)
+                        .padding(.horizontal, Fleet.Space.m)
+                        .padding(.vertical, Fleet.Space.s)
+                        .background(
+                            Color.primary.opacity(0.05),
+                            in: RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous)
+                        )
+                }
+                .buttonStyle(.plain)
+
+                Text(store.isCanonicalDaemon ? "Stable 9876" : "Custom daemon")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(store.isCanonicalDaemon ? Fleet.Color.active : Fleet.Color.warning)
+                    .padding(.horizontal, Fleet.Space.s)
+                    .padding(.vertical, 6)
+                    .background(
+                        (store.isCanonicalDaemon ? Fleet.Color.active : Fleet.Color.warning).opacity(0.1),
+                        in: RoundedRectangle(cornerRadius: Fleet.Radius.standard, style: .continuous)
+                    )
+
+                Spacer()
+
+                ActionPill(
+                    title: store.isDaemonRunning ? "Reload" : "Start daemon",
+                    systemImage: store.isDaemonRunning ? "arrow.clockwise" : "play.fill",
+                    color: store.isDaemonRunning ? Fleet.Color.active : Fleet.Color.healthy
+                ) {
+                    Task {
+                        if store.isDaemonRunning {
+                            await refreshAll()
+                            reloadToken = UUID()
+                        } else {
+                            store.startDaemon()
+                        }
+                    }
+                }
+
+                ActionPill(
+                    title: "Browser",
+                    systemImage: "safari",
+                    color: Fleet.Color.warning,
+                    action: openInBrowser
+                )
+            }
+        }
+        .padding(Fleet.Space.xxl)
+    }
+
+    private var surfaceStrip: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: Fleet.Space.s) {
+                ForEach(ControlPlaneSurface.allCases) { surface in
+                    Button {
+                        selectedSurface = surface
+                    } label: {
+                        Label(surface.title, systemImage: surface.icon)
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(selectedSurface == surface ? .primary : .secondary)
+                            .padding(.horizontal, Fleet.Space.m)
+                            .padding(.vertical, Fleet.Space.s)
+                            .background(
+                                (selectedSurface == surface
+                                    ? Fleet.Color.active.opacity(0.14)
+                                    : Color.primary.opacity(0.04)),
+                                in: RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, Fleet.Space.xxl)
+            .padding(.vertical, Fleet.Space.m)
+        }
+    }
+
+    private var content: some View {
+        ZStack {
+            if store.isDaemonRunning, let controlPlaneURL {
+                FleetControlPlaneWebView(
+                    url: controlPlaneURL,
+                    reloadToken: reloadToken,
+                    isLoading: $webLoading,
+                    errorMessage: $webError
+                )
+                .padding(Fleet.Space.l)
+            } else {
+                offlineState
+            }
+
+            if webLoading && store.isDaemonRunning {
+                ProgressView("Loading control plane…")
+                    .controlSize(.regular)
+                    .padding(.horizontal, Fleet.Space.l)
+                    .padding(.vertical, Fleet.Space.m)
+                    .background(.ultraThinMaterial, in: Capsule())
+            }
+
+            if let webError, store.isDaemonRunning {
+                VStack {
+                    Spacer()
+                    errorBanner(message: webError)
+                }
+                .padding(Fleet.Space.xxl)
+            }
+        }
+    }
+
+    private var offlineState: some View {
+        VStack(spacing: Fleet.Space.l) {
+            Image(systemName: "bolt.slash")
+                .font(.system(size: 34, weight: .medium))
+                .foregroundStyle(Fleet.Color.failure)
+
+            Text("Control plane unavailable")
+                .font(.title3.weight(.semibold))
+
+            Text("FleetBar is now a native shell for the real `/fleet-ui/` surface. Start the daemon, then this window will load the live flow graph, YAML editor, inbox, and sortie workspace.")
+                .font(.body)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 560)
+
+            HStack(spacing: Fleet.Space.m) {
+                ActionPill(
+                    title: "Start daemon",
+                    systemImage: "play.fill",
+                    color: Fleet.Color.healthy
+                ) {
+                    store.startDaemon()
+                }
+
+                ActionPill(
+                    title: "Retry",
+                    systemImage: "arrow.clockwise",
+                    color: Fleet.Color.active
+                ) {
+                    Task { await refreshAll() }
                 }
             }
         }
-        .padding(Fleet.Space.l)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(Fleet.Space.xxl)
+    }
+
+    private func errorBanner(message: String) -> some View {
+        HStack(spacing: Fleet.Space.s) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(Fleet.Color.warning)
+            Text(message)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+            Spacer()
+            Button("Retry") {
+                reloadToken = UUID()
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(Fleet.Color.active)
+        }
+        .padding(Fleet.Space.m)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous))
+    }
+
+    private func statusBadge(title: String, value: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title.uppercased())
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.system(.caption, design: .monospaced).weight(.medium))
+                .foregroundStyle(color)
+        }
+        .padding(.horizontal, Fleet.Space.m)
+        .padding(.vertical, Fleet.Space.s)
         .background(
-            Color.primary.opacity(0.03),
+            Color.primary.opacity(0.05),
             in: RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous)
         )
     }
-}
 
-private struct SnapshotBadge: View {
-    let count: Int
-    let label: String
-    let color: Color
-
-    var body: some View {
-        VStack(spacing: 2) {
-            Text("\(count)")
-                .font(.system(.caption, design: .rounded).weight(.bold))
-                .foregroundStyle(color)
-            Text(label)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+    private func syncProjectSelection() {
+        guard !store.projects.isEmpty else {
+            selectedProjectId = nil
+            return
         }
-        .padding(.horizontal, Fleet.Space.s)
-        .padding(.vertical, 6)
-        .background(
-            color.opacity(0.08),
-            in: RoundedRectangle(cornerRadius: Fleet.Radius.standard, style: .continuous)
-        )
+
+        if let selectedProjectId, store.projects.contains(where: { $0.id == selectedProjectId }) {
+            return
+        }
+
+        selectedProjectId = store.projects.first?.id
+    }
+
+    private func refreshAll() async {
+        await store.refresh()
+        await costStore.refresh()
+        syncProjectSelection()
+    }
+
+    private func openInBrowser() {
+        guard let controlPlaneURL else { return }
+        openURL(controlPlaneURL)
     }
 }
 
-#Preview {
-    FleetControlCenter(store: FleetStore(), costStore: CostStore())
+private struct ActionPill: View {
+    let title: String
+    let systemImage: String
+    let color: Color
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(color)
+                .padding(.horizontal, Fleet.Space.m)
+                .padding(.vertical, Fleet.Space.s)
+                .background(
+                    color.opacity(0.1),
+                    in: RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous)
+                )
+        }
+        .buttonStyle(.plain)
+    }
 }

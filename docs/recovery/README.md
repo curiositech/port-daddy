@@ -1,6 +1,6 @@
 # Recovery Hub
 
-Last updated: 2026-04-05
+Last updated: 2026-04-06
 
 This directory is the canonical recovery surface for Port Daddy while V4 is being consolidated.
 
@@ -43,7 +43,7 @@ These are not to be discarded. They are source streams feeding the trove.
 ## Current Shipping Order
 
 1. Cost and observability foundation committed and promoted to stable.
-2. FleetBar completed as the ambient information layer.
+2. FleetBar acts as the ambient information layer and native shell around the real `fleet-config-ui` control plane.
 3. `fleet-config-ui` rehydrated with the dense live activity, channel, and suggestion feel from the old HTML surfaces.
 4. Fleet execution boundaries made explicit: editable edges, finite steps, spawn ceilings, cost ceilings, inspectable wake/inbox behavior.
    - includes per-project daemon fleet leases

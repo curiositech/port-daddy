@@ -277,12 +277,12 @@ struct FleetPopover: View {
             Button {
                 openWindow(id: "fleet-control-center")
             } label: {
-                Image(systemName: "macwindow")
+                Label("Console", systemImage: "macwindow")
             }
             .buttonStyle(.borderless)
             .font(.caption2)
             .foregroundStyle(.quaternary)
-            .help("Open native control center")
+            .help("Open the fleet control plane")
 
             Button {
                 withAnimation(Fleet.Motion.snappy) {

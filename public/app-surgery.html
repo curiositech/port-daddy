@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Port Daddy App Surgery Map</title>
+  <style>
+    :root {
+      --bg: #13100d;
+      --panel: #1c1712;
+      --panel-2: #241d17;
+      --panel-3: #2e251d;
+      --text: #efe3cf;
+      --muted: #b7a48b;
+      --dim: #826f5c;
+      --accent: #d95a45;
+      --accent-2: #f2b66d;
+      --good: #8ed6ac;
+      --warn: #f0c173;
+      --bad: #ef8f7b;
+      --border: rgba(239, 227, 207, 0.12);
+      --shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(217, 90, 69, 0.12), transparent 24rem),
+        radial-gradient(circle at top right, rgba(242, 182, 109, 0.08), transparent 26rem),
+        linear-gradient(180deg, #100d0b 0%, var(--bg) 100%);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    code, pre, .mono {
+      font-family: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+    }
+
+    .wrap {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 32px 24px 80px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.25fr 0.9fr;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .card-inner {
+      padding: 24px;
+    }
+
+    h1, h2, h3 {
+      margin: 0;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 4vw, 3.5rem);
+      line-height: 0.98;
+      margin-bottom: 12px;
+    }
+
+    h2 {
+      font-size: 1.25rem;
+      margin-bottom: 14px;
+    }
+
+    h3 {
+      font-size: 1rem;
+      margin-bottom: 10px;
+    }
+
+    p {
+      margin: 0 0 12px;
+      color: var(--muted);
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      margin-bottom: 16px;
+      border-radius: 999px;
+      background: rgba(217, 90, 69, 0.14);
+      color: #ffd3c9;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+    }
+
+    .summary-list, .flat-list {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .summary-list li, .flat-list li {
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: var(--text);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .good { color: var(--good); }
+    .warn { color: var(--warn); }
+    .bad { color: var(--bad); }
+    .accent { color: var(--accent-2); }
+
+    .section {
+      margin-top: 22px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .surface {
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px;
+      min-height: 100%;
+    }
+
+    .surface-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .surface-title {
+      font-size: 1.02rem;
+      line-height: 1.2;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .badge-keep { background: rgba(142, 214, 172, 0.14); color: var(--good); }
+    .badge-merge { background: rgba(240, 193, 115, 0.14); color: var(--warn); }
+    .badge-retire { background: rgba(239, 143, 123, 0.14); color: var(--bad); }
+
+    .surface p {
+      margin-bottom: 10px;
+    }
+
+    .surface ul {
+      margin: 0 0 12px 18px;
+      color: var(--muted);
+    }
+
+    .surface li {
+      margin-bottom: 6px;
+    }
+
+    .file {
+      display: block;
+      padding: 8px 10px;
+      border-radius: 10px;
+      background: rgba(0,0,0,0.22);
+      color: #f5dfbc;
+      font-size: 12px;
+      margin-top: 8px;
+      overflow-wrap: anywhere;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.02);
+    }
+
+    th, td {
+      padding: 12px 14px;
+      text-align: left;
+      vertical-align: top;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    th {
+      color: #ffe5c7;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      background: rgba(255,255,255,0.03);
+    }
+
+    td {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    tr:last-child td { border-bottom: 0; }
+
+    .decision {
+      display: grid;
+      gap: 12px;
+    }
+
+    .decision > div {
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .small {
+      font-size: 12px;
+      color: var(--dim);
+    }
+
+    @media (max-width: 1100px) {
+      .hero, .grid-3, .grid-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <div class="card">
+        <div class="card-inner">
+          <div class="eyebrow">App Surgery Map</div>
+          <h1>Port Daddy has one daemon, but too many shells around it.</h1>
+          <p>
+            This report maps the Mac menu bar surfaces, legacy HTML dashboards, and the newer React fleet editor.
+            The repo currently has overlapping interfaces, duplicated polling logic, hardcoded ports, and partially
+            abandoned experiments.
+          </p>
+          <p>
+            The good news: there is a clean merge path. Keep one native menu bar app as the user-facing information
+            layer, keep one web editor as the topology surgery layer, and aggressively mine the older HTML surfaces
+            for the parts that still feel alive.
+          </p>
+          <p>
+            Status as of 2026-04-06: the FleetBar native window now targets the real <span class="mono">/fleet-ui/</span>
+            control plane instead of a separate shadow dashboard. The remaining gap is pulling the older activity density
+            and live-feed character into that unified surface.
+          </p>
+          <div class="pill-row">
+            <span class="pill"><span class="good">Keep</span> `apps/FleetBar` as native shell</span>
+            <span class="pill"><span class="good">Keep</span> `fleet-config-ui` as editable control plane</span>
+            <span class="pill"><span class="warn">Merge</span> activity / stories / radio feel from old HTML</span>
+            <span class="pill"><span class="bad">Retire</span> duplicate Swift prototypes</span>
+            <span class="pill"><span class="accent">Standardize</span> user-facing daemon on `9876`</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-inner">
+          <h2>Immediate Read</h2>
+          <ul class="summary-list">
+            <li><strong>Best native base:</strong> `apps/FleetBar` already speaks fleet status, daemon lifecycle, and cost telemetry.</li>
+            <li><strong>Best editor base:</strong> `fleet-config-ui` already has multi-project support, daemon selection, YAML/config editing, DM, sorties, and activity panels.</li>
+            <li><strong>Lost soul:</strong> `public/fleet-live.html` and `public/fleet-config.html` have the richer motion, activity density, and “story” feeling the newer UI partially lost.</li>
+            <li><strong>Main duplication bug:</strong> multiple apps independently read the port file, poll or SSE the daemon, and assume `localhost:9876` in different ways.</li>
+            <li><strong>Canonical split to aim for:</strong> menu bar for awareness and suggestions; web app for graph editing and topology surgery.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Surface Inventory</h2>
+      <div class="grid-3">
+        <article class="surface">
+          <div class="surface-header">
+            <div>
+              <div class="surface-title">1. `apps/FleetBar`</div>
+              <div class="small">Swift Package menubar app</div>
+            </div>
+            <span class="badge badge-keep">Keep</span>
+          </div>
+          <p>The strongest native candidate. It already has a real store, fleet polling plus SSE, daemon start/reload controls, and a separate cost dashboard wired to observability endpoints.</p>
+          <ul>
+            <li>Reads daemon port from `~/.port-daddy/daemon.port`.</li>
+            <li>Understands health, active/idle/failed state, and project expansion.</li>
+            <li>Contains the beginnings of the “information layer” you described.</li>
+            <li>Missing: settings, suggestions, error surfacing, activity feed, daemon chooser, and formal launch-with-daemon preference.</li>
+          </ul>
+          <span class="file">apps/FleetBar/FleetBar/FleetBarApp.swift</span>
+          <span class="file">apps/FleetBar/FleetBar/FleetStore.swift</span>
+          <span class="file">apps/FleetBar/FleetBar/CostStore.swift</span>
+          <span class="file">apps/FleetBar/FleetBar/FleetPopover.swift</span>
+        </article>
+
+        <article class="surface">
+          <div class="surface-header">
+            <div>
+              <div class="surface-title">2. `fleet-config-ui`</div>
+              <div class="small">React fleet editor / control plane</div>
+            </div>
+            <span class="badge badge-keep">Keep</span>
+          </div>
+          <p>The modern editable surface. This is the best place for graph edits, channels, YAML synchronization, DM, sorties, and per-project fleet surgery.</p>
+          <ul>
+            <li>Already supports a daemon dropdown, project picker, topology graph, YAML editor, and activity tab.</li>
+            <li>Is the right place for incoming/outgoing edge editing, bounded initiations, cost controls, and fleet limits UX.</li>
+            <li>Still lacks some of the visceral “alive” feel that the older HTML surfaces had.</li>
+          </ul>
+          <span class="file">fleet-config-ui/src/App.tsx</span>
+          <span class="file">fleet-config-ui/src/hooks/useFleet.ts</span>
+          <span class="file">fleet-config-ui/src/components/ActivityPanel.tsx</span>
+        </article>
+
+        <article class="surface">
+          <div class="surface-header">
+            <div>
+              <div class="surface-title">3. `public/fleet-live.html`</div>
+              <div class="small">Legacy live activity dashboard</div>
+            </div>
+            <span class="badge badge-merge">Mine & Merge</span>
+          </div>
+          <p>This is where a lot of the old “action-packed” feel still lives: mixed feeds, filters, notes, sessions, agents, services, activity correlation, and SSE-driven live motion.</p>
+          <ul>
+            <li>Pulls notes, sessions, activity, services, agents, and spawn data together.</li>
+            <li>Feels more like a command center than the newer UI.</li>
+            <li>Hardcoded to the older HTML model and older visual language.</li>
+          </ul>
+          <span class="file">public/fleet-live.html</span>
+        </article>
+
+        <article class="surface">
+          <div class="surface-header">
+            <div>
+              <div class="surface-title">4. `public/fleet-config.html`</div>
+              <div class="small">Legacy action-heavy fleet config UI</div>
+            </div>
+            <span class="badge badge-merge">Mine & Merge</span>
+          </div>
+          <p>This old HTML has the strong bones the React rewrite still hasn’t fully regained: sharp navigation modes, obvious graph storytelling, stories, channels, and “configure an agent” flow.</p>
+          <ul>
+            <li>Tabs for agents, channels, stories, and config.</li>
+            <li>Direct YAML-edit sync hooks and story loading from notes.</li>
+            <li>Rich beam/path visuals for message flow.</li>
+            <li>Single-project and older-backend assumptions.</li>
+          </ul>
+          <span class="file">public/fleet-config.html</span>
+        </article>
+
+        <article class="surface">
+          <div class="surface-header">
+            <div>
+              <div class="surface-title">5. `fleet-live-app`</div>
+              <div class="small">Swift menubar wrapper around `fleet-live.html`</div>
+            </div>
+            <span class="badge badge-retire">Retire</span>
+          </div>
+          <p>This is not its own product. It is just a native shell that checks health and embeds `http://localhost:9876/fleet-live.html` in a `WKWebView`.</p>
+          <ul>
+            <li>Hardcoded to `9876`.</li>
+            <li>Duplicates menu bar packaging without adding much native value.</li>
+            <li>Useful only as historical evidence that the live-feed feel mattered.</li>
+          </ul>
+          <span class="file">fleet-live-app/FleetLive/FleetLiveApp.swift</span>
+          <span class="file">fleet-live-app/FleetLive/FleetLiveViewModel.swift</span>
+          <span class="file">fleet-live-app/FleetLive/FleetWebView.swift</span>
+        </article>
+
+        <article class="surface">
+          <div class="surface-header">
+            <div>
+              <div class="surface-title">6. `fleet-bar-app`</div>
+              <div class="small">Prototype Swift dashboard experiment</div>
+            </div>
+            <span class="badge badge-retire">Retire</span>
+          </div>
+          <p>This looks like an exploratory rewrite that never reached parity. It duplicates the menubar concept, invents its own view model, and leaves whole tabs as “coming soon.”</p>
+          <ul>
+            <li>Hardcoded `localhost:9876` polling.</li>
+            <li>Config, stories, triggers, and channels tabs are placeholders.</li>
+            <li>No clear advantage over `apps/FleetBar`.</li>
+          </ul>
+          <span class="file">fleet-bar-app/Sources/FleetBarApp.swift</span>
+        </article>
+      </div>
+    </section>
+
+    <section class="section grid-2">
+      <div class="card">
+        <div class="card-inner">
+          <h2>What Each Surface Is Good At</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Surface</th>
+                <th>Best Capability</th>
+                <th>Why It Matters</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="mono">apps/FleetBar</td>
+                <td>Native ambient awareness</td>
+                <td>Best fit for daemon state, error surfacing, spend, suggestions, and one-click rescue actions.</td>
+              </tr>
+              <tr>
+                <td class="mono">fleet-config-ui</td>
+                <td>Project/fleet surgery</td>
+                <td>Best fit for graph editing, YAML sync, DMs, sorties, model choice, and edge manipulation.</td>
+              </tr>
+              <tr>
+                <td class="mono">public/fleet-live.html</td>
+                <td>Activity density</td>
+                <td>Has the most complete “what’s happening right now?” feeling.</td>
+              </tr>
+              <tr>
+                <td class="mono">public/fleet-config.html</td>
+                <td>Action-forward topology feel</td>
+                <td>More legible personality around channels, stories, and config intent.</td>
+              </tr>
+              <tr>
+                <td class="mono">fleet-live-app</td>
+                <td>Historical proof</td>
+                <td>Shows you once wanted the live dashboard in the menu bar, but it is not the future architecture.</td>
+              </tr>
+              <tr>
+                <td class="mono">fleet-bar-app</td>
+                <td>Prototype ideas only</td>
+                <td>Not mature enough to keep as a live branch of product surface area.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-inner">
+          <h2>Where The Duplication Is Hurting</h2>
+          <ul class="flat-list">
+            <li><strong>Port assumptions:</strong> multiple apps hardcode `http://localhost:9876`, while others read the daemon port file. This is why one UI can look “right” while another looks disconnected.</li>
+            <li><strong>Polling duplicated everywhere:</strong> menu bar prototypes, old HTML, and new React each do their own fetch/SSE logic instead of sharing one coherent client contract.</li>
+            <li><strong>Information split:</strong> cost lives in one Swift store, action-heavy stories live in old HTML, graph editing lives in React, and the daemon hints live in `/launch-hints` with no canonical home in the UI.</li>
+            <li><strong>Product identity split:</strong> the repo simultaneously thinks of the user-facing surface as “dashboard,” “fleet live,” “fleet config,” and “FleetBar.”</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="card">
+        <div class="card-inner">
+          <h2>Recommendation: The New Split</h2>
+          <div class="decision">
+            <div>
+              <strong class="good">Keep `apps/FleetBar` as the daemon companion.</strong>
+              It should launch when the daemon starts, read one shared daemon preference, show connection errors, budget pressure, fleet failures, salvage alerts, and “should we initialize this project?” suggestions.
+            </div>
+            <div>
+              <strong class="good">Keep `fleet-config-ui` as the deep editing plane.</strong>
+              This is where incoming/outgoing edge editing, finite initiations, spawn ceilings, per-project budgets, and graph validation should live.
+            </div>
+            <div>
+              <strong class="warn">Mine `public/fleet-live.html` and `public/fleet-config.html` for personality and feed density.</strong>
+              Bring back the story log, live activity compression, channel vividness, and obvious causality trails.
+            </div>
+            <div>
+              <strong class="bad">Retire `fleet-live-app` and `fleet-bar-app` after harvesting anything unique.</strong>
+              They are architectural forks, not durable surfaces.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section grid-2">
+      <div class="card">
+        <div class="card-inner">
+          <h2>Suggested Menubar Responsibilities</h2>
+          <ul class="flat-list">
+            <li><strong>Daemon health:</strong> offline, degraded, wrong port, reconnecting, or auth/API failure.</li>
+            <li><strong>Fleet health:</strong> active/idle/failed agents, fleets needing attention, stale queues, watchdog findings.</li>
+            <li><strong>Cost and limits:</strong> spend today, burn rate, spawn ceiling pressure, per-project budget warnings.</li>
+            <li><strong>Actionable suggestions:</strong> new project detected, `pd init` suggestion, missing `pd-fleet.yml`, broken channel topology, invalid edges, fleet config drift.</li>
+            <li><strong>Briefings:</strong> “Spark has 3 ideas,” “QA found 2 regressions,” “Spider has 8 connection notes,” “Cartographer wants a merge.”</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-inner">
+          <h2>Suggested Web Control Plane Responsibilities</h2>
+          <ul class="flat-list">
+            <li><strong>Graph surgery:</strong> add/remove incoming and outgoing edges with validation.</li>
+            <li><strong>Execution boundaries:</strong> finite steps per initiation, explicit stop conditions, retry behavior.</li>
+            <li><strong>Budget controls:</strong> per-agent model selection, caps, max concurrent spawns, per-hour quotas.</li>
+            <li><strong>Inbox and channel debugging:</strong> direct agent inbox, channel publish, subscriptions, last delivered payload.</li>
+            <li><strong>YAML truth:</strong> round-trip config editing with immediate topology validation and daemon reload.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="card">
+        <div class="card-inner">
+          <h2>Port Decision</h2>
+          <p>
+            User-facing Port Daddy should standardize on <strong class="accent">`9876`</strong> as the stable daemon.
+            The reason is not that `9876` is intrinsically better; it is because the historical HTML, the native wrappers,
+            and most assumptions in the repo already orbit that port. Let dev instances float elsewhere, but the user-facing
+            daemon, menubar, and browser surfaces should all agree that the canonical local daemon is `9876` unless explicitly overridden.
+          </p>
+          <table>
+            <thead>
+              <tr>
+                <th>Path</th>
+                <th>Recommendation</th>
+                <th>Reason</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="mono">Stable daemon</td>
+                <td>Use `9876`</td>
+                <td>Matches existing public HTML and historical native wrappers.</td>
+              </tr>
+              <tr>
+                <td class="mono">Dev daemon</td>
+                <td>Use override ports like `9877` / `9878`</td>
+                <td>Fine for parallel sessions, but not as the default mental model.</td>
+              </tr>
+              <tr>
+                <td class="mono">Menu bar app</td>
+                <td>Read shared daemon preference, default to port file / `9876`</td>
+                <td>Ambient tool must follow the daemon the user considers canonical.</td>
+              </tr>
+              <tr>
+                <td class="mono">Web UI</td>
+                <td>Keep explicit daemon chooser</td>
+                <td>Useful for debugging and multi-daemon development.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="card">
+        <div class="card-inner">
+          <h2>Concrete Surgery Order</h2>
+          <ol class="flat-list" style="list-style: none; padding: 0;">
+            <li><strong>1.</strong> Declare `apps/FleetBar` the only native menu bar app that survives.</li>
+            <li><strong>2.</strong> Add shared settings for daemon URL + “launch menubar with daemon” + suggestion visibility.</li>
+            <li><strong>3.</strong> Teach the daemon start path to launch FleetBar when that setting is enabled.</li>
+            <li><strong>4.</strong> Port activity/stories/briefing density from `public/fleet-live.html` into FleetBar and the React activity panel.</li>
+            <li><strong>5.</strong> Port the stronger agent/channel/config affordances from `public/fleet-config.html` into `fleet-config-ui`.</li>
+            <li><strong>6.</strong> Delete or archive `fleet-live-app` and `fleet-bar-app` once the harvested pieces land.</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <p class="small">
+        Generated from repo inspection on 2026-04-05/06. Relevant files inspected include `apps/FleetBar/*`,
+        `fleet-config-ui/src/*`, `public/fleet-live.html`, `public/fleet-config.html`,
+        `fleet-live-app/FleetLive/*`, `fleet-bar-app/Sources/FleetBarApp.swift`,
+        `routes/launch.ts`, and `routes/activity.ts`.
+      </p>
+    </section>
+  </div>
+</body>
+</html>
