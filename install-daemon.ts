@@ -35,6 +35,47 @@ const PLIST_PATH: string = join(LAUNCH_AGENTS, `${PLIST_LABEL}.plist`);
 const SYSTEMD_USER_DIR: string = join(homedir(), '.config', 'systemd', 'user');
 const SYSTEMD_UNIT: string = join(SYSTEMD_USER_DIR, 'port-daddy.service');
 
+function isPortDaddyProcess(command: string): boolean {
+  return command.includes('server.ts') ||
+    command.includes('port-daddy') ||
+    command.includes('port_daddy');
+}
+
+function stopExistingCanonicalDaemon(): void {
+  const listeners = runCommand('lsof', ['-i', ':9876', '-sTCP:LISTEN', '-Fp']);
+  const pids = new Set<number>();
+
+  for (const line of listeners.stdout.split('\n')) {
+    if (!line.startsWith('p')) continue;
+    const pid = parseInt(line.slice(1), 10);
+    if (!Number.isFinite(pid) || pid <= 0) continue;
+    pids.add(pid);
+  }
+
+  for (const pid of pids) {
+    const ps = runCommand('ps', ['-p', String(pid), '-o', 'command=']);
+    const command = (ps.stdout || '').trim().split('\n')[0] || '';
+    if (!isPortDaddyProcess(command)) continue;
+
+    runCommand('kill', ['-TERM', String(pid)]);
+    console.log(`  Stopped existing Port Daddy daemon (PID ${pid})`);
+  }
+
+  const stalePaths = [
+    join(homedir(), '.port-daddy', 'daemon.sock'),
+    join(homedir(), '.port-daddy', 'daemon.ipc'),
+  ];
+  for (const stalePath of stalePaths) {
+    if (!existsSync(stalePath)) continue;
+    try {
+      unlinkSync(stalePath);
+      console.log(`  Removed stale ${stalePath}`);
+    } catch {
+      // Leave it if something still owns it.
+    }
+  }
+}
+
 interface CommandResult {
   stdout: string;
   stderr: string;
@@ -101,6 +142,8 @@ function installMacOS(): boolean {
     mkdirSync(LAUNCH_AGENTS, { recursive: true });
   }
 
+  stopExistingCanonicalDaemon();
+
   // Unload old service if present (handles label changes)
   const oldPlist: string = join(LAUNCH_AGENTS, 'com.erichowens.port-daddy.plist');
   if (existsSync(oldPlist)) {
@@ -122,6 +165,13 @@ function installMacOS(): boolean {
   const load: CommandResult = runCommand('launchctl', ['load', PLIST_PATH]);
   if (load.status === 0) {
     console.log('  LaunchAgent loaded');
+    const uid = typeof process.getuid === 'function' ? process.getuid() : 501;
+    const kickstart = runCommand('launchctl', ['kickstart', '-k', `gui/${uid}/${PLIST_LABEL}`]);
+    if (kickstart.status === 0) {
+      console.log('  LaunchAgent started');
+    } else if (kickstart.stderr.trim()) {
+      console.log(`  LaunchAgent kickstart: ${kickstart.stderr.trim()}`);
+    }
     return true;
   } else {
     console.error('  Failed to load LaunchAgent:', load.stderr.trim());

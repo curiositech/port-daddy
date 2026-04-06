@@ -13,6 +13,32 @@ import { autoIdentityFromPackageJson } from './services.js';
 
 const AGENT_ADMIN_SUBCOMMANDS = new Set(['register', 'heartbeat', 'unregister', 'inbox', 'help', 'run']);
 
+interface SpawnPreflightResponse {
+  success?: boolean;
+  launchReady: boolean;
+  blockedReasons?: string[];
+  warnings?: string[];
+  localExecutionLikely?: boolean;
+  localExecutionNote?: string;
+  budget?: {
+    project: string;
+    budgetUsdPerDay: number;
+    spentUsd: number;
+    remainingUsd: number;
+    percentUsed: number;
+    overBudget: boolean;
+  } | null;
+  attempts?: Array<{
+    attempt: number;
+    backend: string | null;
+    model: string | null;
+    modelTier: string | null;
+    readinessStatus: 'ready' | 'needs_setup' | 'manual_check' | 'unknown';
+    readinessSummary: string;
+    readinessNextStep?: string;
+  }>;
+}
+
 function shouldRunAutopilot(subcommand: string, args: string[], options: CLIOptions): boolean {
   if (subcommand === 'run') return true;
   if (AGENT_ADMIN_SUBCOMMANDS.has(subcommand)) return false;
@@ -37,6 +63,56 @@ async function finishAutopilotSession(agentId: string | undefined, sessionId: st
   }).catch(() => {});
 }
 
+function parseBudgetValue(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = parseFloat(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return undefined;
+}
+
+async function fetchAgentPreflight(runtime: ReturnType<typeof resolveFleetAgentRuntime>, identity: string | undefined, budgetUsd: number | undefined): Promise<SpawnPreflightResponse | null> {
+  try {
+    const preflightRes: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/spawn/preflight`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        backend: runtime.backend,
+        model: runtime.model,
+        modelTier: runtime.modelTier,
+        identity,
+        budgetUsd,
+      }),
+    });
+    if (!preflightRes.ok) return null;
+    return await preflightRes.json() as unknown as SpawnPreflightResponse;
+  } catch {
+    return null;
+  }
+}
+
+function printPreflight(preflight: SpawnPreflightResponse): void {
+  ui.info('pd agent preflight');
+  for (const attempt of preflight.attempts || []) {
+    const modelLabel = attempt.model || (attempt.modelTier ? `${attempt.modelTier} tier` : 'backend default');
+    console.error(`  Attempt ${attempt.attempt}: ${attempt.backend || 'MISSING'} / ${modelLabel} / ${attempt.readinessStatus}`);
+    console.error(`    ${attempt.readinessSummary}`);
+    if (attempt.readinessNextStep) {
+      console.error(`    next: ${attempt.readinessNextStep}`);
+    }
+  }
+  if (preflight.budget) {
+    console.error(`  Budget: $${preflight.budget.spentUsd.toFixed(2)} / $${preflight.budget.budgetUsdPerDay.toFixed(2)} (${preflight.budget.percentUsed.toFixed(1)}%)`);
+  }
+  for (const warning of preflight.warnings || []) {
+    console.error(`  Warning: ${warning}`);
+  }
+  if (preflight.localExecutionLikely && preflight.localExecutionNote) {
+    console.error(`  Note: ${preflight.localExecutionNote}`);
+  }
+}
+
 async function runAgentAutopilot(task: string, options: CLIOptions): Promise<void> {
   const runtime = resolveFleetAgentRuntime({
     backend: options.backend as string | undefined,
@@ -54,15 +130,28 @@ async function runAgentAutopilot(task: string, options: CLIOptions): Promise<voi
   const identity = (options.identity as string) || autoIdentityFromPackageJson() || undefined;
   const allowedTools = options.allowedTools as string | undefined;
   const timeout = options.timeout ? parseInt(options.timeout as string, 10) : undefined;
+  const budgetUsd = parseBudgetValue(options.budget);
+
+  if (budgetUsd == null || budgetUsd <= 0) {
+    ui.error('pd agent requires --budget <usd> with a positive ceiling');
+    process.exit(1);
+  }
+
+  const preflight = await fetchAgentPreflight(runtime, identity, budgetUsd);
 
   if (!isQuiet(options) && !isJson(options)) {
     ui.info('pd agent autopilot');
     console.error(`  Task: ${task}`);
     console.error(`  Runtime: ${runtime.backend}${runtime.model ? ` / ${runtime.model}` : ''}`);
     if (identity) console.error(`  Identity: ${identity}`);
-    for (const warning of runtime.warnings) {
-      console.error(`  Warning: ${warning}`);
-    }
+    console.error(`  Budget ceiling: $${budgetUsd.toFixed(2)}`);
+    if (preflight) printPreflight(preflight);
+    else for (const warning of runtime.warnings) console.error(`  Warning: ${warning}`);
+  }
+
+  if (preflight && !preflight.launchReady) {
+    ui.error(preflight.blockedReasons?.[0] || 'pd agent preflight failed');
+    process.exit(1);
   }
 
   const beginRes: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/sugar/begin`, {
@@ -109,6 +198,7 @@ async function runAgentAutopilot(task: string, options: CLIOptions): Promise<voi
         task,
         allowedTools,
         timeout,
+        budgetUsd,
       }),
     });
     const spawnData = await spawnRes.json();
@@ -182,6 +272,7 @@ export async function handleAgent(subcommand: string | undefined, args: string[]
     console.error('Options:');
     console.error('  --identity <project:stack:context>        Semantic identity (enables context-aware salvage)');
     console.error('  --purpose <text>                          What you\'re working on');
+    console.error('  --budget <usd>                           Required one-shot spend ceiling enforced at launch');
     console.error('  --skills <list>                           Comma-separated agent skills (e.g. "typescript,react")');
     console.error('  --worktree <id>                           Git worktree identifier');
     process.exit(1);

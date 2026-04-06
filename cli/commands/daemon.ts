@@ -46,6 +46,59 @@ function getLocalCodeHash(): string {
   return hash.digest('hex').slice(0, 8);
 }
 
+function isCanonicalDaemonTarget(): boolean {
+  return !process.env.PORT_DADDY_URL && !process.env.PORT_DADDY_SOCK && !process.env.PORT_DADDY_PORT_FILE;
+}
+
+async function stopRunningCanonicalDaemon(localCodeHash: string): Promise<boolean> {
+  try {
+    const healthRes: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/health`);
+    if (!healthRes.ok) return false;
+    const health = await healthRes.json();
+    const pid = typeof health.pid === 'number' ? health.pid : null;
+
+    let remoteCodeHash: string | null = null;
+    try {
+      const versionRes: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/version`);
+      if (versionRes.ok) {
+        const version = await versionRes.json();
+        remoteCodeHash = typeof version.codeHash === 'string' ? version.codeHash : null;
+      }
+    } catch {
+      // Best-effort only; health result is enough to identify a running daemon.
+    }
+
+    if (remoteCodeHash === localCodeHash) {
+      return false;
+    }
+
+    const daemonDesc = pid ? `PID ${pid}` : 'unknown PID';
+    const hashDesc = remoteCodeHash ? `hash ${remoteCodeHash}` : 'unknown hash';
+    ui.warn(`Replacing canonical daemon (${daemonDesc}, ${hashDesc}) with local hash ${localCodeHash}`);
+
+    if (pid) {
+      try {
+        process.kill(pid, 'SIGTERM');
+      } catch {
+        try {
+          process.kill(pid, 'SIGKILL');
+        } catch {
+          // Fall through to the generic auto-fix path below.
+        }
+      }
+    }
+
+    await new Promise<void>(r => setTimeout(r, 1000));
+    const { fixed } = autoFixStartupBlockers(9876);
+    if (fixed) {
+      await new Promise<void>(r => setTimeout(r, 1000));
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Attempt to spawn the daemon and wait for it to become healthy.
  * Returns true if the daemon started successfully, false otherwise.
@@ -88,13 +141,24 @@ export async function handleDaemon(action: string): Promise<void> {
 
   switch (action) {
     case 'start': {
+      const localCodeHash = getLocalCodeHash();
+
       // Check if already running
       try {
         const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/health`);
         if (res.ok) {
-          const data = await res.json();
-          ui.info(`Port Daddy already running (PID ${data.pid})`);
-          return;
+          if (isCanonicalDaemonTarget()) {
+            const replaced = await stopRunningCanonicalDaemon(localCodeHash);
+            if (!replaced) {
+              const data = await res.json();
+              ui.info(`Port Daddy already running (PID ${data.pid})`);
+              return;
+            }
+          } else {
+            const data = await res.json();
+            ui.info(`Port Daddy already running (PID ${data.pid})`);
+            return;
+          }
         }
       } catch {}
 
