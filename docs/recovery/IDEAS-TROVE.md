@@ -155,6 +155,32 @@ Primary sources:
 - `.cartographer/status.md`
 - `skills/port-daddy-cli/SKILL.md`
 
+## Cluster 7: Mission Authoring, Sorties, And Guided Delegation
+
+Why it matters:
+- users need a clean path between "always-on fleet" and "raw spawn"
+- Port Daddy should let distracted developers hand off a bounded mission and come back to a readable result
+
+Now:
+- turn `pd agent` into the safe one-shot wrapper that auto-does begin/spawn/done/salvage
+- expose backend readiness, auth state, and sandbox-sensitive warnings before a sortie launches
+- stop treating `SortiePanel` as a raw backend/model form
+
+Soon:
+- recipe-driven sorties for investigate, review, fix, and creative work
+- mission state and event model for single-use multi-agent work
+- prompt scaffolds and suggestion chips that teach users what to ask for
+
+Later:
+- saved sortie templates on disk
+- approval-gated creative/prototype missions
+- richer mission timelines and artifact views in FleetBar and fleet UI
+
+Primary sources:
+- `docs/recovery/PD-AGENT-SORTIE-PLAN.md`
+- `docs/MULTI-ENTRY-STRATEGY.md`
+- `fleet-config-ui/src/components/SortiePanel.tsx`
+
 ## Raw Source Preservation Policy
 
 1. Do not delete Spark or Spider raw files because a summary doc exists.

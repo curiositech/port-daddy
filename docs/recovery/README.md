@@ -12,6 +12,8 @@ If a roadmap, ideas list, or cleanup proposal elsewhere disagrees with this dire
   - one execution-order roadmap for the actual project, not a speculative archive
 - `IDEAS-TROVE.md`
   - the organized home for Spark ideas, Spider connections, cartographer observations, and product backlog themes
+- `PD-AGENT-SORTIE-PLAN.md`
+  - the working design for one-shot delegation, multi-agent sorties, and background creative missions
 - `REPO-CLEANUP-AND-DISTRIBUTION.md`
   - what to keep, merge, retire, and prepare for outside developers and signed distribution
 
@@ -36,6 +38,7 @@ These are not to be discarded. They are source streams feeding the trove.
 4. One Port Daddy skill source: `skills/port-daddy-cli/SKILL.md`.
 5. Raw Spark and Spider output stays on disk and gets indexed into the trove; it does not get hand-waved away in summary docs.
 6. Website/distribution work cannot keep preempting core daemon, fleet, and observability work indefinitely.
+7. Fleet ownership is singleton per project even if multiple daemons are running; a second daemon may discover a fleet config, but it must not start that project fleet.
 
 ## Current Shipping Order
 
@@ -43,6 +46,9 @@ These are not to be discarded. They are source streams feeding the trove.
 2. FleetBar completed as the ambient information layer.
 3. `fleet-config-ui` rehydrated with the dense live activity, channel, and suggestion feel from the old HTML surfaces.
 4. Fleet execution boundaries made explicit: editable edges, finite steps, spawn ceilings, cost ceilings, inspectable wake/inbox behavior.
+   - includes per-project daemon fleet leases
+   - includes richer event sources and declarative trigger primitives
+   - includes the user-facing mission path for `pd agent` and sorties
 5. Phase 1 bottleneck cleared by landing `graph_edges`.
 6. Onboarding and distribution consolidated behind `pd setup`, then later a cleaner signed binary path.
 

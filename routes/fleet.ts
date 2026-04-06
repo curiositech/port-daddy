@@ -10,8 +10,16 @@
  * GET    /fleet/events     — SSE stream of all fleet lifecycle events
  */
 
+import { readFileSync, writeFileSync } from 'node:fs';
+import { parse as parseYaml } from 'yaml';
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import type { createFleetDaemon } from '../lib/fleet-daemon.js';
+import {
+  findFleetConfigPath,
+  loadFleetConfig,
+  validateTopology,
+} from '../lib/fleet-engine.js';
+import { assessBackendReadiness } from '../lib/backend-readiness.js';
 import {
   canOpenConnection,
   trackConnection,
@@ -24,6 +32,15 @@ interface FleetRouteDeps {
     subscribe(channel: string, callback: (msg: unknown) => void): (() => void) | null;
   };
 }
+
+const BACKEND_CATALOG = [
+  { id: 'claude-cli', name: 'Claude CLI', models: ['haiku', 'sonnet', 'opus'] },
+  { id: 'claude', name: 'Claude SDK', models: ['claude-haiku-4-5-20251001', 'claude-sonnet-4-5-20250929', 'claude-opus-4-1-20250805'] },
+  { id: 'gemini', name: 'Google Gemini', models: ['gemini-2.5-pro', 'gemini-2.5-flash'] },
+  { id: 'ollama', name: 'Ollama (local)', models: [] as string[] },
+  { id: 'aider', name: 'Aider', models: [] as string[] },
+  { id: 'custom', name: 'Custom command', models: [] as string[] },
+] as const;
 
 export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (fastify, opts) => {
   const { fleetDaemon, messaging } = opts.deps;
@@ -113,6 +130,80 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
     const since = query.since ? parseInt(query.since, 10) : undefined;
     const line = fleetDaemon.getPromptLine(project, since);
     return { success: true, line };
+  });
+
+  /** Resolve fleet + config path, or send 404. Returns null if reply was sent. */
+  function resolveFleetConfig(project: string, reply: FastifyReply) {
+    const fleet = fleetDaemon.getStatus().fleets.find(f => f.project === project);
+    if (!fleet) { reply.code(404).send({ success: false, error: `No fleet for: ${project}` }); return null; }
+    const configPath = findFleetConfigPath(fleet.projectDir);
+    if (!configPath) { reply.code(404).send({ success: false, error: 'No pd-fleet.yml found' }); return null; }
+    return { fleet, configPath };
+  }
+
+  // GET /fleet/config/:project — raw YAML + parsed config + topology validation
+  fastify.get('/fleet/config/:project', async (request: FastifyRequest, reply: FastifyReply) => {
+    const resolved = resolveFleetConfig((request.params as { project: string }).project, reply);
+    if (!resolved) return;
+    const { fleet, configPath } = resolved;
+    const yaml = readFileSync(configPath, 'utf-8');
+    const parsed = loadFleetConfig(fleet.projectDir);
+    const topology = parsed ? validateTopology(parsed) : null;
+    return { success: true, yaml, path: configPath, projectDir: fleet.projectDir, parsed, topology };
+  });
+
+  // PUT /fleet/config/:project — write YAML, validate, reload
+  fastify.put('/fleet/config/:project', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { yaml } = (request.body as { yaml?: string }) || {};
+    if (!yaml || typeof yaml !== 'string') { reply.code(400); return { success: false, error: 'yaml required' }; }
+    const resolved = resolveFleetConfig((request.params as { project: string }).project, reply);
+    if (!resolved) return;
+    const { fleet, configPath } = resolved;
+    try {
+      const test = parseYaml(yaml);
+      if (!test || typeof test !== 'object') { reply.code(400); return { success: false, error: 'Invalid YAML object' }; }
+    } catch (err) { reply.code(400); return { success: false, error: `Parse error: ${(err as Error).message}` }; }
+    writeFileSync(configPath, yaml, 'utf-8');
+    fleetDaemon.reload();
+    const newParsed = loadFleetConfig(fleet.projectDir);
+    const topology = newParsed ? validateTopology(newParsed) : null;
+    return { success: true, topology };
+  });
+
+  // Ollama model list — cached to avoid 2s timeout penalty when Ollama is down
+  let ollamaCache: { models: string[]; at: number } | null = null;
+  const OLLAMA_TTL = 60_000;
+
+  // GET /fleet/models — available backend + model catalog
+  fastify.get('/fleet/models', async () => {
+    const now = Date.now();
+    let ollamaModels: string[];
+    if (ollamaCache && now - ollamaCache.at < OLLAMA_TTL) {
+      ollamaModels = ollamaCache.models;
+    } else {
+      ollamaModels = await fetch('http://localhost:11434/api/tags', { signal: AbortSignal.timeout(2000) })
+        .then(r => r.json())
+        .then(d => (d.models || []).map((m: { name: string }) => m.name))
+        .catch(() => []);
+      ollamaCache = { models: ollamaModels, at: now };
+    }
+
+    const backends = await Promise.all(
+      BACKEND_CATALOG.map(async (backend) => {
+        const readiness = await assessBackendReadiness(backend.id);
+        return {
+          id: backend.id,
+          name: backend.name,
+          models: backend.id === 'ollama' ? ollamaModels : [...backend.models],
+          supported: true,
+          readinessStatus: readiness.status,
+          readinessSummary: readiness.summary,
+          readinessNextStep: readiness.nextStep,
+        };
+      })
+    );
+
+    return { success: true, backends };
   });
 
   // GET /fleet/events — SSE stream of fleet lifecycle events

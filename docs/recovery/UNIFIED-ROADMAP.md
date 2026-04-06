@@ -23,6 +23,42 @@ Port Daddy should feel like one coherent system:
 - Canonical Port Daddy skill doc: `skills/port-daddy-cli/SKILL.md`
 - Raw idea streams remain first-class inputs: `.spark/ideas/`, `.spider/connections/`, `.cartographer/status.md`
 
+## Near-Term Release Cuts
+
+### `3.8.3` — Fleet Runtime Safety And Legibility
+
+Cut `3.8.3` when all of these are true:
+
+- daemon startup on the canonical user port is stable and repeatable
+- fleet backend/model selection is explicit, tiered, or visibly unresolved; no silent premium-default inheritance
+- ordered fallback backends/models exist for fleet agents and failures are emitted as structured attempt data
+- backend readiness/auth preflight exists for configured fleet runtimes
+- sandbox/permission preflight exists for local socket, IPC, and port-claim operations
+- cost/counter/observability endpoints are populated with real spawn data
+- per-project fleet singleton enforcement is live across competing daemons
+
+Do not hold `3.8.3` for:
+
+- FleetBar polish beyond consuming the new readiness/cost signals
+- broad `fleet-config-ui` visual rehydration
+- `graph_edges`
+- signed distribution work
+
+### `3.8.4` — Human Surfaces And Recovery UX
+
+Cut `3.8.4` when all of these are true:
+
+- FleetBar is the default glanceable operator surface for daemon health, fleet warnings, and budget trouble
+- `fleet-config-ui` regains dense activity, channel story, and suggestion affordances from the older HTML surfaces
+- inbox wake, trigger causality, and recent fleet decisions are inspectable without reading logs
+- onboarding/remediation guidance is visible in the UI and not buried in terminal-only output
+
+Do not hold `3.8.4` for:
+
+- `graph_edges` and graph-backed coordination
+- broader economy/mechanism design work
+- extra website polish not required for onboarding
+
 ## Track 1: Ship The Cost And Observability Foundation
 
 Why now:
@@ -80,11 +116,13 @@ Immediate ships:
 - keep real channel logs alive
 - restore stronger story, causality, and suggestion affordances
 - merge the best of `public/fleet-live.html` and `public/fleet-config.html` into `fleet-config-ui`
+- turn `SortiePanel` into a mission workspace, not just a raw launch form
 
 Representative idea pressure:
 - launch hints in the fleet UI
 - live feedback for YAML editing
 - better inbox/channel/review protocols
+- `PD-AGENT-SORTIE-PLAN.md`
 
 Done when:
 - the React control plane feels as alive as the old HTML surfaces
@@ -102,12 +140,17 @@ Immediate ships:
 - explicit spawn ceilings and rate ceilings
 - per-project cost ceilings
 - inspectable inbox and wake behavior
+- per-project fleet leases so only one daemon owns a project fleet at a time
+- next event sources: `file:saved`, `build:error`, `test:result`
+- next declarative trigger primitives: `trigger: webhook:<event>` and `trigger: files:<glob>`
+- preflight-backed single-use mission launches so `pd agent` and sorties show readiness, budget, and fallback choices before work starts
 
 Representative idea pressure:
 - budget-gated fleet spawning
 - review protocol via inbox
 - phase-gated harbors
 - durable circuit breakers
+- `PD-AGENT-SORTIE-PLAN.md`
 
 Done when:
 - fleet behavior can be edited and reasoned about without hidden runaway paths
@@ -141,6 +184,7 @@ Immediate ships:
 - ensure `pd setup` is the documented top-level path
 - fold daemon, MCP, skill, FleetBar, and project init into one flow
 - keep `pd start` as a lightweight try-it mode
+- make `pd agent` the obvious "do the right Port Daddy coordination for me" delegation entry point
 
 Done when:
 - a new macOS user has one obvious command for the full experience
