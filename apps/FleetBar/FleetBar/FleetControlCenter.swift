@@ -1,52 +1,19 @@
 import SwiftUI
 
-private enum ControlPlaneSurface: String, CaseIterable, Identifiable {
-    case flow
-    case activity
-    case channels
-    case inbox
-    case sorties
-    case yaml
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .flow: return "Flow"
-        case .activity: return "Activity"
-        case .channels: return "Channels"
-        case .inbox: return "Inbox"
-        case .sorties: return "Sorties"
-        case .yaml: return "YAML"
-        }
-    }
-
-    var icon: String {
-        switch self {
-        case .flow: return "point.3.connected.trianglepath.dotted"
-        case .activity: return "waveform.path.ecg"
-        case .channels: return "dot.radiowaves.left.and.right"
-        case .inbox: return "tray.full"
-        case .sorties: return "paperplane"
-        case .yaml: return "curlybraces"
-        }
-    }
-}
-
 struct FleetControlCenter: View {
     @ObservedObject var store: FleetStore
     @ObservedObject var costStore: CostStore
     @Environment(\.openURL) private var openURL
 
-    @AppStorage("fleet.control.surface") private var selectedSurfaceRaw = ControlPlaneSurface.flow.rawValue
-    @AppStorage("fleet.control.project") private var selectedProjectStorage = ""
+    @AppStorage(FleetControlRoute.surfaceKey) private var selectedSurfaceRaw = FleetControlSurface.flow.rawValue
+    @AppStorage(FleetControlRoute.projectKey) private var selectedProjectStorage = ""
 
     @State private var reloadToken = UUID()
     @State private var webLoading = true
     @State private var webError: String?
 
-    private var selectedSurface: ControlPlaneSurface {
-        get { ControlPlaneSurface(rawValue: selectedSurfaceRaw) ?? .flow }
+    private var selectedSurface: FleetControlSurface {
+        get { FleetControlSurface(rawValue: selectedSurfaceRaw) ?? .flow }
         nonmutating set { selectedSurfaceRaw = newValue.rawValue }
     }
 
@@ -84,7 +51,7 @@ struct FleetControlCenter: View {
             content
         }
         .frame(minWidth: 1180, minHeight: 780)
-        .background(.regularMaterial)
+        .background(Fleet.Chrome.popoverBackground)
         .task {
             await refreshAll()
         }
@@ -195,7 +162,7 @@ struct FleetControlCenter: View {
     private var surfaceStrip: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: Fleet.Space.s) {
-                ForEach(ControlPlaneSurface.allCases) { surface in
+                ForEach(FleetControlSurface.allCases) { surface in
                     Button {
                         selectedSurface = surface
                     } label: {

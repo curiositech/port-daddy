@@ -1,0 +1,49 @@
+import Foundation
+
+enum FleetControlSurface: String, CaseIterable, Identifiable {
+    case flow
+    case activity
+    case channels
+    case inbox
+    case sorties
+    case yaml
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .flow: return "Flow"
+        case .activity: return "Activity"
+        case .channels: return "Channels"
+        case .inbox: return "Inbox"
+        case .sorties: return "Sorties"
+        case .yaml: return "YAML"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .flow: return "point.3.connected.trianglepath.dotted"
+        case .activity: return "waveform.path.ecg"
+        case .channels: return "dot.radiowaves.left.and.right"
+        case .inbox: return "tray.full"
+        case .sorties: return "paperplane"
+        case .yaml: return "curlybraces"
+        }
+    }
+}
+
+enum FleetControlRoute {
+    static let surfaceKey = "fleet.control.surface"
+    static let projectKey = "fleet.control.project"
+
+    static func persist(surface: FleetControlSurface, project: String?) {
+        let defaults = UserDefaults.standard
+        defaults.set(surface.rawValue, forKey: surfaceKey)
+        if let project, !project.isEmpty {
+            defaults.set(project, forKey: projectKey)
+        } else {
+            defaults.removeObject(forKey: projectKey)
+        }
+    }
+}

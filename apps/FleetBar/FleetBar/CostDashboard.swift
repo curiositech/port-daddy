@@ -31,7 +31,7 @@ struct CostDashboard: View {
         }
         .padding(.horizontal, Fleet.Space.l)
         .padding(.vertical, Fleet.Space.m)
-        .background(.ultraThinMaterial)
+        .background(Fleet.Chrome.panel)
     }
 
     // MARK: - Hero Number

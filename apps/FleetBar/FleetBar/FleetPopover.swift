@@ -14,6 +14,10 @@ struct FleetPopover: View {
             header
             Divider().opacity(0.5)
             if store.isDaemonRunning {
+                quickActions
+                Divider().opacity(0.5)
+            }
+            if store.isDaemonRunning {
                 CostDashboard(store: costStore)
                 Divider().opacity(0.5)
             }
@@ -29,10 +33,19 @@ struct FleetPopover: View {
             Divider().opacity(0.5)
             footer
         }
-        .background(.ultraThinMaterial)
+        .background(Fleet.Chrome.popoverBackground)
         .onAppear {
             withAnimation(.smooth(duration: 0.4)) { appeared = true }
         }
+    }
+
+    private var defaultConsoleProject: String? {
+        store.projects.count == 1 ? store.projects[0].id : nil
+    }
+
+    private func openControlPlane(_ surface: FleetControlSurface, project: String? = nil) {
+        FleetControlRoute.persist(surface: surface, project: project ?? defaultConsoleProject)
+        openWindow(id: "fleet-control-center")
     }
 
     private var settingsPanel: some View {
@@ -71,7 +84,46 @@ struct FleetPopover: View {
         }
         .padding(.horizontal, Fleet.Space.l)
         .padding(.vertical, Fleet.Space.m)
-        .background(Fleet.Color.dormant.opacity(0.05))
+        .background(Fleet.Chrome.panel)
+    }
+
+    private var quickActions: some View {
+        HStack(spacing: Fleet.Space.s) {
+            QuickActionButton(
+                title: "Flow",
+                systemImage: "point.3.connected.trianglepath.dotted",
+                color: Fleet.Color.active
+            ) {
+                openControlPlane(.flow)
+            }
+
+            QuickActionButton(
+                title: "Inbox",
+                systemImage: "tray.full",
+                color: Fleet.Color.warning
+            ) {
+                openControlPlane(.inbox)
+            }
+
+            QuickActionButton(
+                title: "Sorties",
+                systemImage: "paperplane",
+                color: Fleet.Color.healthy
+            ) {
+                openControlPlane(.sorties)
+            }
+
+            QuickActionButton(
+                title: "YAML",
+                systemImage: "curlybraces",
+                color: Fleet.Color.failure
+            ) {
+                openControlPlane(.yaml)
+            }
+        }
+        .padding(.horizontal, Fleet.Space.l)
+        .padding(.vertical, Fleet.Space.s)
+        .background(Fleet.Chrome.panelRaised)
     }
 
     // MARK: - Header
@@ -275,13 +327,13 @@ struct FleetPopover: View {
             }
 
             Button {
-                openWindow(id: "fleet-control-center")
+                openControlPlane(.flow)
             } label: {
                 Label("Console", systemImage: "macwindow")
             }
             .buttonStyle(.borderless)
             .font(.caption2)
-            .foregroundStyle(.quaternary)
+            .foregroundStyle(Fleet.Color.active)
             .help("Open the fleet control plane")
 
             Button {
@@ -305,6 +357,7 @@ struct FleetPopover: View {
         }
         .padding(.horizontal, Fleet.Space.l)
         .padding(.vertical, Fleet.Space.s)
+        .background(Fleet.Chrome.panel)
     }
 }
 
@@ -525,6 +578,28 @@ struct StatusCapsule: View {
             color.opacity(0.08),
             in: RoundedRectangle(cornerRadius: Fleet.Radius.small, style: .continuous)
         )
+    }
+}
+
+struct QuickActionButton: View {
+    let title: String
+    let systemImage: String
+    let color: Color
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(color)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, Fleet.Space.s)
+                .background(
+                    color.opacity(0.12),
+                    in: RoundedRectangle(cornerRadius: Fleet.Radius.standard, style: .continuous)
+                )
+        }
+        .buttonStyle(.plain)
     }
 }
 

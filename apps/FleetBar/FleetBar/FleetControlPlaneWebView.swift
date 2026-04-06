@@ -1,5 +1,6 @@
 import SwiftUI
 import WebKit
+import AppKit
 
 struct FleetControlPlaneWebView: NSViewRepresentable {
     let url: URL
@@ -56,6 +57,30 @@ struct FleetControlPlaneWebView: NSViewRepresentable {
         func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
             errorBinding?.wrappedValue = nil
             isLoadingBinding?.wrappedValue = true
+        }
+
+        func webView(
+            _ webView: WKWebView,
+            decidePolicyFor navigationAction: WKNavigationAction,
+            decisionHandler: @escaping @MainActor @Sendable (WKNavigationActionPolicy) -> Void
+        ) {
+            guard let requestURL = navigationAction.request.url else {
+                decisionHandler(.cancel)
+                return
+            }
+
+            if let host = requestURL.host, ["localhost", "127.0.0.1"].contains(host) {
+                decisionHandler(.allow)
+                return
+            }
+
+            if navigationAction.navigationType == .linkActivated {
+                NSWorkspace.shared.open(requestURL)
+                decisionHandler(.cancel)
+                return
+            }
+
+            decisionHandler(.allow)
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
