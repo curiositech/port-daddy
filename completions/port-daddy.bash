@@ -122,7 +122,7 @@ _port_daddy() {
     # Project (+ alias)
     scan s projects p doctor diagnose hints
     # Project onboarding
-    init
+    setup init
     # Daemon lifecycle
     start stop restart install uninstall dev ci-gate mcp
     # Info
@@ -1391,13 +1391,13 @@ _port_daddy() {
     # Unknown command: fall back to global options only.
     # -----------------------------------------------------------------------
     # spawn  [kill <id>] [--backend B] [--model M] [--identity ID]
-    #        [--purpose P] [--files f1 f2...] -- <task>
+    #        [--budget USD] [--purpose P] [--files f1 f2...] -- <task>
     # -----------------------------------------------------------------------
     spawn)
       case "$prev" in
         spawn)
           if [[ "$cur" == -* ]]; then
-            _pd_opts '--backend --model --identity --purpose --files --workdir --timeout'
+            _pd_opts '--backend --model --identity --budget --purpose --files --workdir --timeout'
           else
             # shellcheck disable=SC2207
             COMPREPLY=( $(compgen -W "kill" -- "$cur") )
@@ -1410,14 +1410,14 @@ _port_daddy() {
           # shellcheck disable=SC2207
           COMPREPLY=( $(compgen -W "ollama claude claude-cli gemini aider custom" -- "$cur") )
           ;;
-        --model|--identity|--purpose|--workdir|--timeout|--allowedTools|--maxTokens)
+        --model|--identity|--budget|--purpose|--workdir|--timeout|--allowedTools|--maxTokens)
           COMPREPLY=()  # Free-form
           ;;
         --files)
           # shellcheck disable=SC2207
           COMPREPLY=( $(compgen -f -- "$cur") )
           ;;
-        *) _pd_opts '--backend --model --identity --purpose --files --workdir --timeout --allowedTools --maxTokens' ;;
+        *) _pd_opts '--backend --model --identity --budget --purpose --files --workdir --timeout --allowedTools --maxTokens' ;;
       esac
       ;;
 

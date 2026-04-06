@@ -55,6 +55,8 @@ function extractServerRoutes() {
     const content = readFileSync(join(routesDir, file), 'utf-8');
     let match;
     while ((match = routePattern.exec(content)) !== null) {
+      // Skip non-route matches (e.g. map.get('spawn.started') in observability.ts)
+      if (!match[2].startsWith('/')) continue;
       routes.push({
         method: match[1].toUpperCase(),
         path: normalizePath(match[2]),
@@ -68,6 +70,7 @@ function extractServerRoutes() {
     const serverContent = readFileSync(join(ROOT, 'server.ts'), 'utf-8');
     let match;
     while ((match = routePattern.exec(serverContent)) !== null) {
+      if (!match[2].startsWith('/')) continue;
       routes.push({
         method: match[1].toUpperCase(),
         path: normalizePath(match[2]),

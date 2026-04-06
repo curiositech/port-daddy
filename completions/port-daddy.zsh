@@ -1062,6 +1062,7 @@ _pd_cmd_spawn() {
     '--backend[AI backend to use]:backend:(ollama claude claude-cli gemini aider custom)' \
     '--model[model name override]:model:' \
     '--identity[PD semantic identity (project:stack:context)]:identity:_pd_complete_services' \
+    '--budget[required spend ceiling in USD]:usd:' \
     '--purpose[human-readable task description]:purpose:' \
     '--allowedTools[tool permissions for claude-cli]:tools:' \
     '--maxTokens[max tokens for claude/claude-cli]:tokens:' \
@@ -1394,6 +1395,7 @@ _port_daddy() {
     'dev:start daemon in development mode (foreground)'
     'ci-gate:exit non-zero if daemon is running stale code'
     'mcp:start MCP server for Claude Code / Claude Desktop (pd mcp install to configure)'
+    'setup:install daemon, MCP, FleetBar, and initialize a project'
     'init:set up Port Daddy for this project (scan, fleet, MCP, git hook)'
     # Info
     'version:print version information'

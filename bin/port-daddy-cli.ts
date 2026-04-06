@@ -815,7 +815,7 @@ Run: pd learn`,
 const ALL_COMMANDS: string[] = [
   'claim', 'c', 'release', 'r', 'find', 'f', 'list', 'l', 'ps', 'url', 'env',
   'pub', 'publish', 'broadcast', 'sub', 'subscribe', 'listen', 'wait', 'lock', 'unlock', 'locks',
-  'up', 'down', 'init', 'scan', 's', 'projects', 'p',
+  'up', 'down', 'setup', 'init', 'scan', 's', 'projects', 'p',
   'agent', 'agents', 'swarm', 'inbox', 'log', 'activity',
   'session', 'sessions', 'note', 'notes',
   'begin', 'done', 'whoami', 'with-lock', 'learn',

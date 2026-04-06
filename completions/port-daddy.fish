@@ -103,7 +103,7 @@ set -l __pd_commands \
     'dashboard' 'channels' 'webhook' 'webhooks' 'metrics' 'config' 'health' 'ports' \
     'scan' 's' 'projects' 'p' 'doctor' 'diagnose' 'hints' \
     'start' 'stop' 'restart' 'status' 'install' 'uninstall' 'dev' 'ci-gate' 'mcp' \
-    'init' \
+    'setup' 'init' \
     'version' 'help'
 
 # Register each command for both `port-daddy` and `pd`
@@ -235,6 +235,7 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a ci-gate -d 'Exit non-zero if daemon is stale'
     complete -c $prog -n __pd_needs_command -a mcp -d 'Start MCP server for Claude Code'
     complete -c $prog -n '__pd_is_cmd mcp' -a install -d 'Configure MCP for all detected AI editors'
+    complete -c $prog -n __pd_needs_command -a setup -d 'Install daemon, MCP, FleetBar, and init a project'
     complete -c $prog -n __pd_needs_command -a init -d 'Set up Port Daddy for this project (scan, fleet, MCP, git hook)'
 
     # Sugar (compound commands)
@@ -558,6 +559,7 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command spawn" -l backend -d 'AI backend' -x -a 'ollama claude claude-cli gemini aider custom'
     complete -c $prog -n "__pd_using_command spawn" -l model -d 'Model name override' -x
     complete -c $prog -n "__pd_using_command spawn" -l identity -d 'PD semantic identity (project:stack:context)' -x -a '(__pd_service_ids)'
+    complete -c $prog -n "__pd_using_command spawn" -l budget -d 'Required spend ceiling in USD' -x
     complete -c $prog -n "__pd_using_command spawn" -l purpose -d 'Human-readable task description' -x
     complete -c $prog -n "__pd_using_command spawn" -l allowedTools -d 'Tool permissions for claude-cli backend' -x
     complete -c $prog -n "__pd_using_command spawn" -l maxTokens -d 'Max tokens for claude/claude-cli' -x

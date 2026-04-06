@@ -871,6 +871,7 @@
         "killSpawned"
       ],
       "routes": [
+        "POST /spawn/preflight",
         "POST /spawn",
         "DELETE /spawn/:param",
         "GET /spawn"
