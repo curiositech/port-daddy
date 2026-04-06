@@ -303,6 +303,7 @@ fleet:
   limits:
     max_concurrent_spawns: 2        # At most 2 agents running in parallel
     max_spawns_per_hour: 20         # Rate cap (Ostrom Principle 2)
+    budget_usd_per_day: 5           # Daily LLM spend ceiling in USD
 
   agents:
     qa:
@@ -339,9 +340,53 @@ pd fleet down     # Stop all agents
 curl http://localhost:9876/fleet              # Global fleet status
 curl -X POST http://localhost:9876/fleet/reload   # Reload all configs (same as SIGHUP)
 curl http://localhost:9876/fleet/events       # SSE stream of lifecycle events
+
+# Fleet config management
+curl http://localhost:9876/fleet/config/myapp           # Read YAML + topology validation
+curl -X PUT http://localhost:9876/fleet/config/myapp \
+  -H 'Content-Type: application/json' \
+  -d '{"yaml": "fleet:\n  name: myapp\n  agents: ..."}' # Write + validate + reload
+
+# Shell prompt integration
+curl 'http://localhost:9876/fleet/prompt?project=myapp'  # One-line status for PS1
+
+# Available backends & models
+curl http://localhost:9876/fleet/models       # Lists claude-cli, ollama, gemini, etc.
 ```
 
 Each agent gets full PD coordination for free: registration, sessions, heartbeats, and salvage on crash. Supports `claude-cli`, `ollama`, `custom` (shell commands), and all `pd spawn` backends. Template variables (`{project}`) resolve from the YAML context. Fleet lifecycle events publish to the `fleet:events` channel for dashboard and menu bar subscriptions.
+
+### Observability & Cost Tracking
+
+Port Daddy tracks operational metrics and LLM spend across your fleet. Three subsystems work together:
+
+**Counters** — ODS-style bump counters with time-bucketed storage. The daemon auto-increments counters for spawn lifecycle events (`spawn.started`, `spawn.failed`, `spawn.completed`, `spawn.duration_ms`), session events, and more. Batched in memory, flushed to SQLite every 10s. Auto-prunes rows older than 30 days.
+
+**Cost Tracker** — Records per-spawn LLM cost. When token counts are available (Claude SDK backend), computes exact cost using a built-in rate table (14 models: Claude, Gemini, GPT). For opaque backends (`claude-cli`, `aider`), uses flat per-session estimates. Budget checks per project.
+
+**Golden Signals** — RED method metrics for the spawn system in a single endpoint: rate/min, error%, avg duration, cost/hr burn rate.
+
+```bash
+# Golden signals — one-stop health check for your fleet
+curl http://localhost:9876/metrics/golden
+# → { ratePerMin: 1.2, errorPct: 5.0, avgDurationMs: 4200, costPerHour: 0.23 }
+
+# Cost summary by project (last 24h)
+curl http://localhost:9876/metrics/cost
+# → { totals: { totalUsd: 2.15, spawns: 43 }, byProject: [...], byBackend: [...] }
+
+# Budget check — is "myapp" under its $10/day budget?
+curl "http://localhost:9876/metrics/cost/budget/myapp?budgetUsdPerDay=10"
+
+# Counter time series — spawn rate by minute
+curl "http://localhost:9876/metrics/counters?key=spawn.started&groupBy=minute"
+
+# Top backends by spawn count
+curl "http://localhost:9876/metrics/counters/top?key=spawn.started&dim=backend&n=5"
+
+# Recent cost events (live feed)
+curl http://localhost:9876/metrics/cost/recent?limit=20
+```
 
 ### Note Encryption (Escrow Secrecy)
 Session notes are encrypted at rest with AES-256-GCM. Master key stored at `~/.port-daddy/master.key` (auto-generated on first boot). Per-session keys wrapped with the master key. Backward-compatible — existing plaintext notes remain readable. ProVerif-verified: attacker with database access cannot learn note content.

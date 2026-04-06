@@ -46,6 +46,8 @@ export interface FleetLimits {
   maxConcurrentSpawns?: number;
   /** Max spawns per hour (rate limit, default: unlimited) */
   maxSpawnsPerHour?: number;
+  /** Max daily LLM spend for this project (default: unlimited) */
+  budgetUsdPerDay?: number;
 }
 
 export interface FleetConfig {
@@ -55,6 +57,14 @@ export interface FleetConfig {
   agents: FleetAgent[];
   watchers: FleetWatcher[];
   channels: Record<string, { description: string; consumers?: string[] }>;
+}
+
+export interface FleetRunContext {
+  source?: 'schedule' | 'trigger' | 'inbox' | 'manual';
+  channel?: string;
+  from?: string | null;
+  message?: unknown;
+  messageContent?: string;
 }
 
 interface RunningAgent {
@@ -101,6 +111,7 @@ interface FleetYamlChannel {
 interface FleetYamlLimits {
   max_concurrent_spawns?: number;
   max_spawns_per_hour?: number;
+  budget_usd_per_day?: number;
 }
 
 interface FleetYamlRoot {
@@ -236,6 +247,7 @@ export function loadFleetConfig(projectDir: string): FleetConfig | null {
   const limits: FleetLimits | undefined = rawLimits ? {
     maxConcurrentSpawns: rawLimits.max_concurrent_spawns,
     maxSpawnsPerHour: rawLimits.max_spawns_per_hour,
+    budgetUsdPerDay: rawLimits.budget_usd_per_day,
   } : undefined;
 
   return {
@@ -371,12 +383,16 @@ export type FleetEventCallback = (event: FleetEvent) => void;
 
 export interface FleetRunnerOptions {
   onEvent?: FleetEventCallback;
+  messaging?: {
+    subscribe(channel: string, callback: (message: unknown) => void): (() => void) | null;
+  };
 }
 
 export function createFleetRunner(config: FleetConfig, projectDir: string, options?: FleetRunnerOptions) {
   const running = new Map<string, RunningAgent>();
   const emit = options?.onEvent ?? (() => {});
   const project = config.name;
+  const agentIndex = new Map(config.agents.map(agent => [agent.name, agent]));
 
   // ─── Resource quota enforcement (Ostrom Principle 2) ────────────────────
   let activeSpawns = 0;
@@ -424,19 +440,28 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     }
 
     if (agent.trigger) {
-      // Triggered agent: subscribe to channel via pd watch
-      const watchProc = spawn('npx', [
-        'tsx', join(projectDir, 'bin', 'port-daddy-cli.ts'),
-        'watch', agent.trigger,
-        '--exec', buildSpawnCommand(agent),
-      ], {
-        cwd: projectDir,
-        env: { ...process.env, PD_URL },
-        stdio: 'pipe',
-        detached: true,
+      // Prefer in-process subscriptions so trigger payload survives into the spawned task.
+      const unsubscribe = options?.messaging?.subscribe(agent.trigger, (message: unknown) => {
+        void runAgentOnce(agent, contextFromMessage(agent.trigger!, message));
       });
-      watchProc.unref();
-      record.process = watchProc;
+
+      if (unsubscribe) {
+        record.watchHandle = unsubscribe;
+      } else {
+        // Fallback for standalone CLI/testing contexts.
+        const watchProc = spawn('npx', [
+          'tsx', join(projectDir, 'bin', 'port-daddy-cli.ts'),
+          'watch', agent.trigger,
+          '--exec', buildSpawnCommand(agent),
+        ], {
+          cwd: projectDir,
+          env: { ...process.env, PD_URL },
+          stdio: 'pipe',
+          detached: true,
+        });
+        watchProc.unref();
+        record.process = watchProc;
+      }
     }
 
     running.set(agent.name, record);
@@ -487,7 +512,69 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     }
   }
 
-  async function runAgentOnce(agent: FleetAgent): Promise<void> {
+  function trimMessage(message: string, maxChars = 4000): string {
+    if (message.length <= maxChars) return message;
+    return `${message.slice(0, maxChars)}\n\n[truncated ${message.length - maxChars} chars]`;
+  }
+
+  function serializeMessage(message: unknown): string {
+    if (typeof message === 'string') return message;
+    if (message === null || message === undefined) return '';
+    try {
+      return JSON.stringify(message, null, 2);
+    } catch {
+      return String(message);
+    }
+  }
+
+  function contextFromMessage(channel: string, message: unknown): FleetRunContext {
+    if (typeof message === 'object' && message !== null) {
+      const event = message as {
+        payload?: unknown;
+        sender?: string | null;
+      };
+      return {
+        source: 'trigger',
+        channel,
+        from: event.sender ?? null,
+        message: event.payload ?? message,
+        messageContent: trimMessage(serializeMessage(event.payload ?? message)),
+      };
+    }
+
+    return {
+      source: 'trigger',
+      channel,
+      from: null,
+      message,
+      messageContent: trimMessage(serializeMessage(message)),
+    };
+  }
+
+  function buildAgentTask(agent: FleetAgent, context?: FleetRunContext): string {
+    const basePrompt = agent.prompt.trim();
+    if (!context) return basePrompt;
+
+    const messageText = trimMessage((context.messageContent ?? serializeMessage(context.message)).trim());
+    if (!messageText) return basePrompt;
+
+    const lines = [
+      basePrompt,
+      '',
+      'Trigger context:',
+      `- source: ${context.source || 'trigger'}`,
+      context.channel ? `- channel: ${context.channel}` : null,
+      context.from ? `- sender: ${context.from}` : null,
+      '- message:',
+      messageText,
+      '',
+      'Take one bounded pass in response to this trigger. Use only your configured channels and stop after this pass.',
+    ].filter((line): line is string => !!line);
+
+    return lines.join('\n');
+  }
+
+  async function runAgentOnce(agent: FleetAgent, context?: FleetRunContext): Promise<void> {
     const identity = agent.identity || `${project}:fleet:${agent.name}`;
 
     // Enforce resource quotas before spawning
@@ -514,7 +601,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     try {
       const body: Record<string, unknown> = {
         backend: agent.backend,
-        task: agent.prompt,
+        task: buildAgentTask(agent, context),
         identity: agent.identity,
         purpose: `Fleet agent: ${agent.name}`,
       };
@@ -754,7 +841,20 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     }));
   }
 
-  return { startAll, stopAll, startAgent, getStatus, config };
+  async function hailAgent(agentName: string, context?: FleetRunContext): Promise<{ success: boolean; error?: string }> {
+    const agent = agentIndex.get(agentName);
+    if (!agent) {
+      return { success: false, error: `No agent named ${agentName}` };
+    }
+    if (running.has(agentName) && agent.singleton) {
+      return { success: false, error: `${agentName} is singleton and already active` };
+    }
+
+    await runAgentOnce(agent, context ?? { source: 'manual' });
+    return { success: true };
+  }
+
+  return { startAll, stopAll, startAgent, getStatus, hailAgent, config };
 }
 
 // ─── Cron Helpers ───────────────────────────────────────────────────────────

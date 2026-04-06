@@ -166,6 +166,30 @@ test('BUG 4: empty pd-fleet.yml throws instead of returning null or empty config
   expect(() => loadFleetConfig('/tmp/proj')).not.toThrow();
 });
 
+test('parses canonical fleet budget field as budgetUsdPerDay', () => {
+  mockExistsSync.mockImplementation(p => p.endsWith('pd-fleet.yml'));
+  mockExecSync.mockReturnValue('main');
+  mockReadFileSync.mockReturnValue(JSON.stringify({
+    name: 'budgeted-fleet',
+    limits: {
+      max_concurrent_spawns: 2,
+      max_spawns_per_hour: 20,
+      budget_usd_per_day: 7.5,
+    },
+    agents: {
+      qa: { backend: 'claude-cli', prompt: 'Run qa', trigger: 'git:committed' },
+    },
+  }));
+
+  const config = loadFleetConfig('/tmp/proj');
+  expect(config).not.toBeNull();
+  expect(config?.limits).toEqual({
+    maxConcurrentSpawns: 2,
+    maxSpawnsPerHour: 20,
+    budgetUsdPerDay: 7.5,
+  });
+});
+
 // ─── Bug 5: onSuccess/onFailure never fires (dead code) ──────────────────────
 
 test('FIX 5: onSuccess fires when spawn returns status=spawned', async () => {
@@ -206,6 +230,46 @@ test('FIX 5: onSuccess fires when spawn returns status=spawned', async () => {
 
   // Publish IS now called (status 'spawned' is treated as success)
   expect(publishFetch).toHaveBeenCalledWith('http://localhost:9876/msg/fleet:done');
+});
+
+test('triggered agents receive message content when subscribed in-process', async () => {
+  let triggerCallback = null;
+  global.fetch = jest.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({ agentId: 'abc', status: 'spawned' }),
+  });
+
+  const config = makeConfig({
+    trigger: 'spark:idea',
+  });
+
+  const runner = createFleetRunner(config, '/tmp/proj', {
+    messaging: {
+      subscribe: jest.fn((channel, callback) => {
+        expect(channel).toBe('spark:idea');
+        triggerCallback = callback;
+        return jest.fn();
+      }),
+    },
+  });
+
+  runner.startAgent(config.agents[0]);
+  expect(typeof triggerCallback).toBe('function');
+
+  await triggerCallback({
+    payload: 'what is the most important idea I could build now?',
+    sender: 'fleet-ui',
+  });
+  await Promise.resolve();
+  await Promise.resolve();
+
+  expect(global.fetch).toHaveBeenCalledWith(
+    'http://localhost:9876/spawn',
+    expect.objectContaining({
+      method: 'POST',
+      body: expect.stringContaining('what is the most important idea I could build now?'),
+    })
+  );
 });
 
 // ─── Valid cron patterns still work ──────────────────────────────────────────

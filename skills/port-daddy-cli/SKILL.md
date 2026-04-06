@@ -217,6 +217,7 @@ fleet:
   limits:
     max_concurrent_spawns: 2        # Max parallel agent runs
     max_spawns_per_hour: 20         # Hourly rate cap (rate limiting)
+    budget_usd_per_day: 5           # Daily LLM spend ceiling in USD
 
   agents:
     qa:
@@ -411,7 +412,7 @@ Override via environment variables: `PORT_DADDY_SOCK`, `PORT_DADDY_IPC`, `PORT_D
 | Who else is working right now? | `swarm_awareness` MCP tool |
 | Check for invariant violations | `pd arbiter status` |
 | How much are my fleet agents costing? | `curl localhost:9876/metrics/cost` |
-| Is a project over budget? | `curl localhost:9876/metrics/cost/budget/myapp?limit=5` |
+| Is a project over budget? | `curl localhost:9876/metrics/cost/budget/myapp?budgetUsdPerDay=5` |
 | Fleet health at a glance (RED signals) | `curl localhost:9876/metrics/golden` |
 | Top backends by spawn count | `curl localhost:9876/metrics/counters/top?key=spawn.started&dim=backend` |
 | Show fleet status in shell prompt | `curl localhost:9876/fleet/prompt?project=myapp` |

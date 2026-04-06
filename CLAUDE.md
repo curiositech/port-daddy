@@ -83,14 +83,21 @@ lib/
   orchestrator-plugins.ts # Plugin registry for merge orchestrators (default FIFO, hot-swap)
   merge-queue.ts    # SQLite merge queue with conflict prediction, orchestrator delegation
   symbol-index.ts   # Tree-sitter WASM symbol extraction, dependency tracking, conflict prediction
+  tuples.ts         # Linda-style tuple space (pattern matching, harbor scoping, TTL)
   banner.ts         # Startup banner rendering
   maritime.ts       # Maritime-themed label helpers
+  ipc-server.ts     # Binary IPC server (Unix domain socket, MessagePack)
+  ipc-router.ts     # IPC message routing + FIPA performatives
+  ipc-client.ts     # IPC client with auto-reconnect + subscription replay
+  ipc-frame.ts      # 7-byte header + MessagePack frame codec
+  ipc-auth.ts       # IPC connection authentication
+  ipc-types.ts      # IPC protocol type definitions
 routes/
   index.ts          # Route aggregator (registers all route modules)
   services.ts       # /claim, /release, /services, /wait endpoints
   sessions.ts       # /sessions, /notes, /files endpoints
   projects.ts       # /scan, /projects endpoints
-  agents.ts         # /agents endpoints
+  agents.ts         # /agents, /agents/:id/inbox endpoints
   activity.ts       # /activity endpoints
   locks.ts          # /locks endpoints
   messaging.ts      # /msg, /channels endpoints
@@ -109,8 +116,12 @@ routes/
   config.ts         # /config endpoint
   launch.ts         # /launch-hints endpoint
   info.ts           # /status, /metrics, /version endpoints
-  observability.ts   # /metrics/counters, /metrics/cost, /metrics/golden endpoints
-  arbiter.ts        # /arbiter endpoints (wired directly in server.ts)
+  observability.ts  # /metrics/counters, /metrics/cost, /metrics/golden endpoints
+  arbiter.ts        # /arbiter endpoints
+  pheromone.ts      # /pheromone endpoints
+  tuples.ts         # /tuples endpoints
+  merge-queue.ts    # /merge/* endpoints (queue, plugins, conflict prediction)
+  symbols.ts        # /symbols/*, /dependencies, /conflicts/predict endpoints
 bin/
   port-daddy-cli.ts # CLI entry point
 public/
@@ -366,6 +377,7 @@ fleet:
   limits:
     max_concurrent_spawns: 2      # Max parallel agent runs
     max_spawns_per_hour: 20       # Hourly rate cap
+    budget_usd_per_day: 5         # Daily LLM spend ceiling in USD
 ```
 
 **Key API additions:**
@@ -454,6 +466,7 @@ When an agent dies, other agents in the same project should be notified.
 | `/release` | DELETE | Release a service (id in request body) |
 | `/services` | GET | List services |
 | `/services/:id` | GET | Get single service |
+| `/services/:id/endpoints/:env` | PUT | Set service endpoint URL |
 | `/services/health` | GET | Health check all services |
 | `/services/health/:id` | GET | Health check single service |
 | `/wait/:id` | GET | SSE — wait for a service to be ready |
@@ -470,6 +483,9 @@ When an agent dies, other agents in the same project should be notified.
 | **Agents** | | |
 | `/agents/:id` | POST/DELETE | Register/unregister agent |
 | `/agents/:id/heartbeat` | POST | Agent heartbeat |
+| `/agents/:id/inbox` | POST/GET/DELETE | Send/read/clear agent inbox messages |
+| `/agents/:id/inbox/stats` | GET | Inbox stats (total, unread) |
+| `/agents/:id/inbox/read-all` | PUT | Mark all inbox messages as read |
 | **Webhooks** | | |
 | `/webhooks` | POST/GET | Create/list webhooks |
 | `/webhooks/events` | GET | List available webhook events |
@@ -581,4 +597,29 @@ When an agent dies, other agents in the same project should be notified.
 | `/metrics/golden` | GET | Golden signals (RED): rate/min, error%, avg duration, cost/hr |
 | `/metrics/cost` | GET | Cost summary by project + backend (`?since=86400`, `?project=`) |
 | `/metrics/cost/recent` | GET | Most recent cost events (`?limit=50`) |
-| `/metrics/cost/budget/:project` | GET | Budget check (`?limit=10` USD, `?since=86400` window) |
+| `/metrics/cost/budget/:project` | GET | Budget check (`?budgetUsdPerDay=10`, `?since=86400` window) |
+| **Tuples** | | |
+| `/tuples` | POST | Write a tuple (body: `{ tuple, harbor?, writtenBy?, ttl? }`) |
+| `/tuples` | GET | Read tuples by pattern (non-destructive) |
+| `/tuples` | DELETE | Take (consume) tuples by pattern (destructive) |
+| `/tuples/scan` | GET | List all tuples (optional: `?harbor=`) |
+| `/tuples/count` | GET | Count tuples (optional: `?harbor=`) |
+| **Merge Queue** | | |
+| `/merge/submit` | POST | Submit branch to merge queue |
+| `/merge/queue` | GET | List queued merges with ordering |
+| `/merge/queue/:id` | GET | Get specific merge entry |
+| `/merge/queue/:id` | DELETE | Remove from queue |
+| `/merge/queue/reorder` | POST | Orchestrator requests reorder |
+| `/merge/execute/:id` | POST | Force-execute a specific merge |
+| `/merge/predict` | GET | Predict conflicts between branches |
+| `/merge/inspect/:id` | POST | Run post-merge inspection |
+| `/merge/stats` | GET | Queue statistics |
+| `/merge/plugins` | GET | List orchestrator plugins |
+| `/merge/plugins/active` | PUT | Switch active orchestrator plugin |
+| **Symbols** | | |
+| `/symbols/parse` | POST | Parse file(s) or directory, extract AST symbols |
+| `/symbols` | GET | Search symbols by name, type, file, exported |
+| `/symbols/stats` | GET | Symbol index statistics |
+| `/symbols/file/*` | GET | Get all symbols for a specific file |
+| `/dependencies` | GET | Get dependency graph for a file |
+| `/conflicts/predict` | POST | Predict conflicts between symbol claims |

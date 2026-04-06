@@ -108,6 +108,7 @@ curl localhost:9876/fleet/events   # SSE stream`}
   limits:
     max_concurrent_spawns: 2     # At most 2 agents running in parallel
     max_spawns_per_hour: 20      # Rate cap (Ostrom Principle 2)
+    budget_usd_per_day: 5        # Daily LLM spend ceiling in USD
 
   agents:
     # Scheduled agent — runs every 10 minutes

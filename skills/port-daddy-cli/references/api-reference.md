@@ -861,6 +861,243 @@ Heartbeat comment (`: heartbeat`) sent every 30s to detect dead connections.
 
 ---
 
+### GET /fleet/prompt
+One-line fleet status string for shell prompt integration (PS1, starship, etc.).
+
+**Query parameters:**
+- `project` (required) — Project name to get status for
+- `since` — Unix timestamp; only include events after this time
+
+**Response:**
+```json
+{ "success": true, "line": "qa:idle gardener:running spark:cooldown" }
+```
+
+Returns a compact string summarizing agent states for the given project. Designed to be embedded in shell prompts without line breaks.
+
+---
+
+### GET /fleet/config/:project
+Retrieve the raw YAML, parsed config, and topology validation for a project's fleet.
+
+**Response:**
+```json
+{
+  "success": true,
+  "yaml": "fleet:\n  name: myapp\n  ...",
+  "path": "/Users/you/coding/myapp/pd-fleet.yml",
+  "projectDir": "/Users/you/coding/myapp",
+  "parsed": { "fleet": { "name": "myapp", "agents": { ... } } },
+  "topology": { "valid": true, "warnings": [], "cycles": [] }
+}
+```
+
+Returns 404 if the project is not registered or has no `pd-fleet.yml`.
+
+---
+
+### PUT /fleet/config/:project
+Write new YAML config, validate it, and reload the fleet.
+
+**Body:** `{ "yaml": "fleet:\n  name: myapp\n  ..." }` (required, must be valid YAML object)
+
+**Response:**
+```json
+{
+  "success": true,
+  "topology": { "valid": true, "warnings": [], "cycles": [] },
+  "warnings": [],
+  "cycles": []
+}
+```
+
+Returns 400 if `yaml` is missing, not a string, or fails YAML parsing. The fleet is reloaded automatically after a successful write.
+
+---
+
+### GET /fleet/models
+List available backends and their models. Probes Ollama for locally installed models.
+
+**Response:**
+```json
+{
+  "success": true,
+  "backends": [
+    { "id": "claude-cli", "name": "Claude CLI", "models": ["sonnet", "opus", "haiku"] },
+    { "id": "ollama", "name": "Ollama (local)", "models": ["llama3.2:8b", "codellama:13b"] },
+    { "id": "custom", "name": "Custom command", "models": [] },
+    { "id": "gemini", "name": "Google Gemini", "models": ["gemini-2.5-pro", "gemini-2.5-flash"] },
+    { "id": "openai", "name": "OpenAI", "models": ["gpt-4.1", "gpt-4.1-mini", "o4-mini"] },
+    { "id": "groq", "name": "Groq", "models": ["llama-3.3-70b", "mixtral-8x7b"] },
+    { "id": "aider", "name": "Aider", "models": [] }
+  ]
+}
+```
+
+Ollama models are fetched live from `localhost:11434/api/tags` with a 2s timeout. If Ollama is not running, its `models` array is empty.
+
+---
+
+## Observability (Counters, Cost Tracking, Golden Signals)
+
+As of v3.8.2, Port Daddy records operational metrics (counters) and LLM cost events automatically. These endpoints expose that data for dashboards, budget alerts, and fleet health monitoring.
+
+### GET /metrics/counters
+Summary of all counter keys (last 24h default), or time-bucketed results for a single key.
+
+**Query params:**
+| Param | Type | Description |
+|-------|------|-------------|
+| `key` | string | Filter to one counter key (e.g. `spawn.started`). Returns time-bucketed results. |
+| `since` | number | Seconds in the past (default: 86400 = 24h) |
+| `groupBy` | string | `minute` (default) or `hour` — bucket granularity (only when `key` is set) |
+
+**Response (summary, no key):**
+```json
+{
+  "since": 1711234567890,
+  "counters": [
+    { "key": "spawn.started", "total": 42, "perHour": 1.75 },
+    { "key": "spawn.completed", "total": 38, "perHour": 1.58 }
+  ]
+}
+```
+
+**Response (single key):**
+```json
+{
+  "key": "spawn.started",
+  "since": 1711234567890,
+  "groupBy": "hour",
+  "results": [
+    { "key": "spawn.started", "dims": { "backend": "claude-cli" }, "bucket": 1711234800000, "value": 5 }
+  ]
+}
+```
+
+### GET /metrics/counters/top
+Top N dimension values for a counter key (e.g. "top 10 backends by spawn count").
+
+**Query params:**
+| Param | Type | Description |
+|-------|------|-------------|
+| `key` | string | **Required.** Counter key (e.g. `spawn.started`) |
+| `dim` | string | **Required.** Dimension name (e.g. `backend`, `project`) |
+| `n` | number | Max results (default: 10, max: 100) |
+| `since` | number | Seconds in the past |
+
+**Response (200):**
+```json
+{
+  "key": "spawn.started",
+  "dim": "backend",
+  "results": [
+    { "value": "claude-cli", "count": 28 },
+    { "value": "ollama", "count": 14 }
+  ]
+}
+```
+
+### GET /metrics/golden
+Four golden signals for the spawn system (RED method). Single-endpoint fleet health check.
+
+**Response (200):**
+```json
+{
+  "ratePerMin": 1.4,
+  "errorPct": 2.5,
+  "avgDurationMs": 45000,
+  "costPerHour": 0.12,
+  "window": { "rateWindowSecs": 300, "metricWindowSecs": 3600 },
+  "counts": { "started": 42, "completed": 38, "failed": 1 }
+}
+```
+
+| Signal | Meaning |
+|--------|---------|
+| `ratePerMin` | Spawns per minute (5-min window, extrapolated) |
+| `errorPct` | Failed + killed spawns as % of started (1h window) |
+| `avgDurationMs` | Average spawn duration in ms (1h window, completed only) |
+| `costPerHour` | USD burn rate from cost tracker (1h window) |
+
+### GET /metrics/cost
+Cost summary by project and backend.
+
+**Query params:**
+| Param | Type | Description |
+|-------|------|-------------|
+| `since` | number | Seconds in the past (default: 86400 = 24h) |
+| `project` | string | Filter to one project name |
+
+**Response (200):**
+```json
+{
+  "since": 1711234567890,
+  "periodSecs": 86400,
+  "totals": { "totalUsd": 1.234, "spawnCount": 42, "estimatedCount": 10 },
+  "byProject": [
+    { "projectName": "port-daddy", "totalUsd": 0.85, "spawnCount": 30, "estimatedCount": 8, "topModel": "claude-cli" }
+  ],
+  "byBackend": [
+    { "backend": "claude-cli", "totalUsd": 0.85, "count": 30 }
+  ]
+}
+```
+
+### GET /metrics/cost/recent
+Most recent cost events (useful for live cost feeds).
+
+**Query params:**
+| Param | Type | Description |
+|-------|------|-------------|
+| `limit` | number | Max events (default: 50, max: 200) |
+
+**Response (200):**
+```json
+{
+  "events": [
+    {
+      "id": "a1b2c3d4e5f6g7h8",
+      "ts": 1711234567890,
+      "backend": "claude-cli",
+      "model": "claude-cli",
+      "projectName": "port-daddy",
+      "identity": "port-daddy:qa:main",
+      "spawnId": "spawn-abc123",
+      "inputTokens": null,
+      "outputTokens": null,
+      "costUsd": 0.05,
+      "isEstimate": true
+    }
+  ]
+}
+```
+
+### GET /metrics/cost/budget/:project
+Check a project's spend against a budget ceiling.
+
+**Path params:** `project` — project name
+
+**Query params:**
+| Param | Type | Description |
+|-------|------|-------------|
+| `budgetUsdPerDay` | number | Budget ceiling in USD per day (default: 10) |
+| `since` | number | Window in seconds (default: 86400 = 24h) |
+
+**Response (200):**
+```json
+{
+  "project": "port-daddy",
+  "budgetUsdPerDay": 10,
+  "spentUsd": 1.23,
+  "remainingUsd": 8.77,
+  "percentUsed": 12.3,
+  "overBudget": false
+}
+```
+
+---
+
 ## Dashboard Events
 
 ### GET /dashboard/events
