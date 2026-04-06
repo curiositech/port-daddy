@@ -98,11 +98,9 @@ describe('claude-cli — ANTHROPIC_API_KEY from dotenv is not injected', () => {
     await spawner.spawn({ backend: 'claude-cli', task: 'echo hello' });
 
     const env = lastClaudeEnv();
-    expect(env.ANTHROPIC_API_KEY).not.toBe(DOTENV_API_KEY);
-    // Key should be absent entirely (unless already in process.env)
-    if (!process.env.ANTHROPIC_API_KEY) {
-      expect(env.ANTHROPIC_API_KEY).toBeUndefined();
-    }
+    // After 0df9155: ANTHROPIC_API_KEY is stripped from BOTH dotenv AND process.env.
+    // Must be unconditionally undefined (unless spec.env provides it).
+    expect(env.ANTHROPIC_API_KEY).toBeUndefined();
   });
 
   it('still passes ANTHROPIC_API_KEY when explicitly provided in spec.env', async () => {
@@ -129,6 +127,49 @@ describe('claude-cli — ANTHROPIC_API_KEY from dotenv is not injected', () => {
     const env = lastClaudeEnv();
     // PATH augmentation should still be present (from spawner logic, not dotenv)
     expect(env.PATH).toBeDefined();
+    expect(env.PATH).toContain('.local/bin');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// stdio: stdin must be closed for claude-cli (no "no stdin data" warnings)
+// ---------------------------------------------------------------------------
+
+describe('claude-cli — stdin is closed (stdio: ignore)', () => {
+  it('spawns with stdio [ignore, pipe, pipe] to close stdin', async () => {
+    const spawner = createSpawner();
+    await spawner.spawn({ backend: 'claude-cli', task: 'echo hello' });
+
+    // Find the 'claude' spawn call and inspect the options
+    const claudeCalls = mockSpawnFn.mock.calls.filter(([cmd]) => cmd === 'claude');
+    expect(claudeCalls.length).toBeGreaterThanOrEqual(1);
+
+    const opts = claudeCalls[claudeCalls.length - 1][2];
+    expect(opts.stdio).toEqual(['ignore', 'pipe', 'pipe']);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// BUG: spec.env.PATH is silently overwritten by augmentedPath
+// The doc claims "custom env from spec.env is applied last (highest priority)"
+// but PATH specifically is hardcoded AFTER the spec.env spread.
+// ---------------------------------------------------------------------------
+
+describe('claude-cli — spec.env.PATH override (known bug)', () => {
+  it('spec.env.PATH is overwritten by augmentedPath — PATH is NOT highest priority', async () => {
+    const CUSTOM_PATH = '/my/custom/path/only';
+    const spawner = createSpawner();
+
+    await spawner.spawn({
+      backend: 'claude-cli',
+      task: 'echo hello',
+      env: { PATH: CUSTOM_PATH },
+    });
+
+    const env = lastClaudeEnv();
+    // BUG: The user-provided PATH is silently dropped.
+    // If this assertion starts failing, the bug was fixed — update accordingly.
+    expect(env.PATH).not.toBe(CUSTOM_PATH);
     expect(env.PATH).toContain('.local/bin');
   });
 });
