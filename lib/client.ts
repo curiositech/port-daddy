@@ -2568,6 +2568,8 @@ class PortDaddy {
    * const result = await pd.spawn({
    *   backend: 'ollama',
    *   model: 'llama3.2:8b',
+   *   identity: 'myapp:coder',
+   *   budgetUsd: 2.5,
    *   task: 'Write a hello world in TypeScript',
    * });
    * console.log(result.output);
@@ -3047,15 +3049,18 @@ interface ChangelogIdentitiesResponse {
 // =============================================================================
 
 interface SpawnSpec {
-  backend: 'ollama' | 'claude' | 'gemini' | 'aider' | 'custom';
+  backend: 'ollama' | 'claude' | 'claude-cli' | 'gemini' | 'aider' | 'custom';
   model?: string;
-  identity?: string;
+  identity: string;
+  budgetUsd: number;
   purpose?: string;
   task: string;
   files?: string[];
   workdir?: string;
   env?: Record<string, string>;
   timeout?: number;
+  allowedTools?: string;
+  maxTokens?: number;
 }
 
 interface SpawnResult {

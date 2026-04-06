@@ -15,15 +15,13 @@ import {
 /*  Data                                                                        */
 /* -------------------------------------------------------------------------- */
 
-const LLM_LOGOS = [
+const RUNTIME_BACKENDS = [
   { name: 'Claude', color: '#CC785C' },
-  { name: 'OpenAI', color: '#10A37F' },
+  { name: 'Claude CLI', color: '#E38D6B' },
   { name: 'Gemini', color: '#4285F4' },
   { name: 'Ollama', color: '#3AADAD' },
-  { name: 'Grok', color: '#1D9BF0' },
   { name: 'Aider', color: '#A78BFA' },
-  { name: 'Cursor', color: '#3AADAD' },
-  { name: 'Any LLM', color: '#6B7280' },
+  { name: 'Custom shell', color: '#6B7280' },
 ]
 
 const MAGIC_TOOLS = [
@@ -72,7 +70,7 @@ await fleet_init({
     tagline: 'Launch a background AI with one call.',
     icon: Radio,
     color: 'var(--brand-secondary)',
-    description: 'Spawns an AI agent with full PD coordination — registration, heartbeat, session, and salvage on crash. Works with any backend.',
+    description: 'Spawns an AI agent with full PD coordination — registration, heartbeat, session, and salvage on crash. Uses one of the built-in runtimes or the custom shell backend.',
     example: `await spawn_agent({
   backend: "claude-cli",
   purpose: "Review auth changes for CVEs",
@@ -204,10 +202,10 @@ function LLMStrip() {
     >
       <p className="text-center text-[10px] font-black uppercase tracking-[0.3em] mb-4"
         style={{ color: 'var(--text-muted)' }}>
-        Works with any LLM backend
+        Current built-in runtimes
       </p>
       <div className="flex items-center justify-center gap-6 flex-wrap">
-        {LLM_LOGOS.map((llm) => (
+        {RUNTIME_BACKENDS.map((llm) => (
           <span
             key={llm.name}
             className="text-sm font-black px-4 py-2 rounded-xl"

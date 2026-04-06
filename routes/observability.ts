@@ -148,15 +148,19 @@ export const observabilityPlugin: FastifyPluginAsync<{ deps: ObservabilityDeps }
   });
 
   /**
-   * GET /metrics/cost/budget/:project?budgetUsdPerDay=10&since=86400
+   * GET /metrics/cost/budget/:project?budgetUsdPerDay=2.5&since=86400
    * Check a project's spend vs. a budget ceiling.
-   * ?budgetUsdPerDay=10   budget in USD per day (default $10)
+   * ?budgetUsdPerDay=2.5  required budget in USD per day
    * ?since=86400  window in seconds (default 24h)
    */
-  fastify.get('/metrics/cost/budget/:project', async (request: FastifyRequest) => {
+  fastify.get('/metrics/cost/budget/:project', async (request: FastifyRequest, reply: FastifyReply) => {
     const { project } = request.params as { project: string };
     const q = request.query as Record<string, string>;
-    const budgetUsdPerDay = parseFloat(q.budgetUsdPerDay ?? '10');
+    const budgetUsdPerDay = parseFloat(q.budgetUsdPerDay ?? '');
+    if (!Number.isFinite(budgetUsdPerDay) || budgetUsdPerDay <= 0) {
+      reply.code(400);
+      return { error: 'budgetUsdPerDay query param is required and must be > 0' };
+    }
     return costTracker.budgetStatus(project, budgetUsdPerDay, parseSince(q));
   });
 };

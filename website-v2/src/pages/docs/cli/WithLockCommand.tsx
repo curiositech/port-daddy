@@ -5,7 +5,7 @@ export default function WithLockCommand() {
     <CommandPage
       command="with-lock"
       description="Run a command inside a lock. Acquires lock, runs command, releases lock — even if the command fails."
-      version="3.7.0"
+      version="3.8.3"
       syntax="pd with-lock <name> -- <command>"
       flags={[
         { flag: 'name', description: 'Lock name' },

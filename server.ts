@@ -56,6 +56,9 @@ import { createFleetDaemon } from './lib/fleet-daemon.js';
 import { createOrchestratorRegistry } from './lib/orchestrator-plugins.js';
 import { createSymbolIndex } from './lib/symbol-index.js';
 import { createMergeQueue } from './lib/merge-queue.js';
+import { createCostTracker } from './lib/cost-tracker.js';
+import { createCounters } from './lib/counters.js';
+import { launchFleetBarIfEnabled } from './lib/fleetbar-launcher.js';
 
 // Fastify route aggregator (Phase 3 — native Fastify plugins, no Express bridge)
 import { registerAllRoutes } from './routes/index.js';
@@ -64,6 +67,9 @@ import { registerAllRoutes } from './routes/index.js';
 import { getSystemPorts, startSystemPortsRefresh } from './shared/port-utils.js';
 
 const __dirname: string = dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT: string = existsSync(join(__dirname, 'apps', 'FleetBar'))
+  ? __dirname
+  : dirname(__dirname);
 
 // =============================================================================
 // CONFIGURATION (identical to server.ts)
@@ -250,7 +256,9 @@ dns.setActivityLog(activityLog);
 const resolver = createResolver(db);
 dns.setResolver(resolver);
 const briefing = createBriefing(db, { sessions, agents, resurrection, activityLog, services, messaging });
-const spawner = createSpawner();
+const costTracker = createCostTracker(db);
+const counters = createCounters(db);
+const spawner = createSpawner({ costTracker, counters });
 const sugar = createSugar({ agents, sessions, activityLog });
 const harbors = createHarbors(db);
 semanticIndex.initialize();
@@ -280,6 +288,8 @@ const fleetDaemon = createFleetDaemon({
   messaging,
   logger,
   daemonDir: __dirname,
+  costTracker,
+  locks,
 });
 
 // Wire resurrection events (identical to server.ts)
@@ -545,7 +555,7 @@ await registerAllRoutes(
     services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar,
     harbors, orchestrator, correlationEngine, spawner, tuples, fleetDaemon,
-    orchestratorRegistry, symbolIndex, mergeQueue,
+    orchestratorRegistry, symbolIndex, mergeQueue, costTracker, counters,
     VERSION, CODE_HASH, STARTED_AT, __dirname,
     cleanupStale, getSystemPorts,
   },
@@ -586,13 +596,6 @@ function broadcastDashboard(event: string, data?: Record<string, unknown>): void
   for (const client of dashboardClients) {
     client.write(`data: ${payload}\n\n`);
   }
-}
-
-const originalCleanup = cleanupStale;
-function cleanupStaleWithBroadcast(): ReturnType<typeof services.cleanup> {
-  const result = originalCleanup();
-  if (dashboardClients.size > 0) broadcastDashboard('refresh');
-  return result;
 }
 
 // --- Global Error Handler (replaces 4-arg Express middleware) ---
@@ -649,6 +652,8 @@ function shutdown(signal: string): void {
   } catch (e) {
     logger.error('shutdown_logging_failed', { error: (e as Error).message });
   }
+  // Flush counters before closing DB (pending in-memory batches)
+  try { counters.shutdown(); } catch {}
   // Stop fleet runners before closing DB (graceful drain)
   try { fleetDaemon.stop(); } catch {}
   systemPortsRefresh.stop();
@@ -695,6 +700,19 @@ function onReady(): void {
     }
   } catch (err) {
     logger.error('fleet_daemon_start_failed', { error: (err as Error).message });
+  }
+
+  const fleetBarLaunch = launchFleetBarIfEnabled({
+    logger,
+    repoRoot: REPO_ROOT,
+    daemonPort: PORT,
+  });
+
+  if (fleetBarLaunch.launched) {
+    logger.info('fleetbar_launch_complete', {
+      target: fleetBarLaunch.target,
+      daemonPort: PORT,
+    });
   }
 }
 

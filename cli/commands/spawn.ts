@@ -10,6 +10,16 @@ import { CLIOptions, isQuiet, isJson } from '../types.js';
 import { IS_TTY, relativeTime } from '../utils/output.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
+import { autoIdentityFromPackageJson } from './services.js';
+
+function parseBudgetValue(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = parseFloat(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return undefined;
+}
 
 // =============================================================================
 // handleSpawn — pd spawn --backend ollama -- "my task"
@@ -63,6 +73,7 @@ export async function handleSpawn(
   }
 
   const backend = (options.backend as string) || 'ollama';
+  const budgetUsd = parseBudgetValue(options.budget);
 
   const validBackends = ['ollama', 'claude', 'claude-cli', 'gemini', 'aider', 'custom'];
   if (!validBackends.includes(backend)) {
@@ -81,6 +92,7 @@ export async function handleSpawn(
     console.error('  --model <name>        Model override');
     console.error('  --identity <id>       PD semantic identity (project:stack:context)');
     console.error('  --purpose <text>      Human-readable task description');
+    console.error('  --budget <usd>        Required spend ceiling for this launch');
     console.error('  --allowedTools <str>  Tool permissions for claude-cli backend');
     console.error('  --maxTokens <n>       Max tokens for claude/claude-cli backends');
     console.error('  -j, --json            JSON output');
@@ -91,13 +103,27 @@ export async function handleSpawn(
     process.exit(1);
   }
 
+  const identity = (options.identity as string) || autoIdentityFromPackageJson() || undefined;
+  if (!identity) {
+    ui.error('pd spawn requires --identity <project:stack:context> or a package.json name for auto-detection');
+    process.exit(1);
+  }
+  if (!options.identity && !isQuiet(options) && !isJson(options)) {
+    ui.info(`Auto-detected identity: ${identity}`);
+  }
+  if (budgetUsd == null || budgetUsd <= 0) {
+    ui.error('pd spawn requires --budget <usd> with a positive ceiling');
+    process.exit(1);
+  }
+
   const body: Record<string, unknown> = {
     backend,
+    budgetUsd,
+    identity,
     task,
   };
 
   if (options.model) body.model = options.model;
-  if (options.identity) body.identity = options.identity;
   if (options.purpose) body.purpose = options.purpose;
 
   // Aider: collect --files from options

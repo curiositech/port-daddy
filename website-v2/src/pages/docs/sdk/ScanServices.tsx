@@ -6,7 +6,7 @@ export default function ScanServices() {
       function="scanServices"
       description="Deep-scan a directory for services. Detects 60+ frameworks and assigns ports automatically."
       module="Ports"
-      version="3.7.0"
+      version="3.8.3"
       signature="scanServices(dir: string, options?: ScanOptions): Promise<Service[]>"
       params={[
         { name: 'dir', type: 'string', required: true, description: 'Directory to scan for services' },

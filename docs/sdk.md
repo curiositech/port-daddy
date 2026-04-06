@@ -854,6 +854,7 @@ const result = await pd.spawn({
   backend: 'ollama',
   model: 'llama3',
   identity: 'myapp:coder',
+  budgetUsd: 2.5,
   purpose: 'Refactor auth module',
   task: 'Fix the login bug in src/auth.ts',
 });
@@ -863,6 +864,7 @@ console.log(result.agentId, result.status);  // e.g. "ollama-abc123", "completed
 await pd.spawn({
   backend: 'claude-cli',
   identity: 'myapp:fixer',
+  budgetUsd: 5,
   task: 'Fix the login bug in src/auth.ts',
   allowedTools: 'Read,Write,Edit,Glob,Grep,Bash(git*)',
   workdir: '/path/to/project',
@@ -873,6 +875,7 @@ await pd.spawn({
   backend: 'claude',
   model: 'claude-haiku-4-5-20251001',
   identity: 'myapp:reviewer',
+  budgetUsd: 1,
   task: 'Review PR #42 for security issues',
 });
 
@@ -935,4 +938,3 @@ await pd.destroyHarbor('myapp:security-review');
 | `pd.enterHarbor(name, agentId, options?)` | Agent enters harbor, declares capabilities |
 | `pd.leaveHarbor(name, agentId)` | Agent leaves harbor |
 | `pd.harborMemberships(agentId)` | List harbors an agent is currently in |
-

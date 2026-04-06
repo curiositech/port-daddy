@@ -6,7 +6,7 @@ export default function NoteCommand() {
       command="pd note"
       shortFlag="n"
       description="Add a note to the current session. Notes are immutable — they are never edited or deleted. Creates an implicit session if none exists. Use notes to track progress, decisions, and milestones throughout your work."
-      version="3.7.0"
+      version="3.8.3"
       syntax="pd note <text> [flags]"
       flags={[
         { flag: '--type <type>', description: 'Note type: progress | decision | milestone | warning (default: progress)' },

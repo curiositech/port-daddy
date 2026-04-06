@@ -1825,10 +1825,11 @@ const TOOLS = [
       properties: {
         task: { type: 'string', description: 'What the agent should do' },
         identity: { type: 'string', description: 'Semantic identity (e.g. "myapp:fleet:custom-agent")' },
+        budget_usd: { type: 'number', description: 'Required spend ceiling for this launch in USD' },
         backend: { type: 'string', description: 'LLM backend: claude-cli (default), ollama, custom' },
         allowed_tools: { type: 'string', description: 'Comma-separated tool list (e.g. "Read,Grep,Glob,Write")' },
       },
-      required: ['task'],
+      required: ['task', 'identity', 'budget_usd'],
     },
   },
   // ── Tuple Space ──────────────────────────────────────────────────────
@@ -2742,9 +2743,10 @@ async function handleTool(
     case 'spawn_agent': {
       const task = args.task as string;
       const identity = args.identity as string | undefined;
+      const budgetUsd = args.budget_usd as number | undefined;
       const backend = (args.backend as string) || 'claude-cli';
       const allowedTools = args.allowed_tools as string | undefined;
-      const body: Record<string, unknown> = { backend, task };
+      const body: Record<string, unknown> = { backend, task, budgetUsd };
       if (identity) body.identity = identity;
       if (allowedTools) body.allowedTools = allowedTools;
       body.purpose = task.slice(0, 80);
@@ -2844,7 +2846,7 @@ async function handleTool(
 const server = new Server(
   {
     name: 'port-daddy',
-    version: '3.8.2',
+    version: '3.8.3',
   },
   {
     capabilities: {

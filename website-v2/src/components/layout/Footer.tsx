@@ -90,7 +90,7 @@ export function Footer() {
               >
                 <MessageSquare size={16} />
               </a>
-              <Badge variant="teal">v3.7.0</Badge>
+              <Badge variant="teal">v3.8.3</Badge>
             </div>
           </div>
 

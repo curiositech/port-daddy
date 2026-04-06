@@ -5,7 +5,7 @@ export default function DnsResolveTool() {
     <CommandPage
       command="dns_resolve"
       description="Resolve a name to a port number. Returns null if name is not registered."
-      version="3.7.0"
+      version="3.8.3"
       syntax="dns_resolve(name)"
       flags={[
         { flag: 'name', description: 'Name to resolve' },

@@ -1081,7 +1081,7 @@ Check a project's spend against a budget ceiling.
 **Query params:**
 | Param | Type | Description |
 |-------|------|-------------|
-| `budgetUsdPerDay` | number | Budget ceiling in USD per day (default: 10) |
+| `budgetUsdPerDay` | number | Required budget ceiling in USD per day |
 | `since` | number | Window in seconds (default: 86400 = 24h) |
 
 **Response (200):**

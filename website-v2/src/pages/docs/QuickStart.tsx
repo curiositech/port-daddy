@@ -10,7 +10,7 @@ const STEPS = [
     title: 'Install Port Daddy',
     description: 'Install globally via npm.',
     code: '$ npm install -g port-daddy',
-    verify: '$ pd --version\nport-daddy v3.8.0'
+    verify: '$ pd --version\nport-daddy v3.8.3'
   },
   {
     number: '02',
@@ -59,7 +59,7 @@ export default function QuickStart() {
           </li>
           <li className="flex items-center gap-2">
             <Check size={16} style={{ color: 'var(--status-success)' }} />
-            Node.js 18+
+            Node.js 20+
           </li>
         </ul>
       </Surface>

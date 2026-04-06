@@ -50,7 +50,7 @@ export function Hero() {
             </h1>
 
             <p className="text-sm lg:text-base text-[var(--text-secondary)] leading-relaxed mb-5 max-w-md">
-              Port Daddy coordinates AI agents — atomic ports, pub/sub messaging, file claims, and automatic work recovery. One install. Zero config. Works with Claude, OpenAI, Gemini, Ollama, or any LLM.
+              Port Daddy coordinates AI agents — atomic ports, pub/sub messaging, file claims, and automatic work recovery. One install. Zero config. Current built-in runtimes cover Claude, Claude CLI, Gemini, Ollama, Aider, and custom shell-backed agents.
             </p>
 
             {/* Feature pills */}
@@ -58,7 +58,7 @@ export function Hero() {
               {[
                 'Background fleet agents',
                 'Auto-respawn on crash',
-                'Works with any LLM',
+                'Budget-gated launches',
               ].map((label) => (
                 <span
                   key={label}

@@ -5,7 +5,7 @@ export default function ServicesCommand() {
     <CommandPage
       command="services"
       description="List all active port claims. Shows identity, port, and last-seen timestamp."
-      version="3.7.0"
+      version="3.8.3"
       syntax="pd services"
       flags={[
         { flag: '-j, --json', description: 'JSON output' },

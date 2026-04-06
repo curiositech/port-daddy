@@ -73,7 +73,7 @@ pd fleet down    # Stop`}
           <div className="border border-[var(--border-subtle)] rounded-xl p-4 space-y-2">
             <div className="flex items-center gap-2">
               <span className="font-semibold text-[var(--text-primary)]">Daemon Mode</span>
-              <Badge variant="teal">v3.8.2</Badge>
+              <Badge variant="teal">v3.8.3</Badge>
             </div>
             <p className="text-sm text-[var(--text-secondary)]">
               The Port Daddy daemon auto-discovers <code className="font-mono text-xs text-[var(--brand-primary)]">pd-fleet.yml</code> in
@@ -214,6 +214,7 @@ curl localhost:9876/fleet/events   # SSE stream`}
             { name: 'ollama', desc: 'Runs a local Ollama model via HTTP. Needs ollama running at localhost:11434.' },
             { name: 'claude', desc: 'Runs Claude via the Anthropic SDK. Needs ANTHROPIC_API_KEY.' },
             { name: 'gemini', desc: 'Runs Gemini via the Google SDK. Needs GOOGLE_API_KEY.' },
+            { name: 'aider', desc: 'Runs Aider as the execution backend. Useful when you want Aider to manage the model conversation and file edits.' },
             { name: 'custom', desc: 'Runs the prompt as a shell command. The prompt field is the command to execute.' },
           ].map(({ name, desc }) => (
             <div key={name} className="flex items-start gap-3 border-l-4 border-[var(--border-subtle)] pl-4 py-1">

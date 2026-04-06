@@ -59,7 +59,10 @@ Do not hold `3.8.4` for:
 - broader economy/mechanism design work
 - extra website polish not required for onboarding
 
-## Track 1: Ship The Cost And Observability Foundation
+## Track 1: Closed — Cost And Observability Foundation
+
+Status:
+- Closed on 2026-04-06 after `cost-tracker`, `counters`, and the `/metrics/*` observability surface were promoted together and wired into FleetBar plus the fleet control plane.
 
 Why now:
 - the code already exists

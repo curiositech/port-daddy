@@ -1,4 +1,4 @@
-# ⚓ Port Daddy (v3.8.2)
+# ⚓ Port Daddy (v3.8.3)
 
 <p align="center">
   <img src="website-v2/public/img/hero-portdaddy.png" alt="Port Daddy — the harbormaster for your AI agents" width="600">
@@ -292,7 +292,7 @@ pd find 'myapp:api:main'       # Exact lookup
 The trie populates from SQLite on daemon startup and stays in sync on every register/claim/release. Harbor bitmask filtering enables O(1) scope checks for harbor membership.
 
 ### Fleet Engine (Declarative Agent Orchestration)
-Declare your background agent fleet in a `pd-fleet.yml` file — like docker-compose for AI agent swarms. **As of v3.8.2, the Port Daddy daemon auto-discovers and starts your fleet on boot** — no terminal to keep open.
+Declare your background agent fleet in a `pd-fleet.yml` file — like docker-compose for AI agent swarms. **As of v3.8.3, the Port Daddy daemon auto-discovers and starts your fleet on boot** — no terminal to keep open.
 
 ```yaml
 # pd-fleet.yml
@@ -375,7 +375,7 @@ curl http://localhost:9876/metrics/golden
 curl http://localhost:9876/metrics/cost
 # → { totals: { totalUsd: 2.15, spawns: 43 }, byProject: [...], byBackend: [...] }
 
-# Budget check — is "myapp" under its $10/day budget?
+# Budget check — explicit ceiling required on every query
 curl "http://localhost:9876/metrics/cost/budget/myapp?budgetUsdPerDay=10"
 
 # Counter time series — spawn rate by minute

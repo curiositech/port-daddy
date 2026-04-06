@@ -5,7 +5,7 @@ export default function ClaimCommand() {
     <CommandPage
       command="pd claim"
       description="Claim a port for a service. Identity uses project:stack:context format. Returns the same port on repeat calls (idempotent)."
-      version="3.7.0"
+      version="3.8.3"
       syntax="pd claim <identity> [flags]"
       flags={[
         { flag: '--quiet, -q', description: 'Output port number only' },

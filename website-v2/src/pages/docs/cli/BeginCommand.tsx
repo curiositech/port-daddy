@@ -5,7 +5,7 @@ export default function BeginCommand() {
     <CommandPage
       command="pd begin"
       description="Start a session and register as an agent in one command. Writes agent ID and session ID to .portdaddy/current.json for use by other pd commands. The recommended way to start any coordinated work."
-      version="3.7.0"
+      version="3.8.3"
       syntax="pd begin [flags]"
       flags={[
         { flag: '--identity <id>', description: 'Semantic identity for this agent (project:stack:context)' },

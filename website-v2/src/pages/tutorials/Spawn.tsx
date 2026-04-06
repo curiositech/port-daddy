@@ -1,95 +1,99 @@
 import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Surface } from '@/components/ui/Surface'
-import { Cpu, Activity, Shield, Rocket } from 'lucide-react'
+import { Rocket, Shield, Wallet, Compass } from 'lucide-react'
 
 export function Spawn() {
   return (
     <TutorialLayout
-      title="Swarm Bootstrapping"
-      description="Coordination starts with instrumentation. Learn to use pd spawn to launch agent processes with sessions, heartbeats, and Swarm Radio auto-wired."
+      title="Budgeted One-Shot Agents"
+      description="Use pd spawn when you want direct daemon-backed execution with explicit identity, explicit cost ceiling, and no long-lived fleet wiring."
       number={11}
       total={16}
-      level="Advanced"
-      readTime="15 min read"
+      level="Intermediate"
+      readTime="10 min read"
       prev={{ title: 'Agent Inbox', href: '/tutorials/inbox' }}
       next={{ title: 'Cryptographic Harbors', href: '/tutorials/harbors' }}
     >
       <div className="space-y-12">
-        {/* Intro Section */}
         <section className="space-y-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-[var(--surface-sunken)] flex items-center justify-center">
               <Rocket className="text-[var(--brand-primary)]" size={20} />
             </div>
-            <h2 className="m-0">The Orchestrator's Tool</h2>
+            <h2 className="m-0">When to Use pd spawn</h2>
           </div>
           <p>
-            Launching an agent script is easy. Launching an agent that is <strong>aware</strong> of its swarm is hard. <code>pd spawn</code> is the orchestrator's command--it launches a sub-process and automatically wraps it in a managed Port Daddy session with full telemetry.
+            <code>pd spawn</code> is the direct launch surface for a single one-shot agent. Use it when you already know the backend you want and you want the daemon to run the job with the normal Port Daddy coordination plumbing around it.
           </p>
-          <p className="text-sm text-[var(--text-secondary)]">
-            What you get automatically: <strong>Heartbeats</strong>, <strong>Session Logs</strong>, and <strong>Radio Wiring</strong>.
-          </p>
-        </section>
-
-        {/* Step 1: Spawning */}
-        <section className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[var(--surface-sunken)] flex items-center justify-center">
-              <Cpu className="text-[var(--brand-secondary)]" size={20} />
-            </div>
-            <h2 className="m-0">1. Summon an Agent</h2>
-          </div>
-
-          <p>
-            Launch any agent backend (Claude, Gemini, Aider, etc.) through the daemon. We'll spawn a coding agent to fix a specific bug.
-          </p>
-
-          <CodeBlock language="bash">
-            {`$ pd spawn --backend aider --model gemini/flash \\
-    --identity my-swarm:coder \\
-    -- "Fix the CSS centering in website-v2/Hero.tsx"`}
-          </CodeBlock>
-
-          <Surface depth="flat" radius="xl" padding="md" className="border-l-4 border-[var(--brand-secondary)]">
+          <Surface depth="flat" radius="xl" padding="md" className="border-l-4 border-[var(--brand-primary)]">
             <p className="m-0 text-sm" style={{ color: 'var(--text-secondary)' }}>
-              Port Daddy intercepts the agent's stdout/stderr and automatically converts meaningful output into <strong>Session Notes</strong> that other agents can read.
+              Reach for <strong>pd agent</strong> when you want a higher-level autopilot. Reach for <strong>fleet</strong> when the work should stay resident and trigger over time.
             </p>
           </Surface>
         </section>
 
-        {/* Step 2: Telemetry */}
         <section className="space-y-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-[var(--surface-sunken)] flex items-center justify-center">
-              <Activity className="text-[var(--brand-accent)]" size={20} />
+              <Shield className="text-[var(--brand-secondary)]" size={20} />
             </div>
-            <h2 className="m-0">2. Monitor the Pulse</h2>
+            <h2 className="m-0">1. Identity and Budget Are Required</h2>
           </div>
 
           <p>
-            The daemon monitors the sub-process for heartbeats. If the agent hangs, crashes, or goes into an infinite loop, Port Daddy detects the failure and flags the session for <strong>Salvage</strong>.
+            Port Daddy now refuses unbudgeted or unattributed launches. Every one-shot run needs a semantic identity so spend lands on a project and a positive ceiling so the launch can be preflighted against current usage.
           </p>
 
-          <Surface depth="raised" radius="xl" className="p-5 space-y-4">
-             <p className="text-sm font-black uppercase tracking-widest text-[var(--text-muted)] m-0">Daemon Telemetry</p>
-             <Surface depth="inset" radius="xl" padding="none" className="flex items-center justify-between p-4">
-                <span className="text-sm font-bold">agent-7f3a (coder) is active</span>
-                <span className="text-[10px] font-mono text-[var(--text-muted)]">CPU: 12%</span>
-             </Surface>
+          <CodeBlock language="bash">
+            {`$ pd spawn --backend claude-cli \\
+    --identity port-daddy:docs:spawn-sync \\
+    --budget 0.75 \\
+    -- "Rewrite the website spawn docs so they match the daemon contract"`}
+          </CodeBlock>
+
+          <Surface depth="raised" radius="xl" padding="md">
+            <div className="flex items-start gap-3">
+              <Wallet size={16} className="mt-0.5 text-[var(--brand-accent)]" />
+              <p className="m-0 text-sm" style={{ color: 'var(--text-secondary)' }}>
+                The ceiling is not decorative. Launch preflight checks readiness and current project spend before the daemon accepts the run.
+              </p>
+            </div>
           </Surface>
         </section>
 
-        {/* Vision Callout */}
-        <Surface depth="raised" radius="xl" className="p-6 space-y-4">
-           <div className="flex items-center gap-3">
-             <Shield size={18} className="text-[var(--brand-primary)]" />
-             <p className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] m-0">Fleet Maturity</p>
-           </div>
-           <p className="m-0 text-[var(--text-secondary)]">
-             With <code>pd spawn</code>, you move from managing individual scripts to managing a <strong>coordinated fleet</strong>. The daemon provides the "glue" that allows agents from different families to coexist in a single, secure harbor. Daemon-managed lifecycle means every spawned agent gets sessions, heartbeats, and salvage for free.
-           </p>
-        </Surface>
+        <section className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[var(--surface-sunken)] flex items-center justify-center">
+              <Compass className="text-[var(--brand-accent)]" size={20} />
+            </div>
+            <h2 className="m-0">2. Inspect the Run</h2>
+          </div>
+
+          <p>
+            <code>pd spawn</code> returns the actual run result, and <code>pd spawned</code> lets you inspect what is still active or recently finished.
+          </p>
+
+          <CodeBlock language="bash">
+            {`$ pd spawned
+AGENT ID            BACKEND   MODEL                    STATUS      AGE
+────────────────────────────────────────────────────────────────────────
+spawned-8a2f0c1c    claude-cli sonnet                 completed   12s`}
+          </CodeBlock>
+
+          <p className="text-sm text-[var(--text-secondary)]">
+            For an aider-backed launch, pass focused files so the spawned worker starts with a bounded working set instead of wandering the repo.
+          </p>
+
+          <CodeBlock language="bash">
+            {`$ pd spawn --backend aider \\
+    --identity port-daddy:ui:fleetbar \\
+    --budget 1.25 \\
+    --files apps/FleetBar/FleetBar/CostStore.swift \\
+    --files apps/FleetBar/FleetBar/CostDashboard.swift \\
+    -- "Use real fleet ceilings instead of a fake visual budget reference"`}
+          </CodeBlock>
+        </section>
       </div>
     </TutorialLayout>
   )

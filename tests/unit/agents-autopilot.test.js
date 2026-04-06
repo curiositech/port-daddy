@@ -61,6 +61,28 @@ describe('pd agent autopilot', () => {
     mockPdFetch
       .mockResolvedValueOnce(response(true, {
         success: true,
+        launchReady: true,
+        blockedReasons: [],
+        warnings: [],
+        attempts: [{
+          attempt: 1,
+          backend: 'custom',
+          model: null,
+          modelTier: null,
+          readinessStatus: 'manual_check',
+          readinessSummary: 'custom summary',
+        }],
+        budget: {
+          project: 'port-daddy',
+          budgetUsdPerDay: 0.75,
+          spentUsd: 0,
+          remainingUsd: 0.75,
+          percentUsed: 0,
+          overBudget: false,
+        },
+      }))
+      .mockResolvedValueOnce(response(true, {
+        success: true,
         agentId: 'agent-123',
         sessionId: 'session-456',
       }))
@@ -77,6 +99,7 @@ describe('pd agent autopilot', () => {
     await handleAgent('run', ['review', 'the', 'diff'], {
       backend: 'custom',
       quiet: true,
+      budget: '0.75',
     });
 
     expect(mockResolveFleetAgentRuntime).toHaveBeenCalledWith({
@@ -85,39 +108,53 @@ describe('pd agent autopilot', () => {
       modelTier: undefined,
     });
     expect(mockPdFetch).toHaveBeenNthCalledWith(1,
-      'http://localhost:9876/sugar/begin',
+      'http://localhost:9876/spawn/preflight',
       expect.objectContaining({
         method: 'POST',
       })
     );
     expect(mockPdFetch).toHaveBeenNthCalledWith(2,
-      'http://localhost:9876/spawn',
+      'http://localhost:9876/sugar/begin',
       expect.objectContaining({
         method: 'POST',
       })
     );
     expect(mockPdFetch).toHaveBeenNthCalledWith(3,
+      'http://localhost:9876/spawn',
+      expect.objectContaining({
+        method: 'POST',
+      })
+    );
+    expect(mockPdFetch).toHaveBeenNthCalledWith(4,
       'http://localhost:9876/sugar/done',
       expect.objectContaining({
         method: 'POST',
       })
     );
 
-    const beginBody = JSON.parse(mockPdFetch.mock.calls[0][1].body);
+    const preflightBody = JSON.parse(mockPdFetch.mock.calls[0][1].body);
+    expect(preflightBody).toMatchObject({
+      backend: 'custom',
+      identity: 'port-daddy:repo:cli',
+      budgetUsd: 0.75,
+    });
+
+    const beginBody = JSON.parse(mockPdFetch.mock.calls[1][1].body);
     expect(beginBody).toMatchObject({
       purpose: 'review the diff',
       identity: 'port-daddy:repo:cli',
       type: 'pd-agent',
     });
 
-    const spawnBody = JSON.parse(mockPdFetch.mock.calls[1][1].body);
+    const spawnBody = JSON.parse(mockPdFetch.mock.calls[2][1].body);
     expect(spawnBody).toMatchObject({
       backend: 'custom',
       identity: 'port-daddy:repo:cli',
       task: 'review the diff',
+      budgetUsd: 0.75,
     });
 
-    const doneBody = JSON.parse(mockPdFetch.mock.calls[2][1].body);
+    const doneBody = JSON.parse(mockPdFetch.mock.calls[3][1].body);
     expect(doneBody).toMatchObject({
       agentId: 'agent-123',
       sessionId: 'session-456',

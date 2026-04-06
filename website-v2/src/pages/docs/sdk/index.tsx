@@ -52,7 +52,7 @@ export default function SdkOverview() {
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           <Badge variant="teal">SDK</Badge>
-          <Badge variant="default">v3.7.0</Badge>
+          <Badge variant="default">v3.8.3</Badge>
         </div>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           TypeScript SDK

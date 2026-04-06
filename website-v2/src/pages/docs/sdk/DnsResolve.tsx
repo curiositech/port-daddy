@@ -6,7 +6,7 @@ export default function DnsResolve() {
       function="dnsResolve"
       description="Resolve a name to a port number. Returns null if name is not registered."
       module="DNS"
-      version="3.7.0"
+      version="3.8.3"
       signature="dnsResolve(name: string): Promise<number | null>"
       params={[
         { name: 'name', type: 'string', required: true, description: 'Name to resolve' },

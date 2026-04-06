@@ -181,7 +181,7 @@ export function AgentsPage() {
             </div>
 
             <p className="text-sm leading-relaxed m-0" style={{ color: 'var(--text-secondary)' }}>
-              The agents below are <strong>examples that ship with Port Daddy</strong>. You can use them as-is, modify their prompts, or define entirely new agents. Any shell command, any LLM backend, any trigger.
+              The agents below are <strong>examples that ship with Port Daddy</strong>. You can use them as-is, modify their prompts, or define entirely new agents. Any trigger, custom shell commands, and the current built-in runtimes: Claude, Claude CLI, Gemini, Ollama, and Aider.
             </p>
 
             <CodeBlock language="bash">{`# Example: your own custom agent

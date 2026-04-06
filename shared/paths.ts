@@ -35,3 +35,6 @@ export const DEFAULT_PID_FILE = join(HOME, 'daemon.pid');
 
 /** TCP port file (for CLI to discover the dashboard port) */
 export const DEFAULT_PORT_FILE = process.env.PORT_DADDY_PORT_FILE || join(HOME, 'daemon.port');
+
+/** Shared UI preferences (menu bar companion, daemon UI hints) */
+export const UI_PREFS_FILE = join(HOME, 'ui-preferences.json');

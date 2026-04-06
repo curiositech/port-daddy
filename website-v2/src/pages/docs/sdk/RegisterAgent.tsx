@@ -6,7 +6,7 @@ export default function RegisterAgent() {
       function="registerAgent"
       description="Register this process as an agent. Used by spawned agents internally, but also callable directly."
       module="Agents"
-      version="3.7.0"
+      version="3.8.3"
       signature="registerAgent(options: RegisterOptions): Promise<AgentRegistration>"
       params={[
         { name: 'options.agent', type: 'string', required: true, description: 'Agent ID (UUID recommended)' },

@@ -13,6 +13,7 @@ fleet:
   limits:
     max_concurrent_spawns: 2
     max_spawns_per_hour: 10
+    budget_usd_per_day: 5
 
   agents:
     gardener:

@@ -3,13 +3,24 @@ import SwiftUI
 // MARK: - Main Popover
 
 struct FleetPopover: View {
+    @Environment(\.openWindow) private var openWindow
     @ObservedObject var store: FleetStore
+    @ObservedObject var costStore: CostStore
     @State private var appeared = false
+    @State private var showingSettings = false
 
     var body: some View {
         VStack(spacing: 0) {
             header
             Divider().opacity(0.5)
+            if store.isDaemonRunning {
+                CostDashboard(store: costStore)
+                Divider().opacity(0.5)
+            }
+            if showingSettings {
+                settingsPanel
+                Divider().opacity(0.5)
+            }
             if store.projects.isEmpty {
                 emptyState
             } else {
@@ -22,6 +33,45 @@ struct FleetPopover: View {
         .onAppear {
             withAnimation(.smooth(duration: 0.4)) { appeared = true }
         }
+    }
+
+    private var settingsPanel: some View {
+        VStack(alignment: .leading, spacing: Fleet.Space.m) {
+            HStack {
+                Text("Companion Settings")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                Text(store.isDaemonRunning ? "Connected" : "Offline")
+                    .font(.caption2)
+                    .foregroundStyle(store.isDaemonRunning ? Fleet.Color.healthy : Fleet.Color.warning)
+            }
+
+            Toggle(isOn: Binding(
+                get: { store.preferences.launchFleetBarOnDaemonStart },
+                set: { store.setLaunchFleetBarOnDaemonStart($0) }
+            )) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Launch FleetBar when Port Daddy starts")
+                        .font(.caption.weight(.medium))
+                    Text("Daemon-owned preference for the menu bar companion on macOS.")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .toggleStyle(.switch)
+
+            if let message = store.settingsMessage {
+                Text(message)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, Fleet.Space.l)
+        .padding(.vertical, Fleet.Space.m)
+        .background(Fleet.Color.dormant.opacity(0.05))
     }
 
     // MARK: - Header
@@ -223,6 +273,28 @@ struct FleetPopover: View {
                     .font(.caption2)
                     .foregroundStyle(.quaternary)
             }
+
+            Button {
+                openWindow(id: "fleet-control-center")
+            } label: {
+                Image(systemName: "macwindow")
+            }
+            .buttonStyle(.borderless)
+            .font(.caption2)
+            .foregroundStyle(.quaternary)
+            .help("Open native control center")
+
+            Button {
+                withAnimation(Fleet.Motion.snappy) {
+                    showingSettings.toggle()
+                }
+            } label: {
+                Image(systemName: showingSettings ? "slider.horizontal.3" : "gearshape")
+            }
+            .buttonStyle(.borderless)
+            .font(.caption2)
+            .foregroundStyle(.quaternary)
+            .help(showingSettings ? "Hide settings" : "Show settings")
 
             Button("Quit") {
                 NSApplication.shared.terminate(nil)
@@ -461,6 +533,9 @@ struct StatusCapsule: View {
 #Preview("Fleet Running") {
     FleetPopover(store: {
         let store = FleetStore()
+        return store
+    }(), costStore: {
+        let store = CostStore()
         return store
     }())
     .frame(width: 380, height: 520)

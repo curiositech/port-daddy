@@ -5,7 +5,7 @@ export default function DoneCommand() {
     <CommandPage
       command="pd done"
       description="End the current session and unregister agent. Reads session ID from .portdaddy/current.json. Marks session as completed and cleans up agent registration."
-      version="3.7.0"
+      version="3.8.3"
       syntax="pd done [flags]"
       flags={[
         { flag: '--session <id>', description: 'Explicit session ID (skips current.json lookup)' },

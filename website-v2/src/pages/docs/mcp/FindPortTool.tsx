@@ -5,7 +5,7 @@ export default function FindPortTool() {
     <CommandPage
       command="find_port"
       description="Find the port assigned to an identity without claiming a new one. Returns null if the identity has not claimed a port. Useful for discovering where services are running."
-      version="3.7.0"
+      version="3.8.3"
       syntax="find_port(identity)"
       flags={[
         { flag: 'identity', description: 'The identity to look up (required)' },

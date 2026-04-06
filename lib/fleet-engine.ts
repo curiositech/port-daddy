@@ -49,7 +49,7 @@ export interface FleetLimits {
   maxConcurrentSpawns?: number;
   /** Max spawns per hour (rate limit, default: unlimited) */
   maxSpawnsPerHour?: number;
-  /** Max daily LLM spend for this project (default: unlimited) */
+  /** Required daily LLM spend ceiling for this project */
   budgetUsdPerDay?: number;
 }
 
@@ -211,6 +211,12 @@ const BUILTIN_MODEL_TIERS: Partial<Record<string, Record<FleetModelTier, string>
 function cleanEnvValue(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
   return trimmed ? trimmed : undefined;
+}
+
+function normalizeBudgetUsdPerDay(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
+    ? value
+    : undefined;
 }
 
 function parseModelTier(value: string | undefined): FleetModelTier | undefined {
@@ -393,7 +399,7 @@ export function loadFleetConfig(projectDir: string): FleetConfig | null {
   const limits: FleetLimits | undefined = rawLimits ? {
     maxConcurrentSpawns: rawLimits.max_concurrent_spawns,
     maxSpawnsPerHour: rawLimits.max_spawns_per_hour,
-    budgetUsdPerDay: rawLimits.budget_usd_per_day,
+    budgetUsdPerDay: normalizeBudgetUsdPerDay(rawLimits.budget_usd_per_day),
   } : undefined;
 
   return {
@@ -489,6 +495,10 @@ export function validateTopology(config: FleetConfig): TopologyValidation {
   // Warnings
   const warnings: string[] = [];
 
+  if (config.agents.length > 0 && config.limits?.budgetUsdPerDay === undefined) {
+    warnings.push('Fleet limits.budgetUsdPerDay is required for every agentic launch.');
+  }
+
   // Check for orphan channels (declared but no producer)
   for (const [channel] of Object.entries(config.channels)) {
     if (!producerOf.has(channel) && !['git:committed'].includes(channel)) {
@@ -548,7 +558,9 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
 
   function canSpawn(): { allowed: boolean; reason?: string } {
     const limits = config.limits;
-    if (!limits) return { allowed: true };
+    if (!limits || limits.budgetUsdPerDay === undefined) {
+      return { allowed: false, reason: 'fleet limits.budgetUsdPerDay is required for every agentic launch' };
+    }
 
     // Concurrency limit
     if (limits.maxConcurrentSpawns !== undefined && activeSpawns >= limits.maxConcurrentSpawns) {
@@ -697,6 +709,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
 
     const body: Record<string, unknown> = {
       backend: runtime.backend,
+      budgetUsd: config.limits?.budgetUsdPerDay,
       task,
       identity,
       purpose,

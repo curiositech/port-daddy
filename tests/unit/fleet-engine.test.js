@@ -51,6 +51,9 @@ const { loadFleetConfig, createFleetRunner, validateTopology } = await import('.
 function makeConfig(agentOverrides = {}) {
   return {
     name: 'test-fleet',
+    limits: {
+      budgetUsdPerDay: 5,
+    },
     agents: [
       {
         name: 'test-agent',
@@ -288,6 +291,38 @@ test('budgetUsdPerDay blocks spawn when project is over budget', async () => {
   expect(mockBudgetStatus).toHaveBeenCalledWith('test-fleet', 1.25);
 });
 
+test('missing fleet budget blocks spawn before contacting the daemon', async () => {
+  const config = {
+    ...makeConfig({ schedule: '*/10 * * * *' }),
+    limits: undefined,
+  };
+
+  const onEvent = jest.fn();
+  global.fetch = jest.fn().mockResolvedValue({
+    ok: true,
+    status: 200,
+    json: async () => ({ agentId: 'abc', status: 'spawned' }),
+  });
+
+  const runner = createFleetRunner(config, '/tmp/proj', { onEvent });
+  runner.startAgent(config.agents[0]);
+  await Promise.resolve();
+  await Promise.resolve();
+
+  expect(global.fetch).not.toHaveBeenCalledWith(
+    'http://localhost:9876/spawn',
+    expect.anything()
+  );
+  expect(onEvent).toHaveBeenCalledWith(
+    expect.objectContaining({
+      type: 'agent_failed',
+      details: expect.objectContaining({
+        error: expect.stringContaining('budgetUsdPerDay'),
+      }),
+    })
+  );
+});
+
 test('singleton agents reject overlapping hail while a run is active', async () => {
   const config = makeConfig({
     schedule: '*/10 * * * *',
@@ -522,7 +557,7 @@ test('hailAgent returns error for unknown agent name', async () => {
 test('BUG B2: hailAgent must return failure when spawn is blocked by quota', async () => {
   const config = {
     ...makeConfig({ schedule: undefined, trigger: undefined }),
-    limits: { maxConcurrentSpawns: 0 },  // zero concurrency → always blocked
+    limits: { budgetUsdPerDay: 5, maxConcurrentSpawns: 0 },  // zero concurrency → always blocked
   };
 
   const onEvent = jest.fn();
@@ -656,7 +691,7 @@ describe('validateTopology', () => {
     const result = validateTopology(config);
     expect(result.valid).toBe(true); // No cycle, but...
     expect(result.warnings.length).toBeGreaterThan(0);
-    expect(result.warnings[0]).toContain('orphan');
+    expect(result.warnings.some((warning) => warning.includes('orphan'))).toBe(true);
   });
 
   test('self-trigger (agent publishes to its own trigger) is not a cycle', () => {
@@ -717,6 +752,7 @@ test('BUG 7: spawn body uses computed identity fallback when agent.identity is u
   const body = JSON.parse(spawnCall[1].body);
   // Identity should be the computed fallback, not undefined
   expect(body.identity).toBe('test-fleet:fleet:test-agent');
+  expect(body.budgetUsd).toBe(5);
 });
 
 // ─── MISSING: hourly rate limit enforcement ──────────────────────────────────
@@ -724,7 +760,7 @@ test('BUG 7: spawn body uses computed identity fallback when agent.identity is u
 test('maxSpawnsPerHour blocks spawn after limit is reached', async () => {
   const config = {
     ...makeConfig({ schedule: '*/5 * * * *' }),
-    limits: { maxSpawnsPerHour: 2 },
+    limits: { budgetUsdPerDay: 5, maxSpawnsPerHour: 2 },
   };
 
   const onEvent = jest.fn();
@@ -761,7 +797,7 @@ test('BUG C: activeSpawns decrements after spawn resolves, allowing next spawn',
   // it resolves, the second should also succeed (not be stuck at limit).
   const config = {
     ...makeConfig({ schedule: undefined, trigger: undefined }),
-    limits: { maxConcurrentSpawns: 1 },
+    limits: { budgetUsdPerDay: 5, maxConcurrentSpawns: 1 },
   };
 
   let callCount = 0;

@@ -5,6 +5,26 @@ All notable changes to Port Daddy will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.8.3] - 2026-04-06
+
+### Added
+- **Cost Tracking & Observability**: Per-spawn LLM cost recording with model pricing tables, budget enforcement per project, ODS-style time-bucketed operational metrics with in-memory batching. 6 new endpoints: `GET /metrics/golden` (RED signals), `GET /metrics/counters`, `GET /metrics/counters/top`, `GET /metrics/cost`, `GET /metrics/cost/recent`, `GET /metrics/cost/budget/:project`. Spawner automatically records cost + counter metrics for every spawn. Fleet engine blocks spawns when daily budget exceeded.
+- **Fleet Config Management API**: `GET /fleet/config/:project` (raw YAML + parsed config + topology validation), `PUT /fleet/config/:project` (write YAML, validate, reload fleet), `GET /fleet/models` (available backend + model catalog with live Ollama detection).
+- **`pd setup` — One-Command Onboarding**: Installs daemon, configures MCP in Claude Code/Desktop/Cursor, installs FleetBar (macOS), and initializes current project. Flags: `--no-daemon`, `--no-mcp`, `--no-fleetbar`, `--no-init`. Detects projects via `.git`, `pd-fleet.yml`, `package.json`, etc.
+- **Agent Inbox Wake-on-Message**: `POST /agents/:id/inbox` now accepts `wake: true` + `project` fields. When wake is set, daemon calls `fleetDaemon.hailAgent()` to immediately activate a fleet-managed agent. Enables message-driven agent scheduling (vs. cron-only).
+- **Fleet Singleton Enforcement**: Agents can declare `singleton: true` in `pd-fleet.yml` to prevent concurrent runs. Tracked via `activeAgentRuns` Set in fleet engine. All 6 sample fleet agents now declare singleton.
+- **FleetBar Auto-Launch**: Daemon starts the FleetBar menu bar companion app on boot (macOS, if installed). Detects via `/Applications/FleetBar.app` or build artifacts. Silent on failure.
+- **Handoff Note Encryption**: `endSession()` now encrypts handoff notes using the same AES-256-GCM layer as regular session notes (was plaintext).
+
+### Changed
+- **Spawner Dependency Injection**: Spawner is now injected via route dependencies (not module-level singleton). Enables testing and multiple spawner instances.
+- **MCP Install Resilience**: `pd mcp install` now gracefully continues with skill installation even when no AI platforms are detected (was: early return).
+- **Messaging `content` Fallback**: `POST /msg/:channel` now accepts both `payload` and `content` fields (`payload` takes precedence). Enables interop with systems that use `content`.
+- **Fleet Prompt Name Resolution**: `pd fleet prompt` prefers explicit `name` field from `pd-fleet.yml`, falls back to git root basename.
+- **Budgeted Agent Launches Are Now Mandatory**: `pd spawn`, `pd agent`, MCP `spawn_agent`, fleet auto-spawns, and the sortie launch UI now require a positive budget ceiling plus semantic identity, and they run through readiness/cost preflight before launch.
+- **FleetBar Cost UI Uses Real Fleet Ceilings**: The FleetBar dashboard now reads per-project `budget_usd_per_day` from live fleet config instead of painting against a fake visual reference.
+- **Website Spawn Docs Re-synced**: The website CLI, SDK, MCP, and tutorial pages for spawning now reflect the actual runtime contract and required budget/identity fields.
+
 ## [3.8.2] - 2026-03-30
 
 ### Added
@@ -91,6 +111,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`pd setup` — One-Command Onboarding**: Single command installs daemon (launchd), configures MCP integration across 7 IDE platforms (Claude Code, Claude Desktop, Cursor, Windsurf, VS Code Copilot, Continue, Cline), installs FleetBar (macOS), and initializes the current project. Flags: `--no-daemon`, `--no-mcp`, `--no-fleetbar`, `--no-init`, `--no-fleet`, `--no-hook`, `--project <dir>`. Auto-detects project directories via git root and 15+ language markers (package.json, Cargo.toml, go.mod, etc.).
+- **Cost Tracking System** (`lib/cost-tracker.ts`): Per-spawn LLM cost recording with model pricing table covering Claude Opus 4/Sonnet 4.6/Haiku 4.5, Gemini 2.0 Flash, GPT-4.1, and more. Exact cost from token counts (Claude SDK) or flat per-session estimates for opaque backends (claude-cli: $0.05, aider: $0.10). Methods: `record()`, `total()`, `summary()`, `budgetStatus()`.
+- **Operational Counters** (`lib/counters.ts`): ODS-style time-bucketed metrics with in-memory batching (flushes to SQLite every 10s). Minute + hour indexing. Auto-cleanup: rows older than 30 days pruned. Methods: `bump()`, `summary()`, `query()`.
+- **Observability Routes** (`routes/observability.ts`): Golden signals (RED method) at `GET /metrics/golden` — rate/min, error%, avg duration, cost/hr. Cost endpoints: `GET /metrics/cost` (by project + backend), `GET /metrics/cost/recent`, `GET /metrics/cost/budget/:project` (budget enforcement). Counter endpoints: `GET /metrics/counters`, `GET /metrics/counters/top` (top N dimension values).
+- **Fleet Config Management Endpoints**: `GET /fleet/prompt` (one-line status for shell prompts), `GET /fleet/config/:project` (raw YAML + parsed config + topology validation), `PUT /fleet/config/:project` (write YAML, validate, reload fleet), `GET /fleet/models` (backend + model catalog, probes Ollama live with 60s cache).
+- **MCP Install Expansion**: `pd mcp install` now supports 7 platforms: Claude Code (`~/.claude/settings.json`), Claude Desktop, Cursor (`~/.cursor/mcp.json`), Windsurf (`~/.windsurf/mcp.json`), VS Code Copilot (`~/.vscode/mcp.json`), Continue, and Cline. Auto-detects installed IDEs.
+- **Path Centralization** (`shared/paths.ts`): All runtime files now live in `~/.port-daddy/` instead of `/tmp/`. Survives `/tmp/` cleanup, eliminates symlink attacks, user-private permissions (0700). Exports: `PD_HOME`, `DEFAULT_SOCK`, `DEFAULT_IPC`, `DEFAULT_PID_FILE`, `DEFAULT_PORT_FILE`, `UI_PREFS_FILE`. Override via `PORT_DADDY_SOCK`, `PORT_DADDY_IPC`, `PORT_DADDY_PORT_FILE` env vars.
+- **FleetBar Auto-Launcher** (`lib/fleetbar-launcher.ts`): Daemon auto-launches FleetBar menu bar app on startup (macOS only). Searches `/Applications/FleetBar.app`, `~/Applications/FleetBar.app`, and build outputs. Passes `PORT_DADDY_PORT` and `PORT_DADDY_URL` to the FleetBar process. Respects `launchFleetBarOnDaemonStart` UI preference.
+- **UI Preferences** (`lib/ui-preferences.ts`): Persistent preference storage at `~/.port-daddy/ui-preferences.json`. Currently: `launchFleetBarOnDaemonStart` (boolean).
+- **Fleet Config UI**: React app (`fleet-config-ui/`) for visual fleet management — YAML editor, agent cards, activity panel, channel log, DM panel, flow graph, project picker, sortie (one-off agent spawn) panel. Communicates with daemon via REST + SSE subscriptions.
+- **FleetBar Enhancements**: CostDashboard (cost visualization in menu bar), CostStore (cost data store), FleetBarPreferences (user preferences UI) added to the SwiftUI menu bar app.
 - **Context-Aware Salvage**: Agent registration with `--identity` and `--purpose` now auto-checks for dead agents in the same project and returns a salvage notice. `pd salvage --project <name>` filters by project. Dashboard shows salvage queue grouped by project.
 - **CLI @clack/prompts makeover**: Replaced raw ANSI/readline output with `@clack/prompts` for styled intro bars, spinners, log messages (success/error/warn/info), boxed notes, and interactive prompts. New confident, AI-like voice across all 58+ commands.
 - **`pd spawn` — AI Agent Launcher**: Launch local or cloud AI agents with Port Daddy coordination auto-wired

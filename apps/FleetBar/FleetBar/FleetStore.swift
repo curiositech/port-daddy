@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import Darwin
 
 // MARK: - Data Model
 
@@ -74,10 +75,25 @@ class FleetStore: ObservableObject {
     @Published var isDaemonRunning = false
     @Published var lastRefresh: Date?
     @Published var expandedProjects: Set<String> = []
+    @Published var preferences: FleetBarPreferences
+    @Published var settingsMessage: String?
 
     private var sseTask: Task<Void, Never>?
     private nonisolated(unsafe) var pollTimer: Timer?
     private let baseURL: String
+
+    var daemonURL: String { baseURL }
+
+    var daemonLabel: String {
+        guard let url = URL(string: baseURL) else { return baseURL }
+        let port = url.port ?? (url.scheme == "https" ? 443 : 80)
+        return "\(url.host ?? "localhost"):\(port)"
+    }
+
+    var isCanonicalDaemon: Bool {
+        guard let url = URL(string: baseURL) else { return false }
+        return (url.host == "localhost" || url.host == "127.0.0.1") && url.port == 9876
+    }
 
     // Menu bar display
     var menuBarIcon: String {
@@ -105,17 +121,23 @@ class FleetStore: ObservableObject {
     var totalFailed: Int { projects.reduce(0) { $0 + $1.failedCount } }
 
     init() {
-        // Read port from Port Daddy's port file
-        let portFile = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".port-daddy/daemon.port")
-        let port: Int
-        if let portStr = try? String(contentsOf: portFile, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines),
-           let p = Int(portStr) {
-            port = p
+        self.preferences = FleetBarPreferenceStore.load()
+
+        if let explicitURL = ProcessInfo.processInfo.environment["PORT_DADDY_URL"],
+           !explicitURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            self.baseURL = explicitURL
         } else {
-            port = 9876
+            let portFile = FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent(".port-daddy/daemon.port")
+            let port: Int
+            if let portStr = try? String(contentsOf: portFile, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines),
+               let p = Int(portStr) {
+                port = p
+            } else {
+                port = 9876
+            }
+            self.baseURL = "http://localhost:\(port)"
         }
-        self.baseURL = "http://localhost:\(port)"
 
         // Initial fetch + start SSE
         Task {
@@ -142,43 +164,36 @@ class FleetStore: ObservableObject {
         guard !isStartingDaemon else { return }
         isStartingDaemon = true
 
-        // Try launchctl first (if installed as LaunchAgent), fall back to pd start
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/bin/zsh")
-        process.arguments = ["-c", """
-            if launchctl list | grep -q com.portdaddy.daemon; then
-                launchctl kickstart gui/$(id -u)/com.portdaddy.daemon
-            elif command -v pd &>/dev/null; then
-                pd start
-            else
-                # Find pd in common locations
-                for p in /usr/local/bin/pd "$HOME/.npm-global/bin/pd" "$HOME/port-daddy-stable/bin/port-daddy-cli.ts"; do
-                    [ -x "$p" ] && "$p" start && break
-                done
-            fi
-            """]
-        process.standardOutput = nil
-        process.standardError = nil
+        Task {
+            let started = startLaunchAgentDaemon() || startDaemonViaCLI()
 
-        do {
-            try process.run()
-            process.waitUntilExit()
-
-            // Poll for daemon to come up (give it 5 seconds)
-            Task {
-                for _ in 0..<10 {
-                    try? await Task.sleep(for: .milliseconds(500))
-                    await refresh()
-                    if isDaemonRunning {
-                        isStartingDaemon = false
-                        return
-                    }
-                }
+            if !started {
+                settingsMessage = "Could not start Port Daddy"
                 isStartingDaemon = false
+                return
             }
-        } catch {
+
+            for _ in 0..<10 {
+                try? await Task.sleep(for: .milliseconds(500))
+                await refresh()
+                if isDaemonRunning {
+                    isStartingDaemon = false
+                    settingsMessage = nil
+                    return
+                }
+            }
+
+            settingsMessage = "Daemon did not respond"
             isStartingDaemon = false
         }
+    }
+
+    func setLaunchFleetBarOnDaemonStart(_ enabled: Bool) {
+        preferences.launchFleetBarOnDaemonStart = enabled
+        let saved = FleetBarPreferenceStore.save(preferences)
+        settingsMessage = saved
+            ? (enabled ? "FleetBar will open with Port Daddy" : "FleetBar auto-open disabled")
+            : "Could not save FleetBar setting"
     }
 
     // MARK: - HTTP API
@@ -228,6 +243,50 @@ class FleetStore: ObservableObject {
         request.httpBody = "{}".data(using: .utf8)
         _ = try? await URLSession.shared.data(for: request)
         await refresh()
+    }
+
+    // MARK: - Local Helpers
+
+    private func startLaunchAgentDaemon() -> Bool {
+        let uid = String(getuid())
+        return runProcess(
+            executable: URL(fileURLWithPath: "/bin/launchctl"),
+            arguments: ["kickstart", "-k", "gui/\(uid)/com.portdaddy.daemon"]
+        ) == 0
+    }
+
+    private func startDaemonViaCLI() -> Bool {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let candidates = [
+            "/opt/homebrew/bin/pd",
+            "/usr/local/bin/pd",
+            "\(home)/.npm-global/bin/pd",
+            "\(home)/port-daddy-stable/bin/port-daddy-cli.ts",
+        ]
+
+        for path in candidates where FileManager.default.isExecutableFile(atPath: path) {
+            if runProcess(executable: URL(fileURLWithPath: path), arguments: ["start"]) == 0 {
+                return true
+            }
+        }
+
+        return false
+    }
+
+    private func runProcess(executable: URL, arguments: [String]) -> Int32? {
+        let process = Process()
+        process.executableURL = executable
+        process.arguments = arguments
+        process.standardOutput = nil
+        process.standardError = nil
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+            return process.terminationStatus
+        } catch {
+            return nil
+        }
     }
 
     // MARK: - SSE Connection

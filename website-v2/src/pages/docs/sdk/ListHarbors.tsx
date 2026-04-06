@@ -6,7 +6,7 @@ export default function ListHarbors() {
       function="listHarbors"
       description="List all active harbors and their capabilities."
       module="Harbors"
-      version="3.7.0"
+      version="3.8.3"
       signature="listHarbors(options?: ListHarborsOptions): Promise<Harbor[]>"
       params={[
         { name: 'options.active', type: 'boolean', description: 'Only show harbors with active tokens (default: true)' },

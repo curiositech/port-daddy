@@ -5,7 +5,7 @@ export default function TunnelCommand() {
     <CommandPage
       command="tunnel"
       description="Create a secure tunnel to a service. Enables external access to local services."
-      version="3.7.0"
+      version="3.8.3"
       syntax="pd tunnel <identity>"
       flags={[
         { flag: 'identity', description: 'Service identity to tunnel' },

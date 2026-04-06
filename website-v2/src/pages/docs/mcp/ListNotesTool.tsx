@@ -5,7 +5,7 @@ export default function ListNotesTool() {
     <CommandPage
       command="list_notes"
       description="Show recent notes. Without filters, returns the last 10 notes across all sessions."
-      version="3.7.0"
+      version="3.8.3"
       syntax="list_notes(options?)"
       flags={[
         { flag: 'session', description: 'Filter by specific session ID' },

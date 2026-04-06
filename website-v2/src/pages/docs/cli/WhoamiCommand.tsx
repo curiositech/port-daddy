@@ -5,7 +5,7 @@ export default function WhoamiCommand() {
     <CommandPage
       command="whoami"
       description="Show the current agent identity and session from .portdaddy/current.json."
-      version="3.7.0"
+      version="3.8.3"
       syntax="pd whoami"
       usagePatterns={[
         'pd whoami',

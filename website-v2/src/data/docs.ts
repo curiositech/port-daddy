@@ -68,7 +68,7 @@ export const CLI_COMMANDS: CliCommand[] = [
     cmd: 'pd status',
     description: 'Daemon status: uptime, port count, SQLite path, and code hash.',
     example: 'pd status',
-    output: '[pd] Port Daddy v3.7.0 — 3 services, uptime 4h 12m',
+    output: '[pd] Port Daddy v3.8.3 — 3 services, uptime 4h 12m',
   },
   {
     group: 'Ports',
