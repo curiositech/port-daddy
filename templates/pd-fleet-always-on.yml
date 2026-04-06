@@ -4,6 +4,7 @@
 # Good for: monitoring, health checks, ambient awareness, periodic cleanup.
 #
 # Merge these into your pd-fleet.yml or use standalone.
+# Pin `model:` for any agent backend that supports multiple model tiers.
 
 fleet:
   name: "{project}-always-on"
@@ -39,6 +40,7 @@ fleet:
     session-reaper:
       schedule: "0 * * * *"
       backend: claude-cli
+      model: haiku
       singleton: true
       allowedTools: "Read,Grep"
       prompt: |
@@ -59,6 +61,7 @@ fleet:
     dep-watcher:
       schedule: "0 9 * * *"
       backend: claude-cli
+      model: haiku
       singleton: true
       allowedTools: "Read,Bash(npm outdated*),Bash(npm audit*)"
       prompt: |
@@ -76,6 +79,7 @@ fleet:
     changelog-writer:
       trigger: release:prepare
       backend: claude-cli
+      model: haiku
       allowedTools: "Read,Grep,Glob,Write"
       prompt: |
         Generate a changelog entry for the next release.

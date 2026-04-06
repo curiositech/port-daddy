@@ -11,7 +11,13 @@ import { existsSync, readFileSync, writeFileSync, unlinkSync, mkdirSync } from '
 import { spawn } from 'node:child_process';
 import * as ui from '../utils/ui.js';
 import { pdFetch, isDaemonRunning } from '../utils/fetch.js';
-import { loadFleetConfig, createFleetRunner } from '../../lib/fleet-engine.js';
+import {
+  loadFleetConfig,
+  createFleetRunner,
+  getFleetRuntimeDefaults,
+  resolveFleetAgentRuntime,
+} from '../../lib/fleet-engine.js';
+import { assessBackendReadiness } from '../../lib/backend-readiness.js';
 
 // ─── Load .env.local / .env for API keys ────────────────────────────────────
 // Searches: cwd, parent dir, home directory. Later files overwrite earlier ones,
@@ -54,6 +60,7 @@ loadEnvFiles();
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PD_URL = process.env.PD_URL || process.env.PORT_DADDY_URL || 'http://localhost:9876';
+const LOCAL_EXECUTION_BACKENDS = new Set(['claude-cli', 'ollama', 'aider', 'custom']);
 
 function isFleetRunning(): { running: boolean; pid: number | null; name: string | null } {
   const stateFile = join(process.cwd(), '.portdaddy', 'fleet-state.json');
@@ -163,7 +170,7 @@ async function fleetInit(): Promise<void> {
 
   console.log('');
   ui.info('Next steps:');
-  console.log('  1. Add ANTHROPIC_API_KEY to .env.local');
+  console.log('  1. Pin a backend + model for each agent, or set PD_FLEET_DEFAULT_BACKEND / PD_FLEET_DEFAULT_MODEL');
   console.log('  2. Edit pd-fleet.yml to customize agent prompts');
   console.log('  3. Run: pd fleet up');
   console.log('  4. Commit something — watch the agents fire');
@@ -267,6 +274,7 @@ async function fleetStatus(): Promise<void> {
   console.log('');
   ui.info('Port Daddy Fleet');
   console.log('');
+  const defaults = getFleetRuntimeDefaults();
 
   const { running, pid, name } = isFleetRunning();
   if (running) {
@@ -279,6 +287,88 @@ async function fleetStatus(): Promise<void> {
       ui.info(`  Start with: pd fleet up`);
     } else {
       ui.warn('No fleet running, no pd-fleet.yml found');
+    }
+  }
+
+  const config = loadFleetConfig(process.cwd());
+
+  console.log('');
+  ui.info('Configured agents:');
+  if (!config) {
+    console.log('  (no pd-fleet.yml)');
+  } else if (config.agents.length === 0) {
+    console.log('  (none)');
+  } else {
+    for (const agent of config.agents) {
+      const runtime = resolveFleetAgentRuntime(agent);
+      const mode = agent.schedule ? `schedule ${agent.schedule}` : `trigger ${agent.trigger}`;
+      const backend = runtime.backend || 'MISSING';
+      const model = runtime.model || (backend === 'claude-cli' ? 'CLI default' : runtime.modelTier ? `${runtime.modelTier} tier (unmapped)` : 'backend default');
+      const fallbacks = (agent.fallbacks || []).map((fallback) => {
+        const fallbackRuntime = resolveFleetAgentRuntime({
+          backend: fallback.backend || agent.backend,
+          model: fallback.model,
+          modelTier: fallback.modelTier,
+        });
+        const fallbackBackend = fallbackRuntime.backend || 'MISSING';
+        const fallbackModel = fallbackRuntime.model
+          || (fallbackRuntime.modelTier ? `${fallbackRuntime.modelTier} tier` : (fallbackBackend === 'claude-cli' ? 'CLI default' : 'backend default'));
+        return `${fallbackBackend}/${fallbackModel}`;
+      });
+      const warnings = runtime.warnings.length > 0 ? ` [${runtime.warnings.join('; ')}]` : '';
+      const fallbackText = fallbacks.length > 0 ? ` / fallbacks: ${fallbacks.join(' -> ')}` : '';
+      console.log(`  ${agent.name} — ${backend} / ${model} / ${mode}${fallbackText}${warnings}`);
+    }
+  }
+
+  console.log('');
+  ui.info('Fleet runtime defaults:');
+  console.log(`  backend: ${defaults.backend || '(unset)'}`);
+  console.log(`  model:   ${defaults.model || '(unset)'}`);
+
+  console.log('');
+  ui.info('Backend readiness:');
+  if (!config) {
+    console.log('  (no pd-fleet.yml)');
+  } else {
+    const configuredBackends = new Set<string>();
+    if (defaults.backend) configuredBackends.add(defaults.backend);
+
+    for (const agent of config.agents) {
+      const runtime = resolveFleetAgentRuntime(agent);
+      if (runtime.backend) configuredBackends.add(runtime.backend);
+      for (const fallback of agent.fallbacks || []) {
+        const fallbackRuntime = resolveFleetAgentRuntime({
+          backend: fallback.backend || agent.backend,
+          model: fallback.model,
+          modelTier: fallback.modelTier,
+        });
+        if (fallbackRuntime.backend) configuredBackends.add(fallbackRuntime.backend);
+      }
+    }
+
+    if (configuredBackends.size === 0) {
+      console.log('  (no backends resolved)');
+    } else {
+      const readinessChecks = await Promise.all(
+        [...configuredBackends].sort().map((backend) => assessBackendReadiness(backend))
+      );
+      for (const readiness of readinessChecks) {
+        const statusIcon = readiness.status === 'ready'
+          ? '+'
+          : readiness.status === 'manual_check'
+            ? '~'
+            : '!';
+        console.log(`  [${statusIcon}] ${readiness.backend} — ${readiness.summary}`);
+        if (readiness.nextStep) {
+          console.log(`      next: ${readiness.nextStep}`);
+        }
+      }
+
+      if (readinessChecks.some((entry) => LOCAL_EXECUTION_BACKENDS.has(entry.backend))) {
+        console.log('  [~] local execution note — local CLI backends and Port Daddy socket/IPC operations may need unsandboxed approval in restricted runners');
+        console.log('      next: If you hit EPERM/EACCES/ENOENT while claiming ports or opening Port Daddy sockets, rerun the Port Daddy command with unsandboxed approval.');
+      }
     }
   }
 
@@ -355,11 +445,19 @@ async function runAgentByName(agentName: string, preloadedConfig?: ReturnType<ty
     process.exit(1);
   }
 
-  ui.info(`Running ${agent.name} (${agent.backend})...`);
+  const runtime = resolveFleetAgentRuntime(agent);
+  if (!runtime.backend) {
+    ui.error(`Agent "${agent.name}" has no backend configured`);
+    ui.info('Set agent.backend in pd-fleet.yml or export PD_FLEET_DEFAULT_BACKEND');
+    process.exit(1);
+  }
 
-  if (agent.backend === 'claude-cli') {
+  ui.info(`Running ${agent.name} (${runtime.backend}${runtime.model ? ` / ${runtime.model}` : ''})...`);
+
+  if (runtime.backend === 'claude-cli') {
     // Run locally — claude CLI needs user's auth context
     const args = ['-p', agent.prompt];
+    if (runtime.model) args.push('--model', runtime.model);
     if (agent.allowedTools) args.push('--allowedTools', agent.allowedTools);
 
     // Ensure API keys are in the env for the child process
@@ -398,11 +496,11 @@ async function runAgentByName(agentName: string, preloadedConfig?: ReturnType<ty
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        backend: agent.backend,
+        model: runtime.model,
         task: agent.prompt,
         identity: agent.identity,
         purpose: `Fleet agent: ${agent.name}`,
-        model: agent.model,
+        backend: runtime.backend,
         timeout: agent.timeout,
         allowedTools: agent.allowedTools,
       }),
@@ -424,17 +522,22 @@ async function runAgentByName(agentName: string, preloadedConfig?: ReturnType<ty
 // ─── fleet prompt ───────────────────────────────────────────────────────────
 
 async function fleetPrompt(): Promise<void> {
-  // Detect project name from cwd (basename of git root, or cwd itself)
-  let projectName: string;
-  try {
-    const { execFileSync } = await import('node:child_process');
-    const root = execFileSync('git', ['rev-parse', '--show-toplevel'], {
-      encoding: 'utf-8',
-      stdio: ['pipe', 'pipe', 'pipe'],
-    }).trim();
-    projectName = root.split('/').pop() || '';
-  } catch {
-    projectName = process.cwd().split('/').pop() || '';
+  // Prefer the declarative fleet name from pd-fleet.yml.
+  // Fall back to git root basename so the prompt still works in undeclared repos.
+  const config = loadFleetConfig(process.cwd());
+
+  let projectName = config?.name || '';
+  if (!projectName) {
+    try {
+      const { execFileSync } = await import('node:child_process');
+      const root = execFileSync('git', ['rev-parse', '--show-toplevel'], {
+        encoding: 'utf-8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+      }).trim();
+      projectName = root.split('/').pop() || '';
+    } catch {
+      projectName = process.cwd().split('/').pop() || '';
+    }
   }
 
   if (!projectName) return; // silent exit — no project detected
@@ -521,7 +624,10 @@ export async function handleFleet(positional: string[], _options: Record<string,
         console.log(`Agents in pd-fleet.yml (${config.agents.length}):`);
         for (const a of config.agents) {
           const mode = a.schedule ? `schedule: ${a.schedule}` : `trigger: ${a.trigger}`;
-          console.log(`  ${a.name.padEnd(16)} ${a.backend.padEnd(12)} ${mode}`);
+          const runtime = resolveFleetAgentRuntime(a);
+          const backend = runtime.backend || 'MISSING';
+          const model = runtime.model || (backend === 'claude-cli' ? 'CLI default' : runtime.modelTier ? `${runtime.modelTier} tier` : 'backend default');
+          console.log(`  ${a.name.padEnd(16)} ${backend.padEnd(12)} ${model.padEnd(16)} ${mode}`);
         }
         console.log('');
         console.log('Run an agent once:');

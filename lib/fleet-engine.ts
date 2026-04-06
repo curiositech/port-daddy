@@ -12,6 +12,7 @@ import { join, basename } from 'node:path';
 import { spawn, execSync, type ChildProcess } from 'node:child_process';
 import { get as httpGet } from 'node:http';
 import { parse as parseYaml } from 'yaml';
+import type { CostTracker } from './cost-tracker.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -21,6 +22,7 @@ export interface FleetAgent {
   trigger?: string;        // channel name
   backend: string;         // ollama, claude, claude-cli, custom
   model?: string;
+  modelTier?: FleetModelTier;
   prompt: string;
   worktree?: boolean;
   singleton?: boolean;
@@ -31,6 +33,7 @@ export interface FleetAgent {
   identity?: string;
   timeout?: number;
   allowedTools?: string;
+  fallbacks?: FleetRuntimeTarget[];
 }
 
 export interface FleetWatcher {
@@ -59,6 +62,28 @@ export interface FleetConfig {
   channels: Record<string, { description: string; consumers?: string[] }>;
 }
 
+export interface FleetRuntimeDefaults {
+  backend?: string;
+  model?: string;
+}
+
+export type FleetModelTier = 'low' | 'mid' | 'high';
+
+export interface FleetRuntimeTarget {
+  backend?: string;
+  model?: string;
+  modelTier?: FleetModelTier;
+}
+
+export interface ResolvedFleetAgentRuntime {
+  backend: string | null;
+  model?: string;
+  modelTier?: FleetModelTier;
+  backendSource: 'agent' | 'env' | 'missing';
+  modelSource: 'agent' | 'tier' | 'env' | 'unset';
+  warnings: string[];
+}
+
 export interface FleetRunContext {
   source?: 'schedule' | 'trigger' | 'inbox' | 'manual';
   channel?: string;
@@ -79,10 +104,12 @@ interface RunningAgent {
 // ─── YAML Shapes ───────────────────────────────────────────────────────────
 
 interface FleetYamlAgent {
+  name?: string;
   schedule?: string;
   trigger?: string;
   backend?: string;
   model?: string;
+  model_tier?: string;
   prompt?: string | number;
   worktree?: boolean;
   singleton?: boolean;
@@ -94,6 +121,13 @@ interface FleetYamlAgent {
   timeout?: number;
   allowedTools?: string;
   allowed_tools?: string;
+  fallbacks?: FleetYamlRuntimeTarget[];
+}
+
+interface FleetYamlRuntimeTarget {
+  backend?: string;
+  model?: string;
+  model_tier?: string;
 }
 
 interface FleetYamlWatcher {
@@ -168,6 +202,103 @@ function getTemplateVars(projectDir: string): Record<string, string> {
 // ─── Fleet Config Loader ────────────────────────────────────────────────────
 
 const FLEET_CONFIG_NAMES = ['pd-fleet.yml', 'pd-fleet.yaml', '.portdaddy/fleet.yml', '.portdaddy/fleet.yaml'];
+const MODEL_TIERS = new Set<FleetModelTier>(['low', 'mid', 'high']);
+const BUILTIN_MODEL_TIERS: Partial<Record<string, Record<FleetModelTier, string>>> = {
+  'claude-cli': { low: 'haiku', mid: 'sonnet', high: 'opus' },
+  gemini: { low: 'gemini-2.5-flash', mid: 'gemini-2.5-flash', high: 'gemini-2.5-pro' },
+};
+
+function cleanEnvValue(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+function parseModelTier(value: string | undefined): FleetModelTier | undefined {
+  const normalized = cleanEnvValue(value)?.toLowerCase() as FleetModelTier | undefined;
+  return normalized && MODEL_TIERS.has(normalized) ? normalized : undefined;
+}
+
+function normalizeBackendEnvKey(backend: string): string {
+  return backend.replace(/[^a-zA-Z0-9]+/g, '_').toUpperCase();
+}
+
+function resolveTierModel(backend: string, modelTier: FleetModelTier): string | undefined {
+  const envKey = `PD_MODEL_TIER_${normalizeBackendEnvKey(backend)}_${modelTier.toUpperCase()}`;
+  const legacyEnvKey = `PORT_DADDY_MODEL_TIER_${normalizeBackendEnvKey(backend)}_${modelTier.toUpperCase()}`;
+  return cleanEnvValue(process.env[envKey])
+    || cleanEnvValue(process.env[legacyEnvKey])
+    || BUILTIN_MODEL_TIERS[backend]?.[modelTier];
+}
+
+export function getFleetRuntimeDefaults(): FleetRuntimeDefaults {
+  return {
+    backend: cleanEnvValue(process.env.PD_FLEET_DEFAULT_BACKEND)
+      || cleanEnvValue(process.env.PORT_DADDY_FLEET_DEFAULT_BACKEND),
+    model: cleanEnvValue(process.env.PD_FLEET_DEFAULT_MODEL)
+      || cleanEnvValue(process.env.PORT_DADDY_FLEET_DEFAULT_MODEL),
+  };
+}
+
+function mergeRuntimeTarget(agent: Pick<FleetAgent, 'backend' | 'model' | 'modelTier'>, override?: FleetRuntimeTarget): FleetRuntimeTarget {
+  const overrideBackend = cleanEnvValue(override?.backend);
+  const baseBackend = cleanEnvValue(agent.backend);
+  const sameBackend = !overrideBackend || overrideBackend === baseBackend;
+  return {
+    backend: overrideBackend || baseBackend,
+    model: cleanEnvValue(override?.model) || (sameBackend ? cleanEnvValue(agent.model) : undefined),
+    modelTier: parseModelTier(override?.modelTier) || (sameBackend ? parseModelTier(agent.modelTier) : undefined),
+  };
+}
+
+export function resolveFleetAgentRuntime(agent: Pick<FleetAgent, 'backend' | 'model' | 'modelTier'> | FleetRuntimeTarget): ResolvedFleetAgentRuntime {
+  const defaults = getFleetRuntimeDefaults();
+  const explicitBackend = cleanEnvValue(agent.backend);
+  const explicitModel = cleanEnvValue(agent.model);
+  const explicitModelTier = parseModelTier(agent.modelTier);
+  const backend = explicitBackend || defaults.backend || null;
+  const tierModel = backend && explicitModelTier ? resolveTierModel(backend, explicitModelTier) : undefined;
+  const model = explicitModel || tierModel || defaults.model;
+  const warnings: string[] = [];
+
+  if (!backend) {
+    warnings.push('missing backend; set agent.backend or PD_FLEET_DEFAULT_BACKEND');
+  }
+  if (backend && explicitModelTier && !tierModel) {
+    warnings.push(`no model mapping for ${backend}/${explicitModelTier}; set model explicitly or define PD_MODEL_TIER_${normalizeBackendEnvKey(backend)}_${explicitModelTier.toUpperCase()}`);
+  } else if (backend === 'claude-cli' && !model) {
+    warnings.push('model not pinned; claude-cli will use its local default');
+  }
+
+  return {
+    backend,
+    model,
+    modelTier: explicitModelTier,
+    backendSource: explicitBackend ? 'agent' : defaults.backend ? 'env' : 'missing',
+    modelSource: explicitModel ? 'agent' : tierModel ? 'tier' : defaults.model ? 'env' : 'unset',
+    warnings,
+  };
+}
+
+function parseFallbacks(fallbacks: FleetYamlRuntimeTarget[] | undefined): FleetRuntimeTarget[] | undefined {
+  if (!Array.isArray(fallbacks) || fallbacks.length === 0) return undefined;
+  const parsed = fallbacks
+    .filter((fallback) => fallback && typeof fallback === 'object')
+    .map((fallback) => ({
+      backend: cleanEnvValue(fallback.backend),
+      model: cleanEnvValue(fallback.model),
+      modelTier: parseModelTier(fallback.model_tier),
+    }))
+    .filter((fallback) => fallback.backend || fallback.model || fallback.modelTier);
+  return parsed.length > 0 ? parsed : undefined;
+}
+
+function buildRuntimeAttempts(agent: Pick<FleetAgent, 'backend' | 'model' | 'modelTier' | 'fallbacks'>): ResolvedFleetAgentRuntime[] {
+  const attempts = [resolveFleetAgentRuntime(agent)];
+  for (const fallback of agent.fallbacks || []) {
+    attempts.push(resolveFleetAgentRuntime(mergeRuntimeTarget(agent, fallback)));
+  }
+  return attempts;
+}
 
 /** Returns the first fleet config path that exists in projectDir, or null. */
 export function findFleetConfigPath(projectDir: string): string | null {
@@ -195,14 +326,19 @@ export function loadFleetConfig(projectDir: string): FleetConfig | null {
   // Normalize agents (supports both object and array format)
   const agents: FleetAgent[] = [];
   const rawAgents = fleet.agents;
-  if (rawAgents && typeof rawAgents === 'object' && !Array.isArray(rawAgents)) {
-    for (const [name, s] of Object.entries(rawAgents)) {
+  const addAgent = (name: string, s: FleetYamlAgent): void => {
+      const runtime = resolveFleetAgentRuntime({
+        backend: s.backend,
+        model: s.model,
+        modelTier: parseModelTier(s.model_tier),
+      } as Pick<FleetAgent, 'backend' | 'model' | 'modelTier'>);
       agents.push({
         name,
         schedule: s.schedule,
         trigger: s.trigger,
-        backend: s.backend || 'claude-cli',
-        model: s.model,
+        backend: runtime.backend || '',
+        model: runtime.model,
+        modelTier: runtime.modelTier,
         prompt: typeof s.prompt === 'string' ? s.prompt.trim() : String(s.prompt || ''),
         worktree: s.worktree || false,
         singleton: s.singleton || false,
@@ -213,8 +349,18 @@ export function loadFleetConfig(projectDir: string): FleetConfig | null {
         identity: s.identity,
         timeout: s.timeout,
         allowedTools: s.allowedTools || s.allowed_tools,
+        fallbacks: parseFallbacks(s.fallbacks),
       });
+  };
+  if (rawAgents && typeof rawAgents === 'object' && !Array.isArray(rawAgents)) {
+    for (const [name, s] of Object.entries(rawAgents)) {
+      addAgent(name, s);
     }
+  } else if (Array.isArray(rawAgents)) {
+    rawAgents.forEach((s, index) => {
+      const derivedName = cleanEnvValue(s.name) || `agent-${index + 1}`;
+      addAgent(derivedName, s);
+    });
   }
 
   // Normalize watchers
@@ -383,6 +529,7 @@ export type FleetEventCallback = (event: FleetEvent) => void;
 
 export interface FleetRunnerOptions {
   onEvent?: FleetEventCallback;
+  costTracker?: CostTracker;
   messaging?: {
     subscribe(channel: string, callback: (message: unknown) => void): (() => void) | null;
   };
@@ -396,6 +543,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
 
   // ─── Resource quota enforcement (Ostrom Principle 2) ────────────────────
   let activeSpawns = 0;
+  const activeAgentRuns = new Set<string>();
   const spawnTimestamps: number[] = [];  // rolling window for per-hour rate limit
 
   function canSpawn(): { allowed: boolean; reason?: string } {
@@ -419,6 +567,17 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       }
     }
 
+    // Daily budget limit
+    if (limits.budgetUsdPerDay !== undefined && options?.costTracker) {
+      const budget = options.costTracker.budgetStatus(project, limits.budgetUsdPerDay);
+      if (budget.overBudget) {
+        return {
+          allowed: false,
+          reason: `daily budget exceeded ($${budget.spentUsd.toFixed(2)} / $${budget.budgetUsdPerDay.toFixed(2)})`,
+        };
+      }
+    }
+
     return { allowed: true };
   }
 
@@ -435,7 +594,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       // Scheduled agent: run immediately, then on interval
       // Convert cron to ms (simplified: support */N * * * * format)
       const intervalMs = parseCronInterval(agent.schedule);
-      runAgentOnce(agent);
+      void runAgentOnce(agent);
       record.interval = setInterval(() => runAgentOnce(agent), intervalMs);
     }
 
@@ -462,6 +621,10 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
         watchProc.unref();
         record.process = watchProc;
       }
+    }
+
+    if (!agent.schedule && !agent.trigger) {
+      void runAgentOnce(agent);
     }
 
     running.set(agent.name, record);
@@ -501,13 +664,131 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     error?: string;
   }
 
-  async function fireHook(hook: string, payload: string): Promise<void> {
+  interface SpawnAttemptFailure {
+    kind: 'config' | 'transport' | 'daemon' | 'spawn' | 'unexpected_status' | 'invalid_response';
+    backend: string;
+    model: string | null;
+    attempt: number;
+    message: string;
+    httpStatus?: number;
+    spawnStatus?: string;
+  }
+
+  async function spawnFleetAttempt(
+    runtime: ResolvedFleetAgentRuntime,
+    attempt: number,
+    task: string,
+    identity: string,
+    purpose: string,
+    agent: FleetAgent,
+  ): Promise<{ ok: true; data: SpawnResponse } | { ok: false; failure: SpawnAttemptFailure }> {
+    if (!runtime.backend) {
+      return {
+        ok: false,
+        failure: {
+          kind: 'config',
+          backend: 'MISSING',
+          model: runtime.model ?? null,
+          attempt,
+          message: 'missing backend; set agent.backend or PD_FLEET_DEFAULT_BACKEND',
+        },
+      };
+    }
+
+    const body: Record<string, unknown> = {
+      backend: runtime.backend,
+      task,
+      identity,
+      purpose,
+    };
+    if (runtime.model) body.model = runtime.model;
+    if (agent.timeout) body.timeout = agent.timeout;
+    if (agent.allowedTools) body.allowedTools = agent.allowedTools;
+
+    let res: Response;
+    try {
+      res = await fetch(`${PD_URL}/spawn`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    } catch (err) {
+      return {
+        ok: false,
+        failure: {
+          kind: 'transport',
+          backend: runtime.backend,
+          model: runtime.model ?? null,
+          attempt,
+          message: (err as Error).message,
+        },
+      };
+    }
+
+    let data: SpawnResponse;
+    try {
+      data = (await res.json()) as SpawnResponse;
+    } catch (err) {
+      return {
+        ok: false,
+        failure: {
+          kind: 'invalid_response',
+          backend: runtime.backend,
+          model: runtime.model ?? null,
+          attempt,
+          message: `daemon returned invalid JSON: ${(err as Error).message}`,
+          httpStatus: res.status,
+        },
+      };
+    }
+
+    const succeeded = data.status === 'spawned' || data.status === 'completed';
+    if (succeeded) {
+      return { ok: true, data };
+    }
+
+    if (!res.ok || data.status === 'failed') {
+      return {
+        ok: false,
+        failure: {
+          kind: !res.ok ? 'daemon' : 'spawn',
+          backend: runtime.backend,
+          model: runtime.model ?? null,
+          attempt,
+          message: data.error || `spawn failed via ${runtime.backend}`,
+          httpStatus: res.status,
+          spawnStatus: data.status,
+        },
+      };
+    }
+
+    return {
+      ok: false,
+      failure: {
+        kind: 'unexpected_status',
+        backend: runtime.backend,
+        model: runtime.model ?? null,
+        attempt,
+        message: `unexpected status ${data.status ?? 'unknown'}`,
+        httpStatus: res.status,
+        spawnStatus: data.status,
+      },
+    };
+  }
+
+  function fireHook(hook: string, payload: string): void {
     const [action, channel] = hook.split(' ');
     if (action === 'publish' && channel) {
-      await fetch(`${PD_URL}/msg/${channel}`, {
+      void Promise.resolve(fetch(`${PD_URL}/msg/${channel}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ payload }),
+      })).catch((err: Error) => {
+        console.error('[Fleet] Hook publish failed:', {
+          hook,
+          channel,
+          error: err.message,
+        });
       });
     }
   }
@@ -528,26 +809,15 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
   }
 
   function contextFromMessage(channel: string, message: unknown): FleetRunContext {
-    if (typeof message === 'object' && message !== null) {
-      const event = message as {
-        payload?: unknown;
-        sender?: string | null;
-      };
-      return {
-        source: 'trigger',
-        channel,
-        from: event.sender ?? null,
-        message: event.payload ?? message,
-        messageContent: trimMessage(serializeMessage(event.payload ?? message)),
-      };
-    }
-
+    const isObj = typeof message === 'object' && message !== null;
+    const event = isObj ? message as { payload?: unknown; sender?: string | null } : null;
+    const resolved = event?.payload ?? message;
     return {
       source: 'trigger',
       channel,
-      from: null,
-      message,
-      messageContent: trimMessage(serializeMessage(message)),
+      from: event?.sender ?? null,
+      message: resolved,
+      messageContent: trimMessage(serializeMessage(resolved)),
     };
   }
 
@@ -555,7 +825,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     const basePrompt = agent.prompt.trim();
     if (!context) return basePrompt;
 
-    const messageText = trimMessage((context.messageContent ?? serializeMessage(context.message)).trim());
+    const messageText = (context.messageContent ?? serializeMessage(context.message)).trim();
     if (!messageText) return basePrompt;
 
     const lines = [
@@ -574,8 +844,18 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     return lines.join('\n');
   }
 
-  async function runAgentOnce(agent: FleetAgent, context?: FleetRunContext): Promise<void> {
+  async function runAgentOnce(agent: FleetAgent, context?: FleetRunContext): Promise<{ success: boolean; error?: string }> {
     const identity = agent.identity || `${project}:fleet:${agent.name}`;
+    const attempts = buildRuntimeAttempts(agent);
+    const primaryRuntime = attempts[0];
+
+    if (agent.singleton && activeAgentRuns.has(agent.name)) {
+      emit({
+        type: 'agent_failed', agent: agent.name, identity, project,
+        timestamp: Date.now(), details: { error: 'singleton already active' },
+      });
+      return { success: false, error: 'singleton already active' };
+    }
 
     // Enforce resource quotas before spawning
     const quota = canSpawn();
@@ -585,9 +865,20 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
         timestamp: Date.now(), details: { error: `quota: ${quota.reason}` },
       });
       console.error(`[Fleet] ${agent.name} blocked by quota: ${quota.reason}`);
-      return;
+      return { success: false, error: `quota: ${quota.reason}` };
     }
 
+    if (!primaryRuntime?.backend) {
+      emit({
+        type: 'agent_failed', agent: agent.name, identity, project,
+        timestamp: Date.now(),
+        details: { error: 'missing backend; set agent.backend or PD_FLEET_DEFAULT_BACKEND' },
+      });
+      console.error(`[Fleet] ${agent.name} blocked: missing backend. Set agent.backend or PD_FLEET_DEFAULT_BACKEND.`);
+      return { success: false, error: 'missing backend; set agent.backend or PD_FLEET_DEFAULT_BACKEND' };
+    }
+
+    activeAgentRuns.add(agent.name);
     activeSpawns++;
     if (config.limits?.maxSpawnsPerHour !== undefined) {
       spawnTimestamps.push(Date.now());
@@ -595,74 +886,123 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
 
     emit({
       type: 'agent_started', agent: agent.name, identity, project,
-      timestamp: Date.now(), details: { backend: agent.backend },
+      timestamp: Date.now(),
+      details: {
+        backend: primaryRuntime.backend,
+        model: primaryRuntime.model ?? null,
+        fallbacks: attempts.slice(1).map((attempt) => ({
+          backend: attempt.backend,
+          model: attempt.model ?? null,
+          modelTier: attempt.modelTier ?? null,
+        })),
+      },
     });
 
     try {
-      const body: Record<string, unknown> = {
-        backend: agent.backend,
-        task: buildAgentTask(agent, context),
-        identity: agent.identity,
-        purpose: `Fleet agent: ${agent.name}`,
-      };
-      if (agent.model) body.model = agent.model;
-      if (agent.timeout) body.timeout = agent.timeout;
-      if (agent.allowedTools) body.allowedTools = agent.allowedTools;
+      const attemptErrors: SpawnAttemptFailure[] = [];
+      const task = buildAgentTask(agent, context);
 
-      const res = await fetch(`${PD_URL}/spawn`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
+      for (let i = 0; i < attempts.length; i += 1) {
+        const runtime = attempts[i];
+        if (!runtime.backend) continue;
+        const outcome = await spawnFleetAttempt(
+          runtime,
+          i + 1,
+          task,
+          identity,
+          `Fleet agent: ${agent.name}`,
+          agent,
+        );
 
-      const data = (await res.json()) as SpawnResponse;
+        if (outcome.ok) {
+          emit({
+            type: 'agent_completed', agent: agent.name, identity, project,
+            timestamp: Date.now(),
+            details: {
+              agentId: outcome.data.agentId,
+              status: outcome.data.status,
+              backend: runtime.backend,
+              model: runtime.model ?? null,
+              attempt: i + 1,
+            },
+          });
+          if (agent.onSuccess) {
+            fireHook(agent.onSuccess, `${agent.name} spawned`);
+          }
+          return { success: true };
+        }
 
-      // /spawn returns status='spawned' immediately (async). Trigger callbacks
-      // on spawn acknowledgment — the actual completion is tracked by PD.
-      const succeeded = data.status === 'spawned' || data.status === 'completed';
-      const failed = data.status === 'failed' || !res.ok;
+        attemptErrors.push(outcome.failure);
 
-      if (succeeded) {
-        emit({
-          type: 'agent_completed', agent: agent.name, identity, project,
-          timestamp: Date.now(), details: { agentId: data.agentId, status: data.status },
-        });
+        if (i < attempts.length - 1) {
+          const next = attempts[i + 1];
+          console.error(`[Fleet] ${agent.name} fallback:`, {
+            failedAttempt: {
+              backend: outcome.failure.backend,
+              model: outcome.failure.model,
+              attempt: outcome.failure.attempt,
+              kind: outcome.failure.kind,
+              message: outcome.failure.message,
+            },
+            nextAttempt: {
+              backend: next.backend,
+              model: next.model ?? null,
+              attempt: i + 2,
+            },
+          });
+        }
       }
-      if (failed) {
-        emit({
-          type: 'agent_failed', agent: agent.name, identity, project,
-          timestamp: Date.now(), details: { error: data.error, status: data.status },
-        });
-      }
 
-      if (succeeded && agent.onSuccess) {
-        await fireHook(agent.onSuccess, `${agent.name} spawned`);
-      } else if (failed && agent.onFailure) {
-        await fireHook(agent.onFailure, `${agent.name} failed: ${(data.error ?? 'unknown').slice(0, 200)}`);
-      }
-    } catch (err) {
+      const errorMessage = 'all runtime attempts failed';
       emit({
         type: 'agent_failed', agent: agent.name, identity, project,
-        timestamp: Date.now(), details: { error: (err as Error).message },
+        timestamp: Date.now(),
+        details: {
+          error: errorMessage,
+          attempts: attemptErrors,
+        },
       });
-      console.error(`[Fleet] Agent ${agent.name} error:`, (err as Error).message);
+      if (agent.onFailure) {
+        const summary = attemptErrors
+          .map((attempt) => `${attempt.backend}${attempt.model ? `/${attempt.model}` : ''} [${attempt.kind}]: ${attempt.message}`)
+          .join(' ; ');
+        fireHook(agent.onFailure, `${agent.name} failed: ${summary.slice(0, 200)}`);
+      }
+      return { success: false, error: errorMessage };
+    } catch (err) {
+      const message = (err as Error).message;
+      emit({
+        type: 'agent_failed', agent: agent.name, identity, project,
+        timestamp: Date.now(), details: { error: message },
+      });
+      console.error(`[Fleet] Agent ${agent.name} error:`, message);
+      return { success: false, error: message };
     } finally {
       activeSpawns = Math.max(0, activeSpawns - 1);
+      activeAgentRuns.delete(agent.name);
     }
   }
 
   function buildSpawnCommand(agent: FleetAgent): string {
     // Validate identity to prevent shell injection via YAML config
     const identity = agent.identity || `fleet:${agent.name}`;
+    const runtime = buildRuntimeAttempts(agent)[0];
     if (!/^[a-zA-Z0-9.:_*-]+$/.test(identity)) {
       throw new Error(`Invalid fleet agent identity: ${identity}`);
     }
+    if (!runtime.backend) {
+      throw new Error(`Fleet agent "${agent.name}" is missing a backend. Set agent.backend or PD_FLEET_DEFAULT_BACKEND.`);
+    }
+
+    const quote = (value: string): string => JSON.stringify(value);
     const parts = [
-      'npx', 'tsx', join(projectDir, 'bin', 'port-daddy-cli.ts'),
-      'spawn', '--backend', agent.backend,
-      '--identity', identity,
-      '-q', '--', JSON.stringify(agent.prompt),
+      'npx', 'tsx', quote(join(projectDir, 'bin', 'port-daddy-cli.ts')),
+      'spawn', '--backend', quote(runtime.backend),
+      '--identity', quote(identity),
     ];
+    if (runtime.model) parts.push('--model', quote(runtime.model));
+    if (agent.allowedTools) parts.push('--allowedTools', quote(agent.allowedTools));
+    parts.push('-q', '--', quote(agent.prompt));
     return parts.join(' ');
   }
 
@@ -816,6 +1156,10 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     respawnWatcherStopped = true;
     for (const [name, record] of running) {
       if (record.interval) clearInterval(record.interval);
+      if (record.watchHandle) {
+        try { record.watchHandle(); } catch { /* ignore unsubscribe failures */ }
+        record.watchHandle = undefined;
+      }
       if (record.process) {
         const pid = record.process.pid;
         if (pid) {
@@ -846,12 +1190,11 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     if (!agent) {
       return { success: false, error: `No agent named ${agentName}` };
     }
-    if (running.has(agentName) && agent.singleton) {
+    if (agent.singleton && activeAgentRuns.has(agentName)) {
       return { success: false, error: `${agentName} is singleton and already active` };
     }
 
-    await runAgentOnce(agent, context ?? { source: 'manual' });
-    return { success: true };
+    return runAgentOnce(agent, context ?? { source: 'manual' });
   }
 
   return { startAll, stopAll, startAgent, getStatus, hailAgent, config };

@@ -15,6 +15,8 @@ import type { ChildProcess } from 'node:child_process';
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { CostTracker } from './cost-tracker.js';
+import type { Counters } from './counters.js';
 
 // ─── Load .env.local for spawned agents ─────────────────────────────────────
 // The daemon runs via launchd which has no shell env. Spawned agents need
@@ -111,6 +113,11 @@ export interface SpawnedAgent {
 interface AgentRecord extends SpawnedAgent {
   heartbeatInterval: ReturnType<typeof setInterval> | null;
   childProcess: ChildProcess | null;
+}
+
+interface SpawnerDeps {
+  costTracker?: CostTracker;
+  counters?: Counters;
 }
 
 // =============================================================================
@@ -297,6 +304,9 @@ function runCustom(spec: SpawnSpec): Promise<{ output: string; error: string | n
 
 function runClaudeCli(spec: SpawnSpec): Promise<{ output: string; error: string | null }> {
   const args = ['-p', spec.task];
+  if (spec.model) {
+    args.push('--model', spec.model);
+  }
   if (spec.allowedTools) {
     args.push('--allowedTools', spec.allowedTools);
   }
@@ -342,9 +352,10 @@ const DEFAULT_MODELS: Record<SpawnSpec['backend'], string> = {
 // =============================================================================
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export function createSpawner(_deps: {} = {}) {
+export function createSpawner(deps: SpawnerDeps = {}) {
   // In-memory registry of active spawned agents
   const agents = new Map<string, AgentRecord>();
+  const { costTracker, counters } = deps;
 
   /** Hard ceiling on concurrent running agents. Prevents fork bombs.
    *  Fleet YAML limits are per-project; this is the global safety net.
@@ -378,6 +389,22 @@ export function createSpawner(_deps: {} = {}) {
     }
   }
 
+  function getProjectName(identity?: string): string | undefined {
+    if (!identity) return undefined;
+    const [projectName] = identity.split(':');
+    return projectName || undefined;
+  }
+
+  function metricDims(spec: SpawnSpec, model: string): Record<string, string> {
+    const dims: Record<string, string> = {
+      backend: spec.backend,
+      model,
+    };
+    const projectName = getProjectName(spec.identity);
+    if (projectName) dims.project = projectName;
+    return dims;
+  }
+
   /**
    * Spawn an AI agent with the given spec.
    * Automatically wires PD session + heartbeat + done.
@@ -387,11 +414,14 @@ export function createSpawner(_deps: {} = {}) {
 
     // Hard global limit — never exceed MAX_CONCURRENT_RUNNING processes
     const running = [...agents.values()].filter(a => a.status === 'running').length;
+    const model = spec.model || DEFAULT_MODELS[spec.backend];
+    const dims = metricDims(spec, model);
     if (running >= MAX_CONCURRENT_RUNNING) {
+      counters?.bump('spawn.blocked', dims);
       return {
         agentId: 'blocked',
         backend: spec.backend,
-        model: spec.model || DEFAULT_MODELS[spec.backend],
+        model,
         status: 'failed',
         output: null,
         error: `Spawn blocked: ${running} agents already running (limit: ${MAX_CONCURRENT_RUNNING}). Wait for one to finish.`,
@@ -401,8 +431,9 @@ export function createSpawner(_deps: {} = {}) {
     }
 
     const agentId = `spawned-${randomBytes(6).toString('hex')}`;
-    const model = spec.model || DEFAULT_MODELS[spec.backend];
     const startedAt = Date.now();
+    const projectName = getProjectName(spec.identity);
+    counters?.bump('spawn.started', dims);
 
     // Register agent record (running)
     const record: AgentRecord = {
@@ -438,6 +469,9 @@ export function createSpawner(_deps: {} = {}) {
       await pdCoordinate(`/agents/${agentId}/heartbeat`, {});
     }, 30000);
 
+    let output: string | null = null;
+    let error: string | null = null;
+
     try {
       let result: { output: string; error: string | null };
 
@@ -457,60 +491,49 @@ export function createSpawner(_deps: {} = {}) {
           result = { output: '', error: `Unknown backend: ${String(spec.backend)}` };
       }
 
-      const { output, error } = result;
-
-      const completedAt = Date.now();
-      const status: SpawnResult['status'] = error ? 'failed' : 'completed';
-
-      // Update record
-      record.status = status;
-      record.completedAt = completedAt;
-
-      // Clean up heartbeat
-      if (record.heartbeatInterval) {
-        clearInterval(record.heartbeatInterval);
-        record.heartbeatInterval = null;
-      }
-
-      // PD coordination: done
-      const doneNote = error ? `Failed: ${error.slice(0, 200)}` : `Completed: ${output.slice(0, 200)}`;
-      await pdCoordinate('/sugar/done', { agentId, note: doneNote });
-
-      return {
-        agentId,
-        backend: spec.backend,
-        model,
-        status,
-        output: output || null,
-        error,
-        startedAt,
-        completedAt,
-      };
+      output = result.output || null;
+      error = result.error;
     } catch (err) {
-      const errorMessage = (err as Error).message;
-      const completedAt = Date.now();
-
-      record.status = 'failed';
-      record.completedAt = completedAt;
-
-      if (record.heartbeatInterval) {
-        clearInterval(record.heartbeatInterval);
-        record.heartbeatInterval = null;
-      }
-
-      await pdCoordinate('/sugar/done', { agentId, note: `Error: ${errorMessage}` });
-
-      return {
-        agentId,
-        backend: spec.backend,
-        model,
-        status: 'failed',
-        output: null,
-        error: errorMessage,
-        startedAt,
-        completedAt,
-      };
+      error = (err as Error).message;
     }
+
+    // Common cleanup — runs for both success and failure
+    const completedAt = Date.now();
+    const status: SpawnResult['status'] = error ? 'failed' : 'completed';
+
+    record.status = status;
+    record.completedAt = completedAt;
+
+    if (record.heartbeatInterval) {
+      clearInterval(record.heartbeatInterval);
+      record.heartbeatInterval = null;
+    }
+
+    const doneNote = error ? `Failed: ${error.slice(0, 200)}` : `Completed: ${(output || '').slice(0, 200)}`;
+    await pdCoordinate('/sugar/done', { agentId, note: doneNote });
+
+    counters?.bump(error ? 'spawn.failed' : 'spawn.completed', dims);
+    if (!error) {
+      counters?.bump('spawn.duration_ms', dims, Math.max(1, completedAt - startedAt));
+    }
+    costTracker?.record({
+      backend: spec.backend,
+      model,
+      projectName,
+      identity: spec.identity,
+      spawnId: agentId,
+    });
+
+    return {
+      agentId,
+      backend: spec.backend,
+      model,
+      status,
+      output,
+      error,
+      startedAt,
+      completedAt,
+    };
   }
 
   /**
@@ -551,6 +574,7 @@ export function createSpawner(_deps: {} = {}) {
 
     record.status = 'killed';
     record.completedAt = Date.now();
+    counters?.bump('spawn.killed', metricDims({ backend: record.backend, task: '', identity: record.identity || undefined }, record.model));
 
     // PD coordination: done (fire-and-forget)
     pdCoordinate('/sugar/done', { agentId, note: 'Killed by spawner' }).catch(() => {});
@@ -558,3 +582,5 @@ export function createSpawner(_deps: {} = {}) {
 
   return { spawn, list, kill };
 }
+
+export type Spawner = ReturnType<typeof createSpawner>;

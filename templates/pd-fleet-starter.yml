@@ -1,7 +1,12 @@
 # pd-fleet.yml — Drop-in fleet for any project
 #
 # Copy this to your project root and run: pd fleet up
-# Requires: Port Daddy running (pd start) + ANTHROPIC_API_KEY in .env.local
+# Requires: Port Daddy running (pd start)
+#
+# This starter uses `claude-cli` because these prompts assume a local agent
+# runtime with file/tool access. Swap backend/model per agent as needed.
+# Pin `model:` so costs are predictable. If you omit backend/model entirely,
+# set PD_FLEET_DEFAULT_BACKEND / PD_FLEET_DEFAULT_MODEL in your environment.
 #
 # What you get:
 #   - QA reviews every commit for bugs
@@ -23,6 +28,7 @@ fleet:
     qa:
       trigger: git:committed
       backend: claude-cli
+      model: haiku
       respawn: true                      # Auto-respawn if this agent dies
       max_respawns: 3                    # Circuit breaker — stop after 3 deaths
       allowedTools: "Read,Grep,Glob,Bash(npm test*)"
@@ -38,6 +44,7 @@ fleet:
     documentarian:
       trigger: git:committed
       backend: claude-cli
+      model: haiku
       allowedTools: "Read,Grep,Glob,Write,Edit"
       prompt: |
         You maintain documentation for this project.
@@ -52,6 +59,7 @@ fleet:
     cartographer:
       trigger: git:committed
       backend: claude-cli
+      model: haiku
       allowedTools: "Read,Grep,Glob,Write"
       prompt: |
         You maintain the map between what was planned and what was built.
@@ -80,6 +88,7 @@ fleet:
     spark:
       schedule: "*/30 * * * *"
       backend: claude-cli
+      model: sonnet
       singleton: true
       allowedTools: "Read,Grep,Glob,Write"
       prompt: |
@@ -100,6 +109,7 @@ fleet:
       trigger: spark:idea
       schedule: "0 */2 * * *"
       backend: claude-cli
+      model: sonnet
       singleton: true
       allowedTools: "Read,Grep,Glob,Write"
       prompt: |

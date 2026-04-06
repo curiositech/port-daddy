@@ -93,6 +93,8 @@ beforeEach(() => {
 
 afterEach(() => {
   jest.useRealTimers();
+  delete process.env.PD_FLEET_DEFAULT_BACKEND;
+  delete process.env.PD_FLEET_DEFAULT_MODEL;
 });
 
 // ─── Bug 1: */0 cron produces 0ms interval ───────────────────────────────────
@@ -131,13 +133,13 @@ test('BUG 2: schedule */abc * * * * produces NaN setInterval (runaway)', () => {
 
 // ─── Bug 3: YAML array-style agents corrupts names ───────────────────────────
 
-test('BUG 3: array-style agents in YAML use numeric keys as names', () => {
+test('BUG 3: array-style agents in YAML are silently dropped (zero agents loaded)', () => {
   // YAML arrays parsed by js-yaml become JS arrays.
-  // Object.entries([{...}]) yields [['0', {...}], ['1', {...}]] — numeric string keys.
+  // loadFleetConfig only processes object-style agents (typeof === 'object' && !Array.isArray).
+  // Array-format agents are silently ignored — the fleet starts with 0 agents.
   mockExistsSync.mockImplementation(p => p.endsWith('pd-fleet.yml'));
   mockExecSync.mockReturnValue('main');
 
-  // Simulate yaml.parse returning an array for agents (array YAML syntax)
   mockReadFileSync.mockReturnValue(JSON.stringify({
     name: 'test',
     agents: [
@@ -147,12 +149,10 @@ test('BUG 3: array-style agents in YAML use numeric keys as names', () => {
   }));
 
   const config = loadFleetConfig('/tmp/proj');
-  // With the bug, names would be '0', '1' instead of meaningful names
-  // Agent names should not be numeric strings
   expect(config).not.toBeNull();
-  for (const agent of config.agents) {
-    expect(agent.name).not.toMatch(/^\d+$/);
-  }
+  // BUG: 2 agents were declared but 0 are loaded because array format is ignored.
+  // This must load agents, not silently discard them.
+  expect(config.agents.length).toBe(2);
 });
 
 // ─── Bug 4: empty YAML → null → TypeError ────────────────────────────────────
@@ -190,6 +190,181 @@ test('parses canonical fleet budget field as budgetUsdPerDay', () => {
   });
 });
 
+test('uses env runtime defaults when agent backend/model are omitted', () => {
+  process.env.PD_FLEET_DEFAULT_BACKEND = 'gemini';
+  process.env.PD_FLEET_DEFAULT_MODEL = 'gemini-2.5-flash';
+  mockExistsSync.mockImplementation(p => p.endsWith('pd-fleet.yml'));
+  mockExecSync.mockReturnValue('main');
+  mockReadFileSync.mockReturnValue(JSON.stringify({
+    name: 'env-backed-fleet',
+    agents: {
+      scout: { prompt: 'Scan the repo', trigger: 'git:committed' },
+    },
+  }));
+
+  const config = loadFleetConfig('/tmp/proj');
+  expect(config).not.toBeNull();
+  expect(config?.agents).toEqual([
+    expect.objectContaining({
+      name: 'scout',
+      backend: 'gemini',
+      model: 'gemini-2.5-flash',
+    }),
+  ]);
+});
+
+test('maps model_tier to a backend-specific model', () => {
+  mockExistsSync.mockImplementation(p => p.endsWith('pd-fleet.yml'));
+  mockExecSync.mockReturnValue('main');
+  mockReadFileSync.mockReturnValue(JSON.stringify({
+    name: 'tiered-fleet',
+    agents: {
+      qa: {
+        backend: 'claude-cli',
+        model_tier: 'low',
+        prompt: 'Review the change',
+        trigger: 'git:committed',
+      },
+    },
+  }));
+
+  const config = loadFleetConfig('/tmp/proj');
+  expect(config?.agents).toEqual([
+    expect.objectContaining({
+      name: 'qa',
+      backend: 'claude-cli',
+      model: 'haiku',
+      modelTier: 'low',
+    }),
+  ]);
+});
+
+test('budgetUsdPerDay blocks spawn when project is over budget', async () => {
+  const config = {
+    ...makeConfig({
+      schedule: '*/10 * * * *',
+    }),
+    limits: { budgetUsdPerDay: 1.25 },
+  };
+
+  const onEvent = jest.fn();
+  const mockBudgetStatus = jest.fn(() => ({
+    project: 'test-fleet',
+    budgetUsdPerDay: 1.25,
+    spentUsd: 1.5,
+    remainingUsd: 0,
+    percentUsed: 120,
+    overBudget: true,
+  }));
+  global.fetch = jest.fn().mockResolvedValue({
+    ok: true,
+    status: 200,
+    json: async () => ({ agentId: 'abc', status: 'spawned' }),
+  });
+
+  const runner = createFleetRunner(config, '/tmp/proj', {
+    onEvent,
+    costTracker: { budgetStatus: mockBudgetStatus },
+  });
+
+  runner.startAgent(config.agents[0]);
+  await Promise.resolve();
+  await Promise.resolve();
+
+  expect(global.fetch).not.toHaveBeenCalledWith(
+    'http://localhost:9876/spawn',
+    expect.anything()
+  );
+  expect(onEvent).toHaveBeenCalledWith(
+    expect.objectContaining({
+      type: 'agent_failed',
+      agent: 'test-agent',
+      details: expect.objectContaining({
+        error: expect.stringContaining('daily budget exceeded'),
+      }),
+    })
+  );
+  // MOCK ECHO FIX: verify budgetStatus was called with the correct project name and budget
+  expect(mockBudgetStatus).toHaveBeenCalledWith('test-fleet', 1.25);
+});
+
+test('singleton agents reject overlapping hail while a run is active', async () => {
+  const config = makeConfig({
+    schedule: '*/10 * * * *',
+    singleton: true,
+  });
+
+  global.fetch = jest.fn(() => new Promise(() => {}));
+  const runner = createFleetRunner(config, '/tmp/proj');
+
+  runner.startAgent(config.agents[0]);
+  await Promise.resolve();
+
+  const result = await runner.hailAgent('test-agent', { source: 'manual' });
+  expect(result).toEqual({
+    success: false,
+    error: 'test-agent is singleton and already active',
+  });
+});
+
+test('falls back to the next backend/model when the first spawn attempt fails', async () => {
+  const config = {
+    ...makeConfig({
+      backend: 'gemini',
+      model: 'gemini-2.5-flash',
+      fallbacks: [{ backend: 'ollama', model: 'llama3.2:8b' }],
+    }),
+  };
+
+  const onEvent = jest.fn();
+  global.fetch = jest.fn()
+    .mockResolvedValueOnce({
+      ok: false,
+      status: 503,
+      json: async () => ({ status: 'failed', error: 'gemini unavailable' }),
+    })
+    .mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ agentId: 'fallback-123', status: 'spawned' }),
+    });
+
+  const runner = createFleetRunner(config, '/tmp/proj', { onEvent });
+  const result = await runner.hailAgent('test-agent', { source: 'manual' });
+  const firstBody = JSON.parse(global.fetch.mock.calls[0][1].body);
+  const secondBody = JSON.parse(global.fetch.mock.calls[1][1].body);
+
+  expect(result).toEqual({ success: true });
+  expect(global.fetch).toHaveBeenNthCalledWith(
+    1,
+    'http://localhost:9876/spawn',
+    expect.objectContaining({ method: 'POST' })
+  );
+  expect(global.fetch).toHaveBeenNthCalledWith(
+    2,
+    'http://localhost:9876/spawn',
+    expect.objectContaining({ method: 'POST' })
+  );
+  expect(firstBody).toEqual(expect.objectContaining({
+    backend: 'gemini',
+    model: 'gemini-2.5-flash',
+  }));
+  expect(secondBody).toEqual(expect.objectContaining({
+    backend: 'ollama',
+    model: 'llama3.2:8b',
+  }));
+  expect(onEvent).toHaveBeenCalledWith(
+    expect.objectContaining({
+      type: 'agent_completed',
+      details: expect.objectContaining({
+        backend: 'ollama',
+        model: 'llama3.2:8b',
+        attempt: 2,
+      }),
+    })
+  );
+});
+
 // ─── Bug 5: onSuccess/onFailure never fires (dead code) ──────────────────────
 
 test('FIX 5: onSuccess fires when spawn returns status=spawned', async () => {
@@ -222,6 +397,8 @@ test('FIX 5: onSuccess fires when spawn returns status=spawned', async () => {
   runner.startAgent(config.agents[0]); // triggers runAgentOnce immediately
 
   // Wait for the async runAgentOnce to resolve
+  await Promise.resolve();
+  await Promise.resolve();
   await Promise.resolve();
   await Promise.resolve();
 
@@ -270,6 +447,92 @@ test('triggered agents receive message content when subscribed in-process', asyn
       body: expect.stringContaining('what is the most important idea I could build now?'),
     })
   );
+});
+
+// ─── BUG A: stopAll() leaks watchHandle subscriptions ──────────────────────
+
+test('BUG A: stopAll must call watchHandle to unsubscribe in-process triggers', () => {
+  const unsubscribe = jest.fn();
+  const config = makeConfig({ trigger: 'test:channel' });
+
+  const runner = createFleetRunner(config, '/tmp/proj', {
+    messaging: {
+      subscribe: jest.fn(() => unsubscribe),
+    },
+  });
+
+  runner.startAgent(config.agents[0]);
+  // Subscription was created
+  expect(unsubscribe).not.toHaveBeenCalled();
+
+  runner.stopAll();
+  // After stop, the unsubscribe function MUST have been called
+  expect(unsubscribe).toHaveBeenCalledTimes(1);
+});
+
+// ─── BUG B: hailAgent singleton check uses wrong map ───────────────────────
+
+test('BUG B: hailAgent allows singleton hail when no run is in flight', async () => {
+  // Start a singleton scheduled agent. Its initial run completes quickly.
+  let resolveSpawn;
+  global.fetch = jest.fn().mockImplementation(() =>
+    new Promise(resolve => {
+      resolveSpawn = resolve;
+    })
+  );
+
+  const config = makeConfig({
+    schedule: '*/10 * * * *',
+    singleton: true,
+  });
+
+  const runner = createFleetRunner(config, '/tmp/proj');
+  runner.startAgent(config.agents[0]);
+
+  // Complete the initial scheduled run
+  resolveSpawn({ ok: true, json: async () => ({ agentId: 'abc', status: 'spawned' }) });
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+
+  // Now the initial run is done — activeAgentRuns should be empty.
+  // A hail to the singleton should succeed since no run is in flight.
+  global.fetch = jest.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({ agentId: 'def', status: 'spawned' }),
+  });
+
+  const result = await runner.hailAgent('test-agent', { source: 'manual' });
+  // BUG: currently returns { success: false } because running.has() is always true
+  expect(result.success).toBe(true);
+});
+
+// ─── MISSING: hailAgent on non-existent agent ──────────────────────────────
+
+test('hailAgent returns error for unknown agent name', async () => {
+  const config = makeConfig();
+  const runner = createFleetRunner(config, '/tmp/proj');
+  const result = await runner.hailAgent('no-such-agent');
+  expect(result.success).toBe(false);
+  expect(result.error).toContain('no-such-agent');
+});
+
+// ─── BUG B2: hailAgent reports success even when spawn is rejected ───────────
+
+test('BUG B2: hailAgent must return failure when spawn is blocked by quota', async () => {
+  const config = {
+    ...makeConfig({ schedule: undefined, trigger: undefined }),
+    limits: { maxConcurrentSpawns: 0 },  // zero concurrency → always blocked
+  };
+
+  const onEvent = jest.fn();
+  const runner = createFleetRunner(config, '/tmp/proj', { onEvent });
+  const result = await runner.hailAgent('test-agent', { source: 'manual' });
+
+  // BUG: currently returns { success: true } because runAgentOnce
+  // swallows the quota failure and hailAgent doesn't check.
+  expect(result.success).toBe(false);
+  expect(result.error).toBeDefined();
 });
 
 // ─── Valid cron patterns still work ──────────────────────────────────────────
@@ -428,4 +691,181 @@ describe('validateTopology', () => {
     expect(result.valid).toBe(true);
     expect(result.cycles).toHaveLength(0);
   });
+});
+
+// ─── BUG 7: runAgentOnce sends agent.identity (undefined) not computed fallback ─
+
+test('BUG 7: spawn body uses computed identity fallback when agent.identity is undefined', async () => {
+  // When agent.identity is undefined, the code computes a fallback:
+  //   const identity = agent.identity || `${project}:fleet:${agent.name}`;
+  // But then does: body.identity = agent.identity (the raw undefined).
+  // The spawn request sends identity: undefined → agent registers with no identity.
+  global.fetch = jest.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({ agentId: 'abc', status: 'spawned' }),
+  });
+
+  const config = makeConfig(); // agent has no identity field
+  const runner = createFleetRunner(config, '/tmp/proj');
+  runner.startAgent(config.agents[0]);
+
+  await Promise.resolve();
+  await Promise.resolve();
+
+  const spawnCall = global.fetch.mock.calls.find(c => String(c[0]).includes('/spawn'));
+  expect(spawnCall).toBeDefined();
+  const body = JSON.parse(spawnCall[1].body);
+  // Identity should be the computed fallback, not undefined
+  expect(body.identity).toBe('test-fleet:fleet:test-agent');
+});
+
+// ─── MISSING: hourly rate limit enforcement ──────────────────────────────────
+
+test('maxSpawnsPerHour blocks spawn after limit is reached', async () => {
+  const config = {
+    ...makeConfig({ schedule: '*/5 * * * *' }),
+    limits: { maxSpawnsPerHour: 2 },
+  };
+
+  const onEvent = jest.fn();
+  global.fetch = jest.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({ agentId: 'abc', status: 'spawned' }),
+  });
+
+  const runner = createFleetRunner(config, '/tmp/proj', { onEvent });
+  runner.startAgent(config.agents[0]); // triggers first runAgentOnce immediately
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+
+  // Manually hail to trigger second run
+  await runner.hailAgent('test-agent', { source: 'manual' });
+  await Promise.resolve();
+
+  // Third should be blocked by hourly rate limit
+  const result = await runner.hailAgent('test-agent', { source: 'manual' });
+  await Promise.resolve();
+
+  // Find the failed event with hourly spawn limit reason
+  const failedEvents = onEvent.mock.calls
+    .map(c => c[0])
+    .filter(e => e.type === 'agent_failed' && e.details?.error?.includes('hourly spawn limit'));
+  expect(failedEvents.length).toBeGreaterThan(0);
+});
+
+// ─── BUG C: concurrency limit releases after spawn completes ────────────────
+
+test('BUG C: activeSpawns decrements after spawn resolves, allowing next spawn', async () => {
+  // With maxConcurrentSpawns=1, the first spawn should succeed and after
+  // it resolves, the second should also succeed (not be stuck at limit).
+  const config = {
+    ...makeConfig({ schedule: undefined, trigger: undefined }),
+    limits: { maxConcurrentSpawns: 1 },
+  };
+
+  let callCount = 0;
+  global.fetch = jest.fn().mockImplementation(async () => {
+    callCount++;
+    return { ok: true, json: async () => ({ agentId: `spawn-${callCount}`, status: 'spawned' }) };
+  });
+
+  const runner = createFleetRunner(config, '/tmp/proj');
+
+  // First hail — should succeed
+  const r1 = await runner.hailAgent('test-agent', { source: 'manual' });
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+
+  // Second hail — should also succeed because first completed (finally decremented activeSpawns)
+  const r2 = await runner.hailAgent('test-agent', { source: 'manual' });
+  await Promise.resolve();
+
+  expect(r1.success).toBe(true);
+  expect(r2.success).toBe(true);
+  expect(callCount).toBe(2);
+});
+
+// ─── BUG D: loadFleetConfig with nested fleet.limits vs top-level limits ────
+
+test('fleet.limits inside nested fleet key are parsed correctly', () => {
+  mockExistsSync.mockImplementation(p => p.endsWith('pd-fleet.yml'));
+  mockExecSync.mockReturnValue('main');
+  mockReadFileSync.mockReturnValue(JSON.stringify({
+    fleet: {
+      name: 'nested-fleet',
+      limits: {
+        max_concurrent_spawns: 3,
+        max_spawns_per_hour: 10,
+        budget_usd_per_day: 2.5,
+      },
+      agents: {
+        worker: { backend: 'claude-cli', prompt: 'work' },
+      },
+    },
+  }));
+
+  const config = loadFleetConfig('/tmp/proj');
+  expect(config).not.toBeNull();
+  expect(config.limits).toEqual({
+    maxConcurrentSpawns: 3,
+    maxSpawnsPerHour: 10,
+    budgetUsdPerDay: 2.5,
+  });
+});
+
+// ─── BUG E: onFailure fires for HTTP error even when status is missing ──────
+
+test('onFailure fires when /spawn returns HTTP error', async () => {
+  const failureFetch = jest.fn();
+  global.fetch = jest.fn().mockImplementation(async (url) => {
+    if (typeof url === 'string' && url.includes('/spawn')) {
+      return { ok: false, status: 500, json: async () => ({ error: 'internal error' }) };
+    }
+    if (typeof url === 'string' && url.includes('/msg/')) {
+      failureFetch(url);
+      return { ok: true, json: async () => ({}) };
+    }
+    return { ok: true, json: async () => ({}) };
+  });
+
+  const config = makeConfig({
+    onFailure: 'publish fleet:errors',
+  });
+
+  const runner = createFleetRunner(config, '/tmp/proj');
+  // Use hailAgent to trigger runAgentOnce (startAgent only auto-runs scheduled agents)
+  await runner.hailAgent('test-agent', { source: 'manual' });
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+
+  expect(failureFetch).toHaveBeenCalledWith('http://localhost:9876/msg/fleet:errors');
+});
+
+// ─── BUG F: trimMessage edge — exactly maxChars should not truncate ─────────
+
+test('trimMessage at exactly maxChars returns message unchanged', async () => {
+  // Build a prompt that's exactly 4000 chars — should NOT get truncated
+  const longPrompt = 'x'.repeat(4000);
+  const config = makeConfig({ prompt: longPrompt });
+
+  global.fetch = jest.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({ agentId: 'abc', status: 'spawned' }),
+  });
+
+  const runner = createFleetRunner(config, '/tmp/proj');
+  // Use hailAgent to trigger runAgentOnce (startAgent only auto-runs scheduled agents)
+  await runner.hailAgent('test-agent', { source: 'manual' });
+  await Promise.resolve();
+  await Promise.resolve();
+
+  const spawnCall = global.fetch.mock.calls.find(c => String(c[0]).includes('/spawn'));
+  expect(spawnCall).toBeDefined();
+  const body = JSON.parse(spawnCall[1].body);
+  // Task should contain the full prompt without truncation marker
+  expect(body.task).not.toContain('[truncated');
+  expect(body.task.length).toBeGreaterThanOrEqual(4000);
 });
