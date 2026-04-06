@@ -96,8 +96,8 @@ Use `${PORT}` in `cmd` — it's replaced with the assigned port at runtime:
 The `needs` field creates a startup dependency graph. `port-daddy dev` starts services in topological order:
 
 ```
-db (no deps) → api (needs db) → frontend (needs api)
-                               → worker (needs api)
+db (no deps) -> api (needs db) -> frontend (needs api)
+                               -> worker (needs api)
 ```
 
 Services wait for their dependencies' health checks to pass before starting.
@@ -127,7 +127,7 @@ The `.portdaddyrc` `project` field becomes the first segment of the semantic ide
 
 ```
 project: "myapp", service: "api", context: "main"
-→ identity: "myapp:api:main"
+-> identity: "myapp:api:main"
 ```
 
 ---

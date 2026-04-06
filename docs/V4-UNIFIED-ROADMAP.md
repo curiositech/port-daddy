@@ -1,8 +1,10 @@
 # Port Daddy V4: Unified Roadmap
 
+Canonical note: this file remains valuable historical context, but the active recovery authority now lives in `docs/recovery/README.md` and `docs/recovery/UNIFIED-ROADMAP.md`.
+
 **Author:** Erich Owens
-**Last Updated:** 2026-03-31
-**Status:** Active — Phase 0 complete, Phase 4 partially complete (Fastify ✅, Trie ✅, Binary IPC ✅, Backpressure ⚡), Phase 3 largely done (fleet, pheromone, Fleet Live Dashboard all shipped)
+**Last Updated:** 2026-04-05
+**Status:** Active — Phase 0 complete, Phase 4 partially complete (Fastify ✅, Trie ✅, Binary IPC ✅, Backpressure ⚡, Bun binary ⚡), Phase 3 largely done (fleet, pheromone, Fleet Live Dashboard all shipped). Post-sprint energy split between website/distribution polish and **cost-tracker/counters/observability** (wired into server.ts, tested, manifest entries added, awaiting commit — first concrete Phase 2 code, day 5 uncommitted). Fleet safety hardened: global spawn ceiling (20 max) + per-project fleet limits committed (`0df9155`). Fleet Config UI under active refactoring (slimming down). Spider agent prolific (8 connection files today).
 
 This document synthesizes all V4 planning documents into a single sequenced roadmap. Nothing from the original documents has been discarded — ideas that aren't yet sequenced are preserved in the Appendix.
 
@@ -40,6 +42,8 @@ The formal foundation for this thesis is the **Bonded Commons** paper (Owens, 20
 ## Phase 1: The Semantic Graph [NEXT — NO COMMITS YET, SOME STUBS BUILT]
 
 > **Cartographer — 2026-03-31:** Three sub-modules that belong in Phase 1 were built in the 2026-03-30 session as parallel agent output: `lib/symbol-index.ts` (tree-sitter WASM, symbol extraction, dependency tracking, conflict prediction — maps to 1C), `lib/orchestrator-plugins.ts` (plugin registry + default FIFO orchestrator — adjacent to 1D), and `lib/merge-queue.ts` + `routes/merge-queue.ts` (11 endpoints, maps to Appendix A3 Stigmergic Merging). All three are built but **not yet wired into server.ts**. They sit in the filesystem waiting for the graph proper to land. Next step per CLAUDE.md: wire tree-sitter first, then merge queue. These are not "done" — they're stubs that need the unified edge table (1A) to be useful.
+>
+> **Cartographer — 2026-04-05:** A 453-line test suite (`tests/unit/semantic-index.test.js`) now exists for the symbol index — uncommitted but present. The symbol index, orchestrator registry, and merge queue are all imported and initialized in `server.ts` (committed in `0ae2df6`). What's still missing: the `graph_edges` table (1A) that would unify these modules. The stubs are 6 days old now with no commits moving them forward. The tests suggest someone (likely a fleet agent) attempted to validate the existing code, but the underlying architecture gap remains.
 
 *The nervous system. Agents navigate relationships, not flat registries.*
 
@@ -189,6 +193,10 @@ pd memory episodes [--agent <id>]
 Visual fleet management, watch hooks with message history, spawn agent form, fleet.yaml editor.
 
 > **Cartographer — 2026-03-31:** A standalone Fleet Live Dashboard shipped (`public/fleet-live.html`, 1322 lines) — not a panel in the main dashboard but a separate monitoring page. Features: fetches from 6 daemon endpoints, unified feed with time-period grouping, agent ribbon with clickable filters, expandable notes, SSE live updates. A matching macOS menu-bar app (`fleet-live-app/`, SwiftUI + WKWebView) wraps it as a native menu-bar popover. The roadmap item envisioned a panel inside the main dashboard (with fleet.yaml editor) — that hasn't happened. The standalone page covers monitoring; editing and spawn form remain unbuilt.
+>
+> **Cartographer — 2026-04-05:** A full **Fleet Config UI** React app is in progress (uncommitted) at `fleet-config-ui/` with 8 components: AgentCard, AgentConfigPanel, FlowGraph, YAMLEditor, SortiePanel, DMPanel, ChannelLog, ProjectPicker. This goes well beyond the roadmap's "panel" — it's a standalone fleet management application with visual agent configuration, flow visualization, and YAML editing. Also: FleetBar macOS app (`6c6d56a`) gained enhancements, and a CostDashboard + CostStore are in progress (uncommitted) in `apps/FleetBar/`.
+>
+> **Cartographer — 2026-04-05 (update):** The Fleet Config UI now has a backend. Uncommitted changes to `routes/fleet.ts` add 4 new endpoints: `GET /fleet/config/:project`, `PUT /fleet/config/:project`, `GET /fleet/prompt` (shell integration), `GET /fleet/models` (backend catalog). These are wired through `routes/index.ts` and registered in `features.manifest.json`. The fleet-config-ui itself is being actively refactored — `AgentRadioCard` → `AgentCard`, `ChannelFlowGraph` → `FlowGraph` (component renames in uncommitted changes, net -554 lines from the React app — slimming down). The full loop — read config → edit in UI → write back → fleet reloads — is achievable once committed.
 
 **Deliverable:** Agents run continuously, learn across sessions, and are managed declaratively.
 
@@ -200,11 +208,13 @@ Visual fleet management, watch hooks with message history, spawn agent form, fle
 
 *The kernel upgrade. Hardened for production workloads.*
 
-### 4A. Bun/Fastify Migration [FASTIFY SHIPPED v3.8.1, BUN NOT STARTED]
+### 4A. Bun/Fastify Migration [FASTIFY SHIPPED v3.8.1, BUN BINARY IN PROGRESS]
 
 Replace Express with Fastify on Bun for 20,000+ req/sec. Single-file binary compilation via `bun build --compile`.
 
 > **Cartographer — 2026-03-31:** Fastify migration complete (`b8a8ae0`, 2026-03-29). All 23 route files converted to Fastify plugins. `express`, `cors`, `express-rate-limit`, `supertest` removed. Same API surface, same endpoints. BigInt serialization fixed, ephemeral port exhaustion eliminated with `fastify.inject()`. **Bun** (single-file binary) has zero commits — this half of 4A is not started.
+>
+> **Cartographer — 2026-04-05:** Bun binary work started. `6a8c8bb` (2026-04-01) added `build:bin` scripts and GitHub Actions workflow for binary releases. Maritime guard fix for Bun compatibility. `db4c315` includes "Bun prep" alongside CLI aliases. This half of 4A is now **in progress** — build scripts and CI exist, but no confirmed working single-file binary distribution yet.
 
 ### 4B. Unix Domain Sockets / Named Pipes [COMPLETE v3.8.2]
 
@@ -380,3 +390,16 @@ From `v4_thoughts.md`: Run TLC on the BondedCommons spec with concrete parameter
 | **OpenAPI 3.1 specification** (`docs/openapi.yaml`) — 96 paths, 125 operations | listed in [Unreleased] | Single source of truth for the HTTP API. Not in any roadmap phase. Emerged from SDK documentation maintenance. |
 | **Drop-in fleet templates + `pd fleet init`** | `1e70137`, `91c40af` | Pre-built fleet YAML templates for any project type. `pd fleet init` creates a starter fleet. Not in the original 3A spec — emerged from making fleet approachable for projects that aren't Port Daddy itself. |
 | **VHS CI demo workflow** (`.github/workflows/`) | `d85e30d` | Automated terminal recording with VHS + ffmpeg + daemon startup. Not in roadmap. Closest roadmap item is Appendix A12 (Asciinema Demo Engine) — different toolchain, same intent. |
+| **`pd mcp install` + `pd init`** — onboarding CLI commands | `370d775` | 21 unit tests. `pd init` scaffolds a project for PD coordination; `pd mcp install` adds PD to Claude Code's MCP config. Distribution/onboarding — adjacent to A13 but broader. |
+| **Blog content engine + 3 articles** | `966313d`, `9cee0e2` | Maritime signal flag SVG components. Blog article redesign with directive system. Content marketing — no roadmap phase. |
+| **Curiositech rebranding** | `2a4fc5f` | MCP skill discovery, brand rename. Marketing/identity work. |
+| **Website overhaul Phase 3** (tutorials, hero, install CTA, navigation) | `c1fbbc9`, `ff8b56f`, `78ec0a6`, `d250215`, many more | 19 tutorials repaired, new 4-tab install CTA with typewriter animation, hero feature grid hoist, Home link added. Continued content truthing (`c9be89d` — 10 factual errors fixed). Energy still flowing to website despite no roadmap phase for it. |
+| **VHS demo GIFs for blog** | `f88d04e` | 5 recorded GIFs for blog articles. Extension of VHS CI workflow (`d85e30d`). |
+| **CLI aliases** (broadcast/listen/swarm) | `db4c315` | Convenience aliases for pub/sub and fleet commands. Test hardening in same commit. |
+| **Cost tracker + Counters + Observability routes** *(UNCOMMITTED but WIRED)* | WIP on disk | `lib/cost-tracker.ts` (339 lines), `lib/counters.ts` (314 lines), `routes/observability.ts` (160 lines). Per-spawn LLM cost recording, budget checks, ODS-style time-bucketed counters. **Wired into `server.ts`** (imported, initialized, passed to route aggregator, graceful shutdown). Observability plugin registered in `routes/index.ts`. Tests: `cost-tracker.test.js` (164 lines), `counters.test.js` (161 lines). **Also in `features.manifest.json`** — cost_tracker, counters, and observability entries added with route mappings. Phase 2-adjacent: concrete cost accounting before the full economy. One commit away from being live. Day 5 uncommitted. |
+| **Fleet Config UI** *(UNCOMMITTED)* | WIP on disk | `fleet-config-ui/` — React app with AgentCard, AgentConfigPanel, FlowGraph, YAMLEditor, SortiePanel, DMPanel, ChannelLog, ProjectPicker. Goes beyond 3D (dashboard panel) toward a standalone fleet management application. Not yet committed. |
+| **Fleet config read/write + prompt + models endpoints** *(UNCOMMITTED)* | WIP on disk | `GET /fleet/config/:project`, `PUT /fleet/config/:project`, `GET /fleet/prompt`, `GET /fleet/models` added to `routes/fleet.ts` (72 new lines). Config read/write with topology validation and fleet reload. Prompt endpoint for shell integration. Models endpoint for backend catalog. All 4 routes registered in `routes/index.ts` and `features.manifest.json`. Backend for Fleet Config UI. Not yet committed. |
+| **FleetBar Cost Dashboard** *(UNCOMMITTED)* | WIP on disk | `apps/FleetBar/FleetBar/CostDashboard.swift` + `CostStore.swift`. Native macOS cost visualization in FleetBar menu bar app. Consumes cost-tracker endpoints. Not yet committed. |
+| **Spawner refactoring + global spawn ceiling** | `0df9155` | `lib/spawner.ts` — shared `runChild()` abstraction (eliminates 3x copy-paste across backends) + MAX_CONCURRENT_RUNNING = 20 hard ceiling prevents fork bombs. Root cause: fleet triggers on git commit spawned 5+ agents simultaneously. Was uncommitted for 5 days; landed 2026-04-05. |
+| **Fleet limits in pd-fleet.yml** | `0df9155` | `max_concurrent_spawns: 2`, `max_spawns_per_hour: 10` added to the dogfood fleet config. Exercises the fleet limits feature (shipped in v3.8.2). Committed alongside spawn ceiling fix. |
+| **Spider connection analyses** *(UNCOMMITTED)* | WIP on disk | 8 spider connection files from 2026-04-05 in `.spider/connections/`: connections, cost-era, deep-periphery, observability-era, periphery-era, seventh-sense, seventh-wave, sixth-sense. Fleet spider agent produced more output than prior runs. |

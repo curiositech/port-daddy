@@ -1,5 +1,7 @@
 # Port Daddy Idea Index (April 2026)
 
+Canonical note: this index is now historical context. The active organized trove lives in `docs/recovery/IDEAS-TROVE.md`, which explicitly preserves Spark, Spider, and cartographer inputs.
+
 This document is the **Comprehensive Index of All Emergent Ideas** for Port Daddy. It maps out the expansive universe of concepts generated during V4 planning, detailing what each idea is, where its primary text lives, and a firm recommendation on when (or if) it should be built.
 
 ---

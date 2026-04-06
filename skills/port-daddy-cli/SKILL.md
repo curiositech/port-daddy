@@ -366,6 +366,10 @@ Override via environment variables: `PORT_DADDY_SOCK`, `PORT_DADDY_IPC`, `PORT_D
 | `POST /fleet/start\|stop\|reload` | Manage daemon-managed fleets |
 | `POST /fleet/register` | Register project dir for fleet management |
 | `GET /fleet/events` | SSE stream of fleet lifecycle events |
+| `GET /fleet/prompt` | One-line fleet status for shell prompt (query: `project`) |
+| `GET /fleet/config/:project` | Raw YAML + parsed config + topology validation |
+| `PUT /fleet/config/:project` | Write YAML config, validate, reload fleet |
+| `GET /fleet/models` | Available backends + model catalog (probes Ollama live) |
 | **Swarm Memory** | |
 | `pd tuple out/rd/in` | Write/read/take tuples |
 | `pd tuple scan/count` | List/count tuples |
@@ -373,6 +377,13 @@ Override via environment variables: `PORT_DADDY_SOCK`, `PORT_DADDY_IPC`, `PORT_D
 | `pd pheromone sniff` | Read pheromone values (with decay) |
 | `pd pheromone list` | List all non-zero pheromones |
 | `pd pheromone files` | File heat map |
+| **Observability (HTTP API)** | |
+| `GET /metrics/golden` | Fleet health: rate, errors, duration, cost/hr (RED method) |
+| `GET /metrics/cost` | Cost summary by project + backend (default: 24h) |
+| `GET /metrics/cost/budget/:project` | Budget check — spend vs. ceiling |
+| `GET /metrics/counters` | Counter summary or time-bucketed single key |
+| `GET /metrics/counters/top` | Top N dimension values for a counter |
+| `GET /metrics/cost/recent` | Most recent cost events |
 | **System** | |
 | `pd status` | Daemon health |
 | `pd version` | Version and code hash |
@@ -399,6 +410,13 @@ Override via environment variables: `PORT_DADDY_SOCK`, `PORT_DADDY_IPC`, `PORT_D
 | What happened while I was away? | `catch_me_up` MCP tool |
 | Who else is working right now? | `swarm_awareness` MCP tool |
 | Check for invariant violations | `pd arbiter status` |
+| How much are my fleet agents costing? | `curl localhost:9876/metrics/cost` |
+| Is a project over budget? | `curl localhost:9876/metrics/cost/budget/myapp?limit=5` |
+| Fleet health at a glance (RED signals) | `curl localhost:9876/metrics/golden` |
+| Top backends by spawn count | `curl localhost:9876/metrics/counters/top?key=spawn.started&dim=backend` |
+| Show fleet status in shell prompt | `curl localhost:9876/fleet/prompt?project=myapp` |
+| Read/edit fleet config via API | `GET /fleet/config/myapp` or `PUT /fleet/config/myapp` with `{ "yaml": "..." }` |
+| What LLM backends are available? | `curl localhost:9876/fleet/models` |
 
 ## Common Issues
 
