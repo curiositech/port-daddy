@@ -29,3 +29,4 @@ export * from './harbors.js';
 export * from './bench.js';
 export * from './demo.js';
 export * from './tuples.js';
+export * from './setup.js';

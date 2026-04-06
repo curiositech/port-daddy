@@ -32,6 +32,7 @@ import {
 import { initDatabase, isPortAvailable, resolveDbPath } from '../lib/db.js';
 import { createServices } from '../lib/services.js';
 import { createLocks } from '../lib/locks.js';
+import { createNoteEncryption } from '../lib/note-encryption.js';
 import { createSessions } from '../lib/sessions.js';
 import { createActivityLog } from '../lib/activity.js';
 import { highlightChannel, flag, SignalFlags, ANSI as marANSI } from '../lib/maritime.js';
@@ -72,6 +73,8 @@ import {
   handleDaemon, handleDev,
   // Benchmarking
   handleBench,
+  // Setup
+  handleSetup,
   // DNS, Briefing, Integration
   handleDns, handleBriefing, handleIntegration,
   // Sugar commands
@@ -161,7 +164,7 @@ function getDirectLocks(): ReturnType<typeof createLocks> {
 function getDirectSessions(): ReturnType<typeof createSessions> {
   if (!_directSessions) {
     const db = getDirectDb();
-    _directSessions = createSessions(db);
+    _directSessions = createSessions(db, createNoteEncryption());
     // Wire up activity log for direct mode too
     const activityLog = createActivityLog(db);
     _directSessions.setActivityLog(activityLog);
@@ -501,6 +504,7 @@ function buildHelp(): string {
 
   lines.push(
     `${A}Get started:${Z}`,
+    `  ${G}pd setup${Z}                  Install daemon, MCP, FleetBar, init project`,
     `  ${G}pd begin${Z} "purpose"       I'll set up your agent + session`,
     `  ${G}pd done${Z} "summary"        Finish up — I'll clean everything`,
     `  ${G}pd whoami${Z}                See your current context`,
@@ -517,10 +521,11 @@ function buildHelp(): string {
     '',
     `${A}Coordination:${Z}`,
     `  ${G}pd lock${Z} <name>           Grab a distributed lock`,
+    `  ${G}pd agent${Z} "task"         One-shot autopilot delegation`,
     `  ${G}pd agent register${Z}        Register as an agent`,
     `  ${G}pd salvage${Z}               Pick up a dead agent's work`,
     '',
-    `${D}pd help <topic> for details — topics: sessions, locks, agents, ports, messaging, dns, orchestration, sugar, tutorial${Z}`,
+    `${D}pd help <topic> for details — topics: setup, sessions, locks, agents, ports, messaging, dns, orchestration, sugar, tutorial${Z}`,
     `${D}Dashboard: ${PORT_DADDY_URL}  •  Tutorial: pd learn${Z}`,
   );
 
@@ -532,6 +537,24 @@ function buildHelp(): string {
  * Each topic shows relevant commands with flags and examples.
  */
 const TOPIC_HELP: Record<string, string> = {
+  setup: `Setup — Install the full local Port Daddy environment
+
+Commands:
+  setup                     Install daemon, MCP, FleetBar, and init project
+    --project <path>        Initialize a specific project directory
+    --no-daemon             Skip daemon installation/start
+    --no-mcp                Skip MCP + shell hook installation
+    --no-fleetbar           Skip FleetBar install (macOS)
+    --no-init               Skip project initialization
+    --no-fleet              Pass through to pd init
+    --no-hook               Pass through to pd init
+
+Examples:
+  pd setup
+  pd setup --project ~/coding/workgroup-ai
+  pd setup --no-fleetbar
+  pd setup --no-init`,
+
   sessions: `Sessions & Notes \u2014 Structured multi-agent coordination
 
 Commands:
@@ -596,6 +619,9 @@ Examples:
   agents: `Agent Registry \u2014 Track active agents with heartbeats
 
 Commands:
+  agent "task text"         Run a one-shot pd agent autopilot task
+  agent run "task text"     Explicit autopilot form
+
   agent register           Register as an agent
     --agent <id>           Agent ID (required)
     --identity <id>        Semantic identity (project:stack:context)
@@ -1608,7 +1634,7 @@ async function main(): Promise<void> {
 
   // Check for stale daemon before running commands (skip for daemon management and --direct mode)
   const hasDirectFlag: boolean = args.includes('--direct');
-  const skipFreshnessCheck: boolean = hasDirectFlag || ['start', 'stop', 'restart', 'install', 'uninstall', 'status', 'version', 'dev', 'ci-gate', 'doctor', 'diagnose', 'up', 'down', 'dashboard'].includes(command as string);
+  const skipFreshnessCheck: boolean = hasDirectFlag || ['start', 'stop', 'restart', 'install', 'uninstall', 'status', 'version', 'dev', 'ci-gate', 'doctor', 'diagnose', 'up', 'down', 'dashboard', 'setup'].includes(command as string);
   const isQuiet: boolean = args.includes('--quiet') || args.includes('-q') || args.includes('--json') || args.includes('-j');
   
   if (!skipFreshnessCheck) {
@@ -1767,6 +1793,11 @@ async function main(): Promise<void> {
         break;
 
       // Project onboarding
+      case 'setup': {
+        await handleSetup(options);
+        break;
+      }
+
       case 'init': {
         const { handleInit } = await import('../cli/commands/init.js');
         await handleInit(options);

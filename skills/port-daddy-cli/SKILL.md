@@ -208,6 +208,26 @@ curl http://localhost:9876/fleet/events      # SSE lifecycle stream
 
 The starter fleet includes: **QA** (bug hunting), **Documentarian** (docs sync), **Cartographer** (roadmap tracking), **Spark** (idea generation), **Spider** (cross-feature connections).
 
+`pd fleet status` now surfaces backend readiness and sandbox-sensitive local execution hints so users can see install/auth/permission blockers before a fleet run fails.
+
+## `pd agent`: One-Shot Autopilot Delegation
+
+For bounded single-agent work, `pd agent "task text"` now auto-wraps:
+
+- session begin
+- spawned execution
+- session close
+
+It also prints the resolved runtime up front and can honor explicit runtime flags:
+
+```bash
+pd agent "review the last commit for risks"
+pd agent "summarize git status" --backend custom
+pd agent "investigate auth flow" --backend gemini --tier mid
+```
+
+This is the lightest-weight delegation surface. It is for one-shot work, not always-on automation.
+
 ```yaml
 # pd-fleet.yml
 fleet:
@@ -248,8 +268,13 @@ fleet:
 - Each agent gets full PD coordination: registration, sessions, heartbeats, salvage on crash
 - Auto-respawn with `respawn: true` and `max_respawns` circuit breaker
 - **Daemon mode**: fleet auto-discovered from registered projects on daemon boot; editing `pd-fleet.yml` triggers hot-reload; SIGHUP reloads all fleets
+- **Project fleet leases**: daemon-owned fleets are singleton per project across daemons; another daemon may discover the same `pd-fleet.yml`, but it must skip starting that project if a lease is already held
 - **Resource limits**: `limits.max_concurrent_spawns` and `limits.max_spawns_per_hour` prevent runaway agents
 - Lifecycle events published to `fleet:events` channel for dashboard/menu bar subscriptions
+
+Keep the distinction clear:
+- `singleton: true` on an agent prevents overlapping runs of that one agent inside a single fleet runner
+- project fleet leases prevent two different daemons from both running the same project fleet at once
 
 ## Tuple Space: Shared Swarm Memory (v3.8.0)
 
@@ -336,6 +361,7 @@ All runtime files live in `~/.port-daddy/` (not `/tmp/`). This eliminates symlin
 | `~/.port-daddy/daemon.pid` | PID file |
 | `~/.port-daddy/daemon.port` | TCP port file (dashboard discovery) |
 | `~/.port-daddy/master.key` | AES-256-GCM master key for note encryption |
+| `~/.port-daddy/ui-preferences.json` | Shared UI preferences (FleetBar menu bar companion) |
 
 Override via environment variables: `PORT_DADDY_SOCK`, `PORT_DADDY_IPC`, `PORT_DADDY_PORT_FILE`.
 
@@ -370,7 +396,7 @@ Override via environment variables: `PORT_DADDY_SOCK`, `PORT_DADDY_IPC`, `PORT_D
 | `GET /fleet/prompt` | One-line fleet status for shell prompt (query: `project`) |
 | `GET /fleet/config/:project` | Raw YAML + parsed config + topology validation |
 | `PUT /fleet/config/:project` | Write YAML config, validate, reload fleet |
-| `GET /fleet/models` | Available backends + model catalog (probes Ollama live) |
+| `GET /fleet/models` | Supported backends + model catalog + readiness hints (probes Ollama live) |
 | **Swarm Memory** | |
 | `pd tuple out/rd/in` | Write/read/take tuples |
 | `pd tuple scan/count` | List/count tuples |
@@ -386,6 +412,7 @@ Override via environment variables: `PORT_DADDY_SOCK`, `PORT_DADDY_IPC`, `PORT_D
 | `GET /metrics/counters/top` | Top N dimension values for a counter |
 | `GET /metrics/cost/recent` | Most recent cost events |
 | **System** | |
+| `pd setup` | One-command onboarding (daemon + MCP + FleetBar + project init) |
 | `pd status` | Daemon health |
 | `pd version` | Version and code hash |
 | `pd arbiter status` | Invariant enforcement status |
@@ -396,6 +423,7 @@ Override via environment variables: `PORT_DADDY_SOCK`, `PORT_DADDY_IPC`, `PORT_D
 
 | Problem | Solution |
 |---------|----------|
+| First-time setup (daemon + MCP + FleetBar) | `pd setup` |
 | Dev server port conflict | `pd claim myapp:api -q` |
 | Need to coordinate with other agents | `pd begin` + `pd session files claim` |
 | Agent-to-agent signaling | `pd pub` + `pd watch` |
@@ -418,6 +446,17 @@ Override via environment variables: `PORT_DADDY_SOCK`, `PORT_DADDY_IPC`, `PORT_D
 | Show fleet status in shell prompt | `curl localhost:9876/fleet/prompt?project=myapp` |
 | Read/edit fleet config via API | `GET /fleet/config/myapp` or `PUT /fleet/config/myapp` with `{ "yaml": "..." }` |
 | What LLM backends are available? | `curl localhost:9876/fleet/models` |
+
+## Planned Next Surface
+
+`pd sortie` is the planned bounded multi-agent mission surface:
+
+- explicit readiness before launch
+- explicit budget/model policy
+- explicit roster and artifact tracking
+- clearer "send this to creative agents" background workflows
+
+That direction is planned in `docs/recovery/PD-AGENT-SORTIE-PLAN.md`.
 
 ## Common Issues
 
