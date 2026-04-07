@@ -225,7 +225,7 @@ interface SortieMission {
   createdAt: number;
   startedAt?: number;
   completedAt?: number;
-  budgetUsd?: number;
+  budgetUsd: number;           // required ceiling; no unbudgeted sorties
   maxDurationMinutes?: number;
   approvalMode?: 'none' | 'before-build' | 'before-apply' | 'before-close';
   modelPolicy?: {

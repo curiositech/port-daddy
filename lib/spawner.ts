@@ -467,6 +467,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     record.heartbeatInterval = setInterval(async () => {
       await pdCoordinate(`/agents/${agentId}/heartbeat`, {});
     }, 30000);
+    record.heartbeatInterval.unref?.();
 
     let output: string | null = null;
     let error: string | null = null;

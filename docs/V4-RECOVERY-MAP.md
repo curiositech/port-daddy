@@ -155,4 +155,4 @@ For now:
 - Stable user-facing daemon: `9876`
 - Native companion: `apps/FleetBar`
 - Web control plane: `fleet-config-ui`
-- Next roadmap thread to fully ship: cost / observability
+- Next roadmap thread to fully ship: cost / observability 

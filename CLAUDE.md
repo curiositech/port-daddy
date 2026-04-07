@@ -28,13 +28,20 @@ Port Daddy is the authoritative port manager for multi-agent development. It's a
 - **Sessions & Notes** — Structured multi-agent coordination with immutable audit trails
 - **Agent coordination** — Pub/sub messaging and distributed locks
 - **Agent registry** — Track active agents with heartbeats
+- **Background fleet** — Declarative agent fleets from `pd-fleet.yml`, auto-started on daemon boot
+- **AI agent spawning** — Launch agents on any backend (claude-cli, ollama, gemini, aider, custom)
+- **Cost tracking & observability** — Per-spawn LLM cost recording, golden signals (RED method)
+- **Binary IPC** — Sub-microsecond heartbeats over Unix domain socket (MessagePack, FIPA performatives)
+- **Pheromone trails** — Ambient numeric signals with geometric decay for contention detection
+- **Tuple space** — Linda-style shared memory for swarm coordination
+- **Salvage** — Dead agent work preserved and claimable by other agents
 - **Webhooks** — External system integration
 - **Activity logging** — Full audit trail
 
 ## Architecture
 
 ```
-server.ts           # Express daemon (main entry point)
+server.ts           # Fastify daemon (main entry point)
 lib/
   services.ts       # Port assignment module
   sessions.ts       # Sessions & Notes (agent coordination)
@@ -92,6 +99,8 @@ lib/
   ipc-frame.ts      # 7-byte header + MessagePack frame codec
   ipc-auth.ts       # IPC connection authentication
   ipc-types.ts      # IPC protocol type definitions
+  fleetbar-launcher.ts # Launches FleetBar menu bar app on daemon startup (macOS)
+  ui-preferences.ts # Shared UI preference persistence (~/.port-daddy/ui-preferences.json)
 routes/
   index.ts          # Route aggregator (registers all route modules)
   services.ts       # /claim, /release, /services, /wait endpoints
@@ -122,6 +131,14 @@ routes/
   tuples.ts         # /tuples endpoints
   merge-queue.ts    # /merge/* endpoints (queue, plugins, conflict prediction)
   symbols.ts        # /symbols/*, /dependencies, /conflicts/predict endpoints
+cli/
+  commands/
+    setup.ts        # pd setup — one-command onboarding (daemon + MCP + FleetBar + init)
+    fleet.ts        # pd fleet up/down/status/init
+    spawn.ts        # pd spawn, pd spawned, pd spawn kill
+    index.ts        # Command module aggregator
+shared/
+  paths.ts          # Shared path constants (~/.port-daddy/ base, sockets, PID, prefs)
 bin/
   port-daddy-cli.ts # CLI entry point
 public/
@@ -138,6 +155,9 @@ docs/
   sdk.md                # Full SDK reference (moved from README)
 examples/
   agent-coordination.js  # Multi-agent example
+fleet-config-ui/        # React app for visual fleet management (YAML editor, agent cards, activity)
+apps/
+  FleetBar/             # SwiftUI menu bar app for macOS (fleet status, cost dashboard, preferences)
 ```
 
 ## Always-On Daemon
@@ -360,7 +380,7 @@ Daemon auto-discovers `pd-fleet.yml` in registered projects and starts fleet run
 |---------|--------|-------|
 | `lib/fleet-daemon.ts` | ✅ DONE | `createFleetDaemon()` — start/stop/reload/startProject/stopProject/getStatus/listProjects |
 | `lib/fleet-engine.ts` | ✅ DONE | Added `FleetLimits`, `FleetEvent`, `FleetRunnerOptions.onEvent`, resource quota enforcement |
-| `routes/fleet.ts` | ✅ DONE | 7 endpoints: GET/fleet, GET/fleet/:project, POST/fleet/start|stop|reload|register, GET/fleet/events |
+| `routes/fleet.ts` | ✅ DONE | 11 endpoints: GET/fleet, GET/fleet/:project, POST/fleet/start\|stop\|reload\|register, GET/fleet/events\|prompt\|models, GET\|PUT/fleet/config/:project |
 | `routes/index.ts` | ✅ DONE | `fleetDeps` optional param wired |
 | `routes/info.ts` | ✅ DONE | `/health` and `/status` now include `fleet` subsection |
 | `server.ts` | ✅ DONE | `createFleetDaemon()` wired; `fleetDaemon.start()` in `onReady()`; SIGHUP handler; graceful `stop()` in shutdown |
@@ -441,6 +461,38 @@ When an agent dies, other agents in the same project should be notified.
 3. CLI displays: "⚠️ 2 dead agent(s) in myapp:*. Run: pd salvage --project myapp"
 4. `pd salvage --project myapp` shows only dead agents in that project
 5. Dashboard shows resurrection queue prominently with project grouping
+
+### pd setup — One-Command Onboarding
+
+| Surface | Status | Notes |
+|---------|--------|-------|
+| `cli/commands/setup.ts` | ✅ DONE | Installs daemon, MCP (7 IDEs), FleetBar, and inits project |
+| `bin/port-daddy-cli.ts` | ✅ DONE | `pd setup` command wired with all skip flags |
+| `cli/commands/mcp-install.ts` | ✅ DONE | Expanded to 7 platforms: Claude Code, Claude Desktop, Cursor, Windsurf, VS Code, Continue, Cline |
+| `CHANGELOG.md` | ✅ DONE | Entry added to [Unreleased] |
+| `SKILL.md` | ✅ DONE | CLI Quick Reference + Decision Matrix updated |
+| `features.manifest.json` | ✅ DONE | `setup` entry added |
+| `completions/*.{bash,zsh,fish}` | ⬜ TODO | Needs `setup` with `--no-daemon`, `--no-mcp`, `--no-fleetbar`, `--no-init`, `--no-fleet`, `--no-hook`, `--project` flags |
+
+### Cost Tracking & Observability
+
+| Surface | Status | Notes |
+|---------|--------|-------|
+| `lib/cost-tracker.ts` | ✅ DONE | Per-spawn cost recording, model pricing, budget checks |
+| `lib/counters.ts` | ✅ DONE | ODS-style metrics, minute/hour buckets, auto-cleanup |
+| `routes/observability.ts` | ✅ DONE | 6 endpoints: golden, counters, counters/top, cost, cost/recent, cost/budget |
+| `routes/index.ts` | ✅ DONE | Wired when counters + costTracker available |
+| `SKILL.md` | ✅ DONE | Observability section in CLI Quick Reference + Decision Matrix |
+| `CLAUDE.md` | ✅ DONE | API table + architecture updated |
+| `CHANGELOG.md` | ✅ DONE | Entry added to [Unreleased] |
+| `features.manifest.json` | ✅ DONE | cost_tracker, counters, observability entries |
+
+### Path Centralization (~/.port-daddy/)
+
+| Surface | Status | Notes |
+|---------|--------|-------|
+| `shared/paths.ts` | ✅ DONE | PD_HOME, DEFAULT_SOCK, DEFAULT_IPC, DEFAULT_PID_FILE, DEFAULT_PORT_FILE, UI_PREFS_FILE |
+| `CHANGELOG.md` | ✅ DONE | Entry added to [Unreleased] |
 
 ## Adding New Features
 
