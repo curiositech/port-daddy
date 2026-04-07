@@ -5,8 +5,7 @@
  */
 
 import { join } from 'node:path';
-import { existsSync, readFileSync, readdirSync, accessSync, constants } from 'node:fs';
-import { createHash } from 'node:crypto';
+import { existsSync, readFileSync, accessSync, constants } from 'node:fs';
 import { spawnSync, spawn } from 'node:child_process';
 import type { SpawnSyncReturns } from 'node:child_process';
 import { ANSI as marANSI } from '../../lib/maritime.js';
@@ -16,36 +15,14 @@ import { separator, tableHeader } from '../utils/output.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import { diagnoseStartupBlockers, confirmFix } from '../utils/startup-doctor.js';
 import { CANONICAL_TCP_PORT } from '../../shared/daemon-discovery.js';
+import { calculateRuntimeCodeHash } from '../../shared/code-hash.js';
 import * as ui from '../utils/ui.js';
 
 // __dirname equivalent for ESM
 const __dirname = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
 
-/**
- * Get local code hash — matches server.ts calculateCodeHash()
- */
 function getLocalCodeHash(): string {
-  const hash = createHash('sha256');
-  const libDir: string = join(__dirname, '..', '..');
-
-  const filesToHash: string[] = ['server.ts'];
-  for (const dir of ['lib', 'routes', 'shared']) {
-    const dirPath: string = join(libDir, dir);
-    if (existsSync(dirPath)) {
-      for (const f of readdirSync(dirPath)) {
-        if (f.endsWith('.ts')) filesToHash.push(`${dir}/${f}`);
-      }
-    }
-  }
-
-  for (const file of filesToHash) {
-    const filePath: string = join(libDir, file);
-    if (existsSync(filePath)) {
-      hash.update(readFileSync(filePath));
-    }
-  }
-
-  return hash.digest('hex').slice(0, 8);
+  return calculateRuntimeCodeHash(join(__dirname, '..', '..'));
 }
 
 function resolveDiagnosticPort(): number {
@@ -652,7 +629,9 @@ export async function handleDoctor(): Promise<void> {
   // -------------------------------------------------------------------------
   // 11. Startup blockers (stale sockets, zombie processes, port conflicts)
   // -------------------------------------------------------------------------
-  const startupIssues = diagnoseStartupBlockers(daemonPort);
+  const startupIssues = diagnoseStartupBlockers(daemonPort, {
+    healthyDaemonPid: daemonRunning && typeof daemonData?.pid === 'number' ? daemonData.pid as number : null,
+  });
   if (startupIssues.length === 0 && !daemonRunning) {
     check('Startup readiness', true, 'No blockers — daemon can start cleanly');
   } else if (startupIssues.length === 0) {

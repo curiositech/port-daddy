@@ -5,9 +5,8 @@
  */
 
 import { join } from 'node:path';
-import { existsSync, readFileSync, readdirSync, watch } from 'node:fs';
+import { existsSync, watch } from 'node:fs';
 import type { FSWatcher } from 'node:fs';
-import { createHash } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
 import type { ChildProcess, SpawnSyncReturns } from 'node:child_process';
 import { pdFetch, PORT_DADDY_URL, getDaemonUrl } from '../utils/fetch.js';
@@ -15,36 +14,43 @@ import type { PdFetchResponse } from '../utils/fetch.js';
 import { printBanner, printCompactHeader, printFarewell, WHEEL, ANCHOR, ANSI } from '../../lib/banner.js';
 import { autoFixStartupBlockers, diagnoseStartupBlockers } from '../utils/startup-doctor.js';
 import { readDaemonPort } from '../../shared/daemon-discovery.js';
+import { calculateRuntimeCodeHash, listRuntimeSourceFiles } from '../../shared/code-hash.js';
 import * as ui from '../utils/ui.js';
 
 // __dirname equivalent for ESM
 const __dirname = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
+const STARTUP_HEALTH_TIMEOUT_MS = 10000;
+const SHUTDOWN_TIMEOUT_MS = 5000;
 
-/**
- * Get local code hash — matches server.ts calculateCodeHash()
- */
-function getLocalCodeHash(): string {
-  const hash = createHash('sha256');
-  const libDir: string = join(__dirname, '..', '..');
-
-  const filesToHash: string[] = ['server.ts'];
-  for (const dir of ['lib', 'routes', 'shared']) {
-    const dirPath: string = join(libDir, dir);
-    if (existsSync(dirPath)) {
-      for (const f of readdirSync(dirPath)) {
-        if (f.endsWith('.ts')) filesToHash.push(`${dir}/${f}`);
+async function waitForDaemonHealthy(timeoutMs: number = STARTUP_HEALTH_TIMEOUT_MS): Promise<unknown | null> {
+  const attempts = Math.max(1, Math.ceil(timeoutMs / 100));
+  for (let i = 0; i < attempts; i++) {
+    await new Promise<void>(r => setTimeout(r, 100));
+    try {
+      const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/health`);
+      if (res.ok) {
+        return await res.json();
       }
-    }
+    } catch {}
   }
+  return null;
+}
 
-  for (const file of filesToHash) {
-    const filePath: string = join(libDir, file);
-    if (existsSync(filePath)) {
-      hash.update(readFileSync(filePath));
+async function waitForProcessExit(pid: number, timeoutMs: number = SHUTDOWN_TIMEOUT_MS): Promise<boolean> {
+  const attempts = Math.max(1, Math.ceil(timeoutMs / 100));
+  for (let i = 0; i < attempts; i++) {
+    try {
+      process.kill(pid, 0);
+    } catch {
+      return true;
     }
+    await new Promise<void>(r => setTimeout(r, 100));
   }
+  return false;
+}
 
-  return hash.digest('hex').slice(0, 8);
+function getLocalCodeHash(): string {
+  return calculateRuntimeCodeHash(join(__dirname, '..', '..'));
 }
 
 function isCanonicalDaemonTarget(): boolean {
@@ -89,7 +95,16 @@ async function stopRunningCanonicalDaemon(localCodeHash: string, daemonPort: num
       }
     }
 
-    await new Promise<void>(r => setTimeout(r, 1000));
+    if (pid) {
+      const exited = await waitForProcessExit(pid, SHUTDOWN_TIMEOUT_MS);
+      if (!exited) {
+        ui.warn(`Canonical daemon PID ${pid} did not exit after SIGTERM; forcing stop`);
+        try {
+          process.kill(pid, 'SIGKILL');
+        } catch {}
+        await waitForProcessExit(pid, 2000);
+      }
+    }
     const { fixed } = autoFixStartupBlockers(daemonPort);
     if (fixed) {
       await new Promise<void>(r => setTimeout(r, 1000));
@@ -111,22 +126,15 @@ async function attemptDaemonStart(tsxBin: string, serverScript: string): Promise
   });
   child.unref();
 
-  // Wait up to 3 seconds for health check
-  for (let i = 0; i < 30; i++) {
-    await new Promise<void>(r => setTimeout(r, 100));
-    try {
-      const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/health`);
-      if (res.ok) {
-        const data = await res.json();
-        const daemonUrl = getDaemonUrl();
-        ui.success(`Daemon running at ${daemonUrl} (PID ${data.pid})`);
-        console.log('');
-        console.log(`  ${ANSI.fgGray}Dashboard:${ANSI.reset} ${ANSI.fgCyan}${daemonUrl}${ANSI.reset}`);
-        console.log(`  ${ANSI.fgGray}Try:${ANSI.reset}       pd claim myapp -q`);
-        console.log('');
-        return true;
-      }
-    } catch {}
+  const data = await waitForDaemonHealthy();
+  if (data && typeof data === 'object' && data !== null) {
+    const daemonUrl = getDaemonUrl();
+    ui.success(`Daemon running at ${daemonUrl} (PID ${(data as any).pid})`);
+    console.log('');
+    console.log(`  ${ANSI.fgGray}Dashboard:${ANSI.reset} ${ANSI.fgCyan}${daemonUrl}${ANSI.reset}`);
+    console.log(`  ${ANSI.fgGray}Try:${ANSI.reset}       pd claim myapp -q`);
+    console.log('');
+    return true;
   }
   return false;
 }
@@ -176,7 +184,17 @@ export async function handleDaemon(action: string): Promise<void> {
       const { fixed, issues } = autoFixStartupBlockers(daemonPort);
 
       if (issues.length === 0) {
-        // No obvious issues found — maybe it just needs a moment
+        const lateData = await waitForDaemonHealthy(5000);
+        if (lateData) {
+          const daemonUrl = getDaemonUrl();
+          ui.success(`Daemon running at ${daemonUrl} (PID ${(lateData as any).pid})`);
+          console.log('');
+          console.log(`  ${ANSI.fgGray}Dashboard:${ANSI.reset} ${ANSI.fgCyan}${daemonUrl}${ANSI.reset}`);
+          console.log(`  ${ANSI.fgGray}Try:${ANSI.reset}       pd claim myapp -q`);
+          console.log('');
+          return;
+        }
+
         ui.error('Failed to start daemon (no fixable issues found)');
         console.log(`  ${ANSI.fgGray}Run: pd doctor${ANSI.reset}`);
         process.exit(1);
@@ -228,7 +246,18 @@ export async function handleDaemon(action: string): Promise<void> {
       try {
         const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/health`);
         const data = await res.json();
-        process.kill(data.pid as number, 'SIGTERM');
+        const pid = data.pid as number;
+        process.kill(pid, 'SIGTERM');
+        let exited = await waitForProcessExit(pid, SHUTDOWN_TIMEOUT_MS);
+        if (!exited) {
+          ui.warn(`Daemon PID ${pid} did not exit after SIGTERM; forcing stop`);
+          process.kill(pid, 'SIGKILL');
+          exited = await waitForProcessExit(pid, 2000);
+        }
+        if (!exited) {
+          ui.error(`Daemon PID ${pid} did not stop cleanly`);
+          process.exit(1);
+        }
         printFarewell();
         ui.success('Daemon stopped');
       } catch {
@@ -264,16 +293,7 @@ export async function handleDaemon(action: string): Promise<void> {
 export async function handleDev(): Promise<void> {
   const libDir: string = join(__dirname, '..', '..');
 
-  // Dynamically discover files to watch — matches server.ts calculateCodeHash() approach
-  const filesToWatch: string[] = ['server.ts'];
-  for (const dir of ['lib', 'routes', 'shared']) {
-    const dirPath: string = join(libDir, dir);
-    if (existsSync(dirPath)) {
-      for (const f of readdirSync(dirPath)) {
-        if (f.endsWith('.ts')) filesToWatch.push(`${dir}/${f}`);
-      }
-    }
-  }
+  const filesToWatch: string[] = listRuntimeSourceFiles(libDir);
 
   printCompactHeader('DEV MODE');
   console.log(`  ${ANCHOR} Watching source files for changes...`);

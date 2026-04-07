@@ -62,24 +62,7 @@ export function getDaemonUrl(): string {
   return `http://${LOOPBACK_TCP_HOST}:${readDaemonPort(PORT_FILE) || CANONICAL_TCP_PORT}`;
 }
 
-/**
- * Drop-in replacement for fetch() that routes through Unix socket when available.
- * Returns an object matching the subset of the fetch Response API that the CLI uses.
- */
-export function pdFetch(urlOrPath: string, options: FetchOptions = {}): Promise<PdFetchResponse> {
-  // Extract just the path from a full URL or use as-is if already a path
-  let path: string;
-  if (urlOrPath.startsWith('/')) {
-    path = urlOrPath;
-  } else {
-    try {
-      path = new URL(urlOrPath).pathname + (new URL(urlOrPath).search || '');
-    } catch {
-      path = urlOrPath;
-    }
-  }
-
-  const target: ConnectionTarget = resolveTarget();
+function requestTarget(target: ConnectionTarget, path: string, options: FetchOptions): Promise<PdFetchResponse> {
   const { method = 'GET', headers = {}, body = null } = options;
 
   const reqHeaders: Record<string, string | number> = { ...headers };
@@ -121,6 +104,48 @@ export function pdFetch(urlOrPath: string, options: FetchOptions = {}): Promise<
 
     if (body) req.write(body);
     req.end();
+  });
+}
+
+function shouldFallbackFromSocket(error: unknown): boolean {
+  const code = typeof error === 'object' && error && 'code' in error ? String((error as any).code) : '';
+  const message = error instanceof Error ? error.message : '';
+  return code === 'ENOENT' ||
+    code === 'ECONNREFUSED' ||
+    code === 'ECONNRESET' ||
+    code === 'EPERM' ||
+    message.includes('timed out');
+}
+
+/**
+ * Drop-in replacement for fetch() that routes through Unix socket when available.
+ * Returns an object matching the subset of the fetch Response API that the CLI uses.
+ */
+export function pdFetch(urlOrPath: string, options: FetchOptions = {}): Promise<PdFetchResponse> {
+  // Extract just the path from a full URL or use as-is if already a path
+  let path: string;
+  if (urlOrPath.startsWith('/')) {
+    path = urlOrPath;
+  } else {
+    try {
+      path = new URL(urlOrPath).pathname + (new URL(urlOrPath).search || '');
+    } catch {
+      path = urlOrPath;
+    }
+  }
+
+  const target: ConnectionTarget = resolveTarget();
+
+  return requestTarget(target, path, options).catch((error: unknown) => {
+    if (!target.socketPath || process.env.PORT_DADDY_URL || !shouldFallbackFromSocket(error)) {
+      throw error;
+    }
+
+    const fallbackTarget: ConnectionTarget = {
+      host: LOOPBACK_TCP_HOST,
+      port: readDaemonPort(PORT_FILE),
+    };
+    return requestTarget(fallbackTarget, path, options);
   });
 }
 

@@ -17,7 +17,6 @@ import Database from 'better-sqlite3';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { readFileSync, existsSync, readdirSync, unlinkSync, writeFileSync } from 'fs';
-import { createHash } from 'crypto';
 import { createConnection } from 'net';
 import winston from 'winston';
 
@@ -66,6 +65,7 @@ import { registerAllRoutes } from './routes/index.js';
 // Shared utilities
 import { getSystemPorts, startSystemPortsRefresh } from './shared/port-utils.js';
 import { LOOPBACK_TCP_HOST } from './shared/daemon-discovery.js';
+import { calculateRuntimeCodeHash } from './shared/code-hash.js';
 
 const __dirname: string = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT: string = existsSync(join(__dirname, 'apps', 'FleetBar'))
@@ -104,20 +104,7 @@ const VERSION: string = pkg.version;
 // =============================================================================
 
 function calculateCodeHash(): string {
-  const libDir: string = join(__dirname, 'lib');
-  const libFiles: string[] = existsSync(libDir)
-    ? readdirSync(libDir).filter((f: string) => f.endsWith('.ts')).sort().map((f: string) => `lib/${f}`)
-    : [];
-  const filesToHash: string[] = ['server.ts', ...libFiles];
-
-  const hash = createHash('sha256');
-  for (const file of filesToHash) {
-    const filePath: string = join(__dirname, file);
-    if (existsSync(filePath)) {
-      hash.update(readFileSync(filePath));
-    }
-  }
-  return hash.digest('hex').slice(0, 12);
+  return calculateRuntimeCodeHash(__dirname);
 }
 
 const CODE_HASH: string = calculateCodeHash();

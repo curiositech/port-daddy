@@ -10,12 +10,11 @@
 import { spawn, spawnSync } from 'node:child_process';
 import type { ChildProcess, SpawnSyncReturns } from 'node:child_process';
 
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createHash } from 'node:crypto';
 import http from 'node:http';
 import type { IncomingMessage, ClientRequest } from 'node:http';
-import { readFileSync, readdirSync, writeFileSync as fsWriteFileSync, existsSync, unlinkSync, watch } from 'node:fs';
+import { readFileSync, writeFileSync as fsWriteFileSync, existsSync, unlinkSync, watch } from 'node:fs';
 import type { FSWatcher } from 'node:fs';
 import { discoverServices, suggestNames, mergeWithConfig } from '../lib/discover.js';
 import type { DiscoveredService } from '../lib/discover.js';
@@ -95,7 +94,9 @@ import {
   handleTuple,
 } from '../cli/commands/index.js';
 import { getDaemonTcpUrl, readDaemonPort, resolveDaemonTcpTarget } from '../shared/daemon-discovery.js';
+import { calculateRuntimeCodeHash } from '../shared/code-hash.js';
 import { DEFAULT_SOCK as _DEFAULT_SOCK, DEFAULT_PORT_FILE as _DEFAULT_PORT_FILE } from '../shared/paths.js';
+import { shouldAutoRestartDaemonForFreshness, shouldCheckDaemonFreshness } from '../cli/utils/freshness.js';
 
 const __dirname: string = dirname(fileURLToPath(import.meta.url));
 const PORT_DADDY_URL: string = getDaemonTcpUrl(process.env.PORT_DADDY_URL);
@@ -343,22 +344,7 @@ function pdFetch(urlOrPath: string, options: { method?: string; headers?: Record
 
 // Calculate local code hash to compare with daemon
 function getLocalCodeHash(): string {
-  const libDir: string = join(__dirname, '..');
-  // Dynamically discover all .ts files in lib/ — must match server.ts logic exactly
-  const libDirPath: string = join(libDir, 'lib');
-  const libFiles: string[] = existsSync(libDirPath)
-    ? readdirSync(libDirPath).filter((f: string) => f.endsWith('.ts')).sort().map((f: string) => `lib/${f}`)
-    : [];
-  const filesToHash: string[] = ['server.ts', ...libFiles];
-
-  const hash = createHash('sha256');
-  for (const file of filesToHash) {
-    const filePath: string = join(libDir, file);
-    if (existsSync(filePath)) {
-      hash.update(readFileSync(filePath));
-    }
-  }
-  return hash.digest('hex').slice(0, 12);
+  return calculateRuntimeCodeHash(join(__dirname, '..'));
 }
 
 // Check if daemon is running stale code
@@ -371,6 +357,16 @@ async function checkDaemonFreshness(autoRestart: boolean = true, quiet: boolean 
     if (!res.ok) return false;
 
     const data = await res.json();
+    const isInteractive = !!(process.stdout.isTTY || process.stderr.isTTY);
+    const localInstallDir = resolve(join(__dirname, '..'));
+    const daemonInstallDir = typeof data.installDir === 'string' ? data.installDir : null;
+    if (!shouldAutoRestartDaemonForFreshness({
+      daemonInstallDir,
+      localInstallDir,
+      isInteractive,
+    })) {
+      return false;
+    }
     const localHash: string = getLocalCodeHash();
 
     if (data.codeHash && data.codeHash !== localHash) {
@@ -1631,12 +1627,9 @@ async function main(): Promise<void> {
     process.exit(0);
   }
 
-  // Check for stale daemon before running commands (skip for daemon management and --direct mode)
-  const hasDirectFlag: boolean = args.includes('--direct');
-  const skipFreshnessCheck: boolean = hasDirectFlag || ['start', 'stop', 'restart', 'install', 'uninstall', 'status', 'version', 'dev', 'ci-gate', 'doctor', 'diagnose', 'up', 'down', 'dashboard', 'setup'].includes(command as string);
   const isQuiet: boolean = args.includes('--quiet') || args.includes('-q') || args.includes('--json') || args.includes('-j');
   
-  if (!skipFreshnessCheck) {
+  if (shouldCheckDaemonFreshness(command as string, args)) {
     await checkDaemonFreshness(true, isQuiet);
   }
 
