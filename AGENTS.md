@@ -41,6 +41,8 @@ Project-specific shibboleths for proficient Port Daddy work. If you learn a new 
 
 ## Control Plane
 
+- `pd agent` is a thin ad hoc wrapper over `/sugar/begin` + `/spawn` + `/sugar/done`, not a sortie object. Treat its UI presence as a manual job/run unless the launch explicitly came from the sortie workflow.
+- A failed or completed `pd agent` run can disappear from the live agent registry while still existing in spawned-agent history and session notes. Operator UIs need a separate ad hoc-job lens instead of assuming the live agent registry is the whole truth.
 - `fleet-config-ui` is the real control plane surface.
 - `public/fleet-ui` is the built artifact served by the daemon.
 - FleetBar should open the real control plane, not a shadow dashboard with reduced functionality.

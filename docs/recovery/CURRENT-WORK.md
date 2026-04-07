@@ -69,11 +69,15 @@ Current uncommitted slice: the remaining residue audit:
    - kill the lingering “Waiting for activity” empty state when structured project activity exists
    - show per-agent last-active, non-empty messages, recent mutations, and artifacts in one obvious place
    - when focused agent changes, all surviving agent-detail surfaces should switch coherently instead of drifting out of sync
-16. Remove the remaining inspector/focus confusion:
+16. Model ad hoc project agents honestly in the product:
+   - add a distinct UI bucket for manual/ad hoc jobs (`pd agent` and direct `pd spawn`) instead of pretending they are fleet agents or sorties
+   - show these runs from spawned/session history even when they never persist in the live agent registry
+   - let this dogfooding shape the UI: Port Daddy should be able to show its own ad hoc Port Daddy runs clearly
+17. Remove the remaining inspector/focus confusion:
    - clicking Spark/Spider/etc. should not produce both an in-page “Agent Focus” view and a second overlapping slide-in detail/settings surface
    - the project log should not be covered by a detail drawer that is not itself project-log-specific
    - the agent detail slide pane persisting across unrelated top-level tabs is a bug until proven otherwise
-17. Fix the surfaces the operator explicitly says are still not working:
+18. Fix the surfaces the operator explicitly says are still not working:
    - Inbox should move into Agents or Channels if that is the more truthful model, but either way it must actually work
    - Sorties must be verified end-to-end from the live daemon/UI, not merely made pretty
    - root-cause the exact Claude SDK launch reset path where the UI said “ready,” attempted launch, then reverted to `claude-cli`
