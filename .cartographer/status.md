@@ -2,8 +2,8 @@
 
 **Last updated:** 2026-04-07
 **Updated by:** Cartographer (manual invocation)
-**HEAD:** `3ece95a` (Rehabilitate roadmap docs and archaeology tests)
-**Previous HEAD:** `853cc57` — 3 new commits since last run
+**HEAD:** `55258f6` (Sync ledgers after archaeology rehab)
+**Previous HEAD:** `3ece95a` — 2 new commits since last run
 
 ---
 
@@ -23,9 +23,9 @@ Active threads, ranked by commit recency:
 
 3. **Fleet/runtime archaeology rehab** — `3ece95a` promoted long-dirty roadmap/docs changes and two substantive untracked test suites (`semantic-index`, `tunnel-lifecycle`). It also shipped a small but real runtime hygiene fix: the spawner heartbeat interval now `unref()`s so blocked-spawn tests do not hold Jest open just by hitting the concurrency ceiling.
 
-4. **Residual archaeology still on disk** — only two notable piles remain uncommitted:
-   - generated spider connection notes under `.spider/connections/`
+4. **Residual archaeology still on disk** — only one substantive file and one residue policy decision remain:
    - `tests/unit/spawner-commit-0df9155-bugs.test.js`, which is mostly redundant with `tests/unit/spawner.test.js` and still freezes known-bad behavior as expected output
+   - the spider connection note pile under `.spider/connections/` is now explicitly moving into `.gitignore` rather than pretending to wait for promotion
    Everything else from the previously dirty runtime/test/doc slices has now been either committed or explicitly quarantined.
 
 V4 Phase activity:
@@ -68,7 +68,7 @@ Burst-cool-burst pattern continues: 37 commits (Mar 30-31), 2 zero-commit days (
 
 **Planned vs. unplanned: 58% / 42%.** Improvement over last run (was 35%/65%). The Recovery Roadmap's existence is helping — "recovery work" is now counted as planned.
 
-**Uncommitted inventory is now small enough to name explicitly.** The main in-flight slices are: lease self-healing verification, loopback host / daemon discovery cleanup, project-scoped trigger archaeology, FleetBar/control-plane density work, the generated `.spider/connections/` notes, and the redundant spawner bug-battery test. Treat `docs/recovery/CURRENT-WORK.md` as the operational source of truth instead of mentally diffing `git status`.
+**Uncommitted inventory is now small enough to name explicitly.** The main in-flight slices are: lease self-healing verification, loopback host / daemon discovery cleanup, project-scoped trigger archaeology, FleetBar/control-plane density work, the native-shell singleton/resizing/operator-ergonomics fixes, and the redundant spawner bug-battery test. Treat `docs/recovery/CURRENT-WORK.md` as the operational source of truth instead of mentally diffing `git status`.
 
 ---
 
@@ -147,11 +147,11 @@ Burst-cool-burst pattern continues: 37 commits (Mar 30-31), 2 zero-commit days (
 - **Lease loss with `owner: null` is recoverable, not terminal.** The daemon should reacquire in that case instead of leaving the project permanently skipped. That fix is now in the working tree with regression coverage.
 - **Shared hook templates were ahead of live installs.** The repo templates already published scoped `project:<slug>:<hash>:git:committed`, but existing checkouts were still carrying the pre-scope Port Daddy hook in `.git/hooks/post-commit`, and installers were treating any hook mentioning `git:committed` as already current. The active fix is legacy-hook replacement in `pd init` / `pd fleet init`, not more template churn.
 - **Daemon logs can mix generations of client truth.** After the latest `fleet-ui` channel fix, a fresh Playwright-driven load polled `/msg/project:...:` channels correctly, while older already-open clients continued to hit naked logical channels until they reloaded. Log archaeology now has to distinguish stale client traffic from current bundle behavior.
-- **Not all repo dirt deserves promotion.** The spider markdown pile is generated research output, not automatically canonical docs, and the extra spawner bug-battery test is only promotable once it stops asserting broken behavior as success.
+- **Not all repo dirt deserves promotion.** The spider markdown pile is generated research output and now belongs in `.gitignore` by default, not in suspense as pseudo-canonical docs. The extra spawner bug-battery test is only promotable once it stops asserting broken behavior as success.
 
 - **Phase 1 stale clock: 7 days.** Equal to the time remaining before the threshold. The `graph_edges` migration is a 1-hour task. Every commit to `server.ts` (2 this burst) increases friction. The symbol index test suite sitting uncommitted for 7 days is a smell — someone validated the code but didn't commit the validation.
 
-- **Spider output: still uncommitted, still ambiguous.** 10 new connection files from Apr 5. Zero spider output has ever been committed. The noise in `git status` is now 10/50 files (20%). Decision needed: `.gitignore` or commit. Previous recommendation stands from 2 runs ago.
+- **Feedback audit surfaced a real ledger gap.** Several operator asks were implemented or discussed in chat but were not explicitly captured in the recovery queue: singleton Fleet Control Center behavior, Dock/native-window expectations, obvious stop/start controls, split-pane resizing, scheduled-job vs agent taxonomy, and concrete event-source examples/snippets. Those are now promoted into `docs/recovery/CURRENT-WORK.md` instead of relying on memory.
 
 - **Document authority: now clearer.** The Recovery Roadmap at `docs/recovery/UNIFIED-ROADMAP.md` is the execution authority (with explicit release criteria). The V4 Roadmap at `docs/V4-UNIFIED-ROADMAP.md` is the strategic context (phase structure, appendix, unplanned work log). This division is workable as long as the cartographer maintains both. The V4 roadmap's redirect header to the recovery docs is appropriate.
 

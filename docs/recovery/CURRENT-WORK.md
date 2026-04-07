@@ -9,9 +9,9 @@ This is the active execution ledger. If a task is in flight, it belongs here bef
 
 Stabilize the live Port Daddy operator loop so one daemon, one fleet runtime, one control plane, and one native companion all tell the same truth.
 
-Latest committed slice: `3ece95a` — roadmap/recovery doc rehabilitation, archaeology test promotion, and spawner heartbeat timer hygiene.
+Latest committed slice: `55258f6` — ledgers synced after archaeology rehab and operator file actions.
 Current uncommitted slice: the remaining residue audit:
-- decide whether `.spider/connections/*.md` should stay as generated notes or become curated docs
+- ignore generated `.spider/connections/*.md` residue by default unless a later docs feature explicitly curates one
 - either rewrite or delete `tests/unit/spawner-commit-0df9155-bugs.test.js` instead of pretending it is promotable truth
 - continue the remaining control-plane product work from the feedback queue
 
@@ -43,10 +43,27 @@ Current uncommitted slice: the remaining residue audit:
    - the global slide-in inspector should stay a Flow tool, not persist across every tab
 11. Respond to the newest operator UX feedback explicitly in-product:
    - show logical channel names and give examples for creating new event sources
+   - ship copy-pasteable event-source snippets for TypeScript, Python, and CLI publishers
    - make Channels expose a channel index/list, not just message traffic
    - decide whether Inbox belongs inside Agents/Channels instead of as a top-level tab
+   - decide whether Channels should also be reachable as a Flow-side modal/alternate agent view instead of only as a separate page
    - add better field help/tooltips/tutorial guidance for agent publishing, tools, and sortie inputs
    - add “add project to Port Daddy” flows in both FleetBar and the full app
+12. Fix native-shell operator ergonomics that are still only half-captured:
+   - Fleet Control Center must be a singleton window that refocuses instead of spawning duplicates
+   - the native shell should appear and behave like a first-class app window, including sane Dock activation behavior
+   - make stop/start or pause/enable fleet controls obvious in the native shell instead of hiding them inside secondary surfaces
+13. Make the control plane layout operator-grade instead of merely pretty:
+   - support resizable split panes where Flow/activity/agent-detail density demands it
+   - keep window chrome from eating the first row of meaningful content in dark mode
+   - remove duplicate or redundant buttons where FleetBar chrome and embedded chrome overlap semantically
+14. Clarify agent taxonomy in the UI:
+   - Gardener and similar cron/scheduled workers should read as scheduled jobs, not normal conversational agents
+   - channel/system noise should stop masquerading as meaningful agent activity
+15. Make Activity truthful and useful by default:
+   - kill the lingering “Waiting for activity” empty state when structured project activity exists
+   - show per-agent last-active, non-empty messages, recent mutations, and artifacts in one obvious place
+   - when focused agent changes, all surviving agent-detail surfaces should switch coherently instead of drifting out of sync
 
 ## Immediate Next Cuts
 
@@ -55,8 +72,8 @@ Current uncommitted slice: the remaining residue audit:
 3. Relaunch FleetBar against the latest build and verify the native wrapper picks up the committed activity attribution improvements plus the chrome-free embedded surfaces.
 4. Relaunch FleetBar against the newest `public/fleet-ui` bundle so the live native shell stops carrying stale chrome/channel behavior from already-open WebViews.
 5. Wire the React control plane to consume the newly explicit backend activity attribution so per-agent timelines, files touched, and recent mutations stop falling back to prose matching.
-6. Decide the fate of the last repo dirt:
-   - promote or quarantine `.spider/connections/*.md`
+6. Finish the last repo dirt decisions:
+   - commit the `.gitignore` quarantine for generated spider connection notes
    - rewrite or drop `tests/unit/spawner-commit-0df9155-bugs.test.js`
 7. Verify whether Jest still has a real open-handle warning after the spawner heartbeat timer `unref()` and any remaining daemon/test cleanup.
 8. Commit the next control-plane/FleetBar UX slice once the relaunch verifies the native shell and daemon-served bundle still agree.
@@ -103,6 +120,7 @@ Current uncommitted slice: the remaining residue audit:
 - Claude SDK readiness was also lying by omission: env presence alone was enough to show “ready” even when `@anthropic-ai/sdk` was not installed.
 - Activity cannot key its entire left rail off “agents with signals” only. If the project log has meaningful work but the left rail says “no signals,” the operator experience is lying by omission.
 - Activity click behavior should focus the in-page activity view, not reopen the global slide-in Flow inspector. Overlapping detail surfaces are harder to reason about than one truthful one.
+- Spark scratch was already correctly treated as local residue via `.gitignore`; the analogous spider connection note pile belongs in the same default-ignore bucket unless later curated intentionally.
 
 ## Explicit Non-Goals For This Pass
 

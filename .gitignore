@@ -35,6 +35,7 @@ plans/
 .portdaddyrc
 .portdaddy/
 .spark/
+.spider/connections/
 *.strategy.md
 *.internal.md
 .claude/worktrees/
