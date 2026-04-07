@@ -9,8 +9,8 @@ This is the active execution ledger. If a task is in flight, it belongs here bef
 
 Stabilize the live Port Daddy operator loop so one daemon, one fleet runtime, one control plane, and one native companion all tell the same truth.
 
-Latest committed slice: `1ebe6e6` — same-install-only daemon freshness restarts and shared runtime code-hash cleanup.
-Current uncommitted slice: control-plane truth fixes for Activity/Sorties/FleetBar, richer operator-facing spawn failures, and the next round of page-model cleanup from the latest feedback pass.
+Latest committed slice: `853cc57` — sortie launch truth and Activity focus behavior.
+Current uncommitted slice: FleetBar usefulness, page-model cleanup from the latest feedback pass, and the remaining add-project / channel guidance / tutorial surfaces.
 
 ## Active Tasks
 

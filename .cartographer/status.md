@@ -2,8 +2,8 @@
 
 **Last updated:** 2026-04-07
 **Updated by:** Cartographer (manual invocation)
-**HEAD:** `1ebe6e6` (Narrow daemon freshness restarts to same-install interactive commands)
-**Previous HEAD:** `e7eba7b` — 1 new commit since last run
+**HEAD:** `853cc57` (Fix sortie launch truth and activity focus behavior)
+**Previous HEAD:** `1ebe6e6` — 1 new commit since last run
 
 ---
 
@@ -17,7 +17,7 @@ The last 7 commits map overwhelmingly to the Recovery Roadmap (`docs/recovery/UN
 
 Active threads, ranked by commit recency:
 
-1. **Recovery Track 2 / 3 — FleetBar + control plane truth** — `a41f18f`, `e82f096`, `1aeb2b1`, `809816e`, `e7eba7b`, and now `1ebe6e6` pushed the runtime and UI toward one truthful control plane. The committed runtime slice narrowed daemon freshness authority to same-install interactive commands and centralized code-hash truth; the current uncommitted follow-on slice is the operator-surface cleanup: Activity agent fallback instead of “no signal” lies, Flow-only global inspector, preserved sortie backend/model after launch, and inline daemon error surfacing for failed sortie launches.
+1. **Recovery Track 2 / 3 — FleetBar + control plane truth** — `a41f18f`, `e82f096`, `1aeb2b1`, `809816e`, `e7eba7b`, `1ebe6e6`, and now `853cc57` pushed the runtime and UI toward one truthful control plane. The newest committed slice fixed the operator-surface lies directly: Activity now keeps an in-page focus model and falls back to configured agents instead of claiming there are “no signals,” Sorties preserve the selected runtime after launch, and daemon-side spawn errors are surfaced inline rather than as generic HTTP statuses.
 
 2. **Recovery Track 1 — CLOSED** — `8744e14` committed `lib/counters.ts`, completing the observability trifecta (cost-tracker + counters + observability routes). All `/metrics/*` endpoints are now populated with real data. Fleet budget gates actively stop spawns. Released as v3.8.3.
 
