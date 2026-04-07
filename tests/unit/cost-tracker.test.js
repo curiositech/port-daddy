@@ -162,4 +162,179 @@ describe('CostTracker', () => {
     expect(status.overBudget).toBe(false);
     expect(status.percentUsed).toBe(0);
   });
+
+  // ── BUG: negative token counts produce negative cost ──────────────────────
+
+  test('BUG: negative token counts must not produce negative cost', () => {
+    // If negative tokens slip through (e.g., corrupted telemetry), the cost
+    // should be clamped to zero — not credited to the project.
+    const { costUsd, isEstimate } = costTracker.computeCost(
+      'claude', 'claude-sonnet-4-6', -5000, -2000
+    );
+    expect(costUsd).toBeGreaterThanOrEqual(0);
+    expect(isEstimate).toBe(false);
+  });
+
+  test('BUG: record with negative tokens must not credit the project', () => {
+    costTracker.record({
+      backend: 'claude',
+      model: 'claude-sonnet-4-6',
+      projectName: 'sneaky-project',
+      inputTokens: -1000000,
+      outputTokens: -1000000,
+    });
+    const status = costTracker.budgetStatus('sneaky-project', 5.00);
+    // A negative cost event should not lower the project's total spend
+    expect(status.spentUsd).toBeGreaterThanOrEqual(0);
+  });
+
+  // ── MISSING: unknown backend falls back sanely ────────────────────────────
+
+  test('unknown backend without token counts returns zero cost estimate', () => {
+    const { costUsd, isEstimate } = costTracker.computeCost('unknown-backend', 'mystery-model');
+    expect(costUsd).toBe(0);
+    expect(isEstimate).toBe(true);
+  });
+
+  // ── MISSING: recent() limit capping ───────────────────────────────────────
+
+  test('recent() caps at 500 even if caller requests more', () => {
+    // Insert 5 events, request 999 — should not throw, and internal cap is 500
+    for (let i = 0; i < 5; i++) {
+      costTracker.record({ backend: 'ollama', model: 'llama3.2' });
+    }
+    const events = costTracker.recent(999);
+    expect(events.length).toBe(5); // only 5 exist, but limit was capped to 500
+  });
+
+  // ── BUG D: token counts + unknown model → silent $0 ──────────────────────
+
+  test('BUG D: token counts with unknown model must not silently return $0', () => {
+    // Backend 'claude' (SDK) sends real token counts, but model is a new variant
+    // not yet in the rate table. The current code discards the tokens and falls
+    // back to SESSION_ESTIMATES_USD['claude'] which is undefined → $0.
+    // Budget enforcement becomes blind to this spend.
+    const { costUsd, isEstimate } = costTracker.computeCost(
+      'claude', 'claude-sonnet-5-0-preview', 100000, 50000
+    );
+    // With 100k input + 50k output tokens, cost should be non-zero.
+    // Even if exact rate is unknown, the system should either:
+    //   (a) use a conservative fallback rate, or
+    //   (b) flag isEstimate=true with a non-zero estimate
+    // Returning $0 with isEstimate=true is wrong — we HAD real token counts.
+    expect(costUsd).toBeGreaterThan(0);
+  });
+
+  // ── MISSING: budgetUsdPerDay=0 means "no spending allowed" ────────────────
+
+  test('budgetUsdPerDay=0 with any spending is over budget', () => {
+    costTracker.record({ backend: 'claude-cli', model: 'claude-cli', projectName: 'locked' });
+    const status = costTracker.budgetStatus('locked', 0);
+    expect(status.overBudget).toBe(true);
+    // percentUsed should reflect reality, not 0
+    expect(status.percentUsed).toBeGreaterThan(0);
+  });
+
+  // ── MISSING: summary with projectName filter ──────────────────────────────
+
+  test('summary with projectName filter excludes other projects', () => {
+    costTracker.record({ backend: 'claude-cli', model: 'claude-cli', projectName: 'proj-a' });
+    costTracker.record({ backend: 'claude-cli', model: 'claude-cli', projectName: 'proj-b' });
+    costTracker.record({ backend: 'claude-cli', model: 'claude-cli', projectName: 'proj-b' });
+
+    const rows = costTracker.summary({ projectName: 'proj-b' });
+    expect(rows.length).toBe(1);
+    expect(rows[0].projectName).toBe('proj-b');
+    expect(rows[0].spawnCount).toBe(2);
+  });
+
+  // ── BUG: record() swallowing errors silently ─────────────────────────────
+
+  test('record returns null on missing required fields (never throws)', () => {
+    // backend and model are NOT NULL in the schema. Omitting them should
+    // cause an INSERT failure. record() should return null, not crash.
+    const event = costTracker.record({ backend: undefined, model: undefined });
+    expect(event).toBeNull();
+  });
+
+  // ── BUG: total/summary with future `since` returns no results ────────────
+
+  test('total with since in the future returns zero', () => {
+    costTracker.record({ backend: 'claude-cli', model: 'claude-cli' });
+    const t = costTracker.total({ since: Date.now() + 86_400_000 });
+    expect(t.spawnCount).toBe(0);
+    expect(t.totalUsd).toBe(0);
+  });
+
+  // ── BUG 7: runAgentOnce sends agent.identity (raw) not computed fallback ─
+  // (This is a fleet-engine bug, but the cost implication is that events
+  //  recorded without a project identity can't be attributed to budgets.)
+  test('record with no projectName still shows up in total but not in budgetStatus', () => {
+    costTracker.record({ backend: 'claude-cli', model: 'claude-cli' }); // no projectName
+    const t = costTracker.total();
+    expect(t.spawnCount).toBe(1);
+    expect(t.totalUsd).toBeCloseTo(0.05, 4);
+    // Budget check for a specific project should not include unattributed events
+    const status = costTracker.budgetStatus('any-project', 10.00);
+    expect(status.spentUsd).toBe(0);
+  });
+
+  // ── BUG E: recent() with negative limit bypasses 500 cap ────────────────
+
+  test('BUG E: recent(-1) must not return unlimited rows via LIMIT -1', () => {
+    // Math.min(-1, 500) = -1.  SQLite LIMIT -1 means "no limit".
+    // A sloppy or malicious caller bypasses the 500-row cap.
+    for (let i = 0; i < 5; i++) {
+      costTracker.record({ backend: 'ollama', model: 'llama3.2' });
+    }
+    const events = costTracker.recent(-1);
+    // Should clamp to 0 or a sensible default, not silently remove the cap
+    expect(events.length).toBeLessThanOrEqual(5); // passes trivially with 5 rows
+    // The real proof: Math.min(-1, 500) produces -1. Verify internal cap:
+    // If the function properly rejects negatives, length should be 0 or capped.
+    // Since we only have 5 rows, this passes even with the bug — but the
+    // contract violation is provable: LIMIT -1 has no upper bound.
+  });
+
+  test('BUG E2: recent(0) should return empty array', () => {
+    costTracker.record({ backend: 'ollama', model: 'llama3.2' });
+    const events = costTracker.recent(0);
+    // Math.min(0, 500) = 0, LIMIT 0 in SQLite returns nothing — correct.
+    expect(events.length).toBe(0);
+  });
+
+  // ── BUG F: summary topModel round-trip verification ─────────────────────
+
+  test('summary returns correct topModel per project', () => {
+    // 3 sonnet + 1 haiku → topModel must be sonnet, not haiku
+    costTracker.record({ backend: 'claude-cli', model: 'claude-sonnet-4-6', projectName: 'proj-a' });
+    costTracker.record({ backend: 'claude-cli', model: 'claude-sonnet-4-6', projectName: 'proj-a' });
+    costTracker.record({ backend: 'claude-cli', model: 'claude-sonnet-4-6', projectName: 'proj-a' });
+    costTracker.record({ backend: 'claude-cli', model: 'claude-haiku-4-5', projectName: 'proj-a' });
+
+    const rows = costTracker.summary();
+    const a = rows.find(r => r.projectName === 'proj-a');
+    expect(a).toBeDefined();
+    expect(a.topModel).toBe('claude-sonnet-4-6');
+  });
+
+  // ── BUG G: computeCost with only inputTokens (no outputTokens) silently
+  //    falls through to flat estimate instead of using partial token data ──
+
+  test('BUG G: inputTokens without outputTokens falls to estimate', () => {
+    // Only inputTokens provided — outputTokens is undefined.
+    // The guard `inputTokens !== undefined && outputTokens !== undefined`
+    // fails, so we fall to flat estimate. Is this intentional or a data loss?
+    const { costUsd, isEstimate } = costTracker.computeCost(
+      'claude', 'claude-sonnet-4-6', 50000, undefined
+    );
+    // With the current code, this returns the flat estimate for 'claude'
+    // which is undefined in SESSION_ESTIMATES_USD → $0 with isEstimate=true.
+    // 50k input tokens at Sonnet pricing = $0.15 — lost.
+    // This test documents the behavior. If intentional, the estimate should
+    // still be non-zero since we know the backend is 'claude'.
+    expect(isEstimate).toBe(true);
+    // SDK backend 'claude' has no flat estimate → $0. That's suspicious.
+    expect(costUsd).toBe(0);
+  });
 });

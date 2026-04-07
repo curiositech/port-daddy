@@ -26,6 +26,11 @@ interface ModelRate {
   label: string;
 }
 
+const FALLBACK_MODEL_RATES: Record<string, ModelRate> = {
+  claude: { input: 3.00, output: 15.00, label: 'Claude fallback (Sonnet-class estimate)' },
+  gemini: { input: 1.25, output: 5.00, label: 'Gemini fallback (Pro-class estimate)' },
+};
+
 // Keys are substrings — matched with .includes() against the model name.
 // List more-specific keys before less-specific ones.
 const MODEL_RATES: Array<[string, ModelRate]> = [
@@ -117,18 +122,36 @@ function findRate(model: string): ModelRate | null {
   return null;
 }
 
+function findFallbackRate(backend: string, model: string): ModelRate | null {
+  const candidates = [model.toLowerCase(), backend.toLowerCase()];
+  for (const candidate of candidates) {
+    if (candidate.includes('claude')) return FALLBACK_MODEL_RATES.claude;
+    if (candidate.includes('gemini')) return FALLBACK_MODEL_RATES.gemini;
+  }
+  return null;
+}
+
+function normalizeTokenCount(value: number | undefined): number | undefined {
+  if (value === undefined || !Number.isFinite(value)) return undefined;
+  return Math.max(0, value);
+}
+
 function computeCost(
   backend: string,
   model: string,
   inputTokens?: number,
   outputTokens?: number,
 ): { costUsd: number; isEstimate: boolean } {
+  const normalizedInput = normalizeTokenCount(inputTokens);
+  const normalizedOutput = normalizeTokenCount(outputTokens);
+
   // If we have token counts, use them exactly
-  if (inputTokens !== undefined && outputTokens !== undefined) {
-    const rate = findRate(model);
+  if (normalizedInput !== undefined && normalizedOutput !== undefined) {
+    const exactRate = findRate(model);
+    const rate = exactRate || findFallbackRate(backend, model);
     if (rate) {
-      const costUsd = (inputTokens / 1_000_000) * rate.input + (outputTokens / 1_000_000) * rate.output;
-      return { costUsd: +costUsd.toFixed(6), isEstimate: false };
+      const costUsd = (normalizedInput / 1_000_000) * rate.input + (normalizedOutput / 1_000_000) * rate.output;
+      return { costUsd: +Math.max(0, costUsd).toFixed(6), isEstimate: !exactRate };
     }
   }
 
@@ -273,7 +296,8 @@ export function createCostTracker(db: Database) {
 
   /** Most recent N cost events. */
   function recent(limit = 50): CostEvent[] {
-    const n = Math.min(limit, 500);
+    const normalizedLimit = Number.isFinite(limit) ? Math.trunc(limit) : 50;
+    const n = Math.max(0, Math.min(normalizedLimit, 500));
     interface RawEvent {
       id: string; ts: number; backend: string; model: string;
       project_name: string | null; identity: string | null; spawn_id: string | null;
@@ -303,12 +327,15 @@ export function createCostTracker(db: Database) {
       FROM cost_events WHERE project_name = ? AND ts >= ?
     `).get(projectName, since ?? Date.now() - 86_400_000) as { spent: number };
     const spentUsd = +row.spent.toFixed(6);
+    const percentUsed = budgetUsdPerDay > 0
+      ? +((spentUsd / budgetUsdPerDay) * 100).toFixed(1)
+      : spentUsd > 0 ? 100 : 0;
     return {
       project: projectName,
       budgetUsdPerDay,
       spentUsd,
       remainingUsd: Math.max(0, +(budgetUsdPerDay - spentUsd).toFixed(6)),
-      percentUsed: budgetUsdPerDay > 0 ? +((spentUsd / budgetUsdPerDay) * 100).toFixed(1) : 0,
+      percentUsed,
       overBudget: spentUsd > budgetUsdPerDay,
     };
   }
