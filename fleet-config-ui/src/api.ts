@@ -183,6 +183,7 @@ export async function fetchFleetConfig(project: string): Promise<{
   projectDir: string;
   parsed: FleetConfig;
   topology: TopologyValidation;
+  resolvedChannels: Record<string, string>;
 }> {
   return get(`/fleet/config/${encodeURIComponent(project)}`);
 }

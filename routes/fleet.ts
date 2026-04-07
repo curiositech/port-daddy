@@ -18,7 +18,9 @@ import {
   findFleetConfigPath,
   loadFleetConfig,
   validateTopology,
+  type FleetConfig,
 } from '../lib/fleet-engine.js';
+import { resolveFleetChannel } from '../lib/fleet-channels.js';
 import { assessBackendReadiness } from '../lib/backend-readiness.js';
 import {
   canOpenConnection,
@@ -41,6 +43,34 @@ const BACKEND_CATALOG = [
   { id: 'aider', name: 'Aider', models: [] as string[] },
   { id: 'custom', name: 'Custom command', models: [] as string[] },
 ] as const;
+
+function extractPublishedChannel(command?: string): string | null {
+  if (!command) return null;
+  const trimmed = command.trim();
+  if (!trimmed.startsWith('publish ')) return null;
+  const channel = trimmed.slice('publish '.length).trim();
+  return channel || null;
+}
+
+function buildResolvedChannels(config: FleetConfig, projectDir: string): Record<string, string> {
+  const resolved = new Map<string, string>();
+
+  const add = (channel?: string | null) => {
+    const trimmed = channel?.trim();
+    if (!trimmed) return;
+    resolved.set(trimmed, resolveFleetChannel(trimmed, projectDir, config.name));
+  };
+
+  Object.keys(config.channels ?? {}).forEach(add);
+  config.agents.forEach((agent) => {
+    add(agent.trigger);
+    add(extractPublishedChannel(agent.onSuccess));
+    add(extractPublishedChannel(agent.onFailure));
+  });
+  config.watchers.forEach((watcher) => add(watcher.trigger));
+
+  return Object.fromEntries(resolved);
+}
 
 export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (fastify, opts) => {
   const { fleetDaemon, messaging } = opts.deps;
@@ -169,7 +199,8 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
     const yaml = readFileSync(configPath, 'utf-8');
     const parsed = loadFleetConfig(fleet.projectDir);
     const topology = parsed ? validateTopology(parsed) : null;
-    return { success: true, yaml, path: configPath, projectDir: fleet.projectDir, parsed, topology };
+    const resolvedChannels = parsed ? buildResolvedChannels(parsed, fleet.projectDir) : {};
+    return { success: true, yaml, path: configPath, projectDir: fleet.projectDir, parsed, topology, resolvedChannels };
   });
 
   // PUT /fleet/config/:project — write YAML, validate, reload

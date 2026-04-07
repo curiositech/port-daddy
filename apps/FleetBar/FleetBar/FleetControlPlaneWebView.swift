@@ -15,6 +15,12 @@ struct FleetControlPlaneWebView: NSViewRepresentable {
     func makeNSView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.preferences.setValue(true, forKey: "developerExtrasEnabled")
+        let embedMarker = WKUserScript(
+            source: "window.__PORT_DADDY_EMBED = 'fleetbar';",
+            injectionTime: .atDocumentStart,
+            forMainFrameOnly: true
+        )
+        configuration.userContentController.addUserScript(embedMarker)
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.customUserAgent = "PortDaddyFleetBar"

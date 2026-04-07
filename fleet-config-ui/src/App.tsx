@@ -29,7 +29,7 @@ import {
   getDaemonUrl,
   setDaemonUrl,
 } from './api';
-import type { ActivityEntry, FleetConfig, FleetEvent, StoryNote, TopologyValidation } from './types';
+import type { ActivityEntry, FleetConfig, FleetEvent, ResolvedChannelTarget, StoryNote, TopologyValidation } from './types';
 
 type MainTab = 'Flow' | 'Activity' | 'Channels' | 'Inbox' | 'Sorties' | 'YAML';
 type ControlSurface = 'flow' | 'activity' | 'channels' | 'inbox' | 'sorties' | 'yaml';
@@ -90,11 +90,14 @@ function readInitialRoute(): { project: string | null; surface: ControlSurface; 
   const surface = normalizeSurface(params.get('surface'));
   const embedded = params.get('embed') === 'fleetbar'
     || window.navigator.userAgent.includes('PortDaddyFleetBar');
+  // FleetBar also injects an explicit marker at document start so embed mode survives
+  // query-string drops and custom user-agent inconsistencies.
+  const explicitEmbed = (window as Window & { __PORT_DADDY_EMBED?: string }).__PORT_DADDY_EMBED === 'fleetbar';
   const agent = params.get('agent');
   return {
     project: project && project.trim() ? project.trim() : null,
     surface,
-    embedded,
+    embedded: embedded || explicitEmbed,
     agent: agent && agent.trim() ? agent.trim() : null,
   };
 }
@@ -104,6 +107,60 @@ interface AgentSignal {
   label: string;
   timestamp: number;
   files: string[];
+}
+
+const PROJECT_SCOPE_HASH_LENGTH = 12;
+const PROJECT_SCOPE_SLUG_MAX = 24;
+
+function normalizeProjectSlug(value: string): string {
+  const cleaned = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return (cleaned || 'project').slice(0, PROJECT_SCOPE_SLUG_MAX);
+}
+
+function projectLabelFromDir(projectDir: string): string {
+  return projectDir.split(/[\\/]/).filter(Boolean).pop() ?? 'project';
+}
+
+async function hashProjectScope(projectDir: string): Promise<string | null> {
+  if (!window.crypto?.subtle) return null;
+  const digest = await window.crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(projectDir.replace(/\\/g, '/')),
+  );
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('')
+    .slice(0, PROJECT_SCOPE_HASH_LENGTH);
+}
+
+async function resolveBrowserScopedChannels(
+  logicalChannels: string[],
+  projectDir: string,
+  projectName?: string | null,
+): Promise<Record<string, string>> {
+  const hash = await hashProjectScope(projectDir);
+  if (!hash) return {};
+
+  const scope = `project:${normalizeProjectSlug(projectName || projectLabelFromDir(projectDir))}:${hash}`;
+  const resolved = new Map<string, string>();
+
+  for (const channel of logicalChannels) {
+    const trimmed = channel.trim();
+    if (!trimmed) continue;
+    if (trimmed.startsWith('project:')) {
+      resolved.set(trimmed, trimmed);
+    } else if (trimmed.startsWith('global:')) {
+      resolved.set(trimmed, trimmed.slice('global:'.length));
+    } else {
+      resolved.set(trimmed, `${scope}:${trimmed}`);
+    }
+  }
+
+  return Object.fromEntries(resolved);
 }
 
 function extractTouchedPaths(text: string): string[] {
@@ -129,9 +186,12 @@ function buildAgentSignal(
   const candidates: AgentSignal[] = [];
 
   for (const entry of activity) {
-    const matches = [entry.agentId, entry.targetId, entry.details]
-      .filter(Boolean)
-      .some((value) => String(value).toLowerCase().includes(agentName.toLowerCase()));
+    const metadataAgentId = typeof entry.metadata?.agentId === 'string' ? entry.metadata.agentId : null;
+    const matches = entry.agentId === agentName
+      || metadataAgentId === agentName
+      || [entry.targetId, entry.details, entry.metadata]
+        .filter(Boolean)
+        .some((value) => stringifySearchField(value).toLowerCase().includes(agentName.toLowerCase()));
     if (!matches || !isMeaningfulActivityEntry(entry)) continue;
     candidates.push({
       summary: summarizeActivityEntry(entry),
@@ -167,6 +227,17 @@ function buildAgentSignal(
 
   candidates.sort((a, b) => b.timestamp - a.timestamp);
   return candidates[0] ?? null;
+}
+
+function stringifySearchField(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (value == null) return '';
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
 }
 
 // ─── Header ───────────────────────────────────────────────────────────────────
@@ -267,9 +338,9 @@ function TabBar({ tabs, active, onChange }: { tabs: string[]; active: string; on
   );
 }
 
-function matchesProject(fields: (string | null | undefined)[], project: string | null, agentNames: string[]): boolean {
+function matchesProject(fields: unknown[], project: string | null, agentNames: string[]): boolean {
   if (!project) return true;
-  const haystack = fields.map(f => f || '').join(' ').toLowerCase();
+  const haystack = fields.map(stringifySearchField).join(' ').toLowerCase();
   return haystack.includes(project.toLowerCase()) || agentNames.some((agent) => haystack.includes(agent.toLowerCase()));
 }
 
@@ -293,6 +364,23 @@ function summarizeChannelPayload(payload: unknown): string {
   }
 }
 
+function extractPublishedChannel(command?: string): string | null {
+  if (!command) return null;
+  const trimmed = command.trim();
+  if (!trimmed.startsWith('publish ')) return null;
+  const channel = trimmed.slice('publish '.length).trim();
+  return channel || null;
+}
+
+function isLowSignalChannelMessage(summary: string, publisher: string | null): boolean {
+  const trimmed = summary.trim();
+  if (!trimmed) return true;
+  const normalized = trimmed.toLowerCase();
+  if (['ok', 'done', 'success', 'connected', 'streaming', 'heartbeat'].includes(normalized)) return true;
+  if (publisher === 'system' && trimmed.length < 24) return true;
+  return false;
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -309,6 +397,7 @@ export default function App() {
   const [inspectorTab, setInspectorTab] = useState<'details' | 'settings'>('details');
   const [activeTab, setActiveTab] = useState<MainTab>(surfaceToMainTab(initialRoute.surface));
   const [flowGraphHeight, setFlowGraphHeight] = useState(336);
+  const [browserResolvedChannels, setBrowserResolvedChannels] = useState<Record<string, string>>({});
 
   const projects = useMemo(() => {
     if (!fleet.status) return [];
@@ -371,18 +460,61 @@ export default function App() {
   const topology: TopologyValidation | null = projectConfig?.topology ?? null;
   const selectedAgentNames = useMemo(() => selectedProject?.agents.map(agent => agent.name) ?? [], [selectedProject]);
 
-  const channelNames = useMemo(() => {
+  const logicalChannelNames = useMemo(() => {
     if (!fleetConfig) return [];
-    const set = new Set<string>(Object.keys(fleetConfig.channels));
-    fleetConfig.agents.forEach(a => {
-      if (a.trigger) set.add(a.trigger);
-      if (a.onSuccess) { const ch = a.onSuccess.split(' ')[1]; if (ch) set.add(ch); }
-      if (a.onFailure) { const ch = a.onFailure.split(' ')[1]; if (ch) set.add(ch); }
+    const set = new Set<string>();
+    const add = (logical?: string | null) => {
+      const trimmed = logical?.trim();
+      if (trimmed) set.add(trimmed);
+    };
+    Object.keys(fleetConfig.channels).forEach(add);
+    fleetConfig.agents.forEach((agent) => {
+      add(agent.trigger);
+      add(extractPublishedChannel(agent.onSuccess));
+      add(extractPublishedChannel(agent.onFailure));
     });
+    fleetConfig.watchers.forEach((watcher) => add(watcher.trigger));
     return Array.from(set).sort();
   }, [fleetConfig]);
 
-  const channelLog = useChannelLog(daemonUrl, channelNames);
+  useEffect(() => {
+    let cancelled = false;
+
+    async function hydrateBrowserResolvedChannels() {
+      if (!projectConfig?.projectDir || !fleetConfig || logicalChannelNames.length === 0) {
+        setBrowserResolvedChannels({});
+        return;
+      }
+
+      const resolved = await resolveBrowserScopedChannels(
+        logicalChannelNames,
+        projectConfig.projectDir,
+        fleetConfig.name,
+      );
+      if (!cancelled) {
+        setBrowserResolvedChannels(resolved);
+      }
+    }
+
+    hydrateBrowserResolvedChannels();
+    return () => { cancelled = true; };
+  }, [fleetConfig, logicalChannelNames, projectConfig?.projectDir]);
+
+  const channelTargets = useMemo<ResolvedChannelTarget[]>(() => {
+    if (!fleetConfig) return [];
+    const routeResolvedChannels = projectConfig?.resolvedChannels ?? {};
+    const hasRouteResolvedChannels = Object.keys(routeResolvedChannels).length > 0;
+    const resolvedChannels = hasRouteResolvedChannels ? routeResolvedChannels : browserResolvedChannels;
+    if (!hasRouteResolvedChannels && Object.keys(resolvedChannels).length === 0) {
+      return [];
+    }
+    return logicalChannelNames.map((logical) => ({
+      logical,
+      physical: resolvedChannels[logical] ?? logical,
+    }));
+  }, [browserResolvedChannels, fleetConfig, logicalChannelNames, projectConfig?.resolvedChannels]);
+
+  const channelLog = useChannelLog(daemonUrl, channelTargets);
 
   const filteredFleetEvents = useMemo(
     () => fleet.events.filter(event => !selectedProjectName || event.project === selectedProjectName),
@@ -399,7 +531,7 @@ export default function App() {
   );
 
   const filteredActivity = useMemo(
-    () => fleet.activity.filter((entry) => matchesProject([entry.agentId, entry.targetId, entry.details], selectedProjectName, selectedAgentNames)),
+    () => fleet.activity.filter((entry) => matchesProject([entry.agentId, entry.targetId, entry.details, entry.metadata], selectedProjectName, selectedAgentNames)),
     [fleet.activity, selectedProjectName, selectedAgentNames]
   );
 
@@ -435,7 +567,7 @@ export default function App() {
     const realMessages = channelLog.messages
       .map((message) => {
         const summary = summarizeChannelPayload(message.payload);
-        if (!summary) return null;
+        if (!summary || isLowSignalChannelMessage(summary, message.sender)) return null;
         return {
           id: `msg-${message.channel}-${message.id}`,
           ts: new Date(message.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
@@ -712,7 +844,7 @@ export default function App() {
                     {activeTab === 'Inbox' && (
                       <DMPanel
                         key={`${daemonUrl}:${selectedProjectId ?? 'all'}:inbox`}
-                        channels={channelNames}
+                        channels={channelTargets}
                         agents={fleetConfig?.agents.map(agent => agent.name) ?? []}
                         project={selectedProjectName ?? undefined}
                         layout="full"

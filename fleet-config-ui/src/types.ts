@@ -69,9 +69,15 @@ export interface ActivityEntry {
 export interface ChannelMessage {
   id: number;
   channel: string;
+  physicalChannel?: string;
   payload: unknown;
   sender: string | null;
   createdAt: number;
+}
+
+export interface ResolvedChannelTarget {
+  logical: string;
+  physical: string;
 }
 
 export interface StoryNote {

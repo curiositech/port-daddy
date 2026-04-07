@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Send } from 'lucide-react';
 import { publishMessage, sendAgentMessage } from '../api';
+import type { ResolvedChannelTarget } from '../types';
 
 interface Props {
-  channels: string[];
+  channels: ResolvedChannelTarget[];
   agents: string[];
   project?: string | null;
   layout?: 'compact' | 'full';
@@ -13,15 +14,15 @@ type DeliveryMode = 'channel' | 'agent';
 
 export default function DMPanel({ channels, agents, project, layout = 'compact' }: Props) {
   const [mode, setMode] = useState<DeliveryMode>('agent');
-  const [channel, setChannel] = useState(channels[0] || '');
+  const [channel, setChannel] = useState(channels[0]?.logical || '');
   const [agent, setAgent] = useState(agents[0] || '');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState<Array<{ mode: DeliveryMode; target: string; message: string; ts: number }>>([]);
 
   useEffect(() => {
-    if (channels.length > 0 && !channels.includes(channel)) {
-      setChannel(channels[0]);
+    if (channels.length > 0 && !channels.some((entry) => entry.logical === channel)) {
+      setChannel(channels[0]?.logical || '');
     }
   }, [channels, channel]);
 
@@ -39,7 +40,8 @@ export default function DMPanel({ channels, agents, project, layout = 'compact' 
 
   const handleSend = async () => {
     const trimmed = message.trim();
-    const target = mode === 'agent' ? agent : channel;
+    const selectedChannel = channels.find((entry) => entry.logical === channel) ?? null;
+    const target = mode === 'agent' ? agent : selectedChannel?.logical ?? '';
     if (!trimmed || !target) return;
 
     setSending(true);
@@ -47,7 +49,7 @@ export default function DMPanel({ channels, agents, project, layout = 'compact' 
       if (mode === 'agent') {
         await sendAgentMessage(agent, { content: trimmed, project: project ?? undefined, wake: true });
       } else {
-        await publishMessage(channel, trimmed);
+        await publishMessage(selectedChannel?.physical ?? channel, trimmed);
       }
       setSent(s => [...s.slice(-10), { mode, target, message: trimmed, ts: Date.now() }]);
       setMessage('');
@@ -90,7 +92,9 @@ export default function DMPanel({ channels, agents, project, layout = 'compact' 
               onChange={e => mode === 'agent' ? setAgent(e.target.value) : setChannel(e.target.value)}
               className="pd-select font-mono"
             >
-              {(mode === 'agent' ? agents : channels).map(value => <option key={value} value={value}>{value}</option>)}
+              {mode === 'agent'
+                ? agents.map((value) => <option key={value} value={value}>{value}</option>)
+                : channels.map((entry) => <option key={entry.physical} value={entry.logical}>{entry.logical}</option>)}
             </select>
           </div>
           <div className="rounded-xl px-3 py-3" style={{ backgroundColor: 'var(--pd-bg)', border: '1px solid var(--pd-border)' }}>

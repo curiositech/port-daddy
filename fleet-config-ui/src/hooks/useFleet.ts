@@ -24,7 +24,14 @@ export interface FleetState {
   activity: ActivityEntry[];
   stories: StoryNote[];
   // Per-project config (loaded on demand)
-  configs: Map<string, { yaml: string; parsed: FleetConfig; topology: TopologyValidation; path: string; projectDir: string }>;
+  configs: Map<string, {
+    yaml: string;
+    parsed: FleetConfig;
+    topology: TopologyValidation;
+    path: string;
+    projectDir: string;
+    resolvedChannels: Record<string, string>;
+  }>;
 }
 
 function createInitialState(): FleetState {
