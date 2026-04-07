@@ -5,12 +5,12 @@
  * Uses pd spawn for all agent execution — dogfoods our own primitives.
  */
 
-import { join, dirname } from 'node:path';
+import { join, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { existsSync, readFileSync, writeFileSync, unlinkSync, mkdirSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import * as ui from '../utils/ui.js';
-import { pdFetch, isDaemonRunning } from '../utils/fetch.js';
+import { pdFetch, isDaemonRunning, getDaemonUrl } from '../utils/fetch.js';
 import {
   loadFleetConfig,
   createFleetRunner,
@@ -18,6 +18,7 @@ import {
   resolveFleetAgentRuntime,
 } from '../../lib/fleet-engine.js';
 import { assessBackendReadiness } from '../../lib/backend-readiness.js';
+import { resolveFleetChannel } from '../../lib/fleet-channels.js';
 
 // ─── Load .env.local / .env for API keys ────────────────────────────────────
 // Searches: cwd, parent dir, home directory. Later files overwrite earlier ones,
@@ -59,7 +60,7 @@ function loadEnvFiles(): void {
 loadEnvFiles();
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const PD_URL = process.env.PD_URL || process.env.PORT_DADDY_URL || 'http://localhost:9876';
+const PD_URL = process.env.PD_URL || process.env.PORT_DADDY_URL || getDaemonUrl();
 const LOCAL_EXECUTION_BACKENDS = new Set(['claude-cli', 'ollama', 'aider', 'custom']);
 
 function isFleetRunning(): { running: boolean; pid: number | null; name: string | null } {
@@ -125,8 +126,8 @@ async function fleetInit(): Promise<void> {
       if (existsSync(hookPath)) {
         // Append to existing hook instead of overwriting
         const existing = readFileSync(hookPath, 'utf-8');
-        if (existing.includes('git:committed')) {
-          ui.info('Git post-commit hook already publishes to git:committed');
+        if (existing.includes('Port Daddy fleet trigger') || existing.includes('git:committed')) {
+          ui.info('Git post-commit hook already publishes to the project-scoped git:committed channel');
         } else {
           const hookContent = readFileSync(hookSrc, 'utf-8');
           // Strip the shebang from the appended content
@@ -141,7 +142,7 @@ async function fleetInit(): Promise<void> {
         writeFileSync(hookPath, readFileSync(hookSrc, 'utf-8'));
         const { chmodSync } = await import('node:fs');
         chmodSync(hookPath, 0o755);
-        ui.success('Installed .git/hooks/post-commit (publishes to git:committed)');
+        ui.success('Installed .git/hooks/post-commit (publishes to the project-scoped git:committed channel)');
       }
     }
   } else {
@@ -388,16 +389,21 @@ async function fleetStatus(): Promise<void> {
   // Recent fleet events
   console.log('');
   ui.info('Recent fleet events:');
+  const currentProjectDir = process.cwd();
+  const currentProjectName = basename(currentProjectDir);
   const channels = [
     'fleet:status', 'fleet:alert', 'git:committed',
     'qa:findings', 'docs:updated', 'tests:gap-filled',
     'spark:idea', 'spark:prototype',
-  ];
+  ].map((channel) => ({
+    logical: channel,
+    physical: resolveFleetChannel(channel, currentProjectDir, currentProjectName),
+  }));
 
   const channelResults = await Promise.all(
-    channels.map(async (ch) => {
+    channels.map(async ({ logical, physical }) => {
       try {
-        const res = await pdFetch(`/msg/${ch}?limit=1`);
+        const res = await pdFetch(`/msg/${encodeURIComponent(physical)}?limit=1`);
         if (!res.ok) return null;
         const data = await res.json() as any;
         const msgs = data.messages || [];
@@ -409,7 +415,7 @@ async function fleetStatus(): Promise<void> {
         const payload = typeof msgs[0].payload === 'string'
           ? msgs[0].payload.slice(0, 80)
           : JSON.stringify(msgs[0].payload).slice(0, 80);
-        return `  ${ch}: ${time} — ${payload}`;
+        return `  ${logical}: ${time} — ${payload}`;
       } catch { return null; }
     })
   );

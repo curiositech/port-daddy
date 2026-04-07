@@ -12,10 +12,7 @@ import type {
   StoryNote,
 } from './types';
 
-const DEFAULT_DAEMON_URL = 'http://localhost:9876';
-const DEFAULT_DAEMON_CHOICES = [
-  'http://localhost:9876',
-];
+const CANONICAL_PREFERRED_DAEMON_URL = 'http://localhost:9876';
 const DAEMON_STORAGE_KEY = 'pd.fleet-ui.daemon-url';
 const DAEMON_HISTORY_STORAGE_KEY = 'pd.fleet-ui.daemon-history';
 export const CUSTOM_DAEMON_SENTINEL = '__custom__';
@@ -24,9 +21,32 @@ function canUseWindow(): boolean {
   return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
 }
 
+function inferOriginDaemonUrl(): string | null {
+  if (!canUseWindow()) return null;
+  try {
+    const { origin, protocol, hostname } = window.location;
+    if (!/^https?:$/.test(protocol)) return null;
+    if (!hostname) return null;
+    return safeNormalize(origin);
+  } catch {
+    return null;
+  }
+}
+
+function defaultDaemonChoices(): string[] {
+  return uniqueDaemonUrls([
+    inferOriginDaemonUrl(),
+    CANONICAL_PREFERRED_DAEMON_URL,
+  ]);
+}
+
+function fallbackDaemonUrl(): string {
+  return defaultDaemonChoices()[0] ?? CANONICAL_PREFERRED_DAEMON_URL;
+}
+
 function normalizeDaemonUrl(value: string): string {
   const trimmed = value.trim();
-  if (!trimmed) return DEFAULT_DAEMON_URL;
+  if (!trimmed) return fallbackDaemonUrl();
 
   let candidate = trimmed;
   if (/^\d+$/.test(candidate)) {
@@ -81,9 +101,10 @@ function getQueryDaemonUrl(): string | null {
 function resolveInitialDaemonUrl(): string {
   return uniqueDaemonUrls([
     getQueryDaemonUrl(),
+    inferOriginDaemonUrl(),
     safeNormalize(canUseWindow() ? window.localStorage.getItem(DAEMON_STORAGE_KEY) : null),
-    DEFAULT_DAEMON_URL,
-  ])[0] ?? DEFAULT_DAEMON_URL;
+    fallbackDaemonUrl(),
+  ])[0] ?? fallbackDaemonUrl();
 }
 
 let daemonUrl = resolveInitialDaemonUrl();
@@ -91,7 +112,7 @@ let daemonUrl = resolveInitialDaemonUrl();
 function rememberDaemonUrl(url: string): void {
   if (!canUseWindow()) return;
   window.localStorage.setItem(DAEMON_STORAGE_KEY, url);
-  writeDaemonHistory(uniqueDaemonUrls([url, ...readDaemonHistory(), ...DEFAULT_DAEMON_CHOICES]));
+  writeDaemonHistory(uniqueDaemonUrls([url, ...readDaemonHistory(), ...defaultDaemonChoices()]));
 }
 
 function syncDaemonQueryParam(url: string): void {
@@ -119,7 +140,7 @@ export function setDaemonUrl(nextUrl: string): string {
 export function getDaemonChoices(): string[] {
   return uniqueDaemonUrls([
     daemonUrl,
-    ...DEFAULT_DAEMON_CHOICES,
+    ...defaultDaemonChoices(),
     ...readDaemonHistory(),
   ]);
 }

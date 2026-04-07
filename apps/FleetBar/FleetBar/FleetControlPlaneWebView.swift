@@ -17,6 +17,7 @@ struct FleetControlPlaneWebView: NSViewRepresentable {
         configuration.preferences.setValue(true, forKey: "developerExtrasEnabled")
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
+        webView.customUserAgent = "PortDaddyFleetBar"
         webView.navigationDelegate = context.coordinator
         webView.setValue(false, forKey: "drawsBackground")
         webView.allowsBackForwardNavigationGestures = false

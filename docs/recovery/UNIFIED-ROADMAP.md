@@ -1,6 +1,6 @@
 # Unified Recovery Roadmap
 
-Last updated: 2026-04-05
+Last updated: 2026-04-07
 
 This is the single execution-order roadmap for the active Port Daddy recovery and consolidation effort.
 
@@ -17,7 +17,7 @@ Port Daddy should feel like one coherent system:
 
 ## Current Decisions
 
-- Stable user-facing daemon: `9876`
+- Stable preferred daemon port: `9876`, with runtime discovery required whenever that port is unavailable
 - Native companion: `apps/FleetBar`
 - Deep fleet control plane: `fleet-config-ui`
 - Canonical Port Daddy skill doc: `skills/port-daddy-cli/SKILL.md`

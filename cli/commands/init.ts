@@ -14,7 +14,9 @@
 
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import * as ui from '../utils/ui.js';
+import { getDaemonTcpUrl } from '../../shared/daemon-discovery.js';
 
 export async function handleInit(options: Record<string, unknown>): Promise<void> {
   const cwd = process.cwd();
@@ -52,7 +54,7 @@ export async function handleInit(options: Record<string, unknown>): Promise<void
   // ─── 2. Register project with daemon ───────────────────────────────────────
 
   try {
-    const baseUrl = `http://localhost:${process.env.PORT_DADDY_PORT || '9876'}`;
+    const baseUrl = getDaemonTcpUrl();
     const res = await fetch(`${baseUrl}/scan`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -137,7 +139,7 @@ export async function handleInit(options: Record<string, unknown>): Promise<void
     ui.info('Skipping MCP (--no-mcp)');
   }
 
-  // ─── 6. Git hook (post-commit → git:committed channel) ─────────────────────
+  // ─── 6. Git hook (post-commit → project-scoped git:committed channel) ─────
 
   if (!noHook) {
     const gitDir = join(cwd, '.git');
@@ -148,8 +150,8 @@ export async function handleInit(options: Record<string, unknown>): Promise<void
       if (existsSync(hookPath)) {
         const { readFileSync } = await import('node:fs');
         const existing = readFileSync(hookPath, 'utf-8');
-        if (existing.includes('git:committed')) {
-          ui.info('Post-commit hook already publishes to git:committed');
+        if (existing.includes('Port Daddy fleet trigger') || existing.includes('git:committed')) {
+          ui.info('Post-commit hook already publishes to the project-scoped git:committed channel');
         } else {
           warnings.push('Existing post-commit hook found — run pd fleet init to merge the hook');
         }
@@ -158,17 +160,13 @@ export async function handleInit(options: Record<string, unknown>): Promise<void
         // If fleet init already ran it, the hook is present. Otherwise install directly.
         const hookDir = join(gitDir, 'hooks');
         mkdirSync(hookDir, { recursive: true });
-        writeFileSync(hookPath,
-          `#!/bin/sh\n# Port Daddy fleet trigger — publishes commit metadata to git:committed\n` +
-          `BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")\n` +
-          `HASH=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")\n` +
-          `MSG=$(git log -1 --pretty=%s 2>/dev/null || echo "unknown")\n` +
-          `pd pub git:committed "{\\\"branch\\\":\\\"$BRANCH\\\",\\\"hash\\\":\\\"$HASH\\\",\\\"message\\\":\\\"$MSG\\\"}" 2>/dev/null || true\n`
-        );
+        const templatePath = fileURLToPath(new URL('../../templates/post-commit-hook', import.meta.url));
+        const { readFileSync } = await import('node:fs');
+        writeFileSync(hookPath, readFileSync(templatePath, 'utf-8'));
         const { chmodSync } = await import('node:fs');
         chmodSync(hookPath, 0o755);
         results.push('Installed .git/hooks/post-commit');
-        ui.success('Installed post-commit hook (publishes to git:committed)');
+        ui.success('Installed post-commit hook (publishes to the project-scoped git:committed channel)');
       }
     }
   } else {

@@ -1,4 +1,14 @@
 import SwiftUI
+import AppKit
+
+private struct RecentAgentHighlight: Identifiable {
+    let projectId: String
+    let projectDir: String
+    let projectName: String
+    let agent: FleetAgent
+
+    var id: String { "\(projectId)::\(agent.id)" }
+}
 
 // MARK: - Main Popover
 
@@ -9,12 +19,41 @@ struct FleetPopover: View {
     @State private var appeared = false
     @State private var showingSettings = false
 
+    private var recentAgentHighlights: [RecentAgentHighlight] {
+        store.projects
+            .flatMap { project in
+                project.agents.compactMap { agent in
+                    let hasSignal = agent.lastActivity != nil
+                        || !(agent.lastSummary?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
+                        || !agent.recentFiles.isEmpty
+                    guard hasSignal else { return nil }
+                    return RecentAgentHighlight(
+                        projectId: project.id,
+                        projectDir: project.projectDir,
+                        projectName: project.name,
+                        agent: agent
+                    )
+                }
+            }
+            .sorted { lhs, rhs in
+                let left = lhs.agent.lastActivity ?? .distantPast
+                let right = rhs.agent.lastActivity ?? .distantPast
+                return left > right
+            }
+            .prefix(4)
+            .map { $0 }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             header
             Divider().opacity(0.5)
             if store.isDaemonRunning {
                 quickActions
+                Divider().opacity(0.5)
+            }
+            if store.isDaemonRunning && !recentAgentHighlights.isEmpty {
+                recentActivitySection
                 Divider().opacity(0.5)
             }
             if store.isDaemonRunning {
@@ -40,12 +79,34 @@ struct FleetPopover: View {
     }
 
     private var defaultConsoleProject: String? {
-        store.projects.count == 1 ? store.projects[0].id : nil
+        if let expanded = store.expandedProjects.first,
+           store.projects.contains(where: { $0.id == expanded }) {
+            return expanded
+        }
+        if let active = store.projects.first(where: { $0.activeCount > 0 }) {
+            return active.id
+        }
+        return store.projects.first?.id
     }
 
-    private func openControlPlane(_ surface: FleetControlSurface, project: String? = nil) {
-        FleetControlRoute.persist(surface: surface, project: project ?? defaultConsoleProject)
-        openWindow(id: "fleet-control-center")
+    private func openControlPlane(_ surface: FleetControlSurface, project: String? = nil, agent: String? = nil) {
+        FleetControlRoute.persist(surface: surface, project: project ?? defaultConsoleProject, agent: agent)
+        FleetBarAppChrome.presentControlCenter()
+        if !FleetBarAppChrome.focusExistingControlCenter() {
+            openWindow(id: "fleet-control-center")
+        }
+    }
+
+    private func openAgentFile(projectDir: String, filePath: String) {
+        let expandedPath: String
+        if filePath.hasPrefix("/") {
+            expandedPath = filePath
+        } else {
+            expandedPath = URL(fileURLWithPath: projectDir)
+                .appendingPathComponent(filePath)
+                .path
+        }
+        NSWorkspace.shared.open(URL(fileURLWithPath: expandedPath))
     }
 
     private var settingsPanel: some View {
@@ -98,9 +159,17 @@ struct FleetPopover: View {
             }
 
             QuickActionButton(
+                title: "Activity",
+                systemImage: "waveform.path.ecg",
+                color: Fleet.Color.warning
+            ) {
+                openControlPlane(.activity)
+            }
+
+            QuickActionButton(
                 title: "Inbox",
                 systemImage: "tray.full",
-                color: Fleet.Color.warning
+                color: Fleet.Color.healthy
             ) {
                 openControlPlane(.inbox)
             }
@@ -108,22 +177,112 @@ struct FleetPopover: View {
             QuickActionButton(
                 title: "Sorties",
                 systemImage: "paperplane",
-                color: Fleet.Color.healthy
-            ) {
-                openControlPlane(.sorties)
-            }
-
-            QuickActionButton(
-                title: "YAML",
-                systemImage: "curlybraces",
                 color: Fleet.Color.failure
             ) {
-                openControlPlane(.yaml)
+                openControlPlane(.sorties)
             }
         }
         .padding(.horizontal, Fleet.Space.l)
         .padding(.vertical, Fleet.Space.s)
         .background(Fleet.Chrome.panelRaised)
+    }
+
+    private var recentActivitySection: some View {
+        VStack(alignment: .leading, spacing: Fleet.Space.s) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Recent Work")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Text("Non-empty notes, mutations, and last-active hints")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+                Spacer()
+                Button {
+                    openControlPlane(.activity)
+                } label: {
+                    Text("Open")
+                        .font(.caption2.weight(.semibold))
+                }
+                .buttonStyle(.borderless)
+                .foregroundStyle(Fleet.Color.active)
+            }
+
+            VStack(spacing: Fleet.Space.s) {
+                ForEach(recentAgentHighlights) { item in
+                    VStack(alignment: .leading, spacing: 5) {
+                        HStack(spacing: Fleet.Space.s) {
+                            Circle()
+                                .fill(item.agent.status == .running ? Fleet.Color.healthy : Fleet.Color.dormant.opacity(0.45))
+                                .frame(width: 7, height: 7)
+                            Text(item.agent.name)
+                                .font(.system(.caption, design: .monospaced).weight(.semibold))
+                                .foregroundStyle(.primary)
+                            Text(item.projectName)
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                                .lineLimit(1)
+                            Spacer()
+                            if let lastActivity = item.agent.lastActivity {
+                                Text(lastActivity, style: .relative)
+                                    .font(.caption2)
+                                    .foregroundStyle(.quaternary)
+                            }
+                            Button {
+                                openControlPlane(.activity, project: item.projectId, agent: item.agent.name)
+                            } label: {
+                                Text("Inspect")
+                                    .font(.caption2.weight(.semibold))
+                            }
+                            .buttonStyle(.borderless)
+                            .foregroundStyle(Fleet.Color.active)
+                        }
+
+                        if let summary = item.agent.lastSummary,
+                           !summary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            Text(summary)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(2)
+                        }
+
+                        if !item.agent.recentFiles.isEmpty {
+                            HStack(spacing: 4) {
+                                ForEach(Array(item.agent.recentFiles.prefix(2)), id: \.self) { filePath in
+                                    Button {
+                                        openAgentFile(projectDir: item.projectDir, filePath: filePath)
+                                    } label: {
+                                        Text(filePath)
+                                            .font(.system(.caption2, design: .monospaced))
+                                            .lineLimit(1)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 3)
+                                            .background(
+                                                Fleet.Color.active.opacity(0.08),
+                                                in: RoundedRectangle(cornerRadius: Fleet.Radius.small, style: .continuous)
+                                            )
+                                    }
+                                    .buttonStyle(.plain)
+                                    .foregroundStyle(Fleet.Color.active)
+                                }
+                                Spacer(minLength: 0)
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, Fleet.Space.m)
+                    .padding(.vertical, Fleet.Space.s)
+                    .background(
+                        Fleet.Chrome.card,
+                        in: RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous)
+                    )
+                }
+            }
+        }
+        .padding(.horizontal, Fleet.Space.l)
+        .padding(.vertical, Fleet.Space.s)
+        .background(Fleet.Chrome.panel)
     }
 
     // MARK: - Header
@@ -287,7 +446,13 @@ struct FleetPopover: View {
                     ProjectSection(
                         project: project,
                         isExpanded: store.expandedProjects.contains(project.id),
-                        onToggle: { withAnimation(Fleet.Motion.expandSpring) { store.toggleProject(project.id) } }
+                        onToggle: { withAnimation(Fleet.Motion.expandSpring) { store.toggleProject(project.id) } },
+                        onInspectAgent: { agentName in
+                            openControlPlane(.flow, project: project.id, agent: agentName)
+                        },
+                        onOpenFile: { filePath in
+                            openAgentFile(projectDir: project.projectDir, filePath: filePath)
+                        }
                     )
                     .opacity(appeared ? 1 : 0)
                     .offset(y: appeared ? 0 : 8)
@@ -367,6 +532,8 @@ struct ProjectSection: View {
     let project: FleetProject
     let isExpanded: Bool
     let onToggle: () -> Void
+    let onInspectAgent: (String) -> Void
+    let onOpenFile: (String) -> Void
 
     var body: some View {
         VStack(spacing: 0) {
@@ -386,7 +553,7 @@ struct ProjectSection: View {
                         .fontWeight(.medium)
                         .foregroundStyle(.secondary)
 
-                    Text(project.id)
+                    Text(project.name)
                         .font(.subheadline.weight(.medium))
 
                     Spacer()
@@ -420,7 +587,7 @@ struct ProjectSection: View {
             // Agent rows — staggered cascade
             if isExpanded {
                 ForEach(Array(project.agents.enumerated()), id: \.element.id) { index, agent in
-                    AgentRow(agent: agent)
+                    AgentRow(agent: agent, onInspect: { onInspectAgent(agent.name) }, onOpenFile: onOpenFile)
                         .transition(
                             .asymmetric(
                                 insertion: .opacity
@@ -445,40 +612,81 @@ struct ProjectSection: View {
 
 struct AgentRow: View {
     let agent: FleetAgent
+    let onInspect: () -> Void
+    let onOpenFile: (String) -> Void
     @State private var justChanged = false
 
     var body: some View {
-        HStack(spacing: Fleet.Space.s) {
-            Spacer().frame(width: Fleet.Space.xl + Fleet.Space.xs)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: Fleet.Space.s) {
+                Spacer().frame(width: Fleet.Space.xl + Fleet.Space.xs)
 
-            // Status indicator — living, contextual
-            statusIndicator
+                statusIndicator
 
-            // Agent-specific icon — each agent has its own symbol
-            Image(systemName: Fleet.agentIcon(for: agent.name))
-                .font(.system(size: 10))
-                .fontWeight(.regular)
-                .foregroundStyle(agent.status == .failed ? Fleet.Color.failure : Fleet.Color.dormant)
-                .frame(width: Fleet.Space.l)
+                Image(systemName: Fleet.agentIcon(for: agent.name))
+                    .font(.system(size: 10))
+                    .fontWeight(.regular)
+                    .foregroundStyle(agent.status == .failed ? Fleet.Color.failure : Fleet.Color.dormant)
+                    .frame(width: Fleet.Space.l)
 
-            // Name — monospaced for alignment, medium weight for readability
-            Text(agent.name)
-                .font(.system(.caption, design: .monospaced).weight(.medium))
-                .foregroundStyle(agent.status == .failed ? Fleet.Color.failure.opacity(0.9) : .primary)
+                Text(agent.name)
+                    .font(.system(.caption, design: .monospaced).weight(.medium))
+                    .foregroundStyle(agent.status == .failed ? Fleet.Color.failure.opacity(0.9) : .primary)
 
-            Spacer()
+                Spacer()
 
-            // Event label — colored capsule for recent events
-            if let lastEvent = agent.lastEvent {
-                EventLabel(event: lastEvent)
+                if agent.type == .scheduled {
+                    Text("job")
+                        .font(.system(.caption2, design: .rounded).weight(.semibold))
+                        .foregroundStyle(Fleet.Color.warning)
+                        .padding(.horizontal, Fleet.Space.xs + 1)
+                        .padding(.vertical, 2)
+                        .background(
+                            Fleet.Color.warning.opacity(0.08),
+                            in: RoundedRectangle(cornerRadius: Fleet.Radius.small, style: .continuous)
+                        )
+                }
+
+                if let lastEvent = agent.lastEvent {
+                    EventLabel(event: lastEvent)
+                }
+
+                if let lastActivity = agent.lastActivity {
+                    Text(lastActivity, style: .relative)
+                        .font(.caption2)
+                        .foregroundStyle(.quaternary)
+                        .frame(width: 52, alignment: .trailing)
+                }
             }
-
-            // Relative time — barely visible until you look for it
-            if let lastActivity = agent.lastActivity {
-                Text(lastActivity, style: .relative)
+            if let lastSummary = agent.lastSummary, !lastSummary.isEmpty {
+                Text(lastSummary)
                     .font(.caption2)
-                    .foregroundStyle(.quaternary)
-                    .frame(width: 52, alignment: .trailing)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .padding(.leading, Fleet.Space.xl + Fleet.Space.xs + Fleet.Space.s + Fleet.Space.l)
+            }
+            if !agent.recentFiles.isEmpty {
+                HStack(spacing: 4) {
+                    Spacer().frame(width: Fleet.Space.xl + Fleet.Space.xs + Fleet.Space.s + Fleet.Space.l)
+                    ForEach(agent.recentFiles.prefix(2), id: \.self) { filePath in
+                        Button {
+                            onOpenFile(filePath)
+                        } label: {
+                            Text(filePath)
+                                .font(.system(.caption2, design: .monospaced))
+                                .foregroundStyle(Fleet.Color.active)
+                                .lineLimit(1)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(
+                                    Fleet.Color.active.opacity(0.08),
+                                    in: RoundedRectangle(cornerRadius: Fleet.Radius.small, style: .continuous)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    Spacer(minLength: 0)
+                }
             }
         }
         .padding(.horizontal, Fleet.Space.l)
@@ -488,6 +696,8 @@ struct AgentRow: View {
                 ? Fleet.Color.failure.opacity(0.04)
                 : Color.clear
         )
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onInspect)
         .onChange(of: agent.status) { justChanged = true }
     }
 

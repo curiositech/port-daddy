@@ -14,6 +14,7 @@ import { pdFetch, PORT_DADDY_URL, getDaemonUrl } from '../utils/fetch.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import { printBanner, printCompactHeader, printFarewell, WHEEL, ANCHOR, ANSI } from '../../lib/banner.js';
 import { autoFixStartupBlockers, diagnoseStartupBlockers } from '../utils/startup-doctor.js';
+import { readDaemonPort } from '../../shared/daemon-discovery.js';
 import * as ui from '../utils/ui.js';
 
 // __dirname equivalent for ESM
@@ -50,7 +51,7 @@ function isCanonicalDaemonTarget(): boolean {
   return !process.env.PORT_DADDY_URL && !process.env.PORT_DADDY_SOCK && !process.env.PORT_DADDY_PORT_FILE;
 }
 
-async function stopRunningCanonicalDaemon(localCodeHash: string): Promise<boolean> {
+async function stopRunningCanonicalDaemon(localCodeHash: string, daemonPort: number): Promise<boolean> {
   try {
     const healthRes: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/health`);
     if (!healthRes.ok) return false;
@@ -89,7 +90,7 @@ async function stopRunningCanonicalDaemon(localCodeHash: string): Promise<boolea
     }
 
     await new Promise<void>(r => setTimeout(r, 1000));
-    const { fixed } = autoFixStartupBlockers(9876);
+    const { fixed } = autoFixStartupBlockers(daemonPort);
     if (fixed) {
       await new Promise<void>(r => setTimeout(r, 1000));
     }
@@ -142,13 +143,14 @@ export async function handleDaemon(action: string): Promise<void> {
   switch (action) {
     case 'start': {
       const localCodeHash = getLocalCodeHash();
+      const daemonPort = readDaemonPort();
 
       // Check if already running
       try {
         const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/health`);
         if (res.ok) {
           if (isCanonicalDaemonTarget()) {
-            const replaced = await stopRunningCanonicalDaemon(localCodeHash);
+            const replaced = await stopRunningCanonicalDaemon(localCodeHash, daemonPort);
             if (!replaced) {
               const data = await res.json();
               ui.info(`Port Daddy already running (PID ${data.pid})`);
@@ -171,7 +173,7 @@ export async function handleDaemon(action: string): Promise<void> {
       // Attempt 1 failed — diagnose and auto-fix
       console.log(`  ${ANSI.fgYellow}First attempt failed, diagnosing...${ANSI.reset}`);
 
-      const { fixed, issues } = autoFixStartupBlockers(9876);
+      const { fixed, issues } = autoFixStartupBlockers(daemonPort);
 
       if (issues.length === 0) {
         // No obvious issues found — maybe it just needs a moment
@@ -209,7 +211,7 @@ export async function handleDaemon(action: string): Promise<void> {
       if (await attemptDaemonStart(tsxBin, serverScript)) return;
 
       // Still failing — one more diagnostic pass in case socket needs cleanup
-      const secondPass = autoFixStartupBlockers(9876);
+      const secondPass = autoFixStartupBlockers(daemonPort);
       if (secondPass.fixed) {
         await new Promise<void>(r => setTimeout(r, 1000));
         console.log(`  ${WHEEL} Final retry...`);

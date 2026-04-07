@@ -10,6 +10,7 @@ import { spawnSync } from 'node:child_process';
 import { createInterface } from 'node:readline';
 
 import { DEFAULT_SOCK } from '../../shared/paths.js';
+import { readDaemonPort } from '../../shared/daemon-discovery.js';
 const SOCK_PATH = process.env.PORT_DADDY_SOCK || DEFAULT_SOCK;
 
 export interface Diagnosis {
@@ -122,7 +123,7 @@ function isPortDaddyProcess(command: string): boolean {
 /**
  * Run full startup diagnostics and return fixable issues.
  */
-export function diagnoseStartupBlockers(port: number = 9876): Diagnosis[] {
+export function diagnoseStartupBlockers(port: number = readDaemonPort()): Diagnosis[] {
   const issues: Diagnosis[] = [];
 
   // 1. Stale Unix socket
@@ -147,7 +148,7 @@ export function diagnoseStartupBlockers(port: number = 9876): Diagnosis[] {
     }
   }
 
-  // 2. Port 9876 occupied
+  // 2. The discovered daemon TCP port is occupied
   const portProcesses = findProcessesOnPort(port);
   if (portProcesses.length > 0) {
     for (const proc of portProcesses) {
@@ -183,7 +184,7 @@ export function diagnoseStartupBlockers(port: number = 9876): Diagnosis[] {
  * Auto-fix all fixable startup issues. Used by `pd start`.
  * Returns true if any fixes were applied.
  */
-export function autoFixStartupBlockers(port: number = 9876): { fixed: boolean; issues: Diagnosis[] } {
+export function autoFixStartupBlockers(port: number = readDaemonPort()): { fixed: boolean; issues: Diagnosis[] } {
   const issues = diagnoseStartupBlockers(port);
   let fixed = false;
 

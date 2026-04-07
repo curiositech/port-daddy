@@ -8,7 +8,7 @@ Project-specific shibboleths for proficient Port Daddy work. If you learn a new 
 - Verify live truth with:
   - `port-daddy status`
   - `launchctl print gui/501/com.portdaddy.daemon`
-  - `curl -sS http://localhost:9876/fleet`
+  - `curl -sS "$(cat ~/.port-daddy/daemon.port 2>/dev/null | sed 's#^#http://localhost:#')/fleet"` or the daemon URL surfaced by `port-daddy status`
 - If those disagree, trust the live process and launchd output, not docs or memory.
 - There should be exactly one canonical daemon on `9876`.
 - If another Port Daddy daemon is already sitting on the canonical socket/port, treat it as replaceable stale runtime, not sacred state.
@@ -31,6 +31,9 @@ Project-specific shibboleths for proficient Port Daddy work. If you learn a new 
 - Logical fleet names are not unique enough. `port-daddy-dev` can exist in more than one checkout.
 - Use `projectDir` as the durable identity in UI state, routing, and daemon/API lookups.
 - Only use logical project name as a display label.
+- Fleet trigger channels are project-scoped by default.
+- Keep YAML logical channels human-readable like `git:committed`, but publish/subscribe on a physical scoped channel derived from `projectDir`.
+- Reserve `global:<channel>` for intentional cross-project fanout. Cross-project wakeups are a bug unless explicitly marked global.
 
 ## Control Plane
 
@@ -38,7 +41,12 @@ Project-specific shibboleths for proficient Port Daddy work. If you learn a new 
 - `public/fleet-ui` is the built artifact served by the daemon.
 - FleetBar should open the real control plane, not a shadow dashboard with reduced functionality.
 - FleetBar is the top-level navigator when embedded. The embedded control plane must receive `?embed=fleetbar` and hide duplicate in-app surface tabs.
+- FleetBar embed detection should not rely on query params alone. The WebView must identify itself too, so a dropped query string does not resurrect duplicate chrome.
+- Only `Flow` keeps the persistent project rail. `Activity`, `Channels`, `Inbox`, `Sorties`, and `YAML` should use the full page width.
 - Project changes must preserve the current surface. Selecting a different project should not silently dump the user back to Flow.
+- Do not claim an embedded surface is fixed from a loading-state screenshot. Wait for a settled render and verify the actual surface content is visible.
+- Session notes and handoffs carry explicit `agentId` and `identityProject`; use those fields for attribution before falling back to text matching.
+- Project-scoped Activity filtering must include `story.agentId`; if you only filter note text and `identityProject`, valid handoffs will disappear from the timeline.
 
 ## Operator UX Expectations
 
@@ -48,8 +56,13 @@ Project-specific shibboleths for proficient Port Daddy work. If you learn a new 
   - mutations / touched files
   - handoffs / artifacts
 - Filter low-signal system noise instead of surfacing empty or trivial channel traffic.
+- FleetBar popover is not just a launcher. It should surface recent per-agent summaries, last-active hints, and touched files that can be opened directly.
 
 ## Current Gotchas
 
 - If multiple Port Daddy checkouts exist, duplicate fleet names can make project selection and routing look broken unless everything keys by `projectDir`.
 - Before concluding a UI fix "didn't work", verify the daemon being queried is the one serving this checkout's `public/fleet-ui`.
+- `docs/recovery/CURRENT-WORK.md` is the canonical in-flight queue. Update it as the active thread changes; then reflect larger closures in `.cartographer/status.md`.
+- Do not hardcode `9876` as if it is guaranteed truth. `9876` is the preferred canonical port, but runtime code must discover the live daemon via the shared socket/port-file helper because the daemon can fall back.
+- If a runtime/helper/UI path needs the daemon URL, prefer the shared discovery helper over inline `http://localhost:9876` defaults.
+- `pd init` and any hook installer should copy the shared project-scoped post-commit template instead of writing bespoke inline hook logic that can drift.

@@ -1,4 +1,33 @@
 import SwiftUI
+import AppKit
+
+enum FleetBarAppChrome {
+    private static let controlCenterWindowIdentifier = "fleet-control-center"
+
+    @MainActor
+    static func setDockVisible(_ visible: Bool) {
+        NSApp.setActivationPolicy(visible ? .regular : .accessory)
+    }
+
+    @MainActor
+    static func presentControlCenter() {
+        setDockVisible(true)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    @MainActor
+    static func focusExistingControlCenter() -> Bool {
+        guard let window = NSApp.windows.first(where: {
+            $0.identifier?.rawValue == controlCenterWindowIdentifier || $0.title == "Fleet Control Center"
+        }) else {
+            return false
+        }
+        setDockVisible(true)
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        return true
+    }
+}
 
 @main
 struct FleetBarApp: App {
@@ -9,7 +38,7 @@ struct FleetBarApp: App {
     var body: some Scene {
         MenuBarExtra {
             FleetPopover(store: store, costStore: costStore)
-                .frame(width: 380, height: 520)
+                .frame(width: 400, height: 660)
         } label: {
             Label {
                 Text("Fleet")
@@ -21,8 +50,9 @@ struct FleetBarApp: App {
         }
         .menuBarExtraStyle(.window)
 
-        WindowGroup("Fleet Control Center", id: Self.controlCenterWindowID) {
+        Window("Fleet Control Center", id: Self.controlCenterWindowID) {
             FleetControlCenter(store: store, costStore: costStore)
         }
+        .defaultSize(width: 1360, height: 860)
     }
 }

@@ -1,6 +1,6 @@
 # Recovery Hub
 
-Last updated: 2026-04-06
+Last updated: 2026-04-07
 
 This directory is the canonical recovery surface for Port Daddy while V4 is being consolidated.
 
@@ -8,6 +8,8 @@ If a roadmap, ideas list, or cleanup proposal elsewhere disagrees with this dire
 
 ## Canonical Docs
 
+- `CURRENT-WORK.md`
+  - the one live queue for active recovery tasks, immediate cuts, and operator rules
 - `UNIFIED-ROADMAP.md`
   - one execution-order roadmap for the actual project, not a speculative archive
 - `IDEAS-TROVE.md`
@@ -32,7 +34,7 @@ These are not to be discarded. They are source streams feeding the trove.
 
 ## Current Recovery Rules
 
-1. One canonical user-facing daemon: `9876`.
+1. One canonical preferred user-facing daemon port: `9876`, but runtime code must discover the actual live daemon instead of assuming that port is always available.
 2. One native companion: `apps/FleetBar`.
 3. One deep web control plane: `fleet-config-ui`.
 4. One Port Daddy skill source: `skills/port-daddy-cli/SKILL.md`.
@@ -54,6 +56,7 @@ These are not to be discarded. They are source streams feeding the trove.
 
 ## How To Use This Directory
 
+- Update `CURRENT-WORK.md` whenever the active recovery queue changes or a new runtime truth is discovered.
 - Update `UNIFIED-ROADMAP.md` when execution priority changes.
 - Update `IDEAS-TROVE.md` when Spark/Spider/cartographer output reveals a new cluster worth preserving.
 - Update `REPO-CLEANUP-AND-DISTRIBUTION.md` when a keep/merge/retire decision becomes concrete.

@@ -1,39 +1,42 @@
 # Cartographer Status
 
-> Manual sync note — 2026-04-06:
-> Commit `8744e14` closed Recovery Track 1 by promoting `cost-tracker`, `counters`, spawn preflight enforcement, and the live `/metrics/*` surface. It also shipped the first `SortiePanel` mission workspace slice plus the FleetBar native control-center window. Treat the counters-related warnings below as historical context from the prior hour, not current truth.
-
-**Last updated:** 2026-04-05 (second run — same day, no new commits since last run)
+**Last updated:** 2026-04-07
 **Updated by:** Cartographer (manual invocation)
-**HEAD:** `0169b17` (unchanged since last run)
+**HEAD:** `e82f096` (Harden FleetBar control plane entrypoints)
+**Previous HEAD:** `0169b17` — 7 new commits since last run
 
 ---
 
 ## Current Phase
 
-**No dominant phase. Energy is split four ways — and none of them are Phase 1.**
+**Recovery Track dominates. V4 roadmap phases are secondary.**
 
-Active threads, ranked by uncommitted diff size:
+Active work ledger lives at `docs/recovery/CURRENT-WORK.md`. Keep the in-flight queue there, then reflect major closures or drift here.
 
-1. **Fleet as first-class daemon subsystem** — The biggest uncommitted thread. `server.ts`, `routes/fleet.ts`, `routes/index.ts`, `cli/commands/fleet.ts`, `lib/fleet-daemon.ts`, `lib/fleet-engine.ts` all modified. New modules: `lib/fleetbar-launcher.ts` (launch FleetBar from daemon), `lib/ui-preferences.ts` (persist UI prefs), `cli/commands/setup.ts` (new onboarding command), `public/fleet-ui/` (fleet management UI served from daemon). Fleet Config UI (`fleet-config-ui/`) being refactored (3 components deleted, 8 new ones). FleetBar macOS app gaining CostDashboard + CostStore + Preferences. This is evolving Fleet from "background agents" toward a product with its own UI, launcher, and setup flow — none of which is in the V4 roadmap.
+The last 7 commits map overwhelmingly to the Recovery Roadmap (`docs/recovery/UNIFIED-ROADMAP.md`), not the V4 phase structure. Track 1 (Cost & Observability) was closed. Tracks 2 (FleetBar) and 3 (Fleet Config UI) received active work. The V4 phases are background context; the Recovery Roadmap is the active execution authority.
 
-2. **Test hardening** — 6 test files modified, 3 new test files untracked (`spawner-commit-0df9155-bugs.test.js`, `tunnel-lifecycle.test.js`, `tutorials.test.ts`). `tests/setup-unit.js` modified. Good hygiene work.
+Active threads, ranked by commit recency:
 
-3. **Website/distribution** — `website-v2/package.json` and `vite.config.ts` modified. 8 of 11 commits today were website. The content debt treadmill continues.
+1. **Recovery Track 2 — FleetBar as ambient info layer** — `a41f18f` and `e82f096` unified FleetBar with the real fleet-config-ui via WebView. The menu bar app no longer maintains a shadow dashboard — it shells the daemon's `/fleet-ui/` surface. The current uncommitted follow-on cut is now about enforcing that boundary in practice: the WebView identifies itself explicitly so embed mode does not depend on a fragile query param, the embedded control plane drops its duplicate header/tab stack, the native shell owns surface navigation plus theme, and the popover has been reweighted toward recent per-agent work and touched-file affordances instead of pure launcher chrome. Runtime daemon discovery cleanup also advanced this pass: bootstrap callers and operator diagnostics are being updated to stop speaking as if `9876` were guaranteed truth.
 
-4. **Spider output** — 10 new connection files from 2026-04-05 (largest batch to date). The spider is productive; its output is never committed.
+2. **Recovery Track 1 — CLOSED** — `8744e14` committed `lib/counters.ts`, completing the observability trifecta (cost-tracker + counters + observability routes). All `/metrics/*` endpoints are now populated with real data. Fleet budget gates actively stop spawns. Released as v3.8.3.
 
-Phase 1 (Semantic Graph): **zero commits since 2026-03-30 (6 days).** Stale threshold: 2026-04-13.
-Phase 2 (Economy): First commit landed today (`0169b17`). `lib/counters.ts` still untracked. Blocked on economist for pricing function.
-Phase 3 (Fleet & Memory): 3A/3D shipped. 3B (episodic memory) and 3C (deep scan) untouched. Fleet Config UI is unplanned work that supersedes 3D.
-Phase 4 (Resilience): 4A (Bun binary) stalled since 2026-04-01 (4 days). 4B/4C complete. 4D partial. 4E/4F not started.
+3. **Fleet runtime safety** — `3b818d2` (readiness checks), `71fc446` (autopilot + sortie), `0cc5e6` (setup onboarding). Backend fallbacks, spawn preflight, budget enforcement. These map to Recovery 3.8.3 criteria.
+
+4. **Fleet Config UI refinement** — multiple fleet-config-ui component files modified (uncommitted). ActivityPanel, ActivityRail, AgentCard, AgentConfigPanel, ChannelLog, DMPanel, App.tsx, and the new `activityFeed.ts` are under active refactoring. Embedded Flow and Activity have now both been re-verified from the daemon-served bundle with settled screenshots; the inner duplicate nav is gone in embed mode. The remaining gap is layout quality, per-agent inspect richness, and finishing the last project-scoped trigger / operator-surface cleanup. The build is green again after the latest layout pass (`npm run typecheck`, `fleet-config-ui` build, FleetBar Swift build).
+
+V4 Phase activity:
+- **Phase 1 (Semantic Graph):** Zero commits. 7 days since last commit (2026-03-30). **7 days to stale threshold (2026-04-13).**
+- **Phase 2 (Economy):** `lib/counters.ts` committed — observability trifecta complete. Pricing function still blocked on economist.
+- **Phase 3 (Fleet & Memory):** 3A/3D active via Recovery tracks. 3B (episodic memory) and 3C (deep scan) untouched.
+- **Phase 4 (Resilience):** No new commits. Bun binary stalled since 2026-04-01 (5 days). 4B/4C complete. 4E/4F not started.
 
 ---
 
 ## Velocity
 
-**59 commits in the 7-day window** (2026-03-30 to 2026-04-05)
-**8.4 commits/day** average (down from 11.0/day — Mar 29 spike dropped out of the window)
+**62 commits in the 7-day window** (2026-03-30 to 2026-04-06)
+**8.9 commits/day** average (up from 8.4 — the Apr 5-6 burst added 11 commits)
 
 | Date | Commits | Driver |
 |------|---------|--------|
@@ -43,88 +46,93 @@ Phase 4 (Resilience): 4A (Bun binary) stalled since 2026-04-01 (4 days). 4B/4C c
 | 2026-04-02 | 0 | -- |
 | 2026-04-03 | 0 | -- |
 | 2026-04-04 | 1 | CLI aliases + test hardening |
-| 2026-04-05 | 11 | Cost-tracker committed, fleet safety, recovery docs, tutorials, blog, hero, VHS GIFs |
+| 2026-04-05 | 11 | Cost-tracker, fleet safety, recovery docs, tutorials, blog, hero, VHS GIFs |
+| 2026-04-06 | 4 | Track 1 closure, FleetBar unification, sortie surfaces, control plane hardening |
 
-The post-sprint cooling pattern persists: 37 commits in 2 days (Mar 30-31), then 2 zero-commit days (Apr 2-3), then recovery. Burst-cool-burst. The bursts are productive but the gaps mean uncommitted work accumulates in the dark.
+Burst-cool-burst pattern continues: 37 commits (Mar 30-31), 2 zero-commit days (Apr 2-3), then 15 commits (Apr 5-6). The Apr 5-6 burst was tightly focused on Recovery Track work — less scattered than the Mar 30 sprint.
 
-### Energy Distribution (full 8-day window, Mar 29–Apr 5, 77 commits)
+### Energy Distribution (8-day window, Mar 30–Apr 6, 66 commits)
 
 | Category | Commits | % | Roadmap Phase |
 |----------|---------|---|---------------|
-| Phase 4 (Fastify, IPC, Bun) | ~20 | 26% | 4A, 4B, 4C, 4D |
-| Phase 3 extensions (fleet daemon, FleetBar, safety) | ~6 | 8% | 3A, 3D |
-| Phase 2 (cost-tracker) | 1 | 1% | 2A infrastructure |
-| Security hardening | ~5 | 6% | Unplanned |
-| Website / marketing / docs | ~35 | 45% | Unplanned |
-| Maintenance / CI / test hardening | ~10 | 13% | Unplanned |
+| Phase 4 (Fastify, IPC, Bun) | ~20 | 30% | 4A, 4B, 4C, 4D |
+| Phase 3 extensions (fleet daemon, FleetBar, safety) | ~10 | 15% | 3A, 3D |
+| Phase 2 (cost-tracker, counters, observability) | ~3 | 5% | 2A infrastructure |
+| Recovery tracks (setup, readiness, sortie, unification) | ~5 | 8% | Recovery 3.8.3/3.8.4 |
+| Security hardening | ~5 | 8% | Unplanned |
+| Website / marketing / docs | ~15 | 23% | Unplanned |
+| Maintenance / CI / test hardening | ~8 | 12% | Unplanned |
 
-**Planned vs. unplanned: 35% / 65%.** The Mar 29-30 sprint was heavily roadmap-aligned (Phase 4). Since Mar 31, energy has been ~80% unplanned. Today: 2 of 11 commits map to a roadmap phase.
+**Planned vs. unplanned: 58% / 42%.** Improvement over last run (was 35%/65%). The Recovery Roadmap's existence is helping — "recovery work" is now counted as planned.
 
-**Uncommitted inventory: ~37 untracked + ~39 modified/deleted = 76 files.** Down from ~103 after `.gitignore` cleaned build output (`9f1e32b`). The composition shifted: fewer stray untracked files, more deliberate modifications to core daemon files (`server.ts`, `routes/*.ts`, `lib/*.ts`). The uncommitted work is becoming more structurally important — it's not just spider outputs and new modules sitting idle, it's active wiring of features into the daemon's main entry points.
+**Uncommitted inventory is now explicitly tracked through `docs/recovery/CURRENT-WORK.md`.** The main in-flight slices are: project-scoped fleet channels, daemon port discovery cleanup, FleetBar/control-plane density work, and lingering UI refinement in `fleet-config-ui` and FleetBar Swift files. Treat the recovery ledger as the operational source of truth instead of mentally diffing `git status`.
 
 ---
 
 ## Top 3 Closest to Completion
 
-1. **`lib/counters.ts` — last piece of observability trifecta** *(UNTRACKED)*
-   - `lib/counters.ts` (~314 lines): ODS-style time-bucketed operational metrics, in-memory batching -> SQLite
-   - `tests/unit/counters.test.js` (~161 lines)
-   - The cost-tracker and observability routes are committed. Counters is the last piece.
-   - `features.manifest.json` already has `counters` and `observability` entries (uncommitted).
-   - **Remaining: literally `git add lib/counters.ts tests/unit/counters.test.js` and commit.**
-   - **This has been "one commit away" for two cartographer runs now.**
-   - Completing this also finishes Recovery Roadmap Track 1 ("commit and promote cost-tracker, counters, and observability").
+1. **Fleet Config UI v0.1** *(UNCOMMITTED, backend committed)*
+   - Backend endpoints committed (`8744e14`): `GET/PUT /fleet/config/:project`, `GET /fleet/prompt`, `GET /fleet/models`
+   - FleetBar unified to consume this surface (`a41f18f`)
+   - 6 React components being actively refactored (uncommitted)
+   - `activityFeed.ts` new utility module (untracked)
+   - `public/fleet-ui/` assets rebuilt (2 deleted, 2 new, index.html modified)
+   - **Remaining: stabilize component refactoring, commit. The backend is ready. The consumer (FleetBar) is ready. The UI itself is the gap.**
 
-2. **Fleet Config backend endpoints** *(MODIFIED, not committed)*
-   - 4 new fleet routes (`config read/write`, `prompt`, `models`) wired into `routes/fleet.ts`
-   - `routes/index.ts` and `server.ts` modified to register them
-   - `cli/commands/fleet.ts` modified with CLI surface
-   - `features.manifest.json` updated
-   - **Remaining: verify tests pass, commit. The code is wired but untested.**
+2. **Recovery 3.8.3 release cut** *(CRITERIA MOSTLY MET)*
+   - Daemon startup: stable (committed)
+   - Fleet backend/model selection: explicit with fallbacks (committed `3b818d2`)
+   - Readiness/auth preflight: committed (`3b818d2`)
+   - Cost/counter/observability: populated with real data (committed `8744e14`)
+   - Fleet singleton enforcement: committed
+   - **Remaining: verify all uncommitted test files pass, commit completions updates, cut the release. Most criteria from the Recovery Roadmap are satisfied.**
 
-3. **Fleet Config UI v0.1** *(UNTRACKED)*
-   - 8 components: AgentCard, AgentConfigPanel, FlowGraph, YAMLEditor, SortiePanel, DMPanel, ChannelLog, ProjectPicker
-   - api.ts, hooks/, types.ts — real React app scaffolding
-   - Depends on Fleet Config backend endpoints (item 2) being committed first
-   - **Remaining: commit as v0.1. Iterate in subsequent commits.**
+3. **`tests/unit/semantic-index.test.js`** *(UNTRACKED — 453 lines, validates Phase 1 stub)*
+   - Test suite for the symbol index module
+   - Has been uncommitted since 2026-03-30 (7 days)
+   - Committing this would demonstrate the symbol index is validated, even if not yet activated
+   - **Remaining: `git add` and commit. No code changes needed.**
 
 ---
 
 ## Top 3 Blocked or Drifting
 
-1. **Phase 1 — Unified Edge Table (1A)** *(DRIFTING — 6 days, 8 days to stale threshold)*
+1. **Phase 1 — Unified Edge Table (1A)** *(DRIFTING — 7 days, 7 days to stale threshold)*
    - Three Phase 1-adjacent modules on disk (~2500 lines): symbol-index, merge-queue, orchestrator-plugins
    - All wired into `server.ts` (committed `0ae2df6` on 2026-03-30)
    - But they depend on `graph_edges` table which has no migration
    - `tests/unit/semantic-index.test.js` (453 lines, uncommitted) validates symbol index
-   - **One migration away from activating ~2500 lines. 8 days to stale threshold.**
-   - **Risk: if Phase 1 goes stale, the wired-but-inactive modules become tech debt — code that's imported, initialized, but does nothing.**
+   - **The Apr 5-6 burst (7 commits) touched `server.ts` and `routes/index.ts` — the same files these modules are wired into. Merge friction risk is now elevated.**
+   - **One migration away from activating ~2500 lines. 7 days to stale threshold.**
 
-2. **Phase 2 — The Economy** *(BLOCKED on economist, infrastructure now exists)*
+2. **Phase 2 — The Economy** *(BLOCKED on economist, infrastructure now complete)*
    - Bond pricing function pi is the open problem
-   - Thomas Youle (Indiana U) proposed insurer-agent auction 2026-03-30 — no follow-up in 6 days
-   - The cost-tracker commit (`0169b17`) gives real data to calibrate against
-   - Fleet budget gates (`budget_usd_per_day`) are enforced but use static pricing
-   - **Unblocked path: ship cost data to Youle. Real numbers accelerate the conversation.**
+   - Thomas Youle (Indiana U) proposed insurer-agent auction 2026-03-30 — no follow-up in 7 days
+   - The observability trifecta gives real cost data to calibrate against
+   - Fleet budget gates are enforced but use static pricing
+   - **Unblocked path: export cost data from `/metrics/cost` and send to Youle. Real numbers accelerate the conversation.**
 
-3. **Uncommitted work backlog** *(76 files — composition shifted, risk elevated)*
-   - Headline number improved (76 down from ~103), but that's `.gitignore` cleaning, not commits
-   - The uncommitted work is now structurally deeper: `server.ts` modified, `routes/index.ts` modified, `routes/fleet.ts` modified — these are the daemon's main entry points
-   - Pattern persists: work completes -> sits uncommitted for days -> risks drifting from codebase
-   - **Previous cartographer runs have flagged this 4 times now. The pattern is durable.**
+3. **Phase 4A — Bun binary** *(STALLED — 5 days since last commit)*
+   - `6a8c8bb` (Apr 1) added build scripts and GH Actions workflow
+   - `db4c315` (Apr 4) included "Bun prep"
+   - No confirmed working single-file binary distribution
+   - No commits since Apr 4
+   - **Not yet at stale threshold, but the Apr 5-6 burst went to Recovery work, not Bun. If the next burst also skips Bun, it risks stalling permanently.**
 
 ---
 
 ## Observations
 
-- **Fleet is becoming a shadow roadmap.** `lib/fleetbar-launcher.ts`, `lib/ui-preferences.ts`, `cli/commands/setup.ts`, `public/fleet-ui/` — none of these appear in any V4 phase. They're building "Fleet as a Product" — a standalone fleet management experience with its own UI, macOS app, setup flow, and daemon integration. If this is the direction, it deserves its own roadmap item (Phase 3E? Or a separate "Distribution & Developer Experience" track). The roadmap says "agents run continuously and are managed declaratively" — the work is going well beyond that toward "fleet is the primary interface."
+- **The Recovery Roadmap is the real execution authority.** 5 of 7 new commits map directly to Recovery Track criteria (Track 1 closure, Track 2 FleetBar, 3.8.3 runtime safety). The V4 phase structure is becoming a reference taxonomy rather than an active execution plan. This is fine — as long as both documents are maintained. The cartographer should update both.
 
-- **`lib/counters.ts` has been "one commit away" for two runs.** Still untracked. The cost-tracker shipped today; counters didn't ride along. Either it's not ready, or it keeps losing priority to more interesting work. The `/metrics/golden` endpoint exists but returns incomplete data without counters backing it.
+- **Track 1 closure broke a 3-run pattern.** `lib/counters.ts` was flagged as "one commit away" in three consecutive cartographer runs (Apr 5 first run, Apr 5 second run, and the manual sync note). It finally shipped in `8744e14`. The pattern suggests: cartographer flagging alone doesn't drive commits, but having a "Recovery Track" with explicit closure criteria does. Recovery Tracks are more motivating than cartographer warnings.
 
-- **Spider output: commit it or ignore it.** 10 connection files today — largest batch ever. Zero spider output has ever been committed. The current state (generated, visible in `git status`, never committed) is ambiguous. If it's meant to be ephemeral, add `.spider/connections/` to `.gitignore`. If it's meant to be preserved, commit it. The ambiguity adds noise to every `git status` reading.
+- **FleetBar architecture is now correct.** `a41f18f` eliminated the "shadow dashboard" anti-pattern — FleetBar shells the daemon's fleet-config-ui instead of reimplementing it in SwiftUI. One fleet UI, two consumers (browser + native). This is the architecture that should have been built from the start. The hardening commit (`e82f096`) immediately followed, which is good discipline.
 
-- **Phase 1 stale clock: 8 days.** The `graph_edges` migration is a 1-hour task blocking ~2500 lines. The cost-tracker commit today proved that "commit the done work" is achievable. The symbol-index test suite (453 lines, uncommitted) suggests someone already validated the code. Wire it.
+- **Phase 1 stale clock: 7 days.** Equal to the time remaining before the threshold. The `graph_edges` migration is a 1-hour task. Every commit to `server.ts` (2 this burst) increases friction. The symbol index test suite sitting uncommitted for 7 days is a smell — someone validated the code but didn't commit the validation.
 
-- **Website energy: round 6 since Mar 25.** Each round discovers more content debt. 8 of 11 commits today were website. Consider: declare a website content freeze date to reclaim bandwidth for Phases 1/2. The content treadmill is self-reinforcing and will never "finish" on its own.
+- **Spider output: still uncommitted, still ambiguous.** 10 new connection files from Apr 5. Zero spider output has ever been committed. The noise in `git status` is now 10/50 files (20%). Decision needed: `.gitignore` or commit. Previous recommendation stands from 2 runs ago.
 
-- **Document authority is splitting.** Three roadmap-like files now exist: `docs/V4-UNIFIED-ROADMAP.md` (V4 phase tracker), `docs/V4-RECOVERY-MAP.md` (execution priorities), and `docs/recovery/UNIFIED-ROADMAP.md` (declared "active authority" as of `bfe30e1`). The V4 roadmap and Recovery Map both have redirect headers deferring to the recovery docs. The cartographer currently maintains the V4 roadmap and this status file. If the recovery roadmap is the real authority, it should also receive cartographer updates — or the V4 roadmap should drop its redirect and reclaim primacy. Two canonical docs with cross-references is a coordination smell.
+- **Document authority: now clearer.** The Recovery Roadmap at `docs/recovery/UNIFIED-ROADMAP.md` is the execution authority (with explicit release criteria). The V4 Roadmap at `docs/V4-UNIFIED-ROADMAP.md` is the strategic context (phase structure, appendix, unplanned work log). This division is workable as long as the cartographer maintains both. The V4 roadmap's redirect header to the recovery docs is appropriate.
+
+- **Uncommitted file count trending down: 103 → 76 → 50.** Two consecutive cartographer runs showing improvement. The Track 1 closure committed the most structurally important changes. Remaining uncommitted work is mostly UI refinement (fleet-config-ui, FleetBar Swift) and test files — lower risk than the `server.ts` + `routes/*.ts` changes that were in the previous batch.
