@@ -32,6 +32,7 @@ Project-specific shibboleths for proficient Port Daddy work. If you learn a new 
 - Use `projectDir` as the durable identity in UI state, routing, and daemon/API lookups.
 - Only use logical project name as a display label.
 - Fleet trigger channels are project-scoped by default.
+- Do not treat any hook containing `git:committed` as "already correct". Legacy Port Daddy hooks published naked `git:committed`; installers must detect and replace those in place.
 - Keep YAML logical channels human-readable like `git:committed`, but publish/subscribe on a physical scoped channel derived from `projectDir`.
 - Reserve `global:<channel>` for intentional cross-project fanout. Cross-project wakeups are a bug unless explicitly marked global.
 
@@ -47,6 +48,7 @@ Project-specific shibboleths for proficient Port Daddy work. If you learn a new 
 - Do not claim an embedded surface is fixed from a loading-state screenshot. Wait for a settled render and verify the actual surface content is visible.
 - Session notes and handoffs carry explicit `agentId` and `identityProject`; use those fields for attribution before falling back to text matching.
 - Project-scoped Activity filtering must include `story.agentId`; if you only filter note text and `identityProject`, valid handoffs will disappear from the timeline.
+- Session lifecycle activity is also structured data. `session.start`, `session.end`, `session.note`, `file.claim`, `file.release`, and sugar begin/done events should stamp `agentId`, `targetId`, and `identityProject` so briefing/FleetBar/UI do not have to reverse-engineer scope from prose.
 
 ## Operator UX Expectations
 

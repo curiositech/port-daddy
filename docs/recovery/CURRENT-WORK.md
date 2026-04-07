@@ -12,29 +12,34 @@ Stabilize the live Port Daddy operator loop so one daemon, one fleet runtime, on
 ## Active Tasks
 
 1. Project-scope fleet trigger channels by default so `git:committed` and similar wakes do not bleed across checkouts.
-2. Remove the fleet-daemon lease renewal open-handle leak from test runs and tighten teardown.
-3. Fix daemon discovery drift so `9876` is treated as the canonical preferred port, not a mandatory truth. The daemon can already fall back; the surrounding install/CLI/UI surfaces must stop pretending otherwise.
-4. Collapse duplicate chrome in Fleet Control Center when embedded:
+2. Upgrade live legacy Port Daddy post-commit hooks in place so existing checkouts stop publishing naked `git:committed` after the scoped template landed.
+3. Stamp project/agent/session attribution into runtime activity at write time instead of reconstructing scope from free text in the UI.
+4. Finish daemon discovery drift cleanup so `9876` is treated as the canonical preferred port, not a mandatory truth. The daemon can already fall back; the surrounding install/CLI/UI surfaces must stop pretending otherwise.
+5. Collapse duplicate chrome in Fleet Control Center when embedded:
    - FleetBar owns the outer nav
    - the embedded control plane must not render a second top-level nav/header stack
-5. Make Activity, Channels, Inbox, and Sorties behave like real top-level pages instead of buried panels or empty shells.
-6. Upgrade agent detail surfaces to show high-signal recent work:
+6. Make Activity, Channels, Inbox, and Sorties behave like real top-level pages instead of buried panels or empty shells.
+7. Upgrade agent detail surfaces to show high-signal recent work:
    - non-empty messages
    - recent mutations
    - touched files
    - last active time
-7. Improve FleetBar popover so it shows recent per-agent facts instead of only launch shortcuts.
+8. Improve FleetBar popover so it shows recent per-agent facts instead of only launch shortcuts.
 
 ## Immediate Next Cuts
 
-1. Finish the last raw project-trigger audit after `lib/fleet-channels.ts` + hook/template scoping so no checked-in path still publishes or inspects naked logical channels where a scoped physical channel is required.
-2. Relaunch FleetBar against the latest build and verify the native wrapper picks up the chrome-free embedded surfaces plus the reordered recent-work section.
-3. Finish the remaining `9876` cleanup after the runtime callers:
+1. Promote the structured activity slice:
+   - session + sugar events now stamp `agentId`, `targetId`, and `identityProject`
+   - briefing recovers project activity from structured metadata instead of `target_id` prefix alone
+   - legacy Port Daddy post-commit hooks auto-upgrade to the scoped template
+2. Finish the last raw project-trigger audit after `lib/fleet-channels.ts` + hook/template scoping so no checked-in path still publishes or inspects naked logical channels where a scoped physical channel is required.
+3. Relaunch FleetBar against the latest build and verify the native wrapper picks up the chrome-free embedded surfaces plus the reordered recent-work section.
+4. Finish the remaining `9876` cleanup after the runtime callers:
    - diagnostics/startup doctor wording
    - docs/templates/website honesty sweep
    - any leftover FleetBar/operator labels
-4. Verify whether Jest still has a real open-handle warning after the lease-renew timer `unref()` and daemon test teardown, then fix any remaining offender instead of assuming it is gone.
-5. Commit the control-plane/FleetBar UI refactor once the latest native companion relaunch confirms the bundle is the truthful surface.
+5. Verify whether Jest still has a real open-handle warning after the lease-renew timer `unref()` and daemon test teardown, then fix any remaining offender instead of assuming it is gone.
+6. Commit the control-plane/FleetBar UI refactor once the latest native companion relaunch confirms the bundle is the truthful surface.
 
 ## Newly Confirmed Truths
 
@@ -47,6 +52,12 @@ Stabilize the live Port Daddy operator loop so one daemon, one fleet runtime, on
 - Remaining `9876` drift still exists in docs/templates and some operator labels even after the runtime callers were cleaned up.
 - The earlier `embed-flow-after` proof was wrong because it captured a loading state. A fresh settled screenshot now confirms embedded `Flow` does render the graph and agent cards correctly from the daemon-served bundle.
 - Session notes already carry `agentId` and `identityProject` on the backend; the remaining bug is frontend attribution code still dropping that metadata and guessing from content.
+- The activity bug was deeper than the UI. Recent project activity was being queried by `target_id` prefix even though real session and sugar rows often had `target_id = null`, so project-scoped Activity and FleetBar recent work could lie by omission.
+- The live installed `.git/hooks/post-commit` in this checkout was still the pre-scope Port Daddy hook, publishing naked `git:committed`. Shared templates were correct, but installers were treating any hook mentioning `git:committed` as already upgraded.
+- The fix is now source-level, not cosmetic:
+  - session/file/sugar activity stamps `agentId`, `targetId`, and `identityProject`
+  - briefing rebuilds project activity from structured metadata, session membership, and active agents
+  - legacy Port Daddy hooks auto-upgrade in `pd init` / `pd fleet init`
 - Runtime discovery now drives more of the real product surface: the JS SDK, MCP server, and FleetBar stores no longer default inline to `http://localhost:9876`; they resolve the live daemon URL through the shared discovery path or the user port file.
 - Only `Flow` still warrants the persistent project rail. `Activity`, `Channels`, `Inbox`, `Sorties`, and `YAML` behave better as full-width top-level pages.
 - FleetBar popover usefulness is now part of the active scope: recent per-agent summaries and touched files belong in the menu bar companion, not only in the full control center.

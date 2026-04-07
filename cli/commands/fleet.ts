@@ -12,6 +12,11 @@ import { spawn } from 'node:child_process';
 import * as ui from '../utils/ui.js';
 import { pdFetch, isDaemonRunning, getDaemonUrl } from '../utils/fetch.js';
 import {
+  isLegacyPortDaddyPostCommitHook,
+  isScopedPortDaddyPostCommitHook,
+  loadPostCommitHookTemplate,
+} from '../utils/post-commit-hook.js';
+import {
   loadFleetConfig,
   createFleetRunner,
   getFleetRuntimeDefaults,
@@ -126,10 +131,15 @@ async function fleetInit(): Promise<void> {
       if (existsSync(hookPath)) {
         // Append to existing hook instead of overwriting
         const existing = readFileSync(hookPath, 'utf-8');
-        if (existing.includes('Port Daddy fleet trigger') || existing.includes('git:committed')) {
+        if (isScopedPortDaddyPostCommitHook(existing)) {
           ui.info('Git post-commit hook already publishes to the project-scoped git:committed channel');
+        } else if (isLegacyPortDaddyPostCommitHook(existing)) {
+          writeFileSync(hookPath, loadPostCommitHookTemplate());
+          const { chmodSync } = await import('node:fs');
+          chmodSync(hookPath, 0o755);
+          ui.success('Upgraded legacy .git/hooks/post-commit to the project-scoped git:committed channel');
         } else {
-          const hookContent = readFileSync(hookSrc, 'utf-8');
+          const hookContent = loadPostCommitHookTemplate();
           // Strip the shebang from the appended content
           const withoutShebang = hookContent.replace(/^#!.*\n/, '');
           writeFileSync(hookPath, existing.trimEnd() + '\n\n# --- Port Daddy fleet trigger ---\n' + withoutShebang);
@@ -139,7 +149,7 @@ async function fleetInit(): Promise<void> {
         }
       } else {
         mkdirSync(hookDir, { recursive: true });
-        writeFileSync(hookPath, readFileSync(hookSrc, 'utf-8'));
+        writeFileSync(hookPath, loadPostCommitHookTemplate());
         const { chmodSync } = await import('node:fs');
         chmodSync(hookPath, 0o755);
         ui.success('Installed .git/hooks/post-commit (publishes to the project-scoped git:committed channel)');

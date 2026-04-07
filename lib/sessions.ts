@@ -18,7 +18,12 @@ const MAX_NOTES_PER_SESSION = 500;
 
 // Optional activity logger interface — injected after creation via setActivityLog()
 interface ActivityLogger {
-  log(type: string, opts: { details: string; metadata: Record<string, unknown> }): void;
+  log(type: string, opts: {
+    agentId?: string | null;
+    targetId?: string | null;
+    details: string;
+    metadata: Record<string, unknown>;
+  }): void;
 }
 
 // =============================================================================
@@ -430,36 +435,42 @@ export function createSessions(db: Database.Database, noteEncryption?: NoteEncry
       VALUES (?, ?, ?, ?)
     `),
     getNotesBySession: db.prepare(`
-      SELECT * FROM session_notes WHERE session_id = ? ORDER BY created_at ASC
+      SELECT sn.*, s.purpose as session_purpose, s.agent_id as session_agent_id, s.identity_project as identity_project
+      FROM session_notes sn
+      JOIN sessions s ON s.id = sn.session_id
+      WHERE sn.session_id = ? ORDER BY sn.created_at ASC
     `),
     getNotesBySessionAndType: db.prepare(`
-      SELECT * FROM session_notes WHERE session_id = ? AND type = ? ORDER BY created_at ASC
+      SELECT sn.*, s.purpose as session_purpose, s.agent_id as session_agent_id, s.identity_project as identity_project
+      FROM session_notes sn
+      JOIN sessions s ON s.id = sn.session_id
+      WHERE sn.session_id = ? AND sn.type = ? ORDER BY sn.created_at ASC
     `),
     getRecentNotes: db.prepare(`
-      SELECT sn.*, s.purpose as session_purpose FROM session_notes sn
+      SELECT sn.*, s.purpose as session_purpose, s.agent_id as session_agent_id, s.identity_project as identity_project FROM session_notes sn
       JOIN sessions s ON s.id = sn.session_id
       ORDER BY sn.created_at DESC LIMIT ?
     `),
     getRecentNotesByType: db.prepare(`
-      SELECT sn.*, s.purpose as session_purpose FROM session_notes sn
+      SELECT sn.*, s.purpose as session_purpose, s.agent_id as session_agent_id, s.identity_project as identity_project FROM session_notes sn
       JOIN sessions s ON s.id = sn.session_id
       WHERE sn.type = ?
       ORDER BY sn.created_at DESC LIMIT ?
     `),
     getNotesSince: db.prepare(`
-      SELECT sn.*, s.purpose as session_purpose FROM session_notes sn
+      SELECT sn.*, s.purpose as session_purpose, s.agent_id as session_agent_id, s.identity_project as identity_project FROM session_notes sn
       JOIN sessions s ON s.id = sn.session_id
       WHERE sn.created_at >= ?
       ORDER BY sn.created_at DESC LIMIT ?
     `),
     getNotesSinceByType: db.prepare(`
-      SELECT sn.*, s.purpose as session_purpose FROM session_notes sn
+      SELECT sn.*, s.purpose as session_purpose, s.agent_id as session_agent_id, s.identity_project as identity_project FROM session_notes sn
       JOIN sessions s ON s.id = sn.session_id
       WHERE sn.created_at >= ? AND sn.type = ?
       ORDER BY sn.created_at DESC LIMIT ?
     `),
     getNotesByPattern: db.prepare(`
-      SELECT sn.*, s.purpose as session_purpose FROM session_notes sn
+      SELECT sn.*, s.purpose as session_purpose, s.agent_id as session_agent_id, s.identity_project as identity_project FROM session_notes sn
       JOIN sessions s ON s.id = sn.session_id
       WHERE (s.agent_id LIKE ? ESCAPE '\\' OR ? IS NULL)
         AND (s.identity_project LIKE ? ESCAPE '\\' OR ? IS NULL)
@@ -552,7 +563,7 @@ export function createSessions(db: Database.Database, noteEncryption?: NoteEncry
     };
   }
 
-  function formatNote(row: SessionNoteRow & { session_purpose?: string }) {
+  function formatNote(row: SessionNoteRow & { session_purpose?: string; session_agent_id?: string; identity_project?: string }) {
     const note: Record<string, unknown> = {
       id: row.id,
       sessionId: row.session_id,
@@ -562,6 +573,12 @@ export function createSessions(db: Database.Database, noteEncryption?: NoteEncry
     };
     if (row.session_purpose !== undefined) {
       note.sessionPurpose = row.session_purpose;
+    }
+    if (row.session_agent_id !== undefined) {
+      note.agentId = row.session_agent_id;
+    }
+    if (row.identity_project !== undefined) {
+      note.identityProject = row.identity_project;
     }
     return note;
   }
@@ -576,6 +593,10 @@ export function createSessions(db: Database.Database, noteEncryption?: NoteEncry
       claimedAt: row.claimed_at,
       releasedAt: row.released_at,
     };
+  }
+
+  function sessionTarget(identityProject: string | null | undefined, sessionId: string): string {
+    return identityProject ? `${identityProject}:session:${sessionId}` : sessionId;
   }
 
   // ---------------------------------------------------------------------------
@@ -699,8 +720,16 @@ export function createSessions(db: Database.Database, noteEncryption?: NoteEncry
 
     if (activityLog) {
       activityLog.log(ActivityType.SESSION_START, {
+        agentId,
+        targetId: sessionTarget(identityProject, id),
         details: `Session started: ${trimmedPurpose}`,
-        metadata: { sessionId: id, purpose: trimmedPurpose, agentId: agentId || undefined, worktreeId: resolvedWorktreeId || undefined } as unknown as Record<string, unknown>,
+        metadata: {
+          sessionId: id,
+          purpose: trimmedPurpose,
+          agentId: agentId || undefined,
+          identityProject: identityProject || undefined,
+          worktreeId: resolvedWorktreeId || undefined,
+        } as unknown as Record<string, unknown>,
       });
     }
 
@@ -747,8 +776,16 @@ export function createSessions(db: Database.Database, noteEncryption?: NoteEncry
 
     if (activityLog) {
       activityLog.log(ActivityType.SESSION_END, {
+        agentId: session.agent_id,
+        targetId: sessionTarget(session.identity_project, sessionId),
         details: `Session ended: ${sessionId} (${status})`,
-        metadata: { sessionId, status, releasedFiles: releasedFiles.length } as unknown as Record<string, unknown>,
+        metadata: {
+          sessionId,
+          status,
+          agentId: session.agent_id || undefined,
+          identityProject: session.identity_project || undefined,
+          releasedFiles: releasedFiles.length,
+        } as unknown as Record<string, unknown>,
       });
     }
 
@@ -836,8 +873,16 @@ export function createSessions(db: Database.Database, noteEncryption?: NoteEncry
 
     if (activityLog) {
       activityLog.log(ActivityType.SESSION_NOTE, {
+        agentId: session.agent_id,
+        targetId: sessionTarget(session.identity_project, sessionId),
         details: `Note added to session ${sessionId}`,
-        metadata: { sessionId, noteId, type } as unknown as Record<string, unknown>,
+        metadata: {
+          sessionId,
+          noteId,
+          type,
+          agentId: session.agent_id || undefined,
+          identityProject: session.identity_project || undefined,
+        } as unknown as Record<string, unknown>,
       });
     }
 
@@ -1083,8 +1128,16 @@ export function createSessions(db: Database.Database, noteEncryption?: NoteEncry
 
     if (activityLog && claimed.length > 0) {
       activityLog.log(ActivityType.FILE_CLAIM, {
+        agentId: session.agent_id,
+        targetId: sessionTarget(session.identity_project, sessionId),
         details: `Claimed ${claimed.length} file(s) for session ${sessionId}`,
-        metadata: { sessionId, files: claimed, conflicts: conflicts.length } as unknown as Record<string, unknown>,
+        metadata: {
+          sessionId,
+          files: claimed,
+          conflicts: conflicts.length,
+          agentId: session.agent_id || undefined,
+          identityProject: session.identity_project || undefined,
+        } as unknown as Record<string, unknown>,
       });
     }
 
@@ -1105,6 +1158,11 @@ export function createSessions(db: Database.Database, noteEncryption?: NoteEncry
   function releaseFiles(sessionId: string, filePaths: string[], options?: { regions?: FileRegion[] }) {
     if (!sessionId || typeof sessionId !== 'string') {
       return { success: false, error: 'sessionId must be a non-empty string' };
+    }
+
+    const session = stmts.getById.get(sessionId) as SessionRow | undefined;
+    if (!session) {
+      return { success: false, error: 'session not found' };
     }
 
     const regions = options?.regions ?? [];
@@ -1138,8 +1196,15 @@ export function createSessions(db: Database.Database, noteEncryption?: NoteEncry
 
     if (activityLog && released.length > 0) {
       activityLog.log(ActivityType.FILE_RELEASE, {
+        agentId: session.agent_id,
+        targetId: sessionTarget(session.identity_project, sessionId),
         details: `Released ${released.length} file(s) from session ${sessionId}`,
-        metadata: { sessionId, files: released } as unknown as Record<string, unknown>,
+        metadata: {
+          sessionId,
+          files: released,
+          agentId: session.agent_id || undefined,
+          identityProject: session.identity_project || undefined,
+        } as unknown as Record<string, unknown>,
       });
     }
 
@@ -1304,8 +1369,16 @@ export function createSessions(db: Database.Database, noteEncryption?: NoteEncry
 
     if (activityLog) {
       activityLog.log(ActivityType.SESSION_NOTE, {
+        agentId: session.agent_id,
+        targetId: sessionTarget(session.identity_project, sessionId),
         details: `Session ${sessionId} phase changed to ${normalizedPhase}`,
-        metadata: { sessionId, phase: normalizedPhase, previousPhase: session.phase || 'in_progress' } as unknown as Record<string, unknown>,
+        metadata: {
+          sessionId,
+          phase: normalizedPhase,
+          previousPhase: session.phase || 'in_progress',
+          agentId: session.agent_id || undefined,
+          identityProject: session.identity_project || undefined,
+        } as unknown as Record<string, unknown>,
       });
     }
 

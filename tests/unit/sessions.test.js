@@ -1350,8 +1350,30 @@ describe('Sessions Module', () => {
       expect(mockLog.log).toHaveBeenCalledWith(
         ActivityType.SESSION_START,
         expect.objectContaining({
+          targetId: result.id,
           details: expect.stringContaining('Build feature Y'),
           metadata: expect.objectContaining({ sessionId: result.id, purpose: 'Build feature Y' }),
+        })
+      );
+    });
+
+    it('should log project-scoped activity metadata when session has identityProject', () => {
+      const result = sessionsWithLog.start('Scoped work', {
+        agentId: 'agent-scoped',
+        project: 'port-daddy-dev',
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockLog.log).toHaveBeenCalledWith(
+        ActivityType.SESSION_START,
+        expect.objectContaining({
+          agentId: 'agent-scoped',
+          targetId: `port-daddy-dev:session:${result.id}`,
+          metadata: expect.objectContaining({
+            sessionId: result.id,
+            agentId: 'agent-scoped',
+            identityProject: 'port-daddy-dev',
+          }),
         })
       );
     });
@@ -1365,6 +1387,7 @@ describe('Sessions Module', () => {
       expect(mockLog.log).toHaveBeenCalledWith(
         ActivityType.SESSION_END,
         expect.objectContaining({
+          targetId: started.id,
           details: expect.stringContaining(started.id),
           metadata: expect.objectContaining({ sessionId: started.id, status: 'completed' }),
         })
@@ -1396,6 +1419,7 @@ describe('Sessions Module', () => {
       expect(mockLog.log).toHaveBeenCalledWith(
         ActivityType.SESSION_NOTE,
         expect.objectContaining({
+          targetId: started.id,
           details: expect.stringContaining(started.id),
           metadata: expect.objectContaining({ sessionId: started.id, noteId: noteResult.noteId, type: 'note' }),
         })
@@ -1411,6 +1435,7 @@ describe('Sessions Module', () => {
       expect(mockLog.log).toHaveBeenCalledWith(
         ActivityType.FILE_CLAIM,
         expect.objectContaining({
+          targetId: started.id,
           details: expect.stringContaining('2 file(s)'),
           metadata: expect.objectContaining({ sessionId: started.id, files: ['src/a.ts', 'src/b.ts'] }),
         })
@@ -1427,6 +1452,7 @@ describe('Sessions Module', () => {
       expect(mockLog.log).toHaveBeenCalledWith(
         ActivityType.FILE_RELEASE,
         expect.objectContaining({
+          targetId: started.id,
           details: expect.stringContaining('1 file(s)'),
           metadata: expect.objectContaining({ sessionId: started.id, files: ['src/a.ts'] }),
         })

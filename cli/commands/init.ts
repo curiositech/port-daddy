@@ -14,9 +14,13 @@
 
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import * as ui from '../utils/ui.js';
 import { getDaemonTcpUrl } from '../../shared/daemon-discovery.js';
+import {
+  isLegacyPortDaddyPostCommitHook,
+  isScopedPortDaddyPostCommitHook,
+  loadPostCommitHookTemplate,
+} from '../utils/post-commit-hook.js';
 
 export async function handleInit(options: Record<string, unknown>): Promise<void> {
   const cwd = process.cwd();
@@ -148,21 +152,22 @@ export async function handleInit(options: Record<string, unknown>): Promise<void
     } else {
       const hookPath = join(gitDir, 'hooks', 'post-commit');
       if (existsSync(hookPath)) {
-        const { readFileSync } = await import('node:fs');
+        const { chmodSync, readFileSync } = await import('node:fs');
         const existing = readFileSync(hookPath, 'utf-8');
-        if (existing.includes('Port Daddy fleet trigger') || existing.includes('git:committed')) {
+        if (isScopedPortDaddyPostCommitHook(existing)) {
           ui.info('Post-commit hook already publishes to the project-scoped git:committed channel');
+        } else if (isLegacyPortDaddyPostCommitHook(existing)) {
+          writeFileSync(hookPath, loadPostCommitHookTemplate());
+          chmodSync(hookPath, 0o755);
+          results.push('Upgraded .git/hooks/post-commit');
+          ui.success('Upgraded legacy post-commit hook to the project-scoped git:committed channel');
         } else {
           warnings.push('Existing post-commit hook found — run pd fleet init to merge the hook');
         }
       } else {
-        // Install the hook via fleet init logic (which handles the hook template)
-        // If fleet init already ran it, the hook is present. Otherwise install directly.
         const hookDir = join(gitDir, 'hooks');
         mkdirSync(hookDir, { recursive: true });
-        const templatePath = fileURLToPath(new URL('../../templates/post-commit-hook', import.meta.url));
-        const { readFileSync } = await import('node:fs');
-        writeFileSync(hookPath, readFileSync(templatePath, 'utf-8'));
+        writeFileSync(hookPath, loadPostCommitHookTemplate());
         const { chmodSync } = await import('node:fs');
         chmodSync(hookPath, 0o755);
         results.push('Installed .git/hooks/post-commit');

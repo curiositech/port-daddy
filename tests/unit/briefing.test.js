@@ -36,6 +36,7 @@ beforeEach(() => {
   activityLog = createActivityLog(db);
   messaging = createMessaging(db);
   resurrection = createResurrection(db);
+  sessions.setActivityLog(activityLog);
   briefing = createBriefing(db, {
     sessions,
     agents,
@@ -155,6 +156,17 @@ describe('gatherData', () => {
 
     const data = briefing.gatherData('noteproject', testDir);
     expect(data.recentNotes.length).toBeGreaterThanOrEqual(2);
+  });
+
+  test('includes recent activity derived from session metadata even without target prefixes', () => {
+    sessions.start('Activity-bearing session', { project: 'activityproject', agentId: 'qa-agent' });
+
+    const data = briefing.gatherData('activityproject', testDir);
+    expect(data.recentActivity.some(entry =>
+      entry.type === 'session.start'
+      && entry.metadata?.identityProject === 'activityproject'
+      && entry.agentId === 'qa-agent'
+    )).toBe(true);
   });
 
   test('includes integration signals from messaging channels', () => {
