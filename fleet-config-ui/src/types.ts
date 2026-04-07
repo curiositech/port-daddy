@@ -81,6 +81,8 @@ export interface StoryNote {
   type: string;
   createdAt: number;
   sessionPurpose?: string;
+  agentId?: string | null;
+  identityProject?: string | null;
 }
 
 export interface FleetProjectStatus {

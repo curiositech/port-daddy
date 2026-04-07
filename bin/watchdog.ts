@@ -2,10 +2,11 @@ import { spawn } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { existsSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
+import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PID_FILE = join(__dirname, '../.portdaddy/watchdog.pid');
-const DAEMON_URL = process.env.PORT_DADDY_URL || 'http://localhost:9876';
+const DAEMON_URL = getDaemonTcpUrl(process.env.PORT_DADDY_URL);
 
 async function checkHealth(): Promise<boolean> {
   try {

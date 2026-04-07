@@ -10,11 +10,12 @@ import { createHash } from 'node:crypto';
 import { spawnSync, spawn } from 'node:child_process';
 import type { SpawnSyncReturns } from 'node:child_process';
 import { ANSI as marANSI } from '../../lib/maritime.js';
-import { pdFetch, PORT_DADDY_URL, BARNACLE_URL, SOCK_PATH } from '../utils/fetch.js';
+import { pdFetch, PORT_DADDY_URL, BARNACLE_URL, SOCK_PATH, getDaemonUrl } from '../utils/fetch.js';
 import { CLIOptions, isJson } from '../types.js';
 import { separator, tableHeader } from '../utils/output.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import { diagnoseStartupBlockers, confirmFix } from '../utils/startup-doctor.js';
+import { CANONICAL_TCP_PORT } from '../../shared/daemon-discovery.js';
 import * as ui from '../utils/ui.js';
 
 // __dirname equivalent for ESM
@@ -45,6 +46,15 @@ function getLocalCodeHash(): string {
   }
 
   return hash.digest('hex').slice(0, 8);
+}
+
+function resolveDiagnosticPort(): number {
+  try {
+    const url = new URL(getDaemonUrl());
+    return Number.parseInt(url.port, 10) || (url.protocol === 'https:' ? 443 : CANONICAL_TCP_PORT);
+  } catch {
+    return CANONICAL_TCP_PORT;
+  }
 }
 
 /**
@@ -175,8 +185,8 @@ export async function handleHealth(id: string | undefined, options: CLIOptions):
  * --web: opens the browser-based dashboard instead
  */
 export async function handleDashboard(opts: { web?: boolean } = {}): Promise<void> {
-  const url = PORT_DADDY_URL.replace('http://', '').replace('https://', '');
-  const dashUrl = `http://${url.includes(':') ? url : url + ':9876'}`;
+  const daemonUrl = getDaemonUrl();
+  const dashUrl = daemonUrl;
 
   if (opts.web) {
     console.log(`Opening dashboard: ${dashUrl}`);
@@ -251,6 +261,8 @@ export async function handleDoctor(): Promise<void> {
   let passed: number = 0;
   let total: number = 0;
   let hasCriticalFailure: boolean = false;
+  const daemonPort = resolveDiagnosticPort();
+  const portLabel = `Daemon TCP port (${daemonPort}${daemonPort === CANONICAL_TCP_PORT ? ' preferred' : ''})`;
 
   const libDir: string = join(__dirname, '..', '..');
 
@@ -333,7 +345,7 @@ export async function handleDoctor(): Promise<void> {
   }
 
   // -------------------------------------------------------------------------
-  // 4. Network: Can we reach localhost:9876
+  // 4. Network: Can we reach the discovered daemon URL
   // -------------------------------------------------------------------------
   let daemonData: Record<string, unknown> | null = null;
   let daemonRunning: boolean = false;
@@ -343,12 +355,12 @@ export async function handleDoctor(): Promise<void> {
     if (res.ok) {
       daemonData = await res.json();
       daemonRunning = true;
-      check('Network', true, `localhost:9876 is reachable`);
+      check('Network', true, `${getDaemonUrl()} is reachable`);
     } else {
-      check('Network', false, `localhost:9876 returned status ${res.status}`, 'Run: port-daddy start');
+      check('Network', false, `${getDaemonUrl()} returned status ${res.status}`, 'Run: port-daddy start');
     }
   } catch {
-    check('Network', false, 'Cannot connect to localhost:9876', 'Run: port-daddy start');
+    check('Network', false, `Cannot connect to ${getDaemonUrl()}`, 'Run: port-daddy start');
   }
 
   // -------------------------------------------------------------------------
@@ -388,13 +400,13 @@ export async function handleDoctor(): Promise<void> {
   }
 
   // -------------------------------------------------------------------------
-  // 7. Port 9876 availability
+  // 7. Daemon TCP port availability
   // -------------------------------------------------------------------------
   try {
     if (daemonRunning) {
-      check('Port 9876', true, 'Bound to Port Daddy daemon');
+      check(portLabel, true, `Bound to Port Daddy daemon at ${getDaemonUrl()}`);
     } else {
-      // Check if something else is using 9876
+      // Check if something else is using the currently discovered daemon port.
       const net = await import('node:net');
       const portInUse: boolean = await new Promise((resolve) => {
         const server = net.createServer();
@@ -403,17 +415,17 @@ export async function handleDoctor(): Promise<void> {
           server.close();
           resolve(false);
         });
-        server.listen(9876, '127.0.0.1');
+        server.listen(daemonPort, '127.0.0.1');
       });
 
       if (portInUse) {
-        check('Port 9876', false, 'In use by another process', 'Run: lsof -i :9876 to investigate');
+        check(portLabel, false, 'In use by another process', `Run: lsof -i :${daemonPort} to investigate`);
       } else {
-        check('Port 9876', true, 'Available (daemon not running)');
+        check(portLabel, true, 'Available (daemon not running)');
       }
     }
   } catch (err: unknown) {
-    check('Port 9876', false, `Error: ${(err as Error).message}`, 'Run: lsof -i :9876 to investigate');
+    check(portLabel, false, `Error: ${(err as Error).message}`, `Run: lsof -i :${daemonPort} to investigate`);
   }
 
   // -------------------------------------------------------------------------
@@ -640,7 +652,7 @@ export async function handleDoctor(): Promise<void> {
   // -------------------------------------------------------------------------
   // 11. Startup blockers (stale sockets, zombie processes, port conflicts)
   // -------------------------------------------------------------------------
-  const startupIssues = diagnoseStartupBlockers(9876);
+  const startupIssues = diagnoseStartupBlockers(daemonPort);
   if (startupIssues.length === 0 && !daemonRunning) {
     check('Startup readiness', true, 'No blockers — daemon can start cleanly');
   } else if (startupIssues.length === 0) {

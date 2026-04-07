@@ -11,8 +11,9 @@
 
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
+import { getDaemonTcpUrl } from '../../shared/daemon-discovery.js';
 
-const BASE_URL = process.env.PORT_DADDY_URL ?? 'http://localhost:9876';
+const BASE_URL = getDaemonTcpUrl(process.env.PORT_DADDY_URL);
 
 type ParsedOptions = Record<string, string | boolean | undefined>;
 

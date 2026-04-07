@@ -23,6 +23,8 @@ jest.unstable_mockModule('node:fs', () => ({
   readFileSync: mockReadFileSync,
   writeFileSync: jest.fn(),
   unlinkSync: jest.fn(),
+  mkdirSync: jest.fn(),
+  chmodSync: jest.fn(),
 }));
 
 const mockSpawn = jest.fn();
@@ -44,6 +46,7 @@ jest.unstable_mockModule('yaml', () => ({
 // ─── Imports (after mocks) ───────────────────────────────────────────────────
 
 const { loadFleetConfig, createFleetRunner, validateTopology } = await import('../../lib/fleet-engine.js');
+const { resolveFleetChannel } = await import('../../lib/fleet-channels.js');
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -441,7 +444,9 @@ test('FIX 5: onSuccess fires when spawn returns status=spawned', async () => {
   expect(spawnCallCount).toBe(1);
 
   // Publish IS now called (status 'spawned' is treated as success)
-  expect(publishFetch).toHaveBeenCalledWith('http://localhost:9876/msg/fleet:done');
+  expect(publishFetch).toHaveBeenCalledWith(
+    `http://localhost:9876/msg/${resolveFleetChannel('fleet:done', '/tmp/proj', 'test-fleet')}`
+  );
 });
 
 test('triggered agents receive message content when subscribed in-process', async () => {
@@ -458,7 +463,7 @@ test('triggered agents receive message content when subscribed in-process', asyn
   const runner = createFleetRunner(config, '/tmp/proj', {
     messaging: {
       subscribe: jest.fn((channel, callback) => {
-        expect(channel).toBe('spark:idea');
+        expect(channel).toBe(resolveFleetChannel('spark:idea', '/tmp/proj', 'test-fleet'));
         triggerCallback = callback;
         return jest.fn();
       }),
@@ -482,6 +487,35 @@ test('triggered agents receive message content when subscribed in-process', asyn
       body: expect.stringContaining('what is the most important idea I could build now?'),
     })
   );
+});
+
+test('global: channels bypass project scoping for shared fanout', async () => {
+  const publishFetch = jest.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({}),
+  });
+
+  global.fetch = jest.fn().mockImplementation(async (url) => {
+    if (typeof url === 'string' && url.includes('/spawn')) {
+      return { ok: true, json: async () => ({ agentId: 'abc', status: 'spawned' }) };
+    }
+    if (typeof url === 'string' && url.includes('/msg/')) {
+      publishFetch(url);
+      return { ok: true, json: async () => ({}) };
+    }
+    return { ok: true, json: async () => ({}) };
+  });
+
+  const config = makeConfig({
+    onSuccess: 'publish global:fleet:done',
+  });
+
+  const runner = createFleetRunner(config, '/tmp/proj');
+  await runner.hailAgent('test-agent', { source: 'manual' });
+  await Promise.resolve();
+  await Promise.resolve();
+
+  expect(publishFetch).toHaveBeenCalledWith('http://localhost:9876/msg/fleet:done');
 });
 
 // ─── BUG A: stopAll() leaks watchHandle subscriptions ──────────────────────
@@ -877,7 +911,9 @@ test('onFailure fires when /spawn returns HTTP error', async () => {
   await Promise.resolve();
   await Promise.resolve();
 
-  expect(failureFetch).toHaveBeenCalledWith('http://localhost:9876/msg/fleet:errors');
+  expect(failureFetch).toHaveBeenCalledWith(
+    `http://localhost:9876/msg/${resolveFleetChannel('fleet:errors', '/tmp/proj', 'test-fleet')}`
+  );
 });
 
 // ─── BUG F: trimMessage edge — exactly maxChars should not truncate ─────────

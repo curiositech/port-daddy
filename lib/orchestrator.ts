@@ -17,6 +17,7 @@ import type { Transform } from 'node:stream';
 import { createPrefixer } from './log-prefix.js';
 
 import { DEFAULT_SOCK } from '../shared/paths.js';
+import { resolveDaemonTcpTarget } from '../shared/daemon-discovery.js';
 
 // =============================================================================
 // Internal types
@@ -124,13 +125,12 @@ interface OrchestratorInstance {
 function resolveDaemonTarget(): DaemonTarget {
   const sockPath = process.env.PORT_DADDY_SOCK || DEFAULT_SOCK;
   if (process.env.PORT_DADDY_URL) {
-    const url = new URL(process.env.PORT_DADDY_URL);
-    return { host: url.hostname, port: parseInt(url.port, 10) || 9876 };
+    return resolveDaemonTcpTarget(process.env.PORT_DADDY_URL);
   }
   if (existsSync(sockPath)) {
     return { socketPath: sockPath };
   }
-  return { host: 'localhost', port: 9876 };
+  return resolveDaemonTcpTarget();
 }
 
 /**

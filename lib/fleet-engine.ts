@@ -13,6 +13,8 @@ import { spawn, execSync, type ChildProcess } from 'node:child_process';
 import { get as httpGet } from 'node:http';
 import { parse as parseYaml } from 'yaml';
 import type { CostTracker } from './cost-tracker.js';
+import { resolveFleetChannel } from './fleet-channels.js';
+import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -522,7 +524,9 @@ export function validateTopology(config: FleetConfig): TopologyValidation {
 
 // ─── Fleet Runner ───────────────────────────────────────────────────────────
 
-const PD_URL = process.env.PD_URL || process.env.PORT_DADDY_URL || 'http://localhost:9876';
+function getFleetDaemonUrl(): string {
+  return process.env.PD_URL || getDaemonTcpUrl(process.env.PORT_DADDY_URL);
+}
 
 // ─── Lifecycle Events ──────────────────────────────────────────────────────
 
@@ -550,6 +554,10 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
   const emit = options?.onEvent ?? (() => {});
   const project = config.name;
   const agentIndex = new Map(config.agents.map(agent => [agent.name, agent]));
+
+  function resolveChannel(channel: string): string {
+    return resolveFleetChannel(channel, projectDir, project);
+  }
 
   // ─── Resource quota enforcement (Ostrom Principle 2) ────────────────────
   let activeSpawns = 0;
@@ -611,8 +619,9 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     }
 
     if (agent.trigger) {
+      const physicalTriggerChannel = resolveChannel(agent.trigger);
       // Prefer in-process subscriptions so trigger payload survives into the spawned task.
-      const unsubscribe = options?.messaging?.subscribe(agent.trigger, (message: unknown) => {
+      const unsubscribe = options?.messaging?.subscribe(physicalTriggerChannel, (message: unknown) => {
         void runAgentOnce(agent, contextFromMessage(agent.trigger!, message));
       });
 
@@ -622,11 +631,11 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
         // Fallback for standalone CLI/testing contexts.
         const watchProc = spawn('npx', [
           'tsx', join(projectDir, 'bin', 'port-daddy-cli.ts'),
-          'watch', agent.trigger,
+          'watch', physicalTriggerChannel,
           '--exec', buildSpawnCommand(agent),
         ], {
           cwd: projectDir,
-          env: { ...process.env, PD_URL },
+          env: { ...process.env, PD_URL: getFleetDaemonUrl() },
           stdio: 'pipe',
           detached: true,
         });
@@ -644,14 +653,15 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
 
   function startWatcher(watcher: FleetWatcher): void {
     if (running.has(watcher.name)) return;
+    const physicalTriggerChannel = resolveChannel(watcher.trigger);
 
     const watchProc = spawn('npx', [
       'tsx', join(projectDir, 'bin', 'port-daddy-cli.ts'),
-      'watch', watcher.trigger,
+      'watch', physicalTriggerChannel,
       '--exec', watcher.exec,
     ], {
       cwd: projectDir,
-      env: { ...process.env, PD_URL },
+      env: { ...process.env, PD_URL: getFleetDaemonUrl() },
       stdio: 'pipe',
       detached: true,
     });
@@ -666,7 +676,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     emit({
       type: 'watcher_started', agent: watcher.name, project,
       identity: `${project}:fleet:${watcher.name}`,
-      timestamp: Date.now(), details: { trigger: watcher.trigger },
+      timestamp: Date.now(), details: { trigger: watcher.trigger, physicalTrigger: physicalTriggerChannel },
     });
   }
 
@@ -720,7 +730,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
 
     let res: Response;
     try {
-      res = await fetch(`${PD_URL}/spawn`, {
+      res = await fetch(`${getFleetDaemonUrl()}/spawn`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -792,14 +802,15 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
   function fireHook(hook: string, payload: string): void {
     const [action, channel] = hook.split(' ');
     if (action === 'publish' && channel) {
-      void Promise.resolve(fetch(`${PD_URL}/msg/${channel}`, {
+      const physicalChannel = resolveChannel(channel);
+      void Promise.resolve(fetch(`${getFleetDaemonUrl()}/msg/${physicalChannel}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ payload }),
       })).catch((err: Error) => {
         console.error('[Fleet] Hook publish failed:', {
           hook,
-          channel,
+          channel: physicalChannel,
           error: err.message,
         });
       });
@@ -1024,7 +1035,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     try {
       // Create harbor (idempotent — daemon returns existing if it already exists)
       const channels = Object.keys(config.channels);
-      await fetch(`${PD_URL}/harbors`, {
+      await fetch(`${getFleetDaemonUrl()}/harbors`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1045,7 +1056,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
   async function enrollInHarbor(agentIdentity: string): Promise<void> {
     if (!config.harbor) return;
     try {
-      await fetch(`${PD_URL}/harbors/${encodeURIComponent(config.harbor)}/enter`, {
+      await fetch(`${getFleetDaemonUrl()}/harbors/${encodeURIComponent(config.harbor)}/enter`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1075,7 +1086,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     }
 
     // Subscribe to resurrection channel via SSE
-    const url = new URL(`${PD_URL}/msg/resurrection/subscribe`);
+    const url = new URL(`${getFleetDaemonUrl()}/msg/resurrection/subscribe`);
 
     function connect() {
       const req = httpGet(url, (res) => {
@@ -1116,7 +1127,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
               respawnCounts.set(agent.name, count + 1);
 
               // Claim salvage first, then re-spawn
-              fetch(`${PD_URL}/salvage/claim/${encodeURIComponent(deadId)}`, {
+              fetch(`${getFleetDaemonUrl()}/salvage/claim/${encodeURIComponent(deadId)}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: '{}',

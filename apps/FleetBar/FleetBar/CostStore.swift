@@ -115,22 +115,7 @@ class CostStore: ObservableObject {
     }
 
     init() {
-        if let explicitURL = ProcessInfo.processInfo.environment["PORT_DADDY_URL"],
-           !explicitURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            self.baseURL = explicitURL
-        } else {
-            let portFile = FileManager.default.homeDirectoryForCurrentUser
-                .appendingPathComponent(".port-daddy/daemon.port")
-            let port: Int
-            if let portStr = try? String(contentsOf: portFile, encoding: .utf8)
-                .trimmingCharacters(in: .whitespacesAndNewlines),
-               let parsedPort = Int(portStr) {
-                port = parsedPort
-            } else {
-                port = 9876
-            }
-            self.baseURL = "http://localhost:\(port)"
-        }
+        self.baseURL = DaemonLocation.resolveBaseURL()
 
         Task {
             await refresh()

@@ -36,14 +36,20 @@ enum FleetControlSurface: String, CaseIterable, Identifiable {
 enum FleetControlRoute {
     static let surfaceKey = "fleet.control.surface"
     static let projectKey = "fleet.control.project"
+    static let agentKey = "fleet.control.agent"
 
-    static func persist(surface: FleetControlSurface, project: String?) {
+    static func persist(surface: FleetControlSurface, project: String?, agent: String? = nil) {
         let defaults = UserDefaults.standard
         defaults.set(surface.rawValue, forKey: surfaceKey)
         if let project, !project.isEmpty {
             defaults.set(project, forKey: projectKey)
         } else {
             defaults.removeObject(forKey: projectKey)
+        }
+        if let agent, !agent.isEmpty {
+            defaults.set(agent, forKey: agentKey)
+        } else {
+            defaults.removeObject(forKey: agentKey)
         }
     }
 }

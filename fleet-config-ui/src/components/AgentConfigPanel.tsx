@@ -1,10 +1,41 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { stringify, parse as parseYaml } from 'yaml';
-import type { FleetAgent, BackendInfo } from '../types';
+import type { FleetAgent, BackendInfo, ActivityEntry, FleetEvent, StoryNote } from '../types';
 import { agentColor } from '../types';
 import { fetchModels, saveFleetConfig, fetchFleetConfig } from '../api';
+import { activityTouchedFiles, isMeaningfulActivityEntry, isMeaningfulStory, summarizeActivityEntry } from '../activityFeed';
+
+type InspectorTab = 'details' | 'settings';
+
+interface AgentTimelineItem {
+  id: string;
+  timestamp: number;
+  kind: 'fleet' | 'activity' | 'story';
+  title: string;
+  body: string;
+}
+
+function relativeTime(timestamp: number): string {
+  const diff = Date.now() - timestamp;
+  const minutes = Math.max(1, Math.round(diff / 60000));
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  return `${days}d ago`;
+}
+
+function agentMatches(value: string | null | undefined, agentName: string): boolean {
+  if (!value) return false;
+  return value.toLowerCase().includes(agentName.toLowerCase());
+}
+
+function extractTouchedFiles(text: string): string[] {
+  const matches = text.match(/(?:[A-Za-z0-9._-]+\/)+[A-Za-z0-9._-]+(?:\.[A-Za-z0-9_-]+)?/g) ?? [];
+  return [...new Set(matches.filter((match) => match.includes('/')).slice(0, 8))];
+}
 
 function formToYamlObj(form: FleetAgent): Record<string, unknown> {
   const obj: Record<string, unknown> = {};
@@ -28,17 +59,22 @@ function formToYamlObj(form: FleetAgent): Record<string, unknown> {
 interface Props {
   agent: FleetAgent;
   project: string;
+  defaultTab: InspectorTab;
+  fleetEvents: FleetEvent[];
+  activity: ActivityEntry[];
+  stories: StoryNote[];
   open: boolean;
   onClose: () => void;
   onSaved: () => void;
 }
 
-export default function AgentConfigPanel({ agent, project, open, onClose, onSaved }: Props) {
+export default function AgentConfigPanel({ agent, project, defaultTab, fleetEvents, activity, stories, open, onClose, onSaved }: Props) {
   const [form, setForm] = useState({ ...agent });
   const [backends, setBackends] = useState<BackendInfo[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [yamlPreview, setYamlPreview] = useState('');
+  const [activeTab, setActiveTab] = useState<InspectorTab>(defaultTab);
 
   useEffect(() => {
     fetchModels().then(setBackends).catch(() => {});
@@ -47,6 +83,10 @@ export default function AgentConfigPanel({ agent, project, open, onClose, onSave
   useEffect(() => {
     setForm({ ...agent });
   }, [agent]);
+
+  useEffect(() => {
+    setActiveTab(defaultTab);
+  }, [defaultTab, agent.name]);
 
   // Update YAML preview when form changes
   useEffect(() => {
@@ -108,6 +148,62 @@ export default function AgentConfigPanel({ agent, project, open, onClose, onSave
 
   const selectedBackend = backends.find(b => b.id === form.backend);
   const color = agentColor(form.name);
+  const timeline = useMemo<AgentTimelineItem[]>(() => {
+    const agentFleetEvents: AgentTimelineItem[] = fleetEvents
+      .filter((event) => event.agent === agent.name)
+      .map((event, index) => ({
+        id: `fleet-${event.timestamp}-${index}`,
+        timestamp: event.timestamp,
+        kind: 'fleet' as const,
+        title: event.type.replace(/_/g, ' '),
+        body: typeof event.details?.error === 'string'
+          ? event.details.error
+          : typeof event.details?.status === 'string'
+            ? `status: ${event.details.status}`
+            : event.project ?? 'fleet event',
+      }));
+
+    const agentActivity: AgentTimelineItem[] = activity
+      .filter((entry) => isMeaningfulActivityEntry(entry))
+      .filter((entry) => agentMatches(entry.agentId, agent.name) || agentMatches(entry.targetId, agent.name) || agentMatches(entry.details, agent.name))
+      .map((entry) => ({
+        id: `activity-${entry.id}`,
+        timestamp: entry.timestamp,
+        kind: 'activity' as const,
+        title: entry.type,
+        body: summarizeActivityEntry(entry),
+      }));
+
+    const agentStories: AgentTimelineItem[] = stories
+      .filter(isMeaningfulStory)
+      .filter((story) => story.agentId === agent.name
+        || agentMatches(story.content, agent.name)
+        || agentMatches(story.sessionPurpose, agent.name)
+        || agentMatches(story.sessionId, agent.name))
+      .map((story) => ({
+        id: `story-${story.id}`,
+        timestamp: story.createdAt,
+        kind: 'story' as const,
+        title: story.type,
+        body: story.content.trim(),
+      }));
+
+    return [...agentFleetEvents, ...agentActivity, ...agentStories]
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .slice(0, 12);
+  }, [activity, agent.name, fleetEvents, stories]);
+
+  const touchedFiles = useMemo(
+    () => [
+      ...new Set([
+        ...activity
+          .filter((entry) => agentMatches(entry.agentId, agent.name) || agentMatches(entry.targetId, agent.name))
+          .flatMap((entry) => activityTouchedFiles(entry)),
+        ...timeline.flatMap((item) => extractTouchedFiles(`${item.title} ${item.body}`)),
+      ]),
+    ].slice(0, 10),
+    [activity, agent.name, timeline],
+  );
 
   const inputStyle = {
     backgroundColor: 'var(--pd-bg)',
@@ -141,6 +237,108 @@ export default function AgentConfigPanel({ agent, project, open, onClose, onSave
                 {error}
               </div>
             )}
+
+            <div className="flex gap-2 rounded-xl p-1" style={{ backgroundColor: 'var(--pd-bg)', border: '1px solid var(--pd-border)' }}>
+              {(['details', 'settings'] as InspectorTab[]).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className="flex-1 rounded-lg px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em]"
+                  style={{
+                    backgroundColor: activeTab === tab ? 'var(--pd-accent-surface)' : 'transparent',
+                    color: activeTab === tab ? 'var(--pd-accent)' : 'var(--pd-muted)',
+                  }}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+
+            {activeTab === 'details' && (
+              <div className="flex flex-col gap-4">
+                <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--pd-bg)', border: '1px solid var(--pd-border)' }}>
+                  <div className="text-[10px] font-semibold tracking-wider opacity-50 mb-2" style={{ color: 'var(--pd-text)' }}>
+                    AGENT SUMMARY
+                  </div>
+                  <div className="text-sm font-semibold" style={{ color }}>
+                    {agent.name}
+                  </div>
+                  <div className="mt-1 text-[12px] leading-relaxed" style={{ color: 'var(--pd-muted)' }}>
+                    {agent.prompt}
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <span className="text-[10px] px-2 py-1 rounded-md font-mono" style={{ backgroundColor: 'var(--pd-surface)', color: 'var(--pd-text)', border: '1px solid var(--pd-border)' }}>
+                      {agent.backend}{agent.model ? ` · ${agent.model}` : ''}
+                    </span>
+                    {agent.schedule ? (
+                      <span className="text-[10px] px-2 py-1 rounded-md font-mono" style={{ backgroundColor: 'var(--pd-surface)', color: 'var(--pd-warning)', border: '1px solid var(--pd-warning-border)' }}>
+                        scheduled: {agent.schedule}
+                      </span>
+                    ) : agent.trigger ? (
+                      <span className="text-[10px] px-2 py-1 rounded-md font-mono" style={{ backgroundColor: 'var(--pd-surface)', color: 'var(--pd-warning)', border: '1px solid var(--pd-warning-border)' }}>
+                        trigger: {agent.trigger}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--pd-bg)', border: '1px solid var(--pd-border)' }}>
+                  <div className="text-[10px] font-semibold tracking-wider opacity-50 mb-2" style={{ color: 'var(--pd-text)' }}>
+                    RECENT MUTATIONS
+                  </div>
+                  {touchedFiles.length === 0 ? (
+                    <div className="text-[12px]" style={{ color: 'var(--pd-muted)' }}>
+                      No concrete file mutations surfaced yet.
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {touchedFiles.map((filePath) => (
+                        <span key={filePath} className="text-[10px] px-2 py-1 rounded-md font-mono"
+                          style={{ backgroundColor: 'var(--pd-surface)', color: 'var(--pd-accent)', border: '1px solid var(--pd-accent-border)' }}>
+                          {filePath}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="rounded-xl overflow-hidden" style={{ backgroundColor: 'var(--pd-bg)', border: '1px solid var(--pd-border)' }}>
+                  <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--pd-border)' }}>
+                    <div className="text-[10px] font-semibold tracking-wider opacity-50" style={{ color: 'var(--pd-text)' }}>
+                      WHAT THIS AGENT HAS BEEN DOING
+                    </div>
+                    <div className="text-[10px] font-mono" style={{ color: 'var(--pd-muted)' }}>
+                      {timeline.length} items
+                    </div>
+                  </div>
+                  <div className="max-h-[45vh] overflow-y-auto">
+                    {timeline.length === 0 ? (
+                      <div className="px-4 py-8 text-[12px]" style={{ color: 'var(--pd-muted)' }}>
+                        No non-empty activity or notes for this agent yet.
+                      </div>
+                    ) : (
+                      timeline.map((item) => (
+                        <div key={item.id} className="px-4 py-3" style={{ borderBottom: '1px solid var(--pd-border)' }}>
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: item.kind === 'story' ? 'var(--pd-accent)' : 'var(--pd-text)' }}>
+                              {item.kind} · {item.title}
+                            </div>
+                            <div className="text-[10px] font-mono" style={{ color: 'var(--pd-dim)' }}>
+                              {relativeTime(item.timestamp)}
+                            </div>
+                          </div>
+                          <div className="mt-2 text-[12px] leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--pd-muted)' }}>
+                            {item.body}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: activeTab === 'settings' ? 'block' : 'none' }}>
 
             {/* Name */}
             <Field label="Name">
@@ -271,6 +469,7 @@ export default function AgentConfigPanel({ agent, project, open, onClose, onSave
                 style={{ backgroundColor: 'var(--pd-accent-surface)', color: 'var(--pd-accent)', border: '1px solid var(--pd-accent-border)' }}>
                 Delete
               </button>
+            </div>
             </div>
           </div>
         </motion.div>

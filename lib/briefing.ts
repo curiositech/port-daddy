@@ -48,6 +48,9 @@ interface FormattedNote {
   content: string;
   type: string;
   createdAt: number;
+  sessionPurpose?: string;
+  agentId?: string | null;
+  identityProject?: string | null;
 }
 
 interface FormattedFile {

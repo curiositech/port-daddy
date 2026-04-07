@@ -17,6 +17,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { CostTracker } from './cost-tracker.js';
 import type { Counters } from './counters.js';
+import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 
 // ─── Load .env.local for spawned agents ─────────────────────────────────────
 // The daemon runs via launchd which has no shell env. Spawned agents need
@@ -124,11 +125,9 @@ interface SpawnerDeps {
 // PD coordination helpers (fire-and-forget, silent on failure)
 // =============================================================================
 
-const PD_URL = process.env.PORT_DADDY_URL || 'http://localhost:9876';
-
 async function pdCoordinate(path: string, body: Record<string, unknown>): Promise<void> {
   try {
-    await fetch(`${PD_URL}${path}`, {
+    await fetch(`${getDaemonTcpUrl(process.env.PORT_DADDY_URL)}${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),

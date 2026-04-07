@@ -30,12 +30,13 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import * as http from 'node:http';
 import * as net from 'node:net';
+import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 
 // ---------------------------------------------------------------------------
 // Config
 // ---------------------------------------------------------------------------
 
-const DAEMON_URL = process.env.PORT_DADDY_URL || 'http://localhost:9876';
+const DAEMON_URL = getDaemonTcpUrl(process.env.PORT_DADDY_URL);
 // 30s default for most tools; spawn and wait tools override with longer timeouts
 const REQUEST_TIMEOUT = 30_000;
 
@@ -2931,7 +2932,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           type: 'text' as const,
           text: JSON.stringify({
             error: err.message,
-            hint: 'Check that the Port Daddy daemon is running on localhost:9876. ' + DAEMON_RECOVERY_HINT,
+            hint: `Check that the Port Daddy daemon is running at ${DAEMON_URL}. ` + DAEMON_RECOVERY_HINT,
           }),
         },
       ],

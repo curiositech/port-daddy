@@ -361,6 +361,7 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
 
       stopLeaseRenewalIfIdle();
     }, FLEET_PROJECT_LEASE_RENEW_MS);
+    leaseRenewTimer.unref?.();
   }
 
   function acquireProjectLease(projectDir: string, projectName: string): { success: boolean; error?: string } {

@@ -94,11 +94,11 @@ import {
   // Tuples
   handleTuple,
 } from '../cli/commands/index.js';
+import { getDaemonTcpUrl, readDaemonPort, resolveDaemonTcpTarget } from '../shared/daemon-discovery.js';
+import { DEFAULT_SOCK as _DEFAULT_SOCK, DEFAULT_PORT_FILE as _DEFAULT_PORT_FILE } from '../shared/paths.js';
 
 const __dirname: string = dirname(fileURLToPath(import.meta.url));
-const PORT_DADDY_URL: string = process.env.PORT_DADDY_URL || 'http://localhost:9876';
-
-import { DEFAULT_SOCK as _DEFAULT_SOCK, DEFAULT_PORT_FILE as _DEFAULT_PORT_FILE } from '../shared/paths.js';
+const PORT_DADDY_URL: string = getDaemonTcpUrl(process.env.PORT_DADDY_URL);
 // Primary transport for CLI->daemon communication.
 // Falls back to TCP (PORT_DADDY_URL) if socket doesn't exist.
 const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || _DEFAULT_SOCK;
@@ -276,15 +276,14 @@ function printLaunchHints(hints: {
 function resolveTarget(): ConnectionTarget {
   // Explicit TCP URL overrides socket
   if (process.env.PORT_DADDY_URL) {
-    const url = new URL(process.env.PORT_DADDY_URL);
-    return { host: url.hostname, port: parseInt(url.port, 10) || 9876 };
+    return resolveDaemonTcpTarget(process.env.PORT_DADDY_URL);
   }
   // Use socket if it exists
   if (existsSync(SOCK_PATH)) {
     return { socketPath: SOCK_PATH };
   }
   // Fallback to TCP
-  return { host: 'localhost', port: 9876 };
+  return { host: 'localhost', port: readDaemonPort(_DEFAULT_PORT_FILE) };
 }
 
 /**

@@ -17,6 +17,7 @@ import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { homedir, platform } from 'os';
+import { getDaemonTcpUrl } from './shared/daemon-discovery.js';
 
 const __dirname: string = dirname(fileURLToPath(import.meta.url));
 const PLATFORM: string = platform();
@@ -337,10 +338,11 @@ function install(): void {
   }
 
   if (success) {
+    const daemonUrl = getDaemonTcpUrl();
     console.log('');
     console.log('Port Daddy daemon installed successfully.');
     console.log('  Auto-starts on login');
-    console.log('  Test: curl http://localhost:9876/health');
+    console.log(`  Test: curl ${daemonUrl}/health`);
     console.log('  Logs: tail -f ' + LOG_PATH);
   }
 }
@@ -400,9 +402,10 @@ function status(): void {
 
   // Check if daemon is actually responding
   console.log('');
-  const healthResult: CommandResult = runCommand('curl', ['-s', '--connect-timeout', '2', 'http://localhost:9876/health']);
+  const daemonUrl = getDaemonTcpUrl();
+  const healthResult: CommandResult = runCommand('curl', ['-s', '--connect-timeout', '2', `${daemonUrl}/health`]);
   if (healthResult.status === 0 && healthResult.stdout.includes('"status":"ok"')) {
-    console.log('  Daemon: responding on port 9876');
+    console.log(`  Daemon: responding at ${daemonUrl}`);
     try {
       const data: { version?: string; uptime_seconds?: number; active_ports?: number } = JSON.parse(healthResult.stdout);
       console.log(`  Version: ${data.version || 'unknown'}`);

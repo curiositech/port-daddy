@@ -18,10 +18,9 @@
 import http from 'node:http';
 import { existsSync } from 'node:fs';
 import type { PortDaddyClientOptions } from '../shared/types.js';
+import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { createIpcClient } from './ipc-client.js';
 import { Performative } from './ipc-types.js';
-
-const DEFAULT_URL = 'http://localhost:9876';
 import { DEFAULT_SOCK, DEFAULT_IPC } from '../shared/paths.js';
 
 // =============================================================================
@@ -890,6 +889,8 @@ interface NotesResponse {
     type: string;
     createdAt: number;
     sessionPurpose?: string;
+    agentId?: string | null;
+    identityProject?: string | null;
   }>;
   count: number;
 }
@@ -1035,7 +1036,7 @@ class PortDaddy {
    * Create a new Port Daddy client.
    */
   constructor(options: PortDaddyClientOptions = {}) {
-    this.url = (options.url || process.env.PORT_DADDY_URL || DEFAULT_URL).replace(/\/$/, '');
+    this.url = getDaemonTcpUrl(options.url || process.env.PORT_DADDY_URL).replace(/\/$/, '');
     this.socketPath = options.socketPath || process.env.PORT_DADDY_SOCK || DEFAULT_SOCK;
     this.agentId = options.agentId || process.env.PORT_DADDY_AGENT;
     this.pid = options.pid || process.pid;
