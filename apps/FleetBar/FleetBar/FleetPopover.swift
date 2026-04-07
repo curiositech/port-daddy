@@ -16,6 +16,7 @@ struct FleetPopover: View {
     @Environment(\.openWindow) private var openWindow
     @ObservedObject var store: FleetStore
     @ObservedObject var costStore: CostStore
+    @AppStorage("fleet.control.theme") private var selectedThemeRaw = "dark"
     @State private var appeared = false
     @State private var showingSettings = false
 
@@ -40,7 +41,7 @@ struct FleetPopover: View {
                 let right = rhs.agent.lastActivity ?? .distantPast
                 return left > right
             }
-            .prefix(4)
+            .prefix(6)
             .map { $0 }
     }
 
@@ -48,10 +49,6 @@ struct FleetPopover: View {
         VStack(spacing: 0) {
             header
             Divider().opacity(0.5)
-            if store.isDaemonRunning {
-                quickActions
-                Divider().opacity(0.5)
-            }
             if store.isDaemonRunning && !recentAgentHighlights.isEmpty {
                 recentActivitySection
                 Divider().opacity(0.5)
@@ -73,6 +70,7 @@ struct FleetPopover: View {
             footer
         }
         .background(Fleet.Chrome.popoverBackground)
+        .preferredColorScheme(selectedThemeRaw == "light" ? .light : .dark)
         .onAppear {
             withAnimation(.smooth(duration: 0.4)) { appeared = true }
         }
@@ -97,16 +95,22 @@ struct FleetPopover: View {
         }
     }
 
-    private func openAgentFile(projectDir: String, filePath: String) {
-        let expandedPath: String
+    private func resolveAgentFileURL(projectDir: String, filePath: String) -> URL {
         if filePath.hasPrefix("/") {
-            expandedPath = filePath
-        } else {
-            expandedPath = URL(fileURLWithPath: projectDir)
-                .appendingPathComponent(filePath)
-                .path
+            return URL(fileURLWithPath: filePath)
         }
-        NSWorkspace.shared.open(URL(fileURLWithPath: expandedPath))
+        return URL(fileURLWithPath: projectDir)
+            .appendingPathComponent(filePath)
+    }
+
+    private func openAgentFileInEditor(projectDir: String, filePath: String) {
+        NSWorkspace.shared.open(resolveAgentFileURL(projectDir: projectDir, filePath: filePath))
+    }
+
+    private func revealAgentFileInFinder(projectDir: String, filePath: String) {
+        NSWorkspace.shared.activateFileViewerSelecting([
+            resolveAgentFileURL(projectDir: projectDir, filePath: filePath)
+        ])
     }
 
     private var settingsPanel: some View {
@@ -146,45 +150,6 @@ struct FleetPopover: View {
         .padding(.horizontal, Fleet.Space.l)
         .padding(.vertical, Fleet.Space.m)
         .background(Fleet.Chrome.panel)
-    }
-
-    private var quickActions: some View {
-        HStack(spacing: Fleet.Space.s) {
-            QuickActionButton(
-                title: "Flow",
-                systemImage: "point.3.connected.trianglepath.dotted",
-                color: Fleet.Color.active
-            ) {
-                openControlPlane(.flow)
-            }
-
-            QuickActionButton(
-                title: "Activity",
-                systemImage: "waveform.path.ecg",
-                color: Fleet.Color.warning
-            ) {
-                openControlPlane(.activity)
-            }
-
-            QuickActionButton(
-                title: "Inbox",
-                systemImage: "tray.full",
-                color: Fleet.Color.healthy
-            ) {
-                openControlPlane(.inbox)
-            }
-
-            QuickActionButton(
-                title: "Sorties",
-                systemImage: "paperplane",
-                color: Fleet.Color.failure
-            ) {
-                openControlPlane(.sorties)
-            }
-        }
-        .padding(.horizontal, Fleet.Space.l)
-        .padding(.vertical, Fleet.Space.s)
-        .background(Fleet.Chrome.panelRaised)
     }
 
     private var recentActivitySection: some View {
@@ -250,21 +215,15 @@ struct FleetPopover: View {
                         if !item.agent.recentFiles.isEmpty {
                             HStack(spacing: 4) {
                                 ForEach(Array(item.agent.recentFiles.prefix(2)), id: \.self) { filePath in
-                                    Button {
-                                        openAgentFile(projectDir: item.projectDir, filePath: filePath)
-                                    } label: {
-                                        Text(filePath)
-                                            .font(.system(.caption2, design: .monospaced))
-                                            .lineLimit(1)
-                                            .padding(.horizontal, 6)
-                                            .padding(.vertical, 3)
-                                            .background(
-                                                Fleet.Color.active.opacity(0.08),
-                                                in: RoundedRectangle(cornerRadius: Fleet.Radius.small, style: .continuous)
-                                            )
-                                    }
-                                    .buttonStyle(.plain)
-                                    .foregroundStyle(Fleet.Color.active)
+                                    FleetFileQuickActions(
+                                        filePath: filePath,
+                                        onOpenInEditor: {
+                                            openAgentFileInEditor(projectDir: item.projectDir, filePath: filePath)
+                                        },
+                                        onRevealInFinder: {
+                                            revealAgentFileInFinder(projectDir: item.projectDir, filePath: filePath)
+                                        }
+                                    )
                                 }
                                 Spacer(minLength: 0)
                             }
@@ -448,10 +407,13 @@ struct FleetPopover: View {
                         isExpanded: store.expandedProjects.contains(project.id),
                         onToggle: { withAnimation(Fleet.Motion.expandSpring) { store.toggleProject(project.id) } },
                         onInspectAgent: { agentName in
-                            openControlPlane(.flow, project: project.id, agent: agentName)
+                            openControlPlane(.activity, project: project.id, agent: agentName)
                         },
-                        onOpenFile: { filePath in
-                            openAgentFile(projectDir: project.projectDir, filePath: filePath)
+                        onOpenInEditor: { filePath in
+                            openAgentFileInEditor(projectDir: project.projectDir, filePath: filePath)
+                        },
+                        onRevealInFinder: { filePath in
+                            revealAgentFileInFinder(projectDir: project.projectDir, filePath: filePath)
                         }
                     )
                     .opacity(appeared ? 1 : 0)
@@ -533,7 +495,24 @@ struct ProjectSection: View {
     let isExpanded: Bool
     let onToggle: () -> Void
     let onInspectAgent: (String) -> Void
-    let onOpenFile: (String) -> Void
+    let onOpenInEditor: (String) -> Void
+    let onRevealInFinder: (String) -> Void
+
+    private var orderedAgents: [FleetAgent] {
+        project.agents.sorted { lhs, rhs in
+            switch (lhs.lastActivity, rhs.lastActivity) {
+            case let (left?, right?):
+                if left != right { return left > right }
+            case (.some, nil):
+                return true
+            case (nil, .some):
+                return false
+            case (nil, nil):
+                break
+            }
+            return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+        }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -586,8 +565,13 @@ struct ProjectSection: View {
 
             // Agent rows — staggered cascade
             if isExpanded {
-                ForEach(Array(project.agents.enumerated()), id: \.element.id) { index, agent in
-                    AgentRow(agent: agent, onInspect: { onInspectAgent(agent.name) }, onOpenFile: onOpenFile)
+                ForEach(Array(orderedAgents.enumerated()), id: \.element.id) { index, agent in
+                    AgentRow(
+                        agent: agent,
+                        onInspect: { onInspectAgent(agent.name) },
+                        onOpenInEditor: onOpenInEditor,
+                        onRevealInFinder: onRevealInFinder
+                    )
                         .transition(
                             .asymmetric(
                                 insertion: .opacity
@@ -613,7 +597,8 @@ struct ProjectSection: View {
 struct AgentRow: View {
     let agent: FleetAgent
     let onInspect: () -> Void
-    let onOpenFile: (String) -> Void
+    let onOpenInEditor: (String) -> Void
+    let onRevealInFinder: (String) -> Void
     @State private var justChanged = false
 
     var body: some View {
@@ -669,21 +654,11 @@ struct AgentRow: View {
                 HStack(spacing: 4) {
                     Spacer().frame(width: Fleet.Space.xl + Fleet.Space.xs + Fleet.Space.s + Fleet.Space.l)
                     ForEach(agent.recentFiles.prefix(2), id: \.self) { filePath in
-                        Button {
-                            onOpenFile(filePath)
-                        } label: {
-                            Text(filePath)
-                                .font(.system(.caption2, design: .monospaced))
-                                .foregroundStyle(Fleet.Color.active)
-                                .lineLimit(1)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(
-                                    Fleet.Color.active.opacity(0.08),
-                                    in: RoundedRectangle(cornerRadius: Fleet.Radius.small, style: .continuous)
-                                )
-                        }
-                        .buttonStyle(.plain)
+                        FleetFileQuickActions(
+                            filePath: filePath,
+                            onOpenInEditor: { onOpenInEditor(filePath) },
+                            onRevealInFinder: { onRevealInFinder(filePath) }
+                        )
                     }
                     Spacer(minLength: 0)
                 }
@@ -726,6 +701,37 @@ struct AgentRow: View {
                 .font(.system(size: 8))
                 .foregroundStyle(Fleet.Color.dead)
         }
+    }
+}
+
+struct FleetFileQuickActions: View {
+    let filePath: String
+    let onOpenInEditor: () -> Void
+    let onRevealInFinder: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(filePath)
+                .font(.system(.caption2, design: .monospaced))
+                .foregroundStyle(Fleet.Color.active)
+                .lineLimit(1)
+            HStack(spacing: 4) {
+                Button("Editor", action: onOpenInEditor)
+                    .buttonStyle(.borderless)
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(.primary)
+                Button("Finder", action: onRevealInFinder)
+                    .buttonStyle(.borderless)
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 4)
+        .background(
+            Fleet.Color.active.opacity(0.08),
+            in: RoundedRectangle(cornerRadius: Fleet.Radius.small, style: .continuous)
+        )
     }
 }
 
@@ -788,28 +794,6 @@ struct StatusCapsule: View {
             color.opacity(0.08),
             in: RoundedRectangle(cornerRadius: Fleet.Radius.small, style: .continuous)
         )
-    }
-}
-
-struct QuickActionButton: View {
-    let title: String
-    let systemImage: String
-    let color: Color
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Label(title, systemImage: systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(color)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, Fleet.Space.s)
-                .background(
-                    color.opacity(0.12),
-                    in: RoundedRectangle(cornerRadius: Fleet.Radius.standard, style: .continuous)
-                )
-        }
-        .buttonStyle(.plain)
     }
 }
 

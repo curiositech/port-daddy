@@ -11,6 +11,7 @@ import DMPanel from './components/DMPanel';
 import SortiePanel from './components/SortiePanel';
 import YAMLEditor from './components/YAMLEditor';
 import ActivityPanel from './components/ActivityPanel';
+import { extractMentionedPaths } from './fileMentions';
 import {
   activityTouchedFiles,
   isMeaningfulActivityEntry,
@@ -163,11 +164,6 @@ async function resolveBrowserScopedChannels(
   return Object.fromEntries(resolved);
 }
 
-function extractTouchedPaths(text: string): string[] {
-  const matches = text.match(/(?:[A-Za-z0-9._-]+\/)+[A-Za-z0-9._-]+(?:\.[A-Za-z0-9_-]+)?/g) ?? [];
-  return [...new Set(matches.filter((match) => match.includes('/')).slice(0, 6))];
-}
-
 function summarizeFleetEvent(event: FleetEvent): string {
   if (typeof event.details?.error === 'string' && event.details.error.trim()) return event.details.error.trim();
   if (typeof event.details?.status === 'string' && event.details.status.trim()) return `status: ${event.details.status.trim()}`;
@@ -209,7 +205,7 @@ function buildAgentSignal(
       summary: story.content.trim(),
       label: story.type,
       timestamp: story.createdAt,
-      files: extractTouchedPaths(story.content),
+      files: extractMentionedPaths(story.content, 6),
     });
   }
 
@@ -221,7 +217,7 @@ function buildAgentSignal(
       summary,
       label: event.type.replace(/_/g, ' '),
       timestamp: event.timestamp,
-      files: extractTouchedPaths(summary),
+      files: extractMentionedPaths(summary, 6),
     });
   }
 
@@ -815,6 +811,7 @@ export default function App() {
                                   latestWork={signal?.summary ?? null}
                                   latestWorkLabel={signal?.label ?? null}
                                   touchedFiles={signal?.files ?? []}
+                                  projectDir={selectedProjectId ?? undefined}
                                   onSelect={inspectAgent}
                                   onConfigure={configureAgent}
                                 />
@@ -835,6 +832,7 @@ export default function App() {
                         selectedAgent={selectedAgent}
                         allAgents={fleetConfig?.agents.map((agent) => agent.name) ?? []}
                         agentSignals={agentActivitySignals}
+                        projectDir={selectedProjectId ?? undefined}
                         onSelectAgent={focusAgent}
                       />
                     )}
@@ -843,6 +841,7 @@ export default function App() {
                         events={channelLogEvents}
                         selectedAgent={selectedAgent}
                         selectedChannel={selectedChannel}
+                        projectDir={selectedProjectId ?? undefined}
                         onChannelClick={(channelName) => focusChannel(selectedChannel === channelName ? null : channelName)}
                         layout="page"
                       />

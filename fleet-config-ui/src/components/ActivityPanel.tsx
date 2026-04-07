@@ -7,6 +7,8 @@ import {
   isMeaningfulStory,
   summarizeActivityEntry,
 } from '../activityFeed';
+import { extractMentionedPaths } from '../fileMentions';
+import FileActionLinks from './FileActionLinks';
 
 interface Props {
   fleetEvents: FleetEvent[];
@@ -21,6 +23,7 @@ interface Props {
     timestamp: number;
     files: string[];
   }>;
+  projectDir?: string;
   onSelectAgent?: (agentName: string) => void;
 }
 
@@ -80,11 +83,6 @@ function summarizeFleetEvent(event: FleetEvent): string {
   return '';
 }
 
-function extractTouchedPaths(text: string): string[] {
-  const matches = text.match(/(?:[A-Za-z0-9._-]+\/)+[A-Za-z0-9._-]+(?:\.[A-Za-z0-9_-]+)?/g) ?? [];
-  return [...new Set(matches.filter((match) => match.includes('/')).slice(0, 8))];
-}
-
 function itemMatchesAgent(item: FeedItem, agentName: string): boolean {
   const needle = agentName.toLowerCase();
   return item.agent === agentName
@@ -96,7 +94,7 @@ function dedupeFiles(files: string[]): string[] {
   return [...new Set(files.filter((filePath) => filePath.trim().length > 0))];
 }
 
-export default function ActivityPanel({ fleetEvents, activity, stories, selectedAgent, allAgents, agentSignals, onSelectAgent }: Props) {
+export default function ActivityPanel({ fleetEvents, activity, stories, selectedAgent, allAgents, agentSignals, projectDir, onSelectAgent }: Props) {
   const feed = useMemo<FeedItem[]>(() => {
     const fleetItems = fleetEvents
       .map((event, index) => {
@@ -110,7 +108,7 @@ export default function ActivityPanel({ fleetEvents, activity, stories, selected
           subtitle: summary,
           accent: fleetAccent(event.type),
           agent: event.agent ?? null,
-          files: extractTouchedPaths(summary),
+          files: extractMentionedPaths(summary),
         };
       })
       .filter((item): item is NonNullable<typeof item> => !!item);
@@ -128,7 +126,7 @@ export default function ActivityPanel({ fleetEvents, activity, stories, selected
           subtitle: summary,
           accent: activityAccent(entry.type),
           agent,
-          files: dedupeFiles([...activityTouchedFiles(entry), ...extractTouchedPaths(summary)]),
+          files: dedupeFiles([...activityTouchedFiles(entry), ...extractMentionedPaths(summary)]),
         };
       });
 
@@ -145,7 +143,7 @@ export default function ActivityPanel({ fleetEvents, activity, stories, selected
           subtitle: content,
           accent: storyAccent(story.type),
           agent: storyAgent,
-          files: extractTouchedPaths(content),
+          files: extractMentionedPaths(content),
         };
       });
 
@@ -296,13 +294,11 @@ export default function ActivityPanel({ fleetEvents, activity, stories, selected
                 {focusedFiles.length > 0 ? (
                   <div className="mt-4 flex flex-wrap gap-1.5">
                     {focusedFiles.map((filePath) => (
-                      <span
+                      <FileActionLinks
                         key={filePath}
-                        className="text-[10px] px-2 py-1 rounded font-mono"
-                        style={{ backgroundColor: 'var(--pd-surface)', color: 'var(--pd-accent)', border: '1px solid var(--pd-accent-border)' }}
-                      >
-                        {filePath}
-                      </span>
+                        filePath={filePath}
+                        projectDir={projectDir}
+                      />
                     ))}
                   </div>
                 ) : null}
@@ -343,13 +339,12 @@ export default function ActivityPanel({ fleetEvents, activity, stories, selected
                         {item.files.length > 0 ? (
                           <div className="mt-3 flex flex-wrap gap-1.5">
                             {item.files.slice(0, 4).map((filePath) => (
-                              <span
+                              <FileActionLinks
                                 key={filePath}
-                                className="text-[9px] px-1.5 py-0.5 rounded font-mono"
-                                style={{ backgroundColor: 'var(--pd-surface)', color: 'var(--pd-accent)', border: '1px solid var(--pd-accent-border)' }}
-                              >
-                                {filePath}
-                              </span>
+                                filePath={filePath}
+                                projectDir={projectDir}
+                                compact
+                              />
                             ))}
                           </div>
                         ) : null}

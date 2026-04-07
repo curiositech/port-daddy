@@ -31,13 +31,13 @@ enum Fleet {
     }
 
     enum Chrome {
-        static let popoverBackground = SwiftUI.Color(red: 0.12, green: 0.10, blue: 0.08, opacity: 0.98)
-        static let panel = SwiftUI.Color(red: 0.17, green: 0.15, blue: 0.12, opacity: 0.96)
-        static let panelRaised = SwiftUI.Color(red: 0.21, green: 0.18, blue: 0.14, opacity: 0.98)
-        static let card = SwiftUI.Color(red: 0.24, green: 0.20, blue: 0.16, opacity: 0.98)
-        static let border = SwiftUI.Color.white.opacity(0.08)
-        static let secondaryText = SwiftUI.Color(red: 0.82, green: 0.77, blue: 0.71)
-        static let tertiaryText = SwiftUI.Color(red: 0.63, green: 0.58, blue: 0.53)
+        static var popoverBackground: SwiftUI.Color { SwiftUI.Color(nsColor: .windowBackgroundColor).opacity(0.98) }
+        static var panel: SwiftUI.Color { SwiftUI.Color(nsColor: .controlBackgroundColor).opacity(0.96) }
+        static var panelRaised: SwiftUI.Color { SwiftUI.Color(nsColor: .underPageBackgroundColor).opacity(0.98) }
+        static var card: SwiftUI.Color { SwiftUI.Color(nsColor: .textBackgroundColor).opacity(0.98) }
+        static var border: SwiftUI.Color { SwiftUI.Color.primary.opacity(0.08) }
+        static var secondaryText: SwiftUI.Color { SwiftUI.Color.secondary }
+        static var tertiaryText: SwiftUI.Color { SwiftUI.Color.secondary.opacity(0.72) }
     }
 
     // MARK: - Semantic Colors

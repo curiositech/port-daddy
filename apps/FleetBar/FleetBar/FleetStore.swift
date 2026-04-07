@@ -112,6 +112,8 @@ private struct BriefingActivity: Decodable {
     let agentId: String?
     let targetId: String?
     let details: String?
+    let summary: String?
+    let files: [String]?
 }
 
 private struct BriefingNote: Decodable {
@@ -503,8 +505,12 @@ class FleetStore: ObservableObject {
         let activitySignals = briefing.recentActivity.compactMap { entry -> (String, Double, [String], String?)? in
             let haystack = "\(entry.agentId ?? "") \(entry.targetId ?? "") \(entry.details ?? "")".lowercased()
             guard haystack.contains(agentName.lowercased()) else { return nil }
-            let summary = (entry.details?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 } ?? entry.type
-            return (summary, entry.timestamp, extractPaths(summary), entry.type)
+            let summary = (entry.summary?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 }
+                ?? (entry.details?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 }
+            guard let summary else { return nil }
+            let explicitFiles = (entry.files ?? []).filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            let files = explicitFiles.isEmpty ? extractPaths(summary) : explicitFiles
+            return (summary, entry.timestamp, files, entry.type)
         }
 
         let noteSignals = briefing.recentNotes.compactMap { note -> (String, Double, [String], String?)? in

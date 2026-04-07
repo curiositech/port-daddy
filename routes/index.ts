@@ -40,6 +40,7 @@ import { fleetPlugin } from './fleet.js';
 import { observabilityPlugin } from './observability.js';
 import { mergeQueuePlugin } from './merge-queue.js';
 import { symbolsPlugin } from './symbols.js';
+import { operatorPlugin } from './operator.js';
 
 type AnyDeps = Record<string, unknown>;
 
@@ -83,6 +84,7 @@ export async function registerAllRoutes(
   await fastify.register(harborsPlugin, { deps } as any);
   await fastify.register(orchestratorPlugin, { deps } as any);
   await fastify.register(briefingPlugin, { deps } as any);
+  await fastify.register(operatorPlugin, { deps } as any);
 
   // These have different option shapes
   await fastify.register(arbiterPlugin, { arbiter } as any);

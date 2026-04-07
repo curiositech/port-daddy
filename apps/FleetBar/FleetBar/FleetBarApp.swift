@@ -38,7 +38,7 @@ struct FleetBarApp: App {
     var body: some Scene {
         MenuBarExtra {
             FleetPopover(store: store, costStore: costStore)
-                .frame(width: 400, height: 660)
+                .frame(width: 440, height: 760)
         } label: {
             Label {
                 Text("Fleet")

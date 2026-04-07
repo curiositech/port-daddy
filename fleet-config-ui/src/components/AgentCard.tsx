@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { Clock, Eye, Zap, Settings2 } from 'lucide-react';
 import type { FleetAgent, FleetLimits } from '../types';
 import { agentColor } from '../types';
+import FileActionLinks from './FileActionLinks';
 
 interface Props {
   agent: FleetAgent;
@@ -12,6 +13,7 @@ interface Props {
   latestWork?: string | null;
   latestWorkLabel?: string | null;
   touchedFiles?: string[];
+  projectDir?: string;
   onSelect: (name: string) => void;
   onConfigure: (name: string) => void;
 }
@@ -25,6 +27,7 @@ export default function AgentCard({
   latestWork,
   latestWorkLabel,
   touchedFiles = [],
+  projectDir,
   onSelect,
   onConfigure,
 }: Props) {
@@ -137,13 +140,12 @@ export default function AgentCard({
             </div>
             <div className="flex flex-wrap gap-1">
               {touchedFiles.slice(0, 3).map((filePath) => (
-                <span
+                <FileActionLinks
                   key={filePath}
-                  className="text-[9px] px-1.5 py-0.5 rounded font-mono"
-                  style={{ backgroundColor: 'var(--pd-bg)', color: 'var(--pd-accent)', border: '1px solid var(--pd-accent-border)' }}
-                >
-                  {filePath}
-                </span>
+                  filePath={filePath}
+                  projectDir={projectDir}
+                  compact
+                />
               ))}
             </div>
           </div>

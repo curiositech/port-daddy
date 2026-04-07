@@ -6,6 +6,8 @@ import type { FleetAgent, BackendInfo, ActivityEntry, FleetEvent, StoryNote } fr
 import { agentColor } from '../types';
 import { fetchModels, saveFleetConfig, fetchFleetConfig } from '../api';
 import { activityTouchedFiles, isMeaningfulActivityEntry, isMeaningfulStory, summarizeActivityEntry } from '../activityFeed';
+import { extractMentionedPaths } from '../fileMentions';
+import FileActionLinks from './FileActionLinks';
 
 type InspectorTab = 'details' | 'settings';
 
@@ -32,9 +34,14 @@ function agentMatches(value: string | null | undefined, agentName: string): bool
   return value.toLowerCase().includes(agentName.toLowerCase());
 }
 
-function extractTouchedFiles(text: string): string[] {
-  const matches = text.match(/(?:[A-Za-z0-9._-]+\/)+[A-Za-z0-9._-]+(?:\.[A-Za-z0-9_-]+)?/g) ?? [];
-  return [...new Set(matches.filter((match) => match.includes('/')).slice(0, 8))];
+function activityMatchesAgent(entry: ActivityEntry, agentName: string): boolean {
+  const metadataAgentId = typeof entry.metadata?.agentId === 'string' ? entry.metadata.agentId : null;
+  const metadataTargetId = typeof entry.metadata?.targetId === 'string' ? entry.metadata.targetId : null;
+  return agentMatches(entry.agentId, agentName)
+    || agentMatches(metadataAgentId, agentName)
+    || agentMatches(entry.targetId, agentName)
+    || agentMatches(metadataTargetId, agentName)
+    || agentMatches(entry.details, agentName);
 }
 
 function formToYamlObj(form: FleetAgent): Record<string, unknown> {
@@ -165,7 +172,7 @@ export default function AgentConfigPanel({ agent, project, defaultTab, fleetEven
 
     const agentActivity: AgentTimelineItem[] = activity
       .filter((entry) => isMeaningfulActivityEntry(entry))
-      .filter((entry) => agentMatches(entry.agentId, agent.name) || agentMatches(entry.targetId, agent.name) || agentMatches(entry.details, agent.name))
+      .filter((entry) => activityMatchesAgent(entry, agent.name))
       .map((entry) => ({
         id: `activity-${entry.id}`,
         timestamp: entry.timestamp,
@@ -197,9 +204,9 @@ export default function AgentConfigPanel({ agent, project, defaultTab, fleetEven
     () => [
       ...new Set([
         ...activity
-          .filter((entry) => agentMatches(entry.agentId, agent.name) || agentMatches(entry.targetId, agent.name))
+          .filter((entry) => activityMatchesAgent(entry, agent.name))
           .flatMap((entry) => activityTouchedFiles(entry)),
-        ...timeline.flatMap((item) => extractTouchedFiles(`${item.title} ${item.body}`)),
+        ...timeline.flatMap((item) => extractMentionedPaths(`${item.title} ${item.body}`)),
       ]),
     ].slice(0, 10),
     [activity, agent.name, timeline],
@@ -293,10 +300,11 @@ export default function AgentConfigPanel({ agent, project, defaultTab, fleetEven
                   ) : (
                     <div className="flex flex-wrap gap-2">
                       {touchedFiles.map((filePath) => (
-                        <span key={filePath} className="text-[10px] px-2 py-1 rounded-md font-mono"
-                          style={{ backgroundColor: 'var(--pd-surface)', color: 'var(--pd-accent)', border: '1px solid var(--pd-accent-border)' }}>
-                          {filePath}
-                        </span>
+                        <FileActionLinks
+                          key={filePath}
+                          filePath={filePath}
+                          projectDir={project}
+                        />
                       ))}
                     </div>
                   )}

@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import type { ActivityEntry, FleetEvent, StoryNote } from '../types';
 import { agentColor } from '../types';
+import { isMeaningfulActivityEntry, isMeaningfulStory, summarizeActivityEntry } from '../activityFeed';
 
 interface Props {
   fleetEvents: FleetEvent[];
@@ -8,23 +9,14 @@ interface Props {
   stories: StoryNote[];
 }
 
-type RailItem =
-  | {
-      id: string;
-      timestamp: number;
-      label: string;
-      subtitle: string;
-      accent: string;
-      agent?: string | null;
-    }
-  | {
-      id: string;
-      timestamp: number;
-      label: string;
-      subtitle: string;
-      accent: string;
-      agent?: string | null;
-    };
+interface RailItem {
+  id: string;
+  timestamp: number;
+  label: string;
+  subtitle: string;
+  accent: string;
+  agent?: string | null;
+}
 
 function relativeTime(timestamp: number): string {
   const diff = Date.now() - timestamp;
@@ -65,23 +57,30 @@ export default function ActivityRail({ fleetEvents, activity, stories }: Props) 
       agent: event.agent ?? null,
     }));
 
-    const activityItems: RailItem[] = activity.map((entry) => ({
-      id: `activity-${entry.id}`,
-      timestamp: entry.timestamp,
-      label: entry.agentId ? `${entry.agentId} ${entry.type}` : entry.type,
-      subtitle: entry.details || entry.targetId || 'daemon activity',
-      accent: activityAccent(entry.type),
-      agent: entry.agentId,
-    }));
+    const activityItems: RailItem[] = activity
+      .filter(isMeaningfulActivityEntry)
+      .map((entry) => {
+        const agent = entry.agentId || (typeof entry.metadata?.agentId === 'string' ? entry.metadata.agentId : null);
+        return {
+          id: `activity-${entry.id}`,
+          timestamp: entry.timestamp,
+          label: agent ? `${agent} ${entry.type}` : entry.type,
+          subtitle: summarizeActivityEntry(entry),
+          accent: activityAccent(entry.type),
+          agent,
+        };
+      });
 
-    const storyItems: RailItem[] = stories.map((story) => ({
-      id: `story-${story.id}`,
-      timestamp: story.createdAt,
-      label: story.type,
-      subtitle: story.content,
-      accent: 'var(--pd-info, var(--pd-accent))',
-      agent: null,
-    }));
+    const storyItems: RailItem[] = stories
+      .filter(isMeaningfulStory)
+      .map((story) => ({
+        id: `story-${story.id}`,
+        timestamp: story.createdAt,
+        label: story.type,
+        subtitle: story.content,
+        accent: 'var(--pd-info, var(--pd-accent))',
+        agent: story.agentId ?? null,
+      }));
 
     return [...fleetItems, ...activityItems, ...storyItems]
       .sort((a, b) => b.timestamp - a.timestamp)

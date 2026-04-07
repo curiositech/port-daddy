@@ -256,6 +256,22 @@ export async function sendAgentMessage(agentId: string, opts: {
   });
 }
 
+export async function openFileInEditor(path: string, projectDir?: string): Promise<{ success: boolean; path: string }> {
+  return post('/operator/open-file', {
+    path,
+    projectDir,
+    mode: 'editor',
+  });
+}
+
+export async function revealFileInFinder(path: string, projectDir?: string): Promise<{ success: boolean; path: string }> {
+  return post('/operator/open-file', {
+    path,
+    projectDir,
+    mode: 'finder',
+  });
+}
+
 export async function fetchActivity(limit = 200): Promise<ActivityEntry[]> {
   const data = await get<{ entries?: ActivityEntry[]; activity?: ActivityEntry[] }>(`/activity?limit=${limit}`);
   return data.entries ?? data.activity ?? [];

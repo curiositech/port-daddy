@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { agentColor } from '../types';
+import { extractMentionedPaths } from '../fileMentions';
+import FileActionLinks from './FileActionLinks';
 
 export interface ChannelEvent {
   id: string;
@@ -16,13 +18,21 @@ interface Props {
   events: ChannelEvent[];
   selectedAgent: string | null;
   selectedChannel: string | null;
+  projectDir?: string;
   onChannelClick: (ch: string) => void;
   layout?: 'rail' | 'page';
 }
 
-export default function ChannelLog({ events, selectedAgent, selectedChannel, onChannelClick, layout = 'rail' }: Props) {
+export default function ChannelLog({ events, selectedAgent, selectedChannel, projectDir, onChannelClick, layout = 'rail' }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
-  const visibleEvents = events.filter((event) => event.message.trim().length > 0 && !(event.publisher === 'system' && event.message.trim().length < 3));
+  const visibleEvents = events.filter((event) => {
+    const trimmed = event.message.trim();
+    if (!trimmed) return false;
+    const normalized = trimmed.toLowerCase();
+    if (['ok', 'done', 'success', 'connected', 'streaming', 'heartbeat'].includes(normalized)) return false;
+    if (event.publisher === 'system' && trimmed.length < 24) return false;
+    return true;
+  });
   const isPage = layout === 'page';
 
   useEffect(() => {
@@ -73,6 +83,7 @@ export default function ChannelLog({ events, selectedAgent, selectedChannel, onC
           ) : visibleEvents.map(ev => {
             const visible = isVisible(ev);
             const color = agentColor(ev.publisher);
+            const mentionedFiles = isPage ? extractMentionedPaths(ev.message, 4) : [];
             return (
               <motion.div
                 key={ev.id}
@@ -103,6 +114,18 @@ export default function ChannelLog({ events, selectedAgent, selectedChannel, onC
                 <div style={{ color: 'var(--pd-text)' }}>
                   {ev.message}
                 </div>
+                {mentionedFiles.length > 0 ? (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {mentionedFiles.map((filePath) => (
+                      <FileActionLinks
+                        key={`${ev.id}-${filePath}`}
+                        filePath={filePath}
+                        projectDir={projectDir}
+                        compact
+                      />
+                    ))}
+                  </div>
+                ) : null}
                 {ev.triggered.length > 0 && (
                   <div className="mt-2 flex flex-wrap items-center gap-1">
                     <span className="text-[9px]" style={{ color: 'var(--pd-dim)' }}>triggered</span>
