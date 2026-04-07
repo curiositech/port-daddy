@@ -43,12 +43,17 @@ Current uncommitted slice: the remaining residue audit:
    - the global slide-in inspector should stay a Flow tool, not persist across every tab
 11. Respond to the newest operator UX feedback explicitly in-product:
    - show logical channel names and give examples for creating new event sources
+   - show the actual project label next to the logical/physical channel truth so operators know what to publish against
    - ship copy-pasteable event-source snippets for TypeScript, Python, and CLI publishers
+   - add an “Add new event sources” teaching surface in Flow and/or the agentic views instead of forcing users to reverse-engineer channel publishing from docs
    - make Channels expose a channel index/list, not just message traffic
+   - list channels up top somewhere explorable, not only as a scrolling feed
    - decide whether Inbox belongs inside Agents/Channels instead of as a top-level tab
    - decide whether Channels should also be reachable as a Flow-side modal/alternate agent view instead of only as a separate page
    - add better field help/tooltips/tutorial guidance for agent publishing, tools, and sortie inputs
+   - add a real tutorial mode for creating agents instead of expecting users to infer every field from sparse labels
    - add “add project to Port Daddy” flows in both FleetBar and the full app
+   - design that add-project flow with curated starter fleets for common coding project types plus a bespoke “design my fleet with AI” mode
 12. Fix native-shell operator ergonomics that are still only half-captured:
    - Fleet Control Center must be a singleton window that refocuses instead of spawning duplicates
    - the native shell should appear and behave like a first-class app window, including sane Dock activation behavior
@@ -64,6 +69,14 @@ Current uncommitted slice: the remaining residue audit:
    - kill the lingering “Waiting for activity” empty state when structured project activity exists
    - show per-agent last-active, non-empty messages, recent mutations, and artifacts in one obvious place
    - when focused agent changes, all surviving agent-detail surfaces should switch coherently instead of drifting out of sync
+16. Remove the remaining inspector/focus confusion:
+   - clicking Spark/Spider/etc. should not produce both an in-page “Agent Focus” view and a second overlapping slide-in detail/settings surface
+   - the project log should not be covered by a detail drawer that is not itself project-log-specific
+   - the agent detail slide pane persisting across unrelated top-level tabs is a bug until proven otherwise
+17. Fix the surfaces the operator explicitly says are still not working:
+   - Inbox should move into Agents or Channels if that is the more truthful model, but either way it must actually work
+   - Sorties must be verified end-to-end from the live daemon/UI, not merely made pretty
+   - root-cause the exact Claude SDK launch reset path where the UI said “ready,” attempted launch, then reverted to `claude-cli`
 
 ## Immediate Next Cuts
 
@@ -78,6 +91,7 @@ Current uncommitted slice: the remaining residue audit:
 7. Verify whether Jest still has a real open-handle warning after the spawner heartbeat timer `unref()` and any remaining daemon/test cleanup.
 8. Commit the next control-plane/FleetBar UX slice once the relaunch verifies the native shell and daemon-served bundle still agree.
 9. Verify the sortie launch path end-to-end from the live daemon after the new inline error handling so a failed attempt leaves operator-visible evidence instead of only resetting UI state.
+   - specifically reproduce and explain the “Claude SDK said ready, then launch reset to claude-cli” failure path from the operator report
 10. Finish the remaining `9876` cleanup after the runtime callers:
    - diagnostics/startup doctor wording
    - docs/templates/website honesty sweep
