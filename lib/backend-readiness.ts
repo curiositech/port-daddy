@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { createRequire } from 'node:module';
 
 export interface BackendReadiness {
   backend: string;
@@ -7,12 +8,23 @@ export interface BackendReadiness {
   nextStep?: string;
 }
 
+const require = createRequire(import.meta.url);
+
 function commandExists(command: string): boolean {
   const result = spawnSync('which', [command], {
     stdio: ['ignore', 'pipe', 'ignore'],
     encoding: 'utf-8',
   });
   return (result.status ?? 1) === 0;
+}
+
+function packageInstalled(specifier: string): boolean {
+  try {
+    require.resolve(specifier);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function ollamaReachable(): Promise<boolean> {
@@ -46,8 +58,16 @@ export async function assessBackendReadiness(backend: string): Promise<BackendRe
     }
 
     case 'claude':
+      if (!packageInstalled('@anthropic-ai/sdk')) {
+        return {
+          backend,
+          status: 'needs_setup',
+          summary: '@anthropic-ai/sdk is not installed',
+          nextStep: 'Run `npm install @anthropic-ai/sdk` before using the Claude SDK backend.',
+        };
+      }
       return process.env.ANTHROPIC_API_KEY
-        ? { backend, status: 'ready', summary: 'ANTHROPIC_API_KEY present' }
+        ? { backend, status: 'ready', summary: 'ANTHROPIC_API_KEY present and Claude SDK installed' }
         : {
             backend,
             status: 'needs_setup',
@@ -56,8 +76,16 @@ export async function assessBackendReadiness(backend: string): Promise<BackendRe
           };
 
     case 'gemini':
+      if (!packageInstalled('@google/generative-ai')) {
+        return {
+          backend,
+          status: 'needs_setup',
+          summary: '@google/generative-ai is not installed',
+          nextStep: 'Run `npm install @google/generative-ai` before using the Gemini backend.',
+        };
+      }
       return process.env.GEMINI_API_KEY
-        ? { backend, status: 'ready', summary: 'GEMINI_API_KEY present' }
+        ? { backend, status: 'ready', summary: 'GEMINI_API_KEY present and Gemini SDK installed' }
         : {
             backend,
             status: 'needs_setup',

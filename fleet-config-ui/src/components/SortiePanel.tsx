@@ -58,6 +58,14 @@ interface MissionDraft {
   notes: string;
 }
 
+interface DraftRuntimePrefs {
+  backend: string;
+  model: string;
+  identity: string;
+  allowedTools: string;
+  approvalMode: ApprovalMode;
+}
+
 const RECIPES: RecipeSpec[] = [
   {
     id: 'investigate',
@@ -179,6 +187,28 @@ function createInitialDraft(project?: string | null): MissionDraft {
   };
 }
 
+function preserveRuntimePrefs(draft: MissionDraft): DraftRuntimePrefs {
+  return {
+    backend: draft.backend,
+    model: draft.model,
+    identity: draft.identity,
+    allowedTools: draft.allowedTools,
+    approvalMode: draft.approvalMode,
+  };
+}
+
+function createFollowupDraft(project: string | null | undefined, runtime: DraftRuntimePrefs): MissionDraft {
+  const next = createInitialDraft(project);
+  return {
+    ...next,
+    backend: runtime.backend || next.backend,
+    model: runtime.model,
+    identity: runtime.identity || next.identity,
+    allowedTools: runtime.allowedTools,
+    approvalMode: runtime.approvalMode || next.approvalMode,
+  };
+}
+
 function slugifySegment(value: string): string {
   const normalized = value
     .toLowerCase()
@@ -296,6 +326,7 @@ export default function SortiePanel({ project }: SortiePanelProps) {
   const [selectedMissionId, setSelectedMissionId] = useState<MissionSelection>('draft');
   const [draft, setDraft] = useState<MissionDraft>(() => createInitialDraft(project));
   const [launching, setLaunching] = useState(false);
+  const [launchError, setLaunchError] = useState<string | null>(null);
   const [preflight, setPreflight] = useState<SpawnPreflight | null>(null);
   const [preflightError, setPreflightError] = useState<string | null>(null);
 
@@ -443,7 +474,9 @@ export default function SortiePanel({ project }: SortiePanelProps) {
     }
 
     setLaunching(true);
+    setLaunchError(null);
     try {
+      const runtimePrefs = preserveRuntimePrefs(draft);
       const result = await launchSortie({
         backend: draft.backend,
         model: draft.model || undefined,
@@ -463,11 +496,11 @@ export default function SortiePanel({ project }: SortiePanelProps) {
       }));
       await refreshSorties();
       setSelectedMissionId(result.agentId);
-      setDraft(createInitialDraft(project));
+      setDraft(createFollowupDraft(project, runtimePrefs));
       setPreflight(null);
       setPreflightError(null);
     } catch (error) {
-      window.alert((error as Error).message);
+      setLaunchError((error as Error).message);
     } finally {
       setLaunching(false);
     }
@@ -591,6 +624,12 @@ export default function SortiePanel({ project }: SortiePanelProps) {
 
                 <div className="grid gap-4 p-5 xl:grid-cols-[minmax(0,1.7fr)_320px]">
                   <div className="space-y-4">
+                    {launchError ? (
+                      <div className="rounded-2xl border px-4 py-3 text-sm leading-relaxed" style={{ borderColor: 'var(--pd-accent-border)', backgroundColor: 'var(--pd-accent-surface)', color: 'var(--pd-accent)' }}>
+                        Sortie launch failed: {launchError}
+                      </div>
+                    ) : null}
+
                     <section className="pd-card-muted p-4">
                       <div className="pd-kicker">Recipe</div>
                       <div className="mt-3 grid gap-3 md:grid-cols-2">
@@ -908,6 +947,7 @@ export default function SortiePanel({ project }: SortiePanelProps) {
                           type="button"
                           className="pd-button pd-button-secondary"
                           onClick={() => {
+                            setLaunchError(null);
                             setDraft(createInitialDraft(project));
                             setPreflight(null);
                             setPreflightError(null);

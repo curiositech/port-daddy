@@ -451,6 +451,11 @@ export default function App() {
   }, [configAgent, selectedAgent]);
 
   useEffect(() => {
+    if (activeTab === 'Flow') return;
+    setConfigAgent(null);
+  }, [activeTab]);
+
+  useEffect(() => {
     if (!embedded || selectedProjectId || fleet.loading || projects.length === 0) return;
     setSelectedProjectId(projects[0].id);
   }, [embedded, fleet.loading, projects, selectedProjectId]);
@@ -828,8 +833,9 @@ export default function App() {
                         activity={filteredActivity}
                         stories={filteredStories}
                         selectedAgent={selectedAgent}
+                        allAgents={fleetConfig?.agents.map((agent) => agent.name) ?? []}
                         agentSignals={agentActivitySignals}
-                        onSelectAgent={inspectAgent}
+                        onSelectAgent={focusAgent}
                       />
                     )}
                     {activeTab === 'Channels' && (
@@ -868,7 +874,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {configAgentData && selectedProjectId && (
+      {activeTab === 'Flow' && configAgentData && selectedProjectId && (
         <AgentConfigPanel
           key={`${daemonUrl}:${selectedProjectId}:${configAgentData.name}`}
           agent={configAgentData}

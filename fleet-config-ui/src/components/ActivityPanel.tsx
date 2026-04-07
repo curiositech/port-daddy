@@ -1,13 +1,19 @@
 import { useMemo } from 'react';
 import type { ActivityEntry, FleetEvent, StoryNote } from '../types';
 import { agentColor } from '../types';
-import { isMeaningfulActivityEntry, isMeaningfulStory, summarizeActivityEntry } from '../activityFeed';
+import {
+  activityTouchedFiles,
+  isMeaningfulActivityEntry,
+  isMeaningfulStory,
+  summarizeActivityEntry,
+} from '../activityFeed';
 
 interface Props {
   fleetEvents: FleetEvent[];
   activity: ActivityEntry[];
   stories: StoryNote[];
   selectedAgent?: string | null;
+  allAgents: string[];
   agentSignals: Array<{
     name: string;
     summary: string;
@@ -26,6 +32,7 @@ interface FeedItem {
   subtitle: string;
   accent: string;
   agent?: string | null;
+  files: string[];
 }
 
 function relativeTime(timestamp: number): string {
@@ -46,7 +53,7 @@ function fleetAccent(type: FleetEvent['type']): string {
 }
 
 function activityAccent(type: string): string {
-  if (type.includes('cleanup') || type.includes('stop')) return 'var(--pd-accent)';
+  if (type.includes('cleanup') || type.includes('stop') || type.includes('failed') || type.includes('error')) return 'var(--pd-accent)';
   if (type.includes('claim') || type.includes('start') || type.includes('register')) return 'var(--pd-success)';
   if (type.includes('publish') || type.includes('heartbeat')) return 'var(--pd-warning)';
   return 'var(--pd-muted)';
@@ -65,152 +72,234 @@ function detectStoryAgent(story: StoryNote, agentNames: string[]): string | null
   return agentNames.find((agent) => haystack.includes(agent.toLowerCase())) ?? null;
 }
 
-export default function ActivityPanel({ fleetEvents, activity, stories, selectedAgent, agentSignals, onSelectAgent }: Props) {
+function summarizeFleetEvent(event: FleetEvent): string {
+  if (typeof event.details?.error === 'string' && event.details.error.trim()) return event.details.error.trim();
+  if (typeof event.details?.status === 'string' && event.details.status.trim()) return `status: ${event.details.status.trim()}`;
+  if (typeof event.details?.message === 'string' && event.details.message.trim()) return event.details.message.trim();
+  if (event.type === 'agent_failed') return 'Agent failed without a surfaced summary.';
+  return '';
+}
+
+function extractTouchedPaths(text: string): string[] {
+  const matches = text.match(/(?:[A-Za-z0-9._-]+\/)+[A-Za-z0-9._-]+(?:\.[A-Za-z0-9_-]+)?/g) ?? [];
+  return [...new Set(matches.filter((match) => match.includes('/')).slice(0, 8))];
+}
+
+function itemMatchesAgent(item: FeedItem, agentName: string): boolean {
+  const needle = agentName.toLowerCase();
+  return item.agent === agentName
+    || item.title.toLowerCase().includes(needle)
+    || item.subtitle.toLowerCase().includes(needle);
+}
+
+function dedupeFiles(files: string[]): string[] {
+  return [...new Set(files.filter((filePath) => filePath.trim().length > 0))];
+}
+
+export default function ActivityPanel({ fleetEvents, activity, stories, selectedAgent, allAgents, agentSignals, onSelectAgent }: Props) {
   const feed = useMemo<FeedItem[]>(() => {
-    const fleetItems: FeedItem[] = fleetEvents.map((event, index) => ({
-      id: `fleet-${event.timestamp}-${event.agent ?? 'system'}-${index}`,
-      kind: 'fleet',
-      timestamp: event.timestamp,
-      title: `${event.agent ?? 'system'} ${event.type.replace(/_/g, ' ')}`,
-      subtitle: typeof event.details?.error === 'string'
-        ? event.details.error
-        : typeof event.details?.status === 'string'
-          ? `status: ${event.details.status}`
-          : event.project ?? 'fleet lifecycle',
-      accent: fleetAccent(event.type),
-      agent: event.agent ?? null,
-    }));
+    const fleetItems = fleetEvents
+      .map((event, index) => {
+        const summary = summarizeFleetEvent(event);
+        if (!summary) return null;
+        return {
+          id: `fleet-${event.timestamp}-${event.agent ?? 'system'}-${index}`,
+          kind: 'fleet' as const,
+          timestamp: event.timestamp,
+          title: event.type.replace(/_/g, ' '),
+          subtitle: summary,
+          accent: fleetAccent(event.type),
+          agent: event.agent ?? null,
+          files: extractTouchedPaths(summary),
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => !!item);
 
     const activityItems: FeedItem[] = activity
       .filter(isMeaningfulActivityEntry)
-      .map((entry) => ({
-        id: `activity-${entry.id}`,
-        kind: 'activity' as const,
-        timestamp: entry.timestamp,
-        title: entry.type,
-        subtitle: summarizeActivityEntry(entry),
-        accent: activityAccent(entry.type),
-        agent: entry.agentId,
-      }));
+      .map((entry) => {
+        const agent = entry.agentId || (typeof entry.metadata?.agentId === 'string' ? entry.metadata.agentId : null);
+        const summary = summarizeActivityEntry(entry);
+        return {
+          id: `activity-${entry.id}`,
+          kind: 'activity' as const,
+          timestamp: entry.timestamp,
+          title: entry.type,
+          subtitle: summary,
+          accent: activityAccent(entry.type),
+          agent,
+          files: dedupeFiles([...activityTouchedFiles(entry), ...extractTouchedPaths(summary)]),
+        };
+      });
 
     const storyItems: FeedItem[] = stories
       .filter(isMeaningfulStory)
       .map((story) => {
         const storyAgent = detectStoryAgent(story, agentSignals.map((signal) => signal.name));
+        const content = story.content.trim();
         return {
           id: `story-${story.id}`,
           kind: 'story' as const,
           timestamp: story.createdAt,
-          title: `${story.type}${storyAgent ? ` · ${storyAgent}` : ''}`,
-          subtitle: story.content.trim(),
+          title: story.type,
+          subtitle: content,
           accent: storyAccent(story.type),
           agent: storyAgent,
+          files: extractTouchedPaths(content),
         };
       });
 
-    return [...storyItems, ...fleetItems, ...activityItems]
+    return [...storyItems, ...activityItems, ...fleetItems]
       .sort((a, b) => b.timestamp - a.timestamp)
-      .filter((item) => !selectedAgent || item.agent === selectedAgent || item.subtitle.toLowerCase().includes(selectedAgent.toLowerCase()))
-      .slice(0, 150);
-  }, [activity, agentSignals, fleetEvents, selectedAgent, stories]);
+      .slice(0, 180);
+  }, [activity, agentSignals, fleetEvents, stories]);
 
-  const visibleSignals = useMemo(
-    () => agentSignals.filter((signal) => !selectedAgent || signal.name === selectedAgent),
-    [agentSignals, selectedAgent],
+  const orderedSignals = useMemo(
+    () => [...agentSignals].sort((a, b) => b.timestamp - a.timestamp),
+    [agentSignals],
+  );
+
+  const agentEntries = useMemo(() => {
+    const signalMap = new Map(orderedSignals.map((signal) => [signal.name, signal]));
+    return allAgents.map((name) => {
+      const signal = signalMap.get(name) ?? null;
+      const feedItem = feed.find((item) => itemMatchesAgent(item, name)) ?? null;
+      const summary = signal?.summary ?? feedItem?.subtitle ?? 'No non-empty recent work is attributed yet.';
+      const label = signal?.label ?? feedItem?.title ?? 'waiting';
+      const timestamp = signal?.timestamp ?? feedItem?.timestamp ?? 0;
+      const files = dedupeFiles([
+        ...(signal?.files ?? []),
+        ...(feedItem?.files ?? []),
+      ]);
+      return { name, summary, label, timestamp, files, hasSignal: !!signal || !!feedItem };
+    });
+  }, [allAgents, feed, orderedSignals]);
+
+  const focusedAgent = useMemo(
+    () => selectedAgent ?? agentEntries[0]?.name ?? orderedSignals[0]?.name ?? null,
+    [agentEntries, orderedSignals, selectedAgent],
+  );
+
+  const focusedSignal = useMemo(
+    () => agentEntries.find((signal) => signal.name === focusedAgent) ?? null,
+    [agentEntries, focusedAgent],
+  );
+
+  const focusedFeed = useMemo(
+    () => focusedAgent ? feed.filter((item) => itemMatchesAgent(item, focusedAgent)).slice(0, 80) : [],
+    [feed, focusedAgent],
+  );
+
+  const focusedFiles = useMemo(
+    () => dedupeFiles([
+      ...(focusedSignal?.files ?? []),
+      ...focusedFeed.flatMap((item) => item.files),
+    ]).slice(0, 10),
+    [focusedFeed, focusedSignal],
   );
 
   return (
-    <div className="grid h-full min-h-0 gap-4 p-4" style={{ gridTemplateColumns: 'minmax(0, 1.85fr) minmax(320px, 0.95fr)' }}>
+    <div
+      className="grid h-full min-h-0 gap-4 p-4"
+      style={{ gridTemplateColumns: '280px minmax(0, 1.4fr) minmax(340px, 1fr)' }}
+    >
       <section className="rounded-xl overflow-hidden min-h-0 flex flex-col" style={{ backgroundColor: 'var(--pd-surface)', border: '1px solid var(--pd-border)' }}>
-        <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--pd-border)' }}>
-          <div>
-            <div className="text-[10px] font-semibold tracking-wider" style={{ color: 'var(--pd-dim)' }}>ACTIVITY LOG</div>
-            <div className="text-sm font-semibold mt-1" style={{ color: 'var(--pd-text)' }}>
-              {selectedAgent ? `Recent work for ${selectedAgent}` : 'Fleet + daemon timeline'}
-            </div>
+        <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--pd-border)' }}>
+          <div className="text-[10px] font-semibold tracking-wider" style={{ color: 'var(--pd-dim)' }}>AGENTS</div>
+          <div className="text-sm font-semibold mt-1" style={{ color: 'var(--pd-text)' }}>
+            Pick an agent to inspect real recent work
           </div>
-          <div className="text-[10px] font-mono" style={{ color: 'var(--pd-muted)' }}>{feed.length} events</div>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
-          {feed.length === 0 ? (
+          {agentEntries.length === 0 ? (
             <div className="px-4 py-10 text-sm text-center" style={{ color: 'var(--pd-muted)' }}>
-              {selectedAgent ? `No meaningful work is attributed to ${selectedAgent} yet.` : 'No meaningful fleet activity yet.'}
+              No agents are configured for this fleet yet.
             </div>
           ) : (
-            feed.map((item) => (
-              <div
-                key={item.id}
-                className="px-4 py-3 flex gap-3"
-                style={{ borderBottom: '1px solid color-mix(in srgb, var(--pd-border) 72%, transparent)' }}
-              >
-                <div className="mt-1 w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: item.accent }} />
-                <div className="min-w-0 flex-1">
+            agentEntries.map((signal) => {
+              const selected = signal.name === focusedAgent;
+              return (
+                <button
+                  key={signal.name}
+                  onClick={() => onSelectAgent?.(signal.name)}
+                  className="w-full px-4 py-3 text-left transition-colors"
+                  style={{
+                    borderBottom: '1px solid color-mix(in srgb, var(--pd-border) 72%, transparent)',
+                    backgroundColor: selected ? 'var(--pd-bg)' : 'transparent',
+                  }}
+                >
                   <div className="flex items-center justify-between gap-3">
-                    <div className="text-[12px] font-semibold truncate" style={{ color: 'var(--pd-text)' }}>
-                      {item.agent ? <span style={{ color: agentColor(item.agent) }}>{item.agent}</span> : item.title}
-                      {item.agent ? <span style={{ color: 'var(--pd-text)' }}> {item.title.replace(`${item.agent} `, '')}</span> : null}
+                    <div className="min-w-0">
+                      <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: agentColor(signal.name) }}>
+                        {signal.name}
+                      </div>
+                      <div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em]" style={{ color: 'var(--pd-accent)' }}>
+                        {signal.label ?? 'recent work'}
+                      </div>
                     </div>
                     <div className="text-[10px] font-mono flex-shrink-0" style={{ color: 'var(--pd-dim)' }}>
-                      {relativeTime(item.timestamp)}
+                      {signal.timestamp ? relativeTime(signal.timestamp) : 'no signal'}
                     </div>
                   </div>
-                  <div className="mt-1 text-[11px] leading-relaxed" style={{ color: 'var(--pd-muted)' }}>
-                    {item.subtitle}
+                  <div
+                    className="mt-2 text-[12px] leading-relaxed"
+                    style={{
+                      color: selected ? 'var(--pd-text)' : 'var(--pd-muted)',
+                      overflow: 'hidden',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 3,
+                      WebkitBoxOrient: 'vertical',
+                    }}
+                  >
+                    {signal.summary}
                   </div>
-                </div>
-              </div>
-            ))
+                </button>
+              );
+            })
           )}
         </div>
       </section>
 
       <section className="rounded-xl overflow-hidden min-h-0 flex flex-col" style={{ backgroundColor: 'var(--pd-surface)', border: '1px solid var(--pd-border)' }}>
         <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--pd-border)' }}>
-          <div className="text-[10px] font-semibold tracking-wider" style={{ color: 'var(--pd-dim)' }}>AGENTS</div>
+          <div className="text-[10px] font-semibold tracking-wider" style={{ color: 'var(--pd-dim)' }}>AGENT FOCUS</div>
           <div className="text-sm font-semibold mt-1" style={{ color: 'var(--pd-text)' }}>
-            {selectedAgent ? `Recent work for ${selectedAgent}` : 'Per-agent recent work and mutations'}
+            {focusedAgent ? `What ${focusedAgent} has actually been doing` : 'Pick an agent to inspect'}
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          {visibleSignals.length === 0 ? (
-            <div className="px-4 py-10 text-sm text-center" style={{ color: 'var(--pd-muted)' }}>
-              No non-empty agent signals yet.
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+          {!focusedAgent || !focusedSignal ? (
+            <div className="rounded-xl border px-4 py-8 text-sm text-center" style={{ color: 'var(--pd-muted)', borderColor: 'var(--pd-border)', backgroundColor: 'var(--pd-bg)' }}>
+              No agent detail is available yet.
             </div>
           ) : (
-            visibleSignals.map((signal) => (
-              <div
-                key={signal.name}
-                className="px-4 py-3"
-                style={{ borderBottom: '1px solid color-mix(in srgb, var(--pd-border) 72%, transparent)' }}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <button
-                    onClick={() => onSelectAgent?.(signal.name)}
-                    className="text-left"
-                  >
-                    <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: agentColor(signal.name) }}>
-                      {signal.name}
+            <div className="flex flex-col gap-4">
+              <div className="rounded-xl border px-4 py-4" style={{ borderColor: 'var(--pd-border)', backgroundColor: 'var(--pd-bg)' }}>
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="text-[10px] font-semibold tracking-[0.14em]" style={{ color: agentColor(focusedAgent) }}>
+                      {focusedAgent}
                     </div>
-                    <div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em]" style={{ color: 'var(--pd-accent)' }}>
-                      {signal.label ?? 'recent work'}
+                    <div className="mt-2 text-sm font-semibold" style={{ color: 'var(--pd-text)' }}>
+                      {focusedSignal.label ?? 'recent work'}
                     </div>
-                  </button>
+                  </div>
                   <div className="text-[10px] font-mono" style={{ color: 'var(--pd-dim)' }}>
-                    {relativeTime(signal.timestamp)}
+                    {focusedSignal.timestamp ? relativeTime(focusedSignal.timestamp) : 'awaiting signal'}
                   </div>
                 </div>
-                <div className="mt-2 text-[12px] leading-relaxed" style={{ color: 'var(--pd-text)' }}>
-                  {signal.summary}
+                <div className="mt-3 text-[13px] leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--pd-text)' }}>
+                  {focusedSignal.summary}
                 </div>
-                {signal.files.length > 0 ? (
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {signal.files.slice(0, 4).map((filePath) => (
+                {focusedFiles.length > 0 ? (
+                  <div className="mt-4 flex flex-wrap gap-1.5">
+                    {focusedFiles.map((filePath) => (
                       <span
                         key={filePath}
-                        className="text-[9px] px-1.5 py-0.5 rounded font-mono"
-                        style={{ backgroundColor: 'var(--pd-bg)', color: 'var(--pd-accent)', border: '1px solid var(--pd-accent-border)' }}
+                        className="text-[10px] px-2 py-1 rounded font-mono"
+                        style={{ backgroundColor: 'var(--pd-surface)', color: 'var(--pd-accent)', border: '1px solid var(--pd-accent-border)' }}
                       >
                         {filePath}
                       </span>
@@ -218,7 +307,101 @@ export default function ActivityPanel({ fleetEvents, activity, stories, selected
                   </div>
                 ) : null}
               </div>
-            ))
+
+              <div className="rounded-xl overflow-hidden border" style={{ borderColor: 'var(--pd-border)', backgroundColor: 'var(--pd-bg)' }}>
+                <div className="px-4 py-3 flex items-center justify-between gap-3" style={{ borderBottom: '1px solid var(--pd-border)' }}>
+                  <div className="text-[10px] font-semibold tracking-[0.14em]" style={{ color: 'var(--pd-dim)' }}>
+                    AGENT TIMELINE
+                  </div>
+                  <div className="text-[10px] font-mono" style={{ color: 'var(--pd-dim)' }}>
+                    {focusedFeed.length} items
+                  </div>
+                </div>
+                <div className="max-h-[52vh] overflow-y-auto">
+                  {focusedFeed.length === 0 ? (
+                    <div className="px-4 py-8 text-sm text-center" style={{ color: 'var(--pd-muted)' }}>
+                      No high-signal activity is attributed to {focusedAgent} yet.
+                    </div>
+                  ) : (
+                    focusedFeed.map((item) => (
+                      <div
+                        key={item.id}
+                        className="px-4 py-3"
+                        style={{ borderBottom: '1px solid color-mix(in srgb, var(--pd-border) 72%, transparent)' }}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: item.kind === 'story' ? 'var(--pd-accent)' : 'var(--pd-text)' }}>
+                            {item.kind} · {item.title}
+                          </div>
+                          <div className="text-[10px] font-mono" style={{ color: 'var(--pd-dim)' }}>
+                            {relativeTime(item.timestamp)}
+                          </div>
+                        </div>
+                        <div className="mt-2 text-[12px] leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--pd-muted)' }}>
+                          {item.subtitle}
+                        </div>
+                        {item.files.length > 0 ? (
+                          <div className="mt-3 flex flex-wrap gap-1.5">
+                            {item.files.slice(0, 4).map((filePath) => (
+                              <span
+                                key={filePath}
+                                className="text-[9px] px-1.5 py-0.5 rounded font-mono"
+                                style={{ backgroundColor: 'var(--pd-surface)', color: 'var(--pd-accent)', border: '1px solid var(--pd-accent-border)' }}
+                              >
+                                {filePath}
+                              </span>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="rounded-xl overflow-hidden min-h-0 flex flex-col" style={{ backgroundColor: 'var(--pd-surface)', border: '1px solid var(--pd-border)' }}>
+        <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--pd-border)' }}>
+          <div className="text-[10px] font-semibold tracking-wider" style={{ color: 'var(--pd-dim)' }}>PROJECT LOG</div>
+          <div className="text-sm font-semibold mt-1" style={{ color: 'var(--pd-text)' }}>
+            Recent handoffs, findings, and non-empty work
+          </div>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {feed.length === 0 ? (
+            <div className="px-4 py-10 text-sm text-center" style={{ color: 'var(--pd-muted)' }}>
+              No meaningful project activity yet.
+            </div>
+          ) : (
+            feed.map((item) => {
+              const emphasized = focusedAgent ? itemMatchesAgent(item, focusedAgent) : false;
+              return (
+                <div
+                  key={item.id}
+                  className="px-4 py-3"
+                  style={{
+                    borderBottom: '1px solid color-mix(in srgb, var(--pd-border) 72%, transparent)',
+                    backgroundColor: emphasized ? 'color-mix(in srgb, var(--pd-accent-surface) 24%, transparent)' : 'transparent',
+                  }}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0 text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: item.agent ? agentColor(item.agent) : item.accent }}>
+                      {item.agent ? `${item.agent} · ${item.title}` : item.title}
+                    </div>
+                    <div className="text-[10px] font-mono flex-shrink-0" style={{ color: 'var(--pd-dim)' }}>
+                      {relativeTime(item.timestamp)}
+                    </div>
+                  </div>
+                  <div className="mt-2 text-[12px] leading-relaxed" style={{ color: 'var(--pd-muted)' }}>
+                    {item.subtitle}
+                  </div>
+                </div>
+              );
+            })
           )}
         </div>
       </section>

@@ -57,12 +57,16 @@ Project-specific shibboleths for proficient Port Daddy work. If you learn a new 
 ## Operator UX Expectations
 
 - Top-level tabs must behave like top-level pages. Do not hide a selected tab's main content inside a collapsed lower panel.
+- If a page already has its own per-agent focus view, clicking an agent there should update that in-page focus first. Do not also auto-open the global slide-in inspector unless the user explicitly asked for settings/details from Flow.
 - Agent detail should default to non-empty, high-signal activity:
   - recent meaningful messages
   - mutations / touched files
   - handoffs / artifacts
+- Activity must still list configured agents even when structured signals are sparse. “No signals” is not permission to pretend the fleet has no agents.
 - Filter low-signal system noise instead of surfacing empty or trivial channel traffic.
 - FleetBar popover is not just a launcher. It should surface recent per-agent summaries, last-active hints, and touched files that can be opened directly.
+- Successful launch flows must preserve the operator’s chosen backend/model in the draft UI. If the launch fails, surface the daemon’s real error inline instead of collapsing to a generic HTTP status.
+- Backend readiness must verify dependencies too, not only env/auth. Do not claim Claude SDK is ready unless `@anthropic-ai/sdk` is actually installed, and do not claim Gemini is ready unless `@google/generative-ai` exists.
 
 ## Current Gotchas
 

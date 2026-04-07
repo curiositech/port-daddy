@@ -162,7 +162,26 @@ async function api<T>(method: string, path: string, body?: unknown): Promise<T> 
       body: JSON.stringify(body),
     }),
   });
-  if (!res.ok) throw new Error(`${method} ${path}: ${res.status} ${res.statusText}`);
+  if (!res.ok) {
+    const contentType = res.headers.get('content-type') ?? '';
+    let detail = '';
+
+    if (contentType.includes('application/json')) {
+      const payload = await res.json().catch(() => null) as
+        | { error?: unknown; preflight?: { blockedReasons?: unknown } }
+        | null;
+      if (typeof payload?.error === 'string' && payload.error.trim()) {
+        detail = payload.error.trim();
+      } else if (Array.isArray(payload?.preflight?.blockedReasons)) {
+        const firstReason = payload.preflight.blockedReasons.find((reason): reason is string => typeof reason === 'string' && reason.trim().length > 0);
+        if (firstReason) detail = firstReason;
+      }
+    } else {
+      detail = (await res.text().catch(() => '')).trim();
+    }
+
+    throw new Error(detail || `${method} ${path}: ${res.status} ${res.statusText}`);
+  }
   return res.json();
 }
 

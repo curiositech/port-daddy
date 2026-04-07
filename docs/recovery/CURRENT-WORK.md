@@ -9,8 +9,8 @@ This is the active execution ledger. If a task is in flight, it belongs here bef
 
 Stabilize the live Port Daddy operator loop so one daemon, one fleet runtime, one control plane, and one native companion all tell the same truth.
 
-Latest committed slice: `e7eba7b` — structured project activity attribution and legacy post-commit hook upgrade.
-Current uncommitted slice: same-install-only daemon freshness restarts, fleet lease self-healing, loopback TCP discovery cleanup, project-scoped control-plane channel resolution, and richer briefing payloads for FleetBar/control-plane detail views.
+Latest committed slice: `1ebe6e6` — same-install-only daemon freshness restarts and shared runtime code-hash cleanup.
+Current uncommitted slice: control-plane truth fixes for Activity/Sorties/FleetBar, richer operator-facing spawn failures, and the next round of page-model cleanup from the latest feedback pass.
 
 ## Active Tasks
 
@@ -28,6 +28,20 @@ Current uncommitted slice: same-install-only daemon freshness restarts, fleet le
    - touched files
    - last active time
 8. Improve FleetBar popover so it shows recent per-agent facts instead of only launch shortcuts.
+9. Make sortie launch truthfully debuggable:
+   - preserve chosen backend/model after a launch
+   - surface actual `/spawn` errors inline instead of generic `400 Bad Request`
+   - verify why a "ready" Claude SDK launch can still fail to produce a spawn record
+   - ensure readiness probes check package installation as well as auth/env presence
+10. Remove overlapping agent-detail surfaces:
+   - Activity should focus agents in-page
+   - the global slide-in inspector should stay a Flow tool, not persist across every tab
+11. Respond to the newest operator UX feedback explicitly in-product:
+   - show logical channel names and give examples for creating new event sources
+   - make Channels expose a channel index/list, not just message traffic
+   - decide whether Inbox belongs inside Agents/Channels instead of as a top-level tab
+   - add better field help/tooltips/tutorial guidance for agent publishing, tools, and sortie inputs
+   - add “add project to Port Daddy” flows in both FleetBar and the full app
 
 ## Immediate Next Cuts
 
@@ -42,6 +56,7 @@ Current uncommitted slice: same-install-only daemon freshness restarts, fleet le
    - any leftover FleetBar/operator labels
 7. Verify whether Jest still has a real open-handle warning after the lease-renew timer `unref()` and daemon test teardown, then fix any remaining offender instead of assuming it is gone.
 8. Commit the control-plane/FleetBar UI refactor once the latest native companion relaunch confirms the bundle is the truthful surface.
+9. Verify the sortie launch path end-to-end from the live daemon after the new inline error handling so a failed attempt leaves operator-visible evidence instead of only resetting UI state.
 
 ## Newly Confirmed Truths
 
@@ -71,6 +86,11 @@ Current uncommitted slice: same-install-only daemon freshness restarts, fleet le
 - Only `Flow` still warrants the persistent project rail. `Activity`, `Channels`, `Inbox`, `Sorties`, and `YAML` behave better as full-width top-level pages.
 - FleetBar popover usefulness is now part of the active scope: recent per-agent summaries and touched files belong in the menu bar companion, not only in the full control center.
 - Current build state after the latest control-plane and FleetBar edits: root `npm run typecheck`, `cd fleet-config-ui && npm run build`, and `cd apps/FleetBar && env CLANG_MODULE_CACHE_PATH=/tmp/clang-module-cache swift build` all passed.
+- The sortie composer had a truth bug: after launch it recreated a fresh draft with the hardcoded `claude-cli` default, which made a Claude SDK attempt look like it silently reverted runtimes even when the real outcome was elsewhere.
+- Generic `POST /spawn: 400 Bad Request` UI errors are not acceptable operator feedback. The control plane must surface the daemon’s actual `error` / preflight blocked reason inline.
+- Claude SDK readiness was also lying by omission: env presence alone was enough to show “ready” even when `@anthropic-ai/sdk` was not installed.
+- Activity cannot key its entire left rail off “agents with signals” only. If the project log has meaningful work but the left rail says “no signals,” the operator experience is lying by omission.
+- Activity click behavior should focus the in-page activity view, not reopen the global slide-in Flow inspector. Overlapping detail surfaces are harder to reason about than one truthful one.
 
 ## Explicit Non-Goals For This Pass
 
