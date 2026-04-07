@@ -2092,7 +2092,10 @@ async function main(): Promise<void> {
         const mcpPath = new URL('../mcp/server.ts', import.meta.url).pathname;
         const child = spawn('npx', ['tsx', mcpPath], {
           stdio: 'inherit',
-          env: { ...process.env, PORT_DADDY_URL: `http://localhost:${options.port || '9876'}` },
+          env: {
+            ...process.env,
+            PORT_DADDY_URL: options.port ? `http://localhost:${options.port}` : PORT_DADDY_URL,
+          },
         });
         child.on('exit', (code) => process.exit(code ?? 0));
         // Keep parent alive until MCP server exits

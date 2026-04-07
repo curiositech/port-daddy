@@ -23,7 +23,7 @@
 
 import http from 'node:http';
 import { spawn } from 'node:child_process';
-import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
+import { CANONICAL_TCP_PORT, getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 
 // =============================================================================
 // Types
@@ -192,7 +192,7 @@ export function createWatch() {
         path,
         headers: { Accept: 'text/event-stream' },
         host: parsedUrl.hostname,
-        port: parseInt(parsedUrl.port, 10) || 9876,
+        port: parseInt(parsedUrl.port, 10) || CANONICAL_TCP_PORT,
       };
 
       const req = http.request(reqOpts, (res) => {

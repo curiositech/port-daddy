@@ -3,7 +3,7 @@
  * Port Daddy MCP Server
  *
  * Exposes Port Daddy's full API as MCP tools for Claude agents.
- * Communicates with the Port Daddy daemon via HTTP at localhost:9876.
+ * Communicates with the live Port Daddy daemon via discovered HTTP URL.
  *
  * Usage:
  *   npx port-daddy mcp          # stdio transport (Claude Code / Desktop)

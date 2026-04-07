@@ -18,7 +18,9 @@ fleet:
       schedule: "*/5 * * * *"
       backend: custom
       prompt: |
-        curl -sf http://localhost:9876/services/health | jq -r '.results[] | select(.healthy==false) | .id'
+        PORT_FILE="${PORT_DADDY_PORT_FILE:-$HOME/.port-daddy/daemon.port}"
+        PD_URL="${PORT_DADDY_URL:-http://localhost:$(tr -d '[:space:]' < "$PORT_FILE" 2>/dev/null || echo 9876)}"
+        curl -sf "$PD_URL/services/health" | jq -r '.results[] | select(.healthy==false) | .id'
       on_failure: publish health:degraded
       identity: "{project}:always-on:health-monitor"
 
@@ -29,8 +31,10 @@ fleet:
       schedule: "*/15 * * * *"
       backend: custom
       prompt: |
-        curl -sf http://localhost:9876/locks | jq -r '.locks[] | select(.expiresAt < now) | .name' | while read name; do
-          curl -sf -X DELETE "http://localhost:9876/locks/$name" -H 'Content-Type: application/json' -d '{"force": true}'
+        PORT_FILE="${PORT_DADDY_PORT_FILE:-$HOME/.port-daddy/daemon.port}"
+        PD_URL="${PORT_DADDY_URL:-http://localhost:$(tr -d '[:space:]' < "$PORT_FILE" 2>/dev/null || echo 9876)}"
+        curl -sf "$PD_URL/locks" | jq -r '.locks[] | select(.expiresAt < now) | .name' | while read name; do
+          curl -sf -X DELETE "$PD_URL/locks/$name" -H 'Content-Type: application/json' -d '{"force": true}'
         done
       identity: "{project}:always-on:lock-janitor"
 
@@ -44,8 +48,8 @@ fleet:
       singleton: true
       allowedTools: "Read,Grep"
       prompt: |
-        Check for abandoned sessions. Call the Port Daddy API:
-        GET http://localhost:9876/sessions
+        Check for abandoned sessions. Determine the daemon URL from PORT_DADDY_URL
+        or ~/.port-daddy/daemon.port, then call GET /sessions on that live daemon.
 
         For each active session:
         - If it has been active > 2 hours AND has 0 notes, it may be abandoned

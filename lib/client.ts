@@ -18,7 +18,7 @@
 import http from 'node:http';
 import { existsSync } from 'node:fs';
 import type { PortDaddyClientOptions } from '../shared/types.js';
-import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
+import { CANONICAL_TCP_PORT, getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { createIpcClient } from './ipc-client.js';
 import { Performative } from './ipc-types.js';
 import { DEFAULT_SOCK, DEFAULT_IPC } from '../shared/paths.js';
@@ -1084,7 +1084,7 @@ class PortDaddy {
     // Explicit TCP URL overrides socket
     if (process.env.PORT_DADDY_URL) {
       const url = new URL(this.url);
-      return { host: url.hostname, port: parseInt(url.port, 10) || 9876 };
+      return { host: url.hostname, port: parseInt(url.port, 10) || CANONICAL_TCP_PORT };
     }
     // Use socket if it exists
     if (existsSync(this.socketPath)) {
@@ -1092,7 +1092,7 @@ class PortDaddy {
     }
     // Fallback to TCP
     const url = new URL(this.url);
-    return { host: url.hostname, port: parseInt(url.port, 10) || 9876 };
+    return { host: url.hostname, port: parseInt(url.port, 10) || CANONICAL_TCP_PORT };
   }
 
   /** @private */
