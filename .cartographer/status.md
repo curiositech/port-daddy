@@ -2,8 +2,8 @@
 
 **Last updated:** 2026-04-07
 **Updated by:** Cartographer (manual invocation)
-**HEAD:** `853cc57` (Fix sortie launch truth and activity focus behavior)
-**Previous HEAD:** `1ebe6e6` — 1 new commit since last run
+**HEAD:** `3ece95a` (Rehabilitate roadmap docs and archaeology tests)
+**Previous HEAD:** `853cc57` — 3 new commits since last run
 
 ---
 
@@ -17,13 +17,16 @@ The last 7 commits map overwhelmingly to the Recovery Roadmap (`docs/recovery/UN
 
 Active threads, ranked by commit recency:
 
-1. **Recovery Track 2 / 3 — FleetBar + control plane truth** — `a41f18f`, `e82f096`, `1aeb2b1`, `809816e`, `e7eba7b`, `1ebe6e6`, and now `853cc57` pushed the runtime and UI toward one truthful control plane. The newest committed slice fixed the operator-surface lies directly: Activity now keeps an in-page focus model and falls back to configured agents instead of claiming there are “no signals,” Sorties preserve the selected runtime after launch, and daemon-side spawn errors are surfaced inline rather than as generic HTTP statuses.
+1. **Recovery Track 2 / 3 — FleetBar + control plane truth** — `a41f18f`, `e82f096`, `1aeb2b1`, `809816e`, `e7eba7b`, `1ebe6e6`, `853cc57`, and now `83d1a22` pushed the runtime and UI toward one truthful control plane. The newest runtime slice added explicit file actions to the operator surfaces: the daemon now exposes `/operator/open-file`, the web control plane renders `Open in Finder` / `Open with default editor` for touched files, and FleetBar mirrors the same affordances natively instead of offering ambiguous file chips.
 
 2. **Recovery Track 1 — CLOSED** — `8744e14` committed `lib/counters.ts`, completing the observability trifecta (cost-tracker + counters + observability routes). All `/metrics/*` endpoints are now populated with real data. Fleet budget gates actively stop spawns. Released as v3.8.3.
 
-3. **Fleet runtime safety** — `3b818d2` (readiness checks), `71fc446` (autopilot + sortie), `0cc5e6` (setup onboarding). Backend fallbacks, spawn preflight, budget enforcement. These map to Recovery 3.8.3 criteria.
+3. **Fleet/runtime archaeology rehab** — `3ece95a` promoted long-dirty roadmap/docs changes and two substantive untracked test suites (`semantic-index`, `tunnel-lifecycle`). It also shipped a small but real runtime hygiene fix: the spawner heartbeat interval now `unref()`s so blocked-spawn tests do not hold Jest open just by hitting the concurrency ceiling.
 
-4. **Fleet Config UI refinement** — multiple fleet-config-ui component files modified (uncommitted). ActivityPanel, ActivityRail, AgentConfigPanel, ChannelLog, SortiePanel, App.tsx, and FleetBar Swift shell files are under active refactoring. Embedded Flow and Activity have now both been re-verified from the daemon-served bundle with settled screenshots; the inner duplicate nav is gone in embed mode when the client is freshly loaded. The latest uncommitted slice also resolves logical channel names like `git:committed` to project-scoped physical channels before polling or publishing, keeps Activity clicks inside the in-page focus model, and surfaces actual spawn errors instead of generic HTTP statuses. The build is green again after the latest layout pass (`npm run typecheck`, `fleet-config-ui` build, FleetBar Swift build), but live fleet truth can still look mixed until older already-open FleetBar/browser clients reload off stale bundles.
+4. **Residual archaeology still on disk** — only two notable piles remain uncommitted:
+   - generated spider connection notes under `.spider/connections/`
+   - `tests/unit/spawner-commit-0df9155-bugs.test.js`, which is mostly redundant with `tests/unit/spawner.test.js` and still freezes known-bad behavior as expected output
+   Everything else from the previously dirty runtime/test/doc slices has now been either committed or explicitly quarantined.
 
 V4 Phase activity:
 - **Phase 1 (Semantic Graph):** Zero commits. 7 days since last commit (2026-03-30). **7 days to stale threshold (2026-04-13).**
@@ -65,19 +68,18 @@ Burst-cool-burst pattern continues: 37 commits (Mar 30-31), 2 zero-commit days (
 
 **Planned vs. unplanned: 58% / 42%.** Improvement over last run (was 35%/65%). The Recovery Roadmap's existence is helping — "recovery work" is now counted as planned.
 
-**Uncommitted inventory is now explicitly tracked through `docs/recovery/CURRENT-WORK.md`.** The main in-flight slices are: lease self-healing, loopback host / daemon discovery cleanup, briefing summary/files enrichment, project-scoped trigger archaeology, FleetBar/control-plane density work, and lingering UI refinement in `fleet-config-ui` and FleetBar Swift files. Treat the recovery ledger as the operational source of truth instead of mentally diffing `git status`.
+**Uncommitted inventory is now small enough to name explicitly.** The main in-flight slices are: lease self-healing verification, loopback host / daemon discovery cleanup, project-scoped trigger archaeology, FleetBar/control-plane density work, the generated `.spider/connections/` notes, and the redundant spawner bug-battery test. Treat `docs/recovery/CURRENT-WORK.md` as the operational source of truth instead of mentally diffing `git status`.
 
 ---
 
 ## Top 3 Closest to Completion
 
-1. **Fleet Config UI v0.1** *(UNCOMMITTED, backend committed)*
+1. **Fleet Config UI v0.1** *(Mostly committed, still iterating)*
    - Backend endpoints committed (`8744e14`): `GET/PUT /fleet/config/:project`, `GET /fleet/prompt`, `GET /fleet/models`
    - FleetBar unified to consume this surface (`a41f18f`)
-   - 6 React components being actively refactored (uncommitted)
-   - `activityFeed.ts` new utility module (untracked)
-   - `public/fleet-ui/` assets rebuilt (2 deleted, 2 new, index.html modified)
-   - **Remaining: stabilize component refactoring, commit. The backend is ready. The consumer (FleetBar) is ready. The UI itself is the gap.**
+   - explicit file actions shipped (`83d1a22`)
+   - Activity/Sortie truth fixes shipped (`853cc57`)
+   - **Remaining: higher-level product/UX cleanup, not core wiring.**
 
 2. **Daemon discovery + lease recoverability cleanup** *(UNCOMMITTED, high leverage)*
    - `shared/daemon-discovery.ts` now carries the shared loopback host
@@ -94,11 +96,10 @@ Burst-cool-burst pattern continues: 37 commits (Mar 30-31), 2 zero-commit days (
    - Fleet singleton enforcement: committed
    - **Remaining: verify all uncommitted test files pass, commit completions updates, cut the release. Most criteria from the Recovery Roadmap are satisfied.**
 
-4. **`tests/unit/semantic-index.test.js`** *(UNTRACKED — 453 lines, validates Phase 1 stub)*
-   - Test suite for the symbol index module
-   - Has been uncommitted since 2026-03-30 (7 days)
-   - Committing this would demonstrate the symbol index is validated, even if not yet activated
-   - **Remaining: `git add` and commit. No code changes needed.**
+4. **`tests/unit/spawner-commit-0df9155-bugs.test.js`** *(UNTRACKED — ambiguous value)*
+   - Covers real regression scenarios, but duplicates much of `tests/unit/spawner.test.js`
+   - Encodes known-bad behavior as expected output instead of defining the corrected contract
+   - **Remaining: either convert it into normative regression coverage or leave it out.**
 
 ---
 
@@ -139,12 +140,14 @@ Burst-cool-burst pattern continues: 37 commits (Mar 30-31), 2 zero-commit days (
 - **The channel scoping bug is now split into “engine” versus “archaeology.”** `lib/fleet-channels.ts` already scopes logical fleet channels by `projectDir`, and current tests cover `global:` bypass semantics. The reactive dashboard now also resolves logical names to physical scoped channels before polling/publishing. If `expunge-my-arrest` still wakes on a Port Daddy website commit, stale detached watcher processes or already-open stale UI clients are the first suspects, not missing scoping in the modern fleet engine.
 - **Socket truth and TCP truth can diverge.** `port-daddy status` talks over the Unix socket and can report healthy while browser/FleetBar TCP consumers still fail or drift. Operator validation now needs both surfaces checked, not just the CLI.
 - **Freshness authority was too broad.** The monolithic CLI still had an old freshness auto-restart path that could SIGTERM the canonical daemon from foreign checkouts or non-interactive watcher commands. `1ebe6e6` narrowed that authority to interactive commands from the same install root as the live daemon.
-- **The next UI truth bug is sortie-specific.** The control plane was recreating a fresh draft with hardcoded `claude-cli` defaults immediately after launch, which made a Claude SDK attempt look like it silently reverted runtimes. The active fix preserves runtime preferences and surfaces daemon-side spawn errors inline.
+- **The next UI truth bug is still sortie-specific.** The control plane no longer resets runtimes after launch, but the end-to-end sortie path still needs fresh live verification now that daemon-side errors surface inline.
 - **Claude SDK readiness was lying by omission.** The readiness probe only checked `ANTHROPIC_API_KEY`, not whether `@anthropic-ai/sdk` was installed, so the UI could honestly-ish say “ready” and then fail at launch for a missing package. The active fix makes dependency presence part of readiness.
 - **Activity had a second lie after project attribution was fixed.** Even when the project log had meaningful work, the left rail could still say “No non-empty agent signals yet” because it only rendered agents with precomputed signals. The current UI patch switches Activity to always list configured agents and use feed fallback when structured signals are sparse.
+- **Operator file affordances were too vague.** Showing touched files without explicit machine actions forced operators back into manual path copying. The control plane and FleetBar now expose Finder/editor actions directly off surfaced file mentions.
 - **Lease loss with `owner: null` is recoverable, not terminal.** The daemon should reacquire in that case instead of leaving the project permanently skipped. That fix is now in the working tree with regression coverage.
 - **Shared hook templates were ahead of live installs.** The repo templates already published scoped `project:<slug>:<hash>:git:committed`, but existing checkouts were still carrying the pre-scope Port Daddy hook in `.git/hooks/post-commit`, and installers were treating any hook mentioning `git:committed` as already current. The active fix is legacy-hook replacement in `pd init` / `pd fleet init`, not more template churn.
 - **Daemon logs can mix generations of client truth.** After the latest `fleet-ui` channel fix, a fresh Playwright-driven load polled `/msg/project:...:` channels correctly, while older already-open clients continued to hit naked logical channels until they reloaded. Log archaeology now has to distinguish stale client traffic from current bundle behavior.
+- **Not all repo dirt deserves promotion.** The spider markdown pile is generated research output, not automatically canonical docs, and the extra spawner bug-battery test is only promotable once it stops asserting broken behavior as success.
 
 - **Phase 1 stale clock: 7 days.** Equal to the time remaining before the threshold. The `graph_edges` migration is a 1-hour task. Every commit to `server.ts` (2 this burst) increases friction. The symbol index test suite sitting uncommitted for 7 days is a smell — someone validated the code but didn't commit the validation.
 

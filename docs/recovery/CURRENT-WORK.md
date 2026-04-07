@@ -9,8 +9,11 @@ This is the active execution ledger. If a task is in flight, it belongs here bef
 
 Stabilize the live Port Daddy operator loop so one daemon, one fleet runtime, one control plane, and one native companion all tell the same truth.
 
-Latest committed slice: `853cc57` — sortie launch truth and Activity focus behavior.
-Current uncommitted slice: FleetBar usefulness, page-model cleanup from the latest feedback pass, and the remaining add-project / channel guidance / tutorial surfaces.
+Latest committed slice: `3ece95a` — roadmap/recovery doc rehabilitation, archaeology test promotion, and spawner heartbeat timer hygiene.
+Current uncommitted slice: the remaining residue audit:
+- decide whether `.spider/connections/*.md` should stay as generated notes or become curated docs
+- either rewrite or delete `tests/unit/spawner-commit-0df9155-bugs.test.js` instead of pretending it is promotable truth
+- continue the remaining control-plane product work from the feedback queue
 
 ## Active Tasks
 
@@ -28,6 +31,8 @@ Current uncommitted slice: FleetBar usefulness, page-model cleanup from the late
    - touched files
    - last active time
 8. Improve FleetBar popover so it shows recent per-agent facts instead of only launch shortcuts.
+   - explicit Finder/editor actions for touched files are now shipped
+   - next step is denser recent summaries without re-burying everything behind the full control center
 9. Make sortie launch truthfully debuggable:
    - preserve chosen backend/model after a launch
    - surface actual `/spawn` errors inline instead of generic `400 Bad Request`
@@ -50,16 +55,23 @@ Current uncommitted slice: FleetBar usefulness, page-model cleanup from the late
 3. Relaunch FleetBar against the latest build and verify the native wrapper picks up the committed activity attribution improvements plus the chrome-free embedded surfaces.
 4. Relaunch FleetBar against the newest `public/fleet-ui` bundle so the live native shell stops carrying stale chrome/channel behavior from already-open WebViews.
 5. Wire the React control plane to consume the newly explicit backend activity attribution so per-agent timelines, files touched, and recent mutations stop falling back to prose matching.
-6. Finish the remaining `9876` cleanup after the runtime callers:
+6. Decide the fate of the last repo dirt:
+   - promote or quarantine `.spider/connections/*.md`
+   - rewrite or drop `tests/unit/spawner-commit-0df9155-bugs.test.js`
+7. Verify whether Jest still has a real open-handle warning after the spawner heartbeat timer `unref()` and any remaining daemon/test cleanup.
+8. Commit the next control-plane/FleetBar UX slice once the relaunch verifies the native shell and daemon-served bundle still agree.
+9. Verify the sortie launch path end-to-end from the live daemon after the new inline error handling so a failed attempt leaves operator-visible evidence instead of only resetting UI state.
+10. Finish the remaining `9876` cleanup after the runtime callers:
    - diagnostics/startup doctor wording
    - docs/templates/website honesty sweep
    - any leftover FleetBar/operator labels
-7. Verify whether Jest still has a real open-handle warning after the lease-renew timer `unref()` and daemon test teardown, then fix any remaining offender instead of assuming it is gone.
-8. Commit the control-plane/FleetBar UI refactor once the latest native companion relaunch confirms the bundle is the truthful surface.
-9. Verify the sortie launch path end-to-end from the live daemon after the new inline error handling so a failed attempt leaves operator-visible evidence instead of only resetting UI state.
 
 ## Newly Confirmed Truths
 
+- The operator surface now has a proper machine action for files, not just text: the daemon exposes `/operator/open-file`, the web control plane calls it, and FleetBar mirrors the same two affordances natively (`Open in Finder`, `Open with default editor`).
+- `tests/unit/semantic-index.test.js` and `tests/unit/tunnel-lifecycle.test.js` were legitimate archaeology, not dead scratch. They passed and are now committed.
+- `tests/unit/spawner-commit-0df9155-bugs.test.js` is not in the same category. It largely duplicates `tests/unit/spawner.test.js` and encodes known-bad behavior as the expected result, so it still needs editorial judgment before promotion.
+- The spawner heartbeat timer was another real Jest open-handle culprit. `lib/spawner.ts` now `unref()`s that interval so blocked-spawn tests do not hold the process open just by reaching the concurrency ceiling.
 - Embedded FleetBar routing needs two signals, not one: query-param embed plus an explicit WebView identity. Relying on `?embed=fleetbar` alone is brittle enough that duplicate chrome can come back.
 - The modern fleet engine already scopes logical channels like `git:committed` through `lib/fleet-channels.ts`. If cross-project triggers still bleed, the likely culprit is leaked legacy detached watcher processes, not missing scoping code in the current runner.
 - `port-daddy status` and browser reachability are separate truths. The CLI can look healthy over the Unix socket while TCP/browser consumers are still pointed at a brittle loopback URL or stale port assumption.

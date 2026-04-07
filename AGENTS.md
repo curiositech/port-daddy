@@ -62,6 +62,7 @@ Project-specific shibboleths for proficient Port Daddy work. If you learn a new 
   - recent meaningful messages
   - mutations / touched files
   - handoffs / artifacts
+- If the UI shows touched files or mutation paths, it needs explicit `Open in Finder` and `Open with default editor` actions. A bare path chip is not sufficient operator affordance.
 - Activity must still list configured agents even when structured signals are sparse. “No signals” is not permission to pretend the fleet has no agents.
 - Filter low-signal system noise instead of surfacing empty or trivial channel traffic.
 - FleetBar popover is not just a launcher. It should surface recent per-agent summaries, last-active hints, and touched files that can be opened directly.
@@ -79,3 +80,5 @@ Project-specific shibboleths for proficient Port Daddy work. If you learn a new 
 - `pd init` and any hook installer should copy the shared project-scoped post-commit template instead of writing bespoke inline hook logic that can drift.
 - If a fleet project drops into `skipped` with `owner: null` and `fleet lease lost: lock not held`, treat that as a recoverability bug. The daemon should reacquire the lease when nobody else owns it, not sit idle forever.
 - Daemon logs can mix truths from different client generations. A fresh `fleet-ui` load now polls scoped `project:...:` channels correctly, but older already-open FleetBar/browser clients can keep hitting naked `git:committed` until they reload onto the new bundle.
+- Generated spider connection markdowns under `.spider/connections/` are not automatically promotable repo truth. Treat them as research residue unless the user explicitly wants them curated or a real feature/docs change depends on them.
+- Untracked archaeology tests are only promotable if they assert desired behavior or cover a real blind spot. Do not commit redundant bug batteries that merely freeze known-bad behavior as the expected outcome.
