@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { DEFAULT_PORT_FILE } from './paths.js';
 
 export const CANONICAL_TCP_PORT = 9876;
+export const LOOPBACK_TCP_HOST = process.env.PORT_DADDY_TCP_HOST?.trim() || '127.0.0.1';
 
 export function readDaemonPort(portFile = process.env.PORT_DADDY_PORT_FILE || DEFAULT_PORT_FILE): number {
   try {
@@ -18,7 +19,7 @@ export function readDaemonPort(portFile = process.env.PORT_DADDY_PORT_FILE || DE
 
 export function getDaemonTcpUrl(explicitUrl = process.env.PORT_DADDY_URL): string {
   if (explicitUrl && explicitUrl.trim()) return explicitUrl;
-  return `http://localhost:${readDaemonPort()}`;
+  return `http://${LOOPBACK_TCP_HOST}:${readDaemonPort()}`;
 }
 
 export function resolveDaemonTcpTarget(explicitUrl = process.env.PORT_DADDY_URL): { host: string; port: number } {

@@ -268,6 +268,59 @@ describe('createFleetDaemon', () => {
     ]);
   });
 
+  test('renewal reacquires a project lease if the lock row disappears without a new owner', () => {
+    const setIntervalSpy = jest.spyOn(global, 'setInterval');
+    let held = false;
+    let owner = null;
+    let dropOnExtend = false;
+    const deps = makeDeps({
+      locks: {
+        acquire: jest.fn((name, options = {}) => {
+          held = true;
+          owner = options.owner || 'test-owner';
+          return { success: true, name, owner };
+        }),
+        release: jest.fn(() => {
+          held = false;
+          return { success: true };
+        }),
+        extend: jest.fn(() => {
+          if (dropOnExtend) {
+            held = false;
+            dropOnExtend = false;
+            return { success: false, error: 'lock not held' };
+          }
+          return { success: true, expiresAt: Date.now() + 30000 };
+        }),
+        check: jest.fn(() => (
+          held
+            ? { success: true, held: true, owner }
+            : { success: true, held: false }
+        )),
+      },
+    });
+    mockLoadFleetConfig.mockReturnValue(makeConfig('reacquire-project'));
+    mockGetStatus.mockReturnValue([]);
+
+    const daemon = makeDaemon(deps);
+    expect(daemon.startProject('/test/reacquire')).toEqual({ success: true });
+
+    dropOnExtend = true;
+    const renewLease = setIntervalSpy.mock.calls[0]?.[0];
+    expect(typeof renewLease).toBe('function');
+    renewLease();
+
+    expect(deps.logger.warn).toHaveBeenCalledWith(
+      'fleet_project_lease_reacquired',
+      expect.objectContaining({
+        project: 'reacquire-project',
+        projectDir: '/test/reacquire',
+      })
+    );
+    expect(daemon.getStatus().fleets).toHaveLength(1);
+    expect(daemon.getStatus().skipped).toHaveLength(0);
+  });
+
   test('stop() stops all runners and clears state', () => {
     const deps = makeDeps();
     mockExistsSync.mockImplementation((path) =>

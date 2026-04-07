@@ -10,7 +10,7 @@ import type { IncomingMessage, ClientRequest } from 'node:http';
 import { existsSync } from 'node:fs';
 
 import { DEFAULT_SOCK, DEFAULT_PORT_FILE } from '../../shared/paths.js';
-import { CANONICAL_TCP_PORT, getDaemonTcpUrl, readDaemonPort, resolveDaemonTcpTarget } from '../../shared/daemon-discovery.js';
+import { CANONICAL_TCP_PORT, LOOPBACK_TCP_HOST, getDaemonTcpUrl, readDaemonPort, resolveDaemonTcpTarget } from '../../shared/daemon-discovery.js';
 const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || DEFAULT_SOCK;
 const PORT_FILE: string = process.env.PORT_DADDY_PORT_FILE || DEFAULT_PORT_FILE;
 const PORT_DADDY_URL: string = getDaemonTcpUrl(process.env.PORT_DADDY_URL);
@@ -51,7 +51,7 @@ export function resolveTarget(): ConnectionTarget {
     return { socketPath: SOCK_PATH };
   }
   // Fallback to TCP — read actual port from port file
-  return { host: 'localhost', port: readDaemonPort(PORT_FILE) };
+  return { host: LOOPBACK_TCP_HOST, port: readDaemonPort(PORT_FILE) };
 }
 
 /**
@@ -59,7 +59,7 @@ export function resolveTarget(): ConnectionTarget {
  */
 export function getDaemonUrl(): string {
   if (process.env.PORT_DADDY_URL) return process.env.PORT_DADDY_URL;
-  return `http://localhost:${readDaemonPort(PORT_FILE) || CANONICAL_TCP_PORT}`;
+  return `http://${LOOPBACK_TCP_HOST}:${readDaemonPort(PORT_FILE) || CANONICAL_TCP_PORT}`;
 }
 
 /**

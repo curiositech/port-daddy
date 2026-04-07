@@ -100,6 +100,8 @@ interface ActivityEntry {
   targetId: string | null;
   details: string | null;
   metadata?: Record<string, unknown> | null;
+  summary?: string | null;
+  files?: string[];
 }
 
 interface ServiceEntry {
@@ -155,6 +157,59 @@ interface SyncResult {
 
 export function createBriefing(db: Database.Database, deps: BriefingDeps) {
   const { sessions, agents, resurrection, activityLog, services, messaging } = deps;
+
+  function cleanText(value: unknown): string {
+    return typeof value === 'string' ? value.trim() : '';
+  }
+
+  function collectMetadataFiles(entry: ActivityEntry, key: 'files' | 'releasedFiles'): string[] {
+    const values = entry.metadata?.[key];
+    if (!Array.isArray(values)) return [];
+    return values.filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+  }
+
+  function summarizeTouchedFiles(files: string[], label: string): string {
+    if (files.length === 0) return '';
+    const preview = files.slice(0, 3).join(', ');
+    const suffix = files.length > 3 ? ` +${files.length - 3} more` : '';
+    return `${label}: ${preview}${suffix}`;
+  }
+
+  function summarizeActivityEntry(entry: ActivityEntry): string {
+    const details = cleanText(entry.details);
+    const files = collectMetadataFiles(entry, 'files');
+    const releasedFiles = collectMetadataFiles(entry, 'releasedFiles');
+    const sessionId = cleanText(entry.metadata?.sessionId);
+
+    switch (entry.type) {
+      case 'agent.heartbeat':
+      case 'session.note':
+        return '';
+      case 'session.start':
+      case 'sugar_begin':
+        return details;
+      case 'session.end':
+        if (details.length > 0) return details;
+        if (releasedFiles.length > 0) return summarizeTouchedFiles(releasedFiles, 'Released');
+        return '';
+      case 'message.publish':
+        return details.length > 4 ? details : '';
+      case 'file.claim':
+        return summarizeTouchedFiles(files, 'Claimed');
+      case 'file.release':
+        return summarizeTouchedFiles(files.length > 0 ? files : releasedFiles, 'Released');
+      default:
+        if (details.length > 0) return details;
+        if (files.length > 0) return summarizeTouchedFiles(files, 'Files');
+        if (releasedFiles.length > 0) return summarizeTouchedFiles(releasedFiles, 'Released');
+        if (sessionId) return sessionId;
+        return '';
+    }
+  }
+
+  function activityTouchedFiles(entry: ActivityEntry): string[] {
+    return [...new Set([...collectMetadataFiles(entry, 'files'), ...collectMetadataFiles(entry, 'releasedFiles')])];
+  }
 
   function sessionBelongsToProject(session: FormattedSession, project: string, worktreeId: string | null): boolean {
     if (session.identityProject) return session.identityProject === project;
@@ -216,6 +271,11 @@ export function createBriefing(db: Database.Database, deps: BriefingDeps) {
     const activityResult = activityLog.getRecent({ limit: scanLimit });
     return (activityResult.entries || [])
       .filter((entry: ActivityEntry) => activityBelongsToProject(entry, project, worktreeId, sessionIds, agentIds))
+      .map((entry: ActivityEntry) => ({
+        ...entry,
+        summary: summarizeActivityEntry(entry),
+        files: activityTouchedFiles(entry),
+      }))
       .slice(0, limit);
   }
 
@@ -405,7 +465,8 @@ export function createBriefing(db: Database.Database, deps: BriefingDeps) {
       lines.push('## Recent Activity');
       for (const entry of data.recentActivity.slice(0, 15)) {
         const time = ts(entry.timestamp).split(' ')[1] || '';
-        lines.push(`- [${time}] ${entry.details || `${entry.type} ${entry.targetId || ''}`}`);
+        const summary = cleanText(entry.summary) || cleanText(entry.details) || `${entry.type} ${entry.targetId || ''}`.trim();
+        lines.push(`- [${time}] ${summary}`);
       }
       lines.push('');
     }

@@ -10,36 +10,44 @@ This is the active execution ledger. If a task is in flight, it belongs here bef
 Stabilize the live Port Daddy operator loop so one daemon, one fleet runtime, one control plane, and one native companion all tell the same truth.
 
 Latest committed slice: `e7eba7b` — structured project activity attribution and legacy post-commit hook upgrade.
+Current uncommitted slice: fleet lease self-healing, loopback TCP discovery cleanup, and richer briefing payloads for FleetBar/control-plane detail views.
 
 ## Active Tasks
 
-1. Finish the last raw project-trigger audit after `lib/fleet-channels.ts` + hook/template scoping so no checked-in path still publishes or inspects naked logical channels where a scoped physical channel is required.
-2. Finish daemon discovery drift cleanup so `9876` is treated as the canonical preferred port, not a mandatory truth. The daemon can already fall back; the surrounding install/CLI/UI surfaces must stop pretending otherwise.
-3. Collapse duplicate chrome in Fleet Control Center when embedded:
+1. Finish daemon discovery drift cleanup so `9876` is treated as the canonical preferred port, not a mandatory truth. The daemon can already fall back; the surrounding install/CLI/UI surfaces must stop pretending otherwise.
+2. Finish the fleet lease recoverability pass so a project does not remain skipped forever when renewal sees `lock not held` and no other daemon owns the lease.
+3. Finish the last raw project-trigger audit after `lib/fleet-channels.ts` + hook/template scoping so no checked-in path still publishes or inspects naked logical channels where a scoped physical channel is required.
+4. Collapse duplicate chrome in Fleet Control Center when embedded:
    - FleetBar owns the outer nav
    - the embedded control plane must not render a second top-level nav/header stack
-4. Make Activity, Channels, Inbox, and Sorties behave like real top-level pages instead of buried panels or empty shells.
-5. Upgrade agent detail surfaces to show high-signal recent work:
+5. Make Activity, Channels, Inbox, and Sorties behave like real top-level pages instead of buried panels or empty shells.
+6. Upgrade agent detail surfaces to show high-signal recent work:
    - non-empty messages
    - recent mutations
    - touched files
    - last active time
-6. Improve FleetBar popover so it shows recent per-agent facts instead of only launch shortcuts.
+7. Improve FleetBar popover so it shows recent per-agent facts instead of only launch shortcuts.
 
 ## Immediate Next Cuts
 
-1. Relaunch FleetBar against the latest build and verify the native wrapper picks up the committed activity attribution improvements plus the chrome-free embedded surfaces.
-2. Wire the React control plane to consume the newly explicit backend activity attribution so per-agent timelines, files touched, and recent mutations stop falling back to prose matching.
-3. Finish the remaining `9876` cleanup after the runtime callers:
+1. Restart the current-checkout daemon against the latest server/runtime code and verify the lease-reacquire path actually recovers skipped fleets instead of leaving `/fleet` empty.
+2. Kill or replace stale legacy `port-daddy-stable` watcher processes if they are still the source of cross-project `git:committed` bleed after the scoped channel audit.
+3. Relaunch FleetBar against the latest build and verify the native wrapper picks up the committed activity attribution improvements plus the chrome-free embedded surfaces.
+4. Wire the React control plane to consume the newly explicit backend activity attribution so per-agent timelines, files touched, and recent mutations stop falling back to prose matching.
+5. Finish the remaining `9876` cleanup after the runtime callers:
    - diagnostics/startup doctor wording
    - docs/templates/website honesty sweep
    - any leftover FleetBar/operator labels
-4. Verify whether Jest still has a real open-handle warning after the lease-renew timer `unref()` and daemon test teardown, then fix any remaining offender instead of assuming it is gone.
-5. Commit the control-plane/FleetBar UI refactor once the latest native companion relaunch confirms the bundle is the truthful surface.
+6. Verify whether Jest still has a real open-handle warning after the lease-renew timer `unref()` and daemon test teardown, then fix any remaining offender instead of assuming it is gone.
+7. Commit the control-plane/FleetBar UI refactor once the latest native companion relaunch confirms the bundle is the truthful surface.
 
 ## Newly Confirmed Truths
 
 - Embedded FleetBar routing needs two signals, not one: query-param embed plus an explicit WebView identity. Relying on `?embed=fleetbar` alone is brittle enough that duplicate chrome can come back.
+- The modern fleet engine already scopes logical channels like `git:committed` through `lib/fleet-channels.ts`. If cross-project triggers still bleed, the likely culprit is leaked legacy detached watcher processes, not missing scoping code in the current runner.
+- `port-daddy status` and browser reachability are separate truths. The CLI can look healthy over the Unix socket while TCP/browser consumers are still pointed at a brittle loopback URL or stale port assumption.
+- The daemon should not permanently skip a project when lease renewal returns `lock not held` and `locks.check()` reports no holder. That is an empty-holder recovery case, not proof another daemon owns the fleet.
+- The richer native/control-plane detail views need briefing payloads to carry explicit `summary` and `files`, not just raw activity prose.
 - The current daemon-served bundle now renders embedded `Flow` and `Activity` without the inner header/tab stack. The native shell owns surface navigation, theme, and daemon chrome.
 - Activity is no longer the empty liar from the earlier screenshot. The served `Activity` surface now shows project-scoped notes again after restoring `story.agentId` attribution and surfacing meaningful event types.
 - The concrete Activity bug was project filtering: story notes were still being matched on free text and `identityProject`, but not `story.agentId`, so valid project-scoped handoffs could disappear from the main timeline.

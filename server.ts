@@ -65,6 +65,7 @@ import { registerAllRoutes } from './routes/index.js';
 
 // Shared utilities
 import { getSystemPorts, startSystemPortsRefresh } from './shared/port-utils.js';
+import { LOOPBACK_TCP_HOST } from './shared/daemon-discovery.js';
 
 const __dirname: string = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT: string = existsSync(join(__dirname, 'apps', 'FleetBar'))
@@ -87,7 +88,7 @@ const configPath: string = join(__dirname, 'config.json');
 const config: PortDaddyServerConfig = existsSync(configPath)
   ? JSON.parse(readFileSync(configPath, 'utf8')) as PortDaddyServerConfig
   : {
-      service: { port: 9876, host: 'localhost' },
+      service: { port: 9876, host: LOOPBACK_TCP_HOST },
       ports: { range_start: 3100, range_end: 9999, reserved: [8080, 8000, 9876] },
       cleanup: { interval_ms: 300000 },
       logging: { level: 'info', file: 'port-daddy.log', error_file: 'port-daddy-error.log' },
@@ -516,7 +517,7 @@ app.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) =>
   reply.header('Referrer-Policy', 'no-referrer');
   reply.header(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://localhost:* http://localhost:*; img-src 'self' data:; frame-ancestors 'none';"
+    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://localhost:* http://localhost:* ws://127.0.0.1:* http://127.0.0.1:* ws://[::1]:* http://[::1]:*; img-src 'self' data:; frame-ancestors 'none';"
   );
 });
 
@@ -773,6 +774,10 @@ const ipcServer = DISABLE_IPC ? null : createIpcServer({
 
 await app.ready();
 
+const tcpHost: string = !config.service.host || config.service.host === 'localhost'
+  ? LOOPBACK_TCP_HOST
+  : config.service.host;
+
 // Primary: Unix domain socket
 try { unlinkSync(SOCK_PATH); } catch {}
 const sockServer = http.createServer((req, res) => { app.routing(req, res); });
@@ -818,7 +823,7 @@ sockServer.listen(SOCK_PATH, async () => {
       });
       tcpServer.on('listening', () => {
         try { writeFileSync(PORT_FILE, String(tryPort), { mode: 0o644 }); } catch {}
-        logger.info('tcp_started', { port: tryPort, host: config.service.host, version: VERSION });
+        logger.info('tcp_started', { port: tryPort, host: tcpHost, version: VERSION });
         onReady();
         if (!isSilent) {
           const portNote: string = tryPort !== PORT ? ` (fallback from ${PORT})` : '';
@@ -826,7 +831,7 @@ sockServer.listen(SOCK_PATH, async () => {
   Port Daddy v${VERSION}   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   HTTP:       ${SOCK_PATH}
   IPC:        ${ipcServer ? IPC_PATH : 'disabled'}
-  Dashboard:  http://${config.service.host}:${tryPort}/${portNote}
+  Dashboard:  http://${tcpHost}:${tryPort}/${portNote}
   Database:   ${DB_PATH}
   Port range: ${config.ports.range_start}-${config.ports.range_end}
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -835,7 +840,7 @@ sockServer.listen(SOCK_PATH, async () => {
           `);
         }
       });
-      tcpServer.listen(tryPort, config.service.host);
+      tcpServer.listen(tryPort, tcpHost);
     }
     tryListenTcp();
   } else {

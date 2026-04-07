@@ -17,13 +17,13 @@ The last 7 commits map overwhelmingly to the Recovery Roadmap (`docs/recovery/UN
 
 Active threads, ranked by commit recency:
 
-1. **Recovery Track 2 / 3 — FleetBar + control plane truth** — `a41f18f`, `e82f096`, `1aeb2b1`, `809816e`, and now `e7eba7b` unified FleetBar with the real fleet-config-ui via WebView, collapsed duplicate embedded chrome, pushed more runtime callers onto shared daemon discovery, and fixed the backend attribution contract those surfaces depend on. Session/sugar/file activity now carries explicit `agentId`, `targetId`, and `identityProject`, and legacy Port Daddy post-commit hooks are upgraded in place instead of silently preserving the pre-scope naked `git:committed` behavior.
+1. **Recovery Track 2 / 3 — FleetBar + control plane truth** — `a41f18f`, `e82f096`, `1aeb2b1`, `809816e`, and now `e7eba7b` unified FleetBar with the real fleet-config-ui via WebView, collapsed duplicate embedded chrome, pushed more runtime callers onto shared daemon discovery, and fixed the backend attribution contract those surfaces depend on. The current uncommitted follow-on slice adds briefing summaries/files for native agent detail, lease self-healing in `lib/fleet-daemon.ts`, and a shared loopback-host cleanup so TCP/browser callers stop pretending `http://localhost:9876` is universal truth.
 
 2. **Recovery Track 1 — CLOSED** — `8744e14` committed `lib/counters.ts`, completing the observability trifecta (cost-tracker + counters + observability routes). All `/metrics/*` endpoints are now populated with real data. Fleet budget gates actively stop spawns. Released as v3.8.3.
 
 3. **Fleet runtime safety** — `3b818d2` (readiness checks), `71fc446` (autopilot + sortie), `0cc5e6` (setup onboarding). Backend fallbacks, spawn preflight, budget enforcement. These map to Recovery 3.8.3 criteria.
 
-4. **Fleet Config UI refinement** — multiple fleet-config-ui component files modified (uncommitted). ActivityPanel, ActivityRail, AgentCard, AgentConfigPanel, ChannelLog, DMPanel, App.tsx, and the new `activityFeed.ts` are under active refactoring. Embedded Flow and Activity have now both been re-verified from the daemon-served bundle with settled screenshots; the inner duplicate nav is gone in embed mode. The remaining gap is layout quality, per-agent inspect richness, resizable panes, and consuming the newly explicit backend activity attribution instead of free-text heuristics. The build is green again after the latest layout pass (`npm run typecheck`, `fleet-config-ui` build, FleetBar Swift build).
+4. **Fleet Config UI refinement** — multiple fleet-config-ui component files modified (uncommitted). ActivityPanel, ActivityRail, AgentCard, AgentConfigPanel, ChannelLog, DMPanel, App.tsx, and the new `activityFeed.ts` are under active refactoring. Embedded Flow and Activity have now both been re-verified from the daemon-served bundle with settled screenshots; the inner duplicate nav is gone in embed mode. The remaining gap is layout quality, per-agent inspect richness, resizable panes, and consuming the newly explicit backend activity attribution instead of free-text heuristics. The build is green again after the latest layout pass (`npm run typecheck`, `fleet-config-ui` build, FleetBar Swift build), but live fleet truth is still partially blocked by lease recovery and stale watcher archaeology.
 
 V4 Phase activity:
 - **Phase 1 (Semantic Graph):** Zero commits. 7 days since last commit (2026-03-30). **7 days to stale threshold (2026-04-13).**
@@ -65,7 +65,7 @@ Burst-cool-burst pattern continues: 37 commits (Mar 30-31), 2 zero-commit days (
 
 **Planned vs. unplanned: 58% / 42%.** Improvement over last run (was 35%/65%). The Recovery Roadmap's existence is helping — "recovery work" is now counted as planned.
 
-**Uncommitted inventory is now explicitly tracked through `docs/recovery/CURRENT-WORK.md`.** The main in-flight slices are: project-scoped fleet channels, legacy hook auto-upgrade, structured activity attribution, daemon port discovery cleanup, FleetBar/control-plane density work, and lingering UI refinement in `fleet-config-ui` and FleetBar Swift files. Treat the recovery ledger as the operational source of truth instead of mentally diffing `git status`.
+**Uncommitted inventory is now explicitly tracked through `docs/recovery/CURRENT-WORK.md`.** The main in-flight slices are: lease self-healing, loopback host / daemon discovery cleanup, briefing summary/files enrichment, project-scoped trigger archaeology, FleetBar/control-plane density work, and lingering UI refinement in `fleet-config-ui` and FleetBar Swift files. Treat the recovery ledger as the operational source of truth instead of mentally diffing `git status`.
 
 ---
 
@@ -79,7 +79,14 @@ Burst-cool-burst pattern continues: 37 commits (Mar 30-31), 2 zero-commit days (
    - `public/fleet-ui/` assets rebuilt (2 deleted, 2 new, index.html modified)
    - **Remaining: stabilize component refactoring, commit. The backend is ready. The consumer (FleetBar) is ready. The UI itself is the gap.**
 
-2. **Recovery 3.8.3 release cut** *(CRITERIA MOSTLY MET)*
+2. **Daemon discovery + lease recoverability cleanup** *(UNCOMMITTED, high leverage)*
+   - `shared/daemon-discovery.ts` now carries the shared loopback host
+   - `cli/utils/fetch.ts`, `server.ts`, FleetBar `DaemonLocation.swift`, and fleet-ui API defaults were updated to stop sprinkling new `localhost:9876` assumptions
+   - `lib/fleet-daemon.ts` now attempts lease reacquisition when renewal sees `lock not held` and no competing holder exists
+   - regression coverage added in `tests/unit/fleet-daemon.test.js`
+   - **Remaining: restart the live daemon and verify `/fleet` actually recovers instead of sitting in `skipped` with `owner: null`**
+
+3. **Recovery 3.8.3 release cut** *(CRITERIA MOSTLY MET)*
    - Daemon startup: stable (committed)
    - Fleet backend/model selection: explicit with fallbacks (committed `3b818d2`)
    - Readiness/auth preflight: committed (`3b818d2`)
@@ -87,7 +94,7 @@ Burst-cool-burst pattern continues: 37 commits (Mar 30-31), 2 zero-commit days (
    - Fleet singleton enforcement: committed
    - **Remaining: verify all uncommitted test files pass, commit completions updates, cut the release. Most criteria from the Recovery Roadmap are satisfied.**
 
-3. **`tests/unit/semantic-index.test.js`** *(UNTRACKED — 453 lines, validates Phase 1 stub)*
+4. **`tests/unit/semantic-index.test.js`** *(UNTRACKED — 453 lines, validates Phase 1 stub)*
    - Test suite for the symbol index module
    - Has been uncommitted since 2026-03-30 (7 days)
    - Committing this would demonstrate the symbol index is validated, even if not yet activated
@@ -129,6 +136,9 @@ Burst-cool-burst pattern continues: 37 commits (Mar 30-31), 2 zero-commit days (
 
 - **FleetBar architecture is now correct.** `a41f18f` eliminated the "shadow dashboard" anti-pattern — FleetBar shells the daemon's fleet-config-ui instead of reimplementing it in SwiftUI. One fleet UI, two consumers (browser + native). This is the architecture that should have been built from the start. The hardening commit (`e82f096`) immediately followed, which is good discipline.
 - **The deeper Activity bug was backend attribution, not just UI layout.** Briefing and project-scoped activity views were querying by `target_id` prefix even though real `session.start`, `session.end`, `session.note`, and sugar rows often had `target_id = null`. The active fix is to stamp scope into the activity writers and read structured metadata back out, rather than teaching more UI code to regex prose.
+- **The channel scoping bug is now split into “engine” versus “archaeology.”** `lib/fleet-channels.ts` already scopes logical fleet channels by `projectDir`, and current tests cover `global:` bypass semantics. If `expunge-my-arrest` still wakes on a Port Daddy website commit, stale detached watcher processes from older checkouts are the first suspect, not missing scoping in the modern fleet engine.
+- **Socket truth and TCP truth can diverge.** `port-daddy status` talks over the Unix socket and can report healthy while browser/FleetBar TCP consumers still fail or drift. Operator validation now needs both surfaces checked, not just the CLI.
+- **Lease loss with `owner: null` is recoverable, not terminal.** The daemon should reacquire in that case instead of leaving the project permanently skipped. That fix is now in the working tree with regression coverage.
 - **Shared hook templates were ahead of live installs.** The repo templates already published scoped `project:<slug>:<hash>:git:committed`, but existing checkouts were still carrying the pre-scope Port Daddy hook in `.git/hooks/post-commit`, and installers were treating any hook mentioning `git:committed` as already current. The active fix is legacy-hook replacement in `pd init` / `pd fleet init`, not more template churn.
 
 - **Phase 1 stale clock: 7 days.** Equal to the time remaining before the threshold. The `graph_edges` migration is a 1-hour task. Every commit to `server.ts` (2 this burst) increases friction. The symbol index test suite sitting uncommitted for 7 days is a smell — someone validated the code but didn't commit the validation.

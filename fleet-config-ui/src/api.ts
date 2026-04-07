@@ -12,7 +12,7 @@ import type {
   StoryNote,
 } from './types';
 
-const CANONICAL_PREFERRED_DAEMON_URL = 'http://localhost:9876';
+const CANONICAL_PREFERRED_DAEMON_URL = 'http://127.0.0.1:9876';
 const DAEMON_STORAGE_KEY = 'pd.fleet-ui.daemon-url';
 const DAEMON_HISTORY_STORAGE_KEY = 'pd.fleet-ui.daemon-history';
 export const CUSTOM_DAEMON_SENTINEL = '__custom__';
@@ -50,7 +50,7 @@ function normalizeDaemonUrl(value: string): string {
 
   let candidate = trimmed;
   if (/^\d+$/.test(candidate)) {
-    candidate = `http://localhost:${candidate}`;
+    candidate = `http://127.0.0.1:${candidate}`;
   } else if (!/^https?:\/\//i.test(candidate)) {
     candidate = `http://${candidate}`;
   }

@@ -169,6 +169,23 @@ describe('gatherData', () => {
     )).toBe(true);
   });
 
+  test('adds summary and files to recent activity entries for briefing consumers', () => {
+    const started = sessions.start('File-bearing session', {
+      project: 'briefing-files',
+      agentId: 'documentarian',
+    });
+
+    expect(started.success).toBe(true);
+    sessions.claimFiles(started.id, ['docs/recovery/CURRENT-WORK.md']);
+
+    const data = briefing.gatherData('briefing-files', testDir);
+    const fileClaim = data.recentActivity.find(entry => entry.type === 'file.claim');
+
+    expect(fileClaim).toBeDefined();
+    expect(fileClaim.summary).toContain('Claimed');
+    expect(fileClaim.files).toContain('docs/recovery/CURRENT-WORK.md');
+  });
+
   test('includes integration signals from messaging channels', () => {
     messaging.publish('integration:myproject:ready', JSON.stringify({
       type: 'ready',

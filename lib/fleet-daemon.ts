@@ -303,6 +303,38 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
     stopLeaseRenewalIfIdle();
   }
 
+  function tryReacquireProjectLease(lease: FleetProjectLease): { success: boolean; holder?: string | null; error?: string } {
+    const result = locks.acquire(lease.lockName, {
+      owner: lease.owner,
+      pid: process.pid,
+      ttl: FLEET_PROJECT_LEASE_TTL_MS,
+      metadata: {
+        projectDir: lease.projectDir,
+        projectName: lease.projectName,
+        daemonOwner,
+        daemonDir,
+        daemonPort: process.env.PORT_DADDY_PORT || process.env.PORT || null,
+      },
+    });
+
+    if (!result.success) {
+      return {
+        success: false,
+        holder: result.holder || null,
+        error: result.error,
+      };
+    }
+
+    projectLeases.set(lease.projectDir, lease);
+    clearSkippedProject(lease.projectDir);
+    logger.warn('fleet_project_lease_reacquired', {
+      project: lease.projectName,
+      projectDir: lease.projectDir,
+      owner: lease.owner,
+    });
+    return { success: true };
+  }
+
   function stopManagedFleet(projectDir: string, options: { releaseLease?: boolean } = {}): boolean {
     const { releaseLease = true } = options;
     const managed = fleets.get(projectDir);
@@ -340,7 +372,12 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
         if (result.success) continue;
 
         const state = locks.check(lease.lockName);
-        const holder = state.success && state.held ? state.owner || null : null;
+        let holder = state.success && state.held ? state.owner || null : null;
+        if (!holder) {
+          const reacquired = tryReacquireProjectLease(lease);
+          if (reacquired.success) continue;
+          holder = reacquired.holder || null;
+        }
         logger.warn('fleet_project_lease_lost', {
           project: lease.projectName,
           projectDir,
