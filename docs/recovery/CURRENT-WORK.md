@@ -9,37 +9,33 @@ This is the active execution ledger. If a task is in flight, it belongs here bef
 
 Stabilize the live Port Daddy operator loop so one daemon, one fleet runtime, one control plane, and one native companion all tell the same truth.
 
+Latest committed slice: `e7eba7b` — structured project activity attribution and legacy post-commit hook upgrade.
+
 ## Active Tasks
 
-1. Project-scope fleet trigger channels by default so `git:committed` and similar wakes do not bleed across checkouts.
-2. Upgrade live legacy Port Daddy post-commit hooks in place so existing checkouts stop publishing naked `git:committed` after the scoped template landed.
-3. Stamp project/agent/session attribution into runtime activity at write time instead of reconstructing scope from free text in the UI.
-4. Finish daemon discovery drift cleanup so `9876` is treated as the canonical preferred port, not a mandatory truth. The daemon can already fall back; the surrounding install/CLI/UI surfaces must stop pretending otherwise.
-5. Collapse duplicate chrome in Fleet Control Center when embedded:
+1. Finish the last raw project-trigger audit after `lib/fleet-channels.ts` + hook/template scoping so no checked-in path still publishes or inspects naked logical channels where a scoped physical channel is required.
+2. Finish daemon discovery drift cleanup so `9876` is treated as the canonical preferred port, not a mandatory truth. The daemon can already fall back; the surrounding install/CLI/UI surfaces must stop pretending otherwise.
+3. Collapse duplicate chrome in Fleet Control Center when embedded:
    - FleetBar owns the outer nav
    - the embedded control plane must not render a second top-level nav/header stack
-6. Make Activity, Channels, Inbox, and Sorties behave like real top-level pages instead of buried panels or empty shells.
-7. Upgrade agent detail surfaces to show high-signal recent work:
+4. Make Activity, Channels, Inbox, and Sorties behave like real top-level pages instead of buried panels or empty shells.
+5. Upgrade agent detail surfaces to show high-signal recent work:
    - non-empty messages
    - recent mutations
    - touched files
    - last active time
-8. Improve FleetBar popover so it shows recent per-agent facts instead of only launch shortcuts.
+6. Improve FleetBar popover so it shows recent per-agent facts instead of only launch shortcuts.
 
 ## Immediate Next Cuts
 
-1. Promote the structured activity slice:
-   - session + sugar events now stamp `agentId`, `targetId`, and `identityProject`
-   - briefing recovers project activity from structured metadata instead of `target_id` prefix alone
-   - legacy Port Daddy post-commit hooks auto-upgrade to the scoped template
-2. Finish the last raw project-trigger audit after `lib/fleet-channels.ts` + hook/template scoping so no checked-in path still publishes or inspects naked logical channels where a scoped physical channel is required.
-3. Relaunch FleetBar against the latest build and verify the native wrapper picks up the chrome-free embedded surfaces plus the reordered recent-work section.
-4. Finish the remaining `9876` cleanup after the runtime callers:
+1. Relaunch FleetBar against the latest build and verify the native wrapper picks up the committed activity attribution improvements plus the chrome-free embedded surfaces.
+2. Wire the React control plane to consume the newly explicit backend activity attribution so per-agent timelines, files touched, and recent mutations stop falling back to prose matching.
+3. Finish the remaining `9876` cleanup after the runtime callers:
    - diagnostics/startup doctor wording
    - docs/templates/website honesty sweep
    - any leftover FleetBar/operator labels
-5. Verify whether Jest still has a real open-handle warning after the lease-renew timer `unref()` and daemon test teardown, then fix any remaining offender instead of assuming it is gone.
-6. Commit the control-plane/FleetBar UI refactor once the latest native companion relaunch confirms the bundle is the truthful surface.
+4. Verify whether Jest still has a real open-handle warning after the lease-renew timer `unref()` and daemon test teardown, then fix any remaining offender instead of assuming it is gone.
+5. Commit the control-plane/FleetBar UI refactor once the latest native companion relaunch confirms the bundle is the truthful surface.
 
 ## Newly Confirmed Truths
 

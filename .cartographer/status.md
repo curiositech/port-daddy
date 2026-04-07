@@ -2,8 +2,8 @@
 
 **Last updated:** 2026-04-07
 **Updated by:** Cartographer (manual invocation)
-**HEAD:** `e82f096` (Harden FleetBar control plane entrypoints)
-**Previous HEAD:** `0169b17` — 7 new commits since last run
+**HEAD:** `e7eba7b` (Fix project activity attribution and hook upgrades)
+**Previous HEAD:** `e82f096` — 1 new commit since last run
 
 ---
 
@@ -17,7 +17,7 @@ The last 7 commits map overwhelmingly to the Recovery Roadmap (`docs/recovery/UN
 
 Active threads, ranked by commit recency:
 
-1. **Recovery Track 2 / 3 — FleetBar + control plane truth** — `a41f18f`, `e82f096`, `1aeb2b1`, and `809816e` unified FleetBar with the real fleet-config-ui via WebView, collapsed duplicate embedded chrome, and pushed more runtime callers onto shared daemon discovery. The current uncommitted follow-on cut is backend truth work for those surfaces: legacy Port Daddy post-commit hooks are being auto-upgraded in place, and session/sugar/file activity is being stamped with explicit `agentId`, `targetId`, and `identityProject` so Activity, briefings, and FleetBar recent-work panels stop guessing from prose.
+1. **Recovery Track 2 / 3 — FleetBar + control plane truth** — `a41f18f`, `e82f096`, `1aeb2b1`, `809816e`, and now `e7eba7b` unified FleetBar with the real fleet-config-ui via WebView, collapsed duplicate embedded chrome, pushed more runtime callers onto shared daemon discovery, and fixed the backend attribution contract those surfaces depend on. Session/sugar/file activity now carries explicit `agentId`, `targetId`, and `identityProject`, and legacy Port Daddy post-commit hooks are upgraded in place instead of silently preserving the pre-scope naked `git:committed` behavior.
 
 2. **Recovery Track 1 — CLOSED** — `8744e14` committed `lib/counters.ts`, completing the observability trifecta (cost-tracker + counters + observability routes). All `/metrics/*` endpoints are now populated with real data. Fleet budget gates actively stop spawns. Released as v3.8.3.
 
