@@ -32,6 +32,8 @@ jest.unstable_mockModule('node:fs', () => ({
   writeFileSync: jest.fn(),
   mkdirSync:     jest.fn(),
   chmodSync:     jest.fn(),
+  mkdtempSync:   jest.fn(() => '/tmp/pd-spawner-auth-test'),
+  rmSync:        jest.fn(),
 }));
 
 // ---------------------------------------------------------------------------

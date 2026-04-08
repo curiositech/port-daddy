@@ -108,7 +108,7 @@ _port_daddy() {
     # Agent Inbox
     inbox
     # AI Agent Spawner + Watch
-    spawn spawned watch
+    spawn spawned sortie watch
     # Harbors (named permission namespaces)
     harbor harbors
     # Tuple space
@@ -1408,7 +1408,7 @@ _port_daddy() {
           ;;
         --backend)
           # shellcheck disable=SC2207
-          COMPREPLY=( $(compgen -W "ollama claude claude-cli gemini aider custom" -- "$cur") )
+          COMPREPLY=( $(compgen -W "ollama claude claude-cli gemini codex aider custom" -- "$cur") )
           ;;
         --model|--identity|--budget|--purpose|--workdir|--timeout|--allowedTools|--maxTokens)
           COMPREPLY=()  # Free-form
@@ -1426,6 +1426,40 @@ _port_daddy() {
     # -----------------------------------------------------------------------
     spawned)
       _pd_opts ''
+      ;;
+
+    # -----------------------------------------------------------------------
+    # sortie  run|list|status|logs  [args]
+    # -----------------------------------------------------------------------
+    sortie)
+      local subcmd="${words[2]:-}"
+      case "$subcmd" in
+        '')
+          COMPREPLY=( $(compgen -W "run list status logs help" -- "$cur") )
+          ;;
+        run)
+          case "$prev" in
+            --backend)
+              COMPREPLY=( $(compgen -W "ollama claude claude-cli gemini codex aider custom" -- "$cur") )
+              ;;
+            --model|--tier|--budget|--dir|--recipe|--expected|--context|--identity|--purpose|--allowedTools|--timeout|--maxTokens)
+              COMPREPLY=()
+              ;;
+            *)
+              _pd_opts '--backend --model --tier --budget --dir --recipe --expected --context --identity --purpose --allowedTools --timeout --maxTokens'
+              ;;
+          esac
+          ;;
+        list)
+          _pd_opts '--all --limit --dir'
+          ;;
+        status|logs)
+          _pd_opts '--limit'
+          ;;
+        *)
+          _pd_opts ''
+          ;;
+      esac
       ;;
 
     # -----------------------------------------------------------------------

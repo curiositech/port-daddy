@@ -637,6 +637,10 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'file_heat': 'pheromone',
       'talk_to_agent': 'inbox',
       'spawn_agent': 'spawn',
+      'run_sortie': 'sorties',
+      'list_sorties': 'sorties',
+      'get_sortie': 'sorties',
+      'get_sortie_logs': 'sorties',
 
       // Tuples
       'tuple_out': 'tuples',

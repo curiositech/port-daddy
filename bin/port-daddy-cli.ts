@@ -129,7 +129,7 @@ const TIER_2_COMMANDS: Set<string> = new Set([
   'up', 'down', 'watch', 'swarm', 'fleet',
   'channels', 'webhook', 'webhooks', 'tunnel', 'dns', 'inbox',
   'metrics', 'health', 'dashboard',
-  'bench', 'demo', 'tuple'
+  'bench', 'demo', 'tuple', 'sortie'
 ]);
 
 /**
@@ -822,7 +822,7 @@ const ALL_COMMANDS: string[] = [
   'services', 'dns', 'briefing', 'integration',
   'b', 'w', 'who-owns', 'history', 'tutorial', 'files',
   'spawn', 'spawned', 'watch',
-  'harbor', 'harbors', 'demo', 'fleet', 'tuple',
+  'harbor', 'harbors', 'demo', 'fleet', 'tuple', 'sortie',
 ];
 
 /** Simple Levenshtein distance for short strings */

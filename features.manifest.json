@@ -593,7 +593,8 @@
         "GET /metrics",
         "GET /config",
         "GET /dashboard/events",
-        "GET /ping"
+        "GET /ping",
+        "POST /operator/open-file"
       ],
       "completions": [
         "metrics",
@@ -885,6 +886,31 @@
         "sdk": true
       }
     },
+    "sorties": {
+      "description": "Tracked mission records over spawned runs with durable ids, harbors, and event logs",
+      "cli": [
+        "sortie"
+      ],
+      "sdk": [
+        "runSortie",
+        "listSorties",
+        "getSortie",
+        "getSortieLogs"
+      ],
+      "routes": [
+        "POST /sorties",
+        "GET /sorties",
+        "GET /sorties/:param",
+        "GET /sorties/:param/logs"
+      ],
+      "completions": [
+        "sortie"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": true
+      }
+    },
     "watch": {
       "description": "Subscribe to a channel and run a script on each message",
       "cli": [
@@ -913,6 +939,10 @@
         "POST /fleet/stop",
         "POST /fleet/reload",
         "POST /fleet/register",
+        "POST /fleet/agent/run",
+        "POST /fleet/agent/pause",
+        "POST /fleet/agent/resume",
+        "POST /fleet/bootstrap",
         "GET /fleet/events",
         "GET /fleet/prompt",
         "GET /fleet/config/:project",

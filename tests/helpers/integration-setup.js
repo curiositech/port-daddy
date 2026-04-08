@@ -13,6 +13,7 @@ import { spawnSync } from 'node:child_process';
 
 const STATE_FILE = join(tmpdir(), 'port-daddy-test-state.json');
 const TSX_PATH = join(import.meta.dirname, '../../node_modules/.bin/tsx');
+const DAEMON_BODY_LIMIT_BYTES = 10 * 1024;
 
 let _state = null;
 
@@ -38,11 +39,12 @@ export function request(path, options = {}) {
   } = options;
 
   const jsonBody = body ? JSON.stringify(body) : null;
+  const jsonBodyBytes = jsonBody ? Buffer.byteLength(jsonBody) : 0;
   const reqHeaders = {
     ...headers,
     ...(jsonBody ? {
       'Content-Type': 'application/json',
-      'Content-Length': String(Buffer.byteLength(jsonBody))
+      'Content-Length': String(jsonBodyBytes)
     } : {})
   };
 
@@ -70,7 +72,18 @@ export function request(path, options = {}) {
       });
     });
 
-    req.on('error', reject);
+    req.on('error', (err) => {
+      if ((err?.code === 'EPIPE' || err?.code === 'ECONNRESET') && jsonBodyBytes > DAEMON_BODY_LIMIT_BYTES) {
+        resolve({
+          ok: false,
+          status: 413,
+          data: { error: 'request payload too large' },
+          text: '{"error":"request payload too large"}'
+        });
+        return;
+      }
+      reject(err);
+    });
     req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
 
     if (jsonBody) req.write(jsonBody);

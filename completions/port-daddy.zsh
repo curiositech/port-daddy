@@ -1059,7 +1059,7 @@ _pd_cmd_spawn() {
 
   local state subcmd
   _arguments -C \
-    '--backend[AI backend to use]:backend:(ollama claude claude-cli gemini aider custom)' \
+    '--backend[AI backend to use]:backend:(ollama claude claude-cli gemini codex aider custom)' \
     '--model[model name override]:model:' \
     '--identity[PD semantic identity (project:stack:context)]:identity:_pd_complete_services' \
     '--budget[required spend ceiling in USD]:usd:' \
@@ -1090,6 +1090,71 @@ _pd_cmd_spawn() {
             '1:agent ID:'
           ;;
       esac
+      ;;
+  esac
+}
+
+_pd_cmd_sortie() {
+  local -a sortie_subcmds
+  sortie_subcmds=(
+    'run:launch a tracked sortie mission'
+    'list:list recent sorties'
+    'status:get one sortie status'
+    'logs:get one sortie event log'
+    'help:show sortie help'
+  )
+
+  if (( CURRENT == 2 )); then
+    _describe 'subcommand' sortie_subcmds
+    return
+  fi
+
+  local subcmd="${words[2]}"
+  case "$subcmd" in
+    run)
+      _arguments \
+        '--backend[AI backend to use]:backend:(ollama claude claude-cli gemini codex aider custom)' \
+        '--model[model name override]:model:' \
+        '--tier[model tier]:tier:(low mid high)' \
+        '--budget[required spend ceiling in USD]:usd:' \
+        '--dir[project directory]:directory:_directories' \
+        '--recipe[mission recipe]:recipe:(investigate fix review creative custom)' \
+        '--expected[expected output summary]:text:' \
+        '--context[extra context]:text:' \
+        '--identity[explicit coordinator identity]:identity:' \
+        '--purpose[human-readable task description]:purpose:' \
+        '--allowedTools[tool permissions]:tools:' \
+        '--timeout[timeout in milliseconds]:milliseconds:' \
+        '--maxTokens[max tokens]:tokens:' \
+        '(-j --json)'{-j,--json}'[JSON output]' \
+        '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+        '(-h --help)'{-h,--help}'[show help]' \
+        '*:goal text:_message "goal text"'
+      ;;
+    list)
+      _arguments \
+        '--all[list sorties across all projects]' \
+        '--limit[max results]:count:' \
+        '--dir[project directory]:directory:_directories' \
+        '(-j --json)'{-j,--json}'[JSON output]' \
+        '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+        '(-h --help)'{-h,--help}'[show help]'
+      ;;
+    status)
+      _arguments \
+        '1:sortie id:' \
+        '(-j --json)'{-j,--json}'[JSON output]' \
+        '(-h --help)'{-h,--help}'[show help]'
+      ;;
+    logs)
+      _arguments \
+        '1:sortie id:' \
+        '--limit[max events]:count:' \
+        '(-j --json)'{-j,--json}'[JSON output]' \
+        '(-h --help)'{-h,--help}'[show help]'
+      ;;
+    *)
+      _describe 'subcommand' sortie_subcmds
       ;;
   esac
 }
@@ -1355,6 +1420,7 @@ _port_daddy() {
     # AI Agent Spawner + Watch
     'spawn:launch an AI agent (Ollama/Claude/Gemini/Aider/custom)'
     'spawned:list active spawned agents'
+    'sortie:launch and inspect tracked mission records'
     'watch:subscribe to a channel and run a script on each message'
     # Harbors (named permission namespaces)
     'harbor:create, enter, leave, show, or destroy a harbor'
@@ -1481,6 +1547,7 @@ _port_daddy() {
         learn|tutorial)         _pd_cmd_learn ;;
         inbox)                  _pd_cmd_inbox ;;
         spawn)                  _pd_cmd_spawn ;;
+        sortie)                 _pd_cmd_sortie ;;
         spawned)                _pd_cmd_spawned ;;
         watch)                  _pd_cmd_watch ;;
         harbor)                 _pd_cmd_harbor ;;

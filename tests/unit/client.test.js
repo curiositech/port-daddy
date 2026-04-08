@@ -7,6 +7,7 @@
 
 import http from 'node:http';
 import { PortDaddy, PortDaddyError, ConnectionError } from '../../lib/client.js';
+import { getDaemonTcpUrl } from '../../shared/daemon-discovery.js';
 
 // ============================================================================
 // Mock HTTP server — records requests and returns queued responses
@@ -100,7 +101,7 @@ describe('PortDaddy constructor', () => {
     delete process.env.PORT_DADDY_URL;
     try {
       const pd = new PortDaddy();
-      expect(pd.url).toBe('http://localhost:9876');
+      expect(pd.url).toBe(getDaemonTcpUrl().replace(/\/$/, ''));
     } finally {
       if (prev !== undefined) process.env.PORT_DADDY_URL = prev;
     }

@@ -97,7 +97,7 @@ set -l __pd_commands \
     'agent' 'agents' 'swarm' 'log' 'activity' \
     'session' 'sessions' 'note' 'notes' \
     'salvage' 'resurrection' 'changelog' 'dns' 'files' 'who-owns' 'integration' 'briefing' 'history' 'inbox' \
-    'begin' 'b' 'done' 'whoami' 'w' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'watch' 'harbor' 'harbors' 'tuple' \
+    'begin' 'b' 'done' 'whoami' 'w' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'watch' 'harbor' 'harbors' 'tuple' \
     'up' 'down' \
     'bench' 'demo' 'fleet' \
     'dashboard' 'channels' 'webhook' 'webhooks' 'metrics' 'config' 'health' 'ports' \
@@ -173,7 +173,30 @@ for prog in port-daddy pd
     # AI Agent Spawner + Watch
     complete -c $prog -n __pd_needs_command -a spawn -d 'Launch an AI agent (Ollama/Claude/Gemini/Aider/custom)'
     complete -c $prog -n __pd_needs_command -a spawned -d 'List active spawned agents'
+    complete -c $prog -n __pd_needs_command -a sortie -d 'Launch and inspect tracked mission records'
     complete -c $prog -n __pd_needs_command -a watch -d 'Subscribe to a channel and run a script on each message'
+    complete -c $prog -n "__pd_using_command sortie" -x -a 'run' -d 'Launch a tracked sortie mission'
+    complete -c $prog -n "__pd_using_command sortie" -x -a 'list' -d 'List recent sorties'
+    complete -c $prog -n "__pd_using_command sortie" -x -a 'status' -d 'Show one sortie status'
+    complete -c $prog -n "__pd_using_command sortie" -x -a 'logs' -d 'Show one sortie event log'
+    complete -c $prog -n "__pd_using_command sortie" -x -a 'help' -d 'Show sortie help'
+    complete -c $prog -n "__pd_using_command sortie; and __fish_seen_subcommand_from run" -l backend -x -a 'ollama claude claude-cli gemini codex aider custom' -d 'Backend to use for the coordinating agent'
+    complete -c $prog -n "__pd_using_command sortie; and __fish_seen_subcommand_from run" -l model -x -d 'Model override'
+    complete -c $prog -n "__pd_using_command sortie; and __fish_seen_subcommand_from run" -l tier -x -a 'low mid high' -d 'Model tier'
+    complete -c $prog -n "__pd_using_command sortie; and __fish_seen_subcommand_from run" -l budget -x -d 'Budget ceiling in USD'
+    complete -c $prog -n "__pd_using_command sortie; and __fish_seen_subcommand_from run" -l dir -r -d 'Project directory'
+    complete -c $prog -n "__pd_using_command sortie; and __fish_seen_subcommand_from run" -l recipe -x -d 'Mission recipe'
+    complete -c $prog -n "__pd_using_command sortie; and __fish_seen_subcommand_from run" -l expected -x -d 'Expected output'
+    complete -c $prog -n "__pd_using_command sortie; and __fish_seen_subcommand_from run" -l context -x -d 'Extra context'
+    complete -c $prog -n "__pd_using_command sortie; and __fish_seen_subcommand_from run" -l identity -x -d 'Identity override'
+    complete -c $prog -n "__pd_using_command sortie; and __fish_seen_subcommand_from run" -l purpose -x -d 'Purpose string'
+    complete -c $prog -n "__pd_using_command sortie; and __fish_seen_subcommand_from run" -l allowedTools -x -d 'Comma-separated tool allowlist'
+    complete -c $prog -n "__pd_using_command sortie; and __fish_seen_subcommand_from run" -l timeout -x -d 'Timeout in milliseconds'
+    complete -c $prog -n "__pd_using_command sortie; and __fish_seen_subcommand_from run" -l maxTokens -x -d 'Max tokens'
+    complete -c $prog -n "__pd_using_command sortie; and __fish_seen_subcommand_from list" -l all -d 'List sorties across all projects'
+    complete -c $prog -n "__pd_using_command sortie; and __fish_seen_subcommand_from list" -l limit -x -d 'Limit results'
+    complete -c $prog -n "__pd_using_command sortie; and __fish_seen_subcommand_from list" -l dir -r -d 'Project directory'
+    complete -c $prog -n "__pd_using_command sortie; and __fish_seen_subcommand_from status logs" -l limit -x -d 'Limit log entries'
 
     # Harbors (named permission namespaces)
     complete -c $prog -n __pd_needs_command -a harbor -d 'Create, enter, leave, show, or destroy a harbor'

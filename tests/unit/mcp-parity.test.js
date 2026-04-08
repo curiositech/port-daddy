@@ -182,6 +182,10 @@ const TOOL_FEATURE_MAP = {
   'file_heat': 'pheromone',
   'talk_to_agent': 'inbox',
   'spawn_agent': 'spawn',
+  'run_sortie': 'sorties',
+  'list_sorties': 'sorties',
+  'get_sortie': 'sorties',
+  'get_sortie_logs': 'sorties',
 
   // Tuple Space
   'tuple_out': 'tuples',
@@ -634,7 +638,7 @@ describe('MCP tiered tool loading', () => {
   const CATEGORY_NAMES = [
     'magic', 'session-lifecycle', 'ports', 'sessions', 'notes', 'locks',
     'messaging', 'agents', 'inbox', 'webhooks', 'integration', 'dns', 'briefing',
-    'tunnels', 'projects', 'changelog', 'activity', 'system', 'tuples',
+    'tunnels', 'projects', 'changelog', 'activity', 'system', 'tuples', 'sorties',
   ];
 
   it('ESSENTIAL_TOOL_NAMES in server matches expected set', () => {

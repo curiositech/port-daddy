@@ -1,6 +1,6 @@
 # Current Recovery Work
 
-Last updated: 2026-04-07
+Last updated: 2026-04-08
 Owner: Codex working session
 
 This is the active execution ledger. If a task is in flight, it belongs here before it belongs in chat.
@@ -9,14 +9,14 @@ This is the active execution ledger. If a task is in flight, it belongs here bef
 
 Stabilize the live Port Daddy operator loop so one daemon, one fleet runtime, one control plane, and one native companion all tell the same truth.
 
-Latest committed slice: `2202aca` — Port Daddy fleet defaults switched to local-first backends.
-Current uncommitted slice: post-dogfood operator truth and runtime cleanup:
+Latest committed slice: `af3e647` — Dogfood sorties and sync operator truth.
+Current uncommitted slice: green the full Jest suite and harden parity/runtime edges:
 - ignore generated `.spider/connections/*.md` residue by default unless a later docs feature explicitly curates one
 - ignore generated `.dogfood/` run reports by default unless one is intentionally promoted into docs
-- continue the remaining control-plane product work from the feedback queue
+- keep the full Jest suite honest; a passing exit code is necessary but still not enough if worker-leak warnings remain
+- repair route/manifest/completion parity for the new `sortie` + operator surfaces instead of leaving them half-shipped
 - keep runtime discovery, Ollama/Codex defaults, and fleet cost discipline aligned with the live daemon instead of only source truth
 - keep `skills/port-daddy-cli/SKILL.md` and its API reference synced with every Port Daddy delegation/runtime change, not as a later cleanup
-- keep the full Jest suite honest; record real failures instead of treating focused green bundles as enough
 
 ## Active Tasks
 
@@ -134,22 +134,17 @@ Current uncommitted slice: post-dogfood operator truth and runtime cleanup:
    - show spawn rate, failure rate, duration, message traffic, and service churn in one operator view
    - distinguish live claims from stale/zombie claims so “72 active ports” cannot quietly mean “72 database rows”
    - make this available both in the control plane and from a direct daemon-served route
-27. Rehabilitate the current full-suite failures exposed by dogfooding instead of ignoring them:
-   - `tests/integration/adversarial.test.js`
-     - rapid-fire publish currently succeeds `0/50`
-     - SQL-injection publish test has the assertion backwards (`expect([200, 201]).toContain(res.status)` while the text says 400)
-   - `tests/unit/client.test.js`
-     - default URL expectation still hardcodes `http://localhost:9876` even though runtime discovery can legitimately resolve `127.0.0.1:9877`
-   - `tests/unit/bijective-parity.test.js`
-     - CLI parity does not know about `sortie`
-     - route-category parity is missing `sorties` and `operator`
-   - `tests/unit/manifest-enforcement.test.js`
-     - new fleet/operator/sortie routes and CLI surfaces are not mapped into the manifest contract
-   - `tests/unit/mcp-parity.test.js`
-     - sortie MCP tools are missing from `TOOL_FEATURE_MAP` and category coverage
-   - `tests/unit/spawner-dotenv-uid.test.js` and `tests/unit/spawner-claude-cli-auth.test.js`
-     - both have stale `node:fs` mock surfaces that no longer expose `mkdtempSync`
-   - full-suite run on 2026-04-08 also ended with a worker-leak warning; keep treating timer/process teardown as suspect until proven clean
+27. Finish cleaning the full-suite warning path even though the suite now exits green:
+   - current truth on 2026-04-08: `npm test` passes `103/103` suites and `4510/4511` tests, but the parallel run still prints `A worker process has failed to exit gracefully`
+   - repaired in this slice:
+     - messaging route now accepts `body.message`, not just `payload` / `content`
+     - client tests now use daemon discovery truth instead of hardcoded `http://localhost:9876`
+     - `sortie` parity is repaired across CLI, completions, manifest, and MCP category coverage
+     - stale spawner `node:fs` mocks now include `mkdtempSync`
+     - integration helper now normalizes oversized-body `EPIPE` / `ECONNRESET` on the Unix socket into the 413 rejection the daemon actually means
+     - reactive orchestrator exec rules now avoid leaking piped child-process handles under Jest
+   - remaining cleanup:
+     - identify the last parallel-worker leak behind the force-exit warning instead of letting "green enough" become the new lie
 
 ## Immediate Next Cuts
 
@@ -160,7 +155,7 @@ Current uncommitted slice: post-dogfood operator truth and runtime cleanup:
 5. Wire the React control plane to consume the newly explicit backend activity attribution so per-agent timelines, files touched, and recent mutations stop falling back to prose matching.
 6. Finish the last repo dirt decisions:
    - commit the `.gitignore` quarantine for generated spider connection notes
-7. Verify whether Jest still has a real open-handle warning after the spawner heartbeat timer `unref()` and any remaining daemon/test cleanup.
+7. Root-cause the remaining full-suite worker-force-exit warning after the orchestrator exec cleanup instead of declaring victory on exit code alone.
 8. Commit the next control-plane/FleetBar UX slice once the relaunch verifies the native shell and daemon-served bundle still agree.
 9. Verify the sortie launch path end-to-end from the live daemon after the new inline error handling so a failed attempt leaves operator-visible evidence instead of only resetting UI state.
    - specifically reproduce and explain the “Claude SDK said ready, then launch reset to claude-cli” failure path from the operator report

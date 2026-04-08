@@ -1,6 +1,6 @@
 # Cartographer Status
 
-**Last updated:** 2026-04-07
+**Last updated:** 2026-04-08
 **Updated by:** Cartographer (manual invocation)
 **HEAD:** `bff1195` (Retire duplicate spawner bug battery)
 **Previous HEAD:** `2202aca` — 2 new commits since last run
@@ -20,7 +20,7 @@ Active threads, ranked by commit recency:
 1. **Recovery docs/runtime truth sync** — uncommitted working tree. README, MCP docs, OpenAPI, the Port Daddy skill bundle, and the website’s core spawn/fleet/tutorial surfaces are being pushed onto the same local-first contract: Ollama + Codex as first-class backends, mandatory budget ceilings, explicit model tiers, and “9876 is the default, not a universal truth.” The same slice also fixed `pd fleet run <agent>` so one-shot fleet runs inherit a real budget ceiling instead of hard-failing preflight.
    - `pd fleet validate` is live again in the CLI. It parses YAML, resolves templates, checks trigger topology, and exits without spawning agents. The remaining work there was discoverability drift: README, skill docs, and the website CLI page all needed to mention it again.
    - Port Daddy dogfooding surfaced another live drift: `port-daddy sortie run ...` from the installed shim returned `ERROR: Not Found`. Treat that as a runtime-route availability bug in the canonical daemon path until proven otherwise.
-   - The first unsandboxed full-suite run on 2026-04-08 is not green: 103 suites total, 96 passing, 7 failing. The current failures are concentrated in adversarial messaging, daemon URL assumptions, parity/manifest drift around the new sortie/operator surfaces, and two stale spawner test mocks that no longer match the `node:fs` import surface.
+   - That red full-suite state is now repaired. Current truth on 2026-04-08: `npm test` passes all `103/103` suites and `4510/4511` tests, but the parallel run still ends with `A worker process has failed to exit gracefully`. Treat the exit code as green and the warning as remaining teardown debt, not as “all clean.”
 
 2. **Recovery Track 2 / 3 — FleetBar + control plane truth** — `a41f18f`, `e82f096`, `1aeb2b1`, `809816e`, `e7eba7b`, `1ebe6e6`, `853cc57`, and now `83d1a22` pushed the runtime and UI toward one truthful control plane. The newest runtime slice added explicit file actions to the operator surfaces: the daemon now exposes `/operator/open-file`, the web control plane renders `Open in Finder` / `Open with default editor` for touched files, and FleetBar mirrors the same affordances natively instead of offering ambiguous file chips.
 
@@ -137,6 +137,8 @@ Burst-cool-burst pattern continues: 37 commits (Mar 30-31), 2 zero-commit days (
 ## Observations
 
 - **The Recovery Roadmap is the real execution authority.** 5 of 7 new commits map directly to Recovery Track criteria (Track 1 closure, Track 2 FleetBar, 3.8.3 runtime safety). The V4 phase structure is becoming a reference taxonomy rather than an active execution plan. This is fine — as long as both documents are maintained. The cartographer should update both.
+- **The full-suite red slice was mostly parity drift plus one real transport edge.** The repaired failures were not random: `routes/messaging.ts` had stopped honoring `body.message`, the client test still assumed a hardcoded daemon URL, completions/manifest/MCP parity did not fully know about `sortie`, stale spawner mocks no longer matched the `node:fs` import surface, and the Unix-socket integration helper needed to normalize oversized-body `EPIPE` / `ECONNRESET` into the daemon's actual 413 intent.
+- **The orchestrator leak was real runtime debt, not just Jest drama.** Reactive `exec` rules spawned child processes with no cleanup contract and piped their output under Jest, which produced late console logs and open pipe handles. The current working tree now suppresses piped stdio under Jest, `unref()`s child handles, and exposes a shutdown path for the reactive orchestrator. The remaining full-suite worker-force-exit warning is now a different leak, not the same one.
 
 - **Track 1 closure broke a 3-run pattern.** `lib/counters.ts` was flagged as "one commit away" in three consecutive cartographer runs (Apr 5 first run, Apr 5 second run, and the manual sync note). It finally shipped in `8744e14`. The pattern suggests: cartographer flagging alone doesn't drive commits, but having a "Recovery Track" with explicit closure criteria does. Recovery Tracks are more motivating than cartographer warnings.
 
