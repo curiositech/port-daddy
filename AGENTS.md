@@ -27,6 +27,9 @@ Project-specific shibboleths for proficient Port Daddy work. If you learn a new 
 - Do not hand-roll daemon promotion with ad hoc `launchctl` commands if the script exists.
 - If the user asks to "promote the daemon", run the script first and report the exact blocker if it fails.
 - Promotion to stable is not a rare release ceremony here; user-facing runtime/control-plane fixes often need prompt promotion, or the live daemon/UI will keep lying from an older checkout.
+- `/Users/erichowens/port-daddy-stable` is a clean promotion target, not a live dogfood sandbox.
+- Do not run fleets, background daemons, Spark, Spider, or local build outputs in the stable checkout.
+- If stable accumulates `.spark/`, `.spider/`, `port-daddy.log`, `port-registry.db`, `public/fleet-ui`, or tracked build garbage, treat that as operator misuse to rehabilitate before the next promotion.
 - If promotion is blocked by dirty archaeology, split green feature/parity slices from intentionally red bug-battery tests; do not bundle known-red test files into an otherwise promotable commit.
 - The script expects:
   - current branch is `main`
@@ -109,6 +112,13 @@ Project-specific shibboleths for proficient Port Daddy work. If you learn a new 
 - Daemon logs can mix truths from different client generations. A fresh `fleet-ui` load now polls scoped `project:...:` channels correctly, but older already-open FleetBar/browser clients can keep hitting naked `git:committed` until they reload onto the new bundle.
 - Generated spider connection markdowns under `.spider/connections/` are not automatically promotable repo truth. Treat them as research residue unless the user explicitly wants them curated or a real feature/docs change depends on them.
 - Hidden generated work dirs are default-ignore residue unless explicitly promoted. Current examples: `.spark/`, `.spider/connections/`, and `.dogfood/`. Do not cargo-cult this into `.*` blanket ignores, because real repo truth also lives under tracked dotdirs like `.cartographer/` and `.claude-plugin/`.
+- Stable-only Spark/Spider residue is salvage material at most, not authority. Compare it against current `.spark/` / `.spider/` and only promote discrete ideas that are still missing here.
+- The stable-only Spark ideas currently most worth considering are:
+  - capability-aware discovery via DNS + harbor join
+  - persistent fleet run journal / history
+  - forensic context windows on Arbiter violations
+  - IPC disconnect -> instant salvage / cascade cleanup
+  - tuple-triggered fleet agents and IPC tuple fast path
 - Untracked archaeology tests are only promotable if they assert desired behavior or cover a real blind spot. Do not commit redundant bug batteries that merely freeze known-bad behavior as the expected outcome.
 - Treat this repo’s tests adversarially. Assume they are often tautological, trivial, stale, or asserting the wrong behavior until you prove otherwise. Favor tests that would have caught the operator-visible bug, not just tests that ratify the current implementation.
 - Run tests frequently, but do not confuse “green” with “done.” After any meaningful bug fix, ask what important failure mode is still untested.

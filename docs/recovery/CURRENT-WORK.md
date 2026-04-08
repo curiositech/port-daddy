@@ -17,6 +17,7 @@ Current uncommitted slice: green the full Jest suite and harden parity/runtime e
 - repair route/manifest/completion parity for the new `sortie` + operator surfaces instead of leaving them half-shipped
 - keep runtime discovery, Ollama/Codex defaults, and fleet cost discipline aligned with the live daemon instead of only source truth
 - keep `skills/port-daddy-cli/SKILL.md` and its API reference synced with every Port Daddy delegation/runtime change, not as a later cleanup
+- keep `/Users/erichowens/port-daddy-stable` clean enough for `./scripts/promote-stable.sh`; stable is a promotion target, not a live fleet playground
 
 ## Active Tasks
 
@@ -145,6 +146,18 @@ Current uncommitted slice: green the full Jest suite and harden parity/runtime e
      - reactive orchestrator exec rules now avoid leaking piped child-process handles under Jest
    - remaining cleanup:
      - identify the last parallel-worker leak behind the force-exit warning instead of letting "green enough" become the new lie
+28. Rehabilitate the stable promotion checkout:
+   - stop treating `/Users/erichowens/port-daddy-stable` as a live fleet/daemon workspace
+   - remove or quarantine tracked build garbage like `fleet-live-app/build`
+   - decide whether the lingering stable source edits are worth salvaging or should be discarded before the next promotion
+   - ensure future Spark/Spider/fleet outputs land only in the active dev checkout, not stable
+29. Curate the stable-only Spark/Spider residue and elevate the winners into real roadmap work if still missing here:
+   - `spider-capability-discovery-dns-harbor` -> capability-aware service discovery
+   - `spider-fleet-run-journal` -> persistent fleet history / `pd fleet history`
+   - `spider-forensic-context-windows` -> Arbiter violations with timeline context
+   - `spider-ipc-cascade-cleanup` / `2026-04-05-spider-ipc-disconnect-instant-salvage` -> immediate lock/salvage cleanup on IPC death
+   - `spider-ipc-tuple-fast-path` + `spider-tuple-triggered-fleet-agents` -> tuple-driven fleet execution path
+   - reject or merge older/duplicative ideas instead of blindly copying stable residue into this repo
 
 ## Immediate Next Cuts
 
@@ -239,7 +252,10 @@ Current uncommitted slice: green the full Jest suite and harden parity/runtime e
 - Activity click behavior should focus the in-page activity view, not reopen the global slide-in Flow inspector. Overlapping detail surfaces are harder to reason about than one truthful one.
 - Spark scratch was already correctly treated as local residue via `.gitignore`; the analogous spider connection note pile belongs in the same default-ignore bucket unless later curated intentionally.
 - `.dogfood/` is the same class of residue as `.spark/` and `.spider/connections/`: useful locally, not repo truth by default.
-- The full Jest suite is not green right now. Real failing files as of 2026-04-08: `tests/integration/adversarial.test.js`, `tests/unit/client.test.js`, `tests/unit/bijective-parity.test.js`, `tests/unit/manifest-enforcement.test.js`, `tests/unit/mcp-parity.test.js`, `tests/unit/spawner-dotenv-uid.test.js`, and `tests/unit/spawner-claude-cli-auth.test.js`. Treat any “green enough” story that omits those as dishonest.
+- We copied the unique stable-only Spark/Spider markdown outputs into this checkout so idea archaeology now lives in one place. That does not make every copied file roadmap truth; it just removes the excuse to keep mining the stable repo for “one more missing note.”
+- `/Users/erichowens/port-daddy-stable` was used as a live Port Daddy workspace. It has its own `pd-fleet.yml`, daemon DB/logs, `.spark/`, `.spider/`, and tracked build garbage. Promotion failures there are partly operator contamination, not just merge luck.
+- The stable checkout is not secretly better than current main. The salvageable pieces are discrete Spark/Spider ideas and maybe a few source edits, not the checkout as a whole.
+- The full Jest suite is green again as of `2737816`: `103/103` suites, `4510/4511` tests, `1` skipped. The remaining lie to hunt is the parallel-run worker-force-exit warning, not red suite failures.
 
 ## Explicit Non-Goals For This Pass
 
