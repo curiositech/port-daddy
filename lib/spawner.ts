@@ -410,7 +410,7 @@ function runClaudeCli(spec: SpawnSpec): Promise<{ output: string; error: string 
 // =============================================================================
 
 const DEFAULT_MODELS: Record<SpawnSpec['backend'], string> = {
-  ollama: 'llama3.2:8b',
+  ollama: 'llama3.1:8b',
   claude: 'claude-haiku-4-5-20251001',
   'claude-cli': 'claude-cli',  // claude CLI manages its own model
   gemini: 'gemini-2.0-flash-exp',

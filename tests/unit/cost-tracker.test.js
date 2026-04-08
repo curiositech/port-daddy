@@ -51,7 +51,7 @@ describe('CostTracker', () => {
   });
 
   test('ollama costs zero', () => {
-    const { costUsd, isEstimate } = costTracker.computeCost('ollama', 'llama3.2:8b');
+    const { costUsd, isEstimate } = costTracker.computeCost('ollama', 'llama3.1:8b');
     expect(costUsd).toBe(0);
     expect(isEstimate).toBe(true);
   });
@@ -90,7 +90,7 @@ describe('CostTracker', () => {
 
   test('record is recoverable via recent()', () => {
     costTracker.record({ backend: 'claude-cli', model: 'claude-cli', projectName: 'proj-a' });
-    costTracker.record({ backend: 'ollama', model: 'llama3.2:8b', projectName: 'proj-b' });
+    costTracker.record({ backend: 'ollama', model: 'llama3.1:8b', projectName: 'proj-b' });
     const events = costTracker.recent(10);
     expect(events.length).toBe(2);
     const backendSet = new Set(events.map(e => e.backend));

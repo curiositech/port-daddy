@@ -424,7 +424,7 @@ curl -X GET  http://localhost:9876/fleet/events          # SSE lifecycle stream
 
 **CLI syntax:**
 ```bash
-pd spawn --backend ollama --model llama3.2:8b --identity myapp:coder -- "Fix the login bug"
+pd spawn --backend ollama --model llama3.1:8b --identity myapp:coder -- "Fix the login bug"
 pd spawned                    # list running
 pd spawn kill <id>            # stop agent
 pd watch build-results --exec './analyze.sh'   # ambient trigger

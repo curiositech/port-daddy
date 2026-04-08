@@ -2568,7 +2568,7 @@ class PortDaddy {
    * @example
    * const result = await pd.spawn({
    *   backend: 'ollama',
-   *   model: 'llama3.2:8b',
+   *   model: 'llama3.1:8b',
    *   identity: 'myapp:coder',
    *   budgetUsd: 2.5,
    *   task: 'Write a hello world in TypeScript',

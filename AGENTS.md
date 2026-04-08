@@ -54,7 +54,7 @@ Project-specific shibboleths for proficient Port Daddy work. If you learn a new 
   - Claude CLI: `haiku` / `sonnet` / `opus`
   - Gemini: `gemini-2.0-flash-exp` / `gemini-2.5-flash` / `gemini-2.5-pro`
   - Codex: `gpt-5.4-mini` / `gpt-5.3-codex` / `gpt-5.4`
-  - Ollama: `qwen2.5-coder:7b` / `llama3.2:8b` / `qwen2.5-coder:14b`
+  - Ollama: `qwen2.5-coder:7b` / `llama3.1:8b` / `qwen2.5-coder:14b`
   - Aider: `gpt-4.1-mini` / `gpt-4.1` / `gpt-5`
   - Custom: `custom-low` / `custom-mid` / `custom-high`, forwarded to wrapper commands via env
 - `fleet-config-ui` is the real control plane surface.

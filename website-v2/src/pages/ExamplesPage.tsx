@@ -85,7 +85,7 @@ const EXAMPLES: Example[] = [
     ],
     code: [
       '# Spawn an Ollama agent with coordination',
-      'pd spawn --backend ollama --model llama3.2:8b \\',
+      'pd spawn --backend ollama --model llama3.1:8b \\',
       '  --identity myapp:coder -- "Fix the login bug"',
       '',
       '# List running agents',

@@ -138,7 +138,7 @@ Current uncommitted slice: the Codex+tier contract pass:
   - Claude CLI: haiku / sonnet / opus
   - Gemini: 2.0 Flash / 2.5 Flash / 2.5 Pro
   - Codex: gpt-5.4-mini / gpt-5.3-codex / gpt-5.4
-  - Ollama: qwen2.5-coder:7b / llama3.2:8b / qwen2.5-coder:14b
+  - Ollama: qwen2.5-coder:7b / llama3.1:8b / qwen2.5-coder:14b
   - Aider: gpt-4.1-mini / gpt-4.1 / gpt-5
   - Custom: custom-low / custom-mid / custom-high (forwarded via env so wrappers can honor it)
 - The live Codex dogfood also surfaced two operator bugs that belong in the recovery queue, not chat memory:

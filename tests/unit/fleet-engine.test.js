@@ -367,7 +367,7 @@ test('falls back to the next backend/model when the first spawn attempt fails', 
     ...makeConfig({
       backend: 'gemini',
       model: 'gemini-2.5-flash',
-      fallbacks: [{ backend: 'ollama', model: 'llama3.2:8b' }],
+      fallbacks: [{ backend: 'ollama', model: 'llama3.1:8b' }],
     }),
   };
 
@@ -406,14 +406,14 @@ test('falls back to the next backend/model when the first spawn attempt fails', 
   }));
   expect(secondBody).toEqual(expect.objectContaining({
     backend: 'ollama',
-    model: 'llama3.2:8b',
+    model: 'llama3.1:8b',
   }));
   expect(onEvent).toHaveBeenCalledWith(
     expect.objectContaining({
       type: 'agent_completed',
       details: expect.objectContaining({
         backend: 'ollama',
-        model: 'llama3.2:8b',
+        model: 'llama3.1:8b',
         attempt: 2,
       }),
     })

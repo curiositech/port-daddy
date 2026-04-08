@@ -155,7 +155,7 @@ project: myapp
 agents:
   docs-updater:
     backend: ollama
-    model: llama3.2:8b
+    model: llama3.1:8b
     purpose: "Watch for code changes, update docs"
     trigger: pd watch myapp:code:changed
   adversarial-tester:

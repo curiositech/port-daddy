@@ -171,7 +171,7 @@ pd spawn --backend claude-cli --allowedTools 'Read,Write,Edit,Glob,Grep' -- "Fix
 pd spawn --backend claude -- "Explain what this function does"
 
 # Ollama (local LLM, default)
-pd spawn --backend ollama --model llama3.2:8b -- "Summarize the README"
+pd spawn --backend ollama --model llama3.1:8b -- "Summarize the README"
 
 # List running/completed agents
 pd spawned

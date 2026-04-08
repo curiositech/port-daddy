@@ -924,7 +924,7 @@ List available backends and their models. Probes Ollama for locally installed mo
   "success": true,
   "backends": [
     { "id": "claude-cli", "name": "Claude CLI", "models": ["sonnet", "opus", "haiku"] },
-    { "id": "ollama", "name": "Ollama (local)", "models": ["llama3.2:8b", "codellama:13b"] },
+    { "id": "ollama", "name": "Ollama (local)", "models": ["llama3.1:8b", "codellama:13b"] },
     { "id": "custom", "name": "Custom command", "models": [] },
     { "id": "gemini", "name": "Google Gemini", "models": ["gemini-2.5-pro", "gemini-2.5-flash"] },
     { "id": "openai", "name": "OpenAI", "models": ["gpt-4.1", "gpt-4.1-mini", "o4-mini"] },

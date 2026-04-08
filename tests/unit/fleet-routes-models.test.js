@@ -20,7 +20,7 @@ describe('fleet routes /fleet/models', () => {
     global.fetch = jest.fn(async () => ({
       async json() {
         return {
-          models: [{ name: 'llama3.2:8b' }, { name: 'qwen2.5-coder:7b' }],
+          models: [{ name: 'llama3.1:8b' }, { name: 'qwen2.5-coder:7b' }],
         };
       },
     }));
@@ -67,8 +67,8 @@ describe('fleet routes /fleet/models', () => {
       expect.objectContaining({
         id: 'ollama',
         supported: true,
-        models: ['llama3.2:8b', 'qwen2.5-coder:7b', 'qwen2.5-coder:14b'],
-        modelTiers: { low: 'qwen2.5-coder:7b', mid: 'llama3.2:8b', high: 'qwen2.5-coder:14b' },
+        models: ['llama3.1:8b', 'qwen2.5-coder:7b', 'qwen2.5-coder:14b'],
+        modelTiers: { low: 'qwen2.5-coder:7b', mid: 'llama3.1:8b', high: 'qwen2.5-coder:14b' },
         readinessStatus: 'ready',
         readinessSummary: 'ollama summary',
       }),

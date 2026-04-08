@@ -175,21 +175,21 @@ describe('spawn — instrumentation', () => {
     expect(result.status).toBe('completed');
     expect(counters.bump).toHaveBeenCalledWith(
       'spawn.started',
-      expect.objectContaining({ backend: 'ollama', model: 'llama3.2:8b', project: 'myapp' })
+      expect.objectContaining({ backend: 'ollama', model: 'llama3.1:8b', project: 'myapp' })
     );
     expect(counters.bump).toHaveBeenCalledWith(
       'spawn.completed',
-      expect.objectContaining({ backend: 'ollama', model: 'llama3.2:8b', project: 'myapp' })
+      expect.objectContaining({ backend: 'ollama', model: 'llama3.1:8b', project: 'myapp' })
     );
     expect(counters.bump).toHaveBeenCalledWith(
       'spawn.duration_ms',
-      expect.objectContaining({ backend: 'ollama', model: 'llama3.2:8b', project: 'myapp' }),
+      expect.objectContaining({ backend: 'ollama', model: 'llama3.1:8b', project: 'myapp' }),
       expect.any(Number)
     );
     expect(costTracker.record).toHaveBeenCalledWith(
       expect.objectContaining({
         backend: 'ollama',
-        model: 'llama3.2:8b',
+        model: 'llama3.1:8b',
         projectName: 'myapp',
         identity: 'myapp:api:test',
         spawnId: result.agentId,
@@ -222,7 +222,7 @@ describe('spawn — instrumentation', () => {
     expect(result.status).toBe('failed');
     expect(counters.bump).toHaveBeenCalledWith(
       'spawn.failed',
-      expect.objectContaining({ backend: 'ollama', model: 'llama3.2:8b', project: 'myapp' })
+      expect.objectContaining({ backend: 'ollama', model: 'llama3.1:8b', project: 'myapp' })
     );
     expect(costTracker.record).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -262,7 +262,7 @@ describe('spawn — backend dispatch', () => {
 
     // Verify the request body
     const body = JSON.parse(ollamaCalls[0][1].body);
-    expect(body.model).toBe('llama3.2:8b'); // default model
+    expect(body.model).toBe('llama3.1:8b'); // default model
     expect(body.messages[0].content).toBe('Explain ports');
     expect(body.stream).toBe(false);
   });
@@ -509,7 +509,7 @@ describe('spawn — result shape', () => {
       expect.objectContaining({
         agentId: expect.stringMatching(/^spawned-[a-f0-9]{12}$/),
         backend: 'ollama',
-        model: 'llama3.2:8b',
+        model: 'llama3.1:8b',
         status: 'completed',
         output: 'result',
         error: null,
@@ -553,7 +553,7 @@ describe('spawn — result shape', () => {
       backend: 'ollama',
       task: 'test',
     });
-    expect(result.model).toBe('llama3.2:8b');
+    expect(result.model).toBe('llama3.1:8b');
   });
 
   test('uses provided model over default', async () => {
@@ -616,7 +616,7 @@ describe('list', () => {
       expect.objectContaining({
         agentId: spawnResult.agentId,
         backend: 'ollama',
-        model: 'llama3.2:8b',
+        model: 'llama3.1:8b',
         status: 'completed',
         identity: 'myapp:api:test',
         purpose: 'Testing the spawner',
@@ -1291,12 +1291,12 @@ describe('spawn — codex backend', () => {
 // =============================================================================
 
 describe('spawn — default models', () => {
-  test('ollama defaults to llama3.2:8b', async () => {
+  test('ollama defaults to llama3.1:8b', async () => {
     const spawner = createSpawner();
     setupOllamaFetchMock('ok');
 
     const result = await spawner.spawn({ backend: 'ollama', task: 'test' });
-    expect(result.model).toBe('llama3.2:8b');
+    expect(result.model).toBe('llama3.1:8b');
   });
 
   test('custom defaults to "custom"', async () => {
