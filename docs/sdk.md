@@ -846,6 +846,8 @@ function verifySignature(payload, signature, secret) {
 
 Launch AI agents (Ollama, Codex, Claude, Claude CLI, Gemini, Aider, custom subprocess) with Port Daddy coordination auto-wired. Each spawned agent automatically registers, sends heartbeats, and marks its session done on completion.
 
+Use `spawn()` for the low-level primitive. If you want a tracked mission object with a durable id and event log, use the sortie methods below instead. Canonical operator guidance lives in `docs/DELEGATION-MODES.md`.
+
 **Backends:** `ollama` (default), `claude` (API — text in/out), `claude-cli` (full CLI with tools), `gemini`, `codex`, `aider`, `custom`
 
 ```typescript
@@ -904,6 +906,47 @@ await pd.killSpawned(agentId);
 | `pd.spawn(spec)` | Launch an AI agent; returns `SpawnResult` |
 | `pd.listSpawned()` | List active spawned agents |
 | `pd.killSpawned(agentId)` | Kill a running spawned agent |
+
+---
+
+## Sorties — Tracked Mission Records
+
+Sorties are Port Daddy's first-class mission records over spawned runs. They buy you:
+
+- a durable sortie id
+- an ephemeral harbor name (`project:sortie:<id>`)
+- persisted status/result lookup
+- a human-readable event log
+
+Current truthful limitation: the first shipped slice still runs one coordinating spawned agent underneath. Richer multi-agent approvals and artifact/result surfaces are the next layer.
+
+```typescript
+// Launch a tracked sortie mission
+const { sortie, result } = await pd.runSortie({
+  goal: 'Investigate flaky auth tests and summarize the root cause',
+  backend: 'codex',
+  modelTier: 'low',
+  budgetUsd: 0.75,
+  recipe: 'investigate',
+  expectedOutput: 'Root-cause memo with recommended next actions',
+  context: 'Do not patch yet; evidence only',
+});
+
+console.log(sortie.id, sortie.status, sortie.harbor);
+console.log(result?.output);
+
+// Inspect sortie history later
+const { sorties } = await pd.listSorties({ projectDir: '/path/to/project' });
+const { sortie: oneSortie } = await pd.getSortie(sortie.id);
+const { events } = await pd.getSortieLogs(sortie.id);
+```
+
+| Method | Description |
+|--------|-------------|
+| `pd.runSortie(spec)` | Launch a tracked sortie mission and return its initial result |
+| `pd.listSorties(options?)` | List recent sorties, optionally filtered by project directory |
+| `pd.getSortie(id)` | Fetch one sortie by id |
+| `pd.getSortieLogs(id, limit?)` | Fetch the sortie event log |
 
 ---
 

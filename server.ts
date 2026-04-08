@@ -40,6 +40,7 @@ import { createSpawner } from './lib/spawner.js';
 import { createBriefing } from './lib/briefing.js';
 import { createSugar } from './lib/sugar.js';
 import { createHarbors } from './lib/harbors.js';
+import { createSorties } from './lib/sorties.js';
 import { createPheromoneManager } from './lib/pheromone.js';
 import { createBarnacleWatcher } from './lib/barnacle-client.js';
 import { createReactiveOrchestrator } from './lib/orchestrator.js';
@@ -249,6 +250,7 @@ const counters = createCounters(db);
 const spawner = createSpawner({ costTracker, counters });
 const sugar = createSugar({ agents, sessions, activityLog });
 const harbors = createHarbors(db);
+const sorties = createSorties(db);
 semanticIndex.initialize();
 const arbiter = createArbiter(
   { activityLog, agents, sessions, locks, resurrection },
@@ -542,7 +544,7 @@ await registerAllRoutes(
     db, logger, metrics, config,
     services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar,
-    harbors, orchestrator, correlationEngine, spawner, tuples, fleetDaemon,
+    harbors, sorties, orchestrator, correlationEngine, spawner, tuples, fleetDaemon,
     orchestratorRegistry, symbolIndex, mergeQueue, costTracker, counters,
     VERSION, CODE_HASH, STARTED_AT, __dirname,
     cleanupStale, getSystemPorts,

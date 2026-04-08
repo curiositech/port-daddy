@@ -12,8 +12,11 @@ Stabilize the live Port Daddy operator loop so one daemon, one fleet runtime, on
 Latest committed slice: `2202aca` — Port Daddy fleet defaults switched to local-first backends.
 Current uncommitted slice: post-dogfood operator truth and runtime cleanup:
 - ignore generated `.spider/connections/*.md` residue by default unless a later docs feature explicitly curates one
+- ignore generated `.dogfood/` run reports by default unless one is intentionally promoted into docs
 - continue the remaining control-plane product work from the feedback queue
 - keep runtime discovery, Ollama/Codex defaults, and fleet cost discipline aligned with the live daemon instead of only source truth
+- keep `skills/port-daddy-cli/SKILL.md` and its API reference synced with every Port Daddy delegation/runtime change, not as a later cleanup
+- keep the full Jest suite honest; record real failures instead of treating focused green bundles as enough
 
 ## Active Tasks
 
@@ -24,7 +27,11 @@ Current uncommitted slice: post-dogfood operator truth and runtime cleanup:
 5. Collapse duplicate chrome in Fleet Control Center when embedded:
    - FleetBar owns the outer nav
    - the embedded control plane must not render a second top-level nav/header stack
-6. Make Activity, Channels, Inbox, and Sorties behave like real top-level pages instead of buried panels or empty shells.
+6. Make Activity, Channels, Inbox, and Sorties behave like real top-level pages instead of buried panels or empty shells. Fix te bug where there's no project or daemon switcher in fleet control center, and no instructions on how to add new project folders.
+   - Fleet Control Center needs an explicit native project switcher, not a single sticky project badge
+   - embedded mode must not auto-force the first project with no way back to an all-projects view
+   - add obvious “Add project to Port Daddy” entry points with copyable `pd init`, `pd fleet init`, `pd fleet up`, and `pd mcp install` fragments
+   - document what makes a project “real” in the control center: a repo with `pd-fleet.yml` that is started/registered on the current daemon
 7. Upgrade agent detail surfaces to show high-signal recent work:
    - non-empty messages
    - recent mutations
@@ -82,6 +89,8 @@ Current uncommitted slice: post-dogfood operator truth and runtime cleanup:
 18. Fix the surfaces the operator explicitly says are still not working:
    - Inbox should move into Agents or Channels if that is the more truthful model, but either way it must actually work
    - Sorties must be verified end-to-end from the live daemon/UI, not merely made pretty
+   - the sortie mission builder must stop pretending its roster is real until recipes map to explicit agent definitions, editable roster selection, and a documented intra-mission coordination protocol
+   - recipe labels like `investigate`, `fix`, `review`, and `creative` need first-class definitions exposed in-product and in docs, not just UI cards
    - root-cause the exact Claude SDK launch reset path where the UI said “ready,” attempted launch, then reverted to `claude-cli`
    - recent sortie outcomes need a denser, scrollable list with drill-in detail instead of tiny collapsed chips
    - add a real sortie status page and a real sortie results page
@@ -103,6 +112,44 @@ Current uncommitted slice: post-dogfood operator truth and runtime cleanup:
    - `aider` must honor selected models at execution time instead of ignoring them
    - `custom` must receive resolved model + tier in env so wrapper commands can act on it
    - `/fleet/models`, `pd agent`, and raw `pd spawn` must all expose the same tier truth
+23. `pd fleet validate` is now back:
+   - parses `pd-fleet.yml`
+   - resolves templates
+   - checks topology cycles
+   - performs a dry run without spawning agents
+24. Curate the best Spark/Spider suggestions into the real roadmap instead of leaving them as residue:
+   - network identity for fleet agents: service claim + DNS + tunnel cascade on spawn/exit
+   - merge queue event bus bridge into ambient messaging
+   - durable tuple-space service offers / acceptance for integration readiness
+   - Arbiter pre-dispatch IPC checks instead of post-hoc-only violation logging
+   - suspend merge-queue branches when the submitting agent dies until salvage/resume
+   - symbol-aware spawn preflight and hot-zone/instability signals for fleet gating
+25. Keep Port Daddy dogfooding honest:
+   - use `pd agent` and `pd sortie` on Port Daddy itself while building delegation surfaces
+   - if a dogfood launch fails, log the exact failure in the recovery hub instead of just saying “it failed”
+   - current truth: `port-daddy sortie run ...` against the live daemon returned `ERROR: Not Found`, so the CLI surface exists but the daemon/runtime route is not reliably there in the canonical live path yet
+26. Build a real system-wide observability dashboard instead of pretending scattered metrics cards are enough:
+   - chart primitive Port Daddy calls over time
+   - chart service/API call volume and error rate over time
+   - show spawn rate, failure rate, duration, message traffic, and service churn in one operator view
+   - distinguish live claims from stale/zombie claims so “72 active ports” cannot quietly mean “72 database rows”
+   - make this available both in the control plane and from a direct daemon-served route
+27. Rehabilitate the current full-suite failures exposed by dogfooding instead of ignoring them:
+   - `tests/integration/adversarial.test.js`
+     - rapid-fire publish currently succeeds `0/50`
+     - SQL-injection publish test has the assertion backwards (`expect([200, 201]).toContain(res.status)` while the text says 400)
+   - `tests/unit/client.test.js`
+     - default URL expectation still hardcodes `http://localhost:9876` even though runtime discovery can legitimately resolve `127.0.0.1:9877`
+   - `tests/unit/bijective-parity.test.js`
+     - CLI parity does not know about `sortie`
+     - route-category parity is missing `sorties` and `operator`
+   - `tests/unit/manifest-enforcement.test.js`
+     - new fleet/operator/sortie routes and CLI surfaces are not mapped into the manifest contract
+   - `tests/unit/mcp-parity.test.js`
+     - sortie MCP tools are missing from `TOOL_FEATURE_MAP` and category coverage
+   - `tests/unit/spawner-dotenv-uid.test.js` and `tests/unit/spawner-claude-cli-auth.test.js`
+     - both have stale `node:fs` mock surfaces that no longer expose `mkdtempSync`
+   - full-suite run on 2026-04-08 also ended with a worker-leak warning; keep treating timer/process teardown as suspect until proven clean
 
 ## Immediate Next Cuts
 
@@ -122,6 +169,10 @@ Current uncommitted slice: post-dogfood operator truth and runtime cleanup:
    - docs/templates/website honesty sweep
    - any leftover FleetBar/operator labels
 11. Rehabilitate the operator file-action bug shown in live use:
+12. Root-cause why `port-daddy status` reports 72 active ports while `ports cleanup` frees 0:
+   - inspect stale assigned claims with null/dead PIDs
+   - decide whether cleanup should prune them or status should report them separately
+   - add tests that catch zombie-claim inflation instead of only testing expired/running cleanup
    - Spark/Spider mutation cards are still surfacing relative paths that Finder cannot resolve
    - fix resolution in both the web control plane and FleetBar/native shell paths
 12. Audit live fleet spawn counts against the declared fleet config and event traffic:
@@ -129,6 +180,13 @@ Current uncommitted slice: post-dogfood operator truth and runtime cleanup:
    - then add stricter defaults or caps so the fleet behaves within real Claude/Codex usage scarcity
    - manual upkeep runs also need room to execute; `pd fleet run documentarian` and `pd fleet run cartographer` should not be starved forever behind a saturated always-on fleet
    - the first local documentarian dogfood timed out on `ollama / qwen2.5-coder:7b` during a broad truth sweep, so we need a better policy for when cheap local docs agents are enough versus when an operator-triggered higher-tier run is warranted
+13. Decide how dormant/registered fleet projects should appear in operator surfaces:
+   - `/fleet` currently shows loaded/running fleets only
+   - cost telemetry can mention a project that the Fleet Control Center cannot yet list
+   - decide whether the UI should show dormant registered projects separately from active fleets
+14. Keep the full test suite in the operator loop:
+   - focused bundles are useful, but always re-run `npm test` before claiming broad repo health
+   - when the full suite fails, write the concrete failing files and root-cause hypotheses here
 
 ## Newly Confirmed Truths
 
@@ -185,6 +243,8 @@ Current uncommitted slice: post-dogfood operator truth and runtime cleanup:
 - Activity cannot key its entire left rail off “agents with signals” only. If the project log has meaningful work but the left rail says “no signals,” the operator experience is lying by omission.
 - Activity click behavior should focus the in-page activity view, not reopen the global slide-in Flow inspector. Overlapping detail surfaces are harder to reason about than one truthful one.
 - Spark scratch was already correctly treated as local residue via `.gitignore`; the analogous spider connection note pile belongs in the same default-ignore bucket unless later curated intentionally.
+- `.dogfood/` is the same class of residue as `.spark/` and `.spider/connections/`: useful locally, not repo truth by default.
+- The full Jest suite is not green right now. Real failing files as of 2026-04-08: `tests/integration/adversarial.test.js`, `tests/unit/client.test.js`, `tests/unit/bijective-parity.test.js`, `tests/unit/manifest-enforcement.test.js`, `tests/unit/mcp-parity.test.js`, `tests/unit/spawner-dotenv-uid.test.js`, and `tests/unit/spawner-claude-cli-auth.test.js`. Treat any “green enough” story that omits those as dishonest.
 
 ## Explicit Non-Goals For This Pass
 

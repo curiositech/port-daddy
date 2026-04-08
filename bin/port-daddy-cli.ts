@@ -85,7 +85,7 @@ import {
   // Briefing history
   handleHistory,
   // Spawn + Watch
-  handleSpawn, handleSpawned, handleWatch,
+  handleSpawn, handleSpawned, handleWatch, handleSortie,
   // Harbors
   handleHarborCreate, handleHarborEnter, handleHarborLeave, handleHarborShow, handleHarborDestroy, handleHarbors,
   // Demo
@@ -2138,6 +2138,10 @@ async function main(): Promise<void> {
 
       case 'spawned':
         await handleSpawned(positional, options);
+        break;
+
+      case 'sortie':
+        await handleSortie(positional, options);
         break;
 
       // Watch — ambient agent kernel (SSE subscriber)

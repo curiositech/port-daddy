@@ -646,6 +646,8 @@ Check who owns a specific file path.
 ### POST /spawn
 Launch an AI agent with full PD coordination (registration, sessions, heartbeats, salvage on crash).
 
+This is the low-level delegation primitive. Use `/sorties` when you want a durable mission id, event log, harbor, and later status/result lookup instead of a raw spawned run.
+
 **Body:**
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -666,6 +668,44 @@ List active spawned agents.
 
 ### DELETE /spawn/:agentId
 Kill a spawned agent.
+
+---
+
+## Sorties
+
+### POST /sorties
+Launch a tracked sortie mission.
+
+This is the first-class mission surface over spawned runs: Port Daddy creates a persisted sortie record, assigns an ephemeral harbor like `project:sortie:<id>`, runs spawn preflight, records mission events, and returns a durable sortie id you can inspect later.
+
+**Body:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `goal` | string | yes | Mission brief or goal statement |
+| `projectDir` | string | no | Project directory (defaults to daemon cwd) |
+| `backend` | string | yes | `ollama`, `claude`, `claude-cli`, `gemini`, `codex`, `aider`, `custom` |
+| `budgetUsd` | number | yes | Positive spend ceiling for this mission |
+| `model` | string | no | Explicit model override |
+| `modelTier` | string | no | Tier hint: `low`, `mid`, `high` |
+| `recipe` | string | no | Mission recipe label (`investigate`, `fix`, `review`, `creative`, `custom`) |
+| `expectedOutput` | string | no | Expected deliverable summary |
+| `context` | string | no | Extra constraints or context |
+| `approvalMode` | string | no | Human gate mode (`none`, `before-build`, `before-apply`, `before-close`) |
+| `roster` | string[] | no | Requested roles or roster preview |
+| `identity` | string | no | Coordinator identity override |
+| `purpose` | string | no | Human-readable label for the coordinating run |
+| `allowedTools` | string | no | Tool permission string for claude-cli-backed coordinators |
+| `timeout` | number | no | Timeout in milliseconds |
+| `maxTokens` | number | no | Optional token ceiling for claude or claude-cli launches |
+
+### GET /sorties
+List recent sorties. Query params: `projectDir`, `limit`.
+
+### GET /sorties/:id
+Fetch one sortie mission by id.
+
+### GET /sorties/:id/logs
+Fetch the event log for a sortie mission. Query params: `limit`.
 
 ---
 
@@ -777,7 +817,7 @@ Count tuples, optionally scoped to a harbor.
 
 As of v3.8.3, the Port Daddy daemon auto-discovers `pd-fleet.yml` files in registered projects on boot and runs fleets as a persistent subsystem. These endpoints manage the daemon-level fleet.
 
-The CLI (`pd fleet up/down/status`) also supports a terminal-attached mode that reads `pd-fleet.yml` directly without the daemon fleet subsystem.
+The CLI (`pd fleet up/down/status/validate`) also supports a terminal-attached mode that reads `pd-fleet.yml` directly without the daemon fleet subsystem. `pd fleet validate` is the dry-run path: it parses YAML, resolves templates, checks trigger topology, and exits without spawning agents.
 
 ### GET /fleet
 Aggregated fleet status across all managed projects.

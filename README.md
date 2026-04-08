@@ -194,6 +194,35 @@ Quiet mode (`-q`) prints raw output to stdout and exits non-zero on failure — 
 local result=$(pd spawn --backend codex --tier low --budget 0.25 -q -- "Write a commit message for: $diff")
 ```
 
+### Delegation Modes
+
+Use the right surface for the job:
+
+- `pd spawn` — the low-level primitive. Explicit backend, identity, budget, and task.
+- `pd agent` — the preferred single-agent sugar. One bounded task with Port Daddy coordination wrapped around it.
+- `pd sortie` — a tracked mission record with a durable id, event log, harbor, and inspectable outcome.
+- `pd fleet` — always-on project automation from `pd-fleet.yml`.
+
+Canonical operator explanation: [docs/DELEGATION-MODES.md](docs/DELEGATION-MODES.md)
+
+```bash
+# Preferred single-agent delegation
+pd agent "Review the last commit for regressions" --backend codex --tier low --budget 0.35
+
+# Tracked mission record with status + logs
+pd sortie "Investigate flaky auth tests and summarize the root cause" \
+  --backend codex \
+  --tier low \
+  --budget 0.75
+
+# Inspect mission outcomes later
+pd sortie list
+pd sortie status sortie-abc123
+pd sortie logs sortie-abc123
+```
+
+Current truthful limitation: `pd sortie` is now a first-class mission object and CLI/API/MCP surface, but the underlying execution is still a single coordinating spawned agent. Richer multi-agent approvals, artifact/result pages, and human-in-the-loop controls are the next layer.
+
 ### OpenAPI Specification
 Full API spec at `docs/openapi.yaml` (OpenAPI 3.1, 96 paths, 125 operations):
 ```bash
@@ -342,6 +371,7 @@ fleet:
 # CLI mode
 pd fleet init     # Create pd-fleet.yml + git post-commit hook (first-time setup)
 pd fleet up       # Start all agents (foreground, terminal-attached)
+pd fleet validate # Parse YAML, resolve templates, and dry-run topology checks
 pd fleet status   # View running agents
 pd fleet down     # Stop all agents
 

@@ -13,6 +13,7 @@ struct FleetControlCenter: View {
     @State private var reloadToken = UUID()
     @State private var webLoading = true
     @State private var webError: String?
+    @State private var showingAddProject = false
 
     private var selectedSurface: FleetControlSurface {
         get { FleetControlSurface(rawValue: selectedSurfaceRaw) ?? .flow }
@@ -131,6 +132,8 @@ struct FleetControlCenter: View {
                 }
             }
 
+            projectMenu
+
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Fleet.Space.xs) {
                     ForEach(FleetControlSurface.allCases) { surface in
@@ -203,6 +206,14 @@ struct FleetControlCenter: View {
             }
 
             ActionPill(
+                title: "Add Project",
+                systemImage: "plus",
+                color: Fleet.Color.healthy
+            ) {
+                showingAddProject = true
+            }
+
+            ActionPill(
                 title: "Browser",
                 systemImage: "safari",
                 color: Fleet.Color.warning,
@@ -211,6 +222,9 @@ struct FleetControlCenter: View {
         }
         .padding(.horizontal, Fleet.Space.l)
         .padding(.vertical, 10)
+        .sheet(isPresented: $showingAddProject) {
+            FleetAddProjectSheet()
+        }
     }
 
     private var content: some View {
@@ -319,6 +333,66 @@ struct FleetControlCenter: View {
         )
     }
 
+    private var projectMenu: some View {
+        Menu {
+            Button {
+                chooseProject(nil)
+            } label: {
+                Label("All projects", systemImage: "square.grid.2x2")
+            }
+
+            if !store.projects.isEmpty {
+                Divider()
+                ForEach(store.projects) { project in
+                    Button {
+                        chooseProject(project.id)
+                    } label: {
+                        HStack {
+                            Image(systemName: project.id == selectedProjectId ? "checkmark.circle.fill" : "folder")
+                            Text(project.name)
+                            Spacer()
+                            Text("\(project.agents.count)")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+
+            Divider()
+            Button {
+                showingAddProject = true
+            } label: {
+                Label("Add project…", systemImage: "plus")
+            }
+        } label: {
+            HStack(spacing: Fleet.Space.xs) {
+                Image(systemName: selectedProjectId == nil ? "square.grid.2x2" : "folder")
+                    .font(.caption.weight(.semibold))
+                Text(selectedProjectLabel)
+                    .font(.caption.weight(.semibold))
+                    .lineLimit(1)
+                Image(systemName: "chevron.down")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+            .foregroundStyle(.primary)
+            .padding(.horizontal, Fleet.Space.m)
+            .padding(.vertical, Fleet.Space.s)
+            .background(
+                Color.primary.opacity(0.05),
+                in: RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous)
+            )
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func chooseProject(_ projectId: String?) {
+        selectedProjectId = projectId
+        selectedAgent = nil
+        reloadToken = UUID()
+    }
+
     private func syncProjectSelection() {
         guard !store.projects.isEmpty else {
             selectedProjectId = nil
@@ -335,7 +409,11 @@ struct FleetControlCenter: View {
             return
         }
 
-        selectedProjectId = store.projects.first?.id
+        if selectedProjectStorage.isEmpty {
+            selectedProjectId = nil
+        } else {
+            selectedProjectId = store.projects.first?.id
+        }
         selectedAgent = nil
     }
 
@@ -370,5 +448,107 @@ private struct ActionPill: View {
                 )
         }
         .buttonStyle(.plain)
+    }
+}
+
+private struct FleetAddProjectSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var copiedCommand: String?
+
+    private let recommendedPath = "<project-dir>"
+    private let quickstartCommands: [(title: String, caption: String, command: String)] = [
+        (
+            title: "Full onboarding",
+            caption: "Scaffold Port Daddy, starter fleet, hooks, and MCP in one pass.",
+            command: "cd <project-dir>\npd init"
+        ),
+        (
+            title: "Starter fleet only",
+            caption: "Create pd-fleet.yml plus the post-commit trigger without touching editor integration.",
+            command: "cd <project-dir>\npd fleet init"
+        ),
+        (
+            title: "Start background agents",
+            caption: "Make the project show up in Fleet Control Center by starting its fleet on this daemon.",
+            command: "cd <project-dir>\npd fleet up"
+        ),
+        (
+            title: "Install MCP + skill",
+            caption: "Attach Port Daddy to Claude/Cursor/Windsurf after the project itself is ready.",
+            command: "pd mcp install"
+        ),
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Fleet.Space.l) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Add Project To Port Daddy")
+                        .font(.title3.weight(.semibold))
+                    Text("A project becomes real in the control center once it has a `pd-fleet.yml` and that fleet is started on this daemon.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button("Done") {
+                    dismiss()
+                }
+                .buttonStyle(.borderless)
+            }
+
+            VStack(alignment: .leading, spacing: Fleet.Space.s) {
+                Text("Recommended path")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Text("1. Pick a repo folder.\n2. Run `pd init` there.\n3. Run `pd fleet up` in that repo.\n4. Reopen or reload Fleet Control Center.")
+                    .font(.body)
+                    .foregroundStyle(.primary)
+            }
+
+            ForEach(quickstartCommands, id: \.title) { item in
+                VStack(alignment: .leading, spacing: Fleet.Space.s) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(item.title)
+                                .font(.headline)
+                            Text(item.caption)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button(copiedCommand == item.title ? "Copied" : "Copy") {
+                            copyToPasteboard(item.command)
+                            copiedCommand = item.title
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+
+                    Text(item.command.replacingOccurrences(of: recommendedPath, with: "<project-dir>"))
+                        .font(.system(.callout, design: .monospaced))
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(Fleet.Space.m)
+                        .background(
+                            Color.primary.opacity(0.05),
+                            in: RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous)
+                        )
+                }
+            }
+
+            Text("Cold-start note: `pd fleet init` only writes the starter files. The project will not appear in the live fleet list until `pd fleet up` starts it on this daemon.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            Spacer(minLength: 0)
+        }
+        .padding(Fleet.Space.xxl)
+        .frame(minWidth: 760, minHeight: 560)
+        .background(Fleet.Chrome.popoverBackground)
+    }
+
+    private func copyToPasteboard(_ string: String) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(string, forType: .string)
     }
 }

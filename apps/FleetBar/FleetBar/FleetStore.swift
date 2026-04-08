@@ -11,8 +11,8 @@ struct FleetProject: Identifiable {
     var agents: [FleetAgent]
     var startedAt: Date?
 
-    var activeCount: Int { agents.filter { $0.status == .running }.count }
-    var idleCount: Int { agents.filter { $0.status == .idle }.count }
+    var activeCount: Int { agents.filter { $0.status.isDeployed }.count }
+    var idleCount: Int { agents.filter { $0.status == .idle || $0.status == .paused }.count }
     var failedCount: Int { agents.filter { $0.status == .failed }.count }
 }
 
@@ -31,7 +31,16 @@ struct FleetAgent: Identifiable {
     }
 
     enum AgentStatus: String {
-        case running, idle, failed, dead
+        case running, armed, scheduled, paused, idle, failed, dead
+
+        var isDeployed: Bool {
+            switch self {
+            case .running, .armed, .scheduled:
+                return true
+            default:
+                return false
+            }
+        }
     }
 }
 
@@ -49,6 +58,7 @@ struct FleetStatusResponse: Decodable {
 struct FleetResponse: Decodable {
     let project: String
     let projectDir: String
+    let running: Bool
     let agents: [AgentResponse]
     let watchers: Int
     let channels: Int
@@ -58,7 +68,9 @@ struct FleetResponse: Decodable {
 struct AgentResponse: Decodable {
     let name: String
     let type: String
+    let status: String
     let running: Bool
+    let paused: Bool
     let uptime: Double
 }
 
@@ -262,16 +274,15 @@ class FleetStore: ObservableObject {
         }
     }
 
-    func startFleet(projectDir: String? = nil) async {
+    func startFleet(projectDir: String? = nil, enabledAgents: [String]? = nil) async {
         guard let url = URL(string: "\(baseURL)/fleet/start") else { return }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if let projectDir {
-            request.httpBody = try? JSONEncoder().encode(["projectDir": projectDir])
-        } else {
-            request.httpBody = "{}".data(using: .utf8)
-        }
+        var body: [String: Any] = [:]
+        if let projectDir { body["projectDir"] = projectDir }
+        if let enabledAgents { body["enabledAgents"] = enabledAgents }
+        request.httpBody = (try? JSONSerialization.data(withJSONObject: body.isEmpty ? [:] : body))
         _ = try? await URLSession.shared.data(for: request)
         await refresh()
     }
@@ -296,6 +307,36 @@ class FleetStore: ObservableObject {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = "{}".data(using: .utf8)
+        _ = try? await URLSession.shared.data(for: request)
+        await refresh()
+    }
+
+    func runAgent(projectDir: String, agentName: String) async {
+        guard let url = URL(string: "\(baseURL)/fleet/agent/run") else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["projectDir": projectDir, "agentName": agentName])
+        _ = try? await URLSession.shared.data(for: request)
+        await refresh()
+    }
+
+    func pauseAgent(projectDir: String, agentName: String) async {
+        guard let url = URL(string: "\(baseURL)/fleet/agent/pause") else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["projectDir": projectDir, "agentName": agentName])
+        _ = try? await URLSession.shared.data(for: request)
+        await refresh()
+    }
+
+    func resumeAgent(projectDir: String, agentName: String) async {
+        guard let url = URL(string: "\(baseURL)/fleet/agent/resume") else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["projectDir": projectDir, "agentName": agentName])
         _ = try? await URLSession.shared.data(for: request)
         await refresh()
     }
@@ -391,7 +432,7 @@ class FleetStore: ObservableObject {
                     id: "\(fleet.project):fleet:\(agent.name)",
                     name: agent.name,
                     type: FleetAgent.AgentType(rawValue: agent.type) ?? .triggered,
-                    status: agent.running ? .running : .idle,
+                    status: FleetAgent.AgentStatus(rawValue: agent.status) ?? (agent.running ? .running : agent.paused ? .paused : .idle),
                     lastActivity: existing?.lastActivity,
                     lastEvent: existing?.lastEvent,
                     lastSummary: existing?.lastSummary,
@@ -436,9 +477,15 @@ class FleetStore: ObservableObject {
         case "agent_started":
             projects[projectIdx].agents[agentIdx].status = .running
         case "agent_completed":
-            projects[projectIdx].agents[agentIdx].status = .idle
+            let type = projects[projectIdx].agents[agentIdx].type
+            projects[projectIdx].agents[agentIdx].status = type == .scheduled || type == .triggered ? .armed : .idle
         case "agent_failed":
             projects[projectIdx].agents[agentIdx].status = .failed
+        case "agent_paused":
+            projects[projectIdx].agents[agentIdx].status = .paused
+        case "agent_resumed":
+            let type = projects[projectIdx].agents[agentIdx].type
+            projects[projectIdx].agents[agentIdx].status = type == .scheduled || type == .triggered ? .armed : .idle
         default:
             break
         }

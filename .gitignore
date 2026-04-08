@@ -36,6 +36,7 @@ plans/
 .portdaddy/
 .spark/
 .spider/connections/
+.dogfood/
 *.strategy.md
 *.internal.md
 .claude/worktrees/

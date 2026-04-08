@@ -133,12 +133,13 @@ const ESSENTIAL_TOOL_NAMES = new Set([
   'swarm_awareness',
   'catch_me_up',
   'spawn_agent',
+  'run_sortie',
 ]);
 
 const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> = {
   'magic': {
-    description: 'High-level composed tools: fleet setup, swarm awareness, catch-me-up briefings, agent spawning, file heat maps, agent messaging',
-    tools: ['fleet_init', 'fleet_status', 'swarm_awareness', 'catch_me_up', 'file_heat', 'talk_to_agent', 'spawn_agent'],
+    description: 'High-level composed tools: fleet setup, swarm awareness, catch-me-up briefings, agent spawning, sortie missions, file heat maps, agent messaging',
+    tools: ['fleet_init', 'fleet_status', 'swarm_awareness', 'catch_me_up', 'file_heat', 'talk_to_agent', 'spawn_agent', 'run_sortie'],
   },
   'session-lifecycle': {
     description: 'Start/end sessions, manage agent registration (sugar commands)',
@@ -203,6 +204,10 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
   'activity': {
     description: 'Activity log queries and statistics',
     tools: ['activity_log', 'activity_summary', 'activity_stats', 'activity_range'],
+  },
+  'sorties': {
+    description: 'Tracked mission records over spawned runs — launch, inspect status, and fetch sortie event logs',
+    tools: ['run_sortie', 'list_sorties', 'get_sortie', 'get_sortie_logs'],
   },
   'system': {
     description: 'Daemon status, version, metrics, config, and launch hints',
@@ -1840,6 +1845,71 @@ const TOOLS = [
       required: ['task', 'identity', 'budget_usd'],
     },
   },
+  {
+    name: 'run_sortie',
+    description:
+      '[Magic] Launch a tracked sortie mission. Use this when you want a durable mission id, ' +
+      'ephemeral harbor, event log, and inspectable outcome instead of a raw one-shot spawn.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        goal: { type: 'string', description: 'Required mission goal or brief.' },
+        project_dir: { type: 'string', description: 'Optional project directory override. Defaults to the current working directory on the daemon side.' },
+        budget_usd: { type: 'number', description: 'Required spend ceiling for the sortie in USD.' },
+        backend: { type: 'string', description: 'Required backend: ollama, claude, claude-cli, gemini, codex, aider, or custom.' },
+        model: { type: 'string', description: 'Optional explicit model override.' },
+        model_tier: { type: 'string', description: 'Optional tier hint: low, mid, or high.' },
+        recipe: { type: 'string', description: 'Optional mission recipe such as investigate, fix, review, creative, or custom.' },
+        expected_output: { type: 'string', description: 'Optional expected deliverable summary.' },
+        context: { type: 'string', description: 'Optional extra context or constraints.' },
+        approval_mode: { type: 'string', description: 'Optional human gate mode: none, before-build, before-apply, or before-close.' },
+        roster: { type: 'array', description: 'Optional roster preview or requested roles.', items: { type: 'string' } },
+        identity: { type: 'string', description: 'Optional explicit coordinator identity. Defaults to project:sortie:<id>:coordinator.' },
+        purpose: { type: 'string', description: 'Optional short human-readable label for the coordinating run.' },
+        allowed_tools: { type: 'string', description: 'Optional tool permission string for claude-cli-backed coordinators.' },
+        timeout: { type: 'number', description: 'Optional timeout in milliseconds.' },
+        max_tokens: { type: 'number', description: 'Optional token ceiling for claude or claude-cli launches.' },
+      },
+      required: ['goal', 'backend', 'budget_usd'],
+    },
+  },
+  {
+    name: 'list_sorties',
+    description:
+      '[Mission] List recent sortie missions. Filter to the current project by default, or pass a project directory to inspect another checkout.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        project_dir: { type: 'string', description: 'Optional project directory filter.' },
+        limit: { type: 'number', description: 'Optional maximum number of sorties to return (default: 25).' },
+      },
+    },
+  },
+  {
+    name: 'get_sortie',
+    description:
+      '[Mission] Fetch one sortie mission by id, including status, harbor, backend, output, and failure details when present.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        sortie_id: { type: 'string', description: 'Sortie mission id.' },
+      },
+      required: ['sortie_id'],
+    },
+  },
+  {
+    name: 'get_sortie_logs',
+    description:
+      '[Mission] Fetch the human-readable event log for a sortie mission.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        sortie_id: { type: 'string', description: 'Sortie mission id.' },
+        limit: { type: 'number', description: 'Optional maximum number of log events to return.' },
+      },
+      required: ['sortie_id'],
+    },
+  },
   // ── Tuple Space ──────────────────────────────────────────────────────
   {
     name: 'tuple_out',
@@ -2772,6 +2842,46 @@ async function handleTool(
       if (allowedTools) body.allowedTools = allowedTools;
       if (typeof args.max_tokens === 'number') body.maxTokens = args.max_tokens;
       res = await POST('/spawn', body);
+      break;
+    }
+    case 'run_sortie': {
+      const body: Record<string, unknown> = {
+        goal: args.goal,
+        backend: args.backend,
+        budgetUsd: args.budget_usd,
+      };
+      if (args.project_dir) body.projectDir = args.project_dir;
+      if (args.model) body.model = args.model;
+      if (args.model_tier) body.modelTier = args.model_tier;
+      if (args.recipe) body.recipe = args.recipe;
+      if (args.expected_output) body.expectedOutput = args.expected_output;
+      if (args.context) body.context = args.context;
+      if (args.approval_mode) body.approvalMode = args.approval_mode;
+      if (Array.isArray(args.roster)) body.roster = args.roster;
+      if (args.identity) body.identity = args.identity;
+      if (args.purpose) body.purpose = args.purpose;
+      if (args.allowed_tools) body.allowedTools = args.allowed_tools;
+      if (typeof args.timeout === 'number') body.timeout = args.timeout;
+      if (typeof args.max_tokens === 'number') body.maxTokens = args.max_tokens;
+      res = await POST('/sorties', body);
+      break;
+    }
+    case 'list_sorties': {
+      const qs = new URLSearchParams();
+      if (args.project_dir) qs.set('projectDir', args.project_dir as string);
+      if (typeof args.limit === 'number') qs.set('limit', String(args.limit));
+      res = await GET(qs.toString() ? `/sorties?${qs.toString()}` : '/sorties');
+      break;
+    }
+    case 'get_sortie': {
+      res = await GET(`/sorties/${encodeURIComponent(args.sortie_id as string)}`);
+      break;
+    }
+    case 'get_sortie_logs': {
+      const qs = new URLSearchParams();
+      if (typeof args.limit === 'number') qs.set('limit', String(args.limit));
+      const suffix = qs.toString() ? `?${qs.toString()}` : '';
+      res = await GET(`/sorties/${encodeURIComponent(args.sortie_id as string)}/logs${suffix}`);
       break;
     }
 

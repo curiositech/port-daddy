@@ -97,7 +97,7 @@ export function useFleet(daemonUrl: string) {
         events: [...s.events.slice(-200), ev], // keep last 200
       }));
       // Refresh status on lifecycle events
-      if (['agent_started', 'agent_completed', 'agent_failed', 'fleet_started', 'fleet_stopped'].includes(ev.type)) {
+      if (['agent_started', 'agent_completed', 'agent_failed', 'agent_paused', 'agent_resumed', 'fleet_started', 'fleet_stopped'].includes(ev.type)) {
         refresh();
       }
     });

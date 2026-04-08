@@ -215,12 +215,28 @@ export async function saveFleetConfig(project: string, yaml: string): Promise<{
   return put(`/fleet/config/${encodeURIComponent(project)}`, { yaml });
 }
 
-export async function startFleet(projectDir?: string): Promise<{ success: boolean }> {
-  return post('/fleet/start', projectDir ? { projectDir } : undefined);
+export async function startFleet(projectDir?: string, enabledAgents?: string[]): Promise<{ success: boolean }> {
+  if (!projectDir && !enabledAgents) return post('/fleet/start');
+  return post('/fleet/start', {
+    ...(projectDir ? { projectDir } : {}),
+    ...(enabledAgents ? { enabledAgents } : {}),
+  });
 }
 
 export async function stopFleet(projectDir?: string): Promise<{ success: boolean }> {
   return post('/fleet/stop', projectDir ? { projectDir } : undefined);
+}
+
+export async function runFleetAgent(projectDir: string, agentName: string): Promise<{ success: boolean; error?: string }> {
+  return post('/fleet/agent/run', { projectDir, agentName });
+}
+
+export async function pauseFleetAgent(projectDir: string, agentName: string): Promise<{ success: boolean; error?: string }> {
+  return post('/fleet/agent/pause', { projectDir, agentName });
+}
+
+export async function resumeFleetAgent(projectDir: string, agentName: string): Promise<{ success: boolean; error?: string }> {
+  return post('/fleet/agent/resume', { projectDir, agentName });
 }
 
 // ─── Models ───────────────────────────────────────────────────────────────────

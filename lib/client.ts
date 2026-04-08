@@ -2593,6 +2593,41 @@ class PortDaddy {
     return this._request('DELETE', `/spawn/${encodeURIComponent(agentId)}`) as Promise<KillSpawnedResponse>;
   }
 
+  /**
+   * Launch a tracked sortie mission.
+   * This is the first-class mission surface over spawned runs: persisted id, event log,
+   * harbor, and durable status/result lookup.
+   */
+  async runSortie(spec: SortieSpec): Promise<RunSortieResponse> {
+    return this._request('POST', '/sorties', spec as unknown as Record<string, unknown>) as Promise<RunSortieResponse>;
+  }
+
+  /**
+   * List recent sorties for the current project or all projects.
+   */
+  async listSorties(options: ListSortiesOptions = {}): Promise<ListSortiesResponse> {
+    const params = new URLSearchParams();
+    if (options.projectDir) params.set('projectDir', options.projectDir);
+    if (typeof options.limit === 'number') params.set('limit', String(options.limit));
+    const suffix = params.toString();
+    return this._request('GET', suffix ? `/sorties?${suffix}` : '/sorties') as Promise<ListSortiesResponse>;
+  }
+
+  /**
+   * Fetch a single sortie mission by id.
+   */
+  async getSortie(sortieId: string): Promise<GetSortieResponse> {
+    return this._request('GET', `/sorties/${encodeURIComponent(sortieId)}`) as Promise<GetSortieResponse>;
+  }
+
+  /**
+   * Fetch the event log for a sortie mission.
+   */
+  async getSortieLogs(sortieId: string, limit?: number): Promise<GetSortieLogsResponse> {
+    const suffix = typeof limit === 'number' ? `?limit=${limit}` : '';
+    return this._request('GET', `/sorties/${encodeURIComponent(sortieId)}/logs${suffix}`) as Promise<GetSortieLogsResponse>;
+  }
+
   // Harbors -- Named Permission Namespaces
 
   async createHarbor(name: string, options: CreateHarborOptions = {}): Promise<HarborResponse> {
@@ -3101,6 +3136,94 @@ interface KillSpawnedResponse {
 }
 
 // =============================================================================
+// Sortie types
+// =============================================================================
+
+interface SortieSpec {
+  goal: string;
+  projectDir?: string;
+  backend: SpawnSpec['backend'];
+  budgetUsd: number;
+  model?: string;
+  modelTier?: 'low' | 'mid' | 'high';
+  recipe?: string;
+  expectedOutput?: string;
+  context?: string;
+  approvalMode?: 'none' | 'before-build' | 'before-apply' | 'before-close';
+  roster?: string[];
+  identity?: string;
+  purpose?: string;
+  allowedTools?: string;
+  timeout?: number;
+  maxTokens?: number;
+}
+
+interface SortieRecord {
+  id: string;
+  projectDir: string;
+  project: string;
+  harbor: string;
+  goal: string;
+  recipe: string | null;
+  status: 'planned' | 'blocked' | 'running' | 'completed' | 'failed' | 'cancelled';
+  backend: SpawnSpec['backend'];
+  model: string | null;
+  modelTier: 'low' | 'mid' | 'high' | null;
+  budgetUsd: number;
+  expectedOutput: string | null;
+  spawnAgentId: string | null;
+  resultOutput: string | null;
+  error: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: number;
+  startedAt: number | null;
+  updatedAt: number;
+  completedAt: number | null;
+}
+
+interface SortieEvent {
+  id: number;
+  sortieId: string;
+  type: string;
+  summary: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: number;
+}
+
+interface RunSortieResponse {
+  success: boolean;
+  sortie: SortieRecord;
+  result?: SpawnResult;
+  preflight?: Record<string, unknown>;
+  error?: string;
+}
+
+interface ListSortiesOptions {
+  projectDir?: string;
+  limit?: number;
+}
+
+interface ListSortiesResponse {
+  success: boolean;
+  sorties: SortieRecord[];
+  count: number;
+}
+
+interface GetSortieResponse {
+  success: boolean;
+  sortie: SortieRecord;
+  error?: string;
+}
+
+interface GetSortieLogsResponse {
+  success: boolean;
+  sortie: SortieRecord;
+  events: SortieEvent[];
+  count: number;
+  error?: string;
+}
+
+// =============================================================================
 // Harbor types
 // =============================================================================
 
@@ -3339,6 +3462,14 @@ export type {
   SpawnedAgent,
   ListSpawnedResponse,
   KillSpawnedResponse,
+  SortieSpec,
+  SortieRecord,
+  SortieEvent,
+  RunSortieResponse,
+  ListSortiesOptions,
+  ListSortiesResponse,
+  GetSortieResponse,
+  GetSortieLogsResponse,
   HarborMemberEntry,
   HarborEntry,
   CreateHarborOptions,

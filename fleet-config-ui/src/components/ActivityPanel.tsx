@@ -51,6 +51,8 @@ function relativeTime(timestamp: number): string {
 
 function fleetAccent(type: FleetEvent['type']): string {
   if (type === 'agent_failed') return 'var(--pd-accent)';
+  if (type === 'agent_paused') return 'var(--pd-warning)';
+  if (type === 'agent_resumed') return 'var(--pd-info, var(--pd-success))';
   if (type === 'agent_started') return 'var(--pd-warning)';
   return 'var(--pd-success)';
 }
@@ -77,6 +79,7 @@ function detectStoryAgent(story: StoryNote, agentNames: string[]): string | null
 
 function summarizeFleetEvent(event: FleetEvent): string {
   if (typeof event.details?.error === 'string' && event.details.error.trim()) return event.details.error.trim();
+  if (typeof event.details?.info === 'string' && event.details.info.trim()) return event.details.info.trim();
   if (typeof event.details?.status === 'string' && event.details.status.trim()) return `status: ${event.details.status.trim()}`;
   if (typeof event.details?.message === 'string' && event.details.message.trim()) return event.details.message.trim();
   if (event.type === 'agent_failed') return 'Agent failed without a surfaced summary.';

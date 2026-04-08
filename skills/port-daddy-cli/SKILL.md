@@ -194,6 +194,7 @@ Declare agents in YAML. They fire on git commits, cron schedules, or pub/sub mes
 # CLI mode — manual, terminal-attached
 pd fleet init     # Creates pd-fleet.yml + git hook
 pd fleet up       # Starts the fleet (runs until Ctrl+C or pd fleet down)
+pd fleet validate # Parses YAML, resolves templates, and checks trigger topology
 pd fleet status   # What is the fleet doing?
 pd fleet down     # Stop the fleet
 
@@ -228,6 +229,45 @@ pd agent "investigate auth flow" --backend gemini --tier mid
 ```
 
 This is the lightest-weight delegation surface. It is for one-shot work, not always-on automation.
+
+## `pd sortie`: Tracked Mission Delegation
+
+`pd sortie` is now a first-class mission surface, not just a plan-doc idea.
+
+Already shipped:
+
+- durable sortie ids
+- persisted mission records
+- explicit sortie harbors (`project:sortie:<id>`)
+- sortie status lookup
+- sortie event logs
+
+Current truthful limitation:
+
+- the first shipped slice still runs one coordinating spawned agent underneath
+- richer multi-agent approvals, artifact/result pages, and human-in-the-loop controls are still the next layer from `docs/recovery/PD-AGENT-SORTIE-PLAN.md`
+
+Examples:
+
+```bash
+pd sortie "Investigate flaky auth tests and summarize the root cause" \
+  --backend codex \
+  --tier low \
+  --budget 0.75
+
+pd sortie list
+pd sortie status sortie-abc123
+pd sortie logs sortie-abc123
+```
+
+Use the delegation surfaces this way:
+
+- `pd spawn` — low-level primitive
+- `pd agent` — preferred one-shot single-agent sugar
+- `pd sortie` — tracked mission record with harbor + logs + outcome lookup
+- `pd fleet` — always-on project automation
+
+Canonical explanation: `docs/DELEGATION-MODES.md`
 
 ```yaml
 # pd-fleet.yml
@@ -391,7 +431,8 @@ Override via environment variables: `PORT_DADDY_SOCK`, `PORT_DADDY_IPC`, `PORT_D
 | `pd session files claim` | Advisory file claims |
 | **Fleet & Agents** | |
 | `pd fleet init` | Create pd-fleet.yml + git hook |
-| `pd fleet up/down/status` | Start/stop/inspect the fleet (CLI-attached mode) |
+| `pd fleet up/down/status/validate` | Start/stop/inspect/dry-run the fleet (CLI-attached mode) |
+| `pd sortie` / `pd sortie list/status/logs` | Launch and inspect tracked mission records |
 | `pd spawn` / `pd spawned` | Launch/list background agents |
 | `pd spawn kill` | Kill a spawned agent |
 | `pd salvage` | Dead agent recovery |
@@ -455,16 +496,9 @@ Override via environment variables: `PORT_DADDY_SOCK`, `PORT_DADDY_IPC`, `PORT_D
 | Read/edit fleet config via API | `GET /fleet/config/myapp` or `PUT /fleet/config/myapp` with `{ "yaml": "..." }` |
 | What LLM backends are available? | `PD_URL="\${PORT_DADDY_URL:-http://localhost:9876}"; curl "$PD_URL/fleet/models"` |
 
-## Planned Next Surface
+## Delegation Reference
 
-`pd sortie` is the planned bounded multi-agent mission surface:
-
-- explicit readiness before launch
-- explicit budget/model policy
-- explicit roster and artifact tracking
-- clearer "send this to creative agents" background workflows
-
-That direction is planned in `docs/recovery/PD-AGENT-SORTIE-PLAN.md`.
+If you are choosing between launch surfaces, use `docs/DELEGATION-MODES.md` as the source of truth. It explains when to use `pd spawn`, `pd agent`, `pd sortie`, `pd fleet`, and how harbors fit in.
 
 ## Common Issues
 

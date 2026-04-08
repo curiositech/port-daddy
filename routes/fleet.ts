@@ -5,12 +5,16 @@
  * GET    /fleet/:project   — Specific project's fleet status
  * POST   /fleet/start      — Start all fleets (or specific project via body)
  * POST   /fleet/stop       — Stop all fleets (or specific project via body)
+ * POST   /fleet/agent/run     — Run one fleet agent manually
+ * POST   /fleet/agent/pause   — Pause one fleet agent inside a running fleet
+ * POST   /fleet/agent/resume  — Resume one fleet agent inside a running fleet
+ * POST   /fleet/bootstrap  — Create starter fleet files in a project and start it
  * POST   /fleet/reload     — Re-read all configs and restart changed fleets
  * POST   /fleet/register   — Register a project directory for fleet management
  * GET    /fleet/events     — SSE stream of all fleet lifecycle events
  */
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { parse as parseYaml } from 'yaml';
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import type { createFleetDaemon } from '../lib/fleet-daemon.js';
@@ -21,8 +25,10 @@ import {
   validateTopology,
   type FleetConfig,
 } from '../lib/fleet-engine.js';
+import { ensureStarterFleetProject } from '../lib/fleet-bootstrap.js';
 import { resolveFleetChannel } from '../lib/fleet-channels.js';
 import { assessBackendReadiness } from '../lib/backend-readiness.js';
+import { validateProjectRoot } from '../lib/utils.js';
 import {
   canOpenConnection,
   trackConnection,
@@ -117,10 +123,10 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
 
   // POST /fleet/start — Start fleets
   fastify.post('/fleet/start', async (request: FastifyRequest) => {
-    const { projectDir } = (request.body as { projectDir?: string }) || {};
+    const { projectDir, enabledAgents } = (request.body as { projectDir?: string; enabledAgents?: string[] }) || {};
 
     if (projectDir) {
-      const result = fleetDaemon.startProject(projectDir);
+      const result = fleetDaemon.startProject(projectDir, { enabledAgents });
       return { success: result.success, error: result.error };
     }
 
@@ -144,6 +150,84 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
 
     fleetDaemon.stop();
     return { success: true, message: 'All fleets stopped' };
+  });
+
+  // POST /fleet/agent/run — Manually hail one fleet agent
+  fastify.post('/fleet/agent/run', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { projectDir, agentName } = (request.body as { projectDir?: string; agentName?: string }) || {};
+    if (!agentName || typeof agentName !== 'string') {
+      reply.code(400);
+      return { success: false, error: 'agentName is required' };
+    }
+    const result = await fleetDaemon.hailAgent(agentName, { project: projectDir, source: 'manual' });
+    if (!result.success) reply.code(400);
+    return result;
+  });
+
+  // POST /fleet/agent/pause — Pause one fleet agent
+  fastify.post('/fleet/agent/pause', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { projectDir, agentName } = (request.body as { projectDir?: string; agentName?: string }) || {};
+    if (!agentName || typeof agentName !== 'string') {
+      reply.code(400);
+      return { success: false, error: 'agentName is required' };
+    }
+    const result = fleetDaemon.pauseAgent(agentName, projectDir);
+    if (!result.success) reply.code(400);
+    return result;
+  });
+
+  // POST /fleet/agent/resume — Resume one fleet agent
+  fastify.post('/fleet/agent/resume', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { projectDir, agentName } = (request.body as { projectDir?: string; agentName?: string }) || {};
+    if (!agentName || typeof agentName !== 'string') {
+      reply.code(400);
+      return { success: false, error: 'agentName is required' };
+    }
+    const result = fleetDaemon.resumeAgent(agentName, projectDir);
+    if (!result.success) reply.code(400);
+    return result;
+  });
+
+  // POST /fleet/bootstrap — Create starter fleet assets, then start the fleet
+  fastify.post('/fleet/bootstrap', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { projectDir, start = true } = (request.body as { projectDir?: string; start?: boolean }) || {};
+    if (!projectDir || typeof projectDir !== 'string') {
+      reply.code(400);
+      return { success: false, error: 'projectDir is required' };
+    }
+
+    const validation = validateProjectRoot(projectDir);
+    if (!validation.ok) {
+      reply.code(400);
+      return { success: false, error: validation.error };
+    }
+
+    if (!existsSync(projectDir)) {
+      reply.code(404);
+      return { success: false, error: `Project directory does not exist: ${projectDir}` };
+    }
+
+    try {
+      if (!statSync(projectDir).isDirectory()) {
+        reply.code(400);
+        return { success: false, error: `Project path is not a directory: ${projectDir}` };
+      }
+    } catch (err) {
+      reply.code(400);
+      return { success: false, error: `Could not inspect project directory: ${(err as Error).message}` };
+    }
+
+    const bootstrap = ensureStarterFleetProject(projectDir);
+    const startResult = start ? fleetDaemon.startProject(projectDir) : { success: true as const };
+    if (!startResult.success) {
+      reply.code(400);
+    }
+
+    return {
+      success: startResult.success,
+      error: startResult.success ? undefined : startResult.error,
+      bootstrap,
+    };
   });
 
   // POST /fleet/reload — Re-read configs and restart

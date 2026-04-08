@@ -22,6 +22,9 @@ import { useFleet } from './hooks/useFleet';
 import { useChannelLog } from './hooks/useChannelLog';
 import { useTheme } from './hooks/useTheme';
 import {
+  pauseFleetAgent,
+  resumeFleetAgent,
+  runFleetAgent,
   startFleet,
   stopFleet,
   formatDaemonLabel,
@@ -399,7 +402,8 @@ export default function App() {
     if (!fleet.status) return [];
     return fleet.status.fleets.map(f => ({
       id: f.projectDir, name: f.project, fleetPath: f.projectDir,
-      agents: f.agents.map(a => ({ agentName: a.name, status: a.status as 'idle' | 'active' })),
+      running: f.running,
+      agents: f.agents.map(a => ({ agentName: a.name, status: a.status })),
     }));
   }, [fleet.status]);
 
@@ -450,11 +454,6 @@ export default function App() {
     if (activeTab === 'Flow') return;
     setConfigAgent(null);
   }, [activeTab]);
-
-  useEffect(() => {
-    if (!embedded || selectedProjectId || fleet.loading || projects.length === 0) return;
-    setSelectedProjectId(projects[0].id);
-  }, [embedded, fleet.loading, projects, selectedProjectId]);
 
   const projectConfig = selectedProjectId ? fleet.configs.get(selectedProjectId) : undefined;
   const fleetConfig: FleetConfig | null = projectConfig?.parsed ?? null;
@@ -669,11 +668,36 @@ export default function App() {
   const handleFleetToggle = useCallback(async () => {
     if (!selectedProject) return;
     try {
-      if (selectedProject.agents.length > 0) await stopFleet(selectedProject.projectDir);
+      if (selectedProject.running) await stopFleet(selectedProject.projectDir);
       else await startFleet(selectedProject.projectDir);
       fleet.refresh();
     } catch (err) { alert((err as Error).message); }
   }, [selectedProject, fleet]);
+
+  const handleAgentRunNow = useCallback(async (agentName: string) => {
+    if (!selectedProjectId) return;
+    try {
+      await runFleetAgent(selectedProjectId, agentName);
+      fleet.refresh();
+      fleet.refreshFeeds();
+    } catch (err) {
+      alert((err as Error).message);
+    }
+  }, [fleet, selectedProjectId]);
+
+  const handleAgentPauseToggle = useCallback(async (agentName: string, paused: boolean) => {
+    if (!selectedProjectId) return;
+    try {
+      if (paused) {
+        await resumeFleetAgent(selectedProjectId, agentName);
+      } else {
+        await pauseFleetAgent(selectedProjectId, agentName);
+      }
+      fleet.refresh();
+    } catch (err) {
+      alert((err as Error).message);
+    }
+  }, [fleet, selectedProjectId]);
 
   const configAgentData = fleetConfig?.agents.find(a => a.name === configAgent);
   const daemonRunning = fleet.status?.running ?? false;
@@ -686,11 +710,11 @@ export default function App() {
         <div className="text-[10px] font-semibold tracking-wider opacity-30" style={{ color: 'var(--pd-text)' }}>PROJECTS</div>
         <button onClick={handleFleetToggle} className="flex items-center gap-1 text-[10px] px-2 py-1 rounded"
           style={{
-            backgroundColor: selectedProject.agents.length ? 'var(--pd-accent-surface)' : 'var(--pd-success-surface)',
-            color: selectedProject.agents.length ? 'var(--pd-accent)' : 'var(--pd-success)',
-            border: `1px solid ${selectedProject.agents.length ? 'var(--pd-accent-border)' : 'var(--pd-success-border)'}`,
+            backgroundColor: selectedProject.running ? 'var(--pd-accent-surface)' : 'var(--pd-success-surface)',
+            color: selectedProject.running ? 'var(--pd-accent)' : 'var(--pd-success)',
+            border: `1px solid ${selectedProject.running ? 'var(--pd-accent-border)' : 'var(--pd-success-border)'}`,
           }}>
-          {selectedProject.agents.length ? <><Square size={8} /> Stop Fleet</> : <><Play size={8} /> Start Fleet</>}
+          {selectedProject.running ? <><Square size={8} /> Stop Fleet</> : <><Play size={8} /> Start Fleet</>}
         </button>
       </div>
       <ProjectPicker projects={projects} selected={selectedProjectId} onSelect={selectProject} />
@@ -787,7 +811,7 @@ export default function App() {
                             </button>
                           )}
                           <div className="text-[10px] font-mono" style={{ color: 'var(--pd-dim)' }}>
-                            {selectedProject?.agents.filter(a => a.status === 'running').length ?? 0} active · {fleetConfig?.agents.length ?? 0} agents
+                            {selectedProject?.agents.filter(a => a.status !== 'paused').length ?? 0} deployed · {fleetConfig?.agents.length ?? 0} agents
                           </div>
                         </div>
                       </div>
@@ -805,6 +829,7 @@ export default function App() {
                                   key={agent.name}
                                   agent={agent}
                                   runtimeStatus={runtime?.status}
+                                  projectRunning={selectedProject?.running ?? false}
                                   limits={fleetConfig.limits}
                                   highlighted={!!isRelated}
                                   dimmed={dimmed}
@@ -814,6 +839,8 @@ export default function App() {
                                   projectDir={selectedProjectId ?? undefined}
                                   onSelect={inspectAgent}
                                   onConfigure={configureAgent}
+                                  onRunNow={handleAgentRunNow}
+                                  onPauseToggle={handleAgentPauseToggle}
                                 />
                               );
                             })}

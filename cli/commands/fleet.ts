@@ -5,25 +5,23 @@
  * Uses pd spawn for all agent execution — dogfoods our own primitives.
  */
 
-import { join, dirname, basename } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { existsSync, readFileSync, writeFileSync, unlinkSync, mkdirSync } from 'node:fs';
+import { join, basename } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
 import { spawn } from 'node:child_process';
+import { parse as parseYaml } from 'yaml';
 import * as ui from '../utils/ui.js';
 import { pdFetch, isDaemonRunning, getDaemonUrl } from '../utils/fetch.js';
 import {
-  isLegacyPortDaddyPostCommitHook,
-  isScopedPortDaddyPostCommitHook,
-  loadPostCommitHookTemplate,
-} from '../utils/post-commit-hook.js';
-import {
+  findFleetConfigPath,
   loadFleetConfig,
   createFleetRunner,
   getFleetRuntimeDefaults,
   resolveFleetAgentRuntime,
+  validateTopology,
 } from '../../lib/fleet-engine.js';
 import { assessBackendReadiness } from '../../lib/backend-readiness.js';
 import { resolveFleetChannel } from '../../lib/fleet-channels.js';
+import { ensureStarterFleetProject } from '../../lib/fleet-bootstrap.js';
 
 // ─── Load .env.local / .env for API keys ────────────────────────────────────
 // Searches: cwd, parent dir, home directory. Later files overwrite earlier ones,
@@ -64,7 +62,6 @@ function loadEnvFiles(): void {
 // Load env on module init — before any agent runs
 loadEnvFiles();
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
 const PD_URL = process.env.PD_URL || process.env.PORT_DADDY_URL || getDaemonUrl();
 const LOCAL_EXECUTION_BACKENDS = new Set(['claude-cli', 'codex', 'ollama', 'aider', 'custom']);
 
@@ -81,22 +78,35 @@ function isFleetRunning(): { running: boolean; pid: number | null; name: string 
   }
 }
 
-async function getFleetAgents(): Promise<Array<{ id: string; purpose: string; status: string }>> {
+async function getFleetAgents(config: ReturnType<typeof loadFleetConfig>): Promise<Array<{ id: string; purpose: string; status: string }>> {
+  if (!config) return [];
+  const harbor = config.harbor || `${config.name}:fleet`;
   try {
-    const res = await pdFetch('/agents');
-    if (!res.ok) return [];
-    const data = await res.json() as any;
-    return (data.agents || []).filter((a: any) => a.id?.startsWith('fleet-'));
+    const [harborRes, agentsRes] = await Promise.all([
+      pdFetch(`/harbors/${encodeURIComponent(harbor)}/members`),
+      pdFetch('/agents'),
+    ]);
+    if (!harborRes.ok) return [];
+
+    const harborData = await harborRes.json() as any;
+    const members = Array.isArray(harborData.members) ? harborData.members : [];
+
+    const liveAgents = agentsRes.ok
+      ? (((await agentsRes.json()) as any).agents || []) as Array<{ id: string; purpose?: string; status?: string }>
+      : [];
+    const liveAgentById = new Map(liveAgents.map((agent) => [agent.id, agent]));
+
+    return members.map((member: any) => {
+      const live = liveAgentById.get(member.agentId);
+      return {
+        id: member.agentId,
+        purpose: live?.purpose || member.identity || `Fleet member in ${harbor}`,
+        status: live?.status || 'registered',
+      };
+    });
   } catch {
     return [];
   }
-}
-
-// ─── Template paths ─────────────────────────────────────────────────────────
-
-function getTemplatePath(name: string): string {
-  // Templates are at <project-root>/templates/ relative to this file (cli/commands/)
-  return join(__dirname, '..', '..', 'templates', name);
 }
 
 // ─── fleet init ─────────────────────────────────────────────────────────────
@@ -104,8 +114,6 @@ function getTemplatePath(name: string): string {
 async function fleetInit(): Promise<void> {
   const cwd = process.cwd();
   const fleetPath = join(cwd, 'pd-fleet.yml');
-  const hookDir = join(cwd, '.git', 'hooks');
-  const hookPath = join(hookDir, 'post-commit');
 
   // Check if already initialized
   if (existsSync(fleetPath)) {
@@ -113,70 +121,36 @@ async function fleetInit(): Promise<void> {
     ui.info('Edit it to customize your fleet, then run: pd fleet up');
     return;
   }
-
-  // Copy fleet template
-  const templateSrc = getTemplatePath('pd-fleet-starter.yml');
-  if (!existsSync(templateSrc)) {
-    ui.error('Fleet template not found. Is Port Daddy installed correctly?');
-    process.exit(1);
-  }
-
-  writeFileSync(fleetPath, readFileSync(templateSrc, 'utf-8'));
+  const bootstrap = ensureStarterFleetProject(cwd);
   ui.success('Created pd-fleet.yml with 5 agents: QA, documentarian, cartographer, spark, spider');
 
-  // Install git hook if .git exists
-  if (existsSync(join(cwd, '.git'))) {
-    const hookSrc = getTemplatePath('post-commit-hook');
-    if (existsSync(hookSrc)) {
-      if (existsSync(hookPath)) {
-        // Append to existing hook instead of overwriting
-        const existing = readFileSync(hookPath, 'utf-8');
-        if (isScopedPortDaddyPostCommitHook(existing)) {
-          ui.info('Git post-commit hook already publishes to the project-scoped git:committed channel');
-        } else if (isLegacyPortDaddyPostCommitHook(existing)) {
-          writeFileSync(hookPath, loadPostCommitHookTemplate());
-          const { chmodSync } = await import('node:fs');
-          chmodSync(hookPath, 0o755);
-          ui.success('Upgraded legacy .git/hooks/post-commit to the project-scoped git:committed channel');
-        } else {
-          const hookContent = loadPostCommitHookTemplate();
-          // Strip the shebang from the appended content
-          const withoutShebang = hookContent.replace(/^#!.*\n/, '');
-          writeFileSync(hookPath, existing.trimEnd() + '\n\n# --- Port Daddy fleet trigger ---\n' + withoutShebang);
-          const { chmodSync } = await import('node:fs');
-          chmodSync(hookPath, 0o755);
-          ui.success('Added fleet trigger to existing .git/hooks/post-commit');
-        }
-      } else {
-        mkdirSync(hookDir, { recursive: true });
-        writeFileSync(hookPath, loadPostCommitHookTemplate());
-        const { chmodSync } = await import('node:fs');
-        chmodSync(hookPath, 0o755);
-        ui.success('Installed .git/hooks/post-commit (publishes to the project-scoped git:committed channel)');
-      }
-    }
-  } else {
-    ui.warn('No .git directory found — skipping post-commit hook');
-    ui.info('Run this inside a git repo to get automatic fleet triggers on commit');
+  switch (bootstrap.hookStatus) {
+    case 'created':
+      ui.success('Installed .git/hooks/post-commit (publishes to the project-scoped git:committed channel)');
+      break;
+    case 'upgraded':
+      ui.success('Upgraded legacy .git/hooks/post-commit to the project-scoped git:committed channel');
+      break;
+    case 'merged':
+      ui.success('Added fleet trigger to existing .git/hooks/post-commit');
+      break;
+    case 'already_current':
+      ui.info('Git post-commit hook already publishes to the project-scoped git:committed channel');
+      break;
+    case 'skipped_no_git':
+      ui.warn('No .git directory found — skipping post-commit hook');
+      ui.info('Run this inside a git repo to get automatic fleet triggers on commit');
+      break;
+    case 'missing_template':
+      ui.warn('Port Daddy could not load its post-commit hook template');
+      break;
   }
 
-  // Create output directories
-  mkdirSync(join(cwd, '.spark', 'ideas'), { recursive: true });
-  mkdirSync(join(cwd, '.spider', 'connections'), { recursive: true });
-  mkdirSync(join(cwd, '.cartographer'), { recursive: true });
-
-  // Add to .gitignore if it exists
-  const gitignorePath = join(cwd, '.gitignore');
-  if (existsSync(gitignorePath)) {
-    const gitignore = readFileSync(gitignorePath, 'utf-8');
-    const additions: string[] = [];
-    if (!gitignore.includes('.spark/')) additions.push('.spark/');
-    if (!gitignore.includes('.spider/')) additions.push('.spider/');
-    if (!gitignore.includes('.cartographer/')) additions.push('.cartographer/');
-    if (additions.length > 0) {
-      writeFileSync(gitignorePath, gitignore.trimEnd() + '\n\n# Port Daddy fleet output\n' + additions.join('\n') + '\n');
-      ui.info(`Added ${additions.join(', ')} to .gitignore`);
-    }
+  if (bootstrap.addedGitignoreEntries.length > 0) {
+    ui.info(`Added ${bootstrap.addedGitignoreEntries.join(', ')} to .gitignore`);
+  }
+  for (const warning of bootstrap.warnings) {
+    ui.warn(warning);
   }
 
   console.log('');
@@ -386,7 +360,7 @@ async function fleetStatus(): Promise<void> {
   // Fleet agents from PD registry
   console.log('');
   ui.info('Registered fleet agents:');
-  const agents = await getFleetAgents();
+  const agents = await getFleetAgents(config);
   if (agents.length === 0) {
     console.log('  (none)');
   } else {
@@ -436,6 +410,71 @@ async function fleetStatus(): Promise<void> {
   } else {
     console.log('  (no recent events)');
   }
+}
+
+function fleetValidate(): void {
+  const configPath = findFleetConfigPath(process.cwd());
+  if (!configPath) {
+    ui.error('No pd-fleet.yml found');
+    ui.info('Run "pd fleet init" to create a starter fleet.');
+    process.exit(1);
+  }
+
+  console.log('');
+  ui.info(`Validating ${configPath}`);
+  console.log('');
+
+  const raw = readFileSync(configPath, 'utf-8');
+  if (!raw.trim()) {
+    ui.error('Fleet config is empty');
+    process.exit(1);
+  }
+
+  try {
+    parseYaml(raw);
+  } catch (err) {
+    ui.error(`YAML parse failed: ${(err as Error).message}`);
+    process.exit(1);
+  }
+
+  const config = loadFleetConfig(process.cwd());
+  if (!config) {
+    ui.error('Fleet config could not be resolved after template expansion.');
+    process.exit(1);
+  }
+
+  const topology = validateTopology(config);
+  ui.success(`Fleet "${config.name}" parsed successfully`);
+  console.log(`  agents:   ${config.agents.length}`);
+  console.log(`  watchers: ${config.watchers.length}`);
+  console.log(`  channels: ${Object.keys(config.channels).length}`);
+  console.log(`  budget:   ${config.limits?.budgetUsdPerDay ?? '(missing)'}`);
+
+  if (!topology.valid) {
+    console.log('');
+    ui.error('Topology invalid: trigger cycle(s) detected');
+    for (const cycle of topology.cycles) {
+      console.log(`  cycle: ${cycle.join(' -> ')}`);
+    }
+    process.exit(1);
+  }
+
+  console.log('');
+  if (topology.warnings.length === 0) {
+    ui.success('No topology warnings');
+  } else {
+    ui.warn(`Topology warnings (${topology.warnings.length}):`);
+    for (const warning of topology.warnings) {
+      console.log(`  - ${warning}`);
+    }
+  }
+
+  console.log('');
+  ui.info('Dry-run checklist:');
+  console.log('  - YAML syntax parsed');
+  console.log('  - templates resolved');
+  console.log('  - trigger graph checked for cycles');
+  console.log('  - no agents were spawned');
 }
 
 /**
@@ -620,6 +659,10 @@ export async function handleFleet(positional: string[], _options: Record<string,
       await fleetStatus();
       break;
 
+    case 'validate':
+      fleetValidate();
+      break;
+
     case 'init':
       await fleetInit();
       break;
@@ -642,6 +685,7 @@ export async function handleFleet(positional: string[], _options: Record<string,
       console.log('  up              Start all agents from pd-fleet.yml');
       console.log('  down            Stop all agents');
       console.log('  status          Show fleet health');
+      console.log('  validate        Parse pd-fleet.yml, resolve templates, and check topology');
       console.log('');
       if (config) {
         console.log(`Agents in pd-fleet.yml (${config.agents.length}):`);

@@ -120,7 +120,8 @@ export interface FleetDaemonStatus {
   fleets: Array<{
     project: string;
     projectDir: string;
-    agents: Array<{ name: string; type: string; running: boolean; uptime: number }>;
+    running: boolean;
+    agents: Array<{ name: string; type: string; status: string; running: boolean; paused: boolean; uptime: number }>;
     watchers: number;
     channels: number;
     startedAt: number;
@@ -182,6 +183,7 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
   const fleets = new Map<string, ManagedFleet>();
   const configWatchers = new Map<string, FSWatcher>();
   const projectLeases = new Map<string, FleetProjectLease>();
+  const projectPausedAgents = new Map<string, Set<string>>();
   const skippedProjects = new Map<string, SkippedFleet>();
   let isRunning = false;
   let startedAt: number | null = null;
@@ -464,6 +466,7 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
     const runner = createFleetRunner(config, projectDir, {
       onEvent: handleEvent,
       costTracker,
+      initiallyPausedAgents: [...(projectPausedAgents.get(projectDir) ?? new Set<string>())],
       messaging: {
         subscribe: messaging.subscribe.bind(messaging),
       },
@@ -669,8 +672,11 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
   }
 
   /** Start a specific project's fleet by directory path. */
-  function startProject(projectDir: string): { success: boolean; error?: string } {
+  function startProject(projectDir: string, options: { enabledAgents?: string[] } = {}): { success: boolean; error?: string } {
     if (fleets.has(projectDir)) {
+      if (options.enabledAgents) {
+        return setProjectEnabledAgents(projectDir, options.enabledAgents);
+      }
       return { success: false, error: `Fleet already running for ${projectDir}` };
     }
     const lease = acquireProjectLease(projectDir, basename(projectDir));
@@ -678,6 +684,19 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
       return { success: false, error: lease.error };
     }
     loadEnvFiles(projectDir);
+    if (options.enabledAgents) {
+      if (!loadFleetConfig(projectDir)) {
+        releaseProjectLease(projectDir);
+        return { success: false, error: `No pd-fleet.yml found in ${projectDir}` };
+      }
+      const subsetResult = setProjectEnabledAgents(projectDir, options.enabledAgents);
+      if (!subsetResult.success) {
+        releaseProjectLease(projectDir);
+        return subsetResult;
+      }
+    } else {
+      projectPausedAgents.delete(projectDir);
+    }
     const managed = loadProject(projectDir);
     if (!managed) {
       releaseProjectLease(projectDir);
@@ -733,6 +752,7 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
       fleetList.push({
         project: managed.projectName,
         projectDir: managed.projectDir,
+        running: true,
         agents: agentStatus,
         watchers: watcherCount,
         channels: Object.keys(managed.config.channels).length,
@@ -871,6 +891,65 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
     };
   }
 
+  function pauseAgent(agentId: string, project?: string): { success: boolean; error?: string; project?: string; agent?: string } {
+    const resolved = resolveManagedAgent(agentId, project);
+    if (!resolved.success) return { success: false, error: resolved.error };
+    const result = resolved.managed.runner.pauseAgent(resolved.agentName);
+    if (!result.success) return result;
+
+    const paused = projectPausedAgents.get(resolved.managed.projectDir) ?? new Set<string>();
+    paused.add(resolved.agentName);
+    projectPausedAgents.set(resolved.managed.projectDir, paused);
+
+    return {
+      success: true,
+      project: resolved.managed.projectName,
+      agent: resolved.agentName,
+    };
+  }
+
+  function resumeAgent(agentId: string, project?: string): { success: boolean; error?: string; project?: string; agent?: string } {
+    const resolved = resolveManagedAgent(agentId, project);
+    if (!resolved.success) return { success: false, error: resolved.error };
+    const result = resolved.managed.runner.resumeAgent(resolved.agentName);
+    if (!result.success) return result;
+
+    const paused = projectPausedAgents.get(resolved.managed.projectDir);
+    paused?.delete(resolved.agentName);
+    if (paused && paused.size === 0) projectPausedAgents.delete(resolved.managed.projectDir);
+
+    return {
+      success: true,
+      project: resolved.managed.projectName,
+      agent: resolved.agentName,
+    };
+  }
+
+  function setProjectEnabledAgents(projectDir: string, enabledAgents?: string[]): { success: boolean; error?: string } {
+    const managed = fleets.get(projectDir);
+    const config = managed?.config ?? loadFleetConfig(projectDir);
+    if (!config) return { success: false, error: `No pd-fleet.yml found in ${projectDir}` };
+
+    const allowed = new Set(config.agents.map((agent) => agent.name));
+    const requested = new Set(enabledAgents ?? config.agents.map((agent) => agent.name));
+    for (const name of requested) {
+      if (!allowed.has(name)) return { success: false, error: `No agent named ${name}` };
+    }
+
+    const paused = new Set(config.agents.map((agent) => agent.name).filter((name) => !requested.has(name)));
+    if (paused.size > 0) {
+      projectPausedAgents.set(projectDir, paused);
+    } else {
+      projectPausedAgents.delete(projectDir);
+    }
+
+    if (managed) {
+      return managed.runner.setEnabledAgents([...requested]);
+    }
+
+    return { success: true };
+  }
+
   return {
     start,
     stop,
@@ -882,5 +961,8 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
     getRecentEvents,
     getPromptLine,
     hailAgent,
+    pauseAgent,
+    resumeAgent,
+    setProjectEnabledAgents,
   };
 }

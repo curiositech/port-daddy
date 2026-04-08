@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Clock, Eye, Zap, Settings2 } from 'lucide-react';
+import { Clock, Eye, Play, Zap, Settings2, Pause, RefreshCcw } from 'lucide-react';
 import type { FleetAgent, FleetLimits } from '../types';
 import { agentColor } from '../types';
 import FileActionLinks from './FileActionLinks';
@@ -7,6 +7,7 @@ import FileActionLinks from './FileActionLinks';
 interface Props {
   agent: FleetAgent;
   runtimeStatus?: string;  // from daemon: 'running' | 'idle' | etc
+  projectRunning: boolean;
   limits?: FleetLimits;
   highlighted: boolean;
   dimmed: boolean;
@@ -16,11 +17,14 @@ interface Props {
   projectDir?: string;
   onSelect: (name: string) => void;
   onConfigure: (name: string) => void;
+  onRunNow: (name: string) => void;
+  onPauseToggle: (name: string, paused: boolean) => void;
 }
 
 export default function AgentCard({
   agent,
   runtimeStatus,
+  projectRunning,
   limits,
   highlighted,
   dimmed,
@@ -30,11 +34,27 @@ export default function AgentCard({
   projectDir,
   onSelect,
   onConfigure,
+  onRunNow,
+  onPauseToggle,
 }: Props) {
   const color = agentColor(agent.name);
-  const isRunning = runtimeStatus === 'running' || runtimeStatus === 'scheduled';
-  const statusDot = isRunning ? 'var(--pd-success)' : 'var(--pd-border)';
+  const isRunning = runtimeStatus === 'running';
+  const isPaused = runtimeStatus === 'paused';
+  const isEnabled = isRunning || runtimeStatus === 'scheduled' || runtimeStatus === 'armed';
+  const statusDot = isRunning
+    ? 'var(--pd-success)'
+    : isPaused
+      ? 'var(--pd-warning)'
+      : isEnabled
+        ? color
+        : 'var(--pd-border)';
   const roleLabel = agent.schedule ? 'scheduled task' : 'agent';
+  const statusLabel = isRunning ? 'RUNNING' : isPaused ? 'PAUSED' : isEnabled ? 'ARMED' : null;
+  const statusColors = isRunning
+    ? { surface: 'var(--pd-success-surface)', text: 'var(--pd-success)' }
+    : isPaused
+      ? { surface: 'var(--pd-warning-surface)', text: 'var(--pd-warning)' }
+      : { surface: 'var(--pd-accent-surface)', text: 'var(--pd-accent)' };
 
   return (
     <motion.div
@@ -65,9 +85,9 @@ export default function AgentCard({
             <span className="font-mono font-semibold text-sm" style={{ color }}>{agent.name}</span>
           </div>
           <div className="flex items-center gap-1.5">
-            {isRunning && (
-              <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold" style={{ backgroundColor: 'var(--pd-success-surface)', color: 'var(--pd-success)' }}>
-                {runtimeStatus?.toUpperCase()}
+            {statusLabel && (
+              <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold" style={{ backgroundColor: statusColors.surface, color: statusColors.text }}>
+                {statusLabel}
               </span>
             )}
             <button
@@ -106,6 +126,31 @@ export default function AgentCard({
             {roleLabel}
           </span>
         </div>
+
+        {projectRunning ? (
+          <div className="flex items-center gap-2 mb-2">
+            <button
+              onClick={(e) => { e.stopPropagation(); onRunNow(agent.name); }}
+              className="flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-semibold"
+              style={{ color: 'var(--pd-text)', border: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-bg)' }}
+            >
+              <Play size={11} />
+              <span>Run now</span>
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onPauseToggle(agent.name, isPaused); }}
+              className="flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-semibold"
+              style={{
+                color: isPaused ? 'var(--pd-success)' : 'var(--pd-warning)',
+                border: `1px solid ${isPaused ? 'var(--pd-success-border)' : 'var(--pd-warning-border)'}`,
+                backgroundColor: isPaused ? 'var(--pd-success-surface)' : 'var(--pd-warning-surface)',
+              }}
+            >
+              {isPaused ? <RefreshCcw size={11} /> : <Pause size={11} />}
+              <span>{isPaused ? 'Resume' : 'Pause'}</span>
+            </button>
+          </div>
+        ) : null}
 
         {/* Recent work */}
         <div className="rounded-md px-2.5 py-2 mb-2" style={{ backgroundColor: 'var(--pd-bg)', border: '1px solid var(--pd-border)' }}>

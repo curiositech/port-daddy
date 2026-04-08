@@ -3622,6 +3622,278 @@ paths:
           $ref: '#/components/responses/InternalError'
 
   # ===========================================================================
+  # SORTIES
+  # ===========================================================================
+  /sorties:
+    post:
+      tags: [sorties]
+      summary: Launch a tracked sortie mission
+      operationId: runSortie
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [goal, backend, budgetUsd]
+              properties:
+                goal:
+                  type: string
+                projectDir:
+                  type: string
+                backend:
+                  type: string
+                  enum: [ollama, claude, claude-cli, gemini, codex, aider, custom]
+                budgetUsd:
+                  type: number
+                model:
+                  type: string
+                modelTier:
+                  type: string
+                  enum: [low, mid, high]
+                recipe:
+                  type: string
+                expectedOutput:
+                  type: string
+                context:
+                  type: string
+                approvalMode:
+                  type: string
+                  enum: [none, before-build, before-apply, before-close]
+                roster:
+                  type: array
+                  items:
+                    type: string
+                identity:
+                  type: string
+                purpose:
+                  type: string
+                allowedTools:
+                  type: string
+                timeout:
+                  type: integer
+                maxTokens:
+                  type: integer
+      responses:
+        '200':
+          description: Sortie completed or launched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  sortie:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      projectDir:
+                        type: string
+                      project:
+                        type: string
+                      harbor:
+                        type: string
+                      goal:
+                        type: string
+                      recipe:
+                        type: string
+                        nullable: true
+                      status:
+                        type: string
+                        enum: [planned, blocked, running, completed, failed, cancelled]
+                      backend:
+                        type: string
+                      model:
+                        type: string
+                        nullable: true
+                      modelTier:
+                        type: string
+                        nullable: true
+                      budgetUsd:
+                        type: number
+                      expectedOutput:
+                        type: string
+                        nullable: true
+                      spawnAgentId:
+                        type: string
+                        nullable: true
+                      resultOutput:
+                        type: string
+                        nullable: true
+                      error:
+                        type: string
+                        nullable: true
+                      createdAt:
+                        type: integer
+                      startedAt:
+                        type: integer
+                        nullable: true
+                      updatedAt:
+                        type: integer
+                      completedAt:
+                        type: integer
+                        nullable: true
+                  result:
+                    type: object
+                    nullable: true
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    get:
+      tags: [sorties]
+      summary: List recent sortie missions
+      operationId: listSorties
+      parameters:
+        - name: projectDir
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Recent sortie missions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  sorties:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        projectDir:
+                          type: string
+                        project:
+                          type: string
+                        harbor:
+                          type: string
+                        goal:
+                          type: string
+                        recipe:
+                          type: string
+                          nullable: true
+                        status:
+                          type: string
+                        backend:
+                          type: string
+                        model:
+                          type: string
+                          nullable: true
+                        modelTier:
+                          type: string
+                          nullable: true
+                        budgetUsd:
+                          type: number
+                        createdAt:
+                          type: integer
+                        startedAt:
+                          type: integer
+                          nullable: true
+                        completedAt:
+                          type: integer
+                          nullable: true
+                  count:
+                    type: integer
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sorties/{id}:
+    get:
+      tags: [sorties]
+      summary: Fetch a sortie mission by id
+      operationId: getSortie
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Sortie mission
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  sortie:
+                    type: object
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sorties/{id}/logs:
+    get:
+      tags: [sorties]
+      summary: Fetch the event log for a sortie mission
+      operationId: getSortieLogs
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Sortie event log
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  sortie:
+                    type: object
+                  events:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        sortieId:
+                          type: string
+                        type:
+                          type: string
+                        summary:
+                          type: string
+                          nullable: true
+                        metadata:
+                          type: object
+                          nullable: true
+                        createdAt:
+                          type: integer
+                  count:
+                    type: integer
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ===========================================================================
   # HARBORS
   # ===========================================================================
   /harbors:

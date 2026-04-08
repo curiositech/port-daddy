@@ -28,6 +28,9 @@ const mockStartAll = jest.fn();
 const mockStopAll = jest.fn();
 const mockGetStatus = jest.fn(() => []);
 const mockHailAgent = jest.fn(async () => ({ success: true }));
+const mockPauseAgent = jest.fn(() => ({ success: true }));
+const mockResumeAgent = jest.fn(() => ({ success: true }));
+const mockSetEnabledAgents = jest.fn(() => ({ success: true }));
 const mockLoadFleetConfig = jest.fn();
 const mockCreateFleetRunner = jest.fn(() => ({
   startAll: mockStartAll,
@@ -35,6 +38,9 @@ const mockCreateFleetRunner = jest.fn(() => ({
   getStatus: mockGetStatus,
   startAgent: jest.fn(),
   hailAgent: mockHailAgent,
+  pauseAgent: mockPauseAgent,
+  resumeAgent: mockResumeAgent,
+  setEnabledAgents: mockSetEnabledAgents,
   config: { agents: [], watchers: [], channels: {}, name: 'test' },
 }));
 const mockValidateTopology = jest.fn(() => ({ valid: true, cycles: [], warnings: [] }));
@@ -156,6 +162,9 @@ beforeEach(() => {
   mockExistsSync.mockReturnValue(false);
   mockLoadFleetConfig.mockReturnValue(null);
   mockHailAgent.mockResolvedValue({ success: true });
+  mockPauseAgent.mockReturnValue({ success: true });
+  mockResumeAgent.mockReturnValue({ success: true });
+  mockSetEnabledAgents.mockReturnValue({ success: true });
 });
 
 afterEach(() => {
@@ -398,6 +407,26 @@ describe('createFleetDaemon', () => {
     expect(daemon.getStatus().fleets).toHaveLength(1);
   });
 
+  test('startProject() can persist an enabled-agent subset for a project', () => {
+    const deps = makeDeps();
+    const config = makeConfig('subset-project');
+    mockLoadFleetConfig.mockReturnValue(config);
+    mockGetStatus.mockReturnValue([
+      { name: 'qa', type: 'triggered', status: 'armed', running: false, paused: false, uptime: 0 },
+      { name: 'spark', type: 'scheduled', status: 'paused', running: false, paused: true, uptime: 0 },
+    ]);
+
+    const daemon = makeDaemon(deps);
+    const result = daemon.startProject('/test/subset', { enabledAgents: ['qa'] });
+
+    expect(result.success).toBe(true);
+    expect(mockCreateFleetRunner).toHaveBeenCalledWith(
+      config,
+      '/test/subset',
+      expect.objectContaining({ initiallyPausedAgents: ['spark'] })
+    );
+  });
+
   test('startProject() rejects if already running', () => {
     const deps = makeDeps();
     mockLoadFleetConfig.mockReturnValue(makeConfig());
@@ -449,6 +478,29 @@ describe('createFleetDaemon', () => {
     const result = await daemon.hailAgent('qa', { source: 'inbox', messageContent: 'wake up' });
     expect(result.success).toBe(false);
     expect(result.error).toMatch(/ambiguous/);
+  });
+
+  test('pauseAgent() and resumeAgent() forward through the managed fleet runner', () => {
+    const deps = makeDeps();
+    mockLoadFleetConfig.mockReturnValue(makeConfig('port-daddy-dev'));
+    mockGetStatus.mockReturnValue([]);
+
+    const daemon = makeDaemon(deps);
+    daemon.startProject('/test/project');
+
+    expect(daemon.pauseAgent('qa', 'port-daddy-dev')).toEqual({
+      success: true,
+      project: 'port-daddy-dev',
+      agent: 'qa',
+    });
+    expect(mockPauseAgent).toHaveBeenCalledWith('qa');
+
+    expect(daemon.resumeAgent('qa', 'port-daddy-dev')).toEqual({
+      success: true,
+      project: 'port-daddy-dev',
+      agent: 'qa',
+    });
+    expect(mockResumeAgent).toHaveBeenCalledWith('qa');
   });
 
   test('startProject() rejects if no pd-fleet.yml', () => {

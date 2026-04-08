@@ -362,6 +362,60 @@ test('singleton agents reject overlapping hail while a run is active', async () 
   });
 });
 
+test('runner exposes armed, paused, and running agent states truthfully', async () => {
+  const config = makeConfig({ trigger: 'git:committed' });
+  const runner = createFleetRunner(config, '/tmp/proj');
+
+  runner.startAgent(config.agents[0]);
+  expect(runner.getStatus()).toEqual([
+    expect.objectContaining({
+      name: 'test-agent',
+      status: 'armed',
+      paused: false,
+      running: false,
+    }),
+  ]);
+
+  expect(runner.pauseAgent('test-agent')).toEqual({ success: true });
+  expect(runner.getStatus()).toEqual([
+    expect.objectContaining({
+      name: 'test-agent',
+      status: 'paused',
+      paused: true,
+      running: false,
+    }),
+  ]);
+
+  expect(runner.resumeAgent('test-agent')).toEqual({ success: true });
+  expect(runner.getStatus()).toEqual([
+    expect.objectContaining({
+      name: 'test-agent',
+      status: 'armed',
+      paused: false,
+      running: false,
+    }),
+  ]);
+});
+
+test('runner can deploy a subset by pausing unselected agents', async () => {
+  const config = {
+    ...makeConfig(),
+    agents: [
+      { name: 'qa', backend: 'claude-cli', prompt: 'Review code', trigger: 'git:committed' },
+      { name: 'docs', backend: 'claude-cli', prompt: 'Write docs', trigger: 'git:committed' },
+    ],
+  };
+
+  const runner = createFleetRunner(config, '/tmp/proj', { initiallyPausedAgents: ['docs'] });
+  runner.startAll();
+  await Promise.resolve();
+
+  expect(runner.getStatus()).toEqual([
+    expect.objectContaining({ name: 'qa', status: 'armed', paused: false }),
+    expect.objectContaining({ name: 'docs', status: 'paused', paused: true }),
+  ]);
+});
+
 test('falls back to the next backend/model when the first spawn attempt fails', async () => {
   const config = {
     ...makeConfig({

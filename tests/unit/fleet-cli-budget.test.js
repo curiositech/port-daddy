@@ -9,6 +9,7 @@ const mockUi = {
 };
 const mockLoadFleetConfig = jest.fn();
 const mockResolveFleetAgentRuntime = jest.fn();
+const mockAssessBackendReadiness = jest.fn();
 
 jest.unstable_mockModule('../../cli/utils/fetch.js', () => ({
   pdFetch: mockPdFetch,
@@ -25,14 +26,16 @@ jest.unstable_mockModule('../../cli/utils/post-commit-hook.js', () => ({
 }));
 
 jest.unstable_mockModule('../../lib/fleet-engine.js', () => ({
+  findFleetConfigPath: jest.fn(() => '/tmp/pd-fleet.yml'),
   loadFleetConfig: mockLoadFleetConfig,
   createFleetRunner: jest.fn(),
   getFleetRuntimeDefaults: jest.fn(() => ({})),
   resolveFleetAgentRuntime: mockResolveFleetAgentRuntime,
+  validateTopology: jest.fn(() => ({ valid: true, cycle: null })),
 }));
 
 jest.unstable_mockModule('../../lib/backend-readiness.js', () => ({
-  assessBackendReadiness: jest.fn(),
+  assessBackendReadiness: mockAssessBackendReadiness,
 }));
 
 jest.unstable_mockModule('../../lib/fleet-channels.js', () => ({
@@ -52,14 +55,23 @@ function response(ok, data) {
 
 describe('pd fleet run budget forwarding', () => {
   const originalExit = process.exit;
+  const originalLog = console.log;
 
   beforeEach(() => {
     jest.clearAllMocks();
     process.exit = jest.fn((code) => { throw new Error(`exit:${code}`); });
+    console.log = jest.fn();
+    mockAssessBackendReadiness.mockResolvedValue({
+      backend: 'ollama',
+      status: 'ready',
+      summary: 'ready',
+      nextStep: null,
+    });
   });
 
   afterAll(() => {
     process.exit = originalExit;
+    console.log = originalLog;
   });
 
   test('forwards fleet daily budget to daemon spawn for one-shot fleet runs', async () => {
@@ -124,5 +136,42 @@ describe('pd fleet run budget forwarding', () => {
       'Fleet agent "documentarian" cannot run without limits.budget_usd_per_day (or budgetUsdPerDay) in pd-fleet.yml'
     );
     expect(mockPdFetch).not.toHaveBeenCalled();
+  });
+
+  test('fleet status reports harbor-backed registered members even when /agents is sparse', async () => {
+    mockLoadFleetConfig.mockReturnValue({
+      name: 'workgroup-ai',
+      harbor: 'workgroup-ai:fleet',
+      limits: { budgetUsdPerDay: 5 },
+      agents: [
+        {
+          name: 'qa',
+          trigger: 'git:committed',
+          identity: 'workgroup-ai:fleet:qa',
+        },
+      ],
+      watchers: [],
+      channels: {},
+    });
+
+    mockResolveFleetAgentRuntime.mockReturnValue({
+      backend: 'ollama',
+      model: 'qwen2.5-coder:7b',
+      warnings: [],
+    });
+
+    mockPdFetch
+      .mockResolvedValueOnce(response(true, {
+        members: [{ agentId: 'workgroup-ai:fleet:qa', identity: 'workgroup-ai:fleet:qa' }],
+      }))
+      .mockResolvedValueOnce(response(true, {
+        agents: [],
+      }))
+      .mockResolvedValue(response(true, { messages: [] }));
+
+    await handleFleet(['status'], {});
+
+    expect(mockPdFetch).toHaveBeenCalledWith('/harbors/workgroup-ai%3Afleet/members');
+    expect(console.log).toHaveBeenCalledWith('  [~] workgroup-ai:fleet:qa — workgroup-ai:fleet:qa');
   });
 });

@@ -540,7 +540,7 @@ function getFleetDaemonUrl(): string {
 // ─── Lifecycle Events ──────────────────────────────────────────────────────
 
 export interface FleetEvent {
-  type: 'agent_started' | 'agent_completed' | 'agent_failed' | 'watcher_started' | 'watcher_triggered' | 'fleet_started' | 'fleet_stopped';
+  type: 'agent_started' | 'agent_completed' | 'agent_failed' | 'agent_paused' | 'agent_resumed' | 'watcher_started' | 'watcher_triggered' | 'fleet_started' | 'fleet_stopped';
   agent?: string;
   identity?: string;
   project?: string;
@@ -553,6 +553,7 @@ export type FleetEventCallback = (event: FleetEvent) => void;
 export interface FleetRunnerOptions {
   onEvent?: FleetEventCallback;
   costTracker?: CostTracker;
+  initiallyPausedAgents?: string[];
   messaging?: {
     subscribe(channel: string, callback: (message: unknown) => void): (() => void) | null;
   };
@@ -563,6 +564,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
   const emit = options?.onEvent ?? (() => {});
   const project = config.name;
   const agentIndex = new Map(config.agents.map(agent => [agent.name, agent]));
+  const pausedAgents = new Set((options?.initiallyPausedAgents ?? []).filter((name) => agentIndex.has(name)));
 
   function resolveChannel(channel: string): string {
     return resolveFleetChannel(channel, projectDir, project);
@@ -572,6 +574,27 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
   let activeSpawns = 0;
   const activeAgentRuns = new Set<string>();
   const spawnTimestamps: number[] = [];  // rolling window for per-hour rate limit
+
+  function stopRunningRecord(name: string): void {
+    const record = running.get(name);
+    if (!record) return;
+    if (record.interval) clearInterval(record.interval);
+    if (record.watchHandle) {
+      try { record.watchHandle(); } catch { /* ignore unsubscribe failures */ }
+      record.watchHandle = undefined;
+    }
+    if (record.process) {
+      const pid = record.process.pid;
+      if (pid) {
+        try { process.kill(-pid, 'SIGTERM'); } catch {
+          try { record.process.kill('SIGTERM'); } catch { /* already dead */ }
+        }
+      } else {
+        try { record.process.kill('SIGTERM'); } catch { /* already dead */ }
+      }
+    }
+    running.delete(name);
+  }
 
   function canSpawn(): { allowed: boolean; reason?: string } {
     const limits = config.limits;
@@ -611,6 +634,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
   }
 
   function startAgent(agent: FleetAgent): void {
+    if (pausedAgents.has(agent.name)) return;
     if (running.has(agent.name)) return; // already running
 
     const record: RunningAgent = {
@@ -1187,35 +1211,34 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
 
   function stopAll(): void {
     respawnWatcherStopped = true;
-    for (const [name, record] of running) {
-      if (record.interval) clearInterval(record.interval);
-      if (record.watchHandle) {
-        try { record.watchHandle(); } catch { /* ignore unsubscribe failures */ }
-        record.watchHandle = undefined;
-      }
-      if (record.process) {
-        const pid = record.process.pid;
-        if (pid) {
-          try { process.kill(-pid, 'SIGTERM'); } catch {
-            // Process group kill failed; try direct kill
-            try { record.process.kill('SIGTERM'); } catch { /* already dead */ }
-          }
-        } else {
-          try { record.process.kill('SIGTERM'); } catch { /* already dead */ }
-        }
-      }
-      running.delete(name);
+    for (const name of [...running.keys()]) {
+      stopRunningRecord(name);
     }
     emit({ type: 'fleet_stopped', project, timestamp: Date.now() });
   }
 
-  function getStatus(): Array<{ name: string; type: string; running: boolean; uptime: number }> {
-    return [...running.values()].map(r => ({
-      name: r.name,
-      type: r.type,
-      running: true,
-      uptime: Date.now() - r.startedAt,
-    }));
+  function getStatus(): Array<{ name: string; type: string; status: string; running: boolean; paused: boolean; uptime: number }> {
+    return config.agents.map((agent) => {
+      const record = running.get(agent.name);
+      const activeRun = activeAgentRuns.has(agent.name);
+      const paused = pausedAgents.has(agent.name);
+      let status = 'idle';
+      if (activeRun) {
+        status = 'running';
+      } else if (paused) {
+        status = 'paused';
+      } else if (record) {
+        status = agent.schedule ? 'scheduled' : agent.trigger ? 'armed' : 'idle';
+      }
+      return {
+        name: agent.name,
+        type: agent.schedule ? 'scheduled' : agent.trigger ? 'triggered' : 'manual',
+        status,
+        running: activeRun,
+        paused,
+        uptime: record ? Date.now() - record.startedAt : 0,
+      };
+    });
   }
 
   async function hailAgent(agentName: string, context?: FleetRunContext): Promise<{ success: boolean; error?: string }> {
@@ -1230,7 +1253,56 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     return runAgentOnce(agent, context ?? { source: 'manual' });
   }
 
-  return { startAll, stopAll, startAgent, getStatus, hailAgent, config };
+  function pauseAgent(agentName: string): { success: boolean; error?: string } {
+    const agent = agentIndex.get(agentName);
+    if (!agent) return { success: false, error: `No agent named ${agentName}` };
+    pausedAgents.add(agentName);
+    stopRunningRecord(agentName);
+    emit({
+      type: 'agent_paused',
+      agent: agent.name,
+      identity: agent.identity || `${project}:fleet:${agent.name}`,
+      project,
+      timestamp: Date.now(),
+      details: { info: 'paused by operator' },
+    });
+    return { success: true };
+  }
+
+  function resumeAgent(agentName: string): { success: boolean; error?: string } {
+    const agent = agentIndex.get(agentName);
+    if (!agent) return { success: false, error: `No agent named ${agentName}` };
+    pausedAgents.delete(agentName);
+    startAgent(agent);
+    emit({
+      type: 'agent_resumed',
+      agent: agent.name,
+      identity: agent.identity || `${project}:fleet:${agent.name}`,
+      project,
+      timestamp: Date.now(),
+      details: { info: 'resumed by operator' },
+    });
+    return { success: true };
+  }
+
+  function setEnabledAgents(agentNames?: string[]): { success: boolean; error?: string } {
+    const desired = new Set(agentNames ?? config.agents.map((agent) => agent.name));
+    for (const name of desired) {
+      if (!agentIndex.has(name)) return { success: false, error: `No agent named ${name}` };
+    }
+    for (const agent of config.agents) {
+      if (desired.has(agent.name)) {
+        pausedAgents.delete(agent.name);
+        startAgent(agent);
+      } else {
+        pausedAgents.add(agent.name);
+        stopRunningRecord(agent.name);
+      }
+    }
+    return { success: true };
+  }
+
+  return { startAll, stopAll, startAgent, getStatus, hailAgent, pauseAgent, resumeAgent, setEnabledAgents, config };
 }
 
 // ─── Cron Helpers ───────────────────────────────────────────────────────────

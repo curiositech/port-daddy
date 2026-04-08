@@ -31,6 +31,8 @@ function relativeTime(timestamp: number): string {
 
 function fleetAccent(type: FleetEvent['type']): string {
   if (type === 'agent_failed') return 'var(--pd-accent)';
+  if (type === 'agent_paused') return 'var(--pd-warning)';
+  if (type === 'agent_resumed') return 'var(--pd-info, var(--pd-success))';
   if (type === 'agent_started') return 'var(--pd-warning)';
   return 'var(--pd-success)';
 }
@@ -50,6 +52,8 @@ export default function ActivityRail({ fleetEvents, activity, stories }: Props) 
       label: event.agent ? `${event.agent} ${event.type.replace(/_/g, ' ')}` : event.type.replace(/_/g, ' '),
       subtitle: typeof event.details?.error === 'string'
         ? event.details.error
+        : typeof event.details?.info === 'string'
+          ? event.details.info
         : typeof event.details?.status === 'string'
           ? `status: ${event.details.status}`
           : event.project ?? 'fleet lifecycle',

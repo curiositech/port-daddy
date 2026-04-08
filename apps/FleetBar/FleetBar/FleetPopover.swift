@@ -179,7 +179,7 @@ struct FleetPopover: View {
                     VStack(alignment: .leading, spacing: 5) {
                         HStack(spacing: Fleet.Space.s) {
                             Circle()
-                                .fill(item.agent.status == .running ? Fleet.Color.healthy : Fleet.Color.dormant.opacity(0.45))
+                                .fill(item.agent.status.isDeployed ? Fleet.Color.healthy : Fleet.Color.dormant.opacity(0.45))
                                 .frame(width: 7, height: 7)
                             Text(item.agent.name)
                                 .font(.system(.caption, design: .monospaced).weight(.semibold))
@@ -409,6 +409,18 @@ struct FleetPopover: View {
                         onInspectAgent: { agentName in
                             openControlPlane(.activity, project: project.id, agent: agentName)
                         },
+                        onRunAgent: { agentName in
+                            Task { await store.runAgent(projectDir: project.projectDir, agentName: agentName) }
+                        },
+                        onPauseToggle: { agentName, isPaused in
+                            Task {
+                                if isPaused {
+                                    await store.resumeAgent(projectDir: project.projectDir, agentName: agentName)
+                                } else {
+                                    await store.pauseAgent(projectDir: project.projectDir, agentName: agentName)
+                                }
+                            }
+                        },
                         onOpenInEditor: { filePath in
                             openAgentFileInEditor(projectDir: project.projectDir, filePath: filePath)
                         },
@@ -495,6 +507,8 @@ struct ProjectSection: View {
     let isExpanded: Bool
     let onToggle: () -> Void
     let onInspectAgent: (String) -> Void
+    let onRunAgent: (String) -> Void
+    let onPauseToggle: (String, Bool) -> Void
     let onOpenInEditor: (String) -> Void
     let onRevealInFinder: (String) -> Void
 
@@ -569,6 +583,8 @@ struct ProjectSection: View {
                     AgentRow(
                         agent: agent,
                         onInspect: { onInspectAgent(agent.name) },
+                        onRunAgent: { onRunAgent(agent.name) },
+                        onPauseToggle: { onPauseToggle(agent.name, agent.status == .paused) },
                         onOpenInEditor: onOpenInEditor,
                         onRevealInFinder: onRevealInFinder
                     )
@@ -597,6 +613,8 @@ struct ProjectSection: View {
 struct AgentRow: View {
     let agent: FleetAgent
     let onInspect: () -> Void
+    let onRunAgent: () -> Void
+    let onPauseToggle: () -> Void
     let onOpenInEditor: (String) -> Void
     let onRevealInFinder: (String) -> Void
     @State private var justChanged = false
@@ -642,6 +660,14 @@ struct AgentRow: View {
                         .foregroundStyle(.quaternary)
                         .frame(width: 52, alignment: .trailing)
                 }
+                Button(agent.status == .paused ? "Resume" : "Pause", action: onPauseToggle)
+                    .buttonStyle(.borderless)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(agent.status == .paused ? Fleet.Color.healthy : Fleet.Color.warning)
+                Button("Run", action: onRunAgent)
+                    .buttonStyle(.borderless)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(Fleet.Color.active)
             }
             if let lastSummary = agent.lastSummary, !lastSummary.isEmpty {
                 Text(lastSummary)
@@ -684,6 +710,16 @@ struct AgentRow: View {
                 .font(.system(size: 7))
                 .foregroundStyle(Fleet.Color.healthy)
                 .symbolEffect(.pulse, isActive: true)
+
+        case .armed, .scheduled:
+            Circle()
+                .fill(Fleet.Color.active.opacity(0.7))
+                .frame(width: 7, height: 7)
+
+        case .paused:
+            Image(systemName: "pause.circle.fill")
+                .font(.system(size: 9))
+                .foregroundStyle(Fleet.Color.warning)
 
         case .idle:
             Circle()
@@ -757,6 +793,8 @@ struct EventLabel: View {
         case "agent_started":     return "running"
         case "agent_completed":   return "done"
         case "agent_failed":      return "failed"
+        case "agent_paused":      return "paused"
+        case "agent_resumed":     return "armed"
         case "watcher_triggered": return "fired"
         default: return event
         }
@@ -767,6 +805,8 @@ struct EventLabel: View {
         case "agent_started":     return Fleet.Color.active
         case "agent_completed":   return Fleet.Color.healthy
         case "agent_failed":      return Fleet.Color.failure
+        case "agent_paused":      return Fleet.Color.warning
+        case "agent_resumed":     return Fleet.Color.active
         case "watcher_triggered": return Fleet.Color.warning
         default: return .secondary
         }

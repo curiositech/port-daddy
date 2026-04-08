@@ -25,6 +25,7 @@ export * from './sugar.js';
 export * from './tutorial.js';
 export * from './inbox.js';
 export * from './spawn.js';
+export * from './sortie.js';
 export * from './harbors.js';
 export * from './bench.js';
 export * from './demo.js';

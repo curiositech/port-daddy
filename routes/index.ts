@@ -30,6 +30,7 @@ import { sugarPlugin } from './sugar.js';
 import { launchPlugin } from './launch.js';
 import { spawnPlugin } from './spawn.js';
 import { harborsPlugin } from './harbors.js';
+import { sortiesPlugin } from './sorties.js';
 import { orchestratorPlugin } from './orchestrator.js';
 import { briefingPlugin } from './briefing.js';
 // Arbiter and pheromone have different option shapes
@@ -81,6 +82,7 @@ export async function registerAllRoutes(
   await fastify.register(sugarPlugin, { deps } as any);
   await fastify.register(launchPlugin, { deps } as any);
   await fastify.register(spawnPlugin, { deps } as any);
+  await fastify.register(sortiesPlugin, { deps } as any);
   await fastify.register(harborsPlugin, { deps } as any);
   await fastify.register(orchestratorPlugin, { deps } as any);
   await fastify.register(briefingPlugin, { deps } as any);

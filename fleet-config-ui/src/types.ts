@@ -48,7 +48,7 @@ export interface TopologyValidation {
 }
 
 export interface FleetEvent {
-  type: 'agent_started' | 'agent_completed' | 'agent_failed' | 'watcher_started' | 'watcher_triggered' | 'fleet_started' | 'fleet_stopped';
+  type: 'agent_started' | 'agent_completed' | 'agent_failed' | 'agent_paused' | 'agent_resumed' | 'watcher_started' | 'watcher_triggered' | 'fleet_started' | 'fleet_stopped';
   agent?: string;
   identity?: string;
   project?: string;
@@ -94,7 +94,8 @@ export interface StoryNote {
 export interface FleetProjectStatus {
   project: string;
   projectDir: string;
-  agents: Array<{ name: string; status: string; type: string; startedAt: number; pid?: number }>;
+  running: boolean;
+  agents: Array<{ name: string; status: string; type: string; running: boolean; paused: boolean; uptime: number }>;
   watchers: number;
   channels: number;
   startedAt: number;
