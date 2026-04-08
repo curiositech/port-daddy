@@ -2,8 +2,8 @@
 
 **Last updated:** 2026-04-07
 **Updated by:** Cartographer (manual invocation)
-**HEAD:** `2202aca` (Switch Port Daddy fleet to local-first backends)
-**Previous HEAD:** `55258f6` — 5 new commits since last run
+**HEAD:** `bff1195` (Retire duplicate spawner bug battery)
+**Previous HEAD:** `2202aca` — 2 new commits since last run
 
 ---
 
@@ -17,7 +17,7 @@ The last 7 commits map overwhelmingly to the Recovery Roadmap (`docs/recovery/UN
 
 Active threads, ranked by commit recency:
 
-1. **Recovery runtime slice — Codex backend + all-backend model tiers** — uncommitted working tree. Port Daddy now has a real live `codex` backend path, a second daemon-backed smoke proved `pd spawn --backend codex --tier low` end-to-end, and the tier contract is being completed for every backend instead of only Claude/Gemini/Codex. The remaining important follow-on is budget discipline and operator truth around spawn frequency, not backend wiring.
+1. **Recovery docs/runtime truth sync** — uncommitted working tree. README, MCP docs, OpenAPI, the Port Daddy skill bundle, and the website’s core spawn/fleet/tutorial surfaces are being pushed onto the same local-first contract: Ollama + Codex as first-class backends, mandatory budget ceilings, explicit model tiers, and “9876 is the default, not a universal truth.” The same slice also fixed `pd fleet run <agent>` so one-shot fleet runs inherit a real budget ceiling instead of hard-failing preflight.
 
 2. **Recovery Track 2 / 3 — FleetBar + control plane truth** — `a41f18f`, `e82f096`, `1aeb2b1`, `809816e`, `e7eba7b`, `1ebe6e6`, `853cc57`, and now `83d1a22` pushed the runtime and UI toward one truthful control plane. The newest runtime slice added explicit file actions to the operator surfaces: the daemon now exposes `/operator/open-file`, the web control plane renders `Open in Finder` / `Open with default editor` for touched files, and FleetBar mirrors the same affordances natively instead of offering ambiguous file chips.
 
@@ -149,6 +149,8 @@ Burst-cool-burst pattern continues: 37 commits (Mar 30-31), 2 zero-commit days (
 - **Claude SDK readiness was lying by omission.** The readiness probe only checked `ANTHROPIC_API_KEY`, not whether `@anthropic-ai/sdk` was installed, so the UI could honestly-ish say “ready” and then fail at launch for a missing package. The active fix makes dependency presence part of readiness.
 - **Activity had a second lie after project attribution was fixed.** Even when the project log had meaningful work, the left rail could still say “No non-empty agent signals yet” because it only rendered agents with precomputed signals. The current UI patch switches Activity to always list configured agents and use feed fallback when structured signals are sparse.
 - **Operator file affordances were too vague.** Showing touched files without explicit machine actions forced operators back into manual path copying. The control plane and FleetBar now expose Finder/editor actions directly off surfaced file mentions.
+- **Manual fleet upkeep had a hidden budget bug.** `pd fleet run documentarian` and friends were still launching through `/spawn` without a budget even after global budget enforcement landed. The CLI now forwards `limits.budget_usd_per_day`, and a regression test covers that path.
+- **Selective fleet upkeep now exposes the next bottleneck instead of silently failing.** After the budget fix, `pd fleet run cartographer` was blocked by the live active-agent cap (20 running agents), and the cheap local `documentarian` pass timed out on a broad docs sweep. That is product signal: subset deployment / pause controls and a better cheap-vs-expensive maintenance-agent policy belong in the recovery queue.
 - **Lease loss with `owner: null` is recoverable, not terminal.** The daemon should reacquire in that case instead of leaving the project permanently skipped. That fix is now in the working tree with regression coverage.
 - **Shared hook templates were ahead of live installs.** The repo templates already published scoped `project:<slug>:<hash>:git:committed`, but existing checkouts were still carrying the pre-scope Port Daddy hook in `.git/hooks/post-commit`, and installers were treating any hook mentioning `git:committed` as already current. The active fix is legacy-hook replacement in `pd init` / `pd fleet init`, not more template churn.
 - **Daemon logs can mix generations of client truth.** After the latest `fleet-ui` channel fix, a fresh Playwright-driven load polled `/msg/project:...:` channels correctly, while older already-open clients continued to hit naked logical channels until they reloaded. Log archaeology now has to distinguish stale client traffic from current bundle behavior.

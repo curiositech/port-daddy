@@ -58,6 +58,8 @@ Current uncommitted slice: post-dogfood operator truth and runtime cleanup:
    - Fleet Control Center must be a singleton window that refocuses instead of spawning duplicates
    - the native shell should appear and behave like a first-class app window, including sane Dock activation behavior
    - make stop/start or pause/enable fleet controls obvious in the native shell instead of hiding them inside secondary surfaces
+   - put per-agent run / pause / stop controls near the agent itself in both FleetBar and the full control plane
+   - support deployable subsets of a fleet so operators can turn on only the agents they want instead of treating "fleet up" as an all-or-nothing always-on mode
 13. Make the control plane layout operator-grade instead of merely pretty:
    - support resizable split panes where Flow/activity/agent-detail density demands it
    - keep window chrome from eating the first row of meaningful content in dark mode
@@ -81,6 +83,10 @@ Current uncommitted slice: post-dogfood operator truth and runtime cleanup:
    - Inbox should move into Agents or Channels if that is the more truthful model, but either way it must actually work
    - Sorties must be verified end-to-end from the live daemon/UI, not merely made pretty
    - root-cause the exact Claude SDK launch reset path where the UI said “ready,” attempted launch, then reverted to `claude-cli`
+   - recent sortie outcomes need a denser, scrollable list with drill-in detail instead of tiny collapsed chips
+   - add a real sortie status page and a real sortie results page
+   - add explicit human-in-the-loop controls for approvals, pauses, resumes, and intervention
+   - visualize sortie execution while it is in flight: steps, artifacts, messages, and mutations over time
 19. Finish the operator file-action truthfulness pass:
    - touched-file actions must resolve relative mutation paths against the correct project/workdir
    - `Open in Finder` / `Open with default editor` should not degrade to a bare `Not Found` when the app already knows the project context
@@ -121,6 +127,8 @@ Current uncommitted slice: post-dogfood operator truth and runtime cleanup:
 12. Audit live fleet spawn counts against the declared fleet config and event traffic:
    - explain why the fleet reached 99 spawns
    - then add stricter defaults or caps so the fleet behaves within real Claude/Codex usage scarcity
+   - manual upkeep runs also need room to execute; `pd fleet run documentarian` and `pd fleet run cartographer` should not be starved forever behind a saturated always-on fleet
+   - the first local documentarian dogfood timed out on `ollama / qwen2.5-coder:7b` during a broad truth sweep, so we need a better policy for when cheap local docs agents are enough versus when an operator-triggered higher-tier run is warranted
 
 ## Newly Confirmed Truths
 

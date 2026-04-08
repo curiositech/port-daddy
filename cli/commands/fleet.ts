@@ -468,6 +468,12 @@ async function runAgentByName(agentName: string, preloadedConfig?: ReturnType<ty
     process.exit(1);
   }
 
+  const budgetUsd = config.limits?.budgetUsdPerDay;
+  if (budgetUsd == null || !Number.isFinite(budgetUsd) || budgetUsd <= 0) {
+    ui.error(`Fleet agent "${agent.name}" cannot run without limits.budget_usd_per_day (or budgetUsdPerDay) in pd-fleet.yml`);
+    process.exit(1);
+  }
+
   ui.info(`Running ${agent.name} (${runtime.backend}${runtime.model ? ` / ${runtime.model}` : ''})...`);
 
   if (runtime.backend === 'claude-cli') {
@@ -517,6 +523,7 @@ async function runAgentByName(agentName: string, preloadedConfig?: ReturnType<ty
         identity: agent.identity,
         purpose: `Fleet agent: ${agent.name}`,
         backend: runtime.backend,
+        budgetUsd,
         timeout: agent.timeout,
         allowedTools: agent.allowedTools,
       }),
