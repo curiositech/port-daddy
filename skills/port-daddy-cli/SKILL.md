@@ -1,9 +1,9 @@
 ---
 name: port-daddy
-description: "Multi-agent coordination daemon for AI coding agents (v3.8.2). Eliminates port conflicts, tracks sessions, recovers crashed agents, runs background fleets, provides binary IPC for high-frequency communication, pheromone trails for ambient signaling, tuple spaces for shared memory, and declarative fleet orchestration. Use when starting a coding session, coordinating parallel agents, claiming ports for dev servers, leaving notes for other agents, spawning background workers, running declarative agent fleets, or debugging multi-agent failures. Works with Claude Code, Gemini CLI, Cursor, Windsurf, Codex, any LLM."
+description: "Multi-agent coordination daemon for AI coding agents (v3.8.3). Eliminates port conflicts, tracks sessions, recovers crashed agents, runs background fleets, provides binary IPC for high-frequency communication, pheromone trails for ambient signaling, tuple spaces for shared memory, and declarative fleet orchestration. Use when starting a coding session, coordinating parallel agents, claiming ports for dev servers, leaving notes for other agents, spawning background workers, running declarative agent fleets, or debugging multi-agent failures. Works with Claude Code, Gemini CLI, Cursor, Windsurf, Codex, and any backend Port Daddy can spawn."
 ---
 
-# Port Daddy v3.8.2 — Agent Coordination That Actually Works
+# Port Daddy v3.8.3 — Agent Coordination That Actually Works
 
 ## The Problem You Have Right Now
 
@@ -158,7 +158,7 @@ pd lock db-migration --ttl 300
 pd unlock db-migration
 ```
 
-## Binary IPC Protocol (v3.8.2)
+## Binary IPC Protocol (v3.8.3)
 
 High-frequency agent communication over a Unix domain socket with MessagePack encoding. The IPC channel sits alongside the HTTP API — agents that need low-latency communication (heartbeats, pheromone sprays, pub/sub publish) use IPC automatically when the daemon is running.
 
@@ -184,9 +184,9 @@ High-frequency agent communication over a Unix domain socket with MessagePack en
 
 You don't need to use IPC directly. The SDK and CLI use it transparently for hot-path operations.
 
-## Fleet: Background Agents (v3.8.2)
+## Fleet: Background Agents (v3.8.3)
 
-Declare agents in YAML. They fire on git commits, cron schedules, or pub/sub messages. Auto-respawn on crash with circuit breaker. **As of v3.8.2, fleets run inside the daemon process** — they start automatically on daemon boot and survive terminal close.
+Declare agents in YAML. They fire on git commits, cron schedules, or pub/sub messages. Auto-respawn on crash with circuit breaker. **As of v3.8.3, fleets run inside the daemon process** — they start automatically on daemon boot and survive terminal close.
 
 **Two modes:**
 
@@ -200,10 +200,11 @@ pd fleet down     # Stop the fleet
 # Daemon mode — always-on (automatic)
 # Place pd-fleet.yml in a registered project root.
 # The daemon auto-discovers it on boot and starts the fleet.
-curl http://localhost:9876/fleet              # Global status across all projects
-curl http://localhost:9876/fleet/my-project  # Per-project status
-curl -XPOST http://localhost:9876/fleet/reload  # Reload after editing pd-fleet.yml
-curl http://localhost:9876/fleet/events      # SSE lifecycle stream
+PD_URL="${PORT_DADDY_URL:-http://localhost:9876}"  # Use pd status if yours differs
+curl "$PD_URL/fleet"              # Global status across all projects
+curl "$PD_URL/fleet/my-project"   # Per-project status
+curl -XPOST "$PD_URL/fleet/reload"  # Reload after editing pd-fleet.yml
+curl "$PD_URL/fleet/events"       # SSE lifecycle stream
 ```
 
 The starter fleet includes: **QA** (bug hunting), **Documentarian** (docs sync), **Cartographer** (roadmap tracking), **Spark** (idea generation), **Spider** (cross-feature connections).
@@ -242,11 +243,17 @@ fleet:
   agents:
     qa:
       trigger: git:committed        # React to pub/sub events
-      respawn: true                  # Auto-restart on crash
+      respawn: true                 # Auto-restart on crash
       max_respawns: 3               # Circuit breaker
-      backend: claude-cli
-      allowedTools: "Read,Grep,Glob,Bash(npm test*)"
+      backend: ollama
+      model: qwen2.5-coder:7b
       prompt: "Review the last commit for bugs..."
+
+    test-hunter:
+      trigger: git:committed
+      backend: codex
+      model: gpt-5.4-mini
+      prompt: "Expand test coverage around risky changes..."
 
     gardener:
       schedule: "*/10 * * * *"      # Or run on a cron schedule
@@ -261,7 +268,8 @@ fleet:
 ```
 
 **Key features:**
-- Works with any LLM backend: `claude-cli`, `ollama`, `gemini`, `aider`, `custom`
+- Works with any LLM backend: `ollama`, `codex`, `claude-cli`, `claude`, `gemini`, `aider`, `custom`
+- Prefer local-first tiers for always-on fleets: cheap Ollama loops for broad coverage, Codex for higher-signal code work, Claude CLI only when its tool surface is specifically needed
 - Template variables (`{project}`) resolve from the YAML context
 - `on_success: publish <channel>` chains agents via pub/sub (DAG topology validated at startup)
 - Fleet harbor auto-created on start — all agents share a semantic namespace
@@ -276,7 +284,7 @@ Keep the distinction clear:
 - `singleton: true` on an agent prevents overlapping runs of that one agent inside a single fleet runner
 - project fleet leases prevent two different daemons from both running the same project fleet at once
 
-## Tuple Space: Shared Swarm Memory (v3.8.0)
+## Tuple Space: Shared Swarm Memory (v3.8.3)
 
 Agents write typed tuples to a shared space. Other agents query by pattern. Based on Linda (Gelernter, 1985). Harbor-scoped for fleet isolation. TTL for auto-expiry.
 
@@ -306,7 +314,7 @@ Pattern matching: exact values, `*` wildcard, `>N`/`<N` numeric comparisons, `my
 - `GET /tuples/scan` — list all tuples in a harbor
 - `GET /tuples/count` — count tuples
 
-## Pheromone Trails: Ambient Signals (v3.8.0)
+## Pheromone Trails: Ambient Signals (v3.8.3)
 
 Agents spray numeric signals (0-1) onto entities. Signals decay exponentially over time at read, creating ambient awareness without polling.
 
@@ -332,7 +340,7 @@ Use cases: file contention detection, agent reputation scoring, hot-path identif
 - `GET /pheromone` — list all non-zero pheromones
 - `GET /pheromone/files` — file heat map from session file claims (query: `path`, `depth`)
 
-## The Arbiter: Runtime Invariant Enforcement (v3.8.0)
+## The Arbiter: Runtime Invariant Enforcement (v3.8.3)
 
 The Arbiter monitors every state transition against 6 formally-derived invariants from the TLA+ specification:
 
@@ -350,7 +358,7 @@ pd arbiter status         # Check rules and violation count
 pd arbiter violations     # List recorded violations
 ```
 
-## Runtime File Locations (v3.8.2)
+## Runtime File Locations (v3.8.3)
 
 All runtime files live in `~/.port-daddy/` (not `/tmp/`). This eliminates symlink attacks, survives `/tmp/` cleanup, and keeps permissions user-private (0700 directory).
 
@@ -430,7 +438,7 @@ Override via environment variables: `PORT_DADDY_SOCK`, `PORT_DADDY_IPC`, `PORT_D
 | Direct message to a specific agent | `talk_to_agent` MCP tool or `pd inbox send` |
 | Background automation (terminal-attached) | `pd fleet init` + `pd fleet up` |
 | Background automation (always-on, survives terminal) | Place `pd-fleet.yml` in registered project; daemon auto-starts it |
-| Reload fleet after editing pd-fleet.yml | `curl -XPOST localhost:9876/fleet/reload` or `kill -HUP <daemon-pid>` |
+| Reload fleet after editing pd-fleet.yml | `PD_URL="\${PORT_DADDY_URL:-http://localhost:9876}"; curl -XPOST "$PD_URL/fleet/reload"` or `kill -HUP <daemon-pid>` |
 | Share knowledge across agents | `pd tuple out` / `pd tuple rd` |
 | Track "hotness" of resources | `pd pheromone spray` / `sniff` |
 | See file contention at a glance | `file_heat` MCP tool or `pd pheromone files` |
@@ -439,13 +447,13 @@ Override via environment variables: `PORT_DADDY_SOCK`, `PORT_DADDY_IPC`, `PORT_D
 | What happened while I was away? | `catch_me_up` MCP tool |
 | Who else is working right now? | `swarm_awareness` MCP tool |
 | Check for invariant violations | `pd arbiter status` |
-| How much are my fleet agents costing? | `curl localhost:9876/metrics/cost` |
-| Is a project over budget? | `curl localhost:9876/metrics/cost/budget/myapp?budgetUsdPerDay=5` |
-| Fleet health at a glance (RED signals) | `curl localhost:9876/metrics/golden` |
-| Top backends by spawn count | `curl localhost:9876/metrics/counters/top?key=spawn.started&dim=backend` |
-| Show fleet status in shell prompt | `curl localhost:9876/fleet/prompt?project=myapp` |
+| How much are my fleet agents costing? | `PD_URL="\${PORT_DADDY_URL:-http://localhost:9876}"; curl "$PD_URL/metrics/cost"` |
+| Is a project over budget? | `PD_URL="\${PORT_DADDY_URL:-http://localhost:9876}"; curl "$PD_URL/metrics/cost/budget/myapp?budgetUsdPerDay=5"` |
+| Fleet health at a glance (RED signals) | `PD_URL="\${PORT_DADDY_URL:-http://localhost:9876}"; curl "$PD_URL/metrics/golden"` |
+| Top backends by spawn count | `PD_URL="\${PORT_DADDY_URL:-http://localhost:9876}"; curl "$PD_URL/metrics/counters/top?key=spawn.started&dim=backend"` |
+| Show fleet status in shell prompt | `PD_URL="\${PORT_DADDY_URL:-http://localhost:9876}"; curl "$PD_URL/fleet/prompt?project=myapp"` |
 | Read/edit fleet config via API | `GET /fleet/config/myapp` or `PUT /fleet/config/myapp` with `{ "yaml": "..." }` |
-| What LLM backends are available? | `curl localhost:9876/fleet/models` |
+| What LLM backends are available? | `PD_URL="\${PORT_DADDY_URL:-http://localhost:9876}"; curl "$PD_URL/fleet/models"` |
 
 ## Planned Next Surface
 

@@ -5,7 +5,7 @@ export default function FleetCommand() {
     <CommandPage
       command="pd fleet"
       description="Manage a declarative background agent fleet defined in pd-fleet.yml. Reads agents, watchers, and channel definitions from the project root, resolves template variables, and starts all processes with Port Daddy coordination automatically wired."
-      version="3.8.0"
+      version="3.8.3"
       syntax="pd fleet <subcommand> [agent-name]"
       flags={[
         { flag: 'up', description: 'Start all agents and watchers from pd-fleet.yml' },
@@ -31,8 +31,9 @@ export default function FleetCommand() {
   Channels: 2
 
   gardener    (custom)     schedule: */10 * * * *
-  qa          (claude-cli) trigger: git:committed
-  spark       (claude-cli) schedule: */30 * * * *
+  qa          (ollama)     trigger: git:committed
+  test-hunter (codex)      trigger: git:committed
+  spark       (ollama)     schedule: */30 * * * *
   notify-qa   (watcher)    trigger: qa:findings
 
 Fleet running. Press Ctrl+C to stop, or: pd fleet down`,
@@ -54,9 +55,9 @@ Recent fleet events:
         },
         {
           description: 'Run a specific agent once (without starting the full fleet)',
-          code: 'pd fleet run qa',
-          output: `Running qa (claude-cli)...
-qa completed`,
+          code: 'pd fleet run documentarian',
+          output: `Running documentarian (ollama)...
+documentarian completed`,
         },
         {
           description: 'List available agents when no pd-fleet.yml is found',
@@ -72,8 +73,9 @@ Lifecycle:
 
 Agents in pd-fleet.yml (3):
   gardener         custom       schedule: */10 * * * *
-  qa               claude-cli   trigger: git:committed
-  spark            claude-cli   schedule: */30 * * * *
+  qa               ollama       trigger: git:committed
+  test-hunter      codex        trigger: git:committed
+  spark            ollama       schedule: */30 * * * *
 
 Run an agent once:
   pd fleet run <name>     Run a specific agent from pd-fleet.yml`,

@@ -18,7 +18,7 @@ const pd = new PortDaddy();
 
 ```javascript
 const pd = new PortDaddy({
-  url: 'http://localhost:9876',   // Daemon URL (or set PORT_DADDY_URL env)
+  url: process.env.PORT_DADDY_URL, // Auto-discovered by default; override only when needed
   agentId: 'my-agent',           // Agent ID for tracking (or PORT_DADDY_AGENT env)
   pid: process.pid,              // Process ID for ownership
   timeout: 5000,                 // Request timeout in ms
@@ -844,15 +844,15 @@ function verifySignature(payload, signature, secret) {
 
 ## Spawn — AI Agent Launcher
 
-Launch AI agents (Ollama, Claude, Claude CLI, Gemini, Aider, custom subprocess) with Port Daddy coordination auto-wired. Each spawned agent automatically registers, sends heartbeats, and marks its session done on completion.
+Launch AI agents (Ollama, Codex, Claude, Claude CLI, Gemini, Aider, custom subprocess) with Port Daddy coordination auto-wired. Each spawned agent automatically registers, sends heartbeats, and marks its session done on completion.
 
-**Backends:** `ollama` (default), `claude` (API — text in/out), `claude-cli` (full CLI with tools), `gemini`, `aider`, `custom`
+**Backends:** `ollama` (default), `claude` (API — text in/out), `claude-cli` (full CLI with tools), `gemini`, `codex`, `aider`, `custom`
 
 ```typescript
 // Spawn a local Ollama agent
 const result = await pd.spawn({
   backend: 'ollama',
-  model: 'llama3',
+  model: 'qwen2.5-coder:7b',
   identity: 'myapp:coder',
   budgetUsd: 2.5,
   purpose: 'Refactor auth module',
@@ -860,11 +860,23 @@ const result = await pd.spawn({
 });
 console.log(result.agentId, result.status);  // e.g. "ollama-abc123", "completed"
 
+// Spawn Codex CLI with an explicit low tier
+await pd.spawn({
+  backend: 'codex',
+  modelTier: 'low',
+  identity: 'myapp:fixer',
+  budgetUsd: 0.75,
+  purpose: 'Patch auth flow',
+  task: 'Fix the login bug in src/auth.ts',
+  workdir: '/path/to/project',
+});
+
 // Spawn Claude Code CLI (full agent with file editing tools)
 await pd.spawn({
   backend: 'claude-cli',
-  identity: 'myapp:fixer',
-  budgetUsd: 5,
+  model: 'sonnet',
+  identity: 'myapp:reviewer',
+  budgetUsd: 3,
   task: 'Fix the login bug in src/auth.ts',
   allowedTools: 'Read,Write,Edit,Glob,Grep,Bash(git*)',
   workdir: '/path/to/project',

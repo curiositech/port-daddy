@@ -11,8 +11,9 @@ export default function SpawnTool() {
         { flag: 'task', description: 'Required task or prompt text.' },
         { flag: 'identity', description: 'Required semantic identity in project:stack:context form.' },
         { flag: 'budget_usd', description: 'Required positive spend ceiling for the launch.' },
-        { flag: 'backend', description: 'Optional backend override: ollama | claude | claude-cli | gemini | aider | custom.' },
+        { flag: 'backend', description: 'Optional backend override: ollama | claude | claude-cli | gemini | codex | aider | custom.' },
         { flag: 'model', description: 'Optional explicit model override.' },
+        { flag: 'model_tier', description: 'Optional tier hint: low | mid | high.' },
         { flag: 'purpose', description: 'Optional short label for the run.' },
         { flag: 'files', description: 'Optional file list, primarily for aider-backed runs.' },
         { flag: 'workdir', description: 'Optional working directory override.' },
@@ -22,13 +23,14 @@ export default function SpawnTool() {
       ]}
       usagePatterns={[
         'spawn_agent({ task: "Review the last commit", identity: "myapp:qa:review", budget_usd: 0.5 })',
-        'spawn_agent({ backend: "claude-cli", identity: "myapp:docs:sync", budget_usd: 0.75, task: "Rewrite the docs" })',
+        'spawn_agent({ backend: "codex", model_tier: "low", identity: "myapp:docs:sync", budget_usd: 0.75, task: "Rewrite the docs" })',
       ]}
       examples={[
         {
-          description: 'Launch a budgeted Claude CLI task',
+          description: 'Launch a budgeted Codex task',
           code: `spawn_agent({
-  backend: "claude-cli",
+  backend: "codex",
+  model_tier: "low",
   identity: "port-daddy:docs:spawn-sync",
   budget_usd: 0.75,
   purpose: "Website spawn doc sync",
@@ -37,8 +39,8 @@ export default function SpawnTool() {
           output: `{
   "success": true,
   "agentId": "spawned-8a2f0c1c2f9b",
-  "backend": "claude-cli",
-  "model": "sonnet",
+  "backend": "codex",
+  "model": "gpt-5.4-mini",
   "status": "completed",
   "output": "Updated website spawn docs to require identity + budget and reflect current backends.",
   "error": null

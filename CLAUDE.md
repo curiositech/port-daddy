@@ -22,14 +22,14 @@ For Cloudflare Workers deployments: 1) Use raw fetch instead of heavy SDKs (e.g.
 
 ## What Is This?
 
-Port Daddy is the authoritative port manager for multi-agent development. It's a daemon running on `localhost:9876` that provides:
+Port Daddy is the authoritative port manager for multi-agent development. Its local daemon usually runs on `localhost:9876`; check `pd status` or `PORT_DADDY_URL` for the live URL on a specific machine. It provides:
 
 - **Atomic port assignment** — No race conditions
 - **Sessions & Notes** — Structured multi-agent coordination with immutable audit trails
 - **Agent coordination** — Pub/sub messaging and distributed locks
 - **Agent registry** — Track active agents with heartbeats
 - **Background fleet** — Declarative agent fleets from `pd-fleet.yml`, auto-started on daemon boot
-- **AI agent spawning** — Launch agents on any backend (claude-cli, ollama, gemini, aider, custom)
+- **AI agent spawning** — Launch agents on any backend (ollama, codex, claude-cli, claude, gemini, aider, custom)
 - **Cost tracking & observability** — Per-spawn LLM cost recording, golden signals (RED method)
 - **Binary IPC** — Sub-microsecond heartbeats over Unix domain socket (MessagePack, FIPA performatives)
 - **Pheromone trails** — Ambient numeric signals with geometric decay for contention detection
@@ -69,7 +69,7 @@ lib/
   harbors.ts        # Harbor grouping for agent coordination
   harbor-tokens.ts  # JWT tokens for harbor membership
   resurrection.ts   # Salvage queue for dead agents
-  spawner.ts        # AI agent spawning (ollama/claude/gemini/aider). Closes stdin for claude-cli (stdio: ['ignore', 'pipe', 'pipe']). Strips ANTHROPIC_API_KEY from env to preserve claude CLI's OAuth auth flow.
+  spawner.ts        # AI agent spawning (ollama/codex/claude/claude-cli/gemini/aider/custom). Closes stdin for claude-cli (stdio: ['ignore', 'pipe', 'pipe']). Strips ANTHROPIC_API_KEY from env to preserve claude CLI's OAuth auth flow.
   watch.ts          # SSE subscriber with --exec + reconnect loop
   briefing.ts       # Project briefing generation and retrieval
   arbiter.ts        # Invariant enforcement / violation tracking
@@ -372,7 +372,7 @@ Fish completions are historically the worst — double-check fish.
 
 **Update this section for every feature in progress.**
 
-### Fleet Daemon — Always-On Fleet Subsystem — DONE (v3.8.2)
+### Fleet Daemon — Always-On Fleet Subsystem — DONE (v3.8.3)
 
 Daemon auto-discovers `pd-fleet.yml` in registered projects and starts fleet runners on boot. Survives terminal close via launchd `KeepAlive`. Config file changes trigger hot-reload. SIGHUP reloads all fleets. Fleet limits (concurrency + hourly rate) enforced at spawn time.
 
@@ -642,7 +642,7 @@ When an agent dies, other agents in the same project should be notified.
 | `/fleet/prompt` | GET | One-line fleet status for shell prompt integration (query: `project`, `since`) |
 | `/fleet/config/:project` | GET | Raw YAML + parsed config + topology validation for a project |
 | `/fleet/config/:project` | PUT | Write YAML config, validate, reload fleet (body: `{ yaml }`) |
-| `/fleet/models` | GET | Available backend + model catalog (claude-cli, ollama, custom, etc.) |
+| `/fleet/models` | GET | Available backend + model catalog (ollama, codex, claude-cli, gemini, aider, custom, etc.) |
 | **Observability** | | |
 | `/metrics/counters` | GET | Counter summary (last 24h); `?key=` for single key time-bucketed, `?groupBy=hour\|minute` |
 | `/metrics/counters/top` | GET | Top N dimension values for a counter (`?key=&dim=&n=10`) |

@@ -27,9 +27,9 @@ export const PRODUCT_FEATURES = [
   {
     id: 'agent-spawning',
     title: 'Agent Spawning',
-    description: 'Launch agents with built-in coordination. Supports Claude, Ollama, Aider, and custom backends. Sessions, heartbeats, and salvage auto-wired.',
+    description: 'Launch agents with built-in coordination. Supports Ollama, Codex, Claude, Claude CLI, Gemini, Aider, and custom backends. Sessions, heartbeats, and salvage auto-wired.',
     category: 'agents',
-    cli: 'pd spawn --backend claude',
+    cli: 'pd spawn --backend codex --tier low',
     status: 'new'
   },
   {

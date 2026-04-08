@@ -83,9 +83,10 @@ pd fleet down    # Stop`}
             <DocsCodeBlock
               language="bash"
               code={`# No command needed — daemon starts fleets on boot
-curl localhost:9876/fleet          # Status
-curl -XPOST localhost:9876/fleet/reload  # Reload configs
-curl localhost:9876/fleet/events   # SSE stream`}
+PD_URL="\${PORT_DADDY_URL:-http://localhost:9876}"   # Use pd status if yours differs
+curl "$PD_URL/fleet"          # Status
+curl -XPOST "$PD_URL/fleet/reload"  # Reload configs
+curl "$PD_URL/fleet/events"   # SSE stream`}
             />
           </div>
         </div>
@@ -107,7 +108,7 @@ curl localhost:9876/fleet/events   # SSE stream`}
 
   limits:
     max_concurrent_spawns: 2     # At most 2 agents running in parallel
-    max_spawns_per_hour: 20      # Rate cap (Ostrom Principle 2)
+    max_spawns_per_hour: 10      # Rate cap (Ostrom Principle 2)
     budget_usd_per_day: 5        # Daily LLM spend ceiling in USD
 
   agents:
@@ -122,8 +123,8 @@ curl localhost:9876/fleet/events   # SSE stream`}
     # Triggered agent — runs whenever git:committed is published
     qa:
       trigger: git:committed
-      backend: claude-cli
-      allowed_tools: "Read,Grep,Glob,Bash(npm test*)"
+      backend: ollama
+      model: qwen2.5-coder:7b
       respawn: true              # Auto-restart on crash
       max_respawns: 3            # Circuit breaker — stop after 3 failures
       prompt: |
@@ -133,10 +134,22 @@ curl localhost:9876/fleet/events   # SSE stream`}
       on_failure: publish qa:findings
       identity: "{project}:fleet:qa"
 
+    # Focused higher-signal code worker
+    test-hunter:
+      trigger: git:committed
+      backend: codex
+      model: gpt-5.4-mini
+      singleton: true
+      prompt: |
+        Run tests, expand coverage around changed code, and report
+        the highest-value failing reproduction first.
+      identity: "{project}:fleet:test-hunter"
+
     # Singleton — only one instance allowed at a time
     spark:
       schedule: "*/30 * * * *"
-      backend: claude-cli
+      backend: ollama
+      model: qwen2.5-coder:14b
       singleton: true
       prompt: |
         Read the roadmap and recent commits.
@@ -210,8 +223,9 @@ curl localhost:9876/fleet/events   # SSE stream`}
         <h2 className="text-lg font-semibold text-[var(--text-primary)]">Backends</h2>
         <div className="space-y-2">
           {[
-            { name: 'claude-cli', desc: 'Runs the Claude CLI directly. Uses your local auth context. Best for agents that need full Claude capabilities.' },
-            { name: 'ollama', desc: 'Runs a local Ollama model via HTTP. Needs ollama running at localhost:11434.' },
+            { name: 'ollama', desc: 'Runs a local Ollama model via HTTP. Best default for cheap, always-on background fleet work.' },
+            { name: 'codex', desc: 'Runs OpenAI Codex models through the Port Daddy codex backend. Good for higher-signal code review and edit loops when you want a tiered low/mid/high ladder.' },
+            { name: 'claude-cli', desc: 'Runs the Claude CLI directly. Uses your local auth context. Best when you explicitly need the Claude CLI tool surface.' },
             { name: 'claude', desc: 'Runs Claude via the Anthropic SDK. Needs ANTHROPIC_API_KEY.' },
             { name: 'gemini', desc: 'Runs Gemini via the Google SDK. Needs GOOGLE_API_KEY.' },
             { name: 'aider', desc: 'Runs Aider as the execution backend. Useful when you want Aider to manage the model conversation and file edits.' },

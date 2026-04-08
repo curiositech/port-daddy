@@ -74,8 +74,8 @@ export function Fleet() {
   agents:
     qa:
       trigger: git:committed             # Fires when someone commits
-      backend: claude-cli
-      allowedTools: "Read,Grep,Glob,Bash(npm test*)"
+      backend: ollama
+      model: qwen2.5-coder:7b
       prompt: |
         Review the most recent commit. Read every changed file.
         If you find bugs, write a test that exposes each one.
@@ -86,8 +86,8 @@ export function Fleet() {
 
     docs:
       trigger: git:committed             # Same trigger, different job
-      backend: claude-cli
-      allowedTools: "Read,Grep,Glob,Write,Edit"
+      backend: codex
+      model: gpt-5.4-mini
       prompt: |
         Check if docs match the code. Update anything stale.
       identity: "{project}:fleet:docs"
@@ -142,7 +142,7 @@ export function Fleet() {
 
           <CodeBlock language="bash">{`#!/usr/bin/env zsh
 # Fire-and-forget: publish commit info to Port Daddy
-PD_URL="\${PD_URL:-http://localhost:9876}"
+PD_URL="\${PORT_DADDY_URL:-http://localhost:9876}"  # Use pd status if yours differs
 
 SHA=$(git rev-parse --short HEAD)
 MSG=$(git log -1 --pretty=%s)
@@ -190,7 +190,8 @@ exit 0`}</CodeBlock>
               </motion.p>
               <CodeBlock language="yaml">{`qa:
   trigger: git:committed
-  backend: claude-cli`}</CodeBlock>
+  backend: ollama
+  model: qwen2.5-coder:7b`}</CodeBlock>
             </Surface>
             <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
               <Surface depth="inset" radius="xl" padding="none" className="w-10 h-10 flex items-center justify-center">
@@ -267,13 +268,13 @@ pd fleet status   # What's running?
 pd fleet down     # Stop everything`}</CodeBlock>
 
           <motion.p>
-            Open <code>localhost:9876/fleet-live.html</code> for a real-time dashboard. Click any agent in the ribbon to see only their timeline. Notes expand on click &mdash; no more truncated messages.
+            Open the Fleet Control Center or the daemon-served control plane at <code>/fleet-ui/</code> for the live dashboard. That surface now carries Flow, Activity, Channels, Inbox, and Sorties in one shell instead of splitting truth across older one-off pages.
           </motion.p>
 
           <Surface depth="raised" radius="2xl" className="p-6 space-y-3">
             <motion.p className="text-sm font-bold m-0 text-[var(--brand-accent)]">Menu Bar App</motion.p>
             <motion.p className="text-xs text-[var(--text-secondary)] m-0">
-              Build the native macOS menu bar app: <code>cd fleet-live-app && ./build.sh</code>. One click in your menu bar shows fleet activity in a popover. Your agents&apos; heartbeat, always visible.
+              Build the native macOS menu bar app from <code>apps/FleetBar</code>. One click in your menu bar opens the Fleet Control Center shell around the same daemon-backed control plane.
             </motion.p>
           </Surface>
         </section>
@@ -324,7 +325,7 @@ pd fleet down     # Stop everything`}</CodeBlock>
               <motion.li>Add a post-commit hook that publishes to <code>git:committed</code></motion.li>
               <motion.li>Run <code>pd fleet up</code></motion.li>
               <motion.li>Commit something. Watch the agents fire.</motion.li>
-              <motion.li>Open <code>localhost:9876/fleet-live.html</code> to see what they did</motion.li>
+              <motion.li>Open the Fleet Control Center or <code>/fleet-ui/</code> to see what they did</motion.li>
             </motion.ol>
           </Surface>
         </section>

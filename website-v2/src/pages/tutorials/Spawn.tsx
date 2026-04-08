@@ -46,7 +46,8 @@ export function Spawn() {
           </p>
 
           <CodeBlock language="bash">
-            {`$ pd spawn --backend claude-cli \\
+            {`$ pd spawn --backend codex \\
+    --tier low \\
     --identity port-daddy:docs:spawn-sync \\
     --budget 0.75 \\
     -- "Rewrite the website spawn docs so they match the daemon contract"`}
@@ -78,7 +79,7 @@ export function Spawn() {
             {`$ pd spawned
 AGENT ID            BACKEND   MODEL                    STATUS      AGE
 ────────────────────────────────────────────────────────────────────────
-spawned-8a2f0c1c    claude-cli sonnet                 completed   12s`}
+spawned-8a2f0c1c    codex      gpt-5.4-mini           completed   12s`}
           </CodeBlock>
 
           <p className="text-sm text-[var(--text-secondary)]">

@@ -8,11 +8,12 @@ export default function Spawn() {
       module="Agents"
       version="3.8.3"
       signature={`spawn(spec: {
-  backend: 'ollama' | 'claude' | 'claude-cli' | 'gemini' | 'aider' | 'custom'
+  backend: 'ollama' | 'claude' | 'claude-cli' | 'gemini' | 'codex' | 'aider' | 'custom'
   identity: string
   budgetUsd: number
   task: string
   model?: string
+  modelTier?: 'low' | 'mid' | 'high'
   purpose?: string
   files?: string[]
   workdir?: string
@@ -21,11 +22,12 @@ export default function Spawn() {
   maxTokens?: number
 }): Promise<SpawnResult>`}
       params={[
-        { name: 'spec.backend', type: 'string', required: true, description: 'Execution backend. Valid values: ollama, claude, claude-cli, gemini, aider, custom.' },
+        { name: 'spec.backend', type: 'string', required: true, description: 'Execution backend. Valid values: ollama, claude, claude-cli, gemini, codex, aider, custom.' },
         { name: 'spec.identity', type: 'string', required: true, description: 'Semantic identity in project:stack:context form. Spend attribution and salvage depend on this.' },
         { name: 'spec.budgetUsd', type: 'number', required: true, description: 'Required spend ceiling for the launch. Unbudgeted spawns are rejected.' },
         { name: 'spec.task', type: 'string', required: true, description: 'The actual task or prompt to execute.' },
         { name: 'spec.model', type: 'string', description: 'Optional explicit model override.' },
+        { name: 'spec.modelTier', type: "'low' | 'mid' | 'high'", description: 'Optional tier hint. Port Daddy resolves the backend ladder when you want cheap/default/high-end behavior without naming a specific model.' },
         { name: 'spec.purpose', type: 'string', description: 'Short human-readable label for the run.' },
         { name: 'spec.files', type: 'string[]', description: 'Optional file list, primarily useful for aider-backed runs.' },
         { name: 'spec.workdir', type: 'string', description: 'Working directory override for the spawned process.' },
@@ -39,9 +41,10 @@ export default function Spawn() {
       }}
       examples={[
         {
-          description: 'Launch a budgeted Claude CLI run',
+          description: 'Launch a budgeted Codex run',
           code: `const result = await pd.spawn({
-  backend: 'claude-cli',
+  backend: 'codex',
+  modelTier: 'low',
   identity: 'port-daddy:docs:spawn-sync',
   budgetUsd: 0.75,
   purpose: 'Website spawn doc sync',

@@ -16,6 +16,7 @@ import {
 /* -------------------------------------------------------------------------- */
 
 const RUNTIME_BACKENDS = [
+  { name: 'Codex', color: '#0F7B6C' },
   { name: 'Claude', color: '#CC785C' },
   { name: 'Claude CLI', color: '#E38D6B' },
   { name: 'Gemini', color: '#4285F4' },
@@ -72,10 +73,11 @@ await fleet_init({
     color: 'var(--brand-secondary)',
     description: 'Spawns an AI agent with full PD coordination — registration, heartbeat, session, and salvage on crash. Uses one of the built-in runtimes or the custom shell backend.',
     example: `await spawn_agent({
-  backend: "claude-cli",
+  backend: "codex",
+  model_tier: "low",
+  budget_usd: 0.5,
   purpose: "Review auth changes for CVEs",
-  identity: "myapp:security:scan",
-  allowedTools: "Read,Grep,Glob"
+  identity: "myapp:security:scan"
 })
 // → agent registered + heartbeating
 // → session started, notes immutable
@@ -388,7 +390,8 @@ fleet:
   agents:
     qa:
       trigger: git:committed
-      backend: claude-cli
+      backend: ollama
+      model: qwen2.5-coder:7b
       respawn: true        # Auto-restart on death
       max_respawns: 3      # Circuit breaker
       prompt: |
@@ -396,7 +399,8 @@ fleet:
 
     spark:
       schedule: "*/30 * * * *"
-      backend: claude-cli
+      backend: codex
+      model: gpt-5.4-mini
       respawn: true
       prompt: |
         Propose one codebase improvement.`}

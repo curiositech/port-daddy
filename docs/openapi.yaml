@@ -12,7 +12,7 @@ info:
 
 servers:
   - url: http://localhost:9876
-    description: Local daemon
+    description: Local daemon default. Use `pd status` or `PORT_DADDY_URL` when your live daemon is elsewhere.
 
 tags:
   - name: services
@@ -3517,10 +3517,14 @@ paths:
               properties:
                 backend:
                   type: string
-                  enum: [ollama, claude, claude-cli, gemini, aider, custom]
+                  enum: [ollama, claude, claude-cli, gemini, codex, aider, custom]
                 model:
                   type: string
                   description: Model name (backend-specific)
+                modelTier:
+                  type: string
+                  enum: [low, mid, high]
+                  description: Optional backend-specific model tier shortcut
                 identity:
                   type: string
                   description: Semantic identity for the spawned agent and project budget attribution

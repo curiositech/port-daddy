@@ -1,6 +1,6 @@
-# Port Daddy HTTP API Reference (v3.8.2)
+# Port Daddy HTTP API Reference (v3.8.3)
 
-Base URL: `http://localhost:9876`
+Base URL: `http://localhost:9876` by default. If your daemon is running elsewhere, use `pd status` or `PORT_DADDY_URL` to discover the live URL.
 Unix Socket: `~/.port-daddy/daemon.sock`
 IPC Socket: `~/.port-daddy/daemon.ipc` (binary MessagePack, for high-frequency operations)
 
@@ -649,9 +649,11 @@ Launch an AI agent with full PD coordination (registration, sessions, heartbeats
 **Body:**
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `backend` | string | yes | `ollama`, `claude`, `claude-cli`, `gemini`, `aider`, `custom` |
+| `backend` | string | yes | `ollama`, `claude`, `claude-cli`, `gemini`, `codex`, `aider`, `custom` |
 | `model` | string | no | Model name override |
-| `identity` | string | no | Semantic identity (`project:stack:context`) |
+| `modelTier` | string | no | Tier hint: `low`, `mid`, `high` |
+| `identity` | string | yes | Semantic identity (`project:stack:context`) |
+| `budgetUsd` | number | yes | Positive spend ceiling for this launch |
 | `purpose` | string | no | Human-readable task description |
 | `task` | string | yes | The task/prompt for the agent |
 | `allowedTools` | string | no | Comma-separated tool list (claude-cli backend only) |
@@ -773,7 +775,7 @@ Count tuples, optionally scoped to a harbor.
 
 ## Fleet
 
-As of v3.8.2, the Port Daddy daemon auto-discovers `pd-fleet.yml` files in registered projects on boot and runs fleets as a persistent subsystem. These endpoints manage the daemon-level fleet.
+As of v3.8.3, the Port Daddy daemon auto-discovers `pd-fleet.yml` files in registered projects on boot and runs fleets as a persistent subsystem. These endpoints manage the daemon-level fleet.
 
 The CLI (`pd fleet up/down/status`) also supports a terminal-attached mode that reads `pd-fleet.yml` directly without the daemon fleet subsystem.
 
@@ -790,7 +792,7 @@ Aggregated fleet status across all managed projects.
     {
       "project": "my-app",
       "projectDir": "/Users/you/coding/my-app",
-      "agents": [{ "name": "qa", "type": "claude-cli", "running": true, "uptime": 3600000 }],
+      "agents": [{ "name": "qa", "type": "ollama", "running": true, "uptime": 3600000 }],
       "watchers": 1,
       "channels": 3,
       "startedAt": 1711234567890
@@ -940,7 +942,7 @@ Ollama models are fetched live from `localhost:11434/api/tags` with a 2s timeout
 
 ## Observability (Counters, Cost Tracking, Golden Signals)
 
-As of v3.8.2, Port Daddy records operational metrics (counters) and LLM cost events automatically. These endpoints expose that data for dashboards, budget alerts, and fleet health monitoring.
+As of v3.8.3, Port Daddy records operational metrics (counters) and LLM cost events automatically. These endpoints expose that data for dashboards, budget alerts, and fleet health monitoring.
 
 ### GET /metrics/counters
 Summary of all counter keys (last 24h default), or time-bucketed results for a single key.
@@ -1059,8 +1061,8 @@ Most recent cost events (useful for live cost feeds).
     {
       "id": "a1b2c3d4e5f6g7h8",
       "ts": 1711234567890,
-      "backend": "claude-cli",
-      "model": "claude-cli",
+      "backend": "codex",
+      "model": "gpt-5.4-mini",
       "projectName": "port-daddy",
       "identity": "port-daddy:qa:main",
       "spawnId": "spawn-abc123",

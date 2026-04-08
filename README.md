@@ -23,6 +23,8 @@
 
 **Port Daddy** is a daemon that gives every AI agent its own port, coordinates file access, and recovers work when they crash. One install, zero config.
 
+Examples in this README assume the default local daemon URL `http://localhost:9876`. If your daemon is running on a different port, use `pd status` or set `PORT_DADDY_URL` before copying the HTTP examples.
+
 While individual agents are brilliant, **coordination** is the bottleneck. Port Daddy provides the missing primitives: atomic port assignment, pub/sub messaging, distributed locks, session trails, and agent resurrection.
 
 ```bash
@@ -164,14 +166,14 @@ pd activity    # Stream the raw audit trail of all operations
 ### Spawn AI Agents
 Launch AI agents with full PD coordination (registration, sessions, heartbeats) baked in:
 ```bash
-# Claude Code CLI (full agent with file editing tools)
-pd spawn --backend claude-cli --allowedTools 'Read,Write,Edit,Glob,Grep' -- "Fix the login bug in src/auth.ts"
+# Codex CLI (good default for code-changing one-shot work)
+pd spawn --backend codex --tier low --budget 0.50 --identity myapp:fixer -- "Fix the login bug in src/auth.ts"
 
 # Claude API (text in, text out — fast, no tools)
 pd spawn --backend claude -- "Explain what this function does"
 
 # Ollama (local LLM, default)
-pd spawn --backend ollama --model llama3.1:8b -- "Summarize the README"
+pd spawn --backend ollama --model qwen2.5-coder:7b --budget 0.25 --identity myapp:docs -- "Summarize the README"
 
 # List running/completed agents
 pd spawned
@@ -183,13 +185,13 @@ pd spawn kill <agent-id>
 pd watch git:committed --exec './fleet/qa-adversary.sh'
 ```
 
-**Backends:** `ollama` (default), `claude` (API), `claude-cli` (full CLI), `gemini`, `aider`, `custom`
+**Backends:** `ollama` (default), `claude` (API), `claude-cli` (full CLI), `gemini`, `codex`, `aider`, `custom`
 
-**Key flags:** `--backend`, `--model`, `--identity`, `--purpose`, `--allowedTools` (claude-cli), `--maxTokens`, `--workdir`, `--timeout`
+**Key flags:** `--backend`, `--model`, `--tier`, `--identity`, `--purpose`, `--budget`, `--allowedTools` (claude-cli), `--maxTokens`, `--workdir`, `--timeout`
 
 Quiet mode (`-q`) prints raw output to stdout and exits non-zero on failure — perfect for shell scripts:
 ```bash
-local result=$(pd spawn --backend claude-cli --maxTokens 100 -q -- "Write a commit message for: $diff")
+local result=$(pd spawn --backend codex --tier low --budget 0.25 -q -- "Write a commit message for: $diff")
 ```
 
 ### OpenAPI Specification
@@ -308,10 +310,17 @@ fleet:
   agents:
     qa:
       trigger: git:committed          # React to pub/sub events
-      backend: claude-cli
-      allowedTools: "Read,Grep,Glob,Bash(npm test*)"
+      backend: ollama
+      model: qwen2.5-coder:7b
       prompt: |
         Review the most recent commit. Find bugs. Write tests.
+
+    test-hunter:
+      trigger: git:committed
+      backend: codex
+      model: gpt-5.4-mini
+      prompt: |
+        Run the test suite. Fill the highest-signal coverage gaps.
 
     gardener:
       schedule: "*/10 * * * *"        # Or run on a cron schedule
@@ -351,10 +360,10 @@ curl -X PUT http://localhost:9876/fleet/config/myapp \
 curl 'http://localhost:9876/fleet/prompt?project=myapp'  # One-line status for PS1
 
 # Available backends & models
-curl http://localhost:9876/fleet/models       # Lists claude-cli, ollama, gemini, etc.
+curl http://localhost:9876/fleet/models       # Lists ollama, codex, claude-cli, gemini, aider, etc.
 ```
 
-Each agent gets full PD coordination for free: registration, sessions, heartbeats, and salvage on crash. Supports `claude-cli`, `ollama`, `custom` (shell commands), and all `pd spawn` backends. Template variables (`{project}`) resolve from the YAML context. Fleet lifecycle events publish to the `fleet:events` channel for dashboard and menu bar subscriptions.
+Each agent gets full PD coordination for free: registration, sessions, heartbeats, and salvage on crash. Supports every `pd spawn` backend, including `ollama`, `codex`, `claude-cli`, `claude`, `gemini`, `aider`, and `custom`. Template variables (`{project}`) resolve from the YAML context. Fleet lifecycle events publish to the `fleet:events` channel for dashboard and menu bar subscriptions.
 
 ### Observability & Cost Tracking
 
@@ -362,7 +371,7 @@ Port Daddy tracks operational metrics and LLM spend across your fleet. Three sub
 
 **Counters** — ODS-style bump counters with time-bucketed storage. The daemon auto-increments counters for spawn lifecycle events (`spawn.started`, `spawn.failed`, `spawn.completed`, `spawn.duration_ms`), session events, and more. Batched in memory, flushed to SQLite every 10s. Auto-prunes rows older than 30 days.
 
-**Cost Tracker** — Records per-spawn LLM cost. When token counts are available (Claude SDK backend), computes exact cost using a built-in rate table (14 models: Claude, Gemini, GPT). For opaque backends (`claude-cli`, `aider`), uses flat per-session estimates. Budget checks per project.
+**Cost Tracker** — Records per-spawn LLM cost. When token counts are available (Claude SDK backend), computes exact cost using a built-in rate table (14 models: Claude, Gemini, GPT). For opaque CLI backends (`claude-cli`, `codex`, `aider`), uses model-aware per-session estimates. Budget checks per project.
 
 **Golden Signals** — RED method metrics for the spawn system in a single endpoint: rate/min, error%, avg duration, cost/hr burn rate.
 

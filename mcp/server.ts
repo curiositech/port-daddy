@@ -1827,8 +1827,15 @@ const TOOLS = [
         task: { type: 'string', description: 'What the agent should do' },
         identity: { type: 'string', description: 'Semantic identity (e.g. "myapp:fleet:custom-agent")' },
         budget_usd: { type: 'number', description: 'Required spend ceiling for this launch in USD' },
-        backend: { type: 'string', description: 'LLM backend: claude-cli (default), ollama, custom' },
+        backend: { type: 'string', description: 'LLM backend: ollama (default), claude, claude-cli, gemini, codex, aider, or custom' },
+        model: { type: 'string', description: 'Optional explicit model override' },
+        model_tier: { type: 'string', description: 'Optional model tier shortcut: low, mid, or high' },
+        purpose: { type: 'string', description: 'Optional short human-readable label for the run' },
+        files: { type: 'array', description: 'Optional focused file list, mainly for aider-backed runs', items: { type: 'string' } },
+        workdir: { type: 'string', description: 'Optional working directory override' },
+        timeout: { type: 'number', description: 'Optional timeout in milliseconds' },
         allowed_tools: { type: 'string', description: 'Comma-separated tool list (e.g. "Read,Grep,Glob,Write")' },
+        max_tokens: { type: 'number', description: 'Optional token ceiling for claude or claude-cli launches' },
       },
       required: ['task', 'identity', 'budget_usd'],
     },
@@ -2745,12 +2752,25 @@ async function handleTool(
       const task = args.task as string;
       const identity = args.identity as string | undefined;
       const budgetUsd = args.budget_usd as number | undefined;
-      const backend = (args.backend as string) || 'claude-cli';
+      const backend = (args.backend as string) || 'ollama';
+      const model = args.model as string | undefined;
+      const modelTier = args.model_tier as string | undefined;
+      const purpose = args.purpose as string | undefined;
+      const files = Array.isArray(args.files) ? args.files as string[] : undefined;
+      const workdir = args.workdir as string | undefined;
+      const timeout = args.timeout as number | undefined;
       const allowedTools = args.allowed_tools as string | undefined;
       const body: Record<string, unknown> = { backend, task, budgetUsd };
       if (identity) body.identity = identity;
+      if (model) body.model = model;
+      if (modelTier) body.modelTier = modelTier;
+      if (purpose) body.purpose = purpose;
+      else body.purpose = task.slice(0, 80);
+      if (files) body.files = files;
+      if (workdir) body.workdir = workdir;
+      if (timeout) body.timeout = timeout;
       if (allowedTools) body.allowedTools = allowedTools;
-      body.purpose = task.slice(0, 80);
+      if (typeof args.max_tokens === 'number') body.maxTokens = args.max_tokens;
       res = await POST('/spawn', body);
       break;
     }

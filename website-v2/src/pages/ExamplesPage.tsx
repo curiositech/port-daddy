@@ -66,7 +66,7 @@ const EXAMPLES: Example[] = [
       'pd watch build-results --exec "./deploy.sh"',
       '',
       '# Subscribe via SSE (programmatic)',
-      'curl -N http://localhost:9876/subscribe/build-results'
+      'curl -N http://localhost:9876/msg/build-results/subscribe'
     ],
     icon: Radio,
     color: 'var(--brand-accent)'
@@ -78,15 +78,15 @@ const EXAMPLES: Example[] = [
     difficulty: 'Advanced',
     description: 'Launch AI agent fleets with Port Daddy coordination auto-wired. Sessions, heartbeats, notes, and salvage are all automatic.',
     what: [
-      'Spawn Ollama, Claude, Gemini, or Aider agents',
+      'Spawn Ollama, Codex, Claude, Gemini, or Aider agents',
       'Coordination (sessions, heartbeats) auto-wired',
       'List and kill spawned agents from the CLI',
       'Dead agents enter the salvage queue automatically'
     ],
     code: [
       '# Spawn an Ollama agent with coordination',
-      'pd spawn --backend ollama --model llama3.1:8b \\',
-      '  --identity myapp:coder -- "Fix the login bug"',
+      'pd spawn --backend ollama --model qwen2.5-coder:7b \\',
+      '  --identity myapp:coder --budget 0.50 -- "Fix the login bug"',
       '',
       '# List running agents',
       'pd spawned',

@@ -126,6 +126,8 @@ fleet:
         - docs/sdk/*.tsx — SDK method pages
         - docs/mcp/*.tsx — MCP tool pages
         - tutorials/*.tsx — tutorial content
+        - landing + product data: components/landing/*.tsx, data/product.ts,
+          data/tutorials.ts, data/hero-copy.ts
 
         For new features that have daemon code but no website docs:
         1. Check if a CLI command page exists for the feature
@@ -133,6 +135,13 @@ fleet:
         3. If missing, create the page following the existing patterns
         4. Use Surface, Badge, and Button CVA components (Harbor Heritage design)
         5. Use semantic tokens (--surface-*, --text-*, --brand-*)
+
+        Runtime truth to preserve:
+        - Port Daddy is now local-first: Ollama + Codex are first-class backends
+        - Spawn docs must include codex and model tiers where supported
+        - Budget ceilings are mandatory for agentic launches
+        - The daemon defaults to localhost:9876, but docs should mention discovery
+          through pd status / PORT_DADDY_URL instead of pretending 9876 is universal
 
         Code is truth. Docs follow. Skill follows docs. Website follows docs.
       identity: "{project}:fleet:documentarian"
@@ -165,6 +174,9 @@ fleet:
         2. git log --oneline -20 (what was recently committed)
         3. CHANGELOG.md (what's been released)
         4. docs/plans/ directory (original planning documents)
+        5. docs/recovery/CURRENT-WORK.md (active queue and operator feedback)
+        6. docs/recovery/ directory (recovery hub truth)
+        7. .cartographer/status.md (current map state)
 
         Then update docs/V4-UNIFIED-ROADMAP.md:
         - Move items from "NEXT" to "COMPLETE" if they were committed
@@ -172,7 +184,7 @@ fleet:
         - Flag items that are blocked or stale (no commits in 2+ weeks)
         - Update the "Phase 0: COMPLETE" table if new items landed
 
-        Also maintain .cartographer/status.md with:
+        Also maintain docs/recovery/CURRENT-WORK.md and .cartographer/status.md with:
         - Current phase (which phase has the most active work)
         - Velocity (commits per day over last 7 days)
         - Top 3 items closest to completion

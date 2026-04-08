@@ -147,7 +147,7 @@ export function AgentsPage() {
               How it works
             </h2>
             <p className="text-sm leading-relaxed m-0" style={{ color: 'var(--text-secondary)' }}>
-              A fleet is a YAML file at your project root. Each agent has a <strong>trigger</strong> (a pub/sub channel or cron schedule), a <strong>backend</strong> (Claude, Ollama, or any shell command), and a <strong>prompt</strong>. You define the agents. Port Daddy runs them.
+              A fleet is a YAML file at your project root. Each agent has a <strong>trigger</strong> (a pub/sub channel or cron schedule), a <strong>backend</strong> (Ollama, Codex, Claude CLI, or any shell command), and a <strong>prompt</strong>. You define the agents. Port Daddy runs them.
             </p>
 
             <div className="grid sm:grid-cols-3 gap-4">
@@ -181,7 +181,7 @@ export function AgentsPage() {
             </div>
 
             <p className="text-sm leading-relaxed m-0" style={{ color: 'var(--text-secondary)' }}>
-              The agents below are <strong>examples that ship with Port Daddy</strong>. You can use them as-is, modify their prompts, or define entirely new agents. Any trigger, custom shell commands, and the current built-in runtimes: Claude, Claude CLI, Gemini, Ollama, and Aider.
+              The agents below are <strong>examples that ship with Port Daddy</strong>. You can use them as-is, modify their prompts, or define entirely new agents. Any trigger, custom shell commands, and the current built-in runtimes: Ollama, Codex, Claude, Claude CLI, Gemini, Aider, and custom.
             </p>
 
             <CodeBlock language="bash">{`# Example: your own custom agent
@@ -196,8 +196,8 @@ fleet:
 
     my-reviewer:
       schedule: "0 */4 * * *"           # Every 4 hours
-      backend: claude-cli               # Full Claude Code
-      allowedTools: "Read,Grep,Glob"
+      backend: codex                    # Higher-signal code worker
+      model: gpt-5.4-mini
       prompt: |
         Find code smells in src/. Suggest fixes.`}</CodeBlock>
           </Surface>

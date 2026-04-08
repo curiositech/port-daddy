@@ -8,8 +8,9 @@ export default function SpawnCommand() {
       version="3.8.3"
       syntax="pd spawn [flags] -- <task>"
       flags={[
-        { flag: '--backend <type>', description: 'Backend to use: ollama | claude | claude-cli | gemini | aider | custom.' },
+        { flag: '--backend <type>', description: 'Backend to use: ollama | claude | claude-cli | gemini | codex | aider | custom.' },
         { flag: '--model <name>', description: 'Optional model override.' },
+        { flag: '--tier <level>', description: 'Optional model tier hint: low | mid | high.' },
         { flag: '--identity <id>', description: 'Semantic identity in project:stack:context form. If omitted, pd tries to derive it from package.json.' },
         { flag: '--budget <usd>', description: 'Required spend ceiling for this launch. Must be positive.' },
         { flag: '--purpose <text>', description: 'Short human-readable label for the run.' },
@@ -22,21 +23,22 @@ export default function SpawnCommand() {
         { flag: '-q, --quiet', description: 'Minimal output.' },
       ]}
       usagePatterns={[
-        'pd spawn --backend claude-cli --identity myapp:docs:sync --budget 0.75 -- "Rewrite the API docs"',
+        'pd spawn --backend codex --tier low --identity myapp:docs:sync --budget 0.75 -- "Rewrite the API docs"',
         'pd spawn --backend aider --identity myapp:web:refactor --budget 1.25 --files src/App.tsx -- "Refactor the dashboard shell"',
         'pd spawn --backend gemini --model gemini-2.5-flash --identity myapp:qa:review --budget 0.50 -- "Review the last commit for regressions"',
       ]}
       examples={[
         {
-          description: 'Launch a Claude CLI run with explicit identity and budget',
-          code: `pd spawn --backend claude-cli \\
+          description: 'Launch a Codex run with explicit identity, tier, and budget',
+          code: `pd spawn --backend codex \\
+  --tier low \\
   --identity port-daddy:docs:spawn-sync \\
   --budget 0.75 \\
   -- "Rewrite the website spawn docs so they match the daemon contract"`,
-          output: `[pd] Spawning claude-cli agent...
+          output: `[pd] Spawning codex agent...
 [pd] Agent spawned-8a2f0c1c2f9b: completed
-  Backend: claude-cli
-  Model: sonnet
+  Backend: codex
+  Model: gpt-5.4-mini
 
 --- Output ---
 Updated website spawn docs to require identity + budget and reflect current backends.`
@@ -52,9 +54,9 @@ Updated website spawn docs to require identity + budget and reflect current back
         },
         {
           description: 'Auto-detect identity from package.json',
-          code: `pd spawn --backend claude-cli --budget 0.50 -- "Summarize the last failing test"`,
+          code: `pd spawn --backend codex --tier low --budget 0.50 -- "Summarize the last failing test"`,
           output: `[pd] Auto-detected identity: port-daddy
-[pd] Spawning claude-cli agent...`
+[pd] Spawning codex agent...`
         },
       ]}
       seeAlso={[

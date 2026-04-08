@@ -60,24 +60,26 @@ $ pd with-lock db-migrations npm run migrate
     id: 'spawn',
     title: 'AI Spawn',
     description: 'Launch agents through PD',
-    code: `# Spawn a Claude agent with file editing tools
-$ pd spawn --backend claude-cli \\
-    --allowedTools 'Read,Write,Edit,Glob,Grep' \\
+    code: `# Spawn a cheap Codex agent with an explicit budget ceiling
+$ pd spawn --backend codex \\
+    --tier low \\
     --identity myapp:fixer \\
+    --budget 0.50 \\
     -- "Fix the login bug in src/auth.ts"
   Agent spawned-8a2f: completed
-  Backend: claude-cli
+  Backend: codex
+  Model: gpt-5.4-mini
   Duration: 45s
 
 # Quiet mode — capture output in scripts
-$ result=$(pd spawn --backend claude-cli -q -- "Write a commit message")
+$ result=$(pd spawn --backend codex --tier low --budget 0.20 -q -- "Write a commit message")
 $ echo $result
   fix: validate JWT expiry before token refresh
 
 # List spawned agents
 $ pd spawned
   AGENT ID          BACKEND    STATUS      AGE
-  spawned-8a2f      claude-cli completed   2m
+  spawned-8a2f      codex      completed   2m
   spawned-b4c1      ollama     completed   5m`,
   },
   {
