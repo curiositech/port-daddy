@@ -2,8 +2,8 @@
 
 **Last updated:** 2026-04-07
 **Updated by:** Cartographer (manual invocation)
-**HEAD:** `55258f6` (Sync ledgers after archaeology rehab)
-**Previous HEAD:** `3ece95a` — 2 new commits since last run
+**HEAD:** `2202aca` (Switch Port Daddy fleet to local-first backends)
+**Previous HEAD:** `55258f6` — 5 new commits since last run
 
 ---
 
@@ -144,7 +144,8 @@ Burst-cool-burst pattern continues: 37 commits (Mar 30-31), 2 zero-commit days (
 - **Freshness authority was too broad.** The monolithic CLI still had an old freshness auto-restart path that could SIGTERM the canonical daemon from foreign checkouts or non-interactive watcher commands. `1ebe6e6` narrowed that authority to interactive commands from the same install root as the live daemon.
 - **The next UI truth bug is still sortie-specific.** The control plane no longer resets runtimes after launch, but the end-to-end sortie path still needs fresh live verification now that daemon-side errors surface inline.
 - **Backend-tier truth is now wider than the UI currently shows.** The runtime now carries low/mid/high ladders for Claude SDK, Claude CLI, Gemini, Codex, Ollama, Aider, and Custom. `aider` now honors the selected model at execution time, and `custom` receives the resolved model/tier via env so wrappers can act on it. The next honesty task is exposing that same tier truth clearly in operator surfaces, not letting it stay backend-only knowledge.
-- **Port Daddy's own fleet should embody the budget doctrine.** The project fleet was still mostly `claude-cli` despite the new backend ladder and local Ollama/Codex readiness. The default YAML should stay local-first so operator cost policy is encoded in the repo, not re-decided every session.
+- **Port Daddy's own fleet now embodies the budget doctrine in source.** `pd-fleet.yml` is switched to local-first defaults: Ollama for background/read-only agents, cheaper Codex tiers for code-changing agents, and hosted backends as opt-in. The next operator truth task is keeping the live daemon aligned with that source choice instead of letting stale manual runtimes serve outdated model mappings.
+- **Local model provisioning is now real, not aspirational.** Aider is installed, Ollama has been upgraded back to a healthy daemon, and the recommended local ladder models are present on this machine. The remaining gap is live-daemon alignment and UI/operator truth, not missing local runtimes.
 - **Claude SDK readiness was lying by omission.** The readiness probe only checked `ANTHROPIC_API_KEY`, not whether `@anthropic-ai/sdk` was installed, so the UI could honestly-ish say “ready” and then fail at launch for a missing package. The active fix makes dependency presence part of readiness.
 - **Activity had a second lie after project attribution was fixed.** Even when the project log had meaningful work, the left rail could still say “No non-empty agent signals yet” because it only rendered agents with precomputed signals. The current UI patch switches Activity to always list configured agents and use feed fallback when structured signals are sparse.
 - **Operator file affordances were too vague.** Showing touched files without explicit machine actions forced operators back into manual path copying. The control plane and FleetBar now expose Finder/editor actions directly off surfaced file mentions.
