@@ -1426,6 +1426,35 @@ describe('spawn — MAX_CONCURRENT_RUNNING ceiling', () => {
     await teardown();
   });
 
+  test('blocked spawn does not call PD coordination endpoints', async () => {
+    const { spawner, teardown } = await fillToCapacity();
+
+    mockFetch.mockClear();
+    await spawner.spawn({ backend: 'custom', task: 'blocked without coordination' });
+
+    expect(mockFetch).not.toHaveBeenCalled();
+
+    await teardown();
+  });
+
+  test('blocked response preserves the requested backend and model', async () => {
+    const { spawner, teardown } = await fillToCapacity();
+
+    const blocked = await spawner.spawn({
+      backend: 'ollama',
+      model: 'qwen2.5-coder:14b',
+      task: 'overflow',
+    });
+
+    expect(blocked.backend).toBe('ollama');
+    expect(blocked.model).toBe('qwen2.5-coder:14b');
+    expect(blocked.output).toBeNull();
+    expect(blocked.startedAt).toBeTruthy();
+    expect(blocked.completedAt).toBeTruthy();
+
+    await teardown();
+  });
+
   test('spawn succeeds again after a running agent completes', async () => {
     const spawner = createSpawner();
     setupOllamaFetchMock('ok');

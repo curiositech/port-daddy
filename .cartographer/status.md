@@ -25,10 +25,10 @@ Active threads, ranked by commit recency:
 
 4. **Fleet/runtime archaeology rehab** — `3ece95a` promoted long-dirty roadmap/docs changes and two substantive untracked test suites (`semantic-index`, `tunnel-lifecycle`). It also shipped a small but real runtime hygiene fix: the spawner heartbeat interval now `unref()`s so blocked-spawn tests do not hold Jest open just by hitting the concurrency ceiling.
 
-5. **Residual archaeology still on disk** — only one substantive file and one residue policy decision remain:
-   - `tests/unit/spawner-commit-0df9155-bugs.test.js`, which is mostly redundant with `tests/unit/spawner.test.js` and still freezes known-bad behavior as expected output
+5. **Residual archaeology still on disk** — now down to residue policy, not test limbo:
    - the spider connection note pile under `.spider/connections/` is now explicitly moving into `.gitignore` rather than pretending to wait for promotion
-   Everything else from the previously dirty runtime/test/doc slices has now been either committed or explicitly quarantined.
+   - the redundant `spawner-commit-0df9155-bugs` battery was retired after folding its only useful assertions into `tests/unit/spawner.test.js`
+   Everything else from the previously dirty runtime/test/doc slices has now been either committed, merged into normative coverage, or explicitly quarantined.
 
 V4 Phase activity:
 - **Phase 1 (Semantic Graph):** Zero commits. 7 days since last commit (2026-03-30). **7 days to stale threshold (2026-04-13).**
@@ -98,10 +98,10 @@ Burst-cool-burst pattern continues: 37 commits (Mar 30-31), 2 zero-commit days (
    - Fleet singleton enforcement: committed
    - **Remaining: verify all uncommitted test files pass, commit completions updates, cut the release. Most criteria from the Recovery Roadmap are satisfied.**
 
-4. **`tests/unit/spawner-commit-0df9155-bugs.test.js`** *(UNTRACKED — ambiguous value)*
-   - Covers real regression scenarios, but duplicates much of `tests/unit/spawner.test.js`
-   - Encodes known-bad behavior as expected output instead of defining the corrected contract
-   - **Remaining: either convert it into normative regression coverage or leave it out.**
+4. **Residual test archaeology** *(MOSTLY RESOLVED)*
+   - The redundant `spawner-commit-0df9155-bugs` battery was not promoted as-is
+   - Its missing normative assertions now live in `tests/unit/spawner.test.js`
+   - **Remaining: keep trimming any future archaeology down to durable contract tests instead of one-off bug museums.**
 
 ---
 
@@ -152,7 +152,7 @@ Burst-cool-burst pattern continues: 37 commits (Mar 30-31), 2 zero-commit days (
 - **Lease loss with `owner: null` is recoverable, not terminal.** The daemon should reacquire in that case instead of leaving the project permanently skipped. That fix is now in the working tree with regression coverage.
 - **Shared hook templates were ahead of live installs.** The repo templates already published scoped `project:<slug>:<hash>:git:committed`, but existing checkouts were still carrying the pre-scope Port Daddy hook in `.git/hooks/post-commit`, and installers were treating any hook mentioning `git:committed` as already current. The active fix is legacy-hook replacement in `pd init` / `pd fleet init`, not more template churn.
 - **Daemon logs can mix generations of client truth.** After the latest `fleet-ui` channel fix, a fresh Playwright-driven load polled `/msg/project:...:` channels correctly, while older already-open clients continued to hit naked logical channels until they reloaded. Log archaeology now has to distinguish stale client traffic from current bundle behavior.
-- **Not all repo dirt deserves promotion.** The spider markdown pile is generated research output and now belongs in `.gitignore` by default, not in suspense as pseudo-canonical docs. The extra spawner bug-battery test is only promotable once it stops asserting broken behavior as success.
+- **Not all repo dirt deserves promotion.** The spider markdown pile is generated research output and now belongs in `.gitignore` by default, not in suspense as pseudo-canonical docs. The extra spawner bug-battery test proved that the right move is often to merge missing assertions into the canonical suite and delete the museum piece.
 
 - **Phase 1 stale clock: 7 days.** Equal to the time remaining before the threshold. The `graph_edges` migration is a 1-hour task. Every commit to `server.ts` (2 this burst) increases friction. The symbol index test suite sitting uncommitted for 7 days is a smell — someone validated the code but didn't commit the validation.
 

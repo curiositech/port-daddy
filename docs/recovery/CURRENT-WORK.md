@@ -12,7 +12,6 @@ Stabilize the live Port Daddy operator loop so one daemon, one fleet runtime, on
 Latest committed slice: `2202aca` — Port Daddy fleet defaults switched to local-first backends.
 Current uncommitted slice: post-dogfood operator truth and runtime cleanup:
 - ignore generated `.spider/connections/*.md` residue by default unless a later docs feature explicitly curates one
-- either rewrite or delete `tests/unit/spawner-commit-0df9155-bugs.test.js` instead of pretending it is promotable truth
 - continue the remaining control-plane product work from the feedback queue
 - keep runtime discovery, Ollama/Codex defaults, and fleet cost discipline aligned with the live daemon instead of only source truth
 
@@ -108,7 +107,6 @@ Current uncommitted slice: post-dogfood operator truth and runtime cleanup:
 5. Wire the React control plane to consume the newly explicit backend activity attribution so per-agent timelines, files touched, and recent mutations stop falling back to prose matching.
 6. Finish the last repo dirt decisions:
    - commit the `.gitignore` quarantine for generated spider connection notes
-   - rewrite or drop `tests/unit/spawner-commit-0df9155-bugs.test.js`
 7. Verify whether Jest still has a real open-handle warning after the spawner heartbeat timer `unref()` and any remaining daemon/test cleanup.
 8. Commit the next control-plane/FleetBar UX slice once the relaunch verifies the native shell and daemon-served bundle still agree.
 9. Verify the sortie launch path end-to-end from the live daemon after the new inline error handling so a failed attempt leaves operator-visible evidence instead of only resetting UI state.
@@ -128,7 +126,7 @@ Current uncommitted slice: post-dogfood operator truth and runtime cleanup:
 
 - The operator surface now has a proper machine action for files, not just text: the daemon exposes `/operator/open-file`, the web control plane calls it, and FleetBar mirrors the same two affordances natively (`Open in Finder`, `Open with default editor`).
 - `tests/unit/semantic-index.test.js` and `tests/unit/tunnel-lifecycle.test.js` were legitimate archaeology, not dead scratch. They passed and are now committed.
-- `tests/unit/spawner-commit-0df9155-bugs.test.js` is not in the same category. It largely duplicates `tests/unit/spawner.test.js` and encodes known-bad behavior as the expected result, so it still needs editorial judgment before promotion.
+- The old `tests/unit/spawner-commit-0df9155-bugs.test.js` archaeology file was retired instead of promoted. The only useful assertions were folded into `tests/unit/spawner.test.js`; the rest duplicated existing coverage or canonized known-bad behavior.
 - The spawner heartbeat timer was another real Jest open-handle culprit. `lib/spawner.ts` now `unref()`s that interval so blocked-spawn tests do not hold the process open just by reaching the concurrency ceiling.
 - Port Daddy now has a real `codex` backend path in source. It shells out to `codex exec`, captures the final assistant message from `--output-last-message`, and unit coverage now exercises readiness, spawn dispatch, model catalog, and opaque-cost estimation for that backend.
 - The first live Codex dogfood launch succeeded end-to-end through Port Daddy after replacing the stale manual daemon on `127.0.0.1:9876`: backend `codex`, model `gpt-5.4-mini`, output `codex backend smoke from port-daddy`.
