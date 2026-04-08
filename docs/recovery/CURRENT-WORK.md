@@ -144,6 +144,7 @@ Current uncommitted slice: the Codex+tier contract pass:
 - The live Codex dogfood also surfaced two operator bugs that belong in the recovery queue, not chat memory:
   - file actions still fail on some relative mutation paths (`Not Found`)
   - fleet spawn counts can still run too hot for real model-usage scarcity
+- Port Daddy's own `pd-fleet.yml` now needs to stay local-first by default: background/read-only agents should prefer Ollama, code-changing agents should prefer cheaper Codex tiers, and hosted backends should be opt-in rather than the silent default.
 - Embedded FleetBar routing needs two signals, not one: query-param embed plus an explicit WebView identity. Relying on `?embed=fleetbar` alone is brittle enough that duplicate chrome can come back.
 - The modern fleet engine already scopes logical channels like `git:committed` through `lib/fleet-channels.ts`. If cross-project triggers still bleed, the likely culprit is leaked legacy detached watcher processes, not missing scoping code in the current runner.
 - `port-daddy status` and browser reachability are separate truths. The CLI can look healthy over the Unix socket while TCP/browser consumers are still pointed at a brittle loopback URL or stale port assumption.

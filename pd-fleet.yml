@@ -5,6 +5,8 @@
 #
 # Backend is configurable per agent.
 # Pin `model:` whenever your backend supports it so fleet costs are predictable.
+# This fleet is intentionally local-first: Ollama for background cognition,
+# Codex mini for code-changing agents, and custom for non-LLM jobs.
 
 fleet:
   name: port-daddy-dev
@@ -26,8 +28,8 @@ fleet:
 
     qa:
       trigger: git:committed
-      backend: claude-cli
-      model: haiku
+      backend: ollama
+      model: qwen2.5-coder:7b
       singleton: true
       allowedTools: "Read,Grep,Glob,Bash(npm test*)"
       prompt: |
@@ -62,8 +64,8 @@ fleet:
 
     test-hunter:
       trigger: git:committed
-      backend: claude-cli
-      model: sonnet
+      backend: codex
+      model: gpt-5.4-mini
       singleton: true
       allowedTools: "Read,Grep,Glob,Write,Bash(npm test*)"
       prompt: |
@@ -90,8 +92,8 @@ fleet:
 
     documentarian:
       trigger: git:committed
-      backend: claude-cli
-      model: haiku
+      backend: ollama
+      model: qwen2.5-coder:7b
       singleton: true
       allowedTools: "Read,Grep,Glob,Write,Edit"
       prompt: |
@@ -137,8 +139,8 @@ fleet:
 
     simplifier:
       trigger: git:committed
-      backend: claude-cli
-      model: sonnet
+      backend: codex
+      model: gpt-5.4-mini
       singleton: true
       worktree: true
       allowedTools: "Read,Grep,Glob,Edit,Bash(npm test*)"
@@ -150,8 +152,8 @@ fleet:
 
     cartographer:
       trigger: git:committed
-      backend: claude-cli
-      model: haiku
+      backend: ollama
+      model: qwen2.5-coder:7b
       singleton: true
       allowedTools: "Read,Grep,Glob,Write"
       prompt: |
@@ -187,8 +189,8 @@ fleet:
 
     spark:
       schedule: "*/30 * * * *"
-      backend: claude-cli
-      model: sonnet
+      backend: ollama
+      model: qwen2.5-coder:14b
       singleton: true
       allowedTools: "Read,Grep,Glob,Write"
       prompt: |
@@ -216,8 +218,8 @@ fleet:
     spider:
       trigger: spark:idea
       schedule: "0 */2 * * *"
-      backend: claude-cli
-      model: sonnet
+      backend: ollama
+      model: qwen2.5-coder:14b
       singleton: true
       allowedTools: "Read,Grep,Glob,Write"
       prompt: |
