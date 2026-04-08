@@ -2,7 +2,7 @@
  * Spawner Module — AI Agent Launcher
  *
  * Factory function createSpawner(deps) with methods:
- * - spawn(spec): Launch an AI agent (ollama/claude/gemini/aider/custom)
+ * - spawn(spec): Launch an AI agent (ollama/claude/gemini/codex/aider/custom)
  * - list(): List active spawned agents
  * - kill(agentId): Stop a spawned agent
  *
@@ -12,7 +12,8 @@
 import { randomBytes } from 'node:crypto';
 import { spawn as spawnChild } from 'node:child_process';
 import type { ChildProcess } from 'node:child_process';
-import { readFileSync, existsSync, statSync } from 'node:fs';
+import { readFileSync, existsSync, statSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { CostTracker } from './cost-tracker.js';
@@ -75,8 +76,9 @@ function loadDotenvOnce(): Record<string, string> {
 // =============================================================================
 
 export interface SpawnSpec {
-  backend: 'ollama' | 'claude' | 'claude-cli' | 'gemini' | 'aider' | 'custom';
+  backend: 'ollama' | 'claude' | 'claude-cli' | 'gemini' | 'codex' | 'aider' | 'custom';
   model?: string;
+  modelTier?: 'low' | 'mid' | 'high';
   identity?: string;   // PD semantic identity: project:stack:context
   purpose?: string;    // human-readable task description
   task: string;        // the prompt / task
@@ -270,11 +272,71 @@ async function runGemini(spec: SpawnSpec, model: string): Promise<{ output: stri
   }
 }
 
-function runAider(spec: SpawnSpec): Promise<{ output: string; error: string | null }> {
+function sanitizeCodexOutput(raw: string): string {
+  const lines = raw
+    .split(/\r?\n/)
+    .map((line) => line.trimEnd())
+    .filter((line) => {
+      const trimmed = line.trim();
+      if (!trimmed) return false;
+      if (trimmed === 'codex') return false;
+      if (/^OpenAI Codex\b/i.test(trimmed)) return false;
+      if (/^(model|provider|approval|sandbox|reasoning effort|session id|workdir):/i.test(trimmed)) return false;
+      if (/^\d[\d,]*\s+total tokens used$/i.test(trimmed)) return false;
+      if (/^tokens used$/i.test(trimmed)) return false;
+      if (/^-{4,}$/.test(trimmed)) return false;
+      return true;
+    });
+
+  return lines.join('\n').trim();
+}
+
+function runCodexCli(spec: SpawnSpec, model: string): Promise<{ output: string; error: string | null }> {
+  const workspace = spec.workdir || process.cwd();
+  const tempDir = mkdtempSync(join(tmpdir(), 'port-daddy-codex-'));
+  const outputPath = join(tempDir, 'last-message.txt');
+  const args = [
+    'exec',
+    '--skip-git-repo-check',
+    '--full-auto',
+    '--sandbox', 'workspace-write',
+    '-C', workspace,
+    '--output-last-message', outputPath,
+    '--model', model,
+    spec.task,
+  ];
+
+  return runChild({
+    cmd: 'codex',
+    args,
+    cwd: workspace,
+    env: {
+      ...process.env,
+      ...loadDotenvOnce(),
+      ...(spec.env || {}),
+      OTEL_SDK_DISABLED: 'true',
+    },
+    timeout: spec.timeout,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }).then((result) => {
+    try {
+      const fileOutput = existsSync(outputPath) ? readFileSync(outputPath, 'utf-8').trim() : '';
+      if (fileOutput) {
+        return { output: fileOutput, error: result.error };
+      }
+      const sanitized = sanitizeCodexOutput(result.output || '');
+      return { output: sanitized, error: result.error };
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+}
+
+function runAider(spec: SpawnSpec, model: string): Promise<{ output: string; error: string | null }> {
   const files = spec.files || [];
   return runChild({
     cmd: 'aider',
-    args: ['--yes', '--no-stream', '--message', spec.task, ...files],
+    args: ['--yes', '--no-stream', '--model', model, '--message', spec.task, ...files],
     cwd: spec.workdir,
     env: { ...process.env, ...loadDotenvOnce(), ...(spec.env || {}) },
     timeout: spec.timeout,
@@ -296,7 +358,17 @@ function runCustom(spec: SpawnSpec): Promise<{ output: string; error: string | n
     cmd: '/bin/sh',
     args: ['-c', spec.task],
     cwd: spec.workdir,
-    env: { ...process.env, ...loadDotenvOnce(), ...(spec.env || {}) },
+    env: {
+      ...process.env,
+      ...loadDotenvOnce(),
+      ...(spec.env || {}),
+      PD_BACKEND: spec.backend,
+      PORT_DADDY_BACKEND: spec.backend,
+      PD_MODEL: spec.model,
+      PORT_DADDY_MODEL: spec.model,
+      PD_MODEL_TIER: spec.modelTier,
+      PORT_DADDY_MODEL_TIER: spec.modelTier,
+    },
     timeout: spec.timeout,
   });
 }
@@ -342,6 +414,7 @@ const DEFAULT_MODELS: Record<SpawnSpec['backend'], string> = {
   claude: 'claude-haiku-4-5-20251001',
   'claude-cli': 'claude-cli',  // claude CLI manages its own model
   gemini: 'gemini-2.0-flash-exp',
+  codex: 'gpt-5.4-mini',
   aider: 'aider',   // aider manages its own model selection
   custom: 'custom',
 };
@@ -479,8 +552,9 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         case 'ollama':    result = await runOllama(spec, model); break;
         case 'claude':    result = await runClaude(spec, model); break;
         case 'gemini':    result = await runGemini(spec, model); break;
+        case 'codex':     result = await runCodexCli(spec, model); break;
         case 'claude-cli': result = await runClaudeCli(spec); break;
-        case 'aider':     result = await runAider(spec); break;
+        case 'aider':     result = await runAider(spec, model); break;
         case 'custom': {
           const r = await runCustom(spec);
           record.childProcess = r.child;

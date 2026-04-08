@@ -1,9 +1,19 @@
 import { jest } from '@jest/globals';
 
 const mockSpawnSync = jest.fn();
+const installedPackages = new Set(['@anthropic-ai/sdk', '@google/generative-ai']);
 
 jest.unstable_mockModule('node:child_process', () => ({
   spawnSync: mockSpawnSync,
+}));
+
+jest.unstable_mockModule('node:module', () => ({
+  createRequire: () => ({
+    resolve(specifier) {
+      if (installedPackages.has(specifier)) return `/mocked/${specifier}`;
+      throw new Error(`Cannot find module ${specifier}`);
+    },
+  }),
 }));
 
 const { assessBackendReadiness } = await import('../../lib/backend-readiness.js');
@@ -37,7 +47,7 @@ describe('backend readiness', () => {
     expect(readiness).toMatchObject({
       backend: 'claude',
       status: 'ready',
-      summary: 'ANTHROPIC_API_KEY present',
+      summary: 'ANTHROPIC_API_KEY present and Claude SDK installed',
     });
   });
 
@@ -64,6 +74,23 @@ describe('backend readiness', () => {
       backend: 'claude-cli',
       status: 'needs_setup',
       summary: 'Claude CLI binary not found',
+    });
+  });
+
+  test('reports codex as manual check when the CLI binary is present', async () => {
+    mockSpawnSync.mockImplementation((command, args) => ({
+      status: command === 'which' && args[0] === 'codex' ? 0 : 1,
+    }));
+
+    const readiness = await assessBackendReadiness('codex');
+
+    expect(mockSpawnSync).toHaveBeenCalledWith('which', ['codex'], expect.objectContaining({
+      encoding: 'utf-8',
+    }));
+    expect(readiness).toMatchObject({
+      backend: 'codex',
+      status: 'manual_check',
+      summary: 'Codex CLI binary found; OpenAI auth and model access cannot be verified non-interactively',
     });
   });
 

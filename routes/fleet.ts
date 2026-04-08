@@ -15,6 +15,7 @@ import { parse as parseYaml } from 'yaml';
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import type { createFleetDaemon } from '../lib/fleet-daemon.js';
 import {
+  BUILTIN_MODEL_TIERS,
   findFleetConfigPath,
   loadFleetConfig,
   validateTopology,
@@ -38,10 +39,11 @@ interface FleetRouteDeps {
 const BACKEND_CATALOG = [
   { id: 'claude-cli', name: 'Claude CLI', models: ['haiku', 'sonnet', 'opus'] },
   { id: 'claude', name: 'Claude SDK', models: ['claude-haiku-4-5-20251001', 'claude-sonnet-4-5-20250929', 'claude-opus-4-1-20250805'] },
-  { id: 'gemini', name: 'Google Gemini', models: ['gemini-2.5-pro', 'gemini-2.5-flash'] },
+  { id: 'gemini', name: 'Google Gemini', models: ['gemini-2.0-flash-exp', 'gemini-2.5-flash', 'gemini-2.5-pro'] },
+  { id: 'codex', name: 'OpenAI Codex CLI', models: ['gpt-5.4-mini', 'gpt-5.3-codex', 'gpt-5.4'] },
   { id: 'ollama', name: 'Ollama (local)', models: [] as string[] },
-  { id: 'aider', name: 'Aider', models: [] as string[] },
-  { id: 'custom', name: 'Custom command', models: [] as string[] },
+  { id: 'aider', name: 'Aider', models: ['gpt-4.1-mini', 'gpt-4.1', 'gpt-5'] },
+  { id: 'custom', name: 'Custom command', models: ['custom-low', 'custom-mid', 'custom-high'] },
 ] as const;
 
 function extractPublishedChannel(command?: string): string | null {
@@ -242,10 +244,19 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
     const backends = await Promise.all(
       BACKEND_CATALOG.map(async (backend) => {
         const readiness = await assessBackendReadiness(backend.id);
+        const tierDefaults = BUILTIN_MODEL_TIERS[backend.id];
+        let models = [...backend.models];
+        if (tierDefaults) {
+          models = [...new Set([...models, ...Object.values(tierDefaults)])];
+        }
+        if (backend.id === 'ollama') {
+          models = [...new Set([...ollamaModels, ...models])];
+        }
         return {
           id: backend.id,
           name: backend.name,
-          models: backend.id === 'ollama' ? ollamaModels : [...backend.models],
+          models,
+          modelTiers: tierDefaults || undefined,
           supported: true,
           readinessStatus: readiness.status,
           readinessSummary: readiness.summary,

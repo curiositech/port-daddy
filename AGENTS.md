@@ -43,6 +43,20 @@ Project-specific shibboleths for proficient Port Daddy work. If you learn a new 
 
 - `pd agent` is a thin ad hoc wrapper over `/sugar/begin` + `/spawn` + `/sugar/done`, not a sortie object. Treat its UI presence as a manual job/run unless the launch explicitly came from the sortie workflow.
 - A failed or completed `pd agent` run can disappear from the live agent registry while still existing in spawned-agent history and session notes. Operator UIs need a separate ad hoc-job lens instead of assuming the live agent registry is the whole truth.
+- The `codex` backend is a Codex CLI integration, not an SDK backend. Port Daddy should launch it via `codex exec` and prefer `--output-last-message` over parsing noisy stdout.
+- Codex defaults should stay spend-aware:
+  - low: `gpt-5.4-mini`
+  - mid: `gpt-5.3-codex`
+  - high: `gpt-5.4`
+- Expensive Codex launches should be explicit. Do not silently bump a run from mini to the high model.
+- Every backend in this repo needs a distinct low/mid/high ladder. Current built-ins are:
+  - Claude SDK: `claude-haiku-4-5-20251001` / `claude-sonnet-4-5-20250929` / `claude-opus-4-1-20250805`
+  - Claude CLI: `haiku` / `sonnet` / `opus`
+  - Gemini: `gemini-2.0-flash-exp` / `gemini-2.5-flash` / `gemini-2.5-pro`
+  - Codex: `gpt-5.4-mini` / `gpt-5.3-codex` / `gpt-5.4`
+  - Ollama: `qwen2.5-coder:7b` / `llama3.2:8b` / `qwen2.5-coder:14b`
+  - Aider: `gpt-4.1-mini` / `gpt-4.1` / `gpt-5`
+  - Custom: `custom-low` / `custom-mid` / `custom-high`, forwarded to wrapper commands via env
 - `fleet-config-ui` is the real control plane surface.
 - `public/fleet-ui` is the built artifact served by the daemon.
 - FleetBar should open the real control plane, not a shadow dashboard with reduced functionality.
@@ -65,6 +79,7 @@ Project-specific shibboleths for proficient Port Daddy work. If you learn a new 
   - mutations / touched files
   - handoffs / artifacts
 - If the UI shows touched files or mutation paths, it needs explicit `Open in Finder` and `Open with default editor` actions. A bare path chip is not sufficient operator affordance.
+- Relative mutation paths are not enough for those actions. Resolve them against the project/workdir first, or explain why the path could not be resolved instead of dropping a useless `Not Found`.
 - Activity must still list configured agents even when structured signals are sparse. “No signals” is not permission to pretend the fleet has no agents.
 - Filter low-signal system noise instead of surfacing empty or trivial channel traffic.
 - FleetBar popover is not just a launcher. It should surface recent per-agent summaries, last-active hints, and touched files that can be opened directly.
@@ -84,3 +99,4 @@ Project-specific shibboleths for proficient Port Daddy work. If you learn a new 
 - Daemon logs can mix truths from different client generations. A fresh `fleet-ui` load now polls scoped `project:...:` channels correctly, but older already-open FleetBar/browser clients can keep hitting naked `git:committed` until they reload onto the new bundle.
 - Generated spider connection markdowns under `.spider/connections/` are not automatically promotable repo truth. Treat them as research residue unless the user explicitly wants them curated or a real feature/docs change depends on them.
 - Untracked archaeology tests are only promotable if they assert desired behavior or cover a real blind spot. Do not commit redundant bug batteries that merely freeze known-bad behavior as the expected outcome.
+- If fleet spawn counts are exploding, treat that as a budget-control bug. Check `singleton`, respawn policy, schedule/trigger churn, and project limits before allowing more agent launches.

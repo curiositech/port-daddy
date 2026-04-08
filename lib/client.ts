@@ -2562,7 +2562,7 @@ class PortDaddy {
 
   /**
    * Launch an AI agent with the given spec.
-   * Supports backends: ollama, claude, gemini, aider, custom.
+   * Supports backends: ollama, claude, claude-cli, gemini, codex, aider, custom.
    * Auto-wires PD coordination (agent registration, session, heartbeat, done).
    *
    * @example
@@ -3050,8 +3050,9 @@ interface ChangelogIdentitiesResponse {
 // =============================================================================
 
 interface SpawnSpec {
-  backend: 'ollama' | 'claude' | 'claude-cli' | 'gemini' | 'aider' | 'custom';
+  backend: 'ollama' | 'claude' | 'claude-cli' | 'gemini' | 'codex' | 'aider' | 'custom';
   model?: string;
+  modelTier?: 'low' | 'mid' | 'high';
   identity: string;
   budgetUsd: number;
   purpose?: string;

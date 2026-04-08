@@ -45,8 +45,11 @@ jest.unstable_mockModule('yaml', () => ({
 
 // ─── Imports (after mocks) ───────────────────────────────────────────────────
 
-const { loadFleetConfig, createFleetRunner, validateTopology } = await import('../../lib/fleet-engine.js');
+const { loadFleetConfig, createFleetRunner, resolveFleetAgentRuntime, validateTopology } = await import('../../lib/fleet-engine.js');
 const { resolveFleetChannel } = await import('../../lib/fleet-channels.js');
+const { getDaemonTcpUrl } = await import('../../shared/daemon-discovery.js');
+
+const DAEMON_URL = getDaemonTcpUrl();
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -245,6 +248,20 @@ test('maps model_tier to a backend-specific model', () => {
   ]);
 });
 
+test('maps model_tier for every backend family with built-in tiers', () => {
+  const expectations = [
+    [{ backend: 'ollama', modelTier: 'high' }, 'qwen2.5-coder:14b'],
+    [{ backend: 'aider', modelTier: 'mid' }, 'gpt-4.1'],
+    [{ backend: 'custom', modelTier: 'low' }, 'custom-low'],
+    [{ backend: 'codex', modelTier: 'low' }, 'gpt-5.4-mini'],
+  ];
+
+  for (const [agent, expectedModel] of expectations) {
+    const runtime = resolveFleetAgentRuntime(agent);
+    expect(runtime.model).toBe(expectedModel);
+  }
+});
+
 test('budgetUsdPerDay blocks spawn when project is over budget', async () => {
   const config = {
     ...makeConfig({
@@ -278,7 +295,7 @@ test('budgetUsdPerDay blocks spawn when project is over budget', async () => {
   await Promise.resolve();
 
   expect(global.fetch).not.toHaveBeenCalledWith(
-    'http://localhost:9876/spawn',
+    `${DAEMON_URL}/spawn`,
     expect.anything()
   );
   expect(onEvent).toHaveBeenCalledWith(
@@ -313,7 +330,7 @@ test('missing fleet budget blocks spawn before contacting the daemon', async () 
   await Promise.resolve();
 
   expect(global.fetch).not.toHaveBeenCalledWith(
-    'http://localhost:9876/spawn',
+    `${DAEMON_URL}/spawn`,
     expect.anything()
   );
   expect(onEvent).toHaveBeenCalledWith(
@@ -375,12 +392,12 @@ test('falls back to the next backend/model when the first spawn attempt fails', 
   expect(result).toEqual({ success: true });
   expect(global.fetch).toHaveBeenNthCalledWith(
     1,
-    'http://localhost:9876/spawn',
+    `${DAEMON_URL}/spawn`,
     expect.objectContaining({ method: 'POST' })
   );
   expect(global.fetch).toHaveBeenNthCalledWith(
     2,
-    'http://localhost:9876/spawn',
+    `${DAEMON_URL}/spawn`,
     expect.objectContaining({ method: 'POST' })
   );
   expect(firstBody).toEqual(expect.objectContaining({
@@ -445,7 +462,7 @@ test('FIX 5: onSuccess fires when spawn returns status=spawned', async () => {
 
   // Publish IS now called (status 'spawned' is treated as success)
   expect(publishFetch).toHaveBeenCalledWith(
-    `http://localhost:9876/msg/${resolveFleetChannel('fleet:done', '/tmp/proj', 'test-fleet')}`
+    `${DAEMON_URL}/msg/${resolveFleetChannel('fleet:done', '/tmp/proj', 'test-fleet')}`
   );
 });
 
@@ -481,7 +498,7 @@ test('triggered agents receive message content when subscribed in-process', asyn
   await Promise.resolve();
 
   expect(global.fetch).toHaveBeenCalledWith(
-    'http://localhost:9876/spawn',
+    `${DAEMON_URL}/spawn`,
     expect.objectContaining({
       method: 'POST',
       body: expect.stringContaining('what is the most important idea I could build now?'),
@@ -515,7 +532,7 @@ test('global: channels bypass project scoping for shared fanout', async () => {
   await Promise.resolve();
   await Promise.resolve();
 
-  expect(publishFetch).toHaveBeenCalledWith('http://localhost:9876/msg/fleet:done');
+  expect(publishFetch).toHaveBeenCalledWith(`${DAEMON_URL}/msg/fleet:done`);
 });
 
 // ─── BUG A: stopAll() leaks watchHandle subscriptions ──────────────────────
@@ -912,7 +929,7 @@ test('onFailure fires when /spawn returns HTTP error', async () => {
   await Promise.resolve();
 
   expect(failureFetch).toHaveBeenCalledWith(
-    `http://localhost:9876/msg/${resolveFleetChannel('fleet:errors', '/tmp/proj', 'test-fleet')}`
+    `${DAEMON_URL}/msg/${resolveFleetChannel('fleet:errors', '/tmp/proj', 'test-fleet')}`
   );
 });
 

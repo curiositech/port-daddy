@@ -6,7 +6,7 @@ import {
   type FleetRuntimeTarget,
 } from './fleet-engine.js';
 
-export const LOCAL_EXECUTION_BACKENDS = new Set(['claude-cli', 'ollama', 'aider', 'custom']);
+export const LOCAL_EXECUTION_BACKENDS = new Set(['claude-cli', 'codex', 'ollama', 'aider', 'custom']);
 
 const LOCAL_EXECUTION_NOTE = 'Local CLI backends and Port Daddy socket/IPC operations may need unsandboxed approval in restricted runners.';
 

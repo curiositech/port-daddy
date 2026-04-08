@@ -75,7 +75,7 @@ export async function handleSpawn(
   const backend = (options.backend as string) || 'ollama';
   const budgetUsd = parseBudgetValue(options.budget);
 
-  const validBackends = ['ollama', 'claude', 'claude-cli', 'gemini', 'aider', 'custom'];
+  const validBackends = ['ollama', 'claude', 'claude-cli', 'gemini', 'codex', 'aider', 'custom'];
   if (!validBackends.includes(backend)) {
     console.error(`Invalid backend "${backend}". Valid: ${validBackends.join(', ')}`);
     process.exit(1);
@@ -85,11 +85,12 @@ export async function handleSpawn(
     console.error('Usage: pd spawn --backend <backend> -- <task>');
     console.error('       pd spawn --backend claude -- "Write a hello world program"');
     console.error('');
-    console.error('Backends: ollama, claude, claude-cli, gemini, aider, custom');
+    console.error('Backends: ollama, claude, claude-cli, gemini, codex, aider, custom');
     console.error('');
     console.error('Options:');
     console.error('  --backend <name>      AI backend to use (default: ollama)');
     console.error('  --model <name>        Model override');
+    console.error('  --tier <level>        Model tier override (low, mid, high)');
     console.error('  --identity <id>       PD semantic identity (project:stack:context)');
     console.error('  --purpose <text>      Human-readable task description');
     console.error('  --budget <usd>        Required spend ceiling for this launch');
@@ -124,6 +125,7 @@ export async function handleSpawn(
   };
 
   if (options.model) body.model = options.model;
+  if (typeof options.tier === 'string') body.modelTier = options.tier;
   if (options.purpose) body.purpose = options.purpose;
 
   // Aider: collect --files from options

@@ -112,6 +112,7 @@ export interface BackendInfo {
   id: string;
   name: string;
   models: string[];
+  modelTiers?: Partial<Record<'low' | 'mid' | 'high', string>>;
   supported?: boolean;
   readinessStatus?: 'ready' | 'needs_setup' | 'manual_check' | 'unknown';
   readinessSummary?: string;

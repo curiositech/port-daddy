@@ -84,6 +84,27 @@ describe('pd spawn budget enforcement', () => {
     });
   });
 
+  test('forwards model tier when requested', async () => {
+    mockPdFetch.mockResolvedValueOnce(response(true, {
+      success: true,
+      status: 'completed',
+      agentId: 'spawned-tier',
+      backend: 'codex',
+      model: 'gpt-5.4-mini',
+      output: 'done',
+    }));
+
+    await handleSpawn(['review the diff'], {
+      backend: 'codex',
+      tier: 'low',
+      budget: '0.25',
+      quiet: true,
+    });
+
+    const body = JSON.parse(mockPdFetch.mock.calls[0][1].body);
+    expect(body.modelTier).toBe('low');
+  });
+
   test('fails fast when budget is missing', async () => {
     await expect(handleSpawn(['review the diff'], {
       backend: 'custom',

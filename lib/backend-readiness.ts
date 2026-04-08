@@ -57,6 +57,23 @@ export async function assessBackendReadiness(backend: string): Promise<BackendRe
       };
     }
 
+    case 'codex': {
+      if (!commandExists('codex')) {
+        return {
+          backend,
+          status: 'needs_setup',
+          summary: 'Codex CLI binary not found',
+          nextStep: 'Install the Codex CLI, then run `codex exec` once interactively to verify auth and model access.',
+        };
+      }
+      return {
+        backend,
+        status: 'manual_check',
+        summary: 'Codex CLI binary found; OpenAI auth and model access cannot be verified non-interactively',
+        nextStep: 'Run `codex exec` once interactively if needed. In sandboxed runners, approve an unsandboxed Port Daddy/Codex command path first.',
+      };
+    }
+
     case 'claude':
       if (!packageInstalled('@anthropic-ai/sdk')) {
         return {

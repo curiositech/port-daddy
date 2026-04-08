@@ -22,7 +22,7 @@ export interface FleetAgent {
   name: string;
   schedule?: string;       // cron syntax
   trigger?: string;        // channel name
-  backend: string;         // ollama, claude, claude-cli, custom
+  backend: string;         // ollama, claude, claude-cli, codex, custom
   model?: string;
   modelTier?: FleetModelTier;
   prompt: string;
@@ -205,9 +205,18 @@ function getTemplateVars(projectDir: string): Record<string, string> {
 
 const FLEET_CONFIG_NAMES = ['pd-fleet.yml', 'pd-fleet.yaml', '.portdaddy/fleet.yml', '.portdaddy/fleet.yaml'];
 const MODEL_TIERS = new Set<FleetModelTier>(['low', 'mid', 'high']);
-const BUILTIN_MODEL_TIERS: Partial<Record<string, Record<FleetModelTier, string>>> = {
+export const BUILTIN_MODEL_TIERS: Partial<Record<string, Record<FleetModelTier, string>>> = {
+  claude: {
+    low: 'claude-haiku-4-5-20251001',
+    mid: 'claude-sonnet-4-5-20250929',
+    high: 'claude-opus-4-1-20250805',
+  },
   'claude-cli': { low: 'haiku', mid: 'sonnet', high: 'opus' },
-  gemini: { low: 'gemini-2.5-flash', mid: 'gemini-2.5-flash', high: 'gemini-2.5-pro' },
+  codex: { low: 'gpt-5.4-mini', mid: 'gpt-5.3-codex', high: 'gpt-5.4' },
+  gemini: { low: 'gemini-2.0-flash-exp', mid: 'gemini-2.5-flash', high: 'gemini-2.5-pro' },
+  ollama: { low: 'qwen2.5-coder:7b', mid: 'llama3.2:8b', high: 'qwen2.5-coder:14b' },
+  aider: { low: 'gpt-4.1-mini', mid: 'gpt-4.1', high: 'gpt-5' },
+  custom: { low: 'custom-low', mid: 'custom-mid', high: 'custom-high' },
 };
 
 function cleanEnvValue(value: string | undefined): string | undefined {

@@ -3,7 +3,7 @@
  *
  * Records a cost event for every spawn. When token counts are available
  * (claude SDK backend), computes exact cost. For opaque backends (claude-cli,
- * aider), uses flat per-session estimates.
+ * codex, aider), uses flat per-session estimates.
  *
  * Usage:
  *   costTracker.record({ backend: 'claude-cli', model: 'claude-cli', projectName: 'myapp' })
@@ -61,6 +61,22 @@ const SESSION_ESTIMATES_USD: Record<string, number> = {
   'custom':     0.00,  // unknown — assume free
   'ollama':     0.00,  // local — free
 };
+
+function estimateOpaqueSessionCost(backend: string, model: string): number {
+  const normalizedModel = model.toLowerCase();
+  if (backend === 'codex') {
+    if (normalizedModel.includes('gpt-5.4-mini')) return 0.08;
+    if (normalizedModel.includes('gpt-5.3-codex')) return 0.12;
+    return 0.20;
+  }
+  if (backend === 'aider') {
+    if (normalizedModel.includes('mini')) return 0.06;
+    if (normalizedModel.includes('gpt-4.1')) return 0.10;
+    if (normalizedModel.includes('gpt-5')) return 0.18;
+    return 0.10;
+  }
+  return SESSION_ESTIMATES_USD[backend] ?? 0;
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -156,7 +172,7 @@ function computeCost(
   }
 
   // Fall back to flat estimate
-  const estimate = SESSION_ESTIMATES_USD[backend];
+  const estimate = estimateOpaqueSessionCost(backend, model);
   return { costUsd: estimate ?? 0, isEstimate: true };
 }
 

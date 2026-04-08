@@ -10,10 +10,11 @@ This is the active execution ledger. If a task is in flight, it belongs here bef
 Stabilize the live Port Daddy operator loop so one daemon, one fleet runtime, one control plane, and one native companion all tell the same truth.
 
 Latest committed slice: `55258f6` — ledgers synced after archaeology rehab and operator file actions.
-Current uncommitted slice: the remaining residue audit:
+Current uncommitted slice: the Codex+tier contract pass:
 - ignore generated `.spider/connections/*.md` residue by default unless a later docs feature explicitly curates one
 - either rewrite or delete `tests/unit/spawner-commit-0df9155-bugs.test.js` instead of pretending it is promotable truth
 - continue the remaining control-plane product work from the feedback queue
+- finish the Codex backend landing with all-backend model tiers, then fold the new operator issues from that dogfood run back into the queue
 
 ## Active Tasks
 
@@ -81,6 +82,22 @@ Current uncommitted slice: the remaining residue audit:
    - Inbox should move into Agents or Channels if that is the more truthful model, but either way it must actually work
    - Sorties must be verified end-to-end from the live daemon/UI, not merely made pretty
    - root-cause the exact Claude SDK launch reset path where the UI said “ready,” attempted launch, then reverted to `claude-cli`
+19. Finish the operator file-action truthfulness pass:
+   - touched-file actions must resolve relative mutation paths against the correct project/workdir
+   - `Open in Finder` / `Open with default editor` should not degrade to a bare `Not Found` when the app already knows the project context
+20. Put hard discipline around fleet spawn frequency:
+   - runaway fleet spawn counts are a budget-control failure
+   - tighten defaults around `singleton`, respawn/schedule churn, and project limits so background fleets cannot casually burn through scarce Claude/Codex quota
+21. Finish Codex backend support as a real Port Daddy runtime:
+   - daemon, CLI, SDK, readiness probes, and fleet model catalog all recognize `codex`
+   - Codex runs capture `--output-last-message` instead of leaking CLI noise
+   - Codex defaults stay spend-aware (`gpt-5.4-mini` low, `gpt-5.3-codex` mid, `gpt-5.4` high)
+   - verify a real `port-daddy spawn --backend codex ...` launch from the live daemon, not just unit tests
+22. Finish the all-backend model-tier contract:
+   - every backend must have a distinct low/mid/high ladder
+   - `aider` must honor selected models at execution time instead of ignoring them
+   - `custom` must receive resolved model + tier in env so wrapper commands can act on it
+   - `/fleet/models`, `pd agent`, and raw `pd spawn` must all expose the same tier truth
 
 ## Immediate Next Cuts
 
@@ -100,6 +117,12 @@ Current uncommitted slice: the remaining residue audit:
    - diagnostics/startup doctor wording
    - docs/templates/website honesty sweep
    - any leftover FleetBar/operator labels
+11. Rehabilitate the operator file-action bug shown in live use:
+   - Spark/Spider mutation cards are still surfacing relative paths that Finder cannot resolve
+   - fix resolution in both the web control plane and FleetBar/native shell paths
+12. Audit live fleet spawn counts against the declared fleet config and event traffic:
+   - explain why the fleet reached 99 spawns
+   - then add stricter defaults or caps so the fleet behaves within real Claude/Codex usage scarcity
 
 ## Newly Confirmed Truths
 
@@ -107,6 +130,20 @@ Current uncommitted slice: the remaining residue audit:
 - `tests/unit/semantic-index.test.js` and `tests/unit/tunnel-lifecycle.test.js` were legitimate archaeology, not dead scratch. They passed and are now committed.
 - `tests/unit/spawner-commit-0df9155-bugs.test.js` is not in the same category. It largely duplicates `tests/unit/spawner.test.js` and encodes known-bad behavior as the expected result, so it still needs editorial judgment before promotion.
 - The spawner heartbeat timer was another real Jest open-handle culprit. `lib/spawner.ts` now `unref()`s that interval so blocked-spawn tests do not hold the process open just by reaching the concurrency ceiling.
+- Port Daddy now has a real `codex` backend path in source. It shells out to `codex exec`, captures the final assistant message from `--output-last-message`, and unit coverage now exercises readiness, spawn dispatch, model catalog, and opaque-cost estimation for that backend.
+- The first live Codex dogfood launch succeeded end-to-end through Port Daddy after replacing the stale manual daemon on `127.0.0.1:9876`: backend `codex`, model `gpt-5.4-mini`, output `codex backend smoke from port-daddy`.
+- A second live Codex smoke now also proves the tier plumbing through the daemon, not just the runner: `port-daddy spawn --backend codex --tier low ...` returned `codex tier smoke through port-daddy`.
+- Distinct low/mid/high model tiers now exist for every backend instead of only the hosted runtimes:
+  - Claude SDK: Haiku / Sonnet / Opus
+  - Claude CLI: haiku / sonnet / opus
+  - Gemini: 2.0 Flash / 2.5 Flash / 2.5 Pro
+  - Codex: gpt-5.4-mini / gpt-5.3-codex / gpt-5.4
+  - Ollama: qwen2.5-coder:7b / llama3.2:8b / qwen2.5-coder:14b
+  - Aider: gpt-4.1-mini / gpt-4.1 / gpt-5
+  - Custom: custom-low / custom-mid / custom-high (forwarded via env so wrappers can honor it)
+- The live Codex dogfood also surfaced two operator bugs that belong in the recovery queue, not chat memory:
+  - file actions still fail on some relative mutation paths (`Not Found`)
+  - fleet spawn counts can still run too hot for real model-usage scarcity
 - Embedded FleetBar routing needs two signals, not one: query-param embed plus an explicit WebView identity. Relying on `?embed=fleetbar` alone is brittle enough that duplicate chrome can come back.
 - The modern fleet engine already scopes logical channels like `git:committed` through `lib/fleet-channels.ts`. If cross-project triggers still bleed, the likely culprit is leaked legacy detached watcher processes, not missing scoping code in the current runner.
 - `port-daddy status` and browser reachability are separate truths. The CLI can look healthy over the Unix socket while TCP/browser consumers are still pointed at a brittle loopback URL or stale port assumption.

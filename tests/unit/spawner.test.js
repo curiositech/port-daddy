@@ -10,6 +10,8 @@
  */
 
 import { jest } from '@jest/globals';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 
 // ---------------------------------------------------------------------------
 // Mock child_process.spawn before importing spawner
@@ -378,6 +380,24 @@ describe('spawn — backend dispatch', () => {
     expect(spawnCall[2].env.FOO).toBe('bar');
   });
 
+  test('custom backend exposes resolved model metadata to wrapper commands', async () => {
+    const spawner = createSpawner();
+    resolveChildProcess(0, 'ok');
+
+    await spawner.spawn({
+      backend: 'custom',
+      task: 'echo metadata',
+      model: 'custom-mid',
+      modelTier: 'mid',
+    });
+
+    const spawnCall = cpSpawn.mock.calls[0];
+    expect(spawnCall[2].env.PD_MODEL).toBe('custom-mid');
+    expect(spawnCall[2].env.PORT_DADDY_MODEL).toBe('custom-mid');
+    expect(spawnCall[2].env.PD_MODEL_TIER).toBe('mid');
+    expect(spawnCall[2].env.PORT_DADDY_MODEL_TIER).toBe('mid');
+  });
+
   test('custom backend handles non-zero exit code', async () => {
     const spawner = createSpawner();
     resolveChildProcess(1, '', 'command not found');
@@ -420,10 +440,27 @@ describe('spawn — backend dispatch', () => {
     expect(result.output).toContain('aider output');
     expect(cpSpawn).toHaveBeenCalledWith(
       'aider',
-      ['--yes', '--no-stream', '--message', 'Fix the login bug', 'src/auth.ts', 'src/login.ts'],
+      ['--yes', '--no-stream', '--model', 'aider', '--message', 'Fix the login bug', 'src/auth.ts', 'src/login.ts'],
       expect.objectContaining({
         timeout: 300000,
       })
+    );
+  });
+
+  test('aider backend honors explicit model selection', async () => {
+    const spawner = createSpawner();
+    resolveChildProcess(0, 'aider output');
+
+    await spawner.spawn({
+      backend: 'aider',
+      model: 'gpt-5',
+      task: 'Refactor carefully',
+    });
+
+    expect(cpSpawn).toHaveBeenCalledWith(
+      'aider',
+      ['--yes', '--no-stream', '--model', 'gpt-5', '--message', 'Refactor carefully'],
+      expect.objectContaining({ timeout: 300000 })
     );
   });
 
@@ -437,7 +474,7 @@ describe('spawn — backend dispatch', () => {
     });
 
     const args = cpSpawn.mock.calls[0][1];
-    expect(args).toEqual(['--yes', '--no-stream', '--message', 'General help']);
+    expect(args).toEqual(['--yes', '--no-stream', '--model', 'aider', '--message', 'General help']);
   });
 
   test('unknown backend returns error', async () => {
@@ -1203,6 +1240,49 @@ describe('spawn — claude-cli backend', () => {
 
     const spawnCall = cpSpawn.mock.calls[0];
     expect(spawnCall[2].env.ANTHROPIC_API_KEY).toBe('sk-test');
+  });
+});
+
+describe('spawn — codex backend', () => {
+  test('spawns codex exec and returns the captured final message', async () => {
+    const spawner = createSpawner();
+    mockChildProcess.stdout.on.mockImplementation(() => {});
+    mockChildProcess.stderr.on.mockImplementation(() => {});
+    mockChildProcess.on.mockImplementation((event, cb) => {
+      if (event === 'close') {
+        const args = cpSpawn.mock.calls[0][1];
+        const outputPath = args[args.indexOf('--output-last-message') + 1];
+        mkdirSync(dirname(outputPath), { recursive: true });
+        writeFileSync(outputPath, 'Codex clean output');
+        Promise.resolve().then(() => cb(0));
+      }
+    });
+
+    const result = await spawner.spawn({
+      backend: 'codex',
+      task: 'Say exactly: Codex clean output',
+      workdir: '/tmp/port-daddy-codex-test',
+    });
+
+    expect(result.status).toBe('completed');
+    expect(result.output).toBe('Codex clean output');
+    expect(result.model).toBe('gpt-5.4-mini');
+    expect(cpSpawn).toHaveBeenCalledWith(
+      'codex',
+      expect.arrayContaining([
+        'exec',
+        '--skip-git-repo-check',
+        '--full-auto',
+        '--sandbox', 'workspace-write',
+        '-C', '/tmp/port-daddy-codex-test',
+        '--model', 'gpt-5.4-mini',
+        'Say exactly: Codex clean output',
+      ]),
+      expect.objectContaining({
+        cwd: '/tmp/port-daddy-codex-test',
+        timeout: 300000,
+      })
+    );
   });
 });
 

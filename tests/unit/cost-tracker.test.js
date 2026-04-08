@@ -38,6 +38,18 @@ describe('CostTracker', () => {
     expect(costUsd).toBeCloseTo(0.05, 4);
   });
 
+  test('uses flat estimate for codex without token counts', () => {
+    const { costUsd, isEstimate } = costTracker.computeCost('codex', 'gpt-5.4-mini');
+    expect(isEstimate).toBe(true);
+    expect(costUsd).toBeCloseTo(0.08, 4);
+  });
+
+  test('uses model-aware estimate for aider without token counts', () => {
+    const { costUsd, isEstimate } = costTracker.computeCost('aider', 'gpt-5');
+    expect(isEstimate).toBe(true);
+    expect(costUsd).toBeCloseTo(0.18, 4);
+  });
+
   test('ollama costs zero', () => {
     const { costUsd, isEstimate } = costTracker.computeCost('ollama', 'llama3.2:8b');
     expect(costUsd).toBe(0);

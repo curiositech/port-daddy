@@ -193,6 +193,7 @@ async function runAgentAutopilot(task: string, options: CLIOptions): Promise<voi
       body: JSON.stringify({
         backend: runtime.backend,
         model: runtime.model,
+        modelTier: runtime.modelTier,
         identity,
         purpose: `pd agent: ${purpose.slice(0, 120)}`,
         task,

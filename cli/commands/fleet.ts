@@ -66,7 +66,7 @@ loadEnvFiles();
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PD_URL = process.env.PD_URL || process.env.PORT_DADDY_URL || getDaemonUrl();
-const LOCAL_EXECUTION_BACKENDS = new Set(['claude-cli', 'ollama', 'aider', 'custom']);
+const LOCAL_EXECUTION_BACKENDS = new Set(['claude-cli', 'codex', 'ollama', 'aider', 'custom']);
 
 function isFleetRunning(): { running: boolean; pid: number | null; name: string | null } {
   const stateFile = join(process.cwd(), '.portdaddy', 'fleet-state.json');
