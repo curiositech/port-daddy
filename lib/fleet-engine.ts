@@ -7,11 +7,15 @@
  * Design: ADR-0019 (Declarative Fleet Configuration)
  */
 
+import { createHash } from 'node:crypto';
 import { readFileSync, existsSync } from 'node:fs';
 import { join, basename } from 'node:path';
 import { spawn, execSync, type ChildProcess } from 'node:child_process';
 import { get as httpGet } from 'node:http';
 import { parse as parseYaml } from 'yaml';
+import type { CostTracker } from './cost-tracker.js';
+import { resolveFleetChannel } from './fleet-channels.js';
+import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -19,8 +23,9 @@ export interface FleetAgent {
   name: string;
   schedule?: string;       // cron syntax
   trigger?: string;        // channel name
-  backend: string;         // ollama, claude, claude-cli, custom
+  backend: string;         // ollama, claude, claude-cli, codex, custom
   model?: string;
+  modelTier?: FleetModelTier;
   prompt: string;
   worktree?: boolean;
   singleton?: boolean;
@@ -31,6 +36,12 @@ export interface FleetAgent {
   identity?: string;
   timeout?: number;
   allowedTools?: string;
+  fallbacks?: FleetRuntimeTarget[];
+  cooldownMs?: number;
+  dedupeWindowMs?: number;
+  backoffBaseMs?: number;
+  backoffMaxMs?: number;
+  backoffMultiplier?: number;
 }
 
 export interface FleetWatcher {
@@ -46,6 +57,8 @@ export interface FleetLimits {
   maxConcurrentSpawns?: number;
   /** Max spawns per hour (rate limit, default: unlimited) */
   maxSpawnsPerHour?: number;
+  /** Required daily LLM spend ceiling for this project */
+  budgetUsdPerDay?: number;
 }
 
 export interface FleetConfig {
@@ -57,6 +70,36 @@ export interface FleetConfig {
   channels: Record<string, { description: string; consumers?: string[] }>;
 }
 
+export interface FleetRuntimeDefaults {
+  backend?: string;
+  model?: string;
+}
+
+export type FleetModelTier = 'low' | 'mid' | 'high';
+
+export interface FleetRuntimeTarget {
+  backend?: string;
+  model?: string;
+  modelTier?: FleetModelTier;
+}
+
+export interface ResolvedFleetAgentRuntime {
+  backend: string | null;
+  model?: string;
+  modelTier?: FleetModelTier;
+  backendSource: 'agent' | 'env' | 'missing';
+  modelSource: 'agent' | 'tier' | 'env' | 'unset';
+  warnings: string[];
+}
+
+export interface FleetRunContext {
+  source?: 'schedule' | 'trigger' | 'inbox' | 'manual';
+  channel?: string;
+  from?: string | null;
+  message?: unknown;
+  messageContent?: string;
+}
+
 interface RunningAgent {
   name: string;
   type: 'scheduled' | 'triggered' | 'watcher';
@@ -66,13 +109,24 @@ interface RunningAgent {
   startedAt: number;
 }
 
+interface AgentActivationState {
+  lastStartedAt?: number;
+  lastTriggerFingerprint?: string;
+  lastTriggerAt?: number;
+  consecutiveFailures: number;
+  backoffUntil?: number;
+  pendingContext?: FleetRunContext;
+}
+
 // ─── YAML Shapes ───────────────────────────────────────────────────────────
 
 interface FleetYamlAgent {
+  name?: string;
   schedule?: string;
   trigger?: string;
   backend?: string;
   model?: string;
+  model_tier?: string;
   prompt?: string | number;
   worktree?: boolean;
   singleton?: boolean;
@@ -84,6 +138,18 @@ interface FleetYamlAgent {
   timeout?: number;
   allowedTools?: string;
   allowed_tools?: string;
+  fallbacks?: FleetYamlRuntimeTarget[];
+  cooldown_ms?: number;
+  dedupe_window_ms?: number;
+  backoff_base_ms?: number;
+  backoff_max_ms?: number;
+  backoff_multiplier?: number;
+}
+
+interface FleetYamlRuntimeTarget {
+  backend?: string;
+  model?: string;
+  model_tier?: string;
 }
 
 interface FleetYamlWatcher {
@@ -101,6 +167,7 @@ interface FleetYamlChannel {
 interface FleetYamlLimits {
   max_concurrent_spawns?: number;
   max_spawns_per_hour?: number;
+  budget_usd_per_day?: number;
 }
 
 interface FleetYamlRoot {
@@ -157,6 +224,135 @@ function getTemplateVars(projectDir: string): Record<string, string> {
 // ─── Fleet Config Loader ────────────────────────────────────────────────────
 
 const FLEET_CONFIG_NAMES = ['pd-fleet.yml', 'pd-fleet.yaml', '.portdaddy/fleet.yml', '.portdaddy/fleet.yaml'];
+const MODEL_TIERS = new Set<FleetModelTier>(['low', 'mid', 'high']);
+export const BUILTIN_MODEL_TIERS: Partial<Record<string, Record<FleetModelTier, string>>> = {
+  claude: {
+    low: 'claude-haiku-4-5-20251001',
+    mid: 'claude-sonnet-4-5-20250929',
+    high: 'claude-opus-4-1-20250805',
+  },
+  'claude-cli': { low: 'haiku', mid: 'sonnet', high: 'opus' },
+  codex: { low: 'gpt-5.4-mini', mid: 'gpt-5.3-codex', high: 'gpt-5.4' },
+  gemini: { low: 'gemini-2.0-flash-exp', mid: 'gemini-2.5-flash', high: 'gemini-2.5-pro' },
+  cloudflare: {
+    low: '@cf/meta/llama-3.1-8b-instruct',
+    mid: '@cf/meta/llama-3.1-70b-instruct',
+    high: '@cf/openai/gpt-oss-120b',
+  },
+  ollama: { low: 'qwen2.5-coder:7b', mid: 'llama3.1:8b', high: 'qwen2.5-coder:14b' },
+  aider: { low: 'gpt-4.1-mini', mid: 'gpt-4.1', high: 'gpt-5' },
+  custom: { low: 'custom-low', mid: 'custom-mid', high: 'custom-high' },
+};
+
+function cleanEnvValue(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+function normalizeBudgetUsdPerDay(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
+    ? value
+    : undefined;
+}
+
+function normalizePositiveMs(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
+    ? value
+    : undefined;
+}
+
+function normalizeBackoffMultiplier(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 1
+    ? value
+    : undefined;
+}
+
+function parseModelTier(value: string | undefined): FleetModelTier | undefined {
+  const normalized = cleanEnvValue(value)?.toLowerCase() as FleetModelTier | undefined;
+  return normalized && MODEL_TIERS.has(normalized) ? normalized : undefined;
+}
+
+function normalizeBackendEnvKey(backend: string): string {
+  return backend.replace(/[^a-zA-Z0-9]+/g, '_').toUpperCase();
+}
+
+function resolveTierModel(backend: string, modelTier: FleetModelTier): string | undefined {
+  const envKey = `PD_MODEL_TIER_${normalizeBackendEnvKey(backend)}_${modelTier.toUpperCase()}`;
+  const legacyEnvKey = `PORT_DADDY_MODEL_TIER_${normalizeBackendEnvKey(backend)}_${modelTier.toUpperCase()}`;
+  return cleanEnvValue(process.env[envKey])
+    || cleanEnvValue(process.env[legacyEnvKey])
+    || BUILTIN_MODEL_TIERS[backend]?.[modelTier];
+}
+
+export function getFleetRuntimeDefaults(): FleetRuntimeDefaults {
+  return {
+    backend: cleanEnvValue(process.env.PD_FLEET_DEFAULT_BACKEND)
+      || cleanEnvValue(process.env.PORT_DADDY_FLEET_DEFAULT_BACKEND),
+    model: cleanEnvValue(process.env.PD_FLEET_DEFAULT_MODEL)
+      || cleanEnvValue(process.env.PORT_DADDY_FLEET_DEFAULT_MODEL),
+  };
+}
+
+function mergeRuntimeTarget(agent: Pick<FleetAgent, 'backend' | 'model' | 'modelTier'>, override?: FleetRuntimeTarget): FleetRuntimeTarget {
+  const overrideBackend = cleanEnvValue(override?.backend);
+  const baseBackend = cleanEnvValue(agent.backend);
+  const sameBackend = !overrideBackend || overrideBackend === baseBackend;
+  return {
+    backend: overrideBackend || baseBackend,
+    model: cleanEnvValue(override?.model) || (sameBackend ? cleanEnvValue(agent.model) : undefined),
+    modelTier: parseModelTier(override?.modelTier) || (sameBackend ? parseModelTier(agent.modelTier) : undefined),
+  };
+}
+
+export function resolveFleetAgentRuntime(agent: Pick<FleetAgent, 'backend' | 'model' | 'modelTier'> | FleetRuntimeTarget): ResolvedFleetAgentRuntime {
+  const defaults = getFleetRuntimeDefaults();
+  const explicitBackend = cleanEnvValue(agent.backend);
+  const explicitModel = cleanEnvValue(agent.model);
+  const explicitModelTier = parseModelTier(agent.modelTier);
+  const backend = explicitBackend || defaults.backend || null;
+  const tierModel = backend && explicitModelTier ? resolveTierModel(backend, explicitModelTier) : undefined;
+  const model = explicitModel || tierModel || defaults.model;
+  const warnings: string[] = [];
+
+  if (!backend) {
+    warnings.push('missing backend; set agent.backend or PD_FLEET_DEFAULT_BACKEND');
+  }
+  if (backend && explicitModelTier && !tierModel) {
+    warnings.push(`no model mapping for ${backend}/${explicitModelTier}; set model explicitly or define PD_MODEL_TIER_${normalizeBackendEnvKey(backend)}_${explicitModelTier.toUpperCase()}`);
+  } else if (backend === 'claude-cli' && !model) {
+    warnings.push('model not pinned; claude-cli will use its local default');
+  }
+
+  return {
+    backend,
+    model,
+    modelTier: explicitModelTier,
+    backendSource: explicitBackend ? 'agent' : defaults.backend ? 'env' : 'missing',
+    modelSource: explicitModel ? 'agent' : tierModel ? 'tier' : defaults.model ? 'env' : 'unset',
+    warnings,
+  };
+}
+
+function parseFallbacks(fallbacks: FleetYamlRuntimeTarget[] | undefined): FleetRuntimeTarget[] | undefined {
+  if (!Array.isArray(fallbacks) || fallbacks.length === 0) return undefined;
+  const parsed = fallbacks
+    .filter((fallback) => fallback && typeof fallback === 'object')
+    .map((fallback) => ({
+      backend: cleanEnvValue(fallback.backend),
+      model: cleanEnvValue(fallback.model),
+      modelTier: parseModelTier(fallback.model_tier),
+    }))
+    .filter((fallback) => fallback.backend || fallback.model || fallback.modelTier);
+  return parsed.length > 0 ? parsed : undefined;
+}
+
+function buildRuntimeAttempts(agent: Pick<FleetAgent, 'backend' | 'model' | 'modelTier' | 'fallbacks'>): ResolvedFleetAgentRuntime[] {
+  const attempts = [resolveFleetAgentRuntime(agent)];
+  for (const fallback of agent.fallbacks || []) {
+    attempts.push(resolveFleetAgentRuntime(mergeRuntimeTarget(agent, fallback)));
+  }
+  return attempts;
+}
 
 /** Returns the first fleet config path that exists in projectDir, or null. */
 export function findFleetConfigPath(projectDir: string): string | null {
@@ -184,14 +380,19 @@ export function loadFleetConfig(projectDir: string): FleetConfig | null {
   // Normalize agents (supports both object and array format)
   const agents: FleetAgent[] = [];
   const rawAgents = fleet.agents;
-  if (rawAgents && typeof rawAgents === 'object' && !Array.isArray(rawAgents)) {
-    for (const [name, s] of Object.entries(rawAgents)) {
+  const addAgent = (name: string, s: FleetYamlAgent): void => {
+      const runtime = resolveFleetAgentRuntime({
+        backend: s.backend,
+        model: s.model,
+        modelTier: parseModelTier(s.model_tier),
+      } as Pick<FleetAgent, 'backend' | 'model' | 'modelTier'>);
       agents.push({
         name,
         schedule: s.schedule,
         trigger: s.trigger,
-        backend: s.backend || 'claude-cli',
-        model: s.model,
+        backend: runtime.backend || '',
+        model: runtime.model,
+        modelTier: runtime.modelTier,
         prompt: typeof s.prompt === 'string' ? s.prompt.trim() : String(s.prompt || ''),
         worktree: s.worktree || false,
         singleton: s.singleton || false,
@@ -200,10 +401,25 @@ export function loadFleetConfig(projectDir: string): FleetConfig | null {
         onSuccess: s.on_success,
         onFailure: s.on_failure,
         identity: s.identity,
-        timeout: s.timeout,
-        allowedTools: s.allowedTools || s.allowed_tools,
+      timeout: s.timeout,
+      allowedTools: s.allowedTools || s.allowed_tools,
+      fallbacks: parseFallbacks(s.fallbacks),
+      cooldownMs: normalizePositiveMs(s.cooldown_ms),
+      dedupeWindowMs: normalizePositiveMs(s.dedupe_window_ms),
+      backoffBaseMs: normalizePositiveMs(s.backoff_base_ms),
+      backoffMaxMs: normalizePositiveMs(s.backoff_max_ms),
+      backoffMultiplier: normalizeBackoffMultiplier(s.backoff_multiplier),
       });
+  };
+  if (rawAgents && typeof rawAgents === 'object' && !Array.isArray(rawAgents)) {
+    for (const [name, s] of Object.entries(rawAgents)) {
+      addAgent(name, s);
     }
+  } else if (Array.isArray(rawAgents)) {
+    rawAgents.forEach((s, index) => {
+      const derivedName = cleanEnvValue(s.name) || `agent-${index + 1}`;
+      addAgent(derivedName, s);
+    });
   }
 
   // Normalize watchers
@@ -236,6 +452,7 @@ export function loadFleetConfig(projectDir: string): FleetConfig | null {
   const limits: FleetLimits | undefined = rawLimits ? {
     maxConcurrentSpawns: rawLimits.max_concurrent_spawns,
     maxSpawnsPerHour: rawLimits.max_spawns_per_hour,
+    budgetUsdPerDay: normalizeBudgetUsdPerDay(rawLimits.budget_usd_per_day),
   } : undefined;
 
   return {
@@ -331,6 +548,10 @@ export function validateTopology(config: FleetConfig): TopologyValidation {
   // Warnings
   const warnings: string[] = [];
 
+  if (config.agents.length > 0 && config.limits?.budgetUsdPerDay === undefined) {
+    warnings.push('Fleet limits.budgetUsdPerDay is required for every agentic launch.');
+  }
+
   // Check for orphan channels (declared but no producer)
   for (const [channel] of Object.entries(config.channels)) {
     if (!producerOf.has(channel) && !['git:committed'].includes(channel)) {
@@ -354,12 +575,14 @@ export function validateTopology(config: FleetConfig): TopologyValidation {
 
 // ─── Fleet Runner ───────────────────────────────────────────────────────────
 
-const PD_URL = process.env.PD_URL || process.env.PORT_DADDY_URL || 'http://localhost:9876';
+function getFleetDaemonUrl(): string {
+  return process.env.PD_URL || getDaemonTcpUrl(process.env.PORT_DADDY_URL);
+}
 
 // ─── Lifecycle Events ──────────────────────────────────────────────────────
 
 export interface FleetEvent {
-  type: 'agent_started' | 'agent_completed' | 'agent_failed' | 'watcher_started' | 'watcher_triggered' | 'fleet_started' | 'fleet_stopped';
+  type: 'agent_started' | 'agent_completed' | 'agent_failed' | 'agent_paused' | 'agent_resumed' | 'watcher_started' | 'watcher_triggered' | 'fleet_started' | 'fleet_stopped';
   agent?: string;
   identity?: string;
   project?: string;
@@ -371,20 +594,71 @@ export type FleetEventCallback = (event: FleetEvent) => void;
 
 export interface FleetRunnerOptions {
   onEvent?: FleetEventCallback;
+  costTracker?: CostTracker;
+  initiallyPausedAgents?: string[];
+  messaging?: {
+    subscribe(channel: string, callback: (message: unknown) => void): (() => void) | null;
+  };
 }
 
 export function createFleetRunner(config: FleetConfig, projectDir: string, options?: FleetRunnerOptions) {
   const running = new Map<string, RunningAgent>();
   const emit = options?.onEvent ?? (() => {});
   const project = config.name;
+  const agentIndex = new Map(config.agents.map(agent => [agent.name, agent]));
+  const pausedAgents = new Set((options?.initiallyPausedAgents ?? []).filter((name) => agentIndex.has(name)));
+
+  function resolveChannel(channel: string): string {
+    return resolveFleetChannel(channel, projectDir, project);
+  }
 
   // ─── Resource quota enforcement (Ostrom Principle 2) ────────────────────
   let activeSpawns = 0;
+  const activeAgentRuns = new Set<string>();
   const spawnTimestamps: number[] = [];  // rolling window for per-hour rate limit
+  const activationState = new Map<string, AgentActivationState>();
+
+  function stateFor(agentName: string): AgentActivationState {
+    let state = activationState.get(agentName);
+    if (!state) {
+      state = { consecutiveFailures: 0 };
+      activationState.set(agentName, state);
+    }
+    return state;
+  }
+
+  function formatDurationMs(durationMs: number): string {
+    if (durationMs < 1000) return `${durationMs}ms`;
+    if (durationMs < 60000) return `${Math.ceil(durationMs / 1000)}s`;
+    return `${Math.ceil(durationMs / 60000)}m`;
+  }
+
+  function stopRunningRecord(name: string): void {
+    const record = running.get(name);
+    if (!record) return;
+    if (record.interval) clearInterval(record.interval);
+    if (record.watchHandle) {
+      try { record.watchHandle(); } catch { /* ignore unsubscribe failures */ }
+      record.watchHandle = undefined;
+    }
+    if (record.process) {
+      const pid = record.process.pid;
+      if (pid) {
+        try { process.kill(-pid, 'SIGTERM'); } catch {
+          try { record.process.kill('SIGTERM'); } catch { /* already dead */ }
+        }
+      } else {
+        try { record.process.kill('SIGTERM'); } catch { /* already dead */ }
+      }
+    }
+    running.delete(name);
+  }
 
   function canSpawn(): { allowed: boolean; reason?: string } {
     const limits = config.limits;
-    if (!limits) return { allowed: true };
+    if (!limits || limits.budgetUsdPerDay === undefined) {
+      return { allowed: false, reason: 'fleet limits.budgetUsdPerDay is required for every agentic launch' };
+    }
 
     // Concurrency limit
     if (limits.maxConcurrentSpawns !== undefined && activeSpawns >= limits.maxConcurrentSpawns) {
@@ -403,10 +677,22 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       }
     }
 
+    // Daily budget limit
+    if (limits.budgetUsdPerDay !== undefined && options?.costTracker) {
+      const budget = options.costTracker.budgetStatus(project, limits.budgetUsdPerDay);
+      if (budget.overBudget) {
+        return {
+          allowed: false,
+          reason: `daily budget exceeded ($${budget.spentUsd.toFixed(2)} / $${budget.budgetUsdPerDay.toFixed(2)})`,
+        };
+      }
+    }
+
     return { allowed: true };
   }
 
   function startAgent(agent: FleetAgent): void {
+    if (pausedAgents.has(agent.name)) return;
     if (running.has(agent.name)) return; // already running
 
     const record: RunningAgent = {
@@ -419,24 +705,38 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       // Scheduled agent: run immediately, then on interval
       // Convert cron to ms (simplified: support */N * * * * format)
       const intervalMs = parseCronInterval(agent.schedule);
-      runAgentOnce(agent);
-      record.interval = setInterval(() => runAgentOnce(agent), intervalMs);
+      void requestAgentRun(agent, { source: 'schedule' });
+      record.interval = setInterval(() => { void requestAgentRun(agent, { source: 'schedule' }); }, intervalMs);
     }
 
     if (agent.trigger) {
-      // Triggered agent: subscribe to channel via pd watch
-      const watchProc = spawn('npx', [
-        'tsx', join(projectDir, 'bin', 'port-daddy-cli.ts'),
-        'watch', agent.trigger,
-        '--exec', buildSpawnCommand(agent),
-      ], {
-        cwd: projectDir,
-        env: { ...process.env, PD_URL },
-        stdio: 'pipe',
-        detached: true,
+      const physicalTriggerChannel = resolveChannel(agent.trigger);
+      // Prefer in-process subscriptions so trigger payload survives into the spawned task.
+      const unsubscribe = options?.messaging?.subscribe(physicalTriggerChannel, (message: unknown) => {
+        void requestAgentRun(agent, contextFromMessage(agent.trigger!, message));
       });
-      watchProc.unref();
-      record.process = watchProc;
+
+      if (unsubscribe) {
+        record.watchHandle = unsubscribe;
+      } else {
+        // Fallback for standalone CLI/testing contexts.
+        const watchProc = spawn('npx', [
+          'tsx', join(projectDir, 'bin', 'port-daddy-cli.ts'),
+          'watch', physicalTriggerChannel,
+          '--exec', buildSpawnCommand(agent),
+        ], {
+          cwd: projectDir,
+          env: { ...process.env, PD_URL: getFleetDaemonUrl() },
+          stdio: 'pipe',
+          detached: true,
+        });
+        watchProc.unref();
+        record.process = watchProc;
+      }
+    }
+
+    if (!agent.schedule && !agent.trigger) {
+      void requestAgentRun(agent, { source: 'manual' });
     }
 
     running.set(agent.name, record);
@@ -444,14 +744,15 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
 
   function startWatcher(watcher: FleetWatcher): void {
     if (running.has(watcher.name)) return;
+    const physicalTriggerChannel = resolveChannel(watcher.trigger);
 
     const watchProc = spawn('npx', [
       'tsx', join(projectDir, 'bin', 'port-daddy-cli.ts'),
-      'watch', watcher.trigger,
+      'watch', physicalTriggerChannel,
       '--exec', watcher.exec,
     ], {
       cwd: projectDir,
-      env: { ...process.env, PD_URL },
+      env: { ...process.env, PD_URL: getFleetDaemonUrl() },
       stdio: 'pipe',
       detached: true,
     });
@@ -466,7 +767,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     emit({
       type: 'watcher_started', agent: watcher.name, project,
       identity: `${project}:fleet:${watcher.name}`,
-      timestamp: Date.now(), details: { trigger: watcher.trigger },
+      timestamp: Date.now(), details: { trigger: watcher.trigger, physicalTrigger: physicalTriggerChannel },
     });
   }
 
@@ -476,19 +777,283 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     error?: string;
   }
 
-  async function fireHook(hook: string, payload: string): Promise<void> {
+  interface SpawnAttemptFailure {
+    kind: 'config' | 'transport' | 'daemon' | 'spawn' | 'unexpected_status' | 'invalid_response';
+    backend: string;
+    model: string | null;
+    attempt: number;
+    message: string;
+    httpStatus?: number;
+    spawnStatus?: string;
+  }
+
+  async function spawnFleetAttempt(
+    runtime: ResolvedFleetAgentRuntime,
+    attempt: number,
+    task: string,
+    identity: string,
+    purpose: string,
+    agent: FleetAgent,
+  ): Promise<{ ok: true; data: SpawnResponse } | { ok: false; failure: SpawnAttemptFailure }> {
+    if (!runtime.backend) {
+      return {
+        ok: false,
+        failure: {
+          kind: 'config',
+          backend: 'MISSING',
+          model: runtime.model ?? null,
+          attempt,
+          message: 'missing backend; set agent.backend or PD_FLEET_DEFAULT_BACKEND',
+        },
+      };
+    }
+
+    const body: Record<string, unknown> = {
+      backend: runtime.backend,
+      budgetUsd: config.limits?.budgetUsdPerDay,
+      task,
+      identity,
+      purpose,
+    };
+    if (runtime.model) body.model = runtime.model;
+    if (agent.timeout) body.timeout = agent.timeout;
+    if (agent.allowedTools) body.allowedTools = agent.allowedTools;
+
+    let res: Response;
+    try {
+      res = await fetch(`${getFleetDaemonUrl()}/spawn`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    } catch (err) {
+      return {
+        ok: false,
+        failure: {
+          kind: 'transport',
+          backend: runtime.backend,
+          model: runtime.model ?? null,
+          attempt,
+          message: (err as Error).message,
+        },
+      };
+    }
+
+    let data: SpawnResponse;
+    try {
+      data = (await res.json()) as SpawnResponse;
+    } catch (err) {
+      return {
+        ok: false,
+        failure: {
+          kind: 'invalid_response',
+          backend: runtime.backend,
+          model: runtime.model ?? null,
+          attempt,
+          message: `daemon returned invalid JSON: ${(err as Error).message}`,
+          httpStatus: res.status,
+        },
+      };
+    }
+
+    const succeeded = data.status === 'spawned' || data.status === 'completed';
+    if (succeeded) {
+      return { ok: true, data };
+    }
+
+    if (!res.ok || data.status === 'failed') {
+      return {
+        ok: false,
+        failure: {
+          kind: !res.ok ? 'daemon' : 'spawn',
+          backend: runtime.backend,
+          model: runtime.model ?? null,
+          attempt,
+          message: data.error || `spawn failed via ${runtime.backend}`,
+          httpStatus: res.status,
+          spawnStatus: data.status,
+        },
+      };
+    }
+
+    return {
+      ok: false,
+      failure: {
+        kind: 'unexpected_status',
+        backend: runtime.backend,
+        model: runtime.model ?? null,
+        attempt,
+        message: `unexpected status ${data.status ?? 'unknown'}`,
+        httpStatus: res.status,
+        spawnStatus: data.status,
+      },
+    };
+  }
+
+  function fireHook(hook: string, payload: string): void {
     const [action, channel] = hook.split(' ');
     if (action === 'publish' && channel) {
-      await fetch(`${PD_URL}/msg/${channel}`, {
+      const physicalChannel = resolveChannel(channel);
+      void Promise.resolve(fetch(`${getFleetDaemonUrl()}/msg/${physicalChannel}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ payload }),
+      })).catch((err: Error) => {
+        console.error('[Fleet] Hook publish failed:', {
+          hook,
+          channel: physicalChannel,
+          error: err.message,
+        });
       });
     }
   }
 
-  async function runAgentOnce(agent: FleetAgent): Promise<void> {
+  function trimMessage(message: string, maxChars = 4000): string {
+    if (message.length <= maxChars) return message;
+    return `${message.slice(0, maxChars)}\n\n[truncated ${message.length - maxChars} chars]`;
+  }
+
+  function serializeMessage(message: unknown): string {
+    if (typeof message === 'string') return message;
+    if (message === null || message === undefined) return '';
+    try {
+      return JSON.stringify(message, null, 2);
+    } catch {
+      return String(message);
+    }
+  }
+
+  function contextFromMessage(channel: string, message: unknown): FleetRunContext {
+    const isObj = typeof message === 'object' && message !== null;
+    const event = isObj ? message as { payload?: unknown; sender?: string | null } : null;
+    const resolved = event?.payload ?? message;
+    return {
+      source: 'trigger',
+      channel,
+      from: event?.sender ?? null,
+      message: resolved,
+      messageContent: trimMessage(serializeMessage(resolved)),
+    };
+  }
+
+  function hashTriggerContext(context?: FleetRunContext): string | null {
+    if (!context || context.source !== 'trigger') return null;
+    const messageText = (context.messageContent ?? serializeMessage(context.message)).trim();
+    if (!messageText) return null;
+
+    return createHash('sha1')
+      .update(JSON.stringify({
+        channel: context.channel ?? null,
+        from: context.from ?? null,
+        message: messageText,
+      }))
+      .digest('hex');
+  }
+
+  function buildAgentTask(agent: FleetAgent, context?: FleetRunContext): string {
+    const basePrompt = agent.prompt.trim();
+    if (!context) return basePrompt;
+
+    const messageText = (context.messageContent ?? serializeMessage(context.message)).trim();
+    if (!messageText) return basePrompt;
+
+    const lines = [
+      basePrompt,
+      '',
+      'Trigger context:',
+      `- source: ${context.source || 'trigger'}`,
+      context.channel ? `- channel: ${context.channel}` : null,
+      context.from ? `- sender: ${context.from}` : null,
+      '- message:',
+      messageText,
+      '',
+      'Take one bounded pass in response to this trigger. Use only your configured channels and stop after this pass.',
+    ].filter((line): line is string => !!line);
+
+    return lines.join('\n');
+  }
+
+  function mergePendingContext(existing: FleetRunContext | undefined, incoming: FleetRunContext): FleetRunContext {
+    if (!existing) return incoming;
+    if (incoming.source !== 'trigger') return incoming;
+
+    const mergedMessage = [existing.messageContent, incoming.messageContent]
+      .filter((value): value is string => !!value && value.trim().length > 0)
+      .slice(-2)
+      .join('\n\n---\n\n');
+
+    return {
+      source: 'trigger',
+      channel: incoming.channel ?? existing.channel,
+      from: incoming.from ?? existing.from,
+      message: incoming.message ?? existing.message,
+      messageContent: mergedMessage || incoming.messageContent || existing.messageContent,
+    };
+  }
+
+  async function requestAgentRun(agent: FleetAgent, context?: FleetRunContext): Promise<{ success: boolean; error?: string; queued?: boolean }> {
+    if (pausedAgents.has(agent.name)) {
+      return { success: false, error: `${agent.name} is paused` };
+    }
+
+    const state = stateFor(agent.name);
+    const hasPending = !!state.pendingContext;
+    if (activeAgentRuns.has(agent.name) || hasPending) {
+      state.pendingContext = mergePendingContext(state.pendingContext, context ?? { source: 'manual' });
+      return { success: true, queued: true };
+    }
+
+    return runAgentOnce(agent, context);
+  }
+
+  async function runAgentOnce(agent: FleetAgent, context?: FleetRunContext): Promise<{ success: boolean; error?: string }> {
     const identity = agent.identity || `${project}:fleet:${agent.name}`;
+    const attempts = buildRuntimeAttempts(agent);
+    const primaryRuntime = attempts[0];
+    const now = Date.now();
+    const agentState = stateFor(agent.name);
+    const triggerFingerprint = hashTriggerContext(context);
+
+    if (agent.singleton && activeAgentRuns.has(agent.name)) {
+      emit({
+        type: 'agent_failed', agent: agent.name, identity, project,
+        timestamp: Date.now(), details: { error: 'singleton already active' },
+      });
+      return { success: false, error: 'singleton already active' };
+    }
+
+    if (agentState.backoffUntil && now < agentState.backoffUntil) {
+      const error = `backoff active for ${formatDurationMs(agentState.backoffUntil - now)}`;
+      emit({
+        type: 'agent_failed', agent: agent.name, identity, project,
+        timestamp: now, details: { error, backoffUntil: agentState.backoffUntil },
+      });
+      return { success: false, error };
+    }
+
+    if (agent.cooldownMs && agentState.lastStartedAt && (now - agentState.lastStartedAt) < agent.cooldownMs) {
+      const error = `cooldown active for ${formatDurationMs(agent.cooldownMs - (now - agentState.lastStartedAt))}`;
+      emit({
+        type: 'agent_failed', agent: agent.name, identity, project,
+        timestamp: now, details: { error, cooldownMs: agent.cooldownMs },
+      });
+      return { success: false, error };
+    }
+
+    if (
+      triggerFingerprint
+      && agent.dedupeWindowMs
+      && agentState.lastTriggerFingerprint === triggerFingerprint
+      && agentState.lastTriggerAt
+      && (now - agentState.lastTriggerAt) < agent.dedupeWindowMs
+    ) {
+      const error = `duplicate trigger suppressed for ${formatDurationMs(agent.dedupeWindowMs - (now - agentState.lastTriggerAt))}`;
+      emit({
+        type: 'agent_failed', agent: agent.name, identity, project,
+        timestamp: now, details: { error, dedupeWindowMs: agent.dedupeWindowMs },
+      });
+      return { success: false, error };
+    }
 
     // Enforce resource quotas before spawning
     const quota = canSpawn();
@@ -498,9 +1063,26 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
         timestamp: Date.now(), details: { error: `quota: ${quota.reason}` },
       });
       console.error(`[Fleet] ${agent.name} blocked by quota: ${quota.reason}`);
-      return;
+      return { success: false, error: `quota: ${quota.reason}` };
     }
 
+    if (!primaryRuntime?.backend) {
+      emit({
+        type: 'agent_failed', agent: agent.name, identity, project,
+        timestamp: Date.now(),
+        details: { error: 'missing backend; set agent.backend or PD_FLEET_DEFAULT_BACKEND' },
+      });
+      console.error(`[Fleet] ${agent.name} blocked: missing backend. Set agent.backend or PD_FLEET_DEFAULT_BACKEND.`);
+      return { success: false, error: 'missing backend; set agent.backend or PD_FLEET_DEFAULT_BACKEND' };
+    }
+
+    agentState.lastStartedAt = now;
+    if (triggerFingerprint) {
+      agentState.lastTriggerFingerprint = triggerFingerprint;
+      agentState.lastTriggerAt = now;
+    }
+
+    activeAgentRuns.add(agent.name);
     activeSpawns++;
     if (config.limits?.maxSpawnsPerHour !== undefined) {
       spawnTimestamps.push(Date.now());
@@ -508,74 +1090,144 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
 
     emit({
       type: 'agent_started', agent: agent.name, identity, project,
-      timestamp: Date.now(), details: { backend: agent.backend },
+      timestamp: Date.now(),
+      details: {
+        backend: primaryRuntime.backend,
+        model: primaryRuntime.model ?? null,
+        fallbacks: attempts.slice(1).map((attempt) => ({
+          backend: attempt.backend,
+          model: attempt.model ?? null,
+          modelTier: attempt.modelTier ?? null,
+        })),
+      },
     });
 
     try {
-      const body: Record<string, unknown> = {
-        backend: agent.backend,
-        task: agent.prompt,
-        identity: agent.identity,
-        purpose: `Fleet agent: ${agent.name}`,
-      };
-      if (agent.model) body.model = agent.model;
-      if (agent.timeout) body.timeout = agent.timeout;
-      if (agent.allowedTools) body.allowedTools = agent.allowedTools;
+      const attemptErrors: SpawnAttemptFailure[] = [];
+      const task = buildAgentTask(agent, context);
 
-      const res = await fetch(`${PD_URL}/spawn`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
+      for (let i = 0; i < attempts.length; i += 1) {
+        const runtime = attempts[i];
+        if (!runtime.backend) continue;
+        const outcome = await spawnFleetAttempt(
+          runtime,
+          i + 1,
+          task,
+          identity,
+          `Fleet agent: ${agent.name}`,
+          agent,
+        );
 
-      const data = (await res.json()) as SpawnResponse;
+        if (outcome.ok) {
+          emit({
+            type: 'agent_completed', agent: agent.name, identity, project,
+            timestamp: Date.now(),
+            details: {
+              agentId: outcome.data.agentId,
+              status: outcome.data.status,
+              backend: runtime.backend,
+              model: runtime.model ?? null,
+              attempt: i + 1,
+            },
+          });
+          if (agent.onSuccess) {
+            fireHook(agent.onSuccess, `${agent.name} spawned`);
+          }
+          agentState.consecutiveFailures = 0;
+          agentState.backoffUntil = undefined;
+          return { success: true };
+        }
 
-      // /spawn returns status='spawned' immediately (async). Trigger callbacks
-      // on spawn acknowledgment — the actual completion is tracked by PD.
-      const succeeded = data.status === 'spawned' || data.status === 'completed';
-      const failed = data.status === 'failed' || !res.ok;
+        attemptErrors.push(outcome.failure);
 
-      if (succeeded) {
-        emit({
-          type: 'agent_completed', agent: agent.name, identity, project,
-          timestamp: Date.now(), details: { agentId: data.agentId, status: data.status },
-        });
+        if (i < attempts.length - 1) {
+          const next = attempts[i + 1];
+          console.error(`[Fleet] ${agent.name} fallback:`, {
+            failedAttempt: {
+              backend: outcome.failure.backend,
+              model: outcome.failure.model,
+              attempt: outcome.failure.attempt,
+              kind: outcome.failure.kind,
+              message: outcome.failure.message,
+            },
+            nextAttempt: {
+              backend: next.backend,
+              model: next.model ?? null,
+              attempt: i + 2,
+            },
+          });
+        }
       }
-      if (failed) {
-        emit({
-          type: 'agent_failed', agent: agent.name, identity, project,
-          timestamp: Date.now(), details: { error: data.error, status: data.status },
-        });
-      }
 
-      if (succeeded && agent.onSuccess) {
-        await fireHook(agent.onSuccess, `${agent.name} spawned`);
-      } else if (failed && agent.onFailure) {
-        await fireHook(agent.onFailure, `${agent.name} failed: ${(data.error ?? 'unknown').slice(0, 200)}`);
-      }
-    } catch (err) {
+      const errorMessage = 'all runtime attempts failed';
       emit({
         type: 'agent_failed', agent: agent.name, identity, project,
-        timestamp: Date.now(), details: { error: (err as Error).message },
+        timestamp: Date.now(),
+        details: {
+          error: errorMessage,
+          attempts: attemptErrors,
+        },
       });
-      console.error(`[Fleet] Agent ${agent.name} error:`, (err as Error).message);
+      if (agent.onFailure) {
+        const summary = attemptErrors
+          .map((attempt) => `${attempt.backend}${attempt.model ? `/${attempt.model}` : ''} [${attempt.kind}]: ${attempt.message}`)
+          .join(' ; ');
+        fireHook(agent.onFailure, `${agent.name} failed: ${summary.slice(0, 200)}`);
+      }
+      if (agent.backoffBaseMs) {
+        agentState.consecutiveFailures += 1;
+        const multiplier = agent.backoffMultiplier ?? 2;
+        const baseDelay = agent.backoffBaseMs * Math.pow(multiplier, Math.max(0, agentState.consecutiveFailures - 1));
+        const cappedDelay = Math.min(baseDelay, agent.backoffMaxMs ?? baseDelay);
+        agentState.backoffUntil = Date.now() + cappedDelay;
+      }
+      return { success: false, error: errorMessage };
+    } catch (err) {
+      const message = (err as Error).message;
+      emit({
+        type: 'agent_failed', agent: agent.name, identity, project,
+        timestamp: Date.now(), details: { error: message },
+      });
+      console.error(`[Fleet] Agent ${agent.name} error:`, message);
+      if (agent.backoffBaseMs) {
+        agentState.consecutiveFailures += 1;
+        const multiplier = agent.backoffMultiplier ?? 2;
+        const baseDelay = agent.backoffBaseMs * Math.pow(multiplier, Math.max(0, agentState.consecutiveFailures - 1));
+        const cappedDelay = Math.min(baseDelay, agent.backoffMaxMs ?? baseDelay);
+        agentState.backoffUntil = Date.now() + cappedDelay;
+      }
+      return { success: false, error: message };
     } finally {
       activeSpawns = Math.max(0, activeSpawns - 1);
+      activeAgentRuns.delete(agent.name);
+      const pending = agentState.pendingContext;
+      agentState.pendingContext = undefined;
+      if (pending && !pausedAgents.has(agent.name)) {
+        void requestAgentRun(agent, pending);
+      }
     }
   }
 
   function buildSpawnCommand(agent: FleetAgent): string {
     // Validate identity to prevent shell injection via YAML config
     const identity = agent.identity || `fleet:${agent.name}`;
+    const runtime = buildRuntimeAttempts(agent)[0];
     if (!/^[a-zA-Z0-9.:_*-]+$/.test(identity)) {
       throw new Error(`Invalid fleet agent identity: ${identity}`);
     }
+    if (!runtime.backend) {
+      throw new Error(`Fleet agent "${agent.name}" is missing a backend. Set agent.backend or PD_FLEET_DEFAULT_BACKEND.`);
+    }
+
+    const quote = (value: string): string => JSON.stringify(value);
     const parts = [
-      'npx', 'tsx', join(projectDir, 'bin', 'port-daddy-cli.ts'),
-      'spawn', '--backend', agent.backend,
-      '--identity', identity,
-      '-q', '--', JSON.stringify(agent.prompt),
+      'npx', 'tsx', quote(join(projectDir, 'bin', 'port-daddy-cli.ts')),
+      'spawn', '--backend', quote(runtime.backend),
+      '--identity', quote(identity),
     ];
+    if (runtime.model) parts.push('--model', quote(runtime.model));
+    if (agent.allowedTools) parts.push('--allowedTools', quote(agent.allowedTools));
+    parts.push('-q', '--', quote(agent.prompt));
     return parts.join(' ');
   }
 
@@ -584,7 +1236,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     try {
       // Create harbor (idempotent — daemon returns existing if it already exists)
       const channels = Object.keys(config.channels);
-      await fetch(`${PD_URL}/harbors`, {
+      await fetch(`${getFleetDaemonUrl()}/harbors`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -605,7 +1257,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
   async function enrollInHarbor(agentIdentity: string): Promise<void> {
     if (!config.harbor) return;
     try {
-      await fetch(`${PD_URL}/harbors/${encodeURIComponent(config.harbor)}/enter`, {
+      await fetch(`${getFleetDaemonUrl()}/harbors/${encodeURIComponent(config.harbor)}/enter`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -635,7 +1287,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     }
 
     // Subscribe to resurrection channel via SSE
-    const url = new URL(`${PD_URL}/msg/resurrection/subscribe`);
+    const url = new URL(`${getFleetDaemonUrl()}/msg/resurrection/subscribe`);
 
     function connect() {
       const req = httpGet(url, (res) => {
@@ -676,7 +1328,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
               respawnCounts.set(agent.name, count + 1);
 
               // Claim salvage first, then re-spawn
-              fetch(`${PD_URL}/salvage/claim/${encodeURIComponent(deadId)}`, {
+              fetch(`${getFleetDaemonUrl()}/salvage/claim/${encodeURIComponent(deadId)}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: '{}',
@@ -727,34 +1379,102 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
 
   function stopAll(): void {
     respawnWatcherStopped = true;
-    for (const [name, record] of running) {
-      if (record.interval) clearInterval(record.interval);
-      if (record.process) {
-        const pid = record.process.pid;
-        if (pid) {
-          try { process.kill(-pid, 'SIGTERM'); } catch {
-            // Process group kill failed; try direct kill
-            try { record.process.kill('SIGTERM'); } catch { /* already dead */ }
-          }
-        } else {
-          try { record.process.kill('SIGTERM'); } catch { /* already dead */ }
-        }
-      }
-      running.delete(name);
+    for (const name of [...running.keys()]) {
+      stopRunningRecord(name);
     }
     emit({ type: 'fleet_stopped', project, timestamp: Date.now() });
   }
 
-  function getStatus(): Array<{ name: string; type: string; running: boolean; uptime: number }> {
-    return [...running.values()].map(r => ({
-      name: r.name,
-      type: r.type,
-      running: true,
-      uptime: Date.now() - r.startedAt,
-    }));
+  function getStatus(): Array<{ name: string; type: string; status: string; running: boolean; paused: boolean; uptime: number; queueDepth: number }> {
+    return config.agents.map((agent) => {
+      const record = running.get(agent.name);
+      const activeRun = activeAgentRuns.has(agent.name);
+      const paused = pausedAgents.has(agent.name);
+      const queueDepth = stateFor(agent.name).pendingContext ? 1 : 0;
+      let status = 'idle';
+      if (activeRun) {
+        status = 'running';
+      } else if (queueDepth > 0) {
+        status = 'queued';
+      } else if (paused) {
+        status = 'paused';
+      } else if (record) {
+        status = agent.schedule ? 'scheduled' : agent.trigger ? 'armed' : 'idle';
+      }
+      return {
+        name: agent.name,
+        type: agent.schedule ? 'scheduled' : agent.trigger ? 'triggered' : 'manual',
+        status,
+        running: activeRun,
+        paused,
+        uptime: record ? Date.now() - record.startedAt : 0,
+        queueDepth,
+      };
+    });
   }
 
-  return { startAll, stopAll, startAgent, getStatus, config };
+  async function hailAgent(agentName: string, context?: FleetRunContext): Promise<{ success: boolean; error?: string }> {
+    const agent = agentIndex.get(agentName);
+    if (!agent) {
+      return { success: false, error: `No agent named ${agentName}` };
+    }
+    if (agent.singleton && activeAgentRuns.has(agentName)) {
+      return { success: false, error: `${agentName} is singleton and already active` };
+    }
+
+    return requestAgentRun(agent, context ?? { source: 'manual' });
+  }
+
+  function pauseAgent(agentName: string): { success: boolean; error?: string } {
+    const agent = agentIndex.get(agentName);
+    if (!agent) return { success: false, error: `No agent named ${agentName}` };
+    pausedAgents.add(agentName);
+    stopRunningRecord(agentName);
+    emit({
+      type: 'agent_paused',
+      agent: agent.name,
+      identity: agent.identity || `${project}:fleet:${agent.name}`,
+      project,
+      timestamp: Date.now(),
+      details: { info: 'paused by operator' },
+    });
+    return { success: true };
+  }
+
+  function resumeAgent(agentName: string): { success: boolean; error?: string } {
+    const agent = agentIndex.get(agentName);
+    if (!agent) return { success: false, error: `No agent named ${agentName}` };
+    pausedAgents.delete(agentName);
+    startAgent(agent);
+    emit({
+      type: 'agent_resumed',
+      agent: agent.name,
+      identity: agent.identity || `${project}:fleet:${agent.name}`,
+      project,
+      timestamp: Date.now(),
+      details: { info: 'resumed by operator' },
+    });
+    return { success: true };
+  }
+
+  function setEnabledAgents(agentNames?: string[]): { success: boolean; error?: string } {
+    const desired = new Set(agentNames ?? config.agents.map((agent) => agent.name));
+    for (const name of desired) {
+      if (!agentIndex.has(name)) return { success: false, error: `No agent named ${name}` };
+    }
+    for (const agent of config.agents) {
+      if (desired.has(agent.name)) {
+        pausedAgents.delete(agent.name);
+        startAgent(agent);
+      } else {
+        pausedAgents.add(agent.name);
+        stopRunningRecord(agent.name);
+      }
+    }
+    return { success: true };
+  }
+
+  return { startAll, stopAll, startAgent, getStatus, hailAgent, pauseAgent, resumeAgent, setEnabledAgents, config };
 }
 
 // ─── Cron Helpers ───────────────────────────────────────────────────────────

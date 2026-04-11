@@ -3,7 +3,7 @@
  * Port Daddy MCP Server
  *
  * Exposes Port Daddy's full API as MCP tools for Claude agents.
- * Communicates with the Port Daddy daemon via HTTP at localhost:9876.
+ * Communicates with the live Port Daddy daemon via discovered HTTP URL.
  *
  * Usage:
  *   npx port-daddy mcp          # stdio transport (Claude Code / Desktop)
@@ -30,12 +30,13 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import * as http from 'node:http';
 import * as net from 'node:net';
+import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 
 // ---------------------------------------------------------------------------
 // Config
 // ---------------------------------------------------------------------------
 
-const DAEMON_URL = process.env.PORT_DADDY_URL || 'http://localhost:9876';
+const DAEMON_URL = getDaemonTcpUrl(process.env.PORT_DADDY_URL);
 // 30s default for most tools; spawn and wait tools override with longer timeouts
 const REQUEST_TIMEOUT = 30_000;
 
@@ -132,12 +133,13 @@ const ESSENTIAL_TOOL_NAMES = new Set([
   'swarm_awareness',
   'catch_me_up',
   'spawn_agent',
+  'run_sortie',
 ]);
 
 const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> = {
   'magic': {
-    description: 'High-level composed tools: fleet setup, swarm awareness, catch-me-up briefings, agent spawning, file heat maps, agent messaging',
-    tools: ['fleet_init', 'fleet_status', 'swarm_awareness', 'catch_me_up', 'file_heat', 'talk_to_agent', 'spawn_agent'],
+    description: 'High-level composed tools: fleet setup, swarm awareness, catch-me-up briefings, agent spawning, sortie missions, file heat maps, agent messaging',
+    tools: ['fleet_init', 'fleet_status', 'swarm_awareness', 'catch_me_up', 'file_heat', 'talk_to_agent', 'spawn_agent', 'run_sortie'],
   },
   'session-lifecycle': {
     description: 'Start/end sessions, manage agent registration (sugar commands)',
@@ -203,6 +205,10 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     description: 'Activity log queries and statistics',
     tools: ['activity_log', 'activity_summary', 'activity_stats', 'activity_range'],
   },
+  'sorties': {
+    description: 'Tracked mission records over spawned runs — launch, inspect status, and fetch sortie event logs',
+    tools: ['run_sortie', 'list_sorties', 'get_sortie', 'get_sortie_logs'],
+  },
   'system': {
     description: 'Daemon status, version, metrics, config, and launch hints',
     tools: ['daemon_status', 'get_version', 'get_metrics', 'get_config', 'wait_for_service', 'get_launch_hints'],
@@ -210,6 +216,10 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
   'tuples': {
     description: 'Shared tuple space for swarm coordination — write, read, take, scan, count',
     tools: ['tuple_out', 'tuple_read', 'tuple_take', 'tuple_scan', 'tuple_count'],
+  },
+  'semantic': {
+    description: 'Semantic graph and episodic memory inspection — query graph edges, promoted handoffs, and project-level stats',
+    tools: ['graph_edges', 'graph_stats', 'memory_episodes', 'memory_stats'],
   },
 };
 
@@ -1825,10 +1835,83 @@ const TOOLS = [
       properties: {
         task: { type: 'string', description: 'What the agent should do' },
         identity: { type: 'string', description: 'Semantic identity (e.g. "myapp:fleet:custom-agent")' },
-        backend: { type: 'string', description: 'LLM backend: claude-cli (default), ollama, custom' },
+        budget_usd: { type: 'number', description: 'Required spend ceiling for this launch in USD' },
+        backend: { type: 'string', description: 'LLM backend: ollama (default), claude, claude-cli, gemini, cloudflare, codex, aider, or custom' },
+        model: { type: 'string', description: 'Optional explicit model override' },
+        model_tier: { type: 'string', description: 'Optional model tier shortcut: low, mid, or high' },
+        purpose: { type: 'string', description: 'Optional short human-readable label for the run' },
+        files: { type: 'array', description: 'Optional focused file list, mainly for aider-backed runs', items: { type: 'string' } },
+        workdir: { type: 'string', description: 'Optional working directory override' },
+        timeout: { type: 'number', description: 'Optional timeout in milliseconds' },
         allowed_tools: { type: 'string', description: 'Comma-separated tool list (e.g. "Read,Grep,Glob,Write")' },
+        max_tokens: { type: 'number', description: 'Optional token ceiling for claude or claude-cli launches' },
       },
-      required: ['task'],
+      required: ['task', 'identity', 'budget_usd'],
+    },
+  },
+  {
+    name: 'run_sortie',
+    description:
+      '[Magic] Launch a tracked sortie mission. Use this when you want a durable mission id, ' +
+      'ephemeral harbor, event log, and inspectable outcome instead of a raw one-shot spawn.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        goal: { type: 'string', description: 'Required mission goal or brief.' },
+        project_dir: { type: 'string', description: 'Optional project directory override. Defaults to the current working directory on the daemon side.' },
+        budget_usd: { type: 'number', description: 'Required spend ceiling for the sortie in USD.' },
+        backend: { type: 'string', description: 'Required backend: ollama, claude, claude-cli, gemini, cloudflare, codex, aider, or custom.' },
+        model: { type: 'string', description: 'Optional explicit model override.' },
+        model_tier: { type: 'string', description: 'Optional tier hint: low, mid, or high.' },
+        recipe: { type: 'string', description: 'Optional mission recipe such as investigate, fix, review, creative, or custom.' },
+        expected_output: { type: 'string', description: 'Optional expected deliverable summary.' },
+        context: { type: 'string', description: 'Optional extra context or constraints.' },
+        approval_mode: { type: 'string', description: 'Optional human gate mode: none, before-build, before-apply, or before-close.' },
+        roster: { type: 'array', description: 'Optional roster preview or requested roles.', items: { type: 'string' } },
+        identity: { type: 'string', description: 'Optional explicit coordinator identity. Defaults to project:sortie:<id>:coordinator.' },
+        purpose: { type: 'string', description: 'Optional short human-readable label for the coordinating run.' },
+        allowed_tools: { type: 'string', description: 'Optional tool permission string for claude-cli-backed coordinators.' },
+        timeout: { type: 'number', description: 'Optional timeout in milliseconds.' },
+        max_tokens: { type: 'number', description: 'Optional token ceiling for claude or claude-cli launches.' },
+      },
+      required: ['goal', 'backend', 'budget_usd'],
+    },
+  },
+  {
+    name: 'list_sorties',
+    description:
+      '[Mission] List recent sortie missions. Filter to the current project by default, or pass a project directory to inspect another checkout.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        project_dir: { type: 'string', description: 'Optional project directory filter.' },
+        limit: { type: 'number', description: 'Optional maximum number of sorties to return (default: 25).' },
+      },
+    },
+  },
+  {
+    name: 'get_sortie',
+    description:
+      '[Mission] Fetch one sortie mission by id, including status, harbor, backend, output, and failure details when present.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        sortie_id: { type: 'string', description: 'Sortie mission id.' },
+      },
+      required: ['sortie_id'],
+    },
+  },
+  {
+    name: 'get_sortie_logs',
+    description:
+      '[Mission] Fetch the human-readable event log for a sortie mission.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        sortie_id: { type: 'string', description: 'Sortie mission id.' },
+        limit: { type: 'number', description: 'Optional maximum number of log events to return.' },
+      },
+      required: ['sortie_id'],
     },
   },
   // ── Tuple Space ──────────────────────────────────────────────────────
@@ -1898,13 +1981,72 @@ const TOOLS = [
     },
   },
   {
+    name: 'graph_edges',
+    description:
+      '[Semantic] List semantic graph edges emitted by symbol indexing and merge orchestration.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        project_dir: { type: 'string', description: 'Optional project directory filter.' },
+        scope: { type: 'string', description: 'Optional scope filter such as symbols:file:/abs/path.ts.' },
+        source_type: { type: 'string', description: 'Optional source entity type filter.' },
+        source_id: { type: 'string', description: 'Optional source entity id filter.' },
+        edge_type: { type: 'string', description: 'Optional edge type filter.' },
+        target_type: { type: 'string', description: 'Optional target entity type filter.' },
+        target_id: { type: 'string', description: 'Optional target entity id filter.' },
+        query: { type: 'string', description: 'Optional text search filter.' },
+        limit: { type: 'number', description: 'Optional maximum number of edges to return.' },
+      },
+    },
+  },
+  {
+    name: 'graph_stats',
+    description:
+      '[Semantic] Summarize graph edge counts for a project.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        project_dir: { type: 'string', description: 'Optional project directory filter.' },
+      },
+    },
+  },
+  {
+    name: 'memory_episodes',
+    description:
+      '[Semantic] List episodic memory entries promoted from sessions and sorties.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        project_dir: { type: 'string', description: 'Optional project directory filter.' },
+        project: { type: 'string', description: 'Optional logical project filter.' },
+        harbor: { type: 'string', description: 'Optional harbor filter.' },
+        agent_id: { type: 'string', description: 'Optional agent filter.' },
+        episode_type: { type: 'string', description: 'Optional episode type filter.' },
+        query: { type: 'string', description: 'Optional text search filter.' },
+        limit: { type: 'number', description: 'Optional maximum number of episodes to return.' },
+      },
+    },
+  },
+  {
+    name: 'memory_stats',
+    description:
+      '[Semantic] Summarize episodic memory counts for a project.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        project_dir: { type: 'string', description: 'Optional project directory filter.' },
+        project: { type: 'string', description: 'Optional logical project filter.' },
+      },
+    },
+  },
+  {
     name: 'pd_discover',
     description:
       '[Essential] List available Port Daddy tool categories and their tools. ' +
       'In default mode, only essential tools are loaded. Use this to discover ' +
       'additional tools by category, then call them directly by name. ' +
       'Categories: session-lifecycle, ports, sessions, notes, locks, messaging, agents, inbox, ' +
-      'webhooks, integration, dns, briefing, tunnels, projects, changelog, activity, system, tuples.',
+      'webhooks, integration, dns, briefing, tunnels, projects, changelog, activity, system, tuples, semantic.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -2742,13 +2884,67 @@ async function handleTool(
     case 'spawn_agent': {
       const task = args.task as string;
       const identity = args.identity as string | undefined;
-      const backend = (args.backend as string) || 'claude-cli';
+      const budgetUsd = args.budget_usd as number | undefined;
+      const backend = (args.backend as string) || 'ollama';
+      const model = args.model as string | undefined;
+      const modelTier = args.model_tier as string | undefined;
+      const purpose = args.purpose as string | undefined;
+      const files = Array.isArray(args.files) ? args.files as string[] : undefined;
+      const workdir = args.workdir as string | undefined;
+      const timeout = args.timeout as number | undefined;
       const allowedTools = args.allowed_tools as string | undefined;
-      const body: Record<string, unknown> = { backend, task };
+      const body: Record<string, unknown> = { backend, task, budgetUsd };
       if (identity) body.identity = identity;
+      if (model) body.model = model;
+      if (modelTier) body.modelTier = modelTier;
+      if (purpose) body.purpose = purpose;
+      else body.purpose = task.slice(0, 80);
+      if (files) body.files = files;
+      if (workdir) body.workdir = workdir;
+      if (timeout) body.timeout = timeout;
       if (allowedTools) body.allowedTools = allowedTools;
-      body.purpose = task.slice(0, 80);
+      if (typeof args.max_tokens === 'number') body.maxTokens = args.max_tokens;
       res = await POST('/spawn', body);
+      break;
+    }
+    case 'run_sortie': {
+      const body: Record<string, unknown> = {
+        goal: args.goal,
+        backend: args.backend,
+        budgetUsd: args.budget_usd,
+      };
+      if (args.project_dir) body.projectDir = args.project_dir;
+      if (args.model) body.model = args.model;
+      if (args.model_tier) body.modelTier = args.model_tier;
+      if (args.recipe) body.recipe = args.recipe;
+      if (args.expected_output) body.expectedOutput = args.expected_output;
+      if (args.context) body.context = args.context;
+      if (args.approval_mode) body.approvalMode = args.approval_mode;
+      if (Array.isArray(args.roster)) body.roster = args.roster;
+      if (args.identity) body.identity = args.identity;
+      if (args.purpose) body.purpose = args.purpose;
+      if (args.allowed_tools) body.allowedTools = args.allowed_tools;
+      if (typeof args.timeout === 'number') body.timeout = args.timeout;
+      if (typeof args.max_tokens === 'number') body.maxTokens = args.max_tokens;
+      res = await POST('/sorties', body);
+      break;
+    }
+    case 'list_sorties': {
+      const qs = new URLSearchParams();
+      if (args.project_dir) qs.set('projectDir', args.project_dir as string);
+      if (typeof args.limit === 'number') qs.set('limit', String(args.limit));
+      res = await GET(qs.toString() ? `/sorties?${qs.toString()}` : '/sorties');
+      break;
+    }
+    case 'get_sortie': {
+      res = await GET(`/sorties/${encodeURIComponent(args.sortie_id as string)}`);
+      break;
+    }
+    case 'get_sortie_logs': {
+      const qs = new URLSearchParams();
+      if (typeof args.limit === 'number') qs.set('limit', String(args.limit));
+      const suffix = qs.toString() ? `?${qs.toString()}` : '';
+      res = await GET(`/sorties/${encodeURIComponent(args.sortie_id as string)}/logs${suffix}`);
       break;
     }
 
@@ -2790,6 +2986,49 @@ async function handleTool(
       if (args.pattern) qs.set('pattern', JSON.stringify(args.pattern));
       if (args.harbor) qs.set('harbor', args.harbor as string);
       res = await GET('/tuples/count?' + qs.toString());
+      break;
+    }
+
+    case 'graph_edges': {
+      const qs = new URLSearchParams();
+      if (args.project_dir) qs.set('projectDir', args.project_dir as string);
+      if (args.scope) qs.set('scope', args.scope as string);
+      if (args.source_type) qs.set('sourceType', args.source_type as string);
+      if (args.source_id) qs.set('sourceId', args.source_id as string);
+      if (args.edge_type) qs.set('edgeType', args.edge_type as string);
+      if (args.target_type) qs.set('targetType', args.target_type as string);
+      if (args.target_id) qs.set('targetId', args.target_id as string);
+      if (args.query) qs.set('query', args.query as string);
+      if (typeof args.limit === 'number') qs.set('limit', String(args.limit));
+      res = await GET(qs.toString() ? `/graph/edges?${qs.toString()}` : '/graph/edges');
+      break;
+    }
+
+    case 'graph_stats': {
+      const qs = new URLSearchParams();
+      if (args.project_dir) qs.set('projectDir', args.project_dir as string);
+      res = await GET(qs.toString() ? `/graph/stats?${qs.toString()}` : '/graph/stats');
+      break;
+    }
+
+    case 'memory_episodes': {
+      const qs = new URLSearchParams();
+      if (args.project_dir) qs.set('projectDir', args.project_dir as string);
+      if (args.project) qs.set('project', args.project as string);
+      if (args.harbor) qs.set('harbor', args.harbor as string);
+      if (args.agent_id) qs.set('agentId', args.agent_id as string);
+      if (args.episode_type) qs.set('episodeType', args.episode_type as string);
+      if (args.query) qs.set('query', args.query as string);
+      if (typeof args.limit === 'number') qs.set('limit', String(args.limit));
+      res = await GET(qs.toString() ? `/memory/episodes?${qs.toString()}` : '/memory/episodes');
+      break;
+    }
+
+    case 'memory_stats': {
+      const qs = new URLSearchParams();
+      if (args.project_dir) qs.set('projectDir', args.project_dir as string);
+      if (args.project) qs.set('project', args.project as string);
+      res = await GET(qs.toString() ? `/memory/stats?${qs.toString()}` : '/memory/stats');
       break;
     }
 
@@ -2844,7 +3083,7 @@ async function handleTool(
 const server = new Server(
   {
     name: 'port-daddy',
-    version: '3.8.2',
+    version: '3.8.3',
   },
   {
     capabilities: {
@@ -2929,7 +3168,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           type: 'text' as const,
           text: JSON.stringify({
             error: err.message,
-            hint: 'Check that the Port Daddy daemon is running on localhost:9876. ' + DAEMON_RECOVERY_HINT,
+            hint: `Check that the Port Daddy daemon is running at ${DAEMON_URL}. ` + DAEMON_RECOVERY_HINT,
           }),
         },
       ],

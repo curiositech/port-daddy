@@ -97,13 +97,13 @@ set -l __pd_commands \
     'agent' 'agents' 'swarm' 'log' 'activity' \
     'session' 'sessions' 'note' 'notes' \
     'salvage' 'resurrection' 'changelog' 'dns' 'files' 'who-owns' 'integration' 'briefing' 'history' 'inbox' \
-    'begin' 'b' 'done' 'whoami' 'w' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'watch' 'harbor' 'harbors' 'tuple' \
+    'begin' 'b' 'done' 'whoami' 'w' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'watch' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' \
     'up' 'down' \
     'bench' 'demo' 'fleet' \
     'dashboard' 'channels' 'webhook' 'webhooks' 'metrics' 'config' 'health' 'ports' \
     'scan' 's' 'projects' 'p' 'doctor' 'diagnose' 'hints' \
     'start' 'stop' 'restart' 'status' 'install' 'uninstall' 'dev' 'ci-gate' 'mcp' \
-    'init' \
+    'setup' 'init' \
     'version' 'help'
 
 # Register each command for both `port-daddy` and `pd`
@@ -166,6 +166,9 @@ for prog in port-daddy pd
     # Briefing & History
     complete -c $prog -n __pd_needs_command -a briefing -d 'Generate .portdaddy/ project briefing'
     complete -c $prog -n __pd_needs_command -a history -d 'View recent project activity'
+    complete -c $prog -n __pd_needs_command -a graph -d 'Inspect semantic graph edges and stats'
+    complete -c $prog -n __pd_needs_command -a memory -d 'Inspect episodic memory entries and stats'
+    complete -c $prog -n __pd_needs_command -a ideas -d 'Search ideas, notes, tuples, and repo markdown'
 
     # Agent Inbox
     complete -c $prog -n __pd_needs_command -a inbox -d 'Agent-to-agent direct messaging inbox'
@@ -173,7 +176,30 @@ for prog in port-daddy pd
     # AI Agent Spawner + Watch
     complete -c $prog -n __pd_needs_command -a spawn -d 'Launch an AI agent (Ollama/Claude/Gemini/Aider/custom)'
     complete -c $prog -n __pd_needs_command -a spawned -d 'List active spawned agents'
+    complete -c $prog -n __pd_needs_command -a sortie -d 'Launch and inspect tracked mission records'
     complete -c $prog -n __pd_needs_command -a watch -d 'Subscribe to a channel and run a script on each message'
+    complete -c $prog -n "__pd_using_command sortie" -x -a 'run' -d 'Launch a tracked sortie mission'
+    complete -c $prog -n "__pd_using_command sortie" -x -a 'list' -d 'List recent sorties'
+    complete -c $prog -n "__pd_using_command sortie" -x -a 'status' -d 'Show one sortie status'
+    complete -c $prog -n "__pd_using_command sortie" -x -a 'logs' -d 'Show one sortie event log'
+    complete -c $prog -n "__pd_using_command sortie" -x -a 'help' -d 'Show sortie help'
+    complete -c $prog -n "__pd_using_command sortie; and __fish_seen_subcommand_from run" -l backend -x -a 'ollama claude claude-cli gemini codex aider custom' -d 'Backend to use for the coordinating agent'
+    complete -c $prog -n "__pd_using_command sortie; and __fish_seen_subcommand_from run" -l model -x -d 'Model override'
+    complete -c $prog -n "__pd_using_command sortie; and __fish_seen_subcommand_from run" -l tier -x -a 'low mid high' -d 'Model tier'
+    complete -c $prog -n "__pd_using_command sortie; and __fish_seen_subcommand_from run" -l budget -x -d 'Budget ceiling in USD'
+    complete -c $prog -n "__pd_using_command sortie; and __fish_seen_subcommand_from run" -l dir -r -d 'Project directory'
+    complete -c $prog -n "__pd_using_command sortie; and __fish_seen_subcommand_from run" -l recipe -x -d 'Mission recipe'
+    complete -c $prog -n "__pd_using_command sortie; and __fish_seen_subcommand_from run" -l expected -x -d 'Expected output'
+    complete -c $prog -n "__pd_using_command sortie; and __fish_seen_subcommand_from run" -l context -x -d 'Extra context'
+    complete -c $prog -n "__pd_using_command sortie; and __fish_seen_subcommand_from run" -l identity -x -d 'Identity override'
+    complete -c $prog -n "__pd_using_command sortie; and __fish_seen_subcommand_from run" -l purpose -x -d 'Purpose string'
+    complete -c $prog -n "__pd_using_command sortie; and __fish_seen_subcommand_from run" -l allowedTools -x -d 'Comma-separated tool allowlist'
+    complete -c $prog -n "__pd_using_command sortie; and __fish_seen_subcommand_from run" -l timeout -x -d 'Timeout in milliseconds'
+    complete -c $prog -n "__pd_using_command sortie; and __fish_seen_subcommand_from run" -l maxTokens -x -d 'Max tokens'
+    complete -c $prog -n "__pd_using_command sortie; and __fish_seen_subcommand_from list" -l all -d 'List sorties across all projects'
+    complete -c $prog -n "__pd_using_command sortie; and __fish_seen_subcommand_from list" -l limit -x -d 'Limit results'
+    complete -c $prog -n "__pd_using_command sortie; and __fish_seen_subcommand_from list" -l dir -r -d 'Project directory'
+    complete -c $prog -n "__pd_using_command sortie; and __fish_seen_subcommand_from status logs" -l limit -x -d 'Limit log entries'
 
     # Harbors (named permission namespaces)
     complete -c $prog -n __pd_needs_command -a harbor -d 'Create, enter, leave, show, or destroy a harbor'
@@ -235,6 +261,7 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a ci-gate -d 'Exit non-zero if daemon is stale'
     complete -c $prog -n __pd_needs_command -a mcp -d 'Start MCP server for Claude Code'
     complete -c $prog -n '__pd_is_cmd mcp' -a install -d 'Configure MCP for all detected AI editors'
+    complete -c $prog -n __pd_needs_command -a setup -d 'Install daemon, MCP, FleetBar, and init a project'
     complete -c $prog -n __pd_needs_command -a init -d 'Set up Port Daddy for this project (scan, fleet, MCP, git hook)'
 
     # Sugar (compound commands)
@@ -558,6 +585,7 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command spawn" -l backend -d 'AI backend' -x -a 'ollama claude claude-cli gemini aider custom'
     complete -c $prog -n "__pd_using_command spawn" -l model -d 'Model name override' -x
     complete -c $prog -n "__pd_using_command spawn" -l identity -d 'PD semantic identity (project:stack:context)' -x -a '(__pd_service_ids)'
+    complete -c $prog -n "__pd_using_command spawn" -l budget -d 'Required spend ceiling in USD' -x
     complete -c $prog -n "__pd_using_command spawn" -l purpose -d 'Human-readable task description' -x
     complete -c $prog -n "__pd_using_command spawn" -l allowedTools -d 'Tool permissions for claude-cli backend' -x
     complete -c $prog -n "__pd_using_command spawn" -l maxTokens -d 'Max tokens for claude/claude-cli' -x
@@ -591,4 +619,40 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command tuple" -l limit -d 'Max results (rd/in only)' -x
     complete -c $prog -n "__pd_using_command tuple" -s j -l json -d 'JSON output'
     complete -c $prog -n "__pd_using_command tuple" -s q -l quiet -d 'Suppress output'
+
+    # graph
+    complete -c $prog -n "__pd_using_command graph" -x -a 'edges stats help'
+    complete -c $prog -n "__pd_using_command graph" -l dir -r -d 'Project directory filter'
+    complete -c $prog -n "__pd_using_command graph; and __fish_seen_subcommand_from edges" -l scope -x -d 'Scope filter'
+    complete -c $prog -n "__pd_using_command graph; and __fish_seen_subcommand_from edges" -l source-type -x -d 'Source entity type'
+    complete -c $prog -n "__pd_using_command graph; and __fish_seen_subcommand_from edges" -l source-id -x -d 'Source entity id'
+    complete -c $prog -n "__pd_using_command graph; and __fish_seen_subcommand_from edges" -l edge-type -x -d 'Edge type'
+    complete -c $prog -n "__pd_using_command graph; and __fish_seen_subcommand_from edges" -l target-type -x -d 'Target entity type'
+    complete -c $prog -n "__pd_using_command graph; and __fish_seen_subcommand_from edges" -l target-id -x -d 'Target entity id'
+    complete -c $prog -n "__pd_using_command graph; and __fish_seen_subcommand_from edges" -l query -x -d 'Text search'
+    complete -c $prog -n "__pd_using_command graph; and __fish_seen_subcommand_from edges" -l limit -x -d 'Max edges'
+    complete -c $prog -n "__pd_using_command graph" -s j -l json -d 'JSON output'
+    complete -c $prog -n "__pd_using_command graph" -s q -l quiet -d 'Suppress output'
+
+    # memory
+    complete -c $prog -n "__pd_using_command memory" -x -a 'episodes stats help'
+    complete -c $prog -n "__pd_using_command memory" -l dir -r -d 'Project directory filter'
+    complete -c $prog -n "__pd_using_command memory" -l project -x -d 'Logical project filter'
+    complete -c $prog -n "__pd_using_command memory; and __fish_seen_subcommand_from episodes" -l harbor -x -d 'Harbor filter'
+    complete -c $prog -n "__pd_using_command memory; and __fish_seen_subcommand_from episodes" -l agent -x -d 'Agent filter'
+    complete -c $prog -n "__pd_using_command memory; and __fish_seen_subcommand_from episodes" -l type -x -d 'Episode type filter'
+    complete -c $prog -n "__pd_using_command memory; and __fish_seen_subcommand_from episodes" -l query -x -d 'Text search'
+    complete -c $prog -n "__pd_using_command memory; and __fish_seen_subcommand_from episodes" -l limit -x -d 'Max episodes'
+    complete -c $prog -n "__pd_using_command memory" -s j -l json -d 'JSON output'
+    complete -c $prog -n "__pd_using_command memory" -s q -l quiet -d 'Suppress output'
+
+    # ideas
+    complete -c $prog -n "__pd_using_command ideas" -x -a 'list search show help'
+    complete -c $prog -n "__pd_using_command ideas" -l dir -r -d 'Project directory filter'
+    complete -c $prog -n "__pd_using_command ideas; and __fish_seen_subcommand_from list search" -l status -x -a 'now backlog parked merge local' -d 'Status filter'
+    complete -c $prog -n "__pd_using_command ideas; and __fish_seen_subcommand_from list search" -l limit -x -d 'Max results'
+    complete -c $prog -n "__pd_using_command ideas; and __fish_seen_subcommand_from search" -l sources -x -a 'trove raw notes tuples markdown all' -d 'Search sources'
+    complete -c $prog -n "__pd_using_command ideas; and __fish_seen_subcommand_from list search show" -l include-raw -d 'Include local .spark/.spider residue'
+    complete -c $prog -n "__pd_using_command ideas" -s j -l json -d 'JSON output'
+    complete -c $prog -n "__pd_using_command ideas" -s q -l quiet -d 'Suppress output'
 end

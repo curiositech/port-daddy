@@ -1,11 +1,11 @@
-import Database from 'better-sqlite3';
 import { join } from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import { initDatabase } from '../lib/db.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const dbPath = join(__dirname, '../port-registry.db');
-const db = new Database(dbPath);
+const db = initDatabase({ dbPath });
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS orchestrator_rules (

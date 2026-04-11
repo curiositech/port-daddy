@@ -5,7 +5,7 @@ export default function DoneSessionTool() {
     <CommandPage
       command="done_session"
       description="End the current session and unregister agent. Marks session as completed."
-      version="3.7.0"
+      version="3.8.3"
       syntax="done_session(options?)"
       flags={[
         { flag: 'session', description: 'Explicit session ID (skips current lookup)' },

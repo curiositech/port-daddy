@@ -16,6 +16,7 @@
  * can subscribe to wildcard patterns like *:fleet:* for global view.
  */
 
+import { createHash } from 'node:crypto';
 import { readFileSync, watch as fsWatch, type FSWatcher } from 'node:fs';
 import { join, basename } from 'node:path';
 import {
@@ -25,7 +26,9 @@ import {
   findFleetConfigPath,
   type FleetConfig,
   type FleetEvent,
+  type FleetRunContext,
 } from './fleet-engine.js';
+import type { CostTracker } from './cost-tracker.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -37,6 +40,7 @@ export interface FleetDaemonDeps {
   /** Pub/sub messaging (for lifecycle events) */
   messaging: {
     publish(channel: string, message: unknown): unknown;
+    subscribe(channel: string, callback: (message: unknown) => void): (() => void) | null;
   };
   /** Winston logger */
   logger: {
@@ -46,6 +50,46 @@ export interface FleetDaemonDeps {
   };
   /** Daemon's own project directory (always load its own fleet) */
   daemonDir: string;
+  /** Optional cost tracker for fleet budget enforcement */
+  costTracker?: CostTracker;
+  /** Distributed lock manager used to enforce fleet ownership across daemons */
+  locks: {
+    acquire(name: string, options?: {
+      owner?: string;
+      pid?: number;
+      ttl?: number;
+      metadata?: Record<string, unknown> | null;
+    }): {
+      success: boolean;
+      error?: string;
+      holder?: string;
+      expiresAt?: number | null;
+    };
+    release(name: string, options?: {
+      owner?: string | null;
+      force?: boolean;
+    }): {
+      success: boolean;
+      error?: string;
+      holder?: string;
+    };
+    extend(name: string, options?: {
+      owner?: string | null;
+      ttl?: number;
+    }): {
+      success: boolean;
+      error?: string;
+      expiresAt?: number;
+    };
+    check(name: string): {
+      success: boolean;
+      held?: boolean;
+      owner?: string;
+      expiresAt?: number | null;
+      metadata?: Record<string, unknown> | null;
+      error?: string;
+    };
+  };
 }
 
 interface ManagedFleet {
@@ -56,20 +100,39 @@ interface ManagedFleet {
   startedAt: number;
 }
 
+interface FleetProjectLease {
+  lockName: string;
+  owner: string;
+  projectDir: string;
+  projectName: string;
+}
+
+interface SkippedFleet {
+  project: string;
+  projectDir: string;
+  reason: string;
+  owner: string | null;
+}
+
 export interface FleetDaemonStatus {
   running: boolean;
   startedAt: number | null;
   fleets: Array<{
     project: string;
     projectDir: string;
-    agents: Array<{ name: string; type: string; running: boolean; uptime: number }>;
+    running: boolean;
+    agents: Array<{ name: string; type: string; status: string; running: boolean; paused: boolean; uptime: number; queueDepth: number }>;
     watchers: number;
     channels: number;
     startedAt: number;
   }>;
+  skipped: SkippedFleet[];
   totalAgents: number;
   totalWatchers: number;
 }
+
+const FLEET_PROJECT_LEASE_TTL_MS = 30000;
+const FLEET_PROJECT_LEASE_RENEW_MS = 10000;
 
 // ─── Env Loading ────────────────────────────────────────────────────────────
 
@@ -116,11 +179,22 @@ function loadEnvFiles(projectDir: string): void {
 // ─── Factory ────────────────────────────────────────────────────────────────
 
 export function createFleetDaemon(deps: FleetDaemonDeps) {
-  const { projects, messaging, logger, daemonDir } = deps;
+  const { projects, messaging, logger, daemonDir, costTracker, locks } = deps;
   const fleets = new Map<string, ManagedFleet>();
   const configWatchers = new Map<string, FSWatcher>();
+  const projectLeases = new Map<string, FleetProjectLease>();
+  const projectPausedAgents = new Map<string, Set<string>>();
+  const skippedProjects = new Map<string, SkippedFleet>();
   let isRunning = false;
   let startedAt: number | null = null;
+  let leaseRenewTimer: ReturnType<typeof setInterval> | null = null;
+
+  const daemonOwner = [
+    'fleetd',
+    sanitizeToken(basename(daemonDir) || 'daemon'),
+    sanitizeToken(process.env.PORT_DADDY_PORT || process.env.PORT || 'unknown'),
+    String(process.pid),
+  ].join(':');
 
   // ─── Recent event ring buffer per project (for prompt endpoint) ─────────
   const MAX_RECENT = 20;
@@ -169,6 +243,207 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
     });
   }
 
+  function sanitizeToken(value: string): string {
+    return value.replace(/[^a-zA-Z0-9._:-]/g, '_');
+  }
+
+  function getProjectLeaseName(projectDir: string): string {
+    const digest = createHash('sha256')
+      .update(projectDir.replace(/\\/g, '/'))
+      .digest('hex')
+      .slice(0, 16);
+    return `fleet:project:${digest}`;
+  }
+
+  function clearSkippedProject(projectDir: string): void {
+    skippedProjects.delete(projectDir);
+  }
+
+  function updateLeaseName(projectDir: string, projectName: string): void {
+    const lease = projectLeases.get(projectDir);
+    if (lease) lease.projectName = projectName;
+  }
+
+  function markSkippedProject(projectDir: string, projectName: string, reason: string, owner: string | null = null): void {
+    skippedProjects.set(projectDir, {
+      project: projectName,
+      projectDir,
+      reason,
+      owner,
+    });
+  }
+
+  function stopLeaseRenewalIfIdle(): void {
+    if (leaseRenewTimer && projectLeases.size === 0) {
+      clearInterval(leaseRenewTimer);
+      leaseRenewTimer = null;
+    }
+  }
+
+  function unwatchProject(projectDir: string): void {
+    const watcher = configWatchers.get(projectDir);
+    if (!watcher) return;
+    try { watcher.close(); } catch {}
+    configWatchers.delete(projectDir);
+  }
+
+  function releaseProjectLease(projectDir: string): void {
+    const lease = projectLeases.get(projectDir);
+    if (!lease) return;
+
+    const result = locks.release(lease.lockName, { owner: lease.owner });
+    if (!result.success) {
+      logger.warn('fleet_project_lease_release_failed', {
+        project: lease.projectName,
+        projectDir,
+        holder: result.holder,
+        error: result.error,
+      });
+    }
+
+    projectLeases.delete(projectDir);
+    stopLeaseRenewalIfIdle();
+  }
+
+  function tryReacquireProjectLease(lease: FleetProjectLease): { success: boolean; holder?: string | null; error?: string } {
+    const result = locks.acquire(lease.lockName, {
+      owner: lease.owner,
+      pid: process.pid,
+      ttl: FLEET_PROJECT_LEASE_TTL_MS,
+      metadata: {
+        projectDir: lease.projectDir,
+        projectName: lease.projectName,
+        daemonOwner,
+        daemonDir,
+        daemonPort: process.env.PORT_DADDY_PORT || process.env.PORT || null,
+      },
+    });
+
+    if (!result.success) {
+      return {
+        success: false,
+        holder: result.holder || null,
+        error: result.error,
+      };
+    }
+
+    projectLeases.set(lease.projectDir, lease);
+    clearSkippedProject(lease.projectDir);
+    logger.warn('fleet_project_lease_reacquired', {
+      project: lease.projectName,
+      projectDir: lease.projectDir,
+      owner: lease.owner,
+    });
+    return { success: true };
+  }
+
+  function stopManagedFleet(projectDir: string, options: { releaseLease?: boolean } = {}): boolean {
+    const { releaseLease = true } = options;
+    const managed = fleets.get(projectDir);
+    if (!managed) {
+      if (releaseLease) releaseProjectLease(projectDir);
+      return false;
+    }
+
+    try {
+      managed.runner.stopAll();
+      logger.info('fleet_stopped', { project: managed.projectName });
+    } catch (err) {
+      logger.error('fleet_stop_failed', {
+        project: managed.projectName,
+        error: (err as Error).message,
+      });
+    }
+
+    fleets.delete(projectDir);
+    unwatchProject(projectDir);
+    if (releaseLease) releaseProjectLease(projectDir);
+    return true;
+  }
+
+  function startLeaseRenewal(): void {
+    if (leaseRenewTimer || projectLeases.size === 0) return;
+
+    leaseRenewTimer = setInterval(() => {
+      for (const [projectDir, lease] of projectLeases) {
+        const result = locks.extend(lease.lockName, {
+          owner: lease.owner,
+          ttl: FLEET_PROJECT_LEASE_TTL_MS,
+        });
+
+        if (result.success) continue;
+
+        const state = locks.check(lease.lockName);
+        let holder = state.success && state.held ? state.owner || null : null;
+        if (!holder) {
+          const reacquired = tryReacquireProjectLease(lease);
+          if (reacquired.success) continue;
+          holder = reacquired.holder || null;
+        }
+        logger.warn('fleet_project_lease_lost', {
+          project: lease.projectName,
+          projectDir,
+          holder,
+          error: result.error,
+        });
+        markSkippedProject(
+          projectDir,
+          lease.projectName,
+          holder
+            ? `fleet lease lost to ${holder}`
+            : `fleet lease lost: ${result.error || 'unknown'}`,
+          holder,
+        );
+        stopManagedFleet(projectDir, { releaseLease: false });
+        projectLeases.delete(projectDir);
+      }
+
+      stopLeaseRenewalIfIdle();
+    }, FLEET_PROJECT_LEASE_RENEW_MS);
+    leaseRenewTimer.unref?.();
+  }
+
+  function acquireProjectLease(projectDir: string, projectName: string): { success: boolean; error?: string } {
+    const lockName = getProjectLeaseName(projectDir);
+    const result = locks.acquire(lockName, {
+      owner: daemonOwner,
+      pid: process.pid,
+      ttl: FLEET_PROJECT_LEASE_TTL_MS,
+      metadata: {
+        projectDir,
+        projectName,
+        daemonOwner,
+        daemonDir,
+        daemonPort: process.env.PORT_DADDY_PORT || process.env.PORT || null,
+      },
+    });
+
+    if (!result.success) {
+      const holder = result.holder || null;
+      const reason = holder
+        ? `fleet lease already held by ${holder}`
+        : `fleet lease unavailable: ${result.error || 'unknown'}`;
+      markSkippedProject(projectDir, projectName, reason, holder);
+      logger.info('fleet_project_skipped', {
+        project: projectName,
+        projectDir,
+        holder,
+        reason,
+      });
+      return { success: false, error: reason };
+    }
+
+    projectLeases.set(projectDir, {
+      lockName,
+      owner: daemonOwner,
+      projectDir,
+      projectName,
+    });
+    clearSkippedProject(projectDir);
+    startLeaseRenewal();
+    return { success: true };
+  }
+
   // ─── Load a single project's fleet ──────────────────────────────────────
 
   function loadProject(projectDir: string): ManagedFleet | null {
@@ -188,7 +463,14 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
       logger.warn('fleet_topology_warning', { project: config.name, warning: w });
     }
 
-    const runner = createFleetRunner(config, projectDir, { onEvent: handleEvent });
+    const runner = createFleetRunner(config, projectDir, {
+      onEvent: handleEvent,
+      costTracker,
+      initiallyPausedAgents: [...(projectPausedAgents.get(projectDir) ?? new Set<string>())],
+      messaging: {
+        subscribe: messaging.subscribe.bind(messaging),
+      },
+    });
 
     return {
       projectDir,
@@ -202,11 +484,11 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
   // ─── Scan and discover fleet configs ────────────────────────────────────
 
   function discoverFleets(): Array<{ dir: string; name: string }> {
-    const discovered: Array<{ dir: string; name: string }> = [];
+    const discovered: Array<{ dir: string; name: string; source: 'daemon' | 'registered' }> = [];
 
     // 1. Always check the daemon's own directory
     if (findFleetConfigPath(daemonDir)) {
-      discovered.push({ dir: daemonDir, name: basename(daemonDir) });
+      discovered.push({ dir: daemonDir, name: basename(daemonDir), source: 'daemon' });
     }
 
     // 2. Scan registered projects
@@ -215,14 +497,46 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
       for (const proj of registered) {
         if (proj.root === daemonDir) continue; // already added
         if (findFleetConfigPath(proj.root)) {
-          discovered.push({ dir: proj.root, name: proj.id });
+          discovered.push({ dir: proj.root, name: proj.id, source: 'registered' });
         }
       }
     } catch (err) {
       logger.error('fleet_project_scan_failed', { error: (err as Error).message });
     }
 
-    return discovered;
+    const preferred = new Map<string, { dir: string; name: string; source: 'daemon' | 'registered' }>();
+
+    for (const candidate of discovered) {
+      const config = loadFleetConfig(candidate.dir);
+      const fleetName = config?.name || candidate.name;
+      const existing = preferred.get(fleetName);
+
+      if (!existing) {
+        preferred.set(fleetName, { ...candidate, name: fleetName });
+        clearSkippedProject(candidate.dir);
+        continue;
+      }
+
+      const candidateWins = existing.source === 'daemon' && candidate.source === 'registered';
+      if (candidateWins) {
+        markSkippedProject(
+          existing.dir,
+          fleetName,
+          `Skipped duplicate fleet "${fleetName}" in favor of registered project ${candidate.dir}`
+        );
+        preferred.set(fleetName, { ...candidate, name: fleetName });
+        clearSkippedProject(candidate.dir);
+        continue;
+      }
+
+      markSkippedProject(
+        candidate.dir,
+        fleetName,
+        `Skipped duplicate fleet "${fleetName}" already managed from ${existing.dir}`
+      );
+    }
+
+    return [...preferred.values()].map(({ dir, name }) => ({ dir, name }));
   }
 
   // ─── Config File Watcher (edit mid-sail → auto-reload) ──────────────────
@@ -253,6 +567,8 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
             }
             managed.runner.startAll();
             fleets.set(projectDir, managed);
+            updateLeaseName(projectDir, managed.projectName);
+            clearSkippedProject(projectDir);
             logger.info('fleet_reloaded', {
               project: managed.projectName,
               agents: managed.config.agents.length,
@@ -302,17 +618,24 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
     });
 
     for (const { dir } of discovered) {
+      const lease = acquireProjectLease(dir, basename(dir));
+      if (!lease.success) continue;
+
       loadEnvFiles(dir);
       const managed = loadProject(dir);
       if (managed) {
         managed.runner.startAll();
         fleets.set(dir, managed);
+        updateLeaseName(dir, managed.projectName);
         watchConfig(dir); // Auto-reload on pd-fleet.yml change
+        clearSkippedProject(dir);
         logger.info('fleet_started', {
           project: managed.projectName,
           agents: managed.config.agents.length,
           watchers: managed.config.watchers.length,
         });
+      } else {
+        releaseProjectLease(dir);
       }
     }
 
@@ -327,18 +650,16 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
 
     unwatchAll();
     logger.info('fleet_daemon_stopping', { fleets: fleets.size });
-    for (const [dir, managed] of fleets) {
-      try {
-        managed.runner.stopAll();
-        logger.info('fleet_stopped', { project: managed.projectName });
-      } catch (err) {
-        logger.error('fleet_stop_failed', {
-          project: managed.projectName,
-          error: (err as Error).message,
-        });
-      }
+    if (leaseRenewTimer) {
+      clearInterval(leaseRenewTimer);
+      leaseRenewTimer = null;
+    }
+    for (const dir of [...fleets.keys()]) {
+      stopManagedFleet(dir, { releaseLease: true });
     }
     fleets.clear();
+    projectLeases.clear();
+    skippedProjects.clear();
     isRunning = false;
     startedAt = null;
   }
@@ -351,18 +672,51 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
   }
 
   /** Start a specific project's fleet by directory path. */
-  function startProject(projectDir: string): { success: boolean; error?: string } {
+  function startProject(projectDir: string, options: { enabledAgents?: string[] } = {}): { success: boolean; error?: string } {
     if (fleets.has(projectDir)) {
+      if (options.enabledAgents) {
+        return setProjectEnabledAgents(projectDir, options.enabledAgents);
+      }
       return { success: false, error: `Fleet already running for ${projectDir}` };
     }
+    const lease = acquireProjectLease(projectDir, basename(projectDir));
+    if (!lease.success) {
+      return { success: false, error: lease.error };
+    }
     loadEnvFiles(projectDir);
+    if (options.enabledAgents) {
+      if (!loadFleetConfig(projectDir)) {
+        releaseProjectLease(projectDir);
+        return { success: false, error: `No pd-fleet.yml found in ${projectDir}` };
+      }
+      const subsetResult = setProjectEnabledAgents(projectDir, options.enabledAgents);
+      if (!subsetResult.success) {
+        releaseProjectLease(projectDir);
+        return subsetResult;
+      }
+    } else {
+      projectPausedAgents.delete(projectDir);
+    }
     const managed = loadProject(projectDir);
     if (!managed) {
+      releaseProjectLease(projectDir);
       return { success: false, error: `No pd-fleet.yml found in ${projectDir}` };
+    }
+    const duplicate = [...fleets.values()].find((fleet) => fleet.projectName === managed.projectName);
+    if (duplicate) {
+      markSkippedProject(
+        projectDir,
+        managed.projectName,
+        `Skipped duplicate fleet "${managed.projectName}" already managed from ${duplicate.projectDir}`
+      );
+      releaseProjectLease(projectDir);
+      return { success: false, error: `Duplicate fleet name "${managed.projectName}" already running from ${duplicate.projectDir}` };
     }
     managed.runner.startAll();
     fleets.set(projectDir, managed);
+    updateLeaseName(projectDir, managed.projectName);
     watchConfig(projectDir);
+    clearSkippedProject(projectDir);
     if (!isRunning) {
       isRunning = true;
       startedAt = Date.now();
@@ -372,14 +726,10 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
 
   /** Stop a specific project's fleet. */
   function stopProject(projectDir: string): { success: boolean; error?: string } {
-    const managed = fleets.get(projectDir);
-    if (!managed) {
+    if (!fleets.has(projectDir)) {
       return { success: false, error: `No fleet running for ${projectDir}` };
     }
-    managed.runner.stopAll();
-    fleets.delete(projectDir);
-    const watcher = configWatchers.get(projectDir);
-    if (watcher) { try { watcher.close(); } catch {} configWatchers.delete(projectDir); }
+    stopManagedFleet(projectDir, { releaseLease: true });
     if (fleets.size === 0) {
       isRunning = false;
       startedAt = null;
@@ -402,6 +752,7 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
       fleetList.push({
         project: managed.projectName,
         projectDir: managed.projectDir,
+        running: true,
         agents: agentStatus,
         watchers: watcherCount,
         channels: Object.keys(managed.config.channels).length,
@@ -413,6 +764,7 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
       running: isRunning,
       startedAt,
       fleets: fleetList,
+      skipped: [...skippedProjects.values()],
       totalAgents,
       totalWatchers,
     };
@@ -477,6 +829,127 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
     return `fleet: ${parts.join('  ')}`;
   }
 
+  function resolveManagedAgent(agentId: string, project?: string) {
+    const candidates: Array<{
+      managed: ManagedFleet;
+      agentName: string;
+    }> = [];
+
+    for (const managed of fleets.values()) {
+      if (project && managed.projectName !== project && managed.projectDir !== project) continue;
+
+      for (const agent of managed.config.agents) {
+        const defaultIdentity = `${managed.projectName}:fleet:${agent.name}`;
+        if (
+          agent.name === agentId ||
+          agent.identity === agentId ||
+          defaultIdentity === agentId
+        ) {
+          candidates.push({ managed, agentName: agent.name });
+        }
+      }
+    }
+
+    if (candidates.length === 0) {
+      return { success: false as const, error: `No running fleet agent matches ${agentId}` };
+    }
+
+    if (candidates.length > 1) {
+      return {
+        success: false as const,
+        error: `Agent "${agentId}" is ambiguous across ${candidates.length} fleets; specify a project`,
+      };
+    }
+
+    return {
+      success: true as const,
+      managed: candidates[0].managed,
+      agentName: candidates[0].agentName,
+    };
+  }
+
+  async function hailAgent(agentId: string, context: FleetRunContext & { project?: string } = {}): Promise<{
+    success: boolean;
+    error?: string;
+    project?: string;
+    agent?: string;
+  }> {
+    const resolved = resolveManagedAgent(agentId, context.project);
+    if (!resolved.success) {
+      return { success: false, error: resolved.error };
+    }
+
+    const result = await resolved.managed.runner.hailAgent(resolved.agentName, context);
+    if (!result.success) {
+      return result;
+    }
+
+    return {
+      success: true,
+      project: resolved.managed.projectName,
+      agent: resolved.agentName,
+    };
+  }
+
+  function pauseAgent(agentId: string, project?: string): { success: boolean; error?: string; project?: string; agent?: string } {
+    const resolved = resolveManagedAgent(agentId, project);
+    if (!resolved.success) return { success: false, error: resolved.error };
+    const result = resolved.managed.runner.pauseAgent(resolved.agentName);
+    if (!result.success) return result;
+
+    const paused = projectPausedAgents.get(resolved.managed.projectDir) ?? new Set<string>();
+    paused.add(resolved.agentName);
+    projectPausedAgents.set(resolved.managed.projectDir, paused);
+
+    return {
+      success: true,
+      project: resolved.managed.projectName,
+      agent: resolved.agentName,
+    };
+  }
+
+  function resumeAgent(agentId: string, project?: string): { success: boolean; error?: string; project?: string; agent?: string } {
+    const resolved = resolveManagedAgent(agentId, project);
+    if (!resolved.success) return { success: false, error: resolved.error };
+    const result = resolved.managed.runner.resumeAgent(resolved.agentName);
+    if (!result.success) return result;
+
+    const paused = projectPausedAgents.get(resolved.managed.projectDir);
+    paused?.delete(resolved.agentName);
+    if (paused && paused.size === 0) projectPausedAgents.delete(resolved.managed.projectDir);
+
+    return {
+      success: true,
+      project: resolved.managed.projectName,
+      agent: resolved.agentName,
+    };
+  }
+
+  function setProjectEnabledAgents(projectDir: string, enabledAgents?: string[]): { success: boolean; error?: string } {
+    const managed = fleets.get(projectDir);
+    const config = managed?.config ?? loadFleetConfig(projectDir);
+    if (!config) return { success: false, error: `No pd-fleet.yml found in ${projectDir}` };
+
+    const allowed = new Set(config.agents.map((agent) => agent.name));
+    const requested = new Set(enabledAgents ?? config.agents.map((agent) => agent.name));
+    for (const name of requested) {
+      if (!allowed.has(name)) return { success: false, error: `No agent named ${name}` };
+    }
+
+    const paused = new Set(config.agents.map((agent) => agent.name).filter((name) => !requested.has(name)));
+    if (paused.size > 0) {
+      projectPausedAgents.set(projectDir, paused);
+    } else {
+      projectPausedAgents.delete(projectDir);
+    }
+
+    if (managed) {
+      return managed.runner.setEnabledAgents([...requested]);
+    }
+
+    return { success: true };
+  }
+
   return {
     start,
     stop,
@@ -487,5 +960,9 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
     listProjects,
     getRecentEvents,
     getPromptLine,
+    hailAgent,
+    pauseAgent,
+    resumeAgent,
+    setProjectEnabledAgents,
   };
 }

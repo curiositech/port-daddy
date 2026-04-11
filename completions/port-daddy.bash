@@ -108,11 +108,13 @@ _port_daddy() {
     # Agent Inbox
     inbox
     # AI Agent Spawner + Watch
-    spawn spawned watch
+    spawn spawned sortie watch
     # Harbors (named permission namespaces)
     harbor harbors
     # Tuple space
     tuple
+    # Semantic graph + episodic memory
+    graph memory ideas
     # System & Monitoring
     dashboard channels webhook webhooks metrics config health ports
     # Orchestration
@@ -122,7 +124,7 @@ _port_daddy() {
     # Project (+ alias)
     scan s projects p doctor diagnose hints
     # Project onboarding
-    init
+    setup init
     # Daemon lifecycle
     start stop restart install uninstall dev ci-gate mcp
     # Info
@@ -1391,13 +1393,13 @@ _port_daddy() {
     # Unknown command: fall back to global options only.
     # -----------------------------------------------------------------------
     # spawn  [kill <id>] [--backend B] [--model M] [--identity ID]
-    #        [--purpose P] [--files f1 f2...] -- <task>
+    #        [--budget USD] [--purpose P] [--files f1 f2...] -- <task>
     # -----------------------------------------------------------------------
     spawn)
       case "$prev" in
         spawn)
           if [[ "$cur" == -* ]]; then
-            _pd_opts '--backend --model --identity --purpose --files --workdir --timeout'
+            _pd_opts '--backend --model --identity --budget --purpose --files --workdir --timeout'
           else
             # shellcheck disable=SC2207
             COMPREPLY=( $(compgen -W "kill" -- "$cur") )
@@ -1408,16 +1410,16 @@ _port_daddy() {
           ;;
         --backend)
           # shellcheck disable=SC2207
-          COMPREPLY=( $(compgen -W "ollama claude claude-cli gemini aider custom" -- "$cur") )
+          COMPREPLY=( $(compgen -W "ollama claude claude-cli gemini codex aider custom" -- "$cur") )
           ;;
-        --model|--identity|--purpose|--workdir|--timeout|--allowedTools|--maxTokens)
+        --model|--identity|--budget|--purpose|--workdir|--timeout|--allowedTools|--maxTokens)
           COMPREPLY=()  # Free-form
           ;;
         --files)
           # shellcheck disable=SC2207
           COMPREPLY=( $(compgen -f -- "$cur") )
           ;;
-        *) _pd_opts '--backend --model --identity --purpose --files --workdir --timeout --allowedTools --maxTokens' ;;
+        *) _pd_opts '--backend --model --identity --budget --purpose --files --workdir --timeout --allowedTools --maxTokens' ;;
       esac
       ;;
 
@@ -1426,6 +1428,40 @@ _port_daddy() {
     # -----------------------------------------------------------------------
     spawned)
       _pd_opts ''
+      ;;
+
+    # -----------------------------------------------------------------------
+    # sortie  run|list|status|logs  [args]
+    # -----------------------------------------------------------------------
+    sortie)
+      local subcmd="${words[2]:-}"
+      case "$subcmd" in
+        '')
+          COMPREPLY=( $(compgen -W "run list status logs help" -- "$cur") )
+          ;;
+        run)
+          case "$prev" in
+            --backend)
+              COMPREPLY=( $(compgen -W "ollama claude claude-cli gemini codex aider custom" -- "$cur") )
+              ;;
+            --model|--tier|--budget|--dir|--recipe|--expected|--context|--identity|--purpose|--allowedTools|--timeout|--maxTokens)
+              COMPREPLY=()
+              ;;
+            *)
+              _pd_opts '--backend --model --tier --budget --dir --recipe --expected --context --identity --purpose --allowedTools --timeout --maxTokens'
+              ;;
+          esac
+          ;;
+        list)
+          _pd_opts '--all --limit --dir'
+          ;;
+        status|logs)
+          _pd_opts '--limit'
+          ;;
+        *)
+          _pd_opts ''
+          ;;
+      esac
       ;;
 
     # -----------------------------------------------------------------------
@@ -1506,6 +1542,66 @@ _port_daddy() {
           ;;
         count)
           _pd_opts '--harbor --json --quiet'
+          ;;
+        *) _pd_opts '' ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
+    # graph  edges|stats  [options]
+    # -----------------------------------------------------------------------
+    graph)
+      local subcmd="${words[2]:-}"
+      case "$subcmd" in
+        '')
+          COMPREPLY=( $(compgen -W "edges stats help" -- "$cur") )
+          ;;
+        edges)
+          _pd_opts '--dir --scope --source-type --source-id --edge-type --target-type --target-id --query --limit --json --quiet'
+          ;;
+        stats)
+          _pd_opts '--dir --json --quiet'
+          ;;
+        *) _pd_opts '' ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
+    # memory  episodes|stats  [options]
+    # -----------------------------------------------------------------------
+    memory)
+      local subcmd="${words[2]:-}"
+      case "$subcmd" in
+        '')
+          COMPREPLY=( $(compgen -W "episodes stats help" -- "$cur") )
+          ;;
+        episodes)
+          _pd_opts '--dir --project --harbor --agent --type --query --limit --json --quiet'
+          ;;
+        stats)
+          _pd_opts '--dir --project --json --quiet'
+          ;;
+        *) _pd_opts '' ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
+    # ideas  list|search|show  [options]
+    # -----------------------------------------------------------------------
+    ideas)
+      local subcmd="${words[2]:-}"
+      case "$subcmd" in
+        '')
+          COMPREPLY=( $(compgen -W "list search show help" -- "$cur") )
+          ;;
+        list)
+          _pd_opts '--dir --status --limit --include-raw --json --quiet'
+          ;;
+        search)
+          _pd_opts '--dir --status --limit --sources --include-raw --json --quiet'
+          ;;
+        show)
+          _pd_opts '--dir --include-raw --json --quiet'
           ;;
         *) _pd_opts '' ;;
       esac

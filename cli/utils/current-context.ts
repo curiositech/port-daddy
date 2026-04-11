@@ -1,0 +1,162 @@
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
+import { basename, join } from 'node:path';
+
+export interface CurrentContext {
+  agentId: string;
+  sessionId: string;
+  purpose?: string;
+  identity?: string | null;
+  startedAt?: number;
+  contextSlot?: string;
+}
+
+function sanitizeSlot(raw: string): string {
+  return raw.replace(/[^A-Za-z0-9._-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'default';
+}
+
+export function resolveContextSlot(): string {
+  const explicit = typeof process.env.PORT_DADDY_CONTEXT_SLOT === 'string' ? process.env.PORT_DADDY_CONTEXT_SLOT.trim() : '';
+  if (explicit) return sanitizeSlot(explicit);
+
+  const ttyCandidates = [process.stdin, process.stdout, process.stderr]
+    .map((stream) => {
+      const candidate = (stream as NodeJS.WriteStream & { path?: string }).isTTY ? (stream as NodeJS.WriteStream & { path?: string }).path : undefined;
+      return typeof candidate === 'string' && candidate.trim() ? basename(candidate.trim()) : null;
+    })
+    .filter((value): value is string => Boolean(value));
+  if (ttyCandidates.length > 0) return sanitizeSlot(`tty-${ttyCandidates[0]}`);
+
+  const termSessionId = typeof process.env.TERM_SESSION_ID === 'string' ? process.env.TERM_SESSION_ID.trim() : '';
+  if (termSessionId) return sanitizeSlot(`term-${termSessionId}`);
+
+  return sanitizeSlot(`ppid-${process.ppid}`);
+}
+
+export function getContextDir(cwd: string = process.cwd()): string {
+  return join(cwd, '.portdaddy');
+}
+
+export function getContextStoreDir(cwd: string = process.cwd()): string {
+  return join(getContextDir(cwd), 'contexts');
+}
+
+export function getLegacyContextPath(cwd: string = process.cwd()): string {
+  return join(getContextDir(cwd), 'current.json');
+}
+
+export function getContextPathForSlot(slot: string, cwd: string = process.cwd()): string {
+  return join(getContextStoreDir(cwd), `${sanitizeSlot(slot)}.json`);
+}
+
+function readContextFile(path: string): CurrentContext | null {
+  try {
+    if (!existsSync(path)) return null;
+    const parsed = JSON.parse(readFileSync(path, 'utf8')) as CurrentContext | null;
+    if (!parsed || typeof parsed !== 'object') return null;
+    if (typeof parsed.agentId !== 'string' || typeof parsed.sessionId !== 'string') return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function ensureContextDirs(cwd: string): void {
+  const dir = getContextDir(cwd);
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  const storeDir = getContextStoreDir(cwd);
+  if (!existsSync(storeDir)) mkdirSync(storeDir, { recursive: true });
+}
+
+function writeJson(path: string, value: CurrentContext): void {
+  writeFileSync(path, JSON.stringify(value, null, 2));
+}
+
+function listStoredContexts(cwd: string): Array<{ path: string; context: CurrentContext; mtimeMs: number }> {
+  const storeDir = getContextStoreDir(cwd);
+  if (!existsSync(storeDir)) return [];
+  return readdirSync(storeDir)
+    .filter((entry) => entry.endsWith('.json'))
+    .map((entry) => {
+      const path = join(storeDir, entry);
+      const context = readContextFile(path);
+      if (!context) return null;
+      let mtimeMs = 0;
+      try {
+        mtimeMs = statSync(path).mtimeMs;
+      } catch {
+        mtimeMs = 0;
+      }
+      return { path, context, mtimeMs };
+    })
+    .filter((entry): entry is { path: string; context: CurrentContext; mtimeMs: number } => Boolean(entry))
+    .sort((a, b) => b.mtimeMs - a.mtimeMs);
+}
+
+export function writeCurrentContext(context: CurrentContext, cwd: string = process.cwd()): CurrentContext {
+  const slot = sanitizeSlot(context.contextSlot || resolveContextSlot());
+  const record: CurrentContext = { ...context, contextSlot: slot };
+  ensureContextDirs(cwd);
+  writeJson(getContextPathForSlot(slot, cwd), record);
+  writeJson(getLegacyContextPath(cwd), record);
+  return record;
+}
+
+export function readCurrentContext(cwd: string = process.cwd()): CurrentContext | null {
+  const slot = resolveContextSlot();
+  const slotRecord = readContextFile(getContextPathForSlot(slot, cwd));
+  if (slotRecord) return slotRecord;
+  const legacy = readContextFile(getLegacyContextPath(cwd));
+  if (!legacy) return null;
+  if (legacy.contextSlot && legacy.contextSlot !== slot) return null;
+  return legacy;
+}
+
+export function clearCurrentContext(cwd: string = process.cwd()): void {
+  const slot = resolveContextSlot();
+  const slotPath = getContextPathForSlot(slot, cwd);
+  try {
+    if (existsSync(slotPath)) unlinkSync(slotPath);
+  } catch {}
+
+  const legacyPath = getLegacyContextPath(cwd);
+  const legacy = readContextFile(legacyPath);
+  if (!legacy) return;
+
+  if (legacy.contextSlot && legacy.contextSlot !== slot) return;
+  if (!legacy.contextSlot && legacy.sessionId) {
+    const fallback = listStoredContexts(cwd)[0];
+    if (fallback) {
+      writeJson(legacyPath, fallback.context);
+      return;
+    }
+  }
+
+  const replacement = listStoredContexts(cwd)[0];
+  if (replacement) {
+    writeJson(legacyPath, replacement.context);
+    return;
+  }
+
+  try {
+    unlinkSync(legacyPath);
+  } catch {}
+}
+
+export function readCurrentContextFromPaths(paths: string[]): CurrentContext | null {
+  for (const basePath of paths) {
+    const context = readCurrentContext(basePath);
+    if (context) return context;
+    const legacy = readContextFile(getLegacyContextPath(basePath));
+    if (legacy) return legacy;
+  }
+  return null;
+}
+
+export function removeAllContextFiles(cwd: string = process.cwd()): void {
+  try {
+    rmSync(getContextStoreDir(cwd), { recursive: true, force: true });
+  } catch {}
+  try {
+    unlinkSync(getLegacyContextPath(cwd));
+  } catch {}
+}

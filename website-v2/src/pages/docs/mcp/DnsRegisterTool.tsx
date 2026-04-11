@@ -5,7 +5,7 @@ export default function DnsRegisterTool() {
     <CommandPage
       command="dns_register"
       description="Register a human-readable name → port mapping. Other agents can resolve names instead of hardcoding ports."
-      version="3.7.0"
+      version="3.8.3"
       syntax="dns_register(name, port, options?)"
       flags={[
         { flag: 'name', description: 'Human-readable name' },

@@ -6,7 +6,7 @@ export default function LeaveHarbor() {
       function="leaveHarbor"
       description="Leave a harbor. Burns the JTI identifier so the token cannot be reused."
       module="Harbors"
-      version="3.7.0"
+      version="3.8.3"
       signature="leaveHarbor(name: string): Promise<boolean>"
       params={[
         { name: 'name', type: 'string', required: true, description: 'Harbor name to leave' },

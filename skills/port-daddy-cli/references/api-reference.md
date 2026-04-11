@@ -1,6 +1,6 @@
-# Port Daddy HTTP API Reference (v3.8.2)
+# Port Daddy HTTP API Reference (v3.8.3)
 
-Base URL: `http://localhost:9876`
+Base URL: `http://localhost:9876` by default. If your daemon is running elsewhere, use `pd status` or `PORT_DADDY_URL` to discover the live URL.
 Unix Socket: `~/.port-daddy/daemon.sock`
 IPC Socket: `~/.port-daddy/daemon.ipc` (binary MessagePack, for high-frequency operations)
 
@@ -9,6 +9,9 @@ All HTTP endpoints accept and return JSON. Rate limited to 100 req/min per IP.
 **Transport options:**
 - **HTTP** (TCP or Unix socket) — full API, request-response
 - **Binary IPC** (Unix domain socket) — MessagePack-encoded, 7-byte header, ~3us latency for fire-and-forget. Supports heartbeats, pheromone sprays, pub/sub publish, claims, locks, sessions. The SDK uses IPC automatically when available; falls back to HTTP.
+
+**CLI-local surfaces that are not HTTP endpoints:**
+- `pd ideas list/show` reads `docs/recovery/IDEAS-TROVE.md` directly from the repo. `pd ideas search` federates that local trove with optional `.spark/.spider` residue, repo markdown, and live daemon notes/tuples when available. This surface is intentionally local-first and only uses daemon APIs opportunistically for note/tuple search.
 
 ---
 
@@ -267,6 +270,7 @@ Health check. Returns status, version, uptime, active port count, and fleet summ
 }
 ```
 `fleet` is `undefined` when the fleet subsystem is not running.
+When a fleet mailbox is busy, individual agent rows can surface `status: "queued"` and `queueDepth` so repeated wakeups are visible as collapsed pending work instead of fresh spawns.
 
 ### GET /status
 Combined health + metrics + process info. Includes detailed fleet breakdown.
@@ -282,12 +286,26 @@ Combined health + metrics + process info. Includes detailed fleet breakdown.
   "fleet": {
     "running": true,
     "startedAt": 1711234567890,
-    "projects": [{ "name": "my-app", "agents": 3, "watchers": 1 }],
+    "projects": [
+      {
+        "name": "my-app",
+        "projectDir": "/Users/you/coding/my-app",
+        "running": true,
+        "agents": [
+          { "name": "qa", "type": "triggered", "status": "running", "running": true, "paused": false, "uptime": 3600000, "queueDepth": 0 },
+          { "name": "docs", "type": "scheduled", "status": "queued", "running": false, "paused": false, "uptime": 0, "queueDepth": 2 }
+        ],
+        "watchers": 1,
+        "channels": 3,
+        "startedAt": 1711234567890
+      }
+    ],
     "totalAgents": 5,
     "totalWatchers": 1
   }
 }
 ```
+Queued mailbox entries mean trigger bursts were collapsed behind one busy agent. Treat `queueDepth` as pending wake count, not duplicate work.
 
 ### GET /version
 Version info. Returns version string, code hash, uptime, PID.
@@ -646,12 +664,16 @@ Check who owns a specific file path.
 ### POST /spawn
 Launch an AI agent with full PD coordination (registration, sessions, heartbeats, salvage on crash).
 
+This is the low-level delegation primitive. Use `/sorties` when you want a durable mission id, event log, harbor, and later status/result lookup instead of a raw spawned run.
+
 **Body:**
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `backend` | string | yes | `ollama`, `claude`, `claude-cli`, `gemini`, `aider`, `custom` |
+| `backend` | string | yes | `ollama`, `claude`, `claude-cli`, `gemini`, `cloudflare`, `codex`, `aider`, `custom` |
 | `model` | string | no | Model name override |
-| `identity` | string | no | Semantic identity (`project:stack:context`) |
+| `modelTier` | string | no | Tier hint: `low`, `mid`, `high` |
+| `identity` | string | yes | Semantic identity (`project:stack:context`) |
+| `budgetUsd` | number | yes | Positive spend ceiling for this launch |
 | `purpose` | string | no | Human-readable task description |
 | `task` | string | yes | The task/prompt for the agent |
 | `allowedTools` | string | no | Comma-separated tool list (claude-cli backend only) |
@@ -664,6 +686,44 @@ List active spawned agents.
 
 ### DELETE /spawn/:agentId
 Kill a spawned agent.
+
+---
+
+## Sorties
+
+### POST /sorties
+Launch a tracked sortie mission.
+
+This is the first-class mission surface over spawned runs: Port Daddy creates a persisted sortie record, assigns an ephemeral harbor like `project:sortie:<id>`, runs spawn preflight, records mission events, and returns a durable sortie id you can inspect later.
+
+**Body:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `goal` | string | yes | Mission brief or goal statement |
+| `projectDir` | string | no | Project directory (defaults to daemon cwd) |
+| `backend` | string | yes | `ollama`, `claude`, `claude-cli`, `gemini`, `cloudflare`, `codex`, `aider`, `custom` |
+| `budgetUsd` | number | yes | Positive spend ceiling for this mission |
+| `model` | string | no | Explicit model override |
+| `modelTier` | string | no | Tier hint: `low`, `mid`, `high` |
+| `recipe` | string | no | Mission recipe label (`investigate`, `fix`, `review`, `creative`, `custom`) |
+| `expectedOutput` | string | no | Expected deliverable summary |
+| `context` | string | no | Extra constraints or context |
+| `approvalMode` | string | no | Human gate mode (`none`, `before-build`, `before-apply`, `before-close`) |
+| `roster` | string[] | no | Requested roles or roster preview |
+| `identity` | string | no | Coordinator identity override |
+| `purpose` | string | no | Human-readable label for the coordinating run |
+| `allowedTools` | string | no | Tool permission string for claude-cli-backed coordinators |
+| `timeout` | number | no | Timeout in milliseconds |
+| `maxTokens` | number | no | Optional token ceiling for claude or claude-cli launches |
+
+### GET /sorties
+List recent sorties. Query params: `projectDir`, `limit`.
+
+### GET /sorties/:id
+Fetch one sortie mission by id.
+
+### GET /sorties/:id/logs
+Fetch the event log for a sortie mission. Query params: `limit`.
 
 ---
 
@@ -771,11 +831,39 @@ Count tuples, optionally scoped to a harbor.
 
 ---
 
+## Semantic Graph
+
+### GET /graph/edges
+List semantic graph edges.
+
+**Query params:** `projectDir`, `scope`, `sourceType`, `sourceId`, `edgeType`, `targetType`, `targetId`, `query`, `limit`.
+
+### GET /graph/stats
+Summarize graph edges for a project.
+
+**Query params:** `projectDir`.
+
+---
+
+## Episodic Memory
+
+### GET /memory/episodes
+List episodic memory entries promoted from sessions and sorties.
+
+**Query params:** `projectDir`, `project`, `harbor`, `agentId`, `episodeType`, `query`, `limit`.
+
+### GET /memory/stats
+Summarize episodic memory for a project.
+
+**Query params:** `projectDir`, `project`.
+
+---
+
 ## Fleet
 
-As of v3.8.2, the Port Daddy daemon auto-discovers `pd-fleet.yml` files in registered projects on boot and runs fleets as a persistent subsystem. These endpoints manage the daemon-level fleet.
+As of v3.8.3, the Port Daddy daemon auto-discovers `pd-fleet.yml` files in registered projects on boot and runs fleets as a persistent subsystem. These endpoints manage the daemon-level fleet.
 
-The CLI (`pd fleet up/down/status`) also supports a terminal-attached mode that reads `pd-fleet.yml` directly without the daemon fleet subsystem.
+The CLI (`pd fleet up/down/status/validate`) also supports a terminal-attached mode that reads `pd-fleet.yml` directly without the daemon fleet subsystem. `pd fleet validate` is the dry-run path: it parses YAML, resolves templates, checks trigger topology, and exits without spawning agents.
 
 ### GET /fleet
 Aggregated fleet status across all managed projects.
@@ -790,7 +878,7 @@ Aggregated fleet status across all managed projects.
     {
       "project": "my-app",
       "projectDir": "/Users/you/coding/my-app",
-      "agents": [{ "name": "qa", "type": "claude-cli", "running": true, "uptime": 3600000 }],
+      "agents": [{ "name": "qa", "type": "ollama", "running": true, "uptime": 3600000 }],
       "watchers": 1,
       "channels": 3,
       "startedAt": 1711234567890
@@ -858,6 +946,244 @@ data: {"type":"agent_failed","agent":"qa","project":"my-app","timestamp":1711234
 ```
 
 Heartbeat comment (`: heartbeat`) sent every 30s to detect dead connections.
+
+---
+
+### GET /fleet/prompt
+One-line fleet status string for shell prompt integration (PS1, starship, etc.).
+
+**Query parameters:**
+- `project` (required) — Project name to get status for
+- `since` — Unix timestamp; only include events after this time
+
+**Response:**
+```json
+{ "success": true, "line": "qa:idle gardener:running spark:cooldown" }
+```
+
+Returns a compact string summarizing agent states for the given project. Designed to be embedded in shell prompts without line breaks.
+
+---
+
+### GET /fleet/config/:project
+Retrieve the raw YAML, parsed config, and topology validation for a project's fleet.
+
+**Response:**
+```json
+{
+  "success": true,
+  "yaml": "fleet:\n  name: myapp\n  ...",
+  "path": "/Users/you/coding/myapp/pd-fleet.yml",
+  "projectDir": "/Users/you/coding/myapp",
+  "parsed": { "fleet": { "name": "myapp", "agents": { ... } } },
+  "topology": { "valid": true, "warnings": [], "cycles": [] }
+}
+```
+
+Returns 404 if the project is not registered or has no `pd-fleet.yml`.
+
+---
+
+### PUT /fleet/config/:project
+Write new YAML config, validate it, and reload the fleet.
+
+**Body:** `{ "yaml": "fleet:\n  name: myapp\n  ..." }` (required, must be valid YAML object)
+
+**Response:**
+```json
+{
+  "success": true,
+  "topology": { "valid": true, "warnings": [], "cycles": [] },
+  "warnings": [],
+  "cycles": []
+}
+```
+
+Returns 400 if `yaml` is missing, not a string, or fails YAML parsing. The fleet is reloaded automatically after a successful write.
+
+---
+
+### GET /fleet/models
+List available backends and their models. Probes Ollama for locally installed models.
+
+**Response:**
+```json
+{
+  "success": true,
+  "backends": [
+    { "id": "claude-cli", "name": "Claude CLI", "models": ["sonnet", "opus", "haiku"] },
+    { "id": "ollama", "name": "Ollama (local)", "models": ["llama3.1:8b", "codellama:13b"] },
+    { "id": "custom", "name": "Custom command", "models": [] },
+    { "id": "gemini", "name": "Google Gemini", "models": ["gemini-2.5-pro", "gemini-2.5-flash"] },
+    { "id": "cloudflare", "name": "Cloudflare Workers AI", "models": ["@cf/meta/llama-3.1-8b-instruct", "@cf/meta/llama-3.1-70b-instruct"] },
+    { "id": "openai", "name": "OpenAI", "models": ["gpt-4.1", "gpt-4.1-mini", "o4-mini"] },
+    { "id": "groq", "name": "Groq", "models": ["llama-3.3-70b", "mixtral-8x7b"] },
+    { "id": "aider", "name": "Aider", "models": [] }
+  ]
+}
+```
+
+Ollama models are fetched live from `localhost:11434/api/tags` with a 2s timeout. If Ollama is not running, its `models` array is empty.
+
+---
+
+## Observability (Counters, Cost Tracking, Golden Signals)
+
+As of v3.8.3, Port Daddy records operational metrics (counters) and LLM cost events automatically. These endpoints expose that data for dashboards, budget alerts, and fleet health monitoring.
+
+### GET /metrics/counters
+Summary of all counter keys (last 24h default), or time-bucketed results for a single key.
+
+**Query params:**
+| Param | Type | Description |
+|-------|------|-------------|
+| `key` | string | Filter to one counter key (e.g. `spawn.started`). Returns time-bucketed results. |
+| `since` | number | Seconds in the past (default: 86400 = 24h) |
+| `groupBy` | string | `minute` (default) or `hour` — bucket granularity (only when `key` is set) |
+
+**Response (summary, no key):**
+```json
+{
+  "since": 1711234567890,
+  "counters": [
+    { "key": "spawn.started", "total": 42, "perHour": 1.75 },
+    { "key": "spawn.completed", "total": 38, "perHour": 1.58 }
+  ]
+}
+```
+
+**Response (single key):**
+```json
+{
+  "key": "spawn.started",
+  "since": 1711234567890,
+  "groupBy": "hour",
+  "results": [
+    { "key": "spawn.started", "dims": { "backend": "claude-cli" }, "bucket": 1711234800000, "value": 5 }
+  ]
+}
+```
+
+### GET /metrics/counters/top
+Top N dimension values for a counter key (e.g. "top 10 backends by spawn count").
+
+**Query params:**
+| Param | Type | Description |
+|-------|------|-------------|
+| `key` | string | **Required.** Counter key (e.g. `spawn.started`) |
+| `dim` | string | **Required.** Dimension name (e.g. `backend`, `project`) |
+| `n` | number | Max results (default: 10, max: 100) |
+| `since` | number | Seconds in the past |
+
+**Response (200):**
+```json
+{
+  "key": "spawn.started",
+  "dim": "backend",
+  "results": [
+    { "value": "claude-cli", "count": 28 },
+    { "value": "ollama", "count": 14 }
+  ]
+}
+```
+
+### GET /metrics/golden
+Four golden signals for the spawn system (RED method). Single-endpoint fleet health check.
+
+**Response (200):**
+```json
+{
+  "ratePerMin": 1.4,
+  "errorPct": 2.5,
+  "avgDurationMs": 45000,
+  "costPerHour": 0.12,
+  "window": { "rateWindowSecs": 300, "metricWindowSecs": 3600 },
+  "counts": { "started": 42, "completed": 38, "failed": 1 }
+}
+```
+
+| Signal | Meaning |
+|--------|---------|
+| `ratePerMin` | Spawns per minute (5-min window, extrapolated) |
+| `errorPct` | Failed + killed spawns as % of started (1h window) |
+| `avgDurationMs` | Average spawn duration in ms (1h window, completed only) |
+| `costPerHour` | USD burn rate from cost tracker (1h window) |
+
+### GET /metrics/cost
+Cost summary by project and backend.
+
+**Query params:**
+| Param | Type | Description |
+|-------|------|-------------|
+| `since` | number | Seconds in the past (default: 86400 = 24h) |
+| `project` | string | Filter to one project name |
+
+**Response (200):**
+```json
+{
+  "since": 1711234567890,
+  "periodSecs": 86400,
+  "totals": { "totalUsd": 1.234, "spawnCount": 42, "estimatedCount": 10 },
+  "byProject": [
+    { "projectName": "port-daddy", "totalUsd": 0.85, "spawnCount": 30, "estimatedCount": 8, "topModel": "claude-cli" }
+  ],
+  "byBackend": [
+    { "backend": "claude-cli", "totalUsd": 0.85, "count": 30 }
+  ]
+}
+```
+
+### GET /metrics/cost/recent
+Most recent cost events (useful for live cost feeds).
+
+**Query params:**
+| Param | Type | Description |
+|-------|------|-------------|
+| `limit` | number | Max events (default: 50, max: 200) |
+
+**Response (200):**
+```json
+{
+  "events": [
+    {
+      "id": "a1b2c3d4e5f6g7h8",
+      "ts": 1711234567890,
+      "backend": "codex",
+      "model": "gpt-5.4-mini",
+      "projectName": "port-daddy",
+      "identity": "port-daddy:qa:main",
+      "spawnId": "spawn-abc123",
+      "inputTokens": null,
+      "outputTokens": null,
+      "costUsd": 0.05,
+      "isEstimate": true
+    }
+  ]
+}
+```
+
+### GET /metrics/cost/budget/:project
+Check a project's spend against a budget ceiling.
+
+**Path params:** `project` — project name
+
+**Query params:**
+| Param | Type | Description |
+|-------|------|-------------|
+| `budgetUsdPerDay` | number | Required budget ceiling in USD per day |
+| `since` | number | Window in seconds (default: 86400 = 24h) |
+
+**Response (200):**
+```json
+{
+  "project": "port-daddy",
+  "budgetUsdPerDay": 10,
+  "spentUsd": 1.23,
+  "remainingUsd": 8.77,
+  "percentUsed": 12.3,
+  "overBudget": false
+}
+```
 
 ---
 

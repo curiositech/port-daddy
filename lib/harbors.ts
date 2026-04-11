@@ -227,9 +227,9 @@ export function createHarbors(db: Database.Database, deps: HarborsDeps = {}) {
     /**
      * Agent enters a harbor, declaring capabilities.
      *
-     * If `harborTokens` is provided in deps, issues a signed JWT harbor card
-     * and returns it as `harborCard`. The card proves the agent's authorization
-     * to operate within this harbor during its TTL.
+     * If `harborTokens` is provided in deps, issues the active Phase 2 harbor
+     * card and returns it as `harborCard`. Legacy Phase 1 cards are
+     * compatibility-only and are never minted from this flow.
      */
     async enter(harborName: string, agentId: string, options: EnterHarborOptions = {}): Promise<{ success: boolean; harbor?: Harbor; harborCard?: string; error?: string }> {
       if (!agentId || typeof agentId !== 'string') return { success: false, error: 'agentId required' };

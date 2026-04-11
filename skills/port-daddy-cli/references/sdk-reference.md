@@ -1,4 +1,4 @@
-# Port Daddy JavaScript SDK Reference (v3.8.2)
+# Port Daddy JavaScript SDK Reference (v3.8.3)
 
 The `PortDaddy` class provides a programmatic interface to the Port Daddy daemon. Works in Node.js 18+ (uses native `fetch`). Automatically uses Binary IPC for high-frequency operations (heartbeats, pheromone sprays, pub/sub) when the daemon's IPC socket is available, falling back to HTTP.
 
@@ -26,7 +26,7 @@ const pd = new PortDaddy(options?)
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `url` | string | `http://localhost:9876` | Daemon URL |
+| `url` | string | auto-discovered daemon URL (falls back to `http://localhost:9876`) | Daemon URL |
 | `socketPath` | string | `~/.port-daddy/daemon.sock` | Unix socket path (preferred over URL) |
 | `agentId` | string | `PORT_DADDY_AGENT` env | Agent ID for tracking |
 | `pid` | number | `process.pid` | Process ID for ownership |
@@ -347,10 +347,12 @@ Launch a background AI agent with full PD coordination.
 
 | Option | Type | Description |
 |--------|------|-------------|
-| `backend` | string | `ollama`, `claude`, `claude-cli`, `gemini`, `aider`, `custom` |
+| `backend` | string | `ollama`, `claude`, `claude-cli`, `gemini`, `codex`, `aider`, `custom` |
 | `task` | string | The prompt/task for the agent |
 | `model` | string | Model name override |
+| `modelTier` | string | Tier hint: `low`, `mid`, `high` |
 | `identity` | string | Semantic identity |
+| `budgetUsd` | number | Positive spend ceiling for the launch |
 | `purpose` | string | Human-readable task description |
 | `allowedTools` | string | Comma-separated tools (claude-cli only) |
 | `maxTokens` | number | Max output tokens |

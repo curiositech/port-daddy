@@ -7,6 +7,7 @@
  */
 
 import { randomBytes } from 'crypto';
+import { parseIdentity } from './identity.js';
 
 // =============================================================================
 // Types
@@ -27,7 +28,12 @@ interface SessionsModule {
 }
 
 interface ActivityLogModule {
-  log(type: string, opts: { details: string; metadata: Record<string, unknown> }): void;
+  log(type: string, opts: {
+    agentId?: string | null;
+    targetId?: string | null;
+    details: string;
+    metadata: Record<string, unknown>;
+  }): void;
 }
 
 interface SugarDeps {
@@ -64,6 +70,10 @@ interface WhoamiOptions {
 export function createSugar(deps: SugarDeps) {
   const { agents, sessions, activityLog } = deps;
 
+  function sessionTarget(identityProject: string | null | undefined, sessionId: string): string {
+    return identityProject ? `${identityProject}:session:${sessionId}` : sessionId;
+  }
+
   /**
    * Begin — register agent + start session atomically.
    * Rolls back agent registration if session start fails.
@@ -96,6 +106,14 @@ export function createSugar(deps: SugarDeps) {
 
     // Step 2: Start session (rollback agent on failure)
     const sessionOpts: Record<string, unknown> = { agentId };
+    let identityProject: string | null = null;
+    if (identity) {
+      const parsedIdentity = parseIdentity(identity);
+      if (parsedIdentity.valid) {
+        identityProject = parsedIdentity.project;
+        sessionOpts.project = parsedIdentity.project;
+      }
+    }
     if (files && files.length > 0) {
       sessionOpts.files = files;
       if (force) sessionOpts.force = force;
@@ -137,8 +155,15 @@ export function createSugar(deps: SugarDeps) {
     }
 
     activityLog.log('sugar_begin', {
+      agentId,
+      targetId: sessionTarget(identityProject, sessionResult.id as string),
       details: `Agent ${agentId} began: ${purpose.trim()}`,
-      metadata: { agentId, sessionId: sessionResult.id as string, identity: identity || null } as unknown as Record<string, unknown>,
+      metadata: {
+        agentId,
+        sessionId: sessionResult.id as string,
+        identity: identity || null,
+        identityProject: identityProject || undefined,
+      } as unknown as Record<string, unknown>,
     });
 
     return response;
@@ -222,9 +247,20 @@ export function createSugar(deps: SugarDeps) {
 
     const totalNotes = beforeCount + (note ? 1 : 0);
 
+    const sessionInfo = sessions.get(sessionId);
+    const session = sessionInfo.success && sessionInfo.session ? sessionInfo.session as Record<string, unknown> : null;
+    const identityProject = typeof session?.identityProject === 'string' ? session.identityProject : null;
+
     activityLog.log('sugar_done', {
+      agentId: effectiveAgentId || null,
+      targetId: sessionTarget(identityProject, sessionId),
       details: `Agent ${effectiveAgentId || 'unknown'} done: ${status}`,
-      metadata: { agentId: effectiveAgentId || null, sessionId, status } as unknown as Record<string, unknown>,
+      metadata: {
+        agentId: effectiveAgentId || null,
+        sessionId,
+        status,
+        identityProject: identityProject || undefined,
+      } as unknown as Record<string, unknown>,
     });
 
     return {

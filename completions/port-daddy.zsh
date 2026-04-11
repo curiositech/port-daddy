@@ -671,7 +671,7 @@ _pd_cmd_fleet() {
     'simplify:propose simplifications for latest commit'
     'research:deep research on a topic'
     'spark:run one ideation cycle'
-    'ideas:list all of Spark'\''s ideas'
+    'ideas:search ideas, notes, tuples, and repo markdown'
   )
 
   local state
@@ -1059,9 +1059,10 @@ _pd_cmd_spawn() {
 
   local state subcmd
   _arguments -C \
-    '--backend[AI backend to use]:backend:(ollama claude claude-cli gemini aider custom)' \
+    '--backend[AI backend to use]:backend:(ollama claude claude-cli gemini codex aider custom)' \
     '--model[model name override]:model:' \
     '--identity[PD semantic identity (project:stack:context)]:identity:_pd_complete_services' \
+    '--budget[required spend ceiling in USD]:usd:' \
     '--purpose[human-readable task description]:purpose:' \
     '--allowedTools[tool permissions for claude-cli]:tools:' \
     '--maxTokens[max tokens for claude/claude-cli]:tokens:' \
@@ -1089,6 +1090,71 @@ _pd_cmd_spawn() {
             '1:agent ID:'
           ;;
       esac
+      ;;
+  esac
+}
+
+_pd_cmd_sortie() {
+  local -a sortie_subcmds
+  sortie_subcmds=(
+    'run:launch a tracked sortie mission'
+    'list:list recent sorties'
+    'status:get one sortie status'
+    'logs:get one sortie event log'
+    'help:show sortie help'
+  )
+
+  if (( CURRENT == 2 )); then
+    _describe 'subcommand' sortie_subcmds
+    return
+  fi
+
+  local subcmd="${words[2]}"
+  case "$subcmd" in
+    run)
+      _arguments \
+        '--backend[AI backend to use]:backend:(ollama claude claude-cli gemini codex aider custom)' \
+        '--model[model name override]:model:' \
+        '--tier[model tier]:tier:(low mid high)' \
+        '--budget[required spend ceiling in USD]:usd:' \
+        '--dir[project directory]:directory:_directories' \
+        '--recipe[mission recipe]:recipe:(investigate fix review creative custom)' \
+        '--expected[expected output summary]:text:' \
+        '--context[extra context]:text:' \
+        '--identity[explicit coordinator identity]:identity:' \
+        '--purpose[human-readable task description]:purpose:' \
+        '--allowedTools[tool permissions]:tools:' \
+        '--timeout[timeout in milliseconds]:milliseconds:' \
+        '--maxTokens[max tokens]:tokens:' \
+        '(-j --json)'{-j,--json}'[JSON output]' \
+        '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+        '(-h --help)'{-h,--help}'[show help]' \
+        '*:goal text:_message "goal text"'
+      ;;
+    list)
+      _arguments \
+        '--all[list sorties across all projects]' \
+        '--limit[max results]:count:' \
+        '--dir[project directory]:directory:_directories' \
+        '(-j --json)'{-j,--json}'[JSON output]' \
+        '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+        '(-h --help)'{-h,--help}'[show help]'
+      ;;
+    status)
+      _arguments \
+        '1:sortie id:' \
+        '(-j --json)'{-j,--json}'[JSON output]' \
+        '(-h --help)'{-h,--help}'[show help]'
+      ;;
+    logs)
+      _arguments \
+        '1:sortie id:' \
+        '--limit[max events]:count:' \
+        '(-j --json)'{-j,--json}'[JSON output]' \
+        '(-h --help)'{-h,--help}'[show help]'
+      ;;
+    *)
+      _describe 'subcommand' sortie_subcmds
       ;;
   esac
 }
@@ -1235,6 +1301,149 @@ _pd_cmd_tuple() {
   esac
 }
 
+_pd_cmd_graph() {
+  local -a graph_subcmds
+  graph_subcmds=(
+    'edges:list semantic graph edges'
+    'stats:summarize graph edge counts'
+    'help:show graph help'
+  )
+
+  local state
+  _arguments -C '1:subcommand:->subcommand' '*::args:->args'
+
+  case "$state" in
+    subcommand)
+      _describe 'graph subcommand' graph_subcmds
+      ;;
+    args)
+      case "${words[2]}" in
+        edges)
+          _arguments \
+            '--dir[project directory filter]:path:_files -/' \
+            '--scope[scope filter]:' \
+            '--source-type[source entity type]:' \
+            '--source-id[source entity id]:' \
+            '--edge-type[edge type]:' \
+            '--target-type[target entity type]:' \
+            '--target-id[target entity id]:' \
+            '--query[text search]:' \
+            '--limit[max edges]:limit:' \
+            '(-j --json)'{-j,--json}'[output JSON]' \
+            '(-q --quiet)'{-q,--quiet}'[quiet output]'
+          ;;
+        stats)
+          _arguments \
+            '--dir[project directory filter]:path:_files -/' \
+            '(-j --json)'{-j,--json}'[output JSON]' \
+            '(-q --quiet)'{-q,--quiet}'[quiet output]'
+          ;;
+        *)
+          _describe 'graph subcommand' graph_subcmds
+          ;;
+      esac
+      ;;
+  esac
+}
+
+_pd_cmd_memory() {
+  local -a memory_subcmds
+  memory_subcmds=(
+    'episodes:list episodic memory entries'
+    'stats:summarize episodic memory counts'
+    'help:show memory help'
+  )
+
+  local state
+  _arguments -C '1:subcommand:->subcommand' '*::args:->args'
+
+  case "$state" in
+    subcommand)
+      _describe 'memory subcommand' memory_subcmds
+      ;;
+    args)
+      case "${words[2]}" in
+        episodes)
+          _arguments \
+            '--dir[project directory filter]:path:_files -/' \
+            '--project[logical project filter]:' \
+            '--harbor[harbor filter]:' \
+            '--agent[agent filter]:agent id:' \
+            '--type[episode type filter]:' \
+            '--query[text search]:' \
+            '--limit[max episodes]:limit:' \
+            '(-j --json)'{-j,--json}'[output JSON]' \
+            '(-q --quiet)'{-q,--quiet}'[quiet output]'
+          ;;
+        stats)
+          _arguments \
+            '--dir[project directory filter]:path:_files -/' \
+            '--project[logical project filter]:' \
+            '(-j --json)'{-j,--json}'[output JSON]' \
+            '(-q --quiet)'{-q,--quiet}'[quiet output]'
+          ;;
+        *)
+          _describe 'memory subcommand' memory_subcmds
+          ;;
+      esac
+      ;;
+  esac
+}
+
+_pd_cmd_ideas() {
+  local -a ideas_subcmds
+  ideas_subcmds=(
+    'list:list curated idea/family entries from the trove'
+    'search:search trove, repo markdown, daemon notes/tuples, and optional raw residue'
+    'show:show one idea/family in detail'
+    'help:show ideas help'
+  )
+
+  local state
+  _arguments -C '1:subcommand:->subcommand' '*::args:->args'
+
+  case "$state" in
+    subcommand)
+      _describe 'ideas subcommand' ideas_subcmds
+      ;;
+    args)
+      case "${words[2]}" in
+        list)
+          _arguments \
+            '--dir[project directory filter]:path:_files -/' \
+            '--status[status filter]:(now backlog parked merge local)' \
+            '--limit[max entries]:limit:' \
+            '--include-raw[include local .spark/.spider residue]' \
+            '(-j --json)'{-j,--json}'[output JSON]' \
+            '(-q --quiet)'{-q,--quiet}'[quiet output]'
+          ;;
+        search)
+          _arguments \
+            '--dir[project directory filter]:path:_files -/' \
+            '--status[status filter]:(now backlog parked merge local)' \
+            '--limit[max entries]:limit:' \
+            '--sources[search sources]:(trove raw notes tuples markdown all)' \
+            '--include-raw[include local .spark/.spider residue]' \
+            '(-j --json)'{-j,--json}'[output JSON]' \
+            '(-q --quiet)'{-q,--quiet}'[quiet output]' \
+            '1:query:'
+          ;;
+        show)
+          _arguments \
+            '--dir[project directory filter]:path:_files -/' \
+            '--include-raw[include local .spark/.spider residue]' \
+            '(-j --json)'{-j,--json}'[output JSON]' \
+            '(-q --quiet)'{-q,--quiet}'[quiet output]' \
+            '1:slug:'
+          ;;
+        *)
+          _describe 'ideas subcommand' ideas_subcmds
+          ;;
+      esac
+      ;;
+  esac
+}
+
 _pd_cmd_inbox() {
   local -a inbox_subcmds
   inbox_subcmds=(
@@ -1354,12 +1563,17 @@ _port_daddy() {
     # AI Agent Spawner + Watch
     'spawn:launch an AI agent (Ollama/Claude/Gemini/Aider/custom)'
     'spawned:list active spawned agents'
+    'sortie:launch and inspect tracked mission records'
     'watch:subscribe to a channel and run a script on each message'
     # Harbors (named permission namespaces)
     'harbor:create, enter, leave, show, or destroy a harbor'
     'harbors:list all active harbors'
     # Tuple space
     'tuple:Linda-style tuple space (out, rd, in, scan, count)'
+    # Semantic graph + episodic memory
+    'graph:inspect semantic graph edges and stats'
+    'memory:inspect episodic memory entries and stats'
+    'ideas:search the canonical ideas trove and local residue'
     # System & Monitoring
     'dashboard:open web dashboard in browser'
     'channels:list pub/sub channels'
@@ -1394,6 +1608,7 @@ _port_daddy() {
     'dev:start daemon in development mode (foreground)'
     'ci-gate:exit non-zero if daemon is running stale code'
     'mcp:start MCP server for Claude Code / Claude Desktop (pd mcp install to configure)'
+    'setup:install daemon, MCP, FleetBar, and initialize a project'
     'init:set up Port Daddy for this project (scan, fleet, MCP, git hook)'
     # Info
     'version:print version information'
@@ -1479,11 +1694,15 @@ _port_daddy() {
         learn|tutorial)         _pd_cmd_learn ;;
         inbox)                  _pd_cmd_inbox ;;
         spawn)                  _pd_cmd_spawn ;;
+        sortie)                 _pd_cmd_sortie ;;
         spawned)                _pd_cmd_spawned ;;
         watch)                  _pd_cmd_watch ;;
         harbor)                 _pd_cmd_harbor ;;
         harbors)                _pd_cmd_harbors ;;
         tuple)                  _pd_cmd_tuple ;;
+        graph)                  _pd_cmd_graph ;;
+        memory)                 _pd_cmd_memory ;;
+        ideas)                  _pd_cmd_ideas ;;
         mcp)                _arguments '1:subcommand:(start install)' ;;
         version|help)       ;;
         *)                  ;;

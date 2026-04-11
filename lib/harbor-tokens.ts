@@ -1,30 +1,37 @@
 /**
- * Harbor Capability Tokens — Phase 1 (HMAC / HS256)
+ * Harbor Capability Tokens
  *
- * Issues and verifies short-lived JWT "harbor cards" that prove an agent
- * is authorized to operate within a specific harbor (permission namespace).
+ * Active path in this slice:
+ *   - Phase 2 tokens are Ed25519-signed JWTs (`alg: EdDSA`) with `hv: 2`
+ *   - New issuance always uses the daemon-held Phase 2 signing identity
  *
- * Security properties (per council review, 2026-03-10):
- *   - Algorithm PINNED to HS256 — alg header from tokens is never trusted
- *   - JTI written to DB BEFORE JWT string is returned (atomic audit trail)
- *   - `lhb` claim carries last-heartbeat timestamp for zombie detection
- *   - Revoked JTIs are stored and checked on every verification
- *   - Partial index on revocations(expires_at) for cheap reaper queries
+ * Compatibility boundary preserved in this slice:
+ *   - Legacy Phase 1 HS256 tokens remain verifiable
+ *   - Legacy verification is explicit via `verifyLegacyPhase1HarborCard()`
+ *   - New issuance never falls back to HS256
  *
- * Phase roadmap:
- *   Phase 1 (this module): HMAC symmetric key, single daemon
- *   Phase 2: Asymmetric keys, per-harbor key rotation
- *   Phase 3: Biscuit/Macaroon delegation chains (A2A multi-hop)
+ * Deliberately out of scope here:
+ *   - Per-harbor signing keys
+ *   - Delegation chains / attenuation
+ *   - Cross-machine federation
  *
- * References:
- *   - arXiv 2509.13597 (Agentic JWT) — lhb, delegation_chain, jti pattern
- *   - arXiv 2602.11865 (Google DeepMind DCTs) — capability caveat design
- *   - CVE-2026-22817 (Hono alg confusion) — why we pin algorithms: ['HS256']
+ * Security properties:
+ *   - Verification dispatch is version-gated, not header-trusting
+ *   - Phase 2 requires `alg: EdDSA`, fixed `kid`, and `hv: 2`
+ *   - Legacy Phase 1 requires `alg: HS256` and no Phase 2 version claim
+ *   - JTIs are written to DB before a token string is returned
+ *   - Revoked JTIs are checked on every successful verification path
  */
 
 import type Database from 'better-sqlite3';
-import { randomBytes, createSecretKey } from 'node:crypto';
-import { SignJWT, jwtVerify } from 'jose';
+import {
+  createPrivateKey,
+  createPublicKey,
+  createSecretKey,
+  generateKeyPairSync,
+  randomBytes,
+} from 'node:crypto';
+import { SignJWT, decodeJwt, decodeProtectedHeader, jwtVerify } from 'jose';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -41,7 +48,13 @@ export const LHB_TOLERANCE_MS = DEFAULT_HEARTBEAT_INTERVAL_MS * 4; // 120_000
 /** Default harbor card lifetime. */
 export const DEFAULT_TOKEN_TTL_MS = 3_600_000; // 1 hour
 
+export const HARBOR_TOKEN_PHASE2_VERSION = 2;
+export const HARBOR_TOKEN_PHASE2_KEY_ID = 'harbor-daemon-ed25519-v1';
+export const HARBOR_TOKEN_PHASE1_LEGACY_KEY_ID = 'singleton';
+
 // ─── Types ───────────────────────────────────────────────────────────────────
+
+export type HarborTokenVersion = 'phase1-legacy' | 'phase2';
 
 export interface HarborCardPayload {
   iss: string;      // 'port-daddy'
@@ -52,6 +65,8 @@ export interface HarborCardPayload {
   iat: number;      // issued at (unix seconds)
   lhb: number;      // last heartbeat at issue time (unix ms)
   cap: string[];    // capability array
+  hv?: number;      // harbor token version (Phase 2 uses hv=2; legacy Phase 1 omits it)
+  tokenVersion?: HarborTokenVersion; // attached by verifier, not serialized into the JWT
 }
 
 export interface IssueHarborCardParams {
@@ -60,6 +75,34 @@ export interface IssueHarborCardParams {
   capabilities: string[];
   lastHeartbeat: number; // unix ms
   ttlMs?: number;        // default: DEFAULT_TOKEN_TTL_MS
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function exportKeyToPem(key: ReturnType<typeof createPrivateKey> | ReturnType<typeof createPublicKey>): string {
+  const type = key.type === 'private' ? 'pkcs8' : 'spki';
+  return key.export({ format: 'pem', type }).toString();
+}
+
+function readHeaderAndPayload(token: string): {
+  header: ReturnType<typeof decodeProtectedHeader>;
+  payload: Record<string, unknown>;
+} | null {
+  try {
+    return {
+      header: decodeProtectedHeader(token),
+      payload: decodeJwt(token) as Record<string, unknown>,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function withVersion(payload: HarborCardPayload, tokenVersion: HarborTokenVersion): HarborCardPayload {
+  return {
+    ...payload,
+    tokenVersion,
+  };
 }
 
 // ─── Module ──────────────────────────────────────────────────────────────────
@@ -71,6 +114,14 @@ export function createHarborTokens(db: Database.Database) {
       id       TEXT PRIMARY KEY,
       key_hex  TEXT NOT NULL,
       created_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS harbor_token_signing_keys (
+      id              TEXT PRIMARY KEY,
+      alg             TEXT NOT NULL,
+      private_key_pem TEXT NOT NULL,
+      public_key_pem  TEXT NOT NULL,
+      created_at      INTEGER NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS harbor_issued_tokens (
@@ -96,11 +147,18 @@ export function createHarborTokens(db: Database.Database) {
   `);
 
   const stmts = {
-    getKey: db.prepare<[string], { key_hex: string }>(
+    getLegacyPhase1Key: db.prepare<[string], { key_hex: string }>(
       'SELECT key_hex FROM daemon_keys WHERE id = ?',
     ),
-    insertKey: db.prepare(
+    insertLegacyPhase1Key: db.prepare(
       'INSERT OR IGNORE INTO daemon_keys (id, key_hex, created_at) VALUES (?, ?, ?)',
+    ),
+
+    getPhase2KeyPair: db.prepare<[string], { private_key_pem: string; public_key_pem: string }>(
+      'SELECT private_key_pem, public_key_pem FROM harbor_token_signing_keys WHERE id = ?',
+    ),
+    insertPhase2KeyPair: db.prepare(
+      'INSERT OR IGNORE INTO harbor_token_signing_keys (id, alg, private_key_pem, public_key_pem, created_at) VALUES (?, ?, ?, ?, ?)',
     ),
 
     insertToken: db.prepare(
@@ -124,30 +182,130 @@ export function createHarborTokens(db: Database.Database) {
     ),
   };
 
-  // In-memory signing key — loaded/derived once per daemon lifecycle.
-  // Type: KeyObject (from Node.js crypto) — compatible with jose.
-  let signingKey: ReturnType<typeof createSecretKey> | null = null;
+  // Key material loaded once per daemon lifecycle.
+  let legacyPhase1SigningKey: ReturnType<typeof createSecretKey> | null = null;
+  let phase2PrivateSigningKey: ReturnType<typeof createPrivateKey> | null = null;
+  let phase2PublicVerifyKey: ReturnType<typeof createPublicKey> | null = null;
+
+  function detectHarborCardVersion(token: string): HarborTokenVersion | null {
+    if (!token) return null;
+    const decoded = readHeaderAndPayload(token);
+    if (!decoded) return null;
+
+    const { header, payload } = decoded;
+    if (
+      header.alg === 'EdDSA'
+      && header.kid === HARBOR_TOKEN_PHASE2_KEY_ID
+      && payload.hv === HARBOR_TOKEN_PHASE2_VERSION
+    ) {
+      return 'phase2';
+    }
+
+    if (
+      header.alg === 'HS256'
+      && header.kid === undefined
+      && payload.hv === undefined
+    ) {
+      return 'phase1-legacy';
+    }
+
+    return null;
+  }
+
+  async function verifyPhase2HarborCard(
+    token: string,
+    expectedHarbor?: string,
+  ): Promise<HarborCardPayload | null> {
+    if (!phase2PublicVerifyKey || !token) return null;
+    if (detectHarborCardVersion(token) !== 'phase2') return null;
+
+    try {
+      const { payload, protectedHeader } = await jwtVerify(token, phase2PublicVerifyKey, {
+        algorithms: ['EdDSA'],
+        issuer: 'port-daddy',
+        ...(expectedHarbor ? { audience: expectedHarbor } : {}),
+      });
+
+      if (protectedHeader.kid !== HARBOR_TOKEN_PHASE2_KEY_ID) return null;
+      if (payload.hv !== HARBOR_TOKEN_PHASE2_VERSION) return null;
+
+      const revoked = stmts.isRevoked.get(payload.jti as string);
+      if (revoked) return null;
+
+      return withVersion(payload as unknown as HarborCardPayload, 'phase2');
+    } catch {
+      return null;
+    }
+  }
+
+  async function verifyLegacyPhase1HarborCard(
+    token: string,
+    expectedHarbor?: string,
+  ): Promise<HarborCardPayload | null> {
+    if (!legacyPhase1SigningKey || !token) return null;
+    if (detectHarborCardVersion(token) !== 'phase1-legacy') return null;
+
+    try {
+      const { payload, protectedHeader } = await jwtVerify(token, legacyPhase1SigningKey, {
+        algorithms: ['HS256'],
+        issuer: 'port-daddy',
+        ...(expectedHarbor ? { audience: expectedHarbor } : {}),
+      });
+
+      if (protectedHeader.kid !== undefined) return null;
+      if (payload.hv !== undefined) return null;
+
+      const revoked = stmts.isRevoked.get(payload.jti as string);
+      if (revoked) return null;
+
+      return withVersion(payload as unknown as HarborCardPayload, 'phase1-legacy');
+    } catch {
+      return null;
+    }
+  }
 
   return {
     /**
-     * Load or generate the daemon's HMAC signing key.
-     * Idempotent — safe to call multiple times; DB key is preserved.
-     * Must be called before issueHarborCard().
+     * Load or generate the daemon's signing identities.
+     *
+     * Phase 1 compatibility:
+     *   - preserves the legacy singleton HS256 secret so old tokens can still be verified
+     *
+     * Phase 2 active path:
+     *   - provisions a daemon-held Ed25519 keypair used for all new issuance in this slice
+     *   - per-harbor keys are intentionally deferred to a later phase
      */
     async initDaemonIdentity(): Promise<void> {
-      // Generate a new key if none exists. OR IGNORE ensures race safety.
-      const newKeyHex = randomBytes(32).toString('hex');
-      stmts.insertKey.run('singleton', newKeyHex, Date.now());
+      const now = Date.now();
 
-      // Load the canonical key (either the one we just inserted or the pre-existing one)
-      const row = stmts.getKey.get('singleton');
-      if (!row) throw new Error('daemon_keys: failed to initialize singleton row');
+      // Preserve the pre-existing Phase 1 singleton row so legacy HS256 tokens remain verifiable.
+      const newLegacyKeyHex = randomBytes(32).toString('hex');
+      stmts.insertLegacyPhase1Key.run(HARBOR_TOKEN_PHASE1_LEGACY_KEY_ID, newLegacyKeyHex, now);
 
-      signingKey = createSecretKey(Buffer.from(row.key_hex, 'hex'));
+      const legacyRow = stmts.getLegacyPhase1Key.get(HARBOR_TOKEN_PHASE1_LEGACY_KEY_ID);
+      if (!legacyRow) throw new Error('daemon_keys: failed to initialize singleton row');
+      legacyPhase1SigningKey = createSecretKey(Buffer.from(legacyRow.key_hex, 'hex'));
+
+      const { privateKey, publicKey } = generateKeyPairSync('ed25519');
+      stmts.insertPhase2KeyPair.run(
+        HARBOR_TOKEN_PHASE2_KEY_ID,
+        'Ed25519',
+        exportKeyToPem(privateKey),
+        exportKeyToPem(publicKey),
+        now,
+      );
+
+      const phase2Row = stmts.getPhase2KeyPair.get(HARBOR_TOKEN_PHASE2_KEY_ID);
+      if (!phase2Row) {
+        throw new Error('harbor_token_signing_keys: failed to initialize phase2 keypair');
+      }
+
+      phase2PrivateSigningKey = createPrivateKey(phase2Row.private_key_pem);
+      phase2PublicVerifyKey = createPublicKey(phase2Row.public_key_pem);
     },
 
     /**
-     * Issue a harbor card (JWT) granting an agent access to a specific harbor.
+     * Issue a Phase 2 harbor card (JWT) granting an agent access to a specific harbor.
      *
      * Security: JTI is written to `harbor_issued_tokens` BEFORE the JWT
      * string is returned, ensuring an audit record exists even if the caller
@@ -160,7 +318,7 @@ export function createHarborTokens(db: Database.Database) {
       lastHeartbeat,
       ttlMs = DEFAULT_TOKEN_TTL_MS,
     }: IssueHarborCardParams): Promise<string> {
-      if (!signingKey) {
+      if (!phase2PrivateSigningKey) {
         throw new Error('initDaemonIdentity() must be called before issueHarborCard()');
       }
 
@@ -174,51 +332,57 @@ export function createHarborTokens(db: Database.Database) {
       // This ensures the audit record exists even if signing fails.
       stmts.insertToken.run(jti, agentId, harborName, now, expiresAt);
 
-      const token = await new SignJWT({ cap: capabilities, lhb: lastHeartbeat })
-        .setProtectedHeader({ alg: 'HS256' })
+      return new SignJWT({
+        cap: capabilities,
+        lhb: lastHeartbeat,
+        hv: HARBOR_TOKEN_PHASE2_VERSION,
+      })
+        .setProtectedHeader({
+          alg: 'EdDSA',
+          kid: HARBOR_TOKEN_PHASE2_KEY_ID,
+          typ: 'JWT',
+        })
         .setSubject(agentId)
         .setAudience(harborName)
         .setIssuer('port-daddy')
         .setJti(jti)
         .setIssuedAt(nowSec)
         .setExpirationTime(expSec)
-        .sign(signingKey);
-
-      return token;
+        .sign(phase2PrivateSigningKey);
     },
 
     /**
-     * Verify a harbor card and return its payload, or null if invalid.
+     * Inspect the token envelope and return the supported version it claims to be.
      *
-     * Security: Algorithm is PINNED to HS256. The `alg` field in the JWT
-     * header is never used to select the verification algorithm — doing so
-     * would expose us to algorithm confusion attacks (e.g. CVE-2026-22817).
+     * This does not verify the signature. It is only used to route a token to
+     * an explicit verification path with pinned expectations.
+     */
+    detectHarborCardVersion,
+
+    /**
+     * Verify a current Phase 2 harbor card and return its payload, or null if invalid.
      *
-     * Returns null for: invalid signature, wrong audience, expired, revoked.
+     * This path only accepts Phase 2 (`EdDSA` + `hv:2`). Legacy Phase 1 tokens
+     * must go through `verifyLegacyPhase1HarborCard()`.
      */
     async verifyHarborCard(
       token: string,
       expectedHarbor?: string,
     ): Promise<HarborCardPayload | null> {
-      if (!signingKey) return null;
-      if (!token) return null;
+      return verifyPhase2HarborCard(token, expectedHarbor);
+    },
 
-      try {
-        const { payload } = await jwtVerify(token, signingKey, {
-          // ─── Algorithm pinning: explicit allowlist, never trust header ──────
-          algorithms: ['HS256'],
-          issuer: 'port-daddy',
-          ...(expectedHarbor ? { audience: expectedHarbor } : {}),
-        });
-
-        // Check JTI revocation
-        const revoked = stmts.isRevoked.get(payload.jti as string);
-        if (revoked) return null;
-
-        return payload as unknown as HarborCardPayload;
-      } catch {
-        return null;
-      }
+    /**
+     * Verify a legacy Phase 1 HS256 harbor card.
+     *
+     * This path exists strictly for compatibility with already-issued Phase 1
+     * tokens. New issuance never uses it.
+     */
+    async verifyLegacyPhase1HarborCard(
+      token: string,
+      expectedHarbor?: string,
+    ): Promise<HarborCardPayload | null> {
+      return verifyLegacyPhase1HarborCard(token, expectedHarbor);
     },
 
     /**

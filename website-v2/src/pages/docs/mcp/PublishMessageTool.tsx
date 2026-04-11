@@ -5,7 +5,7 @@ export default function PublishMessageTool() {
     <CommandPage
       command="publish_message"
       description="Publish a message to a Swarm Radio channel for agent coordination. Other agents subscribed to the channel will receive the message. Supports structured data and priority levels."
-      version="3.7.0"
+      version="3.8.3"
       syntax="publish_message(channel, message, options?)"
       flags={[
         { flag: 'channel', description: 'Channel name to publish to (required)' },

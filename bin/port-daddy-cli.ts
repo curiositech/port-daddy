@@ -10,12 +10,11 @@
 import { spawn, spawnSync } from 'node:child_process';
 import type { ChildProcess, SpawnSyncReturns } from 'node:child_process';
 
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createHash } from 'node:crypto';
 import http from 'node:http';
 import type { IncomingMessage, ClientRequest } from 'node:http';
-import { readFileSync, readdirSync, writeFileSync as fsWriteFileSync, existsSync, unlinkSync, watch } from 'node:fs';
+import { readFileSync, writeFileSync as fsWriteFileSync, existsSync, unlinkSync, watch } from 'node:fs';
 import type { FSWatcher } from 'node:fs';
 import { discoverServices, suggestNames, mergeWithConfig } from '../lib/discover.js';
 import type { DiscoveredService } from '../lib/discover.js';
@@ -32,6 +31,7 @@ import {
 import { initDatabase, isPortAvailable, resolveDbPath } from '../lib/db.js';
 import { createServices } from '../lib/services.js';
 import { createLocks } from '../lib/locks.js';
+import { createNoteEncryption } from '../lib/note-encryption.js';
 import { createSessions } from '../lib/sessions.js';
 import { createActivityLog } from '../lib/activity.js';
 import { highlightChannel, flag, SignalFlags, ANSI as marANSI } from '../lib/maritime.js';
@@ -72,6 +72,8 @@ import {
   handleDaemon, handleDev,
   // Benchmarking
   handleBench,
+  // Setup
+  handleSetup,
   // DNS, Briefing, Integration
   handleDns, handleBriefing, handleIntegration,
   // Sugar commands
@@ -83,19 +85,24 @@ import {
   // Briefing history
   handleHistory,
   // Spawn + Watch
-  handleSpawn, handleSpawned, handleWatch,
+  handleSpawn, handleSpawned, handleWatch, handleSortie,
   // Harbors
   handleHarborCreate, handleHarborEnter, handleHarborLeave, handleHarborShow, handleHarborDestroy, handleHarbors,
   // Demo
   handleDemo,
   // Tuples
   handleTuple,
+  // Semantic graph + episodic memory
+  handleGraph, handleMemory, handleIdeas,
 } from '../cli/commands/index.js';
+import { getDaemonTcpUrl, readDaemonPort, resolveDaemonTcpTarget } from '../shared/daemon-discovery.js';
+import { calculateRuntimeCodeHash } from '../shared/code-hash.js';
+import { DEFAULT_SOCK as _DEFAULT_SOCK, DEFAULT_PORT_FILE as _DEFAULT_PORT_FILE } from '../shared/paths.js';
+import { shouldAutoRestartDaemonForFreshness, shouldCheckDaemonFreshness } from '../cli/utils/freshness.js';
+import { readCurrentContext } from '../cli/utils/current-context.js';
 
 const __dirname: string = dirname(fileURLToPath(import.meta.url));
-const PORT_DADDY_URL: string = process.env.PORT_DADDY_URL || 'http://localhost:9876';
-
-import { DEFAULT_SOCK as _DEFAULT_SOCK, DEFAULT_PORT_FILE as _DEFAULT_PORT_FILE } from '../shared/paths.js';
+const PORT_DADDY_URL: string = getDaemonTcpUrl(process.env.PORT_DADDY_URL);
 // Primary transport for CLI->daemon communication.
 // Falls back to TCP (PORT_DADDY_URL) if socket doesn't exist.
 const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || _DEFAULT_SOCK;
@@ -125,7 +132,7 @@ const TIER_2_COMMANDS: Set<string> = new Set([
   'up', 'down', 'watch', 'swarm', 'fleet',
   'channels', 'webhook', 'webhooks', 'tunnel', 'dns', 'inbox',
   'metrics', 'health', 'dashboard',
-  'bench', 'demo', 'tuple'
+  'bench', 'demo', 'tuple', 'sortie'
 ]);
 
 /**
@@ -161,7 +168,7 @@ function getDirectLocks(): ReturnType<typeof createLocks> {
 function getDirectSessions(): ReturnType<typeof createSessions> {
   if (!_directSessions) {
     const db = getDirectDb();
-    _directSessions = createSessions(db);
+    _directSessions = createSessions(db, createNoteEncryption());
     // Wire up activity log for direct mode too
     const activityLog = createActivityLog(db);
     _directSessions.setActivityLog(activityLog);
@@ -273,15 +280,14 @@ function printLaunchHints(hints: {
 function resolveTarget(): ConnectionTarget {
   // Explicit TCP URL overrides socket
   if (process.env.PORT_DADDY_URL) {
-    const url = new URL(process.env.PORT_DADDY_URL);
-    return { host: url.hostname, port: parseInt(url.port, 10) || 9876 };
+    return resolveDaemonTcpTarget(process.env.PORT_DADDY_URL);
   }
   // Use socket if it exists
   if (existsSync(SOCK_PATH)) {
     return { socketPath: SOCK_PATH };
   }
   // Fallback to TCP
-  return { host: 'localhost', port: 9876 };
+  return { host: 'localhost', port: readDaemonPort(_DEFAULT_PORT_FILE) };
 }
 
 /**
@@ -341,22 +347,7 @@ function pdFetch(urlOrPath: string, options: { method?: string; headers?: Record
 
 // Calculate local code hash to compare with daemon
 function getLocalCodeHash(): string {
-  const libDir: string = join(__dirname, '..');
-  // Dynamically discover all .ts files in lib/ — must match server.ts logic exactly
-  const libDirPath: string = join(libDir, 'lib');
-  const libFiles: string[] = existsSync(libDirPath)
-    ? readdirSync(libDirPath).filter((f: string) => f.endsWith('.ts')).sort().map((f: string) => `lib/${f}`)
-    : [];
-  const filesToHash: string[] = ['server.ts', ...libFiles];
-
-  const hash = createHash('sha256');
-  for (const file of filesToHash) {
-    const filePath: string = join(libDir, file);
-    if (existsSync(filePath)) {
-      hash.update(readFileSync(filePath));
-    }
-  }
-  return hash.digest('hex').slice(0, 12);
+  return calculateRuntimeCodeHash(join(__dirname, '..'));
 }
 
 // Check if daemon is running stale code
@@ -369,6 +360,16 @@ async function checkDaemonFreshness(autoRestart: boolean = true, quiet: boolean 
     if (!res.ok) return false;
 
     const data = await res.json();
+    const isInteractive = !!(process.stdout.isTTY || process.stderr.isTTY);
+    const localInstallDir = resolve(join(__dirname, '..'));
+    const daemonInstallDir = typeof data.installDir === 'string' ? data.installDir : null;
+    if (!shouldAutoRestartDaemonForFreshness({
+      daemonInstallDir,
+      localInstallDir,
+      isInteractive,
+    })) {
+      return false;
+    }
     const localHash: string = getLocalCodeHash();
 
     if (data.codeHash && data.codeHash !== localHash) {
@@ -467,16 +468,8 @@ async function ciGateCheck(): Promise<void> {
  * Returns null if no active session exists.
  */
 function readCurrentSession(): { sessionId: string; agentId?: string; purpose?: string } | null {
-  try {
-    const currentPath = join(process.cwd(), '.portdaddy', 'current.json');
-    if (existsSync(currentPath)) {
-      const data = JSON.parse(readFileSync(currentPath, 'utf8'));
-      if (data && data.sessionId) return data;
-    }
-  } catch {
-    // Ignore read errors
-  }
-  return null;
+  const data = readCurrentContext();
+  return data?.sessionId ? data : null;
 }
 
 /**
@@ -501,6 +494,7 @@ function buildHelp(): string {
 
   lines.push(
     `${A}Get started:${Z}`,
+    `  ${G}pd setup${Z}                  Install daemon, MCP, FleetBar, init project`,
     `  ${G}pd begin${Z} "purpose"       I'll set up your agent + session`,
     `  ${G}pd done${Z} "summary"        Finish up — I'll clean everything`,
     `  ${G}pd whoami${Z}                See your current context`,
@@ -517,10 +511,14 @@ function buildHelp(): string {
     '',
     `${A}Coordination:${Z}`,
     `  ${G}pd lock${Z} <name>           Grab a distributed lock`,
+    `  ${G}pd agent${Z} "task"         One-shot autopilot delegation`,
     `  ${G}pd agent register${Z}        Register as an agent`,
     `  ${G}pd salvage${Z}               Pick up a dead agent's work`,
+    `  ${G}pd graph stats${Z}           Inspect semantic graph totals`,
+    `  ${G}pd memory episodes${Z}       Inspect episodic memory`,
+    `  ${G}pd ideas search${Z} "text"   Search ideas, notes, tuples, and repo markdown`,
     '',
-    `${D}pd help <topic> for details — topics: sessions, locks, agents, ports, messaging, dns, orchestration, sugar, tutorial${Z}`,
+    `${D}pd help <topic> for details — topics: setup, sessions, locks, agents, ports, messaging, dns, orchestration, sugar, semantic, ideas, tutorial${Z}`,
     `${D}Dashboard: ${PORT_DADDY_URL}  •  Tutorial: pd learn${Z}`,
   );
 
@@ -532,6 +530,24 @@ function buildHelp(): string {
  * Each topic shows relevant commands with flags and examples.
  */
 const TOPIC_HELP: Record<string, string> = {
+  setup: `Setup — Install the full local Port Daddy environment
+
+Commands:
+  setup                     Install daemon, MCP, FleetBar, and init project
+    --project <path>        Initialize a specific project directory
+    --no-daemon             Skip daemon installation/start
+    --no-mcp                Skip MCP + shell hook installation
+    --no-fleetbar           Skip FleetBar install (macOS)
+    --no-init               Skip project initialization
+    --no-fleet              Pass through to pd init
+    --no-hook               Pass through to pd init
+
+Examples:
+  pd setup
+  pd setup --project ~/coding/workgroup-ai
+  pd setup --no-fleetbar
+  pd setup --no-init`,
+
   sessions: `Sessions & Notes \u2014 Structured multi-agent coordination
 
 Commands:
@@ -596,6 +612,9 @@ Examples:
   agents: `Agent Registry \u2014 Track active agents with heartbeats
 
 Commands:
+  agent "task text"         Run a one-shot pd agent autopilot task
+  agent run "task text"     Explicit autopilot form
+
   agent register           Register as an agent
     --agent <id>           Agent ID (required)
     --identity <id>        Semantic identity (project:stack:context)
@@ -764,6 +783,68 @@ Examples:
   pd whoami
   pd with-lock db-migrations npm run migrate`,
 
+  semantic: `Semantic Coordination Surfaces \u2014 Inspect graph edges and episodic memory
+
+Commands:
+  graph edges               List semantic graph edges
+    --dir <path>            Project directory filter
+    --scope <scope>         Scope filter
+    --source-type <type>    Source entity type
+    --source-id <id>        Source entity id
+    --edge-type <type>      Edge type
+    --target-type <type>    Target entity type
+    --target-id <id>        Target entity id
+    --query <text>          Text search
+    --limit <n>             Max edges to return
+
+  graph stats               Summarize graph edge counts
+    --dir <path>            Project directory filter
+
+  memory episodes           List episodic memory entries
+    --dir <path>            Project directory filter
+    --project <name>        Logical project filter
+    --harbor <name>         Harbor filter
+    --agent <id>            Agent filter
+    --type <kind>           Episode type filter
+    --query <text>          Text search
+    --limit <n>             Max episodes to return
+
+  memory stats              Summarize episodic memory counts
+    --dir <path>            Project directory filter
+    --project <name>        Logical project filter
+
+Examples:
+  pd graph edges --scope symbols:file:/abs/path.ts
+  pd graph stats --dir /Users/you/coding/port-daddy
+  pd memory episodes --project port-daddy --type handoff
+  pd memory stats --dir /Users/you/coding/port-daddy`,
+
+  ideas: `Ideas Search \u2014 Search canonical ideas plus live repo memory
+
+Commands:
+  ideas list                List curated ideas/families from docs/recovery/IDEAS-TROVE.md
+    --dir <path>            Project directory filter
+    --status <status>       Filter by now|backlog|parked|merge|local
+    --limit <n>             Limit results
+    --include-raw           Include local .spark/.spider residue not promoted into the trove
+
+  ideas search <query>      Federated search across ideas, notes, tuples, and repo markdown
+    --dir <path>            Project directory filter
+    --status <status>       Filter by now|backlog|parked|merge|local
+    --limit <n>             Limit results
+    --sources <list>        trove,raw,notes,tuples,markdown,all
+    --include-raw           Include local .spark/.spider residue
+
+  ideas show <slug>         Show one idea/family in detail
+    --dir <path>            Project directory filter
+    --include-raw           Include raw residue lookups
+
+Examples:
+  pd ideas list --status now
+  pd ideas search "salvage disconnect" --include-raw
+  pd ideas search "phase 3 parity debt" --sources markdown
+  pd ideas show tuple-driven-fleet`,
+
   tutorial: `Interactive Tutorial \u2014 Learn Port Daddy step by step
 
 Commands:
@@ -789,7 +870,7 @@ Run: pd learn`,
 const ALL_COMMANDS: string[] = [
   'claim', 'c', 'release', 'r', 'find', 'f', 'list', 'l', 'ps', 'url', 'env',
   'pub', 'publish', 'broadcast', 'sub', 'subscribe', 'listen', 'wait', 'lock', 'unlock', 'locks',
-  'up', 'down', 'init', 'scan', 's', 'projects', 'p',
+  'up', 'down', 'setup', 'init', 'scan', 's', 'projects', 'p',
   'agent', 'agents', 'swarm', 'inbox', 'log', 'activity',
   'session', 'sessions', 'note', 'notes',
   'begin', 'done', 'whoami', 'with-lock', 'learn',
@@ -801,7 +882,7 @@ const ALL_COMMANDS: string[] = [
   'services', 'dns', 'briefing', 'integration',
   'b', 'w', 'who-owns', 'history', 'tutorial', 'files',
   'spawn', 'spawned', 'watch',
-  'harbor', 'harbors', 'demo', 'fleet', 'tuple',
+  'harbor', 'harbors', 'demo', 'fleet', 'tuple', 'sortie', 'graph', 'memory', 'ideas',
 ];
 
 /** Simple Levenshtein distance for short strings */
@@ -1474,8 +1555,13 @@ async function executeDirectMode(
       }
 
       const sess = getDirectSessions();
+      const context = readCurrentContext();
       const noteOpts: Record<string, unknown> = {};
       if (options.type) noteOpts.type = options.type;
+      const sessionId = typeof options.session === 'string' ? options.session : context?.sessionId;
+      const agentId = typeof options.agent === 'string' ? options.agent : context?.agentId;
+      if (sessionId) noteOpts.sessionId = sessionId;
+      if (agentId) noteOpts.agentId = agentId;
 
       const result = sess.quickNote(content, noteOpts as Parameters<typeof sess.quickNote>[1]);
       const data = result as Record<string, unknown>;
@@ -1606,12 +1692,9 @@ async function main(): Promise<void> {
     process.exit(0);
   }
 
-  // Check for stale daemon before running commands (skip for daemon management and --direct mode)
-  const hasDirectFlag: boolean = args.includes('--direct');
-  const skipFreshnessCheck: boolean = hasDirectFlag || ['start', 'stop', 'restart', 'install', 'uninstall', 'status', 'version', 'dev', 'ci-gate', 'doctor', 'diagnose', 'up', 'down', 'dashboard'].includes(command as string);
   const isQuiet: boolean = args.includes('--quiet') || args.includes('-q') || args.includes('--json') || args.includes('-j');
   
-  if (!skipFreshnessCheck) {
+  if (shouldCheckDaemonFreshness(command as string, args)) {
     await checkDaemonFreshness(true, isQuiet);
   }
 
@@ -1767,6 +1850,11 @@ async function main(): Promise<void> {
         break;
 
       // Project onboarding
+      case 'setup': {
+        await handleSetup(options);
+        break;
+      }
+
       case 'init': {
         const { handleInit } = await import('../cli/commands/init.js');
         await handleInit(options);
@@ -2062,7 +2150,10 @@ async function main(): Promise<void> {
         const mcpPath = new URL('../mcp/server.ts', import.meta.url).pathname;
         const child = spawn('npx', ['tsx', mcpPath], {
           stdio: 'inherit',
-          env: { ...process.env, PORT_DADDY_URL: `http://localhost:${options.port || '9876'}` },
+          env: {
+            ...process.env,
+            PORT_DADDY_URL: options.port ? `http://localhost:${options.port}` : PORT_DADDY_URL,
+          },
         });
         child.on('exit', (code) => process.exit(code ?? 0));
         // Keep parent alive until MCP server exits
@@ -2114,6 +2205,10 @@ async function main(): Promise<void> {
         await handleSpawned(positional, options);
         break;
 
+      case 'sortie':
+        await handleSortie(positional, options);
+        break;
+
       // Watch — ambient agent kernel (SSE subscriber)
       case 'watch':
         await handleWatch(positional[0], options);
@@ -2162,6 +2257,18 @@ async function main(): Promise<void> {
       // Tuples — Linda-style tuple space coordination
       case 'tuple':
         await handleTuple(positional, options);
+        break;
+
+      case 'graph':
+        await handleGraph(positional, options);
+        break;
+
+      case 'memory':
+        await handleMemory(positional, options);
+        break;
+
+      case 'ideas':
+        await handleIdeas(positional, options);
         break;
 
       default: {

@@ -9,8 +9,8 @@ export function Pheromone() {
     <TutorialLayout
       title="Pheromone Trails: How Agents Leave Breadcrumbs"
       description="Ants don't talk. They leave chemical trails that decay over time. Your agents can do the same. Learn how pheromone signals create ambient awareness without direct communication."
-      number={18}
-      total={18}
+      number={19}
+      total={19}
       level="Intermediate"
       readTime="8 min read"
       prev={{ title: 'Fleet Agents', href: '/tutorials/fleet' }}

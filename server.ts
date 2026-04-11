@@ -17,7 +17,6 @@ import Database from 'better-sqlite3';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { readFileSync, existsSync, readdirSync, unlinkSync, writeFileSync } from 'fs';
-import { createHash } from 'crypto';
 import { createConnection } from 'net';
 import winston from 'winston';
 
@@ -41,6 +40,8 @@ import { createSpawner } from './lib/spawner.js';
 import { createBriefing } from './lib/briefing.js';
 import { createSugar } from './lib/sugar.js';
 import { createHarbors } from './lib/harbors.js';
+import { createHarborTokens } from './lib/harbor-tokens.js';
+import { createSorties } from './lib/sorties.js';
 import { createPheromoneManager } from './lib/pheromone.js';
 import { createBarnacleWatcher } from './lib/barnacle-client.js';
 import { createReactiveOrchestrator } from './lib/orchestrator.js';
@@ -56,14 +57,24 @@ import { createFleetDaemon } from './lib/fleet-daemon.js';
 import { createOrchestratorRegistry } from './lib/orchestrator-plugins.js';
 import { createSymbolIndex } from './lib/symbol-index.js';
 import { createMergeQueue } from './lib/merge-queue.js';
+import { createCostTracker } from './lib/cost-tracker.js';
+import { createCounters } from './lib/counters.js';
+import { launchFleetBarIfEnabled } from './lib/fleetbar-launcher.js';
+import { createGraphEdges } from './lib/graph-edges.js';
+import { createEpisodicMemory } from './lib/episodic-memory.js';
 
 // Fastify route aggregator (Phase 3 — native Fastify plugins, no Express bridge)
 import { registerAllRoutes } from './routes/index.js';
 
 // Shared utilities
 import { getSystemPorts, startSystemPortsRefresh } from './shared/port-utils.js';
+import { LOOPBACK_TCP_HOST } from './shared/daemon-discovery.js';
+import { calculateRuntimeCodeHash } from './shared/code-hash.js';
 
 const __dirname: string = dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT: string = existsSync(join(__dirname, 'apps', 'FleetBar'))
+  ? __dirname
+  : dirname(__dirname);
 
 // =============================================================================
 // CONFIGURATION (identical to server.ts)
@@ -81,7 +92,7 @@ const configPath: string = join(__dirname, 'config.json');
 const config: PortDaddyServerConfig = existsSync(configPath)
   ? JSON.parse(readFileSync(configPath, 'utf8')) as PortDaddyServerConfig
   : {
-      service: { port: 9876, host: 'localhost' },
+      service: { port: 9876, host: LOOPBACK_TCP_HOST },
       ports: { range_start: 3100, range_end: 9999, reserved: [8080, 8000, 9876] },
       cleanup: { interval_ms: 300000 },
       logging: { level: 'info', file: 'port-daddy.log', error_file: 'port-daddy-error.log' },
@@ -97,20 +108,7 @@ const VERSION: string = pkg.version;
 // =============================================================================
 
 function calculateCodeHash(): string {
-  const libDir: string = join(__dirname, 'lib');
-  const libFiles: string[] = existsSync(libDir)
-    ? readdirSync(libDir).filter((f: string) => f.endsWith('.ts')).sort().map((f: string) => `lib/${f}`)
-    : [];
-  const filesToHash: string[] = ['server.ts', ...libFiles];
-
-  const hash = createHash('sha256');
-  for (const file of filesToHash) {
-    const filePath: string = join(__dirname, file);
-    if (existsSync(filePath)) {
-      hash.update(readFileSync(filePath));
-    }
-  }
-  return hash.digest('hex').slice(0, 12);
+  return calculateRuntimeCodeHash(__dirname);
 }
 
 const CODE_HASH: string = calculateCodeHash();
@@ -222,6 +220,9 @@ const db: Database.Database = initDatabase({ dbPath: DB_PATH });
 // =============================================================================
 
 const semanticIndex = createSemanticIndex(db);
+const graphEdges = createGraphEdges(db);
+const symbolIndex = createSymbolIndex(db, { graphEdges });
+const episodicMemory = createEpisodicMemory(db);
 
 const services = createServices(db, { semanticIndex });
 const messaging = createMessaging(db);
@@ -232,7 +233,7 @@ const activityLog = createActivityLog(db);
 const webhooks = createWebhooks(db);
 const projects = createProjects(db);
 const noteEncryption = createNoteEncryption();
-const sessions = createSessions(db, noteEncryption, { semanticIndex });
+const sessions = createSessions(db, noteEncryption, { semanticIndex, episodicMemory, symbolIndex });
 sessions.setActivityLog(activityLog);
 
 const agentInbox = createAgentInbox(db, (agentId, message) => {
@@ -250,9 +251,14 @@ dns.setActivityLog(activityLog);
 const resolver = createResolver(db);
 dns.setResolver(resolver);
 const briefing = createBriefing(db, { sessions, agents, resurrection, activityLog, services, messaging });
-const spawner = createSpawner();
+const costTracker = createCostTracker(db);
+const counters = createCounters(db);
+const spawner = createSpawner({ costTracker, counters });
 const sugar = createSugar({ agents, sessions, activityLog });
-const harbors = createHarbors(db);
+const harborTokens = createHarborTokens(db);
+await harborTokens.initDaemonIdentity();
+const harbors = createHarbors(db, { harborTokens });
+const sorties = createSorties(db, { episodicMemory });
 semanticIndex.initialize();
 const arbiter = createArbiter(
   { activityLog, agents, sessions, locks, resurrection },
@@ -265,8 +271,7 @@ const tuples = createTupleSpace(db);
 
 // Phase 1 — Semantic Graph modules (orchestrator plugins, symbol index, merge queue)
 const orchestratorRegistry = createOrchestratorRegistry(db, { activityLog });
-const symbolIndex = createSymbolIndex(db);
-const mergeQueue = createMergeQueue(db, { orchestratorRegistry, activityLog });
+const mergeQueue = createMergeQueue(db, { orchestratorRegistry, activityLog, graphEdges });
 
 const barnacle = createBarnacleWatcher(logger);
 barnacle.start();
@@ -280,6 +285,8 @@ const fleetDaemon = createFleetDaemon({
   messaging,
   logger,
   daemonDir: __dirname,
+  costTracker,
+  locks,
 });
 
 // Wire resurrection events (identical to server.ts)
@@ -506,7 +513,7 @@ app.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) =>
   reply.header('Referrer-Policy', 'no-referrer');
   reply.header(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://localhost:* http://localhost:*; img-src 'self' data:; frame-ancestors 'none';"
+    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://localhost:* http://localhost:* ws://127.0.0.1:* http://127.0.0.1:* ws://[::1]:* http://[::1]:*; img-src 'self' data:; frame-ancestors 'none';"
   );
 });
 
@@ -544,8 +551,8 @@ await registerAllRoutes(
     db, logger, metrics, config,
     services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar,
-    harbors, orchestrator, correlationEngine, spawner, tuples, fleetDaemon,
-    orchestratorRegistry, symbolIndex, mergeQueue,
+    harbors, sorties, orchestrator, correlationEngine, spawner, tuples, fleetDaemon,
+    orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, costTracker, counters,
     VERSION, CODE_HASH, STARTED_AT, __dirname,
     cleanupStale, getSystemPorts,
   },
@@ -586,13 +593,6 @@ function broadcastDashboard(event: string, data?: Record<string, unknown>): void
   for (const client of dashboardClients) {
     client.write(`data: ${payload}\n\n`);
   }
-}
-
-const originalCleanup = cleanupStale;
-function cleanupStaleWithBroadcast(): ReturnType<typeof services.cleanup> {
-  const result = originalCleanup();
-  if (dashboardClients.size > 0) broadcastDashboard('refresh');
-  return result;
 }
 
 // --- Global Error Handler (replaces 4-arg Express middleware) ---
@@ -649,6 +649,8 @@ function shutdown(signal: string): void {
   } catch (e) {
     logger.error('shutdown_logging_failed', { error: (e as Error).message });
   }
+  // Flush counters before closing DB (pending in-memory batches)
+  try { counters.shutdown(); } catch {}
   // Stop fleet runners before closing DB (graceful drain)
   try { fleetDaemon.stop(); } catch {}
   systemPortsRefresh.stop();
@@ -696,6 +698,19 @@ function onReady(): void {
   } catch (err) {
     logger.error('fleet_daemon_start_failed', { error: (err as Error).message });
   }
+
+  const fleetBarLaunch = launchFleetBarIfEnabled({
+    logger,
+    repoRoot: REPO_ROOT,
+    daemonPort: PORT,
+  });
+
+  if (fleetBarLaunch.launched) {
+    logger.info('fleetbar_launch_complete', {
+      target: fleetBarLaunch.target,
+      daemonPort: PORT,
+    });
+  }
 }
 
 // =============================================================================
@@ -707,10 +722,14 @@ const ipcRouter = createIpcRouter({
   agents,
   sessions,
   locks,
+  tuples,
   messaging,
   pheromones,
   resurrection,
   sugar,
+  fleet: {
+    promptLine: (project: string, since?: number) => fleetDaemon.getPromptLine(project, since),
+  },
 });
 
 const ipcServer = DISABLE_IPC ? null : createIpcServer({
@@ -754,6 +773,10 @@ const ipcServer = DISABLE_IPC ? null : createIpcServer({
 // http.Server for TCP.
 
 await app.ready();
+
+const tcpHost: string = !config.service.host || config.service.host === 'localhost'
+  ? LOOPBACK_TCP_HOST
+  : config.service.host;
 
 // Primary: Unix domain socket
 try { unlinkSync(SOCK_PATH); } catch {}
@@ -800,7 +823,7 @@ sockServer.listen(SOCK_PATH, async () => {
       });
       tcpServer.on('listening', () => {
         try { writeFileSync(PORT_FILE, String(tryPort), { mode: 0o644 }); } catch {}
-        logger.info('tcp_started', { port: tryPort, host: config.service.host, version: VERSION });
+        logger.info('tcp_started', { port: tryPort, host: tcpHost, version: VERSION });
         onReady();
         if (!isSilent) {
           const portNote: string = tryPort !== PORT ? ` (fallback from ${PORT})` : '';
@@ -808,7 +831,7 @@ sockServer.listen(SOCK_PATH, async () => {
   Port Daddy v${VERSION}   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   HTTP:       ${SOCK_PATH}
   IPC:        ${ipcServer ? IPC_PATH : 'disabled'}
-  Dashboard:  http://${config.service.host}:${tryPort}/${portNote}
+  Dashboard:  http://${tcpHost}:${tryPort}/${portNote}
   Database:   ${DB_PATH}
   Port range: ${config.ports.range_start}-${config.ports.range_end}
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -817,7 +840,7 @@ sockServer.listen(SOCK_PATH, async () => {
           `);
         }
       });
-      tcpServer.listen(tryPort, config.service.host);
+      tcpServer.listen(tryPort, tcpHost);
     }
     tryListenTcp();
   } else {

@@ -35,6 +35,11 @@ plans/
 .portdaddyrc
 .portdaddy/
 .spark/
+.spider/
+.dogfood/
+.remember/
+CLAUDE.md
+GEMINI.md
 *.strategy.md
 *.internal.md
 .claude/worktrees/
@@ -50,5 +55,10 @@ daemon-error.log
 *.cjs
 STRATEGY_private_gitignore/
 apps/FleetBar/.build/
+**/build/
+fleet-live-app/build/
 .firecrawl/
 .windags/
+v0-agentsd-main/
+agentsd_mocks/
+.aider.chat.history.md

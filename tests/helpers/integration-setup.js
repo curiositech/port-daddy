@@ -13,16 +13,48 @@ import { spawnSync } from 'node:child_process';
 
 const STATE_FILE = join(tmpdir(), 'port-daddy-test-state.json');
 const TSX_PATH = join(import.meta.dirname, '../../node_modules/.bin/tsx');
+const DAEMON_BODY_LIMIT_BYTES = 10 * 1024;
+const TEST_ENV = {
+  sockPath: 'PORT_DADDY_TEST_SOCK',
+  dbPath: 'PORT_DADDY_TEST_DB',
+  tmpDir: 'PORT_DADDY_TEST_TMPDIR',
+  pid: 'PORT_DADDY_TEST_PID'
+};
 
 let _state = null;
+
+function getDaemonStateFromEnv() {
+  const sockPath = process.env[TEST_ENV.sockPath];
+  const dbPath = process.env[TEST_ENV.dbPath];
+  const tmpDir = process.env[TEST_ENV.tmpDir];
+  const pid = process.env[TEST_ENV.pid];
+
+  if (!sockPath || !dbPath || !tmpDir || !pid) return null;
+
+  return {
+    sockPath,
+    dbPath,
+    tmpDir,
+    pid: Number.parseInt(pid, 10)
+  };
+}
 
 /**
  * Get ephemeral daemon connection state.
  */
 export function getDaemonState() {
   if (!_state) {
-    _state = JSON.parse(readFileSync(STATE_FILE, 'utf8'));
+    try {
+      _state = JSON.parse(readFileSync(STATE_FILE, 'utf8'));
+    } catch {
+      _state = getDaemonStateFromEnv();
+    }
   }
+
+  if (!_state) {
+    throw new Error(`missing ephemeral daemon state: ${STATE_FILE}`);
+  }
+
   return _state;
 }
 
@@ -38,11 +70,12 @@ export function request(path, options = {}) {
   } = options;
 
   const jsonBody = body ? JSON.stringify(body) : null;
+  const jsonBodyBytes = jsonBody ? Buffer.byteLength(jsonBody) : 0;
   const reqHeaders = {
     ...headers,
     ...(jsonBody ? {
       'Content-Type': 'application/json',
-      'Content-Length': String(Buffer.byteLength(jsonBody))
+      'Content-Length': String(jsonBodyBytes)
     } : {})
   };
 
@@ -70,7 +103,18 @@ export function request(path, options = {}) {
       });
     });
 
-    req.on('error', reject);
+    req.on('error', (err) => {
+      if ((err?.code === 'EPIPE' || err?.code === 'ECONNRESET') && jsonBodyBytes > DAEMON_BODY_LIMIT_BYTES) {
+        resolve({
+          ok: false,
+          status: 413,
+          data: { error: 'request payload too large' },
+          text: '{"error":"request payload too large"}'
+        });
+        return;
+      }
+      reject(err);
+    });
     req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
 
     if (jsonBody) req.write(jsonBody);

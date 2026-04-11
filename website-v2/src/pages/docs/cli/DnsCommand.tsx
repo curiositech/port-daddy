@@ -5,7 +5,7 @@ export default function DnsCommand() {
     <CommandPage
       command="dns"
       description="Semantic DNS for service discovery. Register human-readable names for ports."
-      version="3.7.0"
+      version="3.8.3"
       syntax="pd dns <subcommand>"
       subcommands={[
         { name: 'register <name> <port>', description: 'Register a name → port mapping', href: '/docs/cli/dns-register' },

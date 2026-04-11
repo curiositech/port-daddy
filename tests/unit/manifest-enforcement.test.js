@@ -55,6 +55,8 @@ function extractServerRoutes() {
     const content = readFileSync(join(routesDir, file), 'utf-8');
     let match;
     while ((match = routePattern.exec(content)) !== null) {
+      // Skip non-route matches (e.g. map.get('spawn.started') in observability.ts)
+      if (!match[2].startsWith('/')) continue;
       routes.push({
         method: match[1].toUpperCase(),
         path: normalizePath(match[2]),
@@ -68,6 +70,7 @@ function extractServerRoutes() {
     const serverContent = readFileSync(join(ROOT, 'server.ts'), 'utf-8');
     let match;
     while ((match = routePattern.exec(serverContent)) !== null) {
+      if (!match[2].startsWith('/')) continue;
       routes.push({
         method: match[1].toUpperCase(),
         path: normalizePath(match[2]),
@@ -634,6 +637,10 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'file_heat': 'pheromone',
       'talk_to_agent': 'inbox',
       'spawn_agent': 'spawn',
+      'run_sortie': 'sorties',
+      'list_sorties': 'sorties',
+      'get_sortie': 'sorties',
+      'get_sortie_logs': 'sorties',
 
       // Tuples
       'tuple_out': 'tuples',
@@ -641,6 +648,10 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'tuple_take': 'tuples',
       'tuple_scan': 'tuples',
       'tuple_count': 'tuples',
+      'graph_edges': 'graph',
+      'graph_stats': 'graph',
+      'memory_episodes': 'memory',
+      'memory_stats': 'memory',
     };
 
     const unmapped = [];

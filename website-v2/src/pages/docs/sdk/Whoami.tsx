@@ -6,7 +6,7 @@ export default function Whoami() {
       function="whoami"
       description="Show the current agent identity and session from the active session file."
       module="Sessions"
-      version="3.7.0"
+      version="3.8.3"
       signature="whoami(): Promise<SessionInfo | null>"
       returns={{
         type: 'Promise<SessionInfo | null>',

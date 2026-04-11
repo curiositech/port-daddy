@@ -31,7 +31,7 @@ Type "# The fleet is running. Let's see who's alive."
 Enter
 Sleep 1s
 
-Type "pd agents --json 2>/dev/null | python3 -c \"import sys,json; agents=json.load(sys.stdin).get('agents',[]); [print(f'  {a[\\\"id\\\"][:12]:12s}  {a.get(\\\"identity\\\",\\\"?\\\"):30s}  {a.get(\\\"purpose\\\",\\\"\\\")[:40]}') for a in agents[:8]]\" 2>/dev/null || echo '  (fleet not running — start with pd fleet up)'"
+Type "pd agents"
 Enter
 Sleep 3s
 
@@ -40,7 +40,7 @@ Type "# Their sessions — each one tracking work in progress"
 Enter
 Sleep 1s
 
-Type "pd sessions --json 2>/dev/null | python3 -c \"import sys,json; ss=json.load(sys.stdin).get('sessions',[]); [print(f'  {s[\\\"id\\\"][:10]:10s}  {s.get(\\\"purpose\\\",\\\"\\\")[:50]:50s}  {s.get(\\\"phase\\\",\\\"?\\\")}') for s in ss[:6] if s.get('status')=='active']\" 2>/dev/null || echo '  (no active sessions)'"
+Type "pd sessions"
 Enter
 Sleep 3s
 
@@ -76,7 +76,7 @@ Type "# Where in the codebase are they working?"
 Enter
 Sleep 1s
 
-Type "pd pheromone files --depth 1 2>/dev/null || echo '  (pheromone data accumulates over time)'"
+Type "curl -s http://localhost:9876/pheromone/files?depth=1 | python3 -mjson.tool 2>/dev/null || echo '  (pheromone data accumulates over time)'"
 Enter
 Sleep 3s
 

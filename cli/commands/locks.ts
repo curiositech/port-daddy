@@ -4,16 +4,20 @@
  * Handles: lock, unlock, locks commands for distributed locking
  */
 
-import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import { CLIOptions, isQuiet, isJson } from '../types.js';
 import { getDirectLocks } from '../utils/direct-db.js';
-import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
+import PortDaddy from '../../lib/client.js';
 
 /**
  * Handle `pd lock <name>` command
  */
 export async function handleLock(name: string | undefined, options: CLIOptions): Promise<void> {
+  const pd = new PortDaddy({
+    agentId: typeof options.owner === 'string' ? options.owner : undefined,
+    pid: process.pid,
+  });
+
   // Subcommand: lock extend <name> [--ttl <ms>]
   if (name === 'extend') {
     const extArgs = process.argv.slice(process.argv.indexOf('extend') + 1);
@@ -30,30 +34,25 @@ export async function handleLock(name: string | undefined, options: CLIOptions):
       console.error('Usage: port-daddy lock extend <name> [--ttl <ms>]');
       process.exit(1);
     }
-    const body: Record<string, unknown> = {
-      ttl: extTtl ? parseInt(extTtl, 10) : 300000
-    };
-    if (options.owner) body.owner = options.owner;
 
-    const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/locks/${encodeURIComponent(extName)}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      ui.error((data.error as string) || 'Failed to extend lock');
+    try {
+      const data = await pd.extendLock(extName, {
+        owner: typeof options.owner === 'string' ? options.owner : undefined,
+        ttl: extTtl ? parseInt(extTtl, 10) : 300000,
+      });
+      if (isJson(options)) {
+        console.log(JSON.stringify(data, null, 2));
+      } else if (!isQuiet(options)) {
+        console.log(`Extended lock: ${extName}`);
+        if (data.expiresAt) {
+          console.log(`  New expiry: ${new Date(data.expiresAt as number).toISOString()}`);
+        }
+      }
+      return;
+    } catch (error: any) {
+      ui.error(error?.body?.error || error?.message || 'Failed to extend lock');
       process.exit(1);
     }
-    if (isJson(options)) {
-      console.log(JSON.stringify(data, null, 2));
-    } else if (!isQuiet(options)) {
-      console.log(`Extended lock: ${extName}`);
-      if (data.expiresAt) {
-        console.log(`  New expiry: ${new Date(data.expiresAt as number).toISOString()}`);
-      }
-    }
-    return;
   }
 
   if (!name) {
@@ -63,24 +62,26 @@ export async function handleLock(name: string | undefined, options: CLIOptions):
     process.exit(1);
   }
 
-  const body: Record<string, unknown> = {
-    owner: options.owner,
-    ttl: options.ttl ? parseInt(options.ttl as string, 10) : 300000
-  };
+  try {
+    const data = await pd.lock(name, {
+      owner: typeof options.owner === 'string' ? options.owner : undefined,
+      ttl: options.ttl ? parseInt(options.ttl as string, 10) : 300000,
+    });
 
-  const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/locks/${encodeURIComponent(name)}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-PID': String(process.pid)
-    },
-    body: JSON.stringify(body)
-  });
-
-  const data = await res.json();
-
-  if (!res.ok) {
-    if (data.error === 'lock is held') {
+    if (isJson(options)) {
+      console.log(JSON.stringify(data, null, 2));
+    } else if (isQuiet(options)) {
+      // Silent success for scripting: port-daddy lock foo && do_stuff
+    } else {
+      ui.success(`Acquired lock: ${name}`);
+      if (data.expiresAt) {
+        const ttlSeconds: number = Math.ceil(((data.expiresAt as number) - (data.acquiredAt as number)) / 1000);
+        console.log(`  TTL: ${ttlSeconds}s`);
+      }
+    }
+  } catch (error: any) {
+    const data = error?.body;
+    if (data?.error === 'lock is held') {
       console.error(`Lock '${name}' is held by ${data.holder}`);
       console.error(`  Held since: ${new Date(data.heldSince as number).toISOString()}`);
       if (data.expiresAt) {
@@ -89,20 +90,8 @@ export async function handleLock(name: string | undefined, options: CLIOptions):
       }
       process.exit(1);
     }
-    ui.error((data.error as string) || 'Failed to acquire lock');
+    ui.error(data?.error || error?.message || 'Failed to acquire lock');
     process.exit(1);
-  }
-
-  if (isJson(options)) {
-    console.log(JSON.stringify(data, null, 2));
-  } else if (isQuiet(options)) {
-    // Silent success for scripting: port-daddy lock foo && do_stuff
-  } else {
-    ui.success(`Acquired lock: ${name}`);
-    if (data.expiresAt) {
-      const ttlSeconds: number = Math.ceil(((data.expiresAt as number) - (data.acquiredAt as number)) / 1000);
-      console.log(`  TTL: ${ttlSeconds}s`);
-    }
   }
 }
 
@@ -115,32 +104,29 @@ export async function handleUnlock(name: string | undefined, options: CLIOptions
     process.exit(1);
   }
 
-  const body: Record<string, unknown> = {
-    owner: options.owner,
-    force: options.force === true
-  };
-
-  const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/locks/${encodeURIComponent(name)}`, {
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
+  const pd = new PortDaddy({
+    agentId: typeof options.owner === 'string' ? options.owner : undefined,
+    pid: process.pid,
   });
 
-  const data = await res.json();
+  try {
+    const data = await pd.unlock(name, {
+      owner: typeof options.owner === 'string' ? options.owner : undefined,
+      force: options.force === true,
+    });
 
-  if (!res.ok) {
-    ui.error((data.error as string) || 'Failed to release lock');
-    process.exit(1);
-  }
-
-  if (isJson(options)) {
-    console.log(JSON.stringify(data, null, 2));
-  } else if (!isQuiet(options)) {
-    if (data.released) {
-      ui.success(`Released lock: ${name}`);
-    } else {
-      ui.warn(`Lock '${name}' was not held`);
+    if (isJson(options)) {
+      console.log(JSON.stringify(data, null, 2));
+    } else if (!isQuiet(options)) {
+      if (data.released) {
+        ui.success(`Released lock: ${name}`);
+      } else {
+        ui.warn(`Lock '${name}' was not held`);
+      }
     }
+  } catch (error: any) {
+    ui.error(error?.body?.error || error?.message || 'Failed to release lock');
+    process.exit(1);
   }
 }
 
@@ -148,15 +134,18 @@ export async function handleUnlock(name: string | undefined, options: CLIOptions
  * Handle `pd locks` command
  */
 export async function handleLocks(options: CLIOptions): Promise<void> {
-  const params = new URLSearchParams();
-  if (options.owner) params.append('owner', options.owner as string);
+  const pd = new PortDaddy({
+    agentId: typeof options.owner === 'string' ? options.owner : undefined,
+    pid: process.pid,
+  });
 
-  const url: string = `${PORT_DADDY_URL}/locks${params.toString() ? '?' + params : ''}`;
-  const res: PdFetchResponse = await pdFetch(url);
-  const data = await res.json();
-
-  if (!res.ok) {
-    ui.error((data.error as string) || 'Failed to list locks');
+  let data;
+  try {
+    data = await pd.listLocks({
+      owner: typeof options.owner === 'string' ? options.owner : undefined,
+    });
+  } catch (error: any) {
+    ui.error(error?.body?.error || error?.message || 'Failed to list locks');
     process.exit(1);
   }
 

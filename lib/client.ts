@@ -18,10 +18,9 @@
 import http from 'node:http';
 import { existsSync } from 'node:fs';
 import type { PortDaddyClientOptions } from '../shared/types.js';
+import { CANONICAL_TCP_PORT, getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { createIpcClient } from './ipc-client.js';
-import { Performative } from './ipc-types.js';
-
-const DEFAULT_URL = 'http://localhost:9876';
+import { IpcAction, Performative } from './ipc-types.js';
 import { DEFAULT_SOCK, DEFAULT_IPC } from '../shared/paths.js';
 
 // =============================================================================
@@ -823,9 +822,13 @@ interface SessionResponse {
   createdAt: number;
   updatedAt: number;
   completedAt?: number | null;
+  worktreeId?: string | null;
   metadata?: Record<string, unknown> | null;
-  files?: Array<{ path: string; claimedAt: number; releasedAt?: number | null }>;
-  conflicts?: Array<{ path: string; sessionId: string; purpose: string; claimedAt: number }>;
+  files?: string[];
+  releasedFiles?: string[];
+  conflicts?: Array<{ filePath: string; sessionId: string; purpose: string; claimedAt: number }>;
+  error?: string;
+  code?: string;
 }
 
 /** Matches the actual GET /sessions/:id response */
@@ -871,6 +874,8 @@ interface SessionListResponse {
     fileCount?: number;
   }>;
   count: number;
+  worktreeId?: string | null;
+  error?: string;
 }
 
 /** Matches the actual POST /sessions/:id/notes or POST /notes response */
@@ -890,6 +895,8 @@ interface NotesResponse {
     type: string;
     createdAt: number;
     sessionPurpose?: string;
+    agentId?: string | null;
+    identityProject?: string | null;
   }>;
   count: number;
 }
@@ -1035,7 +1042,7 @@ class PortDaddy {
    * Create a new Port Daddy client.
    */
   constructor(options: PortDaddyClientOptions = {}) {
-    this.url = (options.url || process.env.PORT_DADDY_URL || DEFAULT_URL).replace(/\/$/, '');
+    this.url = getDaemonTcpUrl(options.url || process.env.PORT_DADDY_URL).replace(/\/$/, '');
     this.socketPath = options.socketPath || process.env.PORT_DADDY_SOCK || DEFAULT_SOCK;
     this.agentId = options.agentId || process.env.PORT_DADDY_AGENT;
     this.pid = options.pid || process.pid;
@@ -1049,6 +1056,7 @@ class PortDaddy {
    */
   private _getIpc(): ReturnType<typeof createIpcClient> | null {
     if (this._ipc) return this._ipc;
+    if (process.env.PORT_DADDY_URL || process.env.PORT_DADDY_SOCK || this.socketPath !== DEFAULT_SOCK) return null;
     if (!this.agentId) return null;
     if (!existsSync(this._ipcPath)) return null;
 
@@ -1063,6 +1071,58 @@ class PortDaddy {
       this._ipc = null;
     });
     return this._ipc;
+  }
+
+  private async _requestViaIpc<T>(
+    action: string,
+    payload: Record<string, unknown>,
+    options: {
+      agentId?: string;
+      performative?: number;
+    } = {},
+  ): Promise<T | null> {
+    if (process.env.PORT_DADDY_URL || process.env.PORT_DADDY_SOCK || this.socketPath !== DEFAULT_SOCK) return null;
+
+    const effectiveAgentId = options.agentId || this.agentId;
+    if (!effectiveAgentId || !existsSync(this._ipcPath)) return null;
+
+    const ipc = createIpcClient({
+      socketPath: this._ipcPath,
+      agentId: effectiveAgentId,
+      reconnect: false,
+      requestTimeout: this.timeout,
+    });
+
+    try {
+      if (ipc.state !== 'ready') {
+        await ipc.connect();
+      }
+
+      const frame = await ipc.request(
+        (options.performative ?? Performative.REQUEST) as typeof Performative.REQUEST,
+        { action, ...payload },
+        this.timeout,
+      );
+
+      if (frame.type !== Performative.INFORM_DONE) {
+        return null;
+      }
+
+      return (frame.payload.result ?? null) as T | null;
+    } catch {
+      return null;
+    } finally {
+      ipc.destroy();
+    }
+  }
+
+  private _throwIpcParityError(
+    result: Record<string, unknown> | null | undefined,
+    fallbackMessage: string,
+    status: number,
+  ): never {
+    const message = typeof result?.error === 'string' ? result.error : fallbackMessage;
+    throw new PortDaddyError(message, status, result ?? null);
   }
 
   // ===========================================================================
@@ -1083,7 +1143,7 @@ class PortDaddy {
     // Explicit TCP URL overrides socket
     if (process.env.PORT_DADDY_URL) {
       const url = new URL(this.url);
-      return { host: url.hostname, port: parseInt(url.port, 10) || 9876 };
+      return { host: url.hostname, port: parseInt(url.port, 10) || CANONICAL_TCP_PORT };
     }
     // Use socket if it exists
     if (existsSync(this.socketPath)) {
@@ -1091,7 +1151,15 @@ class PortDaddy {
     }
     // Fallback to TCP
     const url = new URL(this.url);
-    return { host: url.hostname, port: parseInt(url.port, 10) || 9876 };
+    return { host: url.hostname, port: parseInt(url.port, 10) || CANONICAL_TCP_PORT };
+  }
+
+  /** @private */
+  _shouldFallbackFromSocket(error: NodeJS.ErrnoException): boolean {
+    return error.code === 'ENOENT' ||
+      error.code === 'ECONNREFUSED' ||
+      error.code === 'ECONNRESET' ||
+      error.code === 'EPERM';
   }
 
   /** @private */
@@ -1104,13 +1172,13 @@ class PortDaddy {
       headers['Content-Length'] = String(Buffer.byteLength(jsonBody));
     }
 
-    return new Promise((resolve, reject) => {
+    const makeRequest = (requestTarget: ConnectionTarget) => new Promise((resolve, reject) => {
       const reqOpts: http.RequestOptions = {
         method,
         path,
         headers,
         timeout: this.timeout,
-        ...(target.socketPath ? { socketPath: target.socketPath } : { host: target.host, port: target.port })
+        ...(requestTarget.socketPath ? { socketPath: requestTarget.socketPath } : { host: requestTarget.host, port: requestTarget.port })
       };
 
       const req = http.request(reqOpts, (res) => {
@@ -1133,8 +1201,13 @@ class PortDaddy {
       });
 
       req.on('error', (err: NodeJS.ErrnoException) => {
+        if (requestTarget.socketPath && !process.env.PORT_DADDY_URL && this._shouldFallbackFromSocket(err)) {
+          const url = new URL(this.url);
+          resolve(makeRequest({ host: url.hostname, port: parseInt(url.port, 10) || CANONICAL_TCP_PORT }));
+          return;
+        }
         if (err.code === 'ENOENT' || err.code === 'ECONNREFUSED') {
-          reject(new ConnectionError(target.socketPath || this.url));
+          reject(new ConnectionError(requestTarget.socketPath || this.url));
         } else {
           reject(new PortDaddyError(`Request failed: ${err.message}`, 0, null));
         }
@@ -1148,6 +1221,8 @@ class PortDaddy {
       if (jsonBody) req.write(jsonBody);
       req.end();
     });
+
+    return makeRequest(target);
   }
 
   // ===========================================================================
@@ -1367,7 +1442,8 @@ class PortDaddy {
             // Stream ended — reconnect if enabled
             if (active && reconnect && retryCount < maxRetries) {
               retryCount++;
-              setTimeout(connect, reconnectDelay * retryCount);
+              const timer = setTimeout(connect, reconnectDelay * retryCount);
+              if (typeof timer.unref === 'function') timer.unref();
             }
           });
         });
@@ -1379,7 +1455,8 @@ class PortDaddy {
             // Reconnect on error if enabled
             if (reconnect && retryCount < maxRetries) {
               retryCount++;
-              setTimeout(connect, reconnectDelay * retryCount);
+              const timer = setTimeout(connect, reconnectDelay * retryCount);
+              if (typeof timer.unref === 'function') timer.unref();
             }
           }
         });
@@ -1402,7 +1479,8 @@ class PortDaddy {
               retryCount++;
               currentES.close();
               currentES = undefined;
-              setTimeout(connect, reconnectDelay * retryCount);
+              const timer = setTimeout(connect, reconnectDelay * retryCount);
+              if (typeof timer.unref === 'function') timer.unref();
             }
           }
         };
@@ -1446,6 +1524,23 @@ class PortDaddy {
    * Acquire a distributed lock.
    */
   async lock(name: string, options: LockOptions = {}): Promise<LockResponse> {
+    const ipcResult = await this._requestViaIpc<LockResponse & { error?: string; code?: string }>(
+      IpcAction.LOCK_ACQUIRE,
+      {
+        name,
+        owner: options.owner || this.agentId,
+        ttl: options.ttl,
+        metadata: options.metadata,
+      },
+    );
+    if (ipcResult) {
+      if (ipcResult.success === false) {
+        const status = ipcResult.code === 'INVALID_TTL' ? 400 : 409;
+        this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to acquire lock', status);
+      }
+      return ipcResult;
+    }
+
     return this._request('POST', `/locks/${encodeURIComponent(name)}`, {
       owner: options.owner || this.agentId,
       ttl: options.ttl,
@@ -1457,6 +1552,21 @@ class PortDaddy {
    * Release a distributed lock.
    */
   async unlock(name: string, options: UnlockOptions = {}): Promise<UnlockResponse> {
+    const ipcResult = await this._requestViaIpc<UnlockResponse & { error?: string }>(
+      IpcAction.LOCK_RELEASE,
+      {
+        name,
+        owner: options.owner || this.agentId,
+        force: options.force,
+      },
+    );
+    if (ipcResult) {
+      if (ipcResult.success === false) {
+        this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to release lock', 403);
+      }
+      return ipcResult;
+    }
+
     return this._request('DELETE', `/locks/${encodeURIComponent(name)}`, {
       owner: options.owner || this.agentId,
       force: options.force,
@@ -1467,6 +1577,18 @@ class PortDaddy {
    * Check if a lock is held.
    */
   async checkLock(name: string): Promise<CheckLockResponse> {
+    const ipcResult = await this._requestViaIpc<CheckLockResponse & { error?: string }>(
+      IpcAction.LOCK_CHECK,
+      { name },
+      { performative: Performative.QUERY_REF },
+    );
+    if (ipcResult) {
+      if (ipcResult.success === false) {
+        this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to check lock', 400);
+      }
+      return ipcResult;
+    }
+
     return this._request('GET', `/locks/${encodeURIComponent(name)}`) as Promise<CheckLockResponse>;
   }
 
@@ -1474,6 +1596,21 @@ class PortDaddy {
    * Extend a lock's TTL.
    */
   async extendLock(name: string, options: LockOptions = {}): Promise<ExtendLockResponse> {
+    const ipcResult = await this._requestViaIpc<ExtendLockResponse & { error?: string; code?: string }>(
+      IpcAction.LOCK_EXTEND,
+      {
+        name,
+        owner: options.owner || this.agentId,
+        ttl: options.ttl,
+      },
+    );
+    if (ipcResult) {
+      if (ipcResult.success === false) {
+        this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to extend lock', 400);
+      }
+      return ipcResult;
+    }
+
     return this._request('PUT', `/locks/${encodeURIComponent(name)}`, {
       owner: options.owner || this.agentId,
       ttl: options.ttl,
@@ -1484,6 +1621,18 @@ class PortDaddy {
    * List all locks.
    */
   async listLocks(options: ListLocksOptions = {}): Promise<ListLocksResponse> {
+    const ipcResult = await this._requestViaIpc<ListLocksResponse & { error?: string }>(
+      IpcAction.LOCK_LIST,
+      { owner: options.owner },
+      { performative: Performative.QUERY_REF },
+    );
+    if (ipcResult) {
+      if (ipcResult.success === false) {
+        this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to list locks', 400);
+      }
+      return ipcResult;
+    }
+
     const params = new URLSearchParams();
     if (options.owner) params.set('owner', options.owner);
     const qs = params.toString();
@@ -1561,6 +1710,7 @@ class PortDaddy {
             // Best-effort extend — if it fails, the lock may expire
           });
         }, autoExtendMs);
+        if (typeof extendTimer.unref === 'function') extendTimer.unref();
       }
 
       return await fn();
@@ -1622,6 +1772,7 @@ class PortDaddy {
     const timer = setInterval(() => {
       this.heartbeat().catch(handleError);
     }, intervalMs);
+    if (typeof timer.unref === 'function') timer.unref();
 
     // Send one immediately
     this.heartbeat().catch(handleError);
@@ -1884,6 +2035,17 @@ class PortDaddy {
     force?: boolean;
     metadata?: Record<string, unknown>;
   }): Promise<SessionResponse> {
+    const ipcResult = await this._requestViaIpc<SessionResponse>(
+      IpcAction.SESSION_START,
+      options,
+    );
+    if (ipcResult) {
+      if (ipcResult.success === false) {
+        const status = ipcResult.code === 'FILE_CONFLICT' ? 409 : 400;
+        this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to start session', status);
+      }
+      return ipcResult;
+    }
     return this._request('POST', '/sessions', options) as Promise<SessionResponse>;
   }
 
@@ -1901,6 +2063,20 @@ class PortDaddy {
     const note = isSessionId ? options?.note : sessionIdOrNote;
 
     if (sessionId) {
+      const ipcResult = await this._requestViaIpc<SessionResponse>(
+        IpcAction.SESSION_END,
+        {
+          sessionId,
+          status: options?.status || 'completed',
+          note,
+        },
+      );
+      if (ipcResult) {
+        if (ipcResult.success === false) {
+          this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to end session', 404);
+        }
+        return ipcResult;
+      }
       return this._request('PUT', `/sessions/${sessionId}`, {
         status: options?.status || 'completed',
         note,
@@ -1908,7 +2084,11 @@ class PortDaddy {
     }
 
     // Find active session
-    const list = await this.sessions({ status: 'active', limit: 1 });
+    const list = await this.sessions({
+      status: 'active',
+      agentId: this.agentId,
+      limit: 1,
+    });
     if (!list.sessions.length) {
       return { success: false, id: '', purpose: '', status: '', createdAt: 0, updatedAt: 0 } as SessionResponse;
     }
@@ -1930,6 +2110,16 @@ class PortDaddy {
    * Delete a session entirely.
    */
   async removeSession(sessionId: string): Promise<{ success: boolean }> {
+    const ipcResult = await this._requestViaIpc<{ success: boolean; error?: string }>(
+      IpcAction.SESSION_REMOVE,
+      { sessionId },
+    );
+    if (ipcResult) {
+      if (ipcResult.success === false) {
+        this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to remove session', 404);
+      }
+      return ipcResult;
+    }
     return this._request('DELETE', `/sessions/${sessionId}`) as Promise<{ success: boolean }>;
   }
 
@@ -1941,6 +2131,17 @@ class PortDaddy {
     agentId?: string;
     sessionId?: string;
   }): Promise<NoteResponse> {
+    const ipcResult = await this._requestViaIpc<NoteResponse>(
+      IpcAction.NOTE,
+      {
+        sessionId: options?.sessionId,
+        content,
+        type: options?.type,
+      },
+      { agentId: options?.agentId },
+    );
+    if (ipcResult) return ipcResult;
+
     if (options?.sessionId) {
       return this._request('POST', `/sessions/${options.sessionId}/notes`, {
         content,
@@ -1979,12 +2180,43 @@ class PortDaddy {
   async sessions(options?: {
     status?: string;
     agentId?: string;
-    all?: boolean;
+    project?: string;
+    purpose?: string;
+    worktreeId?: string;
+    allWorktrees?: boolean;
+    includeNotes?: boolean;
     limit?: number;
   }): Promise<SessionListResponse> {
+    const ipcPayload = {
+      status: options?.status,
+      agentId: options?.agentId,
+      project: options?.project,
+      purpose: options?.purpose,
+      worktreeId: options?.worktreeId,
+      allWorktrees: options?.allWorktrees,
+      includeNotes: options?.includeNotes,
+      limit: options?.limit,
+    };
+    const ipcResult = await this._requestViaIpc<SessionListResponse>(
+      IpcAction.SESSION_LIST,
+      ipcPayload,
+      { performative: Performative.QUERY_REF },
+    );
+    if (ipcResult) {
+      if (ipcResult.success === false) {
+        this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to list sessions', 400);
+      }
+      return ipcResult;
+    }
+
     const params = new URLSearchParams();
     if (options?.status) params.set('status', options.status);
     if (options?.agentId) params.set('agent', options.agentId);
+    if (options?.project) params.set('project', options.project);
+    if (options?.purpose) params.set('purpose', options.purpose);
+    if (options?.worktreeId) params.set('worktree', options.worktreeId);
+    if (options?.allWorktrees) params.set('allWorktrees', 'true');
+    if (options?.includeNotes) params.set('notes', 'true');
     if (options?.limit) params.set('limit', String(options.limit));
     const qs = params.toString();
     return this._request('GET', `/sessions${qs ? `?${qs}` : ''}`) as Promise<SessionListResponse>;
@@ -2014,6 +2246,12 @@ class PortDaddy {
       force = options.force;
       regions = options.regions;
     }
+    const ipcResult = await this._requestViaIpc<FileClaimResponse>(
+      IpcAction.FILES_CLAIM,
+      { sessionId, paths: files, regions, force },
+    );
+    if (ipcResult) return ipcResult;
+
     return this._request('POST', `/sessions/${sessionId}/files`, { files, regions, force }) as Promise<FileClaimResponse>;
   }
 
@@ -2025,6 +2263,12 @@ class PortDaddy {
     files: string[],
     options?: { regions?: FileRegion[] }
   ): Promise<FileReleaseResponse> {
+    const ipcResult = await this._requestViaIpc<FileReleaseResponse>(
+      IpcAction.FILES_RELEASE,
+      { sessionId, paths: files, regions: options?.regions },
+    );
+    if (ipcResult) return ipcResult;
+
     return this._request('DELETE', `/sessions/${sessionId}/files`, { files, regions: options?.regions }) as Promise<FileReleaseResponse>;
   }
 
@@ -2166,7 +2410,10 @@ class PortDaddy {
     if (note) body.note = note;
     if (options.status) body.status = options.status;
 
-    const result = await this._request('POST', '/sugar/done', body) as DoneSugarResponse;
+    const ipcResult = await this._requestViaIpc<DoneSugarResponse>(IpcAction.DONE, body, {
+      agentId: options.agentId || this.agentId,
+    });
+    const result = ipcResult ?? await this._request('POST', '/sugar/done', body) as DoneSugarResponse;
 
     // Clear agentId since we just unregistered
     if (result.agentUnregistered) {
@@ -2185,6 +2432,14 @@ class PortDaddy {
    */
   async whoami(agentId?: string): Promise<WhoamiSugarResponse> {
     const id = agentId || this.agentId;
+    if (id) {
+      const ipcResult = await this._requestViaIpc<WhoamiSugarResponse>(
+        IpcAction.WHOAMI,
+        { agentId: id },
+        { agentId: id, performative: Performative.QUERY_REF },
+      );
+      if (ipcResult) return ipcResult;
+    }
     const qs = id ? `?agentId=${encodeURIComponent(id)}` : '';
     return this._request('GET', `/sugar/whoami${qs}`) as Promise<WhoamiSugarResponse>;
   }
@@ -2561,13 +2816,15 @@ class PortDaddy {
 
   /**
    * Launch an AI agent with the given spec.
-   * Supports backends: ollama, claude, gemini, aider, custom.
+   * Supports backends: ollama, claude, claude-cli, gemini, codex, aider, custom.
    * Auto-wires PD coordination (agent registration, session, heartbeat, done).
    *
    * @example
    * const result = await pd.spawn({
    *   backend: 'ollama',
-   *   model: 'llama3.2:8b',
+   *   model: 'llama3.1:8b',
+   *   identity: 'myapp:coder',
+   *   budgetUsd: 2.5,
    *   task: 'Write a hello world in TypeScript',
    * });
    * console.log(result.output);
@@ -2588,6 +2845,41 @@ class PortDaddy {
    */
   async killSpawned(agentId: string): Promise<KillSpawnedResponse> {
     return this._request('DELETE', `/spawn/${encodeURIComponent(agentId)}`) as Promise<KillSpawnedResponse>;
+  }
+
+  /**
+   * Launch a tracked sortie mission.
+   * This is the first-class mission surface over spawned runs: persisted id, event log,
+   * harbor, and durable status/result lookup.
+   */
+  async runSortie(spec: SortieSpec): Promise<RunSortieResponse> {
+    return this._request('POST', '/sorties', spec as unknown as Record<string, unknown>) as Promise<RunSortieResponse>;
+  }
+
+  /**
+   * List recent sorties for the current project or all projects.
+   */
+  async listSorties(options: ListSortiesOptions = {}): Promise<ListSortiesResponse> {
+    const params = new URLSearchParams();
+    if (options.projectDir) params.set('projectDir', options.projectDir);
+    if (typeof options.limit === 'number') params.set('limit', String(options.limit));
+    const suffix = params.toString();
+    return this._request('GET', suffix ? `/sorties?${suffix}` : '/sorties') as Promise<ListSortiesResponse>;
+  }
+
+  /**
+   * Fetch a single sortie mission by id.
+   */
+  async getSortie(sortieId: string): Promise<GetSortieResponse> {
+    return this._request('GET', `/sorties/${encodeURIComponent(sortieId)}`) as Promise<GetSortieResponse>;
+  }
+
+  /**
+   * Fetch the event log for a sortie mission.
+   */
+  async getSortieLogs(sortieId: string, limit?: number): Promise<GetSortieLogsResponse> {
+    const suffix = typeof limit === 'number' ? `?limit=${limit}` : '';
+    return this._request('GET', `/sorties/${encodeURIComponent(sortieId)}/logs${suffix}`) as Promise<GetSortieLogsResponse>;
   }
 
   // Harbors -- Named Permission Namespaces
@@ -2726,6 +3018,22 @@ class PortDaddy {
     fields: unknown[],
     options: { harbor?: string; writtenBy?: string; ttlMs?: number } = {}
   ): Promise<TupleOutResponse> {
+    const ipcResult = await this._requestViaIpc<TupleOutResponse & { error?: string; code?: string }>(
+      IpcAction.TUPLE_OUT,
+      {
+        fields,
+        harbor: options.harbor,
+        writtenBy: options.writtenBy,
+        ttlMs: options.ttlMs,
+      },
+    );
+    if (ipcResult) {
+      if (ipcResult.success === false) {
+        this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to write tuple', 400);
+      }
+      return ipcResult;
+    }
+
     return this._request('POST', '/tuples', {
       fields,
       harbor: options.harbor,
@@ -2745,6 +3053,22 @@ class PortDaddy {
     pattern: unknown[],
     options: { harbor?: string; limit?: number } = {}
   ): Promise<TupleRdResponse> {
+    const ipcResult = await this._requestViaIpc<TupleRdResponse & { error?: string }>(
+      IpcAction.TUPLE_RD,
+      {
+        pattern,
+        harbor: options.harbor,
+        limit: options.limit,
+      },
+      { performative: Performative.QUERY_REF },
+    );
+    if (ipcResult) {
+      if (ipcResult.success === false) {
+        this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to read tuples', 400);
+      }
+      return ipcResult;
+    }
+
     const params = new URLSearchParams();
     params.set('pattern', JSON.stringify(pattern));
     if (options.harbor) params.set('harbor', options.harbor);
@@ -2763,6 +3087,21 @@ class PortDaddy {
     pattern: unknown[],
     options: { harbor?: string; limit?: number } = {}
   ): Promise<TupleInResponse> {
+    const ipcResult = await this._requestViaIpc<TupleInResponse & { error?: string }>(
+      IpcAction.TUPLE_IN,
+      {
+        pattern,
+        harbor: options.harbor,
+        limit: options.limit,
+      },
+    );
+    if (ipcResult) {
+      if (ipcResult.success === false) {
+        this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to take tuples', 400);
+      }
+      return ipcResult;
+    }
+
     return this._request('DELETE', '/tuples', {
       pattern,
       harbor: options.harbor,
@@ -2777,6 +3116,18 @@ class PortDaddy {
    * const { tuples, count } = await pd.tupleScan('myapp');
    */
   async tupleScan(harbor?: string): Promise<TupleScanResponse> {
+    const ipcResult = await this._requestViaIpc<TupleScanResponse & { error?: string }>(
+      IpcAction.TUPLE_SCAN,
+      { harbor },
+      { performative: Performative.QUERY_REF },
+    );
+    if (ipcResult) {
+      if (ipcResult.success === false) {
+        this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to scan tuples', 400);
+      }
+      return ipcResult;
+    }
+
     const params = new URLSearchParams();
     if (harbor) params.set('harbor', harbor);
     const qs = params.toString() ? '?' + params.toString() : '';
@@ -2790,6 +3141,18 @@ class PortDaddy {
    * const { count } = await pd.tupleCount('myapp');
    */
   async tupleCount(harbor?: string): Promise<TupleCountResponse> {
+    const ipcResult = await this._requestViaIpc<TupleCountResponse & { error?: string }>(
+      IpcAction.TUPLE_COUNT,
+      { harbor },
+      { performative: Performative.QUERY_REF },
+    );
+    if (ipcResult) {
+      if (ipcResult.success === false) {
+        this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to count tuples', 400);
+      }
+      return ipcResult;
+    }
+
     const params = new URLSearchParams();
     if (harbor) params.set('harbor', harbor);
     const qs = params.toString() ? '?' + params.toString() : '';
@@ -3047,15 +3410,19 @@ interface ChangelogIdentitiesResponse {
 // =============================================================================
 
 interface SpawnSpec {
-  backend: 'ollama' | 'claude' | 'gemini' | 'aider' | 'custom';
+  backend: 'ollama' | 'claude' | 'claude-cli' | 'gemini' | 'codex' | 'aider' | 'custom';
   model?: string;
-  identity?: string;
+  modelTier?: 'low' | 'mid' | 'high';
+  identity: string;
+  budgetUsd: number;
   purpose?: string;
   task: string;
   files?: string[];
   workdir?: string;
   env?: Record<string, string>;
   timeout?: number;
+  allowedTools?: string;
+  maxTokens?: number;
 }
 
 interface SpawnResult {
@@ -3091,6 +3458,94 @@ interface KillSpawnedResponse {
   success: boolean;
   agentId: string;
   message: string;
+}
+
+// =============================================================================
+// Sortie types
+// =============================================================================
+
+interface SortieSpec {
+  goal: string;
+  projectDir?: string;
+  backend: SpawnSpec['backend'];
+  budgetUsd: number;
+  model?: string;
+  modelTier?: 'low' | 'mid' | 'high';
+  recipe?: string;
+  expectedOutput?: string;
+  context?: string;
+  approvalMode?: 'none' | 'before-build' | 'before-apply' | 'before-close';
+  roster?: string[];
+  identity?: string;
+  purpose?: string;
+  allowedTools?: string;
+  timeout?: number;
+  maxTokens?: number;
+}
+
+interface SortieRecord {
+  id: string;
+  projectDir: string;
+  project: string;
+  harbor: string;
+  goal: string;
+  recipe: string | null;
+  status: 'planned' | 'blocked' | 'running' | 'completed' | 'failed' | 'cancelled';
+  backend: SpawnSpec['backend'];
+  model: string | null;
+  modelTier: 'low' | 'mid' | 'high' | null;
+  budgetUsd: number;
+  expectedOutput: string | null;
+  spawnAgentId: string | null;
+  resultOutput: string | null;
+  error: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: number;
+  startedAt: number | null;
+  updatedAt: number;
+  completedAt: number | null;
+}
+
+interface SortieEvent {
+  id: number;
+  sortieId: string;
+  type: string;
+  summary: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: number;
+}
+
+interface RunSortieResponse {
+  success: boolean;
+  sortie: SortieRecord;
+  result?: SpawnResult;
+  preflight?: Record<string, unknown>;
+  error?: string;
+}
+
+interface ListSortiesOptions {
+  projectDir?: string;
+  limit?: number;
+}
+
+interface ListSortiesResponse {
+  success: boolean;
+  sorties: SortieRecord[];
+  count: number;
+}
+
+interface GetSortieResponse {
+  success: boolean;
+  sortie: SortieRecord;
+  error?: string;
+}
+
+interface GetSortieLogsResponse {
+  success: boolean;
+  sortie: SortieRecord;
+  events: SortieEvent[];
+  count: number;
+  error?: string;
 }
 
 // =============================================================================
@@ -3131,6 +3586,7 @@ interface EnterHarborOptions {
 interface HarborResponse {
   success: boolean;
   harbor?: HarborEntry;
+  harborCard?: string;
   error?: string;
 }
 
@@ -3332,6 +3788,14 @@ export type {
   SpawnedAgent,
   ListSpawnedResponse,
   KillSpawnedResponse,
+  SortieSpec,
+  SortieRecord,
+  SortieEvent,
+  RunSortieResponse,
+  ListSortiesOptions,
+  ListSortiesResponse,
+  GetSortieResponse,
+  GetSortieLogsResponse,
   HarborMemberEntry,
   HarborEntry,
   CreateHarborOptions,

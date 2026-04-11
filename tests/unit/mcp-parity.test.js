@@ -182,6 +182,10 @@ const TOOL_FEATURE_MAP = {
   'file_heat': 'pheromone',
   'talk_to_agent': 'inbox',
   'spawn_agent': 'spawn',
+  'run_sortie': 'sorties',
+  'list_sorties': 'sorties',
+  'get_sortie': 'sorties',
+  'get_sortie_logs': 'sorties',
 
   // Tuple Space
   'tuple_out': 'tuples',
@@ -189,6 +193,10 @@ const TOOL_FEATURE_MAP = {
   'tuple_take': 'tuples',
   'tuple_scan': 'tuples',
   'tuple_count': 'tuples',
+  'graph_edges': 'graph',
+  'graph_stats': 'graph',
+  'memory_episodes': 'memory',
+  'memory_stats': 'memory',
 };
 
 /**
@@ -206,6 +214,7 @@ const MCP_EXEMPT_FEATURES = new Set([
   'pheromone',      // Internal signal system; admin API for debugging, MCP deferred to v4
   'merge_queue',    // API-only merge queue; no CLI or MCP tools yet
   'symbols',        // API-only symbol index; no CLI or MCP tools yet
+  'observability',  // Internal metrics/golden signals; admin API, not user-facing MCP
 ]);
 
 // ============================================================================
@@ -633,7 +642,7 @@ describe('MCP tiered tool loading', () => {
   const CATEGORY_NAMES = [
     'magic', 'session-lifecycle', 'ports', 'sessions', 'notes', 'locks',
     'messaging', 'agents', 'inbox', 'webhooks', 'integration', 'dns', 'briefing',
-    'tunnels', 'projects', 'changelog', 'activity', 'system', 'tuples',
+    'tunnels', 'projects', 'changelog', 'activity', 'system', 'tuples', 'sorties', 'semantic',
   ];
 
   it('ESSENTIAL_TOOL_NAMES in server matches expected set', () => {

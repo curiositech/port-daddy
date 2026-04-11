@@ -38,14 +38,14 @@ Sleep 2s
 Type "# Agent A posts a task into the space"
 Enter
 Sleep 800ms
-Type "pd tuple out '{\"type\":\"task\",\"action\":\"write-tests\",\"file\":\"auth.ts\",\"priority\":1}'"
+Type `pd tuple out '{"type":"task","action":"write-tests","file":"auth.ts","priority":1}'`
 Enter
 Sleep 2s
 
 Type "# Agent B posts a different task"
 Enter
 Sleep 800ms
-Type "pd tuple out '{\"type\":\"task\",\"action\":\"fix-bug\",\"file\":\"session.ts\",\"priority\":2}'"
+Type `pd tuple out '{"type":"task","action":"fix-bug","file":"session.ts","priority":2}'`
 Enter
 Sleep 2s
 
@@ -55,14 +55,14 @@ Enter
 Type "# Any agent can read all tasks (non-destructive — tuples stay)"
 Enter
 Sleep 800ms
-Type "pd tuple rd '{\"type\":\"task\"}'"
+Type `pd tuple rd '{"type":"task"}'`
 Enter
 Sleep 3s
 
 Type "# Or read only high-priority tasks"
 Enter
 Sleep 800ms
-Type "pd tuple rd '{\"type\":\"task\",\"priority\":1}'"
+Type `pd tuple rd '{"type":"task","priority":1}'`
 Enter
 Sleep 3s
 
@@ -74,7 +74,7 @@ Enter
 Type "# Now nobody else can claim it. This is atomic coordination."
 Enter
 Sleep 1.5s
-Type "pd tuple in '{\"type\":\"task\",\"priority\":1}'"
+Type `pd tuple in '{"type":"task","priority":1}'`
 Enter
 Sleep 3s
 
@@ -91,11 +91,11 @@ Enter
 Type "# Tuples can be scoped to harbors — team boundaries"
 Enter
 Sleep 1s
-Type "pd tuple out '{\"type\":\"result\",\"status\":\"tests-pass\"}' --harbor backend"
+Type `pd tuple out '{"type":"result","status":"tests-pass"}' --harbor backend`
 Enter
 Sleep 2s
 
-Type "pd tuple rd '{\"type\":\"result\"}' --harbor backend"
+Type `pd tuple rd '{"type":"result"}' --harbor backend`
 Enter
 Sleep 3s
 

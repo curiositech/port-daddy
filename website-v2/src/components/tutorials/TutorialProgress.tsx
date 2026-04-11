@@ -11,24 +11,27 @@ interface Tutorial {
   level: 'Beginner' | 'Intermediate' | 'Advanced'
 }
 
-// Tutorial roadmap data
+// Tutorial roadmap data — must stay in sync with src/data/tutorials.ts
 const TUTORIALS: Tutorial[] = [
-  { number: 1, title: 'The First Handshake', href: '/tutorials/getting-started', readTime: '5 min', level: 'Beginner' },
-  { number: 2, title: 'Multi-Agent Orchestration', href: '/tutorials/multi-agent', readTime: '8 min', level: 'Beginner' },
-  { number: 3, title: 'Session Phases', href: '/tutorials/session-phases', readTime: '6 min', level: 'Beginner' },
-  { number: 4, title: 'Working with Ports', href: '/tutorials/monorepo', readTime: '7 min', level: 'Beginner' },
-  { number: 5, title: 'The Inbox Pattern', href: '/tutorials/inbox', readTime: '8 min', level: 'Intermediate' },
-  { number: 6, title: 'Sugar & Syntax', href: '/tutorials/sugar', readTime: '5 min', level: 'Intermediate' },
-  { number: 7, title: 'Always-On Avatars', href: '/tutorials/always-on', readTime: '10 min', level: 'Intermediate' },
-  { number: 8, title: 'pd spawn', href: '/tutorials/pd-spawn', readTime: '8 min', level: 'Intermediate' },
-  { number: 9, title: 'The Dashboard', href: '/tutorials/dashboard', readTime: '6 min', level: 'Intermediate' },
-  { number: 10, title: 'Harbors', href: '/tutorials/harbors', readTime: '12 min', level: 'Intermediate' },
-  { number: 11, title: 'pd watch', href: '/tutorials/watch', readTime: '7 min', level: 'Intermediate' },
-  { number: 12, title: 'Time-Travel Debugging', href: '/tutorials/time-travel', readTime: '9 min', level: 'Advanced' },
-  { number: 13, title: 'Pipelines', href: '/tutorials/pipelines', readTime: '11 min', level: 'Advanced' },
-  { number: 14, title: 'DNS Resolver', href: '/tutorials/dns', readTime: '6 min', level: 'Advanced' },
-  { number: 15, title: 'Remote Harbors', href: '/tutorials/remote-harbors', readTime: '14 min', level: 'Advanced' },
-  { number: 16, title: 'Debugging Production', href: '/tutorials/debugging', readTime: '10 min', level: 'Advanced' },
+  { number: 1, title: 'Getting Started', href: '/tutorials/getting-started', readTime: '5 min', level: 'Beginner' },
+  { number: 2, title: 'Multi-Agent Orchestration', href: '/tutorials/multi-agent', readTime: '12 min', level: 'Intermediate' },
+  { number: 3, title: 'Monorepo Mastery', href: '/tutorials/monorepo', readTime: '10 min', level: 'Intermediate' },
+  { number: 4, title: 'Debugging', href: '/tutorials/debugging', readTime: '8 min', level: 'Intermediate' },
+  { number: 5, title: 'Tunnels', href: '/tutorials/tunnel', readTime: '6 min', level: 'Beginner' },
+  { number: 6, title: 'DNS Resolver', href: '/tutorials/dns', readTime: '8 min', level: 'Intermediate' },
+  { number: 7, title: 'Session Phases', href: '/tutorials/session-phases', readTime: '15 min', level: 'Advanced' },
+  { number: 8, title: 'Inbox & Messaging', href: '/tutorials/inbox', readTime: '10 min', level: 'Advanced' },
+  { number: 9, title: 'Sugar Commands', href: '/tutorials/sugar', readTime: '5 min', level: 'Beginner' },
+  { number: 10, title: 'Spawn + Watch Pattern', href: '/tutorials/always-on', readTime: '15 min', level: 'Advanced' },
+  { number: 11, title: 'pd spawn: Agent Fleets', href: '/tutorials/pd-spawn', readTime: '15 min', level: 'Advanced' },
+  { number: 12, title: 'Harbor Tokens', href: '/tutorials/harbors', readTime: '12 min', level: 'Advanced' },
+  { number: 13, title: 'Live Dashboard', href: '/tutorials/dashboard', readTime: '5 min', level: 'Beginner' },
+  { number: 14, title: 'Activity Log', href: '/tutorials/time-travel', readTime: '8 min', level: 'Intermediate' },
+  { number: 15, title: 'Reactive Pipelines', href: '/tutorials/pipelines', readTime: '12 min', level: 'Advanced' },
+  { number: 16, title: 'Swarm Observation', href: '/tutorials/watch', readTime: '10 min', level: 'Intermediate' },
+  { number: 17, title: 'Multiplayer Localhost', href: '/tutorials/remote-harbors', readTime: '15 min', level: 'Advanced' },
+  { number: 18, title: 'Fleet: Background Agents', href: '/tutorials/fleet', readTime: '12 min', level: 'Intermediate' },
+  { number: 19, title: 'Pheromone Trails', href: '/tutorials/pheromone', readTime: '8 min', level: 'Intermediate' },
 ]
 
 const TOTAL_TIME = TUTORIALS.reduce((acc, t) => acc + parseInt(t.readTime), 0) // ~133 minutes

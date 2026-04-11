@@ -36,6 +36,7 @@ beforeEach(() => {
   activityLog = createActivityLog(db);
   messaging = createMessaging(db);
   resurrection = createResurrection(db);
+  sessions.setActivityLog(activityLog);
   briefing = createBriefing(db, {
     sessions,
     agents,
@@ -155,6 +156,34 @@ describe('gatherData', () => {
 
     const data = briefing.gatherData('noteproject', testDir);
     expect(data.recentNotes.length).toBeGreaterThanOrEqual(2);
+  });
+
+  test('includes recent activity derived from session metadata even without target prefixes', () => {
+    sessions.start('Activity-bearing session', { project: 'activityproject', agentId: 'qa-agent' });
+
+    const data = briefing.gatherData('activityproject', testDir);
+    expect(data.recentActivity.some(entry =>
+      entry.type === 'session.start'
+      && entry.metadata?.identityProject === 'activityproject'
+      && entry.agentId === 'qa-agent'
+    )).toBe(true);
+  });
+
+  test('adds summary and files to recent activity entries for briefing consumers', () => {
+    const started = sessions.start('File-bearing session', {
+      project: 'briefing-files',
+      agentId: 'documentarian',
+    });
+
+    expect(started.success).toBe(true);
+    sessions.claimFiles(started.id, ['docs/recovery/CURRENT-WORK.md']);
+
+    const data = briefing.gatherData('briefing-files', testDir);
+    const fileClaim = data.recentActivity.find(entry => entry.type === 'file.claim');
+
+    expect(fileClaim).toBeDefined();
+    expect(fileClaim.summary).toContain('Claimed');
+    expect(fileClaim.files).toContain('docs/recovery/CURRENT-WORK.md');
   });
 
   test('includes integration signals from messaging channels', () => {

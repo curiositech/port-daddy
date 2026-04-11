@@ -7,10 +7,27 @@
  */
 
 import { join } from 'node:path';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { request, runCli, getDaemonState } from '../helpers/integration-setup.js';
 
+async function requestWithRetry(path, options = {}, attempts = 3) {
+  let lastError;
+  for (let index = 0; index < attempts; index += 1) {
+    try {
+      return await request(path, options);
+    } catch (error) {
+      lastError = error;
+      const code = error && typeof error === 'object' && 'code' in error ? error.code : '';
+      if (code !== 'EPIPE' && code !== 'ECONNRESET') throw error;
+    }
+  }
+  throw lastError;
+}
+
 describe('CLI Integration Tests', () => {
+  const repoRoot = join(import.meta.dirname, '../..');
+
   test('ephemeral daemon is running', async () => {
     const state = getDaemonState();
     expect(state.sockPath).toBeDefined();
@@ -109,6 +126,26 @@ describe('CLI Integration Tests', () => {
       // Cleanup
       runCli(['unlock', testLock]);
     });
+
+    test('with-lock runs command and releases lock afterward', () => {
+      const nestedLock = `${testLock}-with-lock`;
+      const tempDir = mkdtempSync(join(tmpdir(), 'pd-with-lock-'));
+      const scriptPath = join(tempDir, 'inside-lock.js');
+      writeFileSync(scriptPath, 'process.stdout.write("inside-lock")');
+
+      try {
+        const result = runCli(['with-lock', nestedLock, 'node', scriptPath]);
+        expect(result.success).toBe(true);
+        expect(result.stdout).toContain('inside-lock');
+
+        const reacquire = runCli(['lock', nestedLock]);
+        expect(reacquire.success).toBe(true);
+
+        runCli(['unlock', nestedLock]);
+      } finally {
+        rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
   });
 
   describe('Pub/Sub Commands', () => {
@@ -151,6 +188,103 @@ describe('CLI Integration Tests', () => {
       const data = JSON.parse(result.stdout);
       expect(data.success).toBe(true);
       expect(Array.isArray(data.projects)).toBe(true);
+    });
+  });
+
+  describe('Ideas Command', () => {
+    test('ideas list returns curated trove entries', () => {
+      const result = runCli(['ideas', 'list', '--dir', repoRoot, '--limit', '6', '--json']);
+      expect(result.success).toBe(true);
+
+      const data = JSON.parse(result.stdout);
+      expect(Array.isArray(data.entries)).toBe(true);
+      expect(data.entries.some((entry) => entry.slug === 'capability-discovery-dns-harbor')).toBe(true);
+    });
+
+    test('ideas search finds the ipc disconnect salvage family', () => {
+      const result = runCli(['ideas', 'search', 'salvage disconnect', '--dir', repoRoot, '--include-raw', '--json']);
+      expect(result.success).toBe(true);
+
+      const data = JSON.parse(result.stdout);
+      expect(Array.isArray(data.results)).toBe(true);
+      expect(data.results.some((entry) => entry.slug === 'ipc-disconnect-instant-salvage')).toBe(true);
+    });
+
+    test('ideas show returns a detailed entry', () => {
+      const result = runCli(['ideas', 'show', 'tuple-driven-fleet', '--dir', repoRoot, '--json']);
+      expect(result.success).toBe(true);
+
+      const data = JSON.parse(result.stdout);
+      expect(data.entry.slug).toBe('tuple-driven-fleet');
+      expect(data.entry.summary).toContain('fleet');
+    });
+
+    test('ideas search can find matching daemon notes', async () => {
+      const phrase = `federated-note-${Date.now()}`;
+      const noteRes = await requestWithRetry('/notes', {
+        method: 'POST',
+        body: {
+          content: `Need ${phrase} in the operator memory surface`,
+          agentId: `ideas-note-${Date.now()}`,
+          type: 'note',
+        },
+      });
+      expect(noteRes.ok).toBe(true);
+
+      const result = runCli(['ideas', 'search', phrase, '--sources', 'notes', '--json']);
+      expect(result.success).toBe(true);
+
+      const data = JSON.parse(result.stdout);
+      expect(Array.isArray(data.results)).toBe(true);
+      expect(data.results.some((entry) => entry.kind === 'note' && entry.summary.includes(phrase))).toBe(true);
+    });
+
+    test('ideas search can find matching tuples', async () => {
+      const phrase = `federated-tuple-${Date.now()}`;
+      const tupleRes = await requestWithRetry('/tuples', {
+        method: 'POST',
+        body: {
+          fields: ['task', phrase, { source: 'ideas-search-test' }],
+          harbor: 'ideas-test',
+          writtenBy: 'integration-suite',
+        },
+      });
+      expect(tupleRes.ok).toBe(true);
+
+      const result = runCli(['ideas', 'search', phrase, '--sources', 'tuples', '--json']);
+      expect(result.success).toBe(true);
+
+      const data = JSON.parse(result.stdout);
+      expect(Array.isArray(data.results)).toBe(true);
+      expect(data.results.some((entry) => entry.kind === 'tuple' && entry.summary.includes(phrase))).toBe(true);
+    });
+
+    test('ideas search can scan markdown-only directories without a trove file', () => {
+      const tempDir = mkdtempSync(join(tmpdir(), 'pd-ideas-markdown-it-'));
+      try {
+        writeFileSync(
+          join(tempDir, 'scratch.md'),
+          '# Scratch\n\nPhase 3 parity debt needs a random markdown search surface.\n',
+        );
+
+        const result = runCli([
+          'ideas',
+          'search',
+          'parity debt',
+          '--dir',
+          tempDir,
+          '--sources',
+          'markdown',
+          '--json',
+        ]);
+        expect(result.success).toBe(true);
+
+        const data = JSON.parse(result.stdout);
+        expect(Array.isArray(data.results)).toBe(true);
+        expect(data.results.some((entry) => entry.kind === 'markdown' && entry.location === 'scratch.md')).toBe(true);
+      } finally {
+        rmSync(tempDir, { recursive: true, force: true });
+      }
     });
   });
 
@@ -341,23 +475,104 @@ describe('CLI Integration Tests', () => {
     // Bug #2: Session start was showing "undefined" for session ID
     // because CLI used data.sessionId but API returns data.id
     test('session start shows actual session ID (not undefined)', () => {
-      const result = runCli(['session', 'start', 'Bug regression test']);
+      const agentId = `bug2-agent-${Date.now()}`;
+      const result = runCli(['session', 'start', 'Bug regression test', '--agent', agentId]);
       expect(result.success).toBe(true);
       expect(result.stdout).not.toContain('undefined');
       expect(result.stdout).toMatch(/session-[a-f0-9-]+/);
+      const firstSessionId = result.stdout.match(/session-[a-f0-9-]+/)?.[0];
 
       // Also test -q returns just the ID
-      const quietResult = runCli(['session', 'start', 'Quiet test', '-q']);
+      const quietResult = runCli(['session', 'start', 'Quiet test', '--agent', agentId, '-q']);
       expect(quietResult.success).toBe(true);
       expect(quietResult.stdout).toMatch(/^session-[a-f0-9-]+$/);
       expect(quietResult.stdout).not.toBe('undefined');
+
+      if (firstSessionId) {
+        runCli(['session', 'rm', firstSessionId]);
+      }
+      runCli(['session', 'rm', quietResult.stdout.trim()]);
+    });
+
+    test('session start conflict output shows filePath from service contract', () => {
+      const filePath = `src/conflict-${Date.now()}.ts`;
+      const firstId = runCli([
+        'session',
+        'start',
+        'Conflict holder',
+        '--agent',
+        `bug-conflict-holder-${Date.now()}`,
+        '--files',
+        filePath,
+        '-q',
+      ]).stdout.trim();
+
+      const result = runCli([
+        'session',
+        'start',
+        'Conflict challenger',
+        '--agent',
+        `bug-conflict-challenger-${Date.now()}`,
+        '--files',
+        filePath,
+      ]);
+      expect(result.success).toBe(false);
+      expect(result.stderr).toContain(filePath);
+      expect(result.stderr).not.toContain('<unknown>');
+      expect(result.stderr).not.toContain('undefined');
+
+      runCli(['session', 'rm', firstId]);
+    });
+
+    test('session done reports releasedFiles count from actual response shape', () => {
+      const agentId = `bug-done-agent-${Date.now()}`;
+      const filePath = `src/released-${Date.now()}.ts`;
+      const sessionId = runCli([
+        'session',
+        'start',
+        'Release count test',
+        '--agent',
+        agentId,
+        '--files',
+        filePath,
+        '-q',
+      ]).stdout.trim();
+
+      const result = runCli(['session', 'done', 'wrapped up', '--agent', agentId]);
+      expect(result.success).toBe(true);
+      expect(result.stdout).toContain('Files released: 1');
+
+      runCli(['session', 'rm', sessionId]);
+    });
+
+    test('session files rm reports released count from actual response shape', () => {
+      const agentId = `bug-files-rm-agent-${Date.now()}`;
+      const filePath = `src/files-rm-${Date.now()}.ts`;
+      const sessionId = runCli([
+        'session',
+        'start',
+        'Files rm count test',
+        '--agent',
+        agentId,
+        '--files',
+        filePath,
+        '-q',
+      ]).stdout.trim();
+
+      const result = runCli(['session', 'files', 'rm', filePath, '--agent', agentId]);
+      expect(result.success).toBe(true);
+      expect(result.stdout).toContain(`Released 1 file(s) from session ${sessionId}`);
+
+      runCli(['session', 'rm', sessionId]);
     });
 
     // Bug #3: Sessions list was showing "undefinedundefinedNaNd"
     // because CLI expected { startedAt, fileCount, noteCount }
     // but API returns { createdAt, updatedAt, completedAt }
     test('sessions list shows proper values (not undefined/NaN)', () => {
-      const result = runCli(['sessions', '--json']);
+      const agentId = `bug3-agent-${Date.now()}`;
+      const sessionId = runCli(['session', 'start', 'Bug 3 session test', '--agent', agentId, '-q']).stdout.trim();
+      const result = runCli(['sessions', '--agent', agentId, '--json']);
       expect(result.success).toBe(true);
 
       const data = JSON.parse(result.stdout);
@@ -368,10 +583,12 @@ describe('CLI Integration Tests', () => {
       }
 
       // Non-JSON output should not contain undefined or NaN
-      const textResult = runCli(['sessions']);
+      const textResult = runCli(['sessions', '--agent', agentId]);
       expect(textResult.success).toBe(true);
       expect(textResult.stdout).not.toContain('undefined');
       expect(textResult.stdout).not.toContain('NaN');
+
+      runCli(['session', 'rm', sessionId]);
     });
 
     // Bug #7/8: "pd services" was accidentally claiming a service named "services"
@@ -422,7 +639,8 @@ describe('CLI Integration Tests', () => {
 
     // Bug #15: session start --json ignored --json flag, output human-readable
     test('session start --json outputs JSON (not colored text)', () => {
-      const result = runCli(['session', 'start', 'Bug 15 test', '--json']);
+      const agentId = `bug15-agent-${Date.now()}`;
+      const result = runCli(['session', 'start', 'Bug 15 test', '--agent', agentId, '--json']);
       expect(result.success).toBe(true);
 
       // Should be valid JSON
@@ -458,21 +676,50 @@ describe('CLI Integration Tests', () => {
 
     // Bug #12: sessions --all returned same results as sessions without --all
     // because list() defaulted to listActive when no status was passed
-    test('sessions --all shows all statuses (not just active)', () => {
+    test('sessions --all shows all statuses (not just active)', async () => {
+      const agentId = `bug12-agent-${Date.now()}`;
+
       // Create sessions with different statuses
-      const activeId = runCli(['session', 'start', 'Bug 12 active test', '-q']).stdout.trim();
-      const completedId = runCli(['session', 'start', 'Bug 12 completed test', '-q']).stdout.trim();
-      runCli(['session', 'done', 'Done', '-q']); // completes most recent
-      const abandonedId = runCli(['session', 'start', 'Bug 12 abandoned test', '-q']).stdout.trim();
-      runCli(['session', 'abandon', 'Abandoned', '-q']);
+      const activeRes = await requestWithRetry('/sessions', {
+        method: 'POST',
+        body: { purpose: 'Bug 12 active test', agentId },
+      });
+      expect(activeRes.ok).toBe(true);
+      const activeId = activeRes.data.id;
+
+      const completedRes = await requestWithRetry('/sessions', {
+        method: 'POST',
+        body: { purpose: 'Bug 12 completed test', agentId },
+      });
+      expect(completedRes.ok).toBe(true);
+      const completedId = completedRes.data.id;
+
+      const completeDoneRes = await requestWithRetry(`/sessions/${completedId}`, {
+        method: 'PUT',
+        body: { status: 'completed', note: 'Done' },
+      });
+      expect(completeDoneRes.ok).toBe(true);
+
+      const abandonedRes = await requestWithRetry('/sessions', {
+        method: 'POST',
+        body: { purpose: 'Bug 12 abandoned test', agentId },
+      });
+      expect(abandonedRes.ok).toBe(true);
+      const abandonedId = abandonedRes.data.id;
+
+      const abandonDoneRes = await requestWithRetry(`/sessions/${abandonedId}`, {
+        method: 'PUT',
+        body: { status: 'abandoned' },
+      });
+      expect(abandonDoneRes.ok).toBe(true);
 
       // Without --all: should only show active sessions
-      const activeOnly = runCli(['sessions', '--json']);
+      const activeOnly = runCli(['sessions', '--agent', agentId, '--json']);
       const activeData = JSON.parse(activeOnly.stdout);
       expect(activeData.sessions.every(s => s.status === 'active')).toBe(true);
 
       // With --all: should show all statuses
-      const allSessions = runCli(['sessions', '--all', '--json']);
+      const allSessions = runCli(['sessions', '--agent', agentId, '--all', '--json']);
       const allData = JSON.parse(allSessions.stdout);
       const statuses = new Set(allData.sessions.map(s => s.status));
       expect(statuses.has('completed')).toBe(true);
@@ -579,7 +826,7 @@ describe('CLI Integration Tests', () => {
       const sessionResult = runCli(['session', 'start', 'Note flag test', '--json']);
       const sessionData = JSON.parse(sessionResult.stdout);
 
-      const result = runCli(['note', '--content', 'Flag note content', '--json']);
+      const result = runCli(['note', '--content', 'Flag note content', '--session', sessionData.id, '--json']);
       expect(result.success).toBe(true);
 
       const data = JSON.parse(result.stdout);
@@ -593,7 +840,7 @@ describe('CLI Integration Tests', () => {
       const sessionResult = runCli(['session', 'start', 'Short note test', '--json']);
       const sessionData = JSON.parse(sessionResult.stdout);
 
-      const result = runCli(['note', '-c', 'Short flag content', '--json']);
+      const result = runCli(['note', '-c', 'Short flag content', '--session', sessionData.id, '--json']);
       expect(result.success).toBe(true);
 
       const data = JSON.parse(result.stdout);

@@ -26,12 +26,13 @@ Early versions of the protocol relied on HS256 (HMAC-SHA256). The primary vulner
 
 ### 2.2 Phase 2: Asymmetric Identity (Ed25519)
 To support decentralized Agent-to-Agent (A2A) communication without sharing HMAC secrets, the protocol transitioned to **Ed25519 (EdDSA)**.
-* **Mechanism:** The Port Daddy Daemon acts as the Root Certificate Authority (CA). Each Harbor is assigned a unique Ed25519 keypair. The Daemon issues Harbor Cards signed by the Harbor's private key. Agents use the Harbor's public key (broadcast via Port Daddy's ambient discovery service) to verify tokens presented by peers.
+* **Current runtime mechanism:** The Port Daddy daemon holds the Phase 2 Ed25519 signing identity and issues Harbor Cards during harbor entry with `alg: EdDSA` and `hv: 2`. Legacy HS256 survives only as an explicit verification-only compatibility path for already-issued Phase 1 cards.
+* **Design target:** Harbor-specific keypairs and peer-to-peer verification via ambient discovery remain target architecture, not current runtime behavior.
 
 ### 2.3 Phase 3: Stigmergic Delegation (The "Biscuit" Pattern)
-Port Daddy v4 introduces multi-hop delegation. When Agent A spawns Agent B, it does not need to request a new token from the Daemon. Instead, it uses **Offline Attenuation**.
-* **Mechanism:** Agent A takes its existing Harbor Card, appends a new set of restricted capabilities (e.g., `["db:read"]` reduced from `["db:read", "db:write"]`), and signs the *entire chain* with its own ephemeral private key.
-* **Verification:** The Harbor verifies the Daemon's root signature, Agent A's delegation signature, and mathematically ensures that Agent B's capabilities are a strict subset of Agent A's.
+Port Daddy v4 targets multi-hop delegation. When Agent A spawns Agent B, the intended design is that it will not need to request a new token from the Daemon, and will instead use **Offline Attenuation**.
+* **Mechanism (target):** Agent A takes its existing Harbor Card, appends a new set of restricted capabilities (e.g., `["db:read"]` reduced from `["db:read", "db:write"]`), and signs the *entire chain* with its own ephemeral private key.
+* **Verification (target):** The Harbor verifies the Daemon's root signature, Agent A's delegation signature, and mathematically ensures that Agent B's capabilities are a strict subset of Agent A's.
 
 ## 3. Formal Verification Strategy
 Following the industry standard set by AWS (s2n-tls) and Microsoft (Project Everest), we decoupled the verification of the *protocol design* from the verification of the *implementation*.

@@ -6,7 +6,7 @@ export default function DnsRegister() {
       function="dnsRegister"
       description="Register a human-readable name → port mapping. Other agents can resolve names instead of hardcoding ports."
       module="DNS"
-      version="3.7.0"
+      version="3.8.3"
       signature="dnsRegister(name: string, port: number, options?: DnsOptions): Promise<DnsRecord>"
       params={[
         { name: 'name', type: 'string', required: true, description: 'Human-readable name' },

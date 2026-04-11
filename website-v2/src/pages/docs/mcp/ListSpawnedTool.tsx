@@ -5,7 +5,7 @@ export default function ListSpawnedTool() {
     <CommandPage
       command="list_spawned"
       description="List all currently running spawned agents."
-      version="3.7.0"
+      version="3.8.3"
       syntax="list_spawned(options?)"
       flags={[
         { flag: 'project', description: 'Filter by project identity prefix' },

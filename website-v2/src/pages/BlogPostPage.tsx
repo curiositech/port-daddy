@@ -22,6 +22,9 @@ const heroImages: Record<string, string> = {
   'fleet-agents-as-infrastructure': '/img/blog/fleet-management-hero.png',
   'spark-and-spider-the-creative-engine': '/img/blog/spark-spider-hero.png',
   'formal-verification-anchor-protocol': '/img/hero-portdaddy.png',
+  'port-daddy-for-teams': '/img/blog/teams-hero.png',
+  'claude-code-port-daddy-integration': '/img/blog/claude-code-hero.png',
+  'performance-at-scale': '/img/blog/performance-hero.png',
 }
 
 // ─── Directive system ─────────────────────────────────────────────────────
@@ -57,7 +60,6 @@ function extractDirectives(content: string): { cleaned: string; directives: Map<
   }
 
   // For each directive, find which code fence it precedes
-  let codeBlockIndex = 0
   let cleaned = content
   const removals: Array<{ start: number; end: number }> = []
 
@@ -70,8 +72,6 @@ function extractDirectives(content: string): { cleaned: string; directives: Map<
     // Find the next code fence after this directive
     const nextFencePos = fencePositions.find(p => p >= directiveEnd)
     if (nextFencePos !== undefined) {
-      // Count which code block this fence starts (fences come in pairs: open/close)
-      const blockIndex = Math.floor(fencePositions.filter(p => p <= nextFencePos).length / 2)
       // Fences are pairs — opening fence at even indices (0, 2, 4...) maps to block 0, 1, 2...
       const openingFenceIndex = fencePositions.indexOf(nextFencePos)
       if (openingFenceIndex % 2 === 0) {

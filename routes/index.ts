@@ -30,6 +30,7 @@ import { sugarPlugin } from './sugar.js';
 import { launchPlugin } from './launch.js';
 import { spawnPlugin } from './spawn.js';
 import { harborsPlugin } from './harbors.js';
+import { sortiesPlugin } from './sorties.js';
 import { orchestratorPlugin } from './orchestrator.js';
 import { briefingPlugin } from './briefing.js';
 // Arbiter and pheromone have different option shapes
@@ -37,8 +38,12 @@ import { arbiterPlugin } from './arbiter.js';
 import { pheromonePlugin } from './pheromone.js';
 import { tuplesPlugin } from './tuples.js';
 import { fleetPlugin } from './fleet.js';
+import { observabilityPlugin } from './observability.js';
 import { mergeQueuePlugin } from './merge-queue.js';
 import { symbolsPlugin } from './symbols.js';
+import { operatorPlugin } from './operator.js';
+import { graphPlugin } from './graph.js';
+import { memoryPlugin } from './memory.js';
 
 type AnyDeps = Record<string, unknown>;
 
@@ -79,9 +84,11 @@ export async function registerAllRoutes(
   await fastify.register(sugarPlugin, { deps } as any);
   await fastify.register(launchPlugin, { deps } as any);
   await fastify.register(spawnPlugin, { deps } as any);
+  await fastify.register(sortiesPlugin, { deps } as any);
   await fastify.register(harborsPlugin, { deps } as any);
   await fastify.register(orchestratorPlugin, { deps } as any);
   await fastify.register(briefingPlugin, { deps } as any);
+  await fastify.register(operatorPlugin, { deps } as any);
 
   // These have different option shapes
   await fastify.register(arbiterPlugin, { arbiter } as any);
@@ -98,11 +105,22 @@ export async function registerAllRoutes(
     await fastify.register(fleetPlugin, { deps } as any);
   }
 
+  // Observability (counters + cost tracking)
+  if ((deps as any).counters && (deps as any).costTracker) {
+    await fastify.register(observabilityPlugin, { deps } as any);
+  }
+
   // Phase 1 — Semantic Graph routes (merge queue, symbol index)
   if ((deps as any).mergeQueue && (deps as any).orchestratorRegistry) {
     await fastify.register(mergeQueuePlugin, { deps } as any);
   }
   if ((deps as any).symbolIndex) {
     await fastify.register(symbolsPlugin, { deps } as any);
+  }
+  if ((deps as any).graphEdges) {
+    await fastify.register(graphPlugin, { deps } as any);
+  }
+  if ((deps as any).episodicMemory) {
+    await fastify.register(memoryPlugin, { deps } as any);
   }
 }

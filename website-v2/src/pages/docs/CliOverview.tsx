@@ -86,7 +86,7 @@ export default function CliOverview() {
       <div className="space-y-3">
         <div className="flex items-center gap-3">
           <Badge variant="teal">CLI</Badge>
-          <Badge variant="default">v3.8.0</Badge>
+          <Badge variant="default">v3.8.3</Badge>
         </div>
         <h1 className="text-4xl font-display font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
           Command Line Interface

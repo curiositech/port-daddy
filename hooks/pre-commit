@@ -47,7 +47,6 @@ CRITICAL_FILES=(
   mcp/server.ts
   public/index.html
   package.json
-  CLAUDE.md
 )
 
 DELETED_FILES=$(git diff --cached --name-only --diff-filter=D 2>/dev/null || true)

@@ -5,7 +5,7 @@ export default function BeginSessionTool() {
     <CommandPage
       command="begin_session"
       description="Start a new agent session and register as a coordinated agent. Sessions track work context, enable communication between agents, and provide visibility into ongoing work. Returns session and agent IDs."
-      version="3.7.0"
+      version="3.8.3"
       syntax="begin_session(options?)"
       flags={[
         { flag: 'identity', description: 'Semantic identity (project:stack:context format)' },

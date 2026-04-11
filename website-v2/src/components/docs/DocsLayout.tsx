@@ -6,7 +6,7 @@ import {
   ChevronRight, Menu, ExternalLink,
   Home, Search, Layers, Sparkles
 } from 'lucide-react'
-import { DocsSearch } from './DocsSearch'
+import { openDocsSearch } from './DocsSearch'
 import { Nav } from '@/components/landing/Nav'
 
 interface NavItem {
@@ -36,6 +36,15 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: 'What is Port Daddy?', href: '/docs' },
       { label: 'Quick Start', href: '/docs/quickstart' },
+    ]
+  },
+  {
+    title: 'Guides',
+    icon: Sparkles,
+    items: [
+      { label: 'Prompting Agents', href: '/docs/guides/prompting-agents', badge: 'New' },
+      { label: 'Template Quickstarts', href: '/docs/guides/templates', badge: 'New' },
+      { label: 'Agent Protocol & State', href: '/docs/guides/protocol', badge: 'New' },
     ]
   },
 
@@ -220,7 +229,7 @@ const NAV_SECTIONS: NavSection[] = [
     icon: Globe,
     items: [
       { label: 'Overview', href: '/docs/api' },
-      { label: 'Endpoints', href: '/docs/api/endpoints' },
+      { label: 'Endpoint Catalog', href: '/docs/api' },
     ]
   },
 ]
@@ -326,6 +335,7 @@ function TableOfContents({ pathname }: { pathname: string }) {
 
       const elements = mainContent.querySelectorAll('h2, h3')
       const extracted: TocHeading[] = []
+      const seen = new Map<string, number>()
 
       elements.forEach((el) => {
         const text = el.textContent?.trim() || ''
@@ -333,10 +343,13 @@ function TableOfContents({ pathname }: { pathname: string }) {
 
         // Generate an id if the heading doesn't have one
         if (!el.id) {
-          el.id = text
+          const baseId = text
             .toLowerCase()
             .replace(/[^a-z0-9]+/g, '-')
             .replace(/(^-|-$)/g, '')
+          const count = seen.get(baseId) ?? 0
+          seen.set(baseId, count + 1)
+          el.id = count === 0 ? baseId : `${baseId}-${count + 1}`
         }
 
         extracted.push({
@@ -445,11 +458,6 @@ export function DocsLayout() {
             </Link>
           </div>
 
-          {/* Search */}
-          <div className="mb-4">
-            <DocsSearch />
-          </div>
-
           {/* Navigation */}
           <nav className="space-y-1">
             {NAV_SECTIONS.map(section => (
@@ -499,10 +507,7 @@ export function DocsLayout() {
           </button>
           <span className="flex-1 font-semibold text-[var(--text-primary)]">Documentation</span>
           <button 
-            onClick={() => {
-              const searchBtn = document.querySelector('[data-search-trigger]') as HTMLElement
-              searchBtn?.click()
-            }}
+            onClick={openDocsSearch}
             className="p-2 rounded-lg hover:bg-[var(--interactive-hover)]"
           >
             <Search size={20} className="text-[var(--text-secondary)]" />

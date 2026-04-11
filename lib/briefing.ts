@@ -48,6 +48,9 @@ interface FormattedNote {
   content: string;
   type: string;
   createdAt: number;
+  sessionPurpose?: string;
+  agentId?: string | null;
+  identityProject?: string | null;
 }
 
 interface FormattedFile {
@@ -96,6 +99,9 @@ interface ActivityEntry {
   agentId: string | null;
   targetId: string | null;
   details: string | null;
+  metadata?: Record<string, unknown> | null;
+  summary?: string | null;
+  files?: string[];
 }
 
 interface ServiceEntry {
@@ -152,6 +158,127 @@ interface SyncResult {
 export function createBriefing(db: Database.Database, deps: BriefingDeps) {
   const { sessions, agents, resurrection, activityLog, services, messaging } = deps;
 
+  function cleanText(value: unknown): string {
+    return typeof value === 'string' ? value.trim() : '';
+  }
+
+  function collectMetadataFiles(entry: ActivityEntry, key: 'files' | 'releasedFiles'): string[] {
+    const values = entry.metadata?.[key];
+    if (!Array.isArray(values)) return [];
+    return values.filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+  }
+
+  function summarizeTouchedFiles(files: string[], label: string): string {
+    if (files.length === 0) return '';
+    const preview = files.slice(0, 3).join(', ');
+    const suffix = files.length > 3 ? ` +${files.length - 3} more` : '';
+    return `${label}: ${preview}${suffix}`;
+  }
+
+  function summarizeActivityEntry(entry: ActivityEntry): string {
+    const details = cleanText(entry.details);
+    const files = collectMetadataFiles(entry, 'files');
+    const releasedFiles = collectMetadataFiles(entry, 'releasedFiles');
+    const sessionId = cleanText(entry.metadata?.sessionId);
+
+    switch (entry.type) {
+      case 'agent.heartbeat':
+      case 'session.note':
+        return '';
+      case 'session.start':
+      case 'sugar_begin':
+        return details;
+      case 'session.end':
+        if (details.length > 0) return details;
+        if (releasedFiles.length > 0) return summarizeTouchedFiles(releasedFiles, 'Released');
+        return '';
+      case 'message.publish':
+        return details.length > 4 ? details : '';
+      case 'file.claim':
+        return summarizeTouchedFiles(files, 'Claimed');
+      case 'file.release':
+        return summarizeTouchedFiles(files.length > 0 ? files : releasedFiles, 'Released');
+      default:
+        if (details.length > 0) return details;
+        if (files.length > 0) return summarizeTouchedFiles(files, 'Files');
+        if (releasedFiles.length > 0) return summarizeTouchedFiles(releasedFiles, 'Released');
+        if (sessionId) return sessionId;
+        return '';
+    }
+  }
+
+  function activityTouchedFiles(entry: ActivityEntry): string[] {
+    return [...new Set([...collectMetadataFiles(entry, 'files'), ...collectMetadataFiles(entry, 'releasedFiles')])];
+  }
+
+  function sessionBelongsToProject(session: FormattedSession, project: string, worktreeId: string | null): boolean {
+    if (session.identityProject) return session.identityProject === project;
+    if (worktreeId && session.worktreeId) return session.worktreeId === worktreeId;
+    return false;
+  }
+
+  function activityBelongsToProject(
+    entry: ActivityEntry,
+    project: string,
+    worktreeId: string | null,
+    sessionIds: Set<string>,
+    agentIds: Set<string>
+  ): boolean {
+    const metadata = entry.metadata && typeof entry.metadata === 'object'
+      ? entry.metadata as Record<string, unknown>
+      : null;
+
+    const metadataProject = typeof metadata?.identityProject === 'string'
+      ? metadata.identityProject
+      : typeof metadata?.project === 'string'
+        ? metadata.project
+        : null;
+    const metadataWorktreeId = typeof metadata?.worktreeId === 'string' ? metadata.worktreeId : null;
+    const metadataSessionId = typeof metadata?.sessionId === 'string' ? metadata.sessionId : null;
+    const metadataAgentId = typeof metadata?.agentId === 'string' ? metadata.agentId : null;
+
+    if (metadataProject === project) return true;
+    if (worktreeId && metadataWorktreeId === worktreeId) return true;
+    if (metadataSessionId && sessionIds.has(metadataSessionId)) return true;
+    if (entry.agentId && agentIds.has(entry.agentId)) return true;
+    if (metadataAgentId && agentIds.has(metadataAgentId)) return true;
+
+    if (entry.targetId) {
+      if (entry.targetId === project || entry.targetId.startsWith(`${project}:`)) return true;
+      if (worktreeId && (entry.targetId === worktreeId || entry.targetId.startsWith(`${worktreeId}:`))) return true;
+    }
+
+    return false;
+  }
+
+  function getProjectActivity(
+    project: string,
+    worktreeId: string | null,
+    projectSessions: FormattedSession[],
+    activeAgents: FormattedAgent[],
+    limit = 30,
+    scanLimit = 500
+  ): ActivityEntry[] {
+    const sessionIds = new Set(projectSessions.map(session => session.id));
+    const agentIds = new Set<string>();
+    for (const session of projectSessions) {
+      if (session.agentId) agentIds.add(session.agentId);
+    }
+    for (const agent of activeAgents) {
+      if (agent.id) agentIds.add(agent.id);
+    }
+
+    const activityResult = activityLog.getRecent({ limit: scanLimit });
+    return (activityResult.entries || [])
+      .filter((entry: ActivityEntry) => activityBelongsToProject(entry, project, worktreeId, sessionIds, agentIds))
+      .map((entry: ActivityEntry) => ({
+        ...entry,
+        summary: summarizeActivityEntry(entry),
+        files: activityTouchedFiles(entry),
+      }))
+      .slice(0, limit);
+  }
+
   /**
    * Detect the project name for a given directory.
    * Priority: explicit override > .portdaddyrc project > worktree directory name
@@ -181,16 +308,19 @@ export function createBriefing(db: Database.Database, deps: BriefingDeps) {
   function gatherData(project: string, projectRoot: string): BriefingData {
     // Get worktree info for worktree-scoped queries
     const worktreeInfo = getWorktreeInfo(projectRoot);
+    const worktreeId = worktreeInfo?.id ?? null;
 
     // Active sessions — filter by worktree if available, otherwise show all
     const sessionOpts: Record<string, unknown> = { status: 'active', allWorktrees: true, includeNotes: false, limit: 50 };
     const allSessions = sessions.list(sessionOpts);
-    const activeSessions = (allSessions.sessions || []).filter((s: FormattedSession) => {
-      // Match by identity_project if set, or by worktree if available
-      if (s.identityProject) return s.identityProject === project;
-      if (worktreeInfo && s.worktreeId) return s.worktreeId === worktreeInfo.id;
-      return true; // Include sessions with no project/worktree scoping
-    });
+    const activeSessions = (allSessions.sessions || []).filter((s: FormattedSession) =>
+      sessionBelongsToProject(s, project, worktreeId)
+    );
+
+    const recentSessions = sessions.list({ allWorktrees: true, includeNotes: false, limit: 100 });
+    const projectSessions = (recentSessions.sessions || []).filter((s: FormattedSession) =>
+      sessionBelongsToProject(s, project, worktreeId)
+    );
 
     // Active agents — filter by identity_project
     const allAgents = agents.list();
@@ -207,12 +337,11 @@ export function createBriefing(db: Database.Database, deps: BriefingDeps) {
     const claimsResult = sessions.listAllActiveClaims();
     const fileClaims = (claimsResult.claims || []).filter((c: FileClaim) => {
       // Match via session's agent being in our active sessions
-      return activeSessions.some((s: FormattedSession) => s.id === c.sessionId);
+      return projectSessions.some((s: FormattedSession) => s.id === c.sessionId);
     });
 
-    // Recent activity — filter by target_id prefix matching project
-    const activityResult = activityLog.getRecent({ limit: 100, targetPattern: `${project}:*` });
-    const recentActivity = (activityResult.entries || []).slice(0, 30);
+    // Recent activity — prefer explicit metadata/session ownership over brittle target prefix matching
+    const recentActivity = getProjectActivity(project, worktreeId, projectSessions, activeAgents, 30, 500);
 
     // Recent notes from active sessions
     const recentNotes: FormattedNote[] = [];
@@ -223,15 +352,12 @@ export function createBriefing(db: Database.Database, deps: BriefingDeps) {
       }
     }
     // Also get notes from recently completed sessions (last 7 days)
-    const recentSessions = sessions.list({ allWorktrees: true, includeNotes: false, limit: 20 });
-    for (const session of (recentSessions.sessions || []).filter((s: FormattedSession) =>
+    for (const session of projectSessions.filter((s: FormattedSession) =>
       s.status !== 'active' && s.completedAt && (Date.now() - s.completedAt) < 7 * 24 * 60 * 60 * 1000
     )) {
-      if (session.identityProject === project || (worktreeInfo && session.worktreeId === worktreeInfo.id)) {
-        const notesResult = sessions.getNotes(session.id);
-        if (notesResult.notes) {
-          recentNotes.push(...notesResult.notes);
-        }
+      const notesResult = sessions.getNotes(session.id);
+      if (notesResult.notes) {
+        recentNotes.push(...notesResult.notes);
       }
     }
     recentNotes.sort((a, b) => b.createdAt - a.createdAt);
@@ -339,7 +465,8 @@ export function createBriefing(db: Database.Database, deps: BriefingDeps) {
       lines.push('## Recent Activity');
       for (const entry of data.recentActivity.slice(0, 15)) {
         const time = ts(entry.timestamp).split(' ')[1] || '';
-        lines.push(`- [${time}] ${entry.details || `${entry.type} ${entry.targetId || ''}`}`);
+        const summary = cleanText(entry.summary) || cleanText(entry.details) || `${entry.type} ${entry.targetId || ''}`.trim();
+        lines.push(`- [${time}] ${summary}`);
       }
       lines.push('');
     }
@@ -535,9 +662,9 @@ export function createBriefing(db: Database.Database, deps: BriefingDeps) {
 
     // Write activity log if full sync requested
     if (options.full) {
-      const activityResult = activityLog.getRecent({ limit: 500, targetPattern: `${project}:*` });
-      if (activityResult.entries && activityResult.entries.length > 0) {
-        const logLines = activityResult.entries.map((e: ActivityEntry) => {
+      const activityEntries = getProjectActivity(project, getWorktreeInfo(resolvedRoot)?.id ?? null, genResult.briefing?.activeSessions || [], genResult.briefing?.activeAgents || [], 500, 500);
+      if (activityEntries.length > 0) {
+        const logLines = activityEntries.map((e: ActivityEntry) => {
           const ts = new Date(e.timestamp).toISOString();
           return `[${ts}] ${e.type} ${e.targetId || ''} ${e.details || ''}`.trim();
         });

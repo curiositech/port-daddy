@@ -9,7 +9,7 @@ export default defineConfig({
     alias: { '@': path.resolve(__dirname, './src') },
   },
   build: {
-    outDir: '/Users/erichowens/port-daddy-stable/public/fleet-ui',
+    outDir: path.resolve(__dirname, '../public/fleet-ui'),
     emptyOutDir: true,
   },
   base: '/fleet-ui/',

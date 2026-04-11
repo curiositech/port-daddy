@@ -5,7 +5,7 @@ export default function SalvageCommand() {
     <CommandPage
       command="pd salvage"
       description="Show agents in the resurrection queue — agents that died mid-task with active sessions. Allows a new agent to claim their work and continue. This is the foundation of fault-tolerant multi-agent workflows."
-      version="3.7.0"
+      version="3.8.3"
       syntax="pd salvage [flags]"
       flags={[
         { flag: '--project <name>', description: 'Filter by project identity prefix' },

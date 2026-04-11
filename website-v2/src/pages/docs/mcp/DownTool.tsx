@@ -5,7 +5,7 @@ export default function DownTool() {
     <CommandPage
       command="down"
       description="Stop all running services in the current project. Sends graceful shutdown signals."
-      version="3.7.0"
+      version="3.8.3"
       syntax="down(options?)"
       flags={[
         { flag: 'project', description: 'Project name (default: auto-detect)' },

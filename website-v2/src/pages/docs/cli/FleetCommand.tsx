@@ -5,11 +5,12 @@ export default function FleetCommand() {
     <CommandPage
       command="pd fleet"
       description="Manage a declarative background agent fleet defined in pd-fleet.yml. Reads agents, watchers, and channel definitions from the project root, resolves template variables, and starts all processes with Port Daddy coordination automatically wired."
-      version="3.8.0"
+      version="3.8.3"
       syntax="pd fleet <subcommand> [agent-name]"
       flags={[
         { flag: 'up', description: 'Start all agents and watchers from pd-fleet.yml' },
         { flag: 'down', description: 'Stop the running fleet (sends SIGTERM to the fleet process)' },
+        { flag: 'validate', description: 'Parse pd-fleet.yml, resolve templates, and dry-run topology checks without spawning agents' },
         { flag: 'status', description: 'Show fleet health: running state, registered agents, recent channel events' },
         { flag: 'run <name>', description: 'Run a single named agent from the fleet config once' },
         { flag: '<agent-name>', description: 'Shorthand for run — pd fleet qa is the same as pd fleet run qa' },
@@ -17,6 +18,7 @@ export default function FleetCommand() {
       ]}
       usagePatterns={[
         'pd fleet up',
+        'pd fleet validate',
         'pd fleet status',
         'pd fleet run qa',
         'pd fleet down',
@@ -31,8 +33,9 @@ export default function FleetCommand() {
   Channels: 2
 
   gardener    (custom)     schedule: */10 * * * *
-  qa          (claude-cli) trigger: git:committed
-  spark       (claude-cli) schedule: */30 * * * *
+  qa          (ollama)     trigger: git:committed
+  test-hunter (codex)      trigger: git:committed
+  spark       (ollama)     schedule: */30 * * * *
   notify-qa   (watcher)    trigger: qa:findings
 
 Fleet running. Press Ctrl+C to stop, or: pd fleet down`,
@@ -53,10 +56,29 @@ Recent fleet events:
   qa:clean: 09:15 AM — qa completed`,
         },
         {
+          description: 'Validate the fleet config without launching anything',
+          code: 'pd fleet validate',
+          output: `Validating /Users/you/coding/myapp/pd-fleet.yml
+
+Fleet "myapp-dev" parsed successfully
+  agents:   4
+  watchers: 1
+  channels: 3
+  budget:   5
+
+No topology warnings
+
+Dry-run checklist:
+  - YAML syntax parsed
+  - templates resolved
+  - trigger graph checked for cycles
+  - no agents were spawned`,
+        },
+        {
           description: 'Run a specific agent once (without starting the full fleet)',
-          code: 'pd fleet run qa',
-          output: `Running qa (claude-cli)...
-qa completed`,
+          code: 'pd fleet run documentarian',
+          output: `Running documentarian (ollama)...
+documentarian completed`,
         },
         {
           description: 'List available agents when no pd-fleet.yml is found',
@@ -66,14 +88,17 @@ qa completed`,
 Usage: pd fleet <command>
 
 Lifecycle:
+  init            Create pd-fleet.yml + git hook in current project
   up              Start all agents from pd-fleet.yml
   down            Stop all agents
   status          Show fleet health
+  validate        Parse pd-fleet.yml, resolve templates, and check topology
 
-Agents in pd-fleet.yml (3):
+Agents in pd-fleet.yml (4):
   gardener         custom       schedule: */10 * * * *
-  qa               claude-cli   trigger: git:committed
-  spark            claude-cli   schedule: */30 * * * *
+  qa               ollama       trigger: git:committed
+  test-hunter      codex        trigger: git:committed
+  spark            ollama       schedule: */30 * * * *
 
 Run an agent once:
   pd fleet run <name>     Run a specific agent from pd-fleet.yml`,

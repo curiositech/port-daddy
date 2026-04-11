@@ -124,7 +124,11 @@ export function CodeBlock({ children, language, filename, className, copyable = 
   return (
     <div
       className={cn('code-block-wrapper rounded-[var(--radius-md)] overflow-hidden relative group', className)}
-      style={{ boxShadow: 'inset 1px 1px 3px var(--neu-shadow), inset -1px -1px 3px var(--neu-highlight)' }}
+      style={{
+        background: 'color-mix(in srgb, var(--surface-sunken) 65%, var(--surface-raised))',
+        border: '1px solid var(--code-border)',
+        boxShadow: 'var(--shadow-flat)',
+      }}
     >
       {/* Compact header: dots + filename + copy */}
       <div className="flex items-center gap-1.5 px-3 py-1.5" style={{ borderBottom: '1px solid var(--code-border)' }}>
@@ -148,7 +152,7 @@ export function CodeBlock({ children, language, filename, className, copyable = 
       </div>
 
       {/* Code */}
-      <pre className="overflow-x-auto px-3 py-2 m-0 text-[13px] leading-snug font-mono" style={{ color: 'var(--code-text)' }}>{
+      <pre className="overflow-x-auto px-3 py-3 m-0 text-[13px] leading-relaxed font-mono" style={{ color: 'var(--code-text)' }}>{
         language === 'bash' || language === 'shell' || !language
           ? textContent.split('\n').map((line, i) => <div key={i}>{highlightBash(line)}</div>)
           : language === 'typescript' || language === 'javascript'

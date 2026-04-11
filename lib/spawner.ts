@@ -2,7 +2,7 @@
  * Spawner Module — AI Agent Launcher
  *
  * Factory function createSpawner(deps) with methods:
- * - spawn(spec): Launch an AI agent (ollama/claude/gemini/aider/custom)
+ * - spawn(spec): Launch an AI agent (ollama/claude/gemini/codex/aider/custom)
  * - list(): List active spawned agents
  * - kill(agentId): Stop a spawned agent
  *
@@ -12,9 +12,13 @@
 import { randomBytes } from 'node:crypto';
 import { spawn as spawnChild } from 'node:child_process';
 import type { ChildProcess } from 'node:child_process';
-import { readFileSync, existsSync, statSync } from 'node:fs';
+import { readFileSync, existsSync, statSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { CostTracker } from './cost-tracker.js';
+import type { Counters } from './counters.js';
+import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 
 // ─── Load .env.local for spawned agents ─────────────────────────────────────
 // The daemon runs via launchd which has no shell env. Spawned agents need
@@ -72,8 +76,9 @@ function loadDotenvOnce(): Record<string, string> {
 // =============================================================================
 
 export interface SpawnSpec {
-  backend: 'ollama' | 'claude' | 'claude-cli' | 'gemini' | 'aider' | 'custom';
+  backend: 'ollama' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'codex' | 'aider' | 'custom';
   model?: string;
+  modelTier?: 'low' | 'mid' | 'high';
   identity?: string;   // PD semantic identity: project:stack:context
   purpose?: string;    // human-readable task description
   task: string;        // the prompt / task
@@ -113,15 +118,18 @@ interface AgentRecord extends SpawnedAgent {
   childProcess: ChildProcess | null;
 }
 
+interface SpawnerDeps {
+  costTracker?: CostTracker;
+  counters?: Counters;
+}
+
 // =============================================================================
 // PD coordination helpers (fire-and-forget, silent on failure)
 // =============================================================================
 
-const PD_URL = process.env.PORT_DADDY_URL || 'http://localhost:9876';
-
 async function pdCoordinate(path: string, body: Record<string, unknown>): Promise<void> {
   try {
-    await fetch(`${PD_URL}${path}`, {
+    await fetch(`${getDaemonTcpUrl(process.env.PORT_DADDY_URL)}${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -129,6 +137,51 @@ async function pdCoordinate(path: string, body: Record<string, unknown>): Promis
   } catch {
     // Silent — coordination failures never block spawning
   }
+}
+
+// =============================================================================
+// Shared child-process runner (eliminates 3x copy-paste)
+// =============================================================================
+
+interface ChildRunOpts {
+  cmd: string;
+  args: string[];
+  cwd?: string;
+  env?: Record<string, string | undefined>;
+  timeout?: number;
+  stdio?: ('ignore' | 'pipe')[];
+}
+
+function runChild(opts: ChildRunOpts): Promise<{ output: string; error: string | null; child: ChildProcess }> {
+  return new Promise((resolve) => {
+    const child = spawnChild(opts.cmd, opts.args, {
+      cwd: opts.cwd || process.cwd(),
+      env: opts.env as NodeJS.ProcessEnv,
+      timeout: opts.timeout || 300000,
+      shell: false,
+      ...(opts.stdio ? { stdio: opts.stdio as any } : {}),
+    });
+
+    const stdout: string[] = [];
+    const stderr: string[] = [];
+
+    child.stdout?.on('data', (data: Buffer) => stdout.push(data.toString()));
+    child.stderr?.on('data', (data: Buffer) => stderr.push(data.toString()));
+
+    child.on('close', (code) => {
+      const out = stdout.join('');
+      const errText = stderr.join('');
+      if (code !== 0) {
+        resolve({ output: out, error: errText || `${opts.cmd} exited with code ${code}`, child });
+      } else {
+        resolve({ output: out + (errText ? `\nstderr: ${errText}` : ''), error: null, child });
+      }
+    });
+
+    child.on('error', (err) => {
+      resolve({ output: '', error: `Failed to start ${opts.cmd}: ${err.message}`, child });
+    });
+  });
 }
 
 // =============================================================================
@@ -219,129 +272,183 @@ async function runGemini(spec: SpawnSpec, model: string): Promise<{ output: stri
   }
 }
 
-function runAider(spec: SpawnSpec): Promise<{ output: string; error: string | null }> {
-  return new Promise((resolve) => {
-    const files = spec.files || [];
-    const args = ['--yes', '--no-stream', '--message', spec.task, ...files];
+async function runCloudflare(spec: SpawnSpec, model: string): Promise<{ output: string; error: string | null }> {
+  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID || process.env.CF_ACCOUNT_ID;
+  const token = process.env.CLOUDFLARE_API_TOKEN || process.env.CLOUDFLARE_API_KEY || process.env.CF_API_TOKEN;
 
-    const child = spawnChild('aider', args, {
-      cwd: spec.workdir || process.cwd(),
-      env: { ...process.env, ...loadDotenvOnce(), ...(spec.env || {}) },
-      timeout: spec.timeout || 300000,
+  if (!accountId) {
+    return { output: '', error: 'CLOUDFLARE_ACCOUNT_ID is not set' };
+  }
+  if (!token) {
+    return { output: '', error: 'CLOUDFLARE_API_TOKEN or CLOUDFLARE_API_KEY is not set' };
+  }
+
+  const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${encodeURIComponent(model)}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      messages: [{ role: 'user', content: spec.task }],
+      max_tokens: spec.maxTokens,
+      stream: false,
+    }),
+    signal: spec.timeout ? AbortSignal.timeout(spec.timeout) : undefined,
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => 'unknown error');
+    return { output: '', error: `Cloudflare Workers AI HTTP ${res.status}: ${text}` };
+  }
+
+  const data = await res.json() as Record<string, any>;
+  const result = data.result ?? data;
+  const text = typeof result === 'string'
+    ? result
+    : result?.response
+      || result?.text
+      || result?.output_text
+      || result?.choices?.[0]?.message?.content
+      || '';
+
+  if (!text) {
+    return { output: '', error: 'Cloudflare Workers AI returned no text response' };
+  }
+
+  return { output: text, error: null };
+}
+
+function sanitizeCodexOutput(raw: string): string {
+  const lines = raw
+    .split(/\r?\n/)
+    .map((line) => line.trimEnd())
+    .filter((line) => {
+      const trimmed = line.trim();
+      if (!trimmed) return false;
+      if (trimmed === 'codex') return false;
+      if (/^OpenAI Codex\b/i.test(trimmed)) return false;
+      if (/^(model|provider|approval|sandbox|reasoning effort|session id|workdir):/i.test(trimmed)) return false;
+      if (/^\d[\d,]*\s+total tokens used$/i.test(trimmed)) return false;
+      if (/^tokens used$/i.test(trimmed)) return false;
+      if (/^-{4,}$/.test(trimmed)) return false;
+      return true;
     });
 
-    const stdout: string[] = [];
-    const stderr: string[] = [];
+  return lines.join('\n').trim();
+}
 
-    child.stdout?.on('data', (data: Buffer) => stdout.push(data.toString()));
-    child.stderr?.on('data', (data: Buffer) => stderr.push(data.toString()));
+function runCodexCli(spec: SpawnSpec, model: string): Promise<{ output: string; error: string | null }> {
+  const workspace = spec.workdir || process.cwd();
+  const tempDir = mkdtempSync(join(tmpdir(), 'port-daddy-codex-'));
+  const outputPath = join(tempDir, 'last-message.txt');
+  const args = [
+    'exec',
+    '--skip-git-repo-check',
+    '--full-auto',
+    '--sandbox', 'workspace-write',
+    '-C', workspace,
+    '--output-last-message', outputPath,
+    '--model', model,
+    spec.task,
+  ];
 
-    child.on('close', (code) => {
-      const output = stdout.join('');
-      const errText = stderr.join('');
-      if (code !== 0) {
-        resolve({ output, error: errText || `aider exited with code ${code}` });
-      } else {
-        resolve({ output: output + (errText ? `\nstderr: ${errText}` : ''), error: null });
+  return runChild({
+    cmd: 'codex',
+    args,
+    cwd: workspace,
+    env: {
+      ...process.env,
+      ...loadDotenvOnce(),
+      ...(spec.env || {}),
+      OTEL_SDK_DISABLED: 'true',
+    },
+    timeout: spec.timeout,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }).then((result) => {
+    try {
+      const fileOutput = existsSync(outputPath) ? readFileSync(outputPath, 'utf-8').trim() : '';
+      if (fileOutput) {
+        return { output: fileOutput, error: result.error };
       }
-    });
+      const sanitized = sanitizeCodexOutput(result.output || '');
+      return { output: sanitized, error: result.error };
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+}
 
-    child.on('error', (err) => {
-      resolve({ output: '', error: `Failed to start aider: ${err.message}` });
-    });
+function runAider(spec: SpawnSpec, model: string): Promise<{ output: string; error: string | null }> {
+  const files = spec.files || [];
+  return runChild({
+    cmd: 'aider',
+    args: ['--yes', '--no-stream', '--model', model, '--message', spec.task, ...files],
+    cwd: spec.workdir,
+    env: { ...process.env, ...loadDotenvOnce(), ...(spec.env || {}) },
+    timeout: spec.timeout,
   });
 }
 
 function runCustom(spec: SpawnSpec): Promise<{ output: string; error: string | null; child: ChildProcess }> {
-  return new Promise((resolve) => {
-    // Reject shell injection: metacharacters, newlines, control chars
-    const DANGEROUS_PATTERNS = /[;&|`$(){}!<>\n\r\t\x00-\x1f\x7f]/;
-    if (DANGEROUS_PATTERNS.test(spec.task)) {
-      return resolve({
-        output: '',
-        error: 'Command contains shell metacharacters or control characters. Use explicit arguments instead of shell syntax.',
-        child: null as any
-      });
-    }
-
-    // Execute via /bin/sh -c with shell: false (no double-interpretation)
-    const child = spawnChild('/bin/sh', ['-c', spec.task], {
-      cwd: spec.workdir || process.cwd(),
-      env: { ...process.env, ...loadDotenvOnce(), ...(spec.env || {}) },
-      shell: false,
-      timeout: spec.timeout || 300000,
+  // Reject shell injection: metacharacters, newlines, control chars
+  const DANGEROUS_PATTERNS = /[;&|`$(){}!<>\n\r\t\x00-\x1f\x7f]/;
+  if (DANGEROUS_PATTERNS.test(spec.task)) {
+    return Promise.resolve({
+      output: '',
+      error: 'Command contains shell metacharacters or control characters. Use explicit arguments instead of shell syntax.',
+      child: null as any
     });
+  }
 
-    const stdout: string[] = [];
-    const stderr: string[] = [];
-
-    child.stdout?.on('data', (data: Buffer) => stdout.push(data.toString()));
-    child.stderr?.on('data', (data: Buffer) => stderr.push(data.toString()));
-
-    child.on('close', (code) => {
-      const output = stdout.join('');
-      const errText = stderr.join('');
-      if (code !== 0) {
-        resolve({ output, error: errText || `command exited with code ${code}`, child });
-      } else {
-        resolve({ output: output + (errText ? `\nstderr: ${errText}` : ''), error: null, child });
-      }
-    });
-
-    child.on('error', (err) => {
-      resolve({ output: '', error: `Failed to start command: ${err.message}`, child });
-    });
+  return runChild({
+    cmd: '/bin/sh',
+    args: ['-c', spec.task],
+    cwd: spec.workdir,
+    env: {
+      ...process.env,
+      ...loadDotenvOnce(),
+      ...(spec.env || {}),
+      PD_BACKEND: spec.backend,
+      PORT_DADDY_BACKEND: spec.backend,
+      PD_MODEL: spec.model,
+      PORT_DADDY_MODEL: spec.model,
+      PD_MODEL_TIER: spec.modelTier,
+      PORT_DADDY_MODEL_TIER: spec.modelTier,
+    },
+    timeout: spec.timeout,
   });
 }
 
 function runClaudeCli(spec: SpawnSpec): Promise<{ output: string; error: string | null }> {
-  return new Promise((resolve) => {
-    const args = ['-p', spec.task];
+  const args = ['-p', spec.task];
+  if (spec.model) {
+    args.push('--model', spec.model);
+  }
+  if (spec.allowedTools) {
+    args.push('--allowedTools', spec.allowedTools);
+  }
 
-    if (spec.allowedTools) {
-      args.push('--allowedTools', spec.allowedTools);
-    }
-    // Note: --cwd and --max-tokens are not valid claude CLI flags.
-    // Use cwd on the spawn options instead (already done below).
+  // Strip ANTHROPIC_API_KEY from BOTH dotenv AND process.env before passing to
+  // the claude subprocess. The claude CLI manages its own authentication (OAuth).
+  // Any ANTHROPIC_API_KEY in the environment overrides OAuth and causes
+  // "Invalid API key" when the key is wrong, stale, or for a different account.
+  // Explicit user-provided keys via spec.env are still respected (spread last).
+  const { ANTHROPIC_API_KEY: _dropped, ...dotenvSafe } = loadDotenvOnce();
+  const { ANTHROPIC_API_KEY: _droppedEnv, ...processEnvSafe } = process.env;
 
-    // Strip ANTHROPIC_API_KEY from dotenv before passing to the claude subprocess.
-    // The claude CLI manages its own authentication (OAuth or its own key storage).
-    // Injecting ANTHROPIC_API_KEY from a .env file overrides that and causes
-    // "Invalid API key · Fix external API key" when the dotenv key is wrong or stale.
-    // Explicit user-provided keys via spec.env are still respected.
-    const { ANTHROPIC_API_KEY: _dropped, ...dotenvSafe } = loadDotenvOnce();
+  // Ensure ~/.local/bin is in PATH for claude binary discovery
+  const homeBin = join(process.env.HOME || '', '.local', 'bin');
+  const currentPath = process.env.PATH || '';
+  const augmentedPath = currentPath.includes('.local/bin') ? currentPath : `${homeBin}:${currentPath}`;
 
-    // Ensure ~/.local/bin is in PATH for claude binary discovery
-    const homeBin = join(process.env.HOME || '', '.local', 'bin');
-    const currentPath = process.env.PATH || '';
-    const augmentedPath = currentPath.includes('.local/bin') ? currentPath : `${homeBin}:${currentPath}`;
-
-    const child = spawnChild('claude', args, {
-      cwd: spec.workdir || process.cwd(),
-      env: { ...process.env, ...dotenvSafe, ...(spec.env || {}), PATH: augmentedPath },
-      timeout: spec.timeout || 300000,
-      stdio: ['ignore', 'pipe', 'pipe'],  // Close stdin immediately, pipe stdout/stderr
-    });
-
-    const stdout: string[] = [];
-    const stderr: string[] = [];
-
-    child.stdout?.on('data', (data: Buffer) => stdout.push(data.toString()));
-    child.stderr?.on('data', (data: Buffer) => stderr.push(data.toString()));
-
-    child.on('close', (code) => {
-      const output = stdout.join('');
-      const errText = stderr.join('');
-      if (code !== 0) {
-        resolve({ output, error: errText || `claude exited with code ${code}` });
-      } else {
-        resolve({ output, error: null });
-      }
-    });
-
-    child.on('error', (err) => {
-      resolve({ output: '', error: `Failed to start claude CLI: ${err.message}` });
-    });
+  return runChild({
+    cmd: 'claude',
+    args,
+    cwd: spec.workdir,
+    env: { ...processEnvSafe, ...dotenvSafe, ...(spec.env || {}), PATH: augmentedPath },
+    timeout: spec.timeout,
+    stdio: ['ignore', 'pipe', 'pipe'],
   });
 }
 
@@ -350,10 +457,12 @@ function runClaudeCli(spec: SpawnSpec): Promise<{ output: string; error: string 
 // =============================================================================
 
 const DEFAULT_MODELS: Record<SpawnSpec['backend'], string> = {
-  ollama: 'llama3.2:8b',
+  ollama: 'llama3.1:8b',
   claude: 'claude-haiku-4-5-20251001',
   'claude-cli': 'claude-cli',  // claude CLI manages its own model
   gemini: 'gemini-2.0-flash-exp',
+  cloudflare: '@cf/meta/llama-3.1-8b-instruct',
+  codex: 'gpt-5.4-mini',
   aider: 'aider',   // aider manages its own model selection
   custom: 'custom',
 };
@@ -363,9 +472,16 @@ const DEFAULT_MODELS: Record<SpawnSpec['backend'], string> = {
 // =============================================================================
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export function createSpawner(_deps: {} = {}) {
+export function createSpawner(deps: SpawnerDeps = {}) {
   // In-memory registry of active spawned agents
   const agents = new Map<string, AgentRecord>();
+  const { costTracker, counters } = deps;
+
+  /** Hard ceiling on concurrent running agents. Prevents fork bombs.
+   *  Fleet YAML limits are per-project; this is the global safety net.
+   *  Set high enough for normal fleet operation (8 agents + manual spawns)
+   *  but low enough to prevent a runaway trigger from eating all PIDs. */
+  const MAX_CONCURRENT_RUNNING = 20;
 
   const MAX_AGENT_RECORDS = 1000;
   const ONE_HOUR = 60 * 60 * 1000;
@@ -393,15 +509,51 @@ export function createSpawner(_deps: {} = {}) {
     }
   }
 
+  function getProjectName(identity?: string): string | undefined {
+    if (!identity) return undefined;
+    const [projectName] = identity.split(':');
+    return projectName || undefined;
+  }
+
+  function metricDims(spec: SpawnSpec, model: string): Record<string, string> {
+    const dims: Record<string, string> = {
+      backend: spec.backend,
+      model,
+    };
+    const projectName = getProjectName(spec.identity);
+    if (projectName) dims.project = projectName;
+    return dims;
+  }
+
   /**
    * Spawn an AI agent with the given spec.
    * Automatically wires PD session + heartbeat + done.
    */
   async function spawn(spec: SpawnSpec): Promise<SpawnResult> {
     cleanupStaleAgents();
-    const agentId = `spawned-${randomBytes(6).toString('hex')}`;
+
+    // Hard global limit — never exceed MAX_CONCURRENT_RUNNING processes
+    const running = [...agents.values()].filter(a => a.status === 'running').length;
     const model = spec.model || DEFAULT_MODELS[spec.backend];
+    const dims = metricDims(spec, model);
+    if (running >= MAX_CONCURRENT_RUNNING) {
+      counters?.bump('spawn.blocked', dims);
+      return {
+        agentId: 'blocked',
+        backend: spec.backend,
+        model,
+        status: 'failed',
+        output: null,
+        error: `Spawn blocked: ${running} agents already running (limit: ${MAX_CONCURRENT_RUNNING}). Wait for one to finish.`,
+        startedAt: Date.now(),
+        completedAt: Date.now(),
+      };
+    }
+
+    const agentId = `spawned-${randomBytes(6).toString('hex')}`;
     const startedAt = Date.now();
+    const projectName = getProjectName(spec.identity);
+    counters?.bump('spawn.started', dims);
 
     // Register agent record (running)
     const record: AgentRecord = {
@@ -436,107 +588,75 @@ export function createSpawner(_deps: {} = {}) {
     record.heartbeatInterval = setInterval(async () => {
       await pdCoordinate(`/agents/${agentId}/heartbeat`, {});
     }, 30000);
+    record.heartbeatInterval.unref?.();
+
+    let output: string | null = null;
+    let error: string | null = null;
 
     try {
-      let output: string;
-      let error: string | null;
+      let result: { output: string; error: string | null };
 
       switch (spec.backend) {
-        case 'ollama': {
-          const result = await runOllama(spec, model);
-          output = result.output;
-          error = result.error;
-          break;
-        }
-        case 'claude': {
-          const result = await runClaude(spec, model);
-          output = result.output;
-          error = result.error;
-          break;
-        }
-        case 'gemini': {
-          const result = await runGemini(spec, model);
-          output = result.output;
-          error = result.error;
-          break;
-        }
-        case 'claude-cli': {
-          const result = await runClaudeCli(spec);
-          output = result.output;
-          error = result.error;
-          break;
-        }
-        case 'aider': {
-          const result = await runAider(spec);
-          output = result.output;
-          error = result.error;
-          break;
-        }
+        case 'ollama':    result = await runOllama(spec, model); break;
+        case 'claude':    result = await runClaude(spec, model); break;
+        case 'gemini':    result = await runGemini(spec, model); break;
+        case 'cloudflare': result = await runCloudflare(spec, model); break;
+        case 'codex':     result = await runCodexCli(spec, model); break;
+        case 'claude-cli': result = await runClaudeCli(spec); break;
+        case 'aider':     result = await runAider(spec, model); break;
         case 'custom': {
-          const result = await runCustom(spec);
-          output = result.output;
-          error = result.error;
-          record.childProcess = result.child;
+          const r = await runCustom(spec);
+          record.childProcess = r.child;
+          result = r;
           break;
         }
-        default: {
-          output = '';
-          error = `Unknown backend: ${String(spec.backend)}`;
-        }
+        default:
+          result = { output: '', error: `Unknown backend: ${String(spec.backend)}` };
       }
 
-      const completedAt = Date.now();
-      const status: SpawnResult['status'] = error ? 'failed' : 'completed';
-
-      // Update record
-      record.status = status;
-      record.completedAt = completedAt;
-
-      // Clean up heartbeat
-      if (record.heartbeatInterval) {
-        clearInterval(record.heartbeatInterval);
-        record.heartbeatInterval = null;
-      }
-
-      // PD coordination: done
-      const doneNote = error ? `Failed: ${error.slice(0, 200)}` : `Completed: ${output.slice(0, 200)}`;
-      await pdCoordinate('/sugar/done', { agentId, note: doneNote });
-
-      return {
-        agentId,
-        backend: spec.backend,
-        model,
-        status,
-        output: output || null,
-        error,
-        startedAt,
-        completedAt,
-      };
+      output = result.output || null;
+      error = result.error;
     } catch (err) {
-      const errorMessage = (err as Error).message;
-      const completedAt = Date.now();
-
-      record.status = 'failed';
-      record.completedAt = completedAt;
-
-      if (record.heartbeatInterval) {
-        clearInterval(record.heartbeatInterval);
-        record.heartbeatInterval = null;
-      }
-
-      await pdCoordinate('/sugar/done', { agentId, note: `Error: ${errorMessage}` });
-
-      return {
-        agentId,
-        backend: spec.backend,
-        model,
-        status: 'failed',
-        output: null,
-        error: errorMessage,
-        startedAt,
-        completedAt,
-      };
+      error = (err as Error).message;
     }
+
+    // Common cleanup — runs for both success and failure
+    const completedAt = Date.now();
+    const status: SpawnResult['status'] = error ? 'failed' : 'completed';
+
+    record.status = status;
+    record.completedAt = completedAt;
+
+    if (record.heartbeatInterval) {
+      clearInterval(record.heartbeatInterval);
+      record.heartbeatInterval = null;
+    }
+
+    const doneNote = error ? `Failed: ${error.slice(0, 200)}` : `Completed: ${(output || '').slice(0, 200)}`;
+    await pdCoordinate('/sugar/done', { agentId, note: doneNote });
+
+    counters?.bump(error ? 'spawn.failed' : 'spawn.completed', dims);
+    if (!error) {
+      counters?.bump('spawn.duration_ms', dims, Math.max(1, completedAt - startedAt));
+    }
+    costTracker?.record({
+      backend: spec.backend,
+      model,
+      projectName,
+      identity: spec.identity,
+      spawnId: agentId,
+    });
+
+    return {
+      agentId,
+      backend: spec.backend,
+      model,
+      status,
+      output,
+      error,
+      startedAt,
+      completedAt,
+    };
   }
 
   /**
@@ -577,6 +697,7 @@ export function createSpawner(_deps: {} = {}) {
 
     record.status = 'killed';
     record.completedAt = Date.now();
+    counters?.bump('spawn.killed', metricDims({ backend: record.backend, task: '', identity: record.identity || undefined }, record.model));
 
     // PD coordination: done (fire-and-forget)
     pdCoordinate('/sugar/done', { agentId, note: 'Killed by spawner' }).catch(() => {});
@@ -584,3 +705,5 @@ export function createSpawner(_deps: {} = {}) {
 
   return { spawn, list, kill };
 }
+
+export type Spawner = ReturnType<typeof createSpawner>;

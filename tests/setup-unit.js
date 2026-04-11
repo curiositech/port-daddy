@@ -99,11 +99,16 @@ export function createTestDb() {
       max_services INTEGER DEFAULT 10,
       max_locks INTEGER DEFAULT 5,
       metadata TEXT,
+      agent_card TEXT,
+      skills TEXT,
       worktree_id TEXT,
       identity_project TEXT,
       identity_stack TEXT,
       identity_context TEXT,
-      purpose TEXT
+      purpose TEXT,
+      status TEXT DEFAULT 'ready',
+      readiness TEXT,
+      progress TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_agents_heartbeat ON agents(last_heartbeat);
     CREATE INDEX IF NOT EXISTS idx_agents_worktree ON agents(worktree_id);

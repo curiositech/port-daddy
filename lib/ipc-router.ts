@@ -38,13 +38,25 @@ export interface IpcRouterDeps {
   sessions: {
     start: (purpose: string, options?: Record<string, unknown>) => unknown;
     end: (id: string, options?: Record<string, unknown>) => unknown;
+    remove: (id: string) => unknown;
+    list: (options?: Record<string, unknown>) => unknown;
     addNote: (sessionId: string, content: string, options?: Record<string, unknown>) => unknown;
     claimFiles: (sessionId: string, paths: string[], options?: Record<string, unknown>) => unknown;
-    releaseFiles: (sessionId: string, paths: string[]) => unknown;
+    releaseFiles: (sessionId: string, paths: string[], options?: Record<string, unknown>) => unknown;
   };
   locks: {
     acquire: (name: string, options?: Record<string, unknown>) => unknown;
+    check: (name: string) => unknown;
+    extend: (name: string, options?: Record<string, unknown>) => unknown;
+    list: (options?: Record<string, unknown>) => unknown;
     release: (name: string, options?: Record<string, unknown>) => unknown;
+  };
+  tuples?: {
+    out: (fields: unknown[], options?: Record<string, unknown>) => unknown;
+    rd: (pattern: unknown[], options?: Record<string, unknown>) => unknown;
+    take: (pattern: unknown[], options?: Record<string, unknown>) => unknown;
+    scan: (harbor?: string) => unknown[];
+    count: (pattern?: unknown[], harbor?: string) => number;
   };
   messaging: {
     publish: (channel: string, payload: unknown, options?: Record<string, unknown>) => unknown;
@@ -62,6 +74,10 @@ export interface IpcRouterDeps {
   sugar?: {
     begin: (options: Record<string, unknown>) => unknown;
     done: (options: Record<string, unknown>) => unknown;
+    whoami: (options: Record<string, unknown>) => unknown;
+  };
+  fleet?: {
+    promptLine: (project: string, since?: number) => string;
   };
 }
 
@@ -117,6 +133,26 @@ export function createIpcRouter(deps: IpcRouterDeps) {
     return deps.sessions.end(String(p.sessionId), p);
   });
 
+  handlers.set(IpcAction.SESSION_START, (p) => {
+    return deps.sessions.start(String(p.purpose ?? ''), p);
+  });
+
+  handlers.set(IpcAction.SESSION_END, (p) => {
+    return deps.sessions.end(String(p.sessionId ?? ''), p);
+  });
+
+  handlers.set(IpcAction.SESSION_LIST, (p) => {
+    return deps.sessions.list(p);
+  });
+
+  handlers.set(IpcAction.SESSION_REMOVE, (p) => {
+    return deps.sessions.remove(String(p.sessionId ?? ''));
+  });
+
+  handlers.set(IpcAction.WHOAMI, (p) => {
+    return deps.sugar?.whoami(p) ?? { success: false, error: 'sugar_not_available' };
+  });
+
   handlers.set(IpcAction.NOTE, (p) => {
     return deps.sessions.addNote(
       String(p.sessionId),
@@ -128,13 +164,18 @@ export function createIpcRouter(deps: IpcRouterDeps) {
   handlers.set(IpcAction.FILES_CLAIM, (p) => {
     const paths = asStringArray(p.paths);
     if (!paths) return { error: 'paths must be an array of strings' };
-    return deps.sessions.claimFiles(String(p.sessionId), paths);
+    return deps.sessions.claimFiles(String(p.sessionId), paths, {
+      regions: Array.isArray(p.regions) ? p.regions as unknown[] : undefined,
+      force: p.force === true,
+    });
   });
 
   handlers.set(IpcAction.FILES_RELEASE, (p) => {
     const paths = asStringArray(p.paths);
     if (!paths) return { error: 'paths must be an array of strings' };
-    return deps.sessions.releaseFiles(String(p.sessionId), paths);
+    return deps.sessions.releaseFiles(String(p.sessionId), paths, {
+      regions: Array.isArray(p.regions) ? p.regions as unknown[] : undefined,
+    });
   });
 
   // Ports
@@ -155,8 +196,94 @@ export function createIpcRouter(deps: IpcRouterDeps) {
     return deps.locks.acquire(String(p.name), p);
   });
 
+  handlers.set(IpcAction.LOCK_CHECK, (p) => {
+    return deps.locks.check(String(p.name));
+  });
+
+  handlers.set(IpcAction.LOCK_EXTEND, (p) => {
+    return deps.locks.extend(String(p.name), p);
+  });
+
+  handlers.set(IpcAction.LOCK_LIST, (p) => {
+    return deps.locks.list(p);
+  });
+
   handlers.set(IpcAction.LOCK_RELEASE, (p) => {
     return deps.locks.release(String(p.name), p);
+  });
+
+  // Tuples
+  handlers.set(IpcAction.TUPLE_OUT, (p) => {
+    if (!Array.isArray(p.fields) || p.fields.length === 0) {
+      return { success: false, error: 'fields must be a non-empty array', code: 'VALIDATION_ERROR' };
+    }
+    const tuple = deps.tuples?.out(
+      p.fields,
+      {
+        harbor: typeof p.harbor === 'string' ? p.harbor : undefined,
+        writtenBy: typeof p.writtenBy === 'string' ? p.writtenBy : undefined,
+        ttlMs: typeof p.ttlMs === 'number' ? p.ttlMs : undefined,
+      },
+    );
+    return { success: true, tuple };
+  });
+
+  handlers.set(IpcAction.TUPLE_RD, (p) => {
+    if (!Array.isArray(p.pattern)) {
+      return { success: false, error: 'pattern must be a JSON array' };
+    }
+    const tuples = deps.tuples?.rd(
+      p.pattern,
+      {
+        harbor: typeof p.harbor === 'string' ? p.harbor : undefined,
+        limit: typeof p.limit === 'number' ? p.limit : undefined,
+      },
+    ) ?? [];
+    return { success: true, tuples, count: tuples.length };
+  });
+
+  handlers.set(IpcAction.TUPLE_IN, (p) => {
+    if (!Array.isArray(p.pattern)) {
+      return { success: false, error: 'pattern must be a JSON array' };
+    }
+    const taken = deps.tuples?.take(
+      p.pattern,
+      {
+        harbor: typeof p.harbor === 'string' ? p.harbor : undefined,
+        limit: typeof p.limit === 'number' ? p.limit : undefined,
+      },
+    ) ?? [];
+    return { success: true, taken, count: taken.length };
+  });
+
+  handlers.set(IpcAction.TUPLE_SCAN, (p) => {
+    const harbor = typeof p.harbor === 'string' ? p.harbor : undefined;
+    const limit = typeof p.limit === 'number' ? Math.min(Math.max(p.limit, 1), 500) : 200;
+    const query = typeof p.query === 'string' ? p.query.trim().toLowerCase() : '';
+    const pattern = Array.isArray(p.pattern) ? p.pattern : undefined;
+
+    let tuples = pattern
+      ? deps.tuples?.rd(pattern, { harbor, limit }) ?? []
+      : deps.tuples?.scan(harbor) ?? [];
+
+    if (query) {
+      tuples = tuples.filter((tuple: any) => {
+        const haystack = JSON.stringify({
+          fields: tuple.fields,
+          writtenBy: tuple.writtenBy,
+          harbor: tuple.harbor,
+        }).toLowerCase();
+        return haystack.includes(query);
+      });
+    }
+
+    const sliced = tuples.slice(0, limit);
+    return { success: true, tuples: sliced, count: sliced.length };
+  });
+
+  handlers.set(IpcAction.TUPLE_COUNT, (p) => {
+    const harbor = typeof p.harbor === 'string' ? p.harbor : undefined;
+    return { success: true, count: deps.tuples?.count(undefined, harbor) ?? 0 };
   });
 
   // Messaging
@@ -247,6 +374,20 @@ export function createIpcRouter(deps: IpcRouterDeps) {
       String(p.deadAgentId),
       String(p.agentId),
     ) ?? { error: 'salvage_not_available' };
+  });
+
+  handlers.set(IpcAction.FLEET_PROMPT, (p) => {
+    const project = typeof p.project === 'string' ? p.project : '';
+    if (!project) return { success: false, error: 'project query param required' };
+    const since = typeof p.since === 'number'
+      ? p.since
+      : typeof p.since === 'string' && p.since !== ''
+        ? parseInt(p.since, 10)
+        : undefined;
+    return {
+      success: true,
+      line: deps.fleet?.promptLine(project, Number.isFinite(since) ? since : undefined) ?? '',
+    };
   });
 
   // ── Main dispatch function ────────────────────────────────────────────

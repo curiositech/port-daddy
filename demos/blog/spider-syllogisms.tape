@@ -46,7 +46,7 @@ Type "# Spider's output: formal syllogisms"
 Enter
 Sleep 1s
 
-Type "cat .spider/connections/2026-03-27-connections.md | head -5"
+Type "head -5 .spider/connections/2026-03-27-connections.md 2>/dev/null || echo '(syllogisms appear after spider runs)'"
 Enter
 Sleep 2s
 
@@ -57,25 +57,7 @@ Type "# S1: Two features. One new capability. No new code required."
 Enter
 Sleep 1s
 
-Type "sed -n '9,21p' .spider/connections/2026-03-27-connections.md"
-Enter
-Sleep 6s
-
-# Syllogism S9: Worktree + Trie = Auto-Namespaced Identities
-Type "# S9: This one solved a problem we'd been fighting for weeks"
-Enter
-Sleep 1s
-
-Type "sed -n '137,149p' .spider/connections/2026-03-27-connections.md"
-Enter
-Sleep 6s
-
-# Syllogism S10: Spawner + Pheromone = Reputation-Based Backend Selection
-Type "# S10: The reputation system bootstrapped from existing primitives"
-Enter
-Sleep 1s
-
-Type "sed -n '153,165p' .spider/connections/2026-03-27-connections.md"
+Type "head -30 .spider/connections/2026-03-27-connections.md 2>/dev/null || echo '(run pd fleet up to generate connections)'"
 Enter
 Sleep 6s
 
@@ -86,21 +68,21 @@ Type "# Spark reads Spider's syllogisms and proposes implementations"
 Enter
 Sleep 1s
 
-Type "head -10 .spark/ideas/2026-03-27-from-spider.md"
+Type "head -10 .spark/ideas/2026-03-27-from-spider.md 2>/dev/null || echo '(spark reads spider output via pub/sub)'"
 Enter
 Sleep 4s
 
 # The creative loop
 Type ""
 Enter
-Type "# The loop: Spider finds → Spark proposes → QA validates → Documentarian records"
+Type "# The loop: Spider finds -> Spark proposes -> QA validates -> Documentarian records"
 Enter
 Type "# Nobody plans this. It emerges from the pub/sub topology."
 Enter
 Sleep 3s
 
 # Show the channel wiring
-Type "grep -E 'trigger:|on_success:' pd-fleet.yml"
+Type "grep -E 'trigger:|on_success:' pd-fleet.yml 2>/dev/null || echo '(triggers defined in pd-fleet.yml)'"
 Enter
 Sleep 4s
 

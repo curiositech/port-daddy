@@ -8,15 +8,16 @@
  * Priority:
  *   1. PORT_DADDY_SOCK env var -> Unix socket path
  *   2. PORT_DADDY_URL env var -> TCP URL
- *   3. Default: /tmp/port-daddy.sock (Unix socket)
- *   4. Fallback: http://localhost:9876 (TCP)
+ *   3. Default: ~/.port-daddy/daemon.sock (Unix socket)
+ *   4. Fallback: discovered localhost TCP port from ~/.port-daddy/daemon.port,
+ *      or the canonical preferred port when no port file exists
  */
 
 import http from 'node:http';
 import { existsSync } from 'node:fs';
 
 import { DEFAULT_SOCK } from '../shared/paths.js';
-const DEFAULT_URL = 'http://localhost:9876';
+import { getDaemonTcpUrl, resolveDaemonTcpTarget } from '../shared/daemon-discovery.js';
 
 /** Connection target -- either a Unix socket or a TCP host:port pair. */
 interface SocketTarget {
@@ -62,8 +63,7 @@ export function resolveTarget(): ConnectionTarget {
 
   // Explicit TCP URL
   if (process.env.PORT_DADDY_URL) {
-    const url = new URL(process.env.PORT_DADDY_URL);
-    return { host: url.hostname, port: parseInt(url.port, 10) || 9876 };
+    return resolveDaemonTcpTarget(process.env.PORT_DADDY_URL);
   }
 
   // Default: prefer socket if it exists, else TCP
@@ -71,7 +71,7 @@ export function resolveTarget(): ConnectionTarget {
     return { socketPath: DEFAULT_SOCK };
   }
 
-  return { host: 'localhost', port: 9876 };
+  return resolveDaemonTcpTarget();
 }
 
 /**
@@ -82,7 +82,7 @@ export function getDisplayUrl(): string {
   if (target.socketPath) {
     return `unix:${target.socketPath}`;
   }
-  return `http://${target.host}:${target.port}`;
+  return getDaemonTcpUrl(target.port ? `http://${target.host}:${target.port}` : undefined);
 }
 
 /**

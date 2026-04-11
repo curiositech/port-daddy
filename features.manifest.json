@@ -593,7 +593,8 @@
         "GET /metrics",
         "GET /config",
         "GET /dashboard/events",
-        "GET /ping"
+        "GET /ping",
+        "POST /operator/open-file"
       ],
       "completions": [
         "metrics",
@@ -871,6 +872,7 @@
         "killSpawned"
       ],
       "routes": [
+        "POST /spawn/preflight",
         "POST /spawn",
         "DELETE /spawn/:param",
         "GET /spawn"
@@ -878,6 +880,31 @@
       "completions": [
         "spawn",
         "spawned"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": true
+      }
+    },
+    "sorties": {
+      "description": "Tracked mission records over spawned runs with durable ids, harbors, and event logs",
+      "cli": [
+        "sortie"
+      ],
+      "sdk": [
+        "runSortie",
+        "listSorties",
+        "getSortie",
+        "getSortieLogs"
+      ],
+      "routes": [
+        "POST /sorties",
+        "GET /sorties",
+        "GET /sorties/:param",
+        "GET /sorties/:param/logs"
+      ],
+      "completions": [
+        "sortie"
       ],
       "docs": {
         "readme": true,
@@ -912,7 +939,15 @@
         "POST /fleet/stop",
         "POST /fleet/reload",
         "POST /fleet/register",
-        "GET /fleet/events"
+        "POST /fleet/agent/run",
+        "POST /fleet/agent/pause",
+        "POST /fleet/agent/resume",
+        "POST /fleet/bootstrap",
+        "GET /fleet/events",
+        "GET /fleet/prompt",
+        "GET /fleet/config/:project",
+        "PUT /fleet/config/:project",
+        "GET /fleet/models"
       ],
       "completions": [
         "fleet"
@@ -1087,6 +1122,112 @@
         "sdk": true
       }
     },
+    "graph": {
+      "description": "Semantic graph edges and aggregate graph stats for merge queue and symbol-index relationships",
+      "cli": [
+        "graph"
+      ],
+      "sdk": [],
+      "routes": [
+        "GET /graph/edges",
+        "GET /graph/stats"
+      ],
+      "completions": [
+        "graph"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
+    },
+    "memory": {
+      "description": "Episodic memory entries and aggregate memory stats promoted from sessions and sorties",
+      "cli": [
+        "memory"
+      ],
+      "sdk": [],
+      "routes": [
+        "GET /memory/episodes",
+        "GET /memory/stats"
+      ],
+      "completions": [
+        "memory"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
+    },
+    "ideas": {
+      "description": "Canonical ideation trove inspection and dedupe over docs/recovery/IDEAS-TROVE.md with optional local Spark/Spider residue",
+      "cli": [
+        "ideas"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "ideas"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
+    "cost_tracker": {
+      "description": "LLM cost recording per spawn \u2014 model pricing, project budgets, burn rate tracking",
+      "cli": [],
+      "sdk": [],
+      "routes": [],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "Library-only \u2014 HTTP surface provided by observability routes module"
+    },
+    "counters": {
+      "description": "ODS-style time-bucketed operational metrics \u2014 in-memory batching with minute/hour rollups",
+      "cli": [],
+      "sdk": [],
+      "routes": [],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "Library-only \u2014 HTTP surface provided by observability routes module"
+    },
+    "observability": {
+      "description": "Golden signals (RED method) and aggregated metrics \u2014 rate, errors, duration, cost/hr",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "GET /metrics/golden",
+        "GET /metrics/counters",
+        "GET /metrics/counters/top",
+        "GET /metrics/cost",
+        "GET /metrics/cost/recent",
+        "GET /metrics/cost/budget/:project"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      },
+      "_note": "Composite feature \u2014 routes module wiring cost-tracker + counters together. API-only (no SDK methods or CLI commands)."
+    },
+    "orchestrator_plugins": {
+      "description": "Hot-swappable merge orchestrator plugins \u2014 default FIFO, custom priority/scheduling",
+      "cli": [],
+      "sdk": [],
+      "routes": [],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "Library-only \u2014 used internally by merge-queue; no HTTP surface yet"
+    },
     "init": {
       "description": "Project onboarding \u2014 scan stack, create fleet, configure MCP, install git hook",
       "cli": [
@@ -1101,6 +1242,22 @@
         "readme": false,
         "sdk": false
       }
+    },
+    "setup": {
+      "description": "One-command onboarding \u2014 install daemon, configure MCP, install FleetBar, init project",
+      "cli": [
+        "setup"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "setup"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      },
+      "_note": "CLI-only \u2014 orchestrates daemon install, MCP config, FleetBar install, and project init in one step"
     }
   }
 }

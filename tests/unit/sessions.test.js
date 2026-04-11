@@ -11,6 +11,19 @@ import { createTestDb } from '../setup-unit.js';
 import { createSessions } from '../../lib/sessions.js';
 import { ActivityType } from '../../lib/activity.js';
 
+function createMockNoteEncryption() {
+  const sessionKey = Buffer.alloc(32, 7);
+  return {
+    isEnabled: () => true,
+    generateSessionKey: () => sessionKey,
+    wrapSessionKey: () => 'wrapped-session-key',
+    unwrapSessionKey: () => sessionKey,
+    encryptNote: (plaintext) => `enc:${plaintext}`,
+    decryptNote: (encrypted) => encrypted.startsWith('enc:') ? encrypted.slice(4) : null,
+    isEncrypted: (content) => content.startsWith('enc:'),
+  };
+}
+
 describe('Sessions Module', () => {
   let db;
   let sessions;
@@ -125,6 +138,23 @@ describe('Sessions Module', () => {
       const got = sessions.get(started.id);
       expect(got.notes).toHaveLength(1);
       expect(got.notes[0].content).toBe('Left off at step 3');
+      expect(got.notes[0].type).toBe('handoff');
+    });
+
+    it('should encrypt handoff notes when note encryption is enabled', () => {
+      const encryptedSessions = createSessions(db, createMockNoteEncryption());
+      const started = encryptedSessions.start('Encrypted work item');
+
+      encryptedSessions.end(started.id, { note: 'Sensitive handoff detail' });
+
+      const row = db.prepare(
+        'SELECT content FROM session_notes WHERE session_id = ? ORDER BY created_at ASC LIMIT 1'
+      ).get(started.id);
+
+      expect(row.content).toBe('enc:Sensitive handoff detail');
+
+      const got = encryptedSessions.get(started.id);
+      expect(got.notes[0].content).toBe('Sensitive handoff detail');
       expect(got.notes[0].type).toBe('handoff');
     });
 
@@ -381,16 +411,11 @@ describe('Sessions Module', () => {
   });
 
   describe('quickNote', () => {
-    it('should create a session when none exists', () => {
+    it('should reject unscoped quick notes when no session exists', () => {
       const result = sessions.quickNote('Quick thought');
 
-      expect(result.success).toBe(true);
-      expect(result.noteId).toBeDefined();
-      expect(result.sessionId).toMatch(/^session-/);
-
-      // Verify session was created
-      const got = sessions.get(result.sessionId);
-      expect(got.session.purpose).toBe('Quick notes');
+      expect(result.success).toBe(false);
+      expect(result.code).toBe('NO_ACTIVE_SESSION_SCOPE');
     });
 
     it('should reuse existing active session', () => {
@@ -421,13 +446,34 @@ describe('Sessions Module', () => {
       expect(got.session.agentId).toBe('agent-3');
     });
 
-    it('should support custom type', () => {
-      const result = sessions.quickNote('Warning!', { type: 'warning' });
+    it('should support custom type on an explicitly targeted session', () => {
+      const started = sessions.start('Typed session');
+      const result = sessions.quickNote('Warning!', { sessionId: started.id, type: 'warning' });
 
       expect(result.success).toBe(true);
 
       const got = sessions.get(result.sessionId);
       expect(got.notes[0].type).toBe('warning');
+    });
+
+    it('should fail closed when multiple active sessions exist in the same worktree', () => {
+      sessions.start('Session A');
+      sessions.start('Session B');
+
+      const result = sessions.quickNote('Ambiguous note');
+
+      expect(result.success).toBe(false);
+      expect(result.code).toBe('AMBIGUOUS_ACTIVE_SESSION');
+    });
+
+    it('should respect explicit sessionId targeting', () => {
+      const sessionA = sessions.start('Session A');
+      sessions.start('Session B');
+
+      const result = sessions.quickNote('Scoped note', { sessionId: sessionA.id });
+
+      expect(result.success).toBe(true);
+      expect(result.sessionId).toBe(sessionA.id);
     });
 
     it('should reject empty content', () => {
@@ -1320,8 +1366,30 @@ describe('Sessions Module', () => {
       expect(mockLog.log).toHaveBeenCalledWith(
         ActivityType.SESSION_START,
         expect.objectContaining({
+          targetId: result.id,
           details: expect.stringContaining('Build feature Y'),
           metadata: expect.objectContaining({ sessionId: result.id, purpose: 'Build feature Y' }),
+        })
+      );
+    });
+
+    it('should log project-scoped activity metadata when session has identityProject', () => {
+      const result = sessionsWithLog.start('Scoped work', {
+        agentId: 'agent-scoped',
+        project: 'port-daddy-dev',
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockLog.log).toHaveBeenCalledWith(
+        ActivityType.SESSION_START,
+        expect.objectContaining({
+          agentId: 'agent-scoped',
+          targetId: `port-daddy-dev:session:${result.id}`,
+          metadata: expect.objectContaining({
+            sessionId: result.id,
+            agentId: 'agent-scoped',
+            identityProject: 'port-daddy-dev',
+          }),
         })
       );
     });
@@ -1335,6 +1403,7 @@ describe('Sessions Module', () => {
       expect(mockLog.log).toHaveBeenCalledWith(
         ActivityType.SESSION_END,
         expect.objectContaining({
+          targetId: started.id,
           details: expect.stringContaining(started.id),
           metadata: expect.objectContaining({ sessionId: started.id, status: 'completed' }),
         })
@@ -1366,6 +1435,7 @@ describe('Sessions Module', () => {
       expect(mockLog.log).toHaveBeenCalledWith(
         ActivityType.SESSION_NOTE,
         expect.objectContaining({
+          targetId: started.id,
           details: expect.stringContaining(started.id),
           metadata: expect.objectContaining({ sessionId: started.id, noteId: noteResult.noteId, type: 'note' }),
         })
@@ -1381,6 +1451,7 @@ describe('Sessions Module', () => {
       expect(mockLog.log).toHaveBeenCalledWith(
         ActivityType.FILE_CLAIM,
         expect.objectContaining({
+          targetId: started.id,
           details: expect.stringContaining('2 file(s)'),
           metadata: expect.objectContaining({ sessionId: started.id, files: ['src/a.ts', 'src/b.ts'] }),
         })
@@ -1397,6 +1468,7 @@ describe('Sessions Module', () => {
       expect(mockLog.log).toHaveBeenCalledWith(
         ActivityType.FILE_RELEASE,
         expect.objectContaining({
+          targetId: started.id,
           details: expect.stringContaining('1 file(s)'),
           metadata: expect.objectContaining({ sessionId: started.id, files: ['src/a.ts'] }),
         })

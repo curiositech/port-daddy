@@ -17,6 +17,7 @@ import type { Transform } from 'node:stream';
 import { createPrefixer } from './log-prefix.js';
 
 import { DEFAULT_SOCK } from '../shared/paths.js';
+import { resolveDaemonTcpTarget } from '../shared/daemon-discovery.js';
 
 // =============================================================================
 // Internal types
@@ -124,13 +125,12 @@ interface OrchestratorInstance {
 function resolveDaemonTarget(): DaemonTarget {
   const sockPath = process.env.PORT_DADDY_SOCK || DEFAULT_SOCK;
   if (process.env.PORT_DADDY_URL) {
-    const url = new URL(process.env.PORT_DADDY_URL);
-    return { host: url.hostname, port: parseInt(url.port, 10) || 9876 };
+    return resolveDaemonTcpTarget(process.env.PORT_DADDY_URL);
   }
   if (existsSync(sockPath)) {
     return { socketPath: sockPath };
   }
-  return { host: 'localhost', port: 9876 };
+  return resolveDaemonTcpTarget();
 }
 
 /**
@@ -469,6 +469,8 @@ export interface OrchestratorRule {
 
 export function createReactiveOrchestrator(db: any, messaging: any, spawner: any) {
   const events = new EventEmitter();
+  const execChildren = new Set<ChildProcess>();
+  let closed = false;
   db.exec(`CREATE TABLE IF NOT EXISTS orchestrator_rules (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, channel_pattern TEXT NOT NULL, condition TEXT, action TEXT NOT NULL, payload TEXT NOT NULL, enabled INTEGER DEFAULT 1);`);
   const stmts = {
     insert: db.prepare(`INSERT INTO orchestrator_rules (name, channel_pattern, condition, action, payload, enabled) VALUES (?, ?, ?, ?, ?, ?)`),
@@ -485,7 +487,8 @@ export function createReactiveOrchestrator(db: any, messaging: any, spawner: any
     return (stmts.list.all() as any[]).map(r => ({ ...r, channelPattern: r.channel_pattern, payload: JSON.parse(r.payload), enabled: Boolean(r.enabled) }));
   }
 
-  messaging.subscribe('*', (msg: any) => {
+  const unsubscribe = messaging.subscribe('*', (msg: any) => {
+    if (closed) return;
     for (const rule of listRules().filter(r => r.enabled)) {
       if (matchesPattern(msg.channel, rule.channelPattern)) {
         handleRule(rule, msg);
@@ -515,13 +518,53 @@ export function createReactiveOrchestrator(db: any, messaging: any, spawner: any
         const parts = cmd.split(/\s+/).filter(Boolean);
         if (parts.length === 0) return;
         const env = { ...process.env, PD_CHANNEL: msg.channel, PD_MESSAGE: JSON.stringify(msg.payload) };
-        const child = spawn(parts[0], parts.slice(1), { shell: false, env });
-        child.stdout?.on('data', (d: Buffer) => console.log(`[orchestrator:${rule.name}] ${d}`));
-        child.stderr?.on('data', (d: Buffer) => console.error(`[orchestrator:${rule.name}] ${d}`));
+        const shouldLogChildOutput = !process.env.JEST_WORKER_ID;
+        const child = spawn(parts[0], parts.slice(1), {
+          shell: false,
+          env,
+          stdio: shouldLogChildOutput ? 'pipe' : 'ignore'
+        });
+        execChildren.add(child);
+        child.unref?.();
+        (child.stdout as any)?.unref?.();
+        (child.stderr as any)?.unref?.();
+
+        if (shouldLogChildOutput) {
+          child.stdout?.on('data', (d: Buffer) => {
+            if (!closed) console.log(`[orchestrator:${rule.name}] ${d}`);
+          });
+          child.stderr?.on('data', (d: Buffer) => {
+            if (!closed) console.error(`[orchestrator:${rule.name}] ${d}`);
+          });
+        } else {
+          child.stdout?.resume();
+          child.stderr?.resume();
+        }
+
+        child.once('close', () => {
+          execChildren.delete(child);
+          child.stdout?.removeAllListeners('data');
+          child.stderr?.removeAllListeners('data');
+        });
       }
       events.emit('rule:fired', { ruleId: rule.id, channel: msg.channel });
     } catch (err) { console.error(`Rule "${rule.name}" failed:`, err); }
   }
 
-  return { addRule, listRules, on: events.on.bind(events) };
+  async function shutdown() {
+    closed = true;
+    if (typeof unsubscribe === 'function') {
+      try { unsubscribe(); } catch {}
+    }
+    for (const child of execChildren) {
+      child.stdout?.removeAllListeners('data');
+      child.stderr?.removeAllListeners('data');
+      if (child.exitCode === null && !child.killed) {
+        child.kill('SIGTERM');
+      }
+    }
+    execChildren.clear();
+  }
+
+  return { addRule, listRules, on: events.on.bind(events), shutdown };
 }

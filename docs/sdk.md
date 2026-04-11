@@ -18,7 +18,7 @@ const pd = new PortDaddy();
 
 ```javascript
 const pd = new PortDaddy({
-  url: 'http://localhost:9876',   // Daemon URL (or set PORT_DADDY_URL env)
+  url: process.env.PORT_DADDY_URL, // Auto-discovered by default; override only when needed
   agentId: 'my-agent',           // Agent ID for tracking (or PORT_DADDY_AGENT env)
   pid: process.pid,              // Process ID for ownership
   timeout: 5000,                 // Request timeout in ms
@@ -105,7 +105,7 @@ Sugar methods combine multiple coordination steps into single atomic calls. Use 
 
 ### `pd.begin(options)`
 
-Register an agent and start a session in one call. Writes context to `.portdaddy/current.json` for use by subsequent `whoami` and `done` calls.
+Register an agent and start a session in one call. Writes slot-scoped local context under `.portdaddy/contexts/<slot>.json` and updates `.portdaddy/current.json` as a compatibility pointer for the most recent local context.
 
 ```javascript
 const { agentId, sessionId } = await pd.begin({
@@ -145,16 +145,16 @@ console.log(sessionId); // e.g. "session-d4e5f6"
 
 ### `pd.done(options?)`
 
-End the current session and unregister the agent atomically. Reads from `.portdaddy/current.json` if `agentId` and `sessionId` are not provided.
+End the current session and unregister the agent atomically. Reads from the current slot-scoped local context if `agentId` and `sessionId` are not provided.
 
 ```javascript
-// Minimal — uses context from current.json
+// Minimal — uses the current slot's local context
 await pd.done();
 
 // With a closing note
 await pd.done({ note: 'Auth system complete, all tests passing' });
 
-// Explicit IDs (if not using current.json)
+// Explicit IDs (if not using local context)
 await pd.done({
   agentId: 'agent-a1b2c3',
   sessionId: 'session-d4e5f6',
@@ -167,8 +167,8 @@ await pd.done({
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `agentId` | string | no | Agent to unregister (default: from `current.json`) |
-| `sessionId` | string | no | Session to end (default: from `current.json`) |
+| `agentId` | string | no | Agent to unregister (default: from local context) |
+| `sessionId` | string | no | Session to end (default: from local context) |
 | `note` | string | no | Closing note attached to the session |
 | `status` | string | no | `'completed'` (default) or `'abandoned'` |
 
@@ -184,10 +184,10 @@ await pd.done({
 
 ### `pd.whoami(agentId?)`
 
-Return the current agent and session context without making changes. Reads from `.portdaddy/current.json` if `agentId` is not provided.
+Return the current agent and session context without making changes. Reads from the current slot-scoped local context if `agentId` is not provided.
 
 ```javascript
-// Uses current.json context
+// Uses the current slot's local context
 const ctx = await pd.whoami();
 
 // Explicit agent ID
@@ -492,6 +492,8 @@ await pd.stopOrchestration();
 const status = await pd.status();
 console.log(`Port Daddy v${status.version} is ${status.status}`);
 ```
+
+If the daemon is running fleets, the returned fleet summary can include mailbox state: agent rows may report `status: 'queued'` and a `queueDepth` when trigger bursts collapse behind a busy agent instead of spawning more runs.
 
 ---
 
@@ -844,25 +846,51 @@ function verifySignature(payload, signature, secret) {
 
 ## Spawn — AI Agent Launcher
 
-Launch AI agents (Ollama, Claude, Claude CLI, Gemini, Aider, custom subprocess) with Port Daddy coordination auto-wired. Each spawned agent automatically registers, sends heartbeats, and marks its session done on completion.
+Launch AI agents (Ollama, Codex, Claude, Claude CLI, Gemini, Cloudflare Workers AI, Aider, custom subprocess) with Port Daddy coordination auto-wired. Each spawned agent automatically registers, sends heartbeats, and marks its session done on completion.
 
-**Backends:** `ollama` (default), `claude` (API — text in/out), `claude-cli` (full CLI with tools), `gemini`, `aider`, `custom`
+Use `spawn()` for the low-level primitive. If you want a tracked mission object with a durable id and event log, use the sortie methods below instead. Canonical operator guidance lives in `docs/DELEGATION-MODES.md`.
+
+**Backends:** `ollama` (default), `claude` (API — text in/out), `claude-cli` (full CLI with tools), `gemini`, `cloudflare`, `codex`, `aider`, `custom`
 
 ```typescript
 // Spawn a local Ollama agent
 const result = await pd.spawn({
   backend: 'ollama',
-  model: 'llama3',
+  model: 'qwen2.5-coder:7b',
   identity: 'myapp:coder',
+  budgetUsd: 2.5,
   purpose: 'Refactor auth module',
   task: 'Fix the login bug in src/auth.ts',
 });
 console.log(result.agentId, result.status);  // e.g. "ollama-abc123", "completed"
 
+// Spawn a Cloudflare Workers AI agent
+await pd.spawn({
+  backend: 'cloudflare',
+  model: '@cf/meta/llama-3.1-8b-instruct',
+  identity: 'myapp:edge',
+  budgetUsd: 0.5,
+  purpose: 'Summarize release notes',
+  task: 'Summarize the last five commits',
+});
+
+// Spawn Codex CLI with an explicit low tier
+await pd.spawn({
+  backend: 'codex',
+  modelTier: 'low',
+  identity: 'myapp:fixer',
+  budgetUsd: 0.75,
+  purpose: 'Patch auth flow',
+  task: 'Fix the login bug in src/auth.ts',
+  workdir: '/path/to/project',
+});
+
 // Spawn Claude Code CLI (full agent with file editing tools)
 await pd.spawn({
   backend: 'claude-cli',
-  identity: 'myapp:fixer',
+  model: 'sonnet',
+  identity: 'myapp:reviewer',
+  budgetUsd: 3,
   task: 'Fix the login bug in src/auth.ts',
   allowedTools: 'Read,Write,Edit,Glob,Grep,Bash(git*)',
   workdir: '/path/to/project',
@@ -873,6 +901,7 @@ await pd.spawn({
   backend: 'claude',
   model: 'claude-haiku-4-5-20251001',
   identity: 'myapp:reviewer',
+  budgetUsd: 1,
   task: 'Review PR #42 for security issues',
 });
 
@@ -889,6 +918,47 @@ await pd.killSpawned(agentId);
 | `pd.spawn(spec)` | Launch an AI agent; returns `SpawnResult` |
 | `pd.listSpawned()` | List active spawned agents |
 | `pd.killSpawned(agentId)` | Kill a running spawned agent |
+
+---
+
+## Sorties — Tracked Mission Records
+
+Sorties are Port Daddy's first-class mission records over spawned runs. They buy you:
+
+- a durable sortie id
+- an ephemeral harbor name (`project:sortie:<id>`)
+- persisted status/result lookup
+- a human-readable event log
+
+Current truthful limitation: the first shipped slice still runs one coordinating spawned agent underneath. Richer multi-agent approvals and artifact/result surfaces are the next layer.
+
+```typescript
+// Launch a tracked sortie mission
+const { sortie, result } = await pd.runSortie({
+  goal: 'Investigate flaky auth tests and summarize the root cause',
+  backend: 'codex',
+  modelTier: 'low',
+  budgetUsd: 0.75,
+  recipe: 'investigate',
+  expectedOutput: 'Root-cause memo with recommended next actions',
+  context: 'Do not patch yet; evidence only',
+});
+
+console.log(sortie.id, sortie.status, sortie.harbor);
+console.log(result?.output);
+
+// Inspect sortie history later
+const { sorties } = await pd.listSorties({ projectDir: '/path/to/project' });
+const { sortie: oneSortie } = await pd.getSortie(sortie.id);
+const { events } = await pd.getSortieLogs(sortie.id);
+```
+
+| Method | Description |
+|--------|-------------|
+| `pd.runSortie(spec)` | Launch a tracked sortie mission and return its initial result |
+| `pd.listSorties(options?)` | List recent sorties, optionally filtered by project directory |
+| `pd.getSortie(id)` | Fetch one sortie by id |
+| `pd.getSortieLogs(id, limit?)` | Fetch the sortie event log |
 
 ---
 
@@ -935,4 +1005,3 @@ await pd.destroyHarbor('myapp:security-review');
 | `pd.enterHarbor(name, agentId, options?)` | Agent enters harbor, declares capabilities |
 | `pd.leaveHarbor(name, agentId)` | Agent leaves harbor |
 | `pd.harborMemberships(agentId)` | List harbors an agent is currently in |
-

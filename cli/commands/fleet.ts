@@ -5,13 +5,26 @@
  * Uses pd spawn for all agent execution — dogfoods our own primitives.
  */
 
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { existsSync, readFileSync, writeFileSync, unlinkSync, mkdirSync } from 'node:fs';
+import { join, basename } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
 import { spawn } from 'node:child_process';
+import { parse as parseYaml } from 'yaml';
+import { createIpcClient } from '../../lib/ipc-client.js';
+import { IpcAction, Performative } from '../../lib/ipc-types.js';
 import * as ui from '../utils/ui.js';
-import { pdFetch, isDaemonRunning } from '../utils/fetch.js';
-import { loadFleetConfig, createFleetRunner } from '../../lib/fleet-engine.js';
+import { pdFetch, isDaemonRunning, getDaemonUrl } from '../utils/fetch.js';
+import {
+  findFleetConfigPath,
+  loadFleetConfig,
+  createFleetRunner,
+  getFleetRuntimeDefaults,
+  resolveFleetAgentRuntime,
+  validateTopology,
+} from '../../lib/fleet-engine.js';
+import { assessBackendReadiness } from '../../lib/backend-readiness.js';
+import { resolveFleetChannel } from '../../lib/fleet-channels.js';
+import { ensureStarterFleetProject } from '../../lib/fleet-bootstrap.js';
+import { DEFAULT_IPC } from '../../shared/paths.js';
 
 // ─── Load .env.local / .env for API keys ────────────────────────────────────
 // Searches: cwd, parent dir, home directory. Later files overwrite earlier ones,
@@ -52,8 +65,37 @@ function loadEnvFiles(): void {
 // Load env on module init — before any agent runs
 loadEnvFiles();
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const PD_URL = process.env.PD_URL || process.env.PORT_DADDY_URL || 'http://localhost:9876';
+const PD_URL = process.env.PD_URL || process.env.PORT_DADDY_URL || getDaemonUrl();
+const LOCAL_EXECUTION_BACKENDS = new Set(['claude-cli', 'codex', 'ollama', 'aider', 'custom']);
+
+async function getFleetPromptLineViaIpc(project: string, since?: number): Promise<string | null> {
+  if (process.env.PD_URL || process.env.PORT_DADDY_URL || process.env.PORT_DADDY_SOCK) return null;
+  const socketPath = process.env.PORT_DADDY_IPC || DEFAULT_IPC;
+  if (!existsSync(socketPath)) return null;
+
+  const ipc = createIpcClient({
+    socketPath,
+    agentId: 'pd-cli-fleet-prompt',
+    reconnect: false,
+    requestTimeout: 1000,
+  });
+
+  try {
+    await ipc.connect();
+    const frame = await ipc.request(
+      Performative.QUERY_REF,
+      { action: IpcAction.FLEET_PROMPT, project, since },
+      1000,
+    );
+    if (frame.type !== Performative.INFORM_DONE) return null;
+    const result = frame.payload.result as { success?: boolean; line?: string } | undefined;
+    return result?.success ? (result.line || '') : null;
+  } catch {
+    return null;
+  } finally {
+    ipc.destroy();
+  }
+}
 
 function isFleetRunning(): { running: boolean; pid: number | null; name: string | null } {
   const stateFile = join(process.cwd(), '.portdaddy', 'fleet-state.json');
@@ -68,22 +110,35 @@ function isFleetRunning(): { running: boolean; pid: number | null; name: string 
   }
 }
 
-async function getFleetAgents(): Promise<Array<{ id: string; purpose: string; status: string }>> {
+async function getFleetAgents(config: ReturnType<typeof loadFleetConfig>): Promise<Array<{ id: string; purpose: string; status: string }>> {
+  if (!config) return [];
+  const harbor = config.harbor || `${config.name}:fleet`;
   try {
-    const res = await pdFetch('/agents');
-    if (!res.ok) return [];
-    const data = await res.json() as any;
-    return (data.agents || []).filter((a: any) => a.id?.startsWith('fleet-'));
+    const [harborRes, agentsRes] = await Promise.all([
+      pdFetch(`/harbors/${encodeURIComponent(harbor)}/members`),
+      pdFetch('/agents'),
+    ]);
+    if (!harborRes.ok) return [];
+
+    const harborData = await harborRes.json() as any;
+    const members = Array.isArray(harborData.members) ? harborData.members : [];
+
+    const liveAgents = agentsRes.ok
+      ? (((await agentsRes.json()) as any).agents || []) as Array<{ id: string; purpose?: string; status?: string }>
+      : [];
+    const liveAgentById = new Map(liveAgents.map((agent) => [agent.id, agent]));
+
+    return members.map((member: any) => {
+      const live = liveAgentById.get(member.agentId);
+      return {
+        id: member.agentId,
+        purpose: live?.purpose || member.identity || `Fleet member in ${harbor}`,
+        status: live?.status || 'registered',
+      };
+    });
   } catch {
     return [];
   }
-}
-
-// ─── Template paths ─────────────────────────────────────────────────────────
-
-function getTemplatePath(name: string): string {
-  // Templates are at <project-root>/templates/ relative to this file (cli/commands/)
-  return join(__dirname, '..', '..', 'templates', name);
 }
 
 // ─── fleet init ─────────────────────────────────────────────────────────────
@@ -91,8 +146,6 @@ function getTemplatePath(name: string): string {
 async function fleetInit(): Promise<void> {
   const cwd = process.cwd();
   const fleetPath = join(cwd, 'pd-fleet.yml');
-  const hookDir = join(cwd, '.git', 'hooks');
-  const hookPath = join(hookDir, 'post-commit');
 
   // Check if already initialized
   if (existsSync(fleetPath)) {
@@ -100,70 +153,41 @@ async function fleetInit(): Promise<void> {
     ui.info('Edit it to customize your fleet, then run: pd fleet up');
     return;
   }
-
-  // Copy fleet template
-  const templateSrc = getTemplatePath('pd-fleet-starter.yml');
-  if (!existsSync(templateSrc)) {
-    ui.error('Fleet template not found. Is Port Daddy installed correctly?');
-    process.exit(1);
-  }
-
-  writeFileSync(fleetPath, readFileSync(templateSrc, 'utf-8'));
+  const bootstrap = ensureStarterFleetProject(cwd);
   ui.success('Created pd-fleet.yml with 5 agents: QA, documentarian, cartographer, spark, spider');
 
-  // Install git hook if .git exists
-  if (existsSync(join(cwd, '.git'))) {
-    const hookSrc = getTemplatePath('post-commit-hook');
-    if (existsSync(hookSrc)) {
-      if (existsSync(hookPath)) {
-        // Append to existing hook instead of overwriting
-        const existing = readFileSync(hookPath, 'utf-8');
-        if (existing.includes('git:committed')) {
-          ui.info('Git post-commit hook already publishes to git:committed');
-        } else {
-          const hookContent = readFileSync(hookSrc, 'utf-8');
-          // Strip the shebang from the appended content
-          const withoutShebang = hookContent.replace(/^#!.*\n/, '');
-          writeFileSync(hookPath, existing.trimEnd() + '\n\n# --- Port Daddy fleet trigger ---\n' + withoutShebang);
-          const { chmodSync } = await import('node:fs');
-          chmodSync(hookPath, 0o755);
-          ui.success('Added fleet trigger to existing .git/hooks/post-commit');
-        }
-      } else {
-        mkdirSync(hookDir, { recursive: true });
-        writeFileSync(hookPath, readFileSync(hookSrc, 'utf-8'));
-        const { chmodSync } = await import('node:fs');
-        chmodSync(hookPath, 0o755);
-        ui.success('Installed .git/hooks/post-commit (publishes to git:committed)');
-      }
-    }
-  } else {
-    ui.warn('No .git directory found — skipping post-commit hook');
-    ui.info('Run this inside a git repo to get automatic fleet triggers on commit');
+  switch (bootstrap.hookStatus) {
+    case 'created':
+      ui.success('Installed .git/hooks/post-commit (publishes to the project-scoped git:committed channel)');
+      break;
+    case 'upgraded':
+      ui.success('Upgraded legacy .git/hooks/post-commit to the project-scoped git:committed channel');
+      break;
+    case 'merged':
+      ui.success('Added fleet trigger to existing .git/hooks/post-commit');
+      break;
+    case 'already_current':
+      ui.info('Git post-commit hook already publishes to the project-scoped git:committed channel');
+      break;
+    case 'skipped_no_git':
+      ui.warn('No .git directory found — skipping post-commit hook');
+      ui.info('Run this inside a git repo to get automatic fleet triggers on commit');
+      break;
+    case 'missing_template':
+      ui.warn('Port Daddy could not load its post-commit hook template');
+      break;
   }
 
-  // Create output directories
-  mkdirSync(join(cwd, '.spark', 'ideas'), { recursive: true });
-  mkdirSync(join(cwd, '.spider', 'connections'), { recursive: true });
-  mkdirSync(join(cwd, '.cartographer'), { recursive: true });
-
-  // Add to .gitignore if it exists
-  const gitignorePath = join(cwd, '.gitignore');
-  if (existsSync(gitignorePath)) {
-    const gitignore = readFileSync(gitignorePath, 'utf-8');
-    const additions: string[] = [];
-    if (!gitignore.includes('.spark/')) additions.push('.spark/');
-    if (!gitignore.includes('.spider/')) additions.push('.spider/');
-    if (!gitignore.includes('.cartographer/')) additions.push('.cartographer/');
-    if (additions.length > 0) {
-      writeFileSync(gitignorePath, gitignore.trimEnd() + '\n\n# Port Daddy fleet output\n' + additions.join('\n') + '\n');
-      ui.info(`Added ${additions.join(', ')} to .gitignore`);
-    }
+  if (bootstrap.addedGitignoreEntries.length > 0) {
+    ui.info(`Added ${bootstrap.addedGitignoreEntries.join(', ')} to .gitignore`);
+  }
+  for (const warning of bootstrap.warnings) {
+    ui.warn(warning);
   }
 
   console.log('');
   ui.info('Next steps:');
-  console.log('  1. Add ANTHROPIC_API_KEY to .env.local');
+  console.log('  1. Pin a backend + model for each agent, or set PD_FLEET_DEFAULT_BACKEND / PD_FLEET_DEFAULT_MODEL');
   console.log('  2. Edit pd-fleet.yml to customize agent prompts');
   console.log('  3. Run: pd fleet up');
   console.log('  4. Commit something — watch the agents fire');
@@ -267,6 +291,7 @@ async function fleetStatus(): Promise<void> {
   console.log('');
   ui.info('Port Daddy Fleet');
   console.log('');
+  const defaults = getFleetRuntimeDefaults();
 
   const { running, pid, name } = isFleetRunning();
   if (running) {
@@ -282,10 +307,92 @@ async function fleetStatus(): Promise<void> {
     }
   }
 
+  const config = loadFleetConfig(process.cwd());
+
+  console.log('');
+  ui.info('Configured agents:');
+  if (!config) {
+    console.log('  (no pd-fleet.yml)');
+  } else if (config.agents.length === 0) {
+    console.log('  (none)');
+  } else {
+    for (const agent of config.agents) {
+      const runtime = resolveFleetAgentRuntime(agent);
+      const mode = agent.schedule ? `schedule ${agent.schedule}` : `trigger ${agent.trigger}`;
+      const backend = runtime.backend || 'MISSING';
+      const model = runtime.model || (backend === 'claude-cli' ? 'CLI default' : runtime.modelTier ? `${runtime.modelTier} tier (unmapped)` : 'backend default');
+      const fallbacks = (agent.fallbacks || []).map((fallback) => {
+        const fallbackRuntime = resolveFleetAgentRuntime({
+          backend: fallback.backend || agent.backend,
+          model: fallback.model,
+          modelTier: fallback.modelTier,
+        });
+        const fallbackBackend = fallbackRuntime.backend || 'MISSING';
+        const fallbackModel = fallbackRuntime.model
+          || (fallbackRuntime.modelTier ? `${fallbackRuntime.modelTier} tier` : (fallbackBackend === 'claude-cli' ? 'CLI default' : 'backend default'));
+        return `${fallbackBackend}/${fallbackModel}`;
+      });
+      const warnings = runtime.warnings.length > 0 ? ` [${runtime.warnings.join('; ')}]` : '';
+      const fallbackText = fallbacks.length > 0 ? ` / fallbacks: ${fallbacks.join(' -> ')}` : '';
+      console.log(`  ${agent.name} — ${backend} / ${model} / ${mode}${fallbackText}${warnings}`);
+    }
+  }
+
+  console.log('');
+  ui.info('Fleet runtime defaults:');
+  console.log(`  backend: ${defaults.backend || '(unset)'}`);
+  console.log(`  model:   ${defaults.model || '(unset)'}`);
+
+  console.log('');
+  ui.info('Backend readiness:');
+  if (!config) {
+    console.log('  (no pd-fleet.yml)');
+  } else {
+    const configuredBackends = new Set<string>();
+    if (defaults.backend) configuredBackends.add(defaults.backend);
+
+    for (const agent of config.agents) {
+      const runtime = resolveFleetAgentRuntime(agent);
+      if (runtime.backend) configuredBackends.add(runtime.backend);
+      for (const fallback of agent.fallbacks || []) {
+        const fallbackRuntime = resolveFleetAgentRuntime({
+          backend: fallback.backend || agent.backend,
+          model: fallback.model,
+          modelTier: fallback.modelTier,
+        });
+        if (fallbackRuntime.backend) configuredBackends.add(fallbackRuntime.backend);
+      }
+    }
+
+    if (configuredBackends.size === 0) {
+      console.log('  (no backends resolved)');
+    } else {
+      const readinessChecks = await Promise.all(
+        [...configuredBackends].sort().map((backend) => assessBackendReadiness(backend))
+      );
+      for (const readiness of readinessChecks) {
+        const statusIcon = readiness.status === 'ready'
+          ? '+'
+          : readiness.status === 'manual_check'
+            ? '~'
+            : '!';
+        console.log(`  [${statusIcon}] ${readiness.backend} — ${readiness.summary}`);
+        if (readiness.nextStep) {
+          console.log(`      next: ${readiness.nextStep}`);
+        }
+      }
+
+      if (readinessChecks.some((entry) => LOCAL_EXECUTION_BACKENDS.has(entry.backend))) {
+        console.log('  [~] local execution note — local CLI backends and Port Daddy socket/IPC operations may need unsandboxed approval in restricted runners');
+        console.log('      next: If you hit EPERM/EACCES/ENOENT while claiming ports or opening Port Daddy sockets, rerun the Port Daddy command with unsandboxed approval.');
+      }
+    }
+  }
+
   // Fleet agents from PD registry
   console.log('');
   ui.info('Registered fleet agents:');
-  const agents = await getFleetAgents();
+  const agents = await getFleetAgents(config);
   if (agents.length === 0) {
     console.log('  (none)');
   } else {
@@ -298,16 +405,21 @@ async function fleetStatus(): Promise<void> {
   // Recent fleet events
   console.log('');
   ui.info('Recent fleet events:');
+  const currentProjectDir = process.cwd();
+  const currentProjectName = basename(currentProjectDir);
   const channels = [
     'fleet:status', 'fleet:alert', 'git:committed',
     'qa:findings', 'docs:updated', 'tests:gap-filled',
     'spark:idea', 'spark:prototype',
-  ];
+  ].map((channel) => ({
+    logical: channel,
+    physical: resolveFleetChannel(channel, currentProjectDir, currentProjectName),
+  }));
 
   const channelResults = await Promise.all(
-    channels.map(async (ch) => {
+    channels.map(async ({ logical, physical }) => {
       try {
-        const res = await pdFetch(`/msg/${ch}?limit=1`);
+        const res = await pdFetch(`/msg/${encodeURIComponent(physical)}?limit=1`);
         if (!res.ok) return null;
         const data = await res.json() as any;
         const msgs = data.messages || [];
@@ -319,7 +431,7 @@ async function fleetStatus(): Promise<void> {
         const payload = typeof msgs[0].payload === 'string'
           ? msgs[0].payload.slice(0, 80)
           : JSON.stringify(msgs[0].payload).slice(0, 80);
-        return `  ${ch}: ${time} — ${payload}`;
+        return `  ${logical}: ${time} — ${payload}`;
       } catch { return null; }
     })
   );
@@ -330,6 +442,71 @@ async function fleetStatus(): Promise<void> {
   } else {
     console.log('  (no recent events)');
   }
+}
+
+function fleetValidate(): void {
+  const configPath = findFleetConfigPath(process.cwd());
+  if (!configPath) {
+    ui.error('No pd-fleet.yml found');
+    ui.info('Run "pd fleet init" to create a starter fleet.');
+    process.exit(1);
+  }
+
+  console.log('');
+  ui.info(`Validating ${configPath}`);
+  console.log('');
+
+  const raw = readFileSync(configPath, 'utf-8');
+  if (!raw.trim()) {
+    ui.error('Fleet config is empty');
+    process.exit(1);
+  }
+
+  try {
+    parseYaml(raw);
+  } catch (err) {
+    ui.error(`YAML parse failed: ${(err as Error).message}`);
+    process.exit(1);
+  }
+
+  const config = loadFleetConfig(process.cwd());
+  if (!config) {
+    ui.error('Fleet config could not be resolved after template expansion.');
+    process.exit(1);
+  }
+
+  const topology = validateTopology(config);
+  ui.success(`Fleet "${config.name}" parsed successfully`);
+  console.log(`  agents:   ${config.agents.length}`);
+  console.log(`  watchers: ${config.watchers.length}`);
+  console.log(`  channels: ${Object.keys(config.channels).length}`);
+  console.log(`  budget:   ${config.limits?.budgetUsdPerDay ?? '(missing)'}`);
+
+  if (!topology.valid) {
+    console.log('');
+    ui.error('Topology invalid: trigger cycle(s) detected');
+    for (const cycle of topology.cycles) {
+      console.log(`  cycle: ${cycle.join(' -> ')}`);
+    }
+    process.exit(1);
+  }
+
+  console.log('');
+  if (topology.warnings.length === 0) {
+    ui.success('No topology warnings');
+  } else {
+    ui.warn(`Topology warnings (${topology.warnings.length}):`);
+    for (const warning of topology.warnings) {
+      console.log(`  - ${warning}`);
+    }
+  }
+
+  console.log('');
+  ui.info('Dry-run checklist:');
+  console.log('  - YAML syntax parsed');
+  console.log('  - templates resolved');
+  console.log('  - trigger graph checked for cycles');
+  console.log('  - no agents were spawned');
 }
 
 /**
@@ -355,11 +532,25 @@ async function runAgentByName(agentName: string, preloadedConfig?: ReturnType<ty
     process.exit(1);
   }
 
-  ui.info(`Running ${agent.name} (${agent.backend})...`);
+  const runtime = resolveFleetAgentRuntime(agent);
+  if (!runtime.backend) {
+    ui.error(`Agent "${agent.name}" has no backend configured`);
+    ui.info('Set agent.backend in pd-fleet.yml or export PD_FLEET_DEFAULT_BACKEND');
+    process.exit(1);
+  }
 
-  if (agent.backend === 'claude-cli') {
+  const budgetUsd = config.limits?.budgetUsdPerDay;
+  if (budgetUsd == null || !Number.isFinite(budgetUsd) || budgetUsd <= 0) {
+    ui.error(`Fleet agent "${agent.name}" cannot run without limits.budget_usd_per_day (or budgetUsdPerDay) in pd-fleet.yml`);
+    process.exit(1);
+  }
+
+  ui.info(`Running ${agent.name} (${runtime.backend}${runtime.model ? ` / ${runtime.model}` : ''})...`);
+
+  if (runtime.backend === 'claude-cli') {
     // Run locally — claude CLI needs user's auth context
     const args = ['-p', agent.prompt];
+    if (runtime.model) args.push('--model', runtime.model);
     if (agent.allowedTools) args.push('--allowedTools', agent.allowedTools);
 
     // Ensure API keys are in the env for the child process
@@ -398,11 +589,12 @@ async function runAgentByName(agentName: string, preloadedConfig?: ReturnType<ty
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        backend: agent.backend,
+        model: runtime.model,
         task: agent.prompt,
         identity: agent.identity,
         purpose: `Fleet agent: ${agent.name}`,
-        model: agent.model,
+        backend: runtime.backend,
+        budgetUsd,
         timeout: agent.timeout,
         allowedTools: agent.allowedTools,
       }),
@@ -424,17 +616,22 @@ async function runAgentByName(agentName: string, preloadedConfig?: ReturnType<ty
 // ─── fleet prompt ───────────────────────────────────────────────────────────
 
 async function fleetPrompt(): Promise<void> {
-  // Detect project name from cwd (basename of git root, or cwd itself)
-  let projectName: string;
-  try {
-    const { execFileSync } = await import('node:child_process');
-    const root = execFileSync('git', ['rev-parse', '--show-toplevel'], {
-      encoding: 'utf-8',
-      stdio: ['pipe', 'pipe', 'pipe'],
-    }).trim();
-    projectName = root.split('/').pop() || '';
-  } catch {
-    projectName = process.cwd().split('/').pop() || '';
+  // Prefer the declarative fleet name from pd-fleet.yml.
+  // Fall back to git root basename so the prompt still works in undeclared repos.
+  const config = loadFleetConfig(process.cwd());
+
+  let projectName = config?.name || '';
+  if (!projectName) {
+    try {
+      const { execFileSync } = await import('node:child_process');
+      const root = execFileSync('git', ['rev-parse', '--show-toplevel'], {
+        encoding: 'utf-8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+      }).trim();
+      projectName = root.split('/').pop() || '';
+    } catch {
+      projectName = process.cwd().split('/').pop() || '';
+    }
   }
 
   if (!projectName) return; // silent exit — no project detected
@@ -450,6 +647,20 @@ async function fleetPrompt(): Promise<void> {
   }
 
   try {
+    const ipcLine = await getFleetPromptLineViaIpc(projectName, since);
+    if (ipcLine !== null) {
+      if (ipcLine) {
+        process.stdout.write(ipcLine + '\n');
+      }
+      try {
+        mkdirSync(stateDir, { recursive: true });
+        writeFileSync(promptStateFile, String(Date.now()));
+      } catch {
+        // Non-critical
+      }
+      return;
+    }
+
     const url = new URL(`${PD_URL}/fleet/prompt`);
     url.searchParams.set('project', projectName);
     if (since) url.searchParams.set('since', String(since));
@@ -494,6 +705,10 @@ export async function handleFleet(positional: string[], _options: Record<string,
       await fleetStatus();
       break;
 
+    case 'validate':
+      fleetValidate();
+      break;
+
     case 'init':
       await fleetInit();
       break;
@@ -516,12 +731,16 @@ export async function handleFleet(positional: string[], _options: Record<string,
       console.log('  up              Start all agents from pd-fleet.yml');
       console.log('  down            Stop all agents');
       console.log('  status          Show fleet health');
+      console.log('  validate        Parse pd-fleet.yml, resolve templates, and check topology');
       console.log('');
       if (config) {
         console.log(`Agents in pd-fleet.yml (${config.agents.length}):`);
         for (const a of config.agents) {
           const mode = a.schedule ? `schedule: ${a.schedule}` : `trigger: ${a.trigger}`;
-          console.log(`  ${a.name.padEnd(16)} ${a.backend.padEnd(12)} ${mode}`);
+          const runtime = resolveFleetAgentRuntime(a);
+          const backend = runtime.backend || 'MISSING';
+          const model = runtime.model || (backend === 'claude-cli' ? 'CLI default' : runtime.modelTier ? `${runtime.modelTier} tier` : 'backend default');
+          console.log(`  ${a.name.padEnd(16)} ${backend.padEnd(12)} ${model.padEnd(16)} ${mode}`);
         }
         console.log('');
         console.log('Run an agent once:');

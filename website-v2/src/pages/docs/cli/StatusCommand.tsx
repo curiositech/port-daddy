@@ -5,7 +5,7 @@ export default function StatusCommand() {
     <CommandPage
       command="status"
       description="Daemon status: uptime, port count, SQLite path, and code hash."
-      version="3.7.0"
+      version="3.8.3"
       syntax="pd status"
       usagePatterns={[
         'pd status',
@@ -14,7 +14,7 @@ export default function StatusCommand() {
         {
           description: 'Get daemon status',
           code: 'pd status',
-          output: `[pd] Port Daddy v3.7.0 — 3 services, uptime 4h 12m`
+          output: `[pd] Port Daddy v3.8.3 — 3 services, uptime 4h 12m`
         },
       ]}
       seeAlso={[

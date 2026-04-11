@@ -322,6 +322,8 @@ describe('Webhook Delivery and Retry', () => {
   });
 
   afterEach(() => {
+    webhooks.dispose();
+    db.close();
     delete global.fetch;
   });
 
@@ -361,6 +363,26 @@ describe('Webhook Delivery and Retry', () => {
 
     await sleep(100);
     expect(mockFetch.calls.length).toBeGreaterThan(0);
+  });
+
+  it('should cancel scheduled retries on dispose', async () => {
+    mockFetch = createMockFetch({ status: 500, body: 'Server Error' });
+    global.fetch = mockFetch;
+
+    const webhookId = webhooks.register('https://example.com/webhook').id;
+    webhooks.trigger(WebhookEvent.SERVICE_CLAIM, { port: 3000 });
+
+    await waitFor(() => mockFetch.calls.length > 0, 2000);
+    const beforeDispose = webhooks.getDeliveries(webhookId).deliveries[0];
+    expect(beforeDispose.attempts).toBe(1);
+    expect(beforeDispose.status).toBe('retrying');
+
+    webhooks.dispose();
+    await sleep(1100);
+
+    const afterDispose = webhooks.getDeliveries(webhookId).deliveries[0];
+    expect(afterDispose.attempts).toBe(1);
+    expect(afterDispose.status).toBe('retrying');
   });
 
   it('should mark as failed after max retries', async () => {

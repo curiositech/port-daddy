@@ -9,29 +9,22 @@
  * pd harbors [--json]
  */
 
-import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
+import { getDaemonTcpUrl } from '../../shared/daemon-discovery.js';
+import { readCurrentContextFromPaths } from '../utils/current-context.js';
 
-const BASE_URL = process.env.PORT_DADDY_URL ?? 'http://localhost:9876';
+const BASE_URL = getDaemonTcpUrl(process.env.PORT_DADDY_URL);
 
 type ParsedOptions = Record<string, string | boolean | undefined>;
 
 // ─── Local Context ────────────────────────────────────────────────────────────
 
 function loadCurrentAgentId(): string | null {
-  const paths = [
-    join(process.cwd(), '.portdaddy', 'current.json'),
-    join(process.env.HOME ?? '', '.portdaddy', 'current.json'),
-  ];
-  for (const p of paths) {
-    if (existsSync(p)) {
-      try {
-        const d = JSON.parse(readFileSync(p, 'utf8')) as Record<string, unknown>;
-        if (typeof d['agentId'] === 'string') return d['agentId'];
-      } catch { /* ignore */ }
-    }
-  }
-  return null;
+  const context = readCurrentContextFromPaths([
+    process.cwd(),
+    process.env.HOME ?? '',
+  ]);
+  return typeof context?.agentId === 'string' ? context.agentId : null;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

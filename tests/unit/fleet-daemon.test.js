@@ -27,12 +27,20 @@ jest.unstable_mockModule('node:fs', () => ({
 const mockStartAll = jest.fn();
 const mockStopAll = jest.fn();
 const mockGetStatus = jest.fn(() => []);
+const mockHailAgent = jest.fn(async () => ({ success: true }));
+const mockPauseAgent = jest.fn(() => ({ success: true }));
+const mockResumeAgent = jest.fn(() => ({ success: true }));
+const mockSetEnabledAgents = jest.fn(() => ({ success: true }));
 const mockLoadFleetConfig = jest.fn();
 const mockCreateFleetRunner = jest.fn(() => ({
   startAll: mockStartAll,
   stopAll: mockStopAll,
   getStatus: mockGetStatus,
   startAgent: jest.fn(),
+  hailAgent: mockHailAgent,
+  pauseAgent: mockPauseAgent,
+  resumeAgent: mockResumeAgent,
+  setEnabledAgents: mockSetEnabledAgents,
   config: { agents: [], watchers: [], channels: {}, name: 'test' },
 }));
 const mockValidateTopology = jest.fn(() => ({ valid: true, cycles: [], warnings: [] }));
@@ -53,10 +61,13 @@ jest.unstable_mockModule('node:child_process', () => ({
 // ─── Import after mocks ────────────────────────────────────────────────────
 
 const { createFleetDaemon } = await import('../../lib/fleet-daemon.js');
+const createdDaemons = [];
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
 function makeDeps(overrides = {}) {
+  const lockState = new Map();
+
   return {
     projects: {
       list: jest.fn(() => []),
@@ -70,9 +81,67 @@ function makeDeps(overrides = {}) {
       warn: jest.fn(),
       error: jest.fn(),
     },
+    locks: {
+      acquire: jest.fn((name, options = {}) => {
+        const now = Date.now();
+        const existing = lockState.get(name);
+        if (existing && (!existing.expiresAt || existing.expiresAt > now)) {
+          return {
+            success: false,
+            error: 'lock is held',
+            holder: existing.owner,
+            expiresAt: existing.expiresAt,
+          };
+        }
+        const ttl = typeof options.ttl === 'number' ? options.ttl : 300000;
+        lockState.set(name, {
+          owner: options.owner || 'test-owner',
+          expiresAt: now + ttl,
+          metadata: options.metadata || null,
+        });
+        return { success: true };
+      }),
+      release: jest.fn((name, options = {}) => {
+        const existing = lockState.get(name);
+        if (!existing) return { success: true };
+        if (options.owner && existing.owner !== options.owner) {
+          return { success: false, error: 'lock held by another owner', holder: existing.owner };
+        }
+        lockState.delete(name);
+        return { success: true };
+      }),
+      extend: jest.fn((name, options = {}) => {
+        const existing = lockState.get(name);
+        if (!existing) return { success: false, error: 'lock not held' };
+        if (options.owner && existing.owner !== options.owner) {
+          return { success: false, error: 'lock held by another owner' };
+        }
+        const ttl = typeof options.ttl === 'number' ? options.ttl : 300000;
+        existing.expiresAt = Date.now() + ttl;
+        lockState.set(name, existing);
+        return { success: true, expiresAt: existing.expiresAt };
+      }),
+      check: jest.fn((name) => {
+        const existing = lockState.get(name);
+        if (!existing) return { success: true, held: false };
+        return {
+          success: true,
+          held: true,
+          owner: existing.owner,
+          expiresAt: existing.expiresAt,
+          metadata: existing.metadata,
+        };
+      }),
+    },
     daemonDir: '/test/daemon',
     ...overrides,
   };
+}
+
+function makeDaemon(deps) {
+  const daemon = createFleetDaemon(deps);
+  createdDaemons.push(daemon);
+  return daemon;
 }
 
 function makeConfig(name = 'test-project') {
@@ -92,6 +161,16 @@ beforeEach(() => {
   // Default: no fleet configs found
   mockExistsSync.mockReturnValue(false);
   mockLoadFleetConfig.mockReturnValue(null);
+  mockHailAgent.mockResolvedValue({ success: true });
+  mockPauseAgent.mockReturnValue({ success: true });
+  mockResumeAgent.mockReturnValue({ success: true });
+  mockSetEnabledAgents.mockReturnValue({ success: true });
+});
+
+afterEach(() => {
+  while (createdDaemons.length > 0) {
+    createdDaemons.pop()?.stop();
+  }
 });
 
 // ─── Tests ─────────────────────────────────────────────────────────────────
@@ -99,7 +178,7 @@ beforeEach(() => {
 describe('createFleetDaemon', () => {
   test('start() with no fleet configs does nothing gracefully', () => {
     const deps = makeDeps();
-    const daemon = createFleetDaemon(deps);
+    const daemon = makeDaemon(deps);
 
     daemon.start();
 
@@ -123,7 +202,7 @@ describe('createFleetDaemon', () => {
       { name: 'spark', type: 'scheduled', running: true, uptime: 0 },
     ]);
 
-    const daemon = createFleetDaemon(deps);
+    const daemon = makeDaemon(deps);
     daemon.start();
 
     expect(mockLoadFleetConfig).toHaveBeenCalledWith('/test/daemon');
@@ -166,11 +245,89 @@ describe('createFleetDaemon', () => {
     });
     mockGetStatus.mockReturnValue([]);
 
-    const daemon = createFleetDaemon(deps);
+    const daemon = makeDaemon(deps);
     daemon.start();
 
     expect(mockStartAll).toHaveBeenCalledTimes(2);
     expect(daemon.getStatus().fleets).toHaveLength(2);
+  });
+
+  test('startProject() skips a project fleet already owned by another daemon', () => {
+    const sharedLocks = makeDeps().locks;
+    const depsA = makeDeps({ locks: sharedLocks });
+    const depsB = makeDeps({ locks: sharedLocks });
+
+    mockLoadFleetConfig.mockReturnValue(makeConfig('shared-project'));
+    mockGetStatus.mockReturnValue([]);
+
+    const daemonA = makeDaemon(depsA);
+    expect(daemonA.startProject('/test/shared').success).toBe(true);
+
+    const daemonB = makeDaemon(depsB);
+    const result = daemonB.startProject('/test/shared');
+
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/already held/);
+    expect(daemonB.getStatus().fleets).toHaveLength(0);
+    expect(daemonB.getStatus().skipped).toEqual([
+      expect.objectContaining({
+        projectDir: '/test/shared',
+        reason: expect.stringContaining('already held'),
+      }),
+    ]);
+  });
+
+  test('renewal reacquires a project lease if the lock row disappears without a new owner', () => {
+    const setIntervalSpy = jest.spyOn(global, 'setInterval');
+    let held = false;
+    let owner = null;
+    let dropOnExtend = false;
+    const deps = makeDeps({
+      locks: {
+        acquire: jest.fn((name, options = {}) => {
+          held = true;
+          owner = options.owner || 'test-owner';
+          return { success: true, name, owner };
+        }),
+        release: jest.fn(() => {
+          held = false;
+          return { success: true };
+        }),
+        extend: jest.fn(() => {
+          if (dropOnExtend) {
+            held = false;
+            dropOnExtend = false;
+            return { success: false, error: 'lock not held' };
+          }
+          return { success: true, expiresAt: Date.now() + 30000 };
+        }),
+        check: jest.fn(() => (
+          held
+            ? { success: true, held: true, owner }
+            : { success: true, held: false }
+        )),
+      },
+    });
+    mockLoadFleetConfig.mockReturnValue(makeConfig('reacquire-project'));
+    mockGetStatus.mockReturnValue([]);
+
+    const daemon = makeDaemon(deps);
+    expect(daemon.startProject('/test/reacquire')).toEqual({ success: true });
+
+    dropOnExtend = true;
+    const renewLease = setIntervalSpy.mock.calls[0]?.[0];
+    expect(typeof renewLease).toBe('function');
+    renewLease();
+
+    expect(deps.logger.warn).toHaveBeenCalledWith(
+      'fleet_project_lease_reacquired',
+      expect.objectContaining({
+        project: 'reacquire-project',
+        projectDir: '/test/reacquire',
+      })
+    );
+    expect(daemon.getStatus().fleets).toHaveLength(1);
+    expect(daemon.getStatus().skipped).toHaveLength(0);
   });
 
   test('stop() stops all runners and clears state', () => {
@@ -181,7 +338,7 @@ describe('createFleetDaemon', () => {
     mockLoadFleetConfig.mockReturnValue(makeConfig());
     mockGetStatus.mockReturnValue([]);
 
-    const daemon = createFleetDaemon(deps);
+    const daemon = makeDaemon(deps);
     daemon.start();
     expect(daemon.getStatus().running).toBe(true);
 
@@ -189,10 +346,11 @@ describe('createFleetDaemon', () => {
     expect(mockStopAll).toHaveBeenCalledTimes(1);
     expect(daemon.getStatus().running).toBe(false);
     expect(daemon.getStatus().fleets).toHaveLength(0);
+    expect(daemon.getStatus().skipped).toHaveLength(0);
   });
 
   test('stop() is idempotent', () => {
-    const daemon = createFleetDaemon(makeDeps());
+    const daemon = makeDaemon(makeDeps());
     daemon.stop(); // not started
     daemon.stop(); // double stop
     expect(mockStopAll).not.toHaveBeenCalled();
@@ -206,7 +364,7 @@ describe('createFleetDaemon', () => {
     mockLoadFleetConfig.mockReturnValue(makeConfig());
     mockGetStatus.mockReturnValue([]);
 
-    const daemon = createFleetDaemon(deps);
+    const daemon = makeDaemon(deps);
     daemon.start();
     daemon.start(); // double start
     expect(mockStartAll).toHaveBeenCalledTimes(1);
@@ -220,7 +378,7 @@ describe('createFleetDaemon', () => {
     mockLoadFleetConfig.mockReturnValue(makeConfig());
     mockGetStatus.mockReturnValue([]);
 
-    const daemon = createFleetDaemon(deps);
+    const daemon = makeDaemon(deps);
     daemon.start();
 
     jest.clearAllMocks();
@@ -241,7 +399,7 @@ describe('createFleetDaemon', () => {
     mockLoadFleetConfig.mockReturnValue(config);
     mockGetStatus.mockReturnValue([]);
 
-    const daemon = createFleetDaemon(deps);
+    const daemon = makeDaemon(deps);
     const result = daemon.startProject('/test/new-project');
 
     expect(result.success).toBe(true);
@@ -249,12 +407,32 @@ describe('createFleetDaemon', () => {
     expect(daemon.getStatus().fleets).toHaveLength(1);
   });
 
+  test('startProject() can persist an enabled-agent subset for a project', () => {
+    const deps = makeDeps();
+    const config = makeConfig('subset-project');
+    mockLoadFleetConfig.mockReturnValue(config);
+    mockGetStatus.mockReturnValue([
+      { name: 'qa', type: 'triggered', status: 'armed', running: false, paused: false, uptime: 0 },
+      { name: 'spark', type: 'scheduled', status: 'paused', running: false, paused: true, uptime: 0 },
+    ]);
+
+    const daemon = makeDaemon(deps);
+    const result = daemon.startProject('/test/subset', { enabledAgents: ['qa'] });
+
+    expect(result.success).toBe(true);
+    expect(mockCreateFleetRunner).toHaveBeenCalledWith(
+      config,
+      '/test/subset',
+      expect.objectContaining({ initiallyPausedAgents: ['spark'] })
+    );
+  });
+
   test('startProject() rejects if already running', () => {
     const deps = makeDeps();
     mockLoadFleetConfig.mockReturnValue(makeConfig());
     mockGetStatus.mockReturnValue([]);
 
-    const daemon = createFleetDaemon(deps);
+    const daemon = makeDaemon(deps);
     daemon.startProject('/test/project');
     const result = daemon.startProject('/test/project');
 
@@ -262,11 +440,74 @@ describe('createFleetDaemon', () => {
     expect(result.error).toContain('already running');
   });
 
+  test('hailAgent() resolves a fleet agent by project and forwards context', async () => {
+    const deps = makeDeps();
+    const config = makeConfig('port-daddy-dev');
+    mockLoadFleetConfig.mockReturnValue(config);
+    mockGetStatus.mockReturnValue([]);
+
+    const daemon = makeDaemon(deps);
+    daemon.startProject('/test/project');
+
+    const result = await daemon.hailAgent('qa', {
+      project: 'port-daddy-dev',
+      source: 'inbox',
+      from: 'fleet-ui',
+      messageContent: 'wake up',
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockHailAgent).toHaveBeenCalledWith('qa', expect.objectContaining({
+      source: 'inbox',
+      from: 'fleet-ui',
+      messageContent: 'wake up',
+    }));
+  });
+
+  test('hailAgent() rejects ambiguous names across fleets', async () => {
+    const deps = makeDeps();
+    mockLoadFleetConfig
+      .mockReturnValueOnce(makeConfig('alpha'))
+      .mockReturnValueOnce(makeConfig('beta'));
+    mockGetStatus.mockReturnValue([]);
+
+    const daemon = makeDaemon(deps);
+    daemon.startProject('/test/alpha');
+    daemon.startProject('/test/beta');
+
+    const result = await daemon.hailAgent('qa', { source: 'inbox', messageContent: 'wake up' });
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/ambiguous/);
+  });
+
+  test('pauseAgent() and resumeAgent() forward through the managed fleet runner', () => {
+    const deps = makeDeps();
+    mockLoadFleetConfig.mockReturnValue(makeConfig('port-daddy-dev'));
+    mockGetStatus.mockReturnValue([]);
+
+    const daemon = makeDaemon(deps);
+    daemon.startProject('/test/project');
+
+    expect(daemon.pauseAgent('qa', 'port-daddy-dev')).toEqual({
+      success: true,
+      project: 'port-daddy-dev',
+      agent: 'qa',
+    });
+    expect(mockPauseAgent).toHaveBeenCalledWith('qa');
+
+    expect(daemon.resumeAgent('qa', 'port-daddy-dev')).toEqual({
+      success: true,
+      project: 'port-daddy-dev',
+      agent: 'qa',
+    });
+    expect(mockResumeAgent).toHaveBeenCalledWith('qa');
+  });
+
   test('startProject() rejects if no pd-fleet.yml', () => {
     const deps = makeDeps();
     mockLoadFleetConfig.mockReturnValue(null);
 
-    const daemon = createFleetDaemon(deps);
+    const daemon = makeDaemon(deps);
     const result = daemon.startProject('/test/empty');
 
     expect(result.success).toBe(false);
@@ -278,7 +519,7 @@ describe('createFleetDaemon', () => {
     mockLoadFleetConfig.mockReturnValue(makeConfig());
     mockGetStatus.mockReturnValue([]);
 
-    const daemon = createFleetDaemon(deps);
+    const daemon = makeDaemon(deps);
     daemon.startProject('/test/project');
     expect(daemon.getStatus().fleets).toHaveLength(1);
 
@@ -289,18 +530,19 @@ describe('createFleetDaemon', () => {
   });
 
   test('stopProject() rejects if not running', () => {
-    const daemon = createFleetDaemon(makeDeps());
+    const daemon = makeDaemon(makeDeps());
     const result = daemon.stopProject('/test/nonexistent');
     expect(result.success).toBe(false);
   });
 
   test('listProjects() returns managed project dirs', () => {
     const deps = makeDeps();
-    mockLoadFleetConfig.mockReturnValue(makeConfig());
     mockGetStatus.mockReturnValue([]);
 
-    const daemon = createFleetDaemon(deps);
+    const daemon = makeDaemon(deps);
+    mockLoadFleetConfig.mockReturnValue(makeConfig('project-a'));
     daemon.startProject('/test/a');
+    mockLoadFleetConfig.mockReturnValue(makeConfig('project-b'));
     daemon.startProject('/test/b');
 
     expect(daemon.listProjects()).toEqual(['/test/a', '/test/b']);
@@ -317,7 +559,7 @@ describe('event publishing', () => {
     mockLoadFleetConfig.mockReturnValue(config);
     mockGetStatus.mockReturnValue([]);
 
-    const daemon = createFleetDaemon(deps);
+    const daemon = makeDaemon(deps);
     daemon.start();
 
     // Extract the onEvent callback that was passed to createFleetRunner
@@ -362,7 +604,7 @@ describe('event publishing', () => {
     mockLoadFleetConfig.mockReturnValue(makeConfig());
     mockGetStatus.mockReturnValue([]);
 
-    const daemon = createFleetDaemon(deps);
+    const daemon = makeDaemon(deps);
     daemon.start();
 
     const onEvent = mockCreateFleetRunner.mock.calls[0][2]?.onEvent;
@@ -396,7 +638,7 @@ describe('topology validation', () => {
     });
     mockGetStatus.mockReturnValue([]);
 
-    const daemon = createFleetDaemon(deps);
+    const daemon = makeDaemon(deps);
     daemon.start();
 
     expect(deps.logger.warn).toHaveBeenCalledWith(
@@ -424,7 +666,7 @@ describe('env loading', () => {
     });
     mockLoadFleetConfig.mockReturnValue(null);
 
-    const daemon = createFleetDaemon(deps);
+    const daemon = makeDaemon(deps);
     daemon.start();
 
     // Existing key preserved
@@ -451,7 +693,7 @@ describe('error resilience', () => {
     });
     mockExistsSync.mockReturnValue(false);
 
-    const daemon = createFleetDaemon(deps);
+    const daemon = makeDaemon(deps);
     daemon.start(); // should not throw
 
     expect(deps.logger.error).toHaveBeenCalledWith(
@@ -470,7 +712,7 @@ describe('error resilience', () => {
     mockGetStatus.mockReturnValue([]);
     mockStopAll.mockImplementation(() => { throw new Error('kill ESRCH'); });
 
-    const daemon = createFleetDaemon(deps);
+    const daemon = makeDaemon(deps);
     daemon.start();
     daemon.stop(); // should not throw despite stopAll failure
 

@@ -1,4 +1,4 @@
-# ⚓ Port Daddy (v3.8.2)
+# ⚓ Port Daddy (v3.8.3)
 
 <p align="center">
   <img src="website-v2/public/img/hero-portdaddy.png" alt="Port Daddy — the harbormaster for your AI agents" width="600">
@@ -22,6 +22,8 @@
 ## Overview
 
 **Port Daddy** is a daemon that gives every AI agent its own port, coordinates file access, and recovers work when they crash. One install, zero config.
+
+Examples in this README assume the default local daemon URL `http://localhost:9876`. If your daemon is running on a different port, use `pd status` or set `PORT_DADDY_URL` before copying the HTTP examples.
 
 While individual agents are brilliant, **coordination** is the bottleneck. Port Daddy provides the missing primitives: atomic port assignment, pub/sub messaging, distributed locks, session trails, and agent resurrection.
 
@@ -164,14 +166,17 @@ pd activity    # Stream the raw audit trail of all operations
 ### Spawn AI Agents
 Launch AI agents with full PD coordination (registration, sessions, heartbeats) baked in:
 ```bash
-# Claude Code CLI (full agent with file editing tools)
-pd spawn --backend claude-cli --allowedTools 'Read,Write,Edit,Glob,Grep' -- "Fix the login bug in src/auth.ts"
+# Codex CLI (good default for code-changing one-shot work)
+pd spawn --backend codex --tier low --budget 0.50 --identity myapp:fixer -- "Fix the login bug in src/auth.ts"
 
 # Claude API (text in, text out — fast, no tools)
 pd spawn --backend claude -- "Explain what this function does"
 
+# Cloudflare Workers AI (hosted edge inference)
+pd spawn --backend cloudflare --model @cf/meta/llama-3.1-8b-instruct --budget 0.20 --identity myapp:edge -- "Summarize recent changes"
+
 # Ollama (local LLM, default)
-pd spawn --backend ollama --model llama3.2:8b -- "Summarize the README"
+pd spawn --backend ollama --model qwen2.5-coder:7b --budget 0.25 --identity myapp:docs -- "Summarize the README"
 
 # List running/completed agents
 pd spawned
@@ -183,14 +188,43 @@ pd spawn kill <agent-id>
 pd watch git:committed --exec './fleet/qa-adversary.sh'
 ```
 
-**Backends:** `ollama` (default), `claude` (API), `claude-cli` (full CLI), `gemini`, `aider`, `custom`
+**Backends:** `ollama` (default), `claude` (API), `claude-cli` (full CLI), `gemini`, `cloudflare`, `codex`, `aider`, `custom`
 
-**Key flags:** `--backend`, `--model`, `--identity`, `--purpose`, `--allowedTools` (claude-cli), `--maxTokens`, `--workdir`, `--timeout`
+**Key flags:** `--backend`, `--model`, `--tier`, `--identity`, `--purpose`, `--budget`, `--allowedTools` (claude-cli), `--maxTokens`, `--workdir`, `--timeout`
 
 Quiet mode (`-q`) prints raw output to stdout and exits non-zero on failure — perfect for shell scripts:
 ```bash
-local result=$(pd spawn --backend claude-cli --maxTokens 100 -q -- "Write a commit message for: $diff")
+local result=$(pd spawn --backend codex --tier low --budget 0.25 -q -- "Write a commit message for: $diff")
 ```
+
+### Delegation Modes
+
+Use the right surface for the job:
+
+- `pd spawn` — the low-level primitive. Explicit backend, identity, budget, and task.
+- `pd agent` — the preferred single-agent sugar. One bounded task with Port Daddy coordination wrapped around it.
+- `pd sortie` — a tracked mission record with a durable id, event log, harbor, and inspectable outcome.
+- `pd fleet` — always-on project automation from `pd-fleet.yml`.
+
+Canonical operator explanation: [docs/DELEGATION-MODES.md](docs/DELEGATION-MODES.md)
+
+```bash
+# Preferred single-agent delegation
+pd agent "Review the last commit for regressions" --backend codex --tier low --budget 0.35
+
+# Tracked mission record with status + logs
+pd sortie "Investigate flaky auth tests and summarize the root cause" \
+  --backend codex \
+  --tier low \
+  --budget 0.75
+
+# Inspect mission outcomes later
+pd sortie list
+pd sortie status sortie-abc123
+pd sortie logs sortie-abc123
+```
+
+Current truthful limitation: `pd sortie` is now a first-class mission object and CLI/API/MCP surface, but the underlying execution is still a single coordinating spawned agent. Richer multi-agent approvals, artifact/result pages, and human-in-the-loop controls are the next layer.
 
 ### OpenAPI Specification
 Full API spec at `docs/openapi.yaml` (OpenAPI 3.1, 96 paths, 125 operations):
@@ -279,6 +313,28 @@ pd tuple scan --harbor myapp:fleet
 
 Pattern matching: exact values, `*` wildcard, `>N`/`<N` numeric comparisons, `myapp:*` semantic identity prefixes.
 
+### Semantic Graph And Episodic Memory
+Port Daddy now exposes two operator inspection surfaces over the newer coordination substrate:
+
+- `pd graph` for durable relationship edges emitted by symbol indexing and merge orchestration
+- `pd memory` for promoted handoffs, findings, blockers, and sortie outcomes
+
+```bash
+# Inspect graph relationships for one indexed file
+pd graph edges --scope symbols:file:/Users/you/coding/port-daddy/server.ts
+
+# Summarize graph density for a project
+pd graph stats --dir /Users/you/coding/port-daddy
+
+# Review promoted handoffs/findings
+pd memory episodes --project port-daddy --type handoff
+
+# Summarize episodic memory coverage
+pd memory stats --dir /Users/you/coding/port-daddy
+```
+
+These are read surfaces for now. The point is operator truth: if graph/memory is part of the product, it must be inspectable from the CLI and not only via raw daemon routes.
+
 ### Semantic Trie (O(k) Identity Lookups)
 Port Daddy indexes all identities (services, agents, sessions, harbors) in an in-memory Adaptive Radix Tree. Lookups are O(k) where k is key length — replacing SQL `LIKE` scans that degrade as the registry grows.
 
@@ -292,7 +348,7 @@ pd find 'myapp:api:main'       # Exact lookup
 The trie populates from SQLite on daemon startup and stays in sync on every register/claim/release. Harbor bitmask filtering enables O(1) scope checks for harbor membership.
 
 ### Fleet Engine (Declarative Agent Orchestration)
-Declare your background agent fleet in a `pd-fleet.yml` file — like docker-compose for AI agent swarms. **As of v3.8.2, the Port Daddy daemon auto-discovers and starts your fleet on boot** — no terminal to keep open.
+Declare your background agent fleet in a `pd-fleet.yml` file — like docker-compose for AI agent swarms. **As of v3.8.3, the Port Daddy daemon auto-discovers and starts your fleet on boot** — no terminal to keep open.
 
 ```yaml
 # pd-fleet.yml
@@ -303,14 +359,22 @@ fleet:
   limits:
     max_concurrent_spawns: 2        # At most 2 agents running in parallel
     max_spawns_per_hour: 20         # Rate cap (Ostrom Principle 2)
+    budget_usd_per_day: 5           # Daily LLM spend ceiling in USD
 
   agents:
     qa:
       trigger: git:committed          # React to pub/sub events
-      backend: claude-cli
-      allowedTools: "Read,Grep,Glob,Bash(npm test*)"
+      backend: ollama
+      model: qwen2.5-coder:7b
       prompt: |
         Review the most recent commit. Find bugs. Write tests.
+
+    test-hunter:
+      trigger: git:committed
+      backend: codex
+      model: gpt-5.4-mini
+      prompt: |
+        Run the test suite. Fill the highest-signal coverage gaps.
 
     gardener:
       schedule: "*/10 * * * *"        # Or run on a cron schedule
@@ -332,6 +396,7 @@ fleet:
 # CLI mode
 pd fleet init     # Create pd-fleet.yml + git post-commit hook (first-time setup)
 pd fleet up       # Start all agents (foreground, terminal-attached)
+pd fleet validate # Parse YAML, resolve templates, and dry-run topology checks
 pd fleet status   # View running agents
 pd fleet down     # Stop all agents
 
@@ -339,9 +404,55 @@ pd fleet down     # Stop all agents
 curl http://localhost:9876/fleet              # Global fleet status
 curl -X POST http://localhost:9876/fleet/reload   # Reload all configs (same as SIGHUP)
 curl http://localhost:9876/fleet/events       # SSE stream of lifecycle events
+
+# Fleet config management
+curl http://localhost:9876/fleet/config/myapp           # Read YAML + topology validation
+curl -X PUT http://localhost:9876/fleet/config/myapp \
+  -H 'Content-Type: application/json' \
+  -d '{"yaml": "fleet:\n  name: myapp\n  agents: ..."}' # Write + validate + reload
+
+# Shell prompt integration
+curl 'http://localhost:9876/fleet/prompt?project=myapp'  # One-line status for PS1
+
+# Available backends & models
+curl http://localhost:9876/fleet/models       # Lists ollama, codex, claude-cli, gemini, cloudflare, aider, etc.
 ```
 
-Each agent gets full PD coordination for free: registration, sessions, heartbeats, and salvage on crash. Supports `claude-cli`, `ollama`, `custom` (shell commands), and all `pd spawn` backends. Template variables (`{project}`) resolve from the YAML context. Fleet lifecycle events publish to the `fleet:events` channel for dashboard and menu bar subscriptions.
+Each agent gets full PD coordination for free: registration, sessions, heartbeats, and salvage on crash. Supports every `pd spawn` backend, including `ollama`, `codex`, `claude-cli`, `claude`, `gemini`, `cloudflare`, `aider`, and `custom`. Template variables (`{project}`) resolve from the YAML context. Fleet lifecycle events publish to the `fleet:events` channel for dashboard and menu bar subscriptions.
+
+Fleet status now reflects mailbox semantics: repeated trigger bursts collapse into queued work instead of spawning a fresh agent for every wake. When that happens, agent rows can show `status: queued` and a non-zero `queueDepth` so operators can see pending work instead of mistaking it for a miss.
+
+### Observability & Cost Tracking
+
+Port Daddy tracks operational metrics and LLM spend across your fleet. Three subsystems work together:
+
+**Counters** — ODS-style bump counters with time-bucketed storage. The daemon auto-increments counters for spawn lifecycle events (`spawn.started`, `spawn.failed`, `spawn.completed`, `spawn.duration_ms`), session events, and more. Batched in memory, flushed to SQLite every 10s. Auto-prunes rows older than 30 days.
+
+**Cost Tracker** — Records per-spawn LLM cost. When token counts are available (Claude SDK backend), computes exact cost using a built-in rate table (14 models: Claude, Gemini, GPT). For opaque CLI backends (`claude-cli`, `codex`, `aider`), uses model-aware per-session estimates. Budget checks per project.
+
+**Golden Signals** — RED method metrics for the spawn system in a single endpoint: rate/min, error%, avg duration, cost/hr burn rate.
+
+```bash
+# Golden signals — one-stop health check for your fleet
+curl http://localhost:9876/metrics/golden
+# → { ratePerMin: 1.2, errorPct: 5.0, avgDurationMs: 4200, costPerHour: 0.23 }
+
+# Cost summary by project (last 24h)
+curl http://localhost:9876/metrics/cost
+# → { totals: { totalUsd: 2.15, spawns: 43 }, byProject: [...], byBackend: [...] }
+
+# Budget check — explicit ceiling required on every query
+curl "http://localhost:9876/metrics/cost/budget/myapp?budgetUsdPerDay=10"
+
+# Counter time series — spawn rate by minute
+curl "http://localhost:9876/metrics/counters?key=spawn.started&groupBy=minute"
+
+# Top backends by spawn count
+curl "http://localhost:9876/metrics/counters/top?key=spawn.started&dim=backend&n=5"
+
+# Recent cost events (live feed)
+curl http://localhost:9876/metrics/cost/recent?limit=20
+```
 
 ### Note Encryption (Escrow Secrecy)
 Session notes are encrypted at rest with AES-256-GCM. Master key stored at `~/.port-daddy/master.key` (auto-generated on first boot). Per-session keys wrapped with the master key. Backward-compatible — existing plaintext notes remain readable. ProVerif-verified: attacker with database access cannot learn note content.

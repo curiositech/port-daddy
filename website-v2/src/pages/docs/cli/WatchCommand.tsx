@@ -5,7 +5,7 @@ export default function WatchCommand() {
     <CommandPage
       command="pd watch"
       description="Subscribe to a channel and run a script on every message. Uses SSE for real-time delivery. Auto-reconnects on disconnect. This is the 'always-on agent' primitive for event-driven automation."
-      version="3.7.0"
+      version="3.8.3"
       syntax="pd watch <channel> [flags]"
       flags={[
         { flag: '--exec <script>', description: 'Script to run on each message' },

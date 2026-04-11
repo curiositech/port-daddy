@@ -301,37 +301,41 @@ export async function handleMcpInstall(options: Record<string, unknown>, _home =
     return;
   }
 
+  let shouldInstallSkill = !shellOnly;
+
   if (!shellOnly) {
     // ─── Configure MCP for each platform ──────────────────────────────
 
     if (targets.length === 0) {
       ui.warn('No AI platforms detected.');
       console.log('  Supported: Claude Code, Claude Desktop, Cursor, Windsurf, VS Code, Continue, Cline');
-      console.log('  Install one and re-run: pd mcp install');
+      console.log('  Continuing with the shared Port Daddy skill and shell prompt hook.');
       console.log('');
-      return;
-    }
-
-    console.log('  Configuring MCP server:');
-    for (const platform of targets) {
-      const result = configurePlatform(platform);
-      if (result.success) {
-        const note = result.created ? 'configured' : 'updated';
-        const keyNote = platform.configKey === 'servers' ? ' (uses "servers" key)' : '';
-        console.log(`    \x1b[32m✓\x1b[0m ${platform.name.padEnd(20)} ${note}${keyNote}`);
-      } else {
-        console.log(`    \x1b[31m✗\x1b[0m ${platform.name.padEnd(20)} ${result.error}`);
+      shouldInstallSkill = true;
+    } else {
+      console.log('  Configuring MCP server:');
+      for (const platform of targets) {
+        const result = configurePlatform(platform);
+        if (result.success) {
+          const note = result.created ? 'configured' : 'updated';
+          const keyNote = platform.configKey === 'servers' ? ' (uses "servers" key)' : '';
+          console.log(`    \x1b[32m✓\x1b[0m ${platform.name.padEnd(20)} ${note}${keyNote}`);
+        } else {
+          console.log(`    \x1b[31m✗\x1b[0m ${platform.name.padEnd(20)} ${result.error}`);
+        }
       }
+      console.log('');
     }
-    console.log('');
 
     // ─── Install skill ────────────────────────────────────────────────
 
-    const skillPath = installSkill(_home);
-    if (skillPath) {
-      console.log(`  Skill installed:`);
-      console.log(`    \x1b[32m✓\x1b[0m ${skillPath}`);
-      console.log('');
+    if (shouldInstallSkill) {
+      const skillPath = installSkill(_home);
+      if (skillPath) {
+        console.log(`  Skill installed:`);
+        console.log(`    \x1b[32m✓\x1b[0m ${skillPath}`);
+        console.log('');
+      }
     }
   }
 

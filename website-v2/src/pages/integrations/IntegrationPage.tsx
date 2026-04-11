@@ -126,7 +126,7 @@ export function IntegrationPage() {
                  <CodeBlock language="bash">{integration.setupCode}</CodeBlock>
                  <motion.div className="flex items-center gap-3 p-4 rounded-2xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
                     <Info size={16} className="text-[var(--brand-primary)] shrink-0" />
-                    <motion.p className="text-sm m-0 text-[var(--text-secondary)]">This integration requires Port Daddy v3.7.0+ running in the background.</motion.p>
+                    <motion.p className="text-sm m-0 text-[var(--text-secondary)]">This integration requires Port Daddy v3.8.3+ running in the background.</motion.p>
                  </motion.div>
               </motion.div>
            </section>

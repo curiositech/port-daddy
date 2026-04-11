@@ -52,6 +52,7 @@ describe('sugar.begin', () => {
     expect(sessionInfo.success).toBe(true);
     expect(sessionInfo.session.status).toBe('active');
     expect(sessionInfo.session.agentId).toBe(result.agentId);
+    expect(sessionInfo.session.identityProject).toBe('port-daddy');
   });
 
   test('auto-generates agent ID when not provided', () => {

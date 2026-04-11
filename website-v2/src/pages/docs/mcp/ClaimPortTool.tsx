@@ -5,7 +5,7 @@ export default function ClaimPortTool() {
     <CommandPage
       command="claim_port"
       description="Claim a stable port for a service identity. Uses deterministic hashing to ensure the same identity always receives the same port. Idempotent — calling multiple times returns the same port."
-      version="3.7.0"
+      version="3.8.3"
       syntax="claim_port(identity, options?)"
       flags={[
         { flag: 'identity', description: 'Semantic identity (project:stack:context format)' },

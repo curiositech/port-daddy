@@ -198,6 +198,8 @@ interface QueuedDelivery {
 }
 
 export function createWebhooks(db: Database.Database) {
+  const retryTimers = new Set<ReturnType<typeof setTimeout>>();
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS webhooks (
       id TEXT PRIMARY KEY,
@@ -265,6 +267,7 @@ export function createWebhooks(db: Database.Database) {
 
   const deliveryQueue: QueuedDelivery[] = [];
   let processingQueue = false;
+  let disposed = false;
 
   function register(url: string, options: RegisterOptions = {}) {
     const { events = ['*'], secret, filterPattern, metadata } = options;
@@ -454,6 +457,8 @@ export function createWebhooks(db: Database.Database) {
   }
 
   function trigger(event: string, data: unknown, options: TriggerOptions = {}) {
+    if (disposed) return { triggered: 0, error: 'Webhook manager disposed' };
+
     const { targetId } = options;
 
     if (deliveryQueue.length >= MAX_QUEUE_SIZE) {
@@ -504,17 +509,22 @@ export function createWebhooks(db: Database.Database) {
   }
 
   async function processQueue(): Promise<void> {
-    if (processingQueue || deliveryQueue.length === 0) return;
+    if (disposed || processingQueue || deliveryQueue.length === 0) return;
 
     processingQueue = true;
-    while (deliveryQueue.length > 0) {
-      const delivery = deliveryQueue.shift()!;
-      await deliverWebhook(delivery);
+    try {
+      while (!disposed && deliveryQueue.length > 0) {
+        const delivery = deliveryQueue.shift()!;
+        await deliverWebhook(delivery);
+      }
+    } finally {
+      processingQueue = false;
     }
-    processingQueue = false;
   }
 
   async function deliverWebhook(delivery: QueuedDelivery, attempt = 1): Promise<void> {
+    if (disposed) return;
+
     const { deliveryId, webhookId, url, secret, payload } = delivery;
 
     try {
@@ -541,6 +551,7 @@ export function createWebhooks(db: Database.Database) {
       });
 
       const responseBody = await response.text().catch(() => '');
+      if (disposed) return;
 
       if (response.ok) {
         stmts.updateDelivery.run('delivered', Date.now(), response.status, responseBody.slice(0, RESPONSE_BODY_MAX_LENGTH), deliveryId);
@@ -553,13 +564,19 @@ export function createWebhooks(db: Database.Database) {
 
         if (attempt < MAX_RETRY_ATTEMPTS) {
           const delay = Math.pow(2, attempt - 1) * 1000;
-          const timer = setTimeout(() => deliverWebhook(delivery, attempt + 1), delay);
+          const timer = setTimeout(() => {
+            retryTimers.delete(timer);
+            void deliverWebhook(delivery, attempt + 1);
+          }, delay);
+          retryTimers.add(timer);
           if (typeof timer.unref === 'function') timer.unref();
         } else {
           stmts.updateStats.run(Date.now(), 0, 1, webhookId);
         }
       }
     } catch (error) {
+      if (disposed) return;
+
       stmts.updateDelivery.run(
         attempt < MAX_RETRY_ATTEMPTS ? 'retrying' : 'failed',
         Date.now(), null, (error as Error).message.slice(0, RESPONSE_BODY_MAX_LENGTH), deliveryId
@@ -567,7 +584,11 @@ export function createWebhooks(db: Database.Database) {
 
       if (attempt < MAX_RETRY_ATTEMPTS) {
         const delay = Math.pow(2, attempt - 1) * 1000;
-        const timer = setTimeout(() => deliverWebhook(delivery, attempt + 1), delay);
+        const timer = setTimeout(() => {
+          retryTimers.delete(timer);
+          void deliverWebhook(delivery, attempt + 1);
+        }, delay);
+        retryTimers.add(timer);
         if (typeof timer.unref === 'function') timer.unref();
       } else {
         stmts.updateStats.run(Date.now(), 0, 1, webhookId);
@@ -633,6 +654,16 @@ export function createWebhooks(db: Database.Database) {
     return { cleaned: result.changes };
   }
 
+  function dispose() {
+    disposed = true;
+    for (const timer of retryTimers) {
+      clearTimeout(timer);
+    }
+    retryTimers.clear();
+    deliveryQueue.length = 0;
+    processingQueue = false;
+  }
+
   async function test(id: string) {
     const webhook = stmts.getById.get(id) as WebhookRow | undefined;
     if (!webhook) return { success: false, error: 'Webhook not found' };
@@ -690,6 +721,7 @@ export function createWebhooks(db: Database.Database) {
     getDeliveries,
     retryPending,
     cleanup,
+    dispose,
     test,
     WebhookEvent
   };

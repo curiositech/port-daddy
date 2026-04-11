@@ -7,12 +7,13 @@
 
 import http from 'node:http';
 import type { IncomingMessage, ClientRequest } from 'node:http';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 
 import { DEFAULT_SOCK, DEFAULT_PORT_FILE } from '../../shared/paths.js';
+import { CANONICAL_TCP_PORT, LOOPBACK_TCP_HOST, getDaemonTcpUrl, readDaemonPort, resolveDaemonTcpTarget } from '../../shared/daemon-discovery.js';
 const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || DEFAULT_SOCK;
 const PORT_FILE: string = process.env.PORT_DADDY_PORT_FILE || DEFAULT_PORT_FILE;
-const PORT_DADDY_URL: string = process.env.PORT_DADDY_URL || 'http://localhost:9876';
+const PORT_DADDY_URL: string = getDaemonTcpUrl(process.env.PORT_DADDY_URL);
 const BARNACLE_URL: string = process.env.PORT_DADDY_BARNACLE_URL || 'http://localhost:9875';
 
 export { PORT_DADDY_URL, BARNACLE_URL, SOCK_PATH };
@@ -38,35 +39,19 @@ export interface FetchOptions {
 }
 
 /**
- * Read actual daemon port from port file (daemon writes this on startup).
- * Falls back to 9876 if file doesn't exist or can't be read.
- */
-function readPortFile(): number {
-  try {
-    const raw = readFileSync(PORT_FILE, 'utf-8').trim();
-    const port = parseInt(raw, 10);
-    if (Number.isInteger(port) && port >= 1024 && port <= 65535) {
-      return port;
-    }
-  } catch {}
-  return 9876;
-}
-
-/**
  * Resolve connection target: Unix socket or TCP.
  */
 export function resolveTarget(): ConnectionTarget {
   // Explicit TCP URL overrides socket
   if (process.env.PORT_DADDY_URL) {
-    const url = new URL(process.env.PORT_DADDY_URL);
-    return { host: url.hostname, port: parseInt(url.port, 10) || 9876 };
+    return resolveDaemonTcpTarget(process.env.PORT_DADDY_URL);
   }
   // Use socket if it exists
   if (existsSync(SOCK_PATH)) {
     return { socketPath: SOCK_PATH };
   }
   // Fallback to TCP — read actual port from port file
-  return { host: 'localhost', port: readPortFile() };
+  return { host: LOOPBACK_TCP_HOST, port: readDaemonPort(PORT_FILE) };
 }
 
 /**
@@ -74,27 +59,10 @@ export function resolveTarget(): ConnectionTarget {
  */
 export function getDaemonUrl(): string {
   if (process.env.PORT_DADDY_URL) return process.env.PORT_DADDY_URL;
-  return `http://localhost:${readPortFile()}`;
+  return `http://${LOOPBACK_TCP_HOST}:${readDaemonPort(PORT_FILE) || CANONICAL_TCP_PORT}`;
 }
 
-/**
- * Drop-in replacement for fetch() that routes through Unix socket when available.
- * Returns an object matching the subset of the fetch Response API that the CLI uses.
- */
-export function pdFetch(urlOrPath: string, options: FetchOptions = {}): Promise<PdFetchResponse> {
-  // Extract just the path from a full URL or use as-is if already a path
-  let path: string;
-  if (urlOrPath.startsWith('/')) {
-    path = urlOrPath;
-  } else {
-    try {
-      path = new URL(urlOrPath).pathname + (new URL(urlOrPath).search || '');
-    } catch {
-      path = urlOrPath;
-    }
-  }
-
-  const target: ConnectionTarget = resolveTarget();
+function requestTarget(target: ConnectionTarget, path: string, options: FetchOptions): Promise<PdFetchResponse> {
   const { method = 'GET', headers = {}, body = null } = options;
 
   const reqHeaders: Record<string, string | number> = { ...headers };
@@ -136,6 +104,48 @@ export function pdFetch(urlOrPath: string, options: FetchOptions = {}): Promise<
 
     if (body) req.write(body);
     req.end();
+  });
+}
+
+function shouldFallbackFromSocket(error: unknown): boolean {
+  const code = typeof error === 'object' && error && 'code' in error ? String((error as any).code) : '';
+  const message = error instanceof Error ? error.message : '';
+  return code === 'ENOENT' ||
+    code === 'ECONNREFUSED' ||
+    code === 'ECONNRESET' ||
+    code === 'EPERM' ||
+    message.includes('timed out');
+}
+
+/**
+ * Drop-in replacement for fetch() that routes through Unix socket when available.
+ * Returns an object matching the subset of the fetch Response API that the CLI uses.
+ */
+export function pdFetch(urlOrPath: string, options: FetchOptions = {}): Promise<PdFetchResponse> {
+  // Extract just the path from a full URL or use as-is if already a path
+  let path: string;
+  if (urlOrPath.startsWith('/')) {
+    path = urlOrPath;
+  } else {
+    try {
+      path = new URL(urlOrPath).pathname + (new URL(urlOrPath).search || '');
+    } catch {
+      path = urlOrPath;
+    }
+  }
+
+  const target: ConnectionTarget = resolveTarget();
+
+  return requestTarget(target, path, options).catch((error: unknown) => {
+    if (!target.socketPath || process.env.PORT_DADDY_URL || !shouldFallbackFromSocket(error)) {
+      throw error;
+    }
+
+    const fallbackTarget: ConnectionTarget = {
+      host: LOOPBACK_TCP_HOST,
+      port: readDaemonPort(PORT_FILE),
+    };
+    return requestTarget(fallbackTarget, path, options);
   });
 }
 

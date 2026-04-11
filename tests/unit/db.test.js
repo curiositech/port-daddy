@@ -263,11 +263,12 @@ describe('Direct-DB Mode: Tier 1 Operations', () => {
   });
 
   describe('Notes', () => {
-    it('quickNote works without daemon (auto-creates session)', () => {
-      const result = sessions.quickNote('Testing direct mode notes');
+    it('quickNote works without daemon when explicitly scoped to a session', () => {
+      const started = sessions.start('Direct mode notes session');
+      const result = sessions.quickNote('Testing direct mode notes', { sessionId: started.id });
       expect(result.success).toBe(true);
       expect(result.noteId).toBeDefined();
-      expect(result.sessionId).toBeDefined();
+      expect(result.sessionId).toBe(started.id);
     });
 
     it('addNote works without daemon', () => {

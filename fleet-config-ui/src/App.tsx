@@ -1,746 +1,958 @@
-import { useState, useEffect } from 'react';
-import { Zap, Clock, ChevronDown, ChevronRight, ArrowRight, Sun, Moon } from 'lucide-react';
-import AgentRadioCard, { type AgentData, agentColors } from './components/AgentRadioCard';
-import ChannelFlowGraph from './components/ChannelFlowGraph';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Wifi, Sun, Moon, Square, Play } from 'lucide-react';
+import { AllProjectsList } from './components/ProjectPicker';
+import ProjectPicker from './components/ProjectPicker';
+import AgentCard from './components/AgentCard';
+import AgentConfigPanel from './components/AgentConfigPanel';
+import FlowGraph from './components/FlowGraph';
+import ChannelLog from './components/ChannelLog';
+import DMPanel from './components/DMPanel';
+import SortiePanel from './components/SortiePanel';
+import YAMLEditor from './components/YAMLEditor';
+import ActivityPanel from './components/ActivityPanel';
+import MemoryPanel from './components/MemoryPanel';
+import { extractMentionedPaths } from './fileMentions';
+import {
+  activityTouchedFiles,
+  isMeaningfulActivityEntry,
+  isMeaningfulStory,
+  summarizeActivityEntry,
+} from './activityFeed';
+import { useFleet } from './hooks/useFleet';
+import { useChannelLog } from './hooks/useChannelLog';
+import { useTheme } from './hooks/useTheme';
+import {
+  pauseFleetAgent,
+  resumeFleetAgent,
+  runFleetAgent,
+  startFleet,
+  stopFleet,
+  formatDaemonLabel,
+  CUSTOM_DAEMON_SENTINEL,
+  getDaemonChoices,
+  getDaemonUrl,
+  setDaemonUrl,
+} from './api';
+import type { ActivityEntry, FleetConfig, FleetEvent, ResolvedChannelTarget, StoryNote, TopologyValidation } from './types';
 
-// ─── port-daddy fleet ────────────────────────────────────────────────────────
-const PD_AGENTS: AgentData[] = [
-  {
-    agentName: 'gardener',
-    description: 'Watches for uncommitted changes, auto-commits with AI-generated messages every 10 min.',
-    trigger: { type: 'schedule', value: '10 min' },
-    eventHistory: [
-      { time: '8 min ago',  outcome: 'clean',    storyLine: 'No source changes detected — working tree clean' },
-      { time: '18 min ago', outcome: 'clean',    storyLine: 'Committed f38dc6b — fix(security): decryptSecret returns null' },
-      { time: '28 min ago', outcome: 'clean',    storyLine: 'Committed 29e0ed6 — feat: FleetBar macOS menu bar app' },
-    ],
-    listening: [], broadcasting: ['git:status', 'git:committed'],
-    artifacts: [], consequences: ['git:committed triggers qa, test-hunter, documentarian, simplifier, cartographer'],
-    status: 'idle',
-  },
-  {
-    agentName: 'qa',
-    description: 'Adversarial code review — tries to break every commit before users do.',
-    trigger: { type: 'event', value: 'git:committed' },
-    eventHistory: [
-      { time: '2 min ago', outcome: 'clean',    storyLine: 'No issues in f38dc6b — fix(security): decryptSecret returns null' },
-      { time: '1 hr ago',  outcome: 'findings', storyLine: 'Found null dereference in lib/fleet-engine.ts:142 — SEVERITY: crash' },
-      { time: '3 hr ago',  outcome: 'clean',    storyLine: 'No issues in 2cf5acb — docs: homepage redesign brief' },
-    ],
-    listening: ['git:committed'], broadcasting: ['qa:clean', 'qa:findings'],
-    artifacts: [], consequences: ['qa:findings triggers notify-findings watcher'],
-    status: 'active',
-  },
-  {
-    agentName: 'test-hunter',
-    description: 'Runs test suite, finds modules below 50% coverage, writes meaningful tests.',
-    trigger: { type: 'event', value: 'git:committed' },
-    eventHistory: [
-      { time: '2 min ago', outcome: 'findings', storyLine: 'Found 2 uncovered branches in lib/fleet-daemon.ts' },
-      { time: '1 hr ago',  outcome: 'clean',    storyLine: 'All tracked modules above 50% threshold' },
-      { time: '3 hr ago',  outcome: 'findings', storyLine: 'Generated 3 test stubs for lib/note-encryption.ts' },
-    ],
-    listening: ['git:committed'], broadcasting: [],
-    artifacts: ['tests/unit/fleet-daemon.test.js'], consequences: [],
-    status: 'active',
-  },
-  {
-    agentName: 'documentarian',
-    description: 'Keeps all docs in sync — CLAUDE.md, README, SKILL.md, website pages.',
-    trigger: { type: 'event', value: 'git:committed' },
-    eventHistory: [
-      { time: '2 min ago', outcome: 'clean', storyLine: 'CLAUDE.md fleet daemon section updated — 3 new routes documented' },
-      { time: '1 hr ago',  outcome: 'clean', storyLine: 'SKILL.md updated — spawn/watch commands added' },
-      { time: '3 hr ago',  outcome: 'clean', storyLine: 'Changelog entry added for FleetBar enhancements' },
-    ],
-    listening: ['git:committed'], broadcasting: [],
-    artifacts: ['CLAUDE.md', 'skills/port-daddy-cli/SKILL.md'], consequences: [],
-    status: 'idle',
-  },
-  {
-    agentName: 'simplifier',
-    description: 'Reviews recent changes for unnecessary complexity. Simplifies without breaking.',
-    trigger: { type: 'event', value: 'git:committed' },
-    eventHistory: [
-      { time: '2 min ago', outcome: 'clean',    storyLine: 'No simplifications found — code is sufficiently direct' },
-      { time: '2 hr ago',  outcome: 'findings', storyLine: 'Removed 14 lines of dead code from lib/agents.ts' },
-      { time: '1 day ago', outcome: 'clean',    storyLine: 'No unnecessary complexity found in route changes' },
-    ],
-    listening: ['git:committed'], broadcasting: [],
-    artifacts: [], consequences: [],
-    status: 'idle',
-  },
-  {
-    agentName: 'cartographer',
-    description: 'Maintains the V4 roadmap — moves items NEXT → COMPLETE as commits land.',
-    trigger: { type: 'event', value: 'git:committed' },
-    eventHistory: [
-      { time: '2 min ago', outcome: 'clean', storyLine: 'Fleet daemon: 3 items moved to COMPLETE' },
-      { time: '1 hr ago',  outcome: 'clean', storyLine: 'Velocity: 4.2 commits/day · Phase 0 is 94% complete' },
-      { time: '1 day ago', outcome: 'clean', storyLine: 'Flagged pd mcp install as blocked — no commits in 8 days' },
-    ],
-    listening: ['git:committed'], broadcasting: [],
-    artifacts: ['docs/V4-UNIFIED-ROADMAP.md', '.cartographer/status.md'], consequences: [],
-    status: 'idle',
-  },
-  {
-    agentName: 'spark',
-    description: 'Generates one concrete feature idea per run from codebase context.',
-    trigger: { type: 'schedule', value: '30 min' },
-    eventHistory: [
-      { time: '12 min ago', outcome: 'findings', storyLine: 'spider-trie-pubsub-routing.md — pheromone trails × Arbiter staleness' },
-      { time: '42 min ago', outcome: 'findings', storyLine: 'fleet-yaml-live-reload.md — SIGHUP reloads pd-fleet.yml' },
-      { time: '1 hr ago',   outcome: 'clean',    storyLine: 'No new patterns detected this cycle' },
-    ],
-    listening: [], broadcasting: ['spark:idea'],
-    artifacts: ['.spark/ideas/2026-04-01-pheromone-arbiter.md'],
-    consequences: ['spark:idea triggers spider'],
-    status: 'idle',
-  },
-  {
-    agentName: 'spider',
-    description: 'Finds combinatorial connections between features. Outputs syllogisms.',
-    trigger: { type: 'event', value: 'spark:idea' },
-    eventHistory: [
-      { time: '10 min ago', outcome: 'findings', storyLine: '7 syllogisms: trie+pubsub, pheromone+Arbiter, symbol-claims+merge…' },
-      { time: '1 hr ago',   outcome: 'findings', storyLine: '5 syllogisms: harbor-tokens+resurrection, dns+health-checks…' },
-      { time: '3 hr ago',   outcome: 'clean',    storyLine: 'No surprising connections found — skipping' },
-    ],
-    listening: ['spark:idea'], broadcasting: ['spider:connections'],
-    artifacts: ['.spider/connections/2026-04-01-session.md'], consequences: [],
-    status: 'active',
-  },
-];
+type MainTab = 'Flow' | 'Activity' | 'Channels' | 'Inbox' | 'Sorties' | 'Memory' | 'YAML';
+type ControlSurface = 'flow' | 'activity' | 'channels' | 'inbox' | 'sorties' | 'memory' | 'yaml';
 
-// ─── bosun fleet ──────────────────────────────────────────────────────────────
-const BOSUN_AGENTS: AgentData[] = [
-  {
-    agentName: 'gardener',
-    description: 'Auto-commits Bosun changes with AI messages every 15 min.',
-    trigger: { type: 'schedule', value: '15 min' },
-    eventHistory: [
-      { time: '7 min ago',  outcome: 'clean', storyLine: 'No changes in working tree' },
-      { time: '22 min ago', outcome: 'clean', storyLine: 'Committed — feat: LLM routing via Ollama' },
-    ],
-    listening: [], broadcasting: ['git:committed'],
-    artifacts: [], consequences: [], status: 'idle',
-  },
-  {
-    agentName: 'qa',
-    description: 'Reviews each Bosun commit for logic errors and LLM interaction bugs.',
-    trigger: { type: 'event', value: 'git:committed' },
-    eventHistory: [
-      { time: '8 hr ago', outcome: 'clean', storyLine: 'No issues — SQLCipher migration clean' },
-    ],
-    listening: ['git:committed'], broadcasting: ['qa:clean', 'qa:findings'],
-    artifacts: [], consequences: [], status: 'idle',
-  },
-  {
-    agentName: 'spark',
-    description: 'Generates Bosun feature ideas — local LLM integrations, UX patterns.',
-    trigger: { type: 'schedule', value: '1 hr' },
-    eventHistory: [
-      { time: '45 min ago', outcome: 'findings', storyLine: 'voice-memo-transcription.md — whisper.cpp + context injection' },
-    ],
-    listening: [], broadcasting: ['spark:idea'],
-    artifacts: ['.spark/ideas/2026-04-01-voice.md'], consequences: [], status: 'idle',
-  },
-];
-
-// ─── projects ─────────────────────────────────────────────────────────────────
-interface ProjectData {
-  name: string;
-  dirPath: string;
-  fleetFile: string;
-  agents: AgentData[];
+function canUseWindow(): boolean {
+  return typeof window !== 'undefined';
 }
 
-const PROJECTS: ProjectData[] = [
-  { name: 'port-daddy', dirPath: '~/coding/port-daddy',  fleetFile: 'pd-fleet.yml', agents: PD_AGENTS },
-  { name: 'bosun',      dirPath: '~/coding/bosun',       fleetFile: 'pd-fleet.yml', agents: BOSUN_AGENTS },
-];
-
-const STARTER_YAML = `fleet:
-  agents:
-    - name: gardener
-      trigger:
-        type: schedule
-        value: "10 min"
-      prompt: |
-        Check for uncommitted changes. If any exist,
-        write a clear commit message and commit them.
-      broadcasting:
-        - git:committed
-
-    - name: qa
-      trigger:
-        type: event
-        value: git:committed
-      prompt: |
-        Review the latest commit adversarially.
-        Find bugs, edge cases, and security issues.
-      listening:
-        - git:committed
-      broadcasting:
-        - qa:clean
-        - qa:findings`;
-
-// ─── types ────────────────────────────────────────────────────────────────────
-type View = 'mini' | 'full';
-type Tab  = 'agents' | 'flow' | 'config';
-interface EditState { agent: AgentData; prompt: string; dirty: boolean; saved: string; }
-
-// ─── Mini agent row ───────────────────────────────────────────────────────────
-function AgentRow({ agent, onOpen }: { agent: AgentData; onOpen: () => void }) {
-  const color  = agentColors[agent.agentName] || '#D4C5A9';
-  const active = agent.status === 'active';
-  const lastEvent = agent.eventHistory[0];
-  const outcomeColor = lastEvent?.outcome === 'findings' ? '#F87171'
-    : lastEvent?.outcome === 'running' ? '#FBBF24' : '#6EE7B7';
-
-  return (
-    <div
-      className="flex items-center gap-3 py-1.5 px-3 rounded cursor-pointer transition-all"
-      style={{ color: 'var(--pd-text)' }}
-      onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#2A2520')}
-      onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
-      onClick={onOpen}
-    >
-      {/* Status dot */}
-      <div className="relative flex-shrink-0">
-        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
-        {active && <div className="absolute inset-0 w-2 h-2 rounded-full animate-ping opacity-40" style={{ backgroundColor: color }} />}
-      </div>
-
-      {/* Name */}
-      <span className="font-mono text-xs font-semibold w-28 flex-shrink-0" style={{ color }}>{agent.agentName}</span>
-
-      {/* Status */}
-      <span className="text-[9px] font-bold tracking-wider w-12 flex-shrink-0"
-        style={{ color: active ? '#4ade80' : '#6B5D4F' }}>
-        {agent.status.toUpperCase()}
-      </span>
-
-      {/* Trigger */}
-      <span className="flex items-center gap-1 text-[10px] font-mono opacity-50 flex-1 min-w-0 truncate">
-        {agent.trigger.type === 'event'
-          ? <Zap size={9} style={{ color: '#FBBF24', flexShrink: 0 }} />
-          : <Clock size={9} style={{ color: '#34D399', flexShrink: 0 }} />}
-        <span className="truncate">{agent.trigger.value}</span>
-      </span>
-
-      {/* Last run */}
-      {lastEvent && (
-        <span className="text-[10px] flex-shrink-0 opacity-60" style={{ color: outcomeColor }}>
-          {lastEvent.time}
-        </span>
-      )}
-    </div>
-  );
+function normalizeSurface(value: string | null): ControlSurface {
+  switch (value) {
+    case 'activity':
+    case 'channels':
+    case 'inbox':
+    case 'sorties':
+    case 'memory':
+    case 'yaml':
+    case 'flow':
+      return value;
+    default:
+      return 'flow';
+  }
 }
 
-// ─── Collapsible project card ─────────────────────────────────────────────────
-function ProjectCard({
-  project, expanded, onToggle, onOpen, onOpenAgent,
-}: {
-  project: ProjectData;
-  expanded: boolean;
-  onToggle: () => void;
-  onOpen: () => void;
-  onOpenAgent: (agent: AgentData) => void;
-}) {
-  const activeCount = project.agents.filter(a => a.status === 'active').length;
-  const hasFindings = project.agents.some(a => a.eventHistory[0]?.outcome === 'findings');
-
-  return (
-    <div className="rounded-lg border overflow-hidden transition-all" style={{ backgroundColor: 'var(--pd-surface)', borderColor: 'var(--pd-border)' }}>
-      {/* Header — always visible */}
-      <div
-        className="flex items-center justify-between px-4 py-3 cursor-pointer select-none"
-        onClick={onToggle}
-        onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#221F1C')}
-        onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
-      >
-        <div className="flex items-center gap-3">
-          {expanded
-            ? <ChevronDown size={13} style={{ color: 'var(--pd-muted)' }} />
-            : <ChevronRight size={13} style={{ color: 'var(--pd-muted)' }} />}
-          <span className="font-mono font-bold text-sm" style={{ color: 'var(--pd-text)' }}>{project.name}</span>
-          {activeCount > 0 && (
-            <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold"
-              style={{ backgroundColor: '#10B981', color: '#0A0908' }}>
-              {activeCount} active
-            </span>
-          )}
-          {hasFindings && (
-            <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold"
-              style={{ backgroundColor: '#EF444420', color: '#F87171', border: '1px solid #EF444440' }}>
-              findings
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="text-[10px] opacity-25 font-mono" style={{ color: 'var(--pd-text)' }}>
-            {project.agents.length} agents
-          </span>
-          <button
-            onClick={e => { e.stopPropagation(); onOpen(); }}
-            className="flex items-center gap-1 text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-all"
-            style={{ color: '#CC3D2E', backgroundColor: '#CC3D2E15', border: '1px solid #CC3D2E40' }}
-            onMouseEnter={e => { e.currentTarget.style.opacity = '1'; }}
-          >
-            open
-            <ArrowRight size={9} />
-          </button>
-        </div>
-      </div>
-
-      {/* dirPath — compact */}
-      {!expanded && (
-        <div className="px-4 pb-2 text-[10px] font-mono opacity-20" style={{ color: 'var(--pd-text)', marginTop: -4 }}>
-          {project.dirPath}/{project.fleetFile}
-        </div>
-      )}
-
-      {/* Expanded: agent rows */}
-      {expanded && (
-        <div className="pb-2">
-          <div className="px-4 pb-1 text-[10px] font-mono opacity-20 border-b border-[#2A2622] pb-2 mb-1" style={{ color: 'var(--pd-text)' }}>
-            {project.dirPath}/{project.fleetFile}
-          </div>
-          {/* Column headers */}
-          <div className="flex items-center gap-3 px-3 pt-1 pb-0.5">
-            <div className="w-2 flex-shrink-0" />
-            <span className="text-[9px] uppercase tracking-wider opacity-25 w-28 flex-shrink-0" style={{ color: 'var(--pd-text)' }}>agent</span>
-            <span className="text-[9px] uppercase tracking-wider opacity-25 w-12 flex-shrink-0" style={{ color: 'var(--pd-text)' }}>status</span>
-            <span className="text-[9px] uppercase tracking-wider opacity-25 flex-1" style={{ color: 'var(--pd-text)' }}>trigger</span>
-            <span className="text-[9px] uppercase tracking-wider opacity-25 flex-shrink-0" style={{ color: 'var(--pd-text)' }}>last run</span>
-          </div>
-          {project.agents.map(agent => (
-            <AgentRow key={agent.agentName} agent={agent} onOpen={() => onOpenAgent(agent)} />
-          ))}
-          <div className="px-3 pt-2">
-            <button
-              onClick={onOpen}
-              className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded text-xs transition-all"
-              style={{ color: '#CC3D2E', backgroundColor: '#CC3D2E10', border: '1px solid #CC3D2E30' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.backgroundColor = '#CC3D2E20'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.backgroundColor = '#CC3D2E10'; }}
-            >
-              Open full view
-              <ArrowRight size={11} />
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+function surfaceToMainTab(surface: ControlSurface): MainTab {
+  switch (surface) {
+    case 'flow':
+      return 'Flow';
+    case 'activity':
+      return 'Activity';
+    case 'channels':
+      return 'Channels';
+    case 'inbox':
+      return 'Inbox';
+    case 'sorties':
+      return 'Sorties';
+    case 'memory':
+      return 'Memory';
+    case 'yaml':
+      return 'YAML';
+    default:
+      return 'Flow';
+  }
 }
 
-// ─── Add fleet instructions ───────────────────────────────────────────────────
-function AddFleetPanel() {
-  const [open,   setOpen]   = useState(false);
-  const [copied, setCopied] = useState(false);
+function mainTabToSurface(activeTab: MainTab): ControlSurface {
+  if (activeTab === 'Activity') return 'activity';
+  if (activeTab === 'Channels') return 'channels';
+  if (activeTab === 'Inbox') return 'inbox';
+  if (activeTab === 'Sorties') return 'sorties';
+  if (activeTab === 'Memory') return 'memory';
+  if (activeTab === 'YAML') return 'yaml';
+  return 'flow';
+}
 
-  const copyYaml = () => {
-    navigator.clipboard.writeText(STARTER_YAML);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+function readInitialRoute(): { project: string | null; surface: ControlSurface; embedded: boolean; agent: string | null } {
+  if (!canUseWindow()) {
+    return { project: null, surface: 'flow', embedded: false, agent: null };
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const project = params.get('project');
+  const surface = normalizeSurface(params.get('surface'));
+  const embedded = params.get('embed') === 'fleetbar'
+    || window.navigator.userAgent.includes('PortDaddyFleetBar');
+  // FleetBar also injects an explicit marker at document start so embed mode survives
+  // query-string drops and custom user-agent inconsistencies.
+  const explicitEmbed = (window as Window & { __PORT_DADDY_EMBED?: string }).__PORT_DADDY_EMBED === 'fleetbar';
+  const agent = params.get('agent');
+  return {
+    project: project && project.trim() ? project.trim() : null,
+    surface,
+    embedded: embedded || explicitEmbed,
+    agent: agent && agent.trim() ? agent.trim() : null,
   };
+}
+
+interface AgentSignal {
+  summary: string;
+  label: string;
+  timestamp: number;
+  files: string[];
+}
+
+const PROJECT_SCOPE_HASH_LENGTH = 12;
+const PROJECT_SCOPE_SLUG_MAX = 24;
+
+function normalizeProjectSlug(value: string): string {
+  const cleaned = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return (cleaned || 'project').slice(0, PROJECT_SCOPE_SLUG_MAX);
+}
+
+function projectLabelFromDir(projectDir: string): string {
+  return projectDir.split(/[\\/]/).filter(Boolean).pop() ?? 'project';
+}
+
+async function hashProjectScope(projectDir: string): Promise<string | null> {
+  if (!window.crypto?.subtle) return null;
+  const digest = await window.crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(projectDir.replace(/\\/g, '/')),
+  );
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('')
+    .slice(0, PROJECT_SCOPE_HASH_LENGTH);
+}
+
+async function resolveBrowserScopedChannels(
+  logicalChannels: string[],
+  projectDir: string,
+  projectName?: string | null,
+): Promise<Record<string, string>> {
+  const hash = await hashProjectScope(projectDir);
+  if (!hash) return {};
+
+  const scope = `project:${normalizeProjectSlug(projectName || projectLabelFromDir(projectDir))}:${hash}`;
+  const resolved = new Map<string, string>();
+
+  for (const channel of logicalChannels) {
+    const trimmed = channel.trim();
+    if (!trimmed) continue;
+    if (trimmed.startsWith('project:')) {
+      resolved.set(trimmed, trimmed);
+    } else if (trimmed.startsWith('global:')) {
+      resolved.set(trimmed, trimmed.slice('global:'.length));
+    } else {
+      resolved.set(trimmed, `${scope}:${trimmed}`);
+    }
+  }
+
+  return Object.fromEntries(resolved);
+}
+
+function summarizeFleetEvent(event: FleetEvent): string {
+  if (typeof event.details?.error === 'string' && event.details.error.trim()) return event.details.error.trim();
+  if (typeof event.details?.status === 'string' && event.details.status.trim()) return `status: ${event.details.status.trim()}`;
+  if (typeof event.details?.message === 'string' && event.details.message.trim()) return event.details.message.trim();
+  if (event.type === 'agent_failed') return 'Agent failed without a surfaced summary.';
+  if (event.type === 'agent_completed') return 'Agent completed.';
+  return '';
+}
+
+function buildAgentSignal(
+  agentName: string,
+  activity: ActivityEntry[],
+  stories: StoryNote[],
+  fleetEvents: FleetEvent[],
+): AgentSignal | null {
+  const candidates: AgentSignal[] = [];
+
+  for (const entry of activity) {
+    const metadataAgentId = typeof entry.metadata?.agentId === 'string' ? entry.metadata.agentId : null;
+    const matches = entry.agentId === agentName
+      || metadataAgentId === agentName
+      || [entry.targetId, entry.details, entry.metadata]
+        .filter(Boolean)
+        .some((value) => stringifySearchField(value).toLowerCase().includes(agentName.toLowerCase()));
+    if (!matches || !isMeaningfulActivityEntry(entry)) continue;
+    candidates.push({
+      summary: summarizeActivityEntry(entry),
+      label: entry.type,
+      timestamp: entry.timestamp,
+      files: activityTouchedFiles(entry),
+    });
+  }
+
+  for (const story of stories) {
+    const storyText = `${story.sessionId} ${story.sessionPurpose ?? ''} ${story.content}`.toLowerCase();
+    const matchesStory = story.agentId === agentName || storyText.includes(agentName.toLowerCase());
+    if (!matchesStory || !isMeaningfulStory(story)) continue;
+    candidates.push({
+      summary: story.content.trim(),
+      label: story.type,
+      timestamp: story.createdAt,
+      files: extractMentionedPaths(story.content, 6),
+    });
+  }
+
+  for (const event of fleetEvents) {
+    if (event.agent !== agentName) continue;
+    const summary = summarizeFleetEvent(event);
+    if (!summary) continue;
+    candidates.push({
+      summary,
+      label: event.type.replace(/_/g, ' '),
+      timestamp: event.timestamp,
+      files: extractMentionedPaths(summary, 6),
+    });
+  }
+
+  candidates.sort((a, b) => b.timestamp - a.timestamp);
+  return candidates[0] ?? null;
+}
+
+function stringifySearchField(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (value == null) return '';
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+// ─── Header ───────────────────────────────────────────────────────────────────
+
+function Header({
+  project,
+  embedded,
+  daemonRunning,
+  daemonUrl,
+  daemonChoices,
+  onDaemonChange,
+  theme,
+  onToggleTheme,
+  onBack,
+}: {
+  project?: string;
+  embedded: boolean;
+  daemonRunning: boolean;
+  daemonUrl: string;
+  daemonChoices: string[];
+  onDaemonChange: (value: string) => void;
+  theme: 'dark' | 'light';
+  onToggleTheme: () => void;
+  onBack?: () => void;
+}) {
+  if (embedded) {
+    return null;
+  }
 
   return (
-    <div className="rounded-lg border overflow-hidden transition-all"
-      style={{ borderColor: open ? 'var(--pd-border)' : 'var(--pd-border-2)', backgroundColor: open ? 'var(--pd-surface)' : 'transparent' }}>
-      <button
-        onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center gap-2 px-4 py-3 text-xs transition-all"
-        style={{ color: open ? 'var(--pd-text)' : 'var(--pd-muted)' }}
-        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'var(--pd-text)'; }}
-        onMouseLeave={e => { if (!open) (e.currentTarget as HTMLElement).style.color = 'var(--pd-muted)'; }}
-      >
-        {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-        <span className="font-semibold">Add a fleet to any project</span>
-        <span className="opacity-40 ml-1">— one command</span>
-      </button>
-
-      {open && (
-        <div className="px-5 pb-5 space-y-4">
-
-          {/* Primary: pd fleet init */}
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center flex-shrink-0"
-                style={{ backgroundColor: '#CC3D2E', color: 'var(--pd-text)' }}>1</span>
-              <span className="text-xs font-semibold" style={{ color: 'var(--pd-text)' }}>
-                Run this from inside your project
-              </span>
-            </div>
-            <div className="ml-7 rounded p-2.5 font-mono text-sm" style={{ backgroundColor: 'var(--pd-code)', border: '1px solid var(--pd-border-2)' }}>
-              <span style={{ color: 'var(--pd-muted)' }}>$ </span>
-              <span style={{ color: 'var(--pd-text)', fontWeight: 600 }}>pd fleet init</span>
-            </div>
-            <div className="ml-7 mt-2 text-[11px] leading-relaxed opacity-60" style={{ color: 'var(--pd-text)' }}>
-              Launches an interactive wizard (built with Ink). Picks a template, lets you
-              customize agent prompts, and registers with the daemon — all in your terminal.
-            </div>
-          </div>
-
-          {/* Non-interactive flags */}
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center flex-shrink-0"
-                style={{ backgroundColor: 'var(--pd-border)', color: 'var(--pd-text)' }}>2</span>
-              <span className="text-xs font-semibold" style={{ color: 'var(--pd-text)' }}>
-                Skip the wizard if you prefer
-              </span>
-            </div>
-            <div className="ml-7 rounded p-2.5 font-mono text-xs space-y-1.5" style={{ backgroundColor: 'var(--pd-code)', border: '1px solid var(--pd-border-2)' }}>
-              {[
-                ['pd fleet init --yes',              'all defaults (gardener + qa)'],
-                ['pd fleet init --template full',    'all 8 agents'],
-                ['pd fleet init --from ./fleet.yml', 'use existing config'],
-              ].map(([cmd, hint]) => (
-                <div key={cmd} className="flex items-center gap-3">
-                  <span style={{ color: 'var(--pd-text)' }}>{cmd}</span>
-                  <span style={{ color: 'var(--pd-muted)' }}># {hint}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Prompts are universal */}
-          <div className="ml-0 rounded p-3 text-xs leading-relaxed"
-            style={{ backgroundColor: 'var(--pd-code)', border: '1px solid var(--pd-border-2)', color: 'var(--pd-dim)' }}>
-            <div className="font-semibold mb-1" style={{ color: 'var(--pd-text)' }}>Are the default prompts port-daddy-specific?</div>
-            <p>No. The default prompts describe universal behaviors — auto-commit uncommitted work, review code
-            adversarially, track coverage, keep docs in sync. They work for any project.
-            You customize them after init, and edits here sync directly to <code style={{ color: '#CC3D2E' }}>pd-fleet.yml</code>.</p>
-          </div>
-
-          {/* Manual fallback: YAML */}
-          <details className="group">
-            <summary className="text-[10px] cursor-pointer opacity-50 hover:opacity-80 transition-opacity"
-              style={{ color: 'var(--pd-text)' }}>
-              Or manually create pd-fleet.yml
-            </summary>
-            <div className="mt-2">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] opacity-40" style={{ color: 'var(--pd-text)' }}>starter template</span>
-                <button onClick={copyYaml} className="text-[10px] px-2 py-0.5 rounded transition-all"
-                  style={{ color: copied ? '#4ade80' : '#CC3D2E', backgroundColor: '#CC3D2E15', border: '1px solid #CC3D2E40' }}>
-                  {copied ? 'copied!' : 'copy'}
-                </button>
-              </div>
-              <pre className="text-[10px] rounded p-3 overflow-x-auto leading-relaxed font-mono"
-                style={{ backgroundColor: 'var(--pd-code)', color: 'var(--pd-dim)', border: '1px solid var(--pd-border-2)' }}>
-                {STARTER_YAML}
-              </pre>
-            </div>
-          </details>
+    <div className="flex items-center justify-between px-6 py-3 flex-shrink-0"
+      style={{ borderBottom: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-bg)' }}>
+      <div className="flex items-center gap-3">
+        <Wifi size={14} color="var(--pd-accent)" />
+        <button onClick={onBack} className="font-bold tracking-wide text-sm hover:opacity-80 font-mono" style={{ color: 'var(--pd-text)' }}>
+          PortDaddy
+        </button>
+        <span className="opacity-20" style={{ color: 'var(--pd-text)' }}>:</span>
+        <span className="text-xs tracking-widest" style={{ color: 'var(--pd-muted)' }}>AGENTIC CONTROL PLANE</span>
+        {project && <>
+          <span className="opacity-20" style={{ color: 'var(--pd-text)' }}>·</span>
+          <span className="text-sm font-mono" style={{ color: 'var(--pd-accent)' }}>{project}</span>
+        </>}
+      </div>
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 rounded-md px-2 py-1" style={{ border: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-surface)' }}>
+          <span className="text-[10px] font-semibold tracking-wider opacity-35" style={{ color: 'var(--pd-text)' }}>
+            DAEMON
+          </span>
+          <select
+            className="pd-daemon-select"
+            value={daemonUrl}
+            onChange={(event) => onDaemonChange(event.target.value)}
+            title={daemonUrl}
+          >
+            {daemonChoices.map((choice) => (
+              <option key={choice} value={choice}>
+                {formatDaemonLabel(choice)}
+              </option>
+            ))}
+            <option value={CUSTOM_DAEMON_SENTINEL}>Custom…</option>
+          </select>
         </div>
-      )}
+        <button
+          onClick={onToggleTheme}
+          className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-semibold"
+          style={{ color: 'var(--pd-text)', border: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-surface)' }}
+        >
+          {theme === 'dark' ? <Sun size={13} /> : <Moon size={13} />}
+          <span>{theme === 'dark' ? 'Light' : 'Dark'}</span>
+        </button>
+        <div className="flex items-center gap-1.5">
+          <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: daemonRunning ? 'var(--pd-success)' : 'var(--pd-accent)' }} />
+          <span className="text-xs font-mono" style={{ color: 'var(--pd-muted)' }}>
+            {formatDaemonLabel(daemonUrl)} {daemonRunning ? 'online' : 'offline'}
+          </span>
+        </div>
+      </div>
     </div>
   );
 }
 
-// ─── App ──────────────────────────────────────────────────────────────────────
+function TabBar({ tabs, active, onChange }: { tabs: string[]; active: string; onChange: (t: string) => void }) {
+  return (
+    <div className="flex gap-0.5 px-4 pt-2" style={{ borderBottom: '1px solid var(--pd-border)' }}>
+      {tabs.map(t => (
+        <button key={t} onClick={() => onChange(t)}
+          className="px-3 py-1.5 text-[11px] font-semibold tracking-wide rounded-t"
+          style={{
+            backgroundColor: active === t ? 'var(--pd-surface)' : 'transparent',
+            color: active === t ? 'var(--pd-text)' : 'var(--pd-muted)',
+            borderBottom: active === t ? '2px solid var(--pd-accent)' : '2px solid transparent',
+          }}>
+          {t}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function matchesProject(fields: unknown[], project: string | null, agentNames: string[]): boolean {
+  if (!project) return true;
+  const haystack = fields.map(stringifySearchField).join(' ').toLowerCase();
+  return haystack.includes(project.toLowerCase()) || agentNames.some((agent) => haystack.includes(agent.toLowerCase()));
+}
+
+function summarizeChannelPayload(payload: unknown): string {
+  if (typeof payload === 'string') return payload.trim();
+  if (!payload || typeof payload !== 'object') return String(payload ?? '').trim();
+
+  const candidate = payload as Record<string, unknown>;
+  const preferredKeys = ['message', 'summary', 'content', 'text', 'details', 'error', 'status'];
+  for (const key of preferredKeys) {
+    if (typeof candidate[key] === 'string' && candidate[key]!.trim()) {
+      return candidate[key]!.trim() as string;
+    }
+  }
+
+  try {
+    const serialized = JSON.stringify(payload);
+    return serialized === '{}' ? '' : serialized;
+  } catch {
+    return '';
+  }
+}
+
+function extractPublishedChannel(command?: string): string | null {
+  if (!command) return null;
+  const trimmed = command.trim();
+  if (!trimmed.startsWith('publish ')) return null;
+  const channel = trimmed.slice('publish '.length).trim();
+  return channel || null;
+}
+
+function isLowSignalChannelMessage(summary: string, publisher: string | null): boolean {
+  const trimmed = summary.trim();
+  if (!trimmed) return true;
+  const normalized = trimmed.toLowerCase();
+  if (['ok', 'done', 'success', 'connected', 'streaming', 'heartbeat'].includes(normalized)) return true;
+  if (publisher === 'system' && trimmed.length < 24) return true;
+  return false;
+}
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
+
 export default function App() {
-  const [view,      setView]      = useState<View>('mini');
-  const [project,   setProject]   = useState<ProjectData>(PROJECTS[0]);
-  const [tab,       setTab]       = useState<Tab>('agents');
-  const [expanded,  setExpanded]  = useState<Set<string>>(new Set(PROJECTS.map(p => p.name)));
-  const [highlighted, setHighlighted] = useState<string | null>(null);
-  const [daemonOk,  setDaemonOk]  = useState(false);
-  const [editing,   setEditing]   = useState<EditState | null>(null);
-  const [isLight,   setIsLight]   = useState(() =>
-    typeof window !== 'undefined' && localStorage.getItem('pd-theme') === 'light'
+  const initialRoute = useMemo(() => readInitialRoute(), []);
+  const embedded = initialRoute.embedded;
+  const [theme, toggleTheme] = useTheme();
+  const [daemonUrl, setDaemonUrlState] = useState(() => getDaemonUrl());
+  const [daemonChoices, setDaemonChoices] = useState(() => getDaemonChoices());
+  const fleet = useFleet(daemonUrl);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(initialRoute.project);
+  const [selectedAgent, setSelectedAgent] = useState<string | null>(initialRoute.agent);
+  const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
+  const [configAgent, setConfigAgent] = useState<string | null>(initialRoute.agent);
+  const [inspectorTab, setInspectorTab] = useState<'details' | 'settings'>('details');
+  const [activeTab, setActiveTab] = useState<MainTab>(surfaceToMainTab(initialRoute.surface));
+  const [flowGraphHeight, setFlowGraphHeight] = useState(336);
+  const [browserResolvedChannels, setBrowserResolvedChannels] = useState<Record<string, string>>({});
+
+  const projects = useMemo(() => {
+    const runtimeByDir = new Map((fleet.status?.fleets ?? []).map((fleetProject) => [fleetProject.projectDir, fleetProject]));
+    const known = new Map<string, {
+      id: string;
+      name: string;
+      fleetPath: string;
+      projectDir: string;
+      running: boolean;
+      agents: Array<{ agentName: string; status: string }>;
+    }>();
+
+    for (const project of fleet.projects) {
+      const runtime = runtimeByDir.get(project.root);
+      known.set(project.root, {
+        id: project.root,
+        name: project.id,
+        fleetPath: project.root,
+        projectDir: project.root,
+        running: runtime?.running ?? false,
+        agents: runtime?.agents.map(agent => ({ agentName: agent.name, status: agent.status })) ?? [],
+      });
+    }
+
+    for (const runtime of fleet.status?.fleets ?? []) {
+      known.set(runtime.projectDir, {
+        id: runtime.projectDir,
+        name: runtime.project,
+        fleetPath: runtime.projectDir,
+        projectDir: runtime.projectDir,
+        running: runtime.running,
+        agents: runtime.agents.map(agent => ({ agentName: agent.name, status: agent.status })),
+      });
+    }
+
+    return Array.from(known.values());
+  }, [fleet.projects, fleet.status]);
+
+  const selectedProject = projects.find(project => project.id === selectedProjectId) ?? null;
+  const selectedProjectName = selectedProject?.name ?? null;
+
+  useEffect(() => {
+    if (fleet.loading || !selectedProjectId) return;
+    if (projects.some((project) => project.id === selectedProjectId)) return;
+    setSelectedProjectId(null);
+  }, [fleet.loading, projects, selectedProjectId]);
+
+  useEffect(() => {
+    if (selectedProjectId && !fleet.configs.has(selectedProjectId)) {
+      fleet.loadConfig(selectedProjectId);
+    }
+  }, [selectedProjectId, fleet]);
+
+  useEffect(() => {
+    if (!canUseWindow()) return;
+    const next = new URL(window.location.href);
+    next.searchParams.set('surface', mainTabToSurface(activeTab));
+    if (selectedProjectId) {
+      next.searchParams.set('project', selectedProjectId);
+    } else {
+      next.searchParams.delete('project');
+    }
+    if (selectedAgent) {
+      next.searchParams.set('agent', selectedAgent);
+    } else {
+      next.searchParams.delete('agent');
+    }
+    if (embedded) {
+      next.searchParams.set('embed', 'fleetbar');
+    } else {
+      next.searchParams.delete('embed');
+    }
+    window.history.replaceState({}, '', next);
+  }, [activeTab, embedded, selectedAgent, selectedProjectId]);
+
+  useEffect(() => {
+    if (!configAgent || !selectedAgent || configAgent === selectedAgent) return;
+    setInspectorTab('details');
+    setConfigAgent(selectedAgent);
+  }, [configAgent, selectedAgent]);
+
+  useEffect(() => {
+    if (activeTab === 'Flow') return;
+    setConfigAgent(null);
+  }, [activeTab]);
+
+  const projectConfig = selectedProjectId ? fleet.configs.get(selectedProjectId) : undefined;
+  const fleetConfig: FleetConfig | null = projectConfig?.parsed ?? null;
+  const topology: TopologyValidation | null = projectConfig?.topology ?? null;
+  const selectedAgentNames = useMemo(() => selectedProject?.agents.map(agent => agent.agentName) ?? [], [selectedProject]);
+
+  const logicalChannelNames = useMemo(() => {
+    if (!fleetConfig) return [];
+    const set = new Set<string>();
+    const add = (logical?: string | null) => {
+      const trimmed = logical?.trim();
+      if (trimmed) set.add(trimmed);
+    };
+    Object.keys(fleetConfig.channels).forEach(add);
+    fleetConfig.agents.forEach((agent) => {
+      add(agent.trigger);
+      add(extractPublishedChannel(agent.onSuccess));
+      add(extractPublishedChannel(agent.onFailure));
+    });
+    fleetConfig.watchers.forEach((watcher) => add(watcher.trigger));
+    return Array.from(set).sort();
+  }, [fleetConfig]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function hydrateBrowserResolvedChannels() {
+      if (!projectConfig?.projectDir || !fleetConfig || logicalChannelNames.length === 0) {
+        setBrowserResolvedChannels({});
+        return;
+      }
+
+      const resolved = await resolveBrowserScopedChannels(
+        logicalChannelNames,
+        projectConfig.projectDir,
+        fleetConfig.name,
+      );
+      if (!cancelled) {
+        setBrowserResolvedChannels(resolved);
+      }
+    }
+
+    hydrateBrowserResolvedChannels();
+    return () => { cancelled = true; };
+  }, [fleetConfig, logicalChannelNames, projectConfig?.projectDir]);
+
+  const channelTargets = useMemo<ResolvedChannelTarget[]>(() => {
+    if (!fleetConfig) return [];
+    const routeResolvedChannels = projectConfig?.resolvedChannels ?? {};
+    const hasRouteResolvedChannels = Object.keys(routeResolvedChannels).length > 0;
+    const resolvedChannels = hasRouteResolvedChannels ? routeResolvedChannels : browserResolvedChannels;
+    if (!hasRouteResolvedChannels && Object.keys(resolvedChannels).length === 0) {
+      return [];
+    }
+    return logicalChannelNames.map((logical) => ({
+      logical,
+      physical: resolvedChannels[logical] ?? logical,
+    }));
+  }, [browserResolvedChannels, fleetConfig, logicalChannelNames, projectConfig?.resolvedChannels]);
+
+  const channelLog = useChannelLog(daemonUrl, channelTargets);
+
+  const filteredFleetEvents = useMemo(
+    () => fleet.events.filter(event => !selectedProjectName || event.project === selectedProjectName),
+    [fleet.events, selectedProjectName]
   );
 
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', isLight ? 'light' : 'dark');
-    localStorage.setItem('pd-theme', isLight ? 'light' : 'dark');
-  }, [isLight]);
+  const filteredStories = useMemo(
+    () => fleet.stories.filter((note) => matchesProject(
+      [note.sessionId, note.sessionPurpose, note.agentId, note.identityProject, note.content],
+      selectedProjectName,
+      selectedAgentNames,
+    )),
+    [fleet.stories, selectedProjectName, selectedAgentNames]
+  );
 
-  useEffect(() => {
-    const check = () =>
-      fetch('http://localhost:9876/ping', { signal: AbortSignal.timeout(2000) })
-        .then(r => setDaemonOk(r.ok)).catch(() => setDaemonOk(false));
-    check();
-    const t = setInterval(check, 10000);
-    return () => clearInterval(t);
+  const filteredActivity = useMemo(
+    () => fleet.activity.filter((entry) => matchesProject([entry.agentId, entry.targetId, entry.details, entry.metadata], selectedProjectName, selectedAgentNames)),
+    [fleet.activity, selectedProjectName, selectedAgentNames]
+  );
+
+  const agentSignals = useMemo(() => {
+    if (!fleetConfig) return new Map<string, AgentSignal | null>();
+    return new Map(
+      fleetConfig.agents.map((agent) => [
+        agent.name,
+        buildAgentSignal(agent.name, filteredActivity, filteredStories, filteredFleetEvents),
+      ]),
+    );
+  }, [fleetConfig, filteredActivity, filteredFleetEvents, filteredStories]);
+
+  const agentActivitySignals = useMemo(() => {
+    if (!fleetConfig) return [];
+    return fleetConfig.agents
+      .map((agent) => {
+        const signal = agentSignals.get(agent.name);
+        if (!signal) return null;
+        return {
+          name: agent.name,
+          summary: signal.summary,
+          label: signal.label,
+          timestamp: signal.timestamp,
+          files: signal.files,
+        };
+      })
+      .filter((signal): signal is { name: string; summary: string; label: string; timestamp: number; files: string[] } => !!signal)
+      .sort((a, b) => b.timestamp - a.timestamp);
+  }, [agentSignals, fleetConfig]);
+
+  const channelLogEvents = useMemo(() => {
+    const realMessages = channelLog.messages
+      .map((message) => {
+        const summary = summarizeChannelPayload(message.payload);
+        if (!summary || isLowSignalChannelMessage(summary, message.sender)) return null;
+        return {
+          id: `msg-${message.channel}-${message.id}`,
+          ts: new Date(message.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+          channel: message.channel,
+          publisher: message.sender ?? 'system',
+          outcome: ((message.channel.includes('findings') || message.channel.includes('alert') || summary.toLowerCase().includes('error'))
+            ? 'findings'
+            : 'clean') as 'clean' | 'findings',
+          message: summary,
+          triggered: fleetConfig?.agents.filter((agent) => agent.trigger === message.channel).map((agent) => agent.name) ?? [],
+        };
+      })
+      .filter((message): message is NonNullable<typeof message> => !!message);
+
+    return realMessages;
+  }, [channelLog.messages, fleetConfig]);
+
+  const resetSelection = (projectId: string | null = null) => {
+    setSelectedProjectId(projectId);
+    setSelectedAgent(null);
+    setSelectedChannel(null);
+    setConfigAgent(null);
+  };
+  const selectProject = (projectId: string) => {
+    setSelectedProjectId(projectId);
+    setSelectedAgent(null);
+    setSelectedChannel(null);
+    setConfigAgent(null);
+  };
+  const goHome = () => resetSelection();
+
+  const handleDaemonChange = useCallback((value: string) => {
+    let nextValue = value;
+    if (value === CUSTOM_DAEMON_SENTINEL) {
+      const prompted = window.prompt('Port Daddy daemon URL', daemonUrl);
+      if (!prompted) return;
+      nextValue = prompted;
+    }
+
+    try {
+      const nextDaemonUrl = setDaemonUrl(nextValue);
+      setDaemonUrlState(nextDaemonUrl);
+      setDaemonChoices(getDaemonChoices());
+      resetSelection();
+    } catch (err) {
+      window.alert((err as Error).message);
+    }
+  }, [daemonUrl]);
+
+  const focusAgent = useCallback((name: string | null) => {
+    setSelectedAgent(name);
+    if (name) {
+      setSelectedChannel(null);
+      if (configAgent) {
+        setInspectorTab('details');
+        setConfigAgent(name);
+      }
+    }
+  }, [configAgent]);
+
+  const inspectAgent = useCallback((name: string) => {
+    setSelectedAgent(name);
+    setSelectedChannel(null);
+    setInspectorTab('details');
+    setConfigAgent(name);
   }, []);
 
-  const toggleExpanded = (name: string) =>
-    setExpanded(prev => { const s = new Set(prev); s.has(name) ? s.delete(name) : s.add(name); return s; });
+  const configureAgent = useCallback((name: string) => {
+    setSelectedAgent(name);
+    setSelectedChannel(null);
+    setInspectorTab('settings');
+    setConfigAgent(name);
+  }, []);
 
-  const openProject = (p: ProjectData, startTab: Tab = 'agents') => {
-    setProject(p);
-    setTab(startTab);
-    setEditing(null);
-    setView('full');
-  };
+  const focusChannel = useCallback((channelName: string | null) => {
+    setSelectedChannel(channelName);
+    if (channelName) setSelectedAgent(null);
+  }, []);
 
-  const openAgentConfig = (p: ProjectData, agent: AgentData) => {
-    setProject(p);
-    setEditing({ agent, prompt: agent.description, dirty: false, saved: '' });
-    setTab('config');
-    setView('full');
-  };
+  const startFlowResize = useCallback((startY: number) => {
+    if (!canUseWindow()) return;
+    const initialHeight = flowGraphHeight;
 
-  const saveConfig = async () => {
-    if (!editing) return;
+    const handleMove = (event: MouseEvent) => {
+      const delta = event.clientY - startY;
+      setFlowGraphHeight(Math.max(240, Math.min(520, initialHeight + delta)));
+    };
+
+    const handleUp = () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleUp);
+    };
+
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleUp);
+  }, [flowGraphHeight]);
+
+  const handleFleetToggle = useCallback(async () => {
+    if (!selectedProject) return;
     try {
-      const r = await fetch('http://localhost:9876/fleet/edit-agent', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agent: editing.agent.agentName, prompt: editing.prompt }),
-      });
-      setEditing(e => e ? { ...e, dirty: false, saved: r.ok ? `Updated ${project.fleetFile}` : 'Saved locally' } : null);
-    } catch {
-      setEditing(e => e ? { ...e, dirty: false, saved: 'Saved locally (daemon offline)' } : null);
-    }
-    setTimeout(() => setEditing(e => e ? { ...e, saved: '' } : null), 3500);
-  };
+      if (selectedProject.running) await stopFleet(selectedProject.projectDir);
+      else await startFleet(selectedProject.projectDir);
+      fleet.refresh();
+    } catch (err) { alert((err as Error).message); }
+  }, [selectedProject, fleet]);
 
-  // Tabs for full view — agents is the home tab, flow is expanded from the mini preview
-  const tabs: { id: Tab; label: string }[] = [
-    { id: 'agents', label: 'Agents' },
-    { id: 'flow',   label: 'Channel Flow' },
-    { id: 'config', label: editing ? `Configure: ${editing.agent.agentName}` : 'Configure' },
-  ];
+  const handleAgentRunNow = useCallback(async (agentName: string) => {
+    if (!selectedProjectId) return;
+    try {
+      await runFleetAgent(selectedProjectId, agentName);
+      fleet.refresh();
+      fleet.refreshFeeds();
+    } catch (err) {
+      alert((err as Error).message);
+    }
+  }, [fleet, selectedProjectId]);
+
+  const handleAgentPauseToggle = useCallback(async (agentName: string, paused: boolean) => {
+    if (!selectedProjectId) return;
+    try {
+      if (paused) {
+        await resumeFleetAgent(selectedProjectId, agentName);
+      } else {
+        await pauseFleetAgent(selectedProjectId, agentName);
+      }
+      fleet.refresh();
+    } catch (err) {
+      alert((err as Error).message);
+    }
+  }, [fleet, selectedProjectId]);
+
+  const configAgentData = fleetConfig?.agents.find(a => a.name === configAgent);
+  const daemonRunning = fleet.status?.running ?? false;
+  const surfaceTabs: MainTab[] = ['Flow', 'Activity', 'Channels', 'Inbox', 'Sorties', 'Memory', 'YAML'];
+  const showProjectSidebar = activeTab === 'Flow' && !embedded;
+  const projectSidebar = selectedProject ? (
+    <div className="h-full overflow-hidden p-4 flex flex-col"
+      style={{ borderRight: '1px solid var(--pd-border)', backgroundColor: 'color-mix(in srgb, var(--pd-surface) 74%, var(--pd-bg))' }}>
+      <div className="flex items-center justify-between mb-3">
+        <div className="text-[10px] font-semibold tracking-wider opacity-30" style={{ color: 'var(--pd-text)' }}>PROJECTS</div>
+        <button onClick={handleFleetToggle} className="flex items-center gap-1 text-[10px] px-2 py-1 rounded"
+          style={{
+            backgroundColor: selectedProject.running ? 'var(--pd-accent-surface)' : 'var(--pd-success-surface)',
+            color: selectedProject.running ? 'var(--pd-accent)' : 'var(--pd-success)',
+            border: `1px solid ${selectedProject.running ? 'var(--pd-accent-border)' : 'var(--pd-success-border)'}`,
+          }}>
+          {selectedProject.running ? <><Square size={8} /> Stop Fleet</> : <><Play size={8} /> Start Fleet</>}
+        </button>
+      </div>
+      <ProjectPicker projects={projects} selected={selectedProjectId} onSelect={selectProject} />
+    </div>
+  ) : null;
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: 'var(--pd-bg)' }}>
+    <div className="flex flex-col h-screen w-screen overflow-hidden" style={{ backgroundColor: 'var(--pd-bg)', fontFamily: 'var(--pd-font-ui)' }}>
+      <Header
+        project={selectedProjectName ?? undefined}
+        embedded={embedded}
+        daemonRunning={daemonRunning}
+        daemonUrl={daemonUrl}
+        daemonChoices={daemonChoices}
+        onDaemonChange={handleDaemonChange}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        onBack={selectedProjectId ? goHome : undefined}
+      />
 
-      {/* Header */}
-      <header className="sticky top-0 z-20 flex items-center justify-between px-6 py-3 border-b border-[#2A2622]"
-        style={{ backgroundColor: 'var(--pd-header)' }}>
-        <div className="flex items-center gap-3">
-          {view === 'full' && (
-            <button onClick={() => setView('mini')}
-              className="flex items-center gap-1 text-xs opacity-40 hover:opacity-80 transition-opacity mr-1"
-              style={{ color: 'var(--pd-text)' }}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M19 12H5M12 19l-7-7 7-7"/>
-              </svg>
-              all projects
-            </button>
-          )}
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#CC3D2E" strokeWidth="1.8" strokeLinecap="round">
-            <path d="M12 20V12"/><path d="M5 7.5A9 9 0 0 1 19 7.5"/>
-            <path d="M2 4.5A14 14 0 0 1 22 4.5"/><path d="M8 10.5a5 5 0 0 1 8 0"/>
-            <circle cx="12" cy="12" r="1.5" fill="#CC3D2E" stroke="none"/>
-          </svg>
-          <span className="font-bold text-sm" style={{ color: 'var(--pd-text)' }}>PortDaddy</span>
-          <span className="opacity-20 text-sm" style={{ color: 'var(--pd-text)' }}>:</span>
-          {view === 'full'
-            ? <span className="font-mono text-sm font-semibold" style={{ color: '#CC3D2E' }}>{project.name}</span>
-            : <span className="text-xs tracking-widest uppercase opacity-35" style={{ color: 'var(--pd-text)' }}>Agentic Control Plane</span>
-          }
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1.5 text-xs" style={{ color: daemonOk ? '#4ade80' : '#f87171' }}>
-            <div className="relative w-2 h-2">
-              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: daemonOk ? '#22c55e' : '#ef4444' }} />
-              {daemonOk && <div className="absolute inset-0 rounded-full bg-green-500 animate-ping opacity-50" />}
-            </div>
-            {daemonOk ? 'daemon running' : 'daemon offline'}
-          </div>
-          {view === 'full' && (
-            <span className="text-[10px] opacity-25 font-mono" style={{ color: 'var(--pd-text)' }}>
-              {project.dirPath}/{project.fleetFile}
-            </span>
-          )}
-          {/* Light/dark toggle */}
-          <button
-            onClick={() => setIsLight(l => !l)}
-            className="p-1.5 rounded-md transition-all"
-            style={{ color: 'var(--pd-muted)', backgroundColor: 'var(--pd-surface-2)', border: '1px solid var(--pd-border)' }}
-            title={isLight ? 'Switch to dark mode' : 'Switch to light mode'}
-          >
-            {isLight ? <Moon size={13} /> : <Sun size={13} />}
-          </button>
-        </div>
-      </header>
-
-      {/* ── Mini view ──────────────────────────────────────────────────────── */}
-      {view === 'mini' && (
-        <main className="p-5 max-w-2xl mx-auto">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-base font-bold mb-0.5" style={{ color: 'var(--pd-text)' }}>All Projects</h1>
-              <p className="text-[10px] opacity-35" style={{ color: 'var(--pd-text)' }}>
-                {PROJECTS.reduce((n, p) => n + p.agents.length, 0)} agents across {PROJECTS.length} projects
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2.5 mb-3">
-            {PROJECTS.map(p => (
-              <ProjectCard
-                key={p.name}
-                project={p}
-                expanded={expanded.has(p.name)}
-                onToggle={() => toggleExpanded(p.name)}
-                onOpen={() => openProject(p)}
-                onOpenAgent={agent => openAgentConfig(p, agent)}
-              />
-            ))}
-          </div>
-
-          <AddFleetPanel />
-        </main>
+      {selectedProjectId && !embedded && (
+        <TabBar tabs={surfaceTabs} active={activeTab} onChange={(tab) => setActiveTab(tab as MainTab)} />
       )}
 
-      {/* ── Full view ──────────────────────────────────────────────────────── */}
-      {view === 'full' && (
-        <>
-          <div className="flex border-b border-[#2A2622] px-6" style={{ backgroundColor: 'var(--pd-header)' }}>
-            {tabs.map(t => (
-              <button key={t.id} onClick={() => setTab(t.id)}
-                className="px-4 py-3 text-xs font-medium transition-colors border-b-2 -mb-px"
-                style={{ color: tab === t.id ? '#D4C5A9' : '#6B5D4F', borderBottomColor: tab === t.id ? '#CC3D2E' : 'transparent' }}>
-                {t.label}
-              </button>
-            ))}
-          </div>
-
-          <main className="p-6 max-w-7xl mx-auto">
-
-            {/* Agents tab — mini flow preview at top, then cards */}
-            {tab === 'agents' && (
-              <div>
-                {/* Mini channel flow preview — click to expand */}
-                <div
-                  className="mb-6 rounded-lg border overflow-hidden cursor-pointer relative group"
-                  style={{ height: 170, backgroundColor: 'var(--pd-surface)', borderColor: 'var(--pd-border)' }}
-                  onClick={() => setTab('flow')}
-                >
-                  {/* Scaled-down flow graph */}
-                  <div style={{
-                    transform: 'scale(0.38)',
-                    transformOrigin: 'top left',
-                    width: `${100 / 0.38}%`,
-                    pointerEvents: 'none',
-                    position: 'absolute', top: 0, left: 0,
-                  }}>
-                    <ChannelFlowGraph agents={project.agents} highlightedAgent={null} onAgentHover={() => {}} />
-                  </div>
-                  {/* Gradient fade at bottom */}
-                  <div className="absolute inset-x-0 bottom-0 h-12"
-                    style={{ background: 'linear-gradient(to top, #1E1B18 0%, transparent 100%)' }} />
-                  {/* Label */}
-                  <div className="absolute top-2.5 left-3 text-[9px] font-bold tracking-widest uppercase opacity-40"
-                    style={{ color: 'var(--pd-text)' }}>Channel Flow</div>
-                  {/* Expand hint on hover */}
-                  <div className="absolute bottom-2 right-3 flex items-center gap-1 text-[10px] opacity-0 group-hover:opacity-100 transition-opacity"
-                    style={{ color: '#CC3D2E' }}>
-                    expand
-                    <ArrowRight size={10} />
-                  </div>
-                </div>
-
-                {/* Agents grid */}
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h1 className="text-base font-bold mb-0.5" style={{ color: 'var(--pd-text)' }}>
-                      {project.name} · Fleet
-                    </h1>
-                    <p className="text-[10px] opacity-35" style={{ color: 'var(--pd-text)' }}>
-                      {project.agents.filter(a => a.status === 'active').length} active · {project.agents.length} total
-                    </p>
-                  </div>
-                </div>
-                <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))' }}>
-                  {project.agents.map(agent => (
-                    <div key={agent.agentName}
-                      style={{ opacity: highlighted && highlighted !== agent.agentName ? 0.4 : 1, transition: 'opacity 0.2s' }}>
-                      <AgentRadioCard {...agent} onConfigure={() => {
-                        setEditing({ agent, prompt: agent.description, dirty: false, saved: '' });
-                        setTab('config');
-                      }} />
-                    </div>
-                  ))}
-                </div>
+      <AnimatePresence mode="wait">
+        {!selectedProjectId ? (
+          <motion.div key="all" className="flex-1 overflow-y-auto" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -20 }}>
+            {fleet.loading ? (
+              <div className="flex items-center justify-center h-full opacity-30" style={{ color: 'var(--pd-text)' }}>Loading...</div>
+            ) : fleet.error ? (
+              <div className="flex items-center justify-center h-full text-sm" style={{ color: 'var(--pd-text)' }}>
+                <span style={{ color: 'var(--pd-accent)' }}>Daemon offline</span>&nbsp;at {formatDaemonLabel(daemonUrl)}: {fleet.error}
               </div>
+            ) : (
+              <AllProjectsList projects={projects} onSelect={selectProject} />
             )}
-
-            {/* Full channel flow */}
-            {tab === 'flow' && (
-              <ChannelFlowGraph agents={project.agents} highlightedAgent={highlighted} onAgentHover={setHighlighted} />
-            )}
-
-            {/* Configure */}
-            {tab === 'config' && (
-              <div className="max-w-2xl">
-                {editing ? (
-                  <>
-                    <div className="mb-6">
-                      <h1 className="text-base font-bold mb-0.5" style={{ color: 'var(--pd-text)' }}>
-                        Configure: <span style={{ color: '#CC3D2E' }}>{editing.agent.agentName}</span>
-                      </h1>
-                      <p className="text-[10px] opacity-35 font-mono" style={{ color: 'var(--pd-text)' }}>
-                        {project.dirPath}/{project.fleetFile}
-                      </p>
-                    </div>
-                    <div className="mb-4">
-                      <label className="block text-[10px] tracking-wider uppercase opacity-40 mb-1.5" style={{ color: 'var(--pd-text)' }}>Trigger</label>
-                      <div className="flex gap-2">
-                        <select value={editing.agent.trigger.type}
-                          onChange={e => setEditing(ed => ed ? { ...ed, dirty: true, agent: { ...ed.agent, trigger: { ...ed.agent.trigger, type: e.target.value as 'event'|'schedule' } } } : null)}
-                          className="rounded-md px-3 py-2 text-sm font-mono border border-[#3A3530] focus:outline-none"
-                          style={{ backgroundColor: 'var(--pd-surface)', color: 'var(--pd-text)' }}>
-                          <option value="event">fires when (event)</option>
-                          <option value="schedule">fires every (schedule)</option>
-                        </select>
-                        <input value={editing.agent.trigger.value}
-                          onChange={e => setEditing(ed => ed ? { ...ed, dirty: true, agent: { ...ed.agent, trigger: { ...ed.agent.trigger, value: e.target.value } } } : null)}
-                          className="flex-1 rounded-md px-3 py-2 text-sm font-mono border border-[#3A3530] focus:outline-none"
-                          style={{ backgroundColor: 'var(--pd-surface)', color: 'var(--pd-text)' }} />
-                      </div>
-                    </div>
-                    <div className="mb-4">
-                      <label className="block text-[10px] tracking-wider uppercase opacity-40 mb-1.5" style={{ color: 'var(--pd-text)' }}>Prompt</label>
-                      <textarea rows={14} value={editing.prompt}
-                        onChange={e => setEditing(ed => ed ? { ...ed, prompt: e.target.value, dirty: true } : null)}
-                        className="w-full rounded-md px-3 py-2.5 text-xs font-mono border border-[#3A3530] focus:outline-none resize-y"
-                        style={{ backgroundColor: 'var(--pd-code)', color: 'var(--pd-text)', lineHeight: 1.7 }} />
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <button onClick={saveConfig}
-                        className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all"
-                        style={{ backgroundColor: '#CC3D2E', color: 'var(--pd-text)' }}
-                        onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 0 16px rgba(204,61,46,0.5)')}
-                        onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                          <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
-                        </svg>
-                        Save to YAML
-                      </button>
-                      <button onClick={() => { setEditing(null); setTab('agents'); }}
-                        className="text-sm px-3 py-2" style={{ color: 'var(--pd-muted)' }}>Cancel</button>
-                      {editing.saved && (
-                        <span className="flex items-center gap-1 text-xs" style={{ color: '#4ade80' }}>
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            <polyline points="20 6 9 17 4 12"/>
-                          </svg>
-                          {editing.saved}
-                        </span>
+          </motion.div>
+        ) : (
+          <motion.div key={`proj-${selectedProjectId}-${activeTab}`} className="flex-1 overflow-hidden"
+            initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
+            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}>
+            <div className="h-full grid" style={{ gridTemplateColumns: showProjectSidebar ? '220px 1fr' : '1fr' }}>
+              {showProjectSidebar ? <div>{projectSidebar}</div> : null}
+              <div className="overflow-hidden flex flex-col">
+                {activeTab === 'Flow' ? (
+                  <div className="flex-1 overflow-hidden grid" style={{ gridTemplateRows: `${flowGraphHeight}px 14px minmax(0, 1fr)` }}>
+                    <div className="overflow-hidden" style={{ borderBottom: '1px solid var(--pd-border)' }}>
+                      {fleetConfig ? (
+                        <FlowGraph
+                          config={fleetConfig}
+                          topology={topology}
+                          theme={theme}
+                          selectedAgent={selectedAgent}
+                          selectedChannel={selectedChannel}
+                          onAgentSelect={focusAgent}
+                          onChannelSelect={focusChannel}
+                        />
+                      ) : (
+                        <div className="flex items-center justify-center h-full opacity-20" style={{ color: 'var(--pd-text)' }}>Loading config...</div>
                       )}
                     </div>
-                  </>
+
+                    <button
+                      type="button"
+                      aria-label="Resize flow panels"
+                      onMouseDown={(event) => startFlowResize(event.clientY)}
+                      className="cursor-row-resize"
+                      style={{ backgroundColor: 'var(--pd-surface-3)', borderBottom: '1px solid var(--pd-border)', borderTop: '1px solid var(--pd-border)' }}
+                    >
+                      <div className="mx-auto h-full flex items-center justify-center">
+                        <div className="h-1 w-16 rounded-full" style={{ backgroundColor: 'var(--pd-border)' }} />
+                      </div>
+                    </button>
+
+                    <div className="overflow-hidden flex flex-col">
+                      <div className="px-4 py-3 flex items-center justify-between gap-3" style={{ borderBottom: '1px solid var(--pd-border)' }}>
+                        <div>
+                          <div className="text-[10px] font-semibold tracking-wider opacity-30" style={{ color: 'var(--pd-text)' }}>AGENTS</div>
+                          <div className="mt-1 text-sm font-semibold" style={{ color: 'var(--pd-text)' }}>
+                            Recent work, mutations, and inspect entry points
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {(selectedAgent || selectedChannel) && (
+                            <button
+                              onClick={() => {
+                                setSelectedAgent(null);
+                                setSelectedChannel(null);
+                              }}
+                              className="text-[10px] px-2 py-1 rounded"
+                              style={{ backgroundColor: 'var(--pd-bg)', color: 'var(--pd-muted)', border: '1px solid var(--pd-border)' }}
+                            >
+                              Clear focus
+                            </button>
+                          )}
+                          <div className="text-[10px] font-mono" style={{ color: 'var(--pd-dim)' }}>
+                            {selectedProject?.agents.filter(a => a.status !== 'paused').length ?? 0} deployed · {fleetConfig?.agents.length ?? 0} agents
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex-1 overflow-y-auto p-4">
+                        {fleetConfig && (
+                          <motion.div layout className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))' }}>
+                            {fleetConfig.agents.map(agent => {
+                              const runtime = selectedProject?.agents.find(a => a.agentName === agent.name);
+                              const isRelated = selectedAgent === agent.name
+                                || (selectedChannel != null && (agent.trigger === selectedChannel || agent.onSuccess?.includes(selectedChannel) || agent.onFailure?.includes(selectedChannel)));
+                              const dimmed = (selectedAgent != null && selectedAgent !== agent.name) || (selectedChannel != null && !isRelated);
+                              const signal = agentSignals.get(agent.name) ?? null;
+                              return (
+                                <AgentCard
+                                  key={agent.name}
+                                  agent={agent}
+                                  runtimeStatus={runtime?.status}
+                                  projectRunning={selectedProject?.running ?? false}
+                                  limits={fleetConfig.limits}
+                                  highlighted={!!isRelated}
+                                  dimmed={dimmed}
+                                  latestWork={signal?.summary ?? null}
+                                  latestWorkLabel={signal?.label ?? null}
+                                  touchedFiles={signal?.files ?? []}
+                                  projectDir={selectedProjectId ?? undefined}
+                                  onSelect={inspectAgent}
+                                  onConfigure={configureAgent}
+                                  onRunNow={handleAgentRunNow}
+                                  onPauseToggle={handleAgentPauseToggle}
+                                />
+                              );
+                            })}
+                          </motion.div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 ) : (
-                  <div className="py-24 text-center text-sm opacity-40" style={{ color: 'var(--pd-text)' }}>
-                    Select an agent from the{' '}
-                    <button onClick={() => setTab('agents')} style={{ color: '#CC3D2E' }}>Agents tab</button>
-                    {' '}and click Config.
+                  <div className="flex-1 overflow-hidden">
+                    {activeTab === 'Activity' && (
+                      <ActivityPanel
+                        fleetEvents={filteredFleetEvents}
+                        activity={filteredActivity}
+                        stories={filteredStories}
+                        selectedAgent={selectedAgent}
+                        allAgents={fleetConfig?.agents.map((agent) => agent.name) ?? []}
+                        agentSignals={agentActivitySignals}
+                        projectDir={selectedProjectId ?? undefined}
+                        onSelectAgent={focusAgent}
+                      />
+                    )}
+                    {activeTab === 'Channels' && (
+                      <ChannelLog
+                        events={channelLogEvents}
+                        selectedAgent={selectedAgent}
+                        selectedChannel={selectedChannel}
+                        projectDir={selectedProjectId ?? undefined}
+                        onChannelClick={(channelName) => focusChannel(selectedChannel === channelName ? null : channelName)}
+                        layout="page"
+                      />
+                    )}
+                    {activeTab === 'Inbox' && (
+                      <DMPanel
+                        key={`${daemonUrl}:${selectedProjectId ?? 'all'}:inbox`}
+                        channels={channelTargets}
+                        agents={fleetConfig?.agents.map(agent => agent.name) ?? []}
+                        project={selectedProjectName ?? undefined}
+                        layout="full"
+                      />
+                    )}
+                    {activeTab === 'Sorties' && (
+                      <SortiePanel key={`${daemonUrl}:${selectedProjectId ?? 'all'}`} project={selectedProjectName ?? undefined} />
+                    )}
+                    {activeTab === 'Memory' && (
+                      <MemoryPanel
+                        projectDir={selectedProjectId ?? undefined}
+                        projectName={selectedProjectName ?? undefined}
+                        harbor={fleetConfig?.harbor}
+                      />
+                    )}
+                    {activeTab === 'YAML' && selectedProjectId && (
+                      <YAMLEditor
+                        key={`${daemonUrl}:${selectedProjectId}`}
+                        project={selectedProjectId}
+                        onSaved={() => { fleet.refresh(); fleet.loadConfig(selectedProjectId); }}
+                      />
+                    )}
                   </div>
                 )}
               </div>
-            )}
-          </main>
-        </>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {activeTab === 'Flow' && configAgentData && selectedProjectId && (
+        <AgentConfigPanel
+          key={`${daemonUrl}:${selectedProjectId}:${configAgentData.name}`}
+          agent={configAgentData}
+          project={selectedProjectId}
+          defaultTab={inspectorTab}
+          fleetEvents={filteredFleetEvents}
+          activity={filteredActivity}
+          stories={filteredStories}
+          open={!!configAgent}
+          onClose={() => setConfigAgent(null)}
+          onSaved={() => { fleet.refresh(); fleet.loadConfig(selectedProjectId); }}
+        />
       )}
     </div>
   );

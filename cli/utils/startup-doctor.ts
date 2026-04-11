@@ -10,6 +10,7 @@ import { spawnSync } from 'node:child_process';
 import { createInterface } from 'node:readline';
 
 import { DEFAULT_SOCK } from '../../shared/paths.js';
+import { readDaemonPort } from '../../shared/daemon-discovery.js';
 const SOCK_PATH = process.env.PORT_DADDY_SOCK || DEFAULT_SOCK;
 
 export interface Diagnosis {
@@ -17,6 +18,10 @@ export interface Diagnosis {
   detail: string;
   fixable: boolean;
   fix?: () => void;
+}
+
+export interface StartupDoctorOptions {
+  healthyDaemonPid?: number | null;
 }
 
 /**
@@ -74,6 +79,44 @@ export function findProcessesOnPort(port: number): { pid: number; command: strin
 }
 
 /**
+ * Find processes currently holding the daemon Unix socket.
+ */
+export function findProcessesUsingSocket(socketPath: string = SOCK_PATH): { pid: number; command: string }[] {
+  const results: { pid: number; command: string }[] = [];
+
+  if (process.platform !== 'darwin' && process.platform !== 'linux') {
+    return results;
+  }
+
+  const lsof = spawnSync('lsof', [socketPath, '-Fp'], {
+    encoding: 'utf8',
+    stdio: ['pipe', 'pipe', 'pipe'],
+    timeout: 5000,
+  });
+
+  if (!lsof.stdout) return results;
+
+  const pids = new Set<number>();
+  for (const line of lsof.stdout.split('\n')) {
+    if (!line.startsWith('p')) continue;
+    const pid = parseInt(line.slice(1), 10);
+    if (!isNaN(pid) && pid > 0) pids.add(pid);
+  }
+
+  for (const pid of pids) {
+    const ps = spawnSync('ps', ['-p', String(pid), '-o', 'command='], {
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+      timeout: 3000,
+    });
+    const command = (ps.stdout || '').trim().split('\n')[0] || 'unknown';
+    results.push({ pid, command });
+  }
+
+  return results;
+}
+
+/**
  * Check if the Unix socket is stale (file exists but nothing is listening).
  */
 export function isSocketStale(): boolean {
@@ -122,7 +165,10 @@ function isPortDaddyProcess(command: string): boolean {
 /**
  * Run full startup diagnostics and return fixable issues.
  */
-export function diagnoseStartupBlockers(port: number = 9876): Diagnosis[] {
+export function diagnoseStartupBlockers(
+  port: number = readDaemonPort(),
+  options: StartupDoctorOptions = {}
+): Diagnosis[] {
   const issues: Diagnosis[] = [];
 
   // 1. Stale Unix socket
@@ -130,8 +176,34 @@ export function diagnoseStartupBlockers(port: number = 9876): Diagnosis[] {
     // Check if anything is actually listening on it
     const socketListeners = findProcessesOnPort(port);
     const hasListener = socketListeners.length > 0;
+    const socketOwners = findProcessesUsingSocket().filter((proc) => proc.pid !== options.healthyDaemonPid);
 
-    if (!hasListener) {
+    if (socketOwners.length > 0) {
+      for (const proc of socketOwners) {
+        const isPd = isPortDaddyProcess(proc.command);
+        issues.push({
+          issue: isPd ? 'Zombie Port Daddy socket process' : 'Socket conflict',
+          detail: isPd
+            ? `PID ${proc.pid} still owns ${SOCK_PATH}`
+            : `${SOCK_PATH} is in use by PID ${proc.pid}: ${proc.command.slice(0, 80)}`,
+          fixable: isPd,
+          fix: isPd
+            ? () => {
+                try {
+                  process.kill(proc.pid, 'SIGTERM');
+                } catch {
+                  try {
+                    process.kill(proc.pid, 'SIGKILL');
+                  } catch {}
+                }
+                try {
+                  unlinkSync(SOCK_PATH);
+                } catch {}
+              }
+            : undefined,
+        });
+      }
+    } else if (!hasListener) {
       issues.push({
         issue: 'Stale Unix socket',
         detail: `${SOCK_PATH} exists but no daemon is listening`,
@@ -147,10 +219,13 @@ export function diagnoseStartupBlockers(port: number = 9876): Diagnosis[] {
     }
   }
 
-  // 2. Port 9876 occupied
+  // 2. The discovered daemon TCP port is occupied
   const portProcesses = findProcessesOnPort(port);
   if (portProcesses.length > 0) {
     for (const proc of portProcesses) {
+      if (options.healthyDaemonPid && proc.pid === options.healthyDaemonPid) {
+        continue;
+      }
       const isPd = isPortDaddyProcess(proc.command);
       issues.push({
         issue: isPd ? 'Zombie Port Daddy process' : 'Port conflict',
@@ -183,8 +258,11 @@ export function diagnoseStartupBlockers(port: number = 9876): Diagnosis[] {
  * Auto-fix all fixable startup issues. Used by `pd start`.
  * Returns true if any fixes were applied.
  */
-export function autoFixStartupBlockers(port: number = 9876): { fixed: boolean; issues: Diagnosis[] } {
-  const issues = diagnoseStartupBlockers(port);
+export function autoFixStartupBlockers(
+  port: number = readDaemonPort(),
+  options: StartupDoctorOptions = {}
+): { fixed: boolean; issues: Diagnosis[] } {
+  const issues = diagnoseStartupBlockers(port, options);
   let fixed = false;
 
   for (const issue of issues) {

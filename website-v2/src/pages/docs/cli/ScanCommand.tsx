@@ -5,7 +5,7 @@ export default function ScanCommand() {
     <CommandPage
       command="scan"
       description="Deep-scan a directory for services. Detects 60+ frameworks and assigns ports."
-      version="3.7.0"
+      version="3.8.3"
       syntax="pd scan [dir]"
       flags={[
         { flag: 'dir', description: 'Directory to scan (default: current)' },

@@ -2,15 +2,27 @@
 # =============================================================================
 # Port Daddy Post-Commit Hook
 # =============================================================================
-# Publishes to the git:committed channel after every commit.
-# Fleet agents (QA, test-hunter, documentarian, simplifier, cartographer)
-# trigger on this channel and run automatically.
+# Publishes to a project-scoped git:committed channel after every commit.
+# Fleet agents trigger without cross-project bleed across multiple checkouts.
 #
 # Disable: chmod -x .git/hooks/post-commit
 # =============================================================================
 
-# Don't block the commit if Port Daddy isn't running
-PD_URL="${PD_URL:-http://localhost:9876}"
+PORT_FILE="${PORT_DADDY_PORT_FILE:-$HOME/.port-daddy/daemon.port}"
+if [[ -n "${PD_URL:-}" ]]; then
+  PORT_DADDY_BASE="$PD_URL"
+elif [[ -n "${PORT_DADDY_URL:-}" ]]; then
+  PORT_DADDY_BASE="$PORT_DADDY_URL"
+elif [[ -f "$PORT_FILE" ]]; then
+  PORT_DADDY_BASE="http://localhost:$(tr -d '[:space:]' < "$PORT_FILE")"
+else
+  PORT_DADDY_BASE="http://localhost:9876"
+fi
+
+PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+PROJECT_SLUG=$(basename "$PROJECT_ROOT" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g' | cut -c1-24)
+PROJECT_HASH=$(printf '%s' "$PROJECT_ROOT" | shasum -a 256 | cut -c1-12)
+CHANNEL="project:${PROJECT_SLUG:-project}:${PROJECT_HASH}:git:committed"
 
 # Gather commit info
 SHA=$(git rev-parse --short HEAD 2>/dev/null)
@@ -33,8 +45,8 @@ PAYLOAD=$(cat <<ENDJSON
 ENDJSON
 )
 
-# Publish to git:committed channel (fire-and-forget, don't block commit)
-curl -s -X POST "${PD_URL}/msg/git:committed" \
+# Publish to the project-scoped channel (fire-and-forget, don't block commit)
+curl -s -X POST "${PORT_DADDY_BASE}/msg/${CHANNEL}" \
   -H 'Content-Type: application/json' \
   -d "${PAYLOAD}" \
   --connect-timeout 2 \

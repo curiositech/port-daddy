@@ -30,6 +30,16 @@ enum Fleet {
         static let medium:   CGFloat = 12
     }
 
+    enum Chrome {
+        static var popoverBackground: SwiftUI.Color { SwiftUI.Color(nsColor: .windowBackgroundColor).opacity(0.98) }
+        static var panel: SwiftUI.Color { SwiftUI.Color(nsColor: .controlBackgroundColor).opacity(0.96) }
+        static var panelRaised: SwiftUI.Color { SwiftUI.Color(nsColor: .underPageBackgroundColor).opacity(0.98) }
+        static var card: SwiftUI.Color { SwiftUI.Color(nsColor: .textBackgroundColor).opacity(0.98) }
+        static var border: SwiftUI.Color { SwiftUI.Color.primary.opacity(0.08) }
+        static var secondaryText: SwiftUI.Color { SwiftUI.Color.secondary }
+        static var tertiaryText: SwiftUI.Color { SwiftUI.Color.secondary.opacity(0.72) }
+    }
+
     // MARK: - Semantic Colors
     //
     // These adapt automatically to light/dark/vibrancy.

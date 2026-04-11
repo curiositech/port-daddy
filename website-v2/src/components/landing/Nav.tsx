@@ -2,6 +2,7 @@ import * as React from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useTheme } from '@/lib/theme'
 import { Sun, Moon, Github, Menu, X, ChevronDown, BookOpen, GraduationCap, LayoutGrid, Bot } from 'lucide-react'
+import { DocsSearch, openDocsSearch } from '@/components/docs/DocsSearch'
 
 interface NavItem {
   label: string
@@ -35,15 +36,15 @@ const NAV_STRUCTURE: NavSection[] = [
         icon: Bot
       },
       {
-        label: 'Templates',
-        href: '/templates',
-        description: 'Drop-in fleet YAML configs',
+        label: 'Prompting Guide',
+        href: '/docs/guides/prompting-agents',
+        description: 'Write reliable prompts for coordinated agents',
         icon: LayoutGrid
       },
       {
-        label: 'Blueprints',
-        href: '/examples',
-        description: 'Real-world integration examples',
+        label: 'Template Quickstarts',
+        href: '/docs/guides/templates',
+        description: 'Starter fleets for common workflows',
         icon: BookOpen
       },
     ]
@@ -231,6 +232,7 @@ export function Nav() {
   const [mobileOpen, setMobileOpen] = React.useState(false)
   const [scrolled, setScrolled] = React.useState(false)
   const { theme, toggle } = useTheme()
+  const location = useLocation()
 
   React.useEffect(() => {
     const handleScroll = () => {
@@ -277,8 +279,18 @@ export function Nav() {
               </span>
             </Link>
 
-            {/* Desktop Navigation - Simplified (3 items with dropdowns) */}
+            {/* Desktop Navigation */}
             <div className="hidden lg:flex items-center gap-1">
+              <Link
+                to="/"
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors no-underline ${
+                  location.pathname === '/'
+                    ? 'text-[var(--text-primary)]'
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                }`}
+              >
+                Home
+              </Link>
               {NAV_STRUCTURE.map((section) => (
                 <DropdownNav key={section.label} section={section} />
               ))}
@@ -286,6 +298,19 @@ export function Nav() {
 
             {/* Actions */}
             <div className="flex items-center gap-2">
+              <div className="hidden md:block">
+                <DocsSearch variant="compact" />
+              </div>
+
+              <button
+                onClick={openDocsSearch}
+                className="md:hidden w-11 h-11 rounded-full flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-all"
+                style={{ boxShadow: 'var(--shadow-inset)' }}
+                aria-label="Search documentation"
+              >
+                <BookOpen size={16} />
+              </button>
+
               <button
                 onClick={toggle}
                 className="w-11 h-11 rounded-full flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-all"

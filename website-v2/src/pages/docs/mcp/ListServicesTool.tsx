@@ -5,7 +5,7 @@ export default function ListServicesTool() {
     <CommandPage
       command="list_services"
       description="List all active service claims with identity, port, and metadata. Optionally filter by project. Useful for discovering what services are running and where."
-      version="3.7.0"
+      version="3.8.3"
       syntax="list_services(options?)"
       flags={[
         { flag: 'project', description: 'Filter by project name (optional)' },

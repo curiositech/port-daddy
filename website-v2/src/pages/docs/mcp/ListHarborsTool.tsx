@@ -5,7 +5,7 @@ export default function ListHarborsTool() {
     <CommandPage
       command="list_harbors"
       description="List all active harbors and their capabilities."
-      version="3.7.0"
+      version="3.8.3"
       syntax="list_harbors(options?)"
       flags={[
         { flag: 'active', description: 'Only show harbors with active tokens (default: true)' },

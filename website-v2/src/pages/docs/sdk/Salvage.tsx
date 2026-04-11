@@ -6,7 +6,7 @@ export default function Salvage() {
       function="salvage"
       description="Show agents in the resurrection queue — agents that died mid-task with active sessions."
       module="Agents"
-      version="3.7.0"
+      version="3.8.3"
       signature="salvage(options?: SalvageOptions): Promise<SalvageableAgent[]>"
       params={[
         { name: 'options.project', type: 'string', description: 'Filter by project identity prefix' },

@@ -5,7 +5,7 @@ export default function SalvageTool() {
     <CommandPage
       command="salvage"
       description="Show agents in the resurrection queue — agents that died mid-task with active sessions."
-      version="3.7.0"
+      version="3.8.3"
       syntax="salvage(options?)"
       flags={[
         { flag: 'project', description: 'Filter by project identity prefix' },

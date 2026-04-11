@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { createPortal } from 'react-dom'
+import { useNavigate } from 'react-router-dom'
 import { Search, X, FileText, Terminal, Code, Cpu, ChevronRight } from 'lucide-react'
 
 interface SearchResult {
@@ -95,12 +96,35 @@ const SEARCH_INDEX: SearchResult[] = [
   { title: 'REST API Reference', href: '/docs/api', category: 'API', icon: Code, description: '93 endpoints with curl examples' },
 ]
 
-export function DocsSearch() {
+type DocsSearchVariant = 'full' | 'compact'
+
+interface DocsSearchProps {
+  variant?: DocsSearchVariant
+  className?: string
+}
+
+const OPEN_EVENT = 'pd-docs-search:open'
+
+export function DocsSearch({ variant = 'full', className }: DocsSearchProps) {
+  const navigate = useNavigate()
   const [isOpen, setIsOpen] = React.useState(false)
   const [query, setQuery] = React.useState('')
   const [results, setResults] = React.useState<SearchResult[]>([])
   const [selectedIndex, setSelectedIndex] = React.useState(0)
   const inputRef = React.useRef<HTMLInputElement>(null)
+  const shortcut = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform)
+    ? '⌘K'
+    : 'Ctrl K'
+
+  const openSearch = React.useCallback(() => {
+    setIsOpen(true)
+    setTimeout(() => inputRef.current?.focus(), 100)
+  }, [])
+
+  const closeSearch = React.useCallback(() => {
+    setIsOpen(false)
+    setQuery('')
+  }, [])
 
   // Filter results based on query
   React.useEffect(() => {
@@ -126,14 +150,12 @@ export function DocsSearch() {
       // Cmd/Ctrl + K to open search
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault()
-        setIsOpen(true)
-        setTimeout(() => inputRef.current?.focus(), 100)
+        openSearch()
       }
       
       // Escape to close
       if (e.key === 'Escape' && isOpen) {
-        setIsOpen(false)
-        setQuery('')
+        closeSearch()
       }
       
       // Arrow navigation
@@ -147,15 +169,21 @@ export function DocsSearch() {
           setSelectedIndex(prev => (prev - 1 + results.length) % results.length)
         }
         if (e.key === 'Enter' && results[selectedIndex]) {
-          window.location.href = results[selectedIndex].href
-          setIsOpen(false)
+          navigate(results[selectedIndex].href)
+          closeSearch()
         }
       }
     }
     
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen, results, selectedIndex])
+  }, [closeSearch, isOpen, navigate, openSearch, results, selectedIndex])
+
+  React.useEffect(() => {
+    const handleOpen = () => openSearch()
+    window.addEventListener(OPEN_EVENT, handleOpen)
+    return () => window.removeEventListener(OPEN_EVENT, handleOpen)
+  }, [openSearch])
 
   // Group results by category
   const groupedResults = results.reduce((acc, result) => {
@@ -169,16 +197,13 @@ export function DocsSearch() {
       {/* Search Trigger Button */}
       <button
         data-search-trigger
-        onClick={() => {
-          setIsOpen(true)
-          setTimeout(() => inputRef.current?.focus(), 100)
-        }}
-        className="flex items-center gap-2 w-full px-3 py-2 rounded-lg bg-[var(--surface-overlay)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] transition-all text-sm"
+        onClick={openSearch}
+        className={`flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--surface-overlay)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] transition-all text-sm ${variant === 'full' ? 'w-full' : 'w-[min(36vw,280px)]'} ${className ?? ''}`}
       >
         <Search size={16} />
-        <span className="flex-1 text-left">Search documentation...</span>
+        <span className="flex-1 text-left">{variant === 'full' ? 'Search documentation...' : 'Search docs...'}</span>
         <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-xs font-mono bg-[var(--surface-raised)] rounded border border-[var(--border-subtle)]">
-          ⌘K
+          {shortcut}
         </kbd>
       </button>
 
@@ -188,10 +213,7 @@ export function DocsSearch() {
           {/* Backdrop */}
           <div 
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => {
-              setIsOpen(false)
-              setQuery('')
-            }}
+            onClick={closeSearch}
           />
           
           {/* Search Panel */}
@@ -239,18 +261,17 @@ export function DocsSearch() {
                       {SEARCH_INDEX.slice(0, 6).map((item) => {
                         const Icon = item.icon
                         return (
-                          <a
+                          <button
                             key={item.href}
-                            href={item.href}
                             onClick={() => {
-                              setIsOpen(false)
-                              setQuery('')
+                              navigate(item.href)
+                              closeSearch()
                             }}
-                            className="flex items-center gap-2 p-2 rounded-lg hover:bg-[var(--interactive-hover)] transition-colors"
+                            className="flex w-full items-center gap-2 p-2 rounded-lg hover:bg-[var(--interactive-hover)] transition-colors text-left"
                           >
                             <Icon size={16} className="text-[var(--text-muted)]" />
                             <span className="text-sm text-[var(--text-secondary)] truncate">{item.title}</span>
-                          </a>
+                          </button>
                         )
                       })}
                     </div>
@@ -269,18 +290,17 @@ export function DocsSearch() {
                         const isSelected = globalIdx === selectedIndex
                         
                         return (
-                          <a
+                          <button
                             key={item.href}
-                            href={item.href}
                             onClick={() => {
-                              setIsOpen(false)
-                              setQuery('')
+                              navigate(item.href)
+                              closeSearch()
                             }}
                             className={`flex items-center gap-3 px-4 py-3 mx-2 rounded-lg transition-colors ${
                               isSelected 
                                 ? 'bg-[var(--interactive-active)]' 
                                 : 'hover:bg-[var(--interactive-hover)]'
-                            }`}
+                            } w-[calc(100%-1rem)] text-left`}
                           >
                             <Icon size={18} className="text-[var(--text-muted)] shrink-0" />
                             <div className="flex-1 min-w-0">
@@ -294,7 +314,7 @@ export function DocsSearch() {
                               )}
                             </div>
                             <ChevronRight size={16} className="text-[var(--text-muted)]" />
-                          </a>
+                          </button>
                         )
                       })}
                     </div>
@@ -323,4 +343,8 @@ export function DocsSearch() {
       )}
     </>
   )
+}
+
+export function openDocsSearch() {
+  window.dispatchEvent(new Event(OPEN_EVENT))
 }

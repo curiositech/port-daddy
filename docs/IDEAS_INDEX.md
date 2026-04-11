@@ -1,5 +1,7 @@
 # Port Daddy Idea Index (April 2026)
 
+Canonical note: this index is now historical context. The active organized trove lives in `docs/recovery/IDEAS-TROVE.md`, which explicitly preserves Spark, Spider, and cartographer inputs.
+
 This document is the **Comprehensive Index of All Emergent Ideas** for Port Daddy. It maps out the expansive universe of concepts generated during V4 planning, detailing what each idea is, where its primary text lives, and a firm recommendation on when (or if) it should be built.
 
 ---
@@ -11,7 +13,7 @@ The Fleet system represents Port Daddy's evolution from a passive orchestrator i
 ### 1.1. Fleet Configuration & Seamless Background Agents
 *   **What it is:** Declarative, always-on agent swarms configured via `pd-fleet.yml`. Agents can be scheduled (cron) or triggered by ambient events (`git:committed`, `file:saved`, `build:error`, `test:result`). The engine supports auto-respawning crashed agents and enforcing singleton execution.
 *   **Primary Location:** `V4-UNIFIED-ROADMAP.md` (Phase 3A), `drifting-crunching-aurora.md` (Phase 4).
-*   **Recommendation: Shipped & Expanding.** The core engine and templates are live. The immediate next step is building out the `file:saved`, `build:error`, and `test:result` event sources to make agents truly reactive to the local environment.
+*   **Recommendation: Shipped & Expanding.** The core engine and templates are live. The immediate next step is building out the `file:saved`, `build:error`, and `test:result` event sources to make agents truly reactive to the local environment, then adding declarative primitives like `trigger: webhook:<event>` and `trigger: files:<glob>` so projects can define richer local event topologies without custom glue.
 
 ### 1.2. The Suggestibility Layer & FleetBar App
 *   **What it is:** A native macOS menu bar app (FleetBar, built in SwiftUI) that monitors daemon SSE streams. Instead of just showing status dots, FleetBar acts as a "Suggestion Presenter." When background agents find issues (e.g., QA agent finds a null reference, Spark agent generates an idea), they publish "suggestions" that appear in the menu bar with actionable buttons (e.g., `[Fix]`, `[Read]`). A Tauri version is planned for Windows/Linux.

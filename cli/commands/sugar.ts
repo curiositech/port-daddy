@@ -5,9 +5,8 @@
  */
 
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
-import { join } from 'node:path';
 import { highlightChannel } from '../../lib/maritime.js';
+import PortDaddy from '../../lib/client.js';
 import { pdFetch } from '../utils/fetch.js';
 import { CLIOptions, isQuiet, isJson } from '../types.js';
 import { IS_TTY, relativeTime } from '../utils/output.js';
@@ -15,47 +14,7 @@ import { canPrompt, promptText, promptSelect, promptIdentity, promptConfirm, pri
 import { autoIdentityFromPackageJson } from './services.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
-
-// =============================================================================
-// .portdaddy/current.json — local context file
-// =============================================================================
-
-interface CurrentContext {
-  agentId: string;
-  sessionId: string;
-  purpose: string;
-  identity: string | null;
-  startedAt: number;
-}
-
-function getContextDir(): string {
-  return join(process.cwd(), '.portdaddy');
-}
-
-function getContextPath(): string {
-  return join(getContextDir(), 'current.json');
-}
-
-function writeContext(ctx: CurrentContext): void {
-  const dir = getContextDir();
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-  writeFileSync(getContextPath(), JSON.stringify(ctx, null, 2));
-}
-
-function readContext(): CurrentContext | null {
-  const path = getContextPath();
-  if (!existsSync(path)) return null;
-  try {
-    return JSON.parse(readFileSync(path, 'utf8')) as CurrentContext;
-  } catch {
-    return null;
-  }
-}
-
-function clearContext(): void {
-  const path = getContextPath();
-  try { unlinkSync(path); } catch {}
-}
+import { clearCurrentContext, readCurrentContext, writeCurrentContext } from '../utils/current-context.js';
 
 // =============================================================================
 // handleBegin — pd begin "purpose" [--identity X] [--files f1 f2...]
@@ -133,7 +92,7 @@ export async function handleBegin(
   }
 
   // Write local context file
-  writeContext({
+  writeCurrentContext({
     agentId: data.agentId as string,
     sessionId: data.sessionId as string,
     purpose,
@@ -197,7 +156,7 @@ export async function handleDone(
   }
 
   // Try to read local context first
-  const ctx = readContext();
+  const ctx = readCurrentContext();
 
   const body: Record<string, unknown> = {};
   if (ctx) {
@@ -209,21 +168,20 @@ export async function handleDone(
   if (note) body.note = note;
   if (options.status) body.status = options.status;
 
-  const res: PdFetchResponse = await pdFetch('/sugar/done', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+  const pd = new PortDaddy({ agentId: typeof body.agentId === 'string' ? body.agentId : undefined });
+  const data = await pd.done(note, {
+    agentId: typeof body.agentId === 'string' ? body.agentId : undefined,
+    sessionId: typeof body.sessionId === 'string' ? body.sessionId : undefined,
+    status: typeof body.status === 'string' ? body.status : undefined,
   });
 
-  const data = await res.json();
-
-  if (!res.ok) {
-    ui.error((data.error as string) || 'Failed to end session');
+  if (!data?.success) {
+    ui.error((data?.error as string) || 'Failed to end session');
     process.exit(1);
   }
 
   // Clear local context
-  clearContext();
+  clearCurrentContext();
 
   if (isJson(options)) {
     console.log(JSON.stringify(data, null, 2));
@@ -251,7 +209,7 @@ export async function handleDone(
 
 export async function handleWhoami(options: CLIOptions): Promise<void> {
   // Try local context first
-  const ctx = readContext();
+  const ctx = readCurrentContext();
   const agentId = (options.agent as string) || ctx?.agentId;
 
   if (!agentId) {
@@ -263,14 +221,8 @@ export async function handleWhoami(options: CLIOptions): Promise<void> {
     return;
   }
 
-  const params = new URLSearchParams();
-  params.set('agentId', agentId);
-
-  const res: PdFetchResponse = await pdFetch(`/sugar/whoami?${params}`, {
-    method: 'GET',
-  });
-
-  const data = await res.json();
+  const pd = new PortDaddy({ agentId });
+  const data = await pd.whoami(agentId);
 
   if (isJson(options)) {
     // Merge local context timing if available
@@ -335,17 +287,21 @@ export async function handleWithLock(
 
   const ttl = options.ttl ? parseInt(options.ttl as string, 10) : 300000;
   const owner = (options.owner as string) || `cli-${process.pid}`;
-
-  // Acquire lock
-  const lockRes: PdFetchResponse = await pdFetch(`/locks/${encodeURIComponent(name)}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ owner, ttl, pid: process.pid }),
+  const current = readCurrentContext();
+  const pd = new PortDaddy({
+    agentId: current?.agentId || owner,
+    pid: process.pid,
   });
 
-  if (!lockRes.ok) {
-    const lockData = await lockRes.json();
-    ui.error(`Failed to acquire lock "${name}": ${lockData.error || 'lock is held'}`);
+  // Acquire lock
+  try {
+    await pd.lock(name, { owner, ttl });
+  } catch (error) {
+    const lockData = error && typeof error === 'object' && 'body' in error ? (error as { body?: Record<string, unknown> }).body : null;
+    const message = lockData && typeof lockData.error === 'string'
+      ? lockData.error
+      : (error as Error).message || 'lock is held';
+    ui.error(`Failed to acquire lock "${name}": ${message}`);
     process.exit(1);
   }
 
@@ -365,11 +321,7 @@ export async function handleWithLock(
   // Handle signals — release lock on SIGINT/SIGTERM
   const cleanup = async (signal: string) => {
     child.kill(signal as NodeJS.Signals);
-    await pdFetch(`/locks/${encodeURIComponent(name)}`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ owner, force: true }),
-    }).catch(() => {});
+    await pd.unlock(name, { owner, force: true }).catch(() => {});
     process.exit(128 + (signal === 'SIGINT' ? 2 : 15));
   };
 
@@ -387,11 +339,7 @@ export async function handleWithLock(
   process.removeListener('SIGTERM', onSigTerm);
 
   // Release lock
-  await pdFetch(`/locks/${encodeURIComponent(name)}`, {
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ owner, force: true }),
-  }).catch(() => {});
+  await pd.unlock(name, { owner, force: true }).catch(() => {});
 
   if (IS_TTY && !isQuiet(options)) {
     ui.success(`Lock "${name}" released`);

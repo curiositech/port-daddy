@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Port Daddy API
-  version: 3.7.0
+  version: 3.8.3
   description: >
     Authoritative port management and service orchestration for multi-agent
     development. Provides atomic port assignment, pub/sub messaging, distributed
@@ -12,7 +12,7 @@ info:
 
 servers:
   - url: http://localhost:9876
-    description: Local daemon
+    description: Local daemon default. Use `pd status` or `PORT_DADDY_URL` when your live daemon is elsewhere.
 
 tags:
   - name: services
@@ -401,6 +401,34 @@ paths:
       responses:
         '200':
           description: Health status for all services
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  version:
+                    type: string
+                  uptime_seconds:
+                    type: integer
+                  active_ports:
+                    type: integer
+                  pid:
+                    type: integer
+                  fleet:
+                    type: object
+                    nullable: true
+                    properties:
+                      running:
+                        type: boolean
+                      projects:
+                        type: integer
+                      agents:
+                        type: integer
+                      watchers:
+                        type: integer
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -441,7 +469,7 @@ paths:
                 properties:
                   version:
                     type: string
-                    example: 3.7.0
+                    example: 3.8.3
                   codeHash:
                     type: string
                   startedAt:
@@ -551,6 +579,57 @@ paths:
                         type: integer
                       avgResponseMs:
                         type: number
+                  fleet:
+                    type: object
+                    nullable: true
+                    properties:
+                      running:
+                        type: boolean
+                      startedAt:
+                        type: integer
+                      projects:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                            projectDir:
+                              type: string
+                            running:
+                              type: boolean
+                            agents:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  name:
+                                    type: string
+                                  type:
+                                    type: string
+                                    enum: [manual, triggered, scheduled]
+                                  status:
+                                    type: string
+                                    enum: [running, queued, paused, scheduled, armed, idle]
+                                  running:
+                                    type: boolean
+                                  paused:
+                                    type: boolean
+                                  uptime:
+                                    type: integer
+                                  queueDepth:
+                                    type: integer
+                                    description: Pending wakeups collapsed into this agent mailbox
+                            watchers:
+                              type: integer
+                            channels:
+                              type: integer
+                            startedAt:
+                              type: integer
+                      totalAgents:
+                        type: integer
+                      totalWatchers:
+                        type: integer
 
   /ports/request:
     post:
@@ -3513,17 +3592,24 @@ paths:
           application/json:
             schema:
               type: object
-              required: [backend, task]
+              required: [backend, identity, budgetUsd, task]
               properties:
                 backend:
                   type: string
-                  enum: [ollama, claude, gemini, aider, custom]
+                  enum: [ollama, claude, claude-cli, gemini, cloudflare, codex, aider, custom]
                 model:
                   type: string
                   description: Model name (backend-specific)
+                modelTier:
+                  type: string
+                  enum: [low, mid, high]
+                  description: Optional backend-specific model tier shortcut
                 identity:
                   type: string
-                  description: Semantic identity for the spawned agent
+                  description: Semantic identity for the spawned agent and project budget attribution
+                budgetUsd:
+                  type: number
+                  description: Positive spend ceiling for this launch in USD
                 purpose:
                   type: string
                 task:
@@ -3611,6 +3697,278 @@ paths:
                     type: string
                   message:
                     type: string
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ===========================================================================
+  # SORTIES
+  # ===========================================================================
+  /sorties:
+    post:
+      tags: [sorties]
+      summary: Launch a tracked sortie mission
+      operationId: runSortie
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [goal, backend, budgetUsd]
+              properties:
+                goal:
+                  type: string
+                projectDir:
+                  type: string
+                backend:
+                  type: string
+                  enum: [ollama, claude, claude-cli, gemini, cloudflare, codex, aider, custom]
+                budgetUsd:
+                  type: number
+                model:
+                  type: string
+                modelTier:
+                  type: string
+                  enum: [low, mid, high]
+                recipe:
+                  type: string
+                expectedOutput:
+                  type: string
+                context:
+                  type: string
+                approvalMode:
+                  type: string
+                  enum: [none, before-build, before-apply, before-close]
+                roster:
+                  type: array
+                  items:
+                    type: string
+                identity:
+                  type: string
+                purpose:
+                  type: string
+                allowedTools:
+                  type: string
+                timeout:
+                  type: integer
+                maxTokens:
+                  type: integer
+      responses:
+        '200':
+          description: Sortie completed or launched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  sortie:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      projectDir:
+                        type: string
+                      project:
+                        type: string
+                      harbor:
+                        type: string
+                      goal:
+                        type: string
+                      recipe:
+                        type: string
+                        nullable: true
+                      status:
+                        type: string
+                        enum: [planned, blocked, running, completed, failed, cancelled]
+                      backend:
+                        type: string
+                      model:
+                        type: string
+                        nullable: true
+                      modelTier:
+                        type: string
+                        nullable: true
+                      budgetUsd:
+                        type: number
+                      expectedOutput:
+                        type: string
+                        nullable: true
+                      spawnAgentId:
+                        type: string
+                        nullable: true
+                      resultOutput:
+                        type: string
+                        nullable: true
+                      error:
+                        type: string
+                        nullable: true
+                      createdAt:
+                        type: integer
+                      startedAt:
+                        type: integer
+                        nullable: true
+                      updatedAt:
+                        type: integer
+                      completedAt:
+                        type: integer
+                        nullable: true
+                  result:
+                    type: object
+                    nullable: true
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    get:
+      tags: [sorties]
+      summary: List recent sortie missions
+      operationId: listSorties
+      parameters:
+        - name: projectDir
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Recent sortie missions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  sorties:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        projectDir:
+                          type: string
+                        project:
+                          type: string
+                        harbor:
+                          type: string
+                        goal:
+                          type: string
+                        recipe:
+                          type: string
+                          nullable: true
+                        status:
+                          type: string
+                        backend:
+                          type: string
+                        model:
+                          type: string
+                          nullable: true
+                        modelTier:
+                          type: string
+                          nullable: true
+                        budgetUsd:
+                          type: number
+                        createdAt:
+                          type: integer
+                        startedAt:
+                          type: integer
+                          nullable: true
+                        completedAt:
+                          type: integer
+                          nullable: true
+                  count:
+                    type: integer
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sorties/{id}:
+    get:
+      tags: [sorties]
+      summary: Fetch a sortie mission by id
+      operationId: getSortie
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Sortie mission
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  sortie:
+                    type: object
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sorties/{id}/logs:
+    get:
+      tags: [sorties]
+      summary: Fetch the event log for a sortie mission
+      operationId: getSortieLogs
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Sortie event log
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  sortie:
+                    type: object
+                  events:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        sortieId:
+                          type: string
+                        type:
+                          type: string
+                        summary:
+                          type: string
+                          nullable: true
+                        metadata:
+                          type: object
+                          nullable: true
+                        createdAt:
+                          type: integer
+                  count:
+                    type: integer
+        '404':
+          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
 

@@ -33,6 +33,7 @@ interface SessionsRouteDeps {
       type?: string;
     }): Record<string, unknown>;
     quickNote(content: string, options?: {
+      sessionId?: string | null;
       agentId?: string | null;
       type?: string;
     }): Record<string, unknown>;
@@ -42,16 +43,16 @@ interface SessionsRouteDeps {
       since?: number;
     }): Record<string, unknown>;
     claimFiles(sessionId: string, files: string[], options?: {
-      regions?: Array<{ path: string; startLine?: number; endLine?: number; symbol?: string }>;
+      regions?: Array<{ path: string; startLine?: number; endLine?: number; symbol?: string; symbolPath?: string }>;
       force?: boolean;
     }): Record<string, unknown>;
     releaseFiles(sessionId: string, files: string[], options?: {
-      regions?: Array<{ path: string; startLine?: number; endLine?: number }>;
+      regions?: Array<{ path: string; startLine?: number; endLine?: number; symbolPath?: string }>;
     }): Record<string, unknown>;
     getFileConflicts(files: string[]): Record<string, unknown>;
     setPhase(sessionId: string, phase: string): Record<string, unknown>;
-    listAllActiveClaims(options?: { path?: string; symbol?: string; agentId?: string; purpose?: string }): Record<string, unknown>;
-    getClaimOwner(filePath: string, range?: { startLine?: number; endLine?: number }): Record<string, unknown>;
+    listAllActiveClaims(options?: { path?: string; symbol?: string; symbolPath?: string; agentId?: string; purpose?: string }): Record<string, unknown>;
+    getClaimOwner(filePath: string, range?: { startLine?: number; endLine?: number; symbolPath?: string }): Record<string, unknown>;
     list(options?: {
       status?: string;
       agentId?: string | null;
@@ -446,6 +447,14 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
               code: 'VALIDATION_ERROR'
             };
           }
+          if (region.symbolPath !== undefined && (typeof region.symbolPath !== 'string' || !region.symbolPath.trim())) {
+            reply.code(400);
+            return {
+              success: false,
+              error: 'symbolPath must be a non-empty string when provided',
+              code: 'VALIDATION_ERROR'
+            };
+          }
         }
       }
 
@@ -501,7 +510,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       const sessionId = typeof sessionIdParam === 'string' ? sessionIdParam : sessionIdParam[0];
 
       let files: string[] = [];
-      let regions: Array<{ path: string; startLine?: number; endLine?: number }> | undefined;
+      let regions: Array<{ path: string; startLine?: number; endLine?: number; symbolPath?: string }> | undefined;
 
       const pathsParam = (request.query as any).paths;
       if (pathsParam && typeof pathsParam === 'string') {
@@ -555,7 +564,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
   // POST /notes - Quick note (auto-creates session if needed)
   fastify.post('/notes', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { content, agentId, type } = request.body as any;
+      const { content, sessionId, agentId, type } = request.body as any;
 
       if (!content || typeof content !== 'string') {
         reply.code(400);
@@ -566,11 +575,14 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         };
       }
 
-      const result = sessions.quickNote(content, { agentId, type });
+      const result = sessions.quickNote(content, { sessionId, agentId, type });
 
       if (!result.success) {
-        reply.code(400);
-        return { ...result, code: 'VALIDATION_ERROR' };
+        const code = result.code === 'SESSION_NOT_FOUND' ? 404
+          : result.code === 'SESSION_NOT_ACTIVE' || result.code === 'AMBIGUOUS_ACTIVE_SESSION' ? 409
+          : 400;
+        reply.code(code);
+        return result;
       }
 
       logger.info('quick_note_added', {
@@ -599,10 +611,11 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
   // GET /files - List all active file claims across all sessions
   fastify.get('/files', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { path, symbol, agent, purpose } = request.query as any;
+      const { path, symbol, symbolPath, agent, purpose } = request.query as any;
       const result = sessions.listAllActiveClaims({
         path: typeof path === 'string' ? path : undefined,
         symbol: typeof symbol === 'string' ? symbol : undefined,
+        symbolPath: typeof symbolPath === 'string' ? symbolPath : undefined,
         agentId: typeof agent === 'string' ? agent : undefined,
         purpose: typeof purpose === 'string' ? purpose : undefined
       });
@@ -630,11 +643,18 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
 
       const startLineParam = (request.query as any).startLine;
       const endLineParam = (request.query as any).endLine;
-      let range: { startLine: number; endLine: number } | undefined;
+      const symbolPathParam = (request.query as any).symbolPath;
+      let range: { startLine?: number; endLine?: number; symbolPath?: string } | undefined;
       if (typeof startLineParam === 'string' && typeof endLineParam === 'string') {
         range = {
           startLine: parseInt(startLineParam, 10),
           endLine: parseInt(endLineParam, 10),
+        };
+      }
+      if (typeof symbolPathParam === 'string' && symbolPathParam.trim()) {
+        range = {
+          ...(range || {}),
+          symbolPath: symbolPathParam,
         };
       }
 

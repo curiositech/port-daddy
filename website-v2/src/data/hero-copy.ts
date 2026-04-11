@@ -14,7 +14,7 @@ export const HERO_COPY = {
     'Port Daddy is a local daemon that gives every AI coding agent its own port, its own workspace, and a shared radio channel -- so they coordinate instead of collide.',
 
   description:
-    'One daemon on localhost:9876. Install it once, and Claude Code, Cursor, Gemini CLI, and Aider can all run in the same monorepo without stepping on each other. Deterministic ports, file-level claims, real-time messaging, and automatic crash recovery -- all backed by a single SQLite database.',
+    'One local daemon, usually on localhost:9876. Install it once, and Claude Code, Codex, Cursor, Gemini CLI, Aider, and Ollama can all run in the same monorepo without stepping on each other. Deterministic ports, file-level claims, real-time messaging, and automatic crash recovery -- all backed by a single SQLite database.',
 
   featureHighlights: [
     {

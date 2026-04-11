@@ -1,15 +1,66 @@
 import SwiftUI
+import AppKit
+
+private struct RecentAgentHighlight: Identifiable {
+    let projectId: String
+    let projectDir: String
+    let projectName: String
+    let agent: FleetAgent
+
+    var id: String { "\(projectId)::\(agent.id)" }
+}
 
 // MARK: - Main Popover
 
 struct FleetPopover: View {
+    @Environment(\.openWindow) private var openWindow
     @ObservedObject var store: FleetStore
+    @ObservedObject var costStore: CostStore
+    @AppStorage("fleet.control.theme") private var selectedThemeRaw = "dark"
     @State private var appeared = false
+    @State private var showingSettings = false
+
+    private var recentAgentHighlights: [RecentAgentHighlight] {
+        store.projects
+            .flatMap { project in
+                project.agents.compactMap { agent in
+                    let hasSignal = agent.lastActivity != nil
+                        || !(agent.lastSummary?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
+                        || !agent.recentFiles.isEmpty
+                    guard hasSignal else { return nil }
+                    return RecentAgentHighlight(
+                        projectId: project.id,
+                        projectDir: project.projectDir,
+                        projectName: project.name,
+                        agent: agent
+                    )
+                }
+            }
+            .sorted { lhs, rhs in
+                let left = lhs.agent.lastActivity ?? .distantPast
+                let right = rhs.agent.lastActivity ?? .distantPast
+                return left > right
+            }
+            .prefix(6)
+            .map { $0 }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             header
             Divider().opacity(0.5)
+            if store.isDaemonRunning && !recentAgentHighlights.isEmpty {
+                recentActivitySection
+                Divider().opacity(0.5)
+            }
+            if store.isDaemonRunning {
+                CostDashboard(store: costStore)
+                Divider().opacity(0.5)
+            }
+            if showingSettings {
+                settingsPanel
+                Divider().opacity(0.5)
+            }
             if store.projects.isEmpty {
                 emptyState
             } else {
@@ -18,10 +69,179 @@ struct FleetPopover: View {
             Divider().opacity(0.5)
             footer
         }
-        .background(.ultraThinMaterial)
+        .background(Fleet.Chrome.popoverBackground)
+        .preferredColorScheme(selectedThemeRaw == "light" ? .light : .dark)
         .onAppear {
             withAnimation(.smooth(duration: 0.4)) { appeared = true }
         }
+    }
+
+    private var defaultConsoleProject: String? {
+        if let expanded = store.expandedProjects.first,
+           store.projects.contains(where: { $0.id == expanded }) {
+            return expanded
+        }
+        if let active = store.projects.first(where: { $0.activeCount > 0 }) {
+            return active.id
+        }
+        return store.projects.first?.id
+    }
+
+    private func openControlPlane(_ surface: FleetControlSurface, project: String? = nil, agent: String? = nil) {
+        FleetControlRoute.persist(surface: surface, project: project ?? defaultConsoleProject, agent: agent)
+        FleetBarAppChrome.presentControlCenter()
+        if !FleetBarAppChrome.focusExistingControlCenter() {
+            openWindow(id: "fleet-control-center")
+        }
+    }
+
+    private func resolveAgentFileURL(projectDir: String, filePath: String) -> URL {
+        if filePath.hasPrefix("/") {
+            return URL(fileURLWithPath: filePath)
+        }
+        return URL(fileURLWithPath: projectDir)
+            .appendingPathComponent(filePath)
+    }
+
+    private func openAgentFileInEditor(projectDir: String, filePath: String) {
+        NSWorkspace.shared.open(resolveAgentFileURL(projectDir: projectDir, filePath: filePath))
+    }
+
+    private func revealAgentFileInFinder(projectDir: String, filePath: String) {
+        NSWorkspace.shared.activateFileViewerSelecting([
+            resolveAgentFileURL(projectDir: projectDir, filePath: filePath)
+        ])
+    }
+
+    private var settingsPanel: some View {
+        VStack(alignment: .leading, spacing: Fleet.Space.m) {
+            HStack {
+                Text("Companion Settings")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                Text(store.isDaemonRunning ? "Connected" : "Offline")
+                    .font(.caption2)
+                    .foregroundStyle(store.isDaemonRunning ? Fleet.Color.healthy : Fleet.Color.warning)
+            }
+
+            Toggle(isOn: Binding(
+                get: { store.preferences.launchFleetBarOnDaemonStart },
+                set: { store.setLaunchFleetBarOnDaemonStart($0) }
+            )) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Launch FleetBar when Port Daddy starts")
+                        .font(.caption.weight(.medium))
+                    Text("Daemon-owned preference for the menu bar companion on macOS.")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .toggleStyle(.switch)
+
+            if let message = store.settingsMessage {
+                Text(message)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, Fleet.Space.l)
+        .padding(.vertical, Fleet.Space.m)
+        .background(Fleet.Chrome.panel)
+    }
+
+    private var recentActivitySection: some View {
+        VStack(alignment: .leading, spacing: Fleet.Space.s) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Recent Work")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Text("Non-empty notes, mutations, and last-active hints")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+                Spacer()
+                Button {
+                    openControlPlane(.activity)
+                } label: {
+                    Text("Open")
+                        .font(.caption2.weight(.semibold))
+                }
+                .buttonStyle(.borderless)
+                .foregroundStyle(Fleet.Color.active)
+            }
+
+            VStack(spacing: Fleet.Space.s) {
+                ForEach(recentAgentHighlights) { item in
+                    VStack(alignment: .leading, spacing: 5) {
+                        HStack(spacing: Fleet.Space.s) {
+                            Circle()
+                                .fill(item.agent.status.isDeployed ? Fleet.Color.healthy : Fleet.Color.dormant.opacity(0.45))
+                                .frame(width: 7, height: 7)
+                            Text(item.agent.name)
+                                .font(.system(.caption, design: .monospaced).weight(.semibold))
+                                .foregroundStyle(.primary)
+                            Text(item.projectName)
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                                .lineLimit(1)
+                            Spacer()
+                            if let lastActivity = item.agent.lastActivity {
+                                Text(lastActivity, style: .relative)
+                                    .font(.caption2)
+                                    .foregroundStyle(.quaternary)
+                            }
+                            Button {
+                                openControlPlane(.activity, project: item.projectId, agent: item.agent.name)
+                            } label: {
+                                Text("Inspect")
+                                    .font(.caption2.weight(.semibold))
+                            }
+                            .buttonStyle(.borderless)
+                            .foregroundStyle(Fleet.Color.active)
+                        }
+
+                        if let summary = item.agent.lastSummary,
+                           !summary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            Text(summary)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(2)
+                        }
+
+                        if !item.agent.recentFiles.isEmpty {
+                            HStack(spacing: 4) {
+                                ForEach(Array(item.agent.recentFiles.prefix(2)), id: \.self) { filePath in
+                                    FleetFileQuickActions(
+                                        filePath: filePath,
+                                        onOpenInEditor: {
+                                            openAgentFileInEditor(projectDir: item.projectDir, filePath: filePath)
+                                        },
+                                        onRevealInFinder: {
+                                            revealAgentFileInFinder(projectDir: item.projectDir, filePath: filePath)
+                                        }
+                                    )
+                                }
+                                Spacer(minLength: 0)
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, Fleet.Space.m)
+                    .padding(.vertical, Fleet.Space.s)
+                    .background(
+                        Fleet.Chrome.card,
+                        in: RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous)
+                    )
+                }
+            }
+        }
+        .padding(.horizontal, Fleet.Space.l)
+        .padding(.vertical, Fleet.Space.s)
+        .background(Fleet.Chrome.panel)
     }
 
     // MARK: - Header
@@ -185,7 +405,28 @@ struct FleetPopover: View {
                     ProjectSection(
                         project: project,
                         isExpanded: store.expandedProjects.contains(project.id),
-                        onToggle: { withAnimation(Fleet.Motion.expandSpring) { store.toggleProject(project.id) } }
+                        onToggle: { withAnimation(Fleet.Motion.expandSpring) { store.toggleProject(project.id) } },
+                        onInspectAgent: { agentName in
+                            openControlPlane(.activity, project: project.id, agent: agentName)
+                        },
+                        onRunAgent: { agentName in
+                            Task { await store.runAgent(projectDir: project.projectDir, agentName: agentName) }
+                        },
+                        onPauseToggle: { agentName, isPaused in
+                            Task {
+                                if isPaused {
+                                    await store.resumeAgent(projectDir: project.projectDir, agentName: agentName)
+                                } else {
+                                    await store.pauseAgent(projectDir: project.projectDir, agentName: agentName)
+                                }
+                            }
+                        },
+                        onOpenInEditor: { filePath in
+                            openAgentFileInEditor(projectDir: project.projectDir, filePath: filePath)
+                        },
+                        onRevealInFinder: { filePath in
+                            revealAgentFileInFinder(projectDir: project.projectDir, filePath: filePath)
+                        }
                     )
                     .opacity(appeared ? 1 : 0)
                     .offset(y: appeared ? 0 : 8)
@@ -224,6 +465,28 @@ struct FleetPopover: View {
                     .foregroundStyle(.quaternary)
             }
 
+            Button {
+                openControlPlane(.flow)
+            } label: {
+                Label("Console", systemImage: "macwindow")
+            }
+            .buttonStyle(.borderless)
+            .font(.caption2)
+            .foregroundStyle(Fleet.Color.active)
+            .help("Open the fleet control plane")
+
+            Button {
+                withAnimation(Fleet.Motion.snappy) {
+                    showingSettings.toggle()
+                }
+            } label: {
+                Image(systemName: showingSettings ? "slider.horizontal.3" : "gearshape")
+            }
+            .buttonStyle(.borderless)
+            .font(.caption2)
+            .foregroundStyle(.quaternary)
+            .help(showingSettings ? "Hide settings" : "Show settings")
+
             Button("Quit") {
                 NSApplication.shared.terminate(nil)
             }
@@ -233,6 +496,7 @@ struct FleetPopover: View {
         }
         .padding(.horizontal, Fleet.Space.l)
         .padding(.vertical, Fleet.Space.s)
+        .background(Fleet.Chrome.panel)
     }
 }
 
@@ -242,6 +506,27 @@ struct ProjectSection: View {
     let project: FleetProject
     let isExpanded: Bool
     let onToggle: () -> Void
+    let onInspectAgent: (String) -> Void
+    let onRunAgent: (String) -> Void
+    let onPauseToggle: (String, Bool) -> Void
+    let onOpenInEditor: (String) -> Void
+    let onRevealInFinder: (String) -> Void
+
+    private var orderedAgents: [FleetAgent] {
+        project.agents.sorted { lhs, rhs in
+            switch (lhs.lastActivity, rhs.lastActivity) {
+            case let (left?, right?):
+                if left != right { return left > right }
+            case (.some, nil):
+                return true
+            case (nil, .some):
+                return false
+            case (nil, nil):
+                break
+            }
+            return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+        }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -261,7 +546,7 @@ struct ProjectSection: View {
                         .fontWeight(.medium)
                         .foregroundStyle(.secondary)
 
-                    Text(project.id)
+                    Text(project.name)
                         .font(.subheadline.weight(.medium))
 
                     Spacer()
@@ -294,8 +579,15 @@ struct ProjectSection: View {
 
             // Agent rows — staggered cascade
             if isExpanded {
-                ForEach(Array(project.agents.enumerated()), id: \.element.id) { index, agent in
-                    AgentRow(agent: agent)
+                ForEach(Array(orderedAgents.enumerated()), id: \.element.id) { index, agent in
+                    AgentRow(
+                        agent: agent,
+                        onInspect: { onInspectAgent(agent.name) },
+                        onRunAgent: { onRunAgent(agent.name) },
+                        onPauseToggle: { onPauseToggle(agent.name, agent.status == .paused) },
+                        onOpenInEditor: onOpenInEditor,
+                        onRevealInFinder: onRevealInFinder
+                    )
                         .transition(
                             .asymmetric(
                                 insertion: .opacity
@@ -320,40 +612,82 @@ struct ProjectSection: View {
 
 struct AgentRow: View {
     let agent: FleetAgent
+    let onInspect: () -> Void
+    let onRunAgent: () -> Void
+    let onPauseToggle: () -> Void
+    let onOpenInEditor: (String) -> Void
+    let onRevealInFinder: (String) -> Void
     @State private var justChanged = false
 
     var body: some View {
-        HStack(spacing: Fleet.Space.s) {
-            Spacer().frame(width: Fleet.Space.xl + Fleet.Space.xs)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: Fleet.Space.s) {
+                Spacer().frame(width: Fleet.Space.xl + Fleet.Space.xs)
 
-            // Status indicator — living, contextual
-            statusIndicator
+                statusIndicator
 
-            // Agent-specific icon — each agent has its own symbol
-            Image(systemName: Fleet.agentIcon(for: agent.name))
-                .font(.system(size: 10))
-                .fontWeight(.regular)
-                .foregroundStyle(agent.status == .failed ? Fleet.Color.failure : Fleet.Color.dormant)
-                .frame(width: Fleet.Space.l)
+                Image(systemName: Fleet.agentIcon(for: agent.name))
+                    .font(.system(size: 10))
+                    .fontWeight(.regular)
+                    .foregroundStyle(agent.status == .failed ? Fleet.Color.failure : Fleet.Color.dormant)
+                    .frame(width: Fleet.Space.l)
 
-            // Name — monospaced for alignment, medium weight for readability
-            Text(agent.name)
-                .font(.system(.caption, design: .monospaced).weight(.medium))
-                .foregroundStyle(agent.status == .failed ? Fleet.Color.failure.opacity(0.9) : .primary)
+                Text(agent.name)
+                    .font(.system(.caption, design: .monospaced).weight(.medium))
+                    .foregroundStyle(agent.status == .failed ? Fleet.Color.failure.opacity(0.9) : .primary)
 
-            Spacer()
+                Spacer()
 
-            // Event label — colored capsule for recent events
-            if let lastEvent = agent.lastEvent {
-                EventLabel(event: lastEvent)
+                if agent.type == .scheduled {
+                    Text("job")
+                        .font(.system(.caption2, design: .rounded).weight(.semibold))
+                        .foregroundStyle(Fleet.Color.warning)
+                        .padding(.horizontal, Fleet.Space.xs + 1)
+                        .padding(.vertical, 2)
+                        .background(
+                            Fleet.Color.warning.opacity(0.08),
+                            in: RoundedRectangle(cornerRadius: Fleet.Radius.small, style: .continuous)
+                        )
+                }
+
+                if let lastEvent = agent.lastEvent {
+                    EventLabel(event: lastEvent)
+                }
+
+                if let lastActivity = agent.lastActivity {
+                    Text(lastActivity, style: .relative)
+                        .font(.caption2)
+                        .foregroundStyle(.quaternary)
+                        .frame(width: 52, alignment: .trailing)
+                }
+                Button(agent.status == .paused ? "Resume" : "Pause", action: onPauseToggle)
+                    .buttonStyle(.borderless)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(agent.status == .paused ? Fleet.Color.healthy : Fleet.Color.warning)
+                Button("Run", action: onRunAgent)
+                    .buttonStyle(.borderless)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(Fleet.Color.active)
             }
-
-            // Relative time — barely visible until you look for it
-            if let lastActivity = agent.lastActivity {
-                Text(lastActivity, style: .relative)
+            if let lastSummary = agent.lastSummary, !lastSummary.isEmpty {
+                Text(lastSummary)
                     .font(.caption2)
-                    .foregroundStyle(.quaternary)
-                    .frame(width: 52, alignment: .trailing)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .padding(.leading, Fleet.Space.xl + Fleet.Space.xs + Fleet.Space.s + Fleet.Space.l)
+            }
+            if !agent.recentFiles.isEmpty {
+                HStack(spacing: 4) {
+                    Spacer().frame(width: Fleet.Space.xl + Fleet.Space.xs + Fleet.Space.s + Fleet.Space.l)
+                    ForEach(agent.recentFiles.prefix(2), id: \.self) { filePath in
+                        FleetFileQuickActions(
+                            filePath: filePath,
+                            onOpenInEditor: { onOpenInEditor(filePath) },
+                            onRevealInFinder: { onRevealInFinder(filePath) }
+                        )
+                    }
+                    Spacer(minLength: 0)
+                }
             }
         }
         .padding(.horizontal, Fleet.Space.l)
@@ -363,6 +697,8 @@ struct AgentRow: View {
                 ? Fleet.Color.failure.opacity(0.04)
                 : Color.clear
         )
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onInspect)
         .onChange(of: agent.status) { justChanged = true }
     }
 
@@ -374,6 +710,16 @@ struct AgentRow: View {
                 .font(.system(size: 7))
                 .foregroundStyle(Fleet.Color.healthy)
                 .symbolEffect(.pulse, isActive: true)
+
+        case .armed, .scheduled:
+            Circle()
+                .fill(Fleet.Color.active.opacity(0.7))
+                .frame(width: 7, height: 7)
+
+        case .paused:
+            Image(systemName: "pause.circle.fill")
+                .font(.system(size: 9))
+                .foregroundStyle(Fleet.Color.warning)
 
         case .idle:
             Circle()
@@ -391,6 +737,37 @@ struct AgentRow: View {
                 .font(.system(size: 8))
                 .foregroundStyle(Fleet.Color.dead)
         }
+    }
+}
+
+struct FleetFileQuickActions: View {
+    let filePath: String
+    let onOpenInEditor: () -> Void
+    let onRevealInFinder: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(filePath)
+                .font(.system(.caption2, design: .monospaced))
+                .foregroundStyle(Fleet.Color.active)
+                .lineLimit(1)
+            HStack(spacing: 4) {
+                Button("Editor", action: onOpenInEditor)
+                    .buttonStyle(.borderless)
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(.primary)
+                Button("Finder", action: onRevealInFinder)
+                    .buttonStyle(.borderless)
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 4)
+        .background(
+            Fleet.Color.active.opacity(0.08),
+            in: RoundedRectangle(cornerRadius: Fleet.Radius.small, style: .continuous)
+        )
     }
 }
 
@@ -416,6 +793,8 @@ struct EventLabel: View {
         case "agent_started":     return "running"
         case "agent_completed":   return "done"
         case "agent_failed":      return "failed"
+        case "agent_paused":      return "paused"
+        case "agent_resumed":     return "armed"
         case "watcher_triggered": return "fired"
         default: return event
         }
@@ -426,6 +805,8 @@ struct EventLabel: View {
         case "agent_started":     return Fleet.Color.active
         case "agent_completed":   return Fleet.Color.healthy
         case "agent_failed":      return Fleet.Color.failure
+        case "agent_paused":      return Fleet.Color.warning
+        case "agent_resumed":     return Fleet.Color.active
         case "watcher_triggered": return Fleet.Color.warning
         default: return .secondary
         }
@@ -461,6 +842,9 @@ struct StatusCapsule: View {
 #Preview("Fleet Running") {
     FleetPopover(store: {
         let store = FleetStore()
+        return store
+    }(), costStore: {
+        let store = CostStore()
         return store
     }())
     .frame(width: 380, height: 520)

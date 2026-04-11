@@ -4,12 +4,22 @@
  * Handles: session, sessions, note, notes commands
  */
 
+import PortDaddy from '../../lib/client.js';
 import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import { CLIOptions, isQuiet, isJson } from '../types.js';
 import { getDirectSessions } from '../utils/direct-db.js';
 import { canPrompt, promptText, promptSelect } from '../utils/prompt.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
+import { readCurrentContext } from '../utils/current-context.js';
+
+function createSessionClient(options: CLIOptions): PortDaddy {
+  const current = readCurrentContext();
+  return new PortDaddy({
+    agentId: (typeof options.agent === 'string' ? options.agent : undefined) || current?.agentId || `cli-${process.pid}`,
+    pid: process.pid,
+  });
+}
 
 /**
  * Handle `pd session <subcommand>` commands
@@ -101,28 +111,33 @@ async function sessionStart(rest: string[], options: CLIOptions): Promise<void> 
     body.files = files;
   }
 
-  const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/sessions`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-
-  const data = await res.json();
-
-  if (!res.ok) {
-    ui.error((data.error as string) || 'Failed to start session');
-    if (data.conflicts) {
-      const conflicts = data.conflicts as Array<{ file: string; sessionId: string; purpose: string }>;
+  const pd = createSessionClient(options);
+  let data: Record<string, unknown>;
+  try {
+    data = await pd.startSession(body as {
+      purpose: string;
+      agentId?: string;
+      files?: string[];
+      force?: boolean;
+      metadata?: Record<string, unknown>;
+    }) as Record<string, unknown>;
+  } catch (error) {
+    const body = error && typeof error === 'object' && 'body' in error ? (error as { body?: Record<string, unknown> }).body : null;
+    data = body && typeof body === 'object' ? body : {};
+    ui.error((data.error as string) || (error as Error).message || 'Failed to start session');
+    if (Array.isArray(data.conflicts)) {
+      const conflicts = data.conflicts as Array<{ filePath?: string; file?: string; sessionId: string; purpose: string }>;
       console.error('');
       console.error('File conflicts:');
       for (const c of conflicts) {
-        console.error(`  ${c.file} (claimed by ${c.sessionId}: ${c.purpose})`);
+        const filePath = c.filePath || c.file || '<unknown>';
+        console.error(`  ${filePath} (claimed by ${c.sessionId}: ${c.purpose})`);
       }
     }
     process.exit(1);
   }
 
-  const sessionId = data.id;
+  const sessionId = data.id as string;
   if (isJson(options)) {
     console.log(JSON.stringify(data, null, 2));
   } else if (isQuiet(options)) {
@@ -138,32 +153,12 @@ async function sessionStart(rest: string[], options: CLIOptions): Promise<void> 
 
 async function sessionEnd(rest: string[], options: CLIOptions, status: string): Promise<void> {
   const note = rest[0] || (options.note as string) || undefined;
+  const pd = createSessionClient(options);
+  const data = await pd.endSession(note, { status }) as Record<string, unknown>;
+  const sessionId = data.id as string | undefined;
 
-  // Find active session first
-  const listRes: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/sessions?status=active&limit=1`);
-  const listData = await listRes.json();
-
-  if (!listRes.ok || (listData.count as number) === 0) {
-    ui.error('No active session found');
-    process.exit(1);
-  }
-
-  const sessions = listData.sessions as Array<{ id: string }>;
-  const sessionId = sessions[0].id;
-
-  const body: Record<string, unknown> = { status };
-  if (note) body.note = note;
-
-  const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/sessions/${encodeURIComponent(sessionId)}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-
-  const data = await res.json();
-
-  if (!res.ok) {
-    ui.error((data.error as string) || 'Failed to end session');
+  if (!data.success || !sessionId) {
+    ui.error((data.error as string) || 'No active session found');
     process.exit(1);
   }
 
@@ -176,8 +171,9 @@ async function sessionEnd(rest: string[], options: CLIOptions, status: string): 
     } else {
       ui.success(`${verb} session: ${sessionId}`);
     }
-    if (data.filesReleased) {
-      console.log(`  Files released: ${data.filesReleased}`);
+    const releasedFiles = Array.isArray(data.releasedFiles) ? data.releasedFiles : [];
+    if (releasedFiles.length > 0) {
+      console.log(`  Files released: ${releasedFiles.length}`);
     }
   }
 }
@@ -189,13 +185,18 @@ async function sessionRemove(rest: string[], options: CLIOptions): Promise<void>
     process.exit(1);
   }
 
-  const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/sessions/${encodeURIComponent(sessionId)}`, {
-    method: 'DELETE'
-  });
+  const pd = createSessionClient(options);
+  let data: Record<string, unknown>;
+  try {
+    data = await pd.removeSession(sessionId) as Record<string, unknown>;
+  } catch (error) {
+    const body = error && typeof error === 'object' && 'body' in error ? (error as { body?: Record<string, unknown> }).body : null;
+    data = body && typeof body === 'object' ? body : {};
+    ui.error((data.error as string) || (error as Error).message || 'Failed to delete session');
+    process.exit(1);
+  }
 
-  const data = await res.json();
-
-  if (!res.ok) {
+  if (!data.success) {
     ui.error((data.error as string) || 'Failed to delete session');
     process.exit(1);
   }
@@ -220,11 +221,22 @@ async function sessionFiles(rest: string[], options: CLIOptions): Promise<void> 
     process.exit(1);
   }
 
-  // Find active session first
-  const listRes: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/sessions?status=active&limit=1`);
-  const listData = await listRes.json();
+  const pd = createSessionClient(options);
+  let listData: Record<string, unknown>;
+  try {
+    listData = await pd.sessions({
+      status: 'active',
+      agentId: pd.agentId,
+      limit: 1,
+    }) as Record<string, unknown>;
+  } catch (error) {
+    const body = error && typeof error === 'object' && 'body' in error ? (error as { body?: Record<string, unknown> }).body : null;
+    listData = body && typeof body === 'object' ? body : {};
+    ui.error((listData.error as string) || (error as Error).message || 'Failed to list sessions');
+    process.exit(1);
+  }
 
-  if (!listRes.ok || (listData.count as number) === 0) {
+  if (!listData.success || (listData.count as number) === 0) {
     ui.error('No active session found');
     process.exit(1);
   }
@@ -233,22 +245,20 @@ async function sessionFiles(rest: string[], options: CLIOptions): Promise<void> 
   const sessionId = sessions[0].id;
 
   if (filesCmd === 'add') {
-    const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/sessions/${encodeURIComponent(sessionId)}/files`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ files: paths })
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      ui.error((data.error as string) || 'Failed to claim files');
-      if (data.conflicts) {
-        const conflicts = data.conflicts as Array<{ file: string; sessionId: string; purpose: string }>;
+    let data: Record<string, unknown>;
+    try {
+      data = await pd.claimFiles(sessionId, paths) as Record<string, unknown>;
+    } catch (error) {
+      const body = error && typeof error === 'object' && 'body' in error ? (error as { body?: Record<string, unknown> }).body : null;
+      data = body && typeof body === 'object' ? body : {};
+      ui.error((data.error as string) || (error as Error).message || 'Failed to claim files');
+      if (Array.isArray(data.conflicts)) {
+        const conflicts = data.conflicts as Array<{ filePath?: string; file?: string; sessionId: string; purpose: string }>;
         console.error('');
         console.error('File conflicts:');
         for (const c of conflicts) {
-          console.error(`  ${c.file} (claimed by ${c.sessionId}: ${c.purpose})`);
+          const filePath = c.filePath || c.file || '<unknown>';
+          console.error(`  ${filePath} (claimed by ${c.sessionId}: ${c.purpose})`);
         }
       }
       process.exit(1);
@@ -260,15 +270,17 @@ async function sessionFiles(rest: string[], options: CLIOptions): Promise<void> 
       console.log(`Claimed ${paths.length} file(s) in session ${sessionId}`);
     }
   } else {
-    const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/sessions/${encodeURIComponent(sessionId)}/files`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ files: paths })
-    });
+    let data: Record<string, unknown>;
+    try {
+      data = await pd.releaseFiles(sessionId, paths) as Record<string, unknown>;
+    } catch (error) {
+      const body = error && typeof error === 'object' && 'body' in error ? (error as { body?: Record<string, unknown> }).body : null;
+      data = body && typeof body === 'object' ? body : {};
+      ui.error((data.error as string) || (error as Error).message || 'Failed to release files');
+      process.exit(1);
+    }
 
-    const data = await res.json();
-
-    if (!res.ok) {
+    if (!data.success) {
       ui.error((data.error as string) || 'Failed to release files');
       process.exit(1);
     }
@@ -276,7 +288,8 @@ async function sessionFiles(rest: string[], options: CLIOptions): Promise<void> 
     if (isJson(options)) {
       console.log(JSON.stringify(data, null, 2));
     } else if (!isQuiet(options)) {
-      console.log(`Released ${data.filesReleased || 0} file(s) from session ${sessionId}`);
+      const released = Array.isArray(data.released) ? data.released.length : 0;
+      console.log(`Released ${released} file(s) from session ${sessionId}`);
     }
   }
 }
@@ -497,32 +510,24 @@ function handleSessionDirect(subcommand: string, rest: string[], options: CLIOpt
  * Handle `pd sessions` command
  */
 export async function handleSessions(options: CLIOptions): Promise<void> {
-  const params = new URLSearchParams();
-
-  // Default to active sessions unless --all is specified
-  if (!options.all) {
-    params.append('status', 'active');
+  const pd = createSessionClient(options);
+  let data: Record<string, unknown>;
+  try {
+    data = await pd.sessions({
+      status: options.all ? undefined : (options.status as string) || 'active',
+      agentId: options.agent as string | undefined,
+      project: options.project as string | undefined,
+      purpose: options.purpose as string | undefined,
+      allWorktrees: Boolean(options['all-worktrees'] || options.aw),
+    }) as Record<string, unknown>;
+  } catch (error) {
+    const body = error && typeof error === 'object' && 'body' in error ? (error as { body?: Record<string, unknown> }).body : null;
+    data = body && typeof body === 'object' ? body : {};
+    ui.error((data.error as string) || (error as Error).message || 'Failed to list sessions');
+    process.exit(1);
   }
 
-  if (options.status) {
-    params.delete('status');
-    params.append('status', options.status as string);
-  }
-
-  if (options.project) params.append('project', options.project as string);
-  if (options.purpose) params.append('purpose', options.purpose as string);
-  if (options.agent) params.append('agent', options.agent as string);
-
-  // Worktree filtering: by default, show current worktree only
-  // Use --all-worktrees or --aw to see sessions from all worktrees
-  if (options['all-worktrees'] || options.aw) {
-    params.append('allWorktrees', 'true');
-  }
-
-  const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/sessions?${params.toString()}`);
-  const data = await res.json();
-
-  if (!res.ok) {
+  if (!data.success) {
     ui.error((data.error as string) || 'Failed to list sessions');
     process.exit(1);
   }
@@ -601,19 +606,31 @@ export async function handleNote(content: string | undefined, options: CLIOption
     process.exit(1);
   }
 
+  const current = readCurrentContext();
+  const sessionId = (typeof options.session === 'string' ? options.session : undefined) || current?.sessionId;
+
   const body: Record<string, unknown> = { content };
   if (options.type) body.type = options.type;
+  if (!sessionId) {
+    const agentId = (typeof options.agent === 'string' ? options.agent : undefined) || current?.agentId;
+    if (agentId) body.agentId = agentId;
+  }
 
-  const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/notes`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
+  const endpoint = sessionId
+    ? `${PORT_DADDY_URL}/sessions/${encodeURIComponent(sessionId)}/notes`
+    : `${PORT_DADDY_URL}/notes`;
+
+  const pd = new PortDaddy({
+    agentId: typeof body.agentId === 'string' ? body.agentId : current?.agentId,
+  });
+  const data = await pd.note(content, {
+    type: typeof body.type === 'string' ? body.type : undefined,
+    agentId: typeof body.agentId === 'string' ? body.agentId : undefined,
+    sessionId,
   });
 
-  const data = await res.json();
-
-  if (!res.ok) {
-    ui.error((data.error as string) || 'Failed to add note');
+  if (!data?.success) {
+    ui.error((data?.error as string) || 'Failed to add note');
     process.exit(1);
   }
 

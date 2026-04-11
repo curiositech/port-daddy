@@ -4,56 +4,75 @@ export default function Spawn() {
   return (
     <SdkFunctionPage
       function="spawn"
-      description="Launch an AI agent with Port Daddy coordination pre-wired. The agent auto-registers, sends heartbeats, writes notes, and gets salvaged if it crashes."
+      description="Run a one-shot agent through the Port Daddy daemon. Launches are budget-gated, tied to a semantic identity, and wrapped in the same coordination runtime used by fleet agents and sortie launches."
       module="Agents"
-      version="3.7.0"
-      signature="spawn(options: SpawnOptions): Promise<AgentProcess>"
+      version="3.8.3"
+      signature={`spawn(spec: {
+  backend: 'ollama' | 'claude' | 'claude-cli' | 'gemini' | 'codex' | 'aider' | 'custom'
+  identity: string
+  budgetUsd: number
+  task: string
+  model?: string
+  modelTier?: 'low' | 'mid' | 'high'
+  purpose?: string
+  files?: string[]
+  workdir?: string
+  timeout?: number
+  allowedTools?: string
+  maxTokens?: number
+}): Promise<SpawnResult>`}
       params={[
-        { name: 'options.backend', type: 'AIBackend', required: true, description: 'AI backend: ollama | claude | gemini | aider | custom' },
-        { name: 'options.model', type: 'string', required: true, description: 'Model name (e.g., llama3, claude-haiku-4-5)' },
-        { name: 'options.identity', type: 'string', required: true, description: 'Semantic identity for this agent' },
-        { name: 'options.purpose', type: 'string', required: true, description: 'What this agent should do' },
-        { name: 'options.harbor', type: 'string', description: 'Harbor name for scoped permissions' },
-        { name: 'options.prompt', type: 'string', required: true, description: 'Prompt to send to the agent' },
+        { name: 'spec.backend', type: 'string', required: true, description: 'Execution backend. Valid values: ollama, claude, claude-cli, gemini, codex, aider, custom.' },
+        { name: 'spec.identity', type: 'string', required: true, description: 'Semantic identity in project:stack:context form. Spend attribution and salvage depend on this.' },
+        { name: 'spec.budgetUsd', type: 'number', required: true, description: 'Required spend ceiling for the launch. Unbudgeted spawns are rejected.' },
+        { name: 'spec.task', type: 'string', required: true, description: 'The actual task or prompt to execute.' },
+        { name: 'spec.model', type: 'string', description: 'Optional explicit model override.' },
+        { name: 'spec.modelTier', type: "'low' | 'mid' | 'high'", description: 'Optional tier hint. Port Daddy resolves the backend ladder when you want cheap/default/high-end behavior without naming a specific model.' },
+        { name: 'spec.purpose', type: 'string', description: 'Short human-readable label for the run.' },
+        { name: 'spec.files', type: 'string[]', description: 'Optional file list, primarily useful for aider-backed runs.' },
+        { name: 'spec.workdir', type: 'string', description: 'Working directory override for the spawned process.' },
+        { name: 'spec.timeout', type: 'number', description: 'Execution timeout in milliseconds.' },
+        { name: 'spec.allowedTools', type: 'string', description: 'Tool permission string for claude-cli launches.' },
+        { name: 'spec.maxTokens', type: 'number', description: 'Optional token ceiling for claude or claude-cli launches.' },
       ]}
       returns={{
-        type: 'Promise<AgentProcess>',
-        description: 'Agent process handle with pid and session info'
+        type: 'Promise<SpawnResult>',
+        description: 'Final spawn result including backend, resolved model, status, output, error, and timestamps.'
       }}
       examples={[
         {
-          description: 'Spawn a Claude agent for code review',
-          code: `const agent = await pd.agents.spawn({
-  backend: 'claude',
-  model: 'claude-haiku-4-5',
-  identity: 'myapp:reviewer',
-  purpose: 'Review auth code for security',
-  prompt: 'Review src/auth/ for security vulnerabilities'
+          description: 'Launch a budgeted Codex run',
+          code: `const result = await pd.spawn({
+  backend: 'codex',
+  modelTier: 'low',
+  identity: 'port-daddy:docs:spawn-sync',
+  budgetUsd: 0.75,
+  purpose: 'Website spawn doc sync',
+  task: 'Rewrite the website spawn docs so they match the daemon contract'
 })
-console.log(agent)`,
-          output: `{
-  "pid": 12345,
-  "session": "def456",
-  "identity": "myapp:reviewer",
-  "status": "running"
-}`
+
+console.log(result.status)
+console.log(result.output)`,
+          output: `completed
+Updated website spawn docs to require identity + budget and reflect current backends.`
         },
         {
-          description: 'Spawn with harbor permissions',
-          code: `await pd.agents.spawn({
-  backend: 'ollama',
-  model: 'llama3',
-  identity: 'myapp:security',
-  purpose: 'Security audit',
-  harbor: 'myapp:security-review',
-  prompt: 'Audit all API endpoints'
+          description: 'Run aider against a focused file set',
+          code: `await pd.spawn({
+  backend: 'aider',
+  identity: 'port-daddy:ui:fleetbar',
+  budgetUsd: 1.25,
+  purpose: 'Tighten FleetBar budget signals',
+  files: ['apps/FleetBar/FleetBar/CostStore.swift', 'apps/FleetBar/FleetBar/CostDashboard.swift'],
+  task: 'Use real fleet ceilings instead of a fake visual budget reference'
 })`
         },
       ]}
       seeAlso={[
         { name: 'listSpawned()', href: '/docs/sdk/list-spawned' },
-        { name: 'salvage()', href: '/docs/sdk/salvage' },
-        { name: 'createHarbor()', href: '/docs/sdk/harbors' },
+        { name: 'killSpawned()', href: '/docs/sdk/list-spawned' },
+        { name: 'CLI: pd spawn', href: '/docs/cli/spawn' },
+        { name: 'MCP: spawn_agent', href: '/docs/mcp/spawn' },
       ]}
     />
   )

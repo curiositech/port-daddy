@@ -44,7 +44,7 @@ export function AlwaysOn() {
           </div>
 
           <p>
-            Use <code>pd spawn</code> to launch a persistent agent process. Port Daddy supports multiple backends: Claude, Ollama, Aider, and custom shell commands.
+            Use <code>pd spawn</code> to launch the worker, then pair it with <code>pd watch</code> or fleet triggers if you want the pattern to stay reactive over time. Port Daddy supports multiple backends: Ollama, Codex, Claude, Claude CLI, Gemini, Aider, and custom shell commands.
           </p>
 
           <CodeBlock language="bash">

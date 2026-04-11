@@ -5,7 +5,7 @@ export default function HarborEnterCommand() {
     <CommandPage
       command="pd harbor enter"
       description="Enter a harbor. Returns a signed JWT capability token. Pass this token to spawned agents or include it in API requests. The token encodes the capabilities granted by the harbor creator."
-      version="3.7.0"
+      version="3.8.3"
       syntax="pd harbor enter <name>"
       usagePatterns={[
         'pd harbor enter myapp:security-review',

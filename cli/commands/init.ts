@@ -15,6 +15,12 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import * as ui from '../utils/ui.js';
+import { getDaemonTcpUrl } from '../../shared/daemon-discovery.js';
+import {
+  isLegacyPortDaddyPostCommitHook,
+  isScopedPortDaddyPostCommitHook,
+  loadPostCommitHookTemplate,
+} from '../utils/post-commit-hook.js';
 
 export async function handleInit(options: Record<string, unknown>): Promise<void> {
   const cwd = process.cwd();
@@ -52,7 +58,7 @@ export async function handleInit(options: Record<string, unknown>): Promise<void
   // ─── 2. Register project with daemon ───────────────────────────────────────
 
   try {
-    const baseUrl = `http://localhost:${process.env.PORT_DADDY_PORT || '9876'}`;
+    const baseUrl = getDaemonTcpUrl();
     const res = await fetch(`${baseUrl}/scan`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -137,7 +143,7 @@ export async function handleInit(options: Record<string, unknown>): Promise<void
     ui.info('Skipping MCP (--no-mcp)');
   }
 
-  // ─── 6. Git hook (post-commit → git:committed channel) ─────────────────────
+  // ─── 6. Git hook (post-commit → project-scoped git:committed channel) ─────
 
   if (!noHook) {
     const gitDir = join(cwd, '.git');
@@ -146,29 +152,26 @@ export async function handleInit(options: Record<string, unknown>): Promise<void
     } else {
       const hookPath = join(gitDir, 'hooks', 'post-commit');
       if (existsSync(hookPath)) {
-        const { readFileSync } = await import('node:fs');
+        const { chmodSync, readFileSync } = await import('node:fs');
         const existing = readFileSync(hookPath, 'utf-8');
-        if (existing.includes('git:committed')) {
-          ui.info('Post-commit hook already publishes to git:committed');
+        if (isScopedPortDaddyPostCommitHook(existing)) {
+          ui.info('Post-commit hook already publishes to the project-scoped git:committed channel');
+        } else if (isLegacyPortDaddyPostCommitHook(existing)) {
+          writeFileSync(hookPath, loadPostCommitHookTemplate());
+          chmodSync(hookPath, 0o755);
+          results.push('Upgraded .git/hooks/post-commit');
+          ui.success('Upgraded legacy post-commit hook to the project-scoped git:committed channel');
         } else {
           warnings.push('Existing post-commit hook found — run pd fleet init to merge the hook');
         }
       } else {
-        // Install the hook via fleet init logic (which handles the hook template)
-        // If fleet init already ran it, the hook is present. Otherwise install directly.
         const hookDir = join(gitDir, 'hooks');
         mkdirSync(hookDir, { recursive: true });
-        writeFileSync(hookPath,
-          `#!/bin/sh\n# Port Daddy fleet trigger — publishes commit metadata to git:committed\n` +
-          `BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")\n` +
-          `HASH=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")\n` +
-          `MSG=$(git log -1 --pretty=%s 2>/dev/null || echo "unknown")\n` +
-          `pd pub git:committed "{\\\"branch\\\":\\\"$BRANCH\\\",\\\"hash\\\":\\\"$HASH\\\",\\\"message\\\":\\\"$MSG\\\"}" 2>/dev/null || true\n`
-        );
+        writeFileSync(hookPath, loadPostCommitHookTemplate());
         const { chmodSync } = await import('node:fs');
         chmodSync(hookPath, 0o755);
         results.push('Installed .git/hooks/post-commit');
-        ui.success('Installed post-commit hook (publishes to git:committed)');
+        ui.success('Installed post-commit hook (publishes to the project-scoped git:committed channel)');
       }
     }
   } else {

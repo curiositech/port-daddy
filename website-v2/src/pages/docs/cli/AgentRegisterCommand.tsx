@@ -5,7 +5,7 @@ export default function AgentRegisterCommand() {
     <CommandPage
       command="agent register"
       description="Register this process as an agent. Used by spawned agents internally, but also callable directly."
-      version="3.7.0"
+      version="3.8.3"
       syntax="pd agent register"
       flags={[
         { flag: '--agent <id>', description: 'Agent ID (UUID recommended)' },

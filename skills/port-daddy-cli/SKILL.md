@@ -1,9 +1,9 @@
 ---
 name: port-daddy
-description: "Multi-agent coordination daemon for AI coding agents (v3.8.2). Eliminates port conflicts, tracks sessions, recovers crashed agents, runs background fleets, provides binary IPC for high-frequency communication, pheromone trails for ambient signaling, tuple spaces for shared memory, and declarative fleet orchestration. Use when starting a coding session, coordinating parallel agents, claiming ports for dev servers, leaving notes for other agents, spawning background workers, running declarative agent fleets, or debugging multi-agent failures. Works with Claude Code, Gemini CLI, Cursor, Windsurf, Codex, any LLM."
+description: "Multi-agent coordination daemon for AI coding agents (v3.8.3). Eliminates port conflicts, tracks sessions, recovers crashed agents, runs background fleets, provides binary IPC for high-frequency communication, pheromone trails for ambient signaling, tuple spaces for shared memory, and declarative fleet orchestration. Use when starting a coding session, coordinating parallel agents, claiming ports for dev servers, leaving notes for other agents, spawning background workers, running declarative agent fleets, or debugging multi-agent failures. Works with Claude Code, Gemini CLI, Cursor, Windsurf, Codex, and any backend Port Daddy can spawn."
 ---
 
-# Port Daddy v3.8.2 — Agent Coordination That Actually Works
+# Port Daddy v3.8.3 — Agent Coordination That Actually Works
 
 ## The Problem You Have Right Now
 
@@ -18,21 +18,57 @@ A third agent crashed 20 minutes ago — halfway through a migration. Its work i
 ## Quick Start (Do This First)
 
 ```bash
-# 1. Start your session — ALWAYS do this first
-pd begin "Building auth module"
+# 1. Check live truth first
+pd status
+pd briefing
+pd salvage --project myapp    # if crash residue or abandoned work may matter
 
-# 2. Claim a port — deterministic, never conflicts
+# 2. Start your session — ALWAYS do this before non-trivial repo work
+pd begin "Building auth module" --identity myapp:auth-agent
+
+# 3. Claim a port — deterministic, never conflicts
 PORT=$(pd claim myapp:api:main -q)
 
-# 3. Leave breadcrumbs for other agents
-pd note "JWT validation working, moving to refresh tokens"
+# 4. Publish your intended scope for other agents
+pd note "Owning auth flow work. Expect edits in src/auth/* and tests/auth/*"
 
-# 4. Check who else is working here
-pd salvage --project myapp    # Any dead agents to rescue?
+# 5. Coordinate actual edits with real shared state
+pd session files claim src/auth/*.ts
+pd lock auth-migration --ttl 300
+pd tuple out '["handoff","auth","refresh-token-investigation"]'
 
-# 5. End cleanly
+# 6. End cleanly
 pd done
 ```
+
+## Recovery And Cooperation Protocol
+
+When you are entering an existing repo on this machine, especially after a crash or in parallel with other agents, use this order:
+
+```bash
+pd status
+pd briefing
+pd salvage --project <project>
+pd begin "<task>" --identity <project>:<task>
+pd note "Scope, intended files, blockers, and who should coordinate with me"
+```
+
+Use the richer coordination primitives when they actually add value:
+
+- `pd note`
+  - human-readable scope, handoffs, blockers, and conclusions
+- `pd session files claim`
+  - advisory edit ownership before touching files
+- `pd lock` / `pd with-lock`
+  - truly exclusive sections like migrations, releases, or rewrites of a shared generated artifact
+- tuple space
+  - machine-readable shared state, work queues, rendezvous points, and durable handoff tokens
+- inbox / direct agent messaging
+  - targeted coordination with a known agent identity
+- pheromones / file heat
+  - ambient contention and hotspot detection when multiple agents may collide
+
+Do not rely on “I’ll just be careful” when another agent is active. In Port Daddy, legible shared state is the whole point.
 
 ## Why This Matters
 
@@ -85,7 +121,7 @@ With Port Daddy:
 | `tuple_count` | Count tuples matching a pattern |
 
 **Discover more tools by category:**
-Call `pd_discover` with a category name: `magic`, `session-lifecycle`, `ports`, `sessions`, `notes`, `locks`, `messaging`, `agents`, `inbox`, `webhooks`, `integration`, `dns`, `briefing`, `tunnels`, `projects`, `changelog`, `activity`, `system`, `tuples`, `pheromone`
+Call `pd_discover` with a category name: `magic`, `session-lifecycle`, `ports`, `sessions`, `notes`, `locks`, `messaging`, `agents`, `inbox`, `webhooks`, `integration`, `dns`, `briefing`, `tunnels`, `projects`, `changelog`, `activity`, `system`, `tuples`, `semantic`, `pheromone`
 
 **Integration signals:** Use `integration ready` and `integration needs` to coordinate service dependencies. When your service is ready, signal it so other agents can proceed.
 
@@ -158,7 +194,7 @@ pd lock db-migration --ttl 300
 pd unlock db-migration
 ```
 
-## Binary IPC Protocol (v3.8.2)
+## Binary IPC Protocol (v3.8.3)
 
 High-frequency agent communication over a Unix domain socket with MessagePack encoding. The IPC channel sits alongside the HTTP API — agents that need low-latency communication (heartbeats, pheromone sprays, pub/sub publish) use IPC automatically when the daemon is running.
 
@@ -184,9 +220,9 @@ High-frequency agent communication over a Unix domain socket with MessagePack en
 
 You don't need to use IPC directly. The SDK and CLI use it transparently for hot-path operations.
 
-## Fleet: Background Agents (v3.8.2)
+## Fleet: Background Agents (v3.8.3)
 
-Declare agents in YAML. They fire on git commits, cron schedules, or pub/sub messages. Auto-respawn on crash with circuit breaker. **As of v3.8.2, fleets run inside the daemon process** — they start automatically on daemon boot and survive terminal close.
+Declare agents in YAML. They fire on git commits, cron schedules, or pub/sub messages. Auto-respawn on crash with circuit breaker. **As of v3.8.3, fleets run inside the daemon process** — they start automatically on daemon boot and survive terminal close.
 
 **Two modes:**
 
@@ -194,19 +230,131 @@ Declare agents in YAML. They fire on git commits, cron schedules, or pub/sub mes
 # CLI mode — manual, terminal-attached
 pd fleet init     # Creates pd-fleet.yml + git hook
 pd fleet up       # Starts the fleet (runs until Ctrl+C or pd fleet down)
+pd fleet validate # Parses YAML, resolves templates, and checks trigger topology
 pd fleet status   # What is the fleet doing?
 pd fleet down     # Stop the fleet
 
 # Daemon mode — always-on (automatic)
 # Place pd-fleet.yml in a registered project root.
 # The daemon auto-discovers it on boot and starts the fleet.
-curl http://localhost:9876/fleet              # Global status across all projects
-curl http://localhost:9876/fleet/my-project  # Per-project status
-curl -XPOST http://localhost:9876/fleet/reload  # Reload after editing pd-fleet.yml
-curl http://localhost:9876/fleet/events      # SSE lifecycle stream
+PD_URL="${PORT_DADDY_URL:-http://localhost:9876}"  # Use pd status if yours differs
+curl "$PD_URL/fleet"              # Global status across all projects
+curl "$PD_URL/fleet/my-project"   # Per-project status
+curl -XPOST "$PD_URL/fleet/reload"  # Reload after editing pd-fleet.yml
+curl "$PD_URL/fleet/events"       # SSE lifecycle stream
 ```
 
 The starter fleet includes: **QA** (bug hunting), **Documentarian** (docs sync), **Cartographer** (roadmap tracking), **Spark** (idea generation), **Spider** (cross-feature connections).
+
+`pd fleet status` now surfaces backend readiness and sandbox-sensitive local execution hints so users can see install/auth/permission blockers before a fleet run fails.
+
+## `pd agent`: One-Shot Autopilot Delegation
+
+For bounded single-agent work, `pd agent "task text"` now auto-wraps:
+
+- session begin
+- spawned execution
+- session close
+
+It also prints the resolved runtime up front and can honor explicit runtime flags:
+
+```bash
+pd agent "review the last commit for risks"
+pd agent "summarize git status" --backend custom
+pd agent "investigate auth flow" --backend gemini --tier mid
+```
+
+This is the lightest-weight delegation surface. It is for one-shot work, not always-on automation.
+
+## `pd sortie`: Tracked Mission Delegation
+
+`pd sortie` is now a first-class mission surface, not just a plan-doc idea.
+
+Already shipped:
+
+- durable sortie ids
+- persisted mission records
+- explicit sortie harbors (`project:sortie:<id>`)
+- sortie status lookup
+- sortie event logs
+
+Current truthful limitation:
+
+- the first shipped slice still runs one coordinating spawned agent underneath
+- richer multi-agent approvals, artifact/result pages, and human-in-the-loop controls are still the next layer from `docs/recovery/PD-AGENT-SORTIE-PLAN.md`
+
+Examples:
+
+```bash
+pd sortie "Investigate flaky auth tests and summarize the root cause" \
+  --backend codex \
+  --tier low \
+  --budget 0.75
+
+pd sortie list
+pd sortie status sortie-abc123
+pd sortie logs sortie-abc123
+```
+
+Use the delegation surfaces this way:
+
+- `pd spawn` — low-level primitive
+- `pd agent` — preferred one-shot single-agent sugar
+- `pd sortie` — tracked mission record with harbor + logs + outcome lookup
+- `pd fleet` — always-on project automation
+
+Canonical explanation: `docs/DELEGATION-MODES.md`
+
+## `pd graph` and `pd memory`: Semantic Inspection Surfaces
+
+Use these when recovery or operator work depends on inspecting the new semantic substrates directly:
+
+- `pd graph edges` — inspect durable relationship edges emitted by symbol indexing and merge orchestration
+- `pd graph stats` — summarize graph totals for a project
+- `pd memory episodes` — inspect promoted handoffs, findings, decisions, blockers, and sortie outcomes
+- `pd memory stats` — summarize episodic memory coverage
+
+Examples:
+
+```bash
+pd graph edges --scope symbols:file:/Users/you/coding/port-daddy/server.ts
+pd graph stats --dir /Users/you/coding/port-daddy
+pd memory episodes --project port-daddy --type handoff
+pd memory stats --dir /Users/you/coding/port-daddy
+```
+
+These are read-only inspection surfaces today. The point is operator truth: if graph/memory is part of the product, it must be inspectable from the CLI and not only via raw daemon routes.
+
+## `pd ideas`: Canonical Ideation Index And Dedupe Surface
+
+Use this when Spark, Spider, or a human operator needs to know whether an idea
+is actually new, where it already shows up in repo memory, or whether it only
+exists as local residue.
+
+- `pd ideas list` — list curated entries from `docs/recovery/IDEAS-TROVE.md`
+- `pd ideas search <query>` — federated search across:
+  - canonical trove entries
+  - optional local `.spark/.spider` residue
+  - recent daemon notes
+  - live tuples
+  - random `.md` files in the repo
+- `pd ideas show <slug>` — inspect one curated idea/family in detail
+
+Examples:
+
+```bash
+pd ideas list --status now
+pd ideas search "salvage disconnect" --include-raw
+pd ideas search "phase 3 parity debt" --sources markdown
+pd ideas search "handoff debt" --sources notes,markdown
+pd ideas show tuple-driven-fleet
+```
+
+This command is still local-first. `list` and `show` read the canonical trove
+from the repo. `search` federates local repo truth plus live daemon memory when
+available, and degrades cleanly if daemon-backed sources like notes/tuples are
+temporarily unavailable. That keeps ideation authority in code-reviewable docs
+while making `pd ideas` useful to humans, not just Spark/Spider.
 
 ```yaml
 # pd-fleet.yml
@@ -217,15 +365,22 @@ fleet:
   limits:
     max_concurrent_spawns: 2        # Max parallel agent runs
     max_spawns_per_hour: 20         # Hourly rate cap (rate limiting)
+    budget_usd_per_day: 5           # Daily LLM spend ceiling in USD
 
   agents:
     qa:
       trigger: git:committed        # React to pub/sub events
-      respawn: true                  # Auto-restart on crash
+      respawn: true                 # Auto-restart on crash
       max_respawns: 3               # Circuit breaker
-      backend: claude-cli
-      allowedTools: "Read,Grep,Glob,Bash(npm test*)"
+      backend: ollama
+      model: qwen2.5-coder:7b
       prompt: "Review the last commit for bugs..."
+
+    test-hunter:
+      trigger: git:committed
+      backend: codex
+      model: gpt-5.4-mini
+      prompt: "Expand test coverage around risky changes..."
 
     gardener:
       schedule: "*/10 * * * *"      # Or run on a cron schedule
@@ -240,17 +395,23 @@ fleet:
 ```
 
 **Key features:**
-- Works with any LLM backend: `claude-cli`, `ollama`, `gemini`, `aider`, `custom`
+- Works with any LLM backend: `ollama`, `codex`, `claude-cli`, `claude`, `gemini`, `cloudflare`, `aider`, `custom`
+- Prefer local-first tiers for always-on fleets: cheap Ollama loops for broad coverage, Codex for higher-signal code work, Claude CLI only when its tool surface is specifically needed
 - Template variables (`{project}`) resolve from the YAML context
 - `on_success: publish <channel>` chains agents via pub/sub (DAG topology validated at startup)
 - Fleet harbor auto-created on start — all agents share a semantic namespace
 - Each agent gets full PD coordination: registration, sessions, heartbeats, salvage on crash
 - Auto-respawn with `respawn: true` and `max_respawns` circuit breaker
 - **Daemon mode**: fleet auto-discovered from registered projects on daemon boot; editing `pd-fleet.yml` triggers hot-reload; SIGHUP reloads all fleets
+- **Project fleet leases**: daemon-owned fleets are singleton per project across daemons; another daemon may discover the same `pd-fleet.yml`, but it must skip starting that project if a lease is already held
 - **Resource limits**: `limits.max_concurrent_spawns` and `limits.max_spawns_per_hour` prevent runaway agents
 - Lifecycle events published to `fleet:events` channel for dashboard/menu bar subscriptions
 
-## Tuple Space: Shared Swarm Memory (v3.8.0)
+Keep the distinction clear:
+- `singleton: true` on an agent prevents overlapping runs of that one agent inside a single fleet runner
+- project fleet leases prevent two different daemons from both running the same project fleet at once
+
+## Tuple Space: Shared Swarm Memory (v3.8.3)
 
 Agents write typed tuples to a shared space. Other agents query by pattern. Based on Linda (Gelernter, 1985). Harbor-scoped for fleet isolation. TTL for auto-expiry.
 
@@ -280,7 +441,7 @@ Pattern matching: exact values, `*` wildcard, `>N`/`<N` numeric comparisons, `my
 - `GET /tuples/scan` — list all tuples in a harbor
 - `GET /tuples/count` — count tuples
 
-## Pheromone Trails: Ambient Signals (v3.8.0)
+## Pheromone Trails: Ambient Signals (v3.8.3)
 
 Agents spray numeric signals (0-1) onto entities. Signals decay exponentially over time at read, creating ambient awareness without polling.
 
@@ -306,7 +467,7 @@ Use cases: file contention detection, agent reputation scoring, hot-path identif
 - `GET /pheromone` — list all non-zero pheromones
 - `GET /pheromone/files` — file heat map from session file claims (query: `path`, `depth`)
 
-## The Arbiter: Runtime Invariant Enforcement (v3.8.0)
+## The Arbiter: Runtime Invariant Enforcement (v3.8.3)
 
 The Arbiter monitors every state transition against 6 formally-derived invariants from the TLA+ specification:
 
@@ -324,7 +485,7 @@ pd arbiter status         # Check rules and violation count
 pd arbiter violations     # List recorded violations
 ```
 
-## Runtime File Locations (v3.8.2)
+## Runtime File Locations (v3.8.3)
 
 All runtime files live in `~/.port-daddy/` (not `/tmp/`). This eliminates symlink attacks, survives `/tmp/` cleanup, and keeps permissions user-private (0700 directory).
 
@@ -335,6 +496,7 @@ All runtime files live in `~/.port-daddy/` (not `/tmp/`). This eliminates symlin
 | `~/.port-daddy/daemon.pid` | PID file |
 | `~/.port-daddy/daemon.port` | TCP port file (dashboard discovery) |
 | `~/.port-daddy/master.key` | AES-256-GCM master key for note encryption |
+| `~/.port-daddy/ui-preferences.json` | Shared UI preferences (FleetBar menu bar companion) |
 
 Override via environment variables: `PORT_DADDY_SOCK`, `PORT_DADDY_IPC`, `PORT_DADDY_PORT_FILE`.
 
@@ -356,16 +518,23 @@ Override via environment variables: `PORT_DADDY_SOCK`, `PORT_DADDY_IPC`, `PORT_D
 | `pd session files claim` | Advisory file claims |
 | **Fleet & Agents** | |
 | `pd fleet init` | Create pd-fleet.yml + git hook |
-| `pd fleet up/down/status` | Start/stop/inspect the fleet (CLI-attached mode) |
+| `pd fleet up/down/status/validate` | Start/stop/inspect/dry-run the fleet (CLI-attached mode) |
+| `pd sortie` / `pd sortie list/status/logs` | Launch and inspect tracked mission records |
 | `pd spawn` / `pd spawned` | Launch/list background agents |
 | `pd spawn kill` | Kill a spawned agent |
 | `pd salvage` | Dead agent recovery |
 | **Fleet Daemon HTTP** | |
 | `GET /fleet` | Aggregated daemon fleet status (all projects) |
-| `GET /fleet/:project` | Status for a specific project's fleet |
+| `GET /fleet/:project` | Status for a specific project's fleet; queued mailbox work appears as `status: queued` with `queueDepth` |
 | `POST /fleet/start\|stop\|reload` | Manage daemon-managed fleets |
 | `POST /fleet/register` | Register project dir for fleet management |
 | `GET /fleet/events` | SSE stream of fleet lifecycle events |
+| `GET /fleet/prompt` | One-line fleet status for shell prompt (query: `project`) |
+| `GET /fleet/config/:project` | Raw YAML + parsed config + topology validation |
+| `PUT /fleet/config/:project` | Write YAML config, validate, reload fleet |
+| `GET /fleet/models` | Supported backends + model catalog + readiness hints (probes Ollama live) |
+
+Fleet rows are mailbox-driven now: if an agent is already running and more triggers arrive, the daemon collapses them into queued work instead of spawning one run per wake. Treat `status: queued` plus `queueDepth > 0` as pending work, not a missed launch.
 | **Swarm Memory** | |
 | `pd tuple out/rd/in` | Write/read/take tuples |
 | `pd tuple scan/count` | List/count tuples |
@@ -373,7 +542,16 @@ Override via environment variables: `PORT_DADDY_SOCK`, `PORT_DADDY_IPC`, `PORT_D
 | `pd pheromone sniff` | Read pheromone values (with decay) |
 | `pd pheromone list` | List all non-zero pheromones |
 | `pd pheromone files` | File heat map |
+| `pd ideas list/search/show` | Search the canonical ideation trove plus live repo memory (notes, tuples, markdown) |
+| **Observability (HTTP API)** | |
+| `GET /metrics/golden` | Fleet health: rate, errors, duration, cost/hr (RED method) |
+| `GET /metrics/cost` | Cost summary by project + backend (default: 24h) |
+| `GET /metrics/cost/budget/:project` | Budget check — spend vs. ceiling |
+| `GET /metrics/counters` | Counter summary or time-bucketed single key |
+| `GET /metrics/counters/top` | Top N dimension values for a counter |
+| `GET /metrics/cost/recent` | Most recent cost events |
 | **System** | |
+| `pd setup` | One-command onboarding (daemon + MCP + FleetBar + project init) |
 | `pd status` | Daemon health |
 | `pd version` | Version and code hash |
 | `pd arbiter status` | Invariant enforcement status |
@@ -384,14 +562,16 @@ Override via environment variables: `PORT_DADDY_SOCK`, `PORT_DADDY_IPC`, `PORT_D
 
 | Problem | Solution |
 |---------|----------|
+| First-time setup (daemon + MCP + FleetBar) | `pd setup` |
 | Dev server port conflict | `pd claim myapp:api -q` |
 | Need to coordinate with other agents | `pd begin` + `pd session files claim` |
 | Agent-to-agent signaling | `pd pub` + `pd watch` |
 | Direct message to a specific agent | `talk_to_agent` MCP tool or `pd inbox send` |
 | Background automation (terminal-attached) | `pd fleet init` + `pd fleet up` |
 | Background automation (always-on, survives terminal) | Place `pd-fleet.yml` in registered project; daemon auto-starts it |
-| Reload fleet after editing pd-fleet.yml | `curl -XPOST localhost:9876/fleet/reload` or `kill -HUP <daemon-pid>` |
+| Reload fleet after editing pd-fleet.yml | `PD_URL="\${PORT_DADDY_URL:-http://localhost:9876}"; curl -XPOST "$PD_URL/fleet/reload"` or `kill -HUP <daemon-pid>` |
 | Share knowledge across agents | `pd tuple out` / `pd tuple rd` |
+| Check whether Spark/Spider or the repo already had this idea | `pd ideas search "query" --include-raw` |
 | Track "hotness" of resources | `pd pheromone spray` / `sniff` |
 | See file contention at a glance | `file_heat` MCP tool or `pd pheromone files` |
 | Crashed agent left work behind | `pd salvage` |
@@ -399,6 +579,17 @@ Override via environment variables: `PORT_DADDY_SOCK`, `PORT_DADDY_IPC`, `PORT_D
 | What happened while I was away? | `catch_me_up` MCP tool |
 | Who else is working right now? | `swarm_awareness` MCP tool |
 | Check for invariant violations | `pd arbiter status` |
+| How much are my fleet agents costing? | `PD_URL="\${PORT_DADDY_URL:-http://localhost:9876}"; curl "$PD_URL/metrics/cost"` |
+| Is a project over budget? | `PD_URL="\${PORT_DADDY_URL:-http://localhost:9876}"; curl "$PD_URL/metrics/cost/budget/myapp?budgetUsdPerDay=5"` |
+| Fleet health at a glance (RED signals) | `PD_URL="\${PORT_DADDY_URL:-http://localhost:9876}"; curl "$PD_URL/metrics/golden"` |
+| Top backends by spawn count | `PD_URL="\${PORT_DADDY_URL:-http://localhost:9876}"; curl "$PD_URL/metrics/counters/top?key=spawn.started&dim=backend"` |
+| Show fleet status in shell prompt | `PD_URL="\${PORT_DADDY_URL:-http://localhost:9876}"; curl "$PD_URL/fleet/prompt?project=myapp"` |
+| Read/edit fleet config via API | `GET /fleet/config/myapp` or `PUT /fleet/config/myapp` with `{ "yaml": "..." }` |
+| What LLM backends are available? | `PD_URL="\${PORT_DADDY_URL:-http://localhost:9876}"; curl "$PD_URL/fleet/models"` |
+
+## Delegation Reference
+
+If you are choosing between launch surfaces, use `docs/DELEGATION-MODES.md` as the source of truth. It explains when to use `pd spawn`, `pd agent`, `pd sortie`, `pd fleet`, and how harbors fit in.
 
 ## Common Issues
 
