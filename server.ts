@@ -221,6 +221,7 @@ const db: Database.Database = initDatabase({ dbPath: DB_PATH });
 
 const semanticIndex = createSemanticIndex(db);
 const graphEdges = createGraphEdges(db);
+const symbolIndex = createSymbolIndex(db, { graphEdges });
 const episodicMemory = createEpisodicMemory(db);
 
 const services = createServices(db, { semanticIndex });
@@ -232,7 +233,7 @@ const activityLog = createActivityLog(db);
 const webhooks = createWebhooks(db);
 const projects = createProjects(db);
 const noteEncryption = createNoteEncryption();
-const sessions = createSessions(db, noteEncryption, { semanticIndex, episodicMemory });
+const sessions = createSessions(db, noteEncryption, { semanticIndex, episodicMemory, symbolIndex });
 sessions.setActivityLog(activityLog);
 
 const agentInbox = createAgentInbox(db, (agentId, message) => {
@@ -270,7 +271,6 @@ const tuples = createTupleSpace(db);
 
 // Phase 1 — Semantic Graph modules (orchestrator plugins, symbol index, merge queue)
 const orchestratorRegistry = createOrchestratorRegistry(db, { activityLog });
-const symbolIndex = createSymbolIndex(db, { graphEdges });
 const mergeQueue = createMergeQueue(db, { orchestratorRegistry, activityLog, graphEdges });
 
 const barnacle = createBarnacleWatcher(logger);

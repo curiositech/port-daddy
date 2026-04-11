@@ -32,17 +32,45 @@ describe('Region-Level File Claims', () => {
     return result.id;
   }
 
+  function makeIndexedFunction(filePath, symbolPath, startLine, endLine, symbolName = symbolPath.split('.').pop()) {
+    return {
+      id: startLine,
+      filePath,
+      symbolName,
+      symbolType: 'function',
+      symbolPath,
+      startLine,
+      endLine,
+      parentSymbol: null,
+      signature: `${symbolName}()`,
+      bodyHash: null,
+      exported: true,
+      parsedAt: Date.now(),
+    };
+  }
+
+  function useSymbolIndex(symbolsByPath) {
+    sessions = createSessions(db, undefined, {
+      symbolIndex: {
+        getSymbols(filePath) {
+          return symbolsByPath[filePath] || [];
+        },
+      },
+    });
+  }
+
   // ===========================================================================
   // Schema Migration — old data survives
   // ===========================================================================
 
   describe('Schema Migration', () => {
-    it('should have start_line, end_line, symbol columns on session_files', () => {
+    it('should have start_line, end_line, symbol, symbol_path columns on session_files', () => {
       const columns = db.prepare("PRAGMA table_info(session_files)").all();
       const names = columns.map(c => c.name);
       expect(names).toContain('start_line');
       expect(names).toContain('end_line');
       expect(names).toContain('symbol');
+      expect(names).toContain('symbol_path');
     });
 
     it('should have id (autoincrement) as primary key', () => {
@@ -56,6 +84,7 @@ describe('Region-Level File Claims', () => {
       const indexes = db.prepare("PRAGMA index_list(session_files)").all();
       const indexNames = indexes.map(i => i.name);
       expect(indexNames).toContain('idx_session_files_region');
+      expect(indexNames).toContain('idx_session_files_symbol_path');
     });
   });
 
@@ -156,6 +185,44 @@ describe('Region-Level File Claims', () => {
       expect(claim.startLine).toBe(10);
       expect(claim.endLine).toBe(50);
       expect(claim.symbol).toBe('handleAuth');
+    });
+
+    it('should resolve and store canonical symbolPath when provided', () => {
+      useSymbolIndex({
+        'src/routes.ts': [
+          makeIndexedFunction('src/routes.ts', 'routes.handleAuth', 10, 50, 'handleAuth'),
+        ],
+      });
+
+      const sid = makeSession();
+      const result = sessions.claimFiles(sid, [], {
+        regions: [{ path: 'src/routes.ts', startLine: 999, endLine: 1000, symbolPath: 'routes.handleAuth' }]
+      });
+
+      expect(result.success).toBe(true);
+
+      const claims = sessions.listAllActiveClaims();
+      const claim = claims.claims.find(c => c.filePath === 'src/routes.ts');
+      expect(claim.symbolPath).toBe('routes.handleAuth');
+      expect(claim.symbol).toBe('handleAuth');
+      expect(claim.startLine).toBe(10);
+      expect(claim.endLine).toBe(50);
+    });
+
+    it('should reject invalid symbolPath for indexed files', () => {
+      useSymbolIndex({
+        'src/routes.ts': [
+          makeIndexedFunction('src/routes.ts', 'routes.handleAuth', 10, 50, 'handleAuth'),
+        ],
+      });
+
+      const sid = makeSession();
+      const result = sessions.claimFiles(sid, [], {
+        regions: [{ path: 'src/routes.ts', symbolPath: 'routes.missingSymbol' }]
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/symbolPath/i);
     });
 
     it('should claim region without symbol', () => {
@@ -328,6 +395,29 @@ describe('Region-Level File Claims', () => {
       expect(result.conflicts.length).toBe(1);
     });
 
+    it('should detect conflict for the same symbolPath even if callers provide stale line ranges', () => {
+      useSymbolIndex({
+        'src/routes.ts': [
+          makeIndexedFunction('src/routes.ts', 'routes.handleAuth', 10, 50, 'handleAuth'),
+        ],
+      });
+
+      const s1 = makeSession('session 1');
+      const s2 = makeSession('session 2');
+
+      sessions.claimFiles(s1, [], {
+        regions: [{ path: 'src/routes.ts', startLine: 1, endLine: 2, symbolPath: 'routes.handleAuth' }]
+      });
+      const result = sessions.claimFiles(s2, [], {
+        regions: [{ path: 'src/routes.ts', startLine: 200, endLine: 300, symbolPath: 'routes.handleAuth' }]
+      });
+
+      expect(result.conflicts.length).toBe(1);
+      expect(result.conflicts[0].symbolPath).toBe('routes.handleAuth');
+      expect(result.conflicts[0].startLine).toBe(10);
+      expect(result.conflicts[0].endLine).toBe(50);
+    });
+
     it('should detect conflict: region fully contained in another', () => {
       const s1 = makeSession('session 1');
       const s2 = makeSession('session 2');
@@ -497,6 +587,28 @@ describe('Region-Level File Claims', () => {
       expect(result.success).toBe(true);
       expect(result.owners.length).toBe(1);
       expect(result.owners[0].sessionId).toBe(s1);
+    });
+
+    it('should resolve who-owns by symbolPath and include overlapping legacy range claims', () => {
+      useSymbolIndex({
+        'src/routes.ts': [
+          makeIndexedFunction('src/routes.ts', 'routes.handleAuth', 10, 50, 'handleAuth'),
+        ],
+      });
+
+      const s1 = makeSession('symbol owner');
+      const s2 = makeSession('legacy owner');
+
+      sessions.claimFiles(s1, [], {
+        regions: [{ path: 'src/routes.ts', symbolPath: 'routes.handleAuth' }]
+      });
+      sessions.claimFiles(s2, [], {
+        regions: [{ path: 'src/routes.ts', startLine: 30, endLine: 40 }]
+      });
+
+      const result = sessions.getClaimOwner('src/routes.ts', { symbolPath: 'routes.handleAuth' });
+      expect(result.success).toBe(true);
+      expect(result.owners.map(owner => owner.sessionId)).toEqual(expect.arrayContaining([s1, s2]));
     });
 
     it('should return whole-file claim for any queried range', () => {

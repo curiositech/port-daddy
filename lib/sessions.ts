@@ -14,6 +14,7 @@ import { patternToSql } from './identity.js';
 import type { NoteEncryption } from './note-encryption.js';
 import type { SemanticIndex } from './semantic-index.js';
 import type { EpisodicMemory } from './episodic-memory.js';
+import type { Symbol as IndexedSymbol, SymbolIndex } from './symbol-index.js';
 
 const MAX_NOTES_PER_SESSION = 500;
 
@@ -56,6 +57,7 @@ interface SessionFileRow {
   start_line: number | null;
   end_line: number | null;
   symbol: string | null;
+  symbol_path: string | null;
   claimed_at: number;
   released_at: number | null;
 }
@@ -65,6 +67,7 @@ interface FileRegion {
   startLine?: number;
   endLine?: number;
   symbol?: string;
+  symbolPath?: string;
 }
 
 interface ClaimFilesOptions {
@@ -134,6 +137,7 @@ interface FileConflict {
   startLine?: number | null;
   endLine?: number | null;
   symbol?: string | null;
+  symbolPath?: string | null;
 }
 
 // =============================================================================
@@ -146,10 +150,11 @@ interface FileConflict {
 export function createSessions(
   db: Database.Database,
   noteEncryption?: NoteEncryption,
-  options?: { semanticIndex?: SemanticIndex; episodicMemory?: EpisodicMemory },
+  options?: { semanticIndex?: SemanticIndex; episodicMemory?: EpisodicMemory; symbolIndex?: SymbolIndex },
 ) {
   const semanticIndex = options?.semanticIndex;
   const episodicMemory = options?.episodicMemory;
+  const symbolIndex = options?.symbolIndex;
   // In-memory cache: sessionId → unwrapped session key (avoids re-unwrap on every read)
   const sessionKeyCache = new Map<string, Buffer>();
   // Ensure tables exist (base schema without worktree_id for migration compatibility)
@@ -180,6 +185,7 @@ export function createSessions(
       start_line INTEGER,
       end_line INTEGER,
       symbol TEXT,
+      symbol_path TEXT,
       claimed_at INTEGER NOT NULL,
       released_at INTEGER
     )`,
@@ -235,6 +241,7 @@ export function createSessions(
   try {
     const fileColumns = db.prepare("PRAGMA table_info(session_files)").all() as Array<{ name: string; pk: number }>;
     const hasStartLine = fileColumns.some(c => c.name === 'start_line');
+    const hasSymbolPath = fileColumns.some(c => c.name === 'symbol_path');
     if (!hasStartLine) {
       // Old schema uses composite PK (session_id, file_path) — need to recreate table
       db.prepare(`CREATE TABLE IF NOT EXISTS session_files_new (
@@ -244,6 +251,7 @@ export function createSessions(
         start_line INTEGER,
         end_line INTEGER,
         symbol TEXT,
+        symbol_path TEXT,
         claimed_at INTEGER NOT NULL,
         released_at INTEGER
       )`).run();
@@ -254,6 +262,9 @@ export function createSessions(
       db.prepare(`CREATE INDEX IF NOT EXISTS idx_session_files_path ON session_files(file_path)`).run();
       db.prepare(`CREATE INDEX IF NOT EXISTS idx_session_files_session ON session_files(session_id)`).run();
       db.prepare(`CREATE INDEX IF NOT EXISTS idx_session_files_region ON session_files(file_path, start_line, end_line)`).run();
+      db.prepare(`CREATE INDEX IF NOT EXISTS idx_session_files_symbol_path ON session_files(file_path, symbol_path)`).run();
+    } else if (!hasSymbolPath) {
+      db.prepare("ALTER TABLE session_files ADD COLUMN symbol_path TEXT").run();
     }
   } catch {
     // Table might not exist yet (fresh install) — that's fine, schema statements above handle it
@@ -262,6 +273,7 @@ export function createSessions(
   // Create region indexes after migration ensures columns exist
   db.prepare(`CREATE INDEX IF NOT EXISTS idx_session_files_session ON session_files(session_id)`).run();
   db.prepare(`CREATE INDEX IF NOT EXISTS idx_session_files_region ON session_files(file_path, start_line, end_line)`).run();
+  db.prepare(`CREATE INDEX IF NOT EXISTS idx_session_files_symbol_path ON session_files(file_path, symbol_path)`).run();
 
   // Enable foreign key enforcement (needed for CASCADE)
   db.pragma('foreign_keys = ON');
@@ -351,7 +363,7 @@ export function createSessions(
 
     // Files — global view
     listAllActiveClaims: db.prepare(`
-      SELECT sf.session_id, sf.file_path, sf.start_line, sf.end_line, sf.symbol,
+      SELECT sf.session_id, sf.file_path, sf.start_line, sf.end_line, sf.symbol, sf.symbol_path,
              sf.claimed_at, s.purpose, s.agent_id, s.phase
       FROM session_files sf
       JOIN sessions s ON s.id = sf.session_id
@@ -359,19 +371,20 @@ export function createSessions(
       ORDER BY sf.file_path ASC, sf.start_line ASC
     `),
     listActiveClaimsByPattern: db.prepare(`
-      SELECT sf.session_id, sf.file_path, sf.start_line, sf.end_line, sf.symbol,
+      SELECT sf.session_id, sf.file_path, sf.start_line, sf.end_line, sf.symbol, sf.symbol_path,
              sf.claimed_at, s.purpose, s.agent_id, s.phase
       FROM session_files sf
       JOIN sessions s ON s.id = sf.session_id
       WHERE sf.released_at IS NULL AND s.status = 'active'
         AND (sf.file_path LIKE ? ESCAPE '\\' OR ? IS NULL)
         AND (sf.symbol LIKE ? ESCAPE '\\' OR ? IS NULL)
+        AND (sf.symbol_path LIKE ? ESCAPE '\\' OR ? IS NULL)
         AND (s.agent_id LIKE ? ESCAPE '\\' OR ? IS NULL)
         AND (s.purpose LIKE ? ESCAPE '\\' OR ? IS NULL)
       ORDER BY sf.file_path ASC, sf.start_line ASC
     `),
     getClaimOwner: db.prepare(`
-      SELECT sf.session_id, sf.file_path, sf.start_line, sf.end_line, sf.symbol,
+      SELECT sf.session_id, sf.file_path, sf.start_line, sf.end_line, sf.symbol, sf.symbol_path,
              sf.claimed_at, s.purpose, s.agent_id, s.phase
       FROM session_files sf
       JOIN sessions s ON s.id = sf.session_id
@@ -380,13 +393,13 @@ export function createSessions(
 
     // Files — whole-file claims
     claimFile: db.prepare(`
-      INSERT INTO session_files (session_id, file_path, start_line, end_line, symbol, claimed_at, released_at)
-      VALUES (?, ?, NULL, NULL, NULL, ?, NULL)
+      INSERT INTO session_files (session_id, file_path, start_line, end_line, symbol, symbol_path, claimed_at, released_at)
+      VALUES (?, ?, NULL, NULL, NULL, NULL, ?, NULL)
     `),
     // Files — region claims
     claimRegion: db.prepare(`
-      INSERT INTO session_files (session_id, file_path, start_line, end_line, symbol, claimed_at, released_at)
-      VALUES (?, ?, ?, ?, ?, ?, NULL)
+      INSERT INTO session_files (session_id, file_path, start_line, end_line, symbol, symbol_path, claimed_at, released_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, NULL)
     `),
     releaseFile: db.prepare(`
       UPDATE session_files SET released_at = ? WHERE session_id = ? AND file_path = ? AND released_at IS NULL
@@ -394,6 +407,10 @@ export function createSessions(
     releaseRegion: db.prepare(`
       UPDATE session_files SET released_at = ?
       WHERE session_id = ? AND file_path = ? AND start_line = ? AND end_line = ? AND released_at IS NULL
+    `),
+    releaseRegionBySymbolPath: db.prepare(`
+      UPDATE session_files SET released_at = ?
+      WHERE session_id = ? AND file_path = ? AND symbol_path = ? AND released_at IS NULL
     `),
     releaseAllFiles: db.prepare(`
       UPDATE session_files SET released_at = ? WHERE session_id = ? AND released_at IS NULL
@@ -403,23 +420,17 @@ export function createSessions(
       JOIN sessions s ON s.id = sf.session_id
       WHERE sf.file_path = ? AND sf.released_at IS NULL
     `),
-    // Overlap detection: finds claims on the same file from OTHER sessions that overlap a given region
-    getOverlappingClaims: db.prepare(`
+    getActiveClaimsForFileExcludingSession: db.prepare(`
       SELECT sf.*, s.purpose, s.agent_id FROM session_files sf
       JOIN sessions s ON s.id = sf.session_id
       WHERE sf.file_path = ?
         AND sf.released_at IS NULL
         AND s.status = 'active'
         AND sf.session_id != ?
-        AND (
-          sf.start_line IS NULL
-          OR ? IS NULL
-          OR (sf.start_line <= ? AND sf.end_line >= ?)
-        )
     `),
     // Range-filtered claim owner query
     getClaimOwnerRange: db.prepare(`
-      SELECT sf.session_id, sf.file_path, sf.start_line, sf.end_line, sf.symbol,
+      SELECT sf.session_id, sf.file_path, sf.start_line, sf.end_line, sf.symbol, sf.symbol_path,
              sf.claimed_at, s.purpose, s.agent_id, s.phase
       FROM session_files sf
       JOIN sessions s ON s.id = sf.session_id
@@ -597,8 +608,92 @@ export function createSessions(
       startLine: row.start_line ?? null,
       endLine: row.end_line ?? null,
       symbol: row.symbol ?? null,
+      symbolPath: row.symbol_path ?? null,
       claimedAt: row.claimed_at,
       releasedAt: row.released_at,
+    };
+  }
+
+  function getIndexedSymbols(filePath: string): IndexedSymbol[] {
+    if (!symbolIndex) return [];
+    try {
+      return symbolIndex.getSymbols(filePath);
+    } catch {
+      return [];
+    }
+  }
+
+  function rangesOverlap(
+    startA: number | null,
+    endA: number | null,
+    startB: number | null,
+    endB: number | null,
+  ): boolean {
+    if (startA == null || endA == null || startB == null || endB == null) {
+      return true;
+    }
+    return startA <= endB && endA >= startB;
+  }
+
+  function isWholeFileClaim(claim: { startLine: number | null; endLine: number | null }): boolean {
+    return claim.startLine == null || claim.endLine == null;
+  }
+
+  function claimsConflict(
+    existing: { startLine: number | null; endLine: number | null; symbolPath: string | null },
+    requested: { startLine: number | null; endLine: number | null; symbolPath: string | null },
+  ): boolean {
+    if (isWholeFileClaim(existing) || isWholeFileClaim(requested)) {
+      return true;
+    }
+    if (existing.symbolPath && requested.symbolPath) {
+      return existing.symbolPath === requested.symbolPath;
+    }
+    return rangesOverlap(existing.startLine, existing.endLine, requested.startLine, requested.endLine);
+  }
+
+  function resolveRegionClaim(region: FileRegion) {
+    const indexedSymbols = getIndexedSymbols(region.path);
+    const resolvedSymbol = region.symbolPath
+      ? indexedSymbols.find(symbol => symbol.symbolPath === region.symbolPath)
+      : undefined;
+
+    if (region.symbolPath && indexedSymbols.length > 0 && !resolvedSymbol) {
+      return {
+        success: false as const,
+        error: `symbolPath "${region.symbolPath}" was not found in indexed symbols for ${region.path}`,
+      };
+    }
+
+    if (resolvedSymbol) {
+      return {
+        success: true as const,
+        claim: {
+          path: region.path,
+          startLine: resolvedSymbol.startLine,
+          endLine: resolvedSymbol.endLine,
+          symbol: resolvedSymbol.symbolName,
+          symbolPath: resolvedSymbol.symbolPath,
+        },
+      };
+    }
+
+    if (region.symbolPath && (region.startLine === undefined || region.endLine === undefined)) {
+      return {
+        success: false as const,
+        error: `symbolPath "${region.symbolPath}" requires indexed symbol data or an explicit startLine/endLine fallback`,
+      };
+    }
+
+    return {
+      success: true as const,
+      claim: {
+        path: region.path,
+        startLine: region.startLine ?? null,
+        endLine: region.endLine ?? null,
+        symbol: region.symbol ?? null,
+        symbolPath: null,
+      },
     };
   }
 
@@ -1154,12 +1249,12 @@ export function createSessions(
 
     // Process whole-file claims
     for (const filePath of filePaths) {
-      // Check for overlapping claims from other sessions (whole-file = NULL startLine)
-      const overlapping = stmts.getOverlappingClaims.all(
-        filePath, sessionId, null, null, null
+      const activeClaims = stmts.getActiveClaimsForFileExcludingSession.all(
+        filePath,
+        sessionId,
       ) as Array<SessionFileRow & { purpose: string; agent_id: string | null }>;
 
-      for (const claim of overlapping) {
+      for (const claim of activeClaims) {
         conflicts.push({
           filePath,
           sessionId: claim.session_id,
@@ -1168,6 +1263,7 @@ export function createSessions(
           startLine: claim.start_line,
           endLine: claim.end_line,
           symbol: claim.symbol,
+          symbolPath: claim.symbol_path,
         });
       }
 
@@ -1179,16 +1275,32 @@ export function createSessions(
 
     // Process region claims
     for (const region of regions) {
-      const startLine = region.startLine ?? null;
-      const endLine = region.endLine ?? null;
-      const symbol = region.symbol ?? null;
+      const resolved = resolveRegionClaim(region);
+      if (!resolved.success) {
+        return { success: false, error: resolved.error, code: 'VALIDATION_ERROR' };
+      }
 
-      // Check for overlapping claims from other sessions
-      const overlapping = stmts.getOverlappingClaims.all(
-        region.path, sessionId, startLine, endLine, startLine
+      const { startLine, endLine, symbol, symbolPath } = resolved.claim;
+      const activeClaims = stmts.getActiveClaimsForFileExcludingSession.all(
+        region.path,
+        sessionId,
       ) as Array<SessionFileRow & { purpose: string; agent_id: string | null }>;
 
-      for (const claim of overlapping) {
+      for (const claim of activeClaims) {
+        if (!claimsConflict(
+          {
+            startLine: claim.start_line,
+            endLine: claim.end_line,
+            symbolPath: claim.symbol_path,
+          },
+          {
+            startLine,
+            endLine,
+            symbolPath,
+          },
+        )) {
+          continue;
+        }
         conflicts.push({
           filePath: region.path,
           sessionId: claim.session_id,
@@ -1197,10 +1309,11 @@ export function createSessions(
           startLine: claim.start_line,
           endLine: claim.end_line,
           symbol: claim.symbol,
+          symbolPath: claim.symbol_path,
         });
       }
 
-      stmts.claimRegion.run(sessionId, region.path, startLine, endLine, symbol, now);
+      stmts.claimRegion.run(sessionId, region.path, startLine, endLine, symbol, symbolPath, now);
       if (!claimed.includes(region.path)) claimed.push(region.path);
     }
 
@@ -1262,6 +1375,13 @@ export function createSessions(
 
     // Release specific region claims
     for (const region of regions) {
+      if (region.symbolPath) {
+        const result = stmts.releaseRegionBySymbolPath.run(now, sessionId, region.path, region.symbolPath);
+        if (result.changes > 0) {
+          released.push(`${region.path}#${region.symbolPath}`);
+        }
+        continue;
+      }
       const startLine = region.startLine ?? null;
       const endLine = region.endLine ?? null;
       if (startLine !== null && endLine !== null) {
@@ -1313,6 +1433,7 @@ export function createSessions(
           startLine: claim.start_line,
           endLine: claim.end_line,
           symbol: claim.symbol,
+          symbolPath: claim.symbol_path,
         });
       }
     }
@@ -1471,8 +1592,8 @@ export function createSessions(
   /**
    * List active file claims across all sessions (global view)
    */
-  function listAllActiveClaims(options: { path?: string; symbol?: string; agentId?: string; purpose?: string } = {}) {
-    const { path, symbol, agentId, purpose } = options;
+  function listAllActiveClaims(options: { path?: string; symbol?: string; symbolPath?: string; agentId?: string; purpose?: string } = {}) {
+    const { path, symbol, symbolPath, agentId, purpose } = options;
     
     let rows: Array<{
       session_id: string;
@@ -1480,21 +1601,24 @@ export function createSessions(
       start_line: number | null;
       end_line: number | null;
       symbol: string | null;
+      symbol_path: string | null;
       claimed_at: number;
       purpose: string;
       agent_id: string | null;
       phase: string | null;
     }>;
 
-    if (path || symbol || agentId || purpose) {
+    if (path || symbol || symbolPath || agentId || purpose) {
       const pathPattern = path ? (path.includes('*') ? path.replace(/\*/g, '%') : '%' + path + '%') : null;
       const symbolPattern = symbol ? (symbol.includes('*') ? symbol.replace(/\*/g, '%') : '%' + symbol + '%') : null;
+      const symbolPathPattern = symbolPath ? (symbolPath.includes('*') ? symbolPath.replace(/\*/g, '%') : '%' + symbolPath + '%') : null;
       const agentPattern = agentId ? (agentId.includes('*') ? agentId.replace(/\*/g, '%') : agentId) : null;
       const purposePattern = purpose ? (purpose.includes('*') ? purpose.replace(/\*/g, '%') : '%' + purpose + '%') : null;
 
       rows = stmts.listActiveClaimsByPattern.all(
         pathPattern, pathPattern,
         symbolPattern, symbolPattern,
+        symbolPathPattern, symbolPathPattern,
         agentPattern, agentPattern,
         purposePattern, purposePattern
       ) as typeof rows;
@@ -1514,6 +1638,7 @@ export function createSessions(
         startLine: r.start_line,
         endLine: r.end_line,
         symbol: r.symbol,
+        symbolPath: r.symbol_path,
       })),
       count: rows.length,
     };
@@ -1522,7 +1647,7 @@ export function createSessions(
   /**
    * Get who owns a specific file path, optionally filtered by line range
    */
-  function getClaimOwner(filePath: string, range?: { startLine?: number; endLine?: number }) {
+  function getClaimOwner(filePath: string, range?: { startLine?: number; endLine?: number; symbolPath?: string }) {
     if (!filePath || typeof filePath !== 'string') {
       return { success: false, error: 'filePath must be a non-empty string', code: 'VALIDATION_ERROR' };
     }
@@ -1533,25 +1658,39 @@ export function createSessions(
       start_line: number | null;
       end_line: number | null;
       symbol: string | null;
+      symbol_path: string | null;
       claimed_at: number;
       purpose: string;
       agent_id: string | null;
       phase: string | null;
     };
+    const rows = stmts.getClaimOwner.all(filePath) as ClaimOwnerRow[];
+    const resolvedSymbol = range?.symbolPath
+      ? getIndexedSymbols(filePath).find(symbol => symbol.symbolPath === range.symbolPath)
+      : undefined;
+    const queryStartLine = range?.startLine ?? resolvedSymbol?.startLine ?? null;
+    const queryEndLine = range?.endLine ?? resolvedSymbol?.endLine ?? null;
 
-    let rows: ClaimOwnerRow[];
-
-    if (range?.startLine != null && range?.endLine != null) {
-      // Range-filtered query: find claims that overlap the requested range
-      rows = stmts.getClaimOwnerRange.all(filePath, range.endLine, range.startLine) as ClaimOwnerRow[];
-    } else {
-      rows = stmts.getClaimOwner.all(filePath) as ClaimOwnerRow[];
-    }
+    const owners = rows.filter(row => {
+      if (!range?.symbolPath && queryStartLine == null && queryEndLine == null) {
+        return true;
+      }
+      if (isWholeFileClaim({ startLine: row.start_line, endLine: row.end_line })) {
+        return true;
+      }
+      if (range?.symbolPath && row.symbol_path) {
+        return row.symbol_path === range.symbolPath;
+      }
+      if (queryStartLine != null && queryEndLine != null) {
+        return rangesOverlap(row.start_line, row.end_line, queryStartLine, queryEndLine);
+      }
+      return false;
+    });
 
     return {
       success: true,
       filePath,
-      owners: rows.map(r => ({
+      owners: owners.map(r => ({
         sessionId: r.session_id,
         purpose: r.purpose,
         agentId: r.agent_id,
@@ -1560,8 +1699,9 @@ export function createSessions(
         startLine: r.start_line,
         endLine: r.end_line,
         symbol: r.symbol,
+        symbolPath: r.symbol_path,
       })),
-      claimed: rows.length > 0,
+      claimed: owners.length > 0,
     };
   }
 

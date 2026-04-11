@@ -121,10 +121,12 @@ export const CORE_SCHEMA_SQL = `
     start_line INTEGER,
     end_line INTEGER,
     symbol TEXT,
+    symbol_path TEXT,
     claimed_at INTEGER NOT NULL,
     released_at INTEGER
   );
   CREATE INDEX IF NOT EXISTS idx_session_files_path ON session_files(file_path);
+  CREATE INDEX IF NOT EXISTS idx_session_files_symbol_path ON session_files(file_path, symbol_path);
 
   CREATE TABLE IF NOT EXISTS session_notes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
