@@ -16,8 +16,10 @@ const TSX_PATH = join(import.meta.dirname, '../../node_modules/.bin/tsx');
 const DAEMON_BODY_LIMIT_BYTES = 10 * 1024;
 const TEST_ENV = {
   sockPath: 'PORT_DADDY_TEST_SOCK',
+  ipcPath: 'PORT_DADDY_TEST_IPC',
   dbPath: 'PORT_DADDY_TEST_DB',
   tmpDir: 'PORT_DADDY_TEST_TMPDIR',
+  homeDir: 'PORT_DADDY_TEST_HOME',
   pid: 'PORT_DADDY_TEST_PID'
 };
 
@@ -25,16 +27,20 @@ let _state = null;
 
 function getDaemonStateFromEnv() {
   const sockPath = process.env[TEST_ENV.sockPath];
+  const ipcPath = process.env[TEST_ENV.ipcPath];
   const dbPath = process.env[TEST_ENV.dbPath];
   const tmpDir = process.env[TEST_ENV.tmpDir];
+  const homeDir = process.env[TEST_ENV.homeDir];
   const pid = process.env[TEST_ENV.pid];
 
-  if (!sockPath || !dbPath || !tmpDir || !pid) return null;
+  if (!sockPath || !ipcPath || !dbPath || !tmpDir || !homeDir || !pid) return null;
 
   return {
     sockPath,
+    ipcPath,
     dbPath,
     tmpDir,
+    homeDir,
     pid: Number.parseInt(pid, 10)
   };
 }
@@ -157,6 +163,45 @@ export function runCli(args, options = {}) {
   delete testEnv.COLORTERM;
   
   const result = spawnSync(TSX_PATH, [cliPath, ...finalArgs], {
+    encoding: 'utf-8',
+    timeout: 10000,
+    env: testEnv,
+    ...options
+  });
+
+  return {
+    stdout: stripAnsi(result.stdout || '').trim(),
+    stderr: stripAnsi(result.stderr || '').trim(),
+    status: result.status,
+    success: result.status === 0
+  };
+}
+
+/**
+ * Run CLI command through the daemon IPC path.
+ * Uses an isolated HOME so HTTP/socket fallback cannot accidentally hit the
+ * user's real daemon when IPC coverage regresses.
+ */
+export function runCliViaIpc(args, options = {}) {
+  const { ipcPath, homeDir } = getDaemonState();
+  const cliPath = join(import.meta.dirname, '../../bin/port-daddy-cli.ts');
+
+  const testEnv = {
+    ...process.env,
+    HOME: homeDir,
+    PORT_DADDY_IPC: ipcPath,
+    PORT_DADDY_URL: '',
+    PORT_DADDY_SOCK: '',
+    PORT_DADDY_SKIP_FRESHNESS_CHECK: '1',
+    PORT_DADDY_NON_INTERACTIVE: '1',
+    NO_COLOR: '1',
+    CI: '1'
+  };
+
+  delete testEnv.FORCE_COLOR;
+  delete testEnv.COLORTERM;
+
+  const result = spawnSync(TSX_PATH, [cliPath, ...args], {
     encoding: 'utf-8',
     timeout: 10000,
     env: testEnv,

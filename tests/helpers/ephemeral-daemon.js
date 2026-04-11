@@ -11,7 +11,7 @@
  */
 
 import { spawn } from 'node:child_process';
-import { mkdtempSync, existsSync, rmSync } from 'node:fs';
+import { mkdtempSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import http from 'node:http';
@@ -33,6 +33,9 @@ export async function startEphemeralDaemon(options = {}) {
   const tmpDir = mkdtempSync(join(tmpdir(), 'port-daddy-test-'));
   const dbPath = join(tmpDir, 'test.db');
   const sockPath = join(tmpDir, 'test.sock');
+  const ipcPath = join(tmpDir, 'test.ipc');
+  const homeDir = join(tmpDir, 'home');
+  mkdirSync(homeDir, { recursive: true });
 
   // Spawn daemon process (use tsx to handle .ts imports)
   const child = spawn(TSX_PATH, [SERVER_PATH], {
@@ -40,6 +43,7 @@ export async function startEphemeralDaemon(options = {}) {
       ...process.env,
       PORT_DADDY_DB: dbPath,
       PORT_DADDY_SOCK: sockPath,
+      PORT_DADDY_IPC: ipcPath,
       PORT_DADDY_NO_TCP: '1',
       PORT_DADDY_SILENT: '1',
       NODE_ENV: 'test'
@@ -91,8 +95,10 @@ export async function startEphemeralDaemon(options = {}) {
 
   return {
     sockPath,
+    ipcPath,
     dbPath,
     tmpDir,
+    homeDir,
     pid: child.pid,
     process: child,
 

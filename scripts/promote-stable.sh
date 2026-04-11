@@ -46,14 +46,18 @@ fi
 echo "${YELLOW}Running test suite...${NC}"
 cd "$DEV_DIR"
 
-TEST_OUTPUT=$(npm test -- --no-coverage 2>&1)
-PASS_COUNT=$(echo "$TEST_OUTPUT" | grep "Tests:" | tail -1 | grep -oE '[0-9]+ passed' | grep -oE '[0-9]+')
-FAIL_COUNT=$(echo "$TEST_OUTPUT" | grep "Tests:" | tail -1 | grep -oE '[0-9]+ failed' | grep -oE '[0-9]+' || echo "0")
+TEST_LOG=$(mktemp "${TMPDIR:-/tmp}/port-daddy-promote-tests.XXXXXX.log")
+trap 'rm -f "$TEST_LOG"' EXIT
+
+npm test -- --no-coverage >"$TEST_LOG" 2>&1
+
+PASS_COUNT=$(grep "Tests:" "$TEST_LOG" | tail -1 | grep -oE '[0-9]+ passed' | grep -oE '[0-9]+')
+FAIL_COUNT=$(grep "Tests:" "$TEST_LOG" | tail -1 | grep -oE '[0-9]+ failed' | grep -oE '[0-9]+' || echo "0")
 
 # Allow the 1 pre-existing up-down failure
 if [[ "$FAIL_COUNT" -gt 1 ]]; then
   echo "${RED}BLOCKED: $FAIL_COUNT test failures (max allowed: 1 pre-existing)${NC}"
-  echo "$TEST_OUTPUT" | grep "●" | head -10
+  grep "●" "$TEST_LOG" | head -10
   exit 1
 fi
 
