@@ -97,7 +97,7 @@ export const CLI_COMMANDS: CliCommand[] = [
   {
     group: 'Sessions',
     cmd: 'pd begin',
-    description: 'Start a session and register as an agent in one command. Writes agent ID and session ID to .portdaddy/current.json for use by other pd commands. The recommended way to start any coordinated work.',
+    description: 'Start a session and register as an agent in one command. Writes slot-scoped local context under .portdaddy/contexts/ and updates .portdaddy/current.json as a compatibility pointer. The recommended way to start any coordinated work.',
     flags: [
       '--identity <id>    Semantic identity for this agent (project:stack:context)',
       '--purpose <text>   What this agent is working on',
@@ -108,15 +108,15 @@ export const CLI_COMMANDS: CliCommand[] = [
   {
     group: 'Sessions',
     cmd: 'pd done',
-    description: 'End the current session and unregister agent. Reads session ID from .portdaddy/current.json. Marks session as completed.',
-    flags: ['--session <id>   Explicit session ID (skips current.json lookup)'],
+    description: 'End the current session and unregister agent. Reads session ID from the current slot-scoped local context. Marks session as completed.',
+    flags: ['--session <id>   Explicit session ID (skips local context lookup)'],
     example: 'pd done',
     output: '[pd] Session abc123 marked completed · Agent deregistered',
   },
   {
     group: 'Sessions',
     cmd: 'pd whoami',
-    description: 'Show the current agent identity and session from .portdaddy/current.json.',
+    description: 'Show the current agent identity and session from the current slot-scoped local context.',
     example: 'pd whoami',
     output: 'Agent:   myapp:api\nSession: abc123\nPurpose: Fix auth bug\nStarted: 23m ago',
   },
@@ -124,7 +124,7 @@ export const CLI_COMMANDS: CliCommand[] = [
     group: 'Sessions',
     cmd: 'pd note <text>',
     short: 'n',
-    description: 'Add a note to the current session. Notes are immutable — they are never edited or deleted. Creates an implicit session if none exists.',
+    description: 'Add a note to the current session. Notes are immutable — they are never edited or deleted. If scope is ambiguous, pass --session or --agent instead of relying on implicit targeting.',
     flags: ['--type <type>   Note type: progress | decision | milestone | warning (default: progress)'],
     example: 'pd note "Auth middleware updated — JWT shape changed" --type milestone',
     output: 'Note added to session abc123',

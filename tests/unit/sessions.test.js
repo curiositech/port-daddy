@@ -411,16 +411,11 @@ describe('Sessions Module', () => {
   });
 
   describe('quickNote', () => {
-    it('should create a session when none exists', () => {
+    it('should reject unscoped quick notes when no session exists', () => {
       const result = sessions.quickNote('Quick thought');
 
-      expect(result.success).toBe(true);
-      expect(result.noteId).toBeDefined();
-      expect(result.sessionId).toMatch(/^session-/);
-
-      // Verify session was created
-      const got = sessions.get(result.sessionId);
-      expect(got.session.purpose).toBe('Quick notes');
+      expect(result.success).toBe(false);
+      expect(result.code).toBe('NO_ACTIVE_SESSION_SCOPE');
     });
 
     it('should reuse existing active session', () => {
@@ -451,13 +446,34 @@ describe('Sessions Module', () => {
       expect(got.session.agentId).toBe('agent-3');
     });
 
-    it('should support custom type', () => {
-      const result = sessions.quickNote('Warning!', { type: 'warning' });
+    it('should support custom type on an explicitly targeted session', () => {
+      const started = sessions.start('Typed session');
+      const result = sessions.quickNote('Warning!', { sessionId: started.id, type: 'warning' });
 
       expect(result.success).toBe(true);
 
       const got = sessions.get(result.sessionId);
       expect(got.notes[0].type).toBe('warning');
+    });
+
+    it('should fail closed when multiple active sessions exist in the same worktree', () => {
+      sessions.start('Session A');
+      sessions.start('Session B');
+
+      const result = sessions.quickNote('Ambiguous note');
+
+      expect(result.success).toBe(false);
+      expect(result.code).toBe('AMBIGUOUS_ACTIVE_SESSION');
+    });
+
+    it('should respect explicit sessionId targeting', () => {
+      const sessionA = sessions.start('Session A');
+      sessions.start('Session B');
+
+      const result = sessions.quickNote('Scoped note', { sessionId: sessionA.id });
+
+      expect(result.success).toBe(true);
+      expect(result.sessionId).toBe(sessionA.id);
     });
 
     it('should reject empty content', () => {

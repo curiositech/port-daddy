@@ -92,11 +92,14 @@ import {
   handleDemo,
   // Tuples
   handleTuple,
+  // Semantic graph + episodic memory
+  handleGraph, handleMemory,
 } from '../cli/commands/index.js';
 import { getDaemonTcpUrl, readDaemonPort, resolveDaemonTcpTarget } from '../shared/daemon-discovery.js';
 import { calculateRuntimeCodeHash } from '../shared/code-hash.js';
 import { DEFAULT_SOCK as _DEFAULT_SOCK, DEFAULT_PORT_FILE as _DEFAULT_PORT_FILE } from '../shared/paths.js';
 import { shouldAutoRestartDaemonForFreshness, shouldCheckDaemonFreshness } from '../cli/utils/freshness.js';
+import { readCurrentContext } from '../cli/utils/current-context.js';
 
 const __dirname: string = dirname(fileURLToPath(import.meta.url));
 const PORT_DADDY_URL: string = getDaemonTcpUrl(process.env.PORT_DADDY_URL);
@@ -465,16 +468,8 @@ async function ciGateCheck(): Promise<void> {
  * Returns null if no active session exists.
  */
 function readCurrentSession(): { sessionId: string; agentId?: string; purpose?: string } | null {
-  try {
-    const currentPath = join(process.cwd(), '.portdaddy', 'current.json');
-    if (existsSync(currentPath)) {
-      const data = JSON.parse(readFileSync(currentPath, 'utf8'));
-      if (data && data.sessionId) return data;
-    }
-  } catch {
-    // Ignore read errors
-  }
-  return null;
+  const data = readCurrentContext();
+  return data?.sessionId ? data : null;
 }
 
 /**
@@ -519,8 +514,10 @@ function buildHelp(): string {
     `  ${G}pd agent${Z} "task"         One-shot autopilot delegation`,
     `  ${G}pd agent register${Z}        Register as an agent`,
     `  ${G}pd salvage${Z}               Pick up a dead agent's work`,
+    `  ${G}pd graph stats${Z}           Inspect semantic graph totals`,
+    `  ${G}pd memory episodes${Z}       Inspect episodic memory`,
     '',
-    `${D}pd help <topic> for details — topics: setup, sessions, locks, agents, ports, messaging, dns, orchestration, sugar, tutorial${Z}`,
+    `${D}pd help <topic> for details — topics: setup, sessions, locks, agents, ports, messaging, dns, orchestration, sugar, semantic, tutorial${Z}`,
     `${D}Dashboard: ${PORT_DADDY_URL}  •  Tutorial: pd learn${Z}`,
   );
 
@@ -785,6 +782,42 @@ Examples:
   pd whoami
   pd with-lock db-migrations npm run migrate`,
 
+  semantic: `Semantic Coordination Surfaces \u2014 Inspect graph edges and episodic memory
+
+Commands:
+  graph edges               List semantic graph edges
+    --dir <path>            Project directory filter
+    --scope <scope>         Scope filter
+    --source-type <type>    Source entity type
+    --source-id <id>        Source entity id
+    --edge-type <type>      Edge type
+    --target-type <type>    Target entity type
+    --target-id <id>        Target entity id
+    --query <text>          Text search
+    --limit <n>             Max edges to return
+
+  graph stats               Summarize graph edge counts
+    --dir <path>            Project directory filter
+
+  memory episodes           List episodic memory entries
+    --dir <path>            Project directory filter
+    --project <name>        Logical project filter
+    --harbor <name>         Harbor filter
+    --agent <id>            Agent filter
+    --type <kind>           Episode type filter
+    --query <text>          Text search
+    --limit <n>             Max episodes to return
+
+  memory stats              Summarize episodic memory counts
+    --dir <path>            Project directory filter
+    --project <name>        Logical project filter
+
+Examples:
+  pd graph edges --scope symbols:file:/abs/path.ts
+  pd graph stats --dir /Users/you/coding/port-daddy
+  pd memory episodes --project port-daddy --type handoff
+  pd memory stats --dir /Users/you/coding/port-daddy`,
+
   tutorial: `Interactive Tutorial \u2014 Learn Port Daddy step by step
 
 Commands:
@@ -822,7 +855,7 @@ const ALL_COMMANDS: string[] = [
   'services', 'dns', 'briefing', 'integration',
   'b', 'w', 'who-owns', 'history', 'tutorial', 'files',
   'spawn', 'spawned', 'watch',
-  'harbor', 'harbors', 'demo', 'fleet', 'tuple', 'sortie',
+  'harbor', 'harbors', 'demo', 'fleet', 'tuple', 'sortie', 'graph', 'memory',
 ];
 
 /** Simple Levenshtein distance for short strings */
@@ -1495,8 +1528,13 @@ async function executeDirectMode(
       }
 
       const sess = getDirectSessions();
+      const context = readCurrentContext();
       const noteOpts: Record<string, unknown> = {};
       if (options.type) noteOpts.type = options.type;
+      const sessionId = typeof options.session === 'string' ? options.session : context?.sessionId;
+      const agentId = typeof options.agent === 'string' ? options.agent : context?.agentId;
+      if (sessionId) noteOpts.sessionId = sessionId;
+      if (agentId) noteOpts.agentId = agentId;
 
       const result = sess.quickNote(content, noteOpts as Parameters<typeof sess.quickNote>[1]);
       const data = result as Record<string, unknown>;
@@ -2192,6 +2230,14 @@ async function main(): Promise<void> {
       // Tuples — Linda-style tuple space coordination
       case 'tuple':
         await handleTuple(positional, options);
+        break;
+
+      case 'graph':
+        await handleGraph(positional, options);
+        break;
+
+      case 'memory':
+        await handleMemory(positional, options);
         break;
 
       default: {

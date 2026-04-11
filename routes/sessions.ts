@@ -33,6 +33,7 @@ interface SessionsRouteDeps {
       type?: string;
     }): Record<string, unknown>;
     quickNote(content: string, options?: {
+      sessionId?: string | null;
       agentId?: string | null;
       type?: string;
     }): Record<string, unknown>;
@@ -555,7 +556,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
   // POST /notes - Quick note (auto-creates session if needed)
   fastify.post('/notes', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { content, agentId, type } = request.body as any;
+      const { content, sessionId, agentId, type } = request.body as any;
 
       if (!content || typeof content !== 'string') {
         reply.code(400);
@@ -566,11 +567,14 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         };
       }
 
-      const result = sessions.quickNote(content, { agentId, type });
+      const result = sessions.quickNote(content, { sessionId, agentId, type });
 
       if (!result.success) {
-        reply.code(400);
-        return { ...result, code: 'VALIDATION_ERROR' };
+        const code = result.code === 'SESSION_NOT_FOUND' ? 404
+          : result.code === 'SESSION_NOT_ACTIVE' || result.code === 'AMBIGUOUS_ACTIVE_SESSION' ? 409
+          : 400;
+        reply.code(code);
+        return result;
       }
 
       logger.info('quick_note_added', {

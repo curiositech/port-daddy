@@ -10,6 +10,7 @@ import { getDirectSessions } from '../utils/direct-db.js';
 import { canPrompt, promptText, promptSelect } from '../utils/prompt.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
+import { readCurrentContext } from '../utils/current-context.js';
 
 /**
  * Handle `pd session <subcommand>` commands
@@ -601,10 +602,21 @@ export async function handleNote(content: string | undefined, options: CLIOption
     process.exit(1);
   }
 
+  const current = readCurrentContext();
+  const sessionId = (typeof options.session === 'string' ? options.session : undefined) || current?.sessionId;
+
   const body: Record<string, unknown> = { content };
   if (options.type) body.type = options.type;
+  if (!sessionId) {
+    const agentId = (typeof options.agent === 'string' ? options.agent : undefined) || current?.agentId;
+    if (agentId) body.agentId = agentId;
+  }
 
-  const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/notes`, {
+  const endpoint = sessionId
+    ? `${PORT_DADDY_URL}/sessions/${encodeURIComponent(sessionId)}/notes`
+    : `${PORT_DADDY_URL}/notes`;
+
+  const res: PdFetchResponse = await pdFetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)

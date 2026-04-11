@@ -105,7 +105,7 @@ Sugar methods combine multiple coordination steps into single atomic calls. Use 
 
 ### `pd.begin(options)`
 
-Register an agent and start a session in one call. Writes context to `.portdaddy/current.json` for use by subsequent `whoami` and `done` calls.
+Register an agent and start a session in one call. Writes slot-scoped local context under `.portdaddy/contexts/<slot>.json` and updates `.portdaddy/current.json` as a compatibility pointer for the most recent local context.
 
 ```javascript
 const { agentId, sessionId } = await pd.begin({
@@ -145,16 +145,16 @@ console.log(sessionId); // e.g. "session-d4e5f6"
 
 ### `pd.done(options?)`
 
-End the current session and unregister the agent atomically. Reads from `.portdaddy/current.json` if `agentId` and `sessionId` are not provided.
+End the current session and unregister the agent atomically. Reads from the current slot-scoped local context if `agentId` and `sessionId` are not provided.
 
 ```javascript
-// Minimal — uses context from current.json
+// Minimal — uses the current slot's local context
 await pd.done();
 
 // With a closing note
 await pd.done({ note: 'Auth system complete, all tests passing' });
 
-// Explicit IDs (if not using current.json)
+// Explicit IDs (if not using local context)
 await pd.done({
   agentId: 'agent-a1b2c3',
   sessionId: 'session-d4e5f6',
@@ -167,8 +167,8 @@ await pd.done({
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `agentId` | string | no | Agent to unregister (default: from `current.json`) |
-| `sessionId` | string | no | Session to end (default: from `current.json`) |
+| `agentId` | string | no | Agent to unregister (default: from local context) |
+| `sessionId` | string | no | Session to end (default: from local context) |
 | `note` | string | no | Closing note attached to the session |
 | `status` | string | no | `'completed'` (default) or `'abandoned'` |
 
@@ -184,10 +184,10 @@ await pd.done({
 
 ### `pd.whoami(agentId?)`
 
-Return the current agent and session context without making changes. Reads from `.portdaddy/current.json` if `agentId` is not provided.
+Return the current agent and session context without making changes. Reads from the current slot-scoped local context if `agentId` is not provided.
 
 ```javascript
-// Uses current.json context
+// Uses the current slot's local context
 const ctx = await pd.whoami();
 
 // Explicit agent ID
@@ -492,6 +492,8 @@ await pd.stopOrchestration();
 const status = await pd.status();
 console.log(`Port Daddy v${status.version} is ${status.status}`);
 ```
+
+If the daemon is running fleets, the returned fleet summary can include mailbox state: agent rows may report `status: 'queued'` and a `queueDepth` when trigger bursts collapse behind a busy agent instead of spawning more runs.
 
 ---
 
@@ -844,11 +846,11 @@ function verifySignature(payload, signature, secret) {
 
 ## Spawn — AI Agent Launcher
 
-Launch AI agents (Ollama, Codex, Claude, Claude CLI, Gemini, Aider, custom subprocess) with Port Daddy coordination auto-wired. Each spawned agent automatically registers, sends heartbeats, and marks its session done on completion.
+Launch AI agents (Ollama, Codex, Claude, Claude CLI, Gemini, Cloudflare Workers AI, Aider, custom subprocess) with Port Daddy coordination auto-wired. Each spawned agent automatically registers, sends heartbeats, and marks its session done on completion.
 
 Use `spawn()` for the low-level primitive. If you want a tracked mission object with a durable id and event log, use the sortie methods below instead. Canonical operator guidance lives in `docs/DELEGATION-MODES.md`.
 
-**Backends:** `ollama` (default), `claude` (API — text in/out), `claude-cli` (full CLI with tools), `gemini`, `codex`, `aider`, `custom`
+**Backends:** `ollama` (default), `claude` (API — text in/out), `claude-cli` (full CLI with tools), `gemini`, `cloudflare`, `codex`, `aider`, `custom`
 
 ```typescript
 // Spawn a local Ollama agent
@@ -861,6 +863,16 @@ const result = await pd.spawn({
   task: 'Fix the login bug in src/auth.ts',
 });
 console.log(result.agentId, result.status);  // e.g. "ollama-abc123", "completed"
+
+// Spawn a Cloudflare Workers AI agent
+await pd.spawn({
+  backend: 'cloudflare',
+  model: '@cf/meta/llama-3.1-8b-instruct',
+  identity: 'myapp:edge',
+  budgetUsd: 0.5,
+  purpose: 'Summarize release notes',
+  task: 'Summarize the last five commits',
+});
 
 // Spawn Codex CLI with an explicit low tier
 await pd.spawn({

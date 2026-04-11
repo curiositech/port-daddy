@@ -4,7 +4,7 @@ export default function BeginCommand() {
   return (
     <CommandPage
       command="pd begin"
-      description="Start a session and register as an agent in one command. Writes agent ID and session ID to .portdaddy/current.json for use by other pd commands. The recommended way to start any coordinated work."
+      description="Start a session and register as an agent in one command. Writes slot-scoped local context under .portdaddy/contexts/ and updates .portdaddy/current.json as a compatibility pointer. The recommended way to start any coordinated work."
       version="3.8.3"
       syntax="pd begin [flags]"
       flags={[
@@ -28,17 +28,18 @@ export default function BeginCommand() {
           description: 'Start session with minimal identity',
           code: 'pd begin --identity myapp:frontend',
           output: `[pd] Session def456 started · Agent myapp:frontend registered
-[pd] Writing to .portdaddy/current.json`
+[pd] Writing local context under .portdaddy/contexts/`
         },
         {
-          description: 'The .portdaddy/current.json file created',
-          code: 'cat .portdaddy/current.json',
+          description: 'A slot-scoped local context file',
+          code: 'cat .portdaddy/contexts/<slot>.json',
           output: `{
-  "agent_id": "agent-001",
-  "session_id": "abc123",
-  "identity": "myapp:api",
+  "agentId": "agent-001",
+  "sessionId": "abc123",
   "purpose": "Fix auth bug",
-  "started_at": "2026-03-16T12:00:00Z"
+  "identity": "myapp:api",
+  "startedAt": 1775893219373,
+  "contextSlot": "tty-ttys001"
 }`
         },
         {

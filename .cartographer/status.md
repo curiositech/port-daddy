@@ -1,9 +1,9 @@
 # Cartographer Status
 
-**Last updated:** 2026-04-08
+**Last updated:** 2026-04-11
 **Updated by:** Cartographer (manual invocation)
-**HEAD:** `bff1195` (Retire duplicate spawner bug battery)
-**Previous HEAD:** `2202aca` — 2 new commits since last run
+**HEAD:** `e70d614` (Codify stable checkout operator rules)
+**Previous HEAD:** `bff1195` — 4 new commits since last run
 
 ---
 
@@ -13,29 +13,50 @@
 
 Active work ledger lives at `docs/recovery/CURRENT-WORK.md`. Keep the in-flight queue there, then reflect major closures or drift here.
 
-The last 7 commits map overwhelmingly to the Recovery Roadmap (`docs/recovery/UNIFIED-ROADMAP.md`), not the V4 phase structure. Track 1 (Cost & Observability) was closed. Tracks 2 (FleetBar) and 3 (Fleet Config UI) received active work. The V4 phases are background context; the Recovery Roadmap is the active execution authority.
+The latest committed work still maps overwhelmingly to the Recovery Roadmap (`docs/recovery/UNIFIED-ROADMAP.md`), not the V4 phase structure. Track 1 (Cost & Observability) is closed. Tracks 2 (FleetBar) and 3 (Fleet Config UI) remain active. The working tree now also contains a real Phase 1 / memory slice, so the old claim that graph work was untouched is no longer true.
 
 Active threads, ranked by commit recency:
 
-1. **Recovery docs/runtime truth sync** — uncommitted working tree. README, MCP docs, OpenAPI, the Port Daddy skill bundle, and the website’s core spawn/fleet/tutorial surfaces are being pushed onto the same local-first contract: Ollama + Codex as first-class backends, mandatory budget ceilings, explicit model tiers, and “9876 is the default, not a universal truth.” The same slice also fixed `pd fleet run <agent>` so one-shot fleet runs inherit a real budget ceiling instead of hard-failing preflight.
+1. **Semantic graph + episodic memory slice** — uncommitted working tree. The repo now has a real `graph_edges` implementation plus an `episodic_memory` store, HTTP routes for both, tests for both, and a new Memory surface in `fleet-config-ui` / FleetBar. Existing systems are being wired into it: symbol indexing writes file/symbol/dependency edges, merge-queue writes merge-entry/branch/file/status edges, sessions promote handoffs/findings/decisions/results/failures into episodes, sorties promote blocked/completed/failed mission moments into episodes, and tuple scanning now supports filtered search for the Memory view.
+   - This means the live working tree has already crossed the boundary from “Phase 1 is blocked on `graph_edges`” into “Phase 1 plumbing exists but is uncommitted and undocumented.”
+   - The immediate truth task is no longer inventing the feature; it is deciding whether this slice is the next real cut or crash residue that needs quarantine.
+   - `docs/recovery/CURRENT-WORK.md` and this status file both needed an honesty update because they were still describing the pre-graph state.
+
+2. **Recovery docs/runtime truth sync** — still active, now partly committed and partly merged with the graph/memory slice. README, MCP docs, OpenAPI, the Port Daddy skill bundle, and the website’s core spawn/fleet/tutorial surfaces were being pushed onto the same local-first contract: Ollama + Codex as first-class backends, mandatory budget ceilings, explicit model tiers, and “9876 is the default, not a universal truth.” The same slice also fixed `pd fleet run <agent>` so one-shot fleet runs inherit a real budget ceiling instead of hard-failing preflight.
    - `pd fleet validate` is live again in the CLI. It parses YAML, resolves templates, checks trigger topology, and exits without spawning agents. The remaining work there was discoverability drift: README, skill docs, and the website CLI page all needed to mention it again.
    - Port Daddy dogfooding surfaced another live drift: `port-daddy sortie run ...` from the installed shim returned `ERROR: Not Found`. Treat that as a runtime-route availability bug in the canonical daemon path until proven otherwise.
    - That red full-suite state is now repaired. Current truth on 2026-04-08: `npm test` passes all `103/103` suites and `4510/4511` tests, but the parallel run still ends with `A worker process has failed to exit gracefully`. Treat the exit code as green and the warning as remaining teardown debt, not as “all clean.”
    - Stable checkout archaeology is now explicitly recognized as operator contamination. `/Users/erichowens/port-daddy-stable` was being used as a live daemon/fleet workspace, so its `.spark`, `.spider`, logs, DB, and tracked build outputs are not authoritative. Unique Spark/Spider markdowns have been copied into the active checkout so further curation can happen in one place.
 
-2. **Recovery Track 2 / 3 — FleetBar + control plane truth** — `a41f18f`, `e82f096`, `1aeb2b1`, `809816e`, `e7eba7b`, `1ebe6e6`, `853cc57`, and now `83d1a22` pushed the runtime and UI toward one truthful control plane. The newest runtime slice added explicit file actions to the operator surfaces: the daemon now exposes `/operator/open-file`, the web control plane renders `Open in Finder` / `Open with default editor` for touched files, and FleetBar mirrors the same affordances natively instead of offering ambiguous file chips.
+3. **Recovery Track 2 / 3 — FleetBar + control plane truth** — `a41f18f`, `e82f096`, `1aeb2b1`, `809816e`, `e7eba7b`, `1ebe6e6`, `853cc57`, `83d1a22`, and the current uncommitted Memory tab wiring continue pushing the runtime and UI toward one truthful control plane. The latest UI drift is no longer only chrome/activity polish; it now includes exposing semantic memory as a first-class operator surface.
+   - The latest uncommitted operator-truth fix closes a real product lie: FleetBar and the web control plane were deriving “projects” from `/fleet`, so “no running fleets” rendered as “no projects.” The working tree now merges registered `/projects` with live `/fleet` state and broadens `/fleet/config/:project` so stopped registered projects still resolve.
 
-3. **Recovery Track 1 — CLOSED** — `8744e14` committed `lib/counters.ts`, completing the observability trifecta (cost-tracker + counters + observability routes). All `/metrics/*` endpoints are now populated with real data. Fleet budget gates actively stop spawns. Released as v3.8.3.
+4. **Spawn discipline + virtual-actor scheduling direction** — newly active in the working tree after the “190 spawns today” thread and cross-check against `docs/plans/agentsd_ai_technical_architecture.md`. The repo now has a first concrete pass on per-agent cooldown, trigger dedupe, and exponential backoff in `lib/fleet-engine.ts`, with regression coverage in `tests/unit/fleet-engine.test.js`.
+   - This is not the whole answer. The deeper architectural move is to stop letting every watcher/subscriber behave like an equal peer and instead introduce actor-like mailboxes for `project`, `fleet`, `agent`, `harbor`, `sortie`, and trigger keys. The shared medium primitives (pub/sub, tuples, trie, graph, pheromones) stay; activation policy moves into mailbox-owned scheduling.
+   - The recovery implication is clear: cooldown/dedupe/backoff are no longer isolated safety hacks. They are the first production cuts toward an actor-governed fleet runtime that can collapse repeated wakes, preserve budgets, and stop spawn storms by construction.
 
-4. **Fleet/runtime archaeology rehab** — `3ece95a` promoted long-dirty roadmap/docs changes and two substantive untracked test suites (`semantic-index`, `tunnel-lifecycle`). It also shipped a small but real runtime hygiene fix: the spawner heartbeat interval now `unref()`s so blocked-spawn tests do not hold Jest open just by hitting the concurrency ceiling.
+5. **Cloudflare AI backend adoption** — newly active in the working tree as an immediate runtime slice, with the broader infra follow-on still queued.
+   - The source now has a first Cloudflare Workers AI backend path: model tiers in `lib/fleet-engine.ts`, runtime execution in `lib/spawner.ts`, readiness in `lib/backend-readiness.ts`, and operator/backend catalog updates in `routes/fleet.ts`, `routes/spawn.ts`, `cli/commands/spawn.ts`, `mcp/server.ts`, and `docs/openapi.yaml`.
+   - This is intentionally scoped to the runtime path first. The larger Cloudflare opportunity set still needs explicit planning: AI Gateway for centralized policy/observability/caching, Vectorize + AI Search for retrieval surfaces, and remote-harbor-friendly auth/key/registry patterns that align with the TAD's delegated PKI story.
 
-5. **Residual archaeology still on disk** — now down to residue policy, not test limbo:
+6. **Current-session drift hardening** — newly active and now partly fixed in the working tree.
+   - Root cause was architectural, not incidental: CLI sugar/session commands treated `.portdaddy/current.json` as one mutable repo-global truth, so concurrent shells or agents in the same checkout could overwrite each other's current agent/session identity.
+   - The working tree now replaces that with slot-scoped local context under `.portdaddy/contexts/<slot>.json`, keeps `current.json` only as a compatibility pointer, and prevents slot readers from falling through into some other slot's latest context.
+   - The note path is also stricter now: `sessions.quickNote()` accepts explicit `sessionId`, direct-mode `pd note` forwards current slot context, and ambiguous unscoped worktree notes fail closed instead of drifting to global "most recent active".
+   - Live-path verification already passed against the canonical daemon with two concurrent slots in one checkout (`live-a`, `live-b`): `pd whoami` and `pd note` stayed bound to the correct session in each slot.
+   - The next honesty task is docs/help alignment: installed CLI behavior is now ahead of user-facing prose that still describes `current.json` as the sole authority.
+
+7. **Recovery Track 1 — CLOSED** — `8744e14` committed `lib/counters.ts`, completing the observability trifecta (cost-tracker + counters + observability routes). All `/metrics/*` endpoints are now populated with real data. Fleet budget gates actively stop spawns. Released as v3.8.3.
+
+8. **Fleet/runtime archaeology rehab** — `3ece95a` promoted long-dirty roadmap/docs changes and two substantive untracked test suites (`semantic-index`, `tunnel-lifecycle`). It also shipped a small but real runtime hygiene fix: the spawner heartbeat interval now `unref()`s so blocked-spawn tests do not hold Jest open just by hitting the concurrency ceiling.
+
+9. **Residual archaeology still on disk** — now down to residue policy, not test limbo:
    - the spider connection note pile under `.spider/connections/` is now explicitly moving into `.gitignore` rather than pretending to wait for promotion
    - the redundant `spawner-commit-0df9155-bugs` battery was retired after folding its only useful assertions into `tests/unit/spawner.test.js`
    Everything else from the previously dirty runtime/test/doc slices has now been either committed, merged into normative coverage, or explicitly quarantined.
 
 V4 Phase activity:
-- **Phase 1 (Semantic Graph):** Zero commits. 7 days since last commit (2026-03-30). **7 days to stale threshold (2026-04-13).**
+- **Phase 1 (Semantic Graph):** No new committed slice yet, but the working tree now contains real `graph_edges` + semantic-memory plumbing. The stale-clock concern has changed from “nobody started this” to “this is half-landed and needs an explicit commit-or-quarantine decision quickly.”
 - **Phase 2 (Economy):** `lib/counters.ts` committed — observability trifecta complete. Pricing function still blocked on economist.
 - **Phase 3 (Fleet & Memory):** 3A/3D active via Recovery tracks. 3B (episodic memory) and 3C (deep scan) untouched.
 - **Phase 4 (Resilience):** No new commits. Bun binary stalled since 2026-04-01 (5 days). 4B/4C complete. 4E/4F not started.
@@ -74,7 +95,7 @@ Burst-cool-burst pattern continues: 37 commits (Mar 30-31), 2 zero-commit days (
 
 **Planned vs. unplanned: 58% / 42%.** Improvement over last run (was 35%/65%). The Recovery Roadmap's existence is helping — "recovery work" is now counted as planned.
 
-**Uncommitted inventory is now small enough to name explicitly.** The main in-flight slices are: lease self-healing verification, loopback host / daemon discovery cleanup, project-scoped trigger archaeology, FleetBar/control-plane density work, the native-shell singleton/resizing/operator-ergonomics fixes, and the redundant spawner bug-battery test. Treat `docs/recovery/CURRENT-WORK.md` as the operational source of truth instead of mentally diffing `git status`.
+**Uncommitted inventory is no longer just cleanup.** The main in-flight slices are now: semantic graph + episodic-memory plumbing, lease self-healing verification, loopback host / daemon discovery cleanup, project-scoped trigger archaeology, FleetBar/control-plane density work, and native-shell/operator-ergonomics fixes. Treat `docs/recovery/CURRENT-WORK.md` as the operational source of truth instead of mentally diffing `git status`.
 
 ---
 
@@ -168,6 +189,7 @@ Burst-cool-burst pattern continues: 37 commits (Mar 30-31), 2 zero-commit days (
 - **Dogfooding exposed a fourth runtime truth surface.** `pd agent` is not just “sortie lite.” It creates a sugar session plus a single spawned-agent record and can disappear from the live agent registry immediately after completion/failure. The control plane therefore needs to distinguish configured fleet agents, ad hoc manual jobs (`pd agent` / direct `pd spawn`), and sorties instead of flattening them into one generic “agent” concept.
 - **The Fleet Control Center regression was architectural, not cosmetic.** Embedded mode was auto-selecting the first project while the native shell exposed no real project chooser, so operators could get stranded on one project with no way back to all-projects or sibling fleets. The fix belongs in native chrome plus embedded routing behavior, not just React styling.
 - **Add-project flow is now a first-class recovery item.** “Project exists on disk” and “project is real in Port Daddy” are different states. The latter needs a starter fleet, MCP/skill install guidance, and an explicit `pd fleet up`/registration moment that the UI teaches instead of hiding.
+- **Project truth is now split correctly in source, but still needs relaunch verification in the live app.** `/projects` is the durable registry, `/fleet` is live runtime state, and operator surfaces must combine them instead of conflating them. The current working tree does that in FleetBar and the React control plane; the next verification step is to relaunch the daemon/UI and confirm the live shell stops saying “no projects” when the registry is non-empty.
 - **Docs drift around `pd fleet validate` was real.** ADRs and help text had described a validate/dry-run command that the installed CLI did not actually ship. That is a product lie, not an optional enhancement.
 - **The strongest Spark/Spider suggestions have converged on operator leverage, not novelty.** The suggestions worth promotion are the ones that tighten fleet identity, event propagation, durable service offers, pre-dispatch invariant gating, dead-agent merge suspension, and spawn preflight/hot-zone awareness. Those are now roadmap material, not just creative residue.
 - **Hidden scratch dirs need a sharper rule than “ignore dot folders.”** `.spark/`, `.spider/connections/`, and now `.dogfood/` are local residue and belong in `.gitignore` by default. But tracked dotdirs like `.cartographer/` and `.claude-plugin/` are canonical repo surfaces, so a blanket `.*` ignore rule would be self-sabotage.

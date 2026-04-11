@@ -5,8 +5,6 @@
  */
 
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
-import { join } from 'node:path';
 import { highlightChannel } from '../../lib/maritime.js';
 import { pdFetch } from '../utils/fetch.js';
 import { CLIOptions, isQuiet, isJson } from '../types.js';
@@ -15,47 +13,7 @@ import { canPrompt, promptText, promptSelect, promptIdentity, promptConfirm, pri
 import { autoIdentityFromPackageJson } from './services.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
-
-// =============================================================================
-// .portdaddy/current.json — local context file
-// =============================================================================
-
-interface CurrentContext {
-  agentId: string;
-  sessionId: string;
-  purpose: string;
-  identity: string | null;
-  startedAt: number;
-}
-
-function getContextDir(): string {
-  return join(process.cwd(), '.portdaddy');
-}
-
-function getContextPath(): string {
-  return join(getContextDir(), 'current.json');
-}
-
-function writeContext(ctx: CurrentContext): void {
-  const dir = getContextDir();
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-  writeFileSync(getContextPath(), JSON.stringify(ctx, null, 2));
-}
-
-function readContext(): CurrentContext | null {
-  const path = getContextPath();
-  if (!existsSync(path)) return null;
-  try {
-    return JSON.parse(readFileSync(path, 'utf8')) as CurrentContext;
-  } catch {
-    return null;
-  }
-}
-
-function clearContext(): void {
-  const path = getContextPath();
-  try { unlinkSync(path); } catch {}
-}
+import { clearCurrentContext, readCurrentContext, writeCurrentContext } from '../utils/current-context.js';
 
 // =============================================================================
 // handleBegin — pd begin "purpose" [--identity X] [--files f1 f2...]
@@ -133,7 +91,7 @@ export async function handleBegin(
   }
 
   // Write local context file
-  writeContext({
+  writeCurrentContext({
     agentId: data.agentId as string,
     sessionId: data.sessionId as string,
     purpose,
@@ -197,7 +155,7 @@ export async function handleDone(
   }
 
   // Try to read local context first
-  const ctx = readContext();
+  const ctx = readCurrentContext();
 
   const body: Record<string, unknown> = {};
   if (ctx) {
@@ -223,7 +181,7 @@ export async function handleDone(
   }
 
   // Clear local context
-  clearContext();
+  clearCurrentContext();
 
   if (isJson(options)) {
     console.log(JSON.stringify(data, null, 2));
@@ -251,7 +209,7 @@ export async function handleDone(
 
 export async function handleWhoami(options: CLIOptions): Promise<void> {
   // Try local context first
-  const ctx = readContext();
+  const ctx = readCurrentContext();
   const agentId = (options.agent as string) || ctx?.agentId;
 
   if (!agentId) {

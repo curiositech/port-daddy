@@ -13,6 +13,7 @@ import { getWorktreeId } from './worktree.js';
 import { patternToSql } from './identity.js';
 import type { NoteEncryption } from './note-encryption.js';
 import type { SemanticIndex } from './semantic-index.js';
+import type { EpisodicMemory } from './episodic-memory.js';
 
 const MAX_NOTES_PER_SESSION = 500;
 
@@ -97,6 +98,7 @@ interface AddNoteOptions {
 }
 
 interface QuickNoteOptions {
+  sessionId?: string | null;
   agentId?: string | null;
   type?: string;
 }
@@ -141,8 +143,13 @@ interface FileConflict {
 /**
  * Initialize the sessions module with a database connection
  */
-export function createSessions(db: Database.Database, noteEncryption?: NoteEncryption, options?: { semanticIndex?: SemanticIndex }) {
+export function createSessions(
+  db: Database.Database,
+  noteEncryption?: NoteEncryption,
+  options?: { semanticIndex?: SemanticIndex; episodicMemory?: EpisodicMemory },
+) {
   const semanticIndex = options?.semanticIndex;
+  const episodicMemory = options?.episodicMemory;
   // In-memory cache: sessionId → unwrapped session key (avoids re-unwrap on every read)
   const sessionKeyCache = new Map<string, Buffer>();
   // Ensure tables exist (base schema without worktree_id for migration compatibility)
@@ -599,6 +606,31 @@ export function createSessions(db: Database.Database, noteEncryption?: NoteEncry
     return identityProject ? `${identityProject}:session:${sessionId}` : sessionId;
   }
 
+  function rememberEpisode(
+    session: SessionRow,
+    episodeType: string,
+    sourceId: string,
+    title: string,
+    summary: string,
+    metadata?: Record<string, unknown>,
+  ): void {
+    if (!episodicMemory) return;
+    const trimmedTitle = title.trim();
+    const trimmedSummary = summary.trim();
+    if (!trimmedTitle || !trimmedSummary) return;
+
+    episodicMemory.remember({
+      project: session.identity_project,
+      agentId: session.agent_id,
+      episodeType,
+      title: trimmedTitle,
+      summary: trimmedSummary,
+      sourceType: 'session',
+      sourceId,
+      metadata,
+    });
+  }
+
   // ---------------------------------------------------------------------------
   // Activity logging (optional — injected via setActivityLog)
   // ---------------------------------------------------------------------------
@@ -757,7 +789,18 @@ export function createSessions(db: Database.Database, noteEncryption?: NoteEncry
       const trimmedNote = note.trim();
       if (trimmedNote) {
         const storedNote = maybeEncrypt(sessionId, trimmedNote);
-        stmts.insertNote.run(sessionId, storedNote, 'handoff', now);
+        const noteResult = stmts.insertNote.run(sessionId, storedNote, 'handoff', now);
+        rememberEpisode(
+          session,
+          'handoff',
+          `${sessionId}:note:${Number(noteResult.lastInsertRowid)}`,
+          `${session.agent_id || 'agent'} handoff`,
+          trimmedNote,
+          {
+            sessionId,
+            noteType: 'handoff',
+          },
+        );
       }
     }
 
@@ -871,6 +914,20 @@ export function createSessions(db: Database.Database, noteEncryption?: NoteEncry
     const result = stmts.insertNote.run(sessionId, storedContent, type, now);
     const noteId = Number(result.lastInsertRowid);
 
+    if (['handoff', 'finding', 'decision', 'summary', 'result', 'failure'].includes(type)) {
+      rememberEpisode(
+        session,
+        type,
+        `${sessionId}:note:${noteId}`,
+        `${session.agent_id || 'agent'} ${type}`,
+        trimmedContent,
+        {
+          sessionId,
+          noteType: type,
+        },
+      );
+    }
+
     if (activityLog) {
       activityLog.log(ActivityType.SESSION_NOTE, {
         agentId: session.agent_id,
@@ -905,35 +962,56 @@ export function createSessions(db: Database.Database, noteEncryption?: NoteEncry
       return { success: false, error: 'content must be a non-empty string', code: 'VALIDATION_ERROR' };
     }
 
-    const { agentId = null, type = 'note' } = options;
+    const { sessionId: requestedSessionId = null, agentId = null, type = 'note' } = options;
 
     // Auto-detect current worktree for session scoping
     const currentWorktreeId = getWorktreeId();
 
-    // Find most recent active session (scoped to worktree + agent)
     let session: SessionRow | undefined;
-    if (agentId && currentWorktreeId) {
+    if (requestedSessionId) {
+      session = stmts.getById.get(requestedSessionId) as SessionRow | undefined;
+      if (!session) {
+        return { success: false, error: `session ${requestedSessionId} not found`, code: 'SESSION_NOT_FOUND' };
+      }
+      if (session.status !== 'active') {
+        return { success: false, error: `session ${requestedSessionId} is not active`, code: 'SESSION_NOT_ACTIVE' };
+      }
+    } else if (agentId && currentWorktreeId) {
       session = stmts.mostRecentActiveByAgentAndWorktree.get(agentId, currentWorktreeId) as SessionRow | undefined;
-    } else if (currentWorktreeId) {
-      session = stmts.mostRecentActiveByWorktree.get(currentWorktreeId) as SessionRow | undefined;
     } else if (agentId) {
       session = stmts.mostRecentActiveByAgent.get(agentId) as SessionRow | undefined;
-    } else {
-      session = stmts.mostRecentActive.get() as SessionRow | undefined;
+    } else if (currentWorktreeId) {
+      const sessionsInWorktree = stmts.listByStatusAndWorktree.all('active', currentWorktreeId, 2) as SessionRow[];
+      if (sessionsInWorktree.length === 1) {
+        session = sessionsInWorktree[0];
+      } else if (sessionsInWorktree.length > 1) {
+        return {
+          success: false,
+          error: 'multiple active sessions exist in this worktree; pass --session or --agent',
+          code: 'AMBIGUOUS_ACTIVE_SESSION',
+        };
+      }
     }
-
-    let sessionId: string;
 
     if (!session) {
-      // Create an anonymous session (worktreeId auto-detected in start())
+      if (!agentId) {
+        return {
+          success: false,
+          error: 'no active session found; run pd begin or pass --session/--agent',
+          code: 'NO_ACTIVE_SESSION_SCOPE',
+        };
+      }
+
       const startResult = start('Quick notes', { agentId });
       if (!startResult.success) {
-        return { success: false, error: 'failed to create session' };
+        return { success: false, error: 'failed to create session', code: 'SESSION_CREATE_FAILED' };
       }
-      sessionId = startResult.id as string;
-    } else {
-      sessionId = session.id;
+      session = stmts.getById.get(startResult.id as string) as SessionRow | undefined;
+      if (!session) {
+        return { success: false, error: 'failed to resolve created session', code: 'SESSION_NOT_FOUND' };
+      }
     }
+    const sessionId = session.id;
 
     const noteResult = addNote(sessionId, trimmedContent, { type });
     if (!noteResult.success) {

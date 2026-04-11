@@ -579,7 +579,7 @@ describe('CLI Integration Tests', () => {
       const sessionResult = runCli(['session', 'start', 'Note flag test', '--json']);
       const sessionData = JSON.parse(sessionResult.stdout);
 
-      const result = runCli(['note', '--content', 'Flag note content', '--json']);
+      const result = runCli(['note', '--content', 'Flag note content', '--session', sessionData.id, '--json']);
       expect(result.success).toBe(true);
 
       const data = JSON.parse(result.stdout);
@@ -593,7 +593,7 @@ describe('CLI Integration Tests', () => {
       const sessionResult = runCli(['session', 'start', 'Short note test', '--json']);
       const sessionData = JSON.parse(sessionResult.stdout);
 
-      const result = runCli(['note', '-c', 'Short flag content', '--json']);
+      const result = runCli(['note', '-c', 'Short flag content', '--session', sessionData.id, '--json']);
       expect(result.success).toBe(true);
 
       const data = JSON.parse(result.stdout);
