@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { request, runCli, getDaemonState } from '../helpers/integration-setup.js';
+import { writeCurrentContext } from '../../cli/utils/current-context.js';
 
 async function requestWithRetry(path, options = {}, attempts = 3) {
   let lastError;
@@ -847,6 +848,28 @@ describe('CLI Integration Tests', () => {
       expect(data.success).toBe(true);
 
       runCli(['session', 'rm', sessionData.id]);
+    });
+
+    test('pd note falls back to active agent when stored session context is stale', () => {
+      const beginResult = runCli(['begin', 'Stale note fallback', '--json']);
+      expect(beginResult.success).toBe(true);
+      const beginData = JSON.parse(beginResult.stdout);
+
+      writeCurrentContext({
+        agentId: beginData.agentId,
+        sessionId: 'session-stale-context',
+        purpose: 'Stale note fallback',
+        contextSlot: `ppid-${process.pid}`,
+      }, repoRoot);
+
+      const result = runCli(['note', '--content', 'Recovered from stale context', '--json']);
+      expect(result.success).toBe(true);
+
+      const data = JSON.parse(result.stdout);
+      expect(data.success).toBe(true);
+      expect(data.sessionId).toBe(beginData.sessionId);
+
+      runCli(['done', '--agent', beginData.agentId]);
     });
 
     test('positional args still work (backward compat)', () => {
