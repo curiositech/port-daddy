@@ -9,7 +9,7 @@
 import { join } from 'node:path';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { request, runCli, getDaemonState } from '../helpers/integration-setup.js';
+import { request, runCli, runCliViaIpc, getDaemonState } from '../helpers/integration-setup.js';
 import { writeCurrentContext } from '../../cli/utils/current-context.js';
 
 async function requestWithRetry(path, options = {}, attempts = 3) {
@@ -91,9 +91,12 @@ describe('CLI Integration Tests', () => {
 
   describe('Lock Commands', () => {
     const testLock = `test-lock-${Date.now()}`;
+    const ipcFilepathLock = `/tmp/test-lock-ipc-${Date.now()}.ts`;
 
     afterAll(() => {
       runCli(['unlock', testLock, '--force']);
+      runCliViaIpc(['unlock', ipcFilepathLock, '--owner', 'ipc-owner-a', '--force']);
+      runCliViaIpc(['unlock', ipcFilepathLock, '--owner', 'ipc-owner-b', '--force']);
     });
 
     test('lock acquires successfully', () => {
@@ -146,6 +149,27 @@ describe('CLI Integration Tests', () => {
       } finally {
         rmSync(tempDir, { recursive: true, force: true });
       }
+    });
+
+    test('IPC lock keeps filepath locks held across command invocations', () => {
+      const first = runCliViaIpc(['lock', ipcFilepathLock, '--owner', 'ipc-owner-a', '--json']);
+      expect(first.success).toBe(true);
+      expect(JSON.parse(first.stdout)).toMatchObject({
+        success: true,
+        name: ipcFilepathLock,
+        owner: 'ipc-owner-a'
+      });
+
+      const second = runCliViaIpc(['lock', ipcFilepathLock, '--owner', 'ipc-owner-b', '--json']);
+      expect(second.success).toBe(false);
+      expect(second.stderr).toContain('held by ipc-owner-a');
+
+      const unlock = runCliViaIpc(['unlock', ipcFilepathLock, '--owner', 'ipc-owner-a', '--json']);
+      expect(unlock.success).toBe(true);
+      expect(JSON.parse(unlock.stdout)).toMatchObject({
+        success: true,
+        released: true
+      });
     });
   });
 

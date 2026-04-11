@@ -744,21 +744,10 @@ const ipcServer = DISABLE_IPC ? null : createIpcServer({
       framesIn: conn.framesIn, bytesIn: conn.bytesIn,
       subscriptions: conn.subscriptions.length, framesDropped: conn.framesDropped,
     });
-    // Eagerly release locks held by the disconnected agent
-    // (faster than waiting for heartbeat timeout + TTL expiry)
-    if (conn.agentId) {
-      try {
-        const held = locks.list({ owner: conn.agentId });
-        for (const lock of held.locks || []) {
-          locks.release(lock.name, { owner: conn.agentId, force: false });
-        }
-        if (held.locks?.length) {
-          logger.info('ipc_lock_release', { agentId: conn.agentId, released: held.locks.length });
-        }
-      } catch (err) {
-        logger.error('ipc_lock_release_failed', { agentId: conn.agentId, error: (err as Error).message });
-      }
-    }
+    // Do not couple lock lifetime to IPC socket lifetime.
+    // The SDK uses short-lived IPC request/response clients for lock operations,
+    // so disconnect-time release would silently drop freshly acquired locks.
+    // TTL expiry and stale-agent cleanup remain the recovery path.
   },
   onError: (err, conn) => {
     logger.error('ipc_error', { error: err.message, connId: conn?.id, agentId: conn?.agentId });
