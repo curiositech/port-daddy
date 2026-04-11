@@ -126,7 +126,6 @@ export const CORE_SCHEMA_SQL = `
     released_at INTEGER
   );
   CREATE INDEX IF NOT EXISTS idx_session_files_path ON session_files(file_path);
-  CREATE INDEX IF NOT EXISTS idx_session_files_symbol_path ON session_files(file_path, symbol_path);
 
   CREATE TABLE IF NOT EXISTS session_notes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -207,6 +206,22 @@ export function initDatabase(options: InitDbOptions = {}): Database.Database {
 
   // Create core tables
   db.exec(CORE_SCHEMA_SQL);
+
+  // Migrate legacy session_files tables before adding symbol_path indexes.
+  // Older local databases may already have session_files without the new column,
+  // and creating the index too early aborts daemon startup.
+  try {
+    const sessionFileColumns = db.prepare("PRAGMA table_info(session_files)").all() as Array<{ name: string }>;
+    const hasSymbolPath = sessionFileColumns.some(column => column.name === 'symbol_path');
+    if (!hasSymbolPath) {
+      db.prepare('ALTER TABLE session_files ADD COLUMN symbol_path TEXT').run();
+    }
+    db.prepare('CREATE INDEX IF NOT EXISTS idx_session_files_symbol_path ON session_files(file_path, symbol_path)').run();
+  } catch (err) {
+    console.warn(
+      `[port-daddy] WARNING: Could not migrate session_files symbol_path column: ${(err as Error).message}`
+    );
+  }
 
   return db;
 }

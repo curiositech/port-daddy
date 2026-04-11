@@ -607,12 +607,39 @@ export async function handleNote(content: string | undefined, options: CLIOption
   }
 
   const current = readCurrentContext();
-  const sessionId = (typeof options.session === 'string' ? options.session : undefined) || current?.sessionId;
+  const explicitSessionId = typeof options.session === 'string' ? options.session : undefined;
+  const explicitAgentId = typeof options.agent === 'string' ? options.agent : undefined;
+  const pd = createSessionClient(options);
+
+  let sessionId = explicitSessionId;
+  let agentId = explicitAgentId;
+
+  if (!sessionId && !explicitAgentId && current?.sessionId) {
+    try {
+      const details = await pd.sessionDetails(current.sessionId);
+      if (details?.success) {
+        sessionId = current.sessionId;
+        agentId = current.agentId || undefined;
+      }
+    } catch {
+      // Ignore stale local context and fail closed below if no explicit scope exists.
+    }
+  }
+
+  if (!sessionId && !agentId && current?.agentId) {
+    try {
+      const whoami = await pd.whoami(current.agentId);
+      if (whoami?.active) {
+        agentId = current.agentId;
+      }
+    } catch {
+      // Ignore stale local context and fall through to the server-side closed-fail path.
+    }
+  }
 
   const body: Record<string, unknown> = { content };
   if (options.type) body.type = options.type;
   if (!sessionId) {
-    const agentId = (typeof options.agent === 'string' ? options.agent : undefined) || current?.agentId;
     if (agentId) body.agentId = agentId;
   }
 
@@ -620,9 +647,6 @@ export async function handleNote(content: string | undefined, options: CLIOption
     ? `${PORT_DADDY_URL}/sessions/${encodeURIComponent(sessionId)}/notes`
     : `${PORT_DADDY_URL}/notes`;
 
-  const pd = new PortDaddy({
-    agentId: typeof body.agentId === 'string' ? body.agentId : current?.agentId,
-  });
   const data = await pd.note(content, {
     type: typeof body.type === 'string' ? body.type : undefined,
     agentId: typeof body.agentId === 'string' ? body.agentId : undefined,

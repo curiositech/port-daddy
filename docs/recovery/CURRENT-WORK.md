@@ -12,8 +12,20 @@ The live recovery thread has split into two coupled slices:
 1. Keep the operator loop truthful so one daemon, one fleet runtime, one control plane, and one native companion all tell the same story.
 2. Capture the newer uncommitted semantic-memory slice honestly instead of pretending Phase 1 / memory work is still dormant.
 
-Latest committed slice: `3940093` — Harden session client flows and coverage.
-Current uncommitted slice: semantic graph + episodic memory plumbing wired into the control plane:
+Latest committed slice: `df4c351` — Track session region claims by symbol path.
+Current uncommitted slice: direct-mode and implicit note scoping hardening after live stale-context drift:
+- `bin/port-daddy-cli.ts` now validates repo-local current context against the direct DB before `pd note --direct` reuses an implicit session/agent scope
+- `cli/commands/sessions.ts` now validates repo-local current context against the active backend before implicit `pd note` scoping, so stale local context falls back to the normal closed-fail path instead of surfacing `session ... not found`
+- `lib/db.ts` now matches the committed `session_files.symbol_path` schema so fresh direct-DB initialization stays in sync with the committed session-claim model
+- validation truth on 2026-04-11:
+  - `tests/integration/direct-mode.test.js` is green again
+  - full `npm test` is green at `113/113` suites and `4601/4602` passing tests with `1` intentional skip, but the older parallel Jest worker-force-exit warning still remains
+
+Newest committed semantic-claim slice now on `HEAD`:
+- `lib/sessions.ts` / `routes/sessions.ts` / `tests/unit/region-claims.test.js` now carry canonical `symbolPath` claim identity with line-range fallback
+- current `HEAD` also includes `30737e0` (`Enforce public repo boundary for local residue`), so recovery docs that still describe symbol-backed claim authority as future work are now wrong
+
+Still-active larger uncommitted slice: semantic graph + episodic memory plumbing wired into the control plane:
 - new durable graph surface: `lib/graph-edges.ts`, `routes/graph.ts`, `tests/unit/graph-edges.test.js`
 - new episodic memory surface: `lib/episodic-memory.ts`, `routes/memory.ts`, `tests/unit/episodic-memory.test.js`
 - new operator UI surface: `fleet-config-ui/src/components/MemoryPanel.tsx` plus FleetBar route/tab wiring
@@ -55,8 +67,8 @@ Current uncommitted slice: semantic graph + episodic memory plumbing wired into 
 
 Sequencing note for the active recovery thread:
 - finish the remaining locks / tuples coordination tranche first
-- then polish the graph + memory + control-plane slice by upgrading session/file claims from line-range authority to Tree-sitter symbol-backed authority
-- keep line spans as fallback/display data, but stop treating `startLine` / `endLine` plus optional `symbol` text as the durable semantic identity
+- the symbol-backed session/file-claim authority upgrade is now committed on `HEAD` at `df4c351`
+- next polish after locks / tuples is to feed that committed symbol-backed truth consistently into graph edges, episodic memory, merge/conflict prediction, and the control plane instead of leaving any line-range-only holdouts
 
 ## New Product-Direction Intake (2026-04-10)
 
@@ -127,6 +139,7 @@ The current-session drift investigation now has a concrete working-tree fix:
    - root cause found: one mutable repo-global `.portdaddy/current.json` let concurrent shells/agents stomp each other
    - hardening landed in the working tree: slot-scoped context files plus fail-closed quick-note/session targeting
    - live verification passed against the canonical daemon: slot `live-a` and slot `live-b` kept distinct `pd whoami` and `pd note` targeting inside the same checkout
+   - newest follow-up in the working tree: both direct-mode `pd note` and implicit backend-scoped `pd note` now validate repo-local current context before reusing it, so stale context degrades to the intended closed-fail path instead of surfacing `session ... not found`
    - remaining truth task: update user-facing docs/website/help text that still oversimplify `.portdaddy/current.json` as the only context surface
 4. Finish daemon discovery drift cleanup so `9876` is treated as the canonical preferred port, not a mandatory truth. The daemon can already fall back; the surrounding install/CLI/UI surfaces must stop pretending otherwise.
 5. Finish the fleet lease recoverability pass so a project does not remain skipped forever when renewal sees `lock not held` and no other daemon owns the lease.
