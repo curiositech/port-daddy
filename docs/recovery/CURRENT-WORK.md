@@ -12,7 +12,7 @@ The live recovery thread has split into two coupled slices:
 1. Keep the operator loop truthful so one daemon, one fleet runtime, one control plane, and one native companion all tell the same story.
 2. Capture the newer uncommitted semantic-memory slice honestly instead of pretending Phase 1 / memory work is still dormant.
 
-Latest committed slice: `50fe92f` — Harden session context and explicit note scoping.
+Latest committed slice: `3940093` — Harden session client flows and coverage.
 Current uncommitted slice: semantic graph + episodic memory plumbing wired into the control plane:
 - new durable graph surface: `lib/graph-edges.ts`, `routes/graph.ts`, `tests/unit/graph-edges.test.js`
 - new episodic memory surface: `lib/episodic-memory.ts`, `routes/memory.ts`, `tests/unit/episodic-memory.test.js`
@@ -39,6 +39,19 @@ Current uncommitted slice: semantic graph + episodic memory plumbing wired into 
     - targeted router/client/CLI tests are green
     - `tests/integration/cli.test.js` is green
     - `npm test` passes `109/109` suites and `4529/4530` tests, but the old parallel Jest worker-force-exit warning still appears, so teardown debt is reduced but not fully closed
+- newest committed operator-transport slice after that:
+  - session SDK flows now cover `startSession`, explicit `endSession`, `sessions()`, and `removeSession()` through canonical-local IPC fast paths, while still falling back cleanly for explicit TCP / alternate-socket targets
+  - CLI `pd session start/end/files/rm/sessions` now delegates to the SDK instead of hand-rolling raw HTTP around mismatched response contracts
+  - operator-visible session parity bugs are fixed in the working tree:
+    - conflict rendering uses `filePath` instead of the stale `file` key
+    - `session done` reads `releasedFiles`
+    - `session files rm` reads `released`
+  - `pd with-lock` now routes through the SDK lock helpers instead of duplicating raw lock acquire/release fetch logic
+  - validation truth on 2026-04-11:
+    - targeted `client` / `ipc-router` / CLI tests are green
+    - `npm test -- --detectOpenHandles --runInBand tests/unit/client.test.js tests/unit/ipc-router.test.js tests/integration/cli.test.js tests/unit/sugar.test.js tests/unit/sessions.test.js` is green with no open-handle report (`5/5` suites, `377` tests)
+    - broad `npm test` is green at `111/111` suites and `4592/4593` tests, but the old parallel Jest worker-force-exit warning still appears, so that residual teardown debt is broader than this slice
+  - discovered but not fixed in this slice: bare `--` is still not treated as end-of-options by `bin/port-daddy-cli.ts` even though the tutorial teaches `pd with-lock ... -- ...`; that parser file is currently claimed by another active session, so this follow-up is blocked on coordination rather than forgotten
 
 Sequencing note for the active recovery thread:
 - finish the remaining locks / tuples coordination tranche first

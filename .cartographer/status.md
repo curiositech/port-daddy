@@ -2,8 +2,8 @@
 
 **Last updated:** 2026-04-11
 **Updated by:** Cartographer (manual invocation)
-**HEAD:** `50fe92f` (Harden session context and explicit note scoping)
-**Previous HEAD:** `e70d614` — 1 new commit since last run
+**HEAD:** `3940093` (Harden session client flows and coverage)
+**Previous HEAD:** `50fe92f` — 1 new commit since last run
 
 ---
 
@@ -28,8 +28,11 @@ Active threads, ranked by commit recency:
    - Port Daddy dogfooding surfaced another live drift: `port-daddy sortie run ...` from the installed shim returned `ERROR: Not Found`. Treat that as a runtime-route availability bug in the canonical daemon path until proven otherwise.
    - The session-context hardening cut is now committed at `50fe92f`: slot-scoped `.portdaddy/contexts/<slot>.json`, compatibility-only `current.json`, and fail-closed explicit note/session targeting.
    - The lingering Jest teardown debt is also now repaired in the working tree: IPC client timeout/reconnect timers and the SDK heartbeat are `unref()`ed, webhook retries are owned/disposable, and the serialized handle hunt is clean on 2026-04-11 (`npm test -- --runInBand --detectOpenHandles` => `109/109` suites, `4523/4524` tests, `1` intentional skip, no open-handle warning).
-   - The next working-tree runtime cut now pushes IPC into the real operator loop instead of leaving it as a niche agent path: router support for `sugar.whoami` + `fleet.prompt`, SDK ephemeral IPC request fast paths for `done`/`whoami`/`note`/file claims, and CLI delegation to those SDK paths. The important constraint is now explicit in code: IPC is only allowed when talking to the canonical local daemon. Explicit TCP URLs or alternate socket targets must stay on their declared transport.
-   - Broad test truth after that IPC tranche: targeted router/client/CLI tests and `tests/integration/cli.test.js` are green, and `npm test` passes `109/109` suites + `4529/4530` tests. But the parallel suite still prints `A worker process has failed to exit gracefully`, so there is still unresolved worker-teardown debt even though `--runInBand --detectOpenHandles` is clean.
+   - The next runtime cut after the session-context hardening pushed IPC into the real operator loop instead of leaving it as a niche agent path: router support for `sugar.whoami` + `fleet.prompt`, SDK ephemeral IPC request fast paths for `done`/`whoami`/`note`/file claims, and CLI delegation to those SDK paths. The important constraint is now explicit in code: IPC is only allowed when talking to the canonical local daemon. Explicit TCP URLs or alternate socket targets must stay on their declared transport.
+   - The latest committed operator transport cut at `3940093` extends that same rule into sessions and `with-lock`: SDK fast paths now cover `startSession` / explicit `endSession` / `sessions()` / `removeSession()`, CLI `pd session ...` consumes the real response keys (`filePath`, `releasedFiles`, `released`) instead of stale ghosts, and `pd with-lock` now uses SDK lock helpers instead of duplicating raw fetches.
+   - Focused validation on that session/with-lock slice is clean: targeted router/client/CLI tests are green, `tests/integration/cli.test.js` is green, and `--detectOpenHandles --runInBand` across `client` / `ipc-router` / `cli` / `sugar` / `sessions` is green (`5/5` suites, `377` tests) with no open-handle report.
+   - Broad test truth after that IPC tranche is now `111/111` suites + `4592/4593` tests on `npm test`. The parallel suite still prints `A worker process has failed to exit gracefully`, so unresolved worker-teardown debt remains, but the current session/SDK/CLI slice does not appear to be the source.
+   - A new follow-up bug was also surfaced honestly instead of papered over: bare `--` is still not treated as end-of-options in `bin/port-daddy-cli.ts` even though tutorial/help text teaches `pd with-lock ... -- ...`. That parser file was already claimed by another active session, so this follow-up is blocked on coordination, not forgotten.
    - Stable checkout archaeology is now explicitly recognized as operator contamination. `/Users/erichowens/port-daddy-stable` was being used as a live daemon/fleet workspace, so its `.spark`, `.spider`, logs, DB, and tracked build outputs are not authoritative. Unique Spark/Spider markdowns have been copied into the active checkout so further curation can happen in one place.
 
 3. **Recovery Track 2 / 3 — FleetBar + control plane truth** — `a41f18f`, `e82f096`, `1aeb2b1`, `809816e`, `e7eba7b`, `1ebe6e6`, `853cc57`, `83d1a22`, and the current uncommitted Memory tab wiring continue pushing the runtime and UI toward one truthful control plane. The latest UI drift is no longer only chrome/activity polish; it now includes exposing semantic memory as a first-class operator surface.
