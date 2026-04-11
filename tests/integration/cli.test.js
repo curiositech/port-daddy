@@ -126,6 +126,26 @@ describe('CLI Integration Tests', () => {
       // Cleanup
       runCli(['unlock', testLock]);
     });
+
+    test('with-lock runs command and releases lock afterward', () => {
+      const nestedLock = `${testLock}-with-lock`;
+      const tempDir = mkdtempSync(join(tmpdir(), 'pd-with-lock-'));
+      const scriptPath = join(tempDir, 'inside-lock.js');
+      writeFileSync(scriptPath, 'process.stdout.write("inside-lock")');
+
+      try {
+        const result = runCli(['with-lock', nestedLock, 'node', scriptPath]);
+        expect(result.success).toBe(true);
+        expect(result.stdout).toContain('inside-lock');
+
+        const reacquire = runCli(['lock', nestedLock]);
+        expect(reacquire.success).toBe(true);
+
+        runCli(['unlock', nestedLock]);
+      } finally {
+        rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
   });
 
   describe('Pub/Sub Commands', () => {
@@ -465,6 +485,41 @@ describe('CLI Integration Tests', () => {
       expect(quietResult.success).toBe(true);
       expect(quietResult.stdout).toMatch(/^session-[a-f0-9-]+$/);
       expect(quietResult.stdout).not.toBe('undefined');
+    });
+
+    test('session start conflict output shows filePath from service contract', () => {
+      const filePath = `src/conflict-${Date.now()}.ts`;
+      const firstId = runCli(['session', 'start', 'Conflict holder', '--files', filePath, '-q']).stdout.trim();
+
+      const result = runCli(['session', 'start', 'Conflict challenger', '--files', filePath]);
+      expect(result.success).toBe(false);
+      expect(result.stderr).toContain(filePath);
+      expect(result.stderr).not.toContain('<unknown>');
+      expect(result.stderr).not.toContain('undefined');
+
+      runCli(['session', 'rm', firstId]);
+    });
+
+    test('session done reports releasedFiles count from actual response shape', () => {
+      const filePath = `src/released-${Date.now()}.ts`;
+      const sessionId = runCli(['session', 'start', 'Release count test', '--files', filePath, '-q']).stdout.trim();
+
+      const result = runCli(['session', 'done', 'wrapped up']);
+      expect(result.success).toBe(true);
+      expect(result.stdout).toContain('Files released: 1');
+
+      runCli(['session', 'rm', sessionId]);
+    });
+
+    test('session files rm reports released count from actual response shape', () => {
+      const filePath = `src/files-rm-${Date.now()}.ts`;
+      const sessionId = runCli(['session', 'start', 'Files rm count test', '--files', filePath, '-q']).stdout.trim();
+
+      const result = runCli(['session', 'files', 'rm', filePath]);
+      expect(result.success).toBe(true);
+      expect(result.stdout).toContain(`Released 1 file(s) from session ${sessionId}`);
+
+      runCli(['session', 'rm', sessionId]);
     });
 
     // Bug #3: Sessions list was showing "undefinedundefinedNaNd"

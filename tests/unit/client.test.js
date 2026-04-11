@@ -280,6 +280,89 @@ describe('Messaging', () => {
 });
 
 // =============================================================================
+// Sessions
+// =============================================================================
+
+describe('Sessions', () => {
+  let pd;
+  beforeEach(() => {
+    pd = createClient({ agentId: 'session-agent', pid: 1234 });
+  });
+
+  test('startSession sends correct request', async () => {
+    queueResponse({ success: true, id: 'session-123', purpose: 'Ship it', status: 'active', createdAt: 1, updatedAt: 1 });
+
+    const result = await pd.startSession({
+      purpose: 'Ship it',
+      files: ['src/auth.ts'],
+      force: true,
+    });
+
+    expect(receivedRequests[0].url).toBe('/sessions');
+    expect(receivedRequests[0].method).toBe('POST');
+    expect(receivedRequests[0].body).toEqual({
+      purpose: 'Ship it',
+      files: ['src/auth.ts'],
+      force: true,
+    });
+    expect(result.id).toBe('session-123');
+  });
+
+  test('endSession resolves active session before ending', async () => {
+    queueResponse({
+      success: true,
+      sessions: [{ id: 'session-123', purpose: 'Ship it', status: 'active', agentId: 'session-agent', createdAt: 1, updatedAt: 1, completedAt: null, metadata: null }],
+      count: 1,
+    });
+    queueResponse({ success: true, id: 'session-123', purpose: 'Ship it', status: 'completed', createdAt: 1, updatedAt: 2, releasedFiles: ['src/auth.ts'] });
+
+    const result = await pd.endSession('wrapped up', { status: 'completed' });
+
+    expect(receivedRequests).toHaveLength(2);
+    expect(receivedRequests[0].url).toBe('/sessions?status=active&limit=1');
+    expect(receivedRequests[1].url).toBe('/sessions/session-123');
+    expect(receivedRequests[1].method).toBe('PUT');
+    expect(receivedRequests[1].body).toEqual({ status: 'completed', note: 'wrapped up' });
+    expect(result.releasedFiles).toEqual(['src/auth.ts']);
+  });
+
+  test('removeSession sends DELETE', async () => {
+    queueResponse({ success: true, message: 'removed' });
+
+    const result = await pd.removeSession('session-123');
+
+    expect(receivedRequests[0].method).toBe('DELETE');
+    expect(receivedRequests[0].url).toBe('/sessions/session-123');
+    expect(result.success).toBe(true);
+  });
+
+  test('sessions encodes filters', async () => {
+    queueResponse({ success: true, sessions: [], count: 0, worktreeId: 'wt-1' });
+
+    await pd.sessions({
+      status: 'active',
+      agentId: 'session-agent',
+      project: 'port-daddy',
+      purpose: 'ship',
+      worktreeId: 'wt-1',
+      allWorktrees: true,
+      includeNotes: true,
+      limit: 5,
+    });
+
+    expect(receivedRequests[0].url).toContain('/sessions?');
+    expect(receivedRequests[0].url).toContain('status=active');
+    expect(receivedRequests[0].url).toContain('agent=session-agent');
+    expect(receivedRequests[0].url).toContain('project=port-daddy');
+    expect(receivedRequests[0].url).toContain('purpose=ship');
+    expect(receivedRequests[0].url).toContain('worktree=wt-1');
+    expect(receivedRequests[0].url).toContain('allWorktrees=true');
+    expect(receivedRequests[0].url).toContain('notes=true');
+    expect(receivedRequests[0].url).toContain('limit=5');
+  });
+});
+
+// =============================================================================
 // Locks
 // =============================================================================
 
@@ -605,6 +688,118 @@ describe('IPC fast paths', () => {
     );
     expect(receivedRequests).toHaveLength(0);
     expect(result.sessionId).toBe('sess-123');
+  });
+
+  test('startSession prefers IPC before HTTP', async () => {
+    pd._requestViaIpc = jest.fn().mockResolvedValue({
+      success: true,
+      id: 'session-123',
+      purpose: 'Ship it',
+      status: 'active',
+      createdAt: 1,
+      updatedAt: 1,
+    });
+
+    const result = await pd.startSession({ purpose: 'Ship it', files: ['src/auth.ts'], force: true });
+
+    expect(pd._requestViaIpc).toHaveBeenCalledWith(
+      'session.start',
+      {
+        purpose: 'Ship it',
+        files: ['src/auth.ts'],
+        force: true,
+      },
+    );
+    expect(receivedRequests).toHaveLength(0);
+    expect(result.id).toBe('session-123');
+  });
+
+  test('startSession IPC file conflict preserves HTTP semantics', async () => {
+    pd._requestViaIpc = jest.fn().mockResolvedValue({
+      success: false,
+      error: 'File conflicts detected',
+      code: 'FILE_CONFLICT',
+      conflicts: [{ filePath: 'src/auth.ts', sessionId: 'session-999', purpose: 'other', claimedAt: 1 }],
+    });
+
+    await expect(pd.startSession({ purpose: 'Ship it', files: ['src/auth.ts'] })).rejects.toMatchObject({
+      name: 'PortDaddyError',
+      status: 409,
+    });
+  });
+
+  test('endSession prefers IPC before HTTP when sessionId is explicit', async () => {
+    pd._requestViaIpc = jest.fn().mockResolvedValue({
+      success: true,
+      id: 'session-123',
+      purpose: 'Ship it',
+      status: 'completed',
+      createdAt: 1,
+      updatedAt: 2,
+      releasedFiles: ['src/auth.ts'],
+    });
+
+    const result = await pd.endSession('session-123', { status: 'completed', note: 'wrapped up' });
+
+    expect(pd._requestViaIpc).toHaveBeenCalledWith(
+      'session.end',
+      {
+        sessionId: 'session-123',
+        status: 'completed',
+        note: 'wrapped up',
+      },
+    );
+    expect(receivedRequests).toHaveLength(0);
+    expect(result.releasedFiles).toEqual(['src/auth.ts']);
+  });
+
+  test('sessions prefers IPC query before HTTP', async () => {
+    pd._requestViaIpc = jest.fn().mockResolvedValue({
+      success: true,
+      sessions: [],
+      count: 0,
+      worktreeId: 'wt-1',
+    });
+
+    const result = await pd.sessions({
+      status: 'active',
+      project: 'port-daddy',
+      allWorktrees: true,
+      limit: 5,
+    });
+
+    expect(pd._requestViaIpc).toHaveBeenCalledWith(
+      'session.list',
+      {
+        status: 'active',
+        agentId: undefined,
+        project: 'port-daddy',
+        purpose: undefined,
+        worktreeId: undefined,
+        allWorktrees: true,
+        includeNotes: undefined,
+        limit: 5,
+      },
+      { performative: expect.any(Number) },
+    );
+    expect(receivedRequests).toHaveLength(0);
+    expect(result.worktreeId).toBe('wt-1');
+  });
+
+  test('removeSession prefers IPC before HTTP', async () => {
+    pd._requestViaIpc = jest.fn().mockResolvedValue({
+      success: true,
+      message: 'Session removed',
+    });
+
+    const result = await pd.removeSession('session-123');
+
+    expect(pd._requestViaIpc).toHaveBeenCalledWith(
+      'session.remove',
+      { sessionId: 'session-123' },
+    );
+    expect(receivedRequests).toHaveLength(0);
+    expect(result.success).toBe(true);
   });
 
   test('claimFiles prefers IPC before HTTP', async () => {

@@ -137,7 +137,7 @@ async function sessionStart(rest: string[], options: CLIOptions): Promise<void> 
     process.exit(1);
   }
 
-  const sessionId = data.id;
+  const sessionId = data.id as string;
   if (isJson(options)) {
     console.log(JSON.stringify(data, null, 2));
   } else if (isQuiet(options)) {
@@ -186,7 +186,15 @@ async function sessionRemove(rest: string[], options: CLIOptions): Promise<void>
   }
 
   const pd = createSessionClient(options);
-  const data = await pd.removeSession(sessionId) as Record<string, unknown>;
+  let data: Record<string, unknown>;
+  try {
+    data = await pd.removeSession(sessionId) as Record<string, unknown>;
+  } catch (error) {
+    const body = error && typeof error === 'object' && 'body' in error ? (error as { body?: Record<string, unknown> }).body : null;
+    data = body && typeof body === 'object' ? body : {};
+    ui.error((data.error as string) || (error as Error).message || 'Failed to delete session');
+    process.exit(1);
+  }
 
   if (!data.success) {
     ui.error((data.error as string) || 'Failed to delete session');
@@ -214,7 +222,15 @@ async function sessionFiles(rest: string[], options: CLIOptions): Promise<void> 
   }
 
   const pd = createSessionClient(options);
-  const listData = await pd.sessions({ status: 'active', limit: 1 }) as Record<string, unknown>;
+  let listData: Record<string, unknown>;
+  try {
+    listData = await pd.sessions({ status: 'active', limit: 1 }) as Record<string, unknown>;
+  } catch (error) {
+    const body = error && typeof error === 'object' && 'body' in error ? (error as { body?: Record<string, unknown> }).body : null;
+    listData = body && typeof body === 'object' ? body : {};
+    ui.error((listData.error as string) || (error as Error).message || 'Failed to list sessions');
+    process.exit(1);
+  }
 
   if (!listData.success || (listData.count as number) === 0) {
     ui.error('No active session found');
@@ -250,7 +266,15 @@ async function sessionFiles(rest: string[], options: CLIOptions): Promise<void> 
       console.log(`Claimed ${paths.length} file(s) in session ${sessionId}`);
     }
   } else {
-    const data = await pd.releaseFiles(sessionId, paths) as Record<string, unknown>;
+    let data: Record<string, unknown>;
+    try {
+      data = await pd.releaseFiles(sessionId, paths) as Record<string, unknown>;
+    } catch (error) {
+      const body = error && typeof error === 'object' && 'body' in error ? (error as { body?: Record<string, unknown> }).body : null;
+      data = body && typeof body === 'object' ? body : {};
+      ui.error((data.error as string) || (error as Error).message || 'Failed to release files');
+      process.exit(1);
+    }
 
     if (!data.success) {
       ui.error((data.error as string) || 'Failed to release files');
@@ -483,13 +507,21 @@ function handleSessionDirect(subcommand: string, rest: string[], options: CLIOpt
  */
 export async function handleSessions(options: CLIOptions): Promise<void> {
   const pd = createSessionClient(options);
-  const data = await pd.sessions({
-    status: options.all ? undefined : (options.status as string) || 'active',
-    agentId: options.agent as string | undefined,
-    project: options.project as string | undefined,
-    purpose: options.purpose as string | undefined,
-    allWorktrees: Boolean(options['all-worktrees'] || options.aw),
-  }) as Record<string, unknown>;
+  let data: Record<string, unknown>;
+  try {
+    data = await pd.sessions({
+      status: options.all ? undefined : (options.status as string) || 'active',
+      agentId: options.agent as string | undefined,
+      project: options.project as string | undefined,
+      purpose: options.purpose as string | undefined,
+      allWorktrees: Boolean(options['all-worktrees'] || options.aw),
+    }) as Record<string, unknown>;
+  } catch (error) {
+    const body = error && typeof error === 'object' && 'body' in error ? (error as { body?: Record<string, unknown> }).body : null;
+    data = body && typeof body === 'object' ? body : {};
+    ui.error((data.error as string) || (error as Error).message || 'Failed to list sessions');
+    process.exit(1);
+  }
 
   if (!data.success) {
     ui.error((data.error as string) || 'Failed to list sessions');
