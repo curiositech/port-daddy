@@ -217,6 +217,10 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     description: 'Shared tuple space for swarm coordination — write, read, take, scan, count',
     tools: ['tuple_out', 'tuple_read', 'tuple_take', 'tuple_scan', 'tuple_count'],
   },
+  'semantic': {
+    description: 'Semantic graph and episodic memory inspection — query graph edges, promoted handoffs, and project-level stats',
+    tools: ['graph_edges', 'graph_stats', 'memory_episodes', 'memory_stats'],
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -1832,7 +1836,7 @@ const TOOLS = [
         task: { type: 'string', description: 'What the agent should do' },
         identity: { type: 'string', description: 'Semantic identity (e.g. "myapp:fleet:custom-agent")' },
         budget_usd: { type: 'number', description: 'Required spend ceiling for this launch in USD' },
-        backend: { type: 'string', description: 'LLM backend: ollama (default), claude, claude-cli, gemini, codex, aider, or custom' },
+        backend: { type: 'string', description: 'LLM backend: ollama (default), claude, claude-cli, gemini, cloudflare, codex, aider, or custom' },
         model: { type: 'string', description: 'Optional explicit model override' },
         model_tier: { type: 'string', description: 'Optional model tier shortcut: low, mid, or high' },
         purpose: { type: 'string', description: 'Optional short human-readable label for the run' },
@@ -1856,7 +1860,7 @@ const TOOLS = [
         goal: { type: 'string', description: 'Required mission goal or brief.' },
         project_dir: { type: 'string', description: 'Optional project directory override. Defaults to the current working directory on the daemon side.' },
         budget_usd: { type: 'number', description: 'Required spend ceiling for the sortie in USD.' },
-        backend: { type: 'string', description: 'Required backend: ollama, claude, claude-cli, gemini, codex, aider, or custom.' },
+        backend: { type: 'string', description: 'Required backend: ollama, claude, claude-cli, gemini, cloudflare, codex, aider, or custom.' },
         model: { type: 'string', description: 'Optional explicit model override.' },
         model_tier: { type: 'string', description: 'Optional tier hint: low, mid, or high.' },
         recipe: { type: 'string', description: 'Optional mission recipe such as investigate, fix, review, creative, or custom.' },
@@ -1977,13 +1981,72 @@ const TOOLS = [
     },
   },
   {
+    name: 'graph_edges',
+    description:
+      '[Semantic] List semantic graph edges emitted by symbol indexing and merge orchestration.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        project_dir: { type: 'string', description: 'Optional project directory filter.' },
+        scope: { type: 'string', description: 'Optional scope filter such as symbols:file:/abs/path.ts.' },
+        source_type: { type: 'string', description: 'Optional source entity type filter.' },
+        source_id: { type: 'string', description: 'Optional source entity id filter.' },
+        edge_type: { type: 'string', description: 'Optional edge type filter.' },
+        target_type: { type: 'string', description: 'Optional target entity type filter.' },
+        target_id: { type: 'string', description: 'Optional target entity id filter.' },
+        query: { type: 'string', description: 'Optional text search filter.' },
+        limit: { type: 'number', description: 'Optional maximum number of edges to return.' },
+      },
+    },
+  },
+  {
+    name: 'graph_stats',
+    description:
+      '[Semantic] Summarize graph edge counts for a project.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        project_dir: { type: 'string', description: 'Optional project directory filter.' },
+      },
+    },
+  },
+  {
+    name: 'memory_episodes',
+    description:
+      '[Semantic] List episodic memory entries promoted from sessions and sorties.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        project_dir: { type: 'string', description: 'Optional project directory filter.' },
+        project: { type: 'string', description: 'Optional logical project filter.' },
+        harbor: { type: 'string', description: 'Optional harbor filter.' },
+        agent_id: { type: 'string', description: 'Optional agent filter.' },
+        episode_type: { type: 'string', description: 'Optional episode type filter.' },
+        query: { type: 'string', description: 'Optional text search filter.' },
+        limit: { type: 'number', description: 'Optional maximum number of episodes to return.' },
+      },
+    },
+  },
+  {
+    name: 'memory_stats',
+    description:
+      '[Semantic] Summarize episodic memory counts for a project.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        project_dir: { type: 'string', description: 'Optional project directory filter.' },
+        project: { type: 'string', description: 'Optional logical project filter.' },
+      },
+    },
+  },
+  {
     name: 'pd_discover',
     description:
       '[Essential] List available Port Daddy tool categories and their tools. ' +
       'In default mode, only essential tools are loaded. Use this to discover ' +
       'additional tools by category, then call them directly by name. ' +
       'Categories: session-lifecycle, ports, sessions, notes, locks, messaging, agents, inbox, ' +
-      'webhooks, integration, dns, briefing, tunnels, projects, changelog, activity, system, tuples.',
+      'webhooks, integration, dns, briefing, tunnels, projects, changelog, activity, system, tuples, semantic.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -2923,6 +2986,49 @@ async function handleTool(
       if (args.pattern) qs.set('pattern', JSON.stringify(args.pattern));
       if (args.harbor) qs.set('harbor', args.harbor as string);
       res = await GET('/tuples/count?' + qs.toString());
+      break;
+    }
+
+    case 'graph_edges': {
+      const qs = new URLSearchParams();
+      if (args.project_dir) qs.set('projectDir', args.project_dir as string);
+      if (args.scope) qs.set('scope', args.scope as string);
+      if (args.source_type) qs.set('sourceType', args.source_type as string);
+      if (args.source_id) qs.set('sourceId', args.source_id as string);
+      if (args.edge_type) qs.set('edgeType', args.edge_type as string);
+      if (args.target_type) qs.set('targetType', args.target_type as string);
+      if (args.target_id) qs.set('targetId', args.target_id as string);
+      if (args.query) qs.set('query', args.query as string);
+      if (typeof args.limit === 'number') qs.set('limit', String(args.limit));
+      res = await GET(qs.toString() ? `/graph/edges?${qs.toString()}` : '/graph/edges');
+      break;
+    }
+
+    case 'graph_stats': {
+      const qs = new URLSearchParams();
+      if (args.project_dir) qs.set('projectDir', args.project_dir as string);
+      res = await GET(qs.toString() ? `/graph/stats?${qs.toString()}` : '/graph/stats');
+      break;
+    }
+
+    case 'memory_episodes': {
+      const qs = new URLSearchParams();
+      if (args.project_dir) qs.set('projectDir', args.project_dir as string);
+      if (args.project) qs.set('project', args.project as string);
+      if (args.harbor) qs.set('harbor', args.harbor as string);
+      if (args.agent_id) qs.set('agentId', args.agent_id as string);
+      if (args.episode_type) qs.set('episodeType', args.episode_type as string);
+      if (args.query) qs.set('query', args.query as string);
+      if (typeof args.limit === 'number') qs.set('limit', String(args.limit));
+      res = await GET(qs.toString() ? `/memory/episodes?${qs.toString()}` : '/memory/episodes');
+      break;
+    }
+
+    case 'memory_stats': {
+      const qs = new URLSearchParams();
+      if (args.project_dir) qs.set('projectDir', args.project_dir as string);
+      if (args.project) qs.set('project', args.project as string);
+      res = await GET(qs.toString() ? `/memory/stats?${qs.toString()}` : '/memory/stats');
       break;
     }
 

@@ -29,7 +29,7 @@ A mathematically sound protocol can still be compromised by a flawed implementat
 Ensure that the compiled Port Daddy binary is a faithful and safe realization of the Anchor Protocol.
 
 ### Methodology
-- **Algorithmic Pinning:** We formally verify that the daemon strictly enforces **HS256** (and soon, asymmetric Ed25519) and rejects any attempt at algorithm-switching attacks (CVE-2026-22817).
+- **Algorithmic Pinning:** We formally verify that the daemon's active harbor-card path enforces **Phase 2 Ed25519** (`alg: EdDSA`, `hv: 2`) and that legacy **Phase 1 HS256** verification remains reachable only through the explicit compatibility path in `verifyLegacyPhase1HarborCard()`. Both paths reject algorithm-switching attacks (CVE-2026-22817).
 - **Memory Safety:** Transitioning performance-critical networking components to **Rust** allows us to use **Kani** or **Loom** to prove the absence of buffer overflows and data races in the P2P mesh.
 - **Constant-Time Verification:** Critical cryptographic comparisons (like JWT signature checks) are verified to be constant-time to prevent brute-force extraction of harbor secrets via timing side-channels.
 
@@ -60,7 +60,7 @@ Ensure the integrity of the Port Daddy daemon from the build server to the user'
 
 ## 🚀 Near-Term SMART Goals
 
-- [x] **S:** Author a complete ProVerif model of the current HS256 Harbor Card exchange.
+- [x] **S:** Author ProVerif coverage for the active Ed25519 Harbor Card exchange and the explicit HS256 legacy-compatibility path.
 - [x] **M:** Achieve zero "executable attack paths" in the symbolic model for the primary ingress handshake.
 - [x] **A:** Utilize the existing `lib/harbor-tokens.ts` logic as the specification source.
 - [x] **R:** Provides the security foundation required for the "Wild West" multi-agent P2P roadmap.

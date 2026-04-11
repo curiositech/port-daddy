@@ -648,6 +648,10 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'tuple_take': 'tuples',
       'tuple_scan': 'tuples',
       'tuple_count': 'tuples',
+      'graph_edges': 'graph',
+      'graph_stats': 'graph',
+      'memory_episodes': 'memory',
+      'memory_stats': 'memory',
     };
 
     const unmapped = [];

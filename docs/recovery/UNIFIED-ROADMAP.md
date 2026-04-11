@@ -1,6 +1,6 @@
 # Unified Recovery Roadmap
 
-Last updated: 2026-04-07
+Last updated: 2026-04-11
 
 This is the single execution-order roadmap for the active Port Daddy recovery and consolidation effort.
 
@@ -21,7 +21,7 @@ Port Daddy should feel like one coherent system:
 - Native companion: `apps/FleetBar`
 - Deep fleet control plane: `fleet-config-ui`
 - Canonical Port Daddy skill doc: `skills/port-daddy-cli/SKILL.md`
-- Raw idea streams remain first-class inputs: `.spark/ideas/`, `.spider/connections/`, `.cartographer/status.md`
+- Raw idea streams remain useful local inputs, but curated recovery docs are the authority: `.spark/ideas/`, `.spider/connections/`, `.cartographer/status.md`
 
 ## Near-Term Release Cuts
 
@@ -143,6 +143,8 @@ Immediate ships:
 - editable incoming and outgoing edges
 - finite step bounds after each initiation
 - explicit spawn ceilings and rate ceilings
+- per-agent cooldown, dedupe, and exponential backoff
+- actor-style mailboxes for projects/fleets/agents so repeated triggers collapse before they fan out
 - per-project cost ceilings
 - inspectable inbox and wake behavior
 - per-project fleet leases so only one daemon owns a project fleet at a time
@@ -159,6 +161,7 @@ Representative idea pressure:
 
 Done when:
 - fleet behavior can be edited and reasoned about without hidden runaway paths
+- repeated trigger storms no longer translate directly into repeated spawns
 
 ## Track 5: Unblock Phase 1 By Landing `graph_edges`
 
@@ -170,6 +173,8 @@ Immediate ships:
 - add the `graph_edges` migration
 - wire it into symbol indexing and merge orchestration
 - start making graph-aware coordination real instead of archival
+- after the current locks / tuples tranche, upgrade session/file claims from line-range overlap to Tree-sitter symbol-backed identity where symbol data exists
+- keep line spans only as fallback and display data, not the durable semantic authority for indexed code
 
 Representative idea pressure:
 - graph-centric watch
@@ -178,6 +183,7 @@ Representative idea pressure:
 
 Done when:
 - graph-backed coordination features can ship against one shared edge table
+- symbolic claims, graph edges, memory attribution, and control-plane visualizations agree on what code region an agent actually owns
 
 ## Track 6: Consolidate Onboarding And Install Behind `pd setup`
 

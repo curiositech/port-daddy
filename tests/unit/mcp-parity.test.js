@@ -193,6 +193,10 @@ const TOOL_FEATURE_MAP = {
   'tuple_take': 'tuples',
   'tuple_scan': 'tuples',
   'tuple_count': 'tuples',
+  'graph_edges': 'graph',
+  'graph_stats': 'graph',
+  'memory_episodes': 'memory',
+  'memory_stats': 'memory',
 };
 
 /**
@@ -638,7 +642,7 @@ describe('MCP tiered tool loading', () => {
   const CATEGORY_NAMES = [
     'magic', 'session-lifecycle', 'ports', 'sessions', 'notes', 'locks',
     'messaging', 'agents', 'inbox', 'webhooks', 'integration', 'dns', 'briefing',
-    'tunnels', 'projects', 'changelog', 'activity', 'system', 'tuples', 'sorties',
+    'tunnels', 'projects', 'changelog', 'activity', 'system', 'tuples', 'sorties', 'semantic',
   ];
 
   it('ESSENTIAL_TOOL_NAMES in server matches expected set', () => {
