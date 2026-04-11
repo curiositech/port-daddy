@@ -42,6 +42,8 @@ import { observabilityPlugin } from './observability.js';
 import { mergeQueuePlugin } from './merge-queue.js';
 import { symbolsPlugin } from './symbols.js';
 import { operatorPlugin } from './operator.js';
+import { graphPlugin } from './graph.js';
+import { memoryPlugin } from './memory.js';
 
 type AnyDeps = Record<string, unknown>;
 
@@ -114,5 +116,11 @@ export async function registerAllRoutes(
   }
   if ((deps as any).symbolIndex) {
     await fastify.register(symbolsPlugin, { deps } as any);
+  }
+  if ((deps as any).graphEdges) {
+    await fastify.register(graphPlugin, { deps } as any);
+  }
+  if ((deps as any).episodicMemory) {
+    await fastify.register(memoryPlugin, { deps } as any);
   }
 }

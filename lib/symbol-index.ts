@@ -17,6 +17,8 @@ import { createHash } from 'crypto';
 import { readFileSync, readdirSync, statSync } from 'fs';
 import { join, extname, resolve } from 'path';
 import { createRequire } from 'module';
+import type { GraphEdges, GraphEdgeInput } from './graph-edges.js';
+import { locateProjectDir } from './project-locator.js';
 
 // =============================================================================
 // Types
@@ -268,7 +270,8 @@ async function ensureTreeSitterInitialized(): Promise<{
 // Factory
 // =============================================================================
 
-export function createSymbolIndex(db: Database.Database) {
+export function createSymbolIndex(db: Database.Database, options?: { graphEdges?: GraphEdges }) {
+  const graphEdges = options?.graphEdges;
   // Self-initialize tables
   db.exec(SCHEMA_SQL);
 
@@ -925,6 +928,7 @@ export function createSymbolIndex(db: Database.Database) {
 
   async function parseFile(filePath: string, content?: string): Promise<ParseResult> {
     const absPath = resolve(filePath);
+    const projectDir = locateProjectDir(absPath);
     const language = detectLanguage(absPath);
     if (!language) {
       return { filePath: absPath, symbols: 0, dependencies: 0, skipped: true, error: `Unsupported language for ${absPath}` };
@@ -970,6 +974,7 @@ export function createSymbolIndex(db: Database.Database) {
       : extractTSSymbols(rootNode, fileContent);
 
     const extractedDeps = extractDependencies(rootNode, language);
+    const graphScope = `symbols:file:${absPath}`;
 
     // Store in SQLite (transactionally)
     const now = Date.now();
@@ -1019,6 +1024,62 @@ export function createSymbolIndex(db: Database.Database) {
     });
 
     insertAll();
+
+    if (graphEdges) {
+      const edges: GraphEdgeInput[] = [];
+
+      for (const sym of extractedSymbols) {
+        edges.push({
+          scope: graphScope,
+          projectDir,
+          sourceType: 'file',
+          sourceId: absPath,
+          edgeType: 'defines',
+          targetType: 'symbol',
+          targetId: sym.path,
+          metadata: {
+            name: sym.name,
+            symbolType: sym.type,
+            exported: sym.exported,
+            startLine: sym.startLine,
+            endLine: sym.endLine,
+          },
+        });
+
+        if (sym.parentPath) {
+          edges.push({
+            scope: graphScope,
+            projectDir,
+            sourceType: 'symbol',
+            sourceId: sym.parentPath,
+            edgeType: 'contains',
+            targetType: 'symbol',
+            targetId: sym.path,
+            metadata: {
+              filePath: absPath,
+            },
+          });
+        }
+      }
+
+      for (const dep of extractedDeps) {
+        edges.push({
+          scope: graphScope,
+          projectDir,
+          sourceType: dep.sourceSymbol ? 'symbol' : 'file',
+          sourceId: dep.sourceSymbol || absPath,
+          edgeType: dep.type,
+          targetType: dep.targetSymbol ? 'symbol' : 'file',
+          targetId: dep.targetSymbol || dep.targetFile,
+          metadata: {
+            filePath: absPath,
+            targetFile: dep.targetFile,
+          },
+        });
+      }
+
+      graphEdges.replaceScope(graphScope, edges);
+    }
 
     // Clean up tree-sitter resources
     tree.delete();
@@ -1357,6 +1418,7 @@ export function createSymbolIndex(db: Database.Database) {
       stmts.deleteParsedFile.run(absPath);
     });
     deleteAll();
+    graphEdges?.replaceScope(`symbols:file:${absPath}`, []);
   }
 
   function getStats(): {

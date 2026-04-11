@@ -21,6 +21,8 @@ import type {
   RecoveryAction,
   FileClaim,
 } from './orchestrator-plugins.js';
+import type { GraphEdges, GraphEdgeInput } from './graph-edges.js';
+import { locateProjectDir } from './project-locator.js';
 
 // =============================================================================
 // Types
@@ -103,6 +105,7 @@ interface MergeQueueRow {
 export interface MergeQueueDeps {
   orchestratorRegistry: OrchestratorRegistry;
   executor?: MergeExecutor;
+  graphEdges?: GraphEdges;
   activityLog?: {
     log(type: string, opts: { details: string; metadata: Record<string, unknown> }): void;
   };
@@ -171,7 +174,7 @@ function computeClaimOverlap(claimsA: FileClaim[], claimsB: FileClaim[]): number
 // =============================================================================
 
 export function createMergeQueue(db: Database.Database, deps: MergeQueueDeps) {
-  const { orchestratorRegistry, executor, activityLog } = deps;
+  const { orchestratorRegistry, executor, graphEdges, activityLog } = deps;
   const events = new EventEmitter();
 
   // ── Schema ──────────────────────────────────────────────────────────────
@@ -219,7 +222,137 @@ export function createMergeQueue(db: Database.Database, deps: MergeQueueDeps) {
     remove: db.prepare(`DELETE FROM merge_queue WHERE id = ?`),
     cleanup: db.prepare(`DELETE FROM merge_queue WHERE status IN ('merged', 'reverted', 'rejected') AND submitted_at < ?`),
     countByStatus: db.prepare(`SELECT status, COUNT(*) as count FROM merge_queue GROUP BY status`),
+    listCleanable: db.prepare(`SELECT * FROM merge_queue WHERE status IN ('merged', 'reverted', 'rejected') AND submitted_at < ?`),
   };
+
+  function graphScopeForEntry(id: number): string {
+    return `merge:entry:${id}`;
+  }
+
+  function syncEntryGraph(entry: MergeQueueEntry | null): void {
+    if (!graphEdges || !entry) return;
+
+    const projectDir = locateProjectDir(entry.repository) || entry.repository;
+    const scope = graphScopeForEntry(entry.id);
+    const edges: GraphEdgeInput[] = [
+      {
+        scope,
+        projectDir,
+        sourceType: 'agent',
+        sourceId: entry.agentId,
+        edgeType: 'submitted_merge',
+        targetType: 'merge_entry',
+        targetId: String(entry.id),
+        metadata: {
+          status: entry.status,
+          repository: entry.repository,
+        },
+      },
+      {
+        scope,
+        projectDir,
+        sourceType: 'merge_entry',
+        sourceId: String(entry.id),
+        edgeType: 'branch',
+        targetType: 'branch',
+        targetId: entry.branch,
+        metadata: {
+          repository: entry.repository,
+          status: entry.status,
+        },
+      },
+      {
+        scope,
+        projectDir,
+        sourceType: 'branch',
+        sourceId: entry.branch,
+        edgeType: 'targets_base',
+        targetType: 'branch',
+        targetId: entry.baseBranch,
+        metadata: {
+          entryId: entry.id,
+          repository: entry.repository,
+        },
+      },
+      {
+        scope,
+        projectDir,
+        sourceType: 'branch',
+        sourceId: entry.branch,
+        edgeType: 'in_repository',
+        targetType: 'repository',
+        targetId: entry.repository,
+        metadata: {
+          entryId: entry.id,
+          status: entry.status,
+        },
+      },
+      {
+        scope,
+        projectDir,
+        sourceType: 'merge_entry',
+        sourceId: String(entry.id),
+        edgeType: 'status',
+        targetType: 'status',
+        targetId: entry.status,
+        metadata: {
+          branch: entry.branch,
+        },
+      },
+    ];
+
+    if (entry.sessionId) {
+      edges.push({
+        scope,
+        projectDir,
+        sourceType: 'merge_entry',
+        sourceId: String(entry.id),
+        edgeType: 'from_session',
+        targetType: 'session',
+        targetId: entry.sessionId,
+        metadata: {
+          agentId: entry.agentId,
+        },
+      });
+    }
+
+    for (const claim of entry.claims) {
+      edges.push({
+        scope,
+        projectDir,
+        sourceType: 'branch',
+        sourceId: entry.branch,
+        edgeType: 'touches',
+        targetType: 'file',
+        targetId: claim.path,
+        metadata: {
+          claimType: claim.symbol ? 'symbol' : 'file',
+          entryId: entry.id,
+          startLine: claim.startLine ?? null,
+          endLine: claim.endLine ?? null,
+          symbol: claim.symbol ?? null,
+        },
+      });
+    }
+
+    if (entry.mergeCommit) {
+      edges.push({
+        scope,
+        projectDir,
+        sourceType: 'merge_entry',
+        sourceId: String(entry.id),
+        edgeType: 'produced_commit',
+        targetType: 'commit',
+        targetId: entry.mergeCommit,
+        metadata: {
+          branch: entry.branch,
+          repository: entry.repository,
+        },
+      });
+    }
+
+    graphEdges.replaceScope(scope, edges);
+  }
 
   // ── Submit ──────────────────────────────────────────────────────────────
 
@@ -273,6 +406,7 @@ export function createMergeQueue(db: Database.Database, deps: MergeQueueDeps) {
 
     const entryId = Number(result.lastInsertRowid);
     const entry = get(entryId);
+    syncEntryGraph(entry);
 
     activityLog?.log('merge.submitted', {
       details: `Merge submitted: ${submission.branch} -> ${submission.baseBranch || 'main'} (${status})`,
@@ -416,6 +550,7 @@ export function createMergeQueue(db: Database.Database, deps: MergeQueueDeps) {
 
     // Everything passed
     stmts.updateMerged.run(Date.now(), mergeResult.mergeCommit, id);
+    syncEntryGraph(get(id));
 
     activityLog?.log('merge.completed', {
       details: `Merge completed: ${entry.branch} -> ${entry.baseBranch} (${mergeResult.mergeCommit})`,
@@ -441,6 +576,7 @@ export function createMergeQueue(db: Database.Database, deps: MergeQueueDeps) {
           `${failure.failureType}: ${failure.details} (reverted)`,
           id
         );
+        syncEntryGraph(get(id));
         activityLog?.log('merge.reverted', {
           details: `Merge reverted: ${failure.branch} -- ${failure.details}`,
           metadata: { entryId: id, agentId: failure.agentId, recovery },
@@ -450,6 +586,7 @@ export function createMergeQueue(db: Database.Database, deps: MergeQueueDeps) {
 
       case 'retry':
         stmts.updateStatus.run('pending', id);
+        syncEntryGraph(get(id));
         activityLog?.log('merge.retry_scheduled', {
           details: `Merge retry scheduled: ${failure.branch} (after ${recovery.retryAfterMs ?? 0}ms)`,
           metadata: { entryId: id, agentId: failure.agentId, recovery },
@@ -459,6 +596,7 @@ export function createMergeQueue(db: Database.Database, deps: MergeQueueDeps) {
 
       case 'park':
         stmts.updateFailed.run(`Parked: ${failure.details}`, id);
+        syncEntryGraph(get(id));
         activityLog?.log('merge.parked', {
           details: `Merge parked: ${failure.branch} -- ${recovery.reason}`,
           metadata: { entryId: id, agentId: failure.agentId, recovery },
@@ -471,6 +609,7 @@ export function createMergeQueue(db: Database.Database, deps: MergeQueueDeps) {
           `Reassigned to ${recovery.reassignTo}: ${failure.details}`,
           id
         );
+        syncEntryGraph(get(id));
         activityLog?.log('merge.reassigned', {
           details: `Merge reassigned: ${failure.branch} -> agent ${recovery.reassignTo}`,
           metadata: { entryId: id, agentId: failure.agentId, recovery },
@@ -566,13 +705,18 @@ export function createMergeQueue(db: Database.Database, deps: MergeQueueDeps) {
       return { success: false, removed: false };
     }
     const result = stmts.remove.run(id);
+    graphEdges?.replaceScope(graphScopeForEntry(id), []);
     events.emit('removed', { entryId: id });
     return { success: true, removed: result.changes > 0 };
   }
 
   function cleanup(olderThanMs: number = 7 * 24 * 60 * 60 * 1000): { cleaned: number } {
     const cutoff = Date.now() - olderThanMs;
+    const cleanable = stmts.listCleanable.all(cutoff) as MergeQueueRow[];
     const result = stmts.cleanup.run(cutoff);
+    for (const row of cleanable) {
+      graphEdges?.replaceScope(graphScopeForEntry(row.id), []);
+    }
     return { cleaned: result.changes };
   }
 

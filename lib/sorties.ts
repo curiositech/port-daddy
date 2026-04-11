@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import type Database from 'better-sqlite3';
+import type { EpisodicMemory } from './episodic-memory.js';
 
 export type SortieStatus = 'planned' | 'blocked' | 'running' | 'completed' | 'failed' | 'cancelled';
 
@@ -140,7 +141,8 @@ function toSortieEvent(row: SortieEventRow): SortieEvent {
   };
 }
 
-export function createSorties(db: Database.Database) {
+export function createSorties(db: Database.Database, options: { episodicMemory?: EpisodicMemory } = {}) {
+  const episodicMemory = options.episodicMemory;
   db.exec(`
     CREATE TABLE IF NOT EXISTS sorties (
       id TEXT PRIMARY KEY,
@@ -291,6 +293,28 @@ export function createSorties(db: Database.Database) {
         createdAt,
       );
       const row = db.prepare(`SELECT * FROM sortie_events WHERE sortie_id = ? AND created_at = ? ORDER BY id DESC LIMIT 1`).get(sortieId, createdAt) as SortieEventRow;
+      const sortie = stmts.get.get(sortieId) as SortieRow | undefined;
+      if (episodicMemory && sortie && ['sortie:blocked', 'sortie:completed', 'sortie:failed'].includes(type)) {
+        episodicMemory.remember({
+          projectDir: sortie.project_dir,
+          project: sortie.project,
+          harbor: sortie.harbor,
+          agentId: sortie.spawn_agent_id,
+          episodeType: type.replace('sortie:', ''),
+          title: `${sortie.project}: ${sortie.goal}`.slice(0, 140),
+          summary: (summary || sortie.result_output || sortie.error || sortie.goal).slice(0, 4000),
+          sourceType: 'sortie',
+          sourceId: sortieId,
+          metadata: {
+            sortieId,
+            status: sortie.status,
+            backend: sortie.backend,
+            model: sortie.model,
+            modelTier: sortie.model_tier,
+            ...metadata,
+          },
+        });
+      }
       return toSortieEvent(row);
     },
 

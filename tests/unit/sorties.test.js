@@ -1,12 +1,15 @@
 import { createTestDb } from '../setup-unit.js';
+import { createEpisodicMemory } from '../../lib/episodic-memory.js';
 import { createSorties } from '../../lib/sorties.js';
 
 let db;
 let sorties;
+let episodicMemory;
 
 beforeEach(() => {
   db = createTestDb();
-  sorties = createSorties(db);
+  episodicMemory = createEpisodicMemory(db);
+  sorties = createSorties(db, { episodicMemory });
 });
 
 afterEach(() => {
@@ -62,5 +65,24 @@ describe('sorties store', () => {
     const events = sorties.events(sortie.id, 10);
     expect(events).toHaveLength(1);
     expect(events[0].type).toBe('sortie:planned');
+  });
+
+  test('promotes failed/completed mission moments into episodic memory', () => {
+    const sortie = sorties.create({
+      projectDir: '/tmp/port-daddy',
+      project: 'port-daddy',
+      harbor: 'port-daddy:sortie:pending',
+      goal: 'Investigate graph edge drift',
+      backend: 'codex',
+      budgetUsd: 0.5,
+    });
+
+    sorties.update(sortie.id, { status: 'failed', error: 'Budget exceeded' });
+    sorties.addEvent(sortie.id, 'sortie:failed', 'Mission failed', { error: 'Budget exceeded' });
+
+    const episodes = episodicMemory.list({ projectDir: '/tmp/port-daddy' });
+    expect(episodes).toHaveLength(1);
+    expect(episodes[0].episodeType).toBe('failed');
+    expect(episodes[0].summary).toContain('Mission failed');
   });
 });
