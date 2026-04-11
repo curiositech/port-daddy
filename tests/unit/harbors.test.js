@@ -519,7 +519,7 @@ describe('Harbors Module', () => {
 
   // ─── Harbor Card (JWT) Integration ────────────────────────────────────────
 
-  describe('harbor_card integration (7 tests)', () => {
+  describe('harbor_card integration (8 tests)', () => {
     it('enter() returns no harbor_card when harborTokens not wired', async () => {
       harbors.create('myapp:no-tokens');
       const result = await harbors.enter('myapp:no-tokens', 'agent-1');
@@ -539,8 +539,10 @@ describe('Harbors Module', () => {
 
       expect(result.success).toBe(true);
       expect(typeof result.harborCard).toBe('string');
-      // Should be a 3-part JWT
       expect(result.harborCard.split('.').length).toBe(3);
+      const header = JSON.parse(Buffer.from(result.harborCard.split('.')[0], 'base64url').toString());
+      expect(header.alg).toBe('EdDSA');
+      expect(header.kid).toBe('harbor-daemon-ed25519-v1');
     });
 
     it('harbor_card audience matches the harbor name', async () => {
@@ -554,6 +556,7 @@ describe('Harbors Module', () => {
       });
 
       const payload = JSON.parse(Buffer.from(result.harborCard.split('.')[1], 'base64url').toString());
+      expect(payload.hv).toBe(2);
       expect(payload.aud).toBe('myapp:audience-test');
     });
 
@@ -584,7 +587,7 @@ describe('Harbors Module', () => {
       expect(payload.cap).toEqual(caps);
     });
 
-    it('harbor_card is verifiable by the same harborTokens instance', async () => {
+    it('harbor_card is verifiable by the same harborTokens instance on the Phase 2 path', async () => {
       const ht = createHarborTokens(db);
       await ht.initDaemonIdentity();
       const harborsWithTokens = createHarbors(db, { harborTokens: ht });
@@ -597,6 +600,20 @@ describe('Harbors Module', () => {
       const verified = await ht.verifyHarborCard(result.harborCard, 'myapp:verify-round-trip');
       expect(verified).not.toBeNull();
       expect(verified.sub).toBe('round-trip-agent');
+      expect(verified.tokenVersion).toBe('phase2');
+    });
+
+    it('harbor_card is rejected by the legacy verifier because enter() now issues Phase 2', async () => {
+      const ht = createHarborTokens(db);
+      await ht.initDaemonIdentity();
+      const harborsWithTokens = createHarbors(db, { harborTokens: ht });
+      harborsWithTokens.create('myapp:phase2-only');
+
+      const result = await harborsWithTokens.enter('myapp:phase2-only', 'phase2-agent', {
+        capabilities: ['deploy'],
+      });
+
+      await expect(ht.verifyLegacyPhase1HarborCard(result.harborCard, 'myapp:phase2-only')).resolves.toBeNull();
     });
 
     it('enter() still returns non-null harbor when harborTokens is wired', async () => {

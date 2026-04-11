@@ -118,7 +118,7 @@ export const harborsPlugin: FastifyPluginAsync<{ deps: HarborsRouteDeps }> = asy
       });
       if (!result.success) { reply.code(400); return { error: result.error }; }
       logger.info('harbor_entered', { name, agentId });
-      return { success: true, harbor: result.harbor };
+      return { success: true, harbor: result.harbor, harborCard: result.harborCard };
     } catch (err) {
       logger.error('harbor_enter_error', { error: String(err) });
       reply.code(500); return { error: 'internal error' };

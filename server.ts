@@ -40,6 +40,7 @@ import { createSpawner } from './lib/spawner.js';
 import { createBriefing } from './lib/briefing.js';
 import { createSugar } from './lib/sugar.js';
 import { createHarbors } from './lib/harbors.js';
+import { createHarborTokens } from './lib/harbor-tokens.js';
 import { createSorties } from './lib/sorties.js';
 import { createPheromoneManager } from './lib/pheromone.js';
 import { createBarnacleWatcher } from './lib/barnacle-client.js';
@@ -253,7 +254,9 @@ const costTracker = createCostTracker(db);
 const counters = createCounters(db);
 const spawner = createSpawner({ costTracker, counters });
 const sugar = createSugar({ agents, sessions, activityLog });
-const harbors = createHarbors(db);
+const harborTokens = createHarborTokens(db);
+await harborTokens.initDaemonIdentity();
+const harbors = createHarbors(db, { harborTokens });
 const sorties = createSorties(db, { episodicMemory });
 semanticIndex.initialize();
 const arbiter = createArbiter(
@@ -719,6 +722,7 @@ const ipcRouter = createIpcRouter({
   agents,
   sessions,
   locks,
+  tuples,
   messaging,
   pheromones,
   resurrection,
