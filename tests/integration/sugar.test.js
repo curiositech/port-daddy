@@ -34,9 +34,16 @@ async function sugarDone(body) {
 /**
  * Helper: GET /sugar/whoami
  */
-async function sugarWhoami(agentId) {
-  const query = agentId ? `?agentId=${encodeURIComponent(agentId)}` : '';
-  return request(`/sugar/whoami${query}`);
+async function sugarWhoami(options = {}) {
+  const params = new URLSearchParams();
+  if (typeof options === 'string') {
+    params.set('agentId', options);
+  } else {
+    if (options.agentId) params.set('agentId', options.agentId);
+    if (options.sessionId) params.set('sessionId', options.sessionId);
+  }
+  const query = params.toString();
+  return request(`/sugar/whoami${query ? `?${query}` : ''}`);
 }
 
 /**
@@ -305,6 +312,35 @@ describe('Sugar Integration Tests', () => {
     });
   });
 
+  describe('Whoami with reaped agent row', () => {
+    test('falls back to an explicit active session', async () => {
+      const beginRes = await sugarBegin({
+        purpose: 'Whoami stale agent fallback',
+        agentId: `whoami-stale-${Date.now()}`,
+        identity: 'test-project:api:stale-agent',
+      });
+
+      expect(beginRes.ok).toBe(true);
+      const { agentId, sessionId } = beginRes.data;
+
+      const deleteRes = await request(`/agents/${encodeURIComponent(agentId)}`, { method: 'DELETE' });
+      expect(deleteRes.ok).toBe(true);
+
+      const whoamiRes = await sugarWhoami({ agentId, sessionId });
+      expect(whoamiRes.ok).toBe(true);
+      expect(whoamiRes.data.success).toBe(true);
+      expect(whoamiRes.data.active).toBe(true);
+      expect(whoamiRes.data.agentId).toBe(agentId);
+      expect(whoamiRes.data.sessionId).toBe(sessionId);
+      expect(whoamiRes.data.purpose).toBe('Whoami stale agent fallback');
+      expect(whoamiRes.data.identity).toBeNull();
+
+      const doneRes = await sugarDone({ sessionId });
+      expect(doneRes.ok).toBe(true);
+      expect(doneRes.data.success).toBe(true);
+    });
+  });
+
   // ===========================================================================
   // 7. Begin with duplicate agentId
   // ===========================================================================
@@ -388,6 +424,28 @@ describe('Sugar Integration Tests', () => {
       expect(res.data.success).toBe(false);
       expect(res.data.error).toBeTruthy();
       expect(res.data.code).toBe('NO_ACTIVE_SESSION');
+    });
+
+    test('done returns 409 when explicit agentId does not own the explicit sessionId', async () => {
+      const beginRes = await sugarBegin({
+        purpose: 'Ownership guard test',
+        agentId: `owner-agent-${Date.now()}`,
+      });
+
+      expect(beginRes.ok).toBe(true);
+      const { sessionId } = beginRes.data;
+
+      const res = await sugarDone({
+        agentId: `intruder-agent-${Date.now()}`,
+        sessionId,
+      });
+
+      expect(res.status).toBe(409);
+      expect(res.data.success).toBe(false);
+      expect(res.data.code).toBe('SESSION_OWNERSHIP_MISMATCH');
+
+      const cleanupRes = await sugarDone({ sessionId });
+      expect(cleanupRes.ok).toBe(true);
     });
 
     test('done with no body at all does not crash server', async () => {

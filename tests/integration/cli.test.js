@@ -872,6 +872,34 @@ describe('CLI Integration Tests', () => {
       runCli(['done', '--agent', beginData.agentId]);
     });
 
+    test('pd whoami falls back to the stored session when the agent row is gone', async () => {
+      const beginResult = runCli([
+        'begin',
+        'Stale whoami fallback',
+        '--identity',
+        'port-daddy:test:stale-whoami',
+        '--json',
+      ]);
+      expect(beginResult.success).toBe(true);
+      const beginData = JSON.parse(beginResult.stdout);
+
+      const deleteRes = await requestWithRetry(`/agents/${encodeURIComponent(beginData.agentId)}`, { method: 'DELETE' });
+      expect(deleteRes.ok).toBe(true);
+
+      const result = runCli(['whoami', '--json']);
+      expect(result.success).toBe(true);
+
+      const data = JSON.parse(result.stdout);
+      expect(data.success).toBe(true);
+      expect(data.active).toBe(true);
+      expect(data.agentId).toBe(beginData.agentId);
+      expect(data.sessionId).toBe(beginData.sessionId);
+      expect(data.purpose).toBe('Stale whoami fallback');
+      expect(data.identity).toBe('port-daddy:test:stale-whoami');
+
+      runCli(['done', '--session', beginData.sessionId]);
+    });
+
     test('positional args still work (backward compat)', () => {
       // Positional purpose
       const result = runCli(['begin', 'Positional purpose', '-q']);

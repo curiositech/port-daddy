@@ -6,7 +6,6 @@
  */
 
 import type Database from 'better-sqlite3';
-import { patternToSql, matchesPattern } from './identity.js';
 
 interface LockRow {
   name: string;
@@ -40,6 +39,34 @@ interface ExtendOptions {
 
 interface SqliteError extends Error {
   code?: string;
+}
+
+const CONTROL_CHARS_REGEX = /[\u0000-\u001f\u007f]/;
+
+function validateLockName(name: unknown, options: { allowWildcard?: boolean } = {}): string | null {
+  const { allowWildcard = false } = options;
+
+  if (typeof name !== 'string' || name.length === 0 || name.trim().length === 0) {
+    return 'lock name must be a non-empty string';
+  }
+
+  if (CONTROL_CHARS_REGEX.test(name)) {
+    return 'lock name cannot contain control characters';
+  }
+
+  if (!allowWildcard && name.includes('*')) {
+    return 'cannot acquire a lock with a wildcard in its name';
+  }
+
+  return null;
+}
+
+function lockPatternToSql(pattern: string): string {
+  return pattern
+    .replace(/\\/g, '\\\\')
+    .replace(/%/g, '\\%')
+    .replace(/_/g, '\\_')
+    .replace(/\*/g, '%');
 }
 
 /**
@@ -91,17 +118,9 @@ export function createLocks(db: Database.Database) {
    * Returns immediately with success/failure
    */
   function acquire(name: string, options: AcquireOptions = {}) {
-    if (!name || typeof name !== 'string') {
-      return { success: false, error: 'lock name must be a non-empty string' };
-    }
-
-    // Validate name format (alphanumeric, dashes, colons, stars)
-    if (!/^[a-zA-Z0-9.:_*-]+$/.test(name)) {
-      return { success: false, error: 'lock name must be alphanumeric with dashes, underscores, dots, colons, or stars' };
-    }
-
-    if (name.includes('*')) {
-      return { success: false, error: 'cannot acquire a lock with a wildcard in its name' };
+    const validationError = validateLockName(name);
+    if (validationError) {
+      return { success: false, error: validationError };
     }
 
     const now = Date.now();
@@ -198,15 +217,15 @@ export function createLocks(db: Database.Database) {
    * Release a lock
    */
   function release(name: string, options: ReleaseOptions = {}) {
-    if (!name || typeof name !== 'string') {
-      return { success: false, error: 'lock name must be a non-empty string' };
+    const validationError = validateLockName(name, { allowWildcard: true });
+    if (validationError) {
+      return { success: false, error: validationError };
     }
 
     const { owner = null, force = false } = options;
 
     if (name.includes('*')) {
-      const sqlPattern = patternToSql(name);
-      if (!sqlPattern) return { success: false, error: 'invalid wildcard pattern' };
+      const sqlPattern = lockPatternToSql(name);
 
       if (owner && !force) {
         // If owner specified, we need to fetch and filter
@@ -264,8 +283,9 @@ export function createLocks(db: Database.Database) {
    * Check if a lock is held
    */
   function check(name: string) {
-    if (!name || typeof name !== 'string') {
-      return { success: false, error: 'lock name must be a non-empty string' };
+    const validationError = validateLockName(name);
+    if (validationError) {
+      return { success: false, error: validationError };
     }
 
     // Clean expired first
@@ -301,7 +321,7 @@ export function createLocks(db: Database.Database) {
     let locks: LockRow[];
     if (owner) {
       if (owner.includes('*')) {
-        const sqlPattern = patternToSql(owner);
+        const sqlPattern = lockPatternToSql(owner);
         locks = stmts.listByOwnerPattern.all(sqlPattern) as LockRow[];
       } else {
         locks = stmts.listByOwner.all(owner) as LockRow[];
@@ -328,8 +348,9 @@ export function createLocks(db: Database.Database) {
    * Extend a lock's TTL
    */
   function extend(name: string, options: ExtendOptions = {}) {
-    if (!name || typeof name !== 'string') {
-      return { success: false, error: 'lock name must be a non-empty string' };
+    const validationError = validateLockName(name);
+    if (validationError) {
+      return { success: false, error: validationError };
     }
 
     const { owner = null, ttl: rawTtl = 300000 } = options;

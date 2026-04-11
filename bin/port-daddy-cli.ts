@@ -588,16 +588,17 @@ Examples:
   locks: `Distributed Locks \u2014 Exclusive access for shared resources
 
 Commands:
-  lock <name>              Acquire a distributed lock
+  lock <name-or-path>      Acquire a distributed lock
     --ttl <ms>             Time-to-live (default: 300000 = 5 min)
     --owner <id>           Lock owner identifier
     --wait                 Block until lock is available
     --timeout <ms>         Wait timeout (default: 60000)
 
-  lock extend <name>       Extend a lock's TTL
+  lock extend <name-or-path>
+                           Extend a lock's TTL
     --ttl <ms>             New TTL from now
 
-  unlock <name>            Release a distributed lock
+  unlock <name-or-path>    Release a distributed lock
     --force                Release even if not the owner
 
   locks                    List all active locks
@@ -605,6 +606,7 @@ Commands:
 
 Examples:
   pd lock db-migrations && npm run migrate && pd unlock db-migrations
+  pd lock lib/webhooks.ts --owner codex
   pd lock deploy --ttl 600000 --owner ci-pipeline
   pd lock extend deploy --ttl 300000
   pd locks --json`,
