@@ -2084,7 +2084,11 @@ class PortDaddy {
     }
 
     // Find active session
-    const list = await this.sessions({ status: 'active', limit: 1 });
+    const list = await this.sessions({
+      status: 'active',
+      agentId: this.agentId,
+      limit: 1,
+    });
     if (!list.sessions.length) {
       return { success: false, id: '', purpose: '', status: '', createdAt: 0, updatedAt: 0 } as SessionResponse;
     }

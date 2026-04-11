@@ -319,7 +319,7 @@ describe('Sessions', () => {
     const result = await pd.endSession('wrapped up', { status: 'completed' });
 
     expect(receivedRequests).toHaveLength(2);
-    expect(receivedRequests[0].url).toBe('/sessions?status=active&limit=1');
+    expect(receivedRequests[0].url).toBe('/sessions?status=active&agent=session-agent&limit=1');
     expect(receivedRequests[1].url).toBe('/sessions/session-123');
     expect(receivedRequests[1].method).toBe('PUT');
     expect(receivedRequests[1].body).toEqual({ status: 'completed', note: 'wrapped up' });

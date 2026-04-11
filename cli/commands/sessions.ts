@@ -224,7 +224,11 @@ async function sessionFiles(rest: string[], options: CLIOptions): Promise<void> 
   const pd = createSessionClient(options);
   let listData: Record<string, unknown>;
   try {
-    listData = await pd.sessions({ status: 'active', limit: 1 }) as Record<string, unknown>;
+    listData = await pd.sessions({
+      status: 'active',
+      agentId: pd.agentId,
+      limit: 1,
+    }) as Record<string, unknown>;
   } catch (error) {
     const body = error && typeof error === 'object' && 'body' in error ? (error as { body?: Record<string, unknown> }).body : null;
     listData = body && typeof body === 'object' ? body : {};

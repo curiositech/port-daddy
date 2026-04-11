@@ -475,23 +475,47 @@ describe('CLI Integration Tests', () => {
     // Bug #2: Session start was showing "undefined" for session ID
     // because CLI used data.sessionId but API returns data.id
     test('session start shows actual session ID (not undefined)', () => {
-      const result = runCli(['session', 'start', 'Bug regression test']);
+      const agentId = `bug2-agent-${Date.now()}`;
+      const result = runCli(['session', 'start', 'Bug regression test', '--agent', agentId]);
       expect(result.success).toBe(true);
       expect(result.stdout).not.toContain('undefined');
       expect(result.stdout).toMatch(/session-[a-f0-9-]+/);
+      const firstSessionId = result.stdout.match(/session-[a-f0-9-]+/)?.[0];
 
       // Also test -q returns just the ID
-      const quietResult = runCli(['session', 'start', 'Quiet test', '-q']);
+      const quietResult = runCli(['session', 'start', 'Quiet test', '--agent', agentId, '-q']);
       expect(quietResult.success).toBe(true);
       expect(quietResult.stdout).toMatch(/^session-[a-f0-9-]+$/);
       expect(quietResult.stdout).not.toBe('undefined');
+
+      if (firstSessionId) {
+        runCli(['session', 'rm', firstSessionId]);
+      }
+      runCli(['session', 'rm', quietResult.stdout.trim()]);
     });
 
     test('session start conflict output shows filePath from service contract', () => {
       const filePath = `src/conflict-${Date.now()}.ts`;
-      const firstId = runCli(['session', 'start', 'Conflict holder', '--files', filePath, '-q']).stdout.trim();
+      const firstId = runCli([
+        'session',
+        'start',
+        'Conflict holder',
+        '--agent',
+        `bug-conflict-holder-${Date.now()}`,
+        '--files',
+        filePath,
+        '-q',
+      ]).stdout.trim();
 
-      const result = runCli(['session', 'start', 'Conflict challenger', '--files', filePath]);
+      const result = runCli([
+        'session',
+        'start',
+        'Conflict challenger',
+        '--agent',
+        `bug-conflict-challenger-${Date.now()}`,
+        '--files',
+        filePath,
+      ]);
       expect(result.success).toBe(false);
       expect(result.stderr).toContain(filePath);
       expect(result.stderr).not.toContain('<unknown>');
@@ -501,10 +525,20 @@ describe('CLI Integration Tests', () => {
     });
 
     test('session done reports releasedFiles count from actual response shape', () => {
+      const agentId = `bug-done-agent-${Date.now()}`;
       const filePath = `src/released-${Date.now()}.ts`;
-      const sessionId = runCli(['session', 'start', 'Release count test', '--files', filePath, '-q']).stdout.trim();
+      const sessionId = runCli([
+        'session',
+        'start',
+        'Release count test',
+        '--agent',
+        agentId,
+        '--files',
+        filePath,
+        '-q',
+      ]).stdout.trim();
 
-      const result = runCli(['session', 'done', 'wrapped up']);
+      const result = runCli(['session', 'done', 'wrapped up', '--agent', agentId]);
       expect(result.success).toBe(true);
       expect(result.stdout).toContain('Files released: 1');
 
@@ -512,10 +546,20 @@ describe('CLI Integration Tests', () => {
     });
 
     test('session files rm reports released count from actual response shape', () => {
+      const agentId = `bug-files-rm-agent-${Date.now()}`;
       const filePath = `src/files-rm-${Date.now()}.ts`;
-      const sessionId = runCli(['session', 'start', 'Files rm count test', '--files', filePath, '-q']).stdout.trim();
+      const sessionId = runCli([
+        'session',
+        'start',
+        'Files rm count test',
+        '--agent',
+        agentId,
+        '--files',
+        filePath,
+        '-q',
+      ]).stdout.trim();
 
-      const result = runCli(['session', 'files', 'rm', filePath]);
+      const result = runCli(['session', 'files', 'rm', filePath, '--agent', agentId]);
       expect(result.success).toBe(true);
       expect(result.stdout).toContain(`Released 1 file(s) from session ${sessionId}`);
 
@@ -526,7 +570,9 @@ describe('CLI Integration Tests', () => {
     // because CLI expected { startedAt, fileCount, noteCount }
     // but API returns { createdAt, updatedAt, completedAt }
     test('sessions list shows proper values (not undefined/NaN)', () => {
-      const result = runCli(['sessions', '--json']);
+      const agentId = `bug3-agent-${Date.now()}`;
+      const sessionId = runCli(['session', 'start', 'Bug 3 session test', '--agent', agentId, '-q']).stdout.trim();
+      const result = runCli(['sessions', '--agent', agentId, '--json']);
       expect(result.success).toBe(true);
 
       const data = JSON.parse(result.stdout);
@@ -537,10 +583,12 @@ describe('CLI Integration Tests', () => {
       }
 
       // Non-JSON output should not contain undefined or NaN
-      const textResult = runCli(['sessions']);
+      const textResult = runCli(['sessions', '--agent', agentId]);
       expect(textResult.success).toBe(true);
       expect(textResult.stdout).not.toContain('undefined');
       expect(textResult.stdout).not.toContain('NaN');
+
+      runCli(['session', 'rm', sessionId]);
     });
 
     // Bug #7/8: "pd services" was accidentally claiming a service named "services"
@@ -591,7 +639,8 @@ describe('CLI Integration Tests', () => {
 
     // Bug #15: session start --json ignored --json flag, output human-readable
     test('session start --json outputs JSON (not colored text)', () => {
-      const result = runCli(['session', 'start', 'Bug 15 test', '--json']);
+      const agentId = `bug15-agent-${Date.now()}`;
+      const result = runCli(['session', 'start', 'Bug 15 test', '--agent', agentId, '--json']);
       expect(result.success).toBe(true);
 
       // Should be valid JSON
@@ -627,21 +676,50 @@ describe('CLI Integration Tests', () => {
 
     // Bug #12: sessions --all returned same results as sessions without --all
     // because list() defaulted to listActive when no status was passed
-    test('sessions --all shows all statuses (not just active)', () => {
+    test('sessions --all shows all statuses (not just active)', async () => {
+      const agentId = `bug12-agent-${Date.now()}`;
+
       // Create sessions with different statuses
-      const activeId = runCli(['session', 'start', 'Bug 12 active test', '-q']).stdout.trim();
-      const completedId = runCli(['session', 'start', 'Bug 12 completed test', '-q']).stdout.trim();
-      runCli(['session', 'done', 'Done', '-q']); // completes most recent
-      const abandonedId = runCli(['session', 'start', 'Bug 12 abandoned test', '-q']).stdout.trim();
-      runCli(['session', 'abandon', 'Abandoned', '-q']);
+      const activeRes = await requestWithRetry('/sessions', {
+        method: 'POST',
+        body: { purpose: 'Bug 12 active test', agentId },
+      });
+      expect(activeRes.ok).toBe(true);
+      const activeId = activeRes.data.id;
+
+      const completedRes = await requestWithRetry('/sessions', {
+        method: 'POST',
+        body: { purpose: 'Bug 12 completed test', agentId },
+      });
+      expect(completedRes.ok).toBe(true);
+      const completedId = completedRes.data.id;
+
+      const completeDoneRes = await requestWithRetry(`/sessions/${completedId}`, {
+        method: 'PUT',
+        body: { status: 'completed', note: 'Done' },
+      });
+      expect(completeDoneRes.ok).toBe(true);
+
+      const abandonedRes = await requestWithRetry('/sessions', {
+        method: 'POST',
+        body: { purpose: 'Bug 12 abandoned test', agentId },
+      });
+      expect(abandonedRes.ok).toBe(true);
+      const abandonedId = abandonedRes.data.id;
+
+      const abandonDoneRes = await requestWithRetry(`/sessions/${abandonedId}`, {
+        method: 'PUT',
+        body: { status: 'abandoned' },
+      });
+      expect(abandonDoneRes.ok).toBe(true);
 
       // Without --all: should only show active sessions
-      const activeOnly = runCli(['sessions', '--json']);
+      const activeOnly = runCli(['sessions', '--agent', agentId, '--json']);
       const activeData = JSON.parse(activeOnly.stdout);
       expect(activeData.sessions.every(s => s.status === 'active')).toBe(true);
 
       // With --all: should show all statuses
-      const allSessions = runCli(['sessions', '--all', '--json']);
+      const allSessions = runCli(['sessions', '--agent', agentId, '--all', '--json']);
       const allData = JSON.parse(allSessions.stdout);
       const statuses = new Set(allData.sessions.map(s => s.status));
       expect(statuses.has('completed')).toBe(true);
