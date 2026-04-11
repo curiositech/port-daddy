@@ -113,6 +113,36 @@ Important nuance:
 - it removes obvious local-only residue from the public repo
 - it does not yet solve the larger split between internal operator authority docs and a future curated external mirror/export subset
 
+## Curated Public Export
+
+The second boundary is a curated export generated from committed `HEAD`, not from the dirty working tree.
+
+Mechanics:
+- `config/public-repo-export.json`
+  - allowlist for the public mirror
+  - explicit excludes for experimental and operator-only surfaces
+- `lib/public-repo-export.ts`
+  - reusable selection + export logic
+- `scripts/export-public-repo.ts`
+  - wrapper script for local export or CI validation
+- `tests/unit/public-repo-export.test.js`
+  - verifies the selection and a small materialization sample
+
+Default workflow:
+- `npm run check:public-export`
+- `npm run export:public -- --out ../port-daddy-public --clean`
+
+Current policy:
+- export from `HEAD` only
+- fail unless the target directory is empty or `--clean` is passed
+- keep runtime-critical code, tests, canonical skill docs, ADRs, selected security/protocol docs, and canonical app/UI sources
+- exclude recovery ledgers, internal plans, website source, experimental app surfaces, and workshop residue
+
+This is the migration bridge:
+- the current repo is still the internal superset
+- the generated export is the candidate GitHub-distribution subset
+- once the mirror flow is stable, the public repo should be driven from this manifest rather than by ad hoc human judgment
+
 ## Distribution Direction
 
 Now:
