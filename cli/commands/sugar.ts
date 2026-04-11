@@ -6,6 +6,7 @@
 
 import { spawn } from 'node:child_process';
 import { highlightChannel } from '../../lib/maritime.js';
+import PortDaddy from '../../lib/client.js';
 import { pdFetch } from '../utils/fetch.js';
 import { CLIOptions, isQuiet, isJson } from '../types.js';
 import { IS_TTY, relativeTime } from '../utils/output.js';
@@ -167,16 +168,15 @@ export async function handleDone(
   if (note) body.note = note;
   if (options.status) body.status = options.status;
 
-  const res: PdFetchResponse = await pdFetch('/sugar/done', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+  const pd = new PortDaddy({ agentId: typeof body.agentId === 'string' ? body.agentId : undefined });
+  const data = await pd.done(note, {
+    agentId: typeof body.agentId === 'string' ? body.agentId : undefined,
+    sessionId: typeof body.sessionId === 'string' ? body.sessionId : undefined,
+    status: typeof body.status === 'string' ? body.status : undefined,
   });
 
-  const data = await res.json();
-
-  if (!res.ok) {
-    ui.error((data.error as string) || 'Failed to end session');
+  if (!data?.success) {
+    ui.error((data?.error as string) || 'Failed to end session');
     process.exit(1);
   }
 
@@ -221,14 +221,8 @@ export async function handleWhoami(options: CLIOptions): Promise<void> {
     return;
   }
 
-  const params = new URLSearchParams();
-  params.set('agentId', agentId);
-
-  const res: PdFetchResponse = await pdFetch(`/sugar/whoami?${params}`, {
-    method: 'GET',
-  });
-
-  const data = await res.json();
+  const pd = new PortDaddy({ agentId });
+  const data = await pd.whoami(agentId);
 
   if (isJson(options)) {
     // Merge local context timing if available

@@ -6,6 +6,7 @@
  */
 
 import http from 'node:http';
+import { jest } from '@jest/globals';
 import { PortDaddy, PortDaddyError, ConnectionError } from '../../lib/client.js';
 import { getDaemonTcpUrl } from '../../shared/daemon-discovery.js';
 
@@ -466,6 +467,95 @@ describe('Agents', () => {
     await pd.listAgents({ activeOnly: true });
 
     expect(receivedRequests[0].url).toContain('active=true');
+  });
+});
+
+// =============================================================================
+// IPC Fast Paths
+// =============================================================================
+
+describe('IPC fast paths', () => {
+  let pd;
+
+  beforeEach(() => {
+    pd = createClient({ agentId: 'registered-agent' });
+  });
+
+  test('note prefers IPC when agent/session context is available', async () => {
+    pd._requestViaIpc = jest.fn().mockResolvedValue({
+      success: true,
+      sessionId: 'sess-123',
+      noteId: 7,
+    });
+
+    const result = await pd.note('progress update', {
+      sessionId: 'sess-123',
+      type: 'progress',
+    });
+
+    expect(pd._requestViaIpc).toHaveBeenCalledWith(
+      'session.note',
+      expect.objectContaining({
+        sessionId: 'sess-123',
+        content: 'progress update',
+        type: 'progress',
+      }),
+      { agentId: undefined },
+    );
+    expect(receivedRequests).toHaveLength(0);
+    expect(result.sessionId).toBe('sess-123');
+  });
+
+  test('done falls back to HTTP when IPC is unavailable', async () => {
+    pd._requestViaIpc = jest.fn().mockResolvedValue(null);
+    queueResponse({ success: true, sessionId: 'sess-123', sessionStatus: 'completed' });
+
+    const result = await pd.done('all set', { sessionId: 'sess-123' });
+
+    expect(receivedRequests[0].url).toBe('/sugar/done');
+    expect(receivedRequests[0].body.note).toBe('all set');
+    expect(result.sessionId).toBe('sess-123');
+  });
+
+  test('whoami prefers IPC query when agentId is known', async () => {
+    pd._requestViaIpc = jest.fn().mockResolvedValue({
+      success: true,
+      active: true,
+      agentId: 'registered-agent',
+      sessionId: 'sess-123',
+      purpose: 'Ship fixes',
+    });
+
+    const result = await pd.whoami();
+
+    expect(pd._requestViaIpc).toHaveBeenCalledWith(
+      'sugar.whoami',
+      { agentId: 'registered-agent' },
+      { agentId: 'registered-agent', performative: expect.any(Number) },
+    );
+    expect(receivedRequests).toHaveLength(0);
+    expect(result.sessionId).toBe('sess-123');
+  });
+
+  test('claimFiles prefers IPC before HTTP', async () => {
+    pd._requestViaIpc = jest.fn().mockResolvedValue({
+      success: true,
+      sessionId: 'sess-123',
+      claimed: ['src/auth.ts'],
+    });
+
+    const result = await pd.claimFiles('sess-123', ['src/auth.ts'], { force: true });
+
+    expect(pd._requestViaIpc).toHaveBeenCalledWith(
+      'session.files.claim',
+      expect.objectContaining({
+        sessionId: 'sess-123',
+        paths: ['src/auth.ts'],
+        force: true,
+      }),
+    );
+    expect(receivedRequests).toHaveLength(0);
+    expect(result.success).toBe(true);
   });
 });
 

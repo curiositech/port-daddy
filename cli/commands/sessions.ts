@@ -4,6 +4,7 @@
  * Handles: session, sessions, note, notes commands
  */
 
+import PortDaddy from '../../lib/client.js';
 import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import { CLIOptions, isQuiet, isJson } from '../types.js';
 import { getDirectSessions } from '../utils/direct-db.js';
@@ -616,16 +617,17 @@ export async function handleNote(content: string | undefined, options: CLIOption
     ? `${PORT_DADDY_URL}/sessions/${encodeURIComponent(sessionId)}/notes`
     : `${PORT_DADDY_URL}/notes`;
 
-  const res: PdFetchResponse = await pdFetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
+  const pd = new PortDaddy({
+    agentId: typeof body.agentId === 'string' ? body.agentId : current?.agentId,
+  });
+  const data = await pd.note(content, {
+    type: typeof body.type === 'string' ? body.type : undefined,
+    agentId: typeof body.agentId === 'string' ? body.agentId : undefined,
+    sessionId,
   });
 
-  const data = await res.json();
-
-  if (!res.ok) {
-    ui.error((data.error as string) || 'Failed to add note');
+  if (!data?.success) {
+    ui.error((data?.error as string) || 'Failed to add note');
     process.exit(1);
   }
 

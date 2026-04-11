@@ -62,6 +62,10 @@ export interface IpcRouterDeps {
   sugar?: {
     begin: (options: Record<string, unknown>) => unknown;
     done: (options: Record<string, unknown>) => unknown;
+    whoami: (options: Record<string, unknown>) => unknown;
+  };
+  fleet?: {
+    promptLine: (project: string, since?: number) => string;
   };
 }
 
@@ -115,6 +119,10 @@ export function createIpcRouter(deps: IpcRouterDeps) {
   handlers.set(IpcAction.DONE, (p) => {
     if (deps.sugar) return deps.sugar.done(p);
     return deps.sessions.end(String(p.sessionId), p);
+  });
+
+  handlers.set(IpcAction.WHOAMI, (p) => {
+    return deps.sugar?.whoami(p) ?? { success: false, error: 'sugar_not_available' };
   });
 
   handlers.set(IpcAction.NOTE, (p) => {
@@ -247,6 +255,20 @@ export function createIpcRouter(deps: IpcRouterDeps) {
       String(p.deadAgentId),
       String(p.agentId),
     ) ?? { error: 'salvage_not_available' };
+  });
+
+  handlers.set(IpcAction.FLEET_PROMPT, (p) => {
+    const project = typeof p.project === 'string' ? p.project : '';
+    if (!project) return { success: false, error: 'project query param required' };
+    const since = typeof p.since === 'number'
+      ? p.since
+      : typeof p.since === 'string' && p.since !== ''
+        ? parseInt(p.since, 10)
+        : undefined;
+    return {
+      success: true,
+      line: deps.fleet?.promptLine(project, Number.isFinite(since) ? since : undefined) ?? '',
+    };
   });
 
   // ── Main dispatch function ────────────────────────────────────────────

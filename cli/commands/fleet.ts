@@ -9,6 +9,8 @@ import { join, basename } from 'node:path';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { parse as parseYaml } from 'yaml';
+import { createIpcClient } from '../../lib/ipc-client.js';
+import { IpcAction, Performative } from '../../lib/ipc-types.js';
 import * as ui from '../utils/ui.js';
 import { pdFetch, isDaemonRunning, getDaemonUrl } from '../utils/fetch.js';
 import {
@@ -22,6 +24,7 @@ import {
 import { assessBackendReadiness } from '../../lib/backend-readiness.js';
 import { resolveFleetChannel } from '../../lib/fleet-channels.js';
 import { ensureStarterFleetProject } from '../../lib/fleet-bootstrap.js';
+import { DEFAULT_IPC } from '../../shared/paths.js';
 
 // ─── Load .env.local / .env for API keys ────────────────────────────────────
 // Searches: cwd, parent dir, home directory. Later files overwrite earlier ones,
@@ -64,6 +67,35 @@ loadEnvFiles();
 
 const PD_URL = process.env.PD_URL || process.env.PORT_DADDY_URL || getDaemonUrl();
 const LOCAL_EXECUTION_BACKENDS = new Set(['claude-cli', 'codex', 'ollama', 'aider', 'custom']);
+
+async function getFleetPromptLineViaIpc(project: string, since?: number): Promise<string | null> {
+  if (process.env.PD_URL || process.env.PORT_DADDY_URL || process.env.PORT_DADDY_SOCK) return null;
+  const socketPath = process.env.PORT_DADDY_IPC || DEFAULT_IPC;
+  if (!existsSync(socketPath)) return null;
+
+  const ipc = createIpcClient({
+    socketPath,
+    agentId: 'pd-cli-fleet-prompt',
+    reconnect: false,
+    requestTimeout: 1000,
+  });
+
+  try {
+    await ipc.connect();
+    const frame = await ipc.request(
+      Performative.QUERY_REF,
+      { action: IpcAction.FLEET_PROMPT, project, since },
+      1000,
+    );
+    if (frame.type !== Performative.INFORM_DONE) return null;
+    const result = frame.payload.result as { success?: boolean; line?: string } | undefined;
+    return result?.success ? (result.line || '') : null;
+  } catch {
+    return null;
+  } finally {
+    ipc.destroy();
+  }
+}
 
 function isFleetRunning(): { running: boolean; pid: number | null; name: string | null } {
   const stateFile = join(process.cwd(), '.portdaddy', 'fleet-state.json');
@@ -615,6 +647,20 @@ async function fleetPrompt(): Promise<void> {
   }
 
   try {
+    const ipcLine = await getFleetPromptLineViaIpc(projectName, since);
+    if (ipcLine !== null) {
+      if (ipcLine) {
+        process.stdout.write(ipcLine + '\n');
+      }
+      try {
+        mkdirSync(stateDir, { recursive: true });
+        writeFileSync(promptStateFile, String(Date.now()));
+      } catch {
+        // Non-critical
+      }
+      return;
+    }
+
     const url = new URL(`${PD_URL}/fleet/prompt`);
     url.searchParams.set('project', projectName);
     if (since) url.searchParams.set('since', String(since));

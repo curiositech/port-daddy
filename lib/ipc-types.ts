@@ -74,6 +74,7 @@ export const IpcAction = {
   NOTE:           'session.note',
   FILES_CLAIM:    'session.files.claim',
   FILES_RELEASE:  'session.files.release',
+  WHOAMI:         'sugar.whoami',
 
   // Ports
   CLAIM:          'port.claim',
@@ -96,6 +97,9 @@ export const IpcAction = {
   // Salvage
   SALVAGE_LIST:   'salvage.list',
   SALVAGE_CLAIM:  'salvage.claim',
+
+  // Fleet
+  FLEET_PROMPT:   'fleet.prompt',
 } as const;
 
 export type IpcActionName = typeof IpcAction[keyof typeof IpcAction];

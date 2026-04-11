@@ -38,6 +38,14 @@ function createMockDeps() {
       sniff: jest.fn((table, id) => ({ success: true, pheromones: {} })),
       list: jest.fn(() => []),
     },
+    sugar: {
+      begin: jest.fn((opts) => ({ success: true, sessionId: 'sess-001', ...opts })),
+      done: jest.fn((opts) => ({ success: true, sessionId: opts.sessionId || 'sess-001' })),
+      whoami: jest.fn((opts) => ({ success: true, active: true, agentId: opts.agentId, sessionId: 'sess-001' })),
+    },
+    fleet: {
+      promptLine: jest.fn((project, since) => `[${project}] since=${since ?? 'none'}`),
+    },
   };
 }
 
@@ -137,6 +145,22 @@ describe('IPC Router', () => {
     expect(replies[0].type).toBe(Performative.INFORM_DONE);
   });
 
+  test('sugar.whoami delegates to sugar service', () => {
+    const deps = createMockDeps();
+    const router = createIpcRouter(deps);
+    const replies = [];
+
+    router.handleFrame(
+      { type: Performative.QUERY_REF, convId: 23, payload: { action: IpcAction.WHOAMI, agentId: 'agent-xyz' } },
+      mockConn('agent-xyz'),
+      (f) => replies.push(f),
+    );
+
+    expect(deps.sugar.whoami).toHaveBeenCalledWith(expect.objectContaining({ agentId: 'agent-xyz' }));
+    expect(replies[0].payload.result.active).toBe(true);
+    expect(replies[0].payload.result.sessionId).toBe('sess-001');
+  });
+
   test('session.files.claim passes paths array', () => {
     const deps = createMockDeps();
     const router = createIpcRouter(deps);
@@ -178,6 +202,21 @@ describe('IPC Router', () => {
     );
 
     expect(deps.messaging.publish).toHaveBeenCalledWith('build:done', '{"status":"ok"}', expect.any(Object));
+  });
+
+  test('fleet.prompt returns one-line prompt status', () => {
+    const deps = createMockDeps();
+    const router = createIpcRouter(deps);
+    const replies = [];
+
+    router.handleFrame(
+      { type: Performative.QUERY_REF, convId: 35, payload: { action: IpcAction.FLEET_PROMPT, project: 'port-daddy-dev', since: 123 } },
+      mockConn(),
+      (f) => replies.push(f),
+    );
+
+    expect(deps.fleet.promptLine).toHaveBeenCalledWith('port-daddy-dev', 123);
+    expect(replies[0].payload.result.line).toBe('[port-daddy-dev] since=123');
   });
 
   test('NOT_UNDERSTOOD for unknown action includes available actions', () => {
@@ -266,8 +305,11 @@ describe('IPC Router', () => {
 
     expect(replies).toHaveLength(1);
     expect(replies[0].type).toBe(Performative.INFORM_DONE);
-    // Service WAS called
-    expect(deps.sessions.start).toHaveBeenCalled();
+    expect(deps.sugar.begin).toHaveBeenCalledWith(expect.objectContaining({
+      action: IpcAction.BEGIN,
+      agentId: 'registered-a1',
+      purpose: 'testing',
+    }));
   });
 
   test('unregistered agent can heartbeat (open action)', () => {
@@ -449,7 +491,7 @@ describe('IPC Auth', () => {
     const open = ['heartbeat', 'port.claim', 'port.release', 'port.find',
       'pheromone.spray', 'pheromone.sniff', 'msg.publish',
       'msg.subscribe', 'agent.register', 'agent.unregister',
-      'salvage.list'];
+      'salvage.list', 'sugar.whoami', 'fleet.prompt'];
     for (const a of open) {
       expect(actionRequiresRegistration(a)).toBe(false);
     }

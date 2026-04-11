@@ -20,7 +20,7 @@ import { existsSync } from 'node:fs';
 import type { PortDaddyClientOptions } from '../shared/types.js';
 import { CANONICAL_TCP_PORT, getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { createIpcClient } from './ipc-client.js';
-import { Performative } from './ipc-types.js';
+import { IpcAction, Performative } from './ipc-types.js';
 import { DEFAULT_SOCK, DEFAULT_IPC } from '../shared/paths.js';
 
 // =============================================================================
@@ -1050,6 +1050,7 @@ class PortDaddy {
    */
   private _getIpc(): ReturnType<typeof createIpcClient> | null {
     if (this._ipc) return this._ipc;
+    if (process.env.PORT_DADDY_URL || process.env.PORT_DADDY_SOCK || this.socketPath !== DEFAULT_SOCK) return null;
     if (!this.agentId) return null;
     if (!existsSync(this._ipcPath)) return null;
 
@@ -1064,6 +1065,49 @@ class PortDaddy {
       this._ipc = null;
     });
     return this._ipc;
+  }
+
+  private async _requestViaIpc<T>(
+    action: string,
+    payload: Record<string, unknown>,
+    options: {
+      agentId?: string;
+      performative?: number;
+    } = {},
+  ): Promise<T | null> {
+    if (process.env.PORT_DADDY_URL || process.env.PORT_DADDY_SOCK || this.socketPath !== DEFAULT_SOCK) return null;
+
+    const effectiveAgentId = options.agentId || this.agentId;
+    if (!effectiveAgentId || !existsSync(this._ipcPath)) return null;
+
+    const ipc = createIpcClient({
+      socketPath: this._ipcPath,
+      agentId: effectiveAgentId,
+      reconnect: false,
+      requestTimeout: this.timeout,
+    });
+
+    try {
+      if (ipc.state !== 'ready') {
+        await ipc.connect();
+      }
+
+      const frame = await ipc.request(
+        (options.performative ?? Performative.REQUEST) as typeof Performative.REQUEST,
+        { action, ...payload },
+        this.timeout,
+      );
+
+      if (frame.type !== Performative.INFORM_DONE) {
+        return null;
+      }
+
+      return (frame.payload.result ?? null) as T | null;
+    } catch {
+      return null;
+    } finally {
+      ipc.destroy();
+    }
   }
 
   // ===========================================================================
@@ -1943,6 +1987,17 @@ class PortDaddy {
     agentId?: string;
     sessionId?: string;
   }): Promise<NoteResponse> {
+    const ipcResult = await this._requestViaIpc<NoteResponse>(
+      IpcAction.NOTE,
+      {
+        sessionId: options?.sessionId,
+        content,
+        type: options?.type,
+      },
+      { agentId: options?.agentId },
+    );
+    if (ipcResult) return ipcResult;
+
     if (options?.sessionId) {
       return this._request('POST', `/sessions/${options.sessionId}/notes`, {
         content,
@@ -2016,6 +2071,12 @@ class PortDaddy {
       force = options.force;
       regions = options.regions;
     }
+    const ipcResult = await this._requestViaIpc<FileClaimResponse>(
+      IpcAction.FILES_CLAIM,
+      { sessionId, paths: files, regions, force },
+    );
+    if (ipcResult) return ipcResult;
+
     return this._request('POST', `/sessions/${sessionId}/files`, { files, regions, force }) as Promise<FileClaimResponse>;
   }
 
@@ -2027,6 +2088,12 @@ class PortDaddy {
     files: string[],
     options?: { regions?: FileRegion[] }
   ): Promise<FileReleaseResponse> {
+    const ipcResult = await this._requestViaIpc<FileReleaseResponse>(
+      IpcAction.FILES_RELEASE,
+      { sessionId, paths: files, regions: options?.regions },
+    );
+    if (ipcResult) return ipcResult;
+
     return this._request('DELETE', `/sessions/${sessionId}/files`, { files, regions: options?.regions }) as Promise<FileReleaseResponse>;
   }
 
@@ -2168,7 +2235,10 @@ class PortDaddy {
     if (note) body.note = note;
     if (options.status) body.status = options.status;
 
-    const result = await this._request('POST', '/sugar/done', body) as DoneSugarResponse;
+    const ipcResult = await this._requestViaIpc<DoneSugarResponse>(IpcAction.DONE, body, {
+      agentId: options.agentId || this.agentId,
+    });
+    const result = ipcResult ?? await this._request('POST', '/sugar/done', body) as DoneSugarResponse;
 
     // Clear agentId since we just unregistered
     if (result.agentUnregistered) {
@@ -2187,6 +2257,14 @@ class PortDaddy {
    */
   async whoami(agentId?: string): Promise<WhoamiSugarResponse> {
     const id = agentId || this.agentId;
+    if (id) {
+      const ipcResult = await this._requestViaIpc<WhoamiSugarResponse>(
+        IpcAction.WHOAMI,
+        { agentId: id },
+        { agentId: id, performative: Performative.QUERY_REF },
+      );
+      if (ipcResult) return ipcResult;
+    }
     const qs = id ? `?agentId=${encodeURIComponent(id)}` : '';
     return this._request('GET', `/sugar/whoami${qs}`) as Promise<WhoamiSugarResponse>;
   }

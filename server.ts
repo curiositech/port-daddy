@@ -59,6 +59,8 @@ import { createMergeQueue } from './lib/merge-queue.js';
 import { createCostTracker } from './lib/cost-tracker.js';
 import { createCounters } from './lib/counters.js';
 import { launchFleetBarIfEnabled } from './lib/fleetbar-launcher.js';
+import { createGraphEdges } from './lib/graph-edges.js';
+import { createEpisodicMemory } from './lib/episodic-memory.js';
 
 // Fastify route aggregator (Phase 3 — native Fastify plugins, no Express bridge)
 import { registerAllRoutes } from './routes/index.js';
@@ -217,6 +219,8 @@ const db: Database.Database = initDatabase({ dbPath: DB_PATH });
 // =============================================================================
 
 const semanticIndex = createSemanticIndex(db);
+const graphEdges = createGraphEdges(db);
+const episodicMemory = createEpisodicMemory(db);
 
 const services = createServices(db, { semanticIndex });
 const messaging = createMessaging(db);
@@ -227,7 +231,7 @@ const activityLog = createActivityLog(db);
 const webhooks = createWebhooks(db);
 const projects = createProjects(db);
 const noteEncryption = createNoteEncryption();
-const sessions = createSessions(db, noteEncryption, { semanticIndex });
+const sessions = createSessions(db, noteEncryption, { semanticIndex, episodicMemory });
 sessions.setActivityLog(activityLog);
 
 const agentInbox = createAgentInbox(db, (agentId, message) => {
@@ -250,7 +254,7 @@ const counters = createCounters(db);
 const spawner = createSpawner({ costTracker, counters });
 const sugar = createSugar({ agents, sessions, activityLog });
 const harbors = createHarbors(db);
-const sorties = createSorties(db);
+const sorties = createSorties(db, { episodicMemory });
 semanticIndex.initialize();
 const arbiter = createArbiter(
   { activityLog, agents, sessions, locks, resurrection },
@@ -263,8 +267,8 @@ const tuples = createTupleSpace(db);
 
 // Phase 1 — Semantic Graph modules (orchestrator plugins, symbol index, merge queue)
 const orchestratorRegistry = createOrchestratorRegistry(db, { activityLog });
-const symbolIndex = createSymbolIndex(db);
-const mergeQueue = createMergeQueue(db, { orchestratorRegistry, activityLog });
+const symbolIndex = createSymbolIndex(db, { graphEdges });
+const mergeQueue = createMergeQueue(db, { orchestratorRegistry, activityLog, graphEdges });
 
 const barnacle = createBarnacleWatcher(logger);
 barnacle.start();
@@ -545,7 +549,7 @@ await registerAllRoutes(
     services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar,
     harbors, sorties, orchestrator, correlationEngine, spawner, tuples, fleetDaemon,
-    orchestratorRegistry, symbolIndex, mergeQueue, costTracker, counters,
+    orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, costTracker, counters,
     VERSION, CODE_HASH, STARTED_AT, __dirname,
     cleanupStale, getSystemPorts,
   },
@@ -719,6 +723,9 @@ const ipcRouter = createIpcRouter({
   pheromones,
   resurrection,
   sugar,
+  fleet: {
+    promptLine: (project: string, since?: number) => fleetDaemon.getPromptLine(project, since),
+  },
 });
 
 const ipcServer = DISABLE_IPC ? null : createIpcServer({

@@ -30,6 +30,15 @@ Current uncommitted slice: semantic graph + episodic memory plumbing wired into 
   - `lib/webhooks.ts` now owns retry timers, supports `dispose()`, and fences off post-dispose writes/retries
   - `tests/unit/webhooks.test.js` now closes webhook/db state explicitly and covers retry cancellation on dispose
   - validation truth on 2026-04-11: `npm test -- --runInBand --detectOpenHandles` is green (`109/109` suites, `4523/4524` tests, `1` intentional skip) with no open-handle report
+- newest validated runtime slice after that teardown work:
+  - IPC router now exposes `sugar.whoami` and `fleet.prompt`
+  - SDK one-shot request/response flows (`done`, `whoami`, `note`, `claimFiles`, `releaseFiles`) now use ephemeral IPC clients when talking to the canonical local daemon, then fall back cleanly for explicit TCP / alternate-socket targets
+  - CLI `pd done`, `pd whoami`, and `pd note` now ride those SDK fast paths instead of duplicating raw HTTP behavior
+  - `pd fleet prompt` now prefers IPC only for the canonical local daemon and otherwise stays on HTTP so alternate daemon targets do not drift
+  - validation truth on 2026-04-11:
+    - targeted router/client/CLI tests are green
+    - `tests/integration/cli.test.js` is green
+    - `npm test` passes `109/109` suites and `4529/4530` tests, but the old parallel Jest worker-force-exit warning still appears, so teardown debt is reduced but not fully closed
 
 ## New Product-Direction Intake (2026-04-10)
 
