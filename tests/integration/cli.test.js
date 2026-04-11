@@ -7,10 +7,27 @@
  */
 
 import { join } from 'node:path';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { request, runCli, getDaemonState } from '../helpers/integration-setup.js';
 
+async function requestWithRetry(path, options = {}, attempts = 3) {
+  let lastError;
+  for (let index = 0; index < attempts; index += 1) {
+    try {
+      return await request(path, options);
+    } catch (error) {
+      lastError = error;
+      const code = error && typeof error === 'object' && 'code' in error ? error.code : '';
+      if (code !== 'EPIPE' && code !== 'ECONNRESET') throw error;
+    }
+  }
+  throw lastError;
+}
+
 describe('CLI Integration Tests', () => {
+  const repoRoot = join(import.meta.dirname, '../..');
+
   test('ephemeral daemon is running', async () => {
     const state = getDaemonState();
     expect(state.sockPath).toBeDefined();
@@ -151,6 +168,103 @@ describe('CLI Integration Tests', () => {
       const data = JSON.parse(result.stdout);
       expect(data.success).toBe(true);
       expect(Array.isArray(data.projects)).toBe(true);
+    });
+  });
+
+  describe('Ideas Command', () => {
+    test('ideas list returns curated trove entries', () => {
+      const result = runCli(['ideas', 'list', '--dir', repoRoot, '--limit', '6', '--json']);
+      expect(result.success).toBe(true);
+
+      const data = JSON.parse(result.stdout);
+      expect(Array.isArray(data.entries)).toBe(true);
+      expect(data.entries.some((entry) => entry.slug === 'capability-discovery-dns-harbor')).toBe(true);
+    });
+
+    test('ideas search finds the ipc disconnect salvage family', () => {
+      const result = runCli(['ideas', 'search', 'salvage disconnect', '--dir', repoRoot, '--include-raw', '--json']);
+      expect(result.success).toBe(true);
+
+      const data = JSON.parse(result.stdout);
+      expect(Array.isArray(data.results)).toBe(true);
+      expect(data.results.some((entry) => entry.slug === 'ipc-disconnect-instant-salvage')).toBe(true);
+    });
+
+    test('ideas show returns a detailed entry', () => {
+      const result = runCli(['ideas', 'show', 'tuple-driven-fleet', '--dir', repoRoot, '--json']);
+      expect(result.success).toBe(true);
+
+      const data = JSON.parse(result.stdout);
+      expect(data.entry.slug).toBe('tuple-driven-fleet');
+      expect(data.entry.summary).toContain('fleet');
+    });
+
+    test('ideas search can find matching daemon notes', async () => {
+      const phrase = `federated-note-${Date.now()}`;
+      const noteRes = await requestWithRetry('/notes', {
+        method: 'POST',
+        body: {
+          content: `Need ${phrase} in the operator memory surface`,
+          agentId: `ideas-note-${Date.now()}`,
+          type: 'note',
+        },
+      });
+      expect(noteRes.ok).toBe(true);
+
+      const result = runCli(['ideas', 'search', phrase, '--sources', 'notes', '--json']);
+      expect(result.success).toBe(true);
+
+      const data = JSON.parse(result.stdout);
+      expect(Array.isArray(data.results)).toBe(true);
+      expect(data.results.some((entry) => entry.kind === 'note' && entry.summary.includes(phrase))).toBe(true);
+    });
+
+    test('ideas search can find matching tuples', async () => {
+      const phrase = `federated-tuple-${Date.now()}`;
+      const tupleRes = await requestWithRetry('/tuples', {
+        method: 'POST',
+        body: {
+          fields: ['task', phrase, { source: 'ideas-search-test' }],
+          harbor: 'ideas-test',
+          writtenBy: 'integration-suite',
+        },
+      });
+      expect(tupleRes.ok).toBe(true);
+
+      const result = runCli(['ideas', 'search', phrase, '--sources', 'tuples', '--json']);
+      expect(result.success).toBe(true);
+
+      const data = JSON.parse(result.stdout);
+      expect(Array.isArray(data.results)).toBe(true);
+      expect(data.results.some((entry) => entry.kind === 'tuple' && entry.summary.includes(phrase))).toBe(true);
+    });
+
+    test('ideas search can scan markdown-only directories without a trove file', () => {
+      const tempDir = mkdtempSync(join(tmpdir(), 'pd-ideas-markdown-it-'));
+      try {
+        writeFileSync(
+          join(tempDir, 'scratch.md'),
+          '# Scratch\n\nPhase 3 parity debt needs a random markdown search surface.\n',
+        );
+
+        const result = runCli([
+          'ideas',
+          'search',
+          'parity debt',
+          '--dir',
+          tempDir,
+          '--sources',
+          'markdown',
+          '--json',
+        ]);
+        expect(result.success).toBe(true);
+
+        const data = JSON.parse(result.stdout);
+        expect(Array.isArray(data.results)).toBe(true);
+        expect(data.results.some((entry) => entry.kind === 'markdown' && entry.location === 'scratch.md')).toBe(true);
+      } finally {
+        rmSync(tempDir, { recursive: true, force: true });
+      }
     });
   });
 

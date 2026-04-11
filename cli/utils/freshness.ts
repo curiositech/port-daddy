@@ -23,6 +23,7 @@ const FRESHNESS_SKIP_COMMANDS = new Set([
   'mcp',
   'agent',
   'agents',
+  'ideas',
 ]);
 
 export function shouldCheckDaemonFreshness(command: string | undefined, args: string[] = []): boolean {

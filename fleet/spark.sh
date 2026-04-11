@@ -23,6 +23,16 @@ IDEAS_DIR="$SPARK_DIR/ideas"
 
 mkdir -p "$IDEAS_DIR"
 
+spark_ideas_index() {
+  pd ideas list --dir "$PROJECT_DIR" --limit 12 --json 2>/dev/null
+}
+
+spark_idea_matches() {
+  local query="$1"
+  [[ -n "$query" ]] || return 0
+  pd ideas search "$query" --dir "$PROJECT_DIR" --limit 6 --include-raw --json 2>/dev/null
+}
+
 # ---------------------------------------------------------------------------
 # Phase 1: OBSERVE
 # ---------------------------------------------------------------------------
@@ -63,6 +73,8 @@ spark_research() {
 
   fleet_check_claude "$AGENT_NAME" || { fleet_log "$AGENT_NAME" "skipping research (no pd/claude)"; return 0; }
 
+  local ideas_index=$(spark_ideas_index)
+
   local prev_ideas=$(fleet_glob "$IDEAS_DIR/*.md")
   local prev_content=""
   if [[ -n "$prev_ideas" ]]; then
@@ -76,11 +88,18 @@ spark_research() {
 
 $(cat "$SPARK_DIR/latest-observation.md" 2>/dev/null)
 
+Structured ideas index: ${ideas_index:-(none)}
 Previous ideas: ${prev_content:-(none)}
 
-Pick ONE research topic that would help Port Daddy leap forward. Output ONLY the topic as a single sentence." 2>/dev/null | head -1)
+Pick ONE research topic that would help Port Daddy leap forward. Avoid topics that are already duplicated in the canonical trove unless you have a materially different actuator or payoff. Output ONLY the topic as a single sentence." 2>/dev/null | head -1)
 
   if [[ -n "$topic" ]]; then
+    local related_matches=$(spark_idea_matches "$topic")
+    if [[ -n "$related_matches" ]]; then
+      printf '%s\n' "$related_matches" > "$SPARK_DIR/latest-idea-matches.json"
+    else
+      rm -f "$SPARK_DIR/latest-idea-matches.json" 2>/dev/null
+    fi
     fleet_log "$AGENT_NAME" "Research topic: $topic"
     local json=$(python3 -c "import json,sys; print(json.dumps({'topic':sys.argv[1],'context':'Commissioned by Spark','requestor':'spark'}))" "$topic" 2>/dev/null)
     pd_pub "research:request" "$json"
@@ -98,6 +117,12 @@ spark_synthesize() {
   fleet_log "$AGENT_NAME" "SYNTHESIZE"
 
   fleet_check_claude "$AGENT_NAME" || { fleet_log "$AGENT_NAME" "skipping synthesis (no pd/claude)"; return 0; }
+
+  local ideas_index=$(spark_ideas_index)
+  local related_matches=""
+  if [[ -f "$SPARK_DIR/latest-idea-matches.json" ]]; then
+    related_matches=$(cat "$SPARK_DIR/latest-idea-matches.json" 2>/dev/null)
+  fi
 
   local research_content=""
   local research_files=$(fleet_glob "$PROJECT_DIR/research/*.md")
@@ -118,6 +143,8 @@ spark_synthesize() {
 
 Observation: $(cat "$SPARK_DIR/latest-observation.md" 2>/dev/null | head -30)
 Research: ${research_content:-(none)}
+Structured ideas index: ${ideas_index:-(none)}
+Related idea matches: ${related_matches:-(none)}
 Previous ideas: ${prev_content:-(none)}
 
 Format:
@@ -131,9 +158,14 @@ Format:
 ## Effort
 [Small / Medium / Large]
 
-Be bold. Be specific. Be buildable." 2>/dev/null)
+Novelty gate:
+- Do not rename an existing trove item and pretend it is new
+- If this is only a refinement, start with EXTENDS: <slug>
+- Only produce a new standalone idea if it adds a new actuator, data source, API surface, or operator payoff
 
-  if [[ -n "$idea" ]]; then
+Be bold. Be specific. Be buildable. If nothing novel survives dedupe, say DUPLICATE and stop." 2>/dev/null)
+
+  if [[ -n "$idea" && "$idea" != DUPLICATE* ]]; then
     local idea_name=$(echo "$idea" | grep "^# " | head -1 | sed 's/^# //')
     local slug=$(echo "$idea_name" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | tr -cd 'a-z0-9-' | head -c 40)
     local idea_file="$IDEAS_DIR/$(date +%Y%m%d-%H%M)-${slug}.md"

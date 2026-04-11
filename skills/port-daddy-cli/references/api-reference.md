@@ -10,6 +10,9 @@ All HTTP endpoints accept and return JSON. Rate limited to 100 req/min per IP.
 - **HTTP** (TCP or Unix socket) — full API, request-response
 - **Binary IPC** (Unix domain socket) — MessagePack-encoded, 7-byte header, ~3us latency for fire-and-forget. Supports heartbeats, pheromone sprays, pub/sub publish, claims, locks, sessions. The SDK uses IPC automatically when available; falls back to HTTP.
 
+**CLI-local surfaces that are not HTTP endpoints:**
+- `pd ideas list/show` reads `docs/recovery/IDEAS-TROVE.md` directly from the repo. `pd ideas search` federates that local trove with optional `.spark/.spider` residue, repo markdown, and live daemon notes/tuples when available. This surface is intentionally local-first and only uses daemon APIs opportunistically for note/tuple search.
+
 ---
 
 ## Services (Port Management)
@@ -267,6 +270,7 @@ Health check. Returns status, version, uptime, active port count, and fleet summ
 }
 ```
 `fleet` is `undefined` when the fleet subsystem is not running.
+When a fleet mailbox is busy, individual agent rows can surface `status: "queued"` and `queueDepth` so repeated wakeups are visible as collapsed pending work instead of fresh spawns.
 
 ### GET /status
 Combined health + metrics + process info. Includes detailed fleet breakdown.
@@ -282,12 +286,26 @@ Combined health + metrics + process info. Includes detailed fleet breakdown.
   "fleet": {
     "running": true,
     "startedAt": 1711234567890,
-    "projects": [{ "name": "my-app", "agents": 3, "watchers": 1 }],
+    "projects": [
+      {
+        "name": "my-app",
+        "projectDir": "/Users/you/coding/my-app",
+        "running": true,
+        "agents": [
+          { "name": "qa", "type": "triggered", "status": "running", "running": true, "paused": false, "uptime": 3600000, "queueDepth": 0 },
+          { "name": "docs", "type": "scheduled", "status": "queued", "running": false, "paused": false, "uptime": 0, "queueDepth": 2 }
+        ],
+        "watchers": 1,
+        "channels": 3,
+        "startedAt": 1711234567890
+      }
+    ],
     "totalAgents": 5,
     "totalWatchers": 1
   }
 }
 ```
+Queued mailbox entries mean trigger bursts were collapsed behind one busy agent. Treat `queueDepth` as pending wake count, not duplicate work.
 
 ### GET /version
 Version info. Returns version string, code hash, uptime, PID.
@@ -651,7 +669,7 @@ This is the low-level delegation primitive. Use `/sorties` when you want a durab
 **Body:**
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `backend` | string | yes | `ollama`, `claude`, `claude-cli`, `gemini`, `codex`, `aider`, `custom` |
+| `backend` | string | yes | `ollama`, `claude`, `claude-cli`, `gemini`, `cloudflare`, `codex`, `aider`, `custom` |
 | `model` | string | no | Model name override |
 | `modelTier` | string | no | Tier hint: `low`, `mid`, `high` |
 | `identity` | string | yes | Semantic identity (`project:stack:context`) |
@@ -683,7 +701,7 @@ This is the first-class mission surface over spawned runs: Port Daddy creates a 
 |-------|------|----------|-------------|
 | `goal` | string | yes | Mission brief or goal statement |
 | `projectDir` | string | no | Project directory (defaults to daemon cwd) |
-| `backend` | string | yes | `ollama`, `claude`, `claude-cli`, `gemini`, `codex`, `aider`, `custom` |
+| `backend` | string | yes | `ollama`, `claude`, `claude-cli`, `gemini`, `cloudflare`, `codex`, `aider`, `custom` |
 | `budgetUsd` | number | yes | Positive spend ceiling for this mission |
 | `model` | string | no | Explicit model override |
 | `modelTier` | string | no | Tier hint: `low`, `mid`, `high` |
@@ -810,6 +828,34 @@ List all tuples, optionally scoped to a harbor.
 Count tuples, optionally scoped to a harbor.
 
 **Query params:** `harbor`.
+
+---
+
+## Semantic Graph
+
+### GET /graph/edges
+List semantic graph edges.
+
+**Query params:** `projectDir`, `scope`, `sourceType`, `sourceId`, `edgeType`, `targetType`, `targetId`, `query`, `limit`.
+
+### GET /graph/stats
+Summarize graph edges for a project.
+
+**Query params:** `projectDir`.
+
+---
+
+## Episodic Memory
+
+### GET /memory/episodes
+List episodic memory entries promoted from sessions and sorties.
+
+**Query params:** `projectDir`, `project`, `harbor`, `agentId`, `episodeType`, `query`, `limit`.
+
+### GET /memory/stats
+Summarize episodic memory for a project.
+
+**Query params:** `projectDir`, `project`.
 
 ---
 
@@ -969,6 +1015,7 @@ List available backends and their models. Probes Ollama for locally installed mo
     { "id": "ollama", "name": "Ollama (local)", "models": ["llama3.1:8b", "codellama:13b"] },
     { "id": "custom", "name": "Custom command", "models": [] },
     { "id": "gemini", "name": "Google Gemini", "models": ["gemini-2.5-pro", "gemini-2.5-flash"] },
+    { "id": "cloudflare", "name": "Cloudflare Workers AI", "models": ["@cf/meta/llama-3.1-8b-instruct", "@cf/meta/llama-3.1-70b-instruct"] },
     { "id": "openai", "name": "OpenAI", "models": ["gpt-4.1", "gpt-4.1-mini", "o4-mini"] },
     { "id": "groq", "name": "Groq", "models": ["llama-3.3-70b", "mixtral-8x7b"] },
     { "id": "aider", "name": "Aider", "models": [] }

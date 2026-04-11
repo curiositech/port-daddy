@@ -1110,6 +1110,15 @@ class PortDaddy {
     }
   }
 
+  private _throwIpcParityError(
+    result: Record<string, unknown> | null | undefined,
+    fallbackMessage: string,
+    status: number,
+  ): never {
+    const message = typeof result?.error === 'string' ? result.error : fallbackMessage;
+    throw new PortDaddyError(message, status, result ?? null);
+  }
+
   // ===========================================================================
   // Internal helpers
   // ===========================================================================
@@ -1140,6 +1149,14 @@ class PortDaddy {
   }
 
   /** @private */
+  _shouldFallbackFromSocket(error: NodeJS.ErrnoException): boolean {
+    return error.code === 'ENOENT' ||
+      error.code === 'ECONNREFUSED' ||
+      error.code === 'ECONNRESET' ||
+      error.code === 'EPERM';
+  }
+
+  /** @private */
   async _request(method: string, path: string, body?: Record<string, unknown>): Promise<unknown> {
     const target = this._resolveTarget();
     const jsonBody = body !== undefined ? JSON.stringify(body) : null;
@@ -1149,13 +1166,13 @@ class PortDaddy {
       headers['Content-Length'] = String(Buffer.byteLength(jsonBody));
     }
 
-    return new Promise((resolve, reject) => {
+    const makeRequest = (requestTarget: ConnectionTarget) => new Promise((resolve, reject) => {
       const reqOpts: http.RequestOptions = {
         method,
         path,
         headers,
         timeout: this.timeout,
-        ...(target.socketPath ? { socketPath: target.socketPath } : { host: target.host, port: target.port })
+        ...(requestTarget.socketPath ? { socketPath: requestTarget.socketPath } : { host: requestTarget.host, port: requestTarget.port })
       };
 
       const req = http.request(reqOpts, (res) => {
@@ -1178,8 +1195,13 @@ class PortDaddy {
       });
 
       req.on('error', (err: NodeJS.ErrnoException) => {
+        if (requestTarget.socketPath && !process.env.PORT_DADDY_URL && this._shouldFallbackFromSocket(err)) {
+          const url = new URL(this.url);
+          resolve(makeRequest({ host: url.hostname, port: parseInt(url.port, 10) || CANONICAL_TCP_PORT }));
+          return;
+        }
         if (err.code === 'ENOENT' || err.code === 'ECONNREFUSED') {
-          reject(new ConnectionError(target.socketPath || this.url));
+          reject(new ConnectionError(requestTarget.socketPath || this.url));
         } else {
           reject(new PortDaddyError(`Request failed: ${err.message}`, 0, null));
         }
@@ -1193,6 +1215,8 @@ class PortDaddy {
       if (jsonBody) req.write(jsonBody);
       req.end();
     });
+
+    return makeRequest(target);
   }
 
   // ===========================================================================
@@ -1412,7 +1436,8 @@ class PortDaddy {
             // Stream ended — reconnect if enabled
             if (active && reconnect && retryCount < maxRetries) {
               retryCount++;
-              setTimeout(connect, reconnectDelay * retryCount);
+              const timer = setTimeout(connect, reconnectDelay * retryCount);
+              if (typeof timer.unref === 'function') timer.unref();
             }
           });
         });
@@ -1424,7 +1449,8 @@ class PortDaddy {
             // Reconnect on error if enabled
             if (reconnect && retryCount < maxRetries) {
               retryCount++;
-              setTimeout(connect, reconnectDelay * retryCount);
+              const timer = setTimeout(connect, reconnectDelay * retryCount);
+              if (typeof timer.unref === 'function') timer.unref();
             }
           }
         });
@@ -1447,7 +1473,8 @@ class PortDaddy {
               retryCount++;
               currentES.close();
               currentES = undefined;
-              setTimeout(connect, reconnectDelay * retryCount);
+              const timer = setTimeout(connect, reconnectDelay * retryCount);
+              if (typeof timer.unref === 'function') timer.unref();
             }
           }
         };
@@ -1491,6 +1518,23 @@ class PortDaddy {
    * Acquire a distributed lock.
    */
   async lock(name: string, options: LockOptions = {}): Promise<LockResponse> {
+    const ipcResult = await this._requestViaIpc<LockResponse & { error?: string; code?: string }>(
+      IpcAction.LOCK_ACQUIRE,
+      {
+        name,
+        owner: options.owner || this.agentId,
+        ttl: options.ttl,
+        metadata: options.metadata,
+      },
+    );
+    if (ipcResult) {
+      if (ipcResult.success === false) {
+        const status = ipcResult.code === 'INVALID_TTL' ? 400 : 409;
+        this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to acquire lock', status);
+      }
+      return ipcResult;
+    }
+
     return this._request('POST', `/locks/${encodeURIComponent(name)}`, {
       owner: options.owner || this.agentId,
       ttl: options.ttl,
@@ -1502,6 +1546,21 @@ class PortDaddy {
    * Release a distributed lock.
    */
   async unlock(name: string, options: UnlockOptions = {}): Promise<UnlockResponse> {
+    const ipcResult = await this._requestViaIpc<UnlockResponse & { error?: string }>(
+      IpcAction.LOCK_RELEASE,
+      {
+        name,
+        owner: options.owner || this.agentId,
+        force: options.force,
+      },
+    );
+    if (ipcResult) {
+      if (ipcResult.success === false) {
+        this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to release lock', 403);
+      }
+      return ipcResult;
+    }
+
     return this._request('DELETE', `/locks/${encodeURIComponent(name)}`, {
       owner: options.owner || this.agentId,
       force: options.force,
@@ -1512,6 +1571,18 @@ class PortDaddy {
    * Check if a lock is held.
    */
   async checkLock(name: string): Promise<CheckLockResponse> {
+    const ipcResult = await this._requestViaIpc<CheckLockResponse & { error?: string }>(
+      IpcAction.LOCK_CHECK,
+      { name },
+      { performative: Performative.QUERY_REF },
+    );
+    if (ipcResult) {
+      if (ipcResult.success === false) {
+        this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to check lock', 400);
+      }
+      return ipcResult;
+    }
+
     return this._request('GET', `/locks/${encodeURIComponent(name)}`) as Promise<CheckLockResponse>;
   }
 
@@ -1519,6 +1590,21 @@ class PortDaddy {
    * Extend a lock's TTL.
    */
   async extendLock(name: string, options: LockOptions = {}): Promise<ExtendLockResponse> {
+    const ipcResult = await this._requestViaIpc<ExtendLockResponse & { error?: string; code?: string }>(
+      IpcAction.LOCK_EXTEND,
+      {
+        name,
+        owner: options.owner || this.agentId,
+        ttl: options.ttl,
+      },
+    );
+    if (ipcResult) {
+      if (ipcResult.success === false) {
+        this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to extend lock', 400);
+      }
+      return ipcResult;
+    }
+
     return this._request('PUT', `/locks/${encodeURIComponent(name)}`, {
       owner: options.owner || this.agentId,
       ttl: options.ttl,
@@ -1529,6 +1615,18 @@ class PortDaddy {
    * List all locks.
    */
   async listLocks(options: ListLocksOptions = {}): Promise<ListLocksResponse> {
+    const ipcResult = await this._requestViaIpc<ListLocksResponse & { error?: string }>(
+      IpcAction.LOCK_LIST,
+      { owner: options.owner },
+      { performative: Performative.QUERY_REF },
+    );
+    if (ipcResult) {
+      if (ipcResult.success === false) {
+        this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to list locks', 400);
+      }
+      return ipcResult;
+    }
+
     const params = new URLSearchParams();
     if (options.owner) params.set('owner', options.owner);
     const qs = params.toString();
@@ -1606,6 +1704,7 @@ class PortDaddy {
             // Best-effort extend — if it fails, the lock may expire
           });
         }, autoExtendMs);
+        if (typeof extendTimer.unref === 'function') extendTimer.unref();
       }
 
       return await fn();
@@ -2843,6 +2942,22 @@ class PortDaddy {
     fields: unknown[],
     options: { harbor?: string; writtenBy?: string; ttlMs?: number } = {}
   ): Promise<TupleOutResponse> {
+    const ipcResult = await this._requestViaIpc<TupleOutResponse & { error?: string; code?: string }>(
+      IpcAction.TUPLE_OUT,
+      {
+        fields,
+        harbor: options.harbor,
+        writtenBy: options.writtenBy,
+        ttlMs: options.ttlMs,
+      },
+    );
+    if (ipcResult) {
+      if (ipcResult.success === false) {
+        this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to write tuple', 400);
+      }
+      return ipcResult;
+    }
+
     return this._request('POST', '/tuples', {
       fields,
       harbor: options.harbor,
@@ -2862,6 +2977,22 @@ class PortDaddy {
     pattern: unknown[],
     options: { harbor?: string; limit?: number } = {}
   ): Promise<TupleRdResponse> {
+    const ipcResult = await this._requestViaIpc<TupleRdResponse & { error?: string }>(
+      IpcAction.TUPLE_RD,
+      {
+        pattern,
+        harbor: options.harbor,
+        limit: options.limit,
+      },
+      { performative: Performative.QUERY_REF },
+    );
+    if (ipcResult) {
+      if (ipcResult.success === false) {
+        this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to read tuples', 400);
+      }
+      return ipcResult;
+    }
+
     const params = new URLSearchParams();
     params.set('pattern', JSON.stringify(pattern));
     if (options.harbor) params.set('harbor', options.harbor);
@@ -2880,6 +3011,21 @@ class PortDaddy {
     pattern: unknown[],
     options: { harbor?: string; limit?: number } = {}
   ): Promise<TupleInResponse> {
+    const ipcResult = await this._requestViaIpc<TupleInResponse & { error?: string }>(
+      IpcAction.TUPLE_IN,
+      {
+        pattern,
+        harbor: options.harbor,
+        limit: options.limit,
+      },
+    );
+    if (ipcResult) {
+      if (ipcResult.success === false) {
+        this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to take tuples', 400);
+      }
+      return ipcResult;
+    }
+
     return this._request('DELETE', '/tuples', {
       pattern,
       harbor: options.harbor,
@@ -2894,6 +3040,18 @@ class PortDaddy {
    * const { tuples, count } = await pd.tupleScan('myapp');
    */
   async tupleScan(harbor?: string): Promise<TupleScanResponse> {
+    const ipcResult = await this._requestViaIpc<TupleScanResponse & { error?: string }>(
+      IpcAction.TUPLE_SCAN,
+      { harbor },
+      { performative: Performative.QUERY_REF },
+    );
+    if (ipcResult) {
+      if (ipcResult.success === false) {
+        this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to scan tuples', 400);
+      }
+      return ipcResult;
+    }
+
     const params = new URLSearchParams();
     if (harbor) params.set('harbor', harbor);
     const qs = params.toString() ? '?' + params.toString() : '';
@@ -2907,6 +3065,18 @@ class PortDaddy {
    * const { count } = await pd.tupleCount('myapp');
    */
   async tupleCount(harbor?: string): Promise<TupleCountResponse> {
+    const ipcResult = await this._requestViaIpc<TupleCountResponse & { error?: string }>(
+      IpcAction.TUPLE_COUNT,
+      { harbor },
+      { performative: Performative.QUERY_REF },
+    );
+    if (ipcResult) {
+      if (ipcResult.success === false) {
+        this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to count tuples', 400);
+      }
+      return ipcResult;
+    }
+
     const params = new URLSearchParams();
     if (harbor) params.set('harbor', harbor);
     const qs = params.toString() ? '?' + params.toString() : '';

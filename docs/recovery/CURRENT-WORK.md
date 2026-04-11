@@ -40,6 +40,11 @@ Current uncommitted slice: semantic graph + episodic memory plumbing wired into 
     - `tests/integration/cli.test.js` is green
     - `npm test` passes `109/109` suites and `4529/4530` tests, but the old parallel Jest worker-force-exit warning still appears, so teardown debt is reduced but not fully closed
 
+Sequencing note for the active recovery thread:
+- finish the remaining locks / tuples coordination tranche first
+- then polish the graph + memory + control-plane slice by upgrading session/file claims from line-range authority to Tree-sitter symbol-backed authority
+- keep line spans as fallback/display data, but stop treating `startLine` / `endLine` plus optional `symbol` text as the durable semantic identity
+
 ## New Product-Direction Intake (2026-04-10)
 
 Captured from the docs-redesign/operator vision thread and now tracked as roadmap-grade work, not chat residue:
@@ -248,6 +253,9 @@ The current-session drift investigation now has a concrete working-tree fix:
    - `spider-ipc-cascade-cleanup` / `2026-04-05-spider-ipc-disconnect-instant-salvage` -> immediate lock/salvage cleanup on IPC death
    - `spider-ipc-tuple-fast-path` + `spider-tuple-triggered-fleet-agents` -> tuple-driven fleet execution path
    - corpus review on 2026-04-11 collapsed the 98-file Spark idea set into canonical backlog families in `docs/recovery/IDEAS-TROVE.md`
+   - `pd ideas list/search/show` now provides a real repo-memory lookup surface over that curated trove and can also search local `.spark/.spider` residue, live daemon notes/tuples, and random repo markdown
+   - fleet prompts now allow narrowly scoped `Bash(pd ideas*)` so Spark/Spider can query the same index instead of relying on memory or repeated filename archaeology
+   - legacy `fleet/spark.sh` now injects structured idea-index and related-match results into its prompts instead of only a raw markdown head slice
    - recommended first two implementation cuts from that review: `ipc-disconnect-instant-salvage` and `forensic-context-windows`
    - reject or merge older/duplicative ideas instead of blindly copying stable residue into this repo
 30. Finish the spawn-discipline slice that the latest operator thread approved:
@@ -259,6 +267,11 @@ The current-session drift investigation now has a concrete working-tree fix:
    - AI Gateway planning for centralized policy, caching, observability, and provider routing
    - Vectorize / AI Search planning for shared retrieval and harbor memory surfaces
    - evaluate where AutoRAG is a net simplifier versus where graph/trie/tuple-native retrieval should stay in-house
+32. After the locks / tuples tranche, make symbolic coordination real:
+   - upgrade session/file claims from line-range overlap (`file_path`, `start_line`, `end_line`) to Tree-sitter-backed symbol identity wherever symbol data exists
+   - treat the current `symbol` field in `session_files` as insufficient authority; move toward canonical `symbolPath`-backed claims resolved through the symbol index
+   - keep line ranges for fallback, display, and non-indexed files, but stop using them as the only semantic conflict primitive in indexed code
+   - wire the new symbolic-claim truth into graph edges, episodic memory attribution, merge/conflict prediction, and control-plane visualizations so the graph/memory/control-plane slice stops resting on lossy line spans
 
 ## Immediate Next Cuts
 

@@ -113,6 +113,8 @@ _port_daddy() {
     harbor harbors
     # Tuple space
     tuple
+    # Semantic graph + episodic memory
+    graph memory ideas
     # System & Monitoring
     dashboard channels webhook webhooks metrics config health ports
     # Orchestration
@@ -1540,6 +1542,66 @@ _port_daddy() {
           ;;
         count)
           _pd_opts '--harbor --json --quiet'
+          ;;
+        *) _pd_opts '' ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
+    # graph  edges|stats  [options]
+    # -----------------------------------------------------------------------
+    graph)
+      local subcmd="${words[2]:-}"
+      case "$subcmd" in
+        '')
+          COMPREPLY=( $(compgen -W "edges stats help" -- "$cur") )
+          ;;
+        edges)
+          _pd_opts '--dir --scope --source-type --source-id --edge-type --target-type --target-id --query --limit --json --quiet'
+          ;;
+        stats)
+          _pd_opts '--dir --json --quiet'
+          ;;
+        *) _pd_opts '' ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
+    # memory  episodes|stats  [options]
+    # -----------------------------------------------------------------------
+    memory)
+      local subcmd="${words[2]:-}"
+      case "$subcmd" in
+        '')
+          COMPREPLY=( $(compgen -W "episodes stats help" -- "$cur") )
+          ;;
+        episodes)
+          _pd_opts '--dir --project --harbor --agent --type --query --limit --json --quiet'
+          ;;
+        stats)
+          _pd_opts '--dir --project --json --quiet'
+          ;;
+        *) _pd_opts '' ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
+    # ideas  list|search|show  [options]
+    # -----------------------------------------------------------------------
+    ideas)
+      local subcmd="${words[2]:-}"
+      case "$subcmd" in
+        '')
+          COMPREPLY=( $(compgen -W "list search show help" -- "$cur") )
+          ;;
+        list)
+          _pd_opts '--dir --status --limit --include-raw --json --quiet'
+          ;;
+        search)
+          _pd_opts '--dir --status --limit --sources --include-raw --json --quiet'
+          ;;
+        show)
+          _pd_opts '--dir --include-raw --json --quiet'
           ;;
         *) _pd_opts '' ;;
       esac

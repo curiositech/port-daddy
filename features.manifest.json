@@ -1122,6 +1122,57 @@
         "sdk": true
       }
     },
+    "graph": {
+      "description": "Semantic graph edges and aggregate graph stats for merge queue and symbol-index relationships",
+      "cli": [
+        "graph"
+      ],
+      "sdk": [],
+      "routes": [
+        "GET /graph/edges",
+        "GET /graph/stats"
+      ],
+      "completions": [
+        "graph"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
+    },
+    "memory": {
+      "description": "Episodic memory entries and aggregate memory stats promoted from sessions and sorties",
+      "cli": [
+        "memory"
+      ],
+      "sdk": [],
+      "routes": [
+        "GET /memory/episodes",
+        "GET /memory/stats"
+      ],
+      "completions": [
+        "memory"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
+    },
+    "ideas": {
+      "description": "Canonical ideation trove inspection and dedupe over docs/recovery/IDEAS-TROVE.md with optional local Spark/Spider residue",
+      "cli": [
+        "ideas"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "ideas"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
     "cost_tracker": {
       "description": "LLM cost recording per spawn \u2014 model pricing, project budgets, burn rate tracking",
       "cli": [],

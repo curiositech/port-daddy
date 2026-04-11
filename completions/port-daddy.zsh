@@ -671,7 +671,7 @@ _pd_cmd_fleet() {
     'simplify:propose simplifications for latest commit'
     'research:deep research on a topic'
     'spark:run one ideation cycle'
-    'ideas:list all of Spark'\''s ideas'
+    'ideas:search ideas, notes, tuples, and repo markdown'
   )
 
   local state
@@ -1301,6 +1301,149 @@ _pd_cmd_tuple() {
   esac
 }
 
+_pd_cmd_graph() {
+  local -a graph_subcmds
+  graph_subcmds=(
+    'edges:list semantic graph edges'
+    'stats:summarize graph edge counts'
+    'help:show graph help'
+  )
+
+  local state
+  _arguments -C '1:subcommand:->subcommand' '*::args:->args'
+
+  case "$state" in
+    subcommand)
+      _describe 'graph subcommand' graph_subcmds
+      ;;
+    args)
+      case "${words[2]}" in
+        edges)
+          _arguments \
+            '--dir[project directory filter]:path:_files -/' \
+            '--scope[scope filter]:' \
+            '--source-type[source entity type]:' \
+            '--source-id[source entity id]:' \
+            '--edge-type[edge type]:' \
+            '--target-type[target entity type]:' \
+            '--target-id[target entity id]:' \
+            '--query[text search]:' \
+            '--limit[max edges]:limit:' \
+            '(-j --json)'{-j,--json}'[output JSON]' \
+            '(-q --quiet)'{-q,--quiet}'[quiet output]'
+          ;;
+        stats)
+          _arguments \
+            '--dir[project directory filter]:path:_files -/' \
+            '(-j --json)'{-j,--json}'[output JSON]' \
+            '(-q --quiet)'{-q,--quiet}'[quiet output]'
+          ;;
+        *)
+          _describe 'graph subcommand' graph_subcmds
+          ;;
+      esac
+      ;;
+  esac
+}
+
+_pd_cmd_memory() {
+  local -a memory_subcmds
+  memory_subcmds=(
+    'episodes:list episodic memory entries'
+    'stats:summarize episodic memory counts'
+    'help:show memory help'
+  )
+
+  local state
+  _arguments -C '1:subcommand:->subcommand' '*::args:->args'
+
+  case "$state" in
+    subcommand)
+      _describe 'memory subcommand' memory_subcmds
+      ;;
+    args)
+      case "${words[2]}" in
+        episodes)
+          _arguments \
+            '--dir[project directory filter]:path:_files -/' \
+            '--project[logical project filter]:' \
+            '--harbor[harbor filter]:' \
+            '--agent[agent filter]:agent id:' \
+            '--type[episode type filter]:' \
+            '--query[text search]:' \
+            '--limit[max episodes]:limit:' \
+            '(-j --json)'{-j,--json}'[output JSON]' \
+            '(-q --quiet)'{-q,--quiet}'[quiet output]'
+          ;;
+        stats)
+          _arguments \
+            '--dir[project directory filter]:path:_files -/' \
+            '--project[logical project filter]:' \
+            '(-j --json)'{-j,--json}'[output JSON]' \
+            '(-q --quiet)'{-q,--quiet}'[quiet output]'
+          ;;
+        *)
+          _describe 'memory subcommand' memory_subcmds
+          ;;
+      esac
+      ;;
+  esac
+}
+
+_pd_cmd_ideas() {
+  local -a ideas_subcmds
+  ideas_subcmds=(
+    'list:list curated idea/family entries from the trove'
+    'search:search trove, repo markdown, daemon notes/tuples, and optional raw residue'
+    'show:show one idea/family in detail'
+    'help:show ideas help'
+  )
+
+  local state
+  _arguments -C '1:subcommand:->subcommand' '*::args:->args'
+
+  case "$state" in
+    subcommand)
+      _describe 'ideas subcommand' ideas_subcmds
+      ;;
+    args)
+      case "${words[2]}" in
+        list)
+          _arguments \
+            '--dir[project directory filter]:path:_files -/' \
+            '--status[status filter]:(now backlog parked merge local)' \
+            '--limit[max entries]:limit:' \
+            '--include-raw[include local .spark/.spider residue]' \
+            '(-j --json)'{-j,--json}'[output JSON]' \
+            '(-q --quiet)'{-q,--quiet}'[quiet output]'
+          ;;
+        search)
+          _arguments \
+            '--dir[project directory filter]:path:_files -/' \
+            '--status[status filter]:(now backlog parked merge local)' \
+            '--limit[max entries]:limit:' \
+            '--sources[search sources]:(trove raw notes tuples markdown all)' \
+            '--include-raw[include local .spark/.spider residue]' \
+            '(-j --json)'{-j,--json}'[output JSON]' \
+            '(-q --quiet)'{-q,--quiet}'[quiet output]' \
+            '1:query:'
+          ;;
+        show)
+          _arguments \
+            '--dir[project directory filter]:path:_files -/' \
+            '--include-raw[include local .spark/.spider residue]' \
+            '(-j --json)'{-j,--json}'[output JSON]' \
+            '(-q --quiet)'{-q,--quiet}'[quiet output]' \
+            '1:slug:'
+          ;;
+        *)
+          _describe 'ideas subcommand' ideas_subcmds
+          ;;
+      esac
+      ;;
+  esac
+}
+
 _pd_cmd_inbox() {
   local -a inbox_subcmds
   inbox_subcmds=(
@@ -1427,6 +1570,10 @@ _port_daddy() {
     'harbors:list all active harbors'
     # Tuple space
     'tuple:Linda-style tuple space (out, rd, in, scan, count)'
+    # Semantic graph + episodic memory
+    'graph:inspect semantic graph edges and stats'
+    'memory:inspect episodic memory entries and stats'
+    'ideas:search the canonical ideas trove and local residue'
     # System & Monitoring
     'dashboard:open web dashboard in browser'
     'channels:list pub/sub channels'
@@ -1553,6 +1700,9 @@ _port_daddy() {
         harbor)                 _pd_cmd_harbor ;;
         harbors)                _pd_cmd_harbors ;;
         tuple)                  _pd_cmd_tuple ;;
+        graph)                  _pd_cmd_graph ;;
+        memory)                 _pd_cmd_memory ;;
+        ideas)                  _pd_cmd_ideas ;;
         mcp)                _arguments '1:subcommand:(start install)' ;;
         version|help)       ;;
         *)                  ;;

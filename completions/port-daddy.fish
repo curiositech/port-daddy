@@ -97,7 +97,7 @@ set -l __pd_commands \
     'agent' 'agents' 'swarm' 'log' 'activity' \
     'session' 'sessions' 'note' 'notes' \
     'salvage' 'resurrection' 'changelog' 'dns' 'files' 'who-owns' 'integration' 'briefing' 'history' 'inbox' \
-    'begin' 'b' 'done' 'whoami' 'w' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'watch' 'harbor' 'harbors' 'tuple' \
+    'begin' 'b' 'done' 'whoami' 'w' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'watch' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' \
     'up' 'down' \
     'bench' 'demo' 'fleet' \
     'dashboard' 'channels' 'webhook' 'webhooks' 'metrics' 'config' 'health' 'ports' \
@@ -166,6 +166,9 @@ for prog in port-daddy pd
     # Briefing & History
     complete -c $prog -n __pd_needs_command -a briefing -d 'Generate .portdaddy/ project briefing'
     complete -c $prog -n __pd_needs_command -a history -d 'View recent project activity'
+    complete -c $prog -n __pd_needs_command -a graph -d 'Inspect semantic graph edges and stats'
+    complete -c $prog -n __pd_needs_command -a memory -d 'Inspect episodic memory entries and stats'
+    complete -c $prog -n __pd_needs_command -a ideas -d 'Search ideas, notes, tuples, and repo markdown'
 
     # Agent Inbox
     complete -c $prog -n __pd_needs_command -a inbox -d 'Agent-to-agent direct messaging inbox'
@@ -616,4 +619,40 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command tuple" -l limit -d 'Max results (rd/in only)' -x
     complete -c $prog -n "__pd_using_command tuple" -s j -l json -d 'JSON output'
     complete -c $prog -n "__pd_using_command tuple" -s q -l quiet -d 'Suppress output'
+
+    # graph
+    complete -c $prog -n "__pd_using_command graph" -x -a 'edges stats help'
+    complete -c $prog -n "__pd_using_command graph" -l dir -r -d 'Project directory filter'
+    complete -c $prog -n "__pd_using_command graph; and __fish_seen_subcommand_from edges" -l scope -x -d 'Scope filter'
+    complete -c $prog -n "__pd_using_command graph; and __fish_seen_subcommand_from edges" -l source-type -x -d 'Source entity type'
+    complete -c $prog -n "__pd_using_command graph; and __fish_seen_subcommand_from edges" -l source-id -x -d 'Source entity id'
+    complete -c $prog -n "__pd_using_command graph; and __fish_seen_subcommand_from edges" -l edge-type -x -d 'Edge type'
+    complete -c $prog -n "__pd_using_command graph; and __fish_seen_subcommand_from edges" -l target-type -x -d 'Target entity type'
+    complete -c $prog -n "__pd_using_command graph; and __fish_seen_subcommand_from edges" -l target-id -x -d 'Target entity id'
+    complete -c $prog -n "__pd_using_command graph; and __fish_seen_subcommand_from edges" -l query -x -d 'Text search'
+    complete -c $prog -n "__pd_using_command graph; and __fish_seen_subcommand_from edges" -l limit -x -d 'Max edges'
+    complete -c $prog -n "__pd_using_command graph" -s j -l json -d 'JSON output'
+    complete -c $prog -n "__pd_using_command graph" -s q -l quiet -d 'Suppress output'
+
+    # memory
+    complete -c $prog -n "__pd_using_command memory" -x -a 'episodes stats help'
+    complete -c $prog -n "__pd_using_command memory" -l dir -r -d 'Project directory filter'
+    complete -c $prog -n "__pd_using_command memory" -l project -x -d 'Logical project filter'
+    complete -c $prog -n "__pd_using_command memory; and __fish_seen_subcommand_from episodes" -l harbor -x -d 'Harbor filter'
+    complete -c $prog -n "__pd_using_command memory; and __fish_seen_subcommand_from episodes" -l agent -x -d 'Agent filter'
+    complete -c $prog -n "__pd_using_command memory; and __fish_seen_subcommand_from episodes" -l type -x -d 'Episode type filter'
+    complete -c $prog -n "__pd_using_command memory; and __fish_seen_subcommand_from episodes" -l query -x -d 'Text search'
+    complete -c $prog -n "__pd_using_command memory; and __fish_seen_subcommand_from episodes" -l limit -x -d 'Max episodes'
+    complete -c $prog -n "__pd_using_command memory" -s j -l json -d 'JSON output'
+    complete -c $prog -n "__pd_using_command memory" -s q -l quiet -d 'Suppress output'
+
+    # ideas
+    complete -c $prog -n "__pd_using_command ideas" -x -a 'list search show help'
+    complete -c $prog -n "__pd_using_command ideas" -l dir -r -d 'Project directory filter'
+    complete -c $prog -n "__pd_using_command ideas; and __fish_seen_subcommand_from list search" -l status -x -a 'now backlog parked merge local' -d 'Status filter'
+    complete -c $prog -n "__pd_using_command ideas; and __fish_seen_subcommand_from list search" -l limit -x -d 'Max results'
+    complete -c $prog -n "__pd_using_command ideas; and __fish_seen_subcommand_from search" -l sources -x -a 'trove raw notes tuples markdown all' -d 'Search sources'
+    complete -c $prog -n "__pd_using_command ideas; and __fish_seen_subcommand_from list search show" -l include-raw -d 'Include local .spark/.spider residue'
+    complete -c $prog -n "__pd_using_command ideas" -s j -l json -d 'JSON output'
+    complete -c $prog -n "__pd_using_command ideas" -s q -l quiet -d 'Suppress output'
 end

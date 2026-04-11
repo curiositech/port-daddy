@@ -93,7 +93,7 @@ import {
   // Tuples
   handleTuple,
   // Semantic graph + episodic memory
-  handleGraph, handleMemory,
+  handleGraph, handleMemory, handleIdeas,
 } from '../cli/commands/index.js';
 import { getDaemonTcpUrl, readDaemonPort, resolveDaemonTcpTarget } from '../shared/daemon-discovery.js';
 import { calculateRuntimeCodeHash } from '../shared/code-hash.js';
@@ -516,8 +516,9 @@ function buildHelp(): string {
     `  ${G}pd salvage${Z}               Pick up a dead agent's work`,
     `  ${G}pd graph stats${Z}           Inspect semantic graph totals`,
     `  ${G}pd memory episodes${Z}       Inspect episodic memory`,
+    `  ${G}pd ideas search${Z} "text"   Search ideas, notes, tuples, and repo markdown`,
     '',
-    `${D}pd help <topic> for details — topics: setup, sessions, locks, agents, ports, messaging, dns, orchestration, sugar, semantic, tutorial${Z}`,
+    `${D}pd help <topic> for details — topics: setup, sessions, locks, agents, ports, messaging, dns, orchestration, sugar, semantic, ideas, tutorial${Z}`,
     `${D}Dashboard: ${PORT_DADDY_URL}  •  Tutorial: pd learn${Z}`,
   );
 
@@ -818,6 +819,32 @@ Examples:
   pd memory episodes --project port-daddy --type handoff
   pd memory stats --dir /Users/you/coding/port-daddy`,
 
+  ideas: `Ideas Search \u2014 Search canonical ideas plus live repo memory
+
+Commands:
+  ideas list                List curated ideas/families from docs/recovery/IDEAS-TROVE.md
+    --dir <path>            Project directory filter
+    --status <status>       Filter by now|backlog|parked|merge|local
+    --limit <n>             Limit results
+    --include-raw           Include local .spark/.spider residue not promoted into the trove
+
+  ideas search <query>      Federated search across ideas, notes, tuples, and repo markdown
+    --dir <path>            Project directory filter
+    --status <status>       Filter by now|backlog|parked|merge|local
+    --limit <n>             Limit results
+    --sources <list>        trove,raw,notes,tuples,markdown,all
+    --include-raw           Include local .spark/.spider residue
+
+  ideas show <slug>         Show one idea/family in detail
+    --dir <path>            Project directory filter
+    --include-raw           Include raw residue lookups
+
+Examples:
+  pd ideas list --status now
+  pd ideas search "salvage disconnect" --include-raw
+  pd ideas search "phase 3 parity debt" --sources markdown
+  pd ideas show tuple-driven-fleet`,
+
   tutorial: `Interactive Tutorial \u2014 Learn Port Daddy step by step
 
 Commands:
@@ -855,7 +882,7 @@ const ALL_COMMANDS: string[] = [
   'services', 'dns', 'briefing', 'integration',
   'b', 'w', 'who-owns', 'history', 'tutorial', 'files',
   'spawn', 'spawned', 'watch',
-  'harbor', 'harbors', 'demo', 'fleet', 'tuple', 'sortie', 'graph', 'memory',
+  'harbor', 'harbors', 'demo', 'fleet', 'tuple', 'sortie', 'graph', 'memory', 'ideas',
 ];
 
 /** Simple Levenshtein distance for short strings */
@@ -2238,6 +2265,10 @@ async function main(): Promise<void> {
 
       case 'memory':
         await handleMemory(positional, options);
+        break;
+
+      case 'ideas':
+        await handleIdeas(positional, options);
         break;
 
       default: {

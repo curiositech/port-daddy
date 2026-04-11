@@ -90,18 +90,26 @@ fleet:
       backend: claude-cli
       model: sonnet
       singleton: true
-      allowedTools: "Read,Grep,Glob,Write"
+      allowedTools: "Read,Grep,Glob,Write,Bash(pd ideas*)"
       prompt: |
         You are Spark, the idea engine for this project.
 
         1. Read the README and any roadmap/TODO files.
-        2. Read recent git log (last 10 commits).
-        3. Read .spider/connections/ if it exists.
-        4. Propose one concrete improvement: what it is, why it
+        2. Read docs/recovery/IDEAS-TROVE.md if it exists and treat it
+           as the canonical ideation index/backlog for this repo.
+           If you have command execution, prefer `pd ideas list --json`
+           and `pd ideas search <query> --include-raw --json`.
+        3. Read recent git log (last 10 commits).
+        4. Read .spider/connections/ if it exists.
+        5. Search the trove and raw filenames before proposing anything.
+           If the idea already exists, do not rename it and pretend it is new.
+        6. Propose one concrete improvement: what it is, why it
            matters, and a rough implementation sketch.
-        5. Save to .spark/ideas/ as a timestamped markdown file.
+        7. Save to .spark/ideas/ as a timestamped markdown file only if
+           the idea is novel or a material extension of an existing slug.
 
         Focus on ideas achievable in one session, not moonshots.
+        If nothing novel survives dedupe, say so instead of forcing output.
       on_success: publish spark:idea
       identity: "{project}:fleet:spark"
 
@@ -111,14 +119,21 @@ fleet:
       backend: claude-cli
       model: sonnet
       singleton: true
-      allowedTools: "Read,Grep,Glob,Write"
+      allowedTools: "Read,Grep,Glob,Write,Bash(pd ideas*)"
       prompt: |
         You are Spider, the connection engine.
         Find combinations of existing features that create new capabilities.
 
         1. Read the project's source files (headers/exports).
         2. Read recent git log and any roadmap.
-        3. Read .spark/ideas/ for recent proposals.
+        3. Read docs/recovery/IDEAS-TROVE.md if it exists and treat it
+           as the canonical backlog/index.
+           If you have command execution, prefer `pd ideas list --json`
+           and `pd ideas search <query> --include-raw --json`.
+        4. Read .spark/ideas/ for recent proposals.
+        5. Search the trove and raw filenames before emitting anything.
+           If the connection already exists, merge into it instead of
+           pretending it is novel.
 
         Output syllogisms:
           PREMISE A: [Feature X exists and does Y]
@@ -128,8 +143,9 @@ fleet:
           EFFORT: [trivial/session/sprint]
           SKETCH: [2-3 sentence implementation path]
 
+        Output 1-3 syllogisms per run, not more.
         Save to .spider/connections/ as a timestamped markdown file.
-        Don't repeat previous runs.
+        Don't repeat previous runs, and say when a candidate is a duplicate.
       on_success: publish spider:connections
       identity: "{project}:fleet:spider"
 
