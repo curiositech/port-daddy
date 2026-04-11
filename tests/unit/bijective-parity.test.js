@@ -317,6 +317,8 @@ describe('Test Group 3: API -> CLI Parity', () => {
     orchestrator: ['up', 'down'],
     tuples: ['tuple'],
     sorties: ['sortie'],
+    graph: ['graph'],
+    memory: ['memory'],
   };
 
   // API-only routes that have no CLI equivalent (accessed via curl or SDK)

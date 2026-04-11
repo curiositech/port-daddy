@@ -1,205 +1,171 @@
 import { Badge } from '@/components/ui/Badge'
+import { Surface } from '@/components/ui/Surface'
 import { Link } from 'react-router-dom'
-import {
-  Terminal, ArrowRight, Shield, Radio,
-  Anchor, Code, Cpu, Globe, Layers,
-  RefreshCw, Navigation, Network
-} from 'lucide-react'
+import { ArrowRight, BookOpen, Terminal, Code, Cpu, Globe, Sparkles, Workflow } from 'lucide-react'
 
-const CONCEPTS = [
-  {
-    title: 'Ports & Identities',
-    description: 'Deterministic port assignment using semantic identities like myapp:api. No more port conflicts between agents.',
-    href: '/docs/features/ports',
-    icon: Anchor,
-  },
-  {
-    title: 'Sessions & Notes',
-    description: 'Structured coordination: agents track what they are working on, leave notes, and claim files to avoid collisions.',
-    href: '/docs/features/sessions',
-    icon: Layers,
-  },
-  {
-    title: 'Pub/Sub (Swarm Radio)',
-    description: 'Real-time messaging between agents via named channels. An agent finishes a build and broadcasts the result to all listeners.',
-    href: '/docs/features/radio',
-    icon: Radio,
-  },
-  {
-    title: 'Salvage & Recovery',
-    description: 'When an agent dies mid-task, its session and notes are preserved in a queue so another agent can pick up where it left off.',
-    href: '/docs/features/salvage',
-    icon: RefreshCw,
-  },
-  {
-    title: 'Harbors (Security)',
-    description: 'Named permission namespaces with signed capability tokens. Restrict what an untrusted agent is allowed to do.',
-    href: '/docs/features/harbors',
-    icon: Shield,
-  },
-  {
-    title: 'Semantic DNS',
-    description: 'Register human-readable names that resolve to ports. Agents discover each other by name, not by number.',
-    href: '/docs/features/dns',
-    icon: Navigation,
-  },
-  {
-    title: 'Tunnels',
-    description: 'Expose a local service to the internet with a single command. The public URL is shared automatically via notes.',
-    href: '/docs/features/tunnels',
-    icon: Network,
-  },
+const PRODUCT_TOC = [
+  { label: 'Quick Start', href: '/docs/quickstart', detail: 'Install, run, first session in minutes' },
+  { label: 'Prompting Port Daddy Agents', href: '/docs/guides/prompting-agents', detail: 'How to write agent-safe task prompts' },
+  { label: 'Template Quickstarts', href: '/docs/guides/templates', detail: 'Hello world, swarm, bug hunt, docs writer fleets' },
+  { label: 'Agent Protocol & State', href: '/docs/guides/protocol', detail: 'Lifecycle, resumability, event handlers, sync model' },
 ]
 
-const INTERFACES = [
-  {
-    title: 'CLI Reference',
-    description: 'Use this if you are running pd from your terminal.',
-    href: '/docs/cli',
-    icon: Terminal,
-    color: 'var(--brand-primary)',
-  },
-  {
-    title: 'SDK Reference',
-    description: 'Use this if you are writing JavaScript/TypeScript that coordinates agents programmatically.',
-    href: '/docs/sdk',
-    icon: Code,
-    color: 'var(--info)',
-  },
-  {
-    title: 'MCP Reference',
-    description: 'Use this if your LLM (Claude, Cursor, etc.) needs to coordinate agents directly via tool calls.',
-    href: '/docs/mcp',
-    icon: Cpu,
-    color: 'var(--success)',
-  },
-  {
-    title: 'API Reference',
-    description: 'Use this if you want to call the HTTP endpoints directly with curl, fetch, or any language.',
-    href: '/docs/api',
-    icon: Globe,
-    color: 'var(--warning)',
-  },
+const REFERENCES = [
+  { title: 'CLI Reference', href: '/docs/cli', icon: Terminal, description: 'Command surface for daily operator work.' },
+  { title: 'SDK Reference', href: '/docs/sdk', icon: Code, description: 'TypeScript surface for programmatic integrations.' },
+  { title: 'MCP Tools', href: '/docs/mcp', icon: Cpu, description: 'Tool-call bridge for external assistants and IDEs.' },
+  { title: 'REST API', href: '/docs/api', icon: Globe, description: 'HTTP contracts with examples and response bodies.' },
 ]
 
 export default function DocsOverview() {
   return (
-    <div className="space-y-10">
-      {/* Hero */}
-      <div className="space-y-4">
-        <Badge variant="teal">Documentation</Badge>
-        <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
-          What is Port Daddy?
+    <div className="space-y-8">
+      <section className="space-y-4">
+        <Badge variant="teal">Port Daddy Documentation</Badge>
+        <h1 className="text-4xl sm:text-5xl font-black tracking-tight leading-tight text-[var(--text-primary)]">
+          Build Durable Multi-Agent Systems.
         </h1>
-        <p className="text-xl text-[var(--text-secondary)] leading-relaxed max-w-3xl">
-          Port Daddy is a <strong className="text-[var(--text-primary)]">local daemon</strong> that
-          coordinates multiple AI agents working on the same codebase. It assigns ports, tracks sessions,
-          relays messages, and recovers from crashes -- so your agents stay out of each other's way.
+        <p className="text-lg sm:text-xl max-w-3xl leading-relaxed text-[var(--text-secondary)]">
+          Port Daddy is the local agent control plane: identity, coordination, recovery, and operator visibility in one runtime.
+          This docs landing is organized for both onboarding and deep production reference.
         </p>
-      </div>
+      </section>
 
-      {/* The Problem */}
-      <div className="p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
-        <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-4">The Problem</h2>
-        <p className="text-[var(--text-secondary)] leading-relaxed mb-4">
-          When you run two or more AI agents at the same time -- say, one building an API and another
-          building a frontend -- they collide. They grab the same ports. They edit the same files. When
-          one crashes, the other has no idea what happened. There is no shared state, no coordination, and
-          no recovery.
-        </p>
-        <p className="text-[var(--text-secondary)] leading-relaxed">
-          Port Daddy is a single always-on daemon (running on <code className="text-[var(--brand-primary)]">localhost:9876</code>)
-          that gives every agent a stable identity, a place to coordinate, and a safety net when things go wrong. Think of
-          it as a control plane for your agent swarm.
-        </p>
-      </div>
-
-      {/* Quick Start CTA */}
-      <div className="p-5 rounded-xl bg-gradient-to-br from-[var(--brand-primary)]/5 to-transparent border border-[var(--brand-primary)]/20">
-        <h2 className="font-semibold text-[var(--text-primary)] mb-2">Ready to try it?</h2>
-        <p className="text-[var(--text-secondary)] mb-4">
-          Install Port Daddy and claim your first port in under two minutes.
-        </p>
-        <Link
-          to="/docs/quickstart"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--brand-primary)] text-[var(--text-inverse)] font-medium hover:bg-[var(--brand-primary)] transition-colors"
-        >
-          Quick Start
-          <ArrowRight size={16} />
-        </Link>
-      </div>
-
-      {/* Concepts */}
-      <div className="space-y-4">
-        <div>
-          <h2 className="text-2xl font-semibold text-[var(--text-primary)] mb-2">Core Concepts</h2>
-          <p className="text-[var(--text-secondary)]">
-            These are the building blocks of Port Daddy. Read them in order to understand what the
-            software does before diving into reference material.
-          </p>
+      <Surface depth="raised" radius="xl" padding="lg" className="space-y-4">
+        <div className="flex items-center gap-2">
+          <BookOpen size={16} className="text-[var(--brand-primary)]" />
+          <h2 id="table-of-contents" className="text-xl font-semibold text-[var(--text-primary)]">Table of contents</h2>
         </div>
-        <div className="grid gap-4">
-          {CONCEPTS.map((concept, i) => (
+        <div className="grid gap-2 sm:grid-cols-2">
+          {PRODUCT_TOC.map((item) => (
             <Link
-              key={concept.title}
-              to={concept.href}
-              className="group p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:shadow-[var(--shadow-md)] transition-all"
+              key={item.href}
+              to={item.href}
+              className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-base)] px-3 py-3 hover:border-[var(--border-default)] hover:bg-[var(--interactive-hover)] transition-colors"
             >
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-lg bg-[var(--interactive-hover)] flex items-center justify-center shrink-0 group-hover:bg-[var(--interactive-active)] transition-colors">
-                  <concept.icon size={20} className="text-[var(--brand-primary)]" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 mb-1">
-                    <span className="text-xs font-mono text-[var(--text-muted)]">{String(i + 1).padStart(2, '0')}</span>
-                    <h3 className="font-semibold text-[var(--text-primary)]">{concept.title}</h3>
-                  </div>
-                  <p className="text-sm text-[var(--text-muted)] leading-relaxed">{concept.description}</p>
-                </div>
-                <ArrowRight size={16} className="text-[var(--text-muted)] group-hover:text-[var(--brand-primary)] shrink-0 mt-1" />
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm font-semibold text-[var(--text-primary)]">{item.label}</span>
+                <ArrowRight size={14} className="text-[var(--text-muted)]" />
               </div>
+              <p className="mt-1 text-xs text-[var(--text-muted)]">{item.detail}</p>
             </Link>
           ))}
         </div>
+      </Surface>
+
+      <div
+        className="rounded-xl border-l-4 p-4"
+        style={{
+          borderLeftColor: 'var(--status-info)',
+          background: 'color-mix(in srgb, var(--status-info) 8%, var(--surface-raised))',
+          boxShadow: 'var(--shadow-flat)',
+        }}
+      >
+        <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
+          <strong className="text-[var(--text-primary)]">Attention:</strong> This docs IA now treats onboarding, guides, and reference as separate tracks.
+          Learn concepts first, then choose CLI/SDK/MCP/API based on your interface.
+        </p>
       </div>
 
-      {/* Which interface should I use? */}
-      <div className="space-y-4">
-        <div>
-          <h2 className="text-2xl font-semibold text-[var(--text-primary)] mb-2">
-            Which reference should I read?
-          </h2>
-          <p className="text-[var(--text-secondary)]">
-            Port Daddy exposes the same features through four interfaces. Pick the one that
-            matches how you work -- they all talk to the same daemon.
-          </p>
-        </div>
-        <div className="grid sm:grid-cols-2 gap-4">
-          {INTERFACES.map(iface => (
+      <section className="space-y-3">
+        <h2 id="reference-surfaces" className="text-2xl font-semibold text-[var(--text-primary)]">Reference Surfaces</h2>
+        <p className="text-[var(--text-secondary)]">
+          Each surface hits the same daemon, but with different ergonomics and audience expectations.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {REFERENCES.map((ref) => (
             <Link
-              key={iface.title}
-              to={iface.href}
-              className="group p-5 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:shadow-[var(--shadow-md)] transition-all"
+              key={ref.href}
+              to={ref.href}
+              className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-4 hover:border-[var(--border-default)] transition-colors"
             >
-              <div className="flex items-start gap-4">
-                <div
-                  className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
-                  style={{ background: `${iface.color}15` }}
-                >
-                  <iface.icon size={20} style={{ color: iface.color }} />
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-md bg-[var(--interactive-hover)] flex items-center justify-center">
+                  <ref.icon size={18} className="text-[var(--brand-primary)]" />
                 </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-[var(--text-primary)]">{iface.title}</h3>
-                    <ArrowRight size={14} className="text-[var(--text-muted)] group-hover:text-[var(--brand-primary)] group-hover:translate-x-1 transition-all" />
-                  </div>
-                  <p className="text-sm text-[var(--text-muted)] mt-1">{iface.description}</p>
-                </div>
+                <h3 className="font-semibold text-[var(--text-primary)]">{ref.title}</h3>
               </div>
+              <p className="mt-2 text-sm text-[var(--text-muted)]">{ref.description}</p>
             </Link>
           ))}
         </div>
-      </div>
+      </section>
+
+      <section className="space-y-3">
+        <h2 id="architecture" className="text-2xl font-semibold text-[var(--text-primary)]">System Architecture</h2>
+        <p className="text-[var(--text-secondary)]">
+          Port Daddy treats multi-agent collaboration as an evented protocol, not ad-hoc shell scripting.
+        </p>
+        <Surface depth="raised" radius="xl" padding="lg" className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Workflow size={16} className="text-[var(--brand-secondary)]" />
+            <p className="text-sm font-semibold text-[var(--text-primary)]">Core lifecycle</p>
+          </div>
+          <ol className="list-decimal pl-5 space-y-2 text-sm text-[var(--text-secondary)]">
+            <li>Agent begins a session with identity + intent.</li>
+            <li>Work emits notes, channel signals, file claims, and artifacts.</li>
+            <li>If an agent fails, salvage transfers state and continuity to a new worker.</li>
+            <li>Broadcasts keep all connected clients synchronized in real time.</li>
+          </ol>
+          <p className="text-xs text-[var(--text-muted)]">
+            Detailed protocol diagrams and message contracts: <Link className="text-[var(--brand-primary)] underline" to="/docs/guides/protocol">Agent Protocol &amp; State</Link>.
+          </p>
+        </Surface>
+      </section>
+
+      <section className="space-y-3">
+        <h2 id="next-steps" className="text-2xl font-semibold text-[var(--text-primary)]">Next Steps</h2>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Link to="/docs/quickstart" className="rounded-xl p-4 border border-[var(--border-subtle)] bg-[var(--surface-raised)] hover:bg-[var(--interactive-hover)] transition-colors">
+            <p className="text-sm font-semibold text-[var(--text-primary)]">Run your first daemon</p>
+            <p className="text-xs text-[var(--text-muted)] mt-1">Install, status check, claim, and begin flow.</p>
+          </Link>
+          <Link to="/docs/api" className="rounded-xl p-4 border border-[var(--border-subtle)] bg-[var(--surface-raised)] hover:bg-[var(--interactive-hover)] transition-colors">
+            <p className="text-sm font-semibold text-[var(--text-primary)]">Inspect API contracts</p>
+            <p className="text-xs text-[var(--text-muted)] mt-1">Endpoint groups, examples, and payloads.</p>
+          </Link>
+          <Link to="/docs/guides/prompting-agents" className="rounded-xl p-4 border border-[var(--border-subtle)] bg-[var(--surface-raised)] hover:bg-[var(--interactive-hover)] transition-colors">
+            <p className="text-sm font-semibold text-[var(--text-primary)]">Prompting patterns</p>
+            <p className="text-xs text-[var(--text-muted)] mt-1">Make agents reliable under coordination constraints.</p>
+          </Link>
+          <Link to="/docs/guides/templates" className="rounded-xl p-4 border border-[var(--border-subtle)] bg-[var(--surface-raised)] hover:bg-[var(--interactive-hover)] transition-colors">
+            <p className="text-sm font-semibold text-[var(--text-primary)]">Fleet templates</p>
+            <p className="text-xs text-[var(--text-muted)] mt-1">Copy-paste starter fleets for common engineering tasks.</p>
+          </Link>
+        </div>
+        <div className="pt-2">
+          <Link to="/docs/quickstart" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--brand-primary)] text-[var(--text-inverse)] font-medium">
+            Start with Quick Start
+            <ArrowRight size={14} />
+          </Link>
+        </div>
+      </section>
+
+      <section className="space-y-2">
+        <h2 id="changelog" className="text-2xl font-semibold text-[var(--text-primary)]">What Changed In This IA</h2>
+        <ul className="list-disc pl-5 text-sm space-y-1 text-[var(--text-secondary)]">
+          <li>Docs now prioritize product narrative before raw command listings.</li>
+          <li>Prompting and template guides were promoted to first-class docs pages.</li>
+          <li>Search is now top-navbar first with global keyboard trigger (<code>{typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl K'}</code>).</li>
+          <li>Inline code and terminal surfaces were tuned for stronger visual contrast and scanability.</li>
+        </ul>
+      </section>
+
+      <section className="space-y-3">
+        <h2 id="roadmap" className="text-2xl font-semibold text-[var(--text-primary)]">Roadmap Direction</h2>
+        <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-4">
+          <p className="text-sm text-[var(--text-secondary)]">
+            New roadmap entries include queue-first background agents, explicit human-in-the-loop tool patterns,
+            event-driven state handlers, and menu bar driven task decomposition for fleet execution.
+          </p>
+          <div className="mt-3">
+            <Link to="/roadmap" className="inline-flex items-center gap-2 text-sm font-medium text-[var(--brand-primary)]">
+              View roadmap page
+              <Sparkles size={14} />
+            </Link>
+          </div>
+        </div>
+      </section>
     </div>
   )
 }

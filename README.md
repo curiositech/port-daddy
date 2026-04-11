@@ -172,6 +172,9 @@ pd spawn --backend codex --tier low --budget 0.50 --identity myapp:fixer -- "Fix
 # Claude API (text in, text out — fast, no tools)
 pd spawn --backend claude -- "Explain what this function does"
 
+# Cloudflare Workers AI (hosted edge inference)
+pd spawn --backend cloudflare --model @cf/meta/llama-3.1-8b-instruct --budget 0.20 --identity myapp:edge -- "Summarize recent changes"
+
 # Ollama (local LLM, default)
 pd spawn --backend ollama --model qwen2.5-coder:7b --budget 0.25 --identity myapp:docs -- "Summarize the README"
 
@@ -185,7 +188,7 @@ pd spawn kill <agent-id>
 pd watch git:committed --exec './fleet/qa-adversary.sh'
 ```
 
-**Backends:** `ollama` (default), `claude` (API), `claude-cli` (full CLI), `gemini`, `codex`, `aider`, `custom`
+**Backends:** `ollama` (default), `claude` (API), `claude-cli` (full CLI), `gemini`, `cloudflare`, `codex`, `aider`, `custom`
 
 **Key flags:** `--backend`, `--model`, `--tier`, `--identity`, `--purpose`, `--budget`, `--allowedTools` (claude-cli), `--maxTokens`, `--workdir`, `--timeout`
 
@@ -310,6 +313,28 @@ pd tuple scan --harbor myapp:fleet
 
 Pattern matching: exact values, `*` wildcard, `>N`/`<N` numeric comparisons, `myapp:*` semantic identity prefixes.
 
+### Semantic Graph And Episodic Memory
+Port Daddy now exposes two operator inspection surfaces over the newer coordination substrate:
+
+- `pd graph` for durable relationship edges emitted by symbol indexing and merge orchestration
+- `pd memory` for promoted handoffs, findings, blockers, and sortie outcomes
+
+```bash
+# Inspect graph relationships for one indexed file
+pd graph edges --scope symbols:file:/Users/you/coding/port-daddy/server.ts
+
+# Summarize graph density for a project
+pd graph stats --dir /Users/you/coding/port-daddy
+
+# Review promoted handoffs/findings
+pd memory episodes --project port-daddy --type handoff
+
+# Summarize episodic memory coverage
+pd memory stats --dir /Users/you/coding/port-daddy
+```
+
+These are read surfaces for now. The point is operator truth: if graph/memory is part of the product, it must be inspectable from the CLI and not only via raw daemon routes.
+
 ### Semantic Trie (O(k) Identity Lookups)
 Port Daddy indexes all identities (services, agents, sessions, harbors) in an in-memory Adaptive Radix Tree. Lookups are O(k) where k is key length — replacing SQL `LIKE` scans that degrade as the registry grows.
 
@@ -390,10 +415,12 @@ curl -X PUT http://localhost:9876/fleet/config/myapp \
 curl 'http://localhost:9876/fleet/prompt?project=myapp'  # One-line status for PS1
 
 # Available backends & models
-curl http://localhost:9876/fleet/models       # Lists ollama, codex, claude-cli, gemini, aider, etc.
+curl http://localhost:9876/fleet/models       # Lists ollama, codex, claude-cli, gemini, cloudflare, aider, etc.
 ```
 
-Each agent gets full PD coordination for free: registration, sessions, heartbeats, and salvage on crash. Supports every `pd spawn` backend, including `ollama`, `codex`, `claude-cli`, `claude`, `gemini`, `aider`, and `custom`. Template variables (`{project}`) resolve from the YAML context. Fleet lifecycle events publish to the `fleet:events` channel for dashboard and menu bar subscriptions.
+Each agent gets full PD coordination for free: registration, sessions, heartbeats, and salvage on crash. Supports every `pd spawn` backend, including `ollama`, `codex`, `claude-cli`, `claude`, `gemini`, `cloudflare`, `aider`, and `custom`. Template variables (`{project}`) resolve from the YAML context. Fleet lifecycle events publish to the `fleet:events` channel for dashboard and menu bar subscriptions.
+
+Fleet status now reflects mailbox semantics: repeated trigger bursts collapse into queued work instead of spawning a fresh agent for every wake. When that happens, agent rows can show `status: queued` and a non-zero `queueDepth` so operators can see pending work instead of mistaking it for a miss.
 
 ### Observability & Cost Tracking
 

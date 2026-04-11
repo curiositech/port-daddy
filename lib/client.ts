@@ -822,9 +822,13 @@ interface SessionResponse {
   createdAt: number;
   updatedAt: number;
   completedAt?: number | null;
+  worktreeId?: string | null;
   metadata?: Record<string, unknown> | null;
-  files?: Array<{ path: string; claimedAt: number; releasedAt?: number | null }>;
-  conflicts?: Array<{ path: string; sessionId: string; purpose: string; claimedAt: number }>;
+  files?: string[];
+  releasedFiles?: string[];
+  conflicts?: Array<{ filePath: string; sessionId: string; purpose: string; claimedAt: number }>;
+  error?: string;
+  code?: string;
 }
 
 /** Matches the actual GET /sessions/:id response */
@@ -870,6 +874,8 @@ interface SessionListResponse {
     fileCount?: number;
   }>;
   count: number;
+  worktreeId?: string | null;
+  error?: string;
 }
 
 /** Matches the actual POST /sessions/:id/notes or POST /notes response */
@@ -2029,6 +2035,17 @@ class PortDaddy {
     force?: boolean;
     metadata?: Record<string, unknown>;
   }): Promise<SessionResponse> {
+    const ipcResult = await this._requestViaIpc<SessionResponse>(
+      IpcAction.SESSION_START,
+      options,
+    );
+    if (ipcResult) {
+      if (ipcResult.success === false) {
+        const status = ipcResult.code === 'FILE_CONFLICT' ? 409 : 400;
+        this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to start session', status);
+      }
+      return ipcResult;
+    }
     return this._request('POST', '/sessions', options) as Promise<SessionResponse>;
   }
 
@@ -2046,6 +2063,20 @@ class PortDaddy {
     const note = isSessionId ? options?.note : sessionIdOrNote;
 
     if (sessionId) {
+      const ipcResult = await this._requestViaIpc<SessionResponse>(
+        IpcAction.SESSION_END,
+        {
+          sessionId,
+          status: options?.status || 'completed',
+          note,
+        },
+      );
+      if (ipcResult) {
+        if (ipcResult.success === false) {
+          this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to end session', 404);
+        }
+        return ipcResult;
+      }
       return this._request('PUT', `/sessions/${sessionId}`, {
         status: options?.status || 'completed',
         note,
@@ -2075,6 +2106,16 @@ class PortDaddy {
    * Delete a session entirely.
    */
   async removeSession(sessionId: string): Promise<{ success: boolean }> {
+    const ipcResult = await this._requestViaIpc<{ success: boolean; error?: string }>(
+      IpcAction.SESSION_REMOVE,
+      { sessionId },
+    );
+    if (ipcResult) {
+      if (ipcResult.success === false) {
+        this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to remove session', 404);
+      }
+      return ipcResult;
+    }
     return this._request('DELETE', `/sessions/${sessionId}`) as Promise<{ success: boolean }>;
   }
 
@@ -2135,12 +2176,43 @@ class PortDaddy {
   async sessions(options?: {
     status?: string;
     agentId?: string;
-    all?: boolean;
+    project?: string;
+    purpose?: string;
+    worktreeId?: string;
+    allWorktrees?: boolean;
+    includeNotes?: boolean;
     limit?: number;
   }): Promise<SessionListResponse> {
+    const ipcPayload = {
+      status: options?.status,
+      agentId: options?.agentId,
+      project: options?.project,
+      purpose: options?.purpose,
+      worktreeId: options?.worktreeId,
+      allWorktrees: options?.allWorktrees,
+      includeNotes: options?.includeNotes,
+      limit: options?.limit,
+    };
+    const ipcResult = await this._requestViaIpc<SessionListResponse>(
+      IpcAction.SESSION_LIST,
+      ipcPayload,
+      { performative: Performative.QUERY_REF },
+    );
+    if (ipcResult) {
+      if (ipcResult.success === false) {
+        this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to list sessions', 400);
+      }
+      return ipcResult;
+    }
+
     const params = new URLSearchParams();
     if (options?.status) params.set('status', options.status);
     if (options?.agentId) params.set('agent', options.agentId);
+    if (options?.project) params.set('project', options.project);
+    if (options?.purpose) params.set('purpose', options.purpose);
+    if (options?.worktreeId) params.set('worktree', options.worktreeId);
+    if (options?.allWorktrees) params.set('allWorktrees', 'true');
+    if (options?.includeNotes) params.set('notes', 'true');
     if (options?.limit) params.set('limit', String(options.limit));
     const qs = params.toString();
     return this._request('GET', `/sessions${qs ? `?${qs}` : ''}`) as Promise<SessionListResponse>;

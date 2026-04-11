@@ -21,6 +21,7 @@ struct FleetAgent: Identifiable {
     let name: String
     let type: AgentType  // scheduled, triggered, watcher
     var status: AgentStatus
+    var queueDepth: Int
     var lastActivity: Date?
     var lastEvent: String?
     var lastSummary: String?
@@ -31,11 +32,11 @@ struct FleetAgent: Identifiable {
     }
 
     enum AgentStatus: String {
-        case running, armed, scheduled, paused, idle, failed, dead
+        case running, queued, armed, scheduled, paused, idle, failed, dead
 
         var isDeployed: Bool {
             switch self {
-            case .running, .armed, .scheduled:
+            case .running, .queued, .armed, .scheduled:
                 return true
             default:
                 return false
@@ -55,6 +56,22 @@ struct FleetStatusResponse: Decodable {
     let totalWatchers: Int
 }
 
+struct RegisteredProjectsResponse: Decodable {
+    let success: Bool
+    let count: Int
+    let projects: [RegisteredProjectResponse]
+}
+
+struct RegisteredProjectResponse: Decodable {
+    let id: String
+    let root: String
+    let type: String
+    let serviceCount: Int
+    let lastScanned: String
+    let createdAt: String
+    let frameworks: [String]
+}
+
 struct FleetResponse: Decodable {
     let project: String
     let projectDir: String
@@ -72,6 +89,7 @@ struct AgentResponse: Decodable {
     let running: Bool
     let paused: Bool
     let uptime: Double
+    let queueDepth: Int?
 }
 
 struct SSEEvent: Decodable {
@@ -257,16 +275,27 @@ class FleetStore: ObservableObject {
     // MARK: - HTTP API
 
     func refresh() async {
-        guard let url = URL(string: "\(baseURL)/fleet") else { return }
+        guard let fleetURL = URL(string: "\(baseURL)/fleet") else { return }
+        let registeredProjectsURL = URL(string: "\(baseURL)/projects")
         do {
-            let (data, response) = try await URLSession.shared.data(from: url)
+            let (data, response) = try await URLSession.shared.data(from: fleetURL)
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                 isDaemonRunning = false
                 return
             }
             isDaemonRunning = true
             let status = try JSONDecoder().decode(FleetStatusResponse.self, from: data)
-            applyStatus(status)
+            let registeredProjects: [RegisteredProjectResponse]
+            if let projectsURL = registeredProjectsURL,
+               let (projectsData, projectsHTTPResponse) = try? await URLSession.shared.data(from: projectsURL),
+               let projectsHTTP = projectsHTTPResponse as? HTTPURLResponse,
+               projectsHTTP.statusCode == 200,
+               let decoded = try? JSONDecoder().decode(RegisteredProjectsResponse.self, from: projectsData) {
+                registeredProjects = decoded.projects
+            } else {
+                registeredProjects = []
+            }
+            applyStatus(status, registeredProjects: registeredProjects)
             await enrichProjectsFromBriefings()
             lastRefresh = Date()
         } catch {
@@ -419,8 +448,8 @@ class FleetStore: ObservableObject {
 
     // MARK: - State Updates
 
-    private func applyStatus(_ status: FleetStatusResponse) {
-        var newProjects: [FleetProject] = []
+    private func applyStatus(_ status: FleetStatusResponse, registeredProjects: [RegisteredProjectResponse] = []) {
+        var runningProjectsByDir: [String: FleetProject] = [:]
         for fleet in status.fleets {
             let agents = fleet.agents.map { agent in
                 // Preserve existing agent state (last event etc.) if we have it
@@ -433,20 +462,40 @@ class FleetStore: ObservableObject {
                     name: agent.name,
                     type: FleetAgent.AgentType(rawValue: agent.type) ?? .triggered,
                     status: FleetAgent.AgentStatus(rawValue: agent.status) ?? (agent.running ? .running : agent.paused ? .paused : .idle),
+                    queueDepth: agent.queueDepth ?? 0,
                     lastActivity: existing?.lastActivity,
                     lastEvent: existing?.lastEvent,
                     lastSummary: existing?.lastSummary,
                     recentFiles: existing?.recentFiles ?? []
                 )
             }
-            newProjects.append(FleetProject(
+            runningProjectsByDir[fleet.projectDir] = FleetProject(
                 id: fleet.projectDir,
                 name: fleet.project,
                 projectDir: fleet.projectDir,
                 agents: agents,
                 startedAt: Date(timeIntervalSince1970: fleet.startedAt / 1000)
-            ))
+            )
         }
+        for registeredProject in registeredProjects {
+            guard runningProjectsByDir[registeredProject.root] == nil else { continue }
+            runningProjectsByDir[registeredProject.root] = FleetProject(
+                id: registeredProject.root,
+                name: registeredProject.id,
+                projectDir: registeredProject.root,
+                agents: [],
+                startedAt: nil
+            )
+        }
+        let newProjects = Array(runningProjectsByDir.values)
+            .sorted { lhs, rhs in
+                let lhsStarted = lhs.startedAt?.timeIntervalSince1970 ?? 0
+                let rhsStarted = rhs.startedAt?.timeIntervalSince1970 ?? 0
+                if lhsStarted != rhsStarted {
+                    return lhsStarted > rhsStarted
+                }
+                return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+            }
         projects = newProjects
 
         // Auto-expand first project if nothing expanded

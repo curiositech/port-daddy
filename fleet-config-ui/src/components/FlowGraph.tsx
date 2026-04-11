@@ -13,7 +13,13 @@ import { agentColor } from '../types';
 
 function AgentNode({ data }: NodeProps) {
   const d = data as { label: string; color: string; status: string; selected: boolean; inCycle: boolean };
-  const statusDot = d.status === 'running' ? 'var(--pd-success)' : d.status === 'scheduled' ? 'var(--pd-dim)' : 'var(--pd-border)';
+  const statusDot = d.status === 'running'
+    ? 'var(--pd-success)'
+    : d.status === 'queued'
+      ? 'var(--pd-warning)'
+      : d.status === 'scheduled'
+        ? 'var(--pd-dim)'
+        : 'var(--pd-border)';
   return (
     <div
       className="rounded-lg px-3 py-2 font-mono text-xs flex items-center gap-2 cursor-pointer"

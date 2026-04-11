@@ -37,6 +37,10 @@ import {
 
 interface FleetRouteDeps {
   fleetDaemon: ReturnType<typeof createFleetDaemon>;
+  projects: {
+    get(id: string): { id: string; root: string } | null;
+    getByPath(root: string): { id: string; root: string } | null;
+  };
   messaging: {
     subscribe(channel: string, callback: (msg: unknown) => void): (() => void) | null;
   };
@@ -46,6 +50,7 @@ const BACKEND_CATALOG = [
   { id: 'claude-cli', name: 'Claude CLI', models: ['haiku', 'sonnet', 'opus'] },
   { id: 'claude', name: 'Claude SDK', models: ['claude-haiku-4-5-20251001', 'claude-sonnet-4-5-20250929', 'claude-opus-4-1-20250805'] },
   { id: 'gemini', name: 'Google Gemini', models: ['gemini-2.0-flash-exp', 'gemini-2.5-flash', 'gemini-2.5-pro'] },
+  { id: 'cloudflare', name: 'Cloudflare Workers AI', models: ['@cf/meta/llama-3.1-8b-instruct', '@cf/meta/llama-3.1-70b-instruct', '@cf/openai/gpt-oss-120b'] },
   { id: 'codex', name: 'OpenAI Codex CLI', models: ['gpt-5.4-mini', 'gpt-5.3-codex', 'gpt-5.4'] },
   { id: 'ollama', name: 'Ollama (local)', models: [] as string[] },
   { id: 'aider', name: 'Aider', models: ['gpt-4.1-mini', 'gpt-4.1', 'gpt-5'] },
@@ -81,7 +86,7 @@ function buildResolvedChannels(config: FleetConfig, projectDir: string): Record<
 }
 
 export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (fastify, opts) => {
-  const { fleetDaemon, messaging } = opts.deps;
+  const { fleetDaemon, messaging, projects } = opts.deps;
 
   function resolveFleetRecord(projectOrDir: string, reply: FastifyReply) {
     const fleets = fleetDaemon.getStatus().fleets;
@@ -270,23 +275,62 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
 
   /** Resolve fleet + config path, or send 404. Returns null if reply was sent. */
   function resolveFleetConfig(project: string, reply: FastifyReply) {
-    const fleet = resolveFleetRecord(project, reply);
-    if (!fleet) return null;
-    const configPath = findFleetConfigPath(fleet.projectDir);
+    const fleets = fleetDaemon.getStatus().fleets;
+    const exactDirMatch = fleets.find((fleet) => fleet.projectDir === project);
+    const exactRootMatch = projects.getByPath(project);
+    const exactIdMatch = projects.get(project);
+
+    let projectName: string | null = null;
+    let projectDir: string | null = null;
+
+    if (exactDirMatch) {
+      projectName = exactDirMatch.project;
+      projectDir = exactDirMatch.projectDir;
+    } else if (exactRootMatch) {
+      projectName = exactRootMatch.id;
+      projectDir = exactRootMatch.root;
+    } else if (exactIdMatch) {
+      projectName = exactIdMatch.id;
+      projectDir = exactIdMatch.root;
+    } else {
+      const nameMatches = fleets.filter((fleet) => fleet.project === project);
+      if (nameMatches.length === 1) {
+        projectName = nameMatches[0].project;
+        projectDir = nameMatches[0].projectDir;
+      } else if (nameMatches.length > 1) {
+        reply.code(409).send({
+          success: false,
+          error: `Fleet "${project}" is ambiguous across multiple directories`,
+          code: 'AMBIGUOUS_FLEET',
+          matches: nameMatches.map((fleet) => ({
+            project: fleet.project,
+            projectDir: fleet.projectDir,
+          })),
+        });
+        return null;
+      }
+    }
+
+    if (!projectDir || !projectName) {
+      reply.code(404).send({ success: false, error: `No registered project or running fleet found for: ${project}` });
+      return null;
+    }
+
+    const configPath = findFleetConfigPath(projectDir);
     if (!configPath) { reply.code(404).send({ success: false, error: 'No pd-fleet.yml found' }); return null; }
-    return { fleet, configPath };
+    return { project: projectName, projectDir, configPath };
   }
 
   // GET /fleet/config/:project — raw YAML + parsed config + topology validation
   fastify.get('/fleet/config/:project', async (request: FastifyRequest, reply: FastifyReply) => {
     const resolved = resolveFleetConfig((request.params as { project: string }).project, reply);
     if (!resolved) return;
-    const { fleet, configPath } = resolved;
+    const { project, projectDir, configPath } = resolved;
     const yaml = readFileSync(configPath, 'utf-8');
-    const parsed = loadFleetConfig(fleet.projectDir);
+    const parsed = loadFleetConfig(projectDir);
     const topology = parsed ? validateTopology(parsed) : null;
-    const resolvedChannels = parsed ? buildResolvedChannels(parsed, fleet.projectDir) : {};
-    return { success: true, yaml, path: configPath, projectDir: fleet.projectDir, parsed, topology, resolvedChannels };
+    const resolvedChannels = parsed ? buildResolvedChannels(parsed, projectDir) : {};
+    return { success: true, project, yaml, path: configPath, projectDir, parsed, topology, resolvedChannels };
   });
 
   // PUT /fleet/config/:project — write YAML, validate, reload
@@ -295,14 +339,14 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
     if (!yaml || typeof yaml !== 'string') { reply.code(400); return { success: false, error: 'yaml required' }; }
     const resolved = resolveFleetConfig((request.params as { project: string }).project, reply);
     if (!resolved) return;
-    const { fleet, configPath } = resolved;
+    const { projectDir, configPath } = resolved;
     try {
       const test = parseYaml(yaml);
       if (!test || typeof test !== 'object') { reply.code(400); return { success: false, error: 'Invalid YAML object' }; }
     } catch (err) { reply.code(400); return { success: false, error: `Parse error: ${(err as Error).message}` }; }
     writeFileSync(configPath, yaml, 'utf-8');
     fleetDaemon.reload();
-    const newParsed = loadFleetConfig(fleet.projectDir);
+    const newParsed = loadFleetConfig(projectDir);
     const topology = newParsed ? validateTopology(newParsed) : null;
     return { success: true, topology };
   });

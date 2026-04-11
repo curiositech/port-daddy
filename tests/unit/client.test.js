@@ -319,12 +319,12 @@ describe('Locks', () => {
   });
 
   test('checkLock sends GET', async () => {
-    queueResponse({ locked: true, owner: 'other-agent' });
+    queueResponse({ success: true, held: true, owner: 'other-agent' });
 
     const result = await pd.checkLock('deploy-prod');
 
     expect(receivedRequests[0].method).toBe('GET');
-    expect(result.locked).toBe(true);
+    expect(result.held).toBe(true);
   });
 
   test('extendLock sends PUT', async () => {
@@ -374,6 +374,76 @@ describe('Locks', () => {
     // Should still release
     expect(receivedRequests).toHaveLength(2);
     expect(receivedRequests[1].method).toBe('DELETE');
+  });
+});
+
+// =============================================================================
+// Tuples
+// =============================================================================
+
+describe('Tuples', () => {
+  let pd;
+  beforeEach(() => {
+    pd = createClient({ agentId: 'tuple-agent' });
+  });
+
+  test('tupleOut sends correct request', async () => {
+    queueResponse({ success: true, tuple: { id: 1, fields: ['task', 'pending'] } });
+
+    const result = await pd.tupleOut(['task', 'pending'], { harbor: 'myapp', writtenBy: 'tuple-agent', ttlMs: 1000 });
+
+    expect(receivedRequests[0].url).toBe('/tuples');
+    expect(receivedRequests[0].method).toBe('POST');
+    expect(receivedRequests[0].body).toEqual({
+      fields: ['task', 'pending'],
+      harbor: 'myapp',
+      writtenBy: 'tuple-agent',
+      ttlMs: 1000,
+    });
+    expect(result.tuple.id).toBe(1);
+  });
+
+  test('tupleRd sends correct request', async () => {
+    queueResponse({ success: true, tuples: [], count: 0 });
+
+    await pd.tupleRd(['task', '*'], { harbor: 'myapp', limit: 5 });
+
+    expect(receivedRequests[0].method).toBe('GET');
+    expect(receivedRequests[0].url).toContain('/tuples?');
+    expect(receivedRequests[0].url).toContain('harbor=myapp');
+    expect(receivedRequests[0].url).toContain('limit=5');
+  });
+
+  test('tupleIn sends correct request', async () => {
+    queueResponse({ success: true, taken: [], count: 0 });
+
+    await pd.tupleIn(['task', 'done'], { harbor: 'myapp', limit: 1 });
+
+    expect(receivedRequests[0].url).toBe('/tuples');
+    expect(receivedRequests[0].method).toBe('DELETE');
+    expect(receivedRequests[0].body).toEqual({
+      pattern: ['task', 'done'],
+      harbor: 'myapp',
+      limit: 1,
+    });
+  });
+
+  test('tupleScan sends correct request', async () => {
+    queueResponse({ success: true, tuples: [], count: 0 });
+
+    await pd.tupleScan('myapp');
+
+    expect(receivedRequests[0].method).toBe('GET');
+    expect(receivedRequests[0].url).toBe('/tuples/scan?harbor=myapp');
+  });
+
+  test('tupleCount sends correct request', async () => {
+    queueResponse({ success: true, count: 0 });
+
+    await pd.tupleCount('myapp');
+
+    expect(receivedRequests[0].method).toBe('GET');
+    expect(receivedRequests[0].url).toBe('/tuples/count?harbor=myapp');
   });
 });
 
@@ -556,6 +626,264 @@ describe('IPC fast paths', () => {
     );
     expect(receivedRequests).toHaveLength(0);
     expect(result.success).toBe(true);
+  });
+
+  test('claimFiles preserves regions and force over IPC', async () => {
+    pd._requestViaIpc = jest.fn().mockResolvedValue({
+      success: true,
+      sessionId: 'sess-123',
+      claimed: ['src/auth.ts'],
+    });
+    const regions = [{ path: 'src/auth.ts', startLine: 10, endLine: 20, symbol: 'login' }];
+
+    await pd.claimFiles('sess-123', ['src/auth.ts'], { force: true, regions });
+
+    expect(pd._requestViaIpc).toHaveBeenCalledWith(
+      'session.files.claim',
+      expect.objectContaining({
+        sessionId: 'sess-123',
+        paths: ['src/auth.ts'],
+        regions,
+        force: true,
+      }),
+    );
+  });
+
+  test('releaseFiles preserves regions over IPC', async () => {
+    pd._requestViaIpc = jest.fn().mockResolvedValue({
+      success: true,
+      sessionId: 'sess-123',
+      released: ['src/auth.ts'],
+    });
+    const regions = [{ path: 'src/auth.ts', startLine: 10, endLine: 20 }];
+
+    await pd.releaseFiles('sess-123', ['src/auth.ts'], { regions });
+
+    expect(pd._requestViaIpc).toHaveBeenCalledWith(
+      'session.files.release',
+      expect.objectContaining({
+        sessionId: 'sess-123',
+        paths: ['src/auth.ts'],
+        regions,
+      }),
+    );
+  });
+
+  test('lock prefers IPC before HTTP', async () => {
+    pd._requestViaIpc = jest.fn().mockResolvedValue({
+      success: true,
+      name: 'deploy-prod',
+      owner: 'registered-agent',
+      acquiredAt: Date.now(),
+      expiresAt: Date.now() + 60000,
+      message: 'acquired lock: deploy-prod',
+    });
+
+    const result = await pd.lock('deploy-prod', { ttl: 60000 });
+
+    expect(pd._requestViaIpc).toHaveBeenCalledWith(
+      'lock.acquire',
+      expect.objectContaining({
+        name: 'deploy-prod',
+        owner: 'registered-agent',
+        ttl: 60000,
+      }),
+    );
+    expect(receivedRequests).toHaveLength(0);
+    expect(result.success).toBe(true);
+  });
+
+  test('lock IPC failure preserves contention semantics', async () => {
+    pd._requestViaIpc = jest.fn().mockResolvedValue({
+      success: false,
+      error: 'lock is held',
+      code: 'LOCK_HELD',
+      holder: 'other-agent',
+    });
+
+    await expect(pd.lock('deploy-prod')).rejects.toMatchObject({
+      name: 'PortDaddyError',
+      status: 409,
+    });
+  });
+
+  test('unlock prefers IPC before HTTP', async () => {
+    pd._requestViaIpc = jest.fn().mockResolvedValue({
+      success: true,
+      released: true,
+      name: 'deploy-prod',
+      message: 'released lock: deploy-prod',
+    });
+
+    const result = await pd.unlock('deploy-prod');
+
+    expect(pd._requestViaIpc).toHaveBeenCalledWith(
+      'lock.release',
+      expect.objectContaining({
+        name: 'deploy-prod',
+        owner: 'registered-agent',
+      }),
+    );
+    expect(receivedRequests).toHaveLength(0);
+    expect(result.released).toBe(true);
+  });
+
+  test('checkLock prefers IPC query before HTTP', async () => {
+    pd._requestViaIpc = jest.fn().mockResolvedValue({
+      success: true,
+      held: true,
+      name: 'deploy-prod',
+      owner: 'registered-agent',
+    });
+
+    const result = await pd.checkLock('deploy-prod');
+
+    expect(pd._requestViaIpc).toHaveBeenCalledWith(
+      'lock.check',
+      { name: 'deploy-prod' },
+      { performative: expect.any(Number) },
+    );
+    expect(receivedRequests).toHaveLength(0);
+    expect(result.held).toBe(true);
+  });
+
+  test('extendLock prefers IPC before HTTP', async () => {
+    pd._requestViaIpc = jest.fn().mockResolvedValue({
+      success: true,
+      name: 'deploy-prod',
+      expiresAt: Date.now() + 60000,
+      message: 'extended lock: deploy-prod',
+    });
+
+    const result = await pd.extendLock('deploy-prod', { ttl: 60000 });
+
+    expect(pd._requestViaIpc).toHaveBeenCalledWith(
+      'lock.extend',
+      expect.objectContaining({
+        name: 'deploy-prod',
+        owner: 'registered-agent',
+        ttl: 60000,
+      }),
+    );
+    expect(receivedRequests).toHaveLength(0);
+    expect(result.success).toBe(true);
+  });
+
+  test('listLocks prefers IPC query before HTTP', async () => {
+    pd._requestViaIpc = jest.fn().mockResolvedValue({
+      success: true,
+      locks: [],
+      count: 0,
+    });
+
+    const result = await pd.listLocks({ owner: 'registered-agent' });
+
+    expect(pd._requestViaIpc).toHaveBeenCalledWith(
+      'lock.list',
+      { owner: 'registered-agent' },
+      { performative: expect.any(Number) },
+    );
+    expect(receivedRequests).toHaveLength(0);
+    expect(result.count).toBe(0);
+  });
+
+  test('tupleOut prefers IPC before HTTP', async () => {
+    pd._requestViaIpc = jest.fn().mockResolvedValue({
+      success: true,
+      tuple: { id: 9, fields: ['task', 'pending'] },
+    });
+
+    const result = await pd.tupleOut(['task', 'pending'], { harbor: 'myapp', writtenBy: 'registered-agent', ttlMs: 1000 });
+
+    expect(pd._requestViaIpc).toHaveBeenCalledWith(
+      'tuple.out',
+      {
+        fields: ['task', 'pending'],
+        harbor: 'myapp',
+        writtenBy: 'registered-agent',
+        ttlMs: 1000,
+      },
+    );
+    expect(receivedRequests).toHaveLength(0);
+    expect(result.tuple.id).toBe(9);
+  });
+
+  test('tupleRd prefers IPC query before HTTP', async () => {
+    pd._requestViaIpc = jest.fn().mockResolvedValue({
+      success: true,
+      tuples: [],
+      count: 0,
+    });
+
+    const result = await pd.tupleRd(['task', '*'], { harbor: 'myapp', limit: 5 });
+
+    expect(pd._requestViaIpc).toHaveBeenCalledWith(
+      'tuple.rd',
+      {
+        pattern: ['task', '*'],
+        harbor: 'myapp',
+        limit: 5,
+      },
+      { performative: expect.any(Number) },
+    );
+    expect(receivedRequests).toHaveLength(0);
+    expect(result.count).toBe(0);
+  });
+
+  test('tupleIn prefers IPC before HTTP', async () => {
+    pd._requestViaIpc = jest.fn().mockResolvedValue({
+      success: true,
+      taken: [],
+      count: 0,
+    });
+
+    const result = await pd.tupleIn(['task', 'done'], { harbor: 'myapp', limit: 1 });
+
+    expect(pd._requestViaIpc).toHaveBeenCalledWith(
+      'tuple.in',
+      {
+        pattern: ['task', 'done'],
+        harbor: 'myapp',
+        limit: 1,
+      },
+    );
+    expect(receivedRequests).toHaveLength(0);
+    expect(result.count).toBe(0);
+  });
+
+  test('tupleScan prefers IPC query before HTTP', async () => {
+    pd._requestViaIpc = jest.fn().mockResolvedValue({
+      success: true,
+      tuples: [],
+      count: 0,
+    });
+
+    const result = await pd.tupleScan('myapp');
+
+    expect(pd._requestViaIpc).toHaveBeenCalledWith(
+      'tuple.scan',
+      { harbor: 'myapp' },
+      { performative: expect.any(Number) },
+    );
+    expect(receivedRequests).toHaveLength(0);
+    expect(result.count).toBe(0);
+  });
+
+  test('tupleCount prefers IPC query before HTTP', async () => {
+    pd._requestViaIpc = jest.fn().mockResolvedValue({
+      success: true,
+      count: 3,
+    });
+
+    const result = await pd.tupleCount('myapp');
+
+    expect(pd._requestViaIpc).toHaveBeenCalledWith(
+      'tuple.count',
+      { harbor: 'myapp' },
+      { performative: expect.any(Number) },
+    );
+    expect(receivedRequests).toHaveLength(0);
+    expect(result.count).toBe(3);
   });
 });
 

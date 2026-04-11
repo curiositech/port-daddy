@@ -401,6 +401,34 @@ paths:
       responses:
         '200':
           description: Health status for all services
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  version:
+                    type: string
+                  uptime_seconds:
+                    type: integer
+                  active_ports:
+                    type: integer
+                  pid:
+                    type: integer
+                  fleet:
+                    type: object
+                    nullable: true
+                    properties:
+                      running:
+                        type: boolean
+                      projects:
+                        type: integer
+                      agents:
+                        type: integer
+                      watchers:
+                        type: integer
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -551,6 +579,57 @@ paths:
                         type: integer
                       avgResponseMs:
                         type: number
+                  fleet:
+                    type: object
+                    nullable: true
+                    properties:
+                      running:
+                        type: boolean
+                      startedAt:
+                        type: integer
+                      projects:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                            projectDir:
+                              type: string
+                            running:
+                              type: boolean
+                            agents:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  name:
+                                    type: string
+                                  type:
+                                    type: string
+                                    enum: [manual, triggered, scheduled]
+                                  status:
+                                    type: string
+                                    enum: [running, queued, paused, scheduled, armed, idle]
+                                  running:
+                                    type: boolean
+                                  paused:
+                                    type: boolean
+                                  uptime:
+                                    type: integer
+                                  queueDepth:
+                                    type: integer
+                                    description: Pending wakeups collapsed into this agent mailbox
+                            watchers:
+                              type: integer
+                            channels:
+                              type: integer
+                            startedAt:
+                              type: integer
+                      totalAgents:
+                        type: integer
+                      totalWatchers:
+                        type: integer
 
   /ports/request:
     post:
@@ -3517,7 +3596,7 @@ paths:
               properties:
                 backend:
                   type: string
-                  enum: [ollama, claude, claude-cli, gemini, codex, aider, custom]
+                  enum: [ollama, claude, claude-cli, gemini, cloudflare, codex, aider, custom]
                 model:
                   type: string
                   description: Model name (backend-specific)
@@ -3643,7 +3722,7 @@ paths:
                   type: string
                 backend:
                   type: string
-                  enum: [ollama, claude, claude-cli, gemini, codex, aider, custom]
+                  enum: [ollama, claude, claude-cli, gemini, cloudflare, codex, aider, custom]
                 budgetUsd:
                   type: number
                 model:

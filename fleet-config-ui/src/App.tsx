@@ -11,6 +11,7 @@ import DMPanel from './components/DMPanel';
 import SortiePanel from './components/SortiePanel';
 import YAMLEditor from './components/YAMLEditor';
 import ActivityPanel from './components/ActivityPanel';
+import MemoryPanel from './components/MemoryPanel';
 import { extractMentionedPaths } from './fileMentions';
 import {
   activityTouchedFiles,
@@ -35,8 +36,8 @@ import {
 } from './api';
 import type { ActivityEntry, FleetConfig, FleetEvent, ResolvedChannelTarget, StoryNote, TopologyValidation } from './types';
 
-type MainTab = 'Flow' | 'Activity' | 'Channels' | 'Inbox' | 'Sorties' | 'YAML';
-type ControlSurface = 'flow' | 'activity' | 'channels' | 'inbox' | 'sorties' | 'yaml';
+type MainTab = 'Flow' | 'Activity' | 'Channels' | 'Inbox' | 'Sorties' | 'Memory' | 'YAML';
+type ControlSurface = 'flow' | 'activity' | 'channels' | 'inbox' | 'sorties' | 'memory' | 'yaml';
 
 function canUseWindow(): boolean {
   return typeof window !== 'undefined';
@@ -48,6 +49,7 @@ function normalizeSurface(value: string | null): ControlSurface {
     case 'channels':
     case 'inbox':
     case 'sorties':
+    case 'memory':
     case 'yaml':
     case 'flow':
       return value;
@@ -68,6 +70,8 @@ function surfaceToMainTab(surface: ControlSurface): MainTab {
       return 'Inbox';
     case 'sorties':
       return 'Sorties';
+    case 'memory':
+      return 'Memory';
     case 'yaml':
       return 'YAML';
     default:
@@ -80,6 +84,7 @@ function mainTabToSurface(activeTab: MainTab): ControlSurface {
   if (activeTab === 'Channels') return 'channels';
   if (activeTab === 'Inbox') return 'inbox';
   if (activeTab === 'Sorties') return 'sorties';
+  if (activeTab === 'Memory') return 'memory';
   if (activeTab === 'YAML') return 'yaml';
   return 'flow';
 }
@@ -399,16 +404,44 @@ export default function App() {
   const [browserResolvedChannels, setBrowserResolvedChannels] = useState<Record<string, string>>({});
 
   const projects = useMemo(() => {
-    if (!fleet.status) return [];
-    return fleet.status.fleets.map(f => ({
-      id: f.projectDir, name: f.project, fleetPath: f.projectDir,
-      running: f.running,
-      agents: f.agents.map(a => ({ agentName: a.name, status: a.status })),
-    }));
-  }, [fleet.status]);
+    const runtimeByDir = new Map((fleet.status?.fleets ?? []).map((fleetProject) => [fleetProject.projectDir, fleetProject]));
+    const known = new Map<string, {
+      id: string;
+      name: string;
+      fleetPath: string;
+      projectDir: string;
+      running: boolean;
+      agents: Array<{ agentName: string; status: string }>;
+    }>();
 
-  const selectedProject = fleet.status?.fleets.find(f => f.projectDir === selectedProjectId) ?? null;
-  const selectedProjectName = selectedProject?.project ?? null;
+    for (const project of fleet.projects) {
+      const runtime = runtimeByDir.get(project.root);
+      known.set(project.root, {
+        id: project.root,
+        name: project.id,
+        fleetPath: project.root,
+        projectDir: project.root,
+        running: runtime?.running ?? false,
+        agents: runtime?.agents.map(agent => ({ agentName: agent.name, status: agent.status })) ?? [],
+      });
+    }
+
+    for (const runtime of fleet.status?.fleets ?? []) {
+      known.set(runtime.projectDir, {
+        id: runtime.projectDir,
+        name: runtime.project,
+        fleetPath: runtime.projectDir,
+        projectDir: runtime.projectDir,
+        running: runtime.running,
+        agents: runtime.agents.map(agent => ({ agentName: agent.name, status: agent.status })),
+      });
+    }
+
+    return Array.from(known.values());
+  }, [fleet.projects, fleet.status]);
+
+  const selectedProject = projects.find(project => project.id === selectedProjectId) ?? null;
+  const selectedProjectName = selectedProject?.name ?? null;
 
   useEffect(() => {
     if (fleet.loading || !selectedProjectId) return;
@@ -458,7 +491,7 @@ export default function App() {
   const projectConfig = selectedProjectId ? fleet.configs.get(selectedProjectId) : undefined;
   const fleetConfig: FleetConfig | null = projectConfig?.parsed ?? null;
   const topology: TopologyValidation | null = projectConfig?.topology ?? null;
-  const selectedAgentNames = useMemo(() => selectedProject?.agents.map(agent => agent.name) ?? [], [selectedProject]);
+  const selectedAgentNames = useMemo(() => selectedProject?.agents.map(agent => agent.agentName) ?? [], [selectedProject]);
 
   const logicalChannelNames = useMemo(() => {
     if (!fleetConfig) return [];
@@ -701,7 +734,7 @@ export default function App() {
 
   const configAgentData = fleetConfig?.agents.find(a => a.name === configAgent);
   const daemonRunning = fleet.status?.running ?? false;
-  const surfaceTabs: MainTab[] = ['Flow', 'Activity', 'Channels', 'Inbox', 'Sorties', 'YAML'];
+  const surfaceTabs: MainTab[] = ['Flow', 'Activity', 'Channels', 'Inbox', 'Sorties', 'Memory', 'YAML'];
   const showProjectSidebar = activeTab === 'Flow' && !embedded;
   const projectSidebar = selectedProject ? (
     <div className="h-full overflow-hidden p-4 flex flex-col"
@@ -819,7 +852,7 @@ export default function App() {
                         {fleetConfig && (
                           <motion.div layout className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))' }}>
                             {fleetConfig.agents.map(agent => {
-                              const runtime = selectedProject?.agents.find(a => a.name === agent.name);
+                              const runtime = selectedProject?.agents.find(a => a.agentName === agent.name);
                               const isRelated = selectedAgent === agent.name
                                 || (selectedChannel != null && (agent.trigger === selectedChannel || agent.onSuccess?.includes(selectedChannel) || agent.onFailure?.includes(selectedChannel)));
                               const dimmed = (selectedAgent != null && selectedAgent !== agent.name) || (selectedChannel != null && !isRelated);
@@ -884,6 +917,13 @@ export default function App() {
                     )}
                     {activeTab === 'Sorties' && (
                       <SortiePanel key={`${daemonUrl}:${selectedProjectId ?? 'all'}`} project={selectedProjectName ?? undefined} />
+                    )}
+                    {activeTab === 'Memory' && (
+                      <MemoryPanel
+                        projectDir={selectedProjectId ?? undefined}
+                        projectName={selectedProjectName ?? undefined}
+                        harbor={fleetConfig?.harbor}
+                      />
                     )}
                     {activeTab === 'YAML' && selectedProjectId && (
                       <YAMLEditor

@@ -75,7 +75,7 @@ export async function handleSpawn(
   const backend = (options.backend as string) || 'ollama';
   const budgetUsd = parseBudgetValue(options.budget);
 
-  const validBackends = ['ollama', 'claude', 'claude-cli', 'gemini', 'codex', 'aider', 'custom'];
+  const validBackends = ['ollama', 'claude', 'claude-cli', 'gemini', 'cloudflare', 'codex', 'aider', 'custom'];
   if (!validBackends.includes(backend)) {
     console.error(`Invalid backend "${backend}". Valid: ${validBackends.join(', ')}`);
     process.exit(1);
@@ -85,7 +85,7 @@ export async function handleSpawn(
     console.error('Usage: pd spawn --backend <backend> -- <task>');
     console.error('       pd spawn --backend claude -- "Write a hello world program"');
     console.error('');
-    console.error('Backends: ollama, claude, claude-cli, gemini, codex, aider, custom');
+    console.error('Backends: ollama, claude, claude-cli, gemini, cloudflare, codex, aider, custom');
     console.error('');
     console.error('Options:');
     console.error('  --backend <name>      AI backend to use (default: ollama)');

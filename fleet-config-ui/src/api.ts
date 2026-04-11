@@ -2,6 +2,7 @@
 
 import type {
   FleetDaemonStatus,
+  ProjectSummary,
   FleetConfig,
   TopologyValidation,
   BackendInfo,
@@ -10,6 +11,11 @@ import type {
   ActivityEntry,
   ChannelMessage,
   StoryNote,
+  TupleEntry,
+  GraphEdge,
+  GraphStats,
+  Episode,
+  MemoryStats,
 } from './types';
 
 const CANONICAL_PREFERRED_DAEMON_URL = 'http://127.0.0.1:9876';
@@ -196,6 +202,11 @@ export async function fetchFleetStatus(): Promise<FleetDaemonStatus> {
   return get('/fleet');
 }
 
+export async function fetchProjects(): Promise<ProjectSummary[]> {
+  const payload = await get<{ success: boolean; projects: ProjectSummary[] }>('/projects');
+  return payload.projects ?? [];
+}
+
 export async function fetchFleetConfig(project: string): Promise<{
   yaml: string;
   path: string;
@@ -306,6 +317,62 @@ export async function fetchChannelMessages(channel: string, limit = 30): Promise
     ...message,
     channel,
   }));
+}
+
+export async function fetchTupleEntries(opts: {
+  harbor?: string;
+  query?: string;
+  limit?: number;
+} = {}): Promise<TupleEntry[]> {
+  const params = new URLSearchParams();
+  if (opts.harbor) params.set('harbor', opts.harbor);
+  if (opts.query) params.set('query', opts.query);
+  if (opts.limit) params.set('limit', String(opts.limit));
+  const data = await get<{ tuples?: TupleEntry[] }>(`/tuples/scan${params.toString() ? `?${params}` : ''}`);
+  return data.tuples ?? [];
+}
+
+export async function fetchGraphEdges(opts: {
+  projectDir?: string;
+  query?: string;
+  limit?: number;
+} = {}): Promise<GraphEdge[]> {
+  const params = new URLSearchParams();
+  if (opts.projectDir) params.set('projectDir', opts.projectDir);
+  if (opts.query) params.set('query', opts.query);
+  if (opts.limit) params.set('limit', String(opts.limit));
+  const data = await get<{ edges?: GraphEdge[] }>(`/graph/edges${params.toString() ? `?${params}` : ''}`);
+  return data.edges ?? [];
+}
+
+export async function fetchGraphStats(projectDir?: string): Promise<GraphStats> {
+  const params = new URLSearchParams();
+  if (projectDir) params.set('projectDir', projectDir);
+  return get<GraphStats>(`/graph/stats${params.toString() ? `?${params}` : ''}`);
+}
+
+export async function fetchEpisodes(opts: {
+  projectDir?: string;
+  project?: string;
+  harbor?: string;
+  query?: string;
+  limit?: number;
+} = {}): Promise<Episode[]> {
+  const params = new URLSearchParams();
+  if (opts.projectDir) params.set('projectDir', opts.projectDir);
+  if (opts.project) params.set('project', opts.project);
+  if (opts.harbor) params.set('harbor', opts.harbor);
+  if (opts.query) params.set('query', opts.query);
+  if (opts.limit) params.set('limit', String(opts.limit));
+  const data = await get<{ episodes?: Episode[] }>(`/memory/episodes${params.toString() ? `?${params}` : ''}`);
+  return data.episodes ?? [];
+}
+
+export async function fetchMemoryStats(projectDir?: string, project?: string): Promise<MemoryStats> {
+  const params = new URLSearchParams();
+  if (projectDir) params.set('projectDir', projectDir);
+  if (project) params.set('project', project);
+  return get<MemoryStats>(`/memory/stats${params.toString() ? `?${params}` : ''}`);
 }
 
 // ─── Sorties (one-time spawns) ────────────────────────────────────────────────

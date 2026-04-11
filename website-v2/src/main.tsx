@@ -39,6 +39,9 @@ import PheromoneFeature from '@/pages/docs/features/PheromoneFeature'
 import FleetFeature from '@/pages/docs/features/FleetFeature'
 import TuplesFeature from '@/pages/docs/features/TuplesFeature'
 import ArbiterFeature from '@/pages/docs/features/ArbiterFeature'
+import PromptingAgents from '@/pages/docs/guides/PromptingAgents'
+import TemplatesGuide from '@/pages/docs/guides/TemplatesGuide'
+import ProtocolGuide from '@/pages/docs/guides/ProtocolGuide'
 
 // CLI Command Pages
 import ClaimCommand from '@/pages/docs/cli/ClaimCommand'
@@ -234,6 +237,9 @@ createRoot(document.getElementById('root')!).render(
             {/* Overview */}
             <Route index element={<DocsOverview />} />
             <Route path="quickstart" element={<QuickStart />} />
+            <Route path="guides/prompting-agents" element={<PromptingAgents />} />
+            <Route path="guides/templates" element={<TemplatesGuide />} />
+            <Route path="guides/protocol" element={<ProtocolGuide />} />
             
             {/* CLI */}
             <Route path="cli" element={<CliOverview />} />

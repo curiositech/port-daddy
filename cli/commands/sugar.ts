@@ -287,17 +287,21 @@ export async function handleWithLock(
 
   const ttl = options.ttl ? parseInt(options.ttl as string, 10) : 300000;
   const owner = (options.owner as string) || `cli-${process.pid}`;
-
-  // Acquire lock
-  const lockRes: PdFetchResponse = await pdFetch(`/locks/${encodeURIComponent(name)}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ owner, ttl, pid: process.pid }),
+  const current = readCurrentContext();
+  const pd = new PortDaddy({
+    agentId: current?.agentId || owner,
+    pid: process.pid,
   });
 
-  if (!lockRes.ok) {
-    const lockData = await lockRes.json();
-    ui.error(`Failed to acquire lock "${name}": ${lockData.error || 'lock is held'}`);
+  // Acquire lock
+  try {
+    await pd.lock(name, { owner, ttl });
+  } catch (error) {
+    const lockData = error && typeof error === 'object' && 'body' in error ? (error as { body?: Record<string, unknown> }).body : null;
+    const message = lockData && typeof lockData.error === 'string'
+      ? lockData.error
+      : (error as Error).message || 'lock is held';
+    ui.error(`Failed to acquire lock "${name}": ${message}`);
     process.exit(1);
   }
 
@@ -317,11 +321,7 @@ export async function handleWithLock(
   // Handle signals — release lock on SIGINT/SIGTERM
   const cleanup = async (signal: string) => {
     child.kill(signal as NodeJS.Signals);
-    await pdFetch(`/locks/${encodeURIComponent(name)}`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ owner, force: true }),
-    }).catch(() => {});
+    await pd.unlock(name, { owner, force: true }).catch(() => {});
     process.exit(128 + (signal === 'SIGINT' ? 2 : 15));
   };
 
@@ -339,11 +339,7 @@ export async function handleWithLock(
   process.removeListener('SIGTERM', onSigTerm);
 
   // Release lock
-  await pdFetch(`/locks/${encodeURIComponent(name)}`, {
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ owner, force: true }),
-  }).catch(() => {});
+  await pd.unlock(name, { owner, force: true }).catch(() => {});
 
   if (IS_TTY && !isQuiet(options)) {
     ui.success(`Lock "${name}" released`);

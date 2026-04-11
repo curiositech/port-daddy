@@ -21,11 +21,15 @@ const { assessBackendReadiness } = await import('../../lib/backend-readiness.js'
 describe('backend readiness', () => {
   const originalAnthropicKey = process.env.ANTHROPIC_API_KEY;
   const originalGeminiKey = process.env.GEMINI_API_KEY;
+  const originalCfAccountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+  const originalCfApiToken = process.env.CLOUDFLARE_API_TOKEN;
 
   beforeEach(() => {
     jest.clearAllMocks();
     delete process.env.ANTHROPIC_API_KEY;
     delete process.env.GEMINI_API_KEY;
+    delete process.env.CLOUDFLARE_ACCOUNT_ID;
+    delete process.env.CLOUDFLARE_API_TOKEN;
     global.fetch = jest.fn(async () => {
       throw new Error('offline');
     });
@@ -37,6 +41,12 @@ describe('backend readiness', () => {
 
     if (originalGeminiKey === undefined) delete process.env.GEMINI_API_KEY;
     else process.env.GEMINI_API_KEY = originalGeminiKey;
+
+    if (originalCfAccountId === undefined) delete process.env.CLOUDFLARE_ACCOUNT_ID;
+    else process.env.CLOUDFLARE_ACCOUNT_ID = originalCfAccountId;
+
+    if (originalCfApiToken === undefined) delete process.env.CLOUDFLARE_API_TOKEN;
+    else process.env.CLOUDFLARE_API_TOKEN = originalCfApiToken;
   });
 
   test('reports Claude SDK backend as ready when ANTHROPIC_API_KEY is present', async () => {
@@ -60,6 +70,30 @@ describe('backend readiness', () => {
       summary: 'GEMINI_API_KEY missing',
     });
     expect(readiness.nextStep).toContain('GEMINI_API_KEY');
+  });
+
+  test('reports Cloudflare backend as ready when account and token are present', async () => {
+    process.env.CLOUDFLARE_ACCOUNT_ID = 'acct-123';
+    process.env.CLOUDFLARE_API_TOKEN = 'token-123';
+
+    const readiness = await assessBackendReadiness('cloudflare');
+
+    expect(readiness).toMatchObject({
+      backend: 'cloudflare',
+      status: 'ready',
+      summary: 'Cloudflare Workers AI credentials present',
+    });
+  });
+
+  test('reports Cloudflare backend as needs setup when credentials are missing', async () => {
+    const readiness = await assessBackendReadiness('cloudflare');
+
+    expect(readiness).toMatchObject({
+      backend: 'cloudflare',
+      status: 'needs_setup',
+      summary: 'Cloudflare Workers AI credentials missing',
+    });
+    expect(readiness.nextStep).toContain('CLOUDFLARE_ACCOUNT_ID');
   });
 
   test('reports claude-cli as needs setup when the CLI binary is missing', async () => {

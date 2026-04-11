@@ -269,7 +269,7 @@ struct FleetControlCenter: View {
             Text("Control plane unavailable")
                 .font(.title3.weight(.semibold))
 
-            Text("FleetBar is now a native shell for the real `/fleet-ui/` surface. Start the daemon, then this window will load the live flow graph, YAML editor, inbox, and sortie workspace.")
+                Text("FleetBar is now a native shell for the real `/fleet-ui/` surface. Start the daemon, then this window will load the live flow graph, YAML editor, inbox, sortie workspace, and semantic memory explorer.")
                 .font(.body)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

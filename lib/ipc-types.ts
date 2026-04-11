@@ -71,6 +71,10 @@ export const IpcAction = {
   // Sessions
   BEGIN:          'session.begin',
   DONE:           'session.done',
+  SESSION_START:  'session.start',
+  SESSION_END:    'session.end',
+  SESSION_LIST:   'session.list',
+  SESSION_REMOVE: 'session.remove',
   NOTE:           'session.note',
   FILES_CLAIM:    'session.files.claim',
   FILES_RELEASE:  'session.files.release',
@@ -83,7 +87,17 @@ export const IpcAction = {
 
   // Locks
   LOCK_ACQUIRE:   'lock.acquire',
+  LOCK_CHECK:     'lock.check',
+  LOCK_EXTEND:    'lock.extend',
+  LOCK_LIST:      'lock.list',
   LOCK_RELEASE:   'lock.release',
+
+  // Tuples
+  TUPLE_OUT:      'tuple.out',
+  TUPLE_RD:       'tuple.rd',
+  TUPLE_IN:       'tuple.in',
+  TUPLE_SCAN:     'tuple.scan',
+  TUPLE_COUNT:    'tuple.count',
 
   // Messaging
   PUBLISH:        'msg.publish',

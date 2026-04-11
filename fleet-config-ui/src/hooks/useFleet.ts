@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   fetchFleetStatus,
+  fetchProjects,
   fetchFleetConfig,
   fetchActivity,
   fetchStories,
@@ -14,10 +15,12 @@ import type {
   FleetEvent,
   ActivityEntry,
   StoryNote,
+  ProjectSummary,
 } from '../types';
 
 export interface FleetState {
   status: FleetDaemonStatus | null;
+  projects: ProjectSummary[];
   loading: boolean;
   error: string | null;
   events: FleetEvent[];
@@ -37,6 +40,7 @@ export interface FleetState {
 function createInitialState(): FleetState {
   return {
     status: null,
+    projects: [],
     loading: true,
     error: null,
     events: [],
@@ -51,10 +55,13 @@ export function useFleet(daemonUrl: string) {
 
   const refresh = useCallback(async () => {
     try {
-      const status = await fetchFleetStatus();
-      setState(s => ({ ...s, status, loading: false, error: null }));
+      const [status, projects] = await Promise.all([
+        fetchFleetStatus(),
+        fetchProjects().catch(() => []),
+      ]);
+      setState(s => ({ ...s, status, projects, loading: false, error: null }));
     } catch (err) {
-      setState(s => ({ ...s, status: null, loading: false, error: (err as Error).message }));
+      setState(s => ({ ...s, status: null, projects: [], loading: false, error: (err as Error).message }));
     }
   }, [daemonUrl]);
 

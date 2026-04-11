@@ -6,6 +6,7 @@ enum FleetControlSurface: String, CaseIterable, Identifiable {
     case channels
     case inbox
     case sorties
+    case memory
     case yaml
 
     var id: String { rawValue }
@@ -17,6 +18,7 @@ enum FleetControlSurface: String, CaseIterable, Identifiable {
         case .channels: return "Channels"
         case .inbox: return "Inbox"
         case .sorties: return "Sorties"
+        case .memory: return "Memory"
         case .yaml: return "YAML"
         }
     }
@@ -28,6 +30,7 @@ enum FleetControlSurface: String, CaseIterable, Identifiable {
         case .channels: return "dot.radiowaves.left.and.right"
         case .inbox: return "tray.full"
         case .sorties: return "paperplane"
+        case .memory: return "square.stack.3d.up"
         case .yaml: return "curlybraces"
         }
     }

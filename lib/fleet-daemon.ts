@@ -121,7 +121,7 @@ export interface FleetDaemonStatus {
     project: string;
     projectDir: string;
     running: boolean;
-    agents: Array<{ name: string; type: string; status: string; running: boolean; paused: boolean; uptime: number }>;
+    agents: Array<{ name: string; type: string; status: string; running: boolean; paused: boolean; uptime: number; queueDepth: number }>;
     watchers: number;
     channels: number;
     startedAt: number;

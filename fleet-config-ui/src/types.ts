@@ -41,6 +41,19 @@ export interface FleetConfig {
   channels: Record<string, { description: string; consumers?: string[] }>;
 }
 
+export type FleetAgentLifecycleType = 'manual' | 'triggered' | 'scheduled';
+export type FleetAgentMailboxStatus = 'running' | 'queued' | 'paused' | 'scheduled' | 'armed' | 'idle';
+
+export interface FleetAgentStatus {
+  name: string;
+  type: FleetAgentLifecycleType;
+  status: FleetAgentMailboxStatus;
+  running: boolean;
+  paused: boolean;
+  uptime: number;
+  queueDepth: number;
+}
+
 export interface TopologyValidation {
   valid: boolean;
   cycles: string[][];
@@ -91,11 +104,66 @@ export interface StoryNote {
   identityProject?: string | null;
 }
 
+export interface TupleEntry {
+  id: number;
+  harbor: string | null;
+  fields: unknown[];
+  writtenBy: string | null;
+  createdAt: number;
+  expiresAt: number | null;
+}
+
+export interface GraphEdge {
+  id: number;
+  scope: string;
+  projectDir: string | null;
+  sourceType: string;
+  sourceId: string;
+  edgeType: string;
+  targetType: string;
+  targetId: string;
+  weight: number;
+  metadata: Record<string, unknown> | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface GraphStats {
+  total: number;
+  scopes: number;
+  sources: number;
+  targets: number;
+  lastUpdated: number | null;
+}
+
+export interface Episode {
+  id: number;
+  projectDir: string | null;
+  project: string | null;
+  harbor: string | null;
+  agentId: string | null;
+  episodeType: string;
+  title: string;
+  summary: string;
+  sourceType: string;
+  sourceId: string;
+  metadata: Record<string, unknown> | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface MemoryStats {
+  total: number;
+  sourceTypes: number;
+  episodeTypes: number;
+  lastUpdated: number | null;
+}
+
 export interface FleetProjectStatus {
   project: string;
   projectDir: string;
   running: boolean;
-  agents: Array<{ name: string; status: string; type: string; running: boolean; paused: boolean; uptime: number }>;
+  agents: FleetAgentStatus[];
   watchers: number;
   channels: number;
   startedAt: number;
@@ -107,6 +175,16 @@ export interface FleetDaemonStatus {
   fleets: FleetProjectStatus[];
   totalAgents: number;
   totalWatchers: number;
+}
+
+export interface ProjectSummary {
+  id: string;
+  root: string;
+  type: string;
+  serviceCount: number;
+  lastScanned: string;
+  createdAt: string;
+  frameworks: string[];
 }
 
 export interface BackendInfo {

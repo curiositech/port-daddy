@@ -152,7 +152,7 @@ export function AllProjectsList({ projects, onSelect }: AllProjectsProps) {
               Cold-start Port Daddy in a new repo
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed" style={{ color: 'var(--pd-muted)' }}>
-              A project becomes real here once it has a <span style={{ color: 'var(--pd-text)' }}>pd-fleet.yml</span> and you start that fleet on this daemon. These snippets are meant to be copied, edited, and run from the target repo.
+              A project becomes visible here once Port Daddy knows about it. A <span style={{ color: 'var(--pd-text)' }}>pd-fleet.yml</span> makes it manageable; starting the fleet on this daemon makes it live. These snippets are meant to be copied, edited, and run from the target repo.
             </p>
           </div>
           <div className="rounded-full px-3 py-1 text-[11px] font-semibold" style={{ backgroundColor: 'var(--pd-success-surface)', color: 'var(--pd-success)' }}>

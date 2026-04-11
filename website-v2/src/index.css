@@ -154,13 +154,17 @@ a {
 
 /* Inline code — neumorphic inset pill, NOT black background */
 code:not(pre code) {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
   font-family: var(--font-mono);
-  font-size: 0.85em;
+  font-size: 0.82em;
   font-weight: 600;
   color: var(--brand-primary);
-  background: var(--surface-sunken);
-  box-shadow: var(--shadow-pressed);
-  padding: 0.15em 0.5em;
+  background: color-mix(in srgb, var(--surface-sunken) 70%, var(--surface-raised));
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-flat);
+  padding: 0.12em 0.5em;
   border-radius: var(--radius-sm);
 }
 

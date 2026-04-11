@@ -21,13 +21,25 @@ function createMockDeps() {
     sessions: {
       start: jest.fn((purpose, opts) => ({ sessionId: 'sess-001', purpose, ...opts })),
       end: jest.fn((id, opts) => ({ sessionId: id, ended: true })),
+      remove: jest.fn((id) => ({ success: true, id, removed: true })),
+      list: jest.fn((opts) => ({ success: true, sessions: [], count: 0, ...opts })),
       addNote: jest.fn((sid, content) => ({ sessionId: sid, content, added: true })),
       claimFiles: jest.fn((sid, paths) => ({ sessionId: sid, paths, claimed: true })),
       releaseFiles: jest.fn((sid, paths) => ({ sessionId: sid, paths, released: true })),
     },
     locks: {
       acquire: jest.fn((name, opts) => ({ name, acquired: true })),
+      check: jest.fn((name) => ({ success: true, held: false, name })),
+      extend: jest.fn((name, opts) => ({ success: true, name, expiresAt: Date.now() + 300000 })),
+      list: jest.fn((opts) => ({ success: true, locks: [], count: 0 })),
       release: jest.fn((name) => ({ name, released: true })),
+    },
+    tuples: {
+      out: jest.fn((fields, opts) => ({ id: 1, fields, harbor: opts?.harbor ?? null, writtenBy: opts?.writtenBy ?? null, createdAt: 123, expiresAt: null })),
+      rd: jest.fn((pattern, opts) => []),
+      take: jest.fn((pattern, opts) => []),
+      scan: jest.fn((harbor) => []),
+      count: jest.fn((pattern, harbor) => 0),
     },
     messaging: {
       publish: jest.fn((channel, payload) => ({ channel, published: true })),
@@ -117,6 +129,67 @@ describe('IPC Router', () => {
     expect(replies[0].payload.result.acquired).toBe(true);
   });
 
+  test('lock.release passes name and is auth-gated', () => {
+    const deps = createMockDeps();
+    const router = createIpcRouter(deps);
+    const replies = [];
+
+    router.handleFrame(
+      { type: Performative.REQUEST, convId: 8, payload: { action: IpcAction.LOCK_RELEASE, name: 'db-migrations', agentId: 'registered-a1' } },
+      mockConn('registered-a1'),
+      (f) => replies.push(f),
+    );
+
+    expect(deps.locks.release).toHaveBeenCalledWith('db-migrations', expect.any(Object));
+    expect(replies[0].type).toBe(Performative.INFORM_DONE);
+    expect(replies[0].payload.result.released).toBe(true);
+  });
+
+  test('lock.check delegates to locks.check', () => {
+    const deps = createMockDeps();
+    const router = createIpcRouter(deps);
+    const replies = [];
+
+    router.handleFrame(
+      { type: Performative.QUERY_REF, convId: 9, payload: { action: IpcAction.LOCK_CHECK, name: 'db-migrations', agentId: 'any-agent' } },
+      mockConn('any-agent'),
+      (f) => replies.push(f),
+    );
+
+    expect(deps.locks.check).toHaveBeenCalledWith('db-migrations');
+    expect(replies[0].payload.result.held).toBe(false);
+  });
+
+  test('lock.extend delegates to locks.extend', () => {
+    const deps = createMockDeps();
+    const router = createIpcRouter(deps);
+    const replies = [];
+
+    router.handleFrame(
+      { type: Performative.REQUEST, convId: 12, payload: { action: IpcAction.LOCK_EXTEND, name: 'db-migrations', ttl: 60000, agentId: 'any-agent' } },
+      mockConn('any-agent'),
+      (f) => replies.push(f),
+    );
+
+    expect(deps.locks.extend).toHaveBeenCalledWith('db-migrations', expect.objectContaining({ ttl: 60000 }));
+    expect(replies[0].payload.result.success).toBe(true);
+  });
+
+  test('lock.list delegates to locks.list', () => {
+    const deps = createMockDeps();
+    const router = createIpcRouter(deps);
+    const replies = [];
+
+    router.handleFrame(
+      { type: Performative.QUERY_REF, convId: 13, payload: { action: IpcAction.LOCK_LIST, owner: 'registered-*', agentId: 'any-agent' } },
+      mockConn('any-agent'),
+      (f) => replies.push(f),
+    );
+
+    expect(deps.locks.list).toHaveBeenCalledWith(expect.objectContaining({ owner: 'registered-*' }));
+    expect(replies[0].payload.result.count).toBe(0);
+  });
+
   test('pheromone.spray passes all 4 args correctly', () => {
     const deps = createMockDeps();
     const router = createIpcRouter(deps);
@@ -143,6 +216,114 @@ describe('IPC Router', () => {
 
     expect(deps.sessions.addNote).toHaveBeenCalledWith('sess-123', 'progress update', expect.any(Object));
     expect(replies[0].type).toBe(Performative.INFORM_DONE);
+  });
+
+  test('session.start delegates to sessions.start', () => {
+    const deps = createMockDeps();
+    const router = createIpcRouter(deps);
+    const replies = [];
+
+    router.handleFrame(
+      {
+        type: Performative.REQUEST,
+        convId: 26,
+        payload: {
+          action: IpcAction.SESSION_START,
+          purpose: 'Clean up parity',
+          agentId: 'cli-123',
+          files: ['src/auth.ts'],
+          force: true,
+        },
+      },
+      mockConn('cli-123'),
+      (f) => replies.push(f),
+    );
+
+    expect(deps.sessions.start).toHaveBeenCalledWith('Clean up parity', expect.objectContaining({
+      files: ['src/auth.ts'],
+      force: true,
+    }));
+    expect(replies[0].payload.result.purpose).toBe('Clean up parity');
+  });
+
+  test('session.end delegates to sessions.end', () => {
+    const deps = createMockDeps();
+    const router = createIpcRouter(deps);
+    const replies = [];
+
+    router.handleFrame(
+      {
+        type: Performative.REQUEST,
+        convId: 27,
+        payload: {
+          action: IpcAction.SESSION_END,
+          sessionId: 'session-123',
+          status: 'completed',
+          note: 'wrapped up',
+          agentId: 'cli-123',
+        },
+      },
+      mockConn('cli-123'),
+      (f) => replies.push(f),
+    );
+
+    expect(deps.sessions.end).toHaveBeenCalledWith('session-123', expect.objectContaining({
+      status: 'completed',
+      note: 'wrapped up',
+    }));
+    expect(replies[0].payload.result.ended).toBe(true);
+  });
+
+  test('session.list delegates to sessions.list', () => {
+    const deps = createMockDeps();
+    const router = createIpcRouter(deps);
+    const replies = [];
+
+    router.handleFrame(
+      {
+        type: Performative.QUERY_REF,
+        convId: 28,
+        payload: {
+          action: IpcAction.SESSION_LIST,
+          status: 'active',
+          project: 'port-daddy',
+          allWorktrees: true,
+          agentId: 'cli-123',
+        },
+      },
+      mockConn('cli-123'),
+      (f) => replies.push(f),
+    );
+
+    expect(deps.sessions.list).toHaveBeenCalledWith(expect.objectContaining({
+      status: 'active',
+      project: 'port-daddy',
+      allWorktrees: true,
+    }));
+    expect(replies[0].payload.result.count).toBe(0);
+  });
+
+  test('session.remove delegates to sessions.remove', () => {
+    const deps = createMockDeps();
+    const router = createIpcRouter(deps);
+    const replies = [];
+
+    router.handleFrame(
+      {
+        type: Performative.REQUEST,
+        convId: 29,
+        payload: {
+          action: IpcAction.SESSION_REMOVE,
+          sessionId: 'session-123',
+          agentId: 'cli-123',
+        },
+      },
+      mockConn('cli-123'),
+      (f) => replies.push(f),
+    );
+
+    expect(deps.sessions.remove).toHaveBeenCalledWith('session-123');
+    expect(replies[0].payload.result.removed).toBe(true);
   });
 
   test('sugar.whoami delegates to sugar service', () => {
@@ -173,7 +354,40 @@ describe('IPC Router', () => {
       (f) => replies.push(f),
     );
 
-    expect(deps.sessions.claimFiles).toHaveBeenCalledWith('sess-123', paths);
+    expect(deps.sessions.claimFiles).toHaveBeenCalledWith('sess-123', paths, {
+      regions: undefined,
+      force: false,
+    });
+    expect(replies[0].type).toBe(Performative.INFORM_DONE);
+  });
+
+  test('session.files.claim preserves regions and force over IPC', () => {
+    const deps = createMockDeps();
+    const router = createIpcRouter(deps);
+    const replies = [];
+    const regions = [{ path: 'src/auth.ts', startLine: 10, endLine: 20, symbol: 'login' }];
+
+    router.handleFrame(
+      {
+        type: Performative.REQUEST,
+        convId: 24,
+        payload: {
+          action: IpcAction.FILES_CLAIM,
+          sessionId: 'sess-123',
+          paths: ['src/auth.ts'],
+          regions,
+          force: true,
+          agentId: 'registered-x',
+        },
+      },
+      mockConn('registered-x'),
+      (f) => replies.push(f),
+    );
+
+    expect(deps.sessions.claimFiles).toHaveBeenCalledWith('sess-123', ['src/auth.ts'], {
+      regions,
+      force: true,
+    });
     expect(replies[0].type).toBe(Performative.INFORM_DONE);
   });
 
@@ -188,7 +402,161 @@ describe('IPC Router', () => {
       (f) => replies.push(f),
     );
 
-    expect(deps.sessions.releaseFiles).toHaveBeenCalledWith('sess-123', ['src/auth.ts']);
+    expect(deps.sessions.releaseFiles).toHaveBeenCalledWith('sess-123', ['src/auth.ts'], {
+      regions: undefined,
+    });
+  });
+
+  test('session.files.release preserves regions over IPC', () => {
+    const deps = createMockDeps();
+    const router = createIpcRouter(deps);
+    const replies = [];
+    const regions = [{ path: 'src/auth.ts', startLine: 10, endLine: 20 }];
+
+    router.handleFrame(
+      {
+        type: Performative.REQUEST,
+        convId: 25,
+        payload: {
+          action: IpcAction.FILES_RELEASE,
+          sessionId: 'sess-123',
+          paths: ['src/auth.ts'],
+          regions,
+          agentId: 'registered-x',
+        },
+      },
+      mockConn('registered-x'),
+      (f) => replies.push(f),
+    );
+
+    expect(deps.sessions.releaseFiles).toHaveBeenCalledWith('sess-123', ['src/auth.ts'], {
+      regions,
+    });
+    expect(replies[0].type).toBe(Performative.INFORM_DONE);
+  });
+
+  test('tuple.out delegates to tuple space', () => {
+    const deps = createMockDeps();
+    const router = createIpcRouter(deps);
+    const replies = [];
+
+    router.handleFrame(
+      {
+        type: Performative.REQUEST,
+        convId: 26,
+        payload: {
+          action: IpcAction.TUPLE_OUT,
+          fields: ['task', 'pending'],
+          harbor: 'myapp',
+          writtenBy: 'agent-1',
+        },
+      },
+      mockConn('agent-1'),
+      (f) => replies.push(f),
+    );
+
+    expect(deps.tuples.out).toHaveBeenCalledWith(['task', 'pending'], {
+      harbor: 'myapp',
+      writtenBy: 'agent-1',
+      ttlMs: undefined,
+    });
+    expect(replies[0].payload.result.success).toBe(true);
+  });
+
+  test('tuple.rd delegates to tuple space', () => {
+    const deps = createMockDeps();
+    deps.tuples.rd.mockReturnValue([{ id: 2, fields: ['task', 'pending'] }]);
+    const router = createIpcRouter(deps);
+    const replies = [];
+
+    router.handleFrame(
+      {
+        type: Performative.QUERY_REF,
+        convId: 27,
+        payload: {
+          action: IpcAction.TUPLE_RD,
+          pattern: ['task', '*'],
+          harbor: 'myapp',
+          limit: 5,
+        },
+      },
+      mockConn('agent-1'),
+      (f) => replies.push(f),
+    );
+
+    expect(deps.tuples.rd).toHaveBeenCalledWith(['task', '*'], { harbor: 'myapp', limit: 5 });
+    expect(replies[0].payload.result.count).toBe(1);
+  });
+
+  test('tuple.in delegates to tuple space', () => {
+    const deps = createMockDeps();
+    deps.tuples.take.mockReturnValue([{ id: 3, fields: ['task', 'done'] }]);
+    const router = createIpcRouter(deps);
+    const replies = [];
+
+    router.handleFrame(
+      {
+        type: Performative.REQUEST,
+        convId: 28,
+        payload: {
+          action: IpcAction.TUPLE_IN,
+          pattern: ['task', 'done'],
+          harbor: 'myapp',
+          limit: 1,
+        },
+      },
+      mockConn('agent-1'),
+      (f) => replies.push(f),
+    );
+
+    expect(deps.tuples.take).toHaveBeenCalledWith(['task', 'done'], { harbor: 'myapp', limit: 1 });
+    expect(replies[0].payload.result.count).toBe(1);
+  });
+
+  test('tuple.scan delegates to tuple space', () => {
+    const deps = createMockDeps();
+    deps.tuples.scan.mockReturnValue([{ id: 4, harbor: 'myapp', fields: ['task', 'pending'], writtenBy: 'agent-1' }]);
+    const router = createIpcRouter(deps);
+    const replies = [];
+
+    router.handleFrame(
+      {
+        type: Performative.QUERY_REF,
+        convId: 29,
+        payload: {
+          action: IpcAction.TUPLE_SCAN,
+          harbor: 'myapp',
+        },
+      },
+      mockConn('agent-1'),
+      (f) => replies.push(f),
+    );
+
+    expect(deps.tuples.scan).toHaveBeenCalledWith('myapp');
+    expect(replies[0].payload.result.count).toBe(1);
+  });
+
+  test('tuple.count delegates to tuple space', () => {
+    const deps = createMockDeps();
+    deps.tuples.count.mockReturnValue(3);
+    const router = createIpcRouter(deps);
+    const replies = [];
+
+    router.handleFrame(
+      {
+        type: Performative.QUERY_REF,
+        convId: 36,
+        payload: {
+          action: IpcAction.TUPLE_COUNT,
+          harbor: 'myapp',
+        },
+      },
+      mockConn('agent-1'),
+      (f) => replies.push(f),
+    );
+
+    expect(deps.tuples.count).toHaveBeenCalledWith(undefined, 'myapp');
+    expect(replies[0].payload.result.count).toBe(3);
   });
 
   test('msg.publish passes channel and message', () => {
@@ -491,7 +859,10 @@ describe('IPC Auth', () => {
     const open = ['heartbeat', 'port.claim', 'port.release', 'port.find',
       'pheromone.spray', 'pheromone.sniff', 'msg.publish',
       'msg.subscribe', 'agent.register', 'agent.unregister',
-      'salvage.list', 'sugar.whoami', 'fleet.prompt'];
+      'salvage.list', 'sugar.whoami', 'fleet.prompt',
+      'session.start', 'session.end', 'session.list', 'session.remove',
+      'lock.check', 'lock.extend', 'lock.list',
+      'tuple.out', 'tuple.rd', 'tuple.in', 'tuple.scan', 'tuple.count'];
     for (const a of open) {
       expect(actionRequiresRegistration(a)).toBe(false);
     }

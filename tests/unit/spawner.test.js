@@ -41,6 +41,8 @@ const originalFetch = global.fetch;
 let mockFetch;
 
 beforeEach(() => {
+  delete process.env.CLOUDFLARE_ACCOUNT_ID;
+  delete process.env.CLOUDFLARE_API_TOKEN;
   mockFetch = jest.fn().mockResolvedValue({
     ok: true,
     status: 200,
@@ -265,6 +267,51 @@ describe('spawn — backend dispatch', () => {
     expect(body.model).toBe('llama3.1:8b'); // default model
     expect(body.messages[0].content).toBe('Explain ports');
     expect(body.stream).toBe(false);
+  });
+
+  test('cloudflare backend calls the Workers AI account endpoint', async () => {
+    process.env.CLOUDFLARE_ACCOUNT_ID = 'acct-123';
+    process.env.CLOUDFLARE_API_TOKEN = 'token-123';
+
+    mockFetch.mockImplementation(async (url) => {
+      if (typeof url === 'string' && url.includes('/ai/run/')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            success: true,
+            result: { response: 'Cloudflare response' },
+          }),
+          text: async () => 'Cloudflare response',
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true, sessionId: 'test-session-123' }),
+        text: async () => 'OK',
+      };
+    });
+
+    const spawner = createSpawner();
+    const result = await spawner.spawn({
+      backend: 'cloudflare',
+      task: 'Explain lighthouses',
+    });
+
+    expect(result.status).toBe('completed');
+    expect(result.output).toBe('Cloudflare response');
+
+    const cfCall = mockFetch.mock.calls.find(
+      ([url]) => typeof url === 'string' && url.includes('api.cloudflare.com/client/v4/accounts/acct-123/ai/run/')
+    );
+    expect(cfCall).toBeDefined();
+    expect(cfCall[1]).toEqual(expect.objectContaining({
+      method: 'POST',
+      headers: expect.objectContaining({
+        Authorization: 'Bearer token-123',
+      }),
+    }));
   });
 
   test('ollama backend uses custom model when specified', async () => {

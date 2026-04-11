@@ -110,6 +110,24 @@ export async function assessBackendReadiness(backend: string): Promise<BackendRe
             nextStep: 'Export GEMINI_API_KEY before using the Gemini backend.',
           };
 
+    case 'cloudflare': {
+      const accountId = process.env.CLOUDFLARE_ACCOUNT_ID || process.env.CF_ACCOUNT_ID;
+      const token = process.env.CLOUDFLARE_API_TOKEN || process.env.CLOUDFLARE_API_KEY || process.env.CF_API_TOKEN;
+      if (accountId && token) {
+        return {
+          backend,
+          status: 'ready',
+          summary: 'Cloudflare Workers AI credentials present',
+        };
+      }
+      return {
+        backend,
+        status: 'needs_setup',
+        summary: 'Cloudflare Workers AI credentials missing',
+        nextStep: 'Export CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN (or CLOUDFLARE_API_KEY) before using the Cloudflare backend.',
+      };
+    }
+
     case 'ollama': {
       if (await ollamaReachable()) {
         return {

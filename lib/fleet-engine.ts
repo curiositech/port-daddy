@@ -7,6 +7,7 @@
  * Design: ADR-0019 (Declarative Fleet Configuration)
  */
 
+import { createHash } from 'node:crypto';
 import { readFileSync, existsSync } from 'node:fs';
 import { join, basename } from 'node:path';
 import { spawn, execSync, type ChildProcess } from 'node:child_process';
@@ -36,6 +37,11 @@ export interface FleetAgent {
   timeout?: number;
   allowedTools?: string;
   fallbacks?: FleetRuntimeTarget[];
+  cooldownMs?: number;
+  dedupeWindowMs?: number;
+  backoffBaseMs?: number;
+  backoffMaxMs?: number;
+  backoffMultiplier?: number;
 }
 
 export interface FleetWatcher {
@@ -103,6 +109,15 @@ interface RunningAgent {
   startedAt: number;
 }
 
+interface AgentActivationState {
+  lastStartedAt?: number;
+  lastTriggerFingerprint?: string;
+  lastTriggerAt?: number;
+  consecutiveFailures: number;
+  backoffUntil?: number;
+  pendingContext?: FleetRunContext;
+}
+
 // ─── YAML Shapes ───────────────────────────────────────────────────────────
 
 interface FleetYamlAgent {
@@ -124,6 +139,11 @@ interface FleetYamlAgent {
   allowedTools?: string;
   allowed_tools?: string;
   fallbacks?: FleetYamlRuntimeTarget[];
+  cooldown_ms?: number;
+  dedupe_window_ms?: number;
+  backoff_base_ms?: number;
+  backoff_max_ms?: number;
+  backoff_multiplier?: number;
 }
 
 interface FleetYamlRuntimeTarget {
@@ -214,6 +234,11 @@ export const BUILTIN_MODEL_TIERS: Partial<Record<string, Record<FleetModelTier, 
   'claude-cli': { low: 'haiku', mid: 'sonnet', high: 'opus' },
   codex: { low: 'gpt-5.4-mini', mid: 'gpt-5.3-codex', high: 'gpt-5.4' },
   gemini: { low: 'gemini-2.0-flash-exp', mid: 'gemini-2.5-flash', high: 'gemini-2.5-pro' },
+  cloudflare: {
+    low: '@cf/meta/llama-3.1-8b-instruct',
+    mid: '@cf/meta/llama-3.1-70b-instruct',
+    high: '@cf/openai/gpt-oss-120b',
+  },
   ollama: { low: 'qwen2.5-coder:7b', mid: 'llama3.1:8b', high: 'qwen2.5-coder:14b' },
   aider: { low: 'gpt-4.1-mini', mid: 'gpt-4.1', high: 'gpt-5' },
   custom: { low: 'custom-low', mid: 'custom-mid', high: 'custom-high' },
@@ -226,6 +251,18 @@ function cleanEnvValue(value: string | undefined): string | undefined {
 
 function normalizeBudgetUsdPerDay(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) && value > 0
+    ? value
+    : undefined;
+}
+
+function normalizePositiveMs(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
+    ? value
+    : undefined;
+}
+
+function normalizeBackoffMultiplier(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 1
     ? value
     : undefined;
 }
@@ -364,9 +401,14 @@ export function loadFleetConfig(projectDir: string): FleetConfig | null {
         onSuccess: s.on_success,
         onFailure: s.on_failure,
         identity: s.identity,
-        timeout: s.timeout,
-        allowedTools: s.allowedTools || s.allowed_tools,
-        fallbacks: parseFallbacks(s.fallbacks),
+      timeout: s.timeout,
+      allowedTools: s.allowedTools || s.allowed_tools,
+      fallbacks: parseFallbacks(s.fallbacks),
+      cooldownMs: normalizePositiveMs(s.cooldown_ms),
+      dedupeWindowMs: normalizePositiveMs(s.dedupe_window_ms),
+      backoffBaseMs: normalizePositiveMs(s.backoff_base_ms),
+      backoffMaxMs: normalizePositiveMs(s.backoff_max_ms),
+      backoffMultiplier: normalizeBackoffMultiplier(s.backoff_multiplier),
       });
   };
   if (rawAgents && typeof rawAgents === 'object' && !Array.isArray(rawAgents)) {
@@ -574,6 +616,22 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
   let activeSpawns = 0;
   const activeAgentRuns = new Set<string>();
   const spawnTimestamps: number[] = [];  // rolling window for per-hour rate limit
+  const activationState = new Map<string, AgentActivationState>();
+
+  function stateFor(agentName: string): AgentActivationState {
+    let state = activationState.get(agentName);
+    if (!state) {
+      state = { consecutiveFailures: 0 };
+      activationState.set(agentName, state);
+    }
+    return state;
+  }
+
+  function formatDurationMs(durationMs: number): string {
+    if (durationMs < 1000) return `${durationMs}ms`;
+    if (durationMs < 60000) return `${Math.ceil(durationMs / 1000)}s`;
+    return `${Math.ceil(durationMs / 60000)}m`;
+  }
 
   function stopRunningRecord(name: string): void {
     const record = running.get(name);
@@ -647,15 +705,15 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       // Scheduled agent: run immediately, then on interval
       // Convert cron to ms (simplified: support */N * * * * format)
       const intervalMs = parseCronInterval(agent.schedule);
-      void runAgentOnce(agent);
-      record.interval = setInterval(() => runAgentOnce(agent), intervalMs);
+      void requestAgentRun(agent, { source: 'schedule' });
+      record.interval = setInterval(() => { void requestAgentRun(agent, { source: 'schedule' }); }, intervalMs);
     }
 
     if (agent.trigger) {
       const physicalTriggerChannel = resolveChannel(agent.trigger);
       // Prefer in-process subscriptions so trigger payload survives into the spawned task.
       const unsubscribe = options?.messaging?.subscribe(physicalTriggerChannel, (message: unknown) => {
-        void runAgentOnce(agent, contextFromMessage(agent.trigger!, message));
+        void requestAgentRun(agent, contextFromMessage(agent.trigger!, message));
       });
 
       if (unsubscribe) {
@@ -678,7 +736,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     }
 
     if (!agent.schedule && !agent.trigger) {
-      void runAgentOnce(agent);
+      void requestAgentRun(agent, { source: 'manual' });
     }
 
     running.set(agent.name, record);
@@ -878,6 +936,20 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     };
   }
 
+  function hashTriggerContext(context?: FleetRunContext): string | null {
+    if (!context || context.source !== 'trigger') return null;
+    const messageText = (context.messageContent ?? serializeMessage(context.message)).trim();
+    if (!messageText) return null;
+
+    return createHash('sha1')
+      .update(JSON.stringify({
+        channel: context.channel ?? null,
+        from: context.from ?? null,
+        message: messageText,
+      }))
+      .digest('hex');
+  }
+
   function buildAgentTask(agent: FleetAgent, context?: FleetRunContext): string {
     const basePrompt = agent.prompt.trim();
     if (!context) return basePrompt;
@@ -901,10 +973,46 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     return lines.join('\n');
   }
 
+  function mergePendingContext(existing: FleetRunContext | undefined, incoming: FleetRunContext): FleetRunContext {
+    if (!existing) return incoming;
+    if (incoming.source !== 'trigger') return incoming;
+
+    const mergedMessage = [existing.messageContent, incoming.messageContent]
+      .filter((value): value is string => !!value && value.trim().length > 0)
+      .slice(-2)
+      .join('\n\n---\n\n');
+
+    return {
+      source: 'trigger',
+      channel: incoming.channel ?? existing.channel,
+      from: incoming.from ?? existing.from,
+      message: incoming.message ?? existing.message,
+      messageContent: mergedMessage || incoming.messageContent || existing.messageContent,
+    };
+  }
+
+  async function requestAgentRun(agent: FleetAgent, context?: FleetRunContext): Promise<{ success: boolean; error?: string; queued?: boolean }> {
+    if (pausedAgents.has(agent.name)) {
+      return { success: false, error: `${agent.name} is paused` };
+    }
+
+    const state = stateFor(agent.name);
+    const hasPending = !!state.pendingContext;
+    if (activeAgentRuns.has(agent.name) || hasPending) {
+      state.pendingContext = mergePendingContext(state.pendingContext, context ?? { source: 'manual' });
+      return { success: true, queued: true };
+    }
+
+    return runAgentOnce(agent, context);
+  }
+
   async function runAgentOnce(agent: FleetAgent, context?: FleetRunContext): Promise<{ success: boolean; error?: string }> {
     const identity = agent.identity || `${project}:fleet:${agent.name}`;
     const attempts = buildRuntimeAttempts(agent);
     const primaryRuntime = attempts[0];
+    const now = Date.now();
+    const agentState = stateFor(agent.name);
+    const triggerFingerprint = hashTriggerContext(context);
 
     if (agent.singleton && activeAgentRuns.has(agent.name)) {
       emit({
@@ -912,6 +1020,39 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
         timestamp: Date.now(), details: { error: 'singleton already active' },
       });
       return { success: false, error: 'singleton already active' };
+    }
+
+    if (agentState.backoffUntil && now < agentState.backoffUntil) {
+      const error = `backoff active for ${formatDurationMs(agentState.backoffUntil - now)}`;
+      emit({
+        type: 'agent_failed', agent: agent.name, identity, project,
+        timestamp: now, details: { error, backoffUntil: agentState.backoffUntil },
+      });
+      return { success: false, error };
+    }
+
+    if (agent.cooldownMs && agentState.lastStartedAt && (now - agentState.lastStartedAt) < agent.cooldownMs) {
+      const error = `cooldown active for ${formatDurationMs(agent.cooldownMs - (now - agentState.lastStartedAt))}`;
+      emit({
+        type: 'agent_failed', agent: agent.name, identity, project,
+        timestamp: now, details: { error, cooldownMs: agent.cooldownMs },
+      });
+      return { success: false, error };
+    }
+
+    if (
+      triggerFingerprint
+      && agent.dedupeWindowMs
+      && agentState.lastTriggerFingerprint === triggerFingerprint
+      && agentState.lastTriggerAt
+      && (now - agentState.lastTriggerAt) < agent.dedupeWindowMs
+    ) {
+      const error = `duplicate trigger suppressed for ${formatDurationMs(agent.dedupeWindowMs - (now - agentState.lastTriggerAt))}`;
+      emit({
+        type: 'agent_failed', agent: agent.name, identity, project,
+        timestamp: now, details: { error, dedupeWindowMs: agent.dedupeWindowMs },
+      });
+      return { success: false, error };
     }
 
     // Enforce resource quotas before spawning
@@ -933,6 +1074,12 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       });
       console.error(`[Fleet] ${agent.name} blocked: missing backend. Set agent.backend or PD_FLEET_DEFAULT_BACKEND.`);
       return { success: false, error: 'missing backend; set agent.backend or PD_FLEET_DEFAULT_BACKEND' };
+    }
+
+    agentState.lastStartedAt = now;
+    if (triggerFingerprint) {
+      agentState.lastTriggerFingerprint = triggerFingerprint;
+      agentState.lastTriggerAt = now;
     }
 
     activeAgentRuns.add(agent.name);
@@ -986,6 +1133,8 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
           if (agent.onSuccess) {
             fireHook(agent.onSuccess, `${agent.name} spawned`);
           }
+          agentState.consecutiveFailures = 0;
+          agentState.backoffUntil = undefined;
           return { success: true };
         }
 
@@ -1025,6 +1174,13 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
           .join(' ; ');
         fireHook(agent.onFailure, `${agent.name} failed: ${summary.slice(0, 200)}`);
       }
+      if (agent.backoffBaseMs) {
+        agentState.consecutiveFailures += 1;
+        const multiplier = agent.backoffMultiplier ?? 2;
+        const baseDelay = agent.backoffBaseMs * Math.pow(multiplier, Math.max(0, agentState.consecutiveFailures - 1));
+        const cappedDelay = Math.min(baseDelay, agent.backoffMaxMs ?? baseDelay);
+        agentState.backoffUntil = Date.now() + cappedDelay;
+      }
       return { success: false, error: errorMessage };
     } catch (err) {
       const message = (err as Error).message;
@@ -1033,10 +1189,22 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
         timestamp: Date.now(), details: { error: message },
       });
       console.error(`[Fleet] Agent ${agent.name} error:`, message);
+      if (agent.backoffBaseMs) {
+        agentState.consecutiveFailures += 1;
+        const multiplier = agent.backoffMultiplier ?? 2;
+        const baseDelay = agent.backoffBaseMs * Math.pow(multiplier, Math.max(0, agentState.consecutiveFailures - 1));
+        const cappedDelay = Math.min(baseDelay, agent.backoffMaxMs ?? baseDelay);
+        agentState.backoffUntil = Date.now() + cappedDelay;
+      }
       return { success: false, error: message };
     } finally {
       activeSpawns = Math.max(0, activeSpawns - 1);
       activeAgentRuns.delete(agent.name);
+      const pending = agentState.pendingContext;
+      agentState.pendingContext = undefined;
+      if (pending && !pausedAgents.has(agent.name)) {
+        void requestAgentRun(agent, pending);
+      }
     }
   }
 
@@ -1217,14 +1385,17 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     emit({ type: 'fleet_stopped', project, timestamp: Date.now() });
   }
 
-  function getStatus(): Array<{ name: string; type: string; status: string; running: boolean; paused: boolean; uptime: number }> {
+  function getStatus(): Array<{ name: string; type: string; status: string; running: boolean; paused: boolean; uptime: number; queueDepth: number }> {
     return config.agents.map((agent) => {
       const record = running.get(agent.name);
       const activeRun = activeAgentRuns.has(agent.name);
       const paused = pausedAgents.has(agent.name);
+      const queueDepth = stateFor(agent.name).pendingContext ? 1 : 0;
       let status = 'idle';
       if (activeRun) {
         status = 'running';
+      } else if (queueDepth > 0) {
+        status = 'queued';
       } else if (paused) {
         status = 'paused';
       } else if (record) {
@@ -1237,6 +1408,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
         running: activeRun,
         paused,
         uptime: record ? Date.now() - record.startedAt : 0,
+        queueDepth,
       };
     });
   }
@@ -1250,7 +1422,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       return { success: false, error: `${agentName} is singleton and already active` };
     }
 
-    return runAgentOnce(agent, context ?? { source: 'manual' });
+    return requestAgentRun(agent, context ?? { source: 'manual' });
   }
 
   function pauseAgent(agentName: string): { success: boolean; error?: string } {

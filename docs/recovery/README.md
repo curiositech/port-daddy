@@ -13,22 +13,23 @@ If a roadmap, ideas list, or cleanup proposal elsewhere disagrees with this dire
 - `UNIFIED-ROADMAP.md`
   - one execution-order roadmap for the actual project, not a speculative archive
 - `IDEAS-TROVE.md`
-  - the organized home for Spark ideas, Spider connections, cartographer observations, and product backlog themes
+  - the canonical ideation index, dedupe surface, and curated backlog for Spark/Spider output
 - `PD-AGENT-SORTIE-PLAN.md`
   - the working design for one-shot delegation, multi-agent sorties, and background creative missions
 - `REPO-CLEANUP-AND-DISTRIBUTION.md`
   - what to keep, merge, retire, and prepare for outside developers and signed distribution
 
-## Raw Inputs We Preserve
+## Raw Inputs We Preserve Locally
 
-These are not to be discarded. They are source streams feeding the trove.
+These are provenance and research inputs. They can be valuable locally, but they
+are not backlog authority on their own.
 
 - `.cartographer/status.md`
   - long-view project reality, drift, and closest-to-shipping work
 - `.spark/ideas/`
-  - concrete feature proposals and implementation sketches
+  - concrete feature proposals and implementation sketches; local provenance feeding the trove
 - `.spider/connections/`
-  - cross-module connections, leverage points, and structural opportunities
+  - cross-module connections, leverage points, and structural opportunities; local provenance feeding the trove
 - `public/app-surgery.html`
   - app-surface analysis for merging native, web, and legacy control planes
 
@@ -38,7 +39,7 @@ These are not to be discarded. They are source streams feeding the trove.
 2. One native companion: `apps/FleetBar`.
 3. One deep web control plane: `fleet-config-ui`.
 4. One Port Daddy skill source: `skills/port-daddy-cli/SKILL.md`.
-5. Raw Spark and Spider output stays on disk and gets indexed into the trove; it does not get hand-waved away in summary docs.
+5. Raw Spark and Spider output may stay on disk locally, but the curated trove is the authoritative ideation surface and duplicate raw files should be merged there instead of promoted blindly.
 6. Website/distribution work cannot keep preempting core daemon, fleet, and observability work indefinitely.
 7. Fleet ownership is singleton per project even if multiple daemons are running; a second daemon may discover a fleet config, but it must not start that project fleet.
 

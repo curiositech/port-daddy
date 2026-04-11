@@ -76,7 +76,7 @@ function loadDotenvOnce(): Record<string, string> {
 // =============================================================================
 
 export interface SpawnSpec {
-  backend: 'ollama' | 'claude' | 'claude-cli' | 'gemini' | 'codex' | 'aider' | 'custom';
+  backend: 'ollama' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'codex' | 'aider' | 'custom';
   model?: string;
   modelTier?: 'low' | 'mid' | 'high';
   identity?: string;   // PD semantic identity: project:stack:context
@@ -272,6 +272,53 @@ async function runGemini(spec: SpawnSpec, model: string): Promise<{ output: stri
   }
 }
 
+async function runCloudflare(spec: SpawnSpec, model: string): Promise<{ output: string; error: string | null }> {
+  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID || process.env.CF_ACCOUNT_ID;
+  const token = process.env.CLOUDFLARE_API_TOKEN || process.env.CLOUDFLARE_API_KEY || process.env.CF_API_TOKEN;
+
+  if (!accountId) {
+    return { output: '', error: 'CLOUDFLARE_ACCOUNT_ID is not set' };
+  }
+  if (!token) {
+    return { output: '', error: 'CLOUDFLARE_API_TOKEN or CLOUDFLARE_API_KEY is not set' };
+  }
+
+  const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${encodeURIComponent(model)}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      messages: [{ role: 'user', content: spec.task }],
+      max_tokens: spec.maxTokens,
+      stream: false,
+    }),
+    signal: spec.timeout ? AbortSignal.timeout(spec.timeout) : undefined,
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => 'unknown error');
+    return { output: '', error: `Cloudflare Workers AI HTTP ${res.status}: ${text}` };
+  }
+
+  const data = await res.json() as Record<string, any>;
+  const result = data.result ?? data;
+  const text = typeof result === 'string'
+    ? result
+    : result?.response
+      || result?.text
+      || result?.output_text
+      || result?.choices?.[0]?.message?.content
+      || '';
+
+  if (!text) {
+    return { output: '', error: 'Cloudflare Workers AI returned no text response' };
+  }
+
+  return { output: text, error: null };
+}
+
 function sanitizeCodexOutput(raw: string): string {
   const lines = raw
     .split(/\r?\n/)
@@ -414,6 +461,7 @@ const DEFAULT_MODELS: Record<SpawnSpec['backend'], string> = {
   claude: 'claude-haiku-4-5-20251001',
   'claude-cli': 'claude-cli',  // claude CLI manages its own model
   gemini: 'gemini-2.0-flash-exp',
+  cloudflare: '@cf/meta/llama-3.1-8b-instruct',
   codex: 'gpt-5.4-mini',
   aider: 'aider',   // aider manages its own model selection
   custom: 'custom',
@@ -552,6 +600,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         case 'ollama':    result = await runOllama(spec, model); break;
         case 'claude':    result = await runClaude(spec, model); break;
         case 'gemini':    result = await runGemini(spec, model); break;
+        case 'cloudflare': result = await runCloudflare(spec, model); break;
         case 'codex':     result = await runCodexCli(spec, model); break;
         case 'claude-cli': result = await runClaudeCli(spec); break;
         case 'aider':     result = await runAider(spec, model); break;

@@ -81,7 +81,6 @@ export function ensureStarterFleetProject(projectDir: string): FleetBootstrapRes
     const additions: string[] = [];
     if (!gitignore.includes('.spark/')) additions.push('.spark/');
     if (!gitignore.includes('.spider/')) additions.push('.spider/');
-    if (!gitignore.includes('.cartographer/')) additions.push('.cartographer/');
     if (additions.length > 0) {
       writeFileSync(gitignorePath, gitignore.trimEnd() + '\n\n# Port Daddy fleet output\n' + additions.join('\n') + '\n');
       addedGitignoreEntries.push(...additions);

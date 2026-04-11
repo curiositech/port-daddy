@@ -1,0 +1,20 @@
+# Port Daddy Docs for LLMs
+
+Port Daddy is a local-first multi-agent coordination daemon.
+
+Primary docs entrypoints:
+- /docs
+- /docs/quickstart
+- /docs/guides/prompting-agents
+- /docs/guides/templates
+- /docs/guides/protocol
+- /docs/cli
+- /docs/sdk
+- /docs/mcp
+- /docs/api
+
+Roadmap:
+- /roadmap
+
+Repository:
+- https://github.com/curiositech/port-daddy

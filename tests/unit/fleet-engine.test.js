@@ -199,6 +199,37 @@ test('parses canonical fleet budget field as budgetUsdPerDay', () => {
   });
 });
 
+test('parses per-agent cooldown, dedupe, and backoff settings from YAML', () => {
+  mockExistsSync.mockImplementation(p => p.endsWith('pd-fleet.yml'));
+  mockExecSync.mockReturnValue('main');
+  mockReadFileSync.mockReturnValue(JSON.stringify({
+    name: 'bounded-fleet',
+    agents: {
+      qa: {
+        backend: 'claude-cli',
+        prompt: 'Run qa',
+        cooldown_ms: 30000,
+        dedupe_window_ms: 120000,
+        backoff_base_ms: 5000,
+        backoff_max_ms: 60000,
+        backoff_multiplier: 3,
+      },
+    },
+  }));
+
+  const config = loadFleetConfig('/tmp/proj');
+  expect(config?.agents).toEqual([
+    expect.objectContaining({
+      name: 'qa',
+      cooldownMs: 30000,
+      dedupeWindowMs: 120000,
+      backoffBaseMs: 5000,
+      backoffMaxMs: 60000,
+      backoffMultiplier: 3,
+    }),
+  ]);
+});
+
 test('uses env runtime defaults when agent backend/model are omitted', () => {
   process.env.PD_FLEET_DEFAULT_BACKEND = 'gemini';
   process.env.PD_FLEET_DEFAULT_MODEL = 'gemini-2.5-flash';
@@ -254,6 +285,7 @@ test('maps model_tier for every backend family with built-in tiers', () => {
     [{ backend: 'aider', modelTier: 'mid' }, 'gpt-4.1'],
     [{ backend: 'custom', modelTier: 'low' }, 'custom-low'],
     [{ backend: 'codex', modelTier: 'low' }, 'gpt-5.4-mini'],
+    [{ backend: 'cloudflare', modelTier: 'mid' }, '@cf/meta/llama-3.1-70b-instruct'],
   ];
 
   for (const [agent, expectedModel] of expectations) {
@@ -893,6 +925,171 @@ test('maxSpawnsPerHour blocks spawn after limit is reached', async () => {
     .map(c => c[0])
     .filter(e => e.type === 'agent_failed' && e.details?.error?.includes('hourly spawn limit'));
   expect(failedEvents.length).toBeGreaterThan(0);
+});
+
+test('cooldown blocks a second run until the window expires', async () => {
+  const config = {
+    ...makeConfig({ schedule: undefined, trigger: undefined, cooldownMs: 60000 }),
+    limits: { budgetUsdPerDay: 5 },
+  };
+
+  const onEvent = jest.fn();
+  global.fetch = jest.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({ agentId: 'abc', status: 'spawned' }),
+  });
+
+  const runner = createFleetRunner(config, '/tmp/proj', { onEvent });
+  const first = await runner.hailAgent('test-agent', { source: 'manual' });
+  const second = await runner.hailAgent('test-agent', { source: 'manual' });
+
+  expect(first).toEqual({ success: true });
+  expect(second.success).toBe(false);
+  expect(second.error).toContain('cooldown active');
+  expect(global.fetch).toHaveBeenCalledTimes(1);
+  expect(onEvent).toHaveBeenCalledWith(
+    expect.objectContaining({
+      type: 'agent_failed',
+      details: expect.objectContaining({
+        error: expect.stringContaining('cooldown active'),
+      }),
+    })
+  );
+});
+
+test('trigger dedupe suppresses identical messages inside the dedupe window', async () => {
+  let triggerCallback;
+  global.fetch = jest.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({ agentId: 'abc', status: 'spawned' }),
+  });
+
+  const onEvent = jest.fn();
+  const config = {
+    ...makeConfig({ trigger: 'spark:idea', dedupeWindowMs: 300000 }),
+    limits: { budgetUsdPerDay: 5 },
+  };
+
+  const runner = createFleetRunner(config, '/tmp/proj', {
+    onEvent,
+    messaging: {
+      subscribe: jest.fn((_channel, callback) => {
+        triggerCallback = callback;
+        return jest.fn();
+      }),
+    },
+  });
+
+  runner.startAgent(config.agents[0]);
+
+  await triggerCallback({ payload: 'same idea', sender: 'fleet-ui' });
+  await Promise.resolve();
+  await Promise.resolve();
+  await triggerCallback({ payload: 'same idea', sender: 'fleet-ui' });
+
+  expect(global.fetch).toHaveBeenCalledTimes(1);
+  expect(onEvent).toHaveBeenCalledWith(
+    expect.objectContaining({
+      type: 'agent_failed',
+      details: expect.objectContaining({
+        error: expect.stringContaining('duplicate trigger suppressed'),
+      }),
+    })
+  );
+});
+
+test('rapid trigger bursts collapse into one pending mailbox run while active', async () => {
+  let triggerCallback;
+  let resolveFirstSpawn;
+  let spawnCount = 0;
+  global.fetch = jest.fn().mockImplementation(() => {
+    spawnCount += 1;
+    if (spawnCount === 1) {
+      return new Promise((resolve) => {
+        resolveFirstSpawn = resolve;
+      });
+    }
+    return Promise.resolve({
+      ok: true,
+      json: async () => ({ agentId: `spawn-${spawnCount}`, status: 'spawned' }),
+    });
+  });
+
+  const config = {
+    ...makeConfig({ trigger: 'spark:idea' }),
+    limits: { budgetUsdPerDay: 5 },
+  };
+
+  const runner = createFleetRunner(config, '/tmp/proj', {
+    messaging: {
+      subscribe: jest.fn((_channel, callback) => {
+        triggerCallback = callback;
+        return jest.fn();
+      }),
+    },
+  });
+
+  runner.startAgent(config.agents[0]);
+
+  await triggerCallback({ payload: 'first', sender: 'fleet-ui' });
+  await Promise.resolve();
+  expect(runner.getStatus()).toEqual([
+    expect.objectContaining({ name: 'test-agent', status: 'running', queueDepth: 0 }),
+  ]);
+
+  await triggerCallback({ payload: 'second', sender: 'fleet-ui' });
+  await triggerCallback({ payload: 'third', sender: 'fleet-ui' });
+  expect(runner.getStatus()).toEqual([
+    expect.objectContaining({ name: 'test-agent', status: 'running', queueDepth: 1 }),
+  ]);
+
+  resolveFirstSpawn({ ok: true, json: async () => ({ agentId: 'spawn-1', status: 'spawned' }) });
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+
+  expect(spawnCount).toBe(2);
+});
+
+test('backoff suppresses retries after repeated failures and resets after success', async () => {
+  const config = {
+    ...makeConfig({
+      schedule: undefined,
+      trigger: undefined,
+      backoffBaseMs: 1000,
+      backoffMaxMs: 4000,
+      backoffMultiplier: 2,
+    }),
+    limits: { budgetUsdPerDay: 5 },
+  };
+
+  const onEvent = jest.fn();
+  global.fetch = jest.fn()
+    .mockResolvedValueOnce({ ok: false, status: 503, json: async () => ({ status: 'failed', error: 'boom' }) })
+    .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ agentId: 'ok', status: 'spawned' }) });
+
+  const runner = createFleetRunner(config, '/tmp/proj', { onEvent });
+  const first = await runner.hailAgent('test-agent', { source: 'manual' });
+  const second = await runner.hailAgent('test-agent', { source: 'manual' });
+
+  expect(first.success).toBe(false);
+  expect(second.success).toBe(false);
+  expect(second.error).toContain('backoff active');
+  expect(global.fetch).toHaveBeenCalledTimes(1);
+
+  jest.setSystemTime(Date.now() + 1001);
+  const third = await runner.hailAgent('test-agent', { source: 'manual' });
+
+  expect(third.success).toBe(true);
+  expect(global.fetch).toHaveBeenCalledTimes(2);
+  expect(onEvent).toHaveBeenCalledWith(
+    expect.objectContaining({
+      type: 'agent_completed',
+      details: expect.objectContaining({
+        backend: 'claude-cli',
+      }),
+    })
+  );
 });
 
 // ─── BUG C: concurrency limit releases after spawn completes ────────────────

@@ -76,11 +76,36 @@ export const tuplesPlugin: FastifyPluginAsync<TupleOpts> = async (app, opts) => 
     return { success: true, taken, count: taken.length };
   });
 
-  // GET /tuples/scan?harbor=... — List all tuples
+  // GET /tuples/scan?harbor=...&limit=...&query=...&pattern=[...] — List tuples
   app.get('/tuples/scan', async (request: FastifyRequest) => {
-    const { harbor } = request.query as Record<string, string | undefined>;
-    const all = tuples.scan(harbor);
-    return { success: true, tuples: all, count: all.length };
+    const { harbor, limit: limitStr, query, pattern: patternStr } = request.query as Record<string, string | undefined>;
+    const limit = limitStr ? Math.min(Math.max(parseInt(limitStr, 10), 1), 500) : 200;
+
+    let all = patternStr
+      ? (() => {
+          try {
+            const pattern = JSON.parse(patternStr) as unknown[];
+            return Array.isArray(pattern) ? tuples.rd(pattern, { harbor, limit }) : [];
+          } catch {
+            return [];
+          }
+        })()
+      : tuples.scan(harbor);
+
+    if (query && query.trim()) {
+      const needle = query.trim().toLowerCase();
+      all = all.filter((tuple) => {
+        const haystack = JSON.stringify({
+          fields: tuple.fields,
+          writtenBy: tuple.writtenBy,
+          harbor: tuple.harbor,
+        }).toLowerCase();
+        return haystack.includes(needle);
+      });
+    }
+
+    const sliced = all.slice(0, limit);
+    return { success: true, tuples: sliced, count: sliced.length };
   });
 
   // GET /tuples/count?harbor=... — Count tuples

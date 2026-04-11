@@ -22,7 +22,7 @@ interface SpawnRouteDeps {
   };
 }
 
-const VALID_BACKENDS = new Set(['ollama', 'claude', 'claude-cli', 'gemini', 'codex', 'aider', 'custom']);
+const VALID_BACKENDS = new Set(['ollama', 'claude', 'claude-cli', 'gemini', 'cloudflare', 'codex', 'aider', 'custom']);
 
 
 // ==========================================================================
@@ -83,7 +83,7 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
       if (!backend || typeof backend !== 'string') {
         reply.code(400); return {
           success: false,
-          error: 'backend is required. Valid values: ollama, claude, claude-cli, gemini, codex, aider, custom',
+          error: 'backend is required. Valid values: ollama, claude, claude-cli, gemini, cloudflare, codex, aider, custom',
           code: 'VALIDATION_ERROR',
         };
       }

@@ -35,8 +35,9 @@ plans/
 .portdaddyrc
 .portdaddy/
 .spark/
-.spider/connections/
+.spider/
 .dogfood/
+.remember/
 *.strategy.md
 *.internal.md
 .claude/worktrees/
@@ -56,3 +57,6 @@ apps/FleetBar/.build/
 fleet-live-app/build/
 .firecrawl/
 .windags/
+v0-agentsd-main/
+agentsd_mocks/
+.aider.chat.history.md

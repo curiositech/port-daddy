@@ -2,6 +2,21 @@
 
 Project-specific shibboleths for proficient Port Daddy work. If you learn a new one that materially changes how to operate this repo, add it here immediately.
 
+## Port Daddy First
+
+- On this computer, use Port Daddy for repo work by default, not only when a task already looks multi-agent.
+- Start recovery, debugging, and parallel-work sessions with Port Daddy before doing local archaeology:
+  - `pd status`
+  - `pd briefing`
+  - `pd salvage` when crash residue or abandoned work might matter
+  - `pd begin --identity <project>:<task>`
+- If you are going to edit files, coordinate through Port Daddy primitives, not only prose:
+  - leave a `pd note` describing scope and intended files
+  - use file claims / locks for overlapping edits or critical sections
+  - use tuples, inbox, pheromones, or other shared state when the task benefits from machine-readable coordination
+- Treat plain shell inspection without a Port Daddy session as insufficient for this repo unless you are doing truly trivial read-only work.
+- When handing work to another agent, give it the live Port Daddy identity/session anchor and tell it to coordinate through briefing, salvage, notes, claims/locks, and tuples instead of “being careful.”
+
 ## Canonical Runtime
 
 - Do not assume the live daemon is running the current checkout.
