@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "purpose": "Prevent internal ideation residue, local-only sandboxes, and model-specific instruction files from leaking into the public GitHub repo. This is an initial denylist contract, not the full future mirror/export manifest.",
+  "denylistedTrackedPathRegexes": [
+    "^\\.spark/",
+    "^\\.spider/",
+    "^\\.dogfood/",
+    "^\\.remember/",
+    "^agentsd_mocks/",
+    "^v0-agentsd-main/",
+    "^CLAUDE\\.md$",
+    "^GEMINI\\.md$",
+    "^\\.aider\\.chat\\.history\\.md$"
+  ],
+  "requiredGitignoreEntries": [
+    ".spark/",
+    ".spider/",
+    ".dogfood/",
+    ".remember/",
+    "agentsd_mocks/",
+    "v0-agentsd-main/",
+    "CLAUDE.md",
+    "GEMINI.md",
+    ".aider.chat.history.md"
+  ]
+}

@@ -88,6 +88,31 @@ Candidate "advanced/internal/archive" bucket:
 - duplicate skill copies
 - exploratory agent-output folders that are valuable but should be curated behind the ideas trove
 
+## Public GitHub Boundary
+
+The public GitHub repo should not double as the full internal workshop floor.
+
+Initial enforced denylist:
+- `.spark/`
+- `.spider/`
+- `.dogfood/`
+- `.remember/`
+- `agentsd_mocks/`
+- `v0-agentsd-main/`
+- `CLAUDE.md`
+- `GEMINI.md`
+- `.aider.chat.history.md`
+
+This denylist is enforced mechanically by:
+- `config/public-repo-boundary.json`
+- `scripts/check-public-repo-boundary.ts`
+- `tests/unit/public-repo-boundary.test.js`
+
+Important nuance:
+- this is only the first hard boundary
+- it removes obvious local-only residue from the public repo
+- it does not yet solve the larger split between internal operator authority docs and a future curated external mirror/export subset
+
 ## Distribution Direction
 
 Now:

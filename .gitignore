@@ -38,6 +38,8 @@ plans/
 .spider/
 .dogfood/
 .remember/
+CLAUDE.md
+GEMINI.md
 *.strategy.md
 *.internal.md
 .claude/worktrees/
