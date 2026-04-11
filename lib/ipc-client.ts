@@ -86,6 +86,7 @@ export function createIpcClient(options: IpcClientOptions) {
         if (socket) socket.destroy();
         reject(new Error(`IPC connect timeout (${requestTimeout}ms)`));
       }, requestTimeout);
+      if (typeof connectTimeout.unref === 'function') connectTimeout.unref();
 
       socket = net.connect(socketPath, () => {
         clearTimeout(connectTimeout);
@@ -143,6 +144,7 @@ export function createIpcClient(options: IpcClientOptions) {
           reconnectTimer = setTimeout(() => {
             connect().catch(() => {}); // Reconnect failures retry automatically
           }, delay);
+          if (typeof reconnectTimer.unref === 'function') reconnectTimer.unref();
         }
       });
 
@@ -194,6 +196,7 @@ export function createIpcClient(options: IpcClientOptions) {
         pending.delete(convId);
         reject(new Error(`IPC request timeout (${timeout ?? requestTimeout}ms)`));
       }, timeout ?? requestTimeout);
+      if (typeof timer.unref === 'function') timer.unref();
 
       pending.set(convId, { resolve, reject, timer });
 

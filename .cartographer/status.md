@@ -2,8 +2,8 @@
 
 **Last updated:** 2026-04-11
 **Updated by:** Cartographer (manual invocation)
-**HEAD:** `e70d614` (Codify stable checkout operator rules)
-**Previous HEAD:** `bff1195` — 4 new commits since last run
+**HEAD:** `50fe92f` (Harden session context and explicit note scoping)
+**Previous HEAD:** `e70d614` — 1 new commit since last run
 
 ---
 
@@ -25,7 +25,8 @@ Active threads, ranked by commit recency:
 2. **Recovery docs/runtime truth sync** — still active, now partly committed and partly merged with the graph/memory slice. README, MCP docs, OpenAPI, the Port Daddy skill bundle, and the website’s core spawn/fleet/tutorial surfaces were being pushed onto the same local-first contract: Ollama + Codex as first-class backends, mandatory budget ceilings, explicit model tiers, and “9876 is the default, not a universal truth.” The same slice also fixed `pd fleet run <agent>` so one-shot fleet runs inherit a real budget ceiling instead of hard-failing preflight.
    - `pd fleet validate` is live again in the CLI. It parses YAML, resolves templates, checks trigger topology, and exits without spawning agents. The remaining work there was discoverability drift: README, skill docs, and the website CLI page all needed to mention it again.
    - Port Daddy dogfooding surfaced another live drift: `port-daddy sortie run ...` from the installed shim returned `ERROR: Not Found`. Treat that as a runtime-route availability bug in the canonical daemon path until proven otherwise.
-   - That red full-suite state is now repaired. Current truth on 2026-04-08: `npm test` passes all `103/103` suites and `4510/4511` tests, but the parallel run still ends with `A worker process has failed to exit gracefully`. Treat the exit code as green and the warning as remaining teardown debt, not as “all clean.”
+   - The session-context hardening cut is now committed at `50fe92f`: slot-scoped `.portdaddy/contexts/<slot>.json`, compatibility-only `current.json`, and fail-closed explicit note/session targeting.
+   - The lingering Jest teardown debt is also now repaired in the working tree: IPC client timeout/reconnect timers and the SDK heartbeat are `unref()`ed, webhook retries are owned/disposable, and the serialized handle hunt is clean on 2026-04-11 (`npm test -- --runInBand --detectOpenHandles` => `109/109` suites, `4523/4524` tests, `1` intentional skip, no open-handle warning).
    - Stable checkout archaeology is now explicitly recognized as operator contamination. `/Users/erichowens/port-daddy-stable` was being used as a live daemon/fleet workspace, so its `.spark`, `.spider`, logs, DB, and tracked build outputs are not authoritative. Unique Spark/Spider markdowns have been copied into the active checkout so further curation can happen in one place.
 
 3. **Recovery Track 2 / 3 — FleetBar + control plane truth** — `a41f18f`, `e82f096`, `1aeb2b1`, `809816e`, `e7eba7b`, `1ebe6e6`, `853cc57`, `83d1a22`, and the current uncommitted Memory tab wiring continue pushing the runtime and UI toward one truthful control plane. The latest UI drift is no longer only chrome/activity polish; it now includes exposing semantic memory as a first-class operator surface.

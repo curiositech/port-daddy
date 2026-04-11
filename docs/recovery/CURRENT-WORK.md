@@ -12,7 +12,7 @@ The live recovery thread has split into two coupled slices:
 1. Keep the operator loop truthful so one daemon, one fleet runtime, one control plane, and one native companion all tell the same story.
 2. Capture the newer uncommitted semantic-memory slice honestly instead of pretending Phase 1 / memory work is still dormant.
 
-Latest committed slice: `e70d614` — Codify stable checkout operator rules.
+Latest committed slice: `50fe92f` — Harden session context and explicit note scoping.
 Current uncommitted slice: semantic graph + episodic memory plumbing wired into the control plane:
 - new durable graph surface: `lib/graph-edges.ts`, `routes/graph.ts`, `tests/unit/graph-edges.test.js`
 - new episodic memory surface: `lib/episodic-memory.ts`, `routes/memory.ts`, `tests/unit/episodic-memory.test.js`
@@ -24,6 +24,12 @@ Current uncommitted slice: semantic graph + episodic memory plumbing wired into 
   - `lib/sorties.ts` promotes blocked/completed/failed mission moments into episodic memory
   - `routes/tuples.ts` gained filtered tuple scanning so the new Memory view can search live tuple state
 - docs/skill drift also landed in this same working tree: `AGENTS.md` and `skills/port-daddy-cli/SKILL.md` now explicitly require Port Daddy-first coordination on this computer
+- teardown / runtime hardening just validated cleanly in the working tree and should be cut next:
+  - `lib/ipc-client.ts` now `unref()`s connect, reconnect, and request timeout timers so local IPC clients do not pin Jest workers
+  - `lib/client.ts` now `unref()`s the SDK heartbeat interval for the same reason
+  - `lib/webhooks.ts` now owns retry timers, supports `dispose()`, and fences off post-dispose writes/retries
+  - `tests/unit/webhooks.test.js` now closes webhook/db state explicitly and covers retry cancellation on dispose
+  - validation truth on 2026-04-11: `npm test -- --runInBand --detectOpenHandles` is green (`109/109` suites, `4523/4524` tests, `1` intentional skip) with no open-handle report
 
 ## New Product-Direction Intake (2026-04-10)
 
@@ -232,6 +238,8 @@ The current-session drift investigation now has a concrete working-tree fix:
    - `spider-forensic-context-windows` -> Arbiter violations with timeline context
    - `spider-ipc-cascade-cleanup` / `2026-04-05-spider-ipc-disconnect-instant-salvage` -> immediate lock/salvage cleanup on IPC death
    - `spider-ipc-tuple-fast-path` + `spider-tuple-triggered-fleet-agents` -> tuple-driven fleet execution path
+   - corpus review on 2026-04-11 collapsed the 98-file Spark idea set into canonical backlog families in `docs/recovery/IDEAS-TROVE.md`
+   - recommended first two implementation cuts from that review: `ipc-disconnect-instant-salvage` and `forensic-context-windows`
    - reject or merge older/duplicative ideas instead of blindly copying stable residue into this repo
 30. Finish the spawn-discipline slice that the latest operator thread approved:
    - land cooldown, trigger dedupe, and exponential backoff as default fleet controls

@@ -1623,6 +1623,7 @@ class PortDaddy {
     const timer = setInterval(() => {
       this.heartbeat().catch(handleError);
     }, intervalMs);
+    if (typeof timer.unref === 'function') timer.unref();
 
     // Send one immediately
     this.heartbeat().catch(handleError);
@@ -3261,6 +3262,7 @@ interface EnterHarborOptions {
 interface HarborResponse {
   success: boolean;
   harbor?: HarborEntry;
+  harborCard?: string;
   error?: string;
 }
 
