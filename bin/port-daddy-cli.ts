@@ -1558,8 +1558,31 @@ async function executeDirectMode(
       const context = readCurrentContext();
       const noteOpts: Record<string, unknown> = {};
       if (options.type) noteOpts.type = options.type;
-      const sessionId = typeof options.session === 'string' ? options.session : context?.sessionId;
-      const agentId = typeof options.agent === 'string' ? options.agent : context?.agentId;
+      const explicitSessionId = typeof options.session === 'string' ? options.session : undefined;
+      const explicitAgentId = typeof options.agent === 'string' ? options.agent : undefined;
+      let sessionId = explicitSessionId;
+      let agentId = explicitAgentId;
+
+      if (!sessionId && !explicitAgentId && context?.sessionId) {
+        const currentSession = sess.get(context.sessionId) as { success?: boolean };
+        if (currentSession?.success) {
+          sessionId = context.sessionId;
+          agentId = context.agentId;
+        }
+      }
+
+      if (!sessionId && !agentId && context?.agentId) {
+        const activeForAgent = sess.list({
+          status: 'active',
+          agentId: context.agentId,
+          allWorktrees: true,
+          limit: 1,
+        }) as { success?: boolean; sessions?: unknown[] };
+        if (activeForAgent?.success && Array.isArray(activeForAgent.sessions) && activeForAgent.sessions.length > 0) {
+          agentId = context.agentId;
+        }
+      }
+
       if (sessionId) noteOpts.sessionId = sessionId;
       if (agentId) noteOpts.agentId = agentId;
 

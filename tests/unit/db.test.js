@@ -10,6 +10,7 @@ import { initDatabase, resolveDbPath, isPortAvailable, CORE_SCHEMA_SQL } from '.
 import { createServices } from '../../lib/services.js';
 import { createLocks } from '../../lib/locks.js';
 import { createSessions } from '../../lib/sessions.js';
+import Database from 'better-sqlite3';
 import net from 'net';
 import os from 'os';
 import path from 'path';
@@ -123,6 +124,56 @@ describe('lib/db.ts', () => {
       const svc = db.prepare('SELECT id FROM services WHERE id = ?').get('test-svc');
       expect(svc).toBeDefined();
       expect(svc.id).toBe('test-svc');
+    });
+
+    it('migrates legacy session_files tables before creating symbol_path indexes', () => {
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'port-daddy-db-legacy-'));
+      const dbPath = path.join(tempDir, 'port-registry.db');
+      const legacyDb = new Database(dbPath);
+
+      legacyDb.exec(`
+        CREATE TABLE sessions (
+          id TEXT PRIMARY KEY,
+          purpose TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'active',
+          phase TEXT DEFAULT 'in_progress',
+          agent_id TEXT,
+          worktree_id TEXT,
+          identity_project TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+        CREATE INDEX idx_sessions_status ON sessions(status);
+        CREATE INDEX idx_sessions_agent ON sessions(agent_id);
+        CREATE INDEX idx_sessions_worktree ON sessions(worktree_id);
+        CREATE INDEX idx_sessions_identity_project ON sessions(identity_project);
+        CREATE TABLE session_files (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+          file_path TEXT NOT NULL,
+          start_line INTEGER,
+          end_line INTEGER,
+          symbol TEXT,
+          claimed_at INTEGER NOT NULL,
+          released_at INTEGER
+        );
+        CREATE INDEX idx_session_files_path ON session_files(file_path);
+      `);
+      legacyDb.close();
+
+      try {
+        db = initDatabase({ dbPath });
+
+        const columns = db.prepare("PRAGMA table_info(session_files)").all().map(r => r.name);
+        const indexes = db.prepare("PRAGMA index_list(session_files)").all().map(r => r.name);
+
+        expect(columns).toContain('symbol_path');
+        expect(indexes).toContain('idx_session_files_symbol_path');
+      } finally {
+        db?.close();
+        db = null;
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
     });
   });
 
