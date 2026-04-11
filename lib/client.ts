@@ -2430,18 +2430,29 @@ class PortDaddy {
    * const ctx = await pd.whoami();
    * if (ctx.active) console.log(`Working on: ${ctx.purpose}`);
    */
-  async whoami(agentId?: string): Promise<WhoamiSugarResponse> {
-    const id = agentId || this.agentId;
-    if (id) {
+  async whoami(agentIdOrOptions?: string | { agentId?: string; sessionId?: string }): Promise<WhoamiSugarResponse> {
+    const whoamiOptions = typeof agentIdOrOptions === 'string'
+      ? { agentId: agentIdOrOptions }
+      : (agentIdOrOptions || {});
+    const resolvedAgentId = whoamiOptions.agentId || this.agentId;
+    const sessionId = whoamiOptions.sessionId;
+
+    if (resolvedAgentId) {
+      const payload: Record<string, unknown> = { agentId: resolvedAgentId };
+      if (sessionId) payload.sessionId = sessionId;
       const ipcResult = await this._requestViaIpc<WhoamiSugarResponse>(
         IpcAction.WHOAMI,
-        { agentId: id },
-        { agentId: id, performative: Performative.QUERY_REF },
+        payload,
+        { agentId: resolvedAgentId, performative: Performative.QUERY_REF },
       );
       if (ipcResult) return ipcResult;
     }
-    const qs = id ? `?agentId=${encodeURIComponent(id)}` : '';
-    return this._request('GET', `/sugar/whoami${qs}`) as Promise<WhoamiSugarResponse>;
+
+    const params = new URLSearchParams();
+    if (resolvedAgentId) params.set('agentId', resolvedAgentId);
+    if (sessionId) params.set('sessionId', sessionId);
+    const qs = params.toString();
+    return this._request('GET', `/sugar/whoami${qs ? `?${qs}` : ''}`) as Promise<WhoamiSugarResponse>;
   }
 
   /**
@@ -3307,6 +3318,14 @@ interface WhoamiSugarResponse {
   startedAt?: number;
   duration?: number;
   hint?: string;
+  localContext?: {
+    agentId: string;
+    sessionId: string;
+    startedAt?: number;
+    purpose?: string;
+    identity?: string | null;
+    contextSlot?: string;
+  };
 }
 
 // ──────────────────────────────────────────────────────────────

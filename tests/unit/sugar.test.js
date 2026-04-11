@@ -321,6 +321,24 @@ describe('sugar.done', () => {
     expect(result.success).toBe(true);
     expect(result.notesCount).toBe(3); // 2 manual + 1 handoff
   });
+
+  test('rejects ending another agent session when both agentId and sessionId are explicit', () => {
+    const { sugar } = setup();
+
+    const begin = sugar.begin({
+      purpose: 'Owned by agent a',
+      agentId: 'agent-a',
+    });
+
+    const result = sugar.done({
+      agentId: 'agent-b',
+      sessionId: begin.sessionId,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.code).toBe('SESSION_OWNERSHIP_MISMATCH');
+    expect(result.error).toContain('belongs to agent agent-a');
+  });
 });
 
 // =============================================================================
@@ -355,6 +373,30 @@ describe('sugar.whoami', () => {
     expect(result.success).toBe(true);
     expect(result.active).toBe(false);
     expect(result.hint).toBeTruthy();
+  });
+
+  test('falls back to an explicit active session when the agent row was reaped', () => {
+    const { sugar, agents } = setup();
+
+    const begin = sugar.begin({
+      purpose: 'Recover from stale agent',
+      agentId: 'stale-agent-test',
+      identity: 'myproject:api:main',
+    });
+
+    agents.unregister('stale-agent-test');
+
+    const result = sugar.whoami({
+      agentId: 'stale-agent-test',
+      sessionId: begin.sessionId,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.active).toBe(true);
+    expect(result.agentId).toBe('stale-agent-test');
+    expect(result.sessionId).toBe(begin.sessionId);
+    expect(result.purpose).toBe('Recover from stale agent');
+    expect(result.identity).toBeNull();
   });
 
   test('returns file claims in context', () => {

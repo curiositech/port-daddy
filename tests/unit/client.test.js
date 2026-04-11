@@ -690,6 +690,27 @@ describe('IPC fast paths', () => {
     expect(result.sessionId).toBe('sess-123');
   });
 
+  test('whoami forwards sessionId for fallback resolution', async () => {
+    pd._requestViaIpc = jest.fn().mockResolvedValue(null);
+    queueResponse({
+      success: true,
+      active: true,
+      agentId: 'registered-agent',
+      sessionId: 'sess-123',
+      purpose: 'Ship fixes',
+    });
+
+    const result = await pd.whoami({ agentId: 'registered-agent', sessionId: 'sess-123' });
+
+    expect(pd._requestViaIpc).toHaveBeenCalledWith(
+      'sugar.whoami',
+      { agentId: 'registered-agent', sessionId: 'sess-123' },
+      { agentId: 'registered-agent', performative: expect.any(Number) },
+    );
+    expect(receivedRequests[0].url).toBe('/sugar/whoami?agentId=registered-agent&sessionId=sess-123');
+    expect(result.sessionId).toBe('sess-123');
+  });
+
   test('startSession prefers IPC before HTTP', async () => {
     pd._requestViaIpc = jest.fn().mockResolvedValue({
       success: true,

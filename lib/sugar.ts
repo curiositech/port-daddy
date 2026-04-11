@@ -61,6 +61,7 @@ interface DoneOptions {
 
 interface WhoamiOptions {
   agentId?: string;
+  sessionId?: string;
 }
 
 // =============================================================================
@@ -72,6 +73,33 @@ export function createSugar(deps: SugarDeps) {
 
   function sessionTarget(identityProject: string | null | undefined, sessionId: string): string {
     return identityProject ? `${identityProject}:session:${sessionId}` : sessionId;
+  }
+
+  function buildWhoamiResponse(
+    session: Record<string, unknown>,
+    notes: unknown[],
+    files: Array<Record<string, unknown>>,
+    agent: Record<string, unknown> | null,
+    fallbackAgentId?: string,
+  ) {
+    const sessionId = session.id as string;
+    const startedAt = typeof session.createdAt === 'number' ? session.createdAt : Date.now();
+
+    return {
+      success: true,
+      active: true,
+      agentId: typeof session.agentId === 'string' ? session.agentId : fallbackAgentId,
+      sessionId,
+      purpose: session.purpose as string,
+      identity: typeof agent?.identity === 'string' ? agent.identity : null,
+      phase: session.phase as string || 'in_progress',
+      files: files
+        .filter((file: Record<string, unknown>) => !file.releasedAt)
+        .map((file: Record<string, unknown>) => file.filePath as string),
+      noteCount: notes.length,
+      startedAt,
+      duration: Date.now() - startedAt,
+    };
   }
 
   /**
@@ -210,10 +238,10 @@ export function createSugar(deps: SugarDeps) {
       const sessionInfo = sessions.get(sessionId);
       if (sessionInfo.success && sessionInfo.session) {
         const session = sessionInfo.session as Record<string, unknown>;
-        if (session.agent_id && session.agent_id !== agentId) {
+        if (session.agentId && session.agentId !== agentId) {
           return {
             success: false,
-            error: `Session ${sessionId} belongs to agent ${session.agent_id}, not ${agentId}`,
+            error: `Session ${sessionId} belongs to agent ${session.agentId}, not ${agentId}`,
             code: 'SESSION_OWNERSHIP_MISMATCH',
           };
         }
@@ -279,6 +307,49 @@ export function createSugar(deps: SugarDeps) {
    */
   function whoami(options: WhoamiOptions) {
     const { agentId } = options;
+    const explicitSessionId = typeof options.sessionId === 'string' && options.sessionId.trim()
+      ? options.sessionId.trim()
+      : undefined;
+
+    if (explicitSessionId) {
+      const sessionInfo = sessions.get(explicitSessionId);
+      if (sessionInfo.success && sessionInfo.session) {
+        const session = sessionInfo.session as Record<string, unknown>;
+        const sessionAgentId = typeof session.agentId === 'string' ? session.agentId : null;
+
+        if (agentId && sessionAgentId && sessionAgentId !== agentId) {
+          return {
+            success: true,
+            active: false,
+            agentId,
+            sessionId: explicitSessionId,
+            hint: `Session "${explicitSessionId}" belongs to agent "${sessionAgentId}", not "${agentId}".`,
+          };
+        }
+
+        if (session.status === 'active') {
+          const lookupAgentId = sessionAgentId || agentId;
+          const agentResult = lookupAgentId ? agents.get(lookupAgentId) : { success: false };
+          const agent = agentResult.success ? agentResult.agent as Record<string, unknown> : null;
+
+          return buildWhoamiResponse(
+            session,
+            (sessionInfo.notes as unknown[] | undefined) || [],
+            (sessionInfo.files as Array<Record<string, unknown>> | undefined) || [],
+            agent,
+            lookupAgentId || undefined,
+          );
+        }
+
+        return {
+          success: true,
+          active: false,
+          agentId: sessionAgentId || agentId,
+          sessionId: explicitSessionId,
+          hint: `Session "${explicitSessionId}" is ${session.status || 'inactive'}. Use pd begin to start a session.`,
+        };
+      }
+    }
 
     if (!agentId) {
       return {
@@ -314,33 +385,22 @@ export function createSugar(deps: SugarDeps) {
     }
 
     const session = sessionsList[0];
-    const sessionId = session.id as string;
-
-    // Get notes count
-    const notesResult = sessions.getNotes(sessionId);
-    const noteCount = (notesResult.notes as unknown[] || []).length;
-
-    // Get file claims
-    const sessionDetail = sessions.get(sessionId);
-    const files = ((sessionDetail.files || []) as Array<Record<string, unknown>>)
-      .filter((f: Record<string, unknown>) => !f.releasedAt)
-      .map((f: Record<string, unknown>) => f.filePath as string);
-
-    const now = Date.now();
-    const startedAt = session.createdAt as number;
+    const sessionDetail = sessions.get(session.id as string);
+    if (sessionDetail.success && sessionDetail.session) {
+      return buildWhoamiResponse(
+        sessionDetail.session as Record<string, unknown>,
+        (sessionDetail.notes as unknown[] | undefined) || [],
+        (sessionDetail.files as Array<Record<string, unknown>> | undefined) || [],
+        agent,
+        agentId,
+      );
+    }
 
     return {
       success: true,
-      active: true,
+      active: false,
       agentId,
-      sessionId,
-      purpose: session.purpose as string,
-      identity: agent.identity as string || null,
-      phase: session.phase as string || 'in_progress',
-      files,
-      noteCount,
-      startedAt,
-      duration: now - startedAt,
+      hint: `Agent "${agentId}" has an active session, but details could not be loaded.`,
     };
   }
 

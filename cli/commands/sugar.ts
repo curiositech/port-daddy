@@ -211,8 +211,9 @@ export async function handleWhoami(options: CLIOptions): Promise<void> {
   // Try local context first
   const ctx = readCurrentContext();
   const agentId = (options.agent as string) || ctx?.agentId;
+  const sessionId = (options.session as string) || ctx?.sessionId;
 
-  if (!agentId) {
+  if (!agentId && !sessionId) {
     if (isJson(options)) {
       console.log(JSON.stringify({ success: true, active: false, hint: 'No active session. Use pd begin to start.' }, null, 2));
     } else if (!isQuiet(options)) {
@@ -222,17 +223,24 @@ export async function handleWhoami(options: CLIOptions): Promise<void> {
   }
 
   const pd = new PortDaddy({ agentId });
-  const data = await pd.whoami(agentId);
+  const data = await pd.whoami({ agentId, sessionId });
+
+  // Preserve local context fields when the daemon has to reconstruct from sessionId alone.
+  if (ctx) {
+    if (!data.purpose && ctx.purpose) data.purpose = ctx.purpose;
+    if ((data.identity === undefined || data.identity === null) && ctx.identity) data.identity = ctx.identity;
+    if (data.startedAt == null && ctx.startedAt != null) data.startedAt = ctx.startedAt;
+    data.localContext = {
+      agentId: ctx.agentId,
+      sessionId: ctx.sessionId,
+      startedAt: ctx.startedAt,
+      purpose: ctx.purpose,
+      identity: ctx.identity ?? null,
+      contextSlot: ctx.contextSlot,
+    };
+  }
 
   if (isJson(options)) {
-    // Merge local context timing if available
-    if (ctx) {
-      data.localContext = {
-        agentId: ctx.agentId,
-        sessionId: ctx.sessionId,
-        startedAt: ctx.startedAt,
-      };
-    }
     console.log(JSON.stringify(data, null, 2));
     return;
   }

@@ -10,7 +10,7 @@ import * as ui from '../utils/ui.js';
 import PortDaddy from '../../lib/client.js';
 
 /**
- * Handle `pd lock <name>` command
+ * Handle `pd lock <name-or-path>` command
  */
 export async function handleLock(name: string | undefined, options: CLIOptions): Promise<void> {
   const pd = new PortDaddy({
@@ -31,7 +31,7 @@ export async function handleLock(name: string | undefined, options: CLIOptions):
       }
     }
     if (!extName) {
-      console.error('Usage: port-daddy lock extend <name> [--ttl <ms>]');
+      console.error('Usage: port-daddy lock extend <name-or-path> [--ttl <ms>]');
       process.exit(1);
     }
 
@@ -56,8 +56,8 @@ export async function handleLock(name: string | undefined, options: CLIOptions):
   }
 
   if (!name) {
-    console.error('Usage: port-daddy lock <name> [--ttl <ms>] [--owner <id>]');
-    console.error('       port-daddy lock extend <name> [--ttl <ms>]');
+    console.error('Usage: port-daddy lock <name-or-path> [--ttl <ms>] [--owner <id>]');
+    console.error('       port-daddy lock extend <name-or-path> [--ttl <ms>]');
     console.error('       port-daddy lock db-migrations');
     process.exit(1);
   }
@@ -96,11 +96,11 @@ export async function handleLock(name: string | undefined, options: CLIOptions):
 }
 
 /**
- * Handle `pd unlock <name>` command
+ * Handle `pd unlock <name-or-path>` command
  */
 export async function handleUnlock(name: string | undefined, options: CLIOptions): Promise<void> {
   if (!name) {
-    console.error('Usage: port-daddy unlock <name> [--force]');
+    console.error('Usage: port-daddy unlock <name-or-path> [--force]');
     process.exit(1);
   }
 
@@ -198,7 +198,7 @@ export function handleLockDirect(name: string | undefined, options: CLIOptions):
       }
     }
     if (!extName) {
-      console.error('Usage: port-daddy lock extend <name> [--ttl <ms>]');
+      console.error('Usage: port-daddy lock extend <name-or-path> [--ttl <ms>]');
       process.exit(1);
     }
 
@@ -220,7 +220,7 @@ export function handleLockDirect(name: string | undefined, options: CLIOptions):
   }
 
   if (!name) {
-    console.error('Usage: port-daddy lock <name> [--ttl <ms>] [--owner <id>]');
+    console.error('Usage: port-daddy lock <name-or-path> [--ttl <ms>] [--owner <id>]');
     process.exit(1);
   }
 
@@ -262,7 +262,7 @@ export function handleLockDirect(name: string | undefined, options: CLIOptions):
  */
 export function handleUnlockDirect(name: string | undefined, options: CLIOptions): void {
   if (!name) {
-    console.error('Usage: port-daddy unlock <name> [--force]');
+    console.error('Usage: port-daddy unlock <name-or-path> [--force]');
     process.exit(1);
   }
 

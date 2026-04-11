@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Wifi, Sun, Moon, Square, Play } from 'lucide-react';
+import { Wifi, Sun, Moon, Square, Play, RefreshCw, Users } from 'lucide-react';
 import { AllProjectsList } from './components/ProjectPicker';
 import ProjectPicker from './components/ProjectPicker';
 import AgentCard from './components/AgentCard';
@@ -12,6 +12,7 @@ import SortiePanel from './components/SortiePanel';
 import YAMLEditor from './components/YAMLEditor';
 import ActivityPanel from './components/ActivityPanel';
 import MemoryPanel from './components/MemoryPanel';
+import AgentsPanel from './components/AgentsPanel';
 import { extractMentionedPaths } from './fileMentions';
 import {
   activityTouchedFiles,
@@ -36,8 +37,8 @@ import {
 } from './api';
 import type { ActivityEntry, FleetConfig, FleetEvent, ResolvedChannelTarget, StoryNote, TopologyValidation } from './types';
 
-type MainTab = 'Flow' | 'Activity' | 'Channels' | 'Inbox' | 'Sorties' | 'Memory' | 'YAML';
-type ControlSurface = 'flow' | 'activity' | 'channels' | 'inbox' | 'sorties' | 'memory' | 'yaml';
+type MainTab = 'Flow' | 'Agents' | 'Activity' | 'Channels' | 'Inbox' | 'Sorties' | 'Memory' | 'YAML';
+type ControlSurface = 'flow' | 'agents' | 'activity' | 'channels' | 'inbox' | 'sorties' | 'memory' | 'yaml';
 
 function canUseWindow(): boolean {
   return typeof window !== 'undefined';
@@ -51,6 +52,7 @@ function normalizeSurface(value: string | null): ControlSurface {
     case 'sorties':
     case 'memory':
     case 'yaml':
+    case 'agents':
     case 'flow':
       return value;
     default:
@@ -62,6 +64,8 @@ function surfaceToMainTab(surface: ControlSurface): MainTab {
   switch (surface) {
     case 'flow':
       return 'Flow';
+    case 'agents':
+      return 'Agents';
     case 'activity':
       return 'Activity';
     case 'channels':
@@ -80,6 +84,7 @@ function surfaceToMainTab(surface: ControlSurface): MainTab {
 }
 
 function mainTabToSurface(activeTab: MainTab): ControlSurface {
+  if (activeTab === 'Agents') return 'agents';
   if (activeTab === 'Activity') return 'activity';
   if (activeTab === 'Channels') return 'channels';
   if (activeTab === 'Inbox') return 'inbox';
@@ -338,6 +343,92 @@ function TabBar({ tabs, active, onChange }: { tabs: string[]; active: string; on
           {t}
         </button>
       ))}
+    </div>
+  );
+}
+
+function ProjectControlStrip({
+  project,
+  running,
+  configuredAgents,
+  runtimeAgents,
+  onToggleFleet,
+  onRefresh,
+  onShowAgents,
+  onEditYaml,
+}: {
+  project: string;
+  running: boolean;
+  configuredAgents: number;
+  runtimeAgents: number;
+  onToggleFleet: () => void;
+  onRefresh: () => void;
+  onShowAgents: () => void;
+  onEditYaml: () => void;
+}) {
+  return (
+    <div
+      className="px-4 py-3 flex items-center justify-between gap-3 flex-wrap"
+      style={{ borderBottom: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-surface)' }}
+    >
+      <div className="flex items-center gap-3 flex-wrap">
+        <div>
+          <div className="text-[10px] font-semibold tracking-wider" style={{ color: 'var(--pd-dim)' }}>PROJECT CONTROL</div>
+          <div className="text-sm font-semibold mt-1" style={{ color: 'var(--pd-text)' }}>{project}</div>
+        </div>
+        <div className="flex items-center gap-2 text-[11px] flex-wrap">
+          <span className="rounded-full px-2 py-0.5 font-semibold" style={{ backgroundColor: 'var(--pd-bg)', color: 'var(--pd-muted)', border: '1px solid var(--pd-border)' }}>
+            {configuredAgents} configured
+          </span>
+          <span className="rounded-full px-2 py-0.5 font-semibold" style={{ backgroundColor: 'var(--pd-bg)', color: 'var(--pd-muted)', border: '1px solid var(--pd-border)' }}>
+            {runtimeAgents} fleet runtime
+          </span>
+          <span className="rounded-full px-2 py-0.5 font-semibold" style={{
+            backgroundColor: running ? 'var(--pd-success-surface)' : 'var(--pd-accent-surface)',
+            color: running ? 'var(--pd-success)' : 'var(--pd-accent)',
+            border: `1px solid ${running ? 'var(--pd-success-border)' : 'var(--pd-accent-border)'}`,
+          }}>
+            {running ? 'fleet running' : 'fleet stopped'}
+          </span>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 flex-wrap">
+        <button
+          onClick={onToggleFleet}
+          className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-semibold"
+          style={{
+            backgroundColor: running ? 'var(--pd-accent-surface)' : 'var(--pd-success-surface)',
+            color: running ? 'var(--pd-accent)' : 'var(--pd-success)',
+            border: `1px solid ${running ? 'var(--pd-accent-border)' : 'var(--pd-success-border)'}`,
+          }}
+        >
+          {running ? <Square size={13} /> : <Play size={13} />}
+          <span>{running ? 'Stop fleet' : 'Start fleet'}</span>
+        </button>
+        <button
+          onClick={onRefresh}
+          className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-semibold"
+          style={{ color: 'var(--pd-text)', border: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-bg)' }}
+        >
+          <RefreshCw size={13} />
+          <span>Refresh</span>
+        </button>
+        <button
+          onClick={onShowAgents}
+          className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-semibold"
+          style={{ color: 'var(--pd-text)', border: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-bg)' }}
+        >
+          <Users size={13} />
+          <span>All agents</span>
+        </button>
+        <button
+          onClick={onEditYaml}
+          className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-semibold"
+          style={{ color: 'var(--pd-text)', border: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-bg)' }}
+        >
+          <span>YAML</span>
+        </button>
+      </div>
     </div>
   );
 }
@@ -734,8 +825,15 @@ export default function App() {
 
   const configAgentData = fleetConfig?.agents.find(a => a.name === configAgent);
   const daemonRunning = fleet.status?.running ?? false;
-  const surfaceTabs: MainTab[] = ['Flow', 'Activity', 'Channels', 'Inbox', 'Sorties', 'Memory', 'YAML'];
+  const surfaceTabs: MainTab[] = ['Flow', 'Agents', 'Activity', 'Channels', 'Inbox', 'Sorties', 'Memory', 'YAML'];
   const showProjectSidebar = activeTab === 'Flow' && !embedded;
+  const handleProjectRefresh = useCallback(() => {
+    fleet.refresh();
+    fleet.refreshFeeds();
+    if (selectedProjectId) {
+      fleet.loadConfig(selectedProjectId);
+    }
+  }, [fleet, selectedProjectId]);
   const projectSidebar = selectedProject ? (
     <div className="h-full overflow-hidden p-4 flex flex-col"
       style={{ borderRight: '1px solid var(--pd-border)', backgroundColor: 'color-mix(in srgb, var(--pd-surface) 74%, var(--pd-bg))' }}>
@@ -770,6 +868,19 @@ export default function App() {
 
       {selectedProjectId && !embedded && (
         <TabBar tabs={surfaceTabs} active={activeTab} onChange={(tab) => setActiveTab(tab as MainTab)} />
+      )}
+
+      {selectedProject && !embedded && (
+        <ProjectControlStrip
+          project={selectedProject.name}
+          running={selectedProject.running}
+          configuredAgents={fleetConfig?.agents.length ?? 0}
+          runtimeAgents={selectedProject.agents.length}
+          onToggleFleet={() => void handleFleetToggle()}
+          onRefresh={handleProjectRefresh}
+          onShowAgents={() => setActiveTab('Agents')}
+          onEditYaml={() => setActiveTab('YAML')}
+        />
       )}
 
       <AnimatePresence mode="wait">
@@ -894,6 +1005,22 @@ export default function App() {
                         agentSignals={agentActivitySignals}
                         projectDir={selectedProjectId ?? undefined}
                         onSelectAgent={focusAgent}
+                      />
+                    )}
+                    {activeTab === 'Agents' && (
+                      <AgentsPanel
+                        daemonKey={`${daemonUrl}:${selectedProjectId ?? 'all'}`}
+                        projectName={selectedProjectName ?? undefined}
+                        projectDir={selectedProjectId ?? undefined}
+                        fleetConfig={fleetConfig}
+                        resolvedChannels={Object.fromEntries(channelTargets.map((target) => [target.logical, target.physical]))}
+                        runtimeAgents={selectedProject?.agents}
+                        onFocusFleetAgent={(name) => {
+                          setActiveTab('Flow');
+                          focusAgent(name);
+                        }}
+                        onRunFleetAgent={(name) => handleAgentRunNow(name)}
+                        onPauseFleetAgent={(name, paused) => handleAgentPauseToggle(name, paused)}
                       />
                     )}
                     {activeTab === 'Channels' && (

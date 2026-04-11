@@ -711,6 +711,11 @@ struct AgentRow: View {
                 .foregroundStyle(Fleet.Color.healthy)
                 .symbolEffect(.pulse, isActive: true)
 
+        case .queued:
+            Image(systemName: "hourglass.circle.fill")
+                .font(.system(size: 9))
+                .foregroundStyle(Fleet.Color.active)
+
         case .armed, .scheduled:
             Circle()
                 .fill(Fleet.Color.active.opacity(0.7))

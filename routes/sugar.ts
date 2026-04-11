@@ -93,7 +93,11 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
       const result = sugar.done({ agentId, sessionId, note, status });
 
       if (!result.success) {
-        const httpStatus = result.code === 'NO_ACTIVE_SESSION' ? 404 : 500;
+        const httpStatus = result.code === 'NO_ACTIVE_SESSION'
+          ? 404
+          : result.code === 'SESSION_OWNERSHIP_MISMATCH'
+            ? 409
+            : 500;
         reply.code(httpStatus);
         return result;
       }
@@ -117,8 +121,9 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
   fastify.get('/sugar/whoami', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const agentId = typeof (request.query as any).agentId === 'string' ? (request.query as any).agentId : undefined;
+      const sessionId = typeof (request.query as any).sessionId === 'string' ? (request.query as any).sessionId : undefined;
 
-      const result = sugar.whoami({ agentId });
+      const result = sugar.whoami({ agentId, sessionId });
 
       return result;
     } catch (error) {

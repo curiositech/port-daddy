@@ -198,6 +198,91 @@ export interface BackendInfo {
   readinessNextStep?: string;
 }
 
+export interface RegistryAgent {
+  id: string;
+  name: string | null;
+  pid: number;
+  type: string;
+  registeredAt: number;
+  lastHeartbeat: number;
+  isActive: boolean;
+  maxServices: number;
+  maxLocks: number;
+  metadata: Record<string, unknown> | null;
+  agentCard: Record<string, unknown> | null;
+  skills: string[];
+  worktreeId: string | null;
+  identity: string | null;
+  identityProject: string | null;
+  identityStack: string | null;
+  identityContext: string | null;
+  purpose: string | null;
+  status: string;
+  readiness: Array<{ name: string; ok: boolean; reason?: string }> | null;
+  isReady: boolean;
+  progress: string | null;
+  healthAssessment: {
+    liveness: 'alive' | 'stale' | 'dead';
+    graceRemaining: number;
+  };
+}
+
+export interface InboxMessage {
+  id: number;
+  agentId: string;
+  from: string | null;
+  content: string;
+  type: string;
+  read: boolean;
+  createdAt: number;
+}
+
+export interface InboxStats {
+  total: number;
+  unread: number;
+}
+
+export interface SalvageAgent {
+  id: string;
+  name: string;
+  purpose: string | null;
+  sessionId: string | null;
+  lastHeartbeat: number;
+  staleSince: number;
+  status: 'stale' | 'dead' | 'resurrecting';
+  notes?: string[];
+  identityProject: string | null;
+  identityStack: string | null;
+  identityContext: string | null;
+}
+
+export interface SessionSummary {
+  id: string;
+  purpose: string;
+  status: string;
+  phase: string;
+  agentId: string | null;
+  worktreeId: string | null;
+  identityProject: string | null;
+  createdAt: number;
+  updatedAt: number;
+  completedAt: number | null;
+  metadata: Record<string, unknown> | null;
+  notes?: StoryNote[];
+}
+
+export interface FileClaim {
+  filePath: string;
+  sessionId: string;
+  purpose: string;
+  agentId: string | null;
+  phase: string;
+  claimedAt: number;
+  startLine: number | null;
+  endLine: number | null;
+  symbol: string | null;
+}
+
 export interface SpawnedAgent {
   agentId: string;
   backend: string;

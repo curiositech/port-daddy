@@ -50,20 +50,17 @@ describe('Locks Module', () => {
       expect(result.error).toMatch(/non-empty string/);
     });
 
-    it('should reject acquiring lock with invalid name characters', () => {
+    it('should reject acquiring lock with wildcard names', () => {
       const invalidNames = [
-        'my@lock',
-        'my#lock',
-        'my lock',
-        'my$lock',
-        'my%lock',
-        'my&lock'
+        'docs/*',
+        'lib/*.ts',
+        '*'
       ];
 
       for (const name of invalidNames) {
         const result = locks.acquire(name);
         expect(result.success).toBe(false);
-        expect(result.error).toMatch(/alphanumeric/);
+        expect(result.error).toMatch(/wildcard/);
       }
     });
 
@@ -83,6 +80,22 @@ describe('Locks Module', () => {
         expect(result.success).toBe(true);
         expect(result.name).toBe(name);
       }
+    });
+
+    it('should accept repo-relative file paths as lock names', () => {
+      const name = 'docs/recovery/CURRENT-WORK.md';
+      const result = locks.acquire(name);
+
+      expect(result.success).toBe(true);
+      expect(result.name).toBe(name);
+    });
+
+    it('should accept absolute file paths as lock names', () => {
+      const name = '/Users/erichowens/coding/port-daddy/lib/webhooks.ts';
+      const result = locks.acquire(name);
+
+      expect(result.success).toBe(true);
+      expect(result.name).toBe(name);
     });
 
     it('should prevent acquiring a lock already held', () => {
@@ -291,6 +304,20 @@ describe('Locks Module', () => {
 
       expect(result.success).toBe(true);
       expect(result.released).toBe(true);
+    });
+
+    it('should release filepath locks by wildcard pattern', () => {
+      locks.acquire('docs/recovery/CURRENT-WORK.md', { owner: 'agent1' });
+      locks.acquire('docs/recovery/PD-AGENT-SORTIE-PLAN.md', { owner: 'agent1' });
+      locks.acquire('lib/webhooks.ts', { owner: 'agent1' });
+
+      const result = locks.release('docs/recovery/*');
+
+      expect(result.success).toBe(true);
+      expect(result.released).toBe(2);
+      expect(locks.check('docs/recovery/CURRENT-WORK.md').held).toBe(false);
+      expect(locks.check('docs/recovery/PD-AGENT-SORTIE-PLAN.md').held).toBe(false);
+      expect(locks.check('lib/webhooks.ts').held).toBe(true);
     });
 
     it('should auto-clean expired locks before releasing', () => {
@@ -801,6 +828,20 @@ describe('Locks Module', () => {
 
       expect(result.success).toBe(true);
       expect(result.name).toBe(specialName);
+    });
+
+    it('should reject lock names with control characters', () => {
+      const invalidNames = [
+        'line\nbreak',
+        'tab\tname',
+        'null\u0000byte'
+      ];
+
+      for (const name of invalidNames) {
+        const result = locks.acquire(name);
+        expect(result.success).toBe(false);
+        expect(result.error).toMatch(/control characters/);
+      }
     });
 
     it('should handle rapid cleanup cycles', () => {

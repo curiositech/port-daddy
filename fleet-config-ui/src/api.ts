@@ -6,6 +6,12 @@ import type {
   FleetConfig,
   TopologyValidation,
   BackendInfo,
+  RegistryAgent,
+  InboxMessage,
+  InboxStats,
+  SalvageAgent,
+  SessionSummary,
+  FileClaim,
   SpawnedAgent,
   SpawnPreflight,
   ActivityEntry,
@@ -248,6 +254,103 @@ export async function pauseFleetAgent(projectDir: string, agentName: string): Pr
 
 export async function resumeFleetAgent(projectDir: string, agentName: string): Promise<{ success: boolean; error?: string }> {
   return post('/fleet/agent/resume', { projectDir, agentName });
+}
+
+export async function fetchRegistryAgents(opts: {
+  activeOnly?: boolean;
+  identity?: string;
+  purpose?: string;
+} = {}): Promise<RegistryAgent[]> {
+  const params = new URLSearchParams();
+  if (opts.activeOnly) params.set('active', 'true');
+  if (opts.identity) params.set('identity', opts.identity);
+  if (opts.purpose) params.set('purpose', opts.purpose);
+  const data = await get<{ agents?: RegistryAgent[] }>(`/agents${params.toString() ? `?${params}` : ''}`);
+  return data.agents ?? [];
+}
+
+export async function fetchAgentInbox(agentId: string, opts: {
+  unreadOnly?: boolean;
+  limit?: number;
+  since?: number;
+} = {}): Promise<InboxMessage[]> {
+  const params = new URLSearchParams();
+  if (opts.unreadOnly) params.set('unread', 'true');
+  if (opts.limit) params.set('limit', String(opts.limit));
+  if (opts.since) params.set('since', String(opts.since));
+  const data = await get<{ messages?: InboxMessage[] }>(`/agents/${encodeURIComponent(agentId)}/inbox${params.toString() ? `?${params}` : ''}`);
+  return data.messages ?? [];
+}
+
+export async function fetchAgentInboxStats(agentId: string): Promise<InboxStats> {
+  const data = await get<{ total?: number; unread?: number }>(`/agents/${encodeURIComponent(agentId)}/inbox/stats`);
+  return {
+    total: data.total ?? 0,
+    unread: data.unread ?? 0,
+  };
+}
+
+export async function markAllAgentInboxRead(agentId: string): Promise<{ success: boolean; marked: number }> {
+  return put(`/agents/${encodeURIComponent(agentId)}/inbox/read-all`, {});
+}
+
+export async function clearAgentInbox(agentId: string): Promise<{ success: boolean; deleted: number }> {
+  return del(`/agents/${encodeURIComponent(agentId)}/inbox`);
+}
+
+export async function fetchSalvageAgents(opts: {
+  project?: string;
+  stack?: string;
+  limit?: number;
+  includeResolved?: boolean;
+} = {}): Promise<SalvageAgent[]> {
+  const params = new URLSearchParams();
+  if (opts.project) params.set('project', opts.project);
+  if (opts.stack) params.set('stack', opts.stack);
+  if (opts.limit) params.set('limit', String(opts.limit));
+  const endpoint = opts.includeResolved ? '/salvage' : '/salvage/pending';
+  const data = await get<{ agents?: SalvageAgent[] }>(`${endpoint}${params.toString() ? `?${params}` : ''}`);
+  return data.agents ?? [];
+}
+
+export async function dismissSalvageAgent(agentId: string): Promise<{ success: boolean }> {
+  return del(`/salvage/${encodeURIComponent(agentId)}`);
+}
+
+export async function fetchSessions(opts: {
+  status?: string;
+  agent?: string;
+  project?: string;
+  purpose?: string;
+  includeNotes?: boolean;
+  allWorktrees?: boolean;
+  limit?: number;
+} = {}): Promise<SessionSummary[]> {
+  const params = new URLSearchParams();
+  if (opts.status) params.set('status', opts.status);
+  if (opts.agent) params.set('agent', opts.agent);
+  if (opts.project) params.set('project', opts.project);
+  if (opts.purpose) params.set('purpose', opts.purpose);
+  if (opts.includeNotes) params.set('notes', 'true');
+  if (opts.allWorktrees) params.set('all', 'true');
+  if (opts.limit) params.set('limit', String(opts.limit));
+  const data = await get<{ sessions?: SessionSummary[] }>(`/sessions${params.toString() ? `?${params}` : ''}`);
+  return data.sessions ?? [];
+}
+
+export async function fetchFileClaims(opts: {
+  agent?: string;
+  purpose?: string;
+  path?: string;
+  symbol?: string;
+} = {}): Promise<FileClaim[]> {
+  const params = new URLSearchParams();
+  if (opts.agent) params.set('agent', opts.agent);
+  if (opts.purpose) params.set('purpose', opts.purpose);
+  if (opts.path) params.set('path', opts.path);
+  if (opts.symbol) params.set('symbol', opts.symbol);
+  const data = await get<{ claims?: FileClaim[] }>(`/files${params.toString() ? `?${params}` : ''}`);
+  return data.claims ?? [];
 }
 
 // ─── Models ───────────────────────────────────────────────────────────────────
