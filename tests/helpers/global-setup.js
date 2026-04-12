@@ -17,6 +17,7 @@ const TEST_ENV = {
   dbPath: 'PORT_DADDY_TEST_DB',
   tmpDir: 'PORT_DADDY_TEST_TMPDIR',
   homeDir: 'PORT_DADDY_TEST_HOME',
+  contextDir: 'PORT_DADDY_TEST_CONTEXT_DIR',
   pid: 'PORT_DADDY_TEST_PID'
 };
 
@@ -28,6 +29,7 @@ export default async function globalSetup() {
     dbPath: daemon.dbPath,
     tmpDir: daemon.tmpDir,
     homeDir: daemon.homeDir,
+    contextDir: daemon.contextDir,
     pid: daemon.pid
   };
 
@@ -36,6 +38,8 @@ export default async function globalSetup() {
   process.env[TEST_ENV.dbPath] = state.dbPath;
   process.env[TEST_ENV.tmpDir] = state.tmpDir;
   process.env[TEST_ENV.homeDir] = state.homeDir;
+  process.env[TEST_ENV.contextDir] = state.contextDir;
+  process.env.PORT_DADDY_CONTEXT_DIR = state.contextDir;
   process.env[TEST_ENV.pid] = String(state.pid);
 
   // Write connection info for test files and teardown to read

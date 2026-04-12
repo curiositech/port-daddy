@@ -35,7 +35,9 @@ export async function startEphemeralDaemon(options = {}) {
   const sockPath = join(tmpDir, 'test.sock');
   const ipcPath = join(tmpDir, 'test.ipc');
   const homeDir = join(tmpDir, 'home');
+  const contextDir = join(tmpDir, 'context');
   mkdirSync(homeDir, { recursive: true });
+  mkdirSync(contextDir, { recursive: true });
 
   // Spawn daemon process (use tsx to handle .ts imports)
   const child = spawn(TSX_PATH, [SERVER_PATH], {
@@ -99,6 +101,7 @@ export async function startEphemeralDaemon(options = {}) {
     dbPath,
     tmpDir,
     homeDir,
+    contextDir,
     pid: child.pid,
     process: child,
 

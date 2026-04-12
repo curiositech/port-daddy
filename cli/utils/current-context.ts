@@ -33,6 +33,8 @@ export function resolveContextSlot(): string {
 }
 
 export function getContextDir(cwd: string = process.cwd()): string {
+  const injected = typeof process.env.PORT_DADDY_CONTEXT_DIR === 'string' ? process.env.PORT_DADDY_CONTEXT_DIR.trim() : '';
+  if (injected) return injected;
   return join(cwd, '.portdaddy');
 }
 

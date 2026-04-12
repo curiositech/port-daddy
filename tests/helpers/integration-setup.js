@@ -20,6 +20,7 @@ const TEST_ENV = {
   dbPath: 'PORT_DADDY_TEST_DB',
   tmpDir: 'PORT_DADDY_TEST_TMPDIR',
   homeDir: 'PORT_DADDY_TEST_HOME',
+  contextDir: 'PORT_DADDY_TEST_CONTEXT_DIR',
   pid: 'PORT_DADDY_TEST_PID'
 };
 
@@ -31,9 +32,10 @@ function getDaemonStateFromEnv() {
   const dbPath = process.env[TEST_ENV.dbPath];
   const tmpDir = process.env[TEST_ENV.tmpDir];
   const homeDir = process.env[TEST_ENV.homeDir];
+  const contextDir = process.env[TEST_ENV.contextDir];
   const pid = process.env[TEST_ENV.pid];
 
-  if (!sockPath || !ipcPath || !dbPath || !tmpDir || !homeDir || !pid) return null;
+  if (!sockPath || !ipcPath || !dbPath || !tmpDir || !homeDir || !contextDir || !pid) return null;
 
   return {
     sockPath,
@@ -41,8 +43,20 @@ function getDaemonStateFromEnv() {
     dbPath,
     tmpDir,
     homeDir,
+    contextDir,
     pid: Number.parseInt(pid, 10)
   };
+}
+
+function applyTestEnv(state) {
+  process.env[TEST_ENV.sockPath] = state.sockPath;
+  process.env[TEST_ENV.ipcPath] = state.ipcPath;
+  process.env[TEST_ENV.dbPath] = state.dbPath;
+  process.env[TEST_ENV.tmpDir] = state.tmpDir;
+  process.env[TEST_ENV.homeDir] = state.homeDir;
+  process.env[TEST_ENV.contextDir] = state.contextDir;
+  process.env.PORT_DADDY_CONTEXT_DIR = state.contextDir;
+  process.env[TEST_ENV.pid] = String(state.pid);
 }
 
 /**
@@ -60,6 +74,8 @@ export function getDaemonState() {
   if (!_state) {
     throw new Error(`missing ephemeral daemon state: ${STATE_FILE}`);
   }
+
+  applyTestEnv(_state);
 
   return _state;
 }
@@ -137,7 +153,7 @@ function stripAnsi(str) {
  * Run CLI command against ephemeral daemon.
  */
 export function runCli(args, options = {}) {
-  const { sockPath, dbPath } = getDaemonState();
+  const { sockPath, dbPath, contextDir } = getDaemonState();
   const cliPath = join(import.meta.dirname, '../../bin/port-daddy-cli.ts');
 
   // Use --direct to silence daemon-unreachable warnings if we are intentionally 
@@ -148,6 +164,7 @@ export function runCli(args, options = {}) {
     ...process.env,
     PORT_DADDY_SOCK: sockPath,
     PORT_DADDY_DB: dbPath,
+    PORT_DADDY_CONTEXT_DIR: contextDir,
     // Clear PORT_DADDY_URL so CLI uses socket
     PORT_DADDY_URL: '',
     // Skip freshness check during integration tests to avoid noise and races
@@ -183,13 +200,14 @@ export function runCli(args, options = {}) {
  * user's real daemon when IPC coverage regresses.
  */
 export function runCliViaIpc(args, options = {}) {
-  const { ipcPath, homeDir } = getDaemonState();
+  const { ipcPath, homeDir, contextDir } = getDaemonState();
   const cliPath = join(import.meta.dirname, '../../bin/port-daddy-cli.ts');
 
   const testEnv = {
     ...process.env,
     HOME: homeDir,
     PORT_DADDY_IPC: ipcPath,
+    PORT_DADDY_CONTEXT_DIR: contextDir,
     PORT_DADDY_URL: '',
     PORT_DADDY_SOCK: '',
     PORT_DADDY_SKIP_FRESHNESS_CHECK: '1',
