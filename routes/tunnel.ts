@@ -17,7 +17,12 @@ interface TunnelRouteDeps {
     errors: number;
   };
   tunnel: {
-    start(serviceId: string, provider?: TunnelProvider): Promise<{ success: boolean; url?: string; error?: string }>;
+    start(serviceId: string, provider?: TunnelProvider): Promise<{
+      success: boolean;
+      url?: string;
+      error?: string;
+      expiresAt?: number;
+    }>;
     stop(serviceId: string): { success: boolean; error?: string };
     status(serviceId: string): {
       serviceId: string;
@@ -27,6 +32,9 @@ interface TunnelRouteDeps {
       status: string;
       pid?: number;
       startedAt?: number;
+      expiresAt?: number;
+      ageMs?: number;
+      cleanupReason?: 'expired' | 'orphan-process' | 'stale-record';
     };
     list(): Array<{
       serviceId: string;
@@ -36,8 +44,11 @@ interface TunnelRouteDeps {
       status: string;
       pid?: number;
       startedAt?: number;
+      expiresAt?: number;
+      ageMs?: number;
     }>;
     checkProvider(provider: TunnelProvider): Promise<boolean>;
+    dispose?(): void;
   };
 }
 
@@ -106,7 +117,8 @@ export const tunnelPlugin: FastifyPluginAsync<{ deps: TunnelRouteDeps }> = async
         success: true,
         serviceId: (request.params as any).id,
         provider,
-        url: result.url
+        url: result.url,
+        expiresAt: result.expiresAt
       };
     } catch (error) {
       metrics.errors++;

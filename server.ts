@@ -651,6 +651,8 @@ function shutdown(signal: string): void {
   }
   // Flush counters before closing DB (pending in-memory batches)
   try { counters.shutdown(); } catch {}
+  try { tunnel.stopAll(); } catch {}
+  try { tunnel.dispose?.(); } catch {}
   // Stop fleet runners before closing DB (graceful drain)
   try { fleetDaemon.stop(); } catch {}
   systemPortsRefresh.stop();

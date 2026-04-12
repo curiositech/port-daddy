@@ -19,7 +19,7 @@
  * Each test runs with a fresh in-memory database to ensure isolation.
  */
 
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { createTestDb } from '../setup-unit.js';
 import { createTunnel } from '../../lib/tunnel.js';
 
@@ -30,6 +30,10 @@ describe('Tunnel Module', () => {
   beforeEach(() => {
     db = createTestDb();
     tunnel = createTunnel(db);
+  });
+
+  afterEach(() => {
+    tunnel.dispose?.();
   });
 
   /**
@@ -196,14 +200,15 @@ describe('Tunnel Module', () => {
       expect(result.provider).toBe('ngrok'); // default
     });
 
-    it('should return stopped status with previous tunnel info from database', () => {
+    it('should clear stale tunnel info from the database on status lookup', () => {
       insertServiceWithTunnel('old-service', 4200, 'cloudflared', 'https://test.trycloudflare.com');
 
       const result = tunnel.status('old-service');
       expect(result.status).toBe('stopped');
-      expect(result.url).toBe('https://test.trycloudflare.com');
+      expect(result.url).toBeNull();
       expect(result.provider).toBe('cloudflared');
       expect(result.port).toBe(4200);
+      expect(result.cleanupReason).toBe('stale-record');
     });
 
     it('should include serviceId in response', () => {
@@ -223,7 +228,8 @@ describe('Tunnel Module', () => {
       // Service with tunnel data
       insertServiceWithTunnel('has-tunnel', 4400, 'ngrok', 'https://had.ngrok.io');
       const withTunnel = tunnel.status('has-tunnel');
-      expect(withTunnel.url).toBe('https://had.ngrok.io');
+      expect(withTunnel.url).toBeNull();
+      expect(withTunnel.cleanupReason).toBe('stale-record');
 
       // Service without tunnel data
       insertService('no-tunnel', 4401);
@@ -231,6 +237,49 @@ describe('Tunnel Module', () => {
       // Service exists but no tunnel_url, so it falls to default path
       // Actually, if tunnel_url is NULL and service exists, it returns stopped with null url
       expect(withoutTunnel.status).toBe('stopped');
+    });
+
+    it('should clear stale persisted tunnel state from a previous runtime', () => {
+      const staleMetadata = JSON.stringify({
+        portDaddyTunnel: {
+          pid: 98765,
+          provider: 'cloudflared',
+          startedAt: Date.now() - 60_000,
+          expiresAt: Date.now() + 60_000,
+        }
+      });
+
+      db.prepare(`
+        INSERT INTO services (id, port, status, tunnel_provider, tunnel_url, metadata, created_at, last_seen)
+        VALUES (?, ?, 'assigned', ?, ?, ?, ?, ?)
+      `).run(
+        'stale-tunnel',
+        4402,
+        'cloudflared',
+        'https://stale.trycloudflare.com',
+        staleMetadata,
+        Date.now(),
+        Date.now()
+      );
+
+      const cleanupTunnel = createTunnel(db, {
+        cleanupIntervalMs: 0,
+        isPidAlive: () => false,
+      });
+
+      const result = cleanupTunnel.status('stale-tunnel');
+
+      expect(result.status).toBe('stopped');
+      expect(result.cleanupReason).toBe('stale-record');
+      expect(result.url).toBeNull();
+
+      const row = db.prepare('SELECT tunnel_provider, tunnel_url, metadata FROM services WHERE id = ?')
+        .get('stale-tunnel');
+      expect(row.tunnel_provider).toBeNull();
+      expect(row.tunnel_url).toBeNull();
+      expect(row.metadata).toBeNull();
+
+      cleanupTunnel.dispose?.();
     });
   });
 
@@ -278,13 +327,13 @@ describe('Tunnel Module', () => {
       expect(row.port).toBe(5500);
     });
 
-    it('should read tunnel_provider and tunnel_url from services table', () => {
+    it('should read tunnel_provider from services table before stale cleanup', () => {
       insertServiceWithTunnel('read-test', 5600, 'ngrok', 'https://read.ngrok.io');
 
-      // The tunnel module's status() reads from this table
       const result = tunnel.status('read-test');
       expect(result.provider).toBe('ngrok');
-      expect(result.url).toBe('https://read.ngrok.io');
+      expect(result.url).toBeNull();
+      expect(result.cleanupReason).toBe('stale-record');
     });
 
     it('should write NULL to tunnel columns on clearTunnel', () => {

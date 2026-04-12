@@ -5,6 +5,47 @@ Owner: Codex working session
 
 This is the active execution ledger. If a task is in flight, it belongs here before it belongs in chat.
 
+## Active Side Thread
+
+New public-site reset work for `agentsd.ai` is now captured on disk:
+
+- `docs/AGENTSD_AI_SITE_CONTRACT.md`
+- `docs/AGENTSD_BRAND_IDENTITY.md`
+
+This side thread exists to stop future agents from recreating the old public-site sprawl under a new name.
+
+Key constraints now captured there:
+
+- `agentsd.ai` gets a tiny public route surface (`/` and `/docs/**`)
+- no migration of the old `portdaddy.dev` page tree
+- no hand-wired route jungle like the current `website-v2/src/main.tsx`
+- no ad hoc page markup outside the React component library
+- Storybook, semantic tokens, Radix primitives, dark mode, and accessibility are ship gates
+- public `agentsd` brand is distinct from internal `Port Daddy` lineage
+- maritime language survives in-product, not as the homepage identity
+
+Implementation truth now also exists in the working tree:
+
+- `website-v2/src/main.tsx` is cut down to `/` plus `/docs/**` with fallback redirects
+- new public shell components live under `website-v2/src/components/site/`
+- `website-v2/src/data/publicSite.ts` is the generated docs/landing content registry for the new shell
+- `website-v2/src/styles/tokens.css` now carries the new paper/ink/blue/lime public token system instead of the old harbor-heritage palette
+- the landing page is now rebuilt against the `v0-agentsd-main` composition language: hard color blocking, proof terminals, architecture diagram, open-core pricing grid, and docs mosaic
+- homepage copy is now product-facing instead of repo-facing: no `portdaddy.dev` references, no self-referential "public shell" language, and no cleanup-ticket tone on the public surface
+- public docs are reduced to the approved section set via `DocsOverview` + `DocsSectionPage` instead of the previous route forest
+- Storybook coverage now exists for the new public shell primitives/header
+
+## Public Site Reset (2026-04-11)
+
+The `agentsd.ai` public-site reset is now explicit repo work, not chat residue.
+
+- New authority docs:
+  - `docs/AGENTSD_AI_SITE_CONTRACT.md`
+  - `docs/AGENTSD_BRAND_IDENTITY.md`
+- These documents exist to prevent `portdaddy.dev`-style page sprawl, layout drift, mascot bleed-through, and public runtime overclaims from reappearing under the `agentsd` brand.
+- The old public site is now treated as a failure case, not a migration target.
+- Future public-site work should start from the new route budget, template budget, truth-label rules, and logo/brand constraints in those docs before adding or rewriting anything in `website-v2`.
+
 ## Current Thread
 
 The live recovery thread has split into two coupled slices:
@@ -12,14 +53,28 @@ The live recovery thread has split into two coupled slices:
 1. Keep the operator loop truthful so one daemon, one fleet runtime, one control plane, and one native companion all tell the same story.
 2. Capture the newer uncommitted semantic-memory slice honestly instead of pretending Phase 1 / memory work is still dormant.
 
-Latest committed slice: `df4c351` — Track session region claims by symbol path.
-Current uncommitted slice: direct-mode and implicit note scoping hardening after live stale-context drift:
+Latest committed slice: `6d136cc` — Harden sugar session fallback and filepath locks.
+Current uncommitted slice: IPC lock lifetime fix plus isolated IPC regression coverage for filepath locks:
+- `server.ts` no longer auto-releases every lock owned by an agent when an IPC socket disconnects; the SDK uses short-lived IPC request clients for lock operations, so transport teardown is not valid ownership loss
+- `tests/helpers/ephemeral-daemon.js`, `tests/helpers/global-setup.js`, `tests/helpers/global-teardown.js`, and `tests/helpers/integration-setup.js` now expose an isolated ephemeral `ipcPath` (plus isolated HOME for CLI IPC coverage) so integration tests can exercise real IPC without leaking onto the operator's canonical daemon
+- `tests/integration/cli.test.js` now proves that owner-driven IPC lock acquisition on a filepath remains exclusive across separate CLI invocations and unlocks cleanly afterward
+- validation truth on 2026-04-11:
+  - focused `tests/integration/cli.test.js` + `tests/unit/locks.test.js` are green
+  - broad `npm test` is green at `114/114` suites and `4616/4617` passing tests with `1` intentional skip
+  - the older parallel Jest worker-force-exit warning still remains, so this slice fixed lock lifetime truth but not the residual suite teardown debt
+
+Previous committed slice retained for context: `df4c351` — Track session region claims by symbol path.
+Current uncommitted slice: direct-mode and implicit note/whoami scoping hardening after live stale-context drift:
 - `bin/port-daddy-cli.ts` now validates repo-local current context against the direct DB before `pd note --direct` reuses an implicit session/agent scope
 - `cli/commands/sessions.ts` now validates repo-local current context against the active backend before implicit `pd note` scoping, so stale local context falls back to the normal closed-fail path instead of surfacing `session ... not found`
 - `lib/db.ts` now matches the committed `session_files.symbol_path` schema so fresh direct-DB initialization stays in sync with the committed session-claim model
+- `lib/sugar.ts`, `routes/sugar.ts`, `lib/client.ts`, and `cli/commands/sugar.ts` now let `pd whoami` fall back to an explicit active `sessionId` when the agent row has already been reaped, instead of falsely declaring the operator inactive just because the weaker registry key disappeared first
+- the same `lib/sugar.ts` slice also fixes explicit `done(agentId + sessionId)` ownership checks to use the actual camelCase session field, and `/sugar/done` now returns `409 SESSION_OWNERSHIP_MISMATCH` instead of collapsing that path into a generic `500`
 - validation truth on 2026-04-11:
   - `tests/integration/direct-mode.test.js` is green again
-  - full `npm test` is green at `113/113` suites and `4601/4602` passing tests with `1` intentional skip, but the older parallel Jest worker-force-exit warning still remains
+  - focused `client` / `sugar` / CLI integration regressions covering stale-agent `whoami` and explicit-session ownership are green
+  - full `npm test` was green at `114/114` suites and `4611/4612` passing tests with `1` intentional skip when this slice landed; newer validation is now above
+  - `npm run typecheck` is still red, but the failures are the same broader pre-existing CLI/client/IPC typing debt family rather than a new regression from this slice
 
 Newest committed semantic-claim slice now on `HEAD`:
 - `lib/sessions.ts` / `routes/sessions.ts` / `tests/unit/region-claims.test.js` now carry canonical `symbolPath` claim identity with line-range fallback
@@ -126,6 +181,28 @@ The current-session drift investigation now has a concrete working-tree fix:
 - direct-mode `pd note` now forwards slot context (`sessionId`/`agentId`) instead of relying on unscoped quick-note fallback
 - regression coverage now exists for slot isolation plus ambiguous quick-note rejection
 
+## Latest Validated Working-Tree Slice (2026-04-11)
+
+Tunnel cost-safety hardening is now real in the working tree:
+
+- `lib/tunnel.ts` now treats tunnels as budgeted managed resources instead of loose child processes:
+  - default max-active tunnel cap
+  - default tunnel TTL / expiry
+  - persisted tunnel metadata for restart reconciliation
+  - periodic cleanup plus synchronous stale-state sweeps
+  - safe orphan cleanup only when the persisted PID still matches the expected provider/port command line
+- `server.ts` now stops all managed tunnels during graceful daemon shutdown and disposes the tunnel reaper, so shutdown does not leave Port Daddy-managed tunnels behind
+- `routes/tunnel.ts`, `cli/commands/tunnel.ts`, and `lib/client.ts` now surface expiry metadata / cleanup reasons so operator output does not hide the safety policy
+- regression coverage now exists in `tests/unit/tunnel.test.js` and `tests/unit/tunnel-lifecycle.test.js` for:
+  - tunnel budget exhaustion
+  - TTL reaping
+  - stale DB-record cleanup
+  - orphan-process cleanup
+- validation truth on 2026-04-11:
+  - focused `npm test -- tunnel-lifecycle tunnel.test` is green
+  - broad `npm test` is green at `114/114` suites and `4627/4628` passing tests with `1` intentional skip
+  - `npm run typecheck` is still red, but the failures are the same broader pre-existing CLI/client/IPC typing debt family; this slice only added and fixed its own new tunnel CLI typing edges
+
 ## Active Tasks
 
 1. Decide whether the new graph + episodic-memory slice is the active next cut or just crash residue:
@@ -140,7 +217,9 @@ The current-session drift investigation now has a concrete working-tree fix:
    - hardening landed in the working tree: slot-scoped context files plus fail-closed quick-note/session targeting
    - live verification passed against the canonical daemon: slot `live-a` and slot `live-b` kept distinct `pd whoami` and `pd note` targeting inside the same checkout
    - newest follow-up in the working tree: both direct-mode `pd note` and implicit backend-scoped `pd note` now validate repo-local current context before reusing it, so stale context degrades to the intended closed-fail path instead of surfacing `session ... not found`
+   - newest adjacent follow-up now also in the working tree: `pd whoami` accepts explicit `sessionId` fallback so stale agent cleanup no longer masks still-active sessions, and explicit `done(agentId + sessionId)` rejects foreign-session closure with a real `409`
    - remaining truth task: update user-facing docs/website/help text that still oversimplify `.portdaddy/current.json` as the only context surface
+   - newly observed cleanup debt from 2026-04-11 verification: CLI integration tests still mutate repo-local `.portdaddy/current.json` / slot files during `runCli(...)` coverage, which can stomp a real operator session after the suite finishes; isolate or clean test context explicitly instead of leaving dogfood residue behind
 4. Finish daemon discovery drift cleanup so `9876` is treated as the canonical preferred port, not a mandatory truth. The daemon can already fall back; the surrounding install/CLI/UI surfaces must stop pretending otherwise.
 5. Finish the fleet lease recoverability pass so a project does not remain skipped forever when renewal sees `lock not held` and no other daemon owns the lease.
 6. Finish the last raw project-trigger audit after `lib/fleet-channels.ts` + hook/template scoping so no checked-in path still publishes or inspects naked logical channels where a scoped physical channel is required.
