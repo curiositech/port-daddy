@@ -49,10 +49,12 @@ describe('backend readiness', () => {
     else process.env.CLOUDFLARE_API_TOKEN = originalCfApiToken;
   });
 
-  test('reports Claude SDK backend as ready when ANTHROPIC_API_KEY is present', async () => {
+  test('reports Claude SDK backend as ready when ANTHROPIC_API_KEY is present and the model has an exact rate', async () => {
     process.env.ANTHROPIC_API_KEY = 'sk-test';
 
-    const readiness = await assessBackendReadiness('claude');
+    const readiness = await assessBackendReadiness('claude', {
+      model: 'claude-haiku-4-5-20251001',
+    });
 
     expect(readiness).toMatchObject({
       backend: 'claude',
@@ -61,18 +63,30 @@ describe('backend readiness', () => {
     });
   });
 
-  test('reports Gemini backend as needs setup when GEMINI_API_KEY is missing', async () => {
+  test('uses the shared exact-rate Claude default when no model is supplied', async () => {
+    process.env.ANTHROPIC_API_KEY = 'sk-test';
+
+    const readiness = await assessBackendReadiness('claude');
+
+    expect(readiness).toMatchObject({
+      backend: 'claude',
+      status: 'ready',
+    });
+    expect(readiness.summary).toContain('ANTHROPIC_API_KEY present');
+  });
+
+  test('blocks Gemini backend behind the telemetry policy', async () => {
     const readiness = await assessBackendReadiness('gemini');
 
     expect(readiness).toMatchObject({
       backend: 'gemini',
       status: 'needs_setup',
-      summary: 'GEMINI_API_KEY missing',
     });
-    expect(readiness.nextStep).toContain('GEMINI_API_KEY');
+    expect(readiness.summary).toContain('GEMINI_API_KEY missing');
+    expect(readiness.summary).toContain('blocked until exact token counts');
   });
 
-  test('reports Cloudflare backend as ready when account and token are present', async () => {
+  test('blocks Cloudflare backend even when credentials are present', async () => {
     process.env.CLOUDFLARE_ACCOUNT_ID = 'acct-123';
     process.env.CLOUDFLARE_API_TOKEN = 'token-123';
 
@@ -80,23 +94,12 @@ describe('backend readiness', () => {
 
     expect(readiness).toMatchObject({
       backend: 'cloudflare',
-      status: 'ready',
-      summary: 'Cloudflare Workers AI credentials present',
-    });
-  });
-
-  test('reports Cloudflare backend as needs setup when credentials are missing', async () => {
-    const readiness = await assessBackendReadiness('cloudflare');
-
-    expect(readiness).toMatchObject({
-      backend: 'cloudflare',
       status: 'needs_setup',
-      summary: 'Cloudflare Workers AI credentials missing',
     });
-    expect(readiness.nextStep).toContain('CLOUDFLARE_ACCOUNT_ID');
+    expect(readiness.summary).toContain('blocked until exact token counts');
   });
 
-  test('reports claude-cli as needs setup when the CLI binary is missing', async () => {
+  test('keeps claude-cli probe details while still blocking launch under telemetry policy', async () => {
     mockSpawnSync.mockReturnValue({ status: 1 });
 
     const readiness = await assessBackendReadiness('claude-cli');
@@ -107,11 +110,12 @@ describe('backend readiness', () => {
     expect(readiness).toMatchObject({
       backend: 'claude-cli',
       status: 'needs_setup',
-      summary: 'Claude CLI binary not found',
     });
+    expect(readiness.summary).toContain('Claude CLI binary not found');
+    expect(readiness.summary).toContain('blocked until exact token counts');
   });
 
-  test('reports codex as manual check when the CLI binary is present', async () => {
+  test('keeps codex probe details while still blocking launch under telemetry policy', async () => {
     mockSpawnSync.mockImplementation((command, args) => ({
       status: command === 'which' && args[0] === 'codex' ? 0 : 1,
     }));
@@ -123,12 +127,13 @@ describe('backend readiness', () => {
     }));
     expect(readiness).toMatchObject({
       backend: 'codex',
-      status: 'manual_check',
-      summary: 'Codex CLI binary found; OpenAI auth and model access cannot be verified non-interactively',
+      status: 'needs_setup',
     });
+    expect(readiness.summary).toContain('Codex CLI binary found');
+    expect(readiness.summary).toContain('blocked until exact token counts');
   });
 
-  test('reports ollama as manual check when the CLI exists but the local API is down', async () => {
+  test('keeps ollama probe details while still blocking launch under telemetry policy', async () => {
     mockSpawnSync.mockImplementation((command, args) => ({
       status: command === 'which' && args[0] === 'ollama' ? 0 : 1,
     }));
@@ -137,9 +142,11 @@ describe('backend readiness', () => {
 
     expect(readiness).toMatchObject({
       backend: 'ollama',
-      status: 'manual_check',
-      summary: 'Ollama CLI found, but local API is not reachable',
+      status: 'needs_setup',
     });
-    expect(readiness.nextStep).toContain('ollama serve');
+    expect(readiness.summary).toContain('Ollama CLI found, but local API is not reachable');
+    expect(readiness.summary).toContain('blocked until Port Daddy can attach exact token counts');
+    expect(mockSpawnSync).toHaveBeenCalled();
+    expect(global.fetch).toHaveBeenCalled();
   });
 });

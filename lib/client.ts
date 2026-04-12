@@ -3434,7 +3434,7 @@ interface ChangelogIdentitiesResponse {
 // =============================================================================
 
 interface SpawnSpec {
-  backend: 'ollama' | 'claude' | 'claude-cli' | 'gemini' | 'codex' | 'aider' | 'custom';
+  backend: 'ollama' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'codex' | 'aider' | 'custom';
   model?: string;
   modelTier?: 'low' | 'mid' | 'high';
   identity: string;
@@ -3457,6 +3457,12 @@ interface SpawnResult {
   status: 'running' | 'completed' | 'failed' | 'killed';
   output: string | null;
   error: string | null;
+  telemetry: {
+    inputTokens: number;
+    outputTokens: number;
+    costUsd: number;
+    rateMode: 'exact';
+  } | null;
   startedAt: number;
   completedAt: number | null;
 }

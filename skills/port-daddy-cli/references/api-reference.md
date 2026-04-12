@@ -666,6 +666,10 @@ Launch an AI agent with full PD coordination (registration, sessions, heartbeats
 
 This is the low-level delegation primitive. Use `/sorties` when you want a durable mission id, event log, harbor, and later status/result lookup instead of a raw spawned run.
 
+Launches are fail-closed on telemetry. Port Daddy blocks a spawn when the resolved backend/model cannot provide exact token counts plus an exact nonzero model rate for the completed run.
+The live spawner defaults that policy on. Internal code may only opt out by attaching explicit HITL confirmation metadata; an omitted flag is not a valid bypass.
+At the moment, the operator-facing launchable path is the Claude SDK backend with an exact-rate model entry. The larger backend enum is still documented because those implementations exist in source, but most remain blocked until telemetry parity exists.
+
 **Body:**
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -681,6 +685,20 @@ This is the low-level delegation primitive. Use `/sorties` when you want a durab
 | `workdir` | string | no | Working directory for the agent |
 | `timeout` | number | no | Timeout in milliseconds |
 
+**Response (success):**
+- includes normal spawn fields plus `telemetry: { inputTokens, outputTokens, costUsd, rateMode }`
+- `rateMode` is currently `exact` for accepted launches
+
+**Response (precondition failure):**
+- HTTP `400`
+- `{ "success": false, "code": "PRECONDITION_FAILED", "error": "...", "preflight": { ... } }`
+- use `/spawn/preflight` to inspect the blocked backend/model and budget reasons before retrying
+
+### POST /spawn/preflight
+Resolve backend/model selection, budget status, and telemetry eligibility without launching a run.
+
+This returns structured attempts and blocked reasons. Use it before `/spawn` when the operator needs to see why a launch is disabled.
+
 ### GET /spawn
 List active spawned agents.
 
@@ -695,6 +713,7 @@ Kill a spawned agent.
 Launch a tracked sortie mission.
 
 This is the first-class mission surface over spawned runs: Port Daddy creates a persisted sortie record, assigns an ephemeral harbor like `project:sortie:<id>`, runs spawn preflight, records mission events, and returns a durable sortie id you can inspect later.
+Sorties inherit the same fail-closed telemetry contract as `/spawn`. A sortie launch is blocked before the coordinating run starts if the resolved backend/model cannot provide exact token counts plus an exact nonzero model rate.
 
 **Body:**
 | Field | Type | Required | Description |
@@ -715,6 +734,11 @@ This is the first-class mission surface over spawned runs: Port Daddy creates a 
 | `allowedTools` | string | no | Tool permission string for claude-cli-backed coordinators |
 | `timeout` | number | no | Timeout in milliseconds |
 | `maxTokens` | number | no | Optional token ceiling for claude or claude-cli launches |
+
+**Response (precondition failure):**
+- HTTP `400`
+- `{ "success": false, "error": "...", "preflight": { ... }, "sortie": { ... } }`
+- use `/spawn/preflight` or retry the sortie with a telemetry-eligible backend/model before relaunching
 
 ### GET /sorties
 List recent sorties. Query params: `projectDir`, `limit`.
@@ -965,8 +989,10 @@ Returns a compact string summarizing agent states for the given project. Designe
 
 ---
 
-### GET /fleet/config/:project
+### GET /fleet/config/:projectRef
 Retrieve the raw YAML, parsed config, and topology validation for a project's fleet.
+
+`projectRef` accepts a URL-encoded project directory, a registered project root path, or a unique project id. Prefer the URL-encoded `projectDir`, because logical project names may be ambiguous across multiple checkouts.
 
 **Response:**
 ```json
@@ -984,7 +1010,7 @@ Returns 404 if the project is not registered or has no `pd-fleet.yml`.
 
 ---
 
-### PUT /fleet/config/:project
+### PUT /fleet/config/:projectRef
 Write new YAML config, validate it, and reload the fleet.
 
 **Body:** `{ "yaml": "fleet:\n  name: myapp\n  ..." }` (required, must be valid YAML object)
@@ -1110,7 +1136,7 @@ Four golden signals for the spawn system (RED method). Single-endpoint fleet hea
 | `costPerHour` | USD burn rate from cost tracker (1h window) |
 
 ### GET /metrics/cost
-Cost summary by project and backend.
+Cost summary by project label and backend. This is spend history, not live-fleet truth; use `GET /fleet` for current fleets. Rows include `projectDir` when the runtime recorded it.
 
 **Query params:**
 | Param | Type | Description |
@@ -1125,7 +1151,14 @@ Cost summary by project and backend.
   "periodSecs": 86400,
   "totals": { "totalUsd": 1.234, "spawnCount": 42, "estimatedCount": 10 },
   "byProject": [
-    { "projectName": "port-daddy", "totalUsd": 0.85, "spawnCount": 30, "estimatedCount": 8, "topModel": "claude-cli" }
+    {
+      "projectName": "port-daddy",
+      "projectDir": "/Users/erichowens/coding/port-daddy",
+      "totalUsd": 0.85,
+      "spawnCount": 30,
+      "estimatedCount": 8,
+      "topModel": "claude-cli"
+    }
   ],
   "byBackend": [
     { "backend": "claude-cli", "totalUsd": 0.85, "count": 30 }
@@ -1151,6 +1184,7 @@ Most recent cost events (useful for live cost feeds).
       "backend": "codex",
       "model": "gpt-5.4-mini",
       "projectName": "port-daddy",
+      "projectDir": "/Users/erichowens/coding/port-daddy",
       "identity": "port-daddy:qa:main",
       "spawnId": "spawn-abc123",
       "inputTokens": null,

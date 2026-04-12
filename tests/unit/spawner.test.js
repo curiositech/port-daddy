@@ -31,7 +31,7 @@ jest.unstable_mockModule('node:child_process', () => ({
 
 // Import after mocking
 const { spawn: cpSpawn } = await import('node:child_process');
-const { createSpawner } = await import('../../lib/spawner.js');
+const { createSpawner: createSpawnerBase } = await import('../../lib/spawner.js');
 
 // ---------------------------------------------------------------------------
 // Global fetch mock
@@ -39,6 +39,23 @@ const { createSpawner } = await import('../../lib/spawner.js');
 
 const originalFetch = global.fetch;
 let mockFetch;
+
+const TEST_TELEMETRY_BYPASS = {
+  humanConfirmed: true,
+  confirmedBy: 'jest',
+  reason: 'Unit test coverage for legacy non-metered spawner paths',
+};
+
+function createSpawner(deps = {}) {
+  if (deps.enforceTelemetryPolicy === true) {
+    return createSpawnerBase(deps);
+  }
+  return createSpawnerBase({
+    ...deps,
+    enforceTelemetryPolicy: false,
+    telemetryBypassApproval: deps.telemetryBypassApproval ?? TEST_TELEMETRY_BYPASS,
+  });
+}
 
 beforeEach(() => {
   delete process.env.CLOUDFLARE_ACCOUNT_ID;
@@ -153,11 +170,31 @@ describe('createSpawner', () => {
   });
 
   test('accepts empty deps object', () => {
-    expect(() => createSpawner({})).not.toThrow();
+    expect(() => createSpawnerBase({})).not.toThrow();
   });
 
-  test('defaults to empty deps when called with no args', () => {
-    expect(() => createSpawner()).not.toThrow();
+  test('defaults telemetry enforcement on when called with no args', async () => {
+    const spawner = createSpawnerBase();
+    setupOllamaFetchMock('blocked');
+
+    const result = await spawner.spawn({
+      backend: 'ollama',
+      task: 'default enforcement',
+    });
+
+    expect(result.status).toBe('failed');
+    expect(result.error).toContain('cost tracker unavailable under fail-closed telemetry policy');
+  });
+
+  test('rejects telemetry opt-out without HITL confirmation', () => {
+    expect(() => createSpawnerBase({ enforceTelemetryPolicy: false })).toThrow(/HITL confirmation is required/);
+  });
+
+  test('accepts telemetry opt-out only with explicit HITL confirmation data', () => {
+    expect(() => createSpawnerBase({
+      enforceTelemetryPolicy: false,
+      telemetryBypassApproval: TEST_TELEMETRY_BYPASS,
+    })).not.toThrow();
   });
 });
 
@@ -194,6 +231,27 @@ describe('spawn — instrumentation', () => {
         model: 'llama3.1:8b',
         projectName: 'myapp',
         identity: 'myapp:api:test',
+        spawnId: result.agentId,
+      })
+    );
+  });
+
+  test('records resolved projectDir when workdir is provided', async () => {
+    const costTracker = { record: jest.fn() };
+    const spawner = createSpawner({ costTracker });
+    setupOllamaFetchMock('workdir');
+
+    const result = await spawner.spawn({
+      backend: 'ollama',
+      task: 'resolve workdir',
+      identity: 'myapp:api:test',
+      workdir: '.',
+    });
+
+    expect(result.status).toBe('completed');
+    expect(costTracker.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectDir: process.cwd(),
         spawnId: result.agentId,
       })
     );

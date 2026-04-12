@@ -511,7 +511,18 @@ export function createReactiveOrchestrator(db: any, messaging: any, spawner: any
       if (rule.action === 'spawn') {
         const spec = { ...rule.payload };
         if (typeof spec.task === 'string') spec.task = spec.task.replace('{{msg}}', JSON.stringify(msg.payload));
-        await spawner.spawn(spec);
+        const spawnResult = await spawner.spawn(spec);
+        if (spawnResult && typeof spawnResult === 'object' && 'status' in spawnResult && spawnResult.status !== 'completed' && !closed) {
+          console.error(`[orchestrator:${rule.name}] spawn ${spawnResult.status}: ${spawnResult.error || 'unknown error'}`);
+          events.emit('rule:spawn_failed', {
+            ruleId: rule.id,
+            channel: msg.channel,
+            status: spawnResult.status,
+            error: spawnResult.error,
+            backend: spawnResult.backend,
+            model: spawnResult.model,
+          });
+        }
       } else if (rule.action === 'exec') {
         const cmd = rule.payload.cmd;
         // Split command into executable + args — no shell interpretation

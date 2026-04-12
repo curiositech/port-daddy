@@ -287,8 +287,8 @@ Examples:
 
 ```bash
 pd sortie "Investigate flaky auth tests and summarize the root cause" \
-  --backend codex \
-  --tier low \
+  --backend claude \
+  --model claude-haiku-4-5-20251001 \
   --budget 0.75
 
 pd sortie list
@@ -302,6 +302,14 @@ Use the delegation surfaces this way:
 - `pd agent` — preferred one-shot single-agent sugar
 - `pd sortie` — tracked mission record with harbor + logs + outcome lookup
 - `pd fleet` — always-on project automation
+
+Telemetry contract:
+
+- `pd spawn`, `pd agent`, and `pd sortie` are fail-closed on spend telemetry.
+- A launch must resolve to a backend/model pair with an exact nonzero rate entry and must return exact token counts before Port Daddy will accept it as a completed operator-facing run.
+- The live spawner defaults that enforcement on. Any internal opt-out path now requires explicit HITL confirmation metadata instead of relying on an omitted flag.
+- If a backend cannot do that yet, expect readiness and preflight to block it instead of silently estimating.
+- Today that means the live operator-facing path is the Claude SDK backend with an exact-rate model entry. The broader backend catalog still exists in source, but it is not the same thing as "launchable right now."
 
 Canonical explanation: `docs/DELEGATION-MODES.md`
 
@@ -530,8 +538,8 @@ Override via environment variables: `PORT_DADDY_SOCK`, `PORT_DADDY_IPC`, `PORT_D
 | `POST /fleet/register` | Register project dir for fleet management |
 | `GET /fleet/events` | SSE stream of fleet lifecycle events |
 | `GET /fleet/prompt` | One-line fleet status for shell prompt (query: `project`) |
-| `GET /fleet/config/:project` | Raw YAML + parsed config + topology validation |
-| `PUT /fleet/config/:project` | Write YAML config, validate, reload fleet |
+| `GET /fleet/config/:projectRef` | Raw YAML + parsed config + topology validation; prefer URL-encoded `projectDir` |
+| `PUT /fleet/config/:projectRef` | Write YAML config, validate, reload fleet; prefer URL-encoded `projectDir` |
 | `GET /fleet/models` | Supported backends + model catalog + readiness hints (probes Ollama live) |
 
 Fleet rows are mailbox-driven now: if an agent is already running and more triggers arrive, the daemon collapses them into queued work instead of spawning one run per wake. Treat `status: queued` plus `queueDepth > 0` as pending work, not a missed launch.
@@ -545,7 +553,7 @@ Fleet rows are mailbox-driven now: if an agent is already running and more trigg
 | `pd ideas list/search/show` | Search the canonical ideation trove plus live repo memory (notes, tuples, markdown) |
 | **Observability (HTTP API)** | |
 | `GET /metrics/golden` | Fleet health: rate, errors, duration, cost/hr (RED method) |
-| `GET /metrics/cost` | Cost summary by project + backend (default: 24h) |
+| `GET /metrics/cost` | Cost summary by project label + backend, with `projectDir` when known; spend history, not live-fleet truth (default: 24h) |
 | `GET /metrics/cost/budget/:project` | Budget check — spend vs. ceiling |
 | `GET /metrics/counters` | Counter summary or time-bucketed single key |
 | `GET /metrics/counters/top` | Top N dimension values for a counter |
@@ -584,7 +592,7 @@ Fleet rows are mailbox-driven now: if an agent is already running and more trigg
 | Fleet health at a glance (RED signals) | `PD_URL="\${PORT_DADDY_URL:-http://localhost:9876}"; curl "$PD_URL/metrics/golden"` |
 | Top backends by spawn count | `PD_URL="\${PORT_DADDY_URL:-http://localhost:9876}"; curl "$PD_URL/metrics/counters/top?key=spawn.started&dim=backend"` |
 | Show fleet status in shell prompt | `PD_URL="\${PORT_DADDY_URL:-http://localhost:9876}"; curl "$PD_URL/fleet/prompt?project=myapp"` |
-| Read/edit fleet config via API | `GET /fleet/config/myapp` or `PUT /fleet/config/myapp` with `{ "yaml": "..." }` |
+| Read/edit fleet config via API | `GET /fleet/config/<urlencoded-projectDir>` or `PUT /fleet/config/<urlencoded-projectDir>` with `{ "yaml": "..." }` |
 | What LLM backends are available? | `PD_URL="\${PORT_DADDY_URL:-http://localhost:9876}"; curl "$PD_URL/fleet/models"` |
 
 ## Delegation Reference

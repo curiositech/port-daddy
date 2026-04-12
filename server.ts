@@ -253,7 +253,7 @@ dns.setResolver(resolver);
 const briefing = createBriefing(db, { sessions, agents, resurrection, activityLog, services, messaging });
 const costTracker = createCostTracker(db);
 const counters = createCounters(db);
-const spawner = createSpawner({ costTracker, counters });
+const spawner = createSpawner({ costTracker, counters, enforceTelemetryPolicy: true });
 const sugar = createSugar({ agents, sessions, activityLog });
 const harborTokens = createHarborTokens(db);
 await harborTokens.initDaemonIdentity();

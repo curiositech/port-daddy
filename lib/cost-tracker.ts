@@ -2,8 +2,9 @@
  * Cost Tracker — per-spawn LLM cost recording.
  *
  * Records a cost event for every spawn. When token counts are available
- * (claude SDK backend), computes exact cost. For opaque backends (claude-cli,
- * codex, aider), uses flat per-session estimates.
+ * (claude SDK backend), computes exact cost. Legacy or non-enforced paths can
+ * still emit estimates for opaque backends, but live operator-facing launches
+ * are expected to be blocked upstream unless exact telemetry is available.
  *
  * Usage:
  *   costTracker.record({ backend: 'claude-cli', model: 'claude-cli', projectName: 'myapp' })
@@ -56,8 +57,11 @@ const MODEL_RATES: Array<[string, ModelRate]> = [
  * Update based on observed actual spend.
  */
 const SESSION_ESTIMATES_USD: Record<string, number> = {
+  'claude':     0.08,  // conservative floor for SDK calls when telemetry is partial/missing
   'claude-cli': 0.05,  // ~50k tokens/session at Sonnet pricing
+  'gemini':     0.03,  // conservative floor for remote Gemini requests
   'aider':      0.10,  // aider makes multiple calls; typically 2-4 cycles
+  'cloudflare': 0.05,  // remote inference via Cloudflare AI
   'custom':     0.00,  // unknown — assume free
   'ollama':     0.00,  // local — free
 };
@@ -78,12 +82,17 @@ function estimateOpaqueSessionCost(backend: string, model: string): number {
   return SESSION_ESTIMATES_USD[backend] ?? 0;
 }
 
+function hasKnownPaidRemoteBackend(backend: string): boolean {
+  return ['claude', 'claude-cli', 'gemini', 'codex', 'aider', 'cloudflare'].includes(backend);
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface CostRecordOpts {
   backend: string;
   model: string;
   projectName?: string;
+  projectDir?: string;
   identity?: string;
   spawnId?: string;
   /** Input token count — when provided with outputTokens, computes exact cost */
@@ -97,6 +106,7 @@ export interface CostEvent {
   backend: string;
   model: string;
   projectName: string | null;
+  projectDir: string | null;
   identity: string | null;
   spawnId: string | null;
   inputTokens: number | null;
@@ -107,6 +117,7 @@ export interface CostEvent {
 
 export interface CostSummaryRow {
   projectName: string | null;
+  projectDir: string | null;
   totalUsd: number;
   spawnCount: number;
   estimatedCount: number;
@@ -138,6 +149,10 @@ function findRate(model: string): ModelRate | null {
   return null;
 }
 
+export function hasExactModelRate(model: string): boolean {
+  return findRate(model) !== null;
+}
+
 function findFallbackRate(backend: string, model: string): ModelRate | null {
   const candidates = [model.toLowerCase(), backend.toLowerCase()];
   for (const candidate of candidates) {
@@ -160,19 +175,37 @@ function computeCost(
 ): { costUsd: number; isEstimate: boolean } {
   const normalizedInput = normalizeTokenCount(inputTokens);
   const normalizedOutput = normalizeTokenCount(outputTokens);
+  const exactRate = findRate(model);
+  const fallbackRate = findFallbackRate(backend, model);
+  const knownRate = exactRate || fallbackRate;
+  const sessionEstimate = estimateOpaqueSessionCost(backend, model);
 
   // If we have token counts, use them exactly
   if (normalizedInput !== undefined && normalizedOutput !== undefined) {
-    const exactRate = findRate(model);
-    const rate = exactRate || findFallbackRate(backend, model);
-    if (rate) {
-      const costUsd = (normalizedInput / 1_000_000) * rate.input + (normalizedOutput / 1_000_000) * rate.output;
+    if (knownRate) {
+      const costUsd = (normalizedInput / 1_000_000) * knownRate.input + (normalizedOutput / 1_000_000) * knownRate.output;
       return { costUsd: +Math.max(0, costUsd).toFixed(6), isEstimate: !exactRate };
     }
   }
 
+  // Partial token telemetry on paid backends should still produce nonzero telemetry.
+  if ((normalizedInput !== undefined || normalizedOutput !== undefined) && knownRate) {
+    const inputEstimate = normalizedInput ?? normalizedOutput ?? 0;
+    const outputEstimate = normalizedOutput ?? normalizedInput ?? 0;
+    const tokenBasedEstimate =
+      (inputEstimate / 1_000_000) * knownRate.input +
+      (outputEstimate / 1_000_000) * knownRate.output;
+    const floor = hasKnownPaidRemoteBackend(backend) ? Math.max(sessionEstimate, 0.01) : sessionEstimate;
+    return {
+      costUsd: +Math.max(tokenBasedEstimate, floor).toFixed(6),
+      isEstimate: true,
+    };
+  }
+
   // Fall back to flat estimate
-  const estimate = estimateOpaqueSessionCost(backend, model);
+  const estimate = hasKnownPaidRemoteBackend(backend)
+    ? Math.max(sessionEstimate, 0.01)
+    : sessionEstimate;
   return { costUsd: estimate ?? 0, isEstimate: true };
 }
 
@@ -186,6 +219,7 @@ export function createCostTracker(db: Database) {
       backend      TEXT    NOT NULL,
       model        TEXT    NOT NULL,
       project_name TEXT,
+      project_dir  TEXT,
       identity     TEXT,
       spawn_id     TEXT,
       input_tokens  INTEGER,
@@ -195,14 +229,25 @@ export function createCostTracker(db: Database) {
     );
     CREATE INDEX IF NOT EXISTS idx_ce_ts      ON cost_events(ts);
     CREATE INDEX IF NOT EXISTS idx_ce_project ON cost_events(project_name, ts);
+    CREATE INDEX IF NOT EXISTS idx_ce_project_dir ON cost_events(project_dir, ts);
     CREATE INDEX IF NOT EXISTS idx_ce_backend ON cost_events(backend, ts);
   `);
 
+  const existingColumns = new Set(
+    (db.prepare('PRAGMA table_info(cost_events)').all() as Array<{ name: string }>).map((column) => column.name)
+  );
+  if (!existingColumns.has('project_dir')) {
+    db.exec(`
+      ALTER TABLE cost_events ADD COLUMN project_dir TEXT;
+      CREATE INDEX IF NOT EXISTS idx_ce_project_dir ON cost_events(project_dir, ts);
+    `);
+  }
+
   const insertStmt = db.prepare(`
     INSERT INTO cost_events
-      (id, ts, backend, model, project_name, identity, spawn_id,
+      (id, ts, backend, model, project_name, project_dir, identity, spawn_id,
        input_tokens, output_tokens, cost_usd, is_estimate)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   /**
@@ -218,14 +263,14 @@ export function createCostTracker(db: Database) {
       const ts = Date.now();
       insertStmt.run(
         id, ts, opts.backend, opts.model,
-        opts.projectName ?? null, opts.identity ?? null, opts.spawnId ?? null,
+        opts.projectName ?? null, opts.projectDir ?? null, opts.identity ?? null, opts.spawnId ?? null,
         opts.inputTokens ?? null, opts.outputTokens ?? null,
         costUsd, isEstimate ? 1 : 0,
       );
       return {
         id, ts,
         backend: opts.backend, model: opts.model,
-        projectName: opts.projectName ?? null, identity: opts.identity ?? null,
+        projectName: opts.projectName ?? null, projectDir: opts.projectDir ?? null, identity: opts.identity ?? null,
         spawnId: opts.spawnId ?? null,
         inputTokens: opts.inputTokens ?? null, outputTokens: opts.outputTokens ?? null,
         costUsd, isEstimate,
@@ -246,7 +291,7 @@ export function createCostTracker(db: Database) {
   }
 
   /** Cost broken down by project. Default: last 24h. */
-  function summary(opts?: { since?: number; projectName?: string }): CostSummaryRow[] {
+  function summary(opts?: { since?: number; projectName?: string; projectDir?: string }): CostSummaryRow[] {
     const since = opts?.since ?? Date.now() - 86_400_000;
     const conditions = ['ts >= ?'];
     const params: unknown[] = [since];
@@ -255,12 +300,17 @@ export function createCostTracker(db: Database) {
       conditions.push('project_name = ?');
       params.push(opts.projectName);
     }
+    if (opts?.projectDir) {
+      conditions.push('project_dir = ?');
+      params.push(opts.projectDir);
+    }
 
     const whereClause = conditions.join(' AND ');
 
     // Single query using CTE + window function — eliminates N+1 per-project top-model loop.
     interface RawRow {
       project_name: string | null;
+      project_dir: string | null;
       total_usd: number;
       spawn_count: number;
       estimated_count: number;
@@ -272,26 +322,30 @@ export function createCostTracker(db: Database) {
         SELECT * FROM cost_events WHERE ${whereClause}
       ),
       agg AS (
-        SELECT project_name, SUM(cost_usd) AS total_usd, COUNT(*) AS spawn_count, SUM(is_estimate) AS estimated_count
-        FROM filtered GROUP BY project_name
+        SELECT project_name, project_dir, SUM(cost_usd) AS total_usd, COUNT(*) AS spawn_count, SUM(is_estimate) AS estimated_count
+        FROM filtered GROUP BY project_name, project_dir
       ),
       model_counts AS (
-        SELECT project_name, model, COUNT(*) AS cnt
-        FROM filtered GROUP BY project_name, model
+        SELECT project_name, project_dir, model, COUNT(*) AS cnt
+        FROM filtered GROUP BY project_name, project_dir, model
       ),
       top_models AS (
-        SELECT project_name, model,
-               ROW_NUMBER() OVER (PARTITION BY project_name ORDER BY cnt DESC) AS rn
+        SELECT project_name, project_dir, model,
+               ROW_NUMBER() OVER (PARTITION BY project_name, project_dir ORDER BY cnt DESC) AS rn
         FROM model_counts
       )
-      SELECT a.project_name, a.total_usd, a.spawn_count, a.estimated_count, t.model AS top_model
+      SELECT a.project_name, a.project_dir, a.total_usd, a.spawn_count, a.estimated_count, t.model AS top_model
       FROM agg a
-      LEFT JOIN top_models t ON t.project_name IS a.project_name AND t.rn = 1
+      LEFT JOIN top_models t
+        ON t.project_name IS a.project_name
+       AND t.project_dir IS a.project_dir
+       AND t.rn = 1
       ORDER BY a.total_usd DESC
     `).all(...params) as RawRow[];
 
     return rows.map(r => ({
       projectName: r.project_name,
+      projectDir: r.project_dir,
       totalUsd: +r.total_usd.toFixed(6),
       spawnCount: r.spawn_count,
       estimatedCount: r.estimated_count,
@@ -316,7 +370,7 @@ export function createCostTracker(db: Database) {
     const n = Math.max(0, Math.min(normalizedLimit, 500));
     interface RawEvent {
       id: string; ts: number; backend: string; model: string;
-      project_name: string | null; identity: string | null; spawn_id: string | null;
+      project_name: string | null; project_dir: string | null; identity: string | null; spawn_id: string | null;
       input_tokens: number | null; output_tokens: number | null;
       cost_usd: number; is_estimate: number;
     }
@@ -325,7 +379,7 @@ export function createCostTracker(db: Database) {
     `).all(n) as RawEvent[];
     return rows.map(r => ({
       id: r.id, ts: r.ts, backend: r.backend, model: r.model,
-      projectName: r.project_name, identity: r.identity, spawnId: r.spawn_id,
+      projectName: r.project_name, projectDir: r.project_dir, identity: r.identity, spawnId: r.spawn_id,
       inputTokens: r.input_tokens, outputTokens: r.output_tokens,
       costUsd: r.cost_usd, isEstimate: r.is_estimate === 1,
     }));
@@ -340,8 +394,8 @@ export function createCostTracker(db: Database) {
   function budgetStatus(projectName: string, budgetUsdPerDay: number, since?: number): BudgetStatus {
     const row = db.prepare(`
       SELECT COALESCE(SUM(cost_usd), 0) as spent
-      FROM cost_events WHERE project_name = ? AND ts >= ?
-    `).get(projectName, since ?? Date.now() - 86_400_000) as { spent: number };
+      FROM cost_events WHERE (project_name = ? OR project_dir = ?) AND ts >= ?
+    `).get(projectName, projectName, since ?? Date.now() - 86_400_000) as { spent: number };
     const spentUsd = +row.spent.toFixed(6);
     const percentUsed = budgetUsdPerDay > 0
       ? +((spentUsd / budgetUsdPerDay) * 100).toFixed(1)

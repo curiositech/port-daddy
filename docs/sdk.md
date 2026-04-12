@@ -915,9 +915,13 @@ await pd.killSpawned(agentId);
 
 | Method | Description |
 |--------|-------------|
-| `pd.spawn(spec)` | Launch an AI agent; returns `SpawnResult` |
+| `pd.spawn(spec)` | Launch an AI agent; returns `SpawnResult` with attached exact telemetry on success |
 | `pd.listSpawned()` | List active spawned agents |
 | `pd.killSpawned(agentId)` | Kill a running spawned agent |
+
+`SpawnResult.telemetry` carries `{ inputTokens, outputTokens, costUsd, rateMode }` for accepted launches. If the backend/model cannot satisfy that exact telemetry contract, Port Daddy rejects the launch during preflight/spawn instead of silently estimating.
+The live spawner defaults that enforcement on. Any internal code path that disables it must attach explicit HITL confirmation metadata instead of quietly falling back to unmetered execution.
+Today, the operator-facing launchable path for that contract is the Claude SDK backend with an exact-rate model entry. Other backend integrations may exist in source, but they should be treated as blocked until they can return the same exact telemetry.
 
 ---
 
@@ -936,8 +940,8 @@ Current truthful limitation: the first shipped slice still runs one coordinating
 // Launch a tracked sortie mission
 const { sortie, result } = await pd.runSortie({
   goal: 'Investigate flaky auth tests and summarize the root cause',
-  backend: 'codex',
-  modelTier: 'low',
+  backend: 'claude',
+  model: 'claude-haiku-4-5-20251001',
   budgetUsd: 0.75,
   recipe: 'investigate',
   expectedOutput: 'Root-cause memo with recommended next actions',
@@ -959,6 +963,8 @@ const { events } = await pd.getSortieLogs(sortie.id);
 | `pd.listSorties(options?)` | List recent sorties, optionally filtered by project directory |
 | `pd.getSortie(id)` | Fetch one sortie by id |
 | `pd.getSortieLogs(id, limit?)` | Fetch the sortie event log |
+
+`pd.runSortie(...)` inherits the same fail-closed telemetry contract as `pd.spawn(...)`. If the chosen backend/model cannot return exact token counts plus an exact nonzero rate-derived cost, the sortie is blocked before the coordinating run launches.
 
 ---
 

@@ -1,0 +1,37 @@
+import { assessBackendTelemetryPolicy } from '../../lib/backend-telemetry-policy.js';
+
+describe('backend telemetry policy', () => {
+  test('allows Claude only when the model has an exact rate entry', () => {
+    expect(
+      assessBackendTelemetryPolicy('claude', 'claude-haiku-4-5-20251001')
+    ).toEqual(expect.objectContaining({
+      backend: 'claude',
+      launchAllowed: true,
+    }));
+
+    expect(
+      assessBackendTelemetryPolicy('claude', 'claude-mystery-model')
+    ).toEqual(expect.objectContaining({
+      backend: 'claude',
+      launchAllowed: false,
+    }));
+  });
+
+  test('defaults Claude to the shared exact-rate operator model when none is supplied', () => {
+    const policy = assessBackendTelemetryPolicy('claude');
+
+    expect(policy).toEqual(expect.objectContaining({
+      backend: 'claude',
+      launchAllowed: true,
+      effectiveModel: 'claude-haiku-4-5-20251001',
+    }));
+  });
+
+  test('blocks opaque backends until exact telemetry exists', () => {
+    for (const backend of ['claude-cli', 'codex', 'gemini', 'cloudflare', 'ollama', 'aider', 'custom']) {
+      const policy = assessBackendTelemetryPolicy(backend);
+      expect(policy.launchAllowed).toBe(false);
+      expect(policy.summary).toContain('blocked');
+    }
+  });
+});

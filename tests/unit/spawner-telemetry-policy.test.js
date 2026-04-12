@@ -1,0 +1,175 @@
+import { jest } from '@jest/globals';
+
+const { createSpawner } = await import('../../lib/spawner.js');
+
+const TEST_TELEMETRY_BYPASS = {
+  humanConfirmed: true,
+  confirmedBy: 'jest',
+  reason: 'Explicit telemetry bypass test coverage',
+};
+
+describe('spawner telemetry enforcement', () => {
+  const originalAnthropicKey = process.env.ANTHROPIC_API_KEY;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    process.env.ANTHROPIC_API_KEY = 'sk-test';
+    global.fetch = jest.fn(async () => ({
+      ok: true,
+      json: async () => ({}),
+      text: async () => '',
+    }));
+  });
+
+  afterAll(() => {
+    if (originalAnthropicKey === undefined) delete process.env.ANTHROPIC_API_KEY;
+    else process.env.ANTHROPIC_API_KEY = originalAnthropicKey;
+  });
+
+  test('defaults telemetry enforcement on when no override is provided', async () => {
+    const spawner = createSpawner();
+
+    const result = await spawner.spawn({
+      backend: 'ollama',
+      task: 'say hello',
+    });
+
+    expect(result.status).toBe('failed');
+    expect(result.error).toContain('cost tracker unavailable under fail-closed telemetry policy');
+    expect(result.telemetry).toBeNull();
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  test('rejects telemetry opt-out without explicit HITL confirmation', () => {
+    expect(() => createSpawner({
+      enforceTelemetryPolicy: false,
+    })).toThrow(/TELEMETRY BYPASS REJECTED[\s\S]*HITL confirmation is required/);
+  });
+
+  test('allows telemetry opt-out only when HITL confirmation is attached and logs a loud warning', () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    expect(() => createSpawner({
+      enforceTelemetryPolicy: false,
+      telemetryBypassApproval: TEST_TELEMETRY_BYPASS,
+    })).not.toThrow();
+
+    expect(consoleError).toHaveBeenCalledWith(expect.stringContaining('TELEMETRY BYPASS ACTIVE'));
+    consoleError.mockRestore();
+  });
+
+  test('blocks opaque backends before they launch when telemetry enforcement is enabled', async () => {
+    const costTracker = {
+      computeCost: jest.fn(),
+      record: jest.fn(),
+    };
+    const spawner = createSpawner({
+      costTracker,
+      enforceTelemetryPolicy: true,
+    });
+
+    const result = await spawner.spawn({
+      backend: 'ollama',
+      task: 'say hello',
+    });
+
+    expect(result.status).toBe('failed');
+    expect(result.error).toContain('Spawn blocked');
+    expect(result.error).toContain('Ollama is blocked');
+    expect(result.telemetry).toBeNull();
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(costTracker.record).not.toHaveBeenCalled();
+  });
+
+  test('attaches exact telemetry to successful Claude launches under enforcement', async () => {
+    const costTracker = {
+      computeCost: jest.fn(() => ({ costUsd: 0.00216, isEstimate: false })),
+      record: jest.fn((opts) => ({
+        id: 'evt-1',
+        ts: 1,
+        backend: opts.backend,
+        model: opts.model,
+        projectName: opts.projectName ?? null,
+        projectDir: opts.projectDir ?? null,
+        identity: opts.identity ?? null,
+        spawnId: opts.spawnId ?? null,
+        inputTokens: opts.inputTokens ?? null,
+        outputTokens: opts.outputTokens ?? null,
+        costUsd: 0.00216,
+        isEstimate: false,
+      })),
+    };
+    const spawner = createSpawner({
+      costTracker,
+      enforceTelemetryPolicy: true,
+      runnerOverrides: {
+        claude: jest.fn(async () => ({
+          output: 'done',
+          error: null,
+          inputTokens: 1200,
+          outputTokens: 300,
+        })),
+      },
+    });
+
+    const result = await spawner.spawn({
+      backend: 'claude',
+      model: 'claude-haiku-4-5-20251001',
+      identity: 'port-daddy:qa:telemetry',
+      task: 'Summarize the diff',
+      workdir: '/tmp/port-daddy-telemetry-test',
+    });
+
+    expect(result.status).toBe('completed');
+    expect(result.error).toBeNull();
+    expect(result.telemetry).toEqual({
+      inputTokens: 1200,
+      outputTokens: 300,
+      costUsd: 0.00216,
+      rateMode: 'exact',
+    });
+    expect(costTracker.computeCost).toHaveBeenCalledWith(
+      'claude',
+      'claude-haiku-4-5-20251001',
+      1200,
+      300,
+    );
+    expect(costTracker.record).toHaveBeenCalledWith(expect.objectContaining({
+      backend: 'claude',
+      model: 'claude-haiku-4-5-20251001',
+      identity: 'port-daddy:qa:telemetry',
+      inputTokens: 1200,
+      outputTokens: 300,
+    }));
+  });
+
+  test('fails Claude launches that return text without usage telemetry', async () => {
+    const costTracker = {
+      computeCost: jest.fn(),
+      record: jest.fn(),
+    };
+    const spawner = createSpawner({
+      costTracker,
+      enforceTelemetryPolicy: true,
+      runnerOverrides: {
+        claude: jest.fn(async () => ({
+          output: 'done',
+          error: null,
+        })),
+      },
+    });
+
+    const result = await spawner.spawn({
+      backend: 'claude',
+      model: 'claude-haiku-4-5-20251001',
+      identity: 'port-daddy:qa:telemetry',
+      task: 'Summarize the diff',
+    });
+
+    expect(result.status).toBe('failed');
+    expect(result.error).toContain('did not return token counts');
+    expect(result.telemetry).toBeNull();
+    expect(costTracker.computeCost).not.toHaveBeenCalled();
+    expect(costTracker.record).not.toHaveBeenCalled();
+  });
+});
