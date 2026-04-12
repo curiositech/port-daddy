@@ -13,12 +13,29 @@ import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
 import { readCurrentContext } from '../utils/current-context.js';
 
+type SessionStartResult = Awaited<ReturnType<PortDaddy['startSession']>>;
+type SessionEndResult = Awaited<ReturnType<PortDaddy['endSession']>>;
+type SessionListResult = Awaited<ReturnType<PortDaddy['sessions']>>;
+type SessionRemoveResult = Awaited<ReturnType<PortDaddy['removeSession']>>;
+type FileClaimResult = Awaited<ReturnType<PortDaddy['claimFiles']>>;
+type FileReleaseResult = Awaited<ReturnType<PortDaddy['releaseFiles']>>;
+type NoteResult = Awaited<ReturnType<PortDaddy['note']>>;
+type ErrorBody = Record<string, unknown>;
+
 function createSessionClient(options: CLIOptions): PortDaddy {
   const current = readCurrentContext();
   return new PortDaddy({
     agentId: (typeof options.agent === 'string' ? options.agent : undefined) || current?.agentId || `cli-${process.pid}`,
     pid: process.pid,
   });
+}
+
+function getErrorBody(error: unknown): ErrorBody {
+  if (error && typeof error === 'object' && 'body' in error) {
+    const body = (error as { body?: unknown }).body;
+    if (body && typeof body === 'object') return body as ErrorBody;
+  }
+  return {};
 }
 
 /**
@@ -112,7 +129,7 @@ async function sessionStart(rest: string[], options: CLIOptions): Promise<void> 
   }
 
   const pd = createSessionClient(options);
-  let data: Record<string, unknown>;
+  let data: SessionStartResult;
   try {
     data = await pd.startSession(body as {
       purpose: string;
@@ -120,13 +137,12 @@ async function sessionStart(rest: string[], options: CLIOptions): Promise<void> 
       files?: string[];
       force?: boolean;
       metadata?: Record<string, unknown>;
-    }) as Record<string, unknown>;
+    });
   } catch (error) {
-    const body = error && typeof error === 'object' && 'body' in error ? (error as { body?: Record<string, unknown> }).body : null;
-    data = body && typeof body === 'object' ? body : {};
-    ui.error((data.error as string) || (error as Error).message || 'Failed to start session');
-    if (Array.isArray(data.conflicts)) {
-      const conflicts = data.conflicts as Array<{ filePath?: string; file?: string; sessionId: string; purpose: string }>;
+    const errorBody = getErrorBody(error);
+    ui.error((errorBody.error as string) || (error as Error).message || 'Failed to start session');
+    if (Array.isArray(errorBody.conflicts)) {
+      const conflicts = errorBody.conflicts as Array<{ filePath?: string; file?: string; sessionId: string; purpose: string }>;
       console.error('');
       console.error('File conflicts:');
       for (const c of conflicts) {
@@ -154,11 +170,11 @@ async function sessionStart(rest: string[], options: CLIOptions): Promise<void> 
 async function sessionEnd(rest: string[], options: CLIOptions, status: string): Promise<void> {
   const note = rest[0] || (options.note as string) || undefined;
   const pd = createSessionClient(options);
-  const data = await pd.endSession(note, { status }) as Record<string, unknown>;
-  const sessionId = data.id as string | undefined;
+  const data: SessionEndResult = await pd.endSession(note, { status });
+  const sessionId = data.id;
 
   if (!data.success || !sessionId) {
-    ui.error((data.error as string) || 'No active session found');
+    ui.error(data.error || 'No active session found');
     process.exit(1);
   }
 
@@ -186,18 +202,17 @@ async function sessionRemove(rest: string[], options: CLIOptions): Promise<void>
   }
 
   const pd = createSessionClient(options);
-  let data: Record<string, unknown>;
+  let data: SessionRemoveResult;
   try {
-    data = await pd.removeSession(sessionId) as Record<string, unknown>;
+    data = await pd.removeSession(sessionId);
   } catch (error) {
-    const body = error && typeof error === 'object' && 'body' in error ? (error as { body?: Record<string, unknown> }).body : null;
-    data = body && typeof body === 'object' ? body : {};
-    ui.error((data.error as string) || (error as Error).message || 'Failed to delete session');
+    const errorBody = getErrorBody(error);
+    ui.error((errorBody.error as string) || (error as Error).message || 'Failed to delete session');
     process.exit(1);
   }
 
   if (!data.success) {
-    ui.error((data.error as string) || 'Failed to delete session');
+    ui.error('Failed to delete session');
     process.exit(1);
   }
 
@@ -222,38 +237,36 @@ async function sessionFiles(rest: string[], options: CLIOptions): Promise<void> 
   }
 
   const pd = createSessionClient(options);
-  let listData: Record<string, unknown>;
+  let listData: SessionListResult;
   try {
     listData = await pd.sessions({
       status: 'active',
       agentId: pd.agentId,
       limit: 1,
-    }) as Record<string, unknown>;
+    });
   } catch (error) {
-    const body = error && typeof error === 'object' && 'body' in error ? (error as { body?: Record<string, unknown> }).body : null;
-    listData = body && typeof body === 'object' ? body : {};
-    ui.error((listData.error as string) || (error as Error).message || 'Failed to list sessions');
+    const errorBody = getErrorBody(error);
+    ui.error((errorBody.error as string) || (error as Error).message || 'Failed to list sessions');
     process.exit(1);
   }
 
-  if (!listData.success || (listData.count as number) === 0) {
+  if (!listData.success || listData.count === 0) {
     ui.error('No active session found');
     process.exit(1);
   }
 
-  const sessions = listData.sessions as Array<{ id: string }>;
+  const sessions = listData.sessions;
   const sessionId = sessions[0].id;
 
   if (filesCmd === 'add') {
-    let data: Record<string, unknown>;
+    let data: FileClaimResult;
     try {
-      data = await pd.claimFiles(sessionId, paths) as Record<string, unknown>;
+      data = await pd.claimFiles(sessionId, paths);
     } catch (error) {
-      const body = error && typeof error === 'object' && 'body' in error ? (error as { body?: Record<string, unknown> }).body : null;
-      data = body && typeof body === 'object' ? body : {};
-      ui.error((data.error as string) || (error as Error).message || 'Failed to claim files');
-      if (Array.isArray(data.conflicts)) {
-        const conflicts = data.conflicts as Array<{ filePath?: string; file?: string; sessionId: string; purpose: string }>;
+      const errorBody = getErrorBody(error);
+      ui.error((errorBody.error as string) || (error as Error).message || 'Failed to claim files');
+      if (Array.isArray(errorBody.conflicts)) {
+        const conflicts = errorBody.conflicts as Array<{ filePath?: string; file?: string; sessionId: string; purpose: string }>;
         console.error('');
         console.error('File conflicts:');
         for (const c of conflicts) {
@@ -270,18 +283,17 @@ async function sessionFiles(rest: string[], options: CLIOptions): Promise<void> 
       console.log(`Claimed ${paths.length} file(s) in session ${sessionId}`);
     }
   } else {
-    let data: Record<string, unknown>;
+    let data: FileReleaseResult;
     try {
-      data = await pd.releaseFiles(sessionId, paths) as Record<string, unknown>;
+      data = await pd.releaseFiles(sessionId, paths);
     } catch (error) {
-      const body = error && typeof error === 'object' && 'body' in error ? (error as { body?: Record<string, unknown> }).body : null;
-      data = body && typeof body === 'object' ? body : {};
-      ui.error((data.error as string) || (error as Error).message || 'Failed to release files');
+      const errorBody = getErrorBody(error);
+      ui.error((errorBody.error as string) || (error as Error).message || 'Failed to release files');
       process.exit(1);
     }
 
     if (!data.success) {
-      ui.error((data.error as string) || 'Failed to release files');
+      ui.error('Failed to release files');
       process.exit(1);
     }
 
@@ -511,7 +523,7 @@ function handleSessionDirect(subcommand: string, rest: string[], options: CLIOpt
  */
 export async function handleSessions(options: CLIOptions): Promise<void> {
   const pd = createSessionClient(options);
-  let data: Record<string, unknown>;
+  let data: SessionListResult;
   try {
     data = await pd.sessions({
       status: options.all ? undefined : (options.status as string) || 'active',
@@ -519,16 +531,15 @@ export async function handleSessions(options: CLIOptions): Promise<void> {
       project: options.project as string | undefined,
       purpose: options.purpose as string | undefined,
       allWorktrees: Boolean(options['all-worktrees'] || options.aw),
-    }) as Record<string, unknown>;
+    });
   } catch (error) {
-    const body = error && typeof error === 'object' && 'body' in error ? (error as { body?: Record<string, unknown> }).body : null;
-    data = body && typeof body === 'object' ? body : {};
-    ui.error((data.error as string) || (error as Error).message || 'Failed to list sessions');
+    const errorBody = getErrorBody(error);
+    ui.error((errorBody.error as string) || (error as Error).message || 'Failed to list sessions');
     process.exit(1);
   }
 
   if (!data.success) {
-    ui.error((data.error as string) || 'Failed to list sessions');
+    ui.error(data.error || 'Failed to list sessions');
     process.exit(1);
   }
 
@@ -643,18 +654,14 @@ export async function handleNote(content: string | undefined, options: CLIOption
     if (agentId) body.agentId = agentId;
   }
 
-  const endpoint = sessionId
-    ? `${PORT_DADDY_URL}/sessions/${encodeURIComponent(sessionId)}/notes`
-    : `${PORT_DADDY_URL}/notes`;
-
-  const data = await pd.note(content, {
+  const data: NoteResult = await pd.note(content, {
     type: typeof body.type === 'string' ? body.type : undefined,
     agentId: typeof body.agentId === 'string' ? body.agentId : undefined,
     sessionId,
   });
 
   if (!data?.success) {
-    ui.error((data?.error as string) || 'Failed to add note');
+    ui.error(data?.error || 'Failed to add note');
     process.exit(1);
   }
 

@@ -19,6 +19,7 @@ import { encodeFrame } from './ipc-frame.js';
 import type { IpcConnection } from './ipc-server.js';
 import { verifyAgent, actionRequiresRegistration } from './ipc-auth.js';
 import type { AgentVerifier } from './ipc-auth.js';
+import type { Tuple } from './tuples.js';
 
 // ─── Service Dependencies ───────────────────────────────────────────────────
 // These match the objects created in server.ts
@@ -53,10 +54,10 @@ export interface IpcRouterDeps {
     release: (name: string, options?: Record<string, unknown>) => unknown;
   };
   tuples?: {
-    out: (fields: unknown[], options?: Record<string, unknown>) => unknown;
-    rd: (pattern: unknown[], options?: Record<string, unknown>) => unknown;
-    take: (pattern: unknown[], options?: Record<string, unknown>) => unknown;
-    scan: (harbor?: string) => unknown[];
+    out: (fields: unknown[], options?: Record<string, unknown>) => Tuple;
+    rd: (pattern: unknown[], options?: Record<string, unknown>) => Tuple[];
+    take: (pattern: unknown[], options?: Record<string, unknown>) => Tuple[];
+    scan: (harbor?: string) => Tuple[];
     count: (pattern?: unknown[], harbor?: string) => number;
   };
   messaging: {

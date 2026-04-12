@@ -12,6 +12,12 @@ import PortDaddy from '../../lib/client.js';
 import { CLIOptions, isQuiet, isJson } from '../types.js';
 import * as ui from '../utils/ui.js';
 
+type TupleOutResult = Awaited<ReturnType<PortDaddy['tupleOut']>>;
+type TupleReadResult = Awaited<ReturnType<PortDaddy['tupleRd']>>;
+type TupleTakeResult = Awaited<ReturnType<PortDaddy['tupleIn']>>;
+type TupleScanResult = Awaited<ReturnType<PortDaddy['tupleScan']>>;
+type TupleEntryResult = TupleReadResult['tuples'][number];
+
 // =============================================================================
 // handleTuple — dispatcher for pd tuple <subcommand> [args] [options]
 // =============================================================================
@@ -104,7 +110,7 @@ async function handleTupleOut(
 
   const pd = new PortDaddy({ agentId: typeof options.as === 'string' ? options.as : undefined });
 
-  let data;
+  let data: TupleOutResult;
   try {
     data = await pd.tupleOut(fields, {
       harbor: typeof options.harbor === 'string' ? options.harbor : undefined,
@@ -150,7 +156,7 @@ async function handleTupleRd(
   const pattern = parseJsonArray(patternRaw, 'pattern');
   const pd = new PortDaddy();
 
-  let data;
+  let data: TupleReadResult;
   try {
     data = await pd.tupleRd(pattern, {
       harbor: typeof options.harbor === 'string' ? options.harbor : undefined,
@@ -161,7 +167,7 @@ async function handleTupleRd(
     process.exit(1);
   }
 
-  const tuples = (data.tuples || []) as Array<Record<string, unknown>>;
+  const tuples: TupleEntryResult[] = data.tuples || [];
 
   if (isJson(options)) {
     console.log(JSON.stringify(data, null, 2));
@@ -203,7 +209,7 @@ async function handleTupleIn(
   const pattern = parseJsonArray(patternRaw, 'pattern');
   const pd = new PortDaddy();
 
-  let data;
+  let data: TupleTakeResult;
   try {
     data = await pd.tupleIn(pattern, {
       harbor: typeof options.harbor === 'string' ? options.harbor : undefined,
@@ -214,7 +220,7 @@ async function handleTupleIn(
     process.exit(1);
   }
 
-  const removed = (data.taken || []) as Array<Record<string, unknown>>;
+  const removed: TupleEntryResult[] = data.taken || [];
 
   if (isJson(options)) {
     console.log(JSON.stringify(data, null, 2));
@@ -246,7 +252,7 @@ async function handleTupleScan(
 ): Promise<void> {
   const pd = new PortDaddy();
 
-  let data;
+  let data: TupleScanResult;
   try {
     data = await pd.tupleScan(typeof options.harbor === 'string' ? options.harbor : undefined);
   } catch (error: any) {
@@ -254,7 +260,7 @@ async function handleTupleScan(
     process.exit(1);
   }
 
-  const tuples = (data.tuples || []) as Array<Record<string, unknown>>;
+  const tuples: TupleEntryResult[] = data.tuples || [];
 
   if (isJson(options)) {
     console.log(JSON.stringify(data, null, 2));
