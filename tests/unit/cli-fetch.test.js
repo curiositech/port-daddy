@@ -72,4 +72,30 @@ describe('cli/utils/fetch pdFetch', () => {
     expect(mockRequest.mock.calls[0][0]).toMatchObject({ socketPath: expect.any(String) });
     expect(mockRequest.mock.calls[1][0]).toMatchObject({ host: '127.0.0.1', port: 9876 });
   });
+
+  test('does not fall back to TCP when the unix socket errors with EPERM', async () => {
+    mockExistsSync.mockReturnValue(true);
+    mockRequest.mockImplementation((options) => {
+      const req = new EventEmitter();
+      req.write = jest.fn();
+      req.destroy = jest.fn();
+      req.setTimeout = jest.fn();
+      req.end = () => {
+        if (options.socketPath) {
+          queueMicrotask(() => {
+            const error = new Error('socket permission denied');
+            error.code = 'EPERM';
+            req.emit('error', error);
+          });
+          return;
+        }
+        throw new Error('unexpected TCP fallback');
+      };
+      return req;
+    });
+
+    await expect(pdFetch('/health')).rejects.toMatchObject({ code: 'EPERM' });
+    expect(mockRequest).toHaveBeenCalledTimes(1);
+    expect(mockRequest.mock.calls[0][0]).toMatchObject({ socketPath: expect.any(String) });
+  });
 });

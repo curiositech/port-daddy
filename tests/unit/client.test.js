@@ -6,6 +6,9 @@
  */
 
 import http from 'node:http';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { jest } from '@jest/globals';
 import { PortDaddy, PortDaddyError, ConnectionError } from '../../lib/client.js';
 import { getDaemonTcpUrl } from '../../shared/daemon-discovery.js';
@@ -129,6 +132,60 @@ describe('PortDaddy constructor', () => {
     const pd = new PortDaddy({ agentId: 'test-agent', pid: 42 });
     expect(pd.agentId).toBe('test-agent');
     expect(pd.pid).toBe(42);
+  });
+});
+
+describe('Socket transport fallback', () => {
+  test('does not fall back to TCP when the unix socket errors with EPERM', async () => {
+    const prevUrl = process.env.PORT_DADDY_URL;
+    delete process.env.PORT_DADDY_URL;
+
+    const tempDir = mkdtempSync(join(tmpdir(), 'pd-client-socket-'));
+    const socketPath = join(tempDir, 'daemon.sock');
+    writeFileSync(socketPath, '');
+
+    const requestSpy = jest.spyOn(http, 'request').mockImplementation((options, callback) => {
+      const req = {
+        on(event, handler) {
+          if (event === 'error' && typeof handler === 'function' && options && 'socketPath' in options) {
+            queueMicrotask(() => {
+              const error = new Error('socket permission denied');
+              error.code = 'EPERM';
+              handler(error);
+            });
+          }
+          return req;
+        },
+        write: jest.fn(),
+        end: jest.fn(),
+        destroy: jest.fn(),
+      };
+
+      if (!options || !('socketPath' in options)) {
+        throw new Error('unexpected TCP fallback');
+      }
+
+      return req;
+    });
+
+    try {
+      const pd = new PortDaddy({
+        url: `http://127.0.0.1:${mockPort}`,
+        socketPath,
+      });
+
+      await expect(pd.health()).rejects.toMatchObject({
+        name: 'PortDaddyError',
+        message: 'Request failed: socket permission denied',
+      });
+      expect(requestSpy).toHaveBeenCalledTimes(1);
+      expect(requestSpy.mock.calls[0][0]).toMatchObject({ socketPath });
+    } finally {
+      requestSpy.mockRestore();
+      if (prevUrl === undefined) delete process.env.PORT_DADDY_URL;
+      else process.env.PORT_DADDY_URL = prevUrl;
+      rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 });
 

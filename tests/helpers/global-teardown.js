@@ -16,6 +16,7 @@ const TEST_ENV = {
   dbPath: 'PORT_DADDY_TEST_DB',
   tmpDir: 'PORT_DADDY_TEST_TMPDIR',
   homeDir: 'PORT_DADDY_TEST_HOME',
+  contextDir: 'PORT_DADDY_TEST_CONTEXT_DIR',
   pid: 'PORT_DADDY_TEST_PID'
 };
 
@@ -25,9 +26,10 @@ function getDaemonStateFromEnv() {
   const dbPath = process.env[TEST_ENV.dbPath];
   const tmpDir = process.env[TEST_ENV.tmpDir];
   const homeDir = process.env[TEST_ENV.homeDir];
+  const contextDir = process.env[TEST_ENV.contextDir];
   const pid = process.env[TEST_ENV.pid];
 
-  if (!sockPath || !ipcPath || !dbPath || !tmpDir || !homeDir || !pid) return null;
+  if (!sockPath || !ipcPath || !dbPath || !tmpDir || !homeDir || !contextDir || !pid) return null;
 
   return {
     sockPath,
@@ -35,6 +37,7 @@ function getDaemonStateFromEnv() {
     dbPath,
     tmpDir,
     homeDir,
+    contextDir,
     pid: Number.parseInt(pid, 10)
   };
 }

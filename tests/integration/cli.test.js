@@ -216,6 +216,59 @@ describe('CLI Integration Tests', () => {
     });
   });
 
+  describe('Sugar Recovery Commands', () => {
+    test('done succeeds over IPC when the session is active but the agent registry entry is gone', async () => {
+      const slot = `stale-done-${Date.now()}`;
+      const originalSlot = process.env.PORT_DADDY_CONTEXT_SLOT;
+      const agentId = `stale-done-agent-${Date.now()}`;
+
+      try {
+        process.env.PORT_DADDY_CONTEXT_SLOT = slot;
+
+        const begin = await requestWithRetry('/sugar/begin', {
+          method: 'POST',
+          body: {
+            purpose: 'CLI stale-session recovery',
+            agentId,
+          },
+        });
+        expect(begin.ok).toBe(true);
+
+        const sessionId = begin.data.sessionId;
+        expect(sessionId).toBeTruthy();
+
+        writeCurrentContext({
+          agentId,
+          sessionId,
+          purpose: 'CLI stale-session recovery',
+          identity: 'port-daddy',
+          contextSlot: slot,
+        }, repoRoot);
+
+        const unregister = await requestWithRetry(`/agents/${encodeURIComponent(agentId)}`, { method: 'DELETE' });
+        expect(unregister.ok).toBe(true);
+
+        const result = runCliViaIpc(['done', 'Recovered after agent registry loss', '--json']);
+        expect(result.success).toBe(true);
+
+        const payload = JSON.parse(result.stdout);
+        expect(payload).toMatchObject({
+          success: true,
+          agentId,
+          sessionId,
+          sessionStatus: 'completed',
+        });
+
+        const session = await requestWithRetry(`/sessions/${encodeURIComponent(sessionId)}`);
+        expect(session.ok).toBe(true);
+        expect(session.data.session.status).toBe('completed');
+      } finally {
+        if (originalSlot === undefined) delete process.env.PORT_DADDY_CONTEXT_SLOT;
+        else process.env.PORT_DADDY_CONTEXT_SLOT = originalSlot;
+      }
+    });
+  });
+
   describe('Ideas Command', () => {
     test('ideas list returns curated trove entries', () => {
       const result = runCli(['ideas', 'list', '--dir', repoRoot, '--limit', '6', '--json']);
@@ -875,7 +928,14 @@ describe('CLI Integration Tests', () => {
     });
 
     test('pd note falls back to active agent when stored session context is stale', () => {
-      const beginResult = runCli(['begin', 'Stale note fallback', '--json']);
+      const identity = `port-daddy:test:stale-note-${process.pid}-${Date.now()}`;
+      const beginResult = runCli([
+        'begin',
+        'Stale note fallback',
+        '--identity',
+        identity,
+        '--json',
+      ]);
       expect(beginResult.success).toBe(true);
       const beginData = JSON.parse(beginResult.stdout);
 

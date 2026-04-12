@@ -21,6 +21,7 @@ function createMockDeps() {
     sessions: {
       start: jest.fn((purpose, opts) => ({ sessionId: 'sess-001', purpose, ...opts })),
       end: jest.fn((id, opts) => ({ sessionId: id, ended: true })),
+      get: jest.fn((id) => ({ success: true, session: { id, agentId: 'registered-x', status: 'active' } })),
       remove: jest.fn((id) => ({ success: true, id, removed: true })),
       list: jest.fn((opts) => ({ success: true, sessions: [], count: 0, ...opts })),
       addNote: jest.fn((sid, content) => ({ sessionId: sid, content, added: true })),
@@ -678,6 +679,72 @@ describe('IPC Router', () => {
       agentId: 'registered-a1',
       purpose: 'testing',
     }));
+  });
+
+  test('session.done recovers from missing agent registration when session ownership matches', () => {
+    const deps = createMockDeps();
+    deps.sessions.get.mockReturnValue({
+      success: true,
+      session: { id: 'sess-stale', agentId: 'stale-agent', status: 'active' },
+    });
+    const router = createIpcRouter(deps);
+    const replies = [];
+
+    router.handleFrame(
+      {
+        type: Performative.REQUEST,
+        convId: 14,
+        payload: {
+          action: IpcAction.DONE,
+          agentId: 'stale-agent',
+          sessionId: 'sess-stale',
+          note: 'wrapped up after daemon restart',
+        },
+      },
+      mockConn('stale-agent'),
+      (f) => replies.push(f),
+    );
+
+    expect(deps.sessions.get).toHaveBeenCalledWith('sess-stale');
+    expect(deps.sugar.done).toHaveBeenCalledWith(expect.objectContaining({
+      action: IpcAction.DONE,
+      agentId: 'stale-agent',
+      sessionId: 'sess-stale',
+      note: 'wrapped up after daemon restart',
+    }));
+    expect(replies).toHaveLength(1);
+    expect(replies[0].type).toBe(Performative.INFORM_DONE);
+    expect(replies[0].payload.result.success).toBe(true);
+  });
+
+  test('session.done refuses recovery when explicit agent does not own the session', () => {
+    const deps = createMockDeps();
+    deps.sessions.get.mockReturnValue({
+      success: true,
+      session: { id: 'sess-stale', agentId: 'stale-agent', status: 'active' },
+    });
+    const router = createIpcRouter(deps);
+    const replies = [];
+
+    router.handleFrame(
+      {
+        type: Performative.REQUEST,
+        convId: 15,
+        payload: {
+          action: IpcAction.DONE,
+          agentId: 'wrong-agent',
+          sessionId: 'sess-stale',
+        },
+      },
+      mockConn('wrong-agent'),
+      (f) => replies.push(f),
+    );
+
+    expect(deps.sessions.get).toHaveBeenCalledWith('sess-stale');
+    expect(deps.sugar.done).not.toHaveBeenCalled();
+    expect(replies).toHaveLength(1);
+    expect(replies[0].type).toBe(Performative.REFUSE);
+    expect(replies[0].payload.error).toBe('agent_not_registered');
   });
 
   test('unregistered agent can heartbeat (open action)', () => {

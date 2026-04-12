@@ -38,6 +38,7 @@ export interface IpcRouterDeps {
   sessions: {
     start: (purpose: string, options?: Record<string, unknown>) => unknown;
     end: (id: string, options?: Record<string, unknown>) => unknown;
+    get?: (id: string) => unknown;
     remove: (id: string) => unknown;
     list: (options?: Record<string, unknown>) => unknown;
     addNote: (sessionId: string, content: string, options?: Record<string, unknown>) => unknown;
@@ -90,6 +91,13 @@ function asStringArray(val: unknown): string[] | null {
   return val;
 }
 
+function recoverableSessionAction(action: string): boolean {
+  return action === IpcAction.DONE ||
+    action === IpcAction.NOTE ||
+    action === IpcAction.FILES_CLAIM ||
+    action === IpcAction.FILES_RELEASE;
+}
+
 // ─── Route Handler Type ─────────────────────────────────────────────────────
 
 type RouteHandler = (
@@ -104,6 +112,31 @@ export function createIpcRouter(deps: IpcRouterDeps) {
   const verifier: AgentVerifier | null = deps.agents.isRegistered
     ? { isRegistered: (id: string) => deps.agents.isRegistered!(id) }
     : null;
+
+  function resolveRecoverableSessionAgentId(
+    action: string,
+    payload: Record<string, unknown>,
+    requestedAgentId: string | null,
+  ): string | null {
+    if (!recoverableSessionAction(action) || !deps.sessions.get) return null;
+
+    const sessionId = typeof payload.sessionId === 'string' ? payload.sessionId.trim() : '';
+    if (!sessionId) return null;
+
+    const sessionInfo = deps.sessions.get(sessionId) as
+      | { success?: boolean; session?: Record<string, unknown> | null }
+      | null
+      | undefined;
+    if (!sessionInfo?.success || !sessionInfo.session || typeof sessionInfo.session !== 'object') return null;
+
+    const sessionAgentId = typeof sessionInfo.session.agentId === 'string'
+      ? sessionInfo.session.agentId
+      : null;
+    if (!sessionAgentId) return null;
+
+    if (requestedAgentId && requestedAgentId !== sessionAgentId) return null;
+    return sessionAgentId;
+  }
 
   // ── Action → Handler map ──────────────────────────────────────────────
 
@@ -398,23 +431,36 @@ export function createIpcRouter(deps: IpcRouterDeps) {
     reply: (response: IpcFrame) => void,
   ): void {
     const action = String(frame.payload.action ?? '');
-    const agentId = frame.payload.agentId ? String(frame.payload.agentId) : conn.agentId;
+    const requestedAgentId = frame.payload.agentId ? String(frame.payload.agentId) : conn.agentId;
+    let agentId = requestedAgentId;
 
     // ── Auth check ──
     if (actionRequiresRegistration(action)) {
       const auth = verifyAgent(agentId, verifier, true);
       if (!auth.allowed) {
-        reply({
-          type: Performative.REFUSE,
-          convId: frame.convId,
-          payload: {
-            error: auth.reason ?? 'unauthorized',
-            action,
-            message: `Action '${action}' requires a registered agent`,
-          },
-        });
-        return;
+        const recoveredAgentId = resolveRecoverableSessionAgentId(action, frame.payload, requestedAgentId);
+        if (recoveredAgentId) {
+          agentId = recoveredAgentId;
+          if (!frame.payload.agentId) frame.payload.agentId = recoveredAgentId;
+          if (!conn.agentId) conn.agentId = recoveredAgentId;
+        } else {
+          reply({
+            type: Performative.REFUSE,
+            convId: frame.convId,
+            payload: {
+              error: auth.reason ?? 'unauthorized',
+              action,
+              message: `Action '${action}' requires a registered agent`,
+            },
+          });
+          return;
+        }
       }
+    }
+
+    if (agentId && !frame.payload.agentId) {
+      frame.payload.agentId = agentId;
+      if (!conn.agentId) conn.agentId = agentId;
     }
 
     // ── Find handler ──
