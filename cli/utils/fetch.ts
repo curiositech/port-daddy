@@ -113,7 +113,6 @@ function shouldFallbackFromSocket(error: unknown): boolean {
   return code === 'ENOENT' ||
     code === 'ECONNREFUSED' ||
     code === 'ECONNRESET' ||
-    code === 'EPERM' ||
     message.includes('timed out');
 }
 

@@ -1158,8 +1158,7 @@ class PortDaddy {
   _shouldFallbackFromSocket(error: NodeJS.ErrnoException): boolean {
     return error.code === 'ENOENT' ||
       error.code === 'ECONNREFUSED' ||
-      error.code === 'ECONNRESET' ||
-      error.code === 'EPERM';
+      error.code === 'ECONNRESET';
   }
 
   /** @private */
