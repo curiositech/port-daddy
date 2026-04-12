@@ -1739,6 +1739,11 @@ async function main(): Promise<void> {
   for (let i = 1; i < args.length; i++) {
     const arg: string = args[i];
 
+    if (arg === '--') {
+      positional.push(...args.slice(i + 1));
+      break;
+    }
+
     if (arg.startsWith('--')) {
       // Handle --flag=value syntax
       const eqIndex: number = arg.indexOf('=');
