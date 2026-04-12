@@ -1110,4 +1110,95 @@ describe('Messaging Module', () => {
       expect(messages.messages[0].sender).toBeNull();
     });
   });
+
+  describe('Declared channel registry', () => {
+    const contexts = {
+      '/repo/feature-a': {
+        projectDir: '/repo/feature-a',
+        repoAnchor: '/repo/.git',
+        repoKey: 'repo1234',
+        worktreeId: 'worka111',
+        branch: 'feature-a',
+        inGit: true,
+      },
+      '/repo/feature-b': {
+        projectDir: '/repo/feature-b',
+        repoAnchor: '/repo/.git',
+        repoKey: 'repo1234',
+        worktreeId: 'workb222',
+        branch: 'feature-b',
+        inGit: true,
+      },
+    };
+
+    beforeEach(() => {
+      messaging = createMessaging(db, {
+        resolveChannelContext(projectDir) {
+          return contexts[projectDir] || contexts['/repo/feature-a'];
+        }
+      });
+    });
+
+    it('derives different physical channels for the same logical channel across worktrees', () => {
+      const featureA = messaging.ensureChannel('tauri:desktop', { projectDir: '/repo/feature-a' });
+      const featureB = messaging.ensureChannel('tauri:desktop', { projectDir: '/repo/feature-b' });
+
+      expect(featureA.success).toBe(true);
+      expect(featureB.success).toBe(true);
+      expect(featureA.channel.physicalName).not.toBe(featureB.channel.physicalName);
+      expect(featureA.channel.scope).toBe('branch');
+      expect(featureB.channel.scope).toBe('branch');
+    });
+
+    it('discovers only channels relevant to the current repo/worktree context', () => {
+      const globalChannel = messaging.ensureChannel('fleet:inbox', {
+        projectDir: '/repo/feature-a',
+        scope: 'global',
+      });
+      const repoChannel = messaging.ensureChannel('repo:handoff', {
+        projectDir: '/repo/feature-a',
+        scope: 'repo',
+      });
+      const featureA = messaging.ensureChannel('tauri:desktop', { projectDir: '/repo/feature-a' });
+      const featureB = messaging.ensureChannel('tauri:desktop', { projectDir: '/repo/feature-b' });
+
+      const discovered = messaging.discoverChannels({ projectDir: '/repo/feature-a' });
+      const physicalNames = discovered.channels.map((entry) => entry.physicalName);
+
+      expect(physicalNames).toContain(globalChannel.channel.physicalName);
+      expect(physicalNames).toContain(repoChannel.channel.physicalName);
+      expect(physicalNames).toContain(featureA.channel.physicalName);
+      expect(physicalNames).not.toContain(featureB.channel.physicalName);
+    });
+
+    it('resolves aliases within the current worktree and branch', () => {
+      const featureA = messaging.ensureChannel('tauri:desktop', {
+        projectDir: '/repo/feature-a',
+        aliases: ['desktop:probe'],
+      });
+      messaging.ensureChannel('tauri:desktop', {
+        projectDir: '/repo/feature-b',
+        aliases: ['desktop:probe'],
+      });
+
+      const resolved = messaging.resolveChannel('desktop:probe', { projectDir: '/repo/feature-a' });
+
+      expect(resolved.success).toBe(true);
+      expect(resolved.channel.physicalName).toBe(featureA.channel.physicalName);
+    });
+
+    it('can surface observed undeclared channels when explicitly requested', () => {
+      messaging.publish('legacy:raw', { ok: true });
+
+      const discovered = messaging.discoverChannels({
+        projectDir: '/repo/feature-a',
+        includeObserved: true,
+      });
+      const observed = discovered.channels.find((entry) => entry.physicalName === 'legacy:raw');
+
+      expect(observed).toBeDefined();
+      expect(observed.source).toBe('observed');
+      expect(observed.activeCount).toBe(1);
+    });
+  });
 });

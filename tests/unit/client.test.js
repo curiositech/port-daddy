@@ -316,6 +316,54 @@ describe('Messaging', () => {
     expect(result.channels).toEqual(['builds', 'deploys']);
   });
 
+  test('discoverChannels includes repo/worktree query context', async () => {
+    queueResponse({ success: true, context: {}, channels: [] });
+
+    await pd.discoverChannels({
+      projectDir: '/tmp/worktree-a',
+      query: 'tauri',
+      includeObserved: true,
+    });
+
+    expect(receivedRequests[0].url).toContain('/channels/discover?');
+    expect(receivedRequests[0].url).toContain('projectDir=%2Ftmp%2Fworktree-a');
+    expect(receivedRequests[0].url).toContain('q=tauri');
+    expect(receivedRequests[0].url).toContain('observed=true');
+  });
+
+  test('resolveChannel targets the channel resolution route', async () => {
+    queueResponse({ success: true, channel: { logicalName: 'tauri:desktop', physicalName: 'br:repo1234:worka111:feature-a:tauri:desktop' } });
+
+    await pd.resolveChannel('tauri:desktop', { projectDir: '/tmp/worktree-a' });
+
+    expect(receivedRequests[0].url).toBe('/channels/resolve/tauri%3Adesktop?projectDir=%2Ftmp%2Fworktree-a');
+  });
+
+  test('ensureChannel posts canonical channel metadata', async () => {
+    queueResponse({
+      success: true,
+      created: true,
+      channel: { logicalName: 'tauri:desktop', physicalName: 'br:repo1234:worka111:feature-a:tauri:desktop' }
+    });
+
+    await pd.ensureChannel('tauri:desktop', {
+      scope: 'branch',
+      aliases: ['desktop:probe'],
+      description: 'Canonical desktop coordination channel',
+      projectDir: '/tmp/worktree-a',
+    });
+
+    expect(receivedRequests[0].url).toBe('/channels/ensure');
+    expect(receivedRequests[0].method).toBe('POST');
+    expect(receivedRequests[0].body).toMatchObject({
+      name: 'tauri:desktop',
+      scope: 'branch',
+      aliases: ['desktop:probe'],
+      description: 'Canonical desktop coordination channel',
+      projectDir: '/tmp/worktree-a',
+    });
+  });
+
   test('poll increases timeout', async () => {
     queueResponse({ message: null });
 

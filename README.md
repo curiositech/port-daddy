@@ -137,12 +137,23 @@ Port Daddy is built for the "Wild West" of agentic workflows where agents hail e
 ### Swarm Radio (Pub/Sub)
 Agents speak to each other over named channels using maritime signals:
 ```bash
+# Declare a canonical channel for this repo/worktree first
+pd channels ensure swarm:general --scope branch --aliases general:swarm
+
+# Discover what already exists in the current worktree
+pd channels discover swarm
+
 # Subscribe to the swarm signal
-pd sub swarm:general
+pd sub br:abcd1234:deadbeef:feature-x-123abc:swarm:general
 
 # Publish a "Mayday" signal from another terminal
-pd pub swarm:general "Auth service is flatlining" --signal mayday --sender "NAVIGATOR"
+pd pub br:abcd1234:deadbeef:feature-x-123abc:swarm:general \
+  "Auth service is flatlining" \
+  --signal mayday \
+  --sender "NAVIGATOR"
 ```
+
+Declared channels are git-sensitive by default. A branch-scoped channel resolves differently across worktrees/feature branches, which stops unrelated branches from accidentally sharing the same coordination bus.
 
 ### Integration & Signaling
 Automate agent handoffs using `pd integration` and `pd wait`:

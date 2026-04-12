@@ -76,6 +76,15 @@ Get messages. Options: `limit`, `after`. Returns `{ messages, count }`.
 ### `pd.listChannels()`
 List active channels. Returns `{ channels }`.
 
+### `pd.discoverChannels(options?)`
+Discover declared channels for the current repo/worktree context. Options: `projectDir`, `query`, `includeObserved`.
+
+### `pd.resolveChannel(name, options?)`
+Resolve a logical or aliased channel name to its physical git-sensitive channel. Options: `projectDir`.
+
+### `pd.ensureChannel(name, options?)`
+Declare or update a canonical channel. Options: `scope`, `aliases`, `description`, `projectDir`, `metadata`.
+
 ### `pd.poll(channel, options?)`
 Long-poll for next message. Options: `after`, `timeout` (default 30s). Returns `{ message }`.
 

@@ -141,6 +141,37 @@ Clear all messages from a channel.
 ### GET /channels
 List all active channels.
 
+### GET /channels/discover
+Discover declared channels for the current repo/worktree context.
+
+**Query params:**
+| Param | Type | Description |
+|-------|------|-------------|
+| `projectDir` | string | Project/worktree path used to derive git context |
+| `q` | string | Optional substring filter over logical name, aliases, description, or physical channel |
+| `observed` | boolean | Include undeclared-but-active raw channels in the response |
+
+### GET /channels/resolve/:name
+Resolve a logical or aliased channel name to the physical channel for the current repo/worktree context.
+
+**Query params:**
+| Param | Type | Description |
+|-------|------|-------------|
+| `projectDir` | string | Project/worktree path used to derive git context |
+
+### POST /channels/ensure
+Declare or update a canonical channel.
+
+**Body:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | yes | Logical channel name |
+| `scope` | string | no | `branch`, `worktree`, `repo`, or `global` |
+| `aliases` | string[] | no | Alternate names that resolve to the same channel |
+| `description` | string | no | Human-readable purpose |
+| `projectDir` | string | no | Project/worktree path used to derive git context |
+| `metadata` | object | no | Optional metadata blob |
+
 ---
 
 ## Locks (Distributed Locking)

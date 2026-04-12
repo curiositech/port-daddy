@@ -15,6 +15,30 @@ import { separator, tableHeader, relativeTime } from '../utils/output.js';
 import { canPrompt, promptText } from '../utils/prompt.js';
 import * as ui from '../utils/ui.js';
 
+function readOption(options: CLIOptions, ...keys: string[]): string | undefined {
+  for (const key of keys) {
+    const value = options[key];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return undefined;
+}
+
+function parseAliases(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .flatMap((item) => String(item).split(','))
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  if (typeof value === 'string') {
+    return value
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
 /**
  * Handle `pd pub <channel> <message>` command
  */
@@ -202,6 +226,148 @@ export async function handleWait(serviceIds: string[], options: CLIOptions): Pro
  * Handle `pd channels [subcommand]` command
  */
 export async function handleChannels(subcommand: string | undefined, args: string[], options: CLIOptions): Promise<void> {
+  if (subcommand === 'discover') {
+    const query = args.join(' ') || readOption(options, 'query', 'q');
+    const projectDir = resolveTargetDir(options);
+    const params = new URLSearchParams();
+    params.set('projectDir', projectDir);
+    if (query) params.set('q', query);
+    if (options.observed || options.all) params.set('observed', 'true');
+
+    const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/channels/discover?${params.toString()}`);
+    const data = await res.json();
+    if (!res.ok) {
+      ui.error((data.error as string) || 'Failed to discover channels');
+      process.exit(1);
+    }
+
+    if (isJson(options)) {
+      console.log(JSON.stringify(data, null, 2));
+      return;
+    }
+
+    const channels = (data.channels as Array<{
+      logicalName: string;
+      physicalName: string;
+      scope: string;
+      activeCount: number;
+      lastMessage: number | null;
+      source: string;
+    }>) || [];
+
+    if (channels.length === 0) {
+      ui.info('No declared channels found for this repo/worktree context');
+      return;
+    }
+
+    console.log('');
+    console.log(tableHeader(['LOGICAL', 26], ['SCOPE', 12], ['SOURCE', 12], ['ACTIVE', 10], ['PHYSICAL', 36]));
+    separator(96);
+    for (const channel of channels) {
+      const logical = channel.logicalName.padEnd(26);
+      const scope = String(channel.scope || '-').padEnd(12);
+      const source = String(channel.source || '-').padEnd(12);
+      const active = String(channel.activeCount ?? 0).padEnd(10);
+      console.log(`${logical}${scope}${source}${active}${channel.physicalName}`);
+    }
+    console.log('');
+    return;
+  }
+
+  if (subcommand === 'ensure') {
+    const name = args[0] || readOption(options, 'name');
+    if (!name) {
+      console.error('Usage: port-daddy channels ensure <name> [--scope branch|worktree|repo|global] [--description "..."] [--aliases a,b]');
+      process.exit(1);
+    }
+
+    const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/channels/ensure`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        scope: readOption(options, 'scope'),
+        description: readOption(options, 'description'),
+        aliases: parseAliases(options.aliases),
+        projectDir: resolveTargetDir(options),
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      ui.error((data.error as string) || 'Failed to ensure channel');
+      process.exit(1);
+    }
+
+    if (isJson(options)) {
+      console.log(JSON.stringify(data, null, 2));
+      return;
+    }
+
+    const channel = data.channel as {
+      logicalName: string;
+      physicalName: string;
+      scope: string;
+      worktreeId: string | null;
+      branch: string | null;
+      created: boolean;
+    };
+
+    ui.success(`${data.created ? 'Declared' : 'Updated'} ${highlightChannel(channel.logicalName)}`);
+    console.log(`  scope: ${channel.scope}`);
+    console.log(`  physical: ${highlightChannel(channel.physicalName)}`);
+    if (channel.worktreeId) console.log(`  worktree: ${channel.worktreeId}`);
+    if (channel.branch) console.log(`  branch: ${channel.branch}`);
+    return;
+  }
+
+  if (subcommand === 'describe' || subcommand === 'resolve') {
+    const name = args[0];
+    if (!name) {
+      console.error('Usage: port-daddy channels describe <name>');
+      process.exit(1);
+    }
+
+    const params = new URLSearchParams();
+    params.set('projectDir', resolveTargetDir(options));
+
+    const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/channels/resolve/${encodeURIComponent(name)}?${params.toString()}`);
+    const data = await res.json();
+    if (!res.ok) {
+      ui.error((data.error as string) || 'Failed to resolve channel');
+      process.exit(1);
+    }
+
+    if (isJson(options)) {
+      console.log(JSON.stringify(data, null, 2));
+      return;
+    }
+
+    const channel = data.channel as {
+      logicalName: string;
+      physicalName: string;
+      scope: string;
+      source: string;
+      aliases: string[];
+      activeCount: number;
+      branch: string | null;
+      worktreeId: string | null;
+      description: string | null;
+    };
+
+    console.log('');
+    console.log(`logical:  ${highlightChannel(channel.logicalName)}`);
+    console.log(`physical: ${highlightChannel(channel.physicalName)}`);
+    console.log(`scope:    ${channel.scope}`);
+    console.log(`source:   ${channel.source}`);
+    console.log(`active:   ${channel.activeCount}`);
+    console.log(`worktree: ${channel.worktreeId || '-'}`);
+    console.log(`branch:   ${channel.branch || '-'}`);
+    console.log(`aliases:  ${channel.aliases?.length ? channel.aliases.join(', ') : '-'}`);
+    console.log(`desc:     ${channel.description || '-'}`);
+    console.log('');
+    return;
+  }
+
   if (subcommand === 'clear') {
     const channel = args[0];
     if (!channel) {
@@ -261,4 +427,8 @@ export async function handleChannels(subcommand: string | undefined, args: strin
     );
   }
   console.log('');
+}
+
+function resolveTargetDir(options: CLIOptions): string {
+  return readOption(options, 'dir', 'project-dir', 'projectDir') || process.cwd();
 }

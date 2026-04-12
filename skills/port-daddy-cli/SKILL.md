@@ -176,12 +176,20 @@ Claims are advisory — they warn, don't lock. Hard locks cause deadlocks. Advis
 Agents signal each other through channels:
 
 ```bash
+# Declare a branch-scoped canonical channel for this worktree first
+pd channels ensure myapp:events --scope branch --aliases events:db
+
+# Discover declared channels for the current repo/worktree
+pd channels discover myapp
+
 # Agent A finishes database setup
-pd pub myapp:events "database-ready"
+pd pub br:abcd1234:deadbeef:feature-x-123abc:myapp:events "database-ready"
 
 # Agent B was watching
-pd watch myapp:events --exec "npm run migrate"
+pd watch br:abcd1234:deadbeef:feature-x-123abc:myapp:events --exec "npm run migrate"
 ```
+
+Declared channels are git-sensitive by default. `branch` scope isolates per worktree/feature branch, `worktree` isolates per worktree regardless of branch name churn, `repo` shares across worktrees in the same repo, and `global` is the explicit opt-in escape hatch.
 
 ### Distributed Locks
 

@@ -701,11 +701,21 @@ Commands:
     --timeout <ms>         Wait timeout (default: 60000)
 
   channels                 List active pub/sub channels
+  channels discover [q]    Discover declared channels for this repo/worktree
+    --dir <path>           Resolve git/worktree context from this project dir
+    --observed             Include observed undeclared raw channels
+  channels ensure <name>   Declare/update a canonical git-sensitive channel
+    --scope <scope>        branch | worktree | repo | global (default: branch)
+    --aliases a,b          Alternate names that resolve to this channel
+  channels describe <name> Resolve a logical channel to its physical name
   channels clear <name>    Clear messages from a channel
 
 Examples:
   pd pub build:done '{"status":"success"}'
   pd sub build:done
+  pd channels discover tauri
+  pd channels ensure tauri:desktop --aliases desktop:probe --scope branch
+  pd channels describe tauri:desktop
   pd wait myapp:api myapp:frontend
   pd channels
   pd channels clear build:done`,
