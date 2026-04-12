@@ -14,10 +14,11 @@ import { spawn as spawnChild } from 'node:child_process';
 import type { ChildProcess } from 'node:child_process';
 import { readFileSync, existsSync, statSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, dirname } from 'node:path';
+import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { CostTracker } from './cost-tracker.js';
 import type { Counters } from './counters.js';
+import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 
 // ─── Load .env.local for spawned agents ─────────────────────────────────────
@@ -97,8 +98,16 @@ export interface SpawnResult {
   status: 'running' | 'completed' | 'failed' | 'killed';
   output: string | null;
   error: string | null;
+  telemetry: SpawnTelemetry | null;
   startedAt: number;
   completedAt: number | null;
+}
+
+export interface SpawnTelemetry {
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+  rateMode: 'exact';
 }
 
 export interface SpawnedAgent {
@@ -112,6 +121,12 @@ export interface SpawnedAgent {
   completedAt: number | null;
 }
 
+export interface TelemetryBypassApproval {
+  humanConfirmed: true;
+  confirmedBy: string;
+  reason: string;
+}
+
 // Internal tracking record
 interface AgentRecord extends SpawnedAgent {
   heartbeatInterval: ReturnType<typeof setInterval> | null;
@@ -121,6 +136,42 @@ interface AgentRecord extends SpawnedAgent {
 interface SpawnerDeps {
   costTracker?: CostTracker;
   counters?: Counters;
+  enforceTelemetryPolicy?: boolean;
+  telemetryBypassApproval?: TelemetryBypassApproval;
+  runnerOverrides?: Partial<Record<SpawnSpec['backend'], (spec: SpawnSpec, model: string) => Promise<BackendRunResult>>>;
+}
+
+const ANSI_RESET = '\x1b[0m';
+const ANSI_BOLD_RED = '\x1b[1;31m';
+const ANSI_BANNER_RED = '\x1b[1;97;41m';
+const telemetryBypassWarnings = new Set<string>();
+
+function requireTelemetryBypassApproval(approval?: TelemetryBypassApproval): asserts approval is TelemetryBypassApproval {
+  const confirmedBy = approval?.confirmedBy?.trim();
+  const reason = approval?.reason?.trim();
+  if (approval?.humanConfirmed === true && confirmedBy && reason) {
+    return;
+  }
+
+  throw new Error([
+    `${ANSI_BANNER_RED} TELEMETRY BYPASS REJECTED ${ANSI_RESET}`,
+    `${ANSI_BOLD_RED}HITL confirmation is required to create a spawner with enforceTelemetryPolicy:false.${ANSI_RESET}`,
+    'Pass telemetryBypassApproval: { humanConfirmed: true, confirmedBy: "<human>", reason: "<why this bypass is acceptable>" }.',
+  ].join('\n'));
+}
+
+function warnTelemetryBypass(approval: TelemetryBypassApproval): void {
+  const confirmedBy = approval.confirmedBy.trim();
+  const reason = approval.reason.trim();
+  const warningKey = `${confirmedBy}:${reason}`;
+  if (telemetryBypassWarnings.has(warningKey)) return;
+  telemetryBypassWarnings.add(warningKey);
+  console.error([
+    `${ANSI_BANNER_RED} TELEMETRY BYPASS ACTIVE ${ANSI_RESET}`,
+    `${ANSI_BOLD_RED}Operator launches are running with enforceTelemetryPolicy:false.${ANSI_RESET}`,
+    `confirmedBy=${confirmedBy}`,
+    `reason=${reason}`,
+  ].join('\n'));
 }
 
 // =============================================================================
@@ -188,7 +239,15 @@ function runChild(opts: ChildRunOpts): Promise<{ output: string; error: string |
 // Backend implementations
 // =============================================================================
 
-async function runOllama(spec: SpawnSpec, model: string): Promise<{ output: string; error: string | null }> {
+interface BackendRunResult {
+  output: string;
+  error: string | null;
+  inputTokens?: number;
+  outputTokens?: number;
+  childProcess?: ChildProcess | null;
+}
+
+async function runOllama(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
   const res = await fetch('http://localhost:11434/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -210,7 +269,7 @@ async function runOllama(spec: SpawnSpec, model: string): Promise<{ output: stri
   return { output: message, error: null };
 }
 
-async function runClaude(spec: SpawnSpec, model: string): Promise<{ output: string; error: string | null }> {
+async function runClaude(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
   // Dynamic import with graceful fallback — use Function to avoid static analysis
   // of the module specifier (so tsc doesn't error on a missing optional dep)
   let Anthropic: unknown = null;
@@ -225,7 +284,13 @@ async function runClaude(spec: SpawnSpec, model: string): Promise<{ output: stri
   try {
     const client = new (Anthropic as new (opts?: { apiKey?: string }) => {
       messages: {
-        create(opts: Record<string, unknown>): Promise<{ content: Array<{ text: string }> }>;
+        create(opts: Record<string, unknown>): Promise<{
+          content: Array<{ text: string }>;
+          usage?: {
+            input_tokens?: number;
+            output_tokens?: number;
+          };
+        }>;
       };
     })({
       apiKey: process.env.ANTHROPIC_API_KEY,
@@ -238,13 +303,18 @@ async function runClaude(spec: SpawnSpec, model: string): Promise<{ output: stri
     });
 
     const text = response.content.map((c) => c.text).join('');
-    return { output: text, error: null };
+    return {
+      output: text,
+      error: null,
+      inputTokens: response.usage?.input_tokens,
+      outputTokens: response.usage?.output_tokens,
+    };
   } catch (err) {
     return { output: '', error: (err as Error).message };
   }
 }
 
-async function runGemini(spec: SpawnSpec, model: string): Promise<{ output: string; error: string | null }> {
+async function runGemini(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
   let GoogleGenerativeAI: unknown = null;
   try {
     // eslint-disable-next-line @typescript-eslint/no-implied-eval
@@ -272,7 +342,7 @@ async function runGemini(spec: SpawnSpec, model: string): Promise<{ output: stri
   }
 }
 
-async function runCloudflare(spec: SpawnSpec, model: string): Promise<{ output: string; error: string | null }> {
+async function runCloudflare(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
   const accountId = process.env.CLOUDFLARE_ACCOUNT_ID || process.env.CF_ACCOUNT_ID;
   const token = process.env.CLOUDFLARE_API_TOKEN || process.env.CLOUDFLARE_API_KEY || process.env.CF_API_TOKEN;
 
@@ -338,7 +408,7 @@ function sanitizeCodexOutput(raw: string): string {
   return lines.join('\n').trim();
 }
 
-function runCodexCli(spec: SpawnSpec, model: string): Promise<{ output: string; error: string | null }> {
+function runCodexCli(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
   const workspace = spec.workdir || process.cwd();
   const tempDir = mkdtempSync(join(tmpdir(), 'port-daddy-codex-'));
   const outputPath = join(tempDir, 'last-message.txt');
@@ -379,7 +449,7 @@ function runCodexCli(spec: SpawnSpec, model: string): Promise<{ output: string; 
   });
 }
 
-function runAider(spec: SpawnSpec, model: string): Promise<{ output: string; error: string | null }> {
+function runAider(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
   const files = spec.files || [];
   return runChild({
     cmd: 'aider',
@@ -390,14 +460,14 @@ function runAider(spec: SpawnSpec, model: string): Promise<{ output: string; err
   });
 }
 
-function runCustom(spec: SpawnSpec): Promise<{ output: string; error: string | null; child: ChildProcess }> {
+function runCustom(spec: SpawnSpec): Promise<BackendRunResult> {
   // Reject shell injection: metacharacters, newlines, control chars
   const DANGEROUS_PATTERNS = /[;&|`$(){}!<>\n\r\t\x00-\x1f\x7f]/;
   if (DANGEROUS_PATTERNS.test(spec.task)) {
     return Promise.resolve({
       output: '',
       error: 'Command contains shell metacharacters or control characters. Use explicit arguments instead of shell syntax.',
-      child: null as any
+      childProcess: null,
     });
   }
 
@@ -417,10 +487,13 @@ function runCustom(spec: SpawnSpec): Promise<{ output: string; error: string | n
       PORT_DADDY_MODEL_TIER: spec.modelTier,
     },
     timeout: spec.timeout,
-  });
+  }).then((result) => ({
+    ...result,
+    childProcess: result.child,
+  }));
 }
 
-function runClaudeCli(spec: SpawnSpec): Promise<{ output: string; error: string | null }> {
+function runClaudeCli(spec: SpawnSpec): Promise<BackendRunResult> {
   const args = ['-p', spec.task];
   if (spec.model) {
     args.push('--model', spec.model);
@@ -475,7 +548,18 @@ const DEFAULT_MODELS: Record<SpawnSpec['backend'], string> = {
 export function createSpawner(deps: SpawnerDeps = {}) {
   // In-memory registry of active spawned agents
   const agents = new Map<string, AgentRecord>();
-  const { costTracker, counters } = deps;
+  const {
+    costTracker,
+    counters,
+    enforceTelemetryPolicy = true,
+    telemetryBypassApproval,
+    runnerOverrides = {},
+  } = deps;
+
+  if (!enforceTelemetryPolicy) {
+    requireTelemetryBypassApproval(telemetryBypassApproval);
+    warnTelemetryBypass(telemetryBypassApproval);
+  }
 
   /** Hard ceiling on concurrent running agents. Prevents fork bombs.
    *  Fleet YAML limits are per-project; this is the global safety net.
@@ -536,18 +620,37 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     const running = [...agents.values()].filter(a => a.status === 'running').length;
     const model = spec.model || DEFAULT_MODELS[spec.backend];
     const dims = metricDims(spec, model);
+    const blockedResult = (error: string): SpawnResult => ({
+      agentId: 'blocked',
+      backend: spec.backend,
+      model,
+      status: 'failed',
+      output: null,
+      error,
+      telemetry: null,
+      startedAt: Date.now(),
+      completedAt: Date.now(),
+    });
     if (running >= MAX_CONCURRENT_RUNNING) {
       counters?.bump('spawn.blocked', dims);
-      return {
-        agentId: 'blocked',
-        backend: spec.backend,
-        model,
-        status: 'failed',
-        output: null,
-        error: `Spawn blocked: ${running} agents already running (limit: ${MAX_CONCURRENT_RUNNING}). Wait for one to finish.`,
-        startedAt: Date.now(),
-        completedAt: Date.now(),
-      };
+      return blockedResult(`Spawn blocked: ${running} agents already running (limit: ${MAX_CONCURRENT_RUNNING}). Wait for one to finish.`);
+    }
+
+    if (!enforceTelemetryPolicy) {
+      counters?.bump('spawn.telemetry_bypass', dims);
+    }
+
+    if (enforceTelemetryPolicy) {
+      if (!costTracker) {
+        counters?.bump('spawn.blocked', dims);
+        return blockedResult('Spawn blocked: cost tracker unavailable under fail-closed telemetry policy.');
+      }
+
+      const telemetryPolicy = assessBackendTelemetryPolicy(spec.backend, model);
+      if (!telemetryPolicy.launchAllowed) {
+        counters?.bump('spawn.blocked', dims);
+        return blockedResult(`Spawn blocked: ${telemetryPolicy.summary}`);
+      }
     }
 
     const agentId = `spawned-${randomBytes(6).toString('hex')}`;
@@ -592,30 +695,80 @@ export function createSpawner(deps: SpawnerDeps = {}) {
 
     let output: string | null = null;
     let error: string | null = null;
+    let telemetry: SpawnTelemetry | null = null;
 
     try {
-      let result: { output: string; error: string | null };
+      const override = runnerOverrides[spec.backend];
+      let result: BackendRunResult;
 
-      switch (spec.backend) {
-        case 'ollama':    result = await runOllama(spec, model); break;
-        case 'claude':    result = await runClaude(spec, model); break;
-        case 'gemini':    result = await runGemini(spec, model); break;
-        case 'cloudflare': result = await runCloudflare(spec, model); break;
-        case 'codex':     result = await runCodexCli(spec, model); break;
-        case 'claude-cli': result = await runClaudeCli(spec); break;
-        case 'aider':     result = await runAider(spec, model); break;
-        case 'custom': {
-          const r = await runCustom(spec);
-          record.childProcess = r.child;
-          result = r;
-          break;
+      if (override) {
+        result = await override(spec, model);
+      } else {
+        switch (spec.backend) {
+          case 'ollama':    result = await runOllama(spec, model); break;
+          case 'claude':    result = await runClaude(spec, model); break;
+          case 'gemini':    result = await runGemini(spec, model); break;
+          case 'cloudflare': result = await runCloudflare(spec, model); break;
+          case 'codex':     result = await runCodexCli(spec, model); break;
+          case 'claude-cli': result = await runClaudeCli(spec); break;
+          case 'aider':     result = await runAider(spec, model); break;
+          case 'custom':    result = await runCustom(spec); break;
+          default:
+            result = { output: '', error: `Unknown backend: ${String(spec.backend)}` };
         }
-        default:
-          result = { output: '', error: `Unknown backend: ${String(spec.backend)}` };
+      }
+
+      if (result.childProcess) {
+        record.childProcess = result.childProcess;
       }
 
       output = result.output || null;
       error = result.error;
+
+      if (!error && enforceTelemetryPolicy) {
+        const inputTokens = result.inputTokens;
+        const outputTokens = result.outputTokens;
+
+        if (inputTokens === undefined || outputTokens === undefined) {
+          error = `Exact telemetry required, but ${spec.backend} did not return token counts.`;
+          output = null;
+        } else if (!costTracker) {
+          error = 'Exact telemetry required, but cost tracker is unavailable.';
+          output = null;
+        } else {
+          const computed = costTracker.computeCost(spec.backend, model, inputTokens, outputTokens);
+          if (computed.isEstimate) {
+            error = `Exact telemetry required, but ${spec.backend} cost calculation fell back to an estimate.`;
+            output = null;
+          } else if (computed.costUsd <= 0) {
+            error = `Exact telemetry required, but ${spec.backend} produced a non-positive cost.`;
+            output = null;
+          } else {
+            const recorded = costTracker.record({
+              backend: spec.backend,
+              model,
+              projectName,
+              projectDir: spec.workdir ? resolve(spec.workdir) : undefined,
+              identity: spec.identity,
+              spawnId: agentId,
+              inputTokens,
+              outputTokens,
+            });
+
+            if (!recorded || recorded.isEstimate || recorded.costUsd <= 0) {
+              error = `Exact telemetry required, but ${spec.backend} telemetry could not be persisted as an exact nonzero cost record.`;
+              output = null;
+            } else {
+              telemetry = {
+                inputTokens,
+                outputTokens,
+                costUsd: recorded.costUsd,
+                rateMode: 'exact',
+              };
+            }
+          }
+        }
+      }
     } catch (err) {
       error = (err as Error).message;
     }
@@ -639,13 +792,16 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     if (!error) {
       counters?.bump('spawn.duration_ms', dims, Math.max(1, completedAt - startedAt));
     }
-    costTracker?.record({
-      backend: spec.backend,
-      model,
-      projectName,
-      identity: spec.identity,
-      spawnId: agentId,
-    });
+    if (!enforceTelemetryPolicy) {
+      costTracker?.record({
+        backend: spec.backend,
+        model,
+        projectName,
+        projectDir: spec.workdir ? resolve(spec.workdir) : undefined,
+        identity: spec.identity,
+        spawnId: agentId,
+      });
+    }
 
     return {
       agentId,
@@ -654,6 +810,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       status,
       output,
       error,
+      telemetry,
       startedAt,
       completedAt,
     };

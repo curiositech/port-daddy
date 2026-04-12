@@ -1053,6 +1053,50 @@ describe('createReactiveOrchestrator()', () => {
 
       console.error = origError;
     });
+
+    it('should surface failed spawn results instead of swallowing them silently', async () => {
+      const failSpawner = {
+        spawn: jest.fn(async () => ({
+          agentId: 'blocked',
+          backend: 'ollama',
+          model: 'llama3.1:8b',
+          status: 'failed',
+          output: null,
+          error: 'Spawn blocked by telemetry policy',
+          telemetry: null,
+          startedAt: 1,
+          completedAt: 1,
+        })),
+      };
+      const reactor = createReactiveOrchestrator(db, mockMessaging, failSpawner);
+
+      reactor.addRule({
+        name: 'blocked-spawn', channelPattern: '*', action: 'spawn',
+        payload: { backend: 'ollama', task: 'test' }, enabled: true
+      });
+
+      const failed = [];
+      reactor.on('rule:spawn_failed', (data) => failed.push(data));
+
+      const origError = console.error;
+      console.error = jest.fn();
+
+      mockMessaging._trigger('test', { channel: 'test', payload: 'go' });
+      await waitFor(() => failed.length > 0, 5000);
+
+      expect(failed[0]).toEqual(expect.objectContaining({
+        ruleId: expect.any(Number),
+        channel: 'test',
+        status: 'failed',
+        error: 'Spawn blocked by telemetry policy',
+        backend: 'ollama',
+      }));
+      expect(console.error).toHaveBeenCalledWith(
+        expect.stringContaining('[orchestrator:blocked-spawn] spawn failed: Spawn blocked by telemetry policy')
+      );
+
+      console.error = origError;
+    });
   });
 
   // ---------------------------------------------------------------------------

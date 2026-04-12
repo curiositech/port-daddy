@@ -3,7 +3,7 @@
  *
  * GET /metrics/counters              — summary of all counters (last 24h default)
  * GET /metrics/counters/top          — top N dimension values for a key
- * GET /metrics/cost                  — cost summary by project + by backend
+ * GET /metrics/cost                  — cost summary by project label/projectDir + by backend
  * GET /metrics/cost/recent           — most recent N cost events
  * GET /metrics/cost/budget/:project  — budget check for a project
  */
@@ -123,6 +123,7 @@ export const observabilityPlugin: FastifyPluginAsync<{ deps: ObservabilityDeps }
    * ?since=86400         seconds in the past (default: 86400 = 24h)
    * ?project=myapp       filter to one project
    *
+   * Returns spend buckets, not live-fleet truth. Use /fleet for current fleets.
    * Returns: { totals, byProject, byBackend }
    */
   fastify.get('/metrics/cost', async (request: FastifyRequest) => {

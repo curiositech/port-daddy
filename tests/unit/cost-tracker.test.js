@@ -78,12 +78,14 @@ describe('CostTracker', () => {
       backend: 'claude-cli',
       model: 'claude-cli',
       projectName: 'my-project',
+      projectDir: '/tmp/my-project',
       identity: 'my-project:api:main',
       spawnId: 'spawn-abc123',
     });
     expect(event).not.toBeNull();
     expect(event.backend).toBe('claude-cli');
     expect(event.projectName).toBe('my-project');
+    expect(event.projectDir).toBe('/tmp/my-project');
     expect(event.isEstimate).toBe(true);
     expect(event.costUsd).toBeCloseTo(0.05, 4);
   });
@@ -130,6 +132,28 @@ describe('CostTracker', () => {
     expect(a.spawnCount).toBe(2);
     expect(a.totalUsd).toBeCloseTo(0.10, 4);
     expect(b.spawnCount).toBe(1);
+  });
+
+  test('summary separates rows by durable projectDir when names collide', () => {
+    costTracker.record({
+      backend: 'claude-cli',
+      model: 'claude-cli',
+      projectName: 'port-daddy',
+      projectDir: '/Users/erichowens/coding/port-daddy',
+    });
+    costTracker.record({
+      backend: 'claude-cli',
+      model: 'claude-cli',
+      projectName: 'port-daddy',
+      projectDir: '/Users/erichowens/port-daddy-stable',
+    });
+
+    const rows = costTracker.summary({ projectName: 'port-daddy' });
+    expect(rows).toHaveLength(2);
+    expect(rows.map((row) => row.projectDir)).toEqual(expect.arrayContaining([
+      '/Users/erichowens/coding/port-daddy',
+      '/Users/erichowens/port-daddy-stable',
+    ]));
   });
 
   // ── byBackend ─────────────────────────────────────────────────────────────
@@ -260,6 +284,26 @@ describe('CostTracker', () => {
     expect(rows[0].spawnCount).toBe(2);
   });
 
+  test('summary with projectDir filter excludes other directories', () => {
+    costTracker.record({
+      backend: 'claude-cli',
+      model: 'claude-cli',
+      projectName: 'proj',
+      projectDir: '/tmp/proj-a',
+    });
+    costTracker.record({
+      backend: 'claude-cli',
+      model: 'claude-cli',
+      projectName: 'proj',
+      projectDir: '/tmp/proj-b',
+    });
+
+    const rows = costTracker.summary({ projectDir: '/tmp/proj-b' });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].projectDir).toBe('/tmp/proj-b');
+    expect(rows[0].spawnCount).toBe(1);
+  });
+
   // ── BUG: record() swallowing errors silently ─────────────────────────────
 
   test('record returns null on missing required fields (never throws)', () => {
@@ -289,6 +333,18 @@ describe('CostTracker', () => {
     // Budget check for a specific project should not include unattributed events
     const status = costTracker.budgetStatus('any-project', 10.00);
     expect(status.spentUsd).toBe(0);
+  });
+
+  test('budgetStatus accepts projectDir as the project reference', () => {
+    costTracker.record({
+      backend: 'claude-cli',
+      model: 'claude-cli',
+      projectName: 'proj',
+      projectDir: '/tmp/proj',
+    });
+    const status = costTracker.budgetStatus('/tmp/proj', 1);
+    expect(status.spentUsd).toBeCloseTo(0.05, 4);
+    expect(status.overBudget).toBe(false);
   });
 
   // ── BUG E: recent() with negative limit bypasses 500 cap ────────────────
@@ -330,23 +386,12 @@ describe('CostTracker', () => {
     expect(a.topModel).toBe('claude-sonnet-4-6');
   });
 
-  // ── BUG G: computeCost with only inputTokens (no outputTokens) silently
-  //    falls through to flat estimate instead of using partial token data ──
-
-  test('BUG G: inputTokens without outputTokens falls to estimate', () => {
-    // Only inputTokens provided — outputTokens is undefined.
-    // The guard `inputTokens !== undefined && outputTokens !== undefined`
-    // fails, so we fall to flat estimate. Is this intentional or a data loss?
+  test('partial Claude token telemetry still yields a nonzero estimate', () => {
     const { costUsd, isEstimate } = costTracker.computeCost(
       'claude', 'claude-sonnet-4-6', 50000, undefined
     );
-    // With the current code, this returns the flat estimate for 'claude'
-    // which is undefined in SESSION_ESTIMATES_USD → $0 with isEstimate=true.
-    // 50k input tokens at Sonnet pricing = $0.15 — lost.
-    // This test documents the behavior. If intentional, the estimate should
-    // still be non-zero since we know the backend is 'claude'.
+
     expect(isEstimate).toBe(true);
-    // SDK backend 'claude' has no flat estimate → $0. That's suspicious.
-    expect(costUsd).toBe(0);
+    expect(costUsd).toBeGreaterThan(0);
   });
 });

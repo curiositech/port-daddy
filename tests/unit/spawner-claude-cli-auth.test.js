@@ -54,7 +54,24 @@ jest.unstable_mockModule('node:child_process', () => ({
 }));
 
 // Import AFTER mocks are registered
-const { createSpawner } = await import('../../lib/spawner.js');
+const { createSpawner: createSpawnerBase } = await import('../../lib/spawner.js');
+
+const TEST_TELEMETRY_BYPASS = {
+  humanConfirmed: true,
+  confirmedBy: 'jest',
+  reason: 'Unit test coverage for claude-cli spawn environment behavior',
+};
+
+function createSpawner(deps = {}) {
+  if (deps.enforceTelemetryPolicy === true) {
+    return createSpawnerBase(deps);
+  }
+  return createSpawnerBase({
+    ...deps,
+    enforceTelemetryPolicy: false,
+    telemetryBypassApproval: deps.telemetryBypassApproval ?? TEST_TELEMETRY_BYPASS,
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Helpers

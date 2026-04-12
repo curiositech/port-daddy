@@ -166,17 +166,27 @@ pd activity    # Stream the raw audit trail of all operations
 ### Spawn AI Agents
 Launch AI agents with full PD coordination (registration, sessions, heartbeats) baked in:
 ```bash
-# Codex CLI (good default for code-changing one-shot work)
-pd spawn --backend codex --tier low --budget 0.50 --identity myapp:fixer -- "Fix the login bug in src/auth.ts"
+# Current operator-facing launchable path: Claude SDK with an exact-rate model
+pd spawn \
+  --backend claude \
+  --model claude-haiku-4-5-20251001 \
+  --budget 0.50 \
+  --identity myapp:fixer \
+  -- "Summarize the latest auth diff"
 
-# Claude API (text in, text out — fast, no tools)
-pd spawn --backend claude -- "Explain what this function does"
+# Another exact-telemetry Claude run
+pd spawn \
+  --backend claude \
+  --model claude-haiku-4-5-20251001 \
+  --budget 0.35 \
+  --identity myapp:docs \
+  -- "Explain what this function does"
 
-# Cloudflare Workers AI (hosted edge inference)
-pd spawn --backend cloudflare --model @cf/meta/llama-3.1-8b-instruct --budget 0.20 --identity myapp:edge -- "Summarize recent changes"
-
-# Ollama (local LLM, default)
-pd spawn --backend ollama --model qwen2.5-coder:7b --budget 0.25 --identity myapp:docs -- "Summarize the README"
+# `pd agent` and `pd sortie` run spawn preflight internally before launch
+pd agent "Explain what changed in the auth flow" \
+  --backend claude \
+  --model claude-haiku-4-5-20251001 \
+  --budget 0.35
 
 # List running/completed agents
 pd spawned
@@ -188,13 +198,19 @@ pd spawn kill <agent-id>
 pd watch git:committed --exec './fleet/qa-adversary.sh'
 ```
 
-**Backends:** `ollama` (default), `claude` (API), `claude-cli` (full CLI), `gemini`, `cloudflare`, `codex`, `aider`, `custom`
+Operator-facing launches are fail-closed on telemetry. Port Daddy rejects a launch unless it can attach exact token counts, an exact nonzero rate, and a persisted exact nonzero cost record to the completed run.
+
+Today that means the live launchable path is the Claude SDK backend with an exact-rate model entry. Other backend integrations still exist in source, but they should be treated as blocked until they reach the same telemetry standard.
+
+Internal code paths use the same rule: `createSpawner()` defaults telemetry enforcement on, and any explicit `enforceTelemetryPolicy: false` bypass now requires HITL confirmation metadata instead of relying on an omitted flag.
+
+**Backends in source:** `ollama`, `claude`, `claude-cli`, `gemini`, `cloudflare`, `codex`, `aider`, `custom`
 
 **Key flags:** `--backend`, `--model`, `--tier`, `--identity`, `--purpose`, `--budget`, `--allowedTools` (claude-cli), `--maxTokens`, `--workdir`, `--timeout`
 
 Quiet mode (`-q`) prints raw output to stdout and exits non-zero on failure — perfect for shell scripts:
 ```bash
-local result=$(pd spawn --backend codex --tier low --budget 0.25 -q -- "Write a commit message for: $diff")
+local result=$(pd spawn --backend claude --model claude-haiku-4-5-20251001 --budget 0.25 -q -- "Write a commit message for: $diff")
 ```
 
 ### Delegation Modes
@@ -210,12 +226,15 @@ Canonical operator explanation: [docs/DELEGATION-MODES.md](docs/DELEGATION-MODES
 
 ```bash
 # Preferred single-agent delegation
-pd agent "Review the last commit for regressions" --backend codex --tier low --budget 0.35
+pd agent "Review the last commit for regressions" \
+  --backend claude \
+  --model claude-haiku-4-5-20251001 \
+  --budget 0.35
 
 # Tracked mission record with status + logs
 pd sortie "Investigate flaky auth tests and summarize the root cause" \
-  --backend codex \
-  --tier low \
+  --backend claude \
+  --model claude-haiku-4-5-20251001 \
   --budget 0.75
 
 # Inspect mission outcomes later
@@ -364,22 +383,23 @@ fleet:
   agents:
     qa:
       trigger: git:committed          # React to pub/sub events
-      backend: ollama
-      model: qwen2.5-coder:7b
+      backend: claude
+      model: claude-haiku-4-5-20251001
       prompt: |
         Review the most recent commit. Find bugs. Write tests.
 
     test-hunter:
       trigger: git:committed
-      backend: codex
-      model: gpt-5.4-mini
+      backend: claude
+      model: claude-haiku-4-5-20251001
       prompt: |
         Run the test suite. Fill the highest-signal coverage gaps.
 
     gardener:
       schedule: "*/10 * * * *"        # Or run on a cron schedule
-      backend: custom
-      prompt: "git status --porcelain"
+      backend: claude
+      model: claude-haiku-4-5-20251001
+      prompt: "Summarize the current repo status and suggest the next maintenance action."
       on_success: publish git:status  # Chain agents via channels
 
   channels:
@@ -418,9 +438,11 @@ curl 'http://localhost:9876/fleet/prompt?project=myapp'  # One-line status for P
 curl http://localhost:9876/fleet/models       # Lists ollama, codex, claude-cli, gemini, cloudflare, aider, etc.
 ```
 
-Each agent gets full PD coordination for free: registration, sessions, heartbeats, and salvage on crash. Supports every `pd spawn` backend, including `ollama`, `codex`, `claude-cli`, `claude`, `gemini`, `cloudflare`, `aider`, and `custom`. Template variables (`{project}`) resolve from the YAML context. Fleet lifecycle events publish to the `fleet:events` channel for dashboard and menu bar subscriptions.
+Each agent gets full PD coordination for free: registration, sessions, heartbeats, and salvage on crash. Fleet YAML can still describe the broader source backend catalog, but the daemon applies the same fail-closed telemetry policy as manual launches. In practice, treat Claude SDK + exact-rate model entries as the currently runnable operator-facing path until the other backends reach telemetry parity. Template variables (`{project}`) resolve from the YAML context. Fleet lifecycle events publish to the `fleet:events` channel for dashboard and menu bar subscriptions.
 
 Fleet status now reflects mailbox semantics: repeated trigger bursts collapse into queued work instead of spawning a fresh agent for every wake. When that happens, agent rows can show `status: queued` and a non-zero `queueDepth` so operators can see pending work instead of mistaking it for a miss.
+
+The daemon-served control plane now has an explicit `Agents` surface alongside the fleet graph. It is the operator view for all agents in a project slice: configured fleet agents, live registry entries, spawned runs, salvage ghosts, inbox traffic, recent sessions/notes, known pub/sub bindings, and active file claims.
 
 ### Observability & Cost Tracking
 
@@ -428,7 +450,7 @@ Port Daddy tracks operational metrics and LLM spend across your fleet. Three sub
 
 **Counters** — ODS-style bump counters with time-bucketed storage. The daemon auto-increments counters for spawn lifecycle events (`spawn.started`, `spawn.failed`, `spawn.completed`, `spawn.duration_ms`), session events, and more. Batched in memory, flushed to SQLite every 10s. Auto-prunes rows older than 30 days.
 
-**Cost Tracker** — Records per-spawn LLM cost. When token counts are available (Claude SDK backend), computes exact cost using a built-in rate table (14 models: Claude, Gemini, GPT). For opaque CLI backends (`claude-cli`, `codex`, `aider`), uses model-aware per-session estimates. Budget checks per project.
+**Cost Tracker** — Records per-spawn LLM cost. Operator-facing launches are accepted only when Port Daddy can persist exact token counts plus an exact nonzero rate-derived cost record. Historical `/metrics/cost` buckets may still include legacy estimated sessions from older runs, but new daemon-managed launches are supposed to fail closed instead of adding fresh opaque estimates. Budget checks remain project-scoped.
 
 **Golden Signals** — RED method metrics for the spawn system in a single endpoint: rate/min, error%, avg duration, cost/hr burn rate.
 

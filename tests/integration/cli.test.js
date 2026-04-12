@@ -151,6 +151,37 @@ describe('CLI Integration Tests', () => {
       }
     });
 
+    test('with-lock preserves args after bare -- for the child command', () => {
+      const nestedLock = `${testLock}-with-lock-separator`;
+      const tempDir = mkdtempSync(join(tmpdir(), 'pd-with-lock-separator-'));
+      const scriptPath = join(tempDir, 'argv-inspector.js');
+      writeFileSync(
+        scriptPath,
+        'process.stdout.write(JSON.stringify(process.argv.slice(2)))',
+      );
+
+      try {
+        const result = runCli([
+          'with-lock',
+          nestedLock,
+          '--',
+          'node',
+          scriptPath,
+          '--json',
+          '--quiet',
+        ]);
+        expect(result.success).toBe(true);
+        expect(JSON.parse(result.stdout)).toEqual(['--json', '--quiet']);
+
+        const reacquire = runCli(['lock', nestedLock]);
+        expect(reacquire.success).toBe(true);
+
+        runCli(['unlock', nestedLock]);
+      } finally {
+        rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+
     test('IPC lock keeps filepath locks held across command invocations', () => {
       const first = runCliViaIpc(['lock', ipcFilepathLock, '--owner', 'ipc-owner-a', '--json']);
       expect(first.success).toBe(true);

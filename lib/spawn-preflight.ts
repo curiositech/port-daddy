@@ -1,4 +1,5 @@
 import { assessBackendReadiness, type BackendReadiness } from './backend-readiness.js';
+import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
 import type { BudgetStatus, CostTracker } from './cost-tracker.js';
 import {
   resolveFleetAgentRuntime,
@@ -104,8 +105,11 @@ export async function assessSpawnPreflight(
   const attempts = await Promise.all(
     buildAttemptTargets(input).map(async (target, index): Promise<SpawnPreflightAttempt> => {
       const runtime = resolveFleetAgentRuntime(target);
+      const telemetryPolicy = runtime.backend
+        ? assessBackendTelemetryPolicy(runtime.backend, runtime.model ?? null)
+        : null;
       const readiness = runtime.backend
-        ? await assessBackendReadiness(runtime.backend)
+        ? await assessBackendReadiness(runtime.backend, { model: telemetryPolicy?.effectiveModel ?? runtime.model ?? null })
         : {
             backend: 'missing',
             status: 'needs_setup' as const,
@@ -116,7 +120,7 @@ export async function assessSpawnPreflight(
       return {
         attempt: index + 1,
         backend: runtime.backend,
-        model: runtime.model ?? null,
+        model: runtime.model ?? telemetryPolicy?.effectiveModel ?? null,
         modelTier: runtime.modelTier ?? null,
         backendSource: runtime.backendSource,
         modelSource: runtime.modelSource,

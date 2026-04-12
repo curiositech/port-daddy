@@ -90,5 +90,39 @@ describe('assessSpawnPreflight', () => {
 
     expect(result.launchReady).toBe(true);
     expect(result.budget).toEqual(budgetStatus);
+    expect(mockAssessBackendReadiness).toHaveBeenCalledWith('claude-cli', { model: 'sonnet' });
+  });
+
+  test('surfaces the shared Claude default model in attempts when no model is provided', async () => {
+    mockResolveFleetAgentRuntime.mockReturnValue({
+      backend: 'claude',
+      model: null,
+      modelTier: null,
+      backendSource: 'agent',
+      modelSource: 'unset',
+      warnings: [],
+    });
+
+    const result = await assessSpawnPreflight({
+      backend: 'claude',
+      identity: 'port-daddy:repo:cli',
+      budgetUsd: 0.75,
+    }, {
+      costTracker: {
+        budgetStatus: jest.fn(() => ({
+          project: 'port-daddy',
+          budgetUsdPerDay: 0.75,
+          spentUsd: 0,
+          remainingUsd: 0.75,
+          percentUsed: 0,
+          overBudget: false,
+        })),
+      },
+    });
+
+    expect(result.attempts[0].model).toBe('claude-haiku-4-5-20251001');
+    expect(mockAssessBackendReadiness).toHaveBeenCalledWith('claude', {
+      model: 'claude-haiku-4-5-20251001',
+    });
   });
 });

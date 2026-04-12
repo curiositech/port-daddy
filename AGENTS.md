@@ -69,6 +69,10 @@ Project-specific shibboleths for proficient Port Daddy work. If you learn a new 
   - if source/docs promise a command or surface and the build does not have it, treat that as a drift bug to fix instead of silently redefining the product
 - `skills/port-daddy-cli/SKILL.md` and `skills/port-daddy-cli/references/api-reference.md` are release surfaces, not optional afterthoughts. If Port Daddy’s CLI, MCP, delegation model, or operator workflows change, update those skill docs in the same slice.
 - `pd agent` is a thin ad hoc wrapper over `/sugar/begin` + `/spawn` + `/sugar/done`, not a sortie object. Treat its UI presence as a manual job/run unless the launch explicitly came from the sortie workflow.
+- Operator-facing agent launches are fail-closed on telemetry now. Do not treat a run as acceptable unless Port Daddy can attach exact token counts, an exact nonzero model rate, and a persisted exact nonzero cost record to the completed launch.
+- `createSpawner()` defaults telemetry enforcement on. Any code that opts out with `enforceTelemetryPolicy: false` must attach explicit HITL confirmation metadata; a silent bypass is a policy violation.
+- Opaque backends are not "good enough for now." If a backend cannot prove exact telemetry end to end, it should stay blocked in readiness, preflight, and the live spawner.
+- The backend catalog is broader than the currently launchable surface. Right now, operator-facing launches are only expected to succeed on the Claude SDK path with an exact-rate model entry; the other listed backends remain implementation surfaces until telemetry parity exists.
 - A failed or completed `pd agent` run can disappear from the live agent registry while still existing in spawned-agent history and session notes. Operator UIs need a separate ad hoc-job lens instead of assuming the live agent registry is the whole truth.
 - The `codex` backend is a Codex CLI integration, not an SDK backend. Port Daddy should launch it via `codex exec` and prefer `--output-last-message` over parsing noisy stdout.
 - Codex defaults should stay spend-aware:
