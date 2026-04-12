@@ -71,6 +71,10 @@ describe('Tunnel Lifecycle (mocked spawn)', () => {
     mockProc = null;
   });
 
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   // ====================================================================
   // start() — happy path: ngrok URL extraction
   // ====================================================================
@@ -140,6 +144,41 @@ describe('Tunnel Lifecycle (mocked spawn)', () => {
       const second = await tunnel.start('cached-svc', 'ngrok');
       expect(second.success).toBe(true);
       expect(second.url).toBe('https://cached.ngrok.io');
+    });
+
+    it('clears the startup timeout once the URL is resolved', async () => {
+      insertService(db, 'timer-cleanup-svc', 4003);
+      const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+      const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
+
+      try {
+        cpSpawn.mockImplementation((cmd) => {
+          const proc = createMockProcess();
+          if (cmd === 'which') {
+            process.nextTick(() => proc.emit('close', 0));
+            return proc;
+          }
+          mockProc = proc;
+          process.nextTick(() => {
+            proc.stdout.emit('data', Buffer.from('url=https://timer-cleanup.ngrok.io\n'));
+          });
+          return proc;
+        });
+
+        const result = await tunnel.start('timer-cleanup-svc', 'ngrok');
+
+        expect(result.success).toBe(true);
+        expect(result.url).toBe('https://timer-cleanup.ngrok.io');
+
+        const timeoutCallIndex = setTimeoutSpy.mock.calls.findIndex(([, ms]) => ms === 30000);
+        expect(timeoutCallIndex).toBeGreaterThanOrEqual(0);
+
+        const timeoutHandle = setTimeoutSpy.mock.results[timeoutCallIndex]?.value;
+        expect(clearTimeoutSpy.mock.calls.some(([handle]) => handle === timeoutHandle)).toBe(true);
+      } finally {
+        setTimeoutSpy.mockRestore();
+        clearTimeoutSpy.mockRestore();
+      }
     });
 
     it('should return error when tunnel is still starting (no URL yet)', async () => {

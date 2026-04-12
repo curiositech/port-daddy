@@ -124,12 +124,14 @@ export function createTunnel(db: Database.Database) {
     });
 
     // Wait for URL with timeout
+    let startupTimeout: ReturnType<typeof setTimeout> | undefined;
     try {
       const url = await Promise.race([
         urlPromise,
-        new Promise<string>((_, reject) =>
-          setTimeout(() => reject(new Error('Timeout waiting for tunnel URL')), 30000)
-        )
+        new Promise<string>((_, reject) => {
+          startupTimeout = setTimeout(() => reject(new Error('Timeout waiting for tunnel URL')), 30000);
+          if (typeof startupTimeout.unref === 'function') startupTimeout.unref();
+        })
       ]);
 
       tunnelProcess.url = url;
@@ -141,6 +143,8 @@ export function createTunnel(db: Database.Database) {
       proc.kill();
       activeTunnels.delete(serviceId);
       return { success: false, error: (err as Error).message };
+    } finally {
+      if (startupTimeout) clearTimeout(startupTimeout);
     }
   }
 
