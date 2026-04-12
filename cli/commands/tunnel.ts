@@ -106,6 +106,9 @@ async function tunnelStart(identity: string | undefined, options: CLIOptions): P
   ui.success(`Tunnel started for ${identity}`);
   console.log(`  Provider: ${provider}`);
   console.log(`  URL: ${data.url}`);
+  if (typeof data.expiresAt === 'number') {
+    console.log(`  Expires: ${new Date(data.expiresAt).toISOString()}`);
+  }
 }
 
 /**
@@ -182,6 +185,18 @@ async function tunnelStatus(identity: string | undefined, options: CLIOptions): 
   if (data.pid) {
     console.log(`  PID: ${data.pid}`);
   }
+
+  if (typeof data.startedAt === 'number') {
+    console.log(`  Started: ${new Date(data.startedAt).toISOString()}`);
+  }
+
+  if (typeof data.expiresAt === 'number') {
+    console.log(`  Expires: ${new Date(data.expiresAt).toISOString()}`);
+  }
+
+  if (data.cleanupReason) {
+    console.log(`  Cleanup: ${data.cleanupReason}`);
+  }
 }
 
 /**
@@ -207,6 +222,7 @@ async function tunnelList(options: CLIOptions): Promise<void> {
     port: number;
     url: string | null;
     status: string;
+    expiresAt?: number;
   }>;
 
   if (tunnels.length === 0) {
@@ -215,13 +231,16 @@ async function tunnelList(options: CLIOptions): Promise<void> {
   }
 
   console.log('');
-  console.log(tableHeader(['SERVICE', 30], ['PROVIDER', 12], ['PORT', 6], ['URL', 40]));
-  separator(88);
+  console.log(tableHeader(['SERVICE', 26], ['PROVIDER', 12], ['PORT', 6], ['EXPIRES', 22], ['URL', 40]));
+  separator(106);
 
   for (const t of tunnels) {
     const url = t.url || '(starting...)';
+    const expires = t.expiresAt
+      ? new Date(t.expiresAt).toISOString().replace('T', ' ').slice(0, 19)
+      : '-';
     console.log(
-      `${t.serviceId.padEnd(30)}${t.provider.padEnd(12)}${String(t.port).padEnd(6)}${url}`
+      `${t.serviceId.padEnd(26)}${t.provider.padEnd(12)}${String(t.port).padEnd(6)}${expires.padEnd(22)}${url}`
     );
   }
 

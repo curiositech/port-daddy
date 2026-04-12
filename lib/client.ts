@@ -435,6 +435,7 @@ interface TunnelStartResponse {
   serviceId: string;
   provider: 'ngrok' | 'cloudflared' | 'localtunnel';
   url: string;
+  expiresAt?: number;
 }
 
 /** Response from stopping a tunnel */
@@ -453,6 +454,9 @@ interface TunnelStatusResponse {
   status: string;
   pid?: number;
   startedAt?: number;
+  expiresAt?: number;
+  ageMs?: number;
+  cleanupReason?: 'expired' | 'orphan-process' | 'stale-record';
 }
 
 /** A single tunnel entry in the list */
@@ -464,6 +468,8 @@ interface TunnelEntry {
   status: string;
   pid?: number;
   startedAt?: number;
+  expiresAt?: number;
+  ageMs?: number;
 }
 
 /** Response from listing tunnels */

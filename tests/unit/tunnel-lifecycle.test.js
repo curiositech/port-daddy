@@ -40,9 +40,14 @@ jest.unstable_mockModule('child_process', () => ({
     mockProc = createMockProcess();
     return mockProc;
   }),
+  spawnSync: jest.fn(() => ({
+    status: 1,
+    stdout: '',
+    stderr: ''
+  })),
 }));
 
-const { spawn: cpSpawn } = await import('child_process');
+const { spawn: cpSpawn, spawnSync: cpSpawnSync } = await import('child_process');
 const { createTunnel } = await import('../../lib/tunnel.js');
 
 // ---------------------------------------------------------------------------
@@ -54,6 +59,19 @@ function insertService(db, id, port = 3100) {
     INSERT INTO services (id, port, status, created_at, last_seen)
     VALUES (?, ?, 'assigned', ?, ?)
   `).run(id, port, Date.now(), Date.now());
+}
+
+function insertServiceWithTunnelMetadata(db, {
+  id,
+  port = 3100,
+  provider = 'ngrok',
+  url = 'https://stale.ngrok.io',
+  metadata = null,
+}) {
+  db.prepare(`
+    INSERT INTO services (id, port, status, tunnel_provider, tunnel_url, metadata, created_at, last_seen)
+    VALUES (?, ?, 'assigned', ?, ?, ?, ?, ?)
+  `).run(id, port, provider, url, metadata, Date.now(), Date.now());
 }
 
 // ---------------------------------------------------------------------------
@@ -68,10 +86,12 @@ describe('Tunnel Lifecycle (mocked spawn)', () => {
     db = createTestDb();
     tunnel = createTunnel(db);
     cpSpawn.mockClear();
+    cpSpawnSync.mockClear();
     mockProc = null;
   });
 
   afterEach(() => {
+    tunnel.dispose?.();
     jest.useRealTimers();
   });
 
@@ -512,6 +532,8 @@ describe('Tunnel Lifecycle (mocked spawn)', () => {
       expect(s.port).toBe(4700);
       expect(s.pid).toBe(99999);
       expect(typeof s.startedAt).toBe('number');
+      expect(typeof s.expiresAt).toBe('number');
+      expect(typeof s.ageMs).toBe('number');
     });
 
     it('should return starting status when URL not yet received', async () => {
@@ -627,6 +649,120 @@ describe('Tunnel Lifecycle (mocked spawn)', () => {
         const row = db.prepare('SELECT tunnel_url FROM services WHERE id = ?').get(id);
         expect(row.tunnel_url).toBeNull();
       }
+    });
+  });
+
+  describe('tunnel safeguards', () => {
+    it('should reject a new tunnel when the active tunnel budget is exhausted', async () => {
+      const limitedTunnel = createTunnel(db, {
+        cleanupIntervalMs: 0,
+        maxActiveTunnels: 1
+      });
+
+      insertService(db, 'budget-a', 5000);
+      insertService(db, 'budget-b', 5001);
+
+      cpSpawn.mockImplementation((cmd) => {
+        const proc = createMockProcess();
+        if (cmd === 'which') {
+          process.nextTick(() => proc.emit('close', 0));
+          return proc;
+        }
+        proc.kill = jest.fn();
+        process.nextTick(() => {
+          proc.stdout.emit('data', Buffer.from('url=https://budget.ngrok.io\n'));
+        });
+        return proc;
+      });
+
+      const first = await limitedTunnel.start('budget-a', 'ngrok');
+      const second = await limitedTunnel.start('budget-b', 'ngrok');
+
+      expect(first.success).toBe(true);
+      expect(second.success).toBe(false);
+      expect(second.error).toMatch(/budget exhausted/i);
+
+      limitedTunnel.dispose?.();
+    });
+
+    it('should reap an expired active tunnel on the cleanup interval', async () => {
+      let now = 1_000;
+      const reapingTunnel = createTunnel(db, {
+        cleanupIntervalMs: 10,
+        clock: () => now,
+        maxLifetimeMs: 20
+      });
+
+      insertService(db, 'expiring-svc', 5002);
+
+      let tunnelProc;
+      cpSpawn.mockImplementation((cmd) => {
+        const proc = createMockProcess();
+        if (cmd === 'which') {
+          process.nextTick(() => proc.emit('close', 0));
+          return proc;
+        }
+        tunnelProc = proc;
+        proc.kill = jest.fn();
+        process.nextTick(() => {
+          proc.stdout.emit('data', Buffer.from('url=https://expiring.ngrok.io\n'));
+        });
+        return proc;
+      });
+
+      const result = await reapingTunnel.start('expiring-svc', 'ngrok');
+      expect(result.success).toBe(true);
+      expect(reapingTunnel.list()).toHaveLength(1);
+
+      now = 1_050;
+      await new Promise(resolve => setTimeout(resolve, 30));
+
+      expect(tunnelProc.kill).toHaveBeenCalled();
+      expect(reapingTunnel.list()).toHaveLength(0);
+
+      const row = db.prepare('SELECT tunnel_url, metadata FROM services WHERE id = ?').get('expiring-svc');
+      expect(row.tunnel_url).toBeNull();
+      expect(row.metadata).toBeNull();
+
+      reapingTunnel.dispose?.();
+    });
+
+    it('should terminate a matching orphaned tunnel process from persisted metadata', () => {
+      const terminatePid = jest.fn();
+      const orphanTunnel = createTunnel(db, {
+        cleanupIntervalMs: 0,
+        clock: () => 2_000,
+        isPidAlive: () => true,
+        readProcessCommand: () => 'ngrok http 5600 --log stdout',
+        terminatePid,
+      });
+
+      insertServiceWithTunnelMetadata(db, {
+        id: 'orphaned-svc',
+        port: 5600,
+        provider: 'ngrok',
+        url: 'https://orphaned.ngrok.io',
+        metadata: JSON.stringify({
+          portDaddyTunnel: {
+            pid: 43210,
+            provider: 'ngrok',
+            startedAt: 1_000,
+            expiresAt: 5_000
+          }
+        })
+      });
+
+      const status = orphanTunnel.status('orphaned-svc');
+
+      expect(status.status).toBe('stopped');
+      expect(status.cleanupReason).toBe('orphan-process');
+      expect(terminatePid).toHaveBeenCalledWith(43210);
+
+      const row = db.prepare('SELECT tunnel_url, metadata FROM services WHERE id = ?').get('orphaned-svc');
+      expect(row.tunnel_url).toBeNull();
+      expect(row.metadata).toBeNull();
+
+      orphanTunnel.dispose?.();
     });
   });
 });
