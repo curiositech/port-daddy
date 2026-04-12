@@ -229,7 +229,6 @@ export function createCostTracker(db: Database) {
     );
     CREATE INDEX IF NOT EXISTS idx_ce_ts      ON cost_events(ts);
     CREATE INDEX IF NOT EXISTS idx_ce_project ON cost_events(project_name, ts);
-    CREATE INDEX IF NOT EXISTS idx_ce_project_dir ON cost_events(project_dir, ts);
     CREATE INDEX IF NOT EXISTS idx_ce_backend ON cost_events(backend, ts);
   `);
 
@@ -237,11 +236,9 @@ export function createCostTracker(db: Database) {
     (db.prepare('PRAGMA table_info(cost_events)').all() as Array<{ name: string }>).map((column) => column.name)
   );
   if (!existingColumns.has('project_dir')) {
-    db.exec(`
-      ALTER TABLE cost_events ADD COLUMN project_dir TEXT;
-      CREATE INDEX IF NOT EXISTS idx_ce_project_dir ON cost_events(project_dir, ts);
-    `);
+    db.exec('ALTER TABLE cost_events ADD COLUMN project_dir TEXT;');
   }
+  db.exec('CREATE INDEX IF NOT EXISTS idx_ce_project_dir ON cost_events(project_dir, ts);');
 
   const insertStmt = db.prepare(`
     INSERT INTO cost_events
