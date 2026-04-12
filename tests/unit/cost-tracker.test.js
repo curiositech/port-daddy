@@ -100,6 +100,46 @@ describe('CostTracker', () => {
     expect(backendSet.has('ollama')).toBe(true);
   });
 
+  test('migrates a legacy cost_events table that predates project_dir', () => {
+    const legacyDb = createTestDb();
+    legacyDb.exec(`
+      DROP TABLE IF EXISTS cost_events;
+      CREATE TABLE cost_events (
+        id            TEXT    PRIMARY KEY,
+        ts            INTEGER NOT NULL,
+        backend       TEXT    NOT NULL,
+        model         TEXT    NOT NULL,
+        project_name  TEXT,
+        identity      TEXT,
+        spawn_id      TEXT,
+        input_tokens  INTEGER,
+        output_tokens INTEGER,
+        cost_usd      REAL    NOT NULL DEFAULT 0,
+        is_estimate   INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE INDEX idx_ce_ts ON cost_events(ts);
+      CREATE INDEX idx_ce_project ON cost_events(project_name, ts);
+      CREATE INDEX idx_ce_backend ON cost_events(backend, ts);
+    `);
+
+    const migrated = createCostTracker(legacyDb);
+    const event = migrated.record({
+      backend: 'claude-cli',
+      model: 'claude-cli',
+      projectName: 'legacy-project',
+      projectDir: '/tmp/legacy-project',
+    });
+
+    expect(event).not.toBeNull();
+    expect(event?.projectDir).toBe('/tmp/legacy-project');
+    expect(migrated.summary({ projectDir: '/tmp/legacy-project' })).toHaveLength(1);
+    expect(
+      legacyDb.prepare('PRAGMA table_info(cost_events)').all().some((column) => column.name === 'project_dir')
+    ).toBe(true);
+
+    legacyDb.close();
+  });
+
   // ── total ─────────────────────────────────────────────────────────────────
 
   test('total returns zero when no events', () => {
