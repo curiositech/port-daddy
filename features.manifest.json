@@ -443,7 +443,8 @@
         "POST /orchestrator/down",
         "GET /orchestrator/status",
         "GET /orchestrator/rules",
-        "POST /orchestrator/rules"
+        "POST /orchestrator/rules",
+        "DELETE /orchestrator/rules/:param"
       ],
       "completions": [
         "up",
