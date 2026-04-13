@@ -176,7 +176,7 @@ export async function handleDone(
   });
 
   if (!data?.success) {
-    ui.error((data?.error as string) || 'Failed to end session');
+    ui.error(data?.error || 'Failed to end session');
     process.exit(1);
   }
 

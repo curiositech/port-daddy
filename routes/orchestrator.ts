@@ -84,4 +84,26 @@ export const orchestratorPlugin: FastifyPluginAsync<{ deps: OrchestratorRouteDep
       reply.code(500); return { error: 'internal server error' };
     }
   });
+
+  fastify.delete('/orchestrator/rules/:id', async (request, reply) => {
+    try {
+      const { id } = request.params as { id?: string };
+      const numericId = Number.parseInt(id ?? '', 10);
+      if (!Number.isInteger(numericId) || numericId <= 0) {
+        reply.code(400);
+        return { error: 'id must be a positive integer' };
+      }
+
+      const result = orchestrator.removeRule(numericId);
+      if (!result.success) {
+        reply.code(404);
+        return { error: 'rule not found' };
+      }
+
+      return result;
+    } catch (error) {
+      metrics.errors++;
+      reply.code(500); return { error: 'internal server error' };
+    }
+  });
 };

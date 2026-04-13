@@ -103,6 +103,9 @@ describe('getStatus()', () => {
     expect(status.strictMode).toBe(false);
     expect(status.rulesCount).toBe(6);
     expect(Array.isArray(status.rules)).toBe(true);
+    expect(Array.isArray(status.ruleDetails)).toBe(true);
+    expect(status.summary).toBeDefined();
+    expect(Array.isArray(status.degraded)).toBe(true);
     expect(typeof status.violationsCount).toBe('number');
     expect(typeof status.uptimeMs).toBe('number');
     expect(typeof status.startedAt).toBe('number');
@@ -122,6 +125,39 @@ describe('getStatus()', () => {
     arbiter.stop();
   });
 
+  test('reports machine-readable rule coverage and degraded reasons', () => {
+    const arbiter = createArbiter(buildDeps());
+    const status = arbiter.getStatus();
+
+    expect(status.summary.mode).toBe('observe_only');
+    expect(status.summary.criticalAction).toBe('log_only');
+    expect(status.summary.stubbedRules).toBeGreaterThanOrEqual(1);
+    expect(status.degraded).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'strict_mode_disabled' }),
+      expect.objectContaining({ code: 'escrow_rule_stubbed' }),
+    ]));
+
+    const escrowRule = status.ruleDetails.find((rule) => rule.name === 'ESCROW_POSITIVE');
+    expect(escrowRule).toEqual(expect.objectContaining({
+      coverage: 'stubbed',
+      engine: 'stub',
+      degradedReason: expect.any(String),
+    }));
+
+    const capRule = status.ruleDetails.find((rule) => rule.name === 'CAP_ESCALATION');
+    if (status.enforcerLoaded) {
+      expect(capRule.coverage).toBe('enforced');
+      expect(status.degraded.find((reason) => reason.code === 'ffi_enforcer_unavailable')).toBeUndefined();
+    } else {
+      expect(capRule.coverage).toBe('degraded');
+      expect(status.degraded).toEqual(expect.arrayContaining([
+        expect.objectContaining({ code: 'ffi_enforcer_unavailable' }),
+      ]));
+    }
+
+    arbiter.stop();
+  });
+
   test('strictMode reflects config', () => {
     const strict = createArbiter(buildDeps(), { strictMode: true });
     expect(strict.getStatus().strictMode).toBe(true);
@@ -130,6 +166,20 @@ describe('getStatus()', () => {
     const lenient = createArbiter(buildDeps(), { strictMode: false });
     expect(lenient.getStatus().strictMode).toBe(false);
     lenient.stop();
+  });
+
+  test('strict mode flips enforcement mode without removing known stub coverage gaps', () => {
+    const arbiter = createArbiter(buildDeps(), { strictMode: true });
+    const status = arbiter.getStatus();
+
+    expect(status.summary.mode).toBe('strict_enforcement');
+    expect(status.summary.criticalAction).toBe('man_overboard');
+    expect(status.degraded.find((reason) => reason.code === 'strict_mode_disabled')).toBeUndefined();
+    expect(status.degraded).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'escrow_rule_stubbed' }),
+    ]));
+
+    arbiter.stop();
   });
 
   test('uptimeMs increases over time', async () => {

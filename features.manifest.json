@@ -146,6 +146,9 @@
         "poll",
         "subscribe",
         "listChannels",
+        "discoverChannels",
+        "resolveChannel",
+        "ensureChannel",
         "clearChannel"
       ],
       "routes": [
@@ -155,6 +158,9 @@
         "DELETE /msg/:param",
         "GET /msg/:param/poll",
         "GET /msg/:param/subscribe",
+        "GET /channels/discover",
+        "GET /channels/resolve/:param",
+        "POST /channels/ensure",
         "GET /channels"
       ],
       "completions": [
@@ -437,7 +443,8 @@
         "POST /orchestrator/down",
         "GET /orchestrator/status",
         "GET /orchestrator/rules",
-        "POST /orchestrator/rules"
+        "POST /orchestrator/rules",
+        "DELETE /orchestrator/rules/:param"
       ],
       "completions": [
         "up",

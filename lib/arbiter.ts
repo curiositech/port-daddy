@@ -60,7 +60,7 @@ export interface ArbiterDeps {
 
 // ─── Rules ──────────────────────────────────────────────────────────────────
 
-const RULES = [
+export const ARBITER_RULE_NAMES = [
   'PID_SQUATTING',
   'CAP_ESCALATION',
   'NOTE_MONOTONICITY',
@@ -69,7 +69,105 @@ const RULES = [
   'HEARTBEAT_FRESHNESS',
 ] as const;
 
-type RuleName = typeof RULES[number];
+export type RuleName = typeof ARBITER_RULE_NAMES[number];
+
+type RuleCoverage = 'enforced' | 'degraded' | 'stubbed';
+type RuleEngine = 'runtime' | 'ffi' | 'stub';
+type RuleCategory = 'identity' | 'capability' | 'session' | 'economics' | 'liveness';
+type StrictModeAction = 'log_only' | 'man_overboard';
+
+interface RuleDefinition {
+  description: string;
+  category: RuleCategory;
+  defaultSeverity: Violation['severity'];
+  engine: RuleEngine;
+  requiresEnforcer: boolean;
+}
+
+export interface ArbiterRuleStatus {
+  name: RuleName;
+  description: string;
+  category: RuleCategory;
+  defaultSeverity: Violation['severity'];
+  engine: RuleEngine;
+  requiresEnforcer: boolean;
+  coverage: RuleCoverage;
+  strictModeAction: StrictModeAction;
+  degradedReason: string | null;
+}
+
+export interface ArbiterDegradedReason {
+  code: string;
+  component: 'arbiter';
+  affectedRules: RuleName[];
+  message: string;
+}
+
+export interface ArbiterStatus {
+  active: boolean;
+  strictMode: boolean;
+  enforcerLoaded: boolean;
+  rulesCount: number;
+  rules: RuleName[];
+  ruleDetails: ArbiterRuleStatus[];
+  summary: {
+    state: 'nominal' | 'degraded';
+    mode: 'observe_only' | 'strict_enforcement';
+    criticalAction: StrictModeAction;
+    enforcedRules: number;
+    degradedRules: number;
+    stubbedRules: number;
+  };
+  degraded: ArbiterDegradedReason[];
+  violationsCount: number;
+  uptimeMs: number;
+  startedAt: number;
+}
+
+const RULE_DEFINITIONS: Record<RuleName, RuleDefinition> = {
+  PID_SQUATTING: {
+    description: 'Verify that service claims come from the registered agent PID.',
+    category: 'identity',
+    defaultSeverity: 'critical',
+    engine: 'runtime',
+    requiresEnforcer: false,
+  },
+  CAP_ESCALATION: {
+    description: 'Verify capability-scoped locks against the agent capability set.',
+    category: 'capability',
+    defaultSeverity: 'critical',
+    engine: 'ffi',
+    requiresEnforcer: true,
+  },
+  NOTE_MONOTONICITY: {
+    description: 'Ensure active-session note count never regresses.',
+    category: 'session',
+    defaultSeverity: 'critical',
+    engine: 'runtime',
+    requiresEnforcer: false,
+  },
+  ESCROW_POSITIVE: {
+    description: 'Reserve escrow enforcement for future Float Plan economics.',
+    category: 'economics',
+    defaultSeverity: 'violation',
+    engine: 'stub',
+    requiresEnforcer: false,
+  },
+  LOCK_OWNER_VALID: {
+    description: 'Require lock holders to map to registered live agents.',
+    category: 'session',
+    defaultSeverity: 'violation',
+    engine: 'runtime',
+    requiresEnforcer: false,
+  },
+  HEARTBEAT_FRESHNESS: {
+    description: 'Flag stale heartbeats before agents fully die.',
+    category: 'liveness',
+    defaultSeverity: 'warning',
+    engine: 'runtime',
+    requiresEnforcer: false,
+  },
+};
 
 // ─── Arbiter Factory ────────────────────────────────────────────────────────
 
@@ -362,6 +460,65 @@ export function createArbiter(
     return violations[violations.length - 1];
   }
 
+  function describeRule(ruleName: RuleName): ArbiterRuleStatus {
+    const definition = RULE_DEFINITIONS[ruleName];
+    let coverage: RuleCoverage = 'enforced';
+    let degradedReason: string | null = null;
+
+    if (ruleName === 'CAP_ESCALATION' && !enforcer) {
+      coverage = 'degraded';
+      degradedReason = 'Rust FFI enforcer unavailable; capability subset checks are advisory only.';
+    } else if (ruleName === 'ESCROW_POSITIVE') {
+      coverage = 'stubbed';
+      degradedReason = 'Float Plans are not active yet, so escrow positivity is not fully enforced.';
+    }
+
+    return {
+      name: ruleName,
+      ...definition,
+      coverage,
+      strictModeAction: definition.defaultSeverity === 'critical' && config.strictMode
+        ? 'man_overboard'
+        : 'log_only',
+      degradedReason,
+    };
+  }
+
+  function getDegradedReasons(ruleDetails: ArbiterRuleStatus[]): ArbiterDegradedReason[] {
+    const degraded: ArbiterDegradedReason[] = [];
+
+    if (!config.strictMode) {
+      degraded.push({
+        code: 'strict_mode_disabled',
+        component: 'arbiter',
+        affectedRules: ruleDetails
+          .filter((rule) => rule.defaultSeverity === 'critical')
+          .map((rule) => rule.name),
+        message: 'Critical arbiter violations are logged but do not trigger man-overboard while strictMode is false.',
+      });
+    }
+
+    if (ruleDetails.some((rule) => rule.name === 'CAP_ESCALATION' && rule.coverage === 'degraded')) {
+      degraded.push({
+        code: 'ffi_enforcer_unavailable',
+        component: 'arbiter',
+        affectedRules: ['CAP_ESCALATION'],
+        message: 'Capability escalation checks cannot validate capability subsets without the Rust enforcer.',
+      });
+    }
+
+    if (ruleDetails.some((rule) => rule.name === 'ESCROW_POSITIVE' && rule.coverage === 'stubbed')) {
+      degraded.push({
+        code: 'escrow_rule_stubbed',
+        component: 'arbiter',
+        affectedRules: ['ESCROW_POSITIVE'],
+        message: 'Escrow positivity remains a placeholder until Float Plans / escrow-backed sessions exist.',
+      });
+    }
+
+    return degraded;
+  }
+
   // ─── Public API ─────────────────────────────────────────────────────────
 
   return {
@@ -372,16 +529,31 @@ export function createArbiter(
     getViolations: (limit = 50, offset = 0) => violations.slice(offset, offset + limit),
 
     /** Status summary */
-    getStatus: () => ({
-      active: true,
-      strictMode: config.strictMode,
-      enforcerLoaded: enforcer !== null,
-      rulesCount: RULES.length,
-      rules: [...RULES],
-      violationsCount: violations.length,
-      uptimeMs: Date.now() - startedAt,
-      startedAt,
-    }),
+    getStatus: (): ArbiterStatus => {
+      const ruleDetails = ARBITER_RULE_NAMES.map(describeRule);
+      const degraded = getDegradedReasons(ruleDetails);
+
+      return {
+        active: true,
+        strictMode: config.strictMode,
+        enforcerLoaded: enforcer !== null,
+        rulesCount: ARBITER_RULE_NAMES.length,
+        rules: [...ARBITER_RULE_NAMES],
+        ruleDetails,
+        summary: {
+          state: degraded.length > 0 ? 'degraded' : 'nominal',
+          mode: config.strictMode ? 'strict_enforcement' : 'observe_only',
+          criticalAction: config.strictMode ? 'man_overboard' : 'log_only',
+          enforcedRules: ruleDetails.filter((rule) => rule.coverage === 'enforced').length,
+          degradedRules: ruleDetails.filter((rule) => rule.coverage === 'degraded').length,
+          stubbedRules: ruleDetails.filter((rule) => rule.coverage === 'stubbed').length,
+        },
+        degraded,
+        violationsCount: violations.length,
+        uptimeMs: Date.now() - startedAt,
+        startedAt,
+      };
+    },
 
     /** Inject a test violation (for demos) */
     injectTestViolation,

@@ -6,6 +6,15 @@
 
 import type Database from 'better-sqlite3';
 import { matchesPattern } from './identity.js';
+import {
+  createChannelRegistry,
+  defaultResolveChannelContext,
+  type ChannelContext,
+  type CreateChannelRegistryOptions,
+  type DiscoverChannelsOptions,
+  type EnsureChannelOptions,
+  type ResolveChannelOptions,
+} from './channel-registry.js';
 import { parseExpires, tryParseJson, patternToSql } from './utils.js';
 
 // =============================================================================
@@ -37,6 +46,10 @@ interface PublishOptions {
   contentType?: 'text' | 'json' | 'binary';
 }
 
+interface CreateMessagingOptions {
+  resolveChannelContext?: CreateChannelRegistryOptions['resolveContext'];
+}
+
 interface GetMessagesOptions {
   limit?: number;
   after?: number | null;
@@ -56,7 +69,7 @@ type SubscriberCallback = (msg: MessagePayload) => void;
 /**
  * Initialize the messaging module with a database connection
  */
-export function createMessaging(db: Database.Database) {
+export function createMessaging(db: Database.Database, options: CreateMessagingOptions = {}) {
   // Ensure table and columns exist
   db.exec(`
     CREATE TABLE IF NOT EXISTS messages (
@@ -125,6 +138,9 @@ export function createMessaging(db: Database.Database) {
 
   // In-memory subscribers (for SSE)
   const subscribers = new Map<string, Set<SubscriberCallback>>();
+  const channelRegistry = createChannelRegistry(db, {
+    resolveContext: options.resolveChannelContext || defaultResolveChannelContext,
+  });
 
   /**
    * Publish a message to a channel
@@ -403,6 +419,9 @@ export function createMessaging(db: Database.Database) {
     subscribe,
     clear,
     listChannels,
+    discoverChannels: (opts: DiscoverChannelsOptions = {}) => channelRegistry.discoverChannels(opts),
+    ensureChannel: (name: string, opts: EnsureChannelOptions = {}) => channelRegistry.ensureChannel(name, opts),
+    resolveChannel: (name: string, opts: ResolveChannelOptions = {}) => channelRegistry.resolveChannel(name, opts),
     cleanup,
     subscriberCount,
     destroy

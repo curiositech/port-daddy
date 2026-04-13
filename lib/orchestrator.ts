@@ -487,6 +487,15 @@ export function createReactiveOrchestrator(db: any, messaging: any, spawner: any
     return (stmts.list.all() as any[]).map(r => ({ ...r, channelPattern: r.channel_pattern, payload: JSON.parse(r.payload), enabled: Boolean(r.enabled) }));
   }
 
+  function removeRule(id: number) {
+    const result = stmts.delete.run(id);
+    return {
+      success: result.changes > 0,
+      deleted: result.changes > 0,
+      id,
+    };
+  }
+
   const unsubscribe = messaging.subscribe('*', (msg: any) => {
     if (closed) return;
     for (const rule of listRules().filter(r => r.enabled)) {
@@ -577,5 +586,5 @@ export function createReactiveOrchestrator(db: any, messaging: any, spawner: any
     execChildren.clear();
   }
 
-  return { addRule, listRules, on: events.on.bind(events), shutdown };
+  return { addRule, listRules, removeRule, on: events.on.bind(events), shutdown };
 }

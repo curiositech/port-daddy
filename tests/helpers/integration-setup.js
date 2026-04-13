@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import http from 'node:http';
 import { spawnSync } from 'node:child_process';
+import { removeAllContextFiles, writeCurrentContext } from '../../cli/utils/current-context.js';
 
 const STATE_FILE = join(tmpdir(), 'port-daddy-test-state.json');
 const TSX_PATH = join(import.meta.dirname, '../../node_modules/.bin/tsx');
@@ -232,4 +233,20 @@ export function runCliViaIpc(args, options = {}) {
     status: result.status,
     success: result.status === 0
   };
+}
+
+/**
+ * Write CLI current-context state into the isolated integration-test context dir.
+ */
+export function writeTestCurrentContext(context) {
+  const { contextDir } = getDaemonState();
+  return writeCurrentContext(context, contextDir);
+}
+
+/**
+ * Clear all isolated current-context files created during integration tests.
+ */
+export function clearTestCurrentContext() {
+  const { contextDir } = getDaemonState();
+  removeAllContextFiles(contextDir);
 }

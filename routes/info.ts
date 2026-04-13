@@ -6,6 +6,7 @@
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
+import type { Arbiter } from '../lib/arbiter.js';
 import type { createFleetDaemon } from '../lib/fleet-daemon.js';
 import { formatUptime } from '../shared/port-utils.js';
 
@@ -58,6 +59,39 @@ interface InfoRouteDeps {
   cleanupStale: () => unknown[];
   getSystemPorts: () => SystemPort[];
   fleetDaemon?: ReturnType<typeof createFleetDaemon>;
+  arbiter?: Arbiter;
+}
+
+function buildRuntimeSummary(deps: InfoRouteDeps) {
+  const arbiterStatus = deps.arbiter?.getStatus();
+  const fleetStatus = deps.fleetDaemon?.getStatus();
+  const degradedReasons = arbiterStatus?.degraded ?? [];
+
+  return {
+    state: degradedReasons.length > 0 ? 'degraded' : 'nominal',
+    degraded: degradedReasons.length > 0,
+    reasons: degradedReasons,
+    arbiter: arbiterStatus ? {
+      state: arbiterStatus.summary.state,
+      mode: arbiterStatus.summary.mode,
+      criticalAction: arbiterStatus.summary.criticalAction,
+      strictMode: arbiterStatus.strictMode,
+      enforcerLoaded: arbiterStatus.enforcerLoaded,
+      rules: {
+        total: arbiterStatus.rulesCount,
+        enforced: arbiterStatus.summary.enforcedRules,
+        degraded: arbiterStatus.summary.degradedRules,
+        stubbed: arbiterStatus.summary.stubbedRules,
+      },
+    } : undefined,
+    fleet: fleetStatus ? {
+      running: fleetStatus.running,
+      projects: fleetStatus.fleets.length,
+      skippedProjects: fleetStatus.skipped.length,
+      totalAgents: fleetStatus.totalAgents,
+      totalWatchers: fleetStatus.totalWatchers,
+    } : undefined,
+  };
 }
 
 // =============================================================================
@@ -109,7 +143,9 @@ export const infoPlugin: FastifyPluginAsync<{ deps: InfoRouteDeps }> = async (fa
         projects: fleet.fleets.length,
         agents: fleet.totalAgents,
         watchers: fleet.totalWatchers,
+        skippedProjects: fleet.skipped.length,
       } : undefined,
+      runtime: buildRuntimeSummary(deps),
     };
   });
 
@@ -140,7 +176,9 @@ export const infoPlugin: FastifyPluginAsync<{ deps: InfoRouteDeps }> = async (fa
         })),
         totalAgents: fleet.totalAgents,
         totalWatchers: fleet.totalWatchers,
+        skippedProjects: fleet.skipped,
       } : undefined,
+      runtime: buildRuntimeSummary(deps),
     };
   });
 

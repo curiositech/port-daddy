@@ -187,10 +187,74 @@ interface ChannelEntry {
   lastMessage: number;
 }
 
+interface DeclaredChannelEntry {
+  logicalName: string;
+  physicalName: string;
+  description: string | null;
+  aliases: string[];
+  scope: 'branch' | 'worktree' | 'repo' | 'global';
+  projectDir: string | null;
+  repoAnchor: string | null;
+  repoKey: string | null;
+  worktreeId: string | null;
+  branch: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: number;
+  updatedAt: number;
+  activeCount: number;
+  lastMessage: number | null;
+  active: boolean;
+  source: 'declared' | 'observed';
+}
+
+interface ChannelContextResponse {
+  projectDir: string | null;
+  repoAnchor: string | null;
+  repoKey: string | null;
+  worktreeId: string | null;
+  branch: string | null;
+  inGit: boolean;
+}
+
 /** Matches the actual return shape of messaging.listChannels() */
 interface ListChannelsResponse {
   success: boolean;
   channels: ChannelEntry[];
+}
+
+interface DiscoverChannelsOptions {
+  projectDir?: string;
+  query?: string;
+  includeObserved?: boolean;
+}
+
+interface DiscoverChannelsResponse {
+  success: boolean;
+  context: ChannelContextResponse;
+  channels: DeclaredChannelEntry[];
+}
+
+interface EnsureChannelOptions {
+  aliases?: string[];
+  description?: string;
+  scope?: 'branch' | 'worktree' | 'repo' | 'global';
+  projectDir?: string;
+  metadata?: Record<string, unknown>;
+}
+
+interface EnsureChannelResponse {
+  success: boolean;
+  created: boolean;
+  channel: DeclaredChannelEntry;
+}
+
+interface ResolveChannelOptions {
+  projectDir?: string;
+}
+
+interface ResolveChannelResponse {
+  success: boolean;
+  channel: DeclaredChannelEntry;
 }
 
 /** Matches the actual return shape of messaging.clear() */
@@ -889,6 +953,7 @@ interface NoteResponse {
   success: boolean;
   noteId: number;
   sessionId: string;
+  error?: string;
 }
 
 /** Matches the actual GET /notes or GET /sessions/:id/notes response */
@@ -1123,7 +1188,7 @@ class PortDaddy {
   }
 
   private _throwIpcParityError(
-    result: Record<string, unknown> | null | undefined,
+    result: { error?: unknown } | null | undefined,
     fallbackMessage: string,
     status: number,
   ): never {
@@ -1352,6 +1417,35 @@ class PortDaddy {
   }
 
   /**
+   * Discover declared channels for the current repo/worktree context.
+   */
+  async discoverChannels(options: DiscoverChannelsOptions = {}): Promise<DiscoverChannelsResponse> {
+    const params = new URLSearchParams();
+    if (options.projectDir) params.set('projectDir', options.projectDir);
+    if (options.query) params.set('q', options.query);
+    if (options.includeObserved) params.set('observed', 'true');
+    const qs = params.toString();
+    return this._request('GET', `/channels/discover${qs ? '?' + qs : ''}`) as Promise<DiscoverChannelsResponse>;
+  }
+
+  /**
+   * Resolve a logical channel name to its git-sensitive physical channel.
+   */
+  async resolveChannel(name: string, options: ResolveChannelOptions = {}): Promise<ResolveChannelResponse> {
+    const params = new URLSearchParams();
+    if (options.projectDir) params.set('projectDir', options.projectDir);
+    const qs = params.toString();
+    return this._request('GET', `/channels/resolve/${encodeURIComponent(name)}${qs ? '?' + qs : ''}`) as Promise<ResolveChannelResponse>;
+  }
+
+  /**
+   * Declare or update a canonical channel for the current repo/worktree context.
+   */
+  async ensureChannel(name: string, options: EnsureChannelOptions = {}): Promise<EnsureChannelResponse> {
+    return this._request('POST', '/channels/ensure', { name, ...options }) as Promise<EnsureChannelResponse>;
+  }
+
+  /**
    * Long-poll for the next message on a channel.
    */
   async poll(channel: string, options: PollOptions = {}): Promise<PollResponse> {
@@ -1541,7 +1635,7 @@ class PortDaddy {
     if (ipcResult) {
       if (ipcResult.success === false) {
         const status = ipcResult.code === 'INVALID_TTL' ? 400 : 409;
-        this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to acquire lock', status);
+        this._throwIpcParityError(ipcResult, 'Failed to acquire lock', status);
       }
       return ipcResult;
     }
@@ -1567,7 +1661,7 @@ class PortDaddy {
     );
     if (ipcResult) {
       if (ipcResult.success === false) {
-        this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to release lock', 403);
+        this._throwIpcParityError(ipcResult, 'Failed to release lock', 403);
       }
       return ipcResult;
     }
@@ -1589,7 +1683,7 @@ class PortDaddy {
     );
     if (ipcResult) {
       if (ipcResult.success === false) {
-        this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to check lock', 400);
+        this._throwIpcParityError(ipcResult, 'Failed to check lock', 400);
       }
       return ipcResult;
     }
@@ -1611,7 +1705,7 @@ class PortDaddy {
     );
     if (ipcResult) {
       if (ipcResult.success === false) {
-        this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to extend lock', 400);
+        this._throwIpcParityError(ipcResult, 'Failed to extend lock', 400);
       }
       return ipcResult;
     }
@@ -1633,7 +1727,7 @@ class PortDaddy {
     );
     if (ipcResult) {
       if (ipcResult.success === false) {
-        this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to list locks', 400);
+        this._throwIpcParityError(ipcResult, 'Failed to list locks', 400);
       }
       return ipcResult;
     }
@@ -2047,7 +2141,7 @@ class PortDaddy {
     if (ipcResult) {
       if (ipcResult.success === false) {
         const status = ipcResult.code === 'FILE_CONFLICT' ? 409 : 400;
-        this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to start session', status);
+        this._throwIpcParityError(ipcResult, 'Failed to start session', status);
       }
       return ipcResult;
     }
@@ -2078,7 +2172,7 @@ class PortDaddy {
       );
       if (ipcResult) {
         if (ipcResult.success === false) {
-          this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to end session', 404);
+          this._throwIpcParityError(ipcResult, 'Failed to end session', 404);
         }
         return ipcResult;
       }
@@ -2121,7 +2215,7 @@ class PortDaddy {
     );
     if (ipcResult) {
       if (ipcResult.success === false) {
-        this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to remove session', 404);
+        this._throwIpcParityError(ipcResult, 'Failed to remove session', 404);
       }
       return ipcResult;
     }
@@ -2209,7 +2303,7 @@ class PortDaddy {
     );
     if (ipcResult) {
       if (ipcResult.success === false) {
-        this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to list sessions', 400);
+        this._throwIpcParityError(ipcResult, 'Failed to list sessions', 400);
       }
       return ipcResult;
     }
@@ -3045,7 +3139,7 @@ class PortDaddy {
     );
     if (ipcResult) {
       if (ipcResult.success === false) {
-        this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to write tuple', 400);
+        this._throwIpcParityError(ipcResult, 'Failed to write tuple', 400);
       }
       return ipcResult;
     }
@@ -3080,7 +3174,7 @@ class PortDaddy {
     );
     if (ipcResult) {
       if (ipcResult.success === false) {
-        this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to read tuples', 400);
+        this._throwIpcParityError(ipcResult, 'Failed to read tuples', 400);
       }
       return ipcResult;
     }
@@ -3113,7 +3207,7 @@ class PortDaddy {
     );
     if (ipcResult) {
       if (ipcResult.success === false) {
-        this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to take tuples', 400);
+        this._throwIpcParityError(ipcResult, 'Failed to take tuples', 400);
       }
       return ipcResult;
     }
@@ -3139,7 +3233,7 @@ class PortDaddy {
     );
     if (ipcResult) {
       if (ipcResult.success === false) {
-        this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to scan tuples', 400);
+        this._throwIpcParityError(ipcResult, 'Failed to scan tuples', 400);
       }
       return ipcResult;
     }
@@ -3164,7 +3258,7 @@ class PortDaddy {
     );
     if (ipcResult) {
       if (ipcResult.success === false) {
-        this._throwIpcParityError(ipcResult as Record<string, unknown>, 'Failed to count tuples', 400);
+        this._throwIpcParityError(ipcResult, 'Failed to count tuples', 400);
       }
       return ipcResult;
     }
@@ -3308,6 +3402,7 @@ interface DoneSugarResponse {
   agentUnregistered: boolean;
   notesCount: number;
   finalNote: boolean;
+  error?: string;
 }
 
 interface WhoamiSugarResponse {

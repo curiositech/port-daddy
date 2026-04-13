@@ -694,18 +694,38 @@ Examples:
 Commands:
   pub <channel> <message>  Publish a message to a channel
     --sender <id>          Sender identifier
+    --dir <path>           Resolve declared logical channels for this worktree
+    --raw-channel          Bypass logical-channel resolution and use the literal string
 
   sub <channel>            Subscribe to a channel (real-time SSE stream)
+    --dir <path>           Resolve declared logical channels for this worktree
+    --raw-channel          Bypass logical-channel resolution and use the literal string
 
   wait <id> [ids...]       Wait for service(s) to become healthy
     --timeout <ms>         Wait timeout (default: 60000)
 
   channels                 List active pub/sub channels
+  channels discover [q]    Discover declared channels for this repo/worktree
+    --dir <path>           Resolve git/worktree context from this project dir
+    --observed             Include observed undeclared raw channels
+  channels ensure <name>   Declare/update a canonical git-sensitive channel
+    --scope <scope>        branch | worktree | repo | global (default: branch)
+    --aliases a,b          Alternate names that resolve to this channel
+  channels describe <name> Resolve a logical channel to its physical name
   channels clear <name>    Clear messages from a channel
+    --dir <path>           Resolve declared logical channels for this worktree
+    --raw-channel          Bypass logical-channel resolution and use the literal string
+
+Note:
+  Declared logical channels auto-resolve in the current repo/worktree for pub, sub, and channels clear.
+  Use --raw-channel only when you intentionally want the literal channel string.
 
 Examples:
   pd pub build:done '{"status":"success"}'
   pd sub build:done
+  pd channels discover tauri
+  pd channels ensure tauri:desktop --aliases desktop:probe --scope branch
+  pd channels describe tauri:desktop
   pd wait myapp:api myapp:frontend
   pd channels
   pd channels clear build:done`,

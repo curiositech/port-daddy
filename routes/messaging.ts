@@ -28,6 +28,15 @@ interface MessagingRouteDeps {
     poll(channel: string, afterId: number): Record<string, unknown>;
     subscribe(channel: string, callback: (message: unknown) => void): (() => void) | null;
     clear(channel: string): unknown;
+    discoverChannels(opts: { projectDir?: string; query?: string; includeObserved?: boolean }): Record<string, unknown>;
+    ensureChannel(name: string, opts: {
+      aliases?: string[];
+      description?: string | null;
+      scope?: string | null;
+      projectDir?: string | null;
+      metadata?: Record<string, unknown> | null;
+    }): Record<string, unknown>;
+    resolveChannel(name: string, opts: { projectDir?: string | null }): Record<string, unknown>;
   };
 }
 
@@ -44,6 +53,24 @@ interface MessagingRouteDeps {
 // =============================================================================
 export const messagingPlugin: FastifyPluginAsync<{ deps: MessagingRouteDeps }> = async (fastify, opts) => {
   const { logger, metrics, messaging } = opts.deps;
+
+  function parseTruthyFlag(value: unknown): boolean {
+    if (typeof value !== 'string') return false;
+    return ['1', 'true', 'yes', 'on'].includes(value.toLowerCase());
+  }
+
+  function parseAliases(value: unknown): string[] {
+    if (Array.isArray(value)) {
+      return value.filter((item): item is string => typeof item === 'string');
+    }
+    if (typeof value === 'string') {
+      return value
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+    return [];
+  }
 
   // GET /msg - List all channels
   fastify.get('/msg', async (_request: FastifyRequest, _reply: FastifyReply) => {
@@ -233,6 +260,91 @@ export const messagingPlugin: FastifyPluginAsync<{ deps: MessagingRouteDeps }> =
   });
 
   // GET /channels - List channels (alias)
+  fastify.get('/channels/discover', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const query = request.query as { projectDir?: string; q?: string; observed?: string };
+      return messaging.discoverChannels({
+        projectDir: typeof query.projectDir === 'string' ? query.projectDir : undefined,
+        query: typeof query.q === 'string' ? query.q : undefined,
+        includeObserved: parseTruthyFlag(query.observed),
+      });
+    } catch (error) {
+      metrics.errors++;
+      reply.code(500);
+      return { error: 'internal server error' };
+    }
+  });
+
+  fastify.get('/channels/resolve/:name', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const name = (request.params as { name?: string }).name;
+      const channelValidation = validateChannel(name);
+      if (!channelValidation.valid) {
+        reply.code(400);
+        return { error: channelValidation.error };
+      }
+
+      const query = request.query as { projectDir?: string };
+      const result = messaging.resolveChannel(name as string, {
+        projectDir: typeof query.projectDir === 'string' ? query.projectDir : undefined,
+      });
+
+      if (!result.success) {
+        reply.code(404);
+        return { error: result.error };
+      }
+
+      return result;
+    } catch (error) {
+      metrics.errors++;
+      reply.code(500);
+      return { error: 'internal server error' };
+    }
+  });
+
+  fastify.post('/channels/ensure', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const body = (request.body || {}) as {
+        name?: string;
+        description?: string | null;
+        aliases?: string[] | string;
+        scope?: string | null;
+        projectDir?: string | null;
+        metadata?: Record<string, unknown> | null;
+      };
+
+      const channelValidation = validateChannel(body.name);
+      if (!channelValidation.valid) {
+        reply.code(400);
+        return { error: channelValidation.error };
+      }
+
+      if (body.scope && !['branch', 'worktree', 'repo', 'global'].includes(body.scope)) {
+        reply.code(400);
+        return { error: 'scope must be one of: branch, worktree, repo, global' };
+      }
+
+      const result = messaging.ensureChannel(body.name as string, {
+        aliases: parseAliases(body.aliases),
+        description: typeof body.description === 'string' ? body.description : null,
+        scope: body.scope ?? undefined,
+        projectDir: typeof body.projectDir === 'string' ? body.projectDir : null,
+        metadata: body.metadata && typeof body.metadata === 'object' ? body.metadata : null,
+      });
+
+      if (!result.success) {
+        reply.code(400);
+        return { error: result.error };
+      }
+
+      return result;
+    } catch (error) {
+      metrics.errors++;
+      reply.code(500);
+      return { error: 'internal server error' };
+    }
+  });
+
   fastify.get('/channels', async (_request: FastifyRequest, reply: FastifyReply) => {
     try {
       return messaging.listChannels();

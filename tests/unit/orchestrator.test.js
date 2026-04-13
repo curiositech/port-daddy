@@ -842,21 +842,26 @@ describe('createReactiveOrchestrator()', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // Rule Deletion (via prepared statement)
+  // Rule Deletion
   // ---------------------------------------------------------------------------
-  describe('rule deletion (direct DB)', () => {
-    it('should delete a rule by id via the stmts.delete prepared statement', () => {
+  describe('rule deletion', () => {
+    it('should delete a rule by id through the public api', () => {
       const reactor = createReactiveOrchestrator(db, mockMessaging, mockSpawner);
 
       const { id } = reactor.addRule({
         name: 'to-delete', channelPattern: '*', action: 'exec', payload: { cmd: 'echo bye' }, enabled: true
       });
 
-      // Delete directly through the DB since the module exposes the prepared statement internally
-      db.prepare('DELETE FROM orchestrator_rules WHERE id = ?').run(id);
+      const result = reactor.removeRule(id);
 
+      expect(result).toEqual({ success: true, deleted: true, id });
       const rules = reactor.listRules();
       expect(rules).toHaveLength(0);
+    });
+
+    it('should report when a rule id does not exist', () => {
+      const reactor = createReactiveOrchestrator(db, mockMessaging, mockSpawner);
+      expect(reactor.removeRule(9999)).toEqual({ success: false, deleted: false, id: 9999 });
     });
   });
 

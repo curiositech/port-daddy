@@ -3,7 +3,7 @@
  */
 
 import type { FastifyPluginAsync } from 'fastify';
-import type { Arbiter } from '../lib/arbiter.js';
+import { ARBITER_RULE_NAMES, type Arbiter } from '../lib/arbiter.js';
 
 
 // ==========================================================================
@@ -40,10 +40,7 @@ export const arbiterPlugin: FastifyPluginAsync<{ arbiter: Arbiter }> = async (fa
       reply.code(400); return {
         success: false,
         error: `Unknown invariant: ${name}`,
-        validNames: [
-          'PID_SQUATTING', 'CAP_ESCALATION', 'NOTE_MONOTONICITY',
-          'ESCROW_POSITIVE', 'LOCK_OWNER_VALID', 'HEARTBEAT_FRESHNESS',
-        ],
+        validNames: [...ARBITER_RULE_NAMES],
       };
     }
 
