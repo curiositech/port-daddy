@@ -7,10 +7,16 @@
  */
 
 import { join } from 'node:path';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { request, runCli, runCliViaIpc, getDaemonState } from '../helpers/integration-setup.js';
-import { writeCurrentContext } from '../../cli/utils/current-context.js';
+import {
+  clearTestCurrentContext,
+  getDaemonState,
+  request,
+  runCli,
+  runCliViaIpc,
+  writeTestCurrentContext,
+} from '../helpers/integration-setup.js';
 
 async function requestWithRetry(path, options = {}, attempts = 3) {
   let lastError;
@@ -28,6 +34,10 @@ async function requestWithRetry(path, options = {}, attempts = 3) {
 
 describe('CLI Integration Tests', () => {
   const repoRoot = join(import.meta.dirname, '../..');
+
+  afterEach(() => {
+    clearTestCurrentContext();
+  });
 
   test('ephemeral daemon is running', async () => {
     const state = getDaemonState();
@@ -268,13 +278,13 @@ describe('CLI Integration Tests', () => {
         const sessionId = begin.data.sessionId;
         expect(sessionId).toBeTruthy();
 
-        writeCurrentContext({
+        writeTestCurrentContext({
           agentId,
           sessionId,
           purpose: 'CLI stale-session recovery',
           identity: 'port-daddy',
           contextSlot: slot,
-        }, repoRoot);
+        });
 
         const unregister = await requestWithRetry(`/agents/${encodeURIComponent(agentId)}`, { method: 'DELETE' });
         expect(unregister.ok).toBe(true);
@@ -970,12 +980,12 @@ describe('CLI Integration Tests', () => {
       expect(beginResult.success).toBe(true);
       const beginData = JSON.parse(beginResult.stdout);
 
-      writeCurrentContext({
+      writeTestCurrentContext({
         agentId: beginData.agentId,
         sessionId: 'session-stale-context',
         purpose: 'Stale note fallback',
         contextSlot: `ppid-${process.pid}`,
-      }, repoRoot);
+      });
 
       const result = runCli(['note', '--content', 'Recovered from stale context', '--json']);
       expect(result.success).toBe(true);
@@ -985,6 +995,22 @@ describe('CLI Integration Tests', () => {
       expect(data.sessionId).toBe(beginData.sessionId);
 
       runCli(['done', '--agent', beginData.agentId]);
+    });
+
+    test('integration context writes stay in the isolated test context dir', () => {
+      const slot = `isolated-context-${Date.now()}`;
+      const repoSlotPath = join(repoRoot, '.portdaddy', 'contexts', `${slot}.json`);
+
+      writeTestCurrentContext({
+        agentId: `isolated-agent-${Date.now()}`,
+        sessionId: `isolated-session-${Date.now()}`,
+        purpose: 'Isolation regression',
+        contextSlot: slot,
+      });
+
+      const { contextDir } = getDaemonState();
+      expect(existsSync(join(contextDir, 'contexts', `${slot}.json`))).toBe(true);
+      expect(existsSync(repoSlotPath)).toBe(false);
     });
 
     test('pd whoami falls back to the stored session when the agent row is gone', async () => {
