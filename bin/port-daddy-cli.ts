@@ -694,8 +694,12 @@ Examples:
 Commands:
   pub <channel> <message>  Publish a message to a channel
     --sender <id>          Sender identifier
+    --dir <path>           Resolve declared logical channels for this worktree
+    --raw-channel          Bypass logical-channel resolution and use the literal string
 
   sub <channel>            Subscribe to a channel (real-time SSE stream)
+    --dir <path>           Resolve declared logical channels for this worktree
+    --raw-channel          Bypass logical-channel resolution and use the literal string
 
   wait <id> [ids...]       Wait for service(s) to become healthy
     --timeout <ms>         Wait timeout (default: 60000)
@@ -709,6 +713,12 @@ Commands:
     --aliases a,b          Alternate names that resolve to this channel
   channels describe <name> Resolve a logical channel to its physical name
   channels clear <name>    Clear messages from a channel
+    --dir <path>           Resolve declared logical channels for this worktree
+    --raw-channel          Bypass logical-channel resolution and use the literal string
+
+Note:
+  Declared logical channels auto-resolve in the current repo/worktree for pub, sub, and channels clear.
+  Use --raw-channel only when you intentionally want the literal channel string.
 
 Examples:
   pd pub build:done '{"status":"success"}'

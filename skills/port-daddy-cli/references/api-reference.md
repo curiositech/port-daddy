@@ -159,6 +159,8 @@ Resolve a logical or aliased channel name to the physical channel for the curren
 |-------|------|-------------|
 | `projectDir` | string | Project/worktree path used to derive git context |
 
+**CLI note:** `pd pub`, `pd sub`, and `pd channels clear` call this endpoint automatically for declared logical channels using the current repo/worktree context. Pass `--raw-channel` in the CLI to bypass resolution and use the literal channel string.
+
 ### POST /channels/ensure
 Declare or update a canonical channel.
 

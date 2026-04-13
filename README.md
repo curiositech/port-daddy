@@ -143,17 +143,17 @@ pd channels ensure swarm:general --scope branch --aliases general:swarm
 # Discover what already exists in the current worktree
 pd channels discover swarm
 
-# Subscribe to the swarm signal
-pd sub br:abcd1234:deadbeef:feature-x-123abc:swarm:general
+# Subscribe using the logical name — the CLI resolves it to the current worktree's physical channel
+pd sub swarm:general
 
 # Publish a "Mayday" signal from another terminal
-pd pub br:abcd1234:deadbeef:feature-x-123abc:swarm:general \
+pd pub swarm:general \
   "Auth service is flatlining" \
   --signal mayday \
   --sender "NAVIGATOR"
 ```
 
-Declared channels are git-sensitive by default. A branch-scoped channel resolves differently across worktrees/feature branches, which stops unrelated branches from accidentally sharing the same coordination bus.
+Declared channels are git-sensitive by default. A branch-scoped channel resolves differently across worktrees/feature branches, which stops unrelated branches from accidentally sharing the same coordination bus. Use `--raw-channel` only when you intentionally want the literal channel string without resolution.
 
 ### Integration & Signaling
 Automate agent handoffs using `pd integration` and `pd wait`:

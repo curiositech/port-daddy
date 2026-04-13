@@ -62,6 +62,7 @@ export interface CLIOptions {
 
   // Messaging flags
   sender?: string;
+  'raw-channel'?: boolean;
 
   // Filter/query flags
   limit?: string | number;

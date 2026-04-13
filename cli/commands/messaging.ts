@@ -15,6 +15,12 @@ import { separator, tableHeader, relativeTime } from '../utils/output.js';
 import { canPrompt, promptText } from '../utils/prompt.js';
 import * as ui from '../utils/ui.js';
 
+interface ChannelResolution {
+  requestedChannel: string;
+  physicalChannel: string;
+  resolved: boolean;
+}
+
 function readOption(options: CLIOptions, ...keys: string[]): string | undefined {
   for (const key of keys) {
     const value = options[key];
@@ -37,6 +43,45 @@ function parseAliases(value: unknown): string[] {
       .filter(Boolean);
   }
   return [];
+}
+
+async function resolveMessagingChannel(channel: string, options: CLIOptions): Promise<ChannelResolution> {
+  if (options['raw-channel']) {
+    return {
+      requestedChannel: channel,
+      physicalChannel: channel,
+      resolved: false,
+    };
+  }
+
+  const params = new URLSearchParams();
+  params.set('projectDir', resolveTargetDir(options));
+
+  const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/channels/resolve/${encodeURIComponent(channel)}?${params.toString()}`);
+  const data = await res.json();
+
+  if (res.ok && typeof data.channel?.physicalName === 'string' && data.channel.physicalName.trim()) {
+    return {
+      requestedChannel: channel,
+      physicalChannel: data.channel.physicalName,
+      resolved: data.channel.physicalName !== channel,
+    };
+  }
+
+  if (res.status === 404) {
+    return {
+      requestedChannel: channel,
+      physicalChannel: channel,
+      resolved: false,
+    };
+  }
+
+  throw new Error((data.error as string) || `Failed to resolve channel ${channel}`);
+}
+
+function formatResolvedChannel({ requestedChannel, physicalChannel, resolved }: ChannelResolution): string {
+  if (!resolved) return highlightChannel(physicalChannel);
+  return `${highlightChannel(requestedChannel)} -> ${highlightChannel(physicalChannel)}`;
 }
 
 /**
@@ -66,7 +111,15 @@ export async function handlePub(channel: string | undefined, message: string | u
     payload = message || '';
   }
 
-  const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/msg/${encodeURIComponent(channel)}`, {
+  let resolvedChannel: ChannelResolution;
+  try {
+    resolvedChannel = await resolveMessagingChannel(channel, options);
+  } catch (error) {
+    ui.error((error as Error).message);
+    process.exit(1);
+  }
+
+  const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/msg/${encodeURIComponent(resolvedChannel.physicalChannel)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ 
@@ -86,7 +139,7 @@ export async function handlePub(channel: string | undefined, message: string | u
   if (isJson(options)) {
     console.log(JSON.stringify(data, null, 2));
   } else if (!isQuiet(options)) {
-    ui.success(`Published to ${highlightChannel(channel)} (id: ${data.id})`);
+    ui.success(`Published to ${formatResolvedChannel(resolvedChannel)} (id: ${data.id})`);
   }
 }
 
@@ -99,11 +152,19 @@ export async function handleSub(channel: string | undefined, options: CLIOptions
     process.exit(1);
   }
 
-  ui.info(`Subscribing to ${highlightChannel(channel)}... (Ctrl+C to exit)`);
+  let resolvedChannel: ChannelResolution;
+  try {
+    resolvedChannel = await resolveMessagingChannel(channel, options);
+  } catch (error) {
+    ui.error((error as Error).message);
+    process.exit(1);
+  }
+
+  ui.info(`Subscribing to ${formatResolvedChannel(resolvedChannel)}... (Ctrl+C to exit)`);
 
   // SSE requires raw streaming — can't use pdFetch which buffers the full response
   const target: ConnectionTarget = resolveTarget();
-  const path: string = `/msg/${encodeURIComponent(channel)}/subscribe`;
+  const path: string = `/msg/${encodeURIComponent(resolvedChannel.physicalChannel)}/subscribe`;
 
   const reqOpts: http.RequestOptions = {
     method: 'GET',
@@ -374,7 +435,15 @@ export async function handleChannels(subcommand: string | undefined, args: strin
       console.error('Usage: port-daddy channels clear <channel>');
       process.exit(1);
     }
-    const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/msg/${encodeURIComponent(channel)}`, {
+    let resolvedChannel: ChannelResolution;
+    try {
+      resolvedChannel = await resolveMessagingChannel(channel, options);
+    } catch (error) {
+      ui.error((error as Error).message);
+      process.exit(1);
+    }
+
+    const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/msg/${encodeURIComponent(resolvedChannel.physicalChannel)}`, {
       method: 'DELETE'
     });
     const data = await res.json();
@@ -385,7 +454,7 @@ export async function handleChannels(subcommand: string | undefined, args: strin
     if (isJson(options)) {
       console.log(JSON.stringify(data, null, 2));
     } else if (!isQuiet(options)) {
-      ui.success(`Cleared channel: ${highlightChannel(channel)}`);
+      ui.success(`Cleared channel: ${formatResolvedChannel(resolvedChannel)}`);
     }
     return;
   }

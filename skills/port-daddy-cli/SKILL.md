@@ -183,13 +183,13 @@ pd channels ensure myapp:events --scope branch --aliases events:db
 pd channels discover myapp
 
 # Agent A finishes database setup
-pd pub br:abcd1234:deadbeef:feature-x-123abc:myapp:events "database-ready"
+pd pub myapp:events "database-ready"
 
-# Agent B was watching
-pd watch br:abcd1234:deadbeef:feature-x-123abc:myapp:events --exec "npm run migrate"
+# Agent B can subscribe with the same logical name
+pd sub myapp:events
 ```
 
-Declared channels are git-sensitive by default. `branch` scope isolates per worktree/feature branch, `worktree` isolates per worktree regardless of branch name churn, `repo` shares across worktrees in the same repo, and `global` is the explicit opt-in escape hatch.
+Declared channels are git-sensitive by default. `pd pub`, `pd sub`, and `pd channels clear` now auto-resolve declared logical names against the current worktree. `branch` scope isolates per worktree/feature branch, `worktree` isolates per worktree regardless of branch name churn, `repo` shares across worktrees in the same repo, and `global` is the explicit opt-in escape hatch. Use `--raw-channel` only when you intentionally want to bypass resolution.
 
 ### Distributed Locks
 
@@ -530,7 +530,7 @@ Override via environment variables: `PORT_DADDY_SOCK`, `PORT_DADDY_IPC`, `PORT_D
 | **Coordination** | |
 | `pd lock` / `pd unlock` | Distributed locks |
 | `pd with-lock` | Run command under lock with auto-release |
-| `pd pub` / `pd watch` | Pub/sub messaging |
+| `pd pub` / `pd sub` / `pd watch` | Pub/sub messaging |
 | `pd session files claim` | Advisory file claims |
 | **Fleet & Agents** | |
 | `pd fleet init` | Create pd-fleet.yml + git hook |
@@ -581,7 +581,8 @@ Fleet rows are mailbox-driven now: if an agent is already running and more trigg
 | First-time setup (daemon + MCP + FleetBar) | `pd setup` |
 | Dev server port conflict | `pd claim myapp:api -q` |
 | Need to coordinate with other agents | `pd begin` + `pd session files claim` |
-| Agent-to-agent signaling | `pd pub` + `pd watch` |
+| Agent-to-agent signaling | `pd pub` + `pd sub` |
+| Event-driven automation on a channel | `pd watch <channel> --exec ...` |
 | Direct message to a specific agent | `talk_to_agent` MCP tool or `pd inbox send` |
 | Background automation (terminal-attached) | `pd fleet init` + `pd fleet up` |
 | Background automation (always-on, survives terminal) | Place `pd-fleet.yml` in registered project; daemon auto-starts it |
