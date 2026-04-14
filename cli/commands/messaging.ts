@@ -13,13 +13,12 @@ import type { ConnectionTarget, PdFetchResponse } from '../utils/fetch.js';
 import { CLIOptions, isQuiet, isJson } from '../types.js';
 import { separator, tableHeader, relativeTime } from '../utils/output.js';
 import { canPrompt, promptText } from '../utils/prompt.js';
+import {
+  resolveDeclaredChannel,
+  formatResolvedChannel,
+  resolveTargetDir,
+} from '../utils/channel-resolution.js';
 import * as ui from '../utils/ui.js';
-
-interface ChannelResolution {
-  requestedChannel: string;
-  physicalChannel: string;
-  resolved: boolean;
-}
 
 function readOption(options: CLIOptions, ...keys: string[]): string | undefined {
   for (const key of keys) {
@@ -43,45 +42,6 @@ function parseAliases(value: unknown): string[] {
       .filter(Boolean);
   }
   return [];
-}
-
-async function resolveMessagingChannel(channel: string, options: CLIOptions): Promise<ChannelResolution> {
-  if (options['raw-channel']) {
-    return {
-      requestedChannel: channel,
-      physicalChannel: channel,
-      resolved: false,
-    };
-  }
-
-  const params = new URLSearchParams();
-  params.set('projectDir', resolveTargetDir(options));
-
-  const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/channels/resolve/${encodeURIComponent(channel)}?${params.toString()}`);
-  const data = await res.json();
-
-  if (res.ok && typeof data.channel?.physicalName === 'string' && data.channel.physicalName.trim()) {
-    return {
-      requestedChannel: channel,
-      physicalChannel: data.channel.physicalName,
-      resolved: data.channel.physicalName !== channel,
-    };
-  }
-
-  if (res.status === 404) {
-    return {
-      requestedChannel: channel,
-      physicalChannel: channel,
-      resolved: false,
-    };
-  }
-
-  throw new Error((data.error as string) || `Failed to resolve channel ${channel}`);
-}
-
-function formatResolvedChannel({ requestedChannel, physicalChannel, resolved }: ChannelResolution): string {
-  if (!resolved) return highlightChannel(physicalChannel);
-  return `${highlightChannel(requestedChannel)} -> ${highlightChannel(physicalChannel)}`;
 }
 
 /**
@@ -111,9 +71,9 @@ export async function handlePub(channel: string | undefined, message: string | u
     payload = message || '';
   }
 
-  let resolvedChannel: ChannelResolution;
+  let resolvedChannel;
   try {
-    resolvedChannel = await resolveMessagingChannel(channel, options);
+    resolvedChannel = await resolveDeclaredChannel(channel, options);
   } catch (error) {
     ui.error((error as Error).message);
     process.exit(1);
@@ -152,9 +112,9 @@ export async function handleSub(channel: string | undefined, options: CLIOptions
     process.exit(1);
   }
 
-  let resolvedChannel: ChannelResolution;
+  let resolvedChannel;
   try {
-    resolvedChannel = await resolveMessagingChannel(channel, options);
+    resolvedChannel = await resolveDeclaredChannel(channel, options);
   } catch (error) {
     ui.error((error as Error).message);
     process.exit(1);
@@ -435,9 +395,9 @@ export async function handleChannels(subcommand: string | undefined, args: strin
       console.error('Usage: port-daddy channels clear <channel>');
       process.exit(1);
     }
-    let resolvedChannel: ChannelResolution;
+    let resolvedChannel;
     try {
-      resolvedChannel = await resolveMessagingChannel(channel, options);
+      resolvedChannel = await resolveDeclaredChannel(channel, options);
     } catch (error) {
       ui.error((error as Error).message);
       process.exit(1);
@@ -496,8 +456,4 @@ export async function handleChannels(subcommand: string | undefined, args: strin
     );
   }
   console.log('');
-}
-
-function resolveTargetDir(options: CLIOptions): string {
-  return readOption(options, 'dir', 'project-dir', 'projectDir') || process.cwd();
 }

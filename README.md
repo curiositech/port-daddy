@@ -153,7 +153,7 @@ pd pub swarm:general \
   --sender "NAVIGATOR"
 ```
 
-Declared channels are git-sensitive by default. A branch-scoped channel resolves differently across worktrees/feature branches, which stops unrelated branches from accidentally sharing the same coordination bus. Use `--raw-channel` only when you intentionally want the literal channel string without resolution.
+Declared channels are git-sensitive by default. A branch-scoped channel resolves differently across worktrees/feature branches, which stops unrelated branches from accidentally sharing the same coordination bus. `pd pub`, `pd sub`, `pd watch`, and `pd channels clear` all auto-resolve declared logical names against the current worktree. Use `--raw-channel` only when you intentionally want the literal channel string without resolution.
 
 ### Integration & Signaling
 Automate agent handoffs using `pd integration` and `pd wait`:
@@ -205,7 +205,7 @@ pd spawned
 # Kill a running agent
 pd spawn kill <agent-id>
 
-# Watch a channel and auto-trigger scripts
+# Watch a logical channel and auto-trigger scripts
 pd watch git:committed --exec './fleet/qa-adversary.sh'
 ```
 

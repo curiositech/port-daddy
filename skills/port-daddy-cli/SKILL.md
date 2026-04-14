@@ -189,7 +189,7 @@ pd pub myapp:events "database-ready"
 pd sub myapp:events
 ```
 
-Declared channels are git-sensitive by default. `pd pub`, `pd sub`, and `pd channels clear` now auto-resolve declared logical names against the current worktree. `branch` scope isolates per worktree/feature branch, `worktree` isolates per worktree regardless of branch name churn, `repo` shares across worktrees in the same repo, and `global` is the explicit opt-in escape hatch. Use `--raw-channel` only when you intentionally want to bypass resolution.
+Declared channels are git-sensitive by default. `pd pub`, `pd sub`, `pd watch`, and `pd channels clear` now auto-resolve declared logical names against the current worktree. `branch` scope isolates per worktree/feature branch, `worktree` isolates per worktree regardless of branch name churn, `repo` shares across worktrees in the same repo, and `global` is the explicit opt-in escape hatch. Use `--raw-channel` only when you intentionally want to bypass resolution.
 
 ### Distributed Locks
 
