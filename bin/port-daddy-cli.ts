@@ -562,6 +562,7 @@ Commands:
   session rm <id>            Delete a session and its notes
   session files add <paths>  Claim files in active session
   session files rm <paths>   Release files from active session
+    compat aliases           claim -> add, release -> rm
 
   sessions                   List sessions (active only by default)
     --all                    Show all sessions (including completed)
@@ -1453,9 +1454,15 @@ async function executeDirectMode(
         }
 
         case 'files': {
-          const filesCmd = rest[0];
+          const rawFilesCmd = rest[0];
+          const filesCmd = rawFilesCmd === 'claim'
+            ? 'add'
+            : rawFilesCmd === 'release'
+              ? 'rm'
+              : rawFilesCmd;
           if (!filesCmd || !['add', 'rm'].includes(filesCmd)) {
             console.error('Usage: port-daddy session files <add|rm> <paths...>');
+            console.error('       Compatibility aliases: claim -> add, release -> rm');
             process.exit(1);
           }
 

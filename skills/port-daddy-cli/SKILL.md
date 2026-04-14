@@ -33,7 +33,7 @@ PORT=$(pd claim myapp:api:main -q)
 pd note "Owning auth flow work. Expect edits in src/auth/* and tests/auth/*"
 
 # 5. Coordinate actual edits with real shared state
-pd session files claim src/auth/*.ts
+pd session files add src/auth/*.ts
 pd lock auth-migration --ttl 300
 pd tuple out '["handoff","auth","refresh-token-investigation"]'
 
@@ -57,7 +57,7 @@ Use the richer coordination primitives when they actually add value:
 
 - `pd note`
   - human-readable scope, handoffs, blockers, and conclusions
-- `pd session files claim`
+- `pd session files add`
   - advisory edit ownership before touching files
 - `pd lock` / `pd with-lock`
   - truly exclusive sections like migrations, releases, or rewrites of a shared generated artifact
@@ -163,13 +163,14 @@ pd salvage claim dead-agent-42    # Pick up their work
 ### File Claims (Advisory)
 
 ```bash
-pd session files claim src/auth/*.ts
+pd session files add src/auth/*.ts
 # Another agent tries the same file:
-pd session files claim src/auth/login.ts
+pd session files add src/auth/login.ts
 # → CONFLICT: claimed by agent 'myapp:api'
 ```
 
 Claims are advisory — they warn, don't lock. Hard locks cause deadlocks. Advisory claims cause conversations.
+Canonical syntax is `pd session files add|rm`. The older `claim|release` forms are accepted as compatibility aliases, but new docs and examples should use `add|rm`.
 
 ### Pub/Sub Messaging
 
@@ -531,7 +532,7 @@ Override via environment variables: `PORT_DADDY_SOCK`, `PORT_DADDY_IPC`, `PORT_D
 | `pd lock` / `pd unlock` | Distributed locks |
 | `pd with-lock` | Run command under lock with auto-release |
 | `pd pub` / `pd sub` / `pd watch` | Pub/sub messaging |
-| `pd session files claim` | Advisory file claims |
+| `pd session files add` | Advisory file claims |
 | **Fleet & Agents** | |
 | `pd fleet init` | Create pd-fleet.yml + git hook |
 | `pd fleet up/down/status/validate` | Start/stop/inspect/dry-run the fleet (CLI-attached mode) |
@@ -580,7 +581,7 @@ Fleet rows are mailbox-driven now: if an agent is already running and more trigg
 |---------|----------|
 | First-time setup (daemon + MCP + FleetBar) | `pd setup` |
 | Dev server port conflict | `pd claim myapp:api -q` |
-| Need to coordinate with other agents | `pd begin` + `pd session files claim` |
+| Need to coordinate with other agents | `pd begin` + `pd session files add` |
 | Agent-to-agent signaling | `pd pub` + `pd sub` |
 | Event-driven automation on a channel | `pd watch <channel> --exec ...` |
 | Direct message to a specific agent | `talk_to_agent` MCP tool or `pd inbox send` |
