@@ -1,5 +1,5 @@
 ---
-name: port-daddy
+name: port-daddy-cli
 description: "Multi-agent coordination daemon for AI coding agents (v3.8.3). Eliminates port conflicts, tracks sessions, recovers crashed agents, runs background fleets, provides binary IPC for high-frequency communication, pheromone trails for ambient signaling, tuple spaces for shared memory, and declarative fleet orchestration. Use when starting a coding session, coordinating parallel agents, claiming ports for dev servers, leaving notes for other agents, spawning background workers, running declarative agent fleets, or debugging multi-agent failures. Works with Claude Code, Gemini CLI, Cursor, Windsurf, Codex, and any backend Port Daddy can spawn."
 ---
 
