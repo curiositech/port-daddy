@@ -1,31 +1,35 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import {
+  describeDaemonError,
+  fetchActivityTimeline,
+  type DaemonErrorKind,
+} from '@/lib/daemon-client'
 
 export function useTimeline(options: { limit?: number; agentId?: string; sessionId?: string; interval?: number } = {}) {
   const { limit = 50, agentId, sessionId, interval = 5000 } = options;
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [errorKind, setErrorKind] = useState<DaemonErrorKind | null>(null);
 
   useEffect(() => {
     let mounted = true;
     
     async function fetchTimeline() {
       try {
-        const params = new URLSearchParams();
-        if (limit) params.append('limit', limit.toString());
-        if (agentId) params.append('agent', agentId);
-        if (sessionId) params.append('session', sessionId);
-
-        const res = await fetch(`http://localhost:9876/activity/timeline?${params.toString()}`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
+        const data = await fetchActivityTimeline({ limit, agentId, sessionId })
         
         if (mounted) {
           setEvents(data);
           setError(null);
+          setErrorKind(null);
         }
-      } catch (err: any) {
-        if (mounted) setError(err.message);
+      } catch (err) {
+        if (mounted) {
+          const normalized = describeDaemonError(err)
+          setError(normalized.message);
+          setErrorKind(normalized.kind);
+        }
       } finally {
         if (mounted) setLoading(false);
       }
@@ -40,5 +44,5 @@ export function useTimeline(options: { limit?: number; agentId?: string; session
     };
   }, [limit, agentId, sessionId, interval]);
 
-  return { events, loading, error };
+  return { events, loading, error, errorKind };
 }

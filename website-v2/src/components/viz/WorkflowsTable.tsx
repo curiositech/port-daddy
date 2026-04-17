@@ -1,17 +1,17 @@
 // import * as React from 'react'
 import { motion } from 'framer-motion'
-import { useDaemonData } from '@/hooks/useDaemonData'
+import { useOrchestratorRules } from '@/hooks/useOrchestratorRules'
+import { deleteOrchestratorRule, publishMessage } from '@/lib/daemon-client'
 import { Badge } from '@/components/ui/Badge'
 import { Play, Plus, Trash2, Zap, Terminal, Activity } from 'lucide-react'
 
 export function WorkflowsTable() {
-  const { data: rules, loading, error } = useDaemonData<any[]>('/orchestrator/rules', 5000);
+  const { rules, loading, error } = useOrchestratorRules(5000);
 
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to delete this rule?')) return;
     try {
-      const res = await fetch(`http://localhost:9876/orchestrator/rules/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed to delete rule');
+      await deleteOrchestratorRule(id)
       window.location.reload(); // Simple refresh for now
     } catch (err: any) {
       alert(err.message);
@@ -20,12 +20,10 @@ export function WorkflowsTable() {
 
   const handleRun = async (rule: any) => {
     try {
-      const res = await fetch(`http://localhost:9876/msg/${encodeURIComponent(rule.channelPattern)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ payload: { triggeredBy: 'dashboard' }, sender: 'DASHBOARD' })
-      });
-      if (!res.ok) throw new Error('Failed to trigger rule');
+      await publishMessage(rule.channelPattern, {
+        payload: { triggeredBy: 'dashboard' },
+        sender: 'DASHBOARD',
+      })
       alert(`Published trigger to ${rule.channelPattern}`);
     } catch (err: any) {
       alert(err.message);

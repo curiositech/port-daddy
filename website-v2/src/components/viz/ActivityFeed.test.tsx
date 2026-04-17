@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { render, screen } from '@testing-library/react'
 import { ActivityFeed } from './ActivityFeed'
 import { vi, describe, it, expect } from 'vitest'

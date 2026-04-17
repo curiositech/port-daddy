@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { daemonFetchJson } from '@/lib/daemon-client'
 
 export function useDaemonData<T>(path: string, interval = 2000) {
   const [data, setData] = useState<T | null>(null);
@@ -7,15 +8,18 @@ export function useDaemonData<T>(path: string, interval = 2000) {
 
   useEffect(() => {
     let mounted = true;
-    const controller = new AbortController();
+    let currentController: AbortController | null = null;
 
     async function fetchData() {
+      currentController?.abort()
+      const controller = new AbortController()
+      currentController = controller
+
       try {
-        const res = await fetch(`http://localhost:9876${path}`, { 
-          signal: controller.signal 
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
+        const json = await daemonFetchJson<T>(
+          path,
+          { signal: controller.signal },
+        )
         if (mounted) {
           setData(json);
           setError(null);
@@ -34,7 +38,7 @@ export function useDaemonData<T>(path: string, interval = 2000) {
 
     return () => {
       mounted = false;
-      controller.abort();
+      currentController?.abort()
       clearInterval(timer);
     };
   }, [path, interval]);
