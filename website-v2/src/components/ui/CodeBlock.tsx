@@ -123,36 +123,40 @@ export function CodeBlock({ children, language, filename, className, copyable = 
 
   return (
     <div
-      className={cn('code-block-wrapper rounded-[var(--radius-md)] overflow-hidden relative group', className)}
-      style={{
-        background: 'color-mix(in srgb, var(--surface-sunken) 65%, var(--surface-raised))',
-        border: '1px solid var(--code-border)',
-        boxShadow: 'var(--shadow-flat)',
-      }}
+      className={cn(
+        'code-block-wrapper relative overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--code-bg)] shadow-[var(--shadow-flat)]',
+        className,
+      )}
     >
       {/* Compact header: dots + filename + copy */}
-      <div className="flex items-center gap-1.5 px-3 py-1.5" style={{ borderBottom: '1px solid var(--code-border)' }}>
+      <div
+        className="flex items-center gap-1.5 border-b-2 border-[var(--border-strong)] bg-[var(--code-header-bg)] px-3 py-2"
+      >
         <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--code-dot-red)' }} aria-hidden="true" />
         <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--code-dot-amber)' }} aria-hidden="true" />
         <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--code-dot-green)' }} aria-hidden="true" />
         {(filename || language) && (
-          <span className="ml-2 text-[10px] font-mono text-[var(--text-muted)] uppercase tracking-wider">{filename || language}</span>
+          <span className="ml-2 text-[10px] font-mono uppercase tracking-wider text-[var(--code-comment)]">
+            {filename || language}
+          </span>
         )}
         {copyable && (
           <button
             onClick={handleCopy}
-            className="ml-auto w-6 h-6 rounded-md flex items-center justify-center transition-opacity duration-150 opacity-0 group-hover:opacity-100 cursor-pointer"
-            style={{ background: 'var(--surface-base)' }}
+            className="ml-auto flex h-7 min-w-7 items-center justify-center border border-[var(--border-default)] bg-[var(--surface-raised)] px-2 transition-colors duration-150 hover:bg-[var(--surface-base)] cursor-pointer"
             aria-label={copied ? "Copied" : "Copy code"}
           >
-            {copied ? <Check size={10} className="text-[var(--code-dot-green)]" /> : <Copy size={10} className="text-[var(--text-muted)]" />}
+            {copied ? <Check size={10} className="text-[var(--status-success)]" /> : <Copy size={10} className="text-[var(--text-primary)]" />}
           </button>
         )}
         <span className="sr-only" aria-live="polite">{copied ? "Code copied to clipboard" : ""}</span>
       </div>
 
       {/* Code */}
-      <pre className="overflow-x-auto px-3 py-3 m-0 text-[13px] leading-relaxed font-mono" style={{ color: 'var(--code-text)' }}>{
+      <pre
+        className="m-0 overflow-x-auto bg-[var(--code-bg)] px-4 py-4 font-mono text-[14px] leading-[1.65]"
+        style={{ color: 'var(--code-text)' }}
+      >{
         language === 'bash' || language === 'shell' || !language
           ? textContent.split('\n').map((line, i) => <div key={i}>{highlightBash(line)}</div>)
           : language === 'typescript' || language === 'javascript'

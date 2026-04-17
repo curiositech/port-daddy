@@ -7,6 +7,7 @@ interface NeumorphicTerminalProps {
   language?: string
   typewriterSpeed?: number
   animate?: boolean
+  copyable?: boolean
 }
 
 export function NeumorphicTerminal({
@@ -15,6 +16,7 @@ export function NeumorphicTerminal({
   language = 'bash',
   typewriterSpeed = 25,
   animate = true,
+  copyable = true,
 }: NeumorphicTerminalProps) {
   const trimmed = code.trim()
   const [displayedCode, setDisplayedCode] = useState(animate ? '' : trimmed)
@@ -42,7 +44,7 @@ export function NeumorphicTerminal({
   const cursor = isTyping ? '|' : ''
 
   return (
-    <CodeBlock language={language} filename={title}>
+    <CodeBlock language={language} filename={title} copyable={copyable}>
       {displayedCode + cursor}
     </CodeBlock>
   )

@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { Surface } from '@/components/ui/Surface'
+import { PageContainer, PanelBody, PanelTitle, SectionIntro } from '@/components/site/primitives'
 import { PRODUCT_FEATURES } from '@/data/product'
 import {
   Anchor, Radio, Shield, History, Cpu, Sparkles, Terminal
@@ -26,20 +27,17 @@ const item = {
 
 export function Features() {
   return (
-    <section id="features" className="relative py-16 lg:py-24">
-      <div className="max-w-[1200px] mx-auto px-6 lg:px-8">
-        {/* Header */}
-        <div className="max-w-2xl mb-16">
-          <p className="text-sm font-mono text-[var(--brand-secondary)] tracking-wide mb-4 uppercase">
-            Primitives
-          </p>
-          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-[var(--text-primary)] mb-4 leading-[1.15]">
-            Everything your agents need to cooperate.
-          </h2>
-          <p className="text-base text-[var(--text-secondary)] leading-relaxed">
-            Ten primitives that turn a collection of scripts into a production-grade autonomous system. Each one is a single CLI command.
-          </p>
-        </div>
+    <section id="features" className="relative py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+      <PageContainer>
+        <SectionIntro
+          eyebrow="Primitives"
+          title="Everything your agents need to cooperate."
+          description="Ten primitives that turn a collection of scripts into a production-grade autonomous system. Each one is a single CLI command."
+          titleAs="h2"
+          className="mb-[var(--space-7)] max-w-[46rem]"
+          titleClassName="max-w-[14ch]"
+          bodyClassName="max-w-[38rem]"
+        />
 
         {/* Feature Grid */}
         <motion.div
@@ -54,18 +52,18 @@ export function Features() {
             return (
               <motion.div key={feature.id} variants={item}>
                 <Surface depth="raised" radius="2xl" padding="lg" interactive className="h-full">
-                  <div className="relative">
-                    <Surface depth="inset" radius="md" padding="none" className="w-10 h-10 flex items-center justify-center mb-4">
+                  <div className="relative space-y-[var(--space-4)]">
+                    <Surface depth="inset" radius="md" padding="none" className="flex h-10 w-10 items-center justify-center">
                       <Icon size={18} className="text-[var(--brand-accent)]" />
                     </Surface>
 
-                    <h3 className="text-[15px] font-semibold text-[var(--text-primary)] mb-2 tracking-[-0.01em]">
+                    <PanelTitle as="h3" size="nav" className="max-w-none">
                       {feature.title}
-                    </h3>
+                    </PanelTitle>
 
-                    <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-4">
+                    <PanelBody size="compact" className="max-w-none">
                       {feature.description}
-                    </p>
+                    </PanelBody>
 
                     {/* CLI snippet */}
                     <div
@@ -81,7 +79,7 @@ export function Features() {
             )
           })}
         </motion.div>
-      </div>
+      </PageContainer>
     </section>
   )
 }

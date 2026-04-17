@@ -1,4 +1,4 @@
-import { CodeBlock } from '@/components/ui/CodeBlock'
+import { DocsCodeBlock as SiteDocsCodeBlock } from '@/components/site/primitives'
 
 interface DocsCodeBlockProps {
   code: string
@@ -8,14 +8,10 @@ interface DocsCodeBlockProps {
 
 export function DocsCodeBlock({ code, output, language = 'bash' }: DocsCodeBlockProps) {
   return (
-    <div className="space-y-3">
-      <CodeBlock language={language}>
-        {code}
-      </CodeBlock>
+    <div className="space-y-[var(--space-3)]">
+      <SiteDocsCodeBlock code={code} language={language === 'bash' ? 'cli' : 'typescript'} />
       {output && (
-        <CodeBlock language="output" copyable={false}>
-          {output}
-        </CodeBlock>
+        <SiteDocsCodeBlock code={output} language="text" label="Output" />
       )}
     </div>
   )

@@ -4,26 +4,28 @@ import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
 import { Surface } from '@/components/ui/Surface'
 import { IntentModal } from '@/components/ui/IntentModal'
+import { PageContainer, SectionIntro } from '@/components/site/primitives'
 import { ArrowRight, Terminal } from 'lucide-react'
 
 export function Hero() {
   const [isModalOpen, setIsModalOpen] = useState(false)
 
   return (
-    <section className="relative flex items-center overflow-hidden pt-24 pb-8 lg:pt-32 lg:pb-12">
+    <section className="relative flex items-center overflow-hidden py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
       {/* Subtle dot grid on the neumorphic surface */}
       <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{
         backgroundImage: 'radial-gradient(circle, var(--text-muted) 1px, transparent 1px)',
         backgroundSize: '24px 24px',
       }} />
 
-      <div className="relative z-10 w-full max-w-[1200px] mx-auto px-6 lg:px-8">
-        <div className="grid lg:grid-cols-[1fr,1.1fr] gap-8 lg:gap-16 items-center">
+      <PageContainer className="relative z-10">
+        <div className="grid items-center gap-[var(--space-6)] lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:gap-[var(--space-8)]">
           {/* Left -- Copy */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, ease: 'easeOut' as const }}
+            className="space-y-[var(--space-5)]"
           >
             <Link to="/mcp" className="no-underline">
               <motion.div
@@ -41,20 +43,25 @@ export function Hero() {
               </motion.div>
             </Link>
 
-            <h1 className="text-3xl sm:text-4xl lg:text-[2.75rem] font-bold tracking-[-0.02em] leading-[1.15] mb-4 text-[var(--text-primary)]">
-              Stop your agents from
-              {' '}
-              <span className="bg-gradient-to-r from-[var(--brand-primary)] to-[var(--status-error)] bg-clip-text text-transparent">
-                fighting each other.
-              </span>
-            </h1>
-
-            <p className="text-sm lg:text-base text-[var(--text-secondary)] leading-relaxed mb-5 max-w-md">
-              Port Daddy coordinates AI agents — atomic ports, pub/sub messaging, file claims, and automatic work recovery. One install. Zero config. Current built-in runtimes cover Claude, Claude CLI, Gemini, Ollama, Aider, and custom shell-backed agents.
-            </p>
+            <SectionIntro
+              eyebrow="Multi-agent control plane"
+              title={
+                <>
+                  Stop your agents from{' '}
+                  <span className="bg-gradient-to-r from-[var(--brand-primary)] to-[var(--status-error)] bg-clip-text text-transparent">
+                    fighting each other.
+                  </span>
+                </>
+              }
+              description="Port Daddy coordinates AI agents through atomic ports, pub/sub messaging, file claims, and automatic work recovery. One install. Zero config. Current built-in runtimes cover Claude, Claude CLI, Gemini, Ollama, Aider, and custom shell-backed agents."
+              titleAs="h1"
+              titleSize="hero"
+              titleClassName="max-w-[12ch]"
+              bodyClassName="max-w-[34rem]"
+            />
 
             {/* Feature pills */}
-            <div className="flex flex-wrap gap-2 mb-6 max-w-md">
+            <div className="flex max-w-[34rem] flex-wrap gap-2">
               {[
                 'Background fleet agents',
                 'Auto-respawn on crash',
@@ -74,7 +81,7 @@ export function Hero() {
               ))}
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-[var(--space-3)]">
               <Button
                 variant="primary"
                 size="lg"
@@ -107,7 +114,7 @@ export function Hero() {
             </Surface>
           </motion.div>
         </div>
-      </div>
+      </PageContainer>
 
       <IntentModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </section>
