@@ -45,6 +45,27 @@ struct FleetControlCenter: View {
         nonmutating set { selectedThemeRaw = newValue == "light" ? "light" : "dark" }
     }
 
+    private var fleetActionTitle: String {
+        if let selectedProject {
+            return selectedProject.activeCount > 0 ? "Stop Fleet" : "Start Fleet"
+        }
+        return store.totalActive > 0 ? "Stop All" : "Start All"
+    }
+
+    private var fleetActionIcon: String {
+        if let selectedProject {
+            return selectedProject.activeCount > 0 ? "stop.fill" : "play.fill"
+        }
+        return store.totalActive > 0 ? "stop.fill" : "play.fill"
+    }
+
+    private var fleetActionColor: Color {
+        if let selectedProject {
+            return selectedProject.activeCount > 0 ? Fleet.Color.failure : Fleet.Color.healthy
+        }
+        return store.totalActive > 0 ? Fleet.Color.failure : Fleet.Color.healthy
+    }
+
     private var embeddedControlPlaneURL: URL? {
         guard var components = URLComponents(string: "\(store.daemonURL)/fleet-ui/") else {
             return nil
@@ -191,7 +212,28 @@ struct FleetControlCenter: View {
             }
 
             ActionPill(
-                title: store.isDaemonRunning ? "Reload" : "Start",
+                title: fleetActionTitle,
+                systemImage: fleetActionIcon,
+                color: fleetActionColor
+            ) {
+                Task {
+                    if let selectedProject {
+                        if selectedProject.activeCount > 0 {
+                            await store.stopFleet(projectDir: selectedProject.projectDir)
+                        } else {
+                            await store.startFleet(projectDir: selectedProject.projectDir)
+                        }
+                    } else if store.totalActive > 0 {
+                        await store.stopFleet()
+                    } else {
+                        await store.startFleet()
+                    }
+                    reloadToken = UUID()
+                }
+            }
+
+            ActionPill(
+                title: store.isDaemonRunning ? "Reload" : "Start Daemon",
                 systemImage: store.isDaemonRunning ? "arrow.clockwise" : "play.fill",
                 color: store.isDaemonRunning ? Fleet.Color.active : Fleet.Color.healthy
             ) {
