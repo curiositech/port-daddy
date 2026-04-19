@@ -184,14 +184,38 @@ export async function handleDashboard(opts: { web?: boolean } = {}): Promise<voi
  */
 export async function handleStatus(): Promise<void> {
   try {
-    const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/health`);
+    const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/status`);
     const data = await res.json();
 
     console.log(`Port Daddy is running`);
-    console.log(`  Version: ${data.version}`);
+    const buildVersion = data.daemon?.version || data.version;
+    const buildHash = data.daemon?.codeHash ? ` (${data.daemon.codeHash})` : '';
+    console.log(`  Version: ${buildVersion}${buildHash}`);
     console.log(`  PID: ${data.pid}`);
-    console.log(`  Uptime: ${Math.floor((data.uptime_seconds as number) / 60)}m ${(data.uptime_seconds as number) % 60}s`);
-    console.log(`  Active ports: ${data.active_ports}`);
+    console.log(`  Uptime: ${data.uptimeHuman || `${Math.floor((data.uptimeSeconds as number) / 60)}m ${(data.uptimeSeconds as number) % 60}s`}`);
+    console.log(`  Active ports: ${data.metrics?.activePorts ?? data.active_ports ?? 0}`);
+
+    if (data.runtime?.state) {
+      const runtimeState = data.runtime.degraded ? `${data.runtime.state} (degraded)` : data.runtime.state;
+      console.log(`  Runtime: ${runtimeState}`);
+    }
+
+    if (data.fleet) {
+      const projectCount = Array.isArray(data.fleet.projects) ? data.fleet.projects.length : 0;
+      console.log(`  Fleet: ${projectCount} project(s), ${data.fleet.totalAgents ?? 0} agent(s)`);
+    }
+
+    if (data.guardians?.barnacle) {
+      const barnacle = data.guardians.barnacle;
+      const barnacleReason = barnacle.reason ? ` — ${barnacle.reason}` : '';
+      console.log(`  Barnacle: ${barnacle.state}${barnacleReason}`);
+    }
+
+    if (data.history?.lastActivityAt) {
+      const ageMs = Date.now() - Number(data.history.lastActivityAt);
+      const ageSeconds = Math.max(0, Math.floor(ageMs / 1000));
+      console.log(`  Last activity: ${ageSeconds}s ago`);
+    }
   } catch {
     console.log('Port Daddy is not running');
     console.log('  Start with: port-daddy start');

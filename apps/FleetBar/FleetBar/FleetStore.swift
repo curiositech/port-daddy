@@ -99,6 +99,87 @@ struct AgentResponse: Decodable {
     let queueDepth: Int?
 }
 
+struct DaemonStatusResponse: Decodable {
+    let status: String
+    let version: String
+    let pid: Int
+    let uptimeSeconds: Double
+    let uptimeHuman: String
+    let daemon: DaemonBuildResponse?
+    let metrics: DaemonMetricsResponse?
+    let runtime: DaemonRuntimeResponse?
+    let guardians: DaemonGuardiansResponse?
+    let history: DaemonHistoryResponse?
+}
+
+struct DaemonBuildResponse: Decodable {
+    let version: String
+    let codeHash: String
+    let startedAt: Double
+    let installDir: String
+    let nodeVersion: String
+}
+
+struct DaemonMetricsResponse: Decodable {
+    let activePorts: Int?
+    let memoryRSS: Double?
+    let avgResponseMs: Double?
+}
+
+struct DaemonRuntimeResponse: Decodable {
+    let state: String
+    let degraded: Bool
+}
+
+struct DaemonGuardiansResponse: Decodable {
+    let supervisor: DaemonSupervisorResponse?
+    let barnacle: DaemonBarnacleResponse?
+}
+
+struct DaemonSupervisorResponse: Decodable {
+    let state: String
+    let summary: String
+}
+
+struct DaemonBarnacleResponse: Decodable {
+    let enabled: Bool
+    let state: String
+    let reason: String?
+    let monitoredUrl: String
+    let binaryExists: Bool
+    let lastCheckAt: Double?
+    let lastHealthyAt: Double?
+    let lastFailureAt: Double?
+    let lastResurrectedAt: Double?
+    let failureCount: Int
+}
+
+struct DaemonHistoryResponse: Decodable {
+    let lastActivityAt: Double?
+    let recentActivity: [DaemonHistoryActivityResponse]
+    let recentSpend: [DaemonHistorySpendResponse]
+}
+
+struct DaemonHistoryActivityResponse: Decodable, Identifiable {
+    let id: Int
+    let timestamp: Double
+    let type: String
+    let agentId: String?
+    let targetId: String?
+    let summary: String
+}
+
+struct DaemonHistorySpendResponse: Decodable, Identifiable {
+    let id: String
+    let timestamp: Double
+    let backend: String
+    let model: String
+    let projectName: String?
+    let projectDir: String?
+    let costUsd: Double
+    let isEstimate: Bool
+}
+
 struct SSEEvent: Decodable {
     let type: String
     let agent: String?
@@ -171,6 +252,7 @@ class FleetStore: ObservableObject {
     @Published var isConnected = false
     @Published var isDaemonRunning = false
     @Published var lastRefresh: Date?
+    @Published var daemonStatus: DaemonStatusResponse?
     @Published var expandedProjects: Set<String> = []
     @Published var preferences: FleetBarPreferences
     @Published var settingsMessage: String?
@@ -284,10 +366,12 @@ class FleetStore: ObservableObject {
     func refresh() async {
         guard let fleetURL = URL(string: "\(baseURL)/fleet") else { return }
         let registeredProjectsURL = URL(string: "\(baseURL)/projects")
+        let daemonStatusURL = URL(string: "\(baseURL)/status")
         do {
             let (data, response) = try await URLSession.shared.data(from: fleetURL)
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                 isDaemonRunning = false
+                daemonStatus = nil
                 return
             }
             isDaemonRunning = true
@@ -302,11 +386,21 @@ class FleetStore: ObservableObject {
             } else {
                 registeredProjects = []
             }
+            if let daemonStatusURL,
+               let (statusData, statusHTTPResponse) = try? await URLSession.shared.data(from: daemonStatusURL),
+               let statusHTTP = statusHTTPResponse as? HTTPURLResponse,
+               statusHTTP.statusCode == 200,
+               let decodedStatus = try? JSONDecoder().decode(DaemonStatusResponse.self, from: statusData) {
+                daemonStatus = decodedStatus
+            } else {
+                daemonStatus = nil
+            }
             applyStatus(status, registeredProjects: registeredProjects)
             await enrichProjectsFromBriefings()
             lastRefresh = Date()
         } catch {
             isDaemonRunning = false
+            daemonStatus = nil
         }
     }
 

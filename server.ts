@@ -553,7 +553,7 @@ await registerAllRoutes(
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar,
     harbors, sorties, orchestrator, correlationEngine, spawner, tuples, fleetDaemon,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, costTracker, counters,
-    arbiter,
+    arbiter, barnacle,
     VERSION, CODE_HASH, STARTED_AT, __dirname,
     cleanupStale, getSystemPorts,
   },

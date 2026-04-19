@@ -105,6 +105,11 @@ describe('Demo 2 — agents (pd begin / pd note / pd pub / pd salvage / pd lock 
   let agentId = null;
   let sessionId = null;
   const LOCK_NAME = `${PREFIX}-db-migration`;
+  const cliOptions = {
+    env: {
+      PORT_DADDY_CONTEXT_SLOT: `${PREFIX}-agents`,
+    },
+  };
 
   afterAll(async () => {
     // Best-effort cleanup
@@ -120,7 +125,7 @@ describe('Demo 2 — agents (pd begin / pd note / pd pub / pd salvage / pd lock 
       'begin', 'Building OAuth integration',
       '--identity', `${PREFIX}:api`,
       '--json',
-    ]);
+    ], cliOptions);
     expect(status).toBe(0);
     const data = JSON.parse(stdout);
     expect(data.agentId).toBeDefined();
@@ -132,7 +137,7 @@ describe('Demo 2 — agents (pd begin / pd note / pd pub / pd salvage / pd lock 
   test('pd note adds an immutable note to the active session', () => {
     const { stdout, stderr, status } = runCli([
       'note', 'JWT validation done, starting session store',
-    ]);
+    ], cliOptions);
     expect(status).toBe(0);
     const combined = stdout + stderr;
     // Should mention success or note ID
@@ -142,14 +147,14 @@ describe('Demo 2 — agents (pd begin / pd note / pd pub / pd salvage / pd lock 
   test('pd pub broadcasts to a channel', () => {
     const { stdout, stderr, status } = runCli([
       'pub', `${PREFIX}:progress`, 'auth: 60% done, JWT merged',
-    ]);
+    ], cliOptions);
     expect(status).toBe(0);
     const combined = stdout + stderr;
     expect(combined).toMatch(/published|sent|ok|message/i);
   });
 
   test('pd salvage returns structured output (queue list or "no dead agents")', () => {
-    const { stdout, status } = runCli(['salvage']);
+    const { stdout, status } = runCli(['salvage'], cliOptions);
     expect(status).toBe(0);
     // Either shows the salvage table or a "no dead agents" message — both are valid
     expect(stdout.length).toBeGreaterThan(0);
@@ -158,20 +163,20 @@ describe('Demo 2 — agents (pd begin / pd note / pd pub / pd salvage / pd lock 
   test('pd lock acquires a distributed lock', () => {
     const { stdout, stderr, status } = runCli([
       'lock', LOCK_NAME, '--ttl', '30000',
-    ]);
+    ], cliOptions);
     expect(status).toBe(0);
     const combined = stdout + stderr;
     expect(combined).toMatch(/acquired|locked|lock|ok/i);
   });
 
   test('pd lock is exclusive — second acquisition fails', () => {
-    const { status } = runCli(['lock', LOCK_NAME, '--ttl', '30000']);
+    const { status } = runCli(['lock', LOCK_NAME, '--ttl', '30000'], cliOptions);
     // Lock already held: must fail
     expect(status).not.toBe(0);
   });
 
   test('pd unlock releases the lock', () => {
-    const { stdout, stderr, status } = runCli(['unlock', LOCK_NAME]);
+    const { stdout, stderr, status } = runCli(['unlock', LOCK_NAME], cliOptions);
     expect(status).toBe(0);
     const combined = stdout + stderr;
     expect(combined).toMatch(/released|unlocked|ok/i);
@@ -179,7 +184,7 @@ describe('Demo 2 — agents (pd begin / pd note / pd pub / pd salvage / pd lock 
 
   test('pd done ends the session and unregisters the agent', () => {
     expect(agentId).not.toBeNull();
-    const { stdout, stderr, status } = runCli(['done']);
+    const { stdout, stderr, status } = runCli(['done'], cliOptions);
     expect(status).toBe(0);
     const combined = stdout + stderr;
     expect(combined).toMatch(/done|complete|ended|session|archived/i);

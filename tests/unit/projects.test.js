@@ -278,5 +278,21 @@ describe('Projects Module', () => {
       expect(knownAfterSignal.some((entry) => entry.root === staleRoot)).toBe(true);
       expect(knownAfterSignal.find((entry) => entry.root === staleRoot)?.signals).toContain('config');
     });
+
+    it('drops ephemeral current-context directories whose only signal is .portdaddy state', () => {
+      const workspace = mkdtempSync(join(tmpdir(), 'pd-projects-context-'));
+      const contextRoot = join(workspace, 'pd-current-context-demo');
+      tempRoots.push(workspace);
+
+      mkdirSync(join(contextRoot, '.portdaddy'), { recursive: true });
+
+      const known = projects.listKnown({
+        discoveryRoots: [workspace],
+        maxDepth: 3,
+        fresh: true,
+      });
+
+      expect(known.some((entry) => entry.root === contextRoot)).toBe(false);
+    });
   });
 });

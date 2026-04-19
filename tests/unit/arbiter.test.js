@@ -1,36 +1,26 @@
-import { describe, test, expect, beforeEach } from '@jest/globals';
+import { describe, test, expect, afterEach } from '@jest/globals';
+import Fastify from 'fastify';
+import { createArbiter } from '../../lib/arbiter.js';
+import { arbiterPlugin } from '../../routes/arbiter.js';
 
-// Minimal mock of the activity log subscribe pattern
 function createMockActivityLog() {
   const subscribers = new Set();
-  const logged = [];
-
   return {
-    subscribe(cb) {
-      subscribers.add(cb);
-      return () => subscribers.delete(cb);
+    subscribe(callback) {
+      subscribers.add(callback);
+      return () => subscribers.delete(callback);
     },
-    log(type, options = {}) {
-      const entry = { type, ...options, timestamp: Date.now() };
-      logged.push(entry);
+    log() {
       return { success: true };
     },
-    emit(entry) {
-      for (const cb of subscribers) cb(entry);
-    },
-    getLogged() { return logged; },
   };
 }
 
 function createMockAgents() {
-  const agents = new Map();
   return {
-    get(id) {
-      const agent = agents.get(id);
-      if (!agent) return { success: false };
-      return { success: true, agent };
+    get() {
+      return { success: false };
     },
-    _set(id, data) { agents.set(id, data); },
   };
 }
 
@@ -42,112 +32,107 @@ function createMockLocks() {
   return {};
 }
 
-// We can't import the TS module directly in Jest without transpilation,
-// so we test the Arbiter's behavior through its public API contract.
-// The actual integration test happens via the HTTP endpoints.
+function buildArbiter() {
+  return createArbiter({
+    activityLog: createMockActivityLog(),
+    agents: createMockAgents(),
+    sessions: createMockSessions(),
+    locks: createMockLocks(),
+  });
+}
 
-describe('Arbiter Invariant Rules', () => {
-  describe('Contract Tests (via HTTP — requires daemon)', () => {
-    // These tests verify the Arbiter's HTTP API contract.
-    // They run against the live daemon if available.
+const activeArbiters = [];
 
-    const BASE = process.env.PD_URL || 'http://localhost:9876';
+async function buildApp() {
+  const app = Fastify();
+  const arbiter = buildArbiter();
+  activeArbiters.push(arbiter);
+  await app.register(arbiterPlugin, { arbiter });
+  return app;
+}
 
-    test('GET /arbiter/status returns rule count and status', async () => {
-      try {
-        const res = await fetch(`${BASE}/arbiter/status`);
-        if (res.status === 404) return; // Arbiter not yet deployed to stable
-        expect(res.status).toBe(200);
-        const data = await res.json();
-        expect(data.active).toBe(true);
-        expect(data.rulesCount).toBe(6);
-        expect(data.rules).toContain('PID_SQUATTING');
-        expect(data.rules).toContain('NOTE_MONOTONICITY');
-        expect(data.rules).toContain('ESCROW_POSITIVE');
-        expect(data.rules).toContain('LOCK_OWNER_VALID');
-        expect(data.rules).toContain('CAP_ESCALATION');
-        expect(data.rules).toContain('HEARTBEAT_FRESHNESS');
-        expect(typeof data.violationsCount).toBe('number');
-        expect(typeof data.uptimeMs).toBe('number');
-      } catch (err) {
-        // Daemon not running — skip
-        console.log('Skipping (daemon not running):', err.message);
-      }
+afterEach(() => {
+  while (activeArbiters.length > 0) {
+    activeArbiters.pop()?.stop();
+  }
+});
+
+describe('arbiter routes', () => {
+  test('GET /arbiter/status returns deterministic rule coverage', async () => {
+    const app = await buildApp();
+
+    const response = await app.inject({ method: 'GET', url: '/arbiter/status' });
+    const body = response.json();
+
+    expect(response.statusCode).toBe(200);
+    expect(body.active).toBe(true);
+    expect(body.rulesCount).toBe(6);
+    expect(body.rules).toEqual(expect.arrayContaining([
+      'PID_SQUATTING',
+      'CAP_ESCALATION',
+      'NOTE_MONOTONICITY',
+      'ESCROW_POSITIVE',
+      'LOCK_OWNER_VALID',
+      'HEARTBEAT_FRESHNESS',
+    ]));
+    expect(body.summary).toEqual(expect.objectContaining({
+      mode: 'observe_only',
+      criticalAction: 'log_only',
+    }));
+
+    await app.close();
+  });
+
+  test('POST /arbiter/test-invariant/:name records a violation visible via /arbiter/violations', async () => {
+    const app = await buildApp();
+
+    const inject = await app.inject({
+      method: 'POST',
+      url: '/arbiter/test-invariant/NOTE_MONOTONICITY',
     });
+    const injectBody = inject.json();
 
-    test('POST /arbiter/test-invariant/NOTE_MONOTONICITY injects a violation', async () => {
-      try {
-        const res = await fetch(`${BASE}/arbiter/test-invariant/NOTE_MONOTONICITY`, { method: 'POST' });
-        if (res.status === 404) return;
-        expect(res.status).toBe(200);
-        const data = await res.json();
-        expect(data.success).toBe(true);
-        expect(data.violation).toBeDefined();
-        expect(data.violation.rule).toBe('NOTE_MONOTONICITY');
-        expect(data.violation.severity).toBe('critical');
-        expect(data.violation.details).toContain('TEST');
-      } catch (err) {
-        console.log('Skipping (daemon not running):', err.message);
-      }
-    });
+    expect(inject.statusCode).toBe(200);
+    expect(injectBody).toEqual(expect.objectContaining({
+      success: true,
+      violation: expect.objectContaining({
+        rule: 'NOTE_MONOTONICITY',
+        severity: 'critical',
+      }),
+    }));
 
-    test('POST /arbiter/test-invariant/PID_SQUATTING injects a critical violation', async () => {
-      try {
-        const res = await fetch(`${BASE}/arbiter/test-invariant/PID_SQUATTING`, { method: 'POST' });
-        if (res.status === 404) return;
-        expect(res.status).toBe(200);
-        const data = await res.json();
-        expect(data.violation.severity).toBe('critical');
-      } catch (err) {
-        console.log('Skipping:', err.message);
-      }
-    });
+    const violations = await app.inject({ method: 'GET', url: '/arbiter/violations?limit=10' });
+    const violationsBody = violations.json();
 
-    test('POST /arbiter/test-invariant/INVALID returns 400', async () => {
-      try {
-        const res = await fetch(`${BASE}/arbiter/test-invariant/INVALID`, { method: 'POST' });
-        if (res.status === 404) return;
-        expect(res.status).toBe(400);
-        const data = await res.json();
-        expect(data.success).toBe(false);
-        expect(data.validNames).toBeDefined();
-      } catch (err) {
-        console.log('Skipping:', err.message);
-      }
-    });
+    expect(violations.statusCode).toBe(200);
+    expect(violationsBody.success).toBe(true);
+    expect(violationsBody.total).toBeGreaterThanOrEqual(1);
+    expect(violationsBody.violations).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        rule: 'NOTE_MONOTONICITY',
+      }),
+    ]));
 
-    test('GET /arbiter/violations returns violation list after injection', async () => {
-      try {
-        // Inject first
-        await fetch(`${BASE}/arbiter/test-invariant/ESCROW_POSITIVE`, { method: 'POST' });
-        const res = await fetch(`${BASE}/arbiter/violations`);
-        if (res.status === 404) return;
-        expect(res.status).toBe(200);
-        const data = await res.json();
-        expect(data.success).toBe(true);
-        expect(Array.isArray(data.violations)).toBe(true);
-        expect(data.total).toBeGreaterThan(0);
-      } catch (err) {
-        console.log('Skipping:', err.message);
-      }
-    });
+    await app.close();
+  });
 
-    test('All 6 invariant names can be test-injected', async () => {
-      const names = [
-        'PID_SQUATTING', 'CAP_ESCALATION', 'NOTE_MONOTONICITY',
-        'ESCROW_POSITIVE', 'LOCK_OWNER_VALID', 'HEARTBEAT_FRESHNESS',
-      ];
-      for (const name of names) {
-        try {
-          const res = await fetch(`${BASE}/arbiter/test-invariant/${name}`, { method: 'POST' });
-          if (res.status === 404) return;
-          const data = await res.json();
-          expect(data.success).toBe(true);
-          expect(data.violation.rule).toBe(name);
-        } catch (err) {
-          console.log(`Skipping ${name}:`, err.message);
-        }
-      }
+  test('POST /arbiter/test-invariant/INVALID returns 400 with valid rule names', async () => {
+    const app = await buildApp();
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/arbiter/test-invariant/INVALID',
     });
+    const body = response.json();
+
+    expect(response.statusCode).toBe(400);
+    expect(body.success).toBe(false);
+    expect(body.validNames).toEqual(expect.arrayContaining([
+      'PID_SQUATTING',
+      'CAP_ESCALATION',
+      'NOTE_MONOTONICITY',
+    ]));
+
+    await app.close();
   });
 });

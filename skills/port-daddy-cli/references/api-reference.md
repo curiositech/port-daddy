@@ -290,7 +290,7 @@ Delete a webhook.
 ## System
 
 ### GET /health
-Health check. Returns status, version, uptime, active port count, and fleet summary.
+Health check. Returns status, version, uptime, active port count, fleet summary, and consolidated runtime trust state.
 
 ```json
 {
@@ -303,10 +303,11 @@ Health check. Returns status, version, uptime, active port count, and fleet summ
 }
 ```
 `fleet` is `undefined` when the fleet subsystem is not running.
+`runtime` summarizes whether the daemon is nominal or degraded without claiming the process is dead.
 When a fleet mailbox is busy, individual agent rows can surface `status: "queued"` and `queueDepth` so repeated wakeups are visible as collapsed pending work instead of fresh spawns.
 
 ### GET /status
-Combined health + metrics + process info. Includes detailed fleet breakdown.
+Combined daemon report. Includes build identity, metrics, detailed fleet breakdown, guardian state, and recent daemon history.
 
 ```json
 {
@@ -315,6 +316,13 @@ Combined health + metrics + process info. Includes detailed fleet breakdown.
   "pid": 12345,
   "uptimeSeconds": 3600,
   "uptimeHuman": "1h 0m",
+  "daemon": {
+    "version": "3.8.2",
+    "codeHash": "abc123def456",
+    "startedAt": 1711234567890,
+    "installDir": "/Users/you/port-daddy-stable",
+    "nodeVersion": "v24.1.0"
+  },
   "metrics": { "activePorts": 4, "memoryRSS": 52428800 },
   "fleet": {
     "running": true,
@@ -335,6 +343,49 @@ Combined health + metrics + process info. Includes detailed fleet breakdown.
     ],
     "totalAgents": 5,
     "totalWatchers": 1
+  },
+  "guardians": {
+    "supervisor": {
+      "state": "launchctl_preferred",
+      "summary": "launchctl is the authoritative daemon supervisor on macOS"
+    },
+    "barnacle": {
+      "enabled": true,
+      "state": "healthy",
+      "reason": null,
+      "monitoredUrl": "http://localhost:9875/health",
+      "binaryExists": true,
+      "lastCheckAt": 1711234567999,
+      "lastHealthyAt": 1711234567999,
+      "lastFailureAt": null,
+      "lastResurrectedAt": null,
+      "failureCount": 0
+    }
+  },
+  "history": {
+    "lastActivityAt": 1711234567888,
+    "recentActivity": [
+      {
+        "id": 42,
+        "timestamp": 1711234567888,
+        "type": "SESSION_NOTE",
+        "agentId": "spark",
+        "targetId": "session-1",
+        "summary": "Spark noted a daemon regression"
+      }
+    ],
+    "recentSpend": [
+      {
+        "id": "cost-1",
+        "timestamp": 1711234567899,
+        "backend": "codex",
+        "model": "gpt-5.3-codex",
+        "projectName": "alpha",
+        "projectDir": "/Users/you/coding/alpha",
+        "costUsd": 0.12,
+        "isEstimate": false
+      }
+    ]
   }
 }
 ```

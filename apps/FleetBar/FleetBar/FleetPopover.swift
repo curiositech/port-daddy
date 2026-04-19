@@ -49,6 +49,10 @@ struct FleetPopover: View {
         VStack(spacing: 0) {
             header
             Divider().opacity(0.5)
+            if let daemonStatus = store.daemonStatus, store.isDaemonRunning {
+                daemonReportSection(status: daemonStatus)
+                Divider().opacity(0.5)
+            }
             if store.isDaemonRunning && !recentAgentHighlights.isEmpty {
                 recentActivitySection
                 Divider().opacity(0.5)
@@ -111,6 +115,101 @@ struct FleetPopover: View {
         NSWorkspace.shared.activateFileViewerSelecting([
             resolveAgentFileURL(projectDir: projectDir, filePath: filePath)
         ])
+    }
+
+    private func daemonReportRow(label: String, value: String, color: Color = .primary) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label.uppercased())
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.tertiary)
+            Text(value)
+                .font(.system(.caption, design: .monospaced).weight(.medium))
+                .foregroundStyle(color)
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func daemonHistoryLine(summary: String, detail: String, timestampMs: Double, color: Color) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: Fleet.Space.s) {
+            Circle()
+                .fill(color)
+                .frame(width: 6, height: 6)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(summary)
+                    .font(.caption2)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    if !detail.isEmpty {
+                        Text(detail)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    Text(Date(timeIntervalSince1970: timestampMs / 1000), style: .relative)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+        }
+    }
+
+    private func daemonReportSection(status: DaemonStatusResponse) -> some View {
+        let runtimeColor: Color = status.runtime?.degraded == true ? Fleet.Color.warning : Fleet.Color.healthy
+        let barnacleColor: Color = {
+            switch status.guardians?.barnacle?.state {
+            case "healthy":
+                return Fleet.Color.healthy
+            case "disabled":
+                return Fleet.Color.dormant
+            default:
+                return Fleet.Color.warning
+            }
+        }()
+        let recentActivity = Array(status.history?.recentActivity.prefix(2) ?? [])
+
+        return VStack(alignment: .leading, spacing: Fleet.Space.s) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Daemon Report")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Text("Runtime, build, guardian, and fresh history")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+                Spacer()
+                if let lastActivity = status.history?.lastActivityAt {
+                    Text(Date(timeIntervalSince1970: lastActivity / 1000), style: .relative)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+
+            HStack(spacing: Fleet.Space.m) {
+                daemonReportRow(label: "Runtime", value: status.runtime?.state ?? status.status, color: runtimeColor)
+                daemonReportRow(label: "Version", value: status.daemon?.version ?? status.version, color: Fleet.Color.active)
+                daemonReportRow(label: "Code hash", value: status.daemon?.codeHash ?? "unknown")
+                daemonReportRow(label: "Barnacle", value: status.guardians?.barnacle?.state ?? "n/a", color: barnacleColor)
+            }
+
+            if !recentActivity.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(recentActivity) { entry in
+                        daemonHistoryLine(
+                            summary: entry.summary,
+                            detail: entry.agentId ?? entry.type.lowercased(),
+                            timestampMs: entry.timestamp,
+                            color: Fleet.Color.active
+                        )
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, Fleet.Space.l)
+        .padding(.vertical, Fleet.Space.s)
+        .background(Fleet.Chrome.panel)
     }
 
     private var settingsPanel: some View {
