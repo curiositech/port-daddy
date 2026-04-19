@@ -499,32 +499,48 @@ export default function App() {
     const known = new Map<string, {
       id: string;
       name: string;
+      logicalId: string;
       fleetPath: string;
       projectDir: string;
       running: boolean;
       agents: Array<{ agentName: string; status: string }>;
+      configuredAgentCount: number;
+      configuredWatcherCount: number;
+      signals: string[];
+      sources: string[];
     }>();
 
     for (const project of fleet.projects) {
       const runtime = runtimeByDir.get(project.root);
       known.set(project.root, {
         id: project.root,
-        name: project.id,
+        name: project.displayName ?? project.id,
+        logicalId: project.id,
         fleetPath: project.root,
         projectDir: project.root,
-        running: runtime?.running ?? false,
+        running: runtime?.running ?? project.running ?? false,
         agents: runtime?.agents.map(agent => ({ agentName: agent.name, status: agent.status })) ?? [],
+        configuredAgentCount: project.configuredAgentCount ?? 0,
+        configuredWatcherCount: project.configuredWatcherCount ?? 0,
+        signals: project.signals ?? [],
+        sources: project.sources ?? [],
       });
     }
 
     for (const runtime of fleet.status?.fleets ?? []) {
+      const existing = known.get(runtime.projectDir);
       known.set(runtime.projectDir, {
         id: runtime.projectDir,
-        name: runtime.project,
+        name: existing?.name ?? runtime.project,
+        logicalId: existing?.logicalId ?? runtime.project,
         fleetPath: runtime.projectDir,
         projectDir: runtime.projectDir,
         running: runtime.running,
         agents: runtime.agents.map(agent => ({ agentName: agent.name, status: agent.status })),
+        configuredAgentCount: existing?.configuredAgentCount ?? runtime.agents.length,
+        configuredWatcherCount: existing?.configuredWatcherCount ?? 0,
+        signals: existing?.signals ?? [],
+        sources: [...new Set([...(existing?.sources ?? []), 'runtime'])],
       });
     }
 
@@ -535,10 +551,10 @@ export default function App() {
   const selectedProjectName = selectedProject?.name ?? null;
 
   useEffect(() => {
-    if (fleet.loading || !selectedProjectId) return;
+    if (fleet.loading || fleet.error || !selectedProjectId) return;
     if (projects.some((project) => project.id === selectedProjectId)) return;
     setSelectedProjectId(null);
-  }, [fleet.loading, projects, selectedProjectId]);
+  }, [fleet.error, fleet.loading, projects, selectedProjectId]);
 
   useEffect(() => {
     if (selectedProjectId && !fleet.configs.has(selectedProjectId)) {
@@ -1037,7 +1053,10 @@ export default function App() {
                       <DMPanel
                         key={`${daemonUrl}:${selectedProjectId ?? 'all'}:inbox`}
                         channels={channelTargets}
-                        agents={fleetConfig?.agents.map(agent => agent.name) ?? []}
+                        agents={Array.from(new Set([
+                          ...(fleetConfig?.agents.map((agent) => agent.name) ?? []),
+                          ...(selectedProject?.agents.map((agent) => agent.agentName) ?? []),
+                        ]))}
                         project={selectedProjectName ?? undefined}
                         layout="full"
                       />

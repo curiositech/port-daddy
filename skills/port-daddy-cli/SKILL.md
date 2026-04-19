@@ -244,8 +244,8 @@ pd fleet status   # What is the fleet doing?
 pd fleet down     # Stop the fleet
 
 # Daemon mode — always-on (automatic)
-# Place pd-fleet.yml in a registered project root.
-# The daemon auto-discovers it on boot and starts the fleet.
+# Place pd-fleet.yml in a repo with durable Port Daddy markers.
+# The daemon auto-discovers known repos on boot and starts the fleet.
 PD_URL="${PORT_DADDY_URL:-http://localhost:9876}"  # Use pd status if yours differs
 curl "$PD_URL/fleet"              # Global status across all projects
 curl "$PD_URL/fleet/my-project"   # Per-project status
@@ -419,7 +419,7 @@ fleet:
 - Fleet harbor auto-created on start — all agents share a semantic namespace
 - Each agent gets full PD coordination: registration, sessions, heartbeats, salvage on crash
 - Auto-respawn with `respawn: true` and `max_respawns` circuit breaker
-- **Daemon mode**: fleet auto-discovered from registered projects on daemon boot; editing `pd-fleet.yml` triggers hot-reload; SIGHUP reloads all fleets
+- **Daemon mode**: fleet auto-discovered from known Port Daddy repos on daemon boot; editing `pd-fleet.yml` triggers hot-reload; SIGHUP reloads all fleets
 - **Project fleet leases**: daemon-owned fleets are singleton per project across daemons; another daemon may discover the same `pd-fleet.yml`, but it must skip starting that project if a lease is already held
 - **Resource limits**: `limits.max_concurrent_spawns` and `limits.max_spawns_per_hour` prevent runaway agents
 - Lifecycle events published to `fleet:events` channel for dashboard/menu bar subscriptions
@@ -586,7 +586,7 @@ Fleet rows are mailbox-driven now: if an agent is already running and more trigg
 | Event-driven automation on a channel | `pd watch <channel> --exec ...` |
 | Direct message to a specific agent | `talk_to_agent` MCP tool or `pd inbox send` |
 | Background automation (terminal-attached) | `pd fleet init` + `pd fleet up` |
-| Background automation (always-on, survives terminal) | Place `pd-fleet.yml` in registered project; daemon auto-starts it |
+| Background automation (always-on, survives terminal) | Place `pd-fleet.yml` in a repo with durable Port Daddy markers; daemon auto-starts it |
 | Reload fleet after editing pd-fleet.yml | `PD_URL="\${PORT_DADDY_URL:-http://localhost:9876}"; curl -XPOST "$PD_URL/fleet/reload"` or `kill -HUP <daemon-pid>` |
 | Share knowledge across agents | `pd tuple out` / `pd tuple rd` |
 | Check whether Spark/Spider or the repo already had this idea | `pd ideas search "query" --include-raw` |

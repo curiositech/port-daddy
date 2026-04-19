@@ -366,7 +366,7 @@ Deep-scan a directory for frameworks (60+ supported). Registers the project auto
 | `dryRun` | boolean | no | Preview without saving |
 
 ### GET /projects
-List all registered projects.
+List all known Port Daddy projects. The daemon merges explicitly registered roots with durable repo markers such as `pd-fleet.yml`, `.portdaddyrc`, and `.portdaddy/`.
 
 ### GET /projects/:id
 Get a specific project by ID.
@@ -918,7 +918,7 @@ Summarize episodic memory for a project.
 
 ## Fleet
 
-As of v3.8.3, the Port Daddy daemon auto-discovers `pd-fleet.yml` files in registered projects on boot and runs fleets as a persistent subsystem. These endpoints manage the daemon-level fleet.
+As of v3.8.3, the Port Daddy daemon auto-discovers `pd-fleet.yml` files in known Port Daddy repos on boot and runs fleets as a persistent subsystem. These endpoints manage the daemon-level fleet.
 
 The CLI (`pd fleet up/down/status/validate`) also supports a terminal-attached mode that reads `pd-fleet.yml` directly without the daemon fleet subsystem. `pd fleet validate` is the dry-run path: it parses YAML, resolves templates, checks trigger topology, and exits without spawning agents.
 

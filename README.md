@@ -421,7 +421,7 @@ fleet:
 
 **Two fleet modes:**
 - **CLI mode** (`pd fleet up`): Manual, runs while your terminal session is open.
-- **Daemon mode** (automatic): The Port Daddy daemon scans all registered projects for `pd-fleet.yml` on boot and starts their fleets automatically. Survives terminal close, system sleep, and daemon restarts (via launchd `KeepAlive`). Editing `pd-fleet.yml` triggers a hot-reload automatically.
+- **Daemon mode** (automatic): The Port Daddy daemon scans known Port Daddy repos on boot and starts any discovered `pd-fleet.yml` fleets automatically. Known repos come from durable repo markers such as `pd-fleet.yml`, `.portdaddyrc`, or `.portdaddy/`, plus live runtime state. Survives terminal close, system sleep, and daemon restarts (via launchd `KeepAlive`). Editing `pd-fleet.yml` triggers a hot-reload automatically.
 
 ```bash
 # CLI mode

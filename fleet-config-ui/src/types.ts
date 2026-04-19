@@ -179,12 +179,19 @@ export interface FleetDaemonStatus {
 
 export interface ProjectSummary {
   id: string;
+  displayName?: string;
   root: string;
   type: string;
   serviceCount: number;
   lastScanned: string;
   createdAt: string;
   frameworks: string[];
+  signals?: string[];
+  sources?: string[];
+  exists?: boolean;
+  running?: boolean;
+  configuredAgentCount?: number;
+  configuredWatcherCount?: number;
 }
 
 export interface BackendInfo {

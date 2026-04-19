@@ -3,9 +3,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 interface ProjectInfo {
   id: string;
   name: string;
+  logicalId?: string;
   fleetPath: string;
   running?: boolean;
   agents: Array<{ agentName: string; status: string }>;
+  configuredAgentCount?: number;
+  configuredWatcherCount?: number;
+  signals?: string[];
+  sources?: string[];
 }
 
 interface Props {
@@ -16,6 +21,10 @@ interface Props {
 
 function deployedCount(project: ProjectInfo): number {
   return project.agents.filter((agent) => agent.status !== 'paused').length;
+}
+
+function configuredCount(project: ProjectInfo): number {
+  return project.configuredAgentCount ?? project.agents.length;
 }
 
 export default function ProjectPicker({ projects, selected, onSelect }: Props) {
@@ -57,7 +66,7 @@ export default function ProjectPicker({ projects, selected, onSelect }: Props) {
               transition={{ type: 'spring', stiffness: 400, damping: 30, delay: i * 0.04 }}>
               <div className="flex items-center justify-between">
                 <span className="font-mono text-sm" style={{ color: 'var(--pd-muted)' }}>{p.name}</span>
-                <span className="text-[10px] opacity-30" style={{ color: 'var(--pd-text)' }}>{p.agents.length} agents</span>
+                <span className="text-[10px] opacity-30" style={{ color: 'var(--pd-text)' }}>{configuredCount(p)} configured</span>
               </div>
             </motion.div>
           ))}
@@ -106,7 +115,7 @@ async function copyCommand(command: string): Promise<void> {
 }
 
 export function AllProjectsList({ projects, onSelect }: AllProjectsProps) {
-  const totalAgents = projects.reduce((n, p) => n + p.agents.length, 0);
+  const totalAgents = projects.reduce((n, p) => n + configuredCount(p), 0);
   const totalActive = projects.reduce((n, p) => n + deployedCount(p), 0);
 
   return (
@@ -133,10 +142,35 @@ export function AllProjectsList({ projects, onSelect }: AllProjectsProps) {
                       {activeCount} deployed
                     </span>
                   )}
+                  {!activeCount && p.running && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ backgroundColor: 'var(--pd-accent-surface)', color: 'var(--pd-accent)' }}>
+                      runtime awake
+                    </span>
+                  )}
                 </div>
-                <span className="text-xs" style={{ color: 'var(--pd-muted)' }}>{p.agents.length} agents</span>
+                <span className="text-xs" style={{ color: 'var(--pd-muted)' }}>{configuredCount(p)} configured</span>
               </div>
               <div className="text-[11px] font-mono" style={{ color: 'var(--pd-muted)' }}>{p.fleetPath}</div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {(p.signals ?? []).map((signal) => (
+                  <span
+                    key={`${p.id}-${signal}`}
+                    className="rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                    style={{ backgroundColor: 'var(--pd-bg)', color: 'var(--pd-muted)', border: '1px solid var(--pd-border)' }}
+                  >
+                    {signal}
+                  </span>
+                ))}
+                {(p.sources ?? []).map((source) => (
+                  <span
+                    key={`${p.id}-${source}`}
+                    className="rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                    style={{ backgroundColor: 'var(--pd-accent-surface)', color: 'var(--pd-accent)', border: '1px solid var(--pd-accent-border)' }}
+                  >
+                    {source}
+                  </span>
+                ))}
+              </div>
             </motion.div>
           );
         })}
@@ -152,7 +186,7 @@ export function AllProjectsList({ projects, onSelect }: AllProjectsProps) {
               Cold-start Port Daddy in a new repo
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed" style={{ color: 'var(--pd-muted)' }}>
-              A project becomes visible here once Port Daddy knows about it. A <span style={{ color: 'var(--pd-text)' }}>pd-fleet.yml</span> makes it manageable; starting the fleet on this daemon makes it live. These snippets are meant to be copied, edited, and run from the target repo.
+              A project becomes visible here once Port Daddy sees durable repo signals such as <span style={{ color: 'var(--pd-text)' }}>pd-fleet.yml</span>, <span style={{ color: 'var(--pd-text)' }}>.portdaddyrc</span>, or a real <span style={{ color: 'var(--pd-text)' }}>.portdaddy/</span> state directory. Starting the fleet on this daemon makes it live.
             </p>
           </div>
           <div className="rounded-full px-3 py-1 text-[11px] font-semibold" style={{ backgroundColor: 'var(--pd-success-surface)', color: 'var(--pd-success)' }}>

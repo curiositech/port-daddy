@@ -2,16 +2,18 @@ import { jest } from '@jest/globals';
 import Fastify from 'fastify';
 
 const mockReadFileSync = jest.fn();
+const mockExistsSync = jest.fn();
+const mockStatSync = jest.fn();
 const mockLoadFleetConfig = jest.fn();
 const mockFindFleetConfigPath = jest.fn();
 const mockValidateTopology = jest.fn(() => ({ valid: true, cycles: [], warnings: [] }));
 
 jest.unstable_mockModule('node:fs', () => ({
   chmodSync: jest.fn(),
-  existsSync: jest.fn(),
+  existsSync: mockExistsSync,
   mkdirSync: jest.fn(),
   readFileSync: mockReadFileSync,
-  statSync: jest.fn(),
+  statSync: mockStatSync,
   unlinkSync: jest.fn(),
   writeFileSync: jest.fn(),
 }));
@@ -37,6 +39,8 @@ const { fleetPlugin } = await import('../../routes/fleet.js');
 describe('fleet routes project resolution', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockExistsSync.mockReturnValue(false);
+    mockStatSync.mockReturnValue({ isDirectory: () => false });
   });
 
   test('GET /fleet/config/:project resolves a registered stopped project by id', async () => {
@@ -89,6 +93,59 @@ describe('fleet routes project resolution', () => {
     expect(body.path).toBe('/repo/stopped/pd-fleet.yml');
     expect(mockFindFleetConfigPath).toHaveBeenCalledWith('/repo/stopped');
     expect(mockLoadFleetConfig).toHaveBeenCalledWith('/repo/stopped');
+
+    await app.close();
+  });
+
+  test('GET /fleet/config/:project resolves an unregistered project directory when pd-fleet.yml exists there', async () => {
+    mockExistsSync.mockImplementation((path) => path === '/repo/discovered');
+    mockStatSync.mockReturnValue({ isDirectory: () => true });
+    mockFindFleetConfigPath.mockReturnValue('/repo/discovered/pd-fleet.yml');
+    mockReadFileSync.mockReturnValue('name: discovered\nagents: []\nwatchers: []\nchannels: {}\n');
+    mockLoadFleetConfig.mockImplementation((path) => (
+      path === '/repo/discovered'
+        ? { name: 'discovered', agents: [], watchers: [], channels: {} }
+        : null
+    ));
+
+    const app = Fastify();
+    await app.register(fleetPlugin, {
+      deps: {
+        fleetDaemon: {
+          getStatus() {
+            return {
+              running: true,
+              startedAt: Date.now(),
+              fleets: [],
+              totalAgents: 0,
+              totalWatchers: 0,
+            };
+          },
+        },
+        projects: {
+          get() {
+            return null;
+          },
+          getByPath() {
+            return null;
+          },
+        },
+        messaging: {
+          subscribe() {
+            return null;
+          },
+        },
+      },
+    });
+
+    const res = await app.inject({ method: 'GET', url: '/fleet/config/%2Frepo%2Fdiscovered' });
+    const body = res.json();
+
+    expect(res.statusCode).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.project).toBe('discovered');
+    expect(body.projectDir).toBe('/repo/discovered');
+    expect(body.path).toBe('/repo/discovered/pd-fleet.yml');
 
     await app.close();
   });

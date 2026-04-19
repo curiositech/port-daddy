@@ -2,7 +2,7 @@
  * Projects & Scan Routes
  *
  * POST /scan         - Deep scan directory, register project, return results + guidance
- * GET  /projects     - List all registered projects
+ * GET  /projects     - List all known Port Daddy projects
  * GET  /projects/:id - Get project details
  * DELETE /projects/:id - Remove a project
  */
@@ -11,6 +11,7 @@ import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import { scanProject, buildConfigFromScan } from '../lib/scan.js';
 import { saveConfig } from '../lib/config.js';
 import type { PortDaddyRcConfig } from '../lib/config.js';
+import { loadFleetConfig } from '../lib/fleet-engine.js';
 
 interface ProjectEntry {
   id: string;
@@ -21,6 +22,10 @@ interface ProjectEntry {
   last_scanned: string;
   created_at: string;
   metadata: { frameworks?: string[]; [key: string]: unknown } | null;
+  displayName?: string;
+  signals?: string[];
+  sources?: string[];
+  exists?: boolean;
 }
 
 interface ProjectsRouteDeps {
@@ -28,7 +33,28 @@ interface ProjectsRouteDeps {
     register(entry: Record<string, unknown>): void;
     get(id: string): ProjectEntry | undefined;
     list(options?: { pattern?: string }): ProjectEntry[];
+    listKnown?(options?: {
+      pattern?: string;
+      runtimeRoots?: string[];
+      serviceRoots?: string[];
+      discoveryRoots?: string[];
+      maxDepth?: number;
+    }): ProjectEntry[];
     remove(id: string): boolean;
+  };
+  services?: {
+    list?(): {
+      services: Array<{ cwd?: string | null }>;
+    };
+    find?(pattern?: string, options?: Record<string, unknown>): {
+      success?: boolean;
+      services?: Array<{ cwd?: string | null }>;
+    };
+  };
+  fleetDaemon?: {
+    getStatus(): {
+      fleets: Array<{ projectDir: string }>;
+    };
   };
   metrics: { errors: number };
   logger: {
@@ -53,6 +79,27 @@ interface ProjectsRouteDeps {
 // =============================================================================
 export const projectsPlugin: FastifyPluginAsync<{ deps: ProjectsRouteDeps }> = async (fastify, opts) => {
   const { projects, metrics, logger, activityLog } = opts.deps;
+
+  function extractServiceRoots(): string[] {
+    const servicesDep = opts.deps.services;
+    if (!servicesDep) return [];
+
+    if (typeof servicesDep.list === 'function') {
+      return servicesDep.list().services
+        .map((service) => service.cwd ?? null)
+        .filter((cwd): cwd is string => typeof cwd === 'string' && cwd.trim().length > 0);
+    }
+
+    if (typeof servicesDep.find === 'function') {
+      const result = servicesDep.find('*', { limit: 500 });
+      if (!result?.success || !Array.isArray(result.services)) return [];
+      return result.services
+        .map((service) => service.cwd ?? null)
+        .filter((cwd): cwd is string => typeof cwd === 'string' && cwd.trim().length > 0);
+    }
+
+    return [];
+  }
 
   // POST /scan - Deep scan a directory for services
   fastify.post('/scan', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -134,25 +181,52 @@ export const projectsPlugin: FastifyPluginAsync<{ deps: ProjectsRouteDeps }> = a
     }
   });
 
-  // GET /projects - List all registered projects
+  // GET /projects - List all known Port Daddy projects
   fastify.get('/projects', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { pattern } = request.query as any;
-      const all = projects.list({
-        pattern: typeof pattern === 'string' ? pattern : undefined
-      });
+      const runtimeRoots = opts.deps.fleetDaemon?.getStatus().fleets.map((fleet) => fleet.projectDir) ?? [];
+      const serviceRoots = extractServiceRoots();
+
+      const all = projects.listKnown
+        ? projects.listKnown({
+            pattern: typeof pattern === 'string' ? pattern : undefined,
+            runtimeRoots,
+            serviceRoots,
+          })
+        : projects.list({
+            pattern: typeof pattern === 'string' ? pattern : undefined
+          });
+
+      const runningRoots = new Set(runtimeRoots);
+      const fleetConfigByRoot = new Map<string, ReturnType<typeof loadFleetConfig>>();
+
+      for (const project of all) {
+        try {
+          fleetConfigByRoot.set(project.root, loadFleetConfig(project.root));
+        } catch {
+          fleetConfigByRoot.set(project.root, null);
+        }
+      }
 
       return {
         success: true,
         count: all.length,
         projects: all.map((p: ProjectEntry) => ({
           id: p.id,
+          displayName: p.displayName || p.id,
           root: p.root,
           type: p.type,
           serviceCount: p.services ? Object.keys(p.services).length : 0,
           lastScanned: p.last_scanned,
           createdAt: p.created_at,
-          frameworks: p.metadata?.frameworks || []
+          frameworks: p.metadata?.frameworks || [],
+          signals: p.signals || [],
+          sources: p.sources || ['registered'],
+          exists: p.exists ?? true,
+          running: runningRoots.has(p.root),
+          configuredAgentCount: fleetConfigByRoot.get(p.root)?.agents.length ?? 0,
+          configuredWatcherCount: fleetConfigByRoot.get(p.root)?.watchers.length ?? 0,
         }))
       };
     } catch (error) {

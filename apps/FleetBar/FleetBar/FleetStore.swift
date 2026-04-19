@@ -64,12 +64,19 @@ struct RegisteredProjectsResponse: Decodable {
 
 struct RegisteredProjectResponse: Decodable {
     let id: String
+    let displayName: String?
     let root: String
     let type: String
     let serviceCount: Int
     let lastScanned: String
     let createdAt: String
     let frameworks: [String]
+    let signals: [String]?
+    let sources: [String]?
+    let exists: Bool?
+    let running: Bool?
+    let configuredAgentCount: Int?
+    let configuredWatcherCount: Int?
 }
 
 struct FleetResponse: Decodable {
@@ -481,7 +488,7 @@ class FleetStore: ObservableObject {
             guard runningProjectsByDir[registeredProject.root] == nil else { continue }
             runningProjectsByDir[registeredProject.root] = FleetProject(
                 id: registeredProject.root,
-                name: registeredProject.id,
+                name: registeredProject.displayName ?? registeredProject.id,
                 projectDir: registeredProject.root,
                 agents: [],
                 startedAt: nil

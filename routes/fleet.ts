@@ -15,6 +15,7 @@
  */
 
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { basename } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import type { createFleetDaemon } from '../lib/fleet-daemon.js';
@@ -308,6 +309,12 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
           })),
         });
         return null;
+      } else if (existsSync(project) && statSync(project).isDirectory()) {
+        const discoveredConfig = loadFleetConfig(project);
+        if (discoveredConfig) {
+          projectName = discoveredConfig.name || basename(project);
+          projectDir = project;
+        }
       }
     }
 

@@ -39,7 +39,12 @@ export async function resolveDeclaredChannel(
   const res: PdFetchResponse = await pdFetch(
     `${PORT_DADDY_URL}/channels/resolve/${encodeURIComponent(channel)}?${params.toString()}`
   );
-  const data = await res.json();
+  const data = await res.json() as {
+    error?: string;
+    channel?: {
+      physicalName?: string;
+    };
+  };
 
   if (res.ok && typeof data.channel?.physicalName === 'string' && data.channel.physicalName.trim()) {
     return {
@@ -57,7 +62,7 @@ export async function resolveDeclaredChannel(
     };
   }
 
-  throw new Error((data.error as string) || `Failed to resolve channel ${channel}`);
+  throw new Error(data.error || `Failed to resolve channel ${channel}`);
 }
 
 export function formatResolvedChannel({
