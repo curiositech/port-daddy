@@ -1,4 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import {
+  createActivityStream,
+  describeDaemonError,
+  type DaemonErrorKind,
+} from '@/lib/daemon-client'
 
 interface Activity {
   id: number;
@@ -16,26 +21,32 @@ interface UseActivityStreamOptions {
 }
 
 export function useActivityStream(options: UseActivityStreamOptions = {}) {
-  const { limit = 50, url = 'http://localhost:9876/activity/subscribe' } = options;
+  const { limit = 50, url } = options;
   const [activities, setActivities] = useState<Activity[]>([]);
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorKind, setErrorKind] = useState<DaemonErrorKind | null>(null);
 
   useEffect(() => {
-    const eventSource = new EventSource(url);
+    const eventSource = url
+      ? new EventSource(url)
+      : createActivityStream()
 
     eventSource.onopen = () => {
       setConnected(true);
       setError(null);
+      setErrorKind(null);
     };
 
-    eventSource.onerror = (e) => {
+    eventSource.onerror = (_event: Event) => {
       setConnected(false);
-      setError('Connection failed');
-      console.error('SSE Error:', e);
+      const normalized = describeDaemonError(new TypeError('Connection failed'))
+      setError(normalized.message);
+      setErrorKind(normalized.kind);
+      console.error('SSE Error: connection failed');
     };
 
-    eventSource.onmessage = (event) => {
+    eventSource.onmessage = (event: MessageEvent<string>) => {
       try {
         const activity = JSON.parse(event.data);
         setActivities((prev) => {
@@ -52,5 +63,5 @@ export function useActivityStream(options: UseActivityStreamOptions = {}) {
     };
   }, [url, limit]);
 
-  return { activities, connected, error };
+  return { activities, connected, error, errorKind };
 }

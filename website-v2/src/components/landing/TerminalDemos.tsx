@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Play, Square } from 'lucide-react'
 import { NeumorphicTerminal } from '@/components/ui/NeumorphicTerminal'
+import { PageContainer, PanelBody, PanelTitle, SectionIntro } from '@/components/site/primitives'
 
 const DEMOS = [
   {
@@ -112,20 +113,17 @@ export function TerminalDemos() {
   const [activeDemo, setActiveDemo] = useState(DEMOS[0])
 
   return (
-    <section id="demos" className="relative py-16 lg:py-24">
-      <div className="max-w-[1200px] mx-auto px-6 lg:px-8">
-        {/* Header */}
-        <div className="max-w-2xl mb-12">
-          <p className="text-sm font-mono text-[var(--brand-secondary)] tracking-wide mb-4 uppercase">
-            See It In Action
-          </p>
-          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-[var(--text-primary)] mb-4 leading-[1.15]">
-            Real commands. Real output.
-          </h2>
-          <p className="text-base text-[var(--text-secondary)] leading-relaxed">
-            Every command runs against a live Port Daddy daemon. What you see is what you get.
-          </p>
-        </div>
+    <section id="demos" className="relative py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+      <PageContainer>
+        <SectionIntro
+          eyebrow="See it in action"
+          title="Real commands. Real output."
+          description="Every command runs against a live Port Daddy daemon. What you see is what you get."
+          titleAs="h2"
+          className="mb-[var(--space-7)] max-w-[46rem]"
+          titleClassName="max-w-[12ch]"
+          bodyClassName="max-w-[36rem]"
+        />
 
         <div className="grid lg:grid-cols-[240px,1fr] gap-4 sm:gap-6">
           {/* Tabs */}
@@ -146,15 +144,15 @@ export function TerminalDemos() {
                   ) : (
                     <Square size={14} className="text-[var(--text-muted)]" />
                   )}
-                  <span className={`text-sm font-semibold ${
+                  <PanelTitle as="span" size="nav" className={`max-w-none text-[1rem] ${
                     activeDemo.id === demo.id ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]'
                   }`}>
                     {demo.title}
-                  </span>
+                  </PanelTitle>
                 </div>
-                <p className="text-xs text-[var(--text-muted)] mt-1 ml-[22px]">
+                <PanelBody size="compact" className="ml-[22px] mt-[var(--space-1)] max-w-none text-[0.875rem]">
                   {demo.description}
-                </p>
+                </PanelBody>
               </button>
             ))}
           </div>
@@ -173,7 +171,7 @@ export function TerminalDemos() {
             />
           </motion.div>
         </div>
-      </div>
+      </PageContainer>
     </section>
   )
 }

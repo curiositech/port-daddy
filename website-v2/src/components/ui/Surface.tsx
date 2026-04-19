@@ -33,7 +33,7 @@ const surfaceVariants = cva(
         sm: 'p-[var(--space-3)]',
         md: 'p-[var(--space-5)]',
         lg: 'p-[var(--space-8)]',
-        xl: 'p-[var(--space-12)]',
+        xl: 'p-[var(--surface-padding-xl)]',
       },
       interactive: {
         true: 'cursor-pointer',

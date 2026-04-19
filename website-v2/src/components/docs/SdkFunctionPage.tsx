@@ -1,7 +1,14 @@
-import { Badge } from '@/components/ui/Badge'
-import { Surface } from '@/components/ui/Surface'
 import { Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
+import { Badge } from '@/components/ui/Badge'
+import {
+  BracketLink,
+  DocsNoteCard,
+  PanelBody,
+  PanelTitle,
+  SectionIntro,
+  SurfacePanel,
+} from '@/components/site/primitives'
 import { DocsCodeBlock as CodeBlock } from './DocsCodeBlock'
 
 interface SdkFunctionPageProps {
@@ -40,119 +47,153 @@ export function SdkFunctionPage({
   params,
   returns,
   examples,
-  seeAlso
+  seeAlso,
 }: SdkFunctionPageProps) {
   return (
-    <div className="space-y-10">
-      {/* Breadcrumb */}
+    <div className="space-y-[var(--space-7)]">
       <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
-        <Link to="/docs/sdk" className="hover:text-[var(--text-primary)]">SDK</Link>
+        <Link to="/docs/sdk" className="hover:text-[var(--text-primary)]">
+          SDK
+        </Link>
         <span>/</span>
-        <Link to={`/docs/sdk/${module.toLowerCase()}`} className="hover:text-[var(--text-primary)]">{module}</Link>
+        <Link to={`/docs/sdk/${module.toLowerCase()}`} className="hover:text-[var(--text-primary)]">
+          {module}
+        </Link>
         <span>/</span>
         <span className="text-[var(--text-primary)]">{fn}()</span>
       </div>
 
-      {/* Header */}
-      <div className="space-y-4">
+      <div className="space-y-[var(--space-4)]">
         <div className="flex items-center gap-3">
           <Badge variant="teal">SDK</Badge>
           <Badge variant="default">v{version}</Badge>
         </div>
-        <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight font-mono">
-          {fn}()
-        </h1>
-        <p className="text-xl text-[var(--text-secondary)] leading-relaxed">
-          {description}
-        </p>
+
+        <SectionIntro
+          eyebrow={`${module} module`}
+          title={`${fn}()`}
+          description={description}
+          titleAs="h1"
+          titleSize="section"
+          titleClassName="max-w-none font-mono"
+          bodyClassName="max-w-[42rem]"
+        />
       </div>
 
-      {/* Signature */}
-      <div className="space-y-3">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Signature</h2>
+      <DocsNoteCard
+        label="Signature"
+        title="Function contract"
+        elevation="quiet"
+        padding="compact"
+        titleSize="nav"
+      >
         <CodeBlock code={signature} language="typescript" />
-      </div>
+      </DocsNoteCard>
 
-      {/* Parameters */}
-      {params && params.length > 0 && (
-        <div className="space-y-3">
-          <h2 className="text-lg font-semibold text-[var(--text-primary)]">Parameters</h2>
-          <Surface depth="raised" radius="2xl" padding="none" className="overflow-hidden divide-y divide-[var(--border-subtle)]">
-
-            {params.map((param, i) => (
-              <div key={i} className="p-4">
-                <div className="flex items-center gap-2">
-                  <code className="text-sm font-mono text-[var(--brand-primary)]">{param.name}</code>
-                  {param.required && <Badge variant="default" size="sm">required</Badge>}
-                  <span className="text-xs text-[var(--text-muted)]">{param.type}</span>
+      {params?.length ? (
+        <DocsNoteCard
+          label="Parameters"
+          title="Inputs this function expects"
+          elevation="quiet"
+          padding="compact"
+          titleSize="nav"
+        >
+          <div className="space-y-[var(--space-3)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
+            {params.map((param) => (
+              <SurfacePanel key={param.name} elevation="quiet" padding="compact" className="space-y-[var(--space-2)]">
+                <div className="flex flex-wrap items-center gap-2">
+                  <PanelTitle as="p" size="nav" className="max-w-none font-mono text-[var(--brand-primary)]">
+                    {param.name}
+                  </PanelTitle>
+                  {param.required ? <Badge variant="default" size="sm">required</Badge> : null}
+                  <Badge variant="outline" size="sm">
+                    {param.type}
+                  </Badge>
                 </div>
-                <p className="text-sm text-[var(--text-muted)] mt-1">{param.description}</p>
-              </div>
+                <PanelBody size="compact" className="max-w-none">
+                  {param.description}
+                </PanelBody>
+              </SurfacePanel>
             ))}
-          </Surface>
-        </div>
-      )}
+          </div>
+        </DocsNoteCard>
+      ) : null}
 
-      {/* Returns */}
-      {returns && (
-        <div className="space-y-3">
-          <h2 className="text-lg font-semibold text-[var(--text-primary)]">Returns</h2>
-          <Surface depth="raised" radius="2xl" className="p-5">
+      {returns ? (
+        <DocsNoteCard
+          label="Returns"
+          title="What comes back"
+          elevation="quiet"
+          padding="compact"
+          titleSize="nav"
+        >
+          <SurfacePanel elevation="quiet" padding="compact" className="space-y-[var(--space-2)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
+            <PanelTitle as="p" size="nav" className="max-w-none font-mono text-[var(--brand-primary)]">
+              {returns.type}
+            </PanelTitle>
+            <PanelBody size="compact" className="max-w-none">
+              {returns.description}
+            </PanelBody>
+          </SurfacePanel>
+        </DocsNoteCard>
+      ) : null}
 
-            <code className="text-sm font-mono text-[var(--brand-primary)]">{returns.type}</code>
-            <p className="text-sm text-[var(--text-muted)] mt-1">{returns.description}</p>
-          </Surface>
-        </div>
-      )}
-
-      {/* Examples */}
-      <div className="space-y-6">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Examples</h2>
-        <div className="space-y-6">
-          {examples.map((ex, i) => (
-            <div key={i} className="space-y-2">
-              <p className="text-[var(--text-secondary)]">{ex.description}</p>
-              <CodeBlock code={ex.code} output={ex.output} language="typescript" />
-            </div>
+      <div className="space-y-[var(--space-4)]">
+        <PanelTitle as="h2" size="nav" className="max-w-none">
+          Examples
+        </PanelTitle>
+        <div className="space-y-[var(--space-4)]">
+          {examples.map((example, index) => (
+            <DocsNoteCard
+              key={`${fn}-example-${index}`}
+              label={`Example ${String(index + 1).padStart(2, '0')}`}
+              title={example.description}
+              elevation="quiet"
+              padding="compact"
+              titleSize="nav"
+            >
+              <CodeBlock code={example.code} output={example.output} language="typescript" />
+            </DocsNoteCard>
           ))}
         </div>
       </div>
 
-      {/* See Also */}
-      {seeAlso && seeAlso.length > 0 && (
-        <div className="space-y-3 pt-6 border-t border-[var(--border-subtle)]">
-          <h2 className="text-lg font-semibold text-[var(--text-primary)]">See Also</h2>
-          <div className="flex flex-wrap gap-2">
-            {seeAlso.map((item, i) => (
-              <Link
-                key={i}
+      {seeAlso?.length ? (
+        <DocsNoteCard
+          label="See also"
+          title="Related SDK surfaces"
+          elevation="quiet"
+          padding="compact"
+          titleSize="nav"
+        >
+          <div className="flex flex-wrap gap-[var(--panel-gap-tight)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
+            {seeAlso.map((item, index) => (
+              <BracketLink
+                key={item.href}
                 to={item.href}
-                className="px-3 py-2 rounded-xl text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all"
-                style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-sm)' }}
-                onMouseEnter={(e) => { e.currentTarget.style.boxShadow = 'var(--shadow-flat)' }}
-                onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'var(--shadow-sm)' }}
+                tone={index % 2 === 0 ? 'blue' : 'lime'}
+                side={index % 2 === 0 ? 'left' : 'right'}
               >
                 {item.name}
-              </Link>
+              </BracketLink>
             ))}
           </div>
-        </div>
-      )}
+        </DocsNoteCard>
+      ) : null}
 
-      {/* Navigation */}
-      <div className="flex items-center justify-between pt-6 border-t border-[var(--border-subtle)]">
-        <Link 
+      <div className="flex flex-wrap items-center justify-between gap-[var(--space-3)] border-t border-[var(--border-subtle)] pt-[var(--space-5)]">
+        <Link
           to={`/docs/sdk/${module.toLowerCase()}`}
-          className="flex items-center gap-2 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+          className="flex items-center gap-2 text-sm text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
         >
           <ArrowLeft size={14} />
-          {module} Module
+          {module} module
         </Link>
-        <Link 
+        <Link
           to="/docs/sdk"
-          className="flex items-center gap-2 text-sm text-[var(--brand-primary)] hover:text-[var(--brand-primary)] transition-colors"
+          className="flex items-center gap-2 text-sm text-[var(--brand-primary)] transition-colors hover:text-[var(--brand-primary)]"
         >
-          All SDK Functions
+          All SDK functions
           <ArrowLeft size={14} className="rotate-180" />
         </Link>
       </div>

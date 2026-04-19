@@ -61,10 +61,22 @@ function ActivityItem({ activity, isNote }: { activity: any; isNote?: boolean })
 
 export function ActivityFeed() {
   const [mode, setMode] = React.useState<'live' | 'history'>('live');
-  const { activities: liveActivities, connected } = useActivityStream({ limit: 20 });
-  const { events: historyEvents } = useTimeline({ limit: 50 });
+  const { activities: liveActivities, connected, errorKind: liveErrorKind } = useActivityStream({ limit: 20 });
+  const { events: historyEvents, errorKind: historyErrorKind } = useTimeline({ limit: 50 });
 
   const displayItems = mode === 'live' ? liveActivities : historyEvents;
+  const liveSignalLabel = connected
+    ? 'Signal Active'
+    : liveErrorKind === 'network'
+      ? 'Daemon Offline'
+      : liveErrorKind
+        ? 'Feed Error'
+        : 'Radio Silent'
+  const emptyStateLabel = mode === 'live' && liveErrorKind === 'network'
+    ? 'Daemon unreachable'
+    : mode === 'history' && historyErrorKind
+      ? 'Timeline unavailable'
+      : 'No activity detected'
 
   return (
     <motion.div className="flex flex-col h-full bg-[var(--surface-raised)] rounded-3xl border border-[var(--border-default)] overflow-hidden shadow-2xl font-sans">
@@ -97,7 +109,7 @@ export function ActivityFeed() {
           <motion.div className="flex items-center gap-1.5 font-sans">
             <motion.div className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-[var(--status-success)] animate-pulse' : 'bg-[var(--status-error)]'}`} />
             <motion.span className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-muted)] font-sans">
-              {connected ? 'Signal Active' : 'Radio Silent'}
+              {liveSignalLabel}
             </motion.span>
           </motion.div>
         </motion.div>
@@ -113,7 +125,7 @@ export function ActivityFeed() {
           {displayItems.length === 0 && (
             <motion.div className="py-20 text-center opacity-30 font-sans">
               <Search size={32} className="mx-auto mb-4" />
-              <motion.p className="text-[10px] font-black uppercase tracking-widest font-sans">No activity detected</motion.p>
+              <motion.p className="text-[10px] font-black uppercase tracking-widest font-sans">{emptyStateLabel}</motion.p>
             </motion.div>
           )}
         </motion.div>

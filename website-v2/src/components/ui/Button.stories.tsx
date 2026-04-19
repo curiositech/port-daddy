@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { Button } from './Button'
-import { Anchor, ArrowRight, Copy, Download, Play, Terminal } from 'lucide-react'
+import { Anchor, ArrowRight, Copy, Download, Play } from 'lucide-react'
 
 const meta = {
   title: 'UI/Button',
@@ -9,7 +9,7 @@ const meta = {
   argTypes: {
     variant: {
       control: 'select',
-      options: ['primary', 'ghost', 'code', 'outline'],
+      options: ['primary', 'secondary', 'ghost', 'outline', 'danger'],
       description: 'Visual style variant',
     },
     size: {
@@ -50,17 +50,17 @@ export const Ghost: Story = {
   },
 }
 
+export const Secondary: Story = {
+  args: {
+    variant: 'secondary',
+    children: 'View Architecture',
+  },
+}
+
 export const Outline: Story = {
   args: {
     variant: 'outline',
     children: 'View Docs',
-  },
-}
-
-export const Code: Story = {
-  args: {
-    variant: 'code',
-    children: 'npm install port-daddy',
   },
 }
 
@@ -105,9 +105,9 @@ export const AllVariants: Story = {
   render: () => (
     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
       <Button variant="primary">Primary</Button>
+      <Button variant="secondary">Secondary</Button>
       <Button variant="ghost">Ghost</Button>
       <Button variant="outline">Outline</Button>
-      <Button variant="code">pd claim myapp</Button>
     </div>
   ),
 }
@@ -155,10 +155,7 @@ export const WithIconVariants: Story = {
         <Anchor size={16} />
         Claim Port
       </Button>
-      <Button variant="code">
-        <Terminal size={16} />
-        pd status
-      </Button>
+      <Button variant="danger">Unsafe</Button>
     </div>
   ),
 }
@@ -176,9 +173,9 @@ export const DisabledVariants: Story = {
   render: () => (
     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
       <Button variant="primary" disabled>Primary</Button>
+      <Button variant="secondary" disabled>Secondary</Button>
       <Button variant="ghost" disabled>Ghost</Button>
       <Button variant="outline" disabled>Outline</Button>
-      <Button variant="code" disabled>pd claim</Button>
     </div>
   ),
 }

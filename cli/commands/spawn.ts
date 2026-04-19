@@ -8,6 +8,10 @@ import { pdFetch } from '../utils/fetch.js';
 import { createWatch } from '../../lib/watch.js';
 import { CLIOptions, isQuiet, isJson } from '../types.js';
 import { IS_TTY, relativeTime } from '../utils/output.js';
+import {
+  resolveDeclaredChannel,
+  formatResolvedChannel,
+} from '../utils/channel-resolution.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
 import { autoIdentityFromPackageJson } from './services.js';
@@ -286,6 +290,7 @@ export async function handleWatch(
     console.error('Usage: pd watch <channel> --exec <script>');
     console.error('');
     console.error('Subscribes to a pub/sub channel and runs a script on each message.');
+    console.error('Declared logical channels auto-resolve against the current repo/worktree by default.');
     console.error('Reconnects automatically with exponential backoff (1s → 2s → 4s … 30s).');
     console.error('');
     console.error('Options:');
@@ -294,6 +299,8 @@ export async function handleWatch(
     console.error('  --max-concurrent <n>     Max concurrent exec processes (default: 3)');
     console.error('  --timeout <ms>           Per-exec timeout in ms (default: 30000)');
     console.error('  --min-interval <ms>      Min ms between executions — rate limit (default: 0)');
+    console.error('  --dir <path>             Resolve declared logical channels for this worktree');
+    console.error('  --raw-channel            Bypass logical-channel resolution and use the literal string');
     console.error('');
     console.error('Environment variables set when exec runs:');
     console.error('  PD_MESSAGE          Full message JSON string');
@@ -315,6 +322,14 @@ export async function handleWatch(
     process.exit(1);
   }
 
+  let resolvedChannel;
+  try {
+    resolvedChannel = await resolveDeclaredChannel(channel, options);
+  } catch (error) {
+    ui.error((error as Error).message);
+    process.exit(1);
+  }
+
   const once = !!options.once;
   const maxConcurrent = options['max-concurrent'] !== undefined
     ? parseInt(String(options['max-concurrent']), 10)
@@ -327,7 +342,7 @@ export async function handleWatch(
     : 0;
 
   if (IS_TTY && !isQuiet(options)) {
-    ui.info(`Watching channel "${channel}" — exec: ${exec}`);
+    ui.info(`Watching ${formatResolvedChannel(resolvedChannel)} — exec: ${exec}`);
     if (once) console.error('  (--once: will exit after first message)');
     console.error(`  max-concurrent: ${maxConcurrent}  timeout: ${timeout}ms  min-interval: ${minInterval}ms`);
     console.error('  Reconnects with exponential backoff on disconnect');
@@ -335,7 +350,7 @@ export async function handleWatch(
   }
 
   const watcher = createWatch();
-  const handle = watcher.watch(channel, { exec, once, maxConcurrent, timeout, minInterval });
+  const handle = watcher.watch(resolvedChannel.physicalChannel, { exec, once, maxConcurrent, timeout, minInterval });
 
   // Handle SIGINT/SIGTERM gracefully
   const cleanup = () => {

@@ -45,6 +45,27 @@ struct FleetControlCenter: View {
         nonmutating set { selectedThemeRaw = newValue == "light" ? "light" : "dark" }
     }
 
+    private var fleetActionTitle: String {
+        if let selectedProject {
+            return selectedProject.activeCount > 0 ? "Stop Fleet" : "Start Fleet"
+        }
+        return store.totalActive > 0 ? "Stop All" : "Start All"
+    }
+
+    private var fleetActionIcon: String {
+        if let selectedProject {
+            return selectedProject.activeCount > 0 ? "stop.fill" : "play.fill"
+        }
+        return store.totalActive > 0 ? "stop.fill" : "play.fill"
+    }
+
+    private var fleetActionColor: Color {
+        if let selectedProject {
+            return selectedProject.activeCount > 0 ? Fleet.Color.failure : Fleet.Color.healthy
+        }
+        return store.totalActive > 0 ? Fleet.Color.failure : Fleet.Color.healthy
+    }
+
     private var embeddedControlPlaneURL: URL? {
         guard var components = URLComponents(string: "\(store.daemonURL)/fleet-ui/") else {
             return nil
@@ -110,120 +131,151 @@ struct FleetControlCenter: View {
     }
 
     private var topBar: some View {
-        HStack(spacing: Fleet.Space.m) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Fleet Control Center")
-                    .font(.system(size: 18, weight: .semibold))
-                HStack(spacing: 6) {
-                    Text("Native shell over the live control plane")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                    if let selectedProjectId,
-                       let project = store.projects.first(where: { $0.id == selectedProjectId }) {
-                        Text("·")
+        VStack(spacing: Fleet.Space.s) {
+            HStack(spacing: Fleet.Space.m) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Fleet Control Center")
+                        .font(.system(size: 18, weight: .semibold))
+                    HStack(spacing: 6) {
+                        Text("Native shell over the live control plane")
                             .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                        Text(project.name)
-                            .font(.caption2.weight(.semibold))
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
-                    }
-                }
-            }
-
-            projectMenu
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: Fleet.Space.xs) {
-                    ForEach(FleetControlSurface.allCases) { surface in
-                        Button {
-                            selectedSurface = surface
-                        } label: {
-                            Label(surface.title, systemImage: surface.icon)
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(selectedSurface == surface ? .primary : .secondary)
-                                .padding(.horizontal, Fleet.Space.m)
-                                .padding(.vertical, 7)
-                                .background(
-                                    (selectedSurface == surface
-                                        ? Fleet.Color.active.opacity(0.14)
-                                        : Color.primary.opacity(0.04)),
-                                    in: RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous)
-                                )
+                        if let selectedProjectId,
+                           let project = store.projects.first(where: { $0.id == selectedProjectId }) {
+                            Text("·")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                            Text(project.name)
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
                         }
-                        .buttonStyle(.plain)
                     }
+                }
+
+                Spacer()
+
+                HStack(spacing: Fleet.Space.xs) {
+                    statusBadge(
+                        title: store.isDaemonRunning ? "Daemon" : "Offline",
+                        value: store.daemonLabel,
+                        color: store.isDaemonRunning ? Fleet.Color.healthy : Fleet.Color.failure
+                    )
+                    statusBadge(
+                        title: "Spend",
+                        value: String(format: "$%.2f", costStore.todaySpend),
+                        color: costStore.overBudgetProjectCount > 0
+                            ? Fleet.Color.failure
+                            : costStore.nearBudgetProjectCount > 0
+                                ? Fleet.Color.warning
+                                : Fleet.Color.active
+                    )
+                    statusBadge(
+                        title: "Agents",
+                        value: "\(store.totalActive)/\(store.totalAgents)",
+                        color: store.totalActive > 0 ? Fleet.Color.active : Fleet.Color.dormant
+                    )
                 }
             }
 
-            Spacer()
-
-            HStack(spacing: Fleet.Space.xs) {
-                statusBadge(
-                    title: store.isDaemonRunning ? "Daemon" : "Offline",
-                    value: store.daemonLabel,
-                    color: store.isDaemonRunning ? Fleet.Color.healthy : Fleet.Color.failure
-                )
-                statusBadge(
-                    title: "Spend",
-                    value: String(format: "$%.2f", costStore.todaySpend),
-                    color: costStore.overBudgetProjectCount > 0
-                        ? Fleet.Color.failure
-                        : costStore.nearBudgetProjectCount > 0
-                            ? Fleet.Color.warning
-                            : Fleet.Color.active
-                )
-                statusBadge(
-                    title: "Agents",
-                    value: "\(store.totalActive)/\(store.totalAgents)",
-                    color: store.totalActive > 0 ? Fleet.Color.active : Fleet.Color.dormant
-                )
+            HStack(spacing: Fleet.Space.m) {
+                projectMenu
+                surfaceStrip
+                Spacer(minLength: Fleet.Space.m)
             }
 
-            ActionPill(
-                title: selectedTheme == "dark" ? "Light" : "Dark",
-                systemImage: selectedTheme == "dark" ? "sun.max" : "moon",
-                color: Fleet.Color.active
-            ) {
-                selectedTheme = selectedTheme == "dark" ? "light" : "dark"
-                reloadToken = UUID()
-            }
+            HStack(spacing: Fleet.Space.s) {
+                ActionPill(
+                    title: selectedTheme == "dark" ? "Light" : "Dark",
+                    systemImage: selectedTheme == "dark" ? "sun.max" : "moon",
+                    color: Fleet.Color.active
+                ) {
+                    selectedTheme = selectedTheme == "dark" ? "light" : "dark"
+                    reloadToken = UUID()
+                }
 
-            ActionPill(
-                title: store.isDaemonRunning ? "Reload" : "Start",
-                systemImage: store.isDaemonRunning ? "arrow.clockwise" : "play.fill",
-                color: store.isDaemonRunning ? Fleet.Color.active : Fleet.Color.healthy
-            ) {
-                Task {
-                    if store.isDaemonRunning {
-                        await refreshAll()
+                ActionPill(
+                    title: fleetActionTitle,
+                    systemImage: fleetActionIcon,
+                    color: fleetActionColor
+                ) {
+                    Task {
+                        if let selectedProject {
+                            if selectedProject.activeCount > 0 {
+                                await store.stopFleet(projectDir: selectedProject.projectDir)
+                            } else {
+                                await store.startFleet(projectDir: selectedProject.projectDir)
+                            }
+                        } else if store.totalActive > 0 {
+                            await store.stopFleet()
+                        } else {
+                            await store.startFleet()
+                        }
                         reloadToken = UUID()
-                    } else {
-                        store.startDaemon()
                     }
                 }
-            }
 
-            ActionPill(
-                title: "Add Project",
-                systemImage: "plus",
-                color: Fleet.Color.healthy
-            ) {
-                showingAddProject = true
-            }
+                ActionPill(
+                    title: store.isDaemonRunning ? "Reload" : "Start Daemon",
+                    systemImage: store.isDaemonRunning ? "arrow.clockwise" : "play.fill",
+                    color: store.isDaemonRunning ? Fleet.Color.active : Fleet.Color.healthy
+                ) {
+                    Task {
+                        if store.isDaemonRunning {
+                            await refreshAll()
+                            reloadToken = UUID()
+                        } else {
+                            store.startDaemon()
+                        }
+                    }
+                }
 
-            ActionPill(
-                title: "Browser",
-                systemImage: "safari",
-                color: Fleet.Color.warning,
-                action: openInBrowser
-            )
+                ActionPill(
+                    title: "Add Project",
+                    systemImage: "plus",
+                    color: Fleet.Color.healthy
+                ) {
+                    showingAddProject = true
+                }
+
+                ActionPill(
+                    title: "Browser",
+                    systemImage: "safari",
+                    color: Fleet.Color.warning,
+                    action: openInBrowser
+                )
+
+                Spacer(minLength: 0)
+            }
         }
         .padding(.horizontal, Fleet.Space.l)
         .padding(.vertical, 10)
         .sheet(isPresented: $showingAddProject) {
             FleetAddProjectSheet()
+        }
+    }
+
+    private var surfaceStrip: some View {
+        HStack(spacing: Fleet.Space.xs) {
+            ForEach(FleetControlSurface.allCases) { surface in
+                Button {
+                    selectedSurface = surface
+                } label: {
+                    Label(surface.title, systemImage: surface.icon)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(selectedSurface == surface ? .primary : .secondary)
+                        .padding(.horizontal, Fleet.Space.m)
+                        .padding(.vertical, 7)
+                        .background(
+                            (selectedSurface == surface
+                                ? Fleet.Color.active.opacity(0.14)
+                                : Color.primary.opacity(0.04)),
+                            in: RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous)
+                        )
+                }
+                .buttonStyle(.plain)
+            }
         }
     }
 
@@ -412,7 +464,7 @@ struct FleetControlCenter: View {
         if selectedProjectStorage.isEmpty {
             selectedProjectId = nil
         } else {
-            selectedProjectId = store.projects.first?.id
+            selectedProjectId = nil
         }
         selectedAgent = nil
     }

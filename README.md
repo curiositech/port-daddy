@@ -153,7 +153,7 @@ pd pub swarm:general \
   --sender "NAVIGATOR"
 ```
 
-Declared channels are git-sensitive by default. A branch-scoped channel resolves differently across worktrees/feature branches, which stops unrelated branches from accidentally sharing the same coordination bus. Use `--raw-channel` only when you intentionally want the literal channel string without resolution.
+Declared channels are git-sensitive by default. A branch-scoped channel resolves differently across worktrees/feature branches, which stops unrelated branches from accidentally sharing the same coordination bus. `pd pub`, `pd sub`, `pd watch`, and `pd channels clear` all auto-resolve declared logical names against the current worktree. Use `--raw-channel` only when you intentionally want the literal channel string without resolution.
 
 ### Integration & Signaling
 Automate agent handoffs using `pd integration` and `pd wait`:
@@ -205,7 +205,7 @@ pd spawned
 # Kill a running agent
 pd spawn kill <agent-id>
 
-# Watch a channel and auto-trigger scripts
+# Watch a logical channel and auto-trigger scripts
 pd watch git:committed --exec './fleet/qa-adversary.sh'
 ```
 
@@ -421,7 +421,7 @@ fleet:
 
 **Two fleet modes:**
 - **CLI mode** (`pd fleet up`): Manual, runs while your terminal session is open.
-- **Daemon mode** (automatic): The Port Daddy daemon scans all registered projects for `pd-fleet.yml` on boot and starts their fleets automatically. Survives terminal close, system sleep, and daemon restarts (via launchd `KeepAlive`). Editing `pd-fleet.yml` triggers a hot-reload automatically.
+- **Daemon mode** (automatic): The Port Daddy daemon scans known Port Daddy repos on boot and starts any discovered `pd-fleet.yml` fleets automatically. Known repos come from durable repo markers such as `pd-fleet.yml`, `.portdaddyrc`, or `.portdaddy/`, plus live runtime state. Survives terminal close, system sleep, and daemon restarts (via launchd `KeepAlive`). Editing `pd-fleet.yml` triggers a hot-reload automatically.
 
 ```bash
 # CLI mode

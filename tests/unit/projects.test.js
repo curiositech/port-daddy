@@ -5,16 +5,27 @@
  * Verifies register, get, getByPath, list, remove, count.
  */
 
-import { describe, it, expect, beforeEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { createTestDb } from '../setup-unit.js';
 import { createProjects } from '../../lib/projects.js';
 
 describe('Projects Module', () => {
   let db, projects;
+  let tempRoots;
 
   beforeEach(() => {
     db = createTestDb();
     projects = createProjects(db);
+    tempRoots = [];
+  });
+
+  afterEach(() => {
+    for (const root of tempRoots) {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   describe('register()', () => {
@@ -219,6 +230,53 @@ describe('Projects Module', () => {
       const matches = projects.list({ pattern: '*front*' });
       expect(matches).toHaveLength(1);
       expect(matches[0].id).toBe('p1');
+    });
+  });
+
+  describe('listKnown()', () => {
+    it('discovers repos from durable Port Daddy markers even if they were never scanned', () => {
+      const workspace = mkdtempSync(join(tmpdir(), 'pd-projects-workspace-'));
+      const fleetRoot = join(workspace, 'fleet-alpha');
+      tempRoots.push(workspace);
+
+      mkdirSync(fleetRoot, { recursive: true });
+      writeFileSync(join(fleetRoot, 'pd-fleet.yml'), 'name: fleet-alpha\nagents: []\nwatchers: []\nchannels: {}\n');
+
+      const known = projects.listKnown({
+        discoveryRoots: [workspace],
+        maxDepth: 2,
+        fresh: true,
+      });
+
+      expect(known.some((entry) => entry.root === fleetRoot)).toBe(true);
+      expect(known.find((entry) => entry.root === fleetRoot)?.signals).toContain('fleet');
+      expect(known.find((entry) => entry.root === fleetRoot)?.sources).toContain('discovered');
+    });
+
+    it('filters stale temp registrations that no longer have durable Port Daddy markers', () => {
+      const workspace = mkdtempSync(join(tmpdir(), 'pd-projects-stale-'));
+      const staleRoot = join(workspace, 'empty-project');
+      tempRoots.push(workspace);
+
+      mkdirSync(staleRoot, { recursive: true });
+      projects.register({ id: 'empty-project', root: staleRoot });
+
+      const knownBeforeCleanup = projects.listKnown({
+        discoveryRoots: [workspace],
+        maxDepth: 2,
+        fresh: true,
+      });
+      expect(knownBeforeCleanup.some((entry) => entry.root === staleRoot)).toBe(false);
+
+      writeFileSync(join(staleRoot, '.portdaddyrc'), JSON.stringify({ project: 'empty-project', services: {} }));
+
+      const knownAfterSignal = projects.listKnown({
+        discoveryRoots: [workspace],
+        maxDepth: 2,
+        fresh: true,
+      });
+      expect(knownAfterSignal.some((entry) => entry.root === staleRoot)).toBe(true);
+      expect(knownAfterSignal.find((entry) => entry.root === staleRoot)?.signals).toContain('config');
     });
   });
 });

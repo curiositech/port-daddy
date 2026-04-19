@@ -2,6 +2,7 @@ import Foundation
 
 enum FleetControlSurface: String, CaseIterable, Identifiable {
     case flow
+    case agents
     case activity
     case channels
     case inbox
@@ -14,6 +15,7 @@ enum FleetControlSurface: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .flow: return "Flow"
+        case .agents: return "Agents"
         case .activity: return "Activity"
         case .channels: return "Channels"
         case .inbox: return "Inbox"
@@ -26,6 +28,7 @@ enum FleetControlSurface: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .flow: return "point.3.connected.trianglepath.dotted"
+        case .agents: return "person.3"
         case .activity: return "waveform.path.ecg"
         case .channels: return "dot.radiowaves.left.and.right"
         case .inbox: return "tray.full"

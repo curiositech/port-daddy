@@ -9,9 +9,16 @@ import SwiftUI
 struct CostDashboard: View {
     @ObservedObject var store: CostStore
 
-    private var unbudgetedReference: Double {
-        let maxSpend = store.byProject
+    private var liveReference: Double {
+        let maxSpend = store.liveProjects
             .filter { $0.budgetUsdPerDay == nil }
+            .map(\.totalUsd)
+            .max() ?? 0
+        return max(maxSpend, 1)
+    }
+
+    private var historicalReference: Double {
+        let maxSpend = store.historicalBuckets
             .map(\.totalUsd)
             .max() ?? 0
         return max(maxSpend, 1)
@@ -24,8 +31,11 @@ struct CostDashboard: View {
             } else {
                 heroNumber
                 burnRateLine
-                if !store.byProject.isEmpty {
-                    projectBars
+                if !store.liveProjects.isEmpty {
+                    liveProjectBars
+                }
+                if !store.historicalBuckets.isEmpty {
+                    historicalSpendSection
                 }
             }
         }
@@ -37,10 +47,16 @@ struct CostDashboard: View {
     // MARK: - Hero Number
 
     private var heroNumber: some View {
-        Text(spendFormatted)
-            .font(.system(size: 32, weight: .medium, design: .monospaced))
-            .foregroundStyle(spendColor)
-            .contentTransition(.numericText())
+        VStack(alignment: .leading, spacing: Fleet.Space.xs) {
+            Text(spendFormatted)
+                .font(.system(size: 32, weight: .medium, design: .monospaced))
+                .foregroundStyle(spendColor)
+                .contentTransition(.numericText())
+
+            Text(heroScopeLabel)
+                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                .foregroundStyle(.tertiary)
+        }
     }
 
     private var spendFormatted: String {
@@ -53,25 +69,37 @@ struct CostDashboard: View {
         return .secondary
     }
 
+    private var heroScopeLabel: String {
+        if !store.liveProjects.isEmpty {
+            return "live fleet spend · last 24h"
+        }
+        if store.historicalBucketCount > 0 {
+            return "headline excludes historical labels below"
+        }
+        return "no live fleet spend recorded"
+    }
+
     // MARK: - Burn Rate Line
 
     private var burnRateLine: some View {
         HStack(spacing: Fleet.Space.xs) {
-            Image(systemName: "flame")
+            Image(systemName: "circle.grid.2x2")
                 .font(.system(size: 10))
                 .foregroundStyle(.tertiary)
 
-            Text("burning \(store.burnRateString)")
+            Text(scopeLabel)
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            Image(systemName: "circle.fill")
-                .font(.system(size: 3))
-                .foregroundStyle(.quaternary)
+            if !store.liveProjects.isEmpty {
+                Image(systemName: "circle.fill")
+                    .font(.system(size: 3))
+                    .foregroundStyle(.quaternary)
 
-            Text("\(store.spawnCountToday) spawns today")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                Text(telemetryLabel)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
 
             if let budgetLabel {
                 Image(systemName: "circle.fill")
@@ -82,7 +110,27 @@ struct CostDashboard: View {
                     .font(.caption)
                     .foregroundStyle(budgetLabelColor)
             }
+
+            if store.historicalBucketCount > 0 {
+                Image(systemName: "circle.fill")
+                    .font(.system(size: 3))
+                    .foregroundStyle(.quaternary)
+
+                Text("\(store.historicalBucketCount) historical label\(store.historicalBucketCount == 1 ? "" : "s")")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
         }
+    }
+
+    private var scopeLabel: String {
+        if !store.liveProjects.isEmpty {
+            return "\(store.liveProjects.count) live fleet\(store.liveProjects.count == 1 ? "" : "s")"
+        }
+        if store.historicalBucketCount > 0 {
+            return "history only"
+        }
+        return "no live fleets"
     }
 
     private var budgetLabel: String? {
@@ -104,15 +152,48 @@ struct CostDashboard: View {
         return .secondary
     }
 
+    private var telemetryLabel: String {
+        var segments: [String] = []
+        if store.exactCountToday > 0 {
+            segments.append("\(store.exactCountToday) exact session\(store.exactCountToday == 1 ? "" : "s")")
+        }
+        if store.estimatedCountToday > 0 {
+            segments.append("\(store.estimatedCountToday) legacy estimated")
+        }
+        return segments.joined(separator: " · ")
+    }
+
     // MARK: - Project Bars
 
-    private var projectBars: some View {
+    private var liveProjectBars: some View {
         VStack(spacing: Fleet.Space.s) {
-            ForEach(store.byProject) { project in
+            ForEach(store.liveProjects) { project in
                 ProjectCostBar(
                     project: project,
-                    fallbackReference: unbudgetedReference
+                    fallbackReference: liveReference
                 )
+            }
+        }
+        .padding(.top, Fleet.Space.xs)
+    }
+
+    private var historicalSpendSection: some View {
+        VStack(alignment: .leading, spacing: Fleet.Space.s) {
+            Text("Historical spend labels")
+                .font(.system(.caption, design: .monospaced).weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            Text("From /metrics/cost historical telemetry, including legacy estimates. These are not current fleets.")
+                .font(.system(size: 11))
+                .foregroundStyle(.tertiary)
+
+            VStack(spacing: Fleet.Space.s) {
+                ForEach(store.historicalBuckets) { project in
+                    ProjectCostBar(
+                        project: project,
+                        fallbackReference: historicalReference
+                    )
+                }
             }
         }
         .padding(.top, Fleet.Space.xs)
@@ -152,16 +233,29 @@ struct ProjectCostBar: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: Fleet.Space.s) {
-                Text(project.projectName)
+                Text(project.displayName)
                     .font(.system(.caption, design: .monospaced).weight(.medium))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
+
+                if project.category == .historicalLabel {
+                    Text("history")
+                        .font(.system(size: 10, weight: .medium, design: .monospaced))
+                        .foregroundStyle(.tertiary)
+                }
 
                 Spacer()
 
                 Text(amountLabel)
                     .font(.system(.caption, design: .monospaced).weight(.medium))
                     .foregroundStyle(project.overBudget ? Fleet.Color.failure : .secondary)
+            }
+
+            if project.category == .historicalLabel, let projectDir = project.projectDir, !projectDir.isEmpty {
+                Text(projectDir)
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
             }
 
             GeometryReader { geo in

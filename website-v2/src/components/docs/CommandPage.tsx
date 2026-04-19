@@ -1,7 +1,15 @@
-import { Badge } from '@/components/ui/Badge'
-import { Surface } from '@/components/ui/Surface'
 import { Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
+import { Badge } from '@/components/ui/Badge'
+import {
+  BracketLink,
+  DocsNoteCard,
+  PanelBody,
+  PanelList,
+  PanelTitle,
+  SectionIntro,
+  SurfacePanel,
+} from '@/components/site/primitives'
 import { DocsCodeBlock as CodeBlock } from './DocsCodeBlock'
 
 interface CommandPageProps {
@@ -41,149 +49,173 @@ export function CommandPage({
   flags,
   subcommands,
   usagePatterns,
-  seeAlso
+  seeAlso,
 }: CommandPageProps) {
   return (
-    <div className="space-y-10">
-      {/* Breadcrumb */}
+    <div className="space-y-[var(--space-7)]">
       <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
-        <Link to="/docs/cli" className="hover:text-[var(--text-primary)]">CLI</Link>
+        <Link to="/docs/cli" className="hover:text-[var(--text-primary)]">
+          CLI
+        </Link>
         <span>/</span>
         <span className="text-[var(--text-primary)]">{command}</span>
       </div>
 
-      {/* Header */}
-      <div className="space-y-4">
+      <div className="space-y-[var(--space-4)]">
         <div className="flex items-center gap-3">
           <Badge variant="teal">CLI</Badge>
           <Badge variant="default">v{version}</Badge>
         </div>
-        <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight font-mono">
-          {command}
-          {shortFlag && <span className="text-[var(--text-muted)] text-2xl ml-2">({shortFlag})</span>}
-        </h1>
-        <p className="text-xl text-[var(--text-secondary)] leading-relaxed">
-          {description}
-        </p>
+
+        <SectionIntro
+          eyebrow="CLI command"
+          title={
+            <>
+              {command}
+              {shortFlag ? (
+                <span className="ml-[var(--space-2)] text-[var(--text-muted)] text-[0.66em]">({shortFlag})</span>
+              ) : null}
+            </>
+          }
+          description={description}
+          titleAs="h1"
+          titleSize="section"
+          titleClassName="max-w-none font-mono"
+          bodyClassName="max-w-[42rem]"
+        />
       </div>
 
-      {/* Syntax */}
-      <div className="space-y-3">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Syntax</h2>
+      <DocsNoteCard
+        label="Syntax"
+        title={`Run ${command} like this`}
+        elevation="quiet"
+        padding="compact"
+        titleSize="nav"
+      >
         <CodeBlock code={syntax} />
-      </div>
+      </DocsNoteCard>
 
-      {/* Usage Patterns */}
-      {usagePatterns && usagePatterns.length > 0 && (
-        <div className="space-y-3">
-          <h2 className="text-lg font-semibold text-[var(--text-primary)]">Usage Patterns</h2>
-          <Surface depth="raised" radius="2xl" className="p-5">
+      {usagePatterns?.length ? (
+        <DocsNoteCard
+          label="Usage patterns"
+          title="Common ways this command shows up in practice"
+          elevation="quiet"
+          padding="compact"
+          titleSize="nav"
+        >
+          <PanelList items={usagePatterns} className="border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]" />
+        </DocsNoteCard>
+      ) : null}
 
-            <ul className="space-y-2">
-              {usagePatterns.map((pattern, i) => (
-                <li key={i} className="font-mono text-sm text-[var(--text-secondary)]">
-                  {pattern}
-                </li>
-              ))}
-            </ul>
-          </Surface>
-        </div>
-      )}
-
-      {/* Flags */}
-      {flags && flags.length > 0 && (
-        <div className="space-y-3">
-          <h2 className="text-lg font-semibold text-[var(--text-primary)]">Flags</h2>
-          <Surface depth="raised" radius="2xl" padding="none" className="overflow-hidden divide-y divide-[var(--border-subtle)]">
-
-            {flags.map((flag, i) => (
-              <div key={i} className="p-4">
-                <code className="text-sm font-mono text-[var(--brand-primary)]">{flag.flag}</code>
-                <p className="text-sm text-[var(--text-muted)] mt-1">{flag.description}</p>
-              </div>
-            ))}
-          </Surface>
-        </div>
-      )}
-
-      {/* Subcommands */}
-      {subcommands && subcommands.length > 0 && (
-        <div className="space-y-3">
-          <h2 className="text-lg font-semibold text-[var(--text-primary)]">Subcommands</h2>
-          <div className="grid gap-2">
-            {subcommands.map((sub, i) => (
-              <Surface
-                key={i}
-                depth="raised"
-                radius="2xl"
-                padding="none"
-                interactive
-                className="transition-all"
-              >
-                <Link
-                  to={sub.href}
-                  className="flex items-center justify-between p-4 no-underline"
-                >
-                  <div>
-                    <code className="text-sm font-mono text-[var(--brand-primary)]">{sub.name}</code>
-                    <p className="text-sm text-[var(--text-muted)] mt-1">{sub.description}</p>
-                  </div>
-                  <ArrowLeft size={16} className="text-[var(--text-muted)] rotate-180" />
-                </Link>
-              </Surface>
+      {flags?.length ? (
+        <DocsNoteCard
+          label="Flags"
+          title="Options that change command behavior"
+          elevation="quiet"
+          padding="compact"
+          titleSize="nav"
+        >
+          <div className="space-y-[var(--space-3)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
+            {flags.map((flag) => (
+              <SurfacePanel key={flag.flag} elevation="quiet" padding="compact" className="space-y-[var(--space-2)]">
+                <PanelTitle as="p" size="nav" className="max-w-none font-mono text-[var(--brand-primary)]">
+                  {flag.flag}
+                </PanelTitle>
+                <PanelBody size="compact" className="max-w-none">
+                  {flag.description}
+                </PanelBody>
+              </SurfacePanel>
             ))}
           </div>
-        </div>
-      )}
+        </DocsNoteCard>
+      ) : null}
 
-      {/* Examples */}
-      <div className="space-y-6">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Examples</h2>
-        <div className="space-y-6">
-          {examples.map((ex, i) => (
-            <div key={i} className="space-y-2">
-              <p className="text-[var(--text-secondary)]">{ex.description}</p>
-              <CodeBlock code={ex.code} output={ex.output} />
-            </div>
+      {subcommands?.length ? (
+        <DocsNoteCard
+          label="Subcommands"
+          title="Related command surfaces"
+          elevation="quiet"
+          padding="compact"
+          titleSize="nav"
+        >
+          <div className="flex flex-wrap gap-[var(--panel-gap-tight)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
+            {subcommands.map((subcommand, index) => (
+              <BracketLink
+                key={subcommand.href}
+                to={subcommand.href}
+                tone={index % 2 === 0 ? 'blue' : 'lime'}
+                side={index % 2 === 0 ? 'left' : 'right'}
+              >
+                {subcommand.name}
+              </BracketLink>
+            ))}
+          </div>
+          <div className="space-y-[var(--space-3)]">
+            {subcommands.map((subcommand) => (
+              <PanelBody key={subcommand.href} size="compact" className="max-w-none">
+                <span className="font-semibold text-[var(--text-primary)]">{subcommand.name}</span>: {subcommand.description}
+              </PanelBody>
+            ))}
+          </div>
+        </DocsNoteCard>
+      ) : null}
+
+      <div className="space-y-[var(--space-4)]">
+        <PanelTitle as="h2" size="nav" className="max-w-none">
+          Examples
+        </PanelTitle>
+        <div className="space-y-[var(--space-4)]">
+          {examples.map((example, index) => (
+            <DocsNoteCard
+              key={`${command}-example-${index}`}
+              label={`Example ${String(index + 1).padStart(2, '0')}`}
+              title={example.description}
+              elevation="quiet"
+              padding="compact"
+              titleSize="nav"
+            >
+              <CodeBlock code={example.code} output={example.output} />
+            </DocsNoteCard>
           ))}
         </div>
       </div>
 
-      {/* See Also */}
-      {seeAlso && seeAlso.length > 0 && (
-        <div className="space-y-3 pt-6 border-t border-[var(--border-subtle)]">
-          <h2 className="text-lg font-semibold text-[var(--text-primary)]">See Also</h2>
-          <div className="flex flex-wrap gap-2">
-            {seeAlso.map((item, i) => (
-              <Link
-                key={i}
+      {seeAlso?.length ? (
+        <DocsNoteCard
+          label="See also"
+          title="Nearby command surfaces"
+          elevation="quiet"
+          padding="compact"
+          titleSize="nav"
+        >
+          <div className="flex flex-wrap gap-[var(--panel-gap-tight)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
+            {seeAlso.map((item, index) => (
+              <BracketLink
+                key={item.href}
                 to={item.href}
-                className="px-3 py-2 rounded-xl text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all"
-                style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-sm)' }}
-                onMouseEnter={(e) => { e.currentTarget.style.boxShadow = 'var(--shadow-flat)' }}
-                onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'var(--shadow-sm)' }}
+                tone={index % 2 === 0 ? 'blue' : 'lime'}
+                side={index % 2 === 0 ? 'left' : 'right'}
               >
                 {item.name}
-              </Link>
+              </BracketLink>
             ))}
           </div>
-        </div>
-      )}
+        </DocsNoteCard>
+      ) : null}
 
-      {/* Navigation */}
-      <div className="flex items-center justify-between pt-6 border-t border-[var(--border-subtle)]">
-        <Link 
+      <div className="flex flex-wrap items-center justify-between gap-[var(--space-3)] border-t border-[var(--border-subtle)] pt-[var(--space-5)]">
+        <Link
           to="/docs/cli"
-          className="flex items-center gap-2 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+          className="flex items-center gap-2 text-sm text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
         >
           <ArrowLeft size={14} />
-          All Commands
+          All commands
         </Link>
-        <Link 
+        <Link
           to="/docs/sdk"
-          className="flex items-center gap-2 text-sm text-[var(--brand-primary)] hover:text-[var(--brand-primary)] transition-colors"
+          className="flex items-center gap-2 text-sm text-[var(--brand-primary)] transition-colors hover:text-[var(--brand-primary)]"
         >
-          SDK Reference
+          SDK reference
           <ArrowLeft size={14} className="rotate-180" />
         </Link>
       </div>

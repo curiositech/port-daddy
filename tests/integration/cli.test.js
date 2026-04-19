@@ -685,6 +685,30 @@ describe('CLI Integration Tests', () => {
       runCli(['session', 'rm', sessionId]);
     });
 
+    test('session files claim/release compatibility aliases work end-to-end', () => {
+      const agentId = `compat-files-agent-${Date.now()}`;
+      const fileA = `src/compat-a-${Date.now()}.ts`;
+      const fileB = `src/compat-b-${Date.now()}.ts`;
+      const sessionId = runCli([
+        'session',
+        'start',
+        'Files alias compatibility test',
+        '--agent',
+        agentId,
+        '-q',
+      ]).stdout.trim();
+
+      const claimResult = runCli(['session', 'files', 'claim', fileA, fileB, '--agent', agentId]);
+      expect(claimResult.success).toBe(true);
+      expect(claimResult.stdout).toContain(`Claimed 2 file(s) in session ${sessionId}`);
+
+      const releaseResult = runCli(['session', 'files', 'release', fileA, '--agent', agentId]);
+      expect(releaseResult.success).toBe(true);
+      expect(releaseResult.stdout).toContain(`Released 1 file(s) from session ${sessionId}`);
+
+      runCli(['session', 'rm', sessionId]);
+    });
+
     // Bug #3: Sessions list was showing "undefinedundefinedNaNd"
     // because CLI expected { startedAt, fileCount, noteCount }
     // but API returns { createdAt, updatedAt, completedAt }

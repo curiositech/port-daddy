@@ -1,5 +1,5 @@
 ---
-name: port-daddy
+name: port-daddy-cli
 description: "Multi-agent coordination daemon for AI coding agents (v3.8.3). Eliminates port conflicts, tracks sessions, recovers crashed agents, runs background fleets, provides binary IPC for high-frequency communication, pheromone trails for ambient signaling, tuple spaces for shared memory, and declarative fleet orchestration. Use when starting a coding session, coordinating parallel agents, claiming ports for dev servers, leaving notes for other agents, spawning background workers, running declarative agent fleets, or debugging multi-agent failures. Works with Claude Code, Gemini CLI, Cursor, Windsurf, Codex, and any backend Port Daddy can spawn."
 ---
 
@@ -33,7 +33,7 @@ PORT=$(pd claim myapp:api:main -q)
 pd note "Owning auth flow work. Expect edits in src/auth/* and tests/auth/*"
 
 # 5. Coordinate actual edits with real shared state
-pd session files claim src/auth/*.ts
+pd session files add src/auth/*.ts
 pd lock auth-migration --ttl 300
 pd tuple out '["handoff","auth","refresh-token-investigation"]'
 
@@ -57,7 +57,7 @@ Use the richer coordination primitives when they actually add value:
 
 - `pd note`
   - human-readable scope, handoffs, blockers, and conclusions
-- `pd session files claim`
+- `pd session files add`
   - advisory edit ownership before touching files
 - `pd lock` / `pd with-lock`
   - truly exclusive sections like migrations, releases, or rewrites of a shared generated artifact
@@ -163,13 +163,14 @@ pd salvage claim dead-agent-42    # Pick up their work
 ### File Claims (Advisory)
 
 ```bash
-pd session files claim src/auth/*.ts
+pd session files add src/auth/*.ts
 # Another agent tries the same file:
-pd session files claim src/auth/login.ts
+pd session files add src/auth/login.ts
 # → CONFLICT: claimed by agent 'myapp:api'
 ```
 
 Claims are advisory — they warn, don't lock. Hard locks cause deadlocks. Advisory claims cause conversations.
+Canonical syntax is `pd session files add|rm`. The older `claim|release` forms are accepted as compatibility aliases, but new docs and examples should use `add|rm`.
 
 ### Pub/Sub Messaging
 
@@ -189,7 +190,7 @@ pd pub myapp:events "database-ready"
 pd sub myapp:events
 ```
 
-Declared channels are git-sensitive by default. `pd pub`, `pd sub`, and `pd channels clear` now auto-resolve declared logical names against the current worktree. `branch` scope isolates per worktree/feature branch, `worktree` isolates per worktree regardless of branch name churn, `repo` shares across worktrees in the same repo, and `global` is the explicit opt-in escape hatch. Use `--raw-channel` only when you intentionally want to bypass resolution.
+Declared channels are git-sensitive by default. `pd pub`, `pd sub`, `pd watch`, and `pd channels clear` now auto-resolve declared logical names against the current worktree. `branch` scope isolates per worktree/feature branch, `worktree` isolates per worktree regardless of branch name churn, `repo` shares across worktrees in the same repo, and `global` is the explicit opt-in escape hatch. Use `--raw-channel` only when you intentionally want to bypass resolution.
 
 ### Distributed Locks
 
@@ -243,8 +244,8 @@ pd fleet status   # What is the fleet doing?
 pd fleet down     # Stop the fleet
 
 # Daemon mode — always-on (automatic)
-# Place pd-fleet.yml in a registered project root.
-# The daemon auto-discovers it on boot and starts the fleet.
+# Place pd-fleet.yml in a repo with durable Port Daddy markers.
+# The daemon auto-discovers known repos on boot and starts the fleet.
 PD_URL="${PORT_DADDY_URL:-http://localhost:9876}"  # Use pd status if yours differs
 curl "$PD_URL/fleet"              # Global status across all projects
 curl "$PD_URL/fleet/my-project"   # Per-project status
@@ -418,7 +419,7 @@ fleet:
 - Fleet harbor auto-created on start — all agents share a semantic namespace
 - Each agent gets full PD coordination: registration, sessions, heartbeats, salvage on crash
 - Auto-respawn with `respawn: true` and `max_respawns` circuit breaker
-- **Daemon mode**: fleet auto-discovered from registered projects on daemon boot; editing `pd-fleet.yml` triggers hot-reload; SIGHUP reloads all fleets
+- **Daemon mode**: fleet auto-discovered from known Port Daddy repos on daemon boot; editing `pd-fleet.yml` triggers hot-reload; SIGHUP reloads all fleets
 - **Project fleet leases**: daemon-owned fleets are singleton per project across daemons; another daemon may discover the same `pd-fleet.yml`, but it must skip starting that project if a lease is already held
 - **Resource limits**: `limits.max_concurrent_spawns` and `limits.max_spawns_per_hour` prevent runaway agents
 - Lifecycle events published to `fleet:events` channel for dashboard/menu bar subscriptions
@@ -531,7 +532,7 @@ Override via environment variables: `PORT_DADDY_SOCK`, `PORT_DADDY_IPC`, `PORT_D
 | `pd lock` / `pd unlock` | Distributed locks |
 | `pd with-lock` | Run command under lock with auto-release |
 | `pd pub` / `pd sub` / `pd watch` | Pub/sub messaging |
-| `pd session files claim` | Advisory file claims |
+| `pd session files add` | Advisory file claims |
 | **Fleet & Agents** | |
 | `pd fleet init` | Create pd-fleet.yml + git hook |
 | `pd fleet up/down/status/validate` | Start/stop/inspect/dry-run the fleet (CLI-attached mode) |
@@ -580,12 +581,12 @@ Fleet rows are mailbox-driven now: if an agent is already running and more trigg
 |---------|----------|
 | First-time setup (daemon + MCP + FleetBar) | `pd setup` |
 | Dev server port conflict | `pd claim myapp:api -q` |
-| Need to coordinate with other agents | `pd begin` + `pd session files claim` |
+| Need to coordinate with other agents | `pd begin` + `pd session files add` |
 | Agent-to-agent signaling | `pd pub` + `pd sub` |
 | Event-driven automation on a channel | `pd watch <channel> --exec ...` |
 | Direct message to a specific agent | `talk_to_agent` MCP tool or `pd inbox send` |
 | Background automation (terminal-attached) | `pd fleet init` + `pd fleet up` |
-| Background automation (always-on, survives terminal) | Place `pd-fleet.yml` in registered project; daemon auto-starts it |
+| Background automation (always-on, survives terminal) | Place `pd-fleet.yml` in a repo with durable Port Daddy markers; daemon auto-starts it |
 | Reload fleet after editing pd-fleet.yml | `PD_URL="\${PORT_DADDY_URL:-http://localhost:9876}"; curl -XPOST "$PD_URL/fleet/reload"` or `kill -HUP <daemon-pid>` |
 | Share knowledge across agents | `pd tuple out` / `pd tuple rd` |
 | Check whether Spark/Spider or the repo already had this idea | `pd ideas search "query" --include-raw` |

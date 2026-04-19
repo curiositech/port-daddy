@@ -6,25 +6,27 @@ import { cn } from '@/lib/utils'
 const buttonVariants = cva(
   [
     'inline-flex items-center justify-center gap-2',
-    'font-semibold cursor-pointer select-none whitespace-nowrap',
-    'transition-all duration-[200ms]',
+    'cursor-pointer select-none whitespace-nowrap border-2 border-[var(--border-strong)]',
+    'font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)]',
+    'transition-all duration-[180ms]',
     'disabled:pointer-events-none disabled:opacity-50',
-    'focus-visible:outline-2 focus-visible:outline-offset-2',
+    'focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]',
   ].join(' '),
   {
     variants: {
       variant: {
         primary: 'text-[var(--text-inverse)]',
         secondary: 'text-[var(--text-primary)]',
-        ghost: 'text-[var(--text-muted)] hover:text-[var(--text-primary)]',
+        ghost: 'text-[var(--text-primary)]',
+        code: 'text-[var(--code-text)]',
         danger: 'text-[var(--text-inverse)]',
-        outline: 'text-[var(--text-primary)]',
+        outline: 'text-[var(--brand-accent-foreground)]',
       },
       size: {
-        sm: 'text-xs px-3 py-1 rounded-lg',
-        md: 'text-sm px-5 py-2 rounded-xl',
-        lg: 'text-sm px-6 py-2.5 rounded-xl',
-        icon: 'w-10 h-10 rounded-xl',
+        sm: 'px-3 py-2',
+        md: 'px-4 py-2.5',
+        lg: 'px-5 py-3',
+        icon: 'h-10 w-10 p-0',
       },
     },
     defaultVariants: {
@@ -39,24 +41,28 @@ const variantStyles: Record<string, {
   hover: React.CSSProperties
 }> = {
   primary: {
-    base: { background: 'var(--brand-primary)', boxShadow: 'var(--shadow-sm)' },
-    hover: { boxShadow: 'var(--shadow-flat)' },
+    base: { background: 'var(--text-primary)', boxShadow: 'var(--shadow-sm)' },
+    hover: { boxShadow: 'var(--shadow-flat)', transform: 'translate(3px, 3px)' },
   },
   secondary: {
     base: { background: 'var(--surface-raised)', boxShadow: 'var(--shadow-sm)' },
-    hover: { boxShadow: 'var(--shadow-flat)' },
+    hover: { boxShadow: 'var(--shadow-flat)', transform: 'translate(3px, 3px)' },
   },
   ghost: {
-    base: { background: 'transparent' },
-    hover: { background: 'var(--interactive-hover)' },
+    base: { background: 'transparent', boxShadow: 'none', borderColor: 'transparent' },
+    hover: { background: 'var(--surface-raised)', borderColor: 'var(--border-strong)', boxShadow: 'var(--shadow-sm)' },
+  },
+  code: {
+    base: { background: 'transparent', boxShadow: 'none', borderColor: 'var(--code-comment)' },
+    hover: { background: 'var(--code-header-bg)', borderColor: 'var(--code-text)', boxShadow: 'none' },
   },
   danger: {
     base: { background: 'var(--status-error)', boxShadow: 'var(--shadow-sm)' },
-    hover: { boxShadow: 'var(--shadow-flat)' },
+    hover: { boxShadow: 'var(--shadow-flat)', transform: 'translate(3px, 3px)' },
   },
   outline: {
-    base: { background: 'transparent', border: '1px solid var(--border-default)' },
-    hover: { background: 'var(--interactive-hover)' },
+    base: { background: 'var(--brand-accent)', boxShadow: 'var(--shadow-sm)' },
+    hover: { boxShadow: 'var(--shadow-flat)', transform: 'translate(3px, 3px)' },
   },
 }
 

@@ -1,6 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom'
+import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { ThemeProvider } from '@/lib/theme'
 import { Nav } from '@/components/landing/Nav'
 import { DocsLayout } from '@/components/docs/DocsLayout'
@@ -19,9 +19,10 @@ import { RoadmapPage } from '@/pages/RoadmapPage'
 import { TemplatesPage } from '@/pages/TemplatesPage'
 import { AgentsPage } from '@/pages/AgentsPage'
 
-// New Documentation Pages
+// Documentation Pages
 import ApiReference from '@/pages/docs/ApiReference'
 import DocsOverview from '@/pages/docs/DocsOverview'
+import DocsSectionPage from '@/pages/docs/DocsSectionPage'
 import QuickStart from '@/pages/docs/QuickStart'
 import CliOverview from '@/pages/docs/CliOverview'
 import McpOverview from '@/pages/docs/McpOverview'
@@ -168,7 +169,6 @@ import * as Tutorials from '@/pages/tutorials'
 
 import './index.css'
 
-// Wrapper for pages that need the main Nav
 function MainLayout() {
   return (
     <>
@@ -183,18 +183,15 @@ createRoot(document.getElementById('root')!).render(
     <ThemeProvider>
       <BrowserRouter>
         <Routes>
-          {/* Main Site with Nav */}
           <Route element={<MainLayout />}>
             <Route path="/" element={<App />} />
             <Route path="/dashboard" element={<DashboardPage />} />
-            {/* DocsPage is now served via DocsLayout — use /docs-old for legacy */}
             <Route path="/examples" element={<ExamplesPage />} />
             <Route path="/mcp" element={<MCPPage />} />
             <Route path="/roadmap" element={<RoadmapPage />} />
             <Route path="/templates" element={<TemplatesPage />} />
             <Route path="/agents" element={<AgentsPage />} />
 
-            {/* Academy */}
             <Route path="/tutorials" element={<TutorialsPage />} />
             <Route path="/tutorials/getting-started" element={<Tutorials.GettingStarted />} />
             <Route path="/tutorials/semantic-identities" element={<Tutorials.SemanticIdentities />} />
@@ -217,35 +214,26 @@ createRoot(document.getElementById('root')!).render(
             <Route path="/tutorials/fleet" element={<Tutorials.Fleet />} />
             <Route path="/tutorials/pheromone" element={<Tutorials.Pheromone />} />
 
-            {/* Ecosystem */}
             <Route path="/cookbook" element={<CookbookPage />} />
             <Route path="/cookbook/:id" element={<RecipePage />} />
             <Route path="/integrations" element={<IntegrationsPage />} />
             <Route path="/integrations/:id" element={<IntegrationPage />} />
             <Route path="/templates/:id" element={<TemplatePage />} />
 
-            {/* Blog */}
             <Route path="/blog" element={<BlogPage />} />
             <Route path="/blog/:slug" element={<BlogPostPage />} />
 
-            {/* White Papers */}
             <Route path="/whitepaper" element={<WhitepaperPage />} />
           </Route>
 
-          {/* Documentation with Sidebar Layout */}
           <Route path="/docs" element={<DocsLayout />}>
-            {/* Overview */}
             <Route index element={<DocsOverview />} />
             <Route path="quickstart" element={<QuickStart />} />
             <Route path="guides/prompting-agents" element={<PromptingAgents />} />
             <Route path="guides/templates" element={<TemplatesGuide />} />
             <Route path="guides/protocol" element={<ProtocolGuide />} />
-            
-            {/* CLI */}
+
             <Route path="cli" element={<CliOverview />} />
-            
-            {/* CLI Commands - Individual Pages */}
-            {/* Ports */}
             <Route path="cli/claim" element={<ClaimCommand />} />
             <Route path="cli/release" element={<ReleaseCommand />} />
             <Route path="cli/find" element={<FindCommand />} />
@@ -254,42 +242,33 @@ createRoot(document.getElementById('root')!).render(
             <Route path="cli/up" element={<UpCommand />} />
             <Route path="cli/down" element={<DownCommand />} />
             <Route path="cli/status" element={<StatusCommand />} />
-            {/* Sessions */}
             <Route path="cli/begin" element={<BeginCommand />} />
             <Route path="cli/done" element={<DoneCommand />} />
             <Route path="cli/whoami" element={<WhoamiCommand />} />
             <Route path="cli/note" element={<NoteCommand />} />
             <Route path="cli/notes" element={<NotesCommand />} />
-            {/* Locks */}
             <Route path="cli/lock-acquire" element={<LockAcquireCommand />} />
             <Route path="cli/lock-release" element={<LockReleaseCommand />} />
             <Route path="cli/with-lock" element={<WithLockCommand />} />
-            {/* Messaging */}
             <Route path="cli/msg" element={<MsgCommand />} />
             <Route path="cli/pub" element={<PubCommand />} />
             <Route path="cli/watch" element={<WatchCommand />} />
-            {/* Agents */}
             <Route path="cli/spawn" element={<SpawnCommand />} />
             <Route path="cli/spawned" element={<SpawnedCommand />} />
             <Route path="cli/agent-register" element={<AgentRegisterCommand />} />
             <Route path="cli/salvage" element={<SalvageCommand />} />
             <Route path="cli/salvage-claim" element={<SalvageClaimCommand />} />
-            {/* DNS */}
             <Route path="cli/dns" element={<DnsCommand />} />
-            {/* Harbors */}
             <Route path="cli/harbor-create" element={<HarborCreateCommand />} />
             <Route path="cli/harbor-enter" element={<HarborEnterCommand />} />
             <Route path="cli/harbor-leave" element={<HarborLeaveCommand />} />
             <Route path="cli/harbors" element={<HarborsCommand />} />
-            {/* Tunnels */}
             <Route path="cli/tunnel" element={<TunnelCommand />} />
             <Route path="cli/tunnel-stop" element={<TunnelStopCommand />} />
-            {/* Fleet */}
             <Route path="cli/fleet" element={<FleetCommand />} />
             <Route path="cli/init" element={<InitCommand />} />
             <Route path="cli/mcp-install" element={<McpInstallCommand />} />
-            
-            {/* Features */}
+
             <Route path="features/ports" element={<PortsFeature />} />
             <Route path="features/radio" element={<RadioFeature />} />
             <Route path="features/harbors" element={<HarborsFeature />} />
@@ -304,61 +283,41 @@ createRoot(document.getElementById('root')!).render(
             <Route path="features/fleet" element={<FleetFeature />} />
             <Route path="features/tuples" element={<TuplesFeature />} />
             <Route path="features/arbiter" element={<ArbiterFeature />} />
-            
-            {/* SDK - TypeScript */}
+
             <Route path="sdk" element={<SdkOverview />} />
             <Route path="sdk/ports" element={<PortsSdk />} />
             <Route path="sdk/sessions" element={<SessionsSdk />} />
             <Route path="sdk/locks" element={<LocksSdk />} />
             <Route path="sdk/harbors" element={<HarborsSdk />} />
-            
-            {/* SDK Function Pages - Ports */}
             <Route path="sdk/scan-services" element={<ScanServices />} />
             <Route path="sdk/up" element={<Up />} />
             <Route path="sdk/down" element={<Down />} />
             <Route path="sdk/status" element={<Status />} />
-            
-            {/* SDK Function Pages - Sessions */}
             <Route path="sdk/whoami" element={<Whoami />} />
             <Route path="sdk/add-note" element={<AddNote />} />
             <Route path="sdk/list-notes" element={<ListNotes />} />
             <Route path="sdk/done-session" element={<DoneSession />} />
-            
-            {/* SDK Function Pages - Locks */}
             <Route path="sdk/release-lock" element={<ReleaseLock />} />
             <Route path="sdk/with-lock" element={<WithLock />} />
-            
-            {/* SDK Function Pages - Messaging */}
             <Route path="sdk/subscribe" element={<Subscribe />} />
             <Route path="sdk/watch" element={<Watch />} />
-            
-            {/* SDK Function Pages - Harbors */}
             <Route path="sdk/leave-harbor" element={<LeaveHarbor />} />
             <Route path="sdk/list-harbors" element={<ListHarbors />} />
-            
-            {/* SDK Function Pages - DNS */}
             <Route path="sdk/dns-register" element={<DnsRegister />} />
             <Route path="sdk/dns-resolve" element={<DnsResolve />} />
-            
-            {/* SDK Function Pages - Agents */}
             <Route path="sdk/spawn" element={<Spawn />} />
             <Route path="sdk/list-spawned" element={<ListSpawned />} />
             <Route path="sdk/register-agent" element={<RegisterAgent />} />
             <Route path="sdk/salvage" element={<Salvage />} />
             <Route path="sdk/salvage-claim" element={<SalvageClaim />} />
-            
-            {/* SDK Function Pages - Tunnels */}
             <Route path="sdk/tunnel" element={<Tunnel />} />
             <Route path="sdk/tunnel-stop" element={<TunnelStop />} />
-            
-            {/* MCP */}
+
             <Route path="mcp" element={<McpOverview />} />
             <Route path="mcp/claude" element={<McpOverview />} />
             <Route path="mcp/cursor" element={<McpOverview />} />
             <Route path="mcp/windsurf" element={<McpOverview />} />
             <Route path="mcp/custom" element={<McpOverview />} />
-            
-            {/* MCP Tools - Core */}
             <Route path="mcp/claim-port" element={<ClaimPortTool />} />
             <Route path="mcp/release-port" element={<ReleasePortTool />} />
             <Route path="mcp/find-port" element={<FindPortTool />} />
@@ -368,8 +327,6 @@ createRoot(document.getElementById('root')!).render(
             <Route path="mcp/publish-message" element={<PublishMessageTool />} />
             <Route path="mcp/acquire-lock" element={<AcquireLockTool />} />
             <Route path="mcp/create-harbor" element={<CreateHarborTool />} />
-            
-            {/* MCP Tools - Additional */}
             <Route path="mcp/dns-register" element={<DnsRegisterTool />} />
             <Route path="mcp/dns-resolve" element={<DnsResolveTool />} />
             <Route path="mcp/subscribe" element={<SubscribeTool />} />
@@ -388,14 +345,16 @@ createRoot(document.getElementById('root')!).render(
             <Route path="mcp/tunnel" element={<TunnelTool />} />
             <Route path="mcp/tunnel-stop" element={<TunnelStopTool />} />
             <Route path="mcp/watch" element={<WatchTool />} />
-            
-            {/* API */}
+
             <Route path="api" element={<ApiReference />} />
             <Route path="api/endpoints" element={<ApiReference />} />
+
+            <Route path=":sectionSlug/*" element={<DocsSectionPage />} />
+            <Route path="*" element={<Navigate to="/docs" replace />} />
           </Route>
 
-          {/* Legacy Docs Redirect */}
           <Route path="/docs-old" element={<DocsPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </ThemeProvider>

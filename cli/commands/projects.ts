@@ -167,6 +167,7 @@ export async function handleProjects(subcommand: string | undefined, args: strin
 
   if (!res.ok) {
     ui.error((data.error as string) || 'Failed to list projects');
+    if (data.details) console.error(`  ${data.details}`);
     process.exit(1);
   }
 
@@ -177,15 +178,15 @@ export async function handleProjects(subcommand: string | undefined, args: strin
 
   if (data.count === 0) {
     console.log('');
-    console.log('  No projects registered.');
+    console.log('  No known Port Daddy projects.');
     console.log('');
-    console.log('  Run "port-daddy scan" from a project directory to register it.');
+    console.log('  Add durable repo markers such as pd-fleet.yml, .portdaddyrc, or .portdaddy/, or run "port-daddy scan".');
     console.log('');
     return;
   }
 
   console.log('');
-  console.log(`  Registered projects (${data.count}):`);
+  console.log(`  Known Port Daddy projects (${data.count}):`);
   console.log('');
 
   const projectsList = data.projects as Array<{ id: string; type: string; serviceCount: number; lastScanned?: number; frameworks?: string[] }>;

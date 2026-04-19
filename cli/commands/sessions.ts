@@ -224,9 +224,16 @@ async function sessionRemove(rest: string[], options: CLIOptions): Promise<void>
 }
 
 async function sessionFiles(rest: string[], options: CLIOptions): Promise<void> {
-  const filesCmd = rest[0];
+  const rawFilesCmd = rest[0];
+  const filesCmd = rawFilesCmd === 'claim'
+    ? 'add'
+    : rawFilesCmd === 'release'
+      ? 'rm'
+      : rawFilesCmd;
+
   if (!filesCmd || !['add', 'rm'].includes(filesCmd)) {
     console.error('Usage: port-daddy session files <add|rm> <paths...>');
+    console.error('       Compatibility aliases: claim -> add, release -> rm');
     process.exit(1);
   }
 

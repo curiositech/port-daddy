@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { motion } from 'framer-motion'
-import { useDaemonData } from '@/hooks/useDaemonData'
+import { useDashboardStats } from '@/hooks/useDashboardStats'
 import { useActivityStream } from '@/hooks/useActivityStream'
 import { useTimeline } from '@/hooks/useTimeline'
 import { LiveOrchestrationGraph } from '@/components/viz/LiveOrchestrationGraph'
@@ -17,8 +17,8 @@ import { Footer } from '@/components/layout/Footer'
 // --- Unified Timeline Component ---
 
 function UnifiedTimeline() {
-  const { activities: liveItems, connected } = useActivityStream({ limit: 50 });
-  const { events: historyItems } = useTimeline({ limit: 100 });
+  const { activities: liveItems, connected, errorKind: liveErrorKind } = useActivityStream({ limit: 50 });
+  const { events: historyItems, errorKind: historyErrorKind } = useTimeline({ limit: 100 });
 
   const allItems = React.useMemo(() => {
     const combined = [...liveItems];
@@ -33,6 +33,21 @@ function UnifiedTimeline() {
 
     return combined.sort((a, b) => b.timestamp - a.timestamp);
   }, [liveItems, historyItems]);
+
+  const liveStatusLabel = connected
+    ? 'Live'
+    : liveErrorKind === 'network'
+      ? 'Daemon Offline'
+      : liveErrorKind
+        ? 'Feed Error'
+        : 'Offline'
+  const emptyStateLabel = allItems.length === 0
+    ? liveErrorKind === 'network'
+      ? 'Daemon unreachable'
+      : historyErrorKind
+        ? 'Timeline unavailable'
+        : 'Waiting for swarm signals...'
+    : null
 
   return (
     <Surface depth="raised" radius="2xl" padding="none" className="flex flex-col h-full overflow-hidden font-sans relative">
@@ -54,7 +69,7 @@ function UnifiedTimeline() {
           >
              <motion.div className={`w-2 h-2 rounded-full ${connected ? 'bg-[var(--status-success)] pulse-active' : 'bg-[var(--status-error)]'}`} />
              <motion.span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-muted)] font-sans">
-               {connected ? 'Live' : 'Offline'}
+               {liveStatusLabel}
              </motion.span>
           </motion.div>
         </motion.div>
@@ -64,7 +79,7 @@ function UnifiedTimeline() {
         {allItems.length === 0 ? (
           <motion.div className="h-full flex flex-col items-center justify-center gap-4" style={{ color: 'var(--text-muted)' }}>
              <Radio size={64} className="opacity-20" />
-             <motion.p className="text-sm font-black uppercase tracking-widest">Waiting for swarm signals...</motion.p>
+             <motion.p className="text-sm font-black uppercase tracking-widest">{emptyStateLabel}</motion.p>
           </motion.div>
         ) : (
           allItems.map((item, i) => (
@@ -99,7 +114,8 @@ function UnifiedTimeline() {
 }
 
 export function DashboardPage() {
-  const { data: stats } = useDaemonData<any>('/stats')
+  const { stats, errorKind } = useDashboardStats()
+  const latencyLabel = errorKind === 'network' ? 'offline' : '<5ms'
 
   return (
     <motion.div
@@ -145,7 +161,7 @@ export function DashboardPage() {
                 { label: 'Active Agents', value: stats?.activeAgents || '0', icon: Users, color: 'var(--brand-secondary)' },
                 { label: 'Harbors', value: stats?.activeHarbors || '0', icon: Shield, color: 'var(--brand-accent)' },
                 { label: 'Port Claims', value: stats?.activePorts || '0', icon: Anchor, color: 'var(--brand-secondary)' },
-                { label: 'Latency', value: '<5ms', icon: Zap, color: 'var(--brand-accent)' }
+                { label: 'Latency', value: latencyLabel, icon: Zap, color: 'var(--brand-accent)' }
               ].map((stat, i) => (
                 <Surface
                   key={i}

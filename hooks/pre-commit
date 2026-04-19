@@ -127,6 +127,21 @@ for f in ${(f)STAGED_FILES}; do
 done
 
 # ---------------------------------------------------------------------------
+# 5. Website public-shell guard
+# ---------------------------------------------------------------------------
+if echo "$STAGED_FILES" | grep -q '^website-v2/'; then
+  echo "${YELLOW}Running website-v2 public-shell contract checks...${NC}" >&2
+
+  if ! npm --prefix website-v2 test -- src/public-shell-contracts.test.ts >/dev/null 2>&1; then
+    fail "website-v2 public-shell contracts failed. Fix the routed shell before committing."
+  fi
+
+  if ! npm --prefix website-v2 run build >/dev/null 2>&1; then
+    fail "website-v2 build failed. The public shell must build clean before committing."
+  fi
+fi
+
+# ---------------------------------------------------------------------------
 # Result
 # ---------------------------------------------------------------------------
 if (( ERRORS > 0 )); then
