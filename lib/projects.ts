@@ -140,6 +140,10 @@ function isEphemeralRoot(root: string): boolean {
   return TEMP_ROOT_PATTERNS.some((pattern) => pattern.test(root));
 }
 
+function hasOnlyContextSignal(signals: string[]): boolean {
+  return signals.length > 0 && signals.every((signal) => signal === 'context');
+}
+
 function findPortDaddyRoot(startPath: string): string | null {
   let current = normalizeRoot(startPath);
 
@@ -399,7 +403,7 @@ export function createProjects(db: Database.Database) {
         const sources = [...entry.sources].sort();
         const shouldKeep = exists && (signals.length > 0 || sources.includes('runtime') || sources.includes('service'));
         if (!shouldKeep) return null;
-        if (isEphemeralRoot(root) && !signals.length && !sources.includes('runtime')) return null;
+        if (isEphemeralRoot(root) && !sources.includes('runtime') && hasOnlyContextSignal(signals)) return null;
 
         const displayName = entry.row?.id || basename(root) || root;
         const project: KnownProject = {
