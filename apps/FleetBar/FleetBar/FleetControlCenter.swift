@@ -179,6 +179,10 @@ struct FleetControlCenter: View {
                 }
             }
 
+            if let daemonStatus = store.daemonStatus {
+                daemonReportStrip(status: daemonStatus)
+            }
+
             HStack(spacing: Fleet.Space.m) {
                 projectMenu
                 surfaceStrip
@@ -253,6 +257,160 @@ struct FleetControlCenter: View {
         .padding(.vertical, 10)
         .sheet(isPresented: $showingAddProject) {
             FleetAddProjectSheet()
+        }
+    }
+
+    private func daemonReportStrip(status: DaemonStatusResponse) -> some View {
+        HStack(alignment: .top, spacing: Fleet.Space.s) {
+            daemonSummaryCard(status: status)
+            daemonBuildCard(status: status)
+            daemonHistoryCard(status: status)
+        }
+    }
+
+    private func daemonSummaryCard(status: DaemonStatusResponse) -> some View {
+        let runtimeState = status.runtime?.state ?? "unknown"
+        let runtimeColor: Color = {
+            if status.runtime?.degraded == true { return Fleet.Color.warning }
+            if runtimeState == "nominal" || status.status == "ok" { return Fleet.Color.healthy }
+            return Fleet.Color.failure
+        }()
+        let barnacle = status.guardians?.barnacle
+        let barnacleColor: Color = {
+            guard let barnacle else { return Fleet.Color.dormant }
+            switch barnacle.state {
+            case "healthy":
+                return Fleet.Color.healthy
+            case "disabled":
+                return Fleet.Color.dormant
+            default:
+                return Fleet.Color.warning
+            }
+        }()
+
+        return daemonCard(title: "Daemon Truth") {
+            HStack(spacing: Fleet.Space.l) {
+                daemonMetric(label: "Runtime", value: runtimeState, color: runtimeColor)
+                daemonMetric(label: "Uptime", value: status.uptimeHuman, color: .primary)
+                daemonMetric(label: "Ports", value: "\(status.metrics?.activePorts ?? 0)", color: .primary)
+                daemonMetric(label: "Barnacle", value: barnacle?.state ?? "n/a", color: barnacleColor)
+            }
+
+            if let supervisor = status.guardians?.supervisor {
+                Text(supervisor.summary)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+        }
+    }
+
+    private func daemonBuildCard(status: DaemonStatusResponse) -> some View {
+        let daemon = status.daemon
+        let buildVersion = daemon?.version ?? status.version
+        let buildHash = daemon?.codeHash ?? "unknown"
+        let installDir = daemon?.installDir ?? store.daemonURL
+
+        return daemonCard(title: "Build") {
+            HStack(spacing: Fleet.Space.l) {
+                daemonMetric(label: "Version", value: buildVersion, color: Fleet.Color.active)
+                daemonMetric(label: "Code hash", value: buildHash, color: .primary)
+                daemonMetric(label: "PID", value: "\(status.pid)", color: .primary)
+            }
+
+            Text(installDir)
+                .font(.system(.caption2, design: .monospaced))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+    }
+
+    private func daemonHistoryCard(status: DaemonStatusResponse) -> some View {
+        let history = status.history
+        let recentActivity = Array(history?.recentActivity.prefix(2) ?? [])
+        let recentSpend = Array(history?.recentSpend.prefix(2) ?? [])
+
+        return daemonCard(title: "Recent") {
+            if recentActivity.isEmpty && recentSpend.isEmpty {
+                Text("No recent daemon activity recorded")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(recentActivity) { entry in
+                        daemonTimelineLine(
+                            summary: entry.summary,
+                            detail: entry.agentId ?? entry.type.lowercased(),
+                            timestampMs: entry.timestamp,
+                            color: Fleet.Color.active
+                        )
+                    }
+
+                    ForEach(recentSpend) { event in
+                        let scope = event.projectName
+                            ?? (event.projectDir.map { URL(fileURLWithPath: $0).lastPathComponent })
+                            ?? "unscoped"
+                        daemonTimelineLine(
+                            summary: String(format: "$%.3f %@", event.costUsd, event.model),
+                            detail: [scope, event.isEstimate ? "estimate" : nil].compactMap { $0 }.joined(separator: " · "),
+                            timestampMs: event.timestamp,
+                            color: event.isEstimate ? Fleet.Color.warning : Fleet.Color.healthy
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private func daemonCard<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title.uppercased())
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+            content()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, Fleet.Space.m)
+        .padding(.vertical, Fleet.Space.s)
+        .background(
+            Fleet.Chrome.card,
+            in: RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous)
+        )
+    }
+
+    private func daemonMetric(label: String, value: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(label.uppercased())
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.system(.caption, design: .monospaced).weight(.medium))
+                .foregroundStyle(color)
+        }
+    }
+
+    private func daemonTimelineLine(summary: String, detail: String, timestampMs: Double, color: Color) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: Fleet.Space.s) {
+            Circle()
+                .fill(color)
+                .frame(width: 6, height: 6)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(summary)
+                    .font(.caption)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    if !detail.isEmpty {
+                        Text(detail)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    Text(Date(timeIntervalSince1970: timestampMs / 1000), style: .relative)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+            }
         }
     }
 

@@ -8,7 +8,7 @@
 # Usage: ./scripts/promote-stable.sh
 # =============================================================================
 
-set -e
+set -euo pipefail
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -54,14 +54,13 @@ npm test -- --no-coverage >"$TEST_LOG" 2>&1
 PASS_COUNT=$(grep "Tests:" "$TEST_LOG" | tail -1 | grep -oE '[0-9]+ passed' | grep -oE '[0-9]+')
 FAIL_COUNT=$(grep "Tests:" "$TEST_LOG" | tail -1 | grep -oE '[0-9]+ failed' | grep -oE '[0-9]+' || echo "0")
 
-# Allow the 1 pre-existing up-down failure
-if [[ "$FAIL_COUNT" -gt 1 ]]; then
-  echo "${RED}BLOCKED: $FAIL_COUNT test failures (max allowed: 1 pre-existing)${NC}"
+if [[ "$FAIL_COUNT" -gt 0 ]]; then
+  echo "${RED}BLOCKED: $FAIL_COUNT test failures${NC}"
   grep "●" "$TEST_LOG" | head -10
   exit 1
 fi
 
-echo "${GREEN}Tests passed ($PASS_COUNT passing, $FAIL_COUNT known failures)${NC}"
+echo "${GREEN}Tests passed ($PASS_COUNT passing, 0 failures)${NC}"
 
 # ---------------------------------------------------------------------------
 # Step 4: Merge main into stable
@@ -89,26 +88,69 @@ npm link 2>&1 | tail -1
 echo "${YELLOW}Restarting daemon...${NC}"
 pd stop 2>/dev/null || true
 sleep 2
-launchctl unload ~/Library/LaunchAgents/com.portdaddy.daemon.plist 2>/dev/null || true
-sleep 1
-launchctl load ~/Library/LaunchAgents/com.portdaddy.daemon.plist
-sleep 3
+launchctl kickstart -k "gui/$(id -u)/com.portdaddy.daemon" 2>/dev/null || {
+  launchctl unload ~/Library/LaunchAgents/com.portdaddy.daemon.plist 2>/dev/null || true
+  sleep 1
+  launchctl load ~/Library/LaunchAgents/com.portdaddy.daemon.plist
+}
+sleep 4
 
 # ---------------------------------------------------------------------------
-# Step 8: Verify
+# Step 8: Verify authoritative runtime truth
 # ---------------------------------------------------------------------------
-STATUS=$(pd status 2>&1)
-if echo "$STATUS" | grep -q "running"; then
-  PID=$(echo "$STATUS" | grep "PID" | grep -oE '[0-9]+')
-  VERSION=$(echo "$STATUS" | grep "Version" | awk '{print $2}')
-  echo ""
-  echo "${GREEN}=== Promotion complete ===${NC}"
-  echo "  Stable: main@$MAIN_SHA"
-  echo "  Daemon: PID $PID, version $VERSION"
-  echo "  Tests:  $PASS_COUNT passing"
-  echo ""
-else
-  echo "${RED}WARNING: Daemon did not start. Check logs:${NC}"
-  echo "  tail -20 $STABLE_DIR/port-daddy-error.log"
+PORT_FILE="$HOME/.port-daddy/daemon.port"
+if [[ ! -f "$PORT_FILE" ]]; then
+  echo "${RED}WARNING: Daemon port file missing after restart.${NC}"
+  echo "  Expected: $PORT_FILE"
+  echo "  Check logs: tail -20 $STABLE_DIR/port-daddy-error.log"
   exit 1
 fi
+
+DAEMON_PORT="$(tr -d '[:space:]' < "$PORT_FILE")"
+BASE_URL="http://127.0.0.1:${DAEMON_PORT}"
+
+HEALTH_JSON="$(curl -fsS "$BASE_URL/health")" || {
+  echo "${RED}WARNING: /health did not respond after restart.${NC}"
+  echo "  URL: $BASE_URL/health"
+  echo "  Check logs: tail -20 $STABLE_DIR/port-daddy-error.log"
+  exit 1
+}
+
+VERSION_JSON="$(curl -fsS "$BASE_URL/version")" || {
+  echo "${RED}WARNING: /version did not respond after restart.${NC}"
+  echo "  URL: $BASE_URL/version"
+  exit 1
+}
+
+STATUS_JSON="$(curl -fsS "$BASE_URL/status")" || {
+  echo "${RED}WARNING: /status did not respond after restart.${NC}"
+  echo "  URL: $BASE_URL/status"
+  exit 1
+}
+
+HEALTH_STATUS="$(printf '%s' "$HEALTH_JSON" | node -e 'const fs = require("fs"); const data = JSON.parse(fs.readFileSync(0, "utf8")); process.stdout.write(String(data.status || ""));')"
+RUNTIME_VERSION="$(printf '%s' "$VERSION_JSON" | node -e 'const fs = require("fs"); const data = JSON.parse(fs.readFileSync(0, "utf8")); process.stdout.write(String(data.version || ""));')"
+RUNTIME_PID="$(printf '%s' "$VERSION_JSON" | node -e 'const fs = require("fs"); const data = JSON.parse(fs.readFileSync(0, "utf8")); process.stdout.write(String(data.pid || ""));')"
+RUNTIME_INSTALL_DIR="$(printf '%s' "$VERSION_JSON" | node -e 'const fs = require("fs"); const data = JSON.parse(fs.readFileSync(0, "utf8")); process.stdout.write(String(data.installDir || ""));')"
+RUNTIME_STATE="$(printf '%s' "$STATUS_JSON" | node -e 'const fs = require("fs"); const data = JSON.parse(fs.readFileSync(0, "utf8")); process.stdout.write(String(data.runtime?.state || ""));')"
+
+if [[ "$HEALTH_STATUS" != "ok" ]]; then
+  echo "${RED}WARNING: /health returned unexpected status: $HEALTH_STATUS${NC}"
+  exit 1
+fi
+
+if [[ "$RUNTIME_INSTALL_DIR" != "$STABLE_DIR" ]]; then
+  echo "${RED}WARNING: Daemon is serving from the wrong checkout.${NC}"
+  echo "  Expected installDir: $STABLE_DIR"
+  echo "  Actual installDir:   $RUNTIME_INSTALL_DIR"
+  exit 1
+fi
+
+echo ""
+echo "${GREEN}=== Promotion complete ===${NC}"
+echo "  Stable:  main@$MAIN_SHA"
+echo "  Daemon:  PID $RUNTIME_PID, version $RUNTIME_VERSION"
+echo "  URL:     $BASE_URL"
+echo "  Runtime: ${RUNTIME_STATE:-unknown}"
+echo "  Tests:   $PASS_COUNT passing"
+echo ""

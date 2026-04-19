@@ -40,6 +40,57 @@ function buildDeps(overrides = {}) {
     getSystemPorts() {
       return [];
     },
+    activityLog: {
+      getRecent() {
+        return {
+          success: true,
+          count: 1,
+          entries: [
+            {
+              id: 42,
+              timestamp: 1_700_000_111_000,
+              type: 'SESSION_NOTE',
+              agentId: 'spark',
+              targetId: 'session-1',
+              details: 'Spark noted a daemon regression',
+            },
+          ],
+        };
+      },
+    },
+    costTracker: {
+      recent() {
+        return [
+          {
+            id: 'cost-1',
+            ts: 1_700_000_112_000,
+            backend: 'codex',
+            model: 'gpt-5.3-codex',
+            projectName: 'alpha',
+            projectDir: '/repo/alpha',
+            costUsd: 0.12,
+            isEstimate: false,
+          },
+        ];
+      },
+    },
+    barnacle: {
+      getStatus() {
+        return {
+          monitoredUrl: 'http://localhost:9875/health',
+          binaryPath: '/tmp/pd-barnacle',
+          binaryExists: true,
+          enabled: true,
+          state: 'healthy',
+          reason: null,
+          lastCheckAt: 1_700_000_113_000,
+          lastHealthyAt: 1_700_000_113_000,
+          lastFailureAt: null,
+          lastResurrectedAt: null,
+          failureCount: 0,
+        };
+      },
+    },
     ...overrides,
   };
 }
@@ -157,7 +208,6 @@ describe('info routes runtime summary', () => {
       watchers: 1,
       skippedProjects: 1,
     }));
-
     await app.close();
   });
 
@@ -217,6 +267,22 @@ describe('info routes runtime summary', () => {
           reason: 'duplicate',
         }),
       ]),
+    }));
+    expect(body.daemon).toEqual(expect.objectContaining({
+      version: '9.9.9',
+      codeHash: 'abc123',
+      installDir: '/tmp/port-daddy',
+    }));
+    expect(body.guardians).toEqual(expect.objectContaining({
+      supervisor: expect.objectContaining({ state: 'launchctl_preferred' }),
+      barnacle: expect.objectContaining({
+        state: 'healthy',
+        binaryExists: true,
+      }),
+    }));
+    expect(body.history.recentActivity[0]).toEqual(expect.objectContaining({
+      type: 'SESSION_NOTE',
+      summary: 'Spark noted a daemon regression',
     }));
 
     await app.close();

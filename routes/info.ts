@@ -7,6 +7,7 @@
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import type { Arbiter } from '../lib/arbiter.js';
+import type { BarnacleWatcherStatus } from '../lib/barnacle-client.js';
 import type { createFleetDaemon } from '../lib/fleet-daemon.js';
 import { formatUptime } from '../shared/port-utils.js';
 
@@ -60,6 +61,35 @@ interface InfoRouteDeps {
   getSystemPorts: () => SystemPort[];
   fleetDaemon?: ReturnType<typeof createFleetDaemon>;
   arbiter?: Arbiter;
+  activityLog?: {
+    getRecent(options?: { limit?: number }): {
+      success: boolean;
+      count: number;
+      entries: Array<{
+        id: number;
+        timestamp: number;
+        type: string;
+        agentId: string | null;
+        targetId: string | null;
+        details: string | null;
+      }>;
+    };
+  };
+  costTracker?: {
+    recent(limit?: number): Array<{
+      id: string;
+      ts: number;
+      backend: string;
+      model: string;
+      projectName: string | null;
+      projectDir: string | null;
+      costUsd: number;
+      isEstimate: boolean;
+    }>;
+  };
+  barnacle?: {
+    getStatus(): BarnacleWatcherStatus;
+  };
 }
 
 function buildRuntimeSummary(deps: InfoRouteDeps) {
@@ -91,6 +121,70 @@ function buildRuntimeSummary(deps: InfoRouteDeps) {
       totalAgents: fleetStatus.totalAgents,
       totalWatchers: fleetStatus.totalWatchers,
     } : undefined,
+  };
+}
+
+function humanizeActivityType(type: string): string {
+  return type.toLowerCase().replace(/_/g, ' ');
+}
+
+function summarizeActivity(details: string | null, type: string): string {
+  const trimmed = details?.trim();
+  if (trimmed) return trimmed;
+  return humanizeActivityType(type);
+}
+
+function buildRecentHistory(deps: InfoRouteDeps) {
+  const recentActivity =
+    deps.activityLog?.getRecent({ limit: 6 }).entries.map((entry) => ({
+      id: entry.id,
+      timestamp: entry.timestamp,
+      type: entry.type,
+      agentId: entry.agentId,
+      targetId: entry.targetId,
+      summary: summarizeActivity(entry.details, entry.type),
+    })) ?? [];
+
+  const recentSpend =
+    deps.costTracker?.recent(6).map((event) => ({
+      id: event.id,
+      timestamp: event.ts,
+      backend: event.backend,
+      model: event.model,
+      projectName: event.projectName,
+      projectDir: event.projectDir,
+      costUsd: event.costUsd,
+      isEstimate: event.isEstimate,
+    })) ?? [];
+
+  const lastActivityAt = recentActivity[0]?.timestamp ?? recentSpend[0]?.timestamp ?? null;
+
+  return {
+    lastActivityAt,
+    recentActivity,
+    recentSpend,
+  };
+}
+
+function buildGuardianSummary(deps: InfoRouteDeps) {
+  return {
+    supervisor: {
+      state: 'launchctl_preferred',
+      summary: 'launchctl is the authoritative daemon supervisor on macOS',
+    },
+    barnacle: deps.barnacle?.getStatus() ?? {
+      monitoredUrl: 'http://localhost:9875/health',
+      binaryPath: '',
+      binaryExists: false,
+      enabled: false,
+      state: 'disabled',
+      reason: 'barnacle watcher unavailable',
+      lastCheckAt: null,
+      lastHealthyAt: null,
+      lastFailureAt: null,
+      lastResurrectedAt: null,
+      failureCount: 0,
+    },
   };
 }
 
@@ -154,12 +248,20 @@ export const infoPlugin: FastifyPluginAsync<{ deps: InfoRouteDeps }> = async (fa
     const active_ports = services.count();
     const uptime_seconds = Math.floor(process.uptime());
     const fleet = deps.fleetDaemon?.getStatus();
+    const history = buildRecentHistory(deps);
     return {
       status: 'ok',
       version: VERSION,
       pid: process.pid,
       uptimeSeconds: uptime_seconds,
       uptimeHuman: formatUptime(uptime_seconds),
+      daemon: {
+        version: VERSION,
+        codeHash: CODE_HASH,
+        startedAt: STARTED_AT,
+        installDir: __dirname,
+        nodeVersion: process.version,
+      },
       metrics: {
         ...metrics,
         activePorts: active_ports,
@@ -179,6 +281,8 @@ export const infoPlugin: FastifyPluginAsync<{ deps: InfoRouteDeps }> = async (fa
         skippedProjects: fleet.skipped,
       } : undefined,
       runtime: buildRuntimeSummary(deps),
+      guardians: buildGuardianSummary(deps),
+      history,
     };
   });
 

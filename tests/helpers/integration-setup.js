@@ -156,6 +156,7 @@ function stripAnsi(str) {
 export function runCli(args, options = {}) {
   const { sockPath, dbPath, contextDir } = getDaemonState();
   const cliPath = join(import.meta.dirname, '../../bin/port-daddy-cli.ts');
+  const { env: extraEnv = {}, ...spawnOptions } = options;
 
   // Use --direct to silence daemon-unreachable warnings if we are intentionally 
   // bypassing the socket (useful for debugging)
@@ -183,8 +184,11 @@ export function runCli(args, options = {}) {
   const result = spawnSync(TSX_PATH, [cliPath, ...finalArgs], {
     encoding: 'utf-8',
     timeout: 10000,
-    env: testEnv,
-    ...options
+    env: {
+      ...testEnv,
+      ...extraEnv,
+    },
+    ...spawnOptions
   });
 
   return {
@@ -203,6 +207,7 @@ export function runCli(args, options = {}) {
 export function runCliViaIpc(args, options = {}) {
   const { ipcPath, homeDir, contextDir } = getDaemonState();
   const cliPath = join(import.meta.dirname, '../../bin/port-daddy-cli.ts');
+  const { env: extraEnv = {}, ...spawnOptions } = options;
 
   const testEnv = {
     ...process.env,
@@ -223,8 +228,11 @@ export function runCliViaIpc(args, options = {}) {
   const result = spawnSync(TSX_PATH, [cliPath, ...args], {
     encoding: 'utf-8',
     timeout: 10000,
-    env: testEnv,
-    ...options
+    env: {
+      ...testEnv,
+      ...extraEnv,
+    },
+    ...spawnOptions
   });
 
   return {

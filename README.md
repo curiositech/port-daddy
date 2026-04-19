@@ -123,10 +123,12 @@ Every work session progress through defined **Phases** for clear swarm visibilit
 ### System Health
 Monitor the heartbeat of your control plane:
 ```bash
-pd status   # Quick overview of daemon and services
-pd version  # Check for stale code and FFI health
-pd health   # Authoritative report from the Barnacle (Port 9875)
+pd status   # Authoritative daemon truth: runtime state, build hash, fleet counts, guardian status
+pd version  # Version, code hash, install dir, PID
+curl http://127.0.0.1:9876/status   # Full daemon report including recent activity and spend
 ```
+
+`launchctl` is the canonical supervisor on macOS. Barnacle is auxiliary when its binary is present; it is not the authority for daemon health.
 
 ---
 

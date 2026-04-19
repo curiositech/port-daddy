@@ -569,7 +569,7 @@ Fleet rows are mailbox-driven now: if an agent is already running and more trigg
 | `GET /metrics/cost/recent` | Most recent cost events |
 | **System** | |
 | `pd setup` | One-command onboarding (daemon + MCP + FleetBar + project init) |
-| `pd status` | Daemon health |
+| `pd status` | Daemon truth: runtime state, build hash, fleet counts, guardian status |
 | `pd version` | Version and code hash |
 | `pd arbiter status` | Invariant enforcement status |
 | `pd arbiter violations` | List recorded violations |
