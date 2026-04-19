@@ -1,0 +1,856 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Port Daddy Website and Docs Task List (Reset Research)</title>
+    <style>
+      :root {
+        --bg: #f4efe4;
+        --panel: #fffaf0;
+        --ink: #121212;
+        --muted: #565249;
+        --rule: #1f1f1f;
+        --blue: #2350ff;
+        --lime: #e8ff3a;
+        --red: #b32020;
+        --amber: #8a5a00;
+        --green: #136d32;
+        --shadow: 8px 8px 0 #121212;
+        --space-1: 8px;
+        --space-2: 16px;
+        --space-3: 24px;
+        --space-4: 32px;
+        --space-5: 48px;
+        --radius: 0;
+        --max: 1280px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        font-size: 16px;
+        line-height: 1.5;
+        background: var(--bg);
+        color: var(--ink);
+      }
+
+      body {
+        margin: 0;
+      }
+
+      a {
+        color: inherit;
+      }
+
+      .shell {
+        max-width: var(--max);
+        margin: 0 auto;
+        padding: var(--space-4);
+      }
+
+      .hero,
+      .panel,
+      .task {
+        border: 2px solid var(--rule);
+        background: var(--panel);
+        box-shadow: var(--shadow);
+      }
+
+      .hero {
+        padding: var(--space-4);
+        margin-bottom: var(--space-4);
+      }
+
+      .eyebrow {
+        display: inline-block;
+        margin-bottom: var(--space-2);
+        padding: 4px 10px;
+        border: 2px solid var(--rule);
+        font-size: 0.8125rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        background: var(--lime);
+      }
+
+      h1,
+      h2,
+      h3 {
+        margin: 0 0 var(--space-2) 0;
+        line-height: 0.96;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        font-size: clamp(2.75rem, 6vw, 5.5rem);
+        letter-spacing: -0.04em;
+        max-width: 12ch;
+      }
+
+      h2 {
+        font-size: clamp(1.75rem, 3vw, 2.5rem);
+        letter-spacing: -0.03em;
+      }
+
+      h3 {
+        font-size: 1.35rem;
+        letter-spacing: -0.02em;
+      }
+
+      p,
+      li {
+        font-size: 1rem;
+        color: var(--ink);
+      }
+
+      .lede {
+        max-width: 70ch;
+        font-size: 1.125rem;
+        margin: 0;
+      }
+
+      .grid {
+        display: grid;
+        gap: var(--space-3);
+      }
+
+      .grid.two {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .panel {
+        padding: var(--space-3);
+      }
+
+      .panel p:last-child,
+      .task p:last-child {
+        margin-bottom: 0;
+      }
+
+      .callout-danger {
+        background: #fff2f0;
+        border-color: var(--red);
+      }
+
+      .callout-warning {
+        background: #fff8e8;
+        border-color: var(--amber);
+      }
+
+      .task-list {
+        display: grid;
+        gap: var(--space-3);
+        margin-top: var(--space-4);
+      }
+
+      .task {
+        padding: var(--space-3);
+      }
+
+      .task-header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: var(--space-2);
+        margin-bottom: var(--space-2);
+      }
+
+      .task-id {
+        font-size: 0.875rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      .badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border: 2px solid var(--rule);
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .blocked {
+        background: #ffd6d1;
+      }
+
+      .now {
+        background: var(--lime);
+      }
+
+      .next {
+        background: #dbe3ff;
+      }
+
+      .later {
+        background: #ece7db;
+      }
+
+      .meta {
+        display: grid;
+        gap: var(--space-2);
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        margin-top: var(--space-2);
+      }
+
+      .meta-block {
+        border-top: 2px solid var(--rule);
+        padding-top: var(--space-2);
+      }
+
+      .meta-block strong {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 0.8125rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .mono {
+        font-family: "SFMono-Regular", "SF Mono", Menlo, Consolas, monospace;
+        font-size: 0.95rem;
+      }
+
+      ul,
+      ol {
+        margin: var(--space-2) 0 0 1.25rem;
+        padding: 0;
+      }
+
+      .source-list li,
+      .gate-list li,
+      .sequence li {
+        margin-bottom: 8px;
+      }
+
+      .footer-note {
+        margin-top: var(--space-5);
+        font-size: 0.95rem;
+        color: var(--muted);
+      }
+
+      @media (max-width: 960px) {
+        .grid.two,
+        .meta {
+          grid-template-columns: 1fr;
+        }
+
+        .shell {
+          padding: var(--space-3);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <div class="eyebrow">Reset Research</div>
+        <h1>Website And Docs Task List</h1>
+        <p class="lede">
+          This is the source-backed execution list for the `agentsd.ai` reset track: the proposed
+          public shell, the developer docs system, and the truth-alignment cleanup around them.
+          It is planning research, not authority for the live `website-v2` surface.
+        </p>
+      </section>
+
+      <section class="grid two">
+        <article class="panel callout-danger">
+          <h2>Critical Contradictions</h2>
+          <ul>
+            <li>
+              The working tree currently restores a top-level <span class="mono">/whitepaper</span>
+              route, while <span class="mono">docs/AGENTSD_AI_SITE_CONTRACT.md</span> bans that
+              route and says everything public must live under <span class="mono">/docs/**</span>.
+            </li>
+            <li>
+              <span class="mono">docs/recovery/CURRENT-WORK.md</span> says the active direction is
+              a hybrid preservation pass, not an <span class="mono">agentsd.ai</span> replacement,
+              while the agentsd site-contract docs describe a full public reset.
+            </li>
+            <li>
+              The docs-system plan assumes a clean docs information architecture, but the current
+              website working tree is split across modified tracked files and new untracked shell
+              files under <span class="mono">website-v2/src/components/site/</span>,
+              <span class="mono">website-v2/src/data/publicSite.ts</span>,
+              <span class="mono">website-v2/src/docs-content/</span>, and
+              <span class="mono">website-v2/src/public-shell-contracts.test.ts</span>.
+            </li>
+            <li>
+              There are two public whitepapers in the repo, not one:
+              <span class="mono">whitepaper/anchor-protocol-whitepaper.tex</span> and
+              <span class="mono">whitepaper/agent-transactions-whitepaper.tex</span>. The site has
+              to surface them intentionally, not speak about "the whitepaper" as if the distinction
+              does not matter.
+            </li>
+          </ul>
+        </article>
+
+        <article class="panel callout-warning">
+          <h2>What This Task List Is For</h2>
+          <ul>
+            <li>Choose one public route contract and make the code, tests, and docs agree.</li>
+            <li>Replace fragmentary docs-shell placeholders with real developer documentation.</li>
+            <li>Stop public pages from reading like repo-autopsy notes or internal cleanup tickets.</li>
+            <li>Force design-system and content-system rigor so the site cannot drift again.</li>
+          </ul>
+        </article>
+      </section>
+
+      <section class="task-list">
+        <article class="task">
+          <div class="task-header">
+            <span class="task-id">Task 00</span>
+            <span class="badge blocked">Decision Required</span>
+            <h3>Choose The Canonical Public Route Contract</h3>
+          </div>
+          <p>
+            Decide whether the public product keeps a top-level
+            <span class="mono">/whitepaper</span> route or whether both papers must live under
+            <span class="mono">/docs/**</span>. Right now the repo contains both positions and
+            both are defended by different files.
+          </p>
+          <div class="meta">
+            <div class="meta-block">
+              <strong>Evidence</strong>
+              <div class="mono">
+                docs/AGENTSD_AI_SITE_CONTRACT.md<br />
+                website-v2/src/main.tsx<br />
+                website-v2/src/public-shell-contracts.test.ts
+              </div>
+            </div>
+            <div class="meta-block">
+              <strong>Done When</strong>
+              <div>One written rule, one router shape, and one matching contract test remain.</div>
+            </div>
+            <div class="meta-block">
+              <strong>Notes</strong>
+              <div>
+                This task branches every other public docs decision. It is intentionally first.
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="task">
+          <div class="task-header">
+            <span class="task-id">Task 01</span>
+            <span class="badge now">Do Now</span>
+            <h3>Rewrite The Repo Authorities So They Stop Contradicting The Code</h3>
+          </div>
+          <p>
+            Reconcile <span class="mono">docs/recovery/CURRENT-WORK.md</span>,
+            <span class="mono">.cartographer/status.md</span>, and the agentsd planning docs.
+            Right now they describe mutually incompatible public-site directions.
+          </p>
+          <ul>
+            <li>Pick which documents are active authority, which are quarantine, and which are superseded.</li>
+            <li>Write a short supersession note into any document that loses authority.</li>
+            <li>Remove language that treats contradictory plans as simultaneously active.</li>
+          </ul>
+          <div class="meta">
+            <div class="meta-block">
+              <strong>Files</strong>
+              <div class="mono">
+                docs/recovery/CURRENT-WORK.md<br />
+                .cartographer/status.md<br />
+                docs/AGENTSD_AI_SITE_CONTRACT.md<br />
+                docs/AGENTSD_DEVELOPER_DOCS_SYSTEM_PLAN.md
+              </div>
+            </div>
+            <div class="meta-block">
+              <strong>Done When</strong>
+              <div>
+                A new reader can tell the active public-site direction without cross-reading four
+                conflicting documents.
+              </div>
+            </div>
+            <div class="meta-block">
+              <strong>Priority</strong>
+              <div>Immediate. The task list itself becomes stale if this is left unresolved.</div>
+            </div>
+          </div>
+        </article>
+
+        <article class="task">
+          <div class="task-header">
+            <span class="task-id">Task 02</span>
+            <span class="badge now">Do Now</span>
+            <h3>Collapse The Website-v2 Split-Brain Into One Intentional Shell</h3>
+          </div>
+          <p>
+            The current public-shell work lives partly in modified tracked files and partly in
+            new untracked directories. That is not a stable basis for execution or review.
+          </p>
+          <ul>
+            <li>Promote the new shell files intentionally or delete them.</li>
+            <li>Remove duplicate or shadow shell logic.</li>
+            <li>Leave a clean router, one docs shell, one landing shell, and one content registry path.</li>
+          </ul>
+          <div class="meta">
+            <div class="meta-block">
+              <strong>Evidence</strong>
+              <div class="mono">
+                git status --short -- website-v2/src/main.tsx website-v2/src/data/publicSite.ts
+              </div>
+            </div>
+            <div class="meta-block">
+              <strong>Done When</strong>
+              <div>
+                Untracked shell infrastructure no longer exists by accident. The working tree is
+                either clean or dirty for deliberate reasons.
+              </div>
+            </div>
+            <div class="meta-block">
+              <strong>Priority</strong>
+              <div>Immediate. This is structural debt, not polish debt.</div>
+            </div>
+          </div>
+        </article>
+
+        <article class="task">
+          <div class="task-header">
+            <span class="task-id">Task 03</span>
+            <span class="badge next">Next</span>
+            <h3>D1: Build The Structured Docs Registry And Route Model</h3>
+          </div>
+          <p>
+            Replace the flat docs routing story with a structured docs tree so navigation, route
+            creation, and metadata all come from one source.
+          </p>
+          <ul>
+            <li>Define first-class docs families and leaf metadata.</li>
+            <li>Generate docs navigation from metadata, not hand-wired route soup.</li>
+            <li>Keep the chosen route contract mechanically enforced.</li>
+          </ul>
+          <div class="meta">
+            <div class="meta-block">
+              <strong>Files</strong>
+              <div class="mono">
+                website-v2/src/data/publicSite.ts<br />
+                website-v2/src/data/*<br />
+                website-v2/src/main.tsx
+              </div>
+            </div>
+            <div class="meta-block">
+              <strong>Done When</strong>
+              <div>
+                Overview, get-started, concepts, best-practices, examples, tutorials,
+                reference-architectures, reference, and whitepaper all exist as deliberate families
+                in metadata.
+              </div>
+            </div>
+            <div class="meta-block">
+              <strong>Suggested Owner</strong>
+              <div>Carver, per the existing docs-system plan.</div>
+            </div>
+          </div>
+        </article>
+
+        <article class="task">
+          <div class="task-header">
+            <span class="task-id">Task 04</span>
+            <span class="badge next">Next</span>
+            <h3>D2: Rebuild The Overview And Whitepaper Entry Points</h3>
+          </div>
+          <p>
+            Make the docs overview page do real orientation work and surface the technical papers
+            clearly. The site currently blurs "whitepaper" into a vague singular even though there
+            are two papers with different jobs.
+          </p>
+          <ul>
+            <li>Explain what each paper is for: protocol trust boundary versus economic/governance thesis.</li>
+            <li>Use overview copy to route readers, not to compress the whole product into slogans.</li>
+            <li>Keep overview prose short, concrete, and audience-facing.</li>
+          </ul>
+          <div class="meta">
+            <div class="meta-block">
+              <strong>Files</strong>
+              <div class="mono">
+                website-v2/src/pages/docs/DocsOverview.tsx<br />
+                website-v2/src/pages/whitepaper/index.tsx<br />
+                website-v2/src/components/site/*
+              </div>
+            </div>
+            <div class="meta-block">
+              <strong>Done When</strong>
+              <div>
+                The reader can tell why there are two papers, which one to read first, and how they
+                connect back to the product.
+              </div>
+            </div>
+            <div class="meta-block">
+              <strong>Priority</strong>
+              <div>High. Whitepapers are a top-line technical artifact, not an afterthought.</div>
+            </div>
+          </div>
+        </article>
+
+        <article class="task">
+          <div class="task-header">
+            <span class="task-id">Task 05</span>
+            <span class="badge next">Next</span>
+            <h3>D3: Write Get Started And Best Practices As Real Operator Docs</h3>
+          </div>
+          <p>
+            The get-started path must install the daemon, verify the live runtime, and run one real
+            operator loop. Best-practices pages must teach operator discipline without dumping raw
+            <span class="mono">AGENTS.md</span> policy into the public site.
+          </p>
+          <ul>
+            <li>Every command must be checked against live code, not remembered from old docs.</li>
+            <li>Every page needs actual prose paragraphs, not fragment cards and slogans.</li>
+            <li>Every task guide needs prerequisites, steps, expected output, and next links.</li>
+          </ul>
+          <div class="meta">
+            <div class="meta-block">
+              <strong>Files</strong>
+              <div class="mono">
+                website-v2/src/docs-content/get-started.ts<br />
+                website-v2/src/docs-content/best-practices.ts<br />
+                website-v2/src/pages/docs/*
+              </div>
+            </div>
+            <div class="meta-block">
+              <strong>Done When</strong>
+              <div>
+                A new operator can install, verify, and run a first useful loop without guessing.
+              </div>
+            </div>
+            <div class="meta-block">
+              <strong>Suggested Owner</strong>
+              <div>Singer, per the existing docs-system plan.</div>
+            </div>
+          </div>
+        </article>
+
+        <article class="task">
+          <div class="task-header">
+            <span class="task-id">Task 06</span>
+            <span class="badge later">After Core Shell Stabilizes</span>
+            <h3>D4: Build The Concepts Taxonomy</h3>
+          </div>
+          <p>
+            Concepts pages should explain the model: control plane versus data plane, sessions,
+            locks, tuples, pheromones, fleet scoping, delegation modes, and harbors.
+          </p>
+          <ul>
+            <li>Do not turn concepts pages into command reference.</li>
+            <li>Do not make them tutorial prose.</li>
+            <li>Explain boundaries, relationships, and invariants.</li>
+          </ul>
+          <div class="meta">
+            <div class="meta-block">
+              <strong>Sources</strong>
+              <div class="mono">
+                docs/DELEGATION-MODES.md<br />
+                docs/recovery/PD-AGENT-SORTIE-PLAN.md<br />
+                skills/port-daddy-cli/references/api-reference.md
+              </div>
+            </div>
+            <div class="meta-block">
+              <strong>Done When</strong>
+              <div>
+                The reader can answer "what is this primitive for?" without digging through source.
+              </div>
+            </div>
+            <div class="meta-block">
+              <strong>Priority</strong>
+              <div>After get-started and best-practices are source-truthed.</div>
+            </div>
+          </div>
+        </article>
+
+        <article class="task">
+          <div class="task-header">
+            <span class="task-id">Task 07</span>
+            <span class="badge later">After Core Shell Stabilizes</span>
+            <h3>D5: Publish The First Real Examples Set</h3>
+          </div>
+          <p>
+            Build small runnable examples with exact files, exact commands, expected output, and
+            explicit "when to use this" framing.
+          </p>
+          <ul>
+            <li>Session lifecycle</li>
+            <li>Salvage and recovery</li>
+            <li>File-edit coordination</li>
+            <li>Inbox messaging</li>
+            <li>Service orchestration</li>
+            <li>Then tuples, harbor entry, fleet bootstrap, watch-driven workflows, and pheromones</li>
+          </ul>
+          <div class="meta">
+            <div class="meta-block">
+              <strong>Files</strong>
+              <div class="mono">
+                website-v2/src/docs-content/examples.ts<br />
+                docs/reports/D5-D6-PROMOTION-MATRIX.md
+              </div>
+            </div>
+            <div class="meta-block">
+              <strong>Done When</strong>
+              <div>
+                Every published example can actually be run from the repo and teaches one bounded
+                job clearly.
+              </div>
+            </div>
+            <div class="meta-block">
+              <strong>Suggested Owner</strong>
+              <div>Tesla, per the existing docs-system plan.</div>
+            </div>
+          </div>
+        </article>
+
+        <article class="task">
+          <div class="task-header">
+            <span class="task-id">Task 08</span>
+            <span class="badge later">After Core Shell Stabilizes</span>
+            <h3>D6: Separate Tutorials From Reference Architectures</h3>
+          </div>
+          <p>
+            Tutorials are multi-step outcome guides. Reference architectures are composed system
+            pictures with responsibilities and diagrams. They should not be the same page shape.
+          </p>
+          <ul>
+            <li>Tutorials should take 20 to 60 minutes and end in a real result.</li>
+            <li>Reference architectures should state what is live now versus target architecture.</li>
+            <li>Both need more prose and more operational specificity than the current shell provides.</li>
+          </ul>
+          <div class="meta">
+            <div class="meta-block">
+              <strong>Candidate Tutorials</strong>
+              <div>
+                First fleet for a repo, budgeted one-shot agents, operator recovery after a dead
+                session.
+              </div>
+            </div>
+            <div class="meta-block">
+              <strong>Candidate Architectures</strong>
+              <div>
+                Single-developer local control plane, small-team shared fleet, monorepo service
+                stack.
+              </div>
+            </div>
+            <div class="meta-block">
+              <strong>Done When</strong>
+              <div>
+                A reader can either build something or evaluate a system composition without the two
+                doc types collapsing into each other.
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="task">
+          <div class="task-header">
+            <span class="task-id">Task 09</span>
+            <span class="badge later">After Core Shell Stabilizes</span>
+            <h3>D7: Build Real Reference And LLM Exports</h3>
+          </div>
+          <p>
+            Reference is fast lookup, not overview prose. The site also needs machine-readable docs
+            exports that point only at live routes and current truths.
+          </p>
+          <ul>
+            <li>CLI reference</li>
+            <li>SDK reference</li>
+            <li>MCP reference</li>
+            <li>Daemon/API reference</li>
+            <li>Config reference</li>
+            <li><span class="mono">llms.txt</span> and <span class="mono">llms-full.txt</span></li>
+          </ul>
+          <div class="meta">
+            <div class="meta-block">
+              <strong>Files</strong>
+              <div class="mono">
+                website-v2/public/llms.txt<br />
+                website-v2/public/llms-full.txt<br />
+                website-v2/src/docs-content/reference.ts
+              </div>
+            </div>
+            <div class="meta-block">
+              <strong>Done When</strong>
+              <div>
+                No reference export points at dead routes, stale copy, or future-only claims.
+              </div>
+            </div>
+            <div class="meta-block">
+              <strong>Priority</strong>
+              <div>After the route contract and docs families are stable.</div>
+            </div>
+          </div>
+        </article>
+
+        <article class="task">
+          <div class="task-header">
+            <span class="task-id">Task 10</span>
+            <span class="badge now">Do Now</span>
+            <h3>Enforce The Design System At The Template Layer</h3>
+          </div>
+          <p>
+            The public shell must stop producing arbitrary typography, spacing, contrast, and
+            layout rules page by page. The task here is not styling one more page. The task is
+            removing the ability to drift.
+          </p>
+          <ul>
+            <li>Consolidate page composition into a small set of reusable templates and surface components.</li>
+            <li>Move spacing, typography, contrast, and state colors behind semantic tokens.</li>
+            <li>Add component and template stories for every public surface primitive.</li>
+            <li>Add tests that fail when pages bypass the template system or violate contrast and spacing rules.</li>
+          </ul>
+          <div class="meta">
+            <div class="meta-block">
+              <strong>Done When</strong>
+              <div>
+                A page author cannot silently introduce one-off layout rules, tiny mismatched text,
+                or ad hoc contrast regressions.
+              </div>
+            </div>
+            <div class="meta-block">
+              <strong>Impacted Areas</strong>
+              <div class="mono">
+                website-v2/src/components/site/*<br />
+                website-v2/src/styles/*<br />
+                Storybook stories<br />
+                public-shell contract tests
+              </div>
+            </div>
+            <div class="meta-block">
+              <strong>Priority</strong>
+              <div>Immediate. This is the main anti-drift lever.</div>
+            </div>
+          </div>
+        </article>
+
+        <article class="task">
+          <div class="task-header">
+            <span class="task-id">Task 11</span>
+            <span class="badge next">Next</span>
+            <h3>Rewrite Public Copy For A Real Developer Audience</h3>
+          </div>
+          <p>
+            The public docs and shell need actual explanatory prose written to a reader evaluating
+            or adopting the product. Internal cleanup logic, repo archaeology, and self-conscious
+            shell commentary should not appear on the public site.
+          </p>
+          <ul>
+            <li>Each page needs paragraphs, not sentence fragments.</li>
+            <li>Each page needs a clear reader job: what this page is for, when to use it, what to do next.</li>
+            <li>Each page should sound like product documentation, not a status memo or an argument with the repo.</li>
+          </ul>
+          <div class="meta">
+            <div class="meta-block">
+              <strong>Benchmark</strong>
+              <div>
+                The page density and clarity should be closer to strong developer docs than to a
+                marketing landing page with fragments.
+              </div>
+            </div>
+            <div class="meta-block">
+              <strong>Done When</strong>
+              <div>
+                A technically literate reader can understand the value, constraints, and workflow
+                without needing the repo as translator.
+              </div>
+            </div>
+            <div class="meta-block">
+              <strong>Priority</strong>
+              <div>High. Good structure still fails if the prose is alien.</div>
+            </div>
+          </div>
+        </article>
+
+        <article class="task">
+          <div class="task-header">
+            <span class="task-id">Task 12</span>
+            <span class="badge later">After Core Shell Stabilizes</span>
+            <h3>Triage The Legacy Route Forest: Promote, Rewrite, Archive, Delete</h3>
+          </div>
+          <p>
+            The old route forest is a material source library, not default publishable truth. Every
+            surviving page family needs an explicit classification decision.
+          </p>
+          <ul>
+            <li>Promote now if source-backed and aligned with the new docs model.</li>
+            <li>Rewrite before promotion if the subject is good but the page is not fit to publish.</li>
+            <li>Archive as aspirational if it describes future architecture or internal roadmap only.</li>
+            <li>Delete if it is dead weight, duplicated, or misleading.</li>
+          </ul>
+          <div class="meta">
+            <div class="meta-block">
+              <strong>Input</strong>
+              <div class="mono">docs/reports/D5-D6-PROMOTION-MATRIX.md</div>
+            </div>
+            <div class="meta-block">
+              <strong>Done When</strong>
+              <div>
+                There are no shadow public page families left wandering around without ownership or
+                a reason to exist.
+              </div>
+            </div>
+            <div class="meta-block">
+              <strong>Priority</strong>
+              <div>After the core shell and docs families are stable.</div>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section class="grid two" style="margin-top: 48px;">
+        <article class="panel">
+          <h2>Execution Order</h2>
+          <ol class="sequence">
+            <li>Task 00: choose the route contract.</li>
+            <li>Task 01: rewrite the authority docs.</li>
+            <li>Task 02: collapse the website-v2 split-brain.</li>
+            <li>Task 10: lock the design system and anti-drift gates into the templates.</li>
+            <li>Task 03: build the docs registry and route model.</li>
+            <li>Task 04: rebuild overview and whitepaper entry points.</li>
+            <li>Task 05: ship get-started and best-practices pages with real prose.</li>
+            <li>Task 11: rewrite copy across the surface for the actual audience.</li>
+            <li>Tasks 06 through 09: concepts, examples, tutorials, reference architectures, reference.</li>
+            <li>Task 12: classify and delete legacy route residue.</li>
+          </ol>
+        </article>
+
+        <article class="panel">
+          <h2>Ship Gates</h2>
+          <ul class="gate-list">
+            <li>One route contract only.</li>
+            <li>One docs registry only.</li>
+            <li>One public template system only.</li>
+            <li>Semantic tokens only for color, spacing, typography, and state.</li>
+            <li>Storybook coverage for all public primitives and page templates.</li>
+            <li>AAA-target body text, control text, and code-surface contrast.</li>
+            <li>Every command and code sample verified against the current repo.</li>
+            <li>No internal roadmap leakage on public docs pages.</li>
+            <li>No copy that assumes one whitepaper when the product exposes two.</li>
+          </ul>
+        </article>
+      </section>
+
+      <section class="panel" style="margin-top: 48px;">
+        <h2>Source Inputs</h2>
+        <ul class="source-list">
+          <li><span class="mono">docs/recovery/CURRENT-WORK.md</span></li>
+          <li><span class="mono">.cartographer/status.md</span></li>
+          <li><span class="mono">docs/AGENTSD_AI_SITE_CONTRACT.md</span></li>
+          <li><span class="mono">docs/AGENTSD_DEVELOPER_DOCS_SYSTEM_PLAN.md</span></li>
+          <li><span class="mono">website-v2/src/main.tsx</span></li>
+          <li><span class="mono">website-v2/src/public-shell-contracts.test.ts</span></li>
+          <li><span class="mono">website-v2/src/pages/whitepaper/index.tsx</span></li>
+          <li><span class="mono">whitepaper/anchor-protocol-whitepaper.tex</span></li>
+          <li><span class="mono">whitepaper/agent-transactions-whitepaper.tex</span></li>
+        </ul>
+        <p class="footer-note">
+          Generated on 2026-04-16. If any of these sources change, update this file instead of
+          letting a new hidden task list emerge in chat.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>
