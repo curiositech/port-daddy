@@ -2,17 +2,32 @@ import { useEffect, useState } from 'react';
 import { Send } from 'lucide-react';
 import { fetchAgentInbox, fetchAgentInboxStats, publishMessage, sendAgentMessage } from '../api';
 import type { InboxMessage, InboxStats, ResolvedChannelTarget } from '../types';
+import { describeInboxAgentAvailability } from '../lib/inbox-targeting';
 
 interface Props {
   channels: ResolvedChannelTarget[];
   agents: string[];
   project?: string | null;
+  projectRunning?: boolean;
+  configuredAgentCount?: number;
   layout?: 'compact' | 'full';
 }
 
 type DeliveryMode = 'channel' | 'agent';
 
-export default function DMPanel({ channels, agents, project, layout = 'compact' }: Props) {
+/**
+ * Operator messaging surface for direct inbox delivery and channel publication.
+ * Direct inbox delivery is intentionally limited to live runtime agents so the
+ * UI does not advertise targets the daemon cannot actually hail.
+ */
+export default function DMPanel({
+  channels,
+  agents,
+  project,
+  projectRunning = false,
+  configuredAgentCount = 0,
+  layout = 'compact',
+}: Props) {
   const [mode, setMode] = useState<DeliveryMode>('agent');
   const [channel, setChannel] = useState(channels[0]?.logical || '');
   const [agent, setAgent] = useState(agents[0] || '');
@@ -34,13 +49,16 @@ export default function DMPanel({ channels, agents, project, layout = 'compact' 
     if (agents.length > 0 && !agents.includes(agent)) {
       setAgent(agents[0]);
     }
+    if (agents.length === 0 && agent) {
+      setAgent('');
+    }
   }, [agents, agent]);
 
-  useEffect(() => {
-    if (mode === 'agent' && agents.length === 0) {
-      setMode('channel');
-    }
-  }, [agents.length, mode]);
+  const inboxAvailabilityNote = describeInboxAgentAvailability({
+    liveAgentCount: agents.length,
+    configuredAgentCount,
+    projectRunning,
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -81,6 +99,10 @@ export default function DMPanel({ channels, agents, project, layout = 'compact' 
     const trimmed = message.trim();
     const selectedChannel = channels.find((entry) => entry.logical === channel) ?? null;
     const target = mode === 'agent' ? agent : selectedChannel?.logical ?? '';
+    if (mode === 'agent' && agents.length === 0) {
+      setDeliveryNotice(inboxAvailabilityNote ?? 'No live fleet agent is available for direct inbox delivery.');
+      return;
+    }
     if (!trimmed || !target) return;
 
     setSending(true);
@@ -91,7 +113,7 @@ export default function DMPanel({ channels, agents, project, layout = 'compact' 
         setDeliveryNotice(
           result.woke
             ? `Delivered to ${agent} and hailed successfully.`
-            : `Delivered to ${agent}${result.messageId ? ` as #${result.messageId}` : ''}.`,
+            : `Delivered to ${agent}${result.messageId ? ` as #${result.messageId}` : ''}${result.error ? `, but could not wake a live runtime: ${result.error}.` : '.'}`,
         );
         const [stats, messages] = await Promise.all([
           fetchAgentInboxStats(agent),
@@ -170,7 +192,7 @@ export default function DMPanel({ channels, agents, project, layout = 'compact' 
             </div>
             {mode === 'agent' && agents.length === 0 && (
               <div className="mt-2 text-[11px]" style={{ color: 'var(--pd-accent)' }}>
-                No project agents are available yet for direct inbox delivery.
+                {inboxAvailabilityNote}
               </div>
             )}
           </div>
@@ -202,7 +224,7 @@ export default function DMPanel({ channels, agents, project, layout = 'compact' 
             </div>
             <button
               onClick={handleSend}
-              disabled={sending || !message.trim()}
+              disabled={sending || !message.trim() || (mode === 'agent' && agents.length === 0)}
               className="pd-button pd-button-primary"
             >
               <Send size={14} />

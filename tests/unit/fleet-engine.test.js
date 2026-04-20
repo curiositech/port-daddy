@@ -77,6 +77,52 @@ function makeConfig(agentOverrides = {}) {
   };
 }
 
+function tuplePrefixMatch(fields, pattern) {
+  if (!Array.isArray(pattern) || pattern.length === 0) return true;
+  if (pattern.length > fields.length) return false;
+  for (let i = 0; i < pattern.length; i += 1) {
+    const expected = pattern[i];
+    if (expected === '*' || expected === null) continue;
+    if (fields[i] !== expected) return false;
+  }
+  return true;
+}
+
+function createMockTupleSpace() {
+  const entries = [];
+  return {
+    out: jest.fn((fields, options = {}) => {
+      const tuple = {
+        id: entries.length + 1,
+        harbor: options.harbor ?? null,
+        fields,
+      };
+      entries.unshift(tuple);
+      return tuple;
+    }),
+    take: jest.fn((pattern, options = {}) => {
+      const harbor = options.harbor;
+      const limit = options.limit ?? 1;
+      const taken = [];
+      for (let i = 0; i < entries.length && taken.length < limit; ) {
+        const tuple = entries[i];
+        const harborMatches = harbor === undefined || tuple.harbor === harbor;
+        if (harborMatches && tuplePrefixMatch(tuple.fields, pattern)) {
+          taken.push(tuple);
+          entries.splice(i, 1);
+          continue;
+        }
+        i += 1;
+      }
+      return taken;
+    }),
+    count: jest.fn((pattern, harbor) => entries.filter((tuple) => {
+      const harborMatches = harbor === undefined || tuple.harbor === harbor;
+      return harborMatches && tuplePrefixMatch(tuple.fields, pattern);
+    }).length),
+  };
+}
+
 beforeEach(() => {
   jest.clearAllMocks();
   jest.useFakeTimers();
@@ -197,6 +243,24 @@ test('parses canonical fleet budget field as budgetUsdPerDay', () => {
     maxSpawnsPerHour: 20,
     budgetUsdPerDay: 7.5,
   });
+});
+
+test('parses trigger_tuple arrays from fleet yaml', () => {
+  mockExistsSync.mockImplementation(p => p.endsWith('pd-fleet.yml'));
+  mockExecSync.mockReturnValue('main');
+  mockReadFileSync.mockReturnValue(JSON.stringify({
+    name: 'tuple-fleet',
+    agents: {
+      qa: {
+        backend: 'claude-cli',
+        prompt: 'Review tuple mailbox',
+        trigger_tuple: ['fleet:mailbox', 'qa'],
+      },
+    },
+  }));
+
+  const config = loadFleetConfig('/tmp/proj');
+  expect(config?.agents[0].triggerTuple).toEqual(['fleet:mailbox', 'qa']);
 });
 
 test('parses per-agent cooldown, dedupe, and backoff settings from YAML', () => {
@@ -590,6 +654,69 @@ test('triggered agents receive message content when subscribed in-process', asyn
       body: expect.stringContaining('what is the most important idea I could build now?'),
     })
   );
+});
+
+test('tuple mailbox entries are consumed as fleet inputs', async () => {
+  const tuples = createMockTupleSpace();
+  global.fetch = jest.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({ agentId: 'abc', status: 'spawned' }),
+  });
+
+  const config = makeConfig({
+    trigger: 'git:committed',
+  });
+
+  const runner = createFleetRunner(config, '/tmp/proj', {
+    tuples,
+    tuplePollMs: 500,
+  });
+
+  runner.startAgent(config.agents[0]);
+  tuples.out(['fleet:mailbox', 'test-agent', 'tuple', {
+    messageContent: 'Writing the CSS for Port Daddy website design system',
+    message: { topic: 'design-system-css' },
+  }], {
+    harbor: 'test-fleet:fleet',
+    writtenBy: 'spark',
+  });
+
+  jest.advanceTimersByTime(600);
+  await Promise.resolve();
+  await Promise.resolve();
+
+  expect(global.fetch).toHaveBeenCalledWith(
+    `${DAEMON_URL}/spawn`,
+    expect.objectContaining({
+      method: 'POST',
+      body: expect.stringContaining('Writing the CSS for Port Daddy website design system'),
+    }),
+  );
+  expect(tuples.count(['fleet:mailbox', 'test-agent'], 'test-fleet:fleet')).toBe(0);
+  expect(tuples.out.mock.calls.some((call) => call[0][0] === 'semantic:alias')).toBe(true);
+});
+
+test('fleet runs forward aliases into the semantic resolver review stream', async () => {
+  const observeAliases = jest.fn();
+  const config = makeConfig();
+  const runner = createFleetRunner(config, '/tmp/proj', {
+    semanticResolver: { observeAliases },
+  });
+
+  await runner.hailAgent('test-agent', {
+    source: 'manual',
+    messageContent: 'Writing the CSS for Port Daddy website design system',
+  });
+  await Promise.resolve();
+  await Promise.resolve();
+
+  expect(observeAliases).toHaveBeenCalledWith(expect.objectContaining({
+    projectDir: '/tmp/proj',
+    harbor: 'test-fleet:fleet',
+    sourceType: 'fleet_agent_task',
+  }));
+  const [payload] = observeAliases.mock.calls[0];
+  expect(payload.aliases[0].canonical).toContain('css');
 });
 
 test('global: channels bypass project scoping for shared fanout', async () => {

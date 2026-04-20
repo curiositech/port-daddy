@@ -1,21 +1,33 @@
 import { useMemo } from 'react';
 import type { ActivityEntry, FleetEvent, StoryNote } from '../types';
 import { agentColor } from '../types';
-import { isMeaningfulActivityEntry, isMeaningfulStory, summarizeActivityEntry } from '../activityFeed';
+import {
+  activityTouchedFiles,
+  isMeaningfulActivityEntry,
+  isMeaningfulStory,
+  summarizeActivityEntry,
+} from '../activityFeed';
+import { extractMentionedPaths } from '../fileMentions';
+import FileActionLinks from './FileActionLinks';
 
 interface Props {
   fleetEvents: FleetEvent[];
   activity: ActivityEntry[];
   stories: StoryNote[];
+  selectedAgent?: string | null;
+  allAgents?: string[];
+  projectDir?: string;
 }
 
 interface RailItem {
   id: string;
+  kind: 'fleet' | 'activity' | 'story';
   timestamp: number;
   label: string;
   subtitle: string;
   accent: string;
   agent?: string | null;
+  files: string[];
 }
 
 function relativeTime(timestamp: number): string {
@@ -44,21 +56,55 @@ function activityAccent(type: string): string {
   return 'var(--pd-muted)';
 }
 
-export default function ActivityRail({ fleetEvents, activity, stories }: Props) {
+function summarizeFleetEvent(event: FleetEvent): string {
+  if (typeof event.details?.error === 'string' && event.details.error.trim()) return event.details.error.trim();
+  if (typeof event.details?.info === 'string' && event.details.info.trim()) return event.details.info.trim();
+  if (typeof event.details?.status === 'string' && event.details.status.trim()) return `status: ${event.details.status.trim()}`;
+  if (typeof event.details?.message === 'string' && event.details.message.trim()) return event.details.message.trim();
+  if (event.type === 'agent_failed') return 'Agent failed without a surfaced summary.';
+  if (event.type === 'agent_completed') return 'Agent completed.';
+  if (event.type === 'agent_started') return 'Agent launched.';
+  return event.project ?? 'fleet lifecycle';
+}
+
+function detectStoryAgent(story: StoryNote, agentNames: string[]): string | null {
+  if (story.agentId && agentNames.includes(story.agentId)) {
+    return story.agentId;
+  }
+
+  const haystack = `${story.sessionId} ${story.sessionPurpose ?? ''} ${story.content}`.toLowerCase();
+  return agentNames.find((agent) => haystack.includes(agent.toLowerCase())) ?? null;
+}
+
+function itemMatchesAgent(item: RailItem, agentName: string): boolean {
+  const needle = agentName.toLowerCase();
+  return item.agent === agentName
+    || item.label.toLowerCase().includes(needle)
+    || item.subtitle.toLowerCase().includes(needle);
+}
+
+function dedupeFiles(files: string[]): string[] {
+  return [...new Set(files.filter((filePath) => filePath.trim().length > 0))];
+}
+
+export default function ActivityRail({
+  fleetEvents,
+  activity,
+  stories,
+  selectedAgent = null,
+  allAgents = [],
+  projectDir,
+}: Props) {
   const feed = useMemo<RailItem[]>(() => {
     const fleetItems: RailItem[] = fleetEvents.map((event, index) => ({
       id: `fleet-${event.timestamp}-${event.agent ?? 'system'}-${index}`,
+      kind: 'fleet',
       timestamp: event.timestamp,
       label: event.agent ? `${event.agent} ${event.type.replace(/_/g, ' ')}` : event.type.replace(/_/g, ' '),
-      subtitle: typeof event.details?.error === 'string'
-        ? event.details.error
-        : typeof event.details?.info === 'string'
-          ? event.details.info
-        : typeof event.details?.status === 'string'
-          ? `status: ${event.details.status}`
-          : event.project ?? 'fleet lifecycle',
+      subtitle: summarizeFleetEvent(event),
       accent: fleetAccent(event.type),
       agent: event.agent ?? null,
+      files: dedupeFiles(extractMentionedPaths(summarizeFleetEvent(event))),
     }));
 
     const activityItems: RailItem[] = activity
@@ -67,11 +113,13 @@ export default function ActivityRail({ fleetEvents, activity, stories }: Props) 
         const agent = entry.agentId || (typeof entry.metadata?.agentId === 'string' ? entry.metadata.agentId : null);
         return {
           id: `activity-${entry.id}`,
+          kind: 'activity',
           timestamp: entry.timestamp,
           label: agent ? `${agent} ${entry.type}` : entry.type,
           subtitle: summarizeActivityEntry(entry),
           accent: activityAccent(entry.type),
           agent,
+          files: dedupeFiles([...activityTouchedFiles(entry), ...extractMentionedPaths(summarizeActivityEntry(entry))]),
         };
       });
 
@@ -79,48 +127,101 @@ export default function ActivityRail({ fleetEvents, activity, stories }: Props) 
       .filter(isMeaningfulStory)
       .map((story) => ({
         id: `story-${story.id}`,
+        kind: 'story',
         timestamp: story.createdAt,
         label: story.type,
         subtitle: story.content,
         accent: 'var(--pd-info, var(--pd-accent))',
-        agent: story.agentId ?? null,
+        agent: detectStoryAgent(story, allAgents),
+        files: extractMentionedPaths(story.content),
       }));
 
-    return [...fleetItems, ...activityItems, ...storyItems]
+    const combined = [...fleetItems, ...activityItems, ...storyItems]
       .sort((a, b) => b.timestamp - a.timestamp)
-      .slice(0, 80);
-  }, [activity, fleetEvents, stories]);
+      .slice(0, 120);
+
+    if (!selectedAgent) return combined;
+    return combined.filter((item) => itemMatchesAgent(item, selectedAgent)).slice(0, 80);
+  }, [activity, allAgents, fleetEvents, selectedAgent, stories]);
+
+  const noteCount = feed.filter((item) => item.kind === 'story').length;
+  const mutationCount = new Set(feed.flatMap((item) => item.files)).size;
+  const eventCount = feed.filter((item) => item.kind !== 'story').length;
 
   return (
-    <div className="flex flex-col h-full overflow-hidden" style={{ backgroundColor: 'var(--pd-surface-3)' }}>
-      <div className="px-4 py-2.5 flex items-center justify-between flex-shrink-0" style={{ borderBottom: '1px solid var(--pd-border)' }}>
-        <span className="text-[11px] font-semibold tracking-wider" style={{ color: 'var(--pd-muted)' }}>ACTIVITY LOG</span>
-        <span className="text-[10px] font-mono" style={{ color: 'var(--pd-dim)' }}>{feed.length} items</span>
+    <div className="flex flex-col h-full overflow-hidden rounded-2xl border" style={{ backgroundColor: 'var(--pd-surface-3)', borderColor: 'var(--pd-border)' }}>
+      <div className="px-4 py-3 flex items-start justify-between gap-3 flex-shrink-0" style={{ borderBottom: '1px solid var(--pd-border)' }}>
+        <div>
+          <div className="text-[10px] font-semibold tracking-wider" style={{ color: 'var(--pd-dim)' }}>LIVE CHRONOLOGY</div>
+          <div className="mt-1 text-sm font-semibold" style={{ color: 'var(--pd-text)' }}>
+            {selectedAgent ? `${selectedAgent} narrative` : 'Sessions, notes, events, and file movement'}
+          </div>
+        </div>
+        <div className="flex flex-wrap justify-end gap-1.5">
+          {selectedAgent ? (
+            <span className="rounded-full px-2 py-1 text-[10px] font-semibold" style={{ backgroundColor: 'var(--pd-accent-surface)', color: 'var(--pd-accent)', border: '1px solid var(--pd-accent-border)' }}>
+              focus: {selectedAgent}
+            </span>
+          ) : null}
+          <span className="rounded-full px-2 py-1 text-[10px] font-semibold" style={{ backgroundColor: 'var(--pd-bg)', color: 'var(--pd-muted)', border: '1px solid var(--pd-border)' }}>
+            {noteCount} notes
+          </span>
+          <span className="rounded-full px-2 py-1 text-[10px] font-semibold" style={{ backgroundColor: 'var(--pd-bg)', color: 'var(--pd-muted)', border: '1px solid var(--pd-border)' }}>
+            {eventCount} events
+          </span>
+          <span className="rounded-full px-2 py-1 text-[10px] font-semibold" style={{ backgroundColor: 'var(--pd-bg)', color: 'var(--pd-muted)', border: '1px solid var(--pd-border)' }}>
+            {mutationCount} files
+          </span>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-3 py-2 flex flex-col gap-1.5">
+      <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3">
         {feed.length === 0 ? (
           <div className="text-center py-8 text-sm" style={{ color: 'var(--pd-muted)' }}>
             Waiting for activity...
           </div>
         ) : (
-          feed.map((item) => (
-            <div key={item.id} className="rounded-lg px-3 py-2" style={{ backgroundColor: 'color-mix(in srgb, var(--pd-surface) 78%, transparent)', border: '1px solid color-mix(in srgb, var(--pd-border) 70%, transparent)' }}>
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: item.accent }} />
-                    <div className="text-[11px] font-semibold truncate" style={{ color: 'var(--pd-text)' }}>
-                      {item.agent ? <span style={{ color: agentColor(item.agent) }}>{item.agent}</span> : null}
-                      {item.agent ? <span style={{ color: 'var(--pd-text)' }}> {item.label.replace(`${item.agent} `, '')}</span> : item.label}
+          feed.map((item, index) => (
+            <div key={item.id} className="relative pl-6">
+              {index < feed.length - 1 ? (
+                <div className="absolute left-[6px] top-4 bottom-[-14px] w-px" style={{ backgroundColor: 'color-mix(in srgb, var(--pd-border) 86%, transparent)' }} />
+              ) : null}
+              <div className="absolute left-0 top-3 w-3 h-3 rounded-full border-2" style={{ backgroundColor: item.accent, borderColor: 'var(--pd-surface-3)' }} />
+              <div className="rounded-xl px-3 py-3" style={{ backgroundColor: 'color-mix(in srgb, var(--pd-surface) 80%, transparent)', border: '1px solid color-mix(in srgb, var(--pd-border) 76%, transparent)' }}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center flex-wrap gap-2">
+                      {item.agent ? (
+                        <span className="text-[10px] font-semibold uppercase tracking-[0.14em]" style={{ color: agentColor(item.agent) }}>
+                          {item.agent}
+                        </span>
+                      ) : null}
+                      <span className="rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em]" style={{ backgroundColor: 'var(--pd-bg)', color: 'var(--pd-muted)', border: '1px solid var(--pd-border)' }}>
+                        {item.kind}
+                      </span>
+                      <div className="text-[11px] font-semibold truncate" style={{ color: 'var(--pd-text)' }}>
+                        {item.agent ? item.label.replace(`${item.agent} `, '') : item.label}
+                      </div>
                     </div>
+                    <div className="mt-1 text-[11px] leading-relaxed" style={{ color: 'var(--pd-muted)' }}>
+                      {item.subtitle}
+                    </div>
+                    {item.files.length > 0 ? (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {item.files.slice(0, 2).map((filePath) => (
+                          <FileActionLinks
+                            key={`${item.id}-${filePath}`}
+                            filePath={filePath}
+                            projectDir={projectDir}
+                            compact
+                          />
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
-                  <div className="mt-1 text-[11px] leading-relaxed" style={{ color: 'var(--pd-muted)' }}>
-                    {item.subtitle}
+                  <div className="text-[9px] font-mono flex-shrink-0" style={{ color: 'var(--pd-dim)' }}>
+                    {relativeTime(item.timestamp)}
                   </div>
-                </div>
-                <div className="text-[9px] font-mono flex-shrink-0" style={{ color: 'var(--pd-dim)' }}>
-                  {relativeTime(item.timestamp)}
                 </div>
               </div>
             </div>

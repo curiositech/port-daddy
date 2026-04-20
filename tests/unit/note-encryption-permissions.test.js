@@ -183,3 +183,20 @@ describe('verifyPermissions — statSync failure', () => {
     expect(() => createNoteEncryption()).toThrow();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Strict daemon mode — master key is mandatory, not best-effort
+// ---------------------------------------------------------------------------
+
+describe('requireMasterKey strict mode', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('throws when master-key generation fails in strict mode', () => {
+    mockExistsSync.mockReturnValue(false);
+    mockMkdirSync.mockImplementation(() => {
+      throw new Error('disk full');
+    });
+
+    expect(() => createNoteEncryption({ requireMasterKey: true })).toThrow(/mandatory|master-key initialization failed/i);
+  });
+});

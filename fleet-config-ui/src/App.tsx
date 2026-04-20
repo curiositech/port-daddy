@@ -11,9 +11,11 @@ import DMPanel from './components/DMPanel';
 import SortiePanel from './components/SortiePanel';
 import YAMLEditor from './components/YAMLEditor';
 import ActivityPanel from './components/ActivityPanel';
+import ActivityRail from './components/ActivityRail';
 import MemoryPanel from './components/MemoryPanel';
 import AgentsPanel from './components/AgentsPanel';
 import { extractMentionedPaths } from './fileMentions';
+import { resolveInboxAgentTargets } from './lib/inbox-targeting';
 import {
   activityTouchedFiles,
   isMeaningfulActivityEntry,
@@ -703,6 +705,36 @@ export default function App() {
       .sort((a, b) => b.timestamp - a.timestamp);
   }, [agentSignals, fleetConfig]);
 
+  const flowBackendRoster = useMemo(() => {
+    if (!fleetConfig) return [];
+    const counts = new Map<string, number>();
+    for (const agent of fleetConfig.agents) {
+      const label = [agent.backend, agent.model].filter(Boolean).join(' · ');
+      counts.set(label, (counts.get(label) ?? 0) + 1);
+    }
+    return Array.from(counts.entries())
+      .map(([label, count]) => ({ label, count }))
+      .sort((a, b) => {
+        if (b.count !== a.count) return b.count - a.count;
+        return a.label.localeCompare(b.label);
+      });
+  }, [fleetConfig]);
+
+  const flowMutationFileCount = useMemo(
+    () => new Set(agentActivitySignals.flatMap((signal) => signal.files)).size,
+    [agentActivitySignals],
+  );
+
+  const flowNoteCount = useMemo(
+    () => filteredStories.filter(isMeaningfulStory).length,
+    [filteredStories],
+  );
+
+  const flowEventCount = useMemo(
+    () => filteredFleetEvents.length + filteredActivity.filter(isMeaningfulActivityEntry).length,
+    [filteredActivity, filteredFleetEvents],
+  );
+
   const channelLogEvents = useMemo(() => {
     const realMessages = channelLog.messages
       .map((message) => {
@@ -951,13 +983,13 @@ export default function App() {
 
                     <div className="overflow-hidden flex flex-col">
                       <div className="px-4 py-3 flex items-center justify-between gap-3" style={{ borderBottom: '1px solid var(--pd-border)' }}>
-                        <div>
-                          <div className="text-[10px] font-semibold tracking-wider opacity-30" style={{ color: 'var(--pd-text)' }}>AGENTS</div>
+                        <div className="min-w-0">
+                          <div className="text-[10px] font-semibold tracking-wider opacity-30" style={{ color: 'var(--pd-text)' }}>OPERATOR COCKPIT</div>
                           <div className="mt-1 text-sm font-semibold" style={{ color: 'var(--pd-text)' }}>
-                            Recent work, mutations, and inspect entry points
+                            Backend roster, recent work, sessions, notes, and mutation evidence
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap justify-end">
                           {(selectedAgent || selectedChannel) && (
                             <button
                               onClick={() => {
@@ -970,42 +1002,85 @@ export default function App() {
                               Clear focus
                             </button>
                           )}
+                          <span className="rounded-full px-2 py-1 text-[10px] font-semibold" style={{ backgroundColor: 'var(--pd-bg)', color: 'var(--pd-muted)', border: '1px solid var(--pd-border)' }}>
+                            {flowNoteCount} notes
+                          </span>
+                          <span className="rounded-full px-2 py-1 text-[10px] font-semibold" style={{ backgroundColor: 'var(--pd-bg)', color: 'var(--pd-muted)', border: '1px solid var(--pd-border)' }}>
+                            {flowMutationFileCount} files touched
+                          </span>
                           <div className="text-[10px] font-mono" style={{ color: 'var(--pd-dim)' }}>
-                            {selectedProject?.agents.filter(a => a.status !== 'paused').length ?? 0} deployed · {fleetConfig?.agents.length ?? 0} agents
+                            {selectedProject?.agents.filter(a => a.status !== 'paused').length ?? 0} deployed · {fleetConfig?.agents.length ?? 0} agents · {flowEventCount} live signals
                           </div>
                         </div>
                       </div>
-                      <div className="flex-1 overflow-y-auto p-4">
-                        {fleetConfig && (
-                          <motion.div layout className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))' }}>
-                            {fleetConfig.agents.map(agent => {
-                              const runtime = selectedProject?.agents.find(a => a.agentName === agent.name);
-                              const isRelated = selectedAgent === agent.name
-                                || (selectedChannel != null && (agent.trigger === selectedChannel || agent.onSuccess?.includes(selectedChannel) || agent.onFailure?.includes(selectedChannel)));
-                              const dimmed = (selectedAgent != null && selectedAgent !== agent.name) || (selectedChannel != null && !isRelated);
-                              const signal = agentSignals.get(agent.name) ?? null;
-                              return (
-                                <AgentCard
-                                  key={agent.name}
-                                  agent={agent}
-                                  runtimeStatus={runtime?.status}
-                                  projectRunning={selectedProject?.running ?? false}
-                                  limits={fleetConfig.limits}
-                                  highlighted={!!isRelated}
-                                  dimmed={dimmed}
-                                  latestWork={signal?.summary ?? null}
-                                  latestWorkLabel={signal?.label ?? null}
-                                  touchedFiles={signal?.files ?? []}
-                                  projectDir={selectedProjectId ?? undefined}
-                                  onSelect={inspectAgent}
-                                  onConfigure={configureAgent}
-                                  onRunNow={handleAgentRunNow}
-                                  onPauseToggle={handleAgentPauseToggle}
-                                />
-                              );
-                            })}
-                          </motion.div>
-                        )}
+                      <div className="flex-1 overflow-hidden grid gap-4 p-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.8fr)]">
+                        <div className="min-h-0 overflow-y-auto">
+                          {flowBackendRoster.length > 0 ? (
+                            <div className="mb-4 rounded-xl border px-3 py-3" style={{ backgroundColor: 'var(--pd-surface-3)', borderColor: 'var(--pd-border)' }}>
+                              <div className="flex items-center justify-between gap-3">
+                                <div>
+                                  <div className="text-[10px] font-semibold tracking-wider" style={{ color: 'var(--pd-dim)' }}>RUNTIME ROSTER</div>
+                                  <div className="mt-1 text-sm font-semibold" style={{ color: 'var(--pd-text)' }}>
+                                    Codex, Claude, Gemini, Ollama, and custom workers at a glance
+                                  </div>
+                                </div>
+                                <div className="flex flex-wrap justify-end gap-1.5">
+                                  {flowBackendRoster.map((entry) => (
+                                    <span
+                                      key={entry.label}
+                                      className="rounded-full px-2 py-1 text-[10px] font-semibold"
+                                      style={{ backgroundColor: 'var(--pd-bg)', color: 'var(--pd-text)', border: '1px solid var(--pd-border)' }}
+                                    >
+                                      {entry.count}× {entry.label}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          ) : null}
+
+                          {fleetConfig && (
+                            <motion.div layout className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))' }}>
+                              {fleetConfig.agents.map(agent => {
+                                const runtime = selectedProject?.agents.find(a => a.agentName === agent.name);
+                                const isRelated = selectedAgent === agent.name
+                                  || (selectedChannel != null && (agent.trigger === selectedChannel || agent.onSuccess?.includes(selectedChannel) || agent.onFailure?.includes(selectedChannel)));
+                                const dimmed = (selectedAgent != null && selectedAgent !== agent.name) || (selectedChannel != null && !isRelated);
+                                const signal = agentSignals.get(agent.name) ?? null;
+                                return (
+                                  <AgentCard
+                                    key={agent.name}
+                                    agent={agent}
+                                    runtimeStatus={runtime?.status}
+                                    projectRunning={selectedProject?.running ?? false}
+                                    limits={fleetConfig.limits}
+                                    highlighted={!!isRelated}
+                                    dimmed={dimmed}
+                                    latestWork={signal?.summary ?? null}
+                                    latestWorkLabel={signal?.label ?? null}
+                                    touchedFiles={signal?.files ?? []}
+                                    projectDir={selectedProjectId ?? undefined}
+                                    onSelect={inspectAgent}
+                                    onConfigure={configureAgent}
+                                    onRunNow={handleAgentRunNow}
+                                    onPauseToggle={handleAgentPauseToggle}
+                                  />
+                                );
+                              })}
+                            </motion.div>
+                          )}
+                        </div>
+
+                        <div className="min-h-0 overflow-hidden">
+                          <ActivityRail
+                            fleetEvents={filteredFleetEvents}
+                            activity={filteredActivity}
+                            stories={filteredStories}
+                            selectedAgent={selectedAgent}
+                            allAgents={fleetConfig?.agents.map((agent) => agent.name) ?? []}
+                            projectDir={selectedProjectId ?? undefined}
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1053,11 +1128,12 @@ export default function App() {
                       <DMPanel
                         key={`${daemonUrl}:${selectedProjectId ?? 'all'}:inbox`}
                         channels={channelTargets}
-                        agents={Array.from(new Set([
-                          ...(fleetConfig?.agents.map((agent) => agent.name) ?? []),
-                          ...(selectedProject?.agents.map((agent) => agent.agentName) ?? []),
-                        ]))}
+                        agents={resolveInboxAgentTargets(
+                          selectedProject?.agents.map((agent) => agent.agentName) ?? [],
+                        )}
                         project={selectedProjectName ?? undefined}
+                        projectRunning={selectedProject?.running ?? false}
+                        configuredAgentCount={fleetConfig?.agents.length ?? 0}
                         layout="full"
                       />
                     )}

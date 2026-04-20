@@ -214,6 +214,7 @@ const MCP_EXEMPT_FEATURES = new Set([
   'pheromone',      // Internal signal system; admin API for debugging, MCP deferred to v4
   'merge_queue',    // API-only merge queue; no CLI or MCP tools yet
   'symbols',        // API-only symbol index; no CLI or MCP tools yet
+  'semantic',       // Internal review/search surface for embedding joins; operator API/UI only for now
   'observability',  // Internal metrics/golden signals; admin API, not user-facing MCP
 ]);
 

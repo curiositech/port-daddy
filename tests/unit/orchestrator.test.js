@@ -567,29 +567,33 @@ describe('createOrchestrator()', () => {
   });
 
   it('should resolve only target service and its deps when targetService is set', async () => {
-    // The orchestrator will try to claim ports from the daemon, which will fail
-    // in a unit test. But we can verify it resolves the right services by
-    // checking the error references the correct service.
+    const mockDaemonRequest = jest.fn(async (method, path, body) => ({
+      ok: true,
+      status: 200,
+      data: method === 'POST' && path === '/claim'
+        ? { port: 4100 }
+        : {}
+    }));
+
     const orch = createOrchestrator({
       services: {
-        frontend: normalizeServiceConfig('frontend', { cmd: 'echo fe', needs: ['api'] }),
-        api: normalizeServiceConfig('api', { cmd: 'echo api', needs: ['db'] }),
-        db: normalizeServiceConfig('db', { cmd: 'echo db' }),
-        worker: normalizeServiceConfig('worker', { cmd: 'echo worker' })
+        frontend: normalizeServiceConfig('frontend', { needs: ['api'] }),
+        api: normalizeServiceConfig('api', { needs: ['db'] }),
+        db: normalizeServiceConfig('db', {}),
+        worker: normalizeServiceConfig('worker', {})
       },
       identities: { frontend: 'test:fe', api: 'test:api', db: 'test:db', worker: 'test:worker' },
-      config: { targetService: 'api' }
+      config: { targetService: 'api' },
+      daemonRequest: mockDaemonRequest
     });
 
-    // start() will fail trying to reach the daemon for port claiming,
-    // but it should resolve api + db (not frontend or worker)
-    try {
-      await orch.start();
-    } catch (e) {
-      // Expected — daemon not running in unit tests
-    }
-    // If targetService resolution was wrong, it would have thrown
-    // 'not found' above. Getting here proves resolution worked.
+    await orch.start();
+
+    const claimedIds = mockDaemonRequest.mock.calls
+      .filter(([method, path]) => method === 'POST' && path === '/claim')
+      .map(([, , body]) => body.id);
+
+    expect(claimedIds).toEqual(['test:db', 'test:api']);
   });
 });
 

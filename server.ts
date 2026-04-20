@@ -7,6 +7,13 @@
  * Unix domain socket primary, TCP secondary for dashboard access.
  */
 
+// Snapshot sensitive env BEFORE any other module loads — many libraries
+// read process.env at module-init time, so this has to run first so
+// dependencies (Fastify plugins, winston, Anthropic SDK, etc.) cannot
+// capture the raw env values on load. See lib/secret-env.ts.
+import { snapshotSensitiveEnv } from './lib/secret-env.js';
+snapshotSensitiveEnv();
+
 import Fastify from 'fastify';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import fastifyCors from '@fastify/cors';
@@ -62,6 +69,7 @@ import { createCounters } from './lib/counters.js';
 import { launchFleetBarIfEnabled } from './lib/fleetbar-launcher.js';
 import { createGraphEdges } from './lib/graph-edges.js';
 import { createEpisodicMemory } from './lib/episodic-memory.js';
+import { createSemanticResolver } from './lib/semantic-resolver.js';
 
 // Fastify route aggregator (Phase 3 — native Fastify plugins, no Express bridge)
 import { registerAllRoutes } from './routes/index.js';
@@ -222,7 +230,16 @@ const db: Database.Database = initDatabase({ dbPath: DB_PATH });
 const semanticIndex = createSemanticIndex(db);
 const graphEdges = createGraphEdges(db);
 const symbolIndex = createSymbolIndex(db, { graphEdges });
-const episodicMemory = createEpisodicMemory(db);
+const tuples = createTupleSpace(db);
+const counters = createCounters(db);
+const semanticResolver = createSemanticResolver(db, {
+  cacheDir: join(REPO_ROOT, '.cache', 'transformers'),
+  counters,
+  graphEdges,
+  tuples,
+  logger,
+});
+const episodicMemory = createEpisodicMemory(db, { tuples, graphEdges, semanticResolver });
 
 const services = createServices(db, { semanticIndex });
 const messaging = createMessaging(db);
@@ -232,7 +249,7 @@ const agents = createAgents(db, { semanticIndex });
 const activityLog = createActivityLog(db);
 const webhooks = createWebhooks(db);
 const projects = createProjects(db);
-const noteEncryption = createNoteEncryption();
+const noteEncryption = createNoteEncryption({ requireMasterKey: true });
 const sessions = createSessions(db, noteEncryption, { semanticIndex, episodicMemory, symbolIndex });
 sessions.setActivityLog(activityLog);
 
@@ -252,7 +269,6 @@ const resolver = createResolver(db);
 dns.setResolver(resolver);
 const briefing = createBriefing(db, { sessions, agents, resurrection, activityLog, services, messaging });
 const costTracker = createCostTracker(db);
-const counters = createCounters(db);
 const spawner = createSpawner({ costTracker, counters, enforceTelemetryPolicy: true });
 const sugar = createSugar({ agents, sessions, activityLog });
 const harborTokens = createHarborTokens(db);
@@ -267,11 +283,16 @@ const arbiter = createArbiter(
 console.error('[Arbiter] Runtime invariant enforcement active (6 rules, strictMode=false)');
 const pheromones = createPheromoneManager(db);
 pheromones.start();
-const tuples = createTupleSpace(db);
 
 // Phase 1 — Semantic Graph modules (orchestrator plugins, symbol index, merge queue)
 const orchestratorRegistry = createOrchestratorRegistry(db, { activityLog });
-const mergeQueue = createMergeQueue(db, { orchestratorRegistry, activityLog, graphEdges });
+const mergeQueue = createMergeQueue(db, {
+  orchestratorRegistry,
+  activityLog,
+  graphEdges,
+  tuples,
+  semanticResolver,
+});
 
 const barnacle = createBarnacleWatcher(logger);
 barnacle.start();
@@ -283,6 +304,8 @@ const correlationEngine = createCorrelationEngine(activityLog, sessions);
 const fleetDaemon = createFleetDaemon({
   projects,
   messaging,
+  tuples,
+  semanticResolver,
   logger,
   daemonDir: __dirname,
   costTracker,
@@ -552,7 +575,7 @@ await registerAllRoutes(
     services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar,
     harbors, sorties, orchestrator, correlationEngine, spawner, tuples, fleetDaemon,
-    orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, costTracker, counters,
+    orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, counters,
     arbiter, barnacle,
     VERSION, CODE_HASH, STARTED_AT, __dirname,
     cleanupStale, getSystemPorts,

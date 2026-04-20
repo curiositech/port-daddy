@@ -19,6 +19,7 @@ import { fileURLToPath } from 'node:url';
 import type { CostTracker } from './cost-tracker.js';
 import type { Counters } from './counters.js';
 import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
+import { getSecret } from './secret-env.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 
 // ─── Load .env.local for spawned agents ─────────────────────────────────────
@@ -293,7 +294,7 @@ async function runClaude(spec: SpawnSpec, model: string): Promise<BackendRunResu
         }>;
       };
     })({
-      apiKey: process.env.ANTHROPIC_API_KEY,
+      apiKey: getSecret('ANTHROPIC_API_KEY'),
     });
 
     const response = await client.messages.create({
@@ -331,7 +332,7 @@ async function runGemini(spec: SpawnSpec, model: string): Promise<BackendRunResu
           response: { text(): string };
         }>;
       };
-    })(process.env.GEMINI_API_KEY || '');
+    })(getSecret('GEMINI_API_KEY') || '');
 
     const geminiModel = genAI.getGenerativeModel({ model });
     const result = await geminiModel.generateContent(spec.task);
@@ -344,7 +345,9 @@ async function runGemini(spec: SpawnSpec, model: string): Promise<BackendRunResu
 
 async function runCloudflare(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
   const accountId = process.env.CLOUDFLARE_ACCOUNT_ID || process.env.CF_ACCOUNT_ID;
-  const token = process.env.CLOUDFLARE_API_TOKEN || process.env.CLOUDFLARE_API_KEY || process.env.CF_API_TOKEN;
+  const token = getSecret('CLOUDFLARE_API_TOKEN')
+    || getSecret('CLOUDFLARE_API_KEY')
+    || getSecret('CF_API_TOKEN');
 
   if (!accountId) {
     return { output: '', error: 'CLOUDFLARE_ACCOUNT_ID is not set' };

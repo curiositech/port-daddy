@@ -372,7 +372,10 @@ describe('Webhook Delivery and Retry', () => {
     const webhookId = webhooks.register('https://example.com/webhook').id;
     webhooks.trigger(WebhookEvent.SERVICE_CLAIM, { port: 3000 });
 
-    await waitFor(() => mockFetch.calls.length > 0, 2000);
+    await waitFor(() => {
+      const delivery = webhooks.getDeliveries(webhookId).deliveries[0];
+      return delivery?.attempts === 1 && delivery?.status === 'retrying';
+    }, 2000);
     const beforeDispose = webhooks.getDeliveries(webhookId).deliveries[0];
     expect(beforeDispose.attempts).toBe(1);
     expect(beforeDispose.status).toBe('retrying');
@@ -392,11 +395,13 @@ describe('Webhook Delivery and Retry', () => {
     const webhookId = webhooks.register('https://example.com/webhook').id;
     webhooks.trigger(WebhookEvent.SERVICE_CLAIM, {});
 
-    await sleep(200);
+    await waitFor(() => {
+      const delivery = webhooks.getDeliveries(webhookId).deliveries[0];
+      return delivery?.status === 'retrying' || delivery?.status === 'failed';
+    }, 2000);
 
     const deliveries = webhooks.getDeliveries(webhookId);
     const delivery = deliveries.deliveries[0];
-    // After retries, should be marked as failed or retrying
     expect(['retrying', 'failed']).toContain(delivery.status);
   });
 
@@ -410,8 +415,12 @@ describe('Webhook Delivery and Retry', () => {
 
     webhooks.trigger(WebhookEvent.SERVICE_CLAIM, {});
 
-    await waitFor(() => mockFetch.calls.length > 0, 2000);
-    const call = mockFetch.calls[0];
+    await waitFor(() => mockFetch.calls.some(
+      (call) => call.opts?.headers?.['X-PortDaddy-Signature']
+    ), 2000);
+    const call = mockFetch.calls.find(
+      (entry) => entry.opts?.headers?.['X-PortDaddy-Signature']
+    );
     expect(call.opts.headers['X-PortDaddy-Signature']).toBeDefined();
     expect(call.opts.headers['X-PortDaddy-Signature']).toMatch(/^sha256=/);
   });

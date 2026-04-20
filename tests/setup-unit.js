@@ -168,6 +168,33 @@ export function createTestDb() {
     );
   `);
 
+  // V2 schema - Harbors
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS harbors (
+      name TEXT PRIMARY KEY,
+      scope TEXT,
+      capabilities TEXT NOT NULL DEFAULT '[]',
+      channels TEXT NOT NULL DEFAULT '[]',
+      agent_patterns TEXT NOT NULL DEFAULT '[]',
+      created_at INTEGER NOT NULL,
+      expires_at INTEGER,
+      metadata TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_harbors_expires ON harbors(expires_at)
+      WHERE expires_at IS NOT NULL;
+    CREATE INDEX IF NOT EXISTS idx_harbors_created ON harbors(created_at);
+
+    CREATE TABLE IF NOT EXISTS harbor_members (
+      harbor_name TEXT NOT NULL REFERENCES harbors(name) ON DELETE CASCADE,
+      agent_id TEXT NOT NULL,
+      identity TEXT,
+      capabilities TEXT,
+      joined_at INTEGER NOT NULL,
+      PRIMARY KEY (harbor_name, agent_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_harbor_members_agent ON harbor_members(agent_id);
+  `);
+
   // V2 schema - DNS Records
   db.exec(`
     CREATE TABLE IF NOT EXISTS dns_records (

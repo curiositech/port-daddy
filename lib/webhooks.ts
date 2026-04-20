@@ -22,6 +22,7 @@ import { homedir } from 'node:os';
 import type Database from 'better-sqlite3';
 import dns from 'node:dns/promises';
 import { isPrivateHost } from './utils.js';
+import { keychain, KEYCHAIN_SERVICE } from './keychain.js';
 
 // =============================================================================
 // CONSTANTS
@@ -49,6 +50,22 @@ let _masterKey: Buffer | null = null;
 
 function getMasterKey(): Buffer | null {
   if (_masterKey) return _masterKey;
+  // Tier 1: macOS Keychain. Matches the priority used by
+  // lib/note-encryption.ts — same master key, same account identifier,
+  // so both modules encrypt against the identical envelope key.
+  try {
+    const hex = keychain.loadSecret(KEYCHAIN_SERVICE, 'master-key');
+    if (hex) {
+      const buf = Buffer.from(hex, 'hex');
+      if (buf.length === ENC_KEY_LENGTH) {
+        _masterKey = buf;
+        return _masterKey;
+      }
+    }
+  } catch {
+    // fall through to file
+  }
+  // Tier 2: file fallback (legacy / non-macOS).
   try {
     if (existsSync(MASTER_KEY_PATH)) {
       const key = readFileSync(MASTER_KEY_PATH);

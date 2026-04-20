@@ -21,6 +21,7 @@ import type { HarborTokens } from './harbor-tokens.js';
 
 export interface HarborRow {
   name: string;
+  scope: string | null;
   capabilities: string;      // JSON array of strings
   channels: string;          // JSON array of channel names
   agent_patterns: string;    // JSON array of identity glob patterns
@@ -39,6 +40,7 @@ export interface HarborMemberRow {
 
 export interface Harbor {
   name: string;
+  scope: string | null;
   capabilities: string[];
   channels: string[];
   agentPatterns: string[];
@@ -56,6 +58,7 @@ export interface HarborMember {
 }
 
 export interface CreateHarborOptions {
+  scope?: string | null;
   capabilities?: string[];
   channels?: string[];
   agentPatterns?: string[];
@@ -79,6 +82,7 @@ export function createHarbors(db: Database.Database, deps: HarborsDeps = {}) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS harbors (
       name        TEXT PRIMARY KEY,
+      scope       TEXT,
       capabilities TEXT NOT NULL DEFAULT '[]',
       channels     TEXT NOT NULL DEFAULT '[]',
       agent_patterns TEXT NOT NULL DEFAULT '[]',
@@ -106,13 +110,18 @@ export function createHarbors(db: Database.Database, deps: HarborsDeps = {}) {
     CREATE INDEX IF NOT EXISTS idx_harbors_created ON harbors(created_at);
   `);
 
+  const harborColumns = db.prepare('PRAGMA table_info(harbors)').all() as Array<{ name: string }>;
+  if (!harborColumns.some((column) => column.name === 'scope')) {
+    db.prepare('ALTER TABLE harbors ADD COLUMN scope TEXT').run();
+  }
+
   const stmts = {
     // INSERT OR IGNORE: routes enforce uniqueness (409 if exists), so conflicts only
     // occur in races. OR IGNORE means the loser silently no-ops rather than
     // CASCADE-deleting all harbor members as OR REPLACE would.
     insert: db.prepare(`
-      INSERT OR IGNORE INTO harbors (name, capabilities, channels, agent_patterns, created_at, expires_at, metadata)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT OR IGNORE INTO harbors (name, scope, capabilities, channels, agent_patterns, created_at, expires_at, metadata)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `),
     getByName: db.prepare('SELECT * FROM harbors WHERE name = ?'),
     listAll: db.prepare('SELECT * FROM harbors ORDER BY created_at DESC LIMIT ?'),
@@ -134,6 +143,7 @@ export function createHarbors(db: Database.Database, deps: HarborsDeps = {}) {
   function parseHarbor(row: HarborRow, members: HarborMemberRow[]): Harbor {
     return {
       name: row.name,
+      scope: row.scope ?? null,
       capabilities: JSON.parse(row.capabilities) as string[],
       channels: JSON.parse(row.channels) as string[],
       agentPatterns: JSON.parse(row.agent_patterns) as string[],
@@ -164,6 +174,7 @@ export function createHarbors(db: Database.Database, deps: HarborsDeps = {}) {
 
       stmts.insert.run(
         name,
+        options.scope ?? null,
         JSON.stringify(options.capabilities ?? []),
         JSON.stringify(options.channels ?? []),
         JSON.stringify(options.agentPatterns ?? []),
@@ -284,6 +295,21 @@ export function createHarbors(db: Database.Database, deps: HarborsDeps = {}) {
     leaveAll(agentId: string): number {
       const result = stmts.removeAllMembersOfAgent.run(agentId);
       return result.changes;
+    },
+
+    /**
+     * Fast membership check. O(1) index lookup.
+     *
+     * Used by bond escrow, capability gates, and any other daemon-
+     * internal enforcement that needs to answer "is this agent in
+     * this harbor?" without pulling full harbor/member rows.
+     *
+     * @example
+     *   harbors.isMember('port-daddy:fleet', 'hawk-3'); // true | false
+     */
+    isMember(harborName: string, agentId: string): boolean {
+      if (!harborName || !agentId) return false;
+      return stmts.isMember.get(harborName, agentId) !== undefined;
     },
 
     /**

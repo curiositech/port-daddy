@@ -601,7 +601,8 @@
         "GET /config",
         "GET /dashboard/events",
         "GET /ping",
-        "POST /operator/open-file"
+        "POST /operator/open-file",
+        "POST /operator/file-preview"
       ],
       "completions": [
         "metrics",
@@ -1162,6 +1163,21 @@
       ],
       "docs": {
         "readme": true,
+        "sdk": false
+      }
+    },
+    "semantic": {
+      "description": "Embedding-backed semantic resolution stats, review candidates, and nearest-neighbor term search",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "GET /semantic/stats",
+        "GET /semantic/resolutions",
+        "GET /semantic/search"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": false,
         "sdk": false
       }
     },

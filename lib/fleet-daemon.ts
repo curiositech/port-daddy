@@ -29,6 +29,8 @@ import {
   type FleetRunContext,
 } from './fleet-engine.js';
 import type { CostTracker } from './cost-tracker.js';
+import type { SemanticResolver } from './semantic-resolver.js';
+import type { TupleSpace } from './tuples.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -42,6 +44,8 @@ export interface FleetDaemonDeps {
     publish(channel: string, message: unknown): unknown;
     subscribe(channel: string, callback: (message: unknown) => void): (() => void) | null;
   };
+  tuples?: Pick<TupleSpace, 'out' | 'take' | 'count'>;
+  semanticResolver?: Pick<SemanticResolver, 'observeAliases'>;
   /** Winston logger */
   logger: {
     info(msg: string, meta?: Record<string, unknown>): void;
@@ -179,7 +183,7 @@ function loadEnvFiles(projectDir: string): void {
 // ─── Factory ────────────────────────────────────────────────────────────────
 
 export function createFleetDaemon(deps: FleetDaemonDeps) {
-  const { projects, messaging, logger, daemonDir, costTracker, locks } = deps;
+  const { projects, messaging, logger, daemonDir, costTracker, locks, tuples, semanticResolver } = deps;
   const fleets = new Map<string, ManagedFleet>();
   const configWatchers = new Map<string, FSWatcher>();
   const projectLeases = new Map<string, FleetProjectLease>();
@@ -231,6 +235,25 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
       project: event.project,
       timestamp: event.timestamp,
       details: event.details,
+    });
+
+    const managed = event.project
+      ? [...fleets.values()].find((fleet) => fleet.projectName === event.project)
+      : null;
+    tuples?.out([
+      'fleet:event',
+      event.type,
+      event.project ?? null,
+      event.agent ?? null,
+      event.identity ?? null,
+      {
+        timestamp: event.timestamp,
+        details: event.details ?? null,
+      },
+    ], {
+      harbor: managed?.config.harbor || (event.project ? `${event.project}:fleet` : undefined),
+      writtenBy: event.identity ?? event.agent ?? 'fleetd',
+      ttlMs: 7 * 24 * 60 * 60 * 1000,
     });
 
     // Log lifecycle events
@@ -467,6 +490,8 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
       onEvent: handleEvent,
       costTracker,
       initiallyPausedAgents: [...(projectPausedAgents.get(projectDir) ?? new Set<string>())],
+      tuples,
+      semanticResolver,
       messaging: {
         subscribe: messaging.subscribe.bind(messaging),
       },

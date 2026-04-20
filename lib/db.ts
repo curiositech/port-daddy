@@ -12,6 +12,7 @@
  */
 
 import Database from 'better-sqlite3';
+import { chmodSync } from 'node:fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -96,6 +97,30 @@ export const CORE_SCHEMA_SQL = `
     metadata TEXT
   );
 
+  CREATE TABLE IF NOT EXISTS harbors (
+    name TEXT PRIMARY KEY,
+    scope TEXT,
+    capabilities TEXT NOT NULL DEFAULT '[]',
+    channels TEXT NOT NULL DEFAULT '[]',
+    agent_patterns TEXT NOT NULL DEFAULT '[]',
+    created_at INTEGER NOT NULL,
+    expires_at INTEGER,
+    metadata TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_harbors_expires ON harbors(expires_at)
+    WHERE expires_at IS NOT NULL;
+  CREATE INDEX IF NOT EXISTS idx_harbors_created ON harbors(created_at);
+
+  CREATE TABLE IF NOT EXISTS harbor_members (
+    harbor_name TEXT NOT NULL REFERENCES harbors(name) ON DELETE CASCADE,
+    agent_id TEXT NOT NULL,
+    identity TEXT,
+    capabilities TEXT,
+    joined_at INTEGER NOT NULL,
+    PRIMARY KEY (harbor_name, agent_id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_harbor_members_agent ON harbor_members(agent_id);
+
   CREATE TABLE IF NOT EXISTS sessions (
     id TEXT PRIMARY KEY,
     purpose TEXT NOT NULL,
@@ -159,6 +184,31 @@ export function initDatabase(options: InitDbOptions = {}): Database.Database {
   const path = options.inMemory ? ':memory:' : resolveDbPath(options.dbPath);
   const db = new Database(path);
 
+  // Tighten filesystem permissions so OTHER UNIX USERS cannot read the DB.
+  // Best-effort: chmod failures (exotic filesystems, no-chmod mounts) are
+  // logged, not fatal.
+  //
+  // SECURITY CONTEXT: this DB carries sensitive rows —
+  //   • session notes and file claims (potentially PII, code paths, agent
+  //     private reasoning)
+  //   • the Harbor Card Ed25519 signing key (plaintext PEM — see
+  //     harbor_token_signing_keys table). Anyone who can read this row
+  //     can forge Harbor Cards that verify as authentic.
+  // A 0644 default leaks all of this to every user on the machine. 0600
+  // narrows to the owner. Does NOT protect against same-user process
+  // adversaries; see docs/shipwright/SECURITY-ASSESSMENT.md for the full
+  // threat model and follow-up items.
+  if (!options.inMemory) {
+    try {
+      chmodSync(path, 0o600);
+    } catch (err) {
+      console.warn(
+        `[port-daddy] WARNING: could not chmod DB to 0o600 (${(err as Error).message}). ` +
+        `Other users on this machine may be able to read ${path}.`,
+      );
+    }
+  }
+
   // WAL mode for concurrent read/write performance
   db.pragma('journal_mode = WAL');
 
@@ -220,6 +270,18 @@ export function initDatabase(options: InitDbOptions = {}): Database.Database {
   } catch (err) {
     console.warn(
       `[port-daddy] WARNING: Could not migrate session_files symbol_path column: ${(err as Error).message}`
+    );
+  }
+
+  try {
+    const harborColumns = db.prepare("PRAGMA table_info(harbors)").all() as Array<{ name: string }>;
+    const hasScope = harborColumns.some(column => column.name === 'scope');
+    if (!hasScope) {
+      db.prepare('ALTER TABLE harbors ADD COLUMN scope TEXT').run();
+    }
+  } catch (err) {
+    console.warn(
+      `[port-daddy] WARNING: Could not migrate harbors scope column: ${(err as Error).message}`
     );
   }
 

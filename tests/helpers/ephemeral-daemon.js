@@ -23,11 +23,14 @@ const TSX_PATH = join(import.meta.dirname, '../../node_modules/.bin/tsx');
  * Start an ephemeral Port Daddy daemon for testing.
  *
  * @param {Object} [options]
- * @param {number} [options.startupTimeout=15000] - Max ms to wait for daemon ready
+ * @param {number} [options.startupTimeout=30000] - Max ms to wait for daemon ready
  * @returns {Promise<EphemeralDaemon>}
  */
 export async function startEphemeralDaemon(options = {}) {
-  const { startupTimeout = 15000 } = options;
+  // Cold TypeScript + daemon boot on this repo can legitimately take longer
+  // than 15s on the first run. Keep the harness above that threshold so we
+  // fail on real hangs, not on normal cold-start variance.
+  const { startupTimeout = 30000 } = options;
 
   // Create temp directory for DB and socket
   const tmpDir = mkdtempSync(join(tmpdir(), 'port-daddy-test-'));

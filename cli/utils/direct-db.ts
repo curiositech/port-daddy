@@ -10,6 +10,7 @@ import { createServices } from '../../lib/services.js';
 import { createLocks } from '../../lib/locks.js';
 import { createSessions } from '../../lib/sessions.js';
 import { createActivityLog } from '../../lib/activity.js';
+import { createNoteEncryption } from '../../lib/note-encryption.js';
 
 /**
  * Tier 1 commands can work via direct SQLite access (no daemon needed).
@@ -89,7 +90,15 @@ export function getDirectLocks(): ReturnType<typeof createLocks> {
 export function getDirectSessions(): ReturnType<typeof createSessions> {
   if (!_directSessions) {
     const db = getDirectDb();
-    _directSessions = createSessions(db);
+    // Wire note-encryption so CLI direct-DB writes match the daemon's
+    // encrypted-at-rest posture (F-06). Graceful degradation: if the
+    // master key is unavailable (no keychain access, no file), notes
+    // are stored plaintext with a warning logged by createNoteEncryption.
+    // The daemon path uses `{ requireMasterKey: true }` and fails closed;
+    // CLI keeps graceful-degradation so users without keychain access
+    // can still run direct-DB commands. Follow-up: align once the
+    // keychain story is cross-platform (napi-rs/keyring).
+    _directSessions = createSessions(db, createNoteEncryption());
     // Wire up activity log for direct mode too
     const activityLog = createActivityLog(db);
     _directSessions.setActivityLog(activityLog);

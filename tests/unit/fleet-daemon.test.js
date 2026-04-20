@@ -76,6 +76,9 @@ function makeDeps(overrides = {}) {
       publish: jest.fn(),
       subscribe: jest.fn(() => jest.fn()),
     },
+    tuples: {
+      out: jest.fn(() => ({ id: 1, fields: [], harbor: null })),
+    },
     logger: {
       info: jest.fn(),
       warn: jest.fn(),
@@ -189,7 +192,8 @@ describe('createFleetDaemon', () => {
   });
 
   test('start() discovers and starts daemon dir fleet', () => {
-    const deps = makeDeps();
+    const semanticResolver = { observeAliases: jest.fn() };
+    const deps = makeDeps({ semanticResolver });
     const config = makeConfig('port-daddy');
 
     // pd-fleet.yml exists in daemon dir
@@ -209,7 +213,10 @@ describe('createFleetDaemon', () => {
     expect(mockCreateFleetRunner).toHaveBeenCalledWith(
       config,
       '/test/daemon',
-      expect.objectContaining({ onEvent: expect.any(Function) })
+      expect.objectContaining({
+        onEvent: expect.any(Function),
+        semanticResolver,
+      })
     );
     expect(mockStartAll).toHaveBeenCalledTimes(1);
 
@@ -593,6 +600,18 @@ describe('event publishing', () => {
         type: 'agent_started',
         identity: 'port-daddy:fleet:qa',
       })
+    );
+
+    expect(deps.tuples.out).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        'fleet:event',
+        'agent_started',
+        'port-daddy',
+        'qa',
+      ]),
+      expect.objectContaining({
+        harbor: 'port-daddy:fleet',
+      }),
     );
   });
 
