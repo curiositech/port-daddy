@@ -44,6 +44,7 @@ import { symbolsPlugin } from './symbols.js';
 import { operatorPlugin } from './operator.js';
 import { graphPlugin } from './graph.js';
 import { memoryPlugin } from './memory.js';
+import { semanticPlugin } from './semantic.js';
 
 type AnyDeps = Record<string, unknown>;
 
@@ -122,5 +123,8 @@ export async function registerAllRoutes(
   }
   if ((deps as any).episodicMemory) {
     await fastify.register(memoryPlugin, { deps } as any);
+  }
+  if ((deps as any).semanticResolver) {
+    await fastify.register(semanticPlugin, { deps } as any);
   }
 }

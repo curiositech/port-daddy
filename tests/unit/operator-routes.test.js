@@ -5,9 +5,15 @@ import path from 'node:path';
 const mockSpawn = jest.fn(() => ({
   unref: jest.fn(),
 }));
+const mockSpawnSync = jest.fn(() => ({
+  status: 1,
+  stdout: '',
+  stderr: '',
+}));
 
 jest.unstable_mockModule('node:child_process', () => ({
   spawn: mockSpawn,
+  spawnSync: mockSpawnSync,
 }));
 
 const { operatorPlugin } = await import('../../routes/operator.js');
@@ -46,6 +52,11 @@ function expectedCommandFor(mode, filePath) {
 describe('operator routes', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockSpawnSync.mockReturnValue({
+      status: 1,
+      stdout: '',
+      stderr: '',
+    });
   });
 
   test('POST /operator/open-file opens a relative file in the default editor', async () => {
@@ -125,6 +136,42 @@ describe('operator routes', () => {
       error: 'A file path is required.',
     }));
     expect(mockSpawn).not.toHaveBeenCalled();
+
+    await app.close();
+  });
+
+  test('POST /operator/file-preview returns a snapshot preview for a real file', async () => {
+    const { app, register } = buildApp();
+    await register();
+
+    const projectDir = process.cwd();
+    const res = await app.inject({
+      method: 'POST',
+      url: '/operator/file-preview',
+      payload: {
+        path: 'package.json',
+        projectDir,
+        maxLines: 8,
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const payload = res.json();
+    const resolvedPath = path.resolve(projectDir, 'package.json');
+    expect(payload).toEqual(expect.objectContaining({
+      success: true,
+      preview: expect.objectContaining({
+        requestedPath: 'package.json',
+        resolvedPath,
+        source: 'snapshot',
+        lines: expect.any(Array),
+      }),
+    }));
+    expect(payload.preview.lines.length).toBeGreaterThan(0);
+    expect(payload.preview.lines[0]).toEqual(expect.objectContaining({
+      kind: 'context',
+    }));
+    expect(mockSpawnSync).toHaveBeenCalled();
 
     await app.close();
   });

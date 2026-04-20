@@ -5,16 +5,26 @@
  * Imported by each integration test file.
  */
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import http from 'node:http';
 import { spawnSync } from 'node:child_process';
-import { removeAllContextFiles, writeCurrentContext } from '../../cli/utils/current-context.js';
+import {
+  getContextPathForSlot,
+  getLegacyContextPath,
+  removeAllContextFiles,
+  writeCurrentContext,
+} from '../../cli/utils/current-context.js';
 
 const STATE_FILE = join(tmpdir(), 'port-daddy-test-state.json');
 const TSX_PATH = join(import.meta.dirname, '../../node_modules/.bin/tsx');
 const DAEMON_BODY_LIMIT_BYTES = 10 * 1024;
+// Full-suite integration runs can saturate CPU hard enough that spawning a
+// fresh tsx-backed CLI process takes noticeably longer than an isolated run.
+// Keep the harness above that contention window so we kill genuine hangs,
+// not healthy commands that simply lost the scheduler for a few seconds.
+const CLI_COMMAND_TIMEOUT_MS = 30_000;
 const TEST_ENV = {
   sockPath: 'PORT_DADDY_TEST_SOCK',
   ipcPath: 'PORT_DADDY_TEST_IPC',
@@ -183,7 +193,7 @@ export function runCli(args, options = {}) {
   
   const result = spawnSync(TSX_PATH, [cliPath, ...finalArgs], {
     encoding: 'utf-8',
-    timeout: 10000,
+    timeout: CLI_COMMAND_TIMEOUT_MS,
     env: {
       ...testEnv,
       ...extraEnv,
@@ -227,7 +237,7 @@ export function runCliViaIpc(args, options = {}) {
 
   const result = spawnSync(TSX_PATH, [cliPath, ...args], {
     encoding: 'utf-8',
-    timeout: 10000,
+    timeout: CLI_COMMAND_TIMEOUT_MS,
     env: {
       ...testEnv,
       ...extraEnv,
@@ -254,7 +264,29 @@ export function writeTestCurrentContext(context) {
 /**
  * Clear all isolated current-context files created during integration tests.
  */
-export function clearTestCurrentContext() {
+export function clearTestCurrentContext(slot) {
   const { contextDir } = getDaemonState();
+  if (slot) {
+    try {
+      const slotPath = getContextPathForSlot(slot, contextDir);
+      if (existsSync(slotPath)) unlinkSync(slotPath);
+    } catch {
+      // Best-effort cleanup for slot-scoped test state.
+    }
+
+    try {
+      const legacyPath = getLegacyContextPath(contextDir);
+      if (existsSync(legacyPath)) {
+        const parsed = JSON.parse(readFileSync(legacyPath, 'utf8'));
+        if (parsed && typeof parsed === 'object' && parsed.contextSlot === slot) {
+          unlinkSync(legacyPath);
+        }
+      }
+    } catch {
+      // Best-effort cleanup for legacy compatibility file.
+    }
+    return;
+  }
+
   removeAllContextFiles(contextDir);
 }

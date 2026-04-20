@@ -16,12 +16,16 @@ import type {
   SpawnPreflight,
   ActivityEntry,
   ChannelMessage,
+  FilePreview,
   StoryNote,
   TupleEntry,
   GraphEdge,
   GraphStats,
   Episode,
   MemoryStats,
+  SemanticResolutionDecision,
+  SemanticResolutionEvent,
+  SemanticResolutionStats,
 } from './types';
 
 const CANONICAL_PREFERRED_DAEMON_URL = 'http://127.0.0.1:9876';
@@ -202,6 +206,11 @@ const post = <T>(path: string, body?: unknown) => api<T>('POST', path, body);
 const put = <T>(path: string, body: unknown) => api<T>('PUT', path, body);
 const del = <T>(path: string) => api<T>('DELETE', path);
 
+interface FilePreviewEnvelope {
+  success?: boolean;
+  preview?: FilePreview;
+}
+
 // ─── Fleet ────────────────────────────────────────────────────────────────────
 
 export async function fetchFleetStatus(): Promise<FleetDaemonStatus> {
@@ -366,6 +375,16 @@ export async function publishMessage(channel: string, content: string, sender = 
   return post(`/msg/${encodeURIComponent(channel)}`, { payload: content, sender });
 }
 
+/**
+ * Send a direct inbox message and optionally wake the target fleet agent.
+ *
+ * Example:
+ * - input: `('spark', { content: 'What should I do next?', project: 'port-daddy', wake: true })`
+ * - output: `{ delivered: true, woke: false, error: 'No running fleet agent matches spark' }`
+ *
+ * A 409 wake conflict is treated as partial success because the daemon has
+ * already stored the inbox message even if it could not wake a live runtime.
+ */
 export async function sendAgentMessage(agentId: string, opts: {
   content: string;
   project?: string;
@@ -377,15 +396,53 @@ export async function sendAgentMessage(agentId: string, opts: {
   woke: boolean;
   messageId?: number;
   wake?: { success: boolean; project?: string; agent?: string; error?: string };
+  error?: string;
 }> {
-  return post(`/agents/${encodeURIComponent(agentId)}/inbox`, {
-    content: opts.content,
-    project: opts.project,
-    from: opts.from ?? 'fleet-ui',
-    wake: opts.wake ?? true,
+  const path = `/agents/${encodeURIComponent(agentId)}/inbox`;
+  const res = await fetch(daemonEndpoint(path), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      content: opts.content,
+      project: opts.project,
+      from: opts.from ?? 'fleet-ui',
+      wake: opts.wake ?? true,
+    }),
   });
+
+  const contentType = res.headers.get('content-type') ?? '';
+  const payload = contentType.includes('application/json')
+    ? await res.json().catch(() => null) as Record<string, unknown> | null
+    : null;
+
+  if (!res.ok && res.status !== 409) {
+    const detail = typeof payload?.error === 'string' && payload.error.trim()
+      ? payload.error.trim()
+      : `${path}: ${res.status} ${res.statusText}`;
+    throw new Error(detail);
+  }
+
+  return (payload ?? {
+    success: res.ok,
+    delivered: res.ok,
+    woke: false,
+  }) as {
+    success: boolean;
+    delivered: boolean;
+    woke: boolean;
+    messageId?: number;
+    wake?: { success: boolean; project?: string; agent?: string; error?: string };
+    error?: string;
+  };
 }
 
+/**
+ * Ask the daemon to open a resolved file in the system editor.
+ *
+ * Example:
+ * - input: `('routes/operator.ts', '/Users/me/port-daddy')`
+ * - output: `{ success: true, path: '/Users/me/port-daddy/routes/operator.ts' }`
+ */
 export async function openFileInEditor(path: string, projectDir?: string): Promise<{ success: boolean; path: string }> {
   return post('/operator/open-file', {
     path,
@@ -394,12 +451,46 @@ export async function openFileInEditor(path: string, projectDir?: string): Promi
   });
 }
 
+/**
+ * Ask the daemon to reveal a resolved file in Finder/explorer.
+ *
+ * Example:
+ * - input: `('routes/operator.ts', '/Users/me/port-daddy')`
+ * - output: `{ success: true, path: '/Users/me/port-daddy/routes/operator.ts' }`
+ */
 export async function revealFileInFinder(path: string, projectDir?: string): Promise<{ success: boolean; path: string }> {
   return post('/operator/open-file', {
     path,
     projectDir,
     mode: 'finder',
   });
+}
+
+/**
+ * Load the lightweight diff/snapshot preview used by FleetBar mutation chips.
+ *
+ * Example:
+ * - input: `('fleet-config-ui/src/components/FileActionLinks.tsx', '/Users/me/project', 24)`
+ * - output: `{ displayPath: 'fleet-config-ui/src/components/FileActionLinks.tsx', source: 'working-tree', ... }`
+ *
+ * The daemon currently returns `{ success, preview }`, but this helper also
+ * accepts a raw preview payload so the UI stays compatible with older or
+ * partially-upgraded runtimes.
+ */
+export async function fetchFilePreview(
+  path: string,
+  projectDir?: string,
+  maxLines = 24,
+): Promise<FilePreview> {
+  const payload = await post<FilePreviewEnvelope | FilePreview>('/operator/file-preview', {
+    path,
+    projectDir,
+    maxLines,
+  });
+  if ('preview' in payload && payload.preview) {
+    return payload.preview;
+  }
+  return payload as FilePreview;
 }
 
 export async function fetchActivity(limit = 200): Promise<ActivityEntry[]> {
@@ -476,6 +567,30 @@ export async function fetchMemoryStats(projectDir?: string, project?: string): P
   if (projectDir) params.set('projectDir', projectDir);
   if (project) params.set('project', project);
   return get<MemoryStats>(`/memory/stats${params.toString() ? `?${params}` : ''}`);
+}
+
+export async function fetchSemanticStats(projectDir?: string): Promise<SemanticResolutionStats> {
+  const params = new URLSearchParams();
+  if (projectDir) params.set('projectDir', projectDir);
+  const data = await get<{ success?: boolean } & SemanticResolutionStats>(`/semantic/stats${params.toString() ? `?${params}` : ''}`);
+  return data;
+}
+
+export async function fetchSemanticResolutions(opts: {
+  projectDir?: string;
+  decision?: SemanticResolutionDecision;
+  query?: string;
+  minSimilarity?: number;
+  limit?: number;
+} = {}): Promise<SemanticResolutionEvent[]> {
+  const params = new URLSearchParams();
+  if (opts.projectDir) params.set('projectDir', opts.projectDir);
+  if (opts.decision) params.set('decision', opts.decision);
+  if (opts.query) params.set('query', opts.query);
+  if (typeof opts.minSimilarity === 'number') params.set('minSimilarity', String(opts.minSimilarity));
+  if (opts.limit) params.set('limit', String(opts.limit));
+  const data = await get<{ resolutions?: SemanticResolutionEvent[] }>(`/semantic/resolutions${params.toString() ? `?${params}` : ''}`);
+  return data.resolutions ?? [];
 }
 
 // ─── Sorties (one-time spawns) ────────────────────────────────────────────────

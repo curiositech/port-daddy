@@ -88,6 +88,30 @@ export interface ChannelMessage {
   createdAt: number;
 }
 
+export type FilePreviewLineKind = 'meta' | 'hunk' | 'add' | 'remove' | 'context';
+
+/**
+ * One lightweight preview line returned for a touched file hover card.
+ */
+export interface FilePreviewLine {
+  kind: FilePreviewLineKind;
+  text: string;
+}
+
+/**
+ * Preview payload used by FleetBar/control-plane mutation hover cards.
+ */
+export interface FilePreview {
+  requestedPath: string;
+  resolvedPath: string;
+  displayPath: string;
+  source: 'working-tree' | 'staged' | 'untracked' | 'snapshot';
+  additions: number;
+  deletions: number;
+  truncated: boolean;
+  lines: FilePreviewLine[];
+}
+
 export interface ResolvedChannelTarget {
   logical: string;
   physical: string;
@@ -157,6 +181,46 @@ export interface MemoryStats {
   sourceTypes: number;
   episodeTypes: number;
   lastUpdated: number | null;
+}
+
+export type SemanticResolutionDecision = 'seeded' | 'auto' | 'review' | 'reject' | 'error';
+
+/**
+ * Recent semantic-resolution decision surfaced in the Fleet UI.
+ */
+export interface SemanticResolutionEvent {
+  id: number;
+  projectDir: string | null;
+  harbor: string | null;
+  sourceType: string;
+  sourceId: string;
+  rawTerm: string;
+  canonicalTerm: string;
+  candidateTerm: string | null;
+  similarity: number | null;
+  decision: SemanticResolutionDecision;
+  thresholdAuto: number;
+  thresholdReview: number;
+  model: string;
+  metadata: Record<string, unknown> | null;
+  createdAt: number;
+}
+
+/**
+ * Semantic threshold health report used to keep the embedding policy visible.
+ */
+export interface SemanticResolutionStats {
+  model: string;
+  autoThreshold: number;
+  reviewThreshold: number;
+  boundaryMargin: number;
+  totalTerms: number;
+  totalEvents: number;
+  reviewBacklog: number;
+  nearAutoBoundary: number;
+  nearReviewBoundary: number;
+  lastResolvedAt: number | null;
+  decisions: Record<SemanticResolutionDecision, number>;
 }
 
 export interface FleetProjectStatus {

@@ -43,6 +43,7 @@ describe('Harbors Module', () => {
 
     it('should create a harbor with all options', () => {
       const result = harbors.create('myapp:full', {
+        scope: 'project',
         capabilities: ['code:read', 'security:scan'],
         channels: ['alerts', 'reports'],
         agentPatterns: ['myapp:*'],
@@ -51,6 +52,7 @@ describe('Harbors Module', () => {
       });
 
       expect(result.success).toBe(true);
+      expect(result.harbor.scope).toBe('project');
       expect(result.harbor.capabilities).toEqual(['code:read', 'security:scan']);
       expect(result.harbor.channels).toEqual(['alerts', 'reports']);
       expect(result.harbor.agentPatterns).toEqual(['myapp:*']);
@@ -150,6 +152,38 @@ describe('Harbors Module', () => {
       const result = harbors.create('myapp:empty');
       expect(Array.isArray(result.harbor.members)).toBe(true);
       expect(result.harbor.members.length).toBe(0);
+    });
+
+    it('should migrate legacy harbor tables missing scope before reads', () => {
+      db.exec('DROP TABLE IF EXISTS harbor_members');
+      db.exec('DROP TABLE IF EXISTS harbors');
+      db.exec(`
+        CREATE TABLE harbors (
+          name TEXT PRIMARY KEY,
+          capabilities TEXT NOT NULL DEFAULT '[]',
+          channels TEXT NOT NULL DEFAULT '[]',
+          agent_patterns TEXT NOT NULL DEFAULT '[]',
+          created_at INTEGER NOT NULL,
+          expires_at INTEGER,
+          metadata TEXT
+        );
+        CREATE TABLE harbor_members (
+          harbor_name TEXT NOT NULL,
+          agent_id TEXT NOT NULL,
+          identity TEXT,
+          capabilities TEXT,
+          joined_at INTEGER NOT NULL,
+          PRIMARY KEY (harbor_name, agent_id)
+        );
+      `);
+
+      const legacyHarbors = createHarbors(db);
+      const created = legacyHarbors.create('legacy:scope-check');
+
+      expect(created.success).toBe(true);
+      const columns = db.prepare('PRAGMA table_info(harbors)').all();
+      expect(columns.some((column) => column.name === 'scope')).toBe(true);
+      expect(legacyHarbors.get('legacy:scope-check')?.scope).toBeNull();
     });
   });
 

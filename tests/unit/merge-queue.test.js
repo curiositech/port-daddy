@@ -56,8 +56,10 @@ function createDeps(db, overrides = {}) {
   const activityLog = overrides.activityLog || createMockActivityLog();
   const orchestratorRegistry = overrides.orchestratorRegistry || createOrchestratorRegistry(db, { activityLog });
   const executor = overrides.noExecutor ? undefined : (overrides.executor || createMockExecutor());
+  const tuples = overrides.tuples;
+  const semanticResolver = overrides.semanticResolver;
 
-  return { orchestratorRegistry, executor, activityLog };
+  return { orchestratorRegistry, executor, activityLog, tuples, semanticResolver };
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────
@@ -173,6 +175,64 @@ describe('MergeQueue', () => {
       const logs = deps.activityLog.getLogged();
       const submitLog = logs.find(l => l.type === 'merge.submitted');
       expect(submitLog).toBeDefined();
+    });
+
+    test('emits tuple projections for merge events and semantic aliases', async () => {
+      const tupleWrites = [];
+      const localDeps = createDeps(db, {
+        tuples: {
+          out(fields, options) {
+            tupleWrites.push({ fields, options });
+            return { id: tupleWrites.length, fields, harbor: options?.harbor ?? null };
+          },
+        },
+      });
+      const mq = createMergeQueue(db, localDeps);
+
+      const result = await mq.submit({
+        agentId: 'agent-1',
+        branch: 'feature-css-design-system',
+        repository: '/tmp/repo',
+        claims: [{ path: 'website-v2/src/styles/tokens.css', symbol: 'designSystem' }],
+        metadata: { task: 'Writing the CSS for Port Daddy website design system' },
+      });
+
+      expect(result.success).toBe(true);
+      expect(tupleWrites.some((entry) => entry.fields[0] === 'merge:event')).toBe(true);
+      const semanticTuples = tupleWrites.filter((entry) => entry.fields[0] === 'semantic:alias');
+      expect(semanticTuples.length).toBeGreaterThan(0);
+      expect(semanticTuples[0].fields[3]).toContain('css');
+    });
+
+    test('forwards merge aliases into the semantic resolver review stream', async () => {
+      const observed = [];
+      const localDeps = createDeps(db, {
+        semanticResolver: {
+          observeAliases(input) {
+            observed.push(input);
+          },
+        },
+      });
+      const mq = createMergeQueue(db, localDeps);
+
+      const result = await mq.submit({
+        agentId: 'agent-1',
+        branch: 'feature-css-design-system',
+        repository: '/tmp/repo',
+        claims: [{ path: 'website-v2/src/styles/tokens.css', symbol: 'designSystem' }],
+        metadata: { task: 'Writing the CSS for Port Daddy website design system' },
+      });
+
+      expect(result.success).toBe(true);
+      expect(observed).toHaveLength(1);
+      expect(observed[0]).toMatchObject({
+        projectDir: '/tmp/repo',
+        harbor: '/tmp/repo',
+        sourceType: 'merge',
+        sourceId: `entry:${result.entryId}`,
+        agentId: 'agent-1',
+      });
+      expect(observed[0].aliases[0].canonical).toContain('css');
     });
   });
 

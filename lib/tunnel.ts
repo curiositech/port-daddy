@@ -6,6 +6,7 @@
 
 import { spawn, spawnSync, ChildProcess } from 'child_process';
 import type Database from 'better-sqlite3';
+import { withSecretsInChildEnv } from './secret-env.js';
 
 export type TunnelProvider = 'ngrok' | 'cloudflared' | 'localtunnel';
 
@@ -536,8 +537,13 @@ function spawnTunnel(
 
   switch (provider) {
     case 'ngrok':
+      // Inject cached secrets (notably NGROK_AUTHTOKEN) into the child's env
+      // — they were scrubbed from process.env at daemon startup (see
+      // lib/secret-env.ts F-05) so raw env inheritance would leave ngrok
+      // unauthenticated.
       proc = spawn('ngrok', ['http', port.toString(), '--log', 'stdout'], {
-        stdio: ['ignore', 'pipe', 'pipe']
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: withSecretsInChildEnv(process.env),
       });
 
       urlPromise = new Promise((resolve, reject) => {
@@ -569,8 +575,12 @@ function spawnTunnel(
       break;
 
     case 'cloudflared':
+      // Same rationale as ngrok: cloudflared may expect CLOUDFLARE_API_TOKEN
+      // in its env for authenticated tunnels, and that was scrubbed on
+      // daemon startup. Re-inject from the cache.
       proc = spawn('cloudflared', ['tunnel', '--url', `http://localhost:${port}`], {
-        stdio: ['ignore', 'pipe', 'pipe']
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: withSecretsInChildEnv(process.env),
       });
 
       urlPromise = new Promise((resolve, reject) => {

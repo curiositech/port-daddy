@@ -46,6 +46,7 @@ export default {
       moduleFileExtensions: ['js', 'mjs', 'ts'],
       extensionsToTreatAsEsm: ['.ts'],
       testMatch: ['<rootDir>/tests/unit/**/*.test.{js,ts}'],
+      setupFiles: ['<rootDir>/tests/jest.env.js'],
       setupFilesAfterEnv: [],
       testTimeout: 10000
     },
@@ -59,6 +60,7 @@ export default {
       testMatch: ['<rootDir>/tests/integration/**/*.test.{js,ts}'],
       globalSetup: '<rootDir>/tests/helpers/global-setup.js',
       globalTeardown: '<rootDir>/tests/helpers/global-teardown.js',
+      setupFiles: ['<rootDir>/tests/jest.env.js'],
       setupFilesAfterEnv: [],
       testTimeout: 15000,
       // Integration tests share a single ephemeral daemon — must run serially

@@ -35,6 +35,7 @@ export interface FileClaim {
   startLine?: number;
   endLine?: number;
   symbol?: string;
+  symbolPath?: string;
 }
 
 /** Decision returned by the orchestrator for a merge submission */

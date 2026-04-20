@@ -83,6 +83,7 @@ interface OrchestratorOptions {
   services: Record<string, NormalizedServiceConfig>;
   identities: Record<string, string>;
   config?: OrchestratorConfig;
+  daemonRequest?: DaemonRequestFn;
 }
 
 interface OrchestratorConfig {
@@ -118,6 +119,12 @@ interface OrchestratorInstance {
   getStatus: () => OrchestratorStatus;
   on: (event: string, fn: (...args: unknown[]) => void) => void;
 }
+
+type DaemonRequestFn = (
+  method: string,
+  path: string,
+  body?: Record<string, unknown>
+) => Promise<DaemonResponse>;
 
 /**
  * Resolve daemon connection target -- socket preferred, TCP fallback.
@@ -316,7 +323,12 @@ export function buildEnvMap(
 // =============================================================================
 
 export function createOrchestrator(options: OrchestratorOptions): OrchestratorInstance {
-  const { services, identities, config: orchestratorConfig = {} } = options;
+  const {
+    services,
+    identities,
+    config: orchestratorConfig = {},
+    daemonRequest: daemonRequestImpl = daemonRequest
+  } = options;
   const { noHealth = false, healthTimeout = 30000, targetService = null } = orchestratorConfig;
 
   const emitter = new EventEmitter();
@@ -337,7 +349,7 @@ export function createOrchestrator(options: OrchestratorOptions): OrchestratorIn
   async function claimPort(name: string, identity: string, preferredPort: number | null): Promise<number> {
     const body: Record<string, unknown> = { id: identity };
     if (preferredPort) body.port = preferredPort;
-    const res = await daemonRequest('POST', '/claim', body);
+    const res = await daemonRequestImpl('POST', '/claim', body);
     if (!res.ok) {
       const errorMsg = res.data && typeof res.data === 'object' && 'error' in res.data ? String((res.data as any).error) : 'unknown error';
       throw new Error(`Failed to claim port for ${name}: ${errorMsg}`);
@@ -346,7 +358,7 @@ export function createOrchestrator(options: OrchestratorOptions): OrchestratorIn
   }
 
   async function releasePort(identity: string): Promise<void> {
-    try { await daemonRequest('DELETE', '/release', { id: identity }); } catch { }
+    try { await daemonRequestImpl('DELETE', '/release', { id: identity }); } catch { }
   }
 
   function spawnService(name: string, svc: NormalizedServiceConfig, env: Record<string, string>, prefixer: PrefixerFactory | null): ChildProcess | null {

@@ -34,9 +34,10 @@ async function requestWithRetry(path, options = {}, attempts = 3) {
 
 describe('CLI Integration Tests', () => {
   const repoRoot = join(import.meta.dirname, '../..');
+  const defaultContextSlot = `ppid-${process.pid}`;
 
   afterEach(() => {
-    clearTestCurrentContext();
+    clearTestCurrentContext(defaultContextSlot);
   });
 
   test('ephemeral daemon is running', async () => {
@@ -304,6 +305,7 @@ describe('CLI Integration Tests', () => {
         expect(session.ok).toBe(true);
         expect(session.data.session.status).toBe('completed');
       } finally {
+        clearTestCurrentContext(slot);
         if (originalSlot === undefined) delete process.env.PORT_DADDY_CONTEXT_SLOT;
         else process.env.PORT_DADDY_CONTEXT_SLOT = originalSlot;
       }
@@ -1035,6 +1037,8 @@ describe('CLI Integration Tests', () => {
       const { contextDir } = getDaemonState();
       expect(existsSync(join(contextDir, 'contexts', `${slot}.json`))).toBe(true);
       expect(existsSync(repoSlotPath)).toBe(false);
+
+      clearTestCurrentContext(slot);
     });
 
     test('pd whoami falls back to the stored session when the agent row is gone', async () => {

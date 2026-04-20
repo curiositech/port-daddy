@@ -1,0 +1,362 @@
+/**
+ * lib/budget-guard.ts — PRE-FLIGHT + MID-FLIGHT spend control.
+ *
+ * ════════════════════════════════════════════════════════════════════════
+ *  WHY THIS MODULE EXISTS
+ * ════════════════════════════════════════════════════════════════════════
+ * The cost-tracker TELLS US what was spent. The budget guard DECIDES what
+ * happens NEXT. Two questions, two decisions:
+ *
+ *   1. canSpawn() — pre-flight. Before we escrow a bond and spin up a
+ *      body, does this agent have room in today's budget for a
+ *      worst-case charge? If not, the spawn is refused.
+ *
+ *   2. onCharge() — mid-flight. After cost-tracker records a charge,
+ *      is this agent now past a threshold? At 80% we THROTTLE (no new
+ *      expensive actions, finish current work). At 100% we KILL
+ *      (SIGTERM the body, slash the bond, quarantine the agent).
+ *
+ * This split matches the classic admission-control / back-pressure
+ * distinction in systems literature. You admit once, you back-pressure
+ * continuously. Conflating the two leads to either (a) letting bad
+ * actors past the gate because they "promised" small spend, or
+ * (b) refusing every spawn because a past spike is still on the books.
+ *
+ * ════════════════════════════════════════════════════════════════════════
+ *  DAILY BUCKETS (UTC)
+ * ════════════════════════════════════════════════════════════════════════
+ * Budgets reset at 00:00 UTC. We bucket by `YYYY-MM-DD` TEXT so queries
+ * are simple range-free comparisons and debugging via `sqlite3` is
+ * readable. Timezones are avoided on purpose — a fleet that spans
+ * continents should bill to a single clock.
+ *
+ * ════════════════════════════════════════════════════════════════════════
+ *  USAGE
+ * ════════════════════════════════════════════════════════════════════════
+ *    const guard = createBudgetGuard(db);
+ *
+ *    // Pre-flight before spawn:
+ *    const ok = guard.canSpawn({
+ *      project: 'port-daddy', agentId: 'hawk-3',
+ *      budgetUsdPerDay: 1.00, estimatedUsd: 0.15,
+ *    });
+ *    if (!ok.ok) throw new FleetBlocked(ok.reason);
+ *
+ *    // Mid-flight on every cost-tracker.record():
+ *    const decision = guard.onCharge({
+ *      project: 'port-daddy', agentId: 'hawk-3',
+ *      budgetUsdPerDay: 1.00, usd: 0.08,
+ *    });
+ *    if (decision.kill)     spawner.terminate('hawk-3', 'budget-breach');
+ *    if (decision.throttle) runtime.emit('agent.throttled', 'hawk-3');
+ */
+
+import type { Database } from 'better-sqlite3';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export interface CanSpawnParams {
+  project: string;
+  agentId: string;
+  /** Per-agent daily budget envelope in USD. */
+  budgetUsdPerDay: number;
+  /** Estimated spend for this one spawn; pre-flight adds this to today's
+   *  running total to decide admission. Default 0 (trusting the caller
+   *  to charge later via onCharge). */
+  estimatedUsd?: number;
+}
+export interface CanSpawnDecision {
+  ok: boolean;
+  reason?: 'budget-exceeded' | 'kill-armed';
+  spentTodayUsd: number;
+  budgetUsdPerDay: number;
+}
+
+export interface OnChargeParams {
+  project: string;
+  agentId: string;
+  budgetUsdPerDay: number;
+  usd: number;
+}
+export interface OnChargeDecision {
+  /** True means: SIGTERM the body and slash the bond. */
+  kill: boolean;
+  /** True means: don't spawn new expensive work, finish current. */
+  throttle: boolean;
+  spentTodayUsd: number;
+  budgetUsdPerDay: number;
+  /** When kill=true, what tripped it. */
+  reason?: 'budget-exceeded';
+}
+
+export interface BudgetLedgerRow {
+  project: string;
+  agentId: string;
+  day: string;              // YYYY-MM-DD UTC
+  spendUsd: number;
+  killArmedAt: number | null;
+}
+
+export interface BudgetGuardConfig {
+  /** Fraction of daily budget at which to emit throttle.
+   *  Default 0.80. Tune per project if needed. */
+  throttleThreshold?: number;
+  /** Fraction of daily budget at which to emit kill.
+   *  Default 1.00. Leaving room above 1.0 allows brief overages in
+   *  experimental setups; production should stay at 1.00. */
+  killThreshold?: number;
+}
+
+/**
+ * Optional dependencies. Pass a `broadcast` callback to publish every
+ * throttle/kill decision on `budget:decisions` so subscribers (dashboard,
+ * IPC, other actors) learn about threshold crossings in real time.
+ * Without it, decisions are returned to the caller but unobserved by
+ * the rest of the daemon.
+ */
+export interface BudgetGuardDeps {
+  broadcast?: (channel: string, event: Record<string, unknown>) => void;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Get today's bucket key in UTC. Kept tiny so tests can stub `now`. */
+export function utcDay(now: number = Date.now()): string {
+  return new Date(now).toISOString().slice(0, 10); // 'YYYY-MM-DD'
+}
+
+// ─── Module factory ───────────────────────────────────────────────────────────
+
+export function createBudgetGuard(db: Database, config: BudgetGuardConfig = {}, deps: BudgetGuardDeps = {}) {
+  const throttleThreshold = clamp01(config.throttleThreshold ?? 0.80);
+  const killThreshold     = clamp01(config.killThreshold     ?? 1.00);
+  const broadcast = deps.broadcast;
+
+  /** Safe broadcast: swallow subscriber errors so they never block a
+   *  charge from landing. */
+  function emit(event: string, payload: Record<string, unknown>): void {
+    if (!broadcast) return;
+    try { broadcast('budget:decisions', { event, ts: Date.now(), ...payload }); }
+    catch { /* no-op */ }
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Schema. Individual DDLs via prepare+run (idempotent).
+  // Composite PK so per-(project, agent, day) tallies are O(1) lookups.
+  // ──────────────────────────────────────────────────────────────────────────
+  const runDDL = (sql: string): void => { db.prepare(sql).run(); };
+
+  runDDL(`
+    CREATE TABLE IF NOT EXISTS budget_ledger (
+      project       TEXT NOT NULL,
+      agent_id      TEXT NOT NULL,
+      day           TEXT NOT NULL,
+      spend_usd     REAL NOT NULL DEFAULT 0,
+      kill_armed_at INTEGER,
+      PRIMARY KEY (project, agent_id, day)
+    )
+  `);
+  runDDL(`CREATE INDEX IF NOT EXISTS idx_budget_project_day
+            ON budget_ledger(project, day)`);
+
+  const selectRow = db.prepare(`
+    SELECT project, agent_id, day, spend_usd, kill_armed_at
+      FROM budget_ledger
+     WHERE project = ? AND agent_id = ? AND day = ?
+  `);
+
+  // UPSERT: insert-or-accumulate. Single atomic write per charge.
+  const upsertSpend = db.prepare(`
+    INSERT INTO budget_ledger (project, agent_id, day, spend_usd, kill_armed_at)
+    VALUES (?, ?, ?, ?, NULL)
+    ON CONFLICT(project, agent_id, day) DO UPDATE SET
+      spend_usd = spend_usd + excluded.spend_usd
+  `);
+
+  const armKill = db.prepare(`
+    UPDATE budget_ledger SET kill_armed_at = ?
+     WHERE project = ? AND agent_id = ? AND day = ?
+       AND kill_armed_at IS NULL
+  `);
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Internal read of today's state. Returns {spend, killArmed} for a
+  // project+agent in a single SQL round-trip.
+  // ──────────────────────────────────────────────────────────────────────────
+  function readToday(project: string, agentId: string, day: string): {
+    spend: number; killArmed: boolean;
+  } {
+    const row = selectRow.get(project, agentId, day) as
+      | { spend_usd: number; kill_armed_at: number | null }
+      | undefined;
+    if (!row) return { spend: 0, killArmed: false };
+    return { spend: row.spend_usd, killArmed: row.kill_armed_at !== null };
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Public API
+  // ──────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Pre-flight check before spawn. Returns admission decision.
+   *
+   * Three ways this says no:
+   *   - `kill-armed`      — today's kill trigger already fired; no new
+   *                         spawns for this agent until tomorrow 00:00 UTC.
+   *   - `budget-exceeded` — spent + estimated > budget. We admit only if
+   *                         there's room for the worst case.
+   *   - budgetUsdPerDay=0 — treat as "not allowed to spawn" (configured off).
+   *
+   * @example
+   *   const d = guard.canSpawn({
+   *     project: 'port-daddy', agentId: 'hawk-3',
+   *     budgetUsdPerDay: 1.00, estimatedUsd: 0.15,
+   *   });
+   *   if (!d.ok) console.log(`refused: ${d.reason} (spent ${d.spentTodayUsd})`);
+   */
+  function canSpawn(params: CanSpawnParams): CanSpawnDecision {
+    const { project, agentId, budgetUsdPerDay } = params;
+    const estimatedUsd = Math.max(0, params.estimatedUsd ?? 0);
+    const day = utcDay();
+    const { spend, killArmed } = readToday(project, agentId, day);
+
+    if (killArmed) {
+      return { ok: false, reason: 'kill-armed', spentTodayUsd: spend, budgetUsdPerDay };
+    }
+    if (budgetUsdPerDay <= 0) {
+      return { ok: false, reason: 'budget-exceeded', spentTodayUsd: spend, budgetUsdPerDay };
+    }
+    if (spend + estimatedUsd > budgetUsdPerDay) {
+      return { ok: false, reason: 'budget-exceeded', spentTodayUsd: spend, budgetUsdPerDay };
+    }
+    return { ok: true, spentTodayUsd: spend, budgetUsdPerDay };
+  }
+
+  /**
+   * Record a charge and decide what happens next. Call this from inside
+   * cost-tracker's record hook OR from whatever pipeline observes actual
+   * spend. Returns kill/throttle decisions — the CALLER is responsible
+   * for acting on them (we're pure, no side effects beyond the ledger
+   * write).
+   *
+   * Arms kill_armed_at IDEMPOTENTLY: second breach doesn't re-arm, so
+   * concurrent readers all see the same "armed at" timestamp. This is
+   * important for audit log ordering.
+   *
+   * @example
+   *   const d = guard.onCharge({
+   *     project: 'p', agentId: 'a', budgetUsdPerDay: 1.00, usd: 0.30,
+   *   });
+   *   // if spent was $0.60 before: now $0.90 → throttle
+   *   // if spent was $0.80 before: now $1.10 → kill
+   */
+  function onCharge(params: OnChargeParams): OnChargeDecision {
+    const { project, agentId, budgetUsdPerDay } = params;
+    const usd = Number.isFinite(params.usd) ? Math.max(0, params.usd) : 0;
+    const day = utcDay();
+
+    // Accumulate in one atomic write, then re-read to decide.
+    upsertSpend.run(project, agentId, day, usd);
+    const { spend, killArmed } = readToday(project, agentId, day);
+
+    if (budgetUsdPerDay <= 0) {
+      return { kill: true, throttle: true, spentTodayUsd: spend, budgetUsdPerDay, reason: 'budget-exceeded' };
+    }
+
+    const pct = spend / budgetUsdPerDay;
+    const kill     = pct >= killThreshold;
+    const throttle = pct >= throttleThreshold;
+
+    if (kill && !killArmed) {
+      armKill.run(Date.now(), project, agentId, day);
+      // Fire a KILL only the first time per day. Subsequent charges
+      // against an already-armed agent stay quiet on the wire — the
+      // throttle stream covers downstream visibility.
+      emit('kill', { project, agentId, spentTodayUsd: spend, budgetUsdPerDay });
+    } else if (throttle && !kill) {
+      // Emit throttle every time we're in the window so subscribers
+      // can trace back-pressure cleanly. Cheap (≤5 messages/hour per
+      // agent, usually).
+      emit('throttle', { project, agentId, spentTodayUsd: spend, budgetUsdPerDay });
+    }
+
+    return {
+      kill, throttle,
+      spentTodayUsd: spend,
+      budgetUsdPerDay,
+      ...(kill ? { reason: 'budget-exceeded' as const } : {}),
+    };
+  }
+
+  /**
+   * Read today's spend for a specific agent. Read-only — does not
+   * allocate the row. Returns 0 if nothing charged yet today.
+   *
+   * @example
+   *   const spent = guard.getSpendToday('port-daddy', 'hawk-3');
+   *   // 0.82
+   */
+  function getSpendToday(project: string, agentId: string): number {
+    return readToday(project, agentId, utcDay()).spend;
+  }
+
+  /**
+   * Get the full ledger row for today (project, agent, day, spend,
+   * killArmedAt). Null if no activity today.
+   */
+  function getLedger(project: string, agentId: string, day?: string): BudgetLedgerRow | null {
+    const d = day ?? utcDay();
+    const row = selectRow.get(project, agentId, d) as
+      | { project: string; agent_id: string; day: string;
+          spend_usd: number; kill_armed_at: number | null }
+      | undefined;
+    if (!row) return null;
+    return {
+      project: row.project,
+      agentId: row.agent_id,
+      day: row.day,
+      spendUsd: row.spend_usd,
+      killArmedAt: row.kill_armed_at,
+    };
+  }
+
+  /**
+   * List all agents for a project today, sorted by spend descending.
+   * Handy for the FleetControl panel and the `pd fleet status` CLI.
+   */
+  function listToday(project: string): BudgetLedgerRow[] {
+    const day = utcDay();
+    const rows = db.prepare(`
+      SELECT project, agent_id, day, spend_usd, kill_armed_at
+        FROM budget_ledger
+       WHERE project = ? AND day = ?
+       ORDER BY spend_usd DESC
+    `).all(project, day) as Array<{
+      project: string; agent_id: string; day: string;
+      spend_usd: number; kill_armed_at: number | null;
+    }>;
+    return rows.map((r) => ({
+      project: r.project, agentId: r.agent_id, day: r.day,
+      spendUsd: r.spend_usd, killArmedAt: r.kill_armed_at,
+    }));
+  }
+
+  return {
+    canSpawn,
+    onCharge,
+    getSpendToday,
+    getLedger,
+    listToday,
+    /** Exposed for tests that want to reason about thresholds. */
+    thresholds: { throttle: throttleThreshold, kill: killThreshold },
+  };
+}
+
+export type BudgetGuard = ReturnType<typeof createBudgetGuard>;
+
+// ─── Utilities ────────────────────────────────────────────────────────────────
+
+function clamp01(x: number): number {
+  if (!Number.isFinite(x)) return 0;
+  return Math.max(0, Math.min(1.5, x)); // allow > 1.0 for experimental overhead
+}

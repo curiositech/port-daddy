@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
+import { getSecret } from './secret-env.js';
 
 export interface BackendReadiness {
   backend: string;
@@ -111,7 +112,7 @@ export async function assessBackendReadiness(
         }, telemetryPolicy);
       }
       return applyTelemetryPolicy(
-        process.env.ANTHROPIC_API_KEY
+        getSecret('ANTHROPIC_API_KEY')
           ? { backend, status: 'ready', summary: 'ANTHROPIC_API_KEY present and Claude SDK installed' }
           : {
             backend,
@@ -132,7 +133,7 @@ export async function assessBackendReadiness(
         }, telemetryPolicy);
       }
       return applyTelemetryPolicy(
-        process.env.GEMINI_API_KEY
+        getSecret('GEMINI_API_KEY')
           ? { backend, status: 'ready', summary: 'GEMINI_API_KEY present and Gemini SDK installed' }
           : {
             backend,
@@ -145,7 +146,9 @@ export async function assessBackendReadiness(
 
     case 'cloudflare': {
       const accountId = process.env.CLOUDFLARE_ACCOUNT_ID || process.env.CF_ACCOUNT_ID;
-      const token = process.env.CLOUDFLARE_API_TOKEN || process.env.CLOUDFLARE_API_KEY || process.env.CF_API_TOKEN;
+      const token = getSecret('CLOUDFLARE_API_TOKEN')
+        || getSecret('CLOUDFLARE_API_KEY')
+        || getSecret('CF_API_TOKEN');
       if (accountId && token) {
         return applyTelemetryPolicy({
           backend,

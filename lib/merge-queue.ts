@@ -23,6 +23,9 @@ import type {
 } from './orchestrator-plugins.js';
 import type { GraphEdges, GraphEdgeInput } from './graph-edges.js';
 import { locateProjectDir } from './project-locator.js';
+import { collectSemanticAliases } from './semantic-terms.js';
+import type { SemanticResolver } from './semantic-resolver.js';
+import type { TupleSpace } from './tuples.js';
 
 // =============================================================================
 // Types
@@ -106,6 +109,8 @@ export interface MergeQueueDeps {
   orchestratorRegistry: OrchestratorRegistry;
   executor?: MergeExecutor;
   graphEdges?: GraphEdges;
+  tuples?: Pick<TupleSpace, 'out'>;
+  semanticResolver?: Pick<SemanticResolver, 'observeAliases'>;
   activityLog?: {
     log(type: string, opts: { details: string; metadata: Record<string, unknown> }): void;
   };
@@ -125,11 +130,17 @@ export interface ConflictPrediction {
 // Helpers
 // =============================================================================
 
+/**
+ * Parse persisted JSON with a fallback for malformed or absent values.
+ */
 function safeJsonParse<T>(value: string | null, fallback: T): T {
   if (!value) return fallback;
   try { return JSON.parse(value) as T; } catch { return fallback; }
 }
 
+/**
+ * Convert a SQLite row into the API-facing merge queue entry shape.
+ */
 function rowToEntry(row: MergeQueueRow): MergeQueueEntry {
   return {
     id: row.id,
@@ -174,8 +185,9 @@ function computeClaimOverlap(claimsA: FileClaim[], claimsB: FileClaim[]): number
 // =============================================================================
 
 export function createMergeQueue(db: Database.Database, deps: MergeQueueDeps) {
-  const { orchestratorRegistry, executor, graphEdges, activityLog } = deps;
+  const { orchestratorRegistry, executor, graphEdges, tuples, semanticResolver, activityLog } = deps;
   const events = new EventEmitter();
+  const MERGE_TUPLE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
   // ── Schema ──────────────────────────────────────────────────────────────
 
@@ -225,10 +237,107 @@ export function createMergeQueue(db: Database.Database, deps: MergeQueueDeps) {
     listCleanable: db.prepare(`SELECT * FROM merge_queue WHERE status IN ('merged', 'reverted', 'rejected') AND submitted_at < ?`),
   };
 
+  /**
+   * Stable graph scope used for all edges produced by one merge entry.
+   */
   function graphScopeForEntry(id: number): string {
     return `merge:entry:${id}`;
   }
 
+  /**
+   * Resolve the project/harbor scope used for tuple projections of a merge entry.
+   */
+  function tupleHarborForEntry(entry: MergeQueueEntry): string {
+    return locateProjectDir(entry.repository) || entry.repository;
+  }
+
+  /**
+   * Gather the human-authored text and symbol hints that describe a merge entry.
+   */
+  function semanticTextsForEntry(entry: MergeQueueEntry): string[] {
+    const metadataTexts = ['task', 'title', 'purpose', 'summary']
+      .map((key) => entry.metadata?.[key])
+      .filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+    const claimTexts = entry.claims.flatMap((claim) => [
+      claim.symbolPath ?? null,
+      claim.symbol ?? null,
+      claim.path,
+    ]).filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+    return [entry.branch, entry.baseBranch, ...metadataTexts, ...claimTexts];
+  }
+
+  /**
+   * Derive deterministic lexical aliases from a merge entry.
+   */
+  function semanticAliasesForEntry(entry: MergeQueueEntry) {
+    return collectSemanticAliases(semanticTextsForEntry(entry));
+  }
+
+  /**
+   * Emit tuple projections for merge lifecycle changes.
+   */
+  function emitMergeTuples(eventType: string, entry: MergeQueueEntry | null, extra?: Record<string, unknown>): void {
+    if (!tuples || !entry) return;
+    const harbor = tupleHarborForEntry(entry);
+    tuples.out([
+      'merge:event',
+      eventType,
+      entry.id,
+      entry.status,
+      entry.branch,
+      entry.baseBranch,
+      entry.agentId,
+      entry.repository,
+      {
+        conflictSurface: entry.conflictSurface,
+        mergeCommit: entry.mergeCommit ?? null,
+        failureReason: entry.failureReason ?? null,
+        ...extra,
+      },
+    ], {
+      harbor,
+      writtenBy: entry.agentId,
+      ttlMs: MERGE_TUPLE_TTL_MS,
+    });
+
+    for (const alias of semanticAliasesForEntry(entry)) {
+      tuples.out([
+        'semantic:alias',
+        'merge',
+        alias.raw,
+        alias.canonical,
+        {
+          entryId: entry.id,
+          branch: entry.branch,
+          fingerprint: alias.fingerprint,
+          tokens: alias.tokens,
+        },
+      ], {
+        harbor,
+        writtenBy: entry.agentId,
+        ttlMs: MERGE_TUPLE_TTL_MS,
+      });
+    }
+  }
+
+  /**
+   * Forward merge vocabulary into the embedding-based semantic resolver.
+   */
+  function observeSemanticAliasesForEntry(entry: MergeQueueEntry | null): void {
+    if (!semanticResolver || !entry) return;
+    semanticResolver.observeAliases({
+      projectDir: locateProjectDir(entry.repository) || entry.repository,
+      harbor: tupleHarborForEntry(entry),
+      sourceType: 'merge',
+      sourceId: `entry:${entry.id}`,
+      agentId: entry.agentId,
+      aliases: semanticAliasesForEntry(entry),
+    });
+  }
+
+  /**
+   * Replace the durable graph slice for a merge entry.
+   */
   function syncEntryGraph(entry: MergeQueueEntry | null): void {
     if (!graphEdges || !entry) return;
 
@@ -351,6 +460,39 @@ export function createMergeQueue(db: Database.Database, deps: MergeQueueDeps) {
       });
     }
 
+    for (const alias of semanticAliasesForEntry(entry)) {
+      edges.push({
+        scope,
+        projectDir,
+        sourceType: 'merge_entry',
+        sourceId: String(entry.id),
+        edgeType: 'about',
+        targetType: 'semantic_term',
+        targetId: alias.canonical,
+        metadata: {
+          raw: alias.raw,
+          tokens: alias.tokens,
+          fingerprint: alias.fingerprint,
+        },
+      });
+
+      if (alias.raw !== alias.canonical) {
+        edges.push({
+          scope,
+          projectDir,
+          sourceType: 'semantic_term',
+          sourceId: alias.raw,
+          edgeType: 'alias_of',
+          targetType: 'semantic_term',
+          targetId: alias.canonical,
+          metadata: {
+            entryId: entry.id,
+            branch: entry.branch,
+          },
+        });
+      }
+    }
+
     graphEdges.replaceScope(scope, edges);
   }
 
@@ -407,6 +549,8 @@ export function createMergeQueue(db: Database.Database, deps: MergeQueueDeps) {
     const entryId = Number(result.lastInsertRowid);
     const entry = get(entryId);
     syncEntryGraph(entry);
+    emitMergeTuples('submitted', entry, { approved: decision.approved });
+    observeSemanticAliasesForEntry(entry);
 
     activityLog?.log('merge.submitted', {
       details: `Merge submitted: ${submission.branch} -> ${submission.baseBranch || 'main'} (${status})`,
@@ -490,6 +634,8 @@ export function createMergeQueue(db: Database.Database, deps: MergeQueueDeps) {
 
     // Mark as merging
     stmts.updateStatus.run('merging', id);
+    const mergingEntry = get(id);
+    emitMergeTuples('merging', mergingEntry);
     events.emit('merging', { entryId: id, branch: entry.branch });
 
     activityLog?.log('merge.executing', {
@@ -550,7 +696,9 @@ export function createMergeQueue(db: Database.Database, deps: MergeQueueDeps) {
 
     // Everything passed
     stmts.updateMerged.run(Date.now(), mergeResult.mergeCommit, id);
-    syncEntryGraph(get(id));
+    const mergedEntry = get(id);
+    syncEntryGraph(mergedEntry);
+    emitMergeTuples('merged', mergedEntry);
 
     activityLog?.log('merge.completed', {
       details: `Merge completed: ${entry.branch} -> ${entry.baseBranch} (${mergeResult.mergeCommit})`,
@@ -576,7 +724,9 @@ export function createMergeQueue(db: Database.Database, deps: MergeQueueDeps) {
           `${failure.failureType}: ${failure.details} (reverted)`,
           id
         );
-        syncEntryGraph(get(id));
+        const revertedEntry = get(id);
+        syncEntryGraph(revertedEntry);
+        emitMergeTuples('reverted', revertedEntry, { recovery });
         activityLog?.log('merge.reverted', {
           details: `Merge reverted: ${failure.branch} -- ${failure.details}`,
           metadata: { entryId: id, agentId: failure.agentId, recovery },
@@ -586,7 +736,9 @@ export function createMergeQueue(db: Database.Database, deps: MergeQueueDeps) {
 
       case 'retry':
         stmts.updateStatus.run('pending', id);
-        syncEntryGraph(get(id));
+        const retriedEntry = get(id);
+        syncEntryGraph(retriedEntry);
+        emitMergeTuples('retry_scheduled', retriedEntry, { recovery });
         activityLog?.log('merge.retry_scheduled', {
           details: `Merge retry scheduled: ${failure.branch} (after ${recovery.retryAfterMs ?? 0}ms)`,
           metadata: { entryId: id, agentId: failure.agentId, recovery },
@@ -596,7 +748,9 @@ export function createMergeQueue(db: Database.Database, deps: MergeQueueDeps) {
 
       case 'park':
         stmts.updateFailed.run(`Parked: ${failure.details}`, id);
-        syncEntryGraph(get(id));
+        const parkedEntry = get(id);
+        syncEntryGraph(parkedEntry);
+        emitMergeTuples('parked', parkedEntry, { recovery });
         activityLog?.log('merge.parked', {
           details: `Merge parked: ${failure.branch} -- ${recovery.reason}`,
           metadata: { entryId: id, agentId: failure.agentId, recovery },
@@ -609,7 +763,9 @@ export function createMergeQueue(db: Database.Database, deps: MergeQueueDeps) {
           `Reassigned to ${recovery.reassignTo}: ${failure.details}`,
           id
         );
-        syncEntryGraph(get(id));
+        const reassignedEntry = get(id);
+        syncEntryGraph(reassignedEntry);
+        emitMergeTuples('reassigned', reassignedEntry, { recovery });
         activityLog?.log('merge.reassigned', {
           details: `Merge reassigned: ${failure.branch} -> agent ${recovery.reassignTo}`,
           metadata: { entryId: id, agentId: failure.agentId, recovery },

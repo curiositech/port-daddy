@@ -32,6 +32,17 @@ import {
   randomBytes,
 } from 'node:crypto';
 import { SignJWT, decodeJwt, decodeProtectedHeader, jwtVerify } from 'jose';
+import { keychain, KEYCHAIN_SERVICE } from './keychain.js';
+
+// ─── Keychain accounts for daemon-held signing keys ─────────────────────────
+//
+// These are the root-of-trust secrets for Harbor Card issuance. Exposing
+// either lets an attacker forge cards that verify as authentic under the
+// daemon's identity. Until the move to macOS Keychain, they sat in
+// plaintext in the SQLite DB — readable by any same-user process. See
+// docs/shipwright/SECURITY-ASSESSMENT.md F-03 for the threat model.
+const KEYCHAIN_PHASE2_PRIVATE_ACCOUNT = 'harbor-signing-private-v2';
+const KEYCHAIN_PHASE1_LEGACY_ACCOUNT  = 'harbor-signing-phase1-legacy';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -278,30 +289,130 @@ export function createHarborTokens(db: Database.Database) {
     async initDaemonIdentity(): Promise<void> {
       const now = Date.now();
 
-      // Preserve the pre-existing Phase 1 singleton row so legacy HS256 tokens remain verifiable.
-      const newLegacyKeyHex = randomBytes(32).toString('hex');
-      stmts.insertLegacyPhase1Key.run(HARBOR_TOKEN_PHASE1_LEGACY_KEY_ID, newLegacyKeyHex, now);
+      // ════════════════════════════════════════════════════════════════════
+      //  PHASE 1 LEGACY KEY (HS256) — VERIFY-ONLY PATH FOR OLD TOKENS
+      // ════════════════════════════════════════════════════════════════════
+      // Acquisition priority:
+      //   1. macOS Keychain
+      //   2. DB plaintext column (migrate → Keychain; blank out DB)
+      //   3. Generate fresh → store in Keychain (or DB fallback)
+      //
+      // We never issue HS256 tokens anymore; this key only verifies old
+      // cards that are still within their TTL. Exposure is still bad —
+      // an attacker with the key can forge legacy cards for the TTL window.
+      let legacyKeyHex = keychain.loadSecret(KEYCHAIN_SERVICE, KEYCHAIN_PHASE1_LEGACY_ACCOUNT);
 
-      const legacyRow = stmts.getLegacyPhase1Key.get(HARBOR_TOKEN_PHASE1_LEGACY_KEY_ID);
-      if (!legacyRow) throw new Error('daemon_keys: failed to initialize singleton row');
-      legacyPhase1SigningKey = createSecretKey(Buffer.from(legacyRow.key_hex, 'hex'));
+      if (!legacyKeyHex) {
+        const legacyRow = stmts.getLegacyPhase1Key.get(HARBOR_TOKEN_PHASE1_LEGACY_KEY_ID);
+        if (legacyRow?.key_hex && legacyRow.key_hex.length > 0) {
+          // Migration: move from DB to keychain, clear DB row (NOT NULL → empty string).
+          legacyKeyHex = legacyRow.key_hex;
+          if (keychain.available() && keychain.saveSecret(KEYCHAIN_SERVICE, KEYCHAIN_PHASE1_LEGACY_ACCOUNT, legacyKeyHex)) {
+            db.prepare('UPDATE daemon_keys SET key_hex = ? WHERE id = ?')
+              .run('', HARBOR_TOKEN_PHASE1_LEGACY_KEY_ID);
+            console.error(
+              '[HarborTokens] Migrated phase1 legacy HMAC secret from DB to macOS Keychain. DB row sanitized.',
+            );
+          }
+        } else {
+          // First-ever boot on this machine: generate.
+          legacyKeyHex = randomBytes(32).toString('hex');
+          const stashed = keychain.available() && keychain.saveSecret(
+            KEYCHAIN_SERVICE, KEYCHAIN_PHASE1_LEGACY_ACCOUNT, legacyKeyHex,
+          );
+          if (stashed) {
+            // Write a sentinel row so future boots know the key exists somewhere
+            // (even on platforms where keychain isn't available later).
+            stmts.insertLegacyPhase1Key.run(HARBOR_TOKEN_PHASE1_LEGACY_KEY_ID, '', now);
+            console.error('[HarborTokens] Generated phase1 legacy HMAC secret in macOS Keychain');
+          } else {
+            // Keychain unavailable — fall back to plaintext DB storage.
+            stmts.insertLegacyPhase1Key.run(HARBOR_TOKEN_PHASE1_LEGACY_KEY_ID, legacyKeyHex, now);
+            console.error(
+              '[HarborTokens] Generated phase1 legacy HMAC secret in DB plaintext (keychain unavailable)',
+            );
+          }
+        }
+      }
 
-      const { privateKey, publicKey } = generateKeyPairSync('ed25519');
-      stmts.insertPhase2KeyPair.run(
-        HARBOR_TOKEN_PHASE2_KEY_ID,
-        'Ed25519',
-        exportKeyToPem(privateKey),
-        exportKeyToPem(publicKey),
-        now,
-      );
+      if (!legacyKeyHex) {
+        throw new Error('daemon_keys: failed to initialize legacy phase1 signing key');
+      }
+      legacyPhase1SigningKey = createSecretKey(Buffer.from(legacyKeyHex, 'hex'));
+
+      // ════════════════════════════════════════════════════════════════════
+      //  PHASE 2 ED25519 KEYPAIR — ACTIVE ISSUANCE KEY
+      // ════════════════════════════════════════════════════════════════════
+      // This is THE root of trust. Anything that holds the private half can
+      // sign cards that verify authentic. Same three-tier acquisition as
+      // phase 1, but the stakes are higher — every current-daemon Harbor
+      // Card is signed with this key.
+      //
+      // The PUBLIC key remains in the DB (it is not secret; callers need to
+      // verify locally-cached tokens before the daemon is fully up). Only
+      // the PRIVATE half moves.
+      let privatePem = keychain.loadSecret(KEYCHAIN_SERVICE, KEYCHAIN_PHASE2_PRIVATE_ACCOUNT);
+      let publicPem: string | null = null;
 
       const phase2Row = stmts.getPhase2KeyPair.get(HARBOR_TOKEN_PHASE2_KEY_ID);
-      if (!phase2Row) {
+
+      if (privatePem) {
+        // Keychain is authoritative. Use the DB public key if present; else
+        // derive it from the private key and cache it in the DB for future reads.
+        if (phase2Row?.public_key_pem) {
+          publicPem = phase2Row.public_key_pem;
+        } else {
+          const derivedPublic = createPublicKey(createPrivateKey(privatePem));
+          publicPem = exportKeyToPem(derivedPublic);
+          stmts.insertPhase2KeyPair.run(
+            HARBOR_TOKEN_PHASE2_KEY_ID, 'Ed25519', '', publicPem, now,
+          );
+        }
+      } else if (phase2Row?.private_key_pem && phase2Row.private_key_pem.length > 0) {
+        // Migration path: key lives in DB plaintext. Move it to the keychain
+        // and clear the DB column (NOT NULL → empty string sentinel).
+        privatePem = phase2Row.private_key_pem;
+        publicPem  = phase2Row.public_key_pem;
+        if (keychain.available() && keychain.saveSecret(
+          KEYCHAIN_SERVICE, KEYCHAIN_PHASE2_PRIVATE_ACCOUNT, privatePem,
+        )) {
+          db.prepare('UPDATE harbor_token_signing_keys SET private_key_pem = ? WHERE id = ?')
+            .run('', HARBOR_TOKEN_PHASE2_KEY_ID);
+          console.error(
+            '[HarborTokens] Migrated phase2 signing key from DB to macOS Keychain. DB row sanitized.',
+          );
+        }
+      } else {
+        // Brand-new install: generate, prefer keychain storage.
+        const { privateKey, publicKey } = generateKeyPairSync('ed25519');
+        privatePem = exportKeyToPem(privateKey);
+        publicPem  = exportKeyToPem(publicKey);
+        const stashed = keychain.available() && keychain.saveSecret(
+          KEYCHAIN_SERVICE, KEYCHAIN_PHASE2_PRIVATE_ACCOUNT, privatePem,
+        );
+        if (stashed) {
+          // Store only the public key in the DB. Private lives in keychain.
+          stmts.insertPhase2KeyPair.run(
+            HARBOR_TOKEN_PHASE2_KEY_ID, 'Ed25519', '', publicPem, now,
+          );
+          console.error('[HarborTokens] Generated phase2 signing key in macOS Keychain');
+        } else {
+          // Keychain unavailable — file-fallback (Linux/Windows for now).
+          stmts.insertPhase2KeyPair.run(
+            HARBOR_TOKEN_PHASE2_KEY_ID, 'Ed25519', privatePem, publicPem, now,
+          );
+          console.error(
+            '[HarborTokens] Generated phase2 signing key in DB plaintext (keychain unavailable)',
+          );
+        }
+      }
+
+      if (!privatePem || !publicPem) {
         throw new Error('harbor_token_signing_keys: failed to initialize phase2 keypair');
       }
 
-      phase2PrivateSigningKey = createPrivateKey(phase2Row.private_key_pem);
-      phase2PublicVerifyKey = createPublicKey(phase2Row.public_key_pem);
+      phase2PrivateSigningKey = createPrivateKey(privatePem);
+      phase2PublicVerifyKey   = createPublicKey(publicPem);
     },
 
     /**

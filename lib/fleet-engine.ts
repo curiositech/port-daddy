@@ -15,6 +15,10 @@ import { get as httpGet } from 'node:http';
 import { parse as parseYaml } from 'yaml';
 import type { CostTracker } from './cost-tracker.js';
 import { resolveFleetChannel } from './fleet-channels.js';
+import { collectSemanticAliases } from './semantic-terms.js';
+import type { SemanticAlias } from './semantic-terms.js';
+import type { SemanticResolver } from './semantic-resolver.js';
+import type { Tuple, TupleSpace } from './tuples.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -23,6 +27,7 @@ export interface FleetAgent {
   name: string;
   schedule?: string;       // cron syntax
   trigger?: string;        // channel name
+  triggerTuple?: unknown[]; // tuple pattern in harbor-scoped tuple space
   backend: string;         // ollama, claude, claude-cli, codex, custom
   model?: string;
   modelTier?: FleetModelTier;
@@ -93,7 +98,7 @@ export interface ResolvedFleetAgentRuntime {
 }
 
 export interface FleetRunContext {
-  source?: 'schedule' | 'trigger' | 'inbox' | 'manual';
+  source?: 'schedule' | 'trigger' | 'tuple' | 'inbox' | 'manual';
   channel?: string;
   from?: string | null;
   message?: unknown;
@@ -105,6 +110,7 @@ interface RunningAgent {
   type: 'scheduled' | 'triggered' | 'watcher';
   process?: ChildProcess;
   interval?: ReturnType<typeof setInterval>;
+  tuplePollInterval?: ReturnType<typeof setInterval>;
   watchHandle?: () => void;
   startedAt: number;
 }
@@ -124,6 +130,7 @@ interface FleetYamlAgent {
   name?: string;
   schedule?: string;
   trigger?: string;
+  trigger_tuple?: unknown[];
   backend?: string;
   model?: string;
   model_tier?: string;
@@ -390,6 +397,7 @@ export function loadFleetConfig(projectDir: string): FleetConfig | null {
         name,
         schedule: s.schedule,
         trigger: s.trigger,
+        triggerTuple: Array.isArray(s.trigger_tuple) ? s.trigger_tuple : undefined,
         backend: runtime.backend || '',
         model: runtime.model,
         modelTier: runtime.modelTier,
@@ -596,6 +604,9 @@ export interface FleetRunnerOptions {
   onEvent?: FleetEventCallback;
   costTracker?: CostTracker;
   initiallyPausedAgents?: string[];
+  tuplePollMs?: number;
+  tuples?: Pick<TupleSpace, 'out' | 'take' | 'count'>;
+  semanticResolver?: Pick<SemanticResolver, 'observeAliases'>;
   messaging?: {
     subscribe(channel: string, callback: (message: unknown) => void): (() => void) | null;
   };
@@ -607,9 +618,102 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
   const project = config.name;
   const agentIndex = new Map(config.agents.map(agent => [agent.name, agent]));
   const pausedAgents = new Set((options?.initiallyPausedAgents ?? []).filter((name) => agentIndex.has(name)));
+  const tupleHarbor = config.harbor || `${project}:fleet`;
+  const FLEET_TUPLE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
   function resolveChannel(channel: string): string {
     return resolveFleetChannel(channel, projectDir, project);
+  }
+
+  function queueDepthFor(agentName: string): number {
+    if (!options?.tuples) return stateFor(agentName).pendingContext ? 1 : 0;
+    return options.tuples.count(['fleet:mailbox', agentName], tupleHarbor);
+  }
+
+  function writeTupleMailbox(agent: FleetAgent, context: FleetRunContext): void {
+    if (!options?.tuples) return;
+    options.tuples.out([
+      'fleet:mailbox',
+      agent.name,
+      context.source || 'manual',
+      {
+        channel: context.channel ?? null,
+        from: context.from ?? null,
+        message: context.message ?? null,
+        messageContent: context.messageContent ?? null,
+        timestamp: Date.now(),
+      },
+    ], {
+      harbor: tupleHarbor,
+      writtenBy: context.from ?? agent.identity ?? `${project}:fleet:${agent.name}`,
+      ttlMs: FLEET_TUPLE_TTL_MS,
+    });
+  }
+
+  function contextFromMailboxTuple(tuple: Tuple): FleetRunContext {
+    const payload = (tuple.fields[3] && typeof tuple.fields[3] === 'object')
+      ? tuple.fields[3] as Record<string, unknown>
+      : {};
+    return {
+      source: (typeof tuple.fields[2] === 'string' ? tuple.fields[2] : 'tuple') as FleetRunContext['source'],
+      channel: typeof payload.channel === 'string' ? payload.channel : undefined,
+      from: typeof payload.from === 'string' ? payload.from : null,
+      message: payload.message,
+      messageContent: typeof payload.messageContent === 'string' ? payload.messageContent : undefined,
+    };
+  }
+
+  function takeQueuedTupleContext(agent: FleetAgent): FleetRunContext | null {
+    if (!options?.tuples) return null;
+    const taken = options.tuples.take(['fleet:mailbox', agent.name], { harbor: tupleHarbor, limit: 1 });
+    return taken[0] ? contextFromMailboxTuple(taken[0]) : null;
+  }
+
+  /**
+   * Collect deterministic lexical aliases for one fleet task execution.
+   */
+  function semanticAliasesForTask(task: string, context?: FleetRunContext): SemanticAlias[] {
+    return collectSemanticAliases([task, context?.messageContent]);
+  }
+
+  /**
+   * Emit tuple aliases so other fleet participants can do cheap lexical joins.
+   */
+  function emitSemanticAliasTuples(agent: FleetAgent, task: string, context?: FleetRunContext): void {
+    if (!options?.tuples) return;
+    for (const alias of semanticAliasesForTask(task, context)) {
+      options.tuples.out([
+        'semantic:alias',
+        'fleet',
+        alias.raw,
+        alias.canonical,
+        {
+          agent: agent.name,
+          source: context?.source ?? 'manual',
+          fingerprint: alias.fingerprint,
+          tokens: alias.tokens,
+        },
+      ], {
+        harbor: tupleHarbor,
+        writtenBy: agent.identity ?? `${project}:fleet:${agent.name}`,
+        ttlMs: FLEET_TUPLE_TTL_MS,
+      });
+    }
+  }
+
+  /**
+   * Forward fleet task aliases to the embedding-based semantic resolver.
+   */
+  function observeSemanticAliases(agent: FleetAgent, task: string, context: FleetRunContext | undefined, runStartedAt: number): void {
+    if (!options?.semanticResolver) return;
+    options.semanticResolver.observeAliases({
+      projectDir,
+      harbor: tupleHarbor,
+      sourceType: 'fleet_agent_task',
+      sourceId: `${project}:${agent.name}:${runStartedAt}`,
+      agentId: agent.identity ?? `${project}:fleet:${agent.name}`,
+      aliases: semanticAliasesForTask(task, context),
+    });
   }
 
   // ─── Resource quota enforcement (Ostrom Principle 2) ────────────────────
@@ -637,6 +741,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     const record = running.get(name);
     if (!record) return;
     if (record.interval) clearInterval(record.interval);
+    if (record.tuplePollInterval) clearInterval(record.tuplePollInterval);
     if (record.watchHandle) {
       try { record.watchHandle(); } catch { /* ignore unsubscribe failures */ }
       record.watchHandle = undefined;
@@ -735,7 +840,18 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       }
     }
 
-    if (!agent.schedule && !agent.trigger) {
+    if (options?.tuples) {
+      const tuplePollMs = Math.min(Math.max(options.tuplePollMs ?? 1000, 250), 60000);
+      record.tuplePollInterval = setInterval(() => {
+        if (pausedAgents.has(agent.name) || activeAgentRuns.has(agent.name)) return;
+        if (queueDepthFor(agent.name) === 0) return;
+        const tupleContext = takeQueuedTupleContext(agent);
+        if (tupleContext) void runAgentOnce(agent, tupleContext);
+      }, tuplePollMs);
+      record.tuplePollInterval.unref?.();
+    }
+
+    if (!agent.schedule && !agent.trigger && !agent.triggerTuple) {
       void requestAgentRun(agent, { source: 'manual' });
     }
 
@@ -997,10 +1113,23 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     }
 
     const state = stateFor(agent.name);
-    const hasPending = !!state.pendingContext;
+    const hasPending = options?.tuples ? queueDepthFor(agent.name) > 0 : !!state.pendingContext;
+    const shouldUseTupleMailbox = !!options?.tuples && !!context;
+
+    if (shouldUseTupleMailbox) {
+      writeTupleMailbox(agent, context);
+    }
+
     if (activeAgentRuns.has(agent.name) || hasPending) {
-      state.pendingContext = mergePendingContext(state.pendingContext, context ?? { source: 'manual' });
+      if (!options?.tuples) {
+        state.pendingContext = mergePendingContext(state.pendingContext, context ?? { source: 'manual' });
+      }
       return { success: true, queued: true };
+    }
+
+    if (shouldUseTupleMailbox) {
+      const tupleContext = takeQueuedTupleContext(agent);
+      if (tupleContext) return runAgentOnce(agent, tupleContext);
     }
 
     return runAgentOnce(agent, context);
@@ -1105,6 +1234,8 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     try {
       const attemptErrors: SpawnAttemptFailure[] = [];
       const task = buildAgentTask(agent, context);
+      emitSemanticAliasTuples(agent, task, context);
+      observeSemanticAliases(agent, task, context, now);
 
       for (let i = 0; i < attempts.length; i += 1) {
         const runtime = attempts[i];
@@ -1390,7 +1521,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       const record = running.get(agent.name);
       const activeRun = activeAgentRuns.has(agent.name);
       const paused = pausedAgents.has(agent.name);
-      const queueDepth = stateFor(agent.name).pendingContext ? 1 : 0;
+      const queueDepth = queueDepthFor(agent.name);
       let status = 'idle';
       if (activeRun) {
         status = 'running';
@@ -1399,11 +1530,11 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       } else if (paused) {
         status = 'paused';
       } else if (record) {
-        status = agent.schedule ? 'scheduled' : agent.trigger ? 'armed' : 'idle';
+        status = agent.schedule ? 'scheduled' : (agent.trigger || agent.triggerTuple) ? 'armed' : 'idle';
       }
       return {
         name: agent.name,
-        type: agent.schedule ? 'scheduled' : agent.trigger ? 'triggered' : 'manual',
+        type: agent.schedule ? 'scheduled' : (agent.trigger || agent.triggerTuple) ? 'triggered' : 'manual',
         status,
         running: activeRun,
         paused,

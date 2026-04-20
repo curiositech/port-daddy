@@ -16,6 +16,7 @@ import { randomBytes, createCipheriv, createDecipheriv } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync, mkdirSync, statSync, chmodSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
+import { keychain, KEYCHAIN_SERVICE } from './keychain.js';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -26,6 +27,34 @@ const TAG_LENGTH = 16;  // GCM standard tag
 
 const MASTER_KEY_DIR = join(homedir(), '.port-daddy');
 const MASTER_KEY_PATH = join(MASTER_KEY_DIR, 'master.key');
+
+/** Keychain account for the master key. One per install. */
+const KEYCHAIN_ACCOUNT = 'master-key';
+
+/**
+ * Load the master key from the OS keychain. Delegates to the shared
+ * primitive; converts hex → Buffer and validates length. Returns null
+ * on any failure (platform not supported, entry missing, malformed).
+ */
+function loadKeyFromKeychain(): Buffer | null {
+  const hex = keychain.loadSecret(KEYCHAIN_SERVICE, KEYCHAIN_ACCOUNT);
+  if (!hex) return null;
+  const buf = Buffer.from(hex, 'hex');
+  return buf.length === KEY_LENGTH ? buf : null;
+}
+
+/**
+ * Store the master key in the OS keychain (hex-encoded).
+ * Returns true on success; callers fall back to file on false.
+ */
+function saveKeyToKeychain(key: Buffer): boolean {
+  return keychain.saveSecret(KEYCHAIN_SERVICE, KEYCHAIN_ACCOUNT, key.toString('hex'));
+}
+
+/** Thin wrapper so existing code paths read cleanly. */
+function keychainAvailable(): boolean {
+  return keychain.available();
+}
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -63,6 +92,14 @@ export interface NoteEncryption {
   isEncrypted(content: string): boolean;
 }
 
+export interface NoteEncryptionOptions {
+  /**
+   * When true, master-key initialization failures are fatal instead of falling
+   * back to plaintext note storage.
+   */
+  requireMasterKey?: boolean;
+}
+
 // ─── Permission Verification ────────────────────────────────────────────────
 
 /**
@@ -92,38 +129,84 @@ function verifyPermissions(path: string, expectedMode: number, label: string): v
 
 // ─── Implementation ─────────────────────────────────────────────────────────
 
-export function createNoteEncryption(): NoteEncryption {
+export function createNoteEncryption(options: NoteEncryptionOptions = {}): NoteEncryption {
+  const requireMasterKey = options.requireMasterKey === true;
   let masterKey: Buffer | null = null;
 
-  // Load or generate master key. IO failures (missing file, full disk) disable
-  // encryption gracefully. Permission failures propagate — callers must not start
-  // with a key file that has insecure permissions.
+  // Key acquisition priority:
+  //   1. macOS Keychain — mediated cross-process access via user consent.
+  //      Net improvement over file-at-rest; the key material never lives
+  //      on the filesystem as a readable blob.
+  //   2. File fallback at MASTER_KEY_PATH — readable by every same-user
+  //      process. Preserved for Linux/Windows and migration. When the
+  //      Keychain becomes available on a machine that has a legacy file,
+  //      the file's contents are copied into the Keychain and a warning
+  //      suggests deletion.
+  //   3. Generate fresh — into Keychain if available, else file.
+  //
+  // IO failures degrade encryption gracefully (plaintext notes) unless
+  // requireMasterKey is true, in which case they are fatal.
   try {
-    if (existsSync(MASTER_KEY_PATH)) {
-      masterKey = readFileSync(MASTER_KEY_PATH);
-      if (masterKey.length !== KEY_LENGTH) {
-        console.error('[NoteEncryption] Master key wrong length, regenerating');
-        masterKey = null;
+    // Tier 1: Keychain
+    masterKey = loadKeyFromKeychain();
+    if (masterKey) {
+      console.error('[NoteEncryption] Master key loaded from macOS Keychain');
+    }
+
+    // Tier 2: File (legacy + non-macOS)
+    if (!masterKey && existsSync(MASTER_KEY_PATH)) {
+      const fileKey = readFileSync(MASTER_KEY_PATH);
+      if (fileKey.length === KEY_LENGTH) {
+        masterKey = fileKey;
+        console.error('[NoteEncryption] Master key loaded from file at', MASTER_KEY_PATH);
+        if (keychainAvailable() && saveKeyToKeychain(masterKey)) {
+          console.error(
+            '[NoteEncryption] Migrated master key to macOS Keychain. The file at',
+            MASTER_KEY_PATH,
+            'is no longer required; delete it after confirming the daemon restarts cleanly.',
+          );
+        }
+      } else {
+        console.error('[NoteEncryption] Master key file wrong length, regenerating');
       }
     }
 
+    // Tier 3: Generate. Prefer Keychain; fall back to file.
     if (!masterKey) {
       masterKey = randomBytes(KEY_LENGTH);
-      mkdirSync(MASTER_KEY_DIR, { recursive: true, mode: 0o700 });
-      writeFileSync(MASTER_KEY_PATH, masterKey, { mode: 0o600 });
-      console.error('[NoteEncryption] Generated new master key at', MASTER_KEY_PATH);
-    } else {
-      console.error('[NoteEncryption] Master key loaded');
+      const stashedInKeychain = keychainAvailable() && saveKeyToKeychain(masterKey);
+      if (stashedInKeychain) {
+        console.error('[NoteEncryption] Generated new master key in macOS Keychain');
+      } else {
+        mkdirSync(MASTER_KEY_DIR, { recursive: true, mode: 0o700 });
+        writeFileSync(MASTER_KEY_PATH, masterKey, { mode: 0o600 });
+        console.error(
+          '[NoteEncryption] Generated new master key at', MASTER_KEY_PATH,
+          keychainAvailable()
+            ? '(Keychain write failed — file fallback)'
+            : '(Keychain unavailable on this platform — file fallback)',
+        );
+      }
     }
   } catch (err) {
-    masterKey = null; // Ensure encryption is truly disabled if initialization fails
+    if (requireMasterKey) {
+      throw new Error(
+        `Note encryption is mandatory but master-key initialization failed: ${(err as Error).message}`
+      );
+    }
+    masterKey = null;
     console.error('[NoteEncryption] Failed to load/generate master key:', (err as Error).message);
     console.error('[NoteEncryption] Note encryption DISABLED — notes will be stored plaintext');
   }
 
-  // Permission verification is outside the graceful-degradation catch block.
-  // If permissions are unfixable, this throws — callers must not proceed.
-  if (masterKey) {
+  if (!masterKey && requireMasterKey) {
+    throw new Error('Note encryption is mandatory but no master key is available');
+  }
+
+  // Permission verification only matters when the file fallback is in use.
+  // If the key lives in the Keychain, the file may not exist — that is
+  // the desired state going forward.
+  if (masterKey && existsSync(MASTER_KEY_PATH)) {
     verifyPermissions(MASTER_KEY_DIR, 0o700, 'key directory');
     verifyPermissions(MASTER_KEY_PATH, 0o600, 'master key file');
   }
