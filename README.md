@@ -172,6 +172,31 @@ pd changelog   # View the hierarchical history of changes
 pd activity    # Stream the raw audit trail of all operations
 ```
 
+### Say / Look (3.8.4) — The Consolidated Verbs
+When you return to work after a break, or when you want to tell every other
+session about a finding, reach for these two verbs instead of stitching
+together `pd note`/`pd tuple`/`pd pheromone`/`pd pub` by hand:
+
+```bash
+# Say — one text, many fan-outs. Defaults to a session note.
+pd say "fixed flash of unstyled content on hydrate in Hero.tsx" \
+       --pin --heat website-v2/src/components/landing/Hero.tsx=0.7
+#   ^note              ^tuple (cross-session)   ^pheromone heat on the file
+
+# Also publish on a pub/sub channel:
+pd say "build broken on main, rolling back" --broadcast alerts
+
+# Look — situation report. What happened while I was away?
+pd look --since 30                 # last 30m synthesis
+pd look --heat                     # file heat map (pheromone contention)
+pd sitrep                          # explicit maritime-voice alias
+```
+
+`pd say` flags compose — `--pin --heat path=0.8 --broadcast alerts` is four
+HTTP calls in parallel from a single command. `pd look` returns a four-way
+synthesis (activity + notes + salvage queue + spawned agents) with a
+one-line `summary` suitable for shell prompts.
+
 ### Webhooks & Life Cycles
 - **Webhooks:** `pd webhooks` subscribe external systems to swarm events.
 - **Phases:** Track work via `planning`, `testing`, and `reviewing` session phases.

@@ -5,6 +5,19 @@ All notable changes to Port Daddy will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.8.4] - 2026-04-20
+
+### Added
+- **`pd say` — Consolidated Write Verb**: One command fans a finding out to multiple surfaces based on flags. Default writes a session note. `--pin` also writes a cross-session tuple. `--heat <path>[=N]` also sprays a pheromone (default strength 0.6). `--broadcast <channel>` also publishes to pub/sub. All fanouts run in parallel; partial failures report but don't fail the note. Replaces the `pd note … ; pd tuple out … ; pd pheromone spray … ; pd pub …` quadruple-call pattern with one call. (`--dm` flag deferred pending the inbox-targeting work in session 2471d576.)
+- **`pd look` — Consolidated Read Verb**: Default is a sitrep synthesis across activity, notes, salvage queue, and spawned agents (last 60 minutes, bounded). `--heat` pivots to the file heat map. `--since N` widens the window. `--project` / `--stack` scope the salvage queue. `--json` and `--quiet` for machine-readable and one-line outputs (good for shell prompts).
+- **`pd sitrep` — Explicit Maritime Alias**: Same implementation as `pd look`, kept as the maritime canonical name (fits `mayday`/`pan-pan`/`securite`). Both pointers stay — consolidated by convention, not by deprecation.
+- **`pd pheromone` CLI**: Exposes the existing pheromone endpoints at the CLI for power users. Subcommands: `spray <table> <id> <key> <strength>`, `file <path> <strength>` (sugar for `spray files <path> heat`), `files [--path P] [--depth N]`, `show <table> <id>`, `ls`. Also aliased as `pd ph`.
+- **`GET /sitrep` Route**: Server-side fan-out across `activityLog.getRecent()`, `sessions.getNotes()`, `resurrection.pending()`, `spawner.list()` with a single synthesis payload and a summary string. Query params: `since_minutes` (default 60, also accepts camelCase `sinceMinutes`), `project`, `stack`, `limit_activity` (default 30), `limit_notes` (default 20). The MCP `catch_me_up` tool now dispatches through this route and falls back to the legacy four-call pattern for pre-3.8.4 daemons.
+- **MCP Tool Rename — `catch_me_up` → `sitrep`**: Canonical MCP tool name is now `sitrep` (matches CLI, matches maritime voice of the project). `catch_me_up` remains as a deprecated alias that delegates to the same handler. Existing MCP consumers keep working; new callers should use `sitrep`.
+
+### Changed
+- **§10.5 Cross-Session Coordination Paste-Block**: Rewritten in `docs/shipwright/NEXT-SESSION-PROMPTS.md` to use the new consolidated verbs (`pd say --pin --heat`, `pd look --since 2h`) in place of the quadruple-call pattern.
+
 ## [3.8.3] - 2026-04-06
 
 ### Added

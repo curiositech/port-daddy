@@ -1,0 +1,190 @@
+/**
+ * CLI Sitrep Command — `pd sitrep`
+ *
+ * Situation report: one synthesis across recent activity, notes, the salvage
+ * queue, and spawned agents. Call this when you return to a project after
+ * being away — instead of reading `pd activity`, `pd notes`, `pd salvage`,
+ * and `pd spawn` in sequence and stitching the story yourself.
+ *
+ * The maritime nomenclature is not decoration: PD's voice is sitrep/mayday/
+ * pan-pan/securite (see `lib/maritime.ts`). Radio discipline beats ad-hoc
+ * narration.
+ *
+ * Usage:
+ *   pd sitrep                       # last 60 minutes, all projects
+ *   pd sitrep --since 120           # last 2 hours
+ *   pd sitrep --project myapp       # scoped to one project's salvage queue
+ *   pd sitrep --json                # machine-readable payload
+ *   pd sitrep --quiet               # one-line summary only (good for prompts)
+ *
+ * @example
+ *   $ pd sitrep --since 30
+ *   SITREP · Last 30m · 8 events · 3 notes · 0 dead agents · 1 spawned agent
+ *
+ *   Recent activity (last 5 of 8):
+ *     [15:07:34] session.note   agent-a374e18c  Note added to session-2471d576…
+ *     ...
+ *
+ *   Session notes (last 3):
+ *     [15:07:34] agent-a374e1 · session-2471d576 · "fixed agent-lifecycle TTL drift"
+ *     ...
+ */
+
+import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
+import { CLIOptions, isJson, isQuiet } from '../types.js';
+import type { PdFetchResponse } from '../utils/fetch.js';
+import * as ui from '../utils/ui.js';
+
+interface ActivityEntry {
+  timestamp?: string;
+  type?: string;
+  agent_id?: string;
+  agentId?: string;
+  details?: string;
+}
+
+interface NoteEntry {
+  timestamp?: string;
+  created_at?: string;
+  agent_id?: string;
+  agentId?: string;
+  session_id?: string;
+  sessionId?: string;
+  content?: string;
+  note?: string;
+}
+
+interface SalvageEntry {
+  agentId?: string;
+  agent_id?: string;
+  purpose?: string;
+}
+
+interface SpawnedEntry {
+  id?: string;
+  identity?: string;
+  status?: string;
+}
+
+interface SitrepResponse {
+  success: boolean;
+  summary: string;
+  since_minutes: number;
+  since_ms: number;
+  activity: ActivityEntry[];
+  notes: NoteEntry[];
+  salvage_queue: SalvageEntry[];
+  spawned_agents: SpawnedEntry[];
+}
+
+function shortId(id: string | undefined): string {
+  if (!id) return '-';
+  return id.length > 14 ? `${id.slice(0, 14)}…` : id;
+}
+
+function fmtClock(ts: string | number | undefined): string {
+  if (!ts) return '        ';
+  const d = typeof ts === 'string' ? new Date(ts) : new Date(ts);
+  if (Number.isNaN(d.getTime())) return String(ts).slice(-8);
+  return d.toISOString().slice(11, 19);
+}
+
+/**
+ * Handle `pd sitrep` command.
+ *
+ * Exits non-zero only if the HTTP call fails. Empty sitreps (nothing
+ * happened in the window) are valid states, not errors.
+ */
+export async function handleSitrep(options: CLIOptions): Promise<void> {
+  const params = new URLSearchParams();
+  const since = options.since as string | number | undefined;
+  if (since !== undefined) params.append('since_minutes', String(since));
+  if (options.project) params.append('project', options.project as string);
+  if (options.stack) params.append('stack', options.stack as string);
+  if (options.limitActivity) params.append('limit_activity', String(options.limitActivity));
+  if (options.limitNotes) params.append('limit_notes', String(options.limitNotes));
+
+  const qs = params.toString() ? `?${params}` : '';
+  const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/sitrep${qs}`);
+  const data = (await res.json()) as unknown as SitrepResponse & { error?: string };
+
+  if (!res.ok) {
+    ui.error(data.error || 'Failed to fetch sitrep');
+    process.exit(1);
+  }
+
+  if (isJson(options)) {
+    console.log(JSON.stringify(data, null, 2));
+    return;
+  }
+
+  if (isQuiet(options)) {
+    console.log(data.summary);
+    return;
+  }
+
+  console.log('');
+  console.log(`SITREP · ${data.summary}`);
+  console.log('\u2500'.repeat(Math.min(80, data.summary.length + 9)));
+
+  if (data.activity.length > 0) {
+    const preview = data.activity.slice(0, 5);
+    console.log('');
+    console.log(`Recent activity (last ${preview.length} of ${data.activity.length}):`);
+    for (const e of preview) {
+      const clock = fmtClock(e.timestamp);
+      const agent = shortId(e.agent_id || e.agentId);
+      const type = (e.type || '').padEnd(18).slice(0, 18);
+      const detail = (e.details || '').slice(0, 60);
+      console.log(`  [${clock}] ${type} ${agent.padEnd(16)} ${detail}`);
+    }
+  }
+
+  if (data.notes.length > 0) {
+    const preview = data.notes.slice(0, 5);
+    console.log('');
+    console.log(`Session notes (last ${preview.length} of ${data.notes.length}):`);
+    for (const n of preview) {
+      const clock = fmtClock(n.timestamp || n.created_at);
+      const agent = shortId(n.agent_id || n.agentId);
+      const session = shortId(n.session_id || n.sessionId);
+      const content = (n.content || n.note || '').slice(0, 72).replace(/\s+/g, ' ');
+      console.log(`  [${clock}] ${agent} · ${session} · "${content}"`);
+    }
+  }
+
+  if (data.salvage_queue.length > 0) {
+    console.log('');
+    console.log(`Salvage queue (${data.salvage_queue.length} dead agent${data.salvage_queue.length === 1 ? '' : 's'}):`);
+    for (const s of data.salvage_queue.slice(0, 5)) {
+      const id = shortId(s.agentId || s.agent_id);
+      const purpose = (s.purpose || '').slice(0, 72);
+      console.log(`  ${id.padEnd(16)} ${purpose}`);
+    }
+    console.log('');
+    console.log(ui.dim('  pd salvage claim <id>   # to pick up their work'));
+  }
+
+  if (data.spawned_agents.length > 0) {
+    console.log('');
+    console.log(`Spawned agents (${data.spawned_agents.length}):`);
+    for (const s of data.spawned_agents.slice(0, 5)) {
+      const id = shortId(s.id);
+      const identity = (s.identity || '').slice(0, 50);
+      const status = s.status || '';
+      console.log(`  ${id.padEnd(16)} ${identity.padEnd(50)} ${status}`);
+    }
+  }
+
+  if (
+    data.activity.length === 0 &&
+    data.notes.length === 0 &&
+    data.salvage_queue.length === 0 &&
+    data.spawned_agents.length === 0
+  ) {
+    console.log('');
+    console.log(ui.dim('  (harbor quiet — nothing to report)'));
+  }
+
+  console.log('');
+}

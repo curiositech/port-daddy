@@ -80,6 +80,18 @@ export function info(message: string): void {
 }
 
 /**
+ * Dim a string with ANSI gray — for unobtrusive hints, empty-state text,
+ * and secondary tips that shouldn't fight with primary output. Returns the
+ * bare string when color is disabled.
+ *
+ * @example
+ *   console.log(`  ${ui.dim('(harbor quiet — nothing to report)')}`);
+ */
+export function dim(str: string): string {
+  return `${ANSI.dim}${str}${ANSI.reset}`;
+}
+
+/**
  * Log a plain message (no icon).
  */
 export function message(msg: string): void {

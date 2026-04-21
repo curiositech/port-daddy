@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Shipwright · Live 3D Ships</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  :root {
+    --paper: #f2eee6;
+    --ink: #121212;
+    --muted: #67645d;
+    --lime: #dfff00;
+    --blue: #0055ff;
+    --font-sans: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    --font-mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--font-sans); }
+  header {
+    background: var(--ink); color: var(--paper);
+    padding: 16px 24px;
+    display: flex; align-items: baseline; gap: 24px; flex-wrap: wrap;
+    border-bottom: 2px solid var(--ink);
+  }
+  header h1 { margin: 0; font-size: 1.4rem; font-weight: 900; letter-spacing: -0.02em; }
+  header .meta {
+    font-family: var(--font-mono); font-size: 11px;
+    letter-spacing: 0.14em; text-transform: uppercase; color: #a59f93;
+  }
+  header a { color: var(--lime); text-decoration: none; }
+  header a:hover { text-decoration: underline; }
+  main { padding: 24px; }
+  #stage { width: 100%; height: 70vh; border: 2px solid var(--ink); box-shadow: 5px 5px 0 var(--ink); background: var(--paper); display: block; }
+  .legend {
+    margin-top: 16px;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+    font-family: var(--font-mono); font-size: 12px;
+  }
+  .legend .card { border: 2px solid var(--ink); padding: 12px; }
+  .legend .ident { font-weight: 700; }
+  .legend .stat { color: var(--muted); }
+  .note {
+    margin-top: 16px; padding: 12px 16px;
+    background: var(--paper); border: 2px solid var(--ink);
+    font-family: var(--font-mono); font-size: 12px;
+  }
+  .note strong { color: var(--blue); }
+  footer {
+    padding: 16px 24px; color: var(--muted);
+    font-family: var(--font-mono); font-size: 11px;
+  }
+</style>
+
+<!--
+  Importmap: Three.js via esm.sh CDN.
+  If you serve this via a local static server (recommended), module
+  imports resolve cleanly. If you open directly from file://, some
+  browsers will block the ESM fetch; run one of:
+    npx serve docs/shipwright/preview
+    python3 -m http.server 8000 -d docs/shipwright/preview
+  then visit /ships-3d.html.
+-->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://esm.sh/three@0.160.0"
+  }
+}
+</script>
+
+</head>
+<body>
+
+<header>
+  <h1>SHIPWRIGHT · 3D LIVE</h1>
+  <div class="meta">THREE.JS · SAME GRAMMAR AS THE PREVIEW · BOBBING WATER · v0 WITHOUT DITHER POST-PROCESS</div>
+  <a href="index.html">← back to preview</a>
+</header>
+
+<main>
+  <canvas id="stage"></canvas>
+
+  <div class="legend">
+    <div class="card">
+      <div class="ident">port-daddy:fleet:spark</div>
+      <div class="stat" id="stat-0">—</div>
+    </div>
+    <div class="card">
+      <div class="ident">port-daddy:fleet:sentinel</div>
+      <div class="stat" id="stat-1">—</div>
+    </div>
+    <div class="card">
+      <div class="ident">expungement-guide:fleet:spark</div>
+      <div class="stat" id="stat-2">—</div>
+    </div>
+  </div>
+
+  <div class="note">
+    <strong>Click a ship</strong> to select it — its core emissive lerps to
+    its primary color. In the full pipeline, a BloomPass picks that up and
+    a Bayer 8×8 DitherEffect quantizes the result to the 5-color palette,
+    giving the chunky pixel halo we want. This v0 is lit but undithered;
+    see <code>COMPONENT-BRIEF.md §R3F</code> for the full pipeline and
+    <code>SHIP-GRAMMAR.md §6</code> for motion + material semantics.
+  </div>
+</main>
+
+<footer>
+  Vanilla Three.js (no React) for portability. Production scene is R3F
+  with <code>&lt;EffectComposer&gt;</code> + <code>&lt;BloomPass&gt;</code> +
+  <code>&lt;DitherEffect&gt;</code>. Mesh geometry is identical — the grammar's
+  plain-data <code>ShipPlan</code> drives both.
+</footer>
+
+<script type="module">
+  import * as THREE from 'three';
+  import { buildShip } from './buildShip.js';
+
+  // ---------- Scene plumbing --------------------------------------------
+  const canvas = document.getElementById('stage');
+  const renderer = new THREE.WebGLRenderer({
+    canvas,
+    antialias: true,
+    alpha: false,
+  });
+  renderer.setPixelRatio(window.devicePixelRatio);
+  const setSize = () => {
+    const rect = canvas.getBoundingClientRect();
+    renderer.setSize(rect.width, rect.height, false);
+  };
+  setSize();
+  window.addEventListener('resize', setSize);
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color('#f2eee6');
+
+  // Orthographic camera at classic iso 30° elevation, slight azimuth.
+  // Orthographic keeps ship block proportions honest and is a better fit
+  // for the eventual pixel-accurate dither pass.
+  const aspect = canvas.clientWidth / canvas.clientHeight;
+  const viewHalf = 55;
+  const camera = new THREE.OrthographicCamera(
+    -viewHalf * aspect, viewHalf * aspect,
+    viewHalf, -viewHalf,
+    0.1, 1000,
+  );
+  camera.position.set(80, 60, 80);
+  camera.lookAt(0, 6, 0);
+
+  // Low-key, high-contrast lighting — the Swiss discipline reads as
+  // strong shadow shapes on matte faces.
+  scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+  const dir = new THREE.DirectionalLight(0xffffff, 0.85);
+  dir.position.set(40, 80, 30);
+  scene.add(dir);
+
+  // ---------- Water: subdivided plane + vertex displacement -------------
+  const waterGeom = new THREE.PlaneGeometry(240, 240, 64, 64);
+  waterGeom.rotateX(-Math.PI / 2);
+
+  // Custom shader: two low-frequency sines + time, plus a pale blue
+  // fragment. In the dither pass this quantizes to paper + blue stipples
+  // — the "parchment sea" effect.
+  const waterUniforms = {
+    uTime: { value: 0 },
+    uColor: { value: new THREE.Color('#cfd6e2') },
+  };
+  const waterMat = new THREE.ShaderMaterial({
+    uniforms: waterUniforms,
+    vertexShader: `
+      uniform float uTime;
+      varying float vElev;
+      void main() {
+        vec3 p = position;
+        float w1 = sin(p.x * 0.08 + uTime * 0.6) * 0.35;
+        float w2 = cos(p.z * 0.11 + uTime * 0.45) * 0.25;
+        p.y += w1 + w2;
+        vElev = w1 + w2;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 uColor;
+      varying float vElev;
+      void main() {
+        // faint elevation shading so the waves read even without dither
+        float shade = 0.85 + vElev * 0.2;
+        gl_FragColor = vec4(uColor * shade, 1.0);
+      }
+    `,
+    side: THREE.DoubleSide,
+  });
+  const water = new THREE.Mesh(waterGeom, waterMat);
+  water.position.y = -1.0;
+  scene.add(water);
+
+  // ---------- Ship mesh builder from grammar ----------------------------
+  /**
+   * Build a Three.js Group from a ShipPlan. Every Block becomes one
+   * Mesh with a MeshStandardMaterial. Primary/accent/trim/obsidian
+   * colors come straight from the grammar; material.emissive is
+   * reserved for selection state.
+   */
+  function buildShipGroup(plan) {
+    const group = new THREE.Group();
+    group.userData.plan = plan;
+    group.userData.baseY = 0;
+
+    const addBlock = (b, isCore = false) => {
+      const geom = new THREE.BoxGeometry(b.w, b.h, b.d);
+      const mat = new THREE.MeshStandardMaterial({
+        color: b.color,
+        roughness: 0.9,
+        metalness: 0.05,
+      });
+      const mesh = new THREE.Mesh(geom, mat);
+      mesh.position.set(b.x, b.y, b.z);
+      if (isCore) group.userData.coreMat = mat;
+      group.add(mesh);
+    };
+
+    addBlock(plan.mainframe);
+    addBlock(plan.prow);
+    addBlock(plan.core, true);
+    plan.clusters.forEach((c) => addBlock(c));
+    plan.towers.forEach((t) => addBlock(t));
+    plan.nacelles.forEach((n) => addBlock(n));
+    addBlock(plan.trimStripe);
+
+    // Sigil: a tiny extruded shape on the core's +Z face. For v0 we
+    // add a small geometric marker mesh; full renderer uses custom
+    // geometry per sigil kind. Sphere stand-in is intentionally cheap.
+    const sigilMark = new THREE.Mesh(
+      new THREE.SphereGeometry(0.35, 8, 8),
+      new THREE.MeshStandardMaterial({
+        color: plan.metrics.colorAccent,
+        emissive: plan.metrics.colorAccent,
+        emissiveIntensity: 0.25,
+      }),
+    );
+    sigilMark.position.set(0, plan.core.y, plan.core.d / 2 + 0.1);
+    group.add(sigilMark);
+
+    return group;
+  }
+
+  // ---------- Instantiate three ships -----------------------------------
+  const identities = [
+    'port-daddy:fleet:spark',
+    'port-daddy:fleet:sentinel',
+    'expungement-guide:fleet:spark',
+  ];
+  const ships = identities.map((id, i) => {
+    const plan = buildShip(id);
+    const g = buildShipGroup(plan);
+    g.position.x = (i - 1) * 48;
+    g.position.z = 0;
+    g.userData.baseY = 1.5;
+    g.userData.bobPhase = i * 0.7;
+    scene.add(g);
+
+    // Write stat text to the legend card
+    const stat = document.getElementById(`stat-${i}`);
+    if (stat) {
+      const m = plan.metrics;
+      stat.textContent =
+        `L_a=${m.L_a} V_a=${m.V_a} C_a=${m.C_a} · ` +
+        `drift=${m.scaleDrift} · sigil=${m.sigil}`;
+    }
+    return g;
+  });
+
+  // ---------- Selection / emissive lerp ---------------------------------
+  const raycaster = new THREE.Raycaster();
+  const pointer = new THREE.Vector2();
+  let selected = null;
+
+  canvas.addEventListener('pointerdown', (ev) => {
+    const rect = canvas.getBoundingClientRect();
+    pointer.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(pointer, camera);
+    const hits = raycaster.intersectObjects(ships, true);
+    if (hits.length > 0) {
+      // Walk up to the ship Group
+      let obj = hits[0].object;
+      while (obj.parent && obj.parent !== scene) obj = obj.parent;
+      selected = obj;
+    } else {
+      selected = null;
+    }
+  });
+
+  // ---------- Animation loop --------------------------------------------
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const clock = new THREE.Clock();
+
+  function animate() {
+    requestAnimationFrame(animate);
+    const t = clock.getElapsedTime();
+
+    if (!reduced) {
+      waterUniforms.uTime.value = t;
+      for (const ship of ships) {
+        const phase = ship.userData.bobPhase;
+        // Gentle bob: sine on Y, cosine roll on Z, small X pitch.
+        // Matches SHIP-GRAMMAR.md §5 motion rules.
+        ship.position.y = ship.userData.baseY + Math.sin(t * 2 + phase) * 0.4;
+        ship.rotation.z = Math.cos(t * 1.5 + phase) * 0.04;
+        ship.rotation.x = Math.sin(t * 1.2 + phase) * 0.015;
+      }
+    }
+
+    // Emissive lerp for selection
+    for (const ship of ships) {
+      const mat = ship.userData.coreMat;
+      if (!mat) continue;
+      const target = (ship === selected) ? 1.4 : 0.0;
+      mat.emissive.set(ship.userData.plan.metrics.colorPrimary);
+      mat.emissiveIntensity += (target - mat.emissiveIntensity) * 0.15;
+    }
+
+    renderer.render(scene, camera);
+  }
+  animate();
+</script>
+
+</body>
+</html>

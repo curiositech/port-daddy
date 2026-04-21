@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SIMULATION CANVAS · mid-run · paper theme, inline fills. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 900"
+     font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#dfff00" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#dfff00" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1440" height="900" fill="#f2eee6"/>
+
+  <line x1="0" y1="56" x2="1440" y2="56" stroke="#121212" stroke-width="2"/>
+  <text x="48" y="36" font-size="18" font-weight="900" letter-spacing="-0.02em" fill="#121212">PORT-DADDY · SIMULATION</text>
+  <text x="296" y="36" font-family="IBM Plex Mono, monospace" font-size="13" fill="#67645d">SIM T+00:23:17 · WALL 23s · SEED 42</text>
+  <text x="1392" y="36" text-anchor="end" font-family="IBM Plex Mono, monospace" font-size="13" fill="#121212">BURN $0.81 / $5.00</text>
+
+  <!-- LEFT: staging grid -->
+  <g transform="translate(48 88)">
+    <rect x="5" y="5" width="860" height="740" fill="#121212"/>
+    <rect width="860" height="740" fill="#f2eee6" stroke="#121212" stroke-width="2"/>
+    <text x="16" y="28" font-size="11" letter-spacing="0.14em" fill="#67645d">STAGING · 6×5 GRID · POSITION BY ARCHETYPE FAMILY</text>
+
+    <!-- Grid dots -->
+    <g fill="#b8b1a3">
+      <circle cx="80" cy="100" r="1.5"/><circle cx="220" cy="100" r="1.5"/><circle cx="360" cy="100" r="1.5"/>
+      <circle cx="500" cy="100" r="1.5"/><circle cx="640" cy="100" r="1.5"/><circle cx="780" cy="100" r="1.5"/>
+      <circle cx="80" cy="240" r="1.5"/><circle cx="220" cy="240" r="1.5"/><circle cx="360" cy="240" r="1.5"/>
+      <circle cx="500" cy="240" r="1.5"/><circle cx="640" cy="240" r="1.5"/><circle cx="780" cy="240" r="1.5"/>
+      <circle cx="80" cy="380" r="1.5"/><circle cx="220" cy="380" r="1.5"/><circle cx="360" cy="380" r="1.5"/>
+      <circle cx="500" cy="380" r="1.5"/><circle cx="640" cy="380" r="1.5"/><circle cx="780" cy="380" r="1.5"/>
+      <circle cx="80" cy="520" r="1.5"/><circle cx="220" cy="520" r="1.5"/><circle cx="360" cy="520" r="1.5"/>
+      <circle cx="500" cy="520" r="1.5"/><circle cx="640" cy="520" r="1.5"/><circle cx="780" cy="520" r="1.5"/>
+      <circle cx="80" cy="660" r="1.5"/><circle cx="220" cy="660" r="1.5"/><circle cx="360" cy="660" r="1.5"/>
+      <circle cx="500" cy="660" r="1.5"/><circle cx="640" cy="660" r="1.5"/><circle cx="780" cy="660" r="1.5"/>
+    </g>
+
+    <!-- Write-path lines from ship stern to file tree -->
+    <g stroke="#0055ff" stroke-width="1.25" fill="none" opacity="0.65">
+      <path d="M130 96 C 300 96, 700 200, 860 200"/>
+      <path d="M388 224 C 560 224, 760 340, 860 340"/>
+      <path d="M520 364 C 660 364, 780 480, 860 480"/>
+    </g>
+
+    <!-- QA Sentinel @ (1,1) RUNNING -->
+    <g transform="translate(50 76)">
+      <!-- commit tag sliding up -->
+      <g transform="translate(0 -32)">
+        <rect x="0" y="0" width="200" height="20" fill="#dfff00" stroke="#121212" stroke-width="1.5"/>
+        <text x="6" y="14" font-family="IBM Plex Mono, monospace" font-size="10" fill="#121212">+142 −8 · fix(merge): quiet reorder</text>
+      </g>
+      <g fill="#121212">
+        <rect x="0" y="16" width="76" height="6"/>
+        <polygon points="0,16 6,10 72,10 76,16"/>
+        <rect x="20" y="0" width="5" height="10"/>
+      </g>
+      <text x="0" y="42" font-family="IBM Plex Mono, monospace" font-size="10" font-weight="700" fill="#121212">qa-sentinel · RUNNING</text>
+      <text x="0" y="54" font-family="IBM Plex Mono, monospace" font-size="10" fill="#67645d">bond $0.25 · spent $0.11</text>
+    </g>
+
+    <!-- Typesafety @ (3,2) RUNNING -->
+    <g transform="translate(326 212)">
+      <g fill="#121212">
+        <rect x="0" y="12" width="56" height="4"/>
+        <polygon points="0,12 4,8 52,8 56,12"/>
+      </g>
+      <text x="0" y="34" font-family="IBM Plex Mono, monospace" font-size="10" font-weight="700" fill="#121212">typesafety · RUNNING</text>
+      <text x="0" y="46" font-family="IBM Plex Mono, monospace" font-size="10" fill="#67645d">bond $0.10 · spent $0.04</text>
+    </g>
+
+    <!-- Documentarian @ (4,3) THINKING -->
+    <g transform="translate(466 352)">
+      <g fill="#121212" fill-opacity="0.85">
+        <polygon points="0,6 6,0 60,0 66,6"/>
+        <rect x="12" y="-10" width="2" height="12"/>
+      </g>
+      <text x="0" y="26" font-family="IBM Plex Mono, monospace" font-size="10" font-weight="700" fill="#121212">documentarian · THINKING</text>
+      <text x="0" y="38" font-family="IBM Plex Mono, monospace" font-size="10" fill="#67645d">haiku · 12k tokens</text>
+    </g>
+
+    <!-- Perf Hawk @ (2,4) THROTTLED (amber stripe on left) -->
+    <g transform="translate(186 492)">
+      <rect x="-8" y="-8" width="3" height="60" fill="#a66f00"/>
+      <g fill="#121212">
+        <rect x="0" y="12" width="70" height="6"/>
+        <polygon points="0,12 6,4 64,4 70,12"/>
+      </g>
+      <text x="0" y="36" font-family="IBM Plex Mono, monospace" font-size="10" font-weight="700" fill="#a66f00">perf-hawk · THROTTLED (80%)</text>
+      <text x="0" y="48" font-family="IBM Plex Mono, monospace" font-size="10" fill="#67645d">bond $0.30 · spent $0.82</text>
+    </g>
+
+    <!-- Sentry Responder @ (5,5) GHOST (no trigger yet) -->
+    <g transform="translate(606 632)">
+      <g fill="none" stroke="#121212" stroke-width="1.5" stroke-dasharray="3 3">
+        <rect x="0" y="12" width="60" height="4"/>
+        <polygon points="0,12 4,6 56,6 60,12"/>
+      </g>
+      <text x="0" y="34" font-family="IBM Plex Mono, monospace" font-size="10" fill="#67645d">sentry · GHOST · no webhook</text>
+    </g>
+
+    <!-- Legend -->
+    <g transform="translate(16 704)" font-size="10" fill="#67645d" font-family="IBM Plex Mono, monospace">
+      <text>● blue line · file-write path   ● yellow halo · pheromone glow (geom. decay)   ● amber stripe · throttle   ● dashed · ghost</text>
+    </g>
+  </g>
+
+  <!-- RIGHT: file tree + cost -->
+  <g transform="translate(924 88)">
+    <rect x="5" y="5" width="468" height="740" fill="#121212"/>
+    <rect width="468" height="740" fill="#f2eee6" stroke="#121212" stroke-width="2"/>
+    <text x="16" y="28" font-size="11" letter-spacing="0.14em" fill="#67645d">FILES TOUCHED · 9 OF 14 (SCROLL)</text>
+
+    <g transform="translate(16 56)" font-family="IBM Plex Mono, monospace" font-size="12" fill="#121212">
+      <text y="0">port-daddy/</text>
+      <text x="12" y="20">├── lib/</text>
+      <!-- glow under hot files -->
+      <circle cx="36" cy="36" r="24" fill="url(#glow)"/>
+      <text x="24" y="40" fill="#0055ff">│   ├── bonds.ts <tspan fill="#67645d" font-size="10" letter-spacing="0.14em">  NEW +184</tspan></text>
+      <circle cx="36" cy="56" r="20" fill="url(#glow)"/>
+      <text x="24" y="60" fill="#0055ff">│   ├── budget-guard.ts <tspan fill="#67645d" font-size="10" letter-spacing="0.14em">  NEW +112</tspan></text>
+      <text x="24" y="80">│   ├── fleet-engine.ts <tspan fill="#67645d" font-size="10" letter-spacing="0.14em">  MOD +28</tspan></text>
+      <text x="24" y="100">│   ├── spawner.ts <tspan fill="#67645d" font-size="10" letter-spacing="0.14em">  MOD +14</tspan></text>
+      <text x="24" y="120">│   └── cost-tracker.ts <tspan fill="#67645d" font-size="10" letter-spacing="0.14em">  MOD +6</tspan></text>
+      <text x="12" y="140">├── routes/</text>
+      <text x="24" y="160">│   ├── bonds.ts <tspan fill="#67645d" font-size="10" letter-spacing="0.14em">  NEW +72</tspan></text>
+      <text x="24" y="180">│   └── index.ts <tspan fill="#67645d" font-size="10" letter-spacing="0.14em">  MOD +4</tspan></text>
+      <text x="12" y="200">├── tests/unit/</text>
+      <text x="24" y="220">│   ├── bonds.test.ts <tspan fill="#67645d" font-size="10" letter-spacing="0.14em">  NEW +203</tspan></text>
+      <text x="24" y="240">│   └── budget-guard.test.ts <tspan fill="#67645d" font-size="10" letter-spacing="0.14em">  NEW +146</tspan></text>
+    </g>
+
+    <!-- Cost small-multiples -->
+    <g transform="translate(16 330)">
+      <text x="0" y="-6" font-size="11" letter-spacing="0.14em" fill="#67645d">COST PER AGENT · LAST 20 MIN · $/MIN</text>
+      <line x1="0" y1="0" x2="436" y2="0" stroke="#121212" stroke-width="1"/>
+
+      <g font-family="IBM Plex Mono, monospace" font-size="10" fill="#121212">
+        <text y="20">qa</text>
+        <polyline fill="none" stroke="#0055ff" stroke-width="1.5"
+          points="60,22 110,20 160,18 210,16 260,14 310,12 360,10 400,8"/>
+        <text x="414" y="12" font-size="10" fill="#0055ff">$0.11</text>
+
+        <text y="50">ts</text>
+        <polyline fill="none" stroke="#0055ff" stroke-width="1.5"
+          points="60,48 110,46 160,45 210,44 260,43 310,42 360,41 400,40"/>
+        <text x="414" y="43" font-size="10" fill="#0055ff">$0.04</text>
+
+        <text y="80">doc</text>
+        <polyline fill="none" stroke="#0055ff" stroke-width="1.5"
+          points="60,78 110,76 160,76 210,74 260,74 310,72 360,68 400,64"/>
+        <text x="414" y="66" font-size="10" fill="#0055ff">$0.16</text>
+
+        <text y="110">perf</text>
+        <polyline fill="none" stroke="#a66f00" stroke-width="1.75"
+          points="60,108 110,104 160,98 210,88 260,72 310,54 360,36 400,22"/>
+        <text x="414" y="22" font-size="10" font-weight="700" fill="#a66f00">$0.82 ⚠</text>
+
+        <text y="140">total</text>
+        <polyline fill="none" stroke="#121212" stroke-width="2"
+          points="60,138 110,132 160,124 210,112 260,98 310,80 360,58 400,36"/>
+        <text x="414" y="36" font-size="10" font-weight="700" fill="#121212">$1.13</text>
+      </g>
+    </g>
+
+    <g transform="translate(16 530)">
+      <rect x="0" y="0" width="436" height="48" fill="#dfff00" stroke="#121212" stroke-width="2"/>
+      <text x="218" y="30" text-anchor="middle" font-weight="700" font-size="14" fill="#121212">APPLY PROPOSED FLEET</text>
+    </g>
+    <g transform="translate(16 590)">
+      <rect x="0" y="0" width="436" height="40" fill="#f2eee6" stroke="#121212" stroke-width="2"/>
+      <text x="218" y="26" text-anchor="middle" font-weight="700" font-size="13" fill="#121212">TINKER &amp; RE-SIMULATE</text>
+    </g>
+    <g transform="translate(16 650)">
+      <rect x="0" y="0" width="436" height="40" fill="#f2eee6" stroke="#121212" stroke-width="2"/>
+      <text x="218" y="26" text-anchor="middle" font-weight="700" font-size="13" fill="#67645d">DISCARD PROPOSAL</text>
+    </g>
+  </g>
+</svg>

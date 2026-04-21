@@ -94,6 +94,8 @@ import {
   handleTuple,
   // Semantic graph + episodic memory
   handleGraph, handleMemory, handleIdeas,
+  // Consolidated read/write verbs + sitrep + pheromone (3.8.4)
+  handleSitrep, handleSay, handleLook, handlePheromone,
 } from '../cli/commands/index.js';
 import { getDaemonTcpUrl, readDaemonPort, resolveDaemonTcpTarget } from '../shared/daemon-discovery.js';
 import { calculateRuntimeCodeHash } from '../shared/code-hash.js';
@@ -2228,6 +2230,27 @@ async function main(): Promise<void> {
 
       case 'history':
         await handleHistory(options);
+        break;
+
+      // Consolidated read/write verbs (3.8.4)
+      // `pd say` fans one text out to note + optional tuple/pheromone/broadcast
+      // `pd look` is the sitrep synthesis (default) or --heat → file heat map
+      // `pd sitrep` kept as an explicit alias (the maritime canonical name)
+      case 'say':
+        await handleSay(positional[0], options);
+        break;
+
+      case 'look':
+        await handleLook(positional[0], options);
+        break;
+
+      case 'sitrep':
+        await handleSitrep(options);
+        break;
+
+      case 'pheromone':
+      case 'ph':
+        await handlePheromone(positional[0], positional.slice(1), options);
         break;
 
       case 'integration':

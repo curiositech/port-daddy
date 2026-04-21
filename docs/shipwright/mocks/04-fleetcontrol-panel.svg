@@ -1,0 +1,351 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  FLEETCONTROL PANEL · the actual control plane.
+
+  Previous iteration critiqued (rightly) as "no controls." This rev adds:
+    * Global controls band under masthead: PAUSE ALL · TOP UP · LIMITS · RE-PROPOSE · DOWNLOAD LOG · PANIC
+    * Per-slab action buttons: [TOP UP +$10], [CLEAR RESOLVED]
+    * Per-agent row buttons: EDIT · PAUSE · KILL · +$ / -$
+    * Audit log strip above the kill switch: last 5 control-plane actions
+    * Every button has a keyboard shortcut annotation
+
+  Still neobrutalist-Swiss: inline fills, hard borders, radius 0, no gradients.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 900"
+     font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+
+  <rect width="1440" height="900" fill="#f2eee6"/>
+
+  <!-- Masthead -->
+  <rect x="0" y="0" width="1440" height="72" fill="#121212"/>
+  <text x="48" y="48" font-size="36" font-weight="900" letter-spacing="-0.02em" fill="#f5f3ed">FLEETCONTROL</text>
+  <text x="420" y="34" font-size="11" letter-spacing="0.14em" fill="#a59f93">PORT-DADDY · 07:52 UTC · DAEMON v3.8.3</text>
+  <text x="420" y="52" font-size="11" letter-spacing="0.14em" fill="#dfff00">● ALL SYSTEMS NOMINAL · NO PANIC · CONSERVATION ✓</text>
+
+  <!-- GLOBAL CONTROLS BAND -->
+  <g transform="translate(48 88)">
+    <rect width="1344" height="48" fill="#f2eee6" stroke="#121212" stroke-width="2"/>
+    <!-- 6 buttons, divided by vertical lines -->
+    <g font-family="Helvetica Neue, sans-serif" font-weight="700" font-size="13">
+      <g>
+        <text x="112" y="22" text-anchor="middle" fill="#121212">PAUSE ALL</text>
+        <text x="112" y="38" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="#67645d">⇧⌘. · graceful</text>
+        <line x1="224" y1="0" x2="224" y2="48" stroke="#121212" stroke-width="2"/>
+      </g>
+      <g>
+        <text x="336" y="22" text-anchor="middle" fill="#121212">TOP UP WALLET</text>
+        <text x="336" y="38" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="#67645d">⌘U · modal</text>
+        <line x1="448" y1="0" x2="448" y2="48" stroke="#121212" stroke-width="2"/>
+      </g>
+      <g>
+        <text x="560" y="22" text-anchor="middle" fill="#121212">ADJUST LIMITS</text>
+        <text x="560" y="38" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="#67645d">⌘L · concurrency / budget</text>
+        <line x1="672" y1="0" x2="672" y2="48" stroke="#121212" stroke-width="2"/>
+      </g>
+      <g>
+        <rect x="672" y="0" width="224" height="48" fill="#dfff00"/>
+        <text x="784" y="22" text-anchor="middle" fill="#121212">RE-PROPOSE FLEET</text>
+        <text x="784" y="38" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="#121212">⌘R · opens Shipwright</text>
+        <line x1="672" y1="0" x2="672" y2="48" stroke="#121212" stroke-width="2"/>
+        <line x1="896" y1="0" x2="896" y2="48" stroke="#121212" stroke-width="2"/>
+      </g>
+      <g>
+        <text x="1008" y="22" text-anchor="middle" fill="#121212">DOWNLOAD LOG</text>
+        <text x="1008" y="38" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="#67645d">⌘E · 24h .jsonl</text>
+        <line x1="1120" y1="0" x2="1120" y2="48" stroke="#121212" stroke-width="2"/>
+      </g>
+      <g>
+        <rect x="1120" y="0" width="224" height="48" fill="#121212"/>
+        <text x="1232" y="22" text-anchor="middle" fill="#bf2f2f">PANIC · HALT FLEET</text>
+        <text x="1232" y="38" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="#a59f93">⇧⌘P · 2-step confirm</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- ========== SLAB 1: BUDGET ========== -->
+  <g transform="translate(48 152)">
+    <rect x="6" y="6" width="360" height="240" fill="#121212"/>
+    <rect width="360" height="240" fill="#f2eee6" stroke="#121212" stroke-width="2"/>
+    <text x="16" y="28" font-size="18" font-weight="900" letter-spacing="-0.02em" fill="#121212">BUDGET</text>
+    <text x="16" y="44" font-size="10" letter-spacing="0.14em" fill="#67645d">DAILY ENVELOPE · $10.00</text>
+
+    <g transform="translate(30 68)">
+      <rect x="0" y="0" width="60" height="160" fill="#f2eee6" stroke="#121212" stroke-width="2"/>
+      <!-- 41% filled. 220px original → 160px scaled. 41% of 160 = 65.6. Fill from bottom. -->
+      <rect x="2" y="94.4" width="56" height="63.6" fill="#0055ff"/>
+      <!-- 80% tick (y = 160 - 0.8*160 = 32) -->
+      <line x1="-6" y1="32" x2="62" y2="32" stroke="#a66f00" stroke-width="2"/>
+      <text x="68" y="36" font-size="10" letter-spacing="0.14em" fill="#a66f00" font-family="IBM Plex Mono, monospace">80% THROTTLE</text>
+      <line x1="-6" y1="0" x2="62" y2="0" stroke="#bf2f2f" stroke-width="2"/>
+      <text x="68" y="4" font-size="10" letter-spacing="0.14em" fill="#bf2f2f" font-family="IBM Plex Mono, monospace">100% KILL</text>
+    </g>
+
+    <text x="176" y="130" font-size="42" font-weight="900" letter-spacing="-0.02em" fill="#121212">41%</text>
+    <text x="176" y="152" font-size="13" font-family="IBM Plex Mono, monospace" fill="#121212">$4.12 spent</text>
+    <text x="176" y="168" font-size="12" font-family="IBM Plex Mono, monospace" fill="#67645d">$5.88 headroom</text>
+    <text x="176" y="182" font-size="10" letter-spacing="0.14em" fill="#67645d">RESETS 00:00 UTC</text>
+
+    <rect x="16" y="202" width="160" height="26" fill="#dfff00" stroke="#121212" stroke-width="1.5"/>
+    <text x="96" y="219" text-anchor="middle" font-weight="700" font-size="12" fill="#121212">+$10 · TOP UP BUDGET</text>
+    <rect x="184" y="202" width="160" height="26" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+    <text x="264" y="219" text-anchor="middle" font-weight="700" font-size="12" fill="#121212">RAISE ENVELOPE</text>
+  </g>
+
+  <!-- ========== SLAB 2: BONDS ========== -->
+  <g transform="translate(432 152)">
+    <rect x="6" y="6" width="540" height="240" fill="#121212"/>
+    <rect width="540" height="240" fill="#f2eee6" stroke="#121212" stroke-width="2"/>
+    <text x="16" y="28" font-size="18" font-weight="900" letter-spacing="-0.02em" fill="#121212">BONDS</text>
+    <text x="16" y="44" font-size="10" letter-spacing="0.14em" fill="#67645d">ESCROW AGAINST PROJECT WALLET $18.00</text>
+
+    <!-- Escrow bar: $1.80/$18 = 10% → 50/500 -->
+    <g transform="translate(16 60)">
+      <rect x="0" y="0" width="500" height="36" fill="#f2eee6" stroke="#121212" stroke-width="2"/>
+      <rect x="2" y="2" width="50" height="32" fill="#0055ff"/>
+      <line x1="52" y1="0" x2="52" y2="36" stroke="#121212" stroke-width="2"/>
+      <text x="6" y="54" font-size="11" letter-spacing="0.14em" fill="#0055ff" font-family="IBM Plex Mono, monospace">ESCROWED $1.80</text>
+      <text x="60" y="54" font-size="11" letter-spacing="0.14em" fill="#121212" font-family="IBM Plex Mono, monospace">AVAILABLE $16.20</text>
+    </g>
+
+    <g transform="translate(16 126)">
+      <text x="0" y="0" font-size="10" letter-spacing="0.14em" fill="#67645d">COMMONS POOL · ACCRUED FROM SLASHES · FUNDS AUDIT &amp; RECOVERY</text>
+      <rect x="0" y="10" width="500" height="16" fill="#f2eee6" stroke="#121212" stroke-width="2"/>
+      <rect x="2" y="12" width="12" height="12" fill="#121212"/>
+      <text x="500" y="22" text-anchor="end" font-size="11" font-family="IBM Plex Mono, monospace" fill="#121212">$0.52 · 1 SLASH THIS WEEK</text>
+    </g>
+
+    <g transform="translate(16 162)" font-family="IBM Plex Mono, monospace" font-size="11" fill="#121212">
+      <text y="0" font-size="10" letter-spacing="0.14em" fill="#67645d">ACTIVE BONDS · 5</text>
+      <line x1="0" y1="6" x2="500" y2="6" stroke="#121212" stroke-width="1"/>
+      <text y="22">sentinel-a1      $0.25   RUNNING    87s</text>
+      <text y="36">sweeper-42       $0.10   RUNNING    34s</text>
+      <text y="50" fill="#a66f00">hawk-3           $0.30   THROTTLED  12s</text>
+    </g>
+  </g>
+
+  <!-- ========== SLAB 3: VIOLATIONS ========== -->
+  <g transform="translate(988 152)">
+    <rect x="6" y="6" width="404" height="240" fill="#121212"/>
+    <rect width="404" height="240" fill="#f2eee6" stroke="#121212" stroke-width="2"/>
+    <text x="16" y="28" font-size="18" font-weight="900" letter-spacing="-0.02em" fill="#121212">VIOLATIONS</text>
+    <text x="16" y="44" font-size="10" letter-spacing="0.14em" fill="#67645d">LAST 24H · 2 EVENTS · 0 RESOLVED</text>
+
+    <g transform="translate(16 60)" font-family="IBM Plex Mono, monospace" font-size="11" fill="#121212">
+      <rect x="0" y="0" width="66" height="20" fill="#bf2f2f" stroke="#121212" stroke-width="1.5"/>
+      <text x="33" y="14" text-anchor="middle" fill="#fbf7ef" font-weight="700">MAYDAY</text>
+      <text x="76" y="14">hawk-3 · budget-breach</text>
+      <text x="76" y="30" fill="#67645d">07:41 · slashed $0.30 · quarantined</text>
+
+      <rect x="0" y="50" width="66" height="20" fill="#a66f00" stroke="#121212" stroke-width="1.5"/>
+      <text x="33" y="64" text-anchor="middle" fill="#fbf7ef" font-weight="700">PAN-PAN</text>
+      <text x="76" y="64">scribe-5 · doc drift &gt; 72h</text>
+      <text x="76" y="80" fill="#67645d">07:12 · throttled · awaiting re-sync</text>
+    </g>
+
+    <g transform="translate(16 152)">
+      <text x="0" y="0" font-size="10" letter-spacing="0.14em" fill="#67645d">ARBITER RULES · 9 ACTIVE</text>
+      <line x1="0" y1="6" x2="372" y2="6" stroke="#121212" stroke-width="1"/>
+      <g font-family="IBM Plex Mono, monospace" font-size="10" fill="#121212">
+        <text y="20">✓ budget  ✓ bond-ceiling  ✓ concurrency</text>
+        <text y="34">✓ no-force-push  ✓ no-destructive</text>
+        <text y="48">✓ doc-drift  ✓ conservation  ...</text>
+      </g>
+      <rect x="0" y="60" width="372" height="22" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+      <text x="186" y="75" text-anchor="middle" font-weight="700" font-size="11" fill="#121212">CLEAR RESOLVED · MARK ACKNOWLEDGED</text>
+    </g>
+  </g>
+
+  <!-- ========== AGENT ROSTER (with per-row controls) ========== -->
+  <g transform="translate(48 412)">
+    <text x="0" y="-10" font-size="10" letter-spacing="0.14em" fill="#67645d">AGENT ROSTER · 5 · HOVER ROW → CONTROLS · CLICK NAME → FOCUS</text>
+    <line x1="0" y1="0" x2="1344" y2="0" stroke="#121212" stroke-width="2"/>
+
+    <!-- Column headers -->
+    <g font-size="10" letter-spacing="0.14em" fill="#67645d" transform="translate(0 14)">
+      <text x="8">AGENT</text>
+      <text x="240">ARCHETYPE · MODEL</text>
+      <text x="480">COST · LAST 60m</text>
+      <text x="740">STATUS</text>
+      <text x="880">BOND · BUDGET</text>
+      <text x="1080" text-anchor="start">CONTROLS</text>
+    </g>
+    <line x1="0" y1="22" x2="1344" y2="22" stroke="#121212" stroke-width="1"/>
+
+    <g font-family="IBM Plex Mono, monospace" font-size="12" fill="#121212">
+
+      <!-- Row 1: sentinel RUNNING -->
+      <g transform="translate(0 28)">
+        <rect x="0" y="0" width="1344" height="40" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+        <g transform="translate(12 25)" fill="#121212">
+          <rect x="0" y="0" width="24" height="5"/>
+          <polygon points="0,0 3,-4 21,-4 24,0"/>
+        </g>
+        <text x="56" y="26" font-weight="700">sentinel-a1</text>
+        <text x="240" y="26" fill="#67645d">QA SENTINEL · sonnet</text>
+        <polyline fill="none" stroke="#0055ff" stroke-width="1.5"
+          points="480,30 520,28 560,26 600,25 640,22 680,19 720,16"/>
+        <text x="660" y="30" fill="#0055ff">$0.11</text>
+        <rect x="740" y="8" width="80" height="24" fill="#0055ff" stroke="#121212" stroke-width="1.5"/>
+        <text x="780" y="24" text-anchor="middle" fill="#fbf7ef" font-weight="700">RUNNING</text>
+        <text x="880" y="26" fill="#67645d">$0.25 · $1.00/d</text>
+        <!-- Controls: EDIT PAUSE KILL +$ -$ -->
+        <rect x="1080" y="8" width="46" height="24" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+        <text x="1103" y="24" text-anchor="middle" font-weight="700" font-size="10">EDIT</text>
+        <rect x="1130" y="8" width="30" height="24" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+        <text x="1145" y="24" text-anchor="middle" font-weight="700" font-size="11">⏸</text>
+        <rect x="1164" y="8" width="30" height="24" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+        <text x="1179" y="24" text-anchor="middle" font-weight="700" font-size="11">×</text>
+        <rect x="1198" y="8" width="30" height="24" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+        <text x="1213" y="24" text-anchor="middle" font-weight="700" font-size="11">+$</text>
+        <rect x="1232" y="8" width="30" height="24" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+        <text x="1247" y="24" text-anchor="middle" font-weight="700" font-size="11">−$</text>
+        <rect x="1266" y="8" width="70" height="24" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+        <text x="1301" y="24" text-anchor="middle" font-weight="700" font-size="10">LOG</text>
+      </g>
+
+      <!-- Row 2: sweeper RUNNING -->
+      <g transform="translate(0 76)">
+        <rect x="0" y="0" width="1344" height="40" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+        <g transform="translate(12 25)" fill="#121212">
+          <rect x="0" y="0" width="20" height="4"/>
+          <polygon points="0,0 2,-3 18,-3 20,0"/>
+        </g>
+        <text x="56" y="26" font-weight="700">sweeper-42</text>
+        <text x="240" y="26" fill="#67645d">TYPESAFETY · haiku</text>
+        <polyline fill="none" stroke="#0055ff" stroke-width="1.5"
+          points="480,32 520,31 560,30 600,30 640,29 680,28 720,27"/>
+        <text x="660" y="30" fill="#0055ff">$0.04</text>
+        <rect x="740" y="8" width="80" height="24" fill="#0055ff" stroke="#121212" stroke-width="1.5"/>
+        <text x="780" y="24" text-anchor="middle" fill="#fbf7ef" font-weight="700">RUNNING</text>
+        <text x="880" y="26" fill="#67645d">$0.10 · $0.40/d</text>
+        <rect x="1080" y="8" width="46" height="24" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+        <text x="1103" y="24" text-anchor="middle" font-weight="700" font-size="10">EDIT</text>
+        <rect x="1130" y="8" width="30" height="24" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+        <text x="1145" y="24" text-anchor="middle" font-weight="700" font-size="11">⏸</text>
+        <rect x="1164" y="8" width="30" height="24" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+        <text x="1179" y="24" text-anchor="middle" font-weight="700" font-size="11">×</text>
+        <rect x="1198" y="8" width="30" height="24" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+        <text x="1213" y="24" text-anchor="middle" font-weight="700" font-size="11">+$</text>
+        <rect x="1232" y="8" width="30" height="24" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+        <text x="1247" y="24" text-anchor="middle" font-weight="700" font-size="11">−$</text>
+        <rect x="1266" y="8" width="70" height="24" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+        <text x="1301" y="24" text-anchor="middle" font-weight="700" font-size="10">LOG</text>
+      </g>
+
+      <!-- Row 3: hawk THROTTLED -->
+      <g transform="translate(0 124)">
+        <rect x="0" y="0" width="1344" height="40" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+        <rect x="0" y="0" width="4" height="40" fill="#a66f00"/>
+        <g transform="translate(16 25)" fill="#121212">
+          <rect x="0" y="0" width="22" height="5"/>
+          <polygon points="0,0 2,-4 20,-4 22,0"/>
+        </g>
+        <text x="56" y="26" font-weight="700" fill="#a66f00">hawk-3</text>
+        <text x="240" y="26" fill="#67645d">PERF HAWK · sonnet</text>
+        <polyline fill="none" stroke="#a66f00" stroke-width="1.75"
+          points="480,32 520,28 560,24 600,20 640,16 680,12 720,8"/>
+        <text x="660" y="22" font-weight="700" fill="#a66f00">$0.82 ⚠</text>
+        <rect x="740" y="8" width="100" height="24" fill="#a66f00" stroke="#121212" stroke-width="1.5"/>
+        <text x="790" y="24" text-anchor="middle" fill="#fbf7ef" font-weight="700">THROTTLED</text>
+        <text x="880" y="26" fill="#67645d">$0.30 · $1.00/d</text>
+        <!-- On throttled: EDIT RESUME KILL +$ -$  (RESUME replaces pause) -->
+        <rect x="1080" y="8" width="46" height="24" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+        <text x="1103" y="24" text-anchor="middle" font-weight="700" font-size="10">EDIT</text>
+        <rect x="1130" y="8" width="30" height="24" fill="#dfff00" stroke="#121212" stroke-width="1.5"/>
+        <text x="1145" y="24" text-anchor="middle" font-weight="700" font-size="11">▶</text>
+        <rect x="1164" y="8" width="30" height="24" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+        <text x="1179" y="24" text-anchor="middle" font-weight="700" font-size="11">×</text>
+        <rect x="1198" y="8" width="30" height="24" fill="#dfff00" stroke="#121212" stroke-width="1.5"/>
+        <text x="1213" y="24" text-anchor="middle" font-weight="700" font-size="11">+$</text>
+        <rect x="1232" y="8" width="30" height="24" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+        <text x="1247" y="24" text-anchor="middle" font-weight="700" font-size="11">−$</text>
+        <rect x="1266" y="8" width="70" height="24" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+        <text x="1301" y="24" text-anchor="middle" font-weight="700" font-size="10">LOG</text>
+      </g>
+
+      <!-- Row 4: scribe RUNNING -->
+      <g transform="translate(0 172)">
+        <rect x="0" y="0" width="1344" height="40" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+        <g transform="translate(12 25)" fill="#121212">
+          <polygon points="0,0 3,-3 18,-3 22,0"/>
+        </g>
+        <text x="56" y="26" font-weight="700">scribe-7</text>
+        <text x="240" y="26" fill="#67645d">DOCUMENTARIAN · haiku</text>
+        <polyline fill="none" stroke="#0055ff" stroke-width="1.5"
+          points="480,30 520,28 560,27 600,26 640,26 680,25 720,24"/>
+        <text x="660" y="28" fill="#0055ff">$0.16</text>
+        <rect x="740" y="8" width="80" height="24" fill="#0055ff" stroke="#121212" stroke-width="1.5"/>
+        <text x="780" y="24" text-anchor="middle" fill="#fbf7ef" font-weight="700">RUNNING</text>
+        <text x="880" y="26" fill="#67645d">$0.10 · $0.30/d</text>
+        <rect x="1080" y="8" width="46" height="24" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+        <text x="1103" y="24" text-anchor="middle" font-weight="700" font-size="10">EDIT</text>
+        <rect x="1130" y="8" width="30" height="24" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+        <text x="1145" y="24" text-anchor="middle" font-weight="700" font-size="11">⏸</text>
+        <rect x="1164" y="8" width="30" height="24" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+        <text x="1179" y="24" text-anchor="middle" font-weight="700" font-size="11">×</text>
+        <rect x="1198" y="8" width="30" height="24" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+        <text x="1213" y="24" text-anchor="middle" font-weight="700" font-size="11">+$</text>
+        <rect x="1232" y="8" width="30" height="24" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+        <text x="1247" y="24" text-anchor="middle" font-weight="700" font-size="11">−$</text>
+        <rect x="1266" y="8" width="70" height="24" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+        <text x="1301" y="24" text-anchor="middle" font-weight="700" font-size="10">LOG</text>
+      </g>
+
+      <!-- Row 5: sentry GHOST -->
+      <g transform="translate(0 220)">
+        <rect x="0" y="0" width="1344" height="40" fill="#f2eee6" stroke="#121212" stroke-width="1.5" stroke-dasharray="4 4"/>
+        <g transform="translate(12 25)" fill="none" stroke="#121212" stroke-width="1.5" stroke-dasharray="3 3">
+          <rect x="0" y="0" width="22" height="5"/>
+        </g>
+        <text x="56" y="26" font-weight="700" fill="#67645d">sentry-0</text>
+        <text x="240" y="26" fill="#67645d">SENTRY RESPONDER · sonnet</text>
+        <text x="480" y="26" fill="#67645d">— no webhook wired —</text>
+        <rect x="740" y="8" width="80" height="24" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+        <text x="780" y="24" text-anchor="middle" font-weight="700" fill="#67645d">GHOST</text>
+        <text x="880" y="26" fill="#67645d">$0.50 · $2.00/d</text>
+        <!-- Ghost: only WIRE and REMOVE -->
+        <rect x="1080" y="8" width="140" height="24" fill="#dfff00" stroke="#121212" stroke-width="1.5"/>
+        <text x="1150" y="24" text-anchor="middle" font-weight="700" font-size="10" fill="#121212">WIRE WEBHOOK →</text>
+        <rect x="1224" y="8" width="112" height="24" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+        <text x="1280" y="24" text-anchor="middle" font-weight="700" font-size="10">REMOVE FROM FLEET</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- ========== AUDIT LOG STRIP ========== -->
+  <g transform="translate(48 704)">
+    <rect x="6" y="6" width="860" height="148" fill="#121212"/>
+    <rect width="860" height="148" fill="#f2eee6" stroke="#121212" stroke-width="2"/>
+    <text x="16" y="28" font-size="14" font-weight="900" letter-spacing="-0.02em" fill="#121212">AUDIT · LAST 5 CONTROL-PLANE ACTIONS</text>
+    <g transform="translate(16 44)" font-family="IBM Plex Mono, monospace" font-size="11" fill="#121212">
+      <text y="0" fill="#67645d">TIME      WHO           ACTION            TARGET         DETAIL</text>
+      <line x1="0" y1="8" x2="828" y2="8" stroke="#121212" stroke-width="1"/>
+      <text y="24">07:41:08  erich-owens    throttle          hawk-3         reason: budget-breach (0.82/1.00)</text>
+      <text y="40">07:41:08  daemon         slash-bond        hawk-3         $0.30 → commons-pool (auto)</text>
+      <text y="56">07:12:44  daemon         throttle          scribe-5       reason: doc-drift 74h (arbiter)</text>
+      <text y="72">06:58:01  erich-owens    top-up-wallet     port-daddy     +$10.00 → balance $18.00</text>
+      <text y="88">06:30:17  daemon         promote-stable   daemon         v3.8.3 ← main@62f34af (CI green)</text>
+    </g>
+  </g>
+
+  <!-- ========== KILL SWITCH ========== -->
+  <g transform="translate(940 704)">
+    <rect x="10" y="10" width="452" height="148" fill="#121212"/>
+    <rect width="452" height="148" fill="#121212" stroke="#dfff00" stroke-width="3"/>
+    <text x="226" y="34" text-anchor="middle" font-size="11" letter-spacing="0.14em" fill="#dfff00">EMERGENCY</text>
+    <text x="226" y="68" text-anchor="middle" font-size="26" font-weight="900" letter-spacing="-0.02em" fill="#dfff00">PANIC · HALT FLEET</text>
+    <line x1="24" y1="84" x2="428" y2="84" stroke="#dfff00" stroke-width="1"/>
+    <text x="24" y="104" font-family="IBM Plex Mono, monospace" font-size="11" fill="#dfff00">SIGTERM all spawns · block new · arm panic tuple</text>
+    <text x="24" y="120" font-family="IBM Plex Mono, monospace" font-size="11" fill="#dfff00">Recovery requires human disarm.</text>
+    <rect x="132" y="124" width="188" height="24" fill="#dfff00"/>
+    <text x="226" y="140" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-weight="700" font-size="11" fill="#121212">⇧⌘P · 2-STEP CONFIRM</text>
+  </g>
+
+  <!-- Footer: conservation -->
+  <line x1="0" y1="876" x2="1440" y2="876" stroke="#121212" stroke-width="2"/>
+  <g transform="translate(48 895)" font-family="IBM Plex Mono, monospace" font-size="11">
+    <text fill="#2d7a43" font-weight="700">CONSERVATION ✓</text>
+    <text x="130" fill="#121212">wallet $16.20 + escrow $1.80 + commons $0.52 = supply $18.52</text>
+  </g>
+  <text x="1392" y="895" text-anchor="end" font-size="11" letter-spacing="0.14em" fill="#67645d">PROMOTED STABLE 2026-04-18</text>
+</svg>

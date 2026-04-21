@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  SHIPWRIGHT CHAT · right drawer · paper theme, inline fills.
+  Voice usage corrected: pan-pan for an urgency (budget near breach).
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 900"
+     font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+  <rect width="480" height="900" fill="#f2eee6"/>
+  <line x1="0" y1="0" x2="0" y2="900" stroke="#121212" stroke-width="2"/>
+
+  <g transform="translate(24 32)">
+    <text font-size="22" font-weight="900" letter-spacing="-0.02em" fill="#121212">SHIPWRIGHT</text>
+    <text y="18" font-size="10" letter-spacing="0.14em" fill="#67645d">PORT-DADDY · FOCUS · SEED 42</text>
+  </g>
+  <line x1="0" y1="76" x2="480" y2="76" stroke="#121212" stroke-width="2"/>
+
+  <g transform="translate(24 104)" font-size="13" fill="#121212">
+    <!-- user turn -->
+    <text font-size="10" letter-spacing="0.14em" fill="#67645d">YOU · 07:48</text>
+    <text y="22" font-weight="700">Why is perf-hawk throttled?</text>
+
+    <!-- shipwright turn (pan-pan voice: urgent but not emergency) -->
+    <g transform="translate(0 68)">
+      <text font-size="10" letter-spacing="0.14em" fill="#a66f00" font-weight="700">PAN-PAN · SHIPWRIGHT · 07:49</text>
+      <text y="22">perf-hawk spent $0.82 of its</text>
+      <text y="40">$1.00/d budget in the first 12</text>
+      <text y="58">minutes — the 80% threshold tripped.</text>
+      <text y="76">Cause: the CI duration delta fired</text>
+      <text y="94">6× on merge queue benchmarks due</text>
+      <text y="112">to a flaky test. Options:</text>
+    </g>
+
+    <!-- Recommendations -->
+    <g transform="translate(0 246)" font-family="IBM Plex Mono, monospace" font-size="11">
+      <rect x="0" y="0" width="432" height="64" fill="#f2eee6" stroke="#121212" stroke-width="2"/>
+      <text x="12" y="18" fill="#121212">1 · RAISE perf-hawk budget to $2.00/d</text>
+      <text x="12" y="34" fill="#67645d">  · increases daily envelope by $1.00</text>
+      <text x="12" y="50" fill="#67645d">  · simulation confidence 0.91</text>
+
+      <rect x="0" y="76" width="432" height="64" fill="#dfff00" stroke="#121212" stroke-width="2"/>
+      <text x="12" y="94" font-weight="700" fill="#121212">2 · QUARANTINE flaky test first  ◉ RECOMMENDED</text>
+      <text x="12" y="110" fill="#121212">  · add skip list, keep budget as-is</text>
+      <text x="12" y="126" fill="#121212">  · simulation confidence 0.97</text>
+
+      <rect x="0" y="152" width="432" height="64" fill="#f2eee6" stroke="#121212" stroke-width="2"/>
+      <text x="12" y="170" fill="#121212">3 · REMOVE perf-hawk archetype</text>
+      <text x="12" y="186" fill="#67645d">  · frees $1.00/d but loses coverage</text>
+      <text x="12" y="202" fill="#67645d">  · simulation confidence 0.73</text>
+    </g>
+
+    <!-- Tool call block (inline collapsible, expanded) -->
+    <g transform="translate(0 474)" font-family="IBM Plex Mono, monospace" font-size="10">
+      <rect x="0" y="0" width="432" height="114" fill="#12161f" stroke="#121212" stroke-width="2"/>
+      <text x="10" y="18" fill="#a7ff8b">▾ tool_use: retrieve_skill</text>
+      <text x="10" y="34" fill="#c4cee2">  query: "flaky test quarantine"</text>
+      <text x="10" y="48" fill="#c4cee2">  top_k: 3</text>
+      <text x="10" y="68" fill="#8dc4ff">→ vitest-testing-patterns     0.84</text>
+      <text x="10" y="82" fill="#8dc4ff">→ qa-automation-specialist    0.71</text>
+      <text x="10" y="96" fill="#8dc4ff">→ high-quality-vibe-coding    0.67</text>
+    </g>
+
+    <!-- Composer -->
+    <g transform="translate(0 608)">
+      <text font-size="10" letter-spacing="0.14em" fill="#67645d">ASK SHIPWRIGHT · ⏎ SEND · ⇧⏎ NEWLINE</text>
+      <rect x="0" y="10" width="432" height="96" fill="#f2eee6" stroke="#121212" stroke-width="2"/>
+      <text x="12" y="38" font-family="IBM Plex Mono, monospace" font-size="12" fill="#67645d">What bond would make option 3 safe?|</text>
+      <rect x="316" y="70" width="104" height="26" fill="#0055ff" stroke="#121212" stroke-width="2"/>
+      <text x="368" y="87" text-anchor="middle" font-size="12" font-weight="700" fill="#fbf7ef">RE-SIMULATE</text>
+    </g>
+
+    <g transform="translate(0 742)">
+      <text font-size="10" letter-spacing="0.14em" fill="#67645d">⌘K COMMANDS · ⌘E EDIT PROMPT · ⌘S SAVE AS PROPOSAL</text>
+    </g>
+  </g>
+</svg>
