@@ -45,12 +45,14 @@ interface FanoutResult {
   error?: string;
 }
 
-async function writeNote(text: string): Promise<FanoutResult> {
+async function writeNote(text: string, asAgent: string | undefined): Promise<FanoutResult> {
   try {
+    const body: Record<string, unknown> = { content: text };
+    if (asAgent) body.agentId = asAgent;
     const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/notes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: text }),
+      body: JSON.stringify(body),
     });
     const data = await res.json();
     if (res.ok) {
@@ -70,11 +72,11 @@ async function writeTuple(
 ): Promise<FanoutResult> {
   try {
     const slug = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-    const tuple = [kind, slug, { text, at: Date.now() }];
+    const fields = [kind, slug, { text, at: Date.now() }];
     const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/tuples`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tuple, harbor, writtenBy: asAgent }),
+      body: JSON.stringify({ fields, harbor, writtenBy: asAgent }),
     });
     const data = await res.json();
     if (res.ok) {
@@ -161,7 +163,7 @@ export async function handleSay(text: string | undefined, options: CLIOptions): 
   const kind = (options.kind as string) || 'finding';
 
   // Build fanout list based on flags (note always fires).
-  const tasks: Promise<FanoutResult>[] = [writeNote(text)];
+  const tasks: Promise<FanoutResult>[] = [writeNote(text, asAgent)];
 
   if (options.pin) {
     tasks.push(writeTuple(text, kind, harbor, asAgent));
