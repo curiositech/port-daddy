@@ -159,7 +159,7 @@ async function handleFiles(options: CLIOptions): Promise<void> {
     const p = (f.path || '').padEnd(50).slice(0, 50);
     const heat = f.heat.toFixed(2).padStart(4);
     const agents = String(f.activeClaims ?? 0).padStart(6);
-    const conflict = f.conflict ? ui.warn('yes') : ui.dim('no ');
+    const conflict = f.conflict ? 'yes' : ui.dim('no ');
     console.log(`  ${p}  ${heat}  ${agents}  ${conflict}`);
   }
   console.log('');
