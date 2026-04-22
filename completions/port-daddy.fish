@@ -98,6 +98,7 @@ set -l __pd_commands \
     'session' 'sessions' 'note' 'notes' \
     'salvage' 'resurrection' 'changelog' 'dns' 'files' 'who-owns' 'integration' 'briefing' 'history' 'inbox' \
     'begin' 'b' 'done' 'whoami' 'w' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'watch' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' \
+    'say' 'look' 'sitrep' 'pheromone' 'ph' \
     'up' 'down' \
     'bench' 'demo' 'fleet' \
     'dashboard' 'channels' 'webhook' 'webhooks' 'metrics' 'config' 'health' 'ports' \
@@ -207,6 +208,35 @@ for prog in port-daddy pd
 
     # Tuple space
     complete -c $prog -n __pd_needs_command -a tuple -d 'Linda-style tuple space (out, rd, in, scan, count)'
+
+    # Consolidated read/write (3.8.4)
+    complete -c $prog -n __pd_needs_command -a say -d 'Write a finding (note + optional tuple/pheromone/broadcast)'
+    complete -c $prog -n __pd_needs_command -a look -d 'Situation report (sitrep default; --heat for file heat map)'
+    complete -c $prog -n __pd_needs_command -a sitrep -d 'Alias for look (the maritime canonical name)'
+    complete -c $prog -n __pd_needs_command -a pheromone -d 'Stigmergic coordination (spray, files, show, ls)'
+    complete -c $prog -n __pd_needs_command -a ph -d 'Alias for pheromone'
+    # pd say flags
+    complete -c $prog -n "__pd_using_command say" -l pin -d 'Also write a tuple to the fleet harbor'
+    complete -c $prog -n "__pd_using_command say" -l heat -x -d 'Also spray pheromone on a file (<path>[=0..1])'
+    complete -c $prog -n "__pd_using_command say" -l broadcast -x -d 'Also publish to a pub/sub channel'
+    complete -c $prog -n "__pd_using_command say" -l kind -x -d 'Tuple kind prefix (default: finding)'
+    complete -c $prog -n "__pd_using_command say" -l harbor -x -d 'Tuple harbor (default: fleet)'
+    complete -c $prog -n "__pd_using_command say" -l as -x -d 'Agent ID to associate with the write'
+    # pd look flags
+    complete -c $prog -n "__pd_using_command look" -x -a 'heat hot' -d 'Subcommand'
+    complete -c $prog -n "__pd_using_command look" -l since -x -d 'Lookback window in minutes (default: 60)'
+    complete -c $prog -n "__pd_using_command look" -l heat -d 'Show file heat map instead of sitrep'
+    complete -c $prog -n "__pd_using_command look" -l project -x -d 'Scope salvage queue to a project'
+    complete -c $prog -n "__pd_using_command look" -l stack -x -d 'Scope salvage queue to a stack'
+    # pd sitrep flags
+    complete -c $prog -n "__pd_using_command sitrep" -l since -x -d 'Lookback window in minutes (default: 60)'
+    complete -c $prog -n "__pd_using_command sitrep" -l project -x -d 'Scope salvage queue to a project'
+    complete -c $prog -n "__pd_using_command sitrep" -l stack -x -d 'Scope salvage queue to a stack'
+    # pd pheromone subcommands
+    complete -c $prog -n "__pd_using_command pheromone ph" -x -a 'spray file files show ls read list' -d 'Subcommand'
+    complete -c $prog -n "__pd_using_command pheromone ph; and __fish_seen_subcommand_from files" -l path -x -d 'Path prefix filter'
+    complete -c $prog -n "__pd_using_command pheromone ph; and __fish_seen_subcommand_from files" -l depth -x -d 'Max path depth'
+    complete -c $prog -n "__pd_using_command pheromone ph; and __fish_seen_subcommand_from files" -l limit -x -d 'Max rows'
 
     # System & Monitoring
     complete -c $prog -n __pd_needs_command -a dashboard -d 'Open web dashboard'

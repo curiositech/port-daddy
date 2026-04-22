@@ -105,6 +105,8 @@ _port_daddy() {
     begin b done whoami w with-lock n u d learn tutorial
     # Briefing & History
     briefing history
+    # Consolidated read/write (3.8.4)
+    say look sitrep pheromone ph
     # Agent Inbox
     inbox
     # AI Agent Spawner + Watch
@@ -1544,6 +1546,62 @@ _port_daddy() {
           _pd_opts '--harbor --json --quiet'
           ;;
         *) _pd_opts '' ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
+    # say  "<text>"  [--pin] [--heat <path>[=N]] [--broadcast <channel>]
+    # -----------------------------------------------------------------------
+    say)
+      _pd_opts '--pin --heat --broadcast --kind --harbor --as --json --quiet'
+      ;;
+
+    # -----------------------------------------------------------------------
+    # look  [heat]  [--since N] [--heat] [--project P] [--stack S]
+    # -----------------------------------------------------------------------
+    look)
+      local subcmd="${words[2]:-}"
+      case "$subcmd" in
+        '')
+          COMPREPLY=( $(compgen -W "heat hot" -- "$cur") )
+          _pd_opts '--since --heat --project --stack --limit-activity --limit-notes --json --quiet'
+          ;;
+        *)
+          _pd_opts '--since --heat --project --stack --limit-activity --limit-notes --json --quiet'
+          ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
+    # sitrep  [--since N] [--project P] [--stack S]
+    # -----------------------------------------------------------------------
+    sitrep)
+      _pd_opts '--since --project --stack --limit-activity --limit-notes --json --quiet'
+      ;;
+
+    # -----------------------------------------------------------------------
+    # pheromone  spray|file|files|show|ls  [args]  [options]
+    # -----------------------------------------------------------------------
+    pheromone|ph)
+      local subcmd="${words[2]:-}"
+      case "$subcmd" in
+        '')
+          COMPREPLY=( $(compgen -W "spray file files show ls read list" -- "$cur") )
+          ;;
+        spray)
+          COMPREPLY=( $(compgen -W "files services projects sessions agents" -- "$cur") )
+          ;;
+        files)
+          _pd_opts '--path --depth --limit --json --quiet'
+          ;;
+        show|read)
+          COMPREPLY=( $(compgen -W "files services projects sessions agents" -- "$cur") )
+          _pd_opts '--json --quiet'
+          ;;
+        ls|list)
+          _pd_opts '--json --quiet'
+          ;;
+        *) _pd_opts '--json --quiet' ;;
       esac
       ;;
 

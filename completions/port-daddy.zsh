@@ -1301,6 +1301,101 @@ _pd_cmd_tuple() {
   esac
 }
 
+_pd_cmd_say() {
+  _arguments \
+    '--pin[also write a tuple to the fleet harbor]' \
+    '--heat[also spray pheromone on a file (<path>[=0..1])]:heat:' \
+    '--broadcast[also publish to a pub/sub channel]:channel:_pd_complete_channels' \
+    '--kind[tuple kind prefix (default: finding)]:kind:' \
+    '--harbor[tuple harbor (default: fleet)]:harbor:' \
+    '--as[agent ID to associate with the write]:agent ID:_pd_complete_agents' \
+    '(-j --json)'{-j,--json}'[JSON output]' \
+    '(-q --quiet)'{-q,--quiet}'[minimal output]' \
+    '1:text:'
+}
+
+_pd_cmd_look() {
+  local -a look_subcmds
+  look_subcmds=(
+    'heat:show the file heat map (alias for --heat)'
+    'hot:alias of heat'
+  )
+
+  local state
+  _arguments -C '1:subcommand:->subcommand' '*::args:->args'
+
+  case "$state" in
+    subcommand)
+      _describe 'look subcommand' look_subcmds
+      _arguments \
+        '--since[lookback window in minutes (default: 60)]:minutes:' \
+        '--heat[show file heat map instead of sitrep]' \
+        '--project[scope salvage queue to a project]:project:' \
+        '--stack[scope salvage queue to a stack]:stack:' \
+        '--limit-activity[max activity entries]:n:' \
+        '--limit-notes[max notes]:n:' \
+        '(-j --json)'{-j,--json}'[JSON output]' \
+        '(-q --quiet)'{-q,--quiet}'[one-line summary]'
+      ;;
+    args)
+      _arguments \
+        '--since[lookback window in minutes (default: 60)]:minutes:' \
+        '--project[scope salvage queue to a project]:project:' \
+        '--stack[scope salvage queue to a stack]:stack:' \
+        '(-j --json)'{-j,--json}'[JSON output]' \
+        '(-q --quiet)'{-q,--quiet}'[one-line summary]'
+      ;;
+  esac
+}
+
+_pd_cmd_sitrep() {
+  _arguments \
+    '--since[lookback window in minutes (default: 60)]:minutes:' \
+    '--project[scope salvage queue to a project]:project:' \
+    '--stack[scope salvage queue to a stack]:stack:' \
+    '--limit-activity[max activity entries]:n:' \
+    '--limit-notes[max notes]:n:' \
+    '(-j --json)'{-j,--json}'[JSON output]' \
+    '(-q --quiet)'{-q,--quiet}'[one-line summary]'
+}
+
+_pd_cmd_pheromone() {
+  local -a ph_subcmds
+  ph_subcmds=(
+    'spray:set a pheromone value (0..1)'
+    'file:sugar for spray files <path> heat <strength>'
+    'files:file heat map'
+    'show:read pheromones for an entity'
+    'ls:list all non-zero pheromones'
+  )
+
+  local state
+  _arguments -C '1:subcommand:->subcommand' '*::args:->args'
+
+  case "$state" in
+    subcommand)
+      _describe 'pheromone subcommand' ph_subcmds
+      ;;
+    args)
+      case "${words[2]}" in
+        files)
+          _arguments \
+            '--path[path prefix filter]:path:' \
+            '--depth[max path depth]:n:' \
+            '--limit[max rows]:n:' \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[minimal output]'
+          ;;
+        *)
+          _arguments \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[minimal output]'
+          ;;
+      esac
+      ;;
+  esac
+}
+
 _pd_cmd_graph() {
   local -a graph_subcmds
   graph_subcmds=(
@@ -1558,6 +1653,12 @@ _port_daddy() {
     # Briefing & History
     'briefing:generate .portdaddy/ project briefing'
     'history:view recent project activity'
+    # Consolidated read/write (3.8.4)
+    'say:write a finding (note) with optional fan-out to tuple/pheromone/broadcast'
+    'look:situation report (sitrep default, --heat for file heat map)'
+    'sitrep:explicit alias for look (the maritime name)'
+    'pheromone:stigmergic coordination (spray, files, show, ls)'
+    'ph:alias for pheromone'
     # Agent Inbox
     'inbox:agent-to-agent direct messaging inbox'
     # AI Agent Spawner + Watch
@@ -1700,6 +1801,10 @@ _port_daddy() {
         harbor)                 _pd_cmd_harbor ;;
         harbors)                _pd_cmd_harbors ;;
         tuple)                  _pd_cmd_tuple ;;
+        say)                    _pd_cmd_say ;;
+        look)                   _pd_cmd_look ;;
+        sitrep)                 _pd_cmd_sitrep ;;
+        pheromone|ph)           _pd_cmd_pheromone ;;
         graph)                  _pd_cmd_graph ;;
         memory)                 _pd_cmd_memory ;;
         ideas)                  _pd_cmd_ideas ;;

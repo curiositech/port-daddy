@@ -131,15 +131,16 @@ const ESSENTIAL_TOOL_NAMES = new Set([
   // Magic tools — high-level composed operations for vibe coders
   'fleet_init',
   'swarm_awareness',
-  'catch_me_up',
+  'sitrep',
+  'catch_me_up',  // DEPRECATED 3.8.4 — alias for sitrep. Kept for back-compat.
   'spawn_agent',
   'run_sortie',
 ]);
 
 const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> = {
   'magic': {
-    description: 'High-level composed tools: fleet setup, swarm awareness, catch-me-up briefings, agent spawning, sortie missions, file heat maps, agent messaging',
-    tools: ['fleet_init', 'fleet_status', 'swarm_awareness', 'catch_me_up', 'file_heat', 'talk_to_agent', 'spawn_agent', 'run_sortie'],
+    description: 'High-level composed tools: fleet setup, swarm awareness, situation reports, agent spawning, sortie missions, file heat maps, agent messaging',
+    tools: ['fleet_init', 'fleet_status', 'swarm_awareness', 'sitrep', 'file_heat', 'talk_to_agent', 'spawn_agent', 'run_sortie'],
   },
   'session-lifecycle': {
     description: 'Start/end sessions, manage agent registration (sugar commands)',
@@ -1786,11 +1787,26 @@ const TOOLS = [
     },
   },
   {
+    name: 'sitrep',
+    description:
+      '[Magic] Situation report — what happened while I was away? Returns a synthesis of: ' +
+      'recent activity, session notes from active and completed sessions, dead agents in the ' +
+      'salvage queue, and any fleet agent output (spark ideas, spider connections, cartographer ' +
+      'status). Maritime voice (fits mayday/pan-pan/securite). CLI: `pd sitrep` or `pd look`.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        since_minutes: { type: 'number', description: 'How far back to look (default: 60 minutes)' },
+        project: { type: 'string', description: 'Scope salvage queue to a project (optional)' },
+        stack: { type: 'string', description: 'Scope salvage queue to a stack (optional)' },
+      },
+    },
+  },
+  {
     name: 'catch_me_up',
     description:
-      '[Magic] What happened while I was away? Returns a synthesis of: recent activity, ' +
-      'session notes from active and completed sessions, dead agents in the salvage queue, ' +
-      'and any fleet agent output (spark ideas, spider connections, cartographer status).',
+      '[DEPRECATED 3.8.4 — use sitrep] Identical to `sitrep`. Kept for back-compat with agents ' +
+      'that already call this name. New callers should use `sitrep`.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -2836,8 +2852,26 @@ async function handleTool(
       }, null, 2);
     }
 
+    case 'sitrep':
     case 'catch_me_up': {
+      // 3.8.4: both names dispatch to the new /sitrep HTTP endpoint which
+      // does the fan-out server-side. Pre-3.8.4 daemons don't have /sitrep;
+      // we fall back to the legacy four-call pattern on 404.
       const mins = (args.since_minutes as number) || 60;
+      const project = args.project as string | undefined;
+      const stack = args.stack as string | undefined;
+
+      const params = new URLSearchParams();
+      params.set('since_minutes', String(mins));
+      if (project) params.set('project', project);
+      if (stack) params.set('stack', stack);
+
+      const sitrepRes = await GET(`/sitrep?${params}`);
+      if (sitrepRes.status !== 404) {
+        return JSON.stringify(sitrepRes.data, null, 2);
+      }
+
+      // Legacy fallback for daemons older than 3.8.4.
       const since = Date.now() - mins * 60 * 1000;
       const [actRes, notesRes, salvageRes, spawnRes] = await Promise.all([
         GET(`/activity?limit=30&since=${since}`),

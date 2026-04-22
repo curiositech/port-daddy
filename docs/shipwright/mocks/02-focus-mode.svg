@@ -1,0 +1,363 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  FOCUS MODE · proposed fleet
+  Each card now: grammar-faithful ship thumbnail (2D stand-in — live ship is
+  R3F + Bayer dither + water), codename, archetype, PURPOSE sentence,
+  trigger, bond, budget, edit button.
+
+  Ship dims computed from lib/ship-grammar.ts for fleet "port-daddy"
+  (H_f=1016 → primary=Red, scale_drift=3). Collision-dodged accents.
+  Scale: 2.5 px per grammar unit.
+
+    sentinel  L=8 V=3 C=5   main 7×32  prow 9  core h=6  5 towers@h=8  3 nac (cap)  3 cluster · accent=Blue
+    sweeper   L=7 V=3 C=4   main 5×28  prow 9  core h=6  4 towers@h=7  3 nac (cap)  2 cluster · accent=Obsidian
+    scribe    L=6 V=2 C=4   main 3×24  prow 6  core h=6  4 towers@h=7  2 nac        1 cluster · accent=Lime
+    hawk      L=4 V=1 C=3   main 5×16  prow 3  core h=6  3 towers@h=6  1 nac        2 cluster · accent=Blue
+    sentry    L=6 V=2 C=4   same as scribe (cousin), but rendered GHOST (dashed, no fills)
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 900"
+     font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+
+  <rect width="1440" height="900" fill="#f2eee6"/>
+
+  <line x1="0" y1="64" x2="1440" y2="64" stroke="#121212" stroke-width="2"/>
+  <text x="48" y="40" font-size="20" font-weight="900" letter-spacing="-0.02em" fill="#121212">◀ HARBOR · PORT-DADDY</text>
+  <text x="48" y="56" font-size="11" letter-spacing="0.14em" fill="#67645d">FOCUS · SURVEYED 07:52 UTC · CONFIDENCE 0.82 · PATTERN MATCH windags:2026-02</text>
+
+  <!-- LEFT: command block -->
+  <g transform="translate(48 96)">
+    <rect x="5" y="5" width="380" height="736" fill="#121212"/>
+    <rect width="380" height="736" fill="#f2eee6" stroke="#121212" stroke-width="2"/>
+    <text x="24" y="56" font-size="42" font-weight="900" letter-spacing="-0.02em" fill="#121212">PORT</text>
+    <text x="24" y="96" font-size="42" font-weight="900" letter-spacing="-0.02em" fill="#121212">DADDY</text>
+    <line x1="24" y1="116" x2="356" y2="116" stroke="#121212" stroke-width="1"/>
+    <text x="24" y="144" font-size="11" letter-spacing="0.14em" fill="#67645d">SERVER · DAEMON · TYPESCRIPT · FASTIFY</text>
+    <text x="24" y="178" font-size="15" fill="#121212">
+      <tspan x="24" dy="0">Authoritative port manager +</tspan>
+      <tspan x="24" dy="18">multi-agent coordination daemon.</tspan>
+      <tspan x="24" dy="18">Bond enforcement pending (track 1).</tspan>
+    </text>
+
+    <text x="24" y="258" font-size="11" letter-spacing="0.14em" fill="#67645d">COMMITS · 14 DAYS</text>
+    <line x1="24" y1="284" x2="356" y2="284" stroke="#67645d" stroke-width="1"/>
+    <polyline fill="none" stroke="#121212" stroke-width="1.5"
+      points="24,280 48,274 72,278 96,266 120,256 144,264 168,252 192,246 216,258 240,244 264,236 288,248 312,232 336,224 356,236"/>
+
+    <text x="24" y="332" font-size="11" letter-spacing="0.14em" fill="#67645d">MODEL TIER</text>
+    <g transform="translate(24 344)">
+      <rect x="0" y="0" width="104" height="44" fill="#f2eee6" stroke="#121212" stroke-width="2"/>
+      <text x="52" y="22" text-anchor="middle" font-weight="700" font-size="13" fill="#121212">HAIKU</text>
+      <text x="52" y="36" text-anchor="middle" font-size="10" letter-spacing="0.14em" fill="#67645d">$0.02/HR</text>
+      <rect x="114" y="0" width="104" height="44" fill="#dfff00" stroke="#121212" stroke-width="2"/>
+      <text x="166" y="22" text-anchor="middle" font-weight="700" font-size="13" fill="#121212">SONNET</text>
+      <text x="166" y="36" text-anchor="middle" font-size="10" letter-spacing="0.14em" fill="#121212">$0.18/HR</text>
+      <rect x="228" y="0" width="104" height="44" fill="#f2eee6" stroke="#121212" stroke-width="2"/>
+      <text x="280" y="22" text-anchor="middle" font-weight="700" font-size="13" fill="#121212">OPUS</text>
+      <text x="280" y="36" text-anchor="middle" font-size="10" letter-spacing="0.14em" fill="#67645d">$1.10/HR</text>
+    </g>
+
+    <g transform="translate(24 432)">
+      <rect x="0" y="0" width="332" height="52" fill="#f2eee6" stroke="#121212" stroke-width="2"/>
+      <text x="24" y="32" font-weight="700" font-size="16" fill="#121212">SURVEY</text>
+      <text x="308" y="32" text-anchor="end" font-family="IBM Plex Mono, monospace" font-size="12" fill="#67645d">[ S ]</text>
+      <rect x="0" y="64" width="332" height="52" fill="#0055ff" stroke="#121212" stroke-width="2"/>
+      <text x="24" y="96" font-weight="700" font-size="16" fill="#fbf7ef">PROPOSE FLEET</text>
+      <text x="308" y="96" text-anchor="end" font-family="IBM Plex Mono, monospace" font-size="12" fill="#fbf7ef">[ P ]</text>
+      <rect x="0" y="128" width="332" height="52" fill="#f2eee6" stroke="#121212" stroke-width="2"/>
+      <text x="24" y="160" font-weight="700" font-size="16" fill="#121212">SIMULATE 1H</text>
+      <text x="308" y="160" text-anchor="end" font-family="IBM Plex Mono, monospace" font-size="12" fill="#67645d">[ ␣ ]</text>
+    </g>
+
+    <g transform="translate(24 646)">
+      <text x="0" y="-6" font-size="11" letter-spacing="0.14em" fill="#67645d">RISKS · 3</text>
+      <rect x="0" y="0" width="332" height="20" fill="#bf2f2f" stroke="#121212" stroke-width="1.5"/>
+      <text x="8" y="14" font-size="11" fill="#fbf7ef" font-family="IBM Plex Mono, monospace">bond enforcement is advisory-only</text>
+      <rect x="0" y="26" width="332" height="20" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+      <text x="8" y="40" font-size="11" fill="#121212" font-family="IBM Plex Mono, monospace">dashboard parity at 38% of routes</text>
+      <rect x="0" y="52" width="332" height="20" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+      <text x="8" y="66" font-size="11" fill="#121212" font-family="IBM Plex Mono, monospace">fleet dry-run mode not yet implemented</text>
+    </g>
+  </g>
+
+  <!-- RIGHT: proposed fleet canvas -->
+  <g transform="translate(460 96)">
+    <rect x="5" y="5" width="932" height="736" fill="#121212"/>
+    <rect width="932" height="736" fill="#f2eee6" stroke="#121212" stroke-width="2"/>
+    <text x="24" y="36" font-size="20" font-weight="900" letter-spacing="-0.02em" fill="#121212">PROPOSED FLEET · 5 AGENTS</text>
+    <text x="24" y="54" font-size="11" letter-spacing="0.14em" fill="#67645d">GHOSTS · EDIT BEFORE SIMULATE · THUMBNAILS ARE STAND-INS FOR LIVE R3F SHIPS</text>
+
+    <!-- 5 cards, 164 wide, 16 gutter, row at y=80 -->
+
+    <!-- ==== CARD 1: SENTINEL ==== -->
+    <g transform="translate(24 80)">
+      <rect x="0" y="0" width="164" height="412" fill="#f2eee6" stroke="#121212" stroke-width="2" stroke-dasharray="4 4"/>
+      <rect x="0" y="0" width="164" height="76" fill="#e9e2d5"/>
+      <text x="10" y="18" font-size="9" letter-spacing="0.14em" fill="#67645d">port-daddy:fleet:sentinel</text>
+      <!-- sentinel ship: mainD=32→80px, prow=9→22.5px. Hull h=2→5. Core h=6→15. Towers h=8→20. Nac L=10→25. -->
+      <g transform="translate(20 62)">
+        <!-- nacelle pods (aft, below hull) — 3 per side, stacked. We see 3 in side view. -->
+        <rect x="0" y="4" width="25" height="2.5" fill="#0055ff" stroke="#121212" stroke-width="0.5"/>
+        <rect x="0" y="7" width="25" height="2.5" fill="#0055ff" stroke="#121212" stroke-width="0.5"/>
+        <rect x="0" y="10" width="25" height="2.5" fill="#0055ff" stroke="#121212" stroke-width="0.5"/>
+        <!-- hull -->
+        <rect x="0" y="-5" width="80" height="5" fill="#cfc9bb" stroke="#121212" stroke-width="1"/>
+        <!-- prow -->
+        <polygon points="80,-5 80,0 102.5,-1.5" fill="#cfc9bb" stroke="#121212" stroke-width="1"/>
+        <!-- 5 cooling towers aft, 2+2+1 rows -->
+        <rect x="16" y="-25" width="2" height="20" fill="#121212"/>
+        <rect x="20" y="-25" width="2" height="20" fill="#121212"/>
+        <rect x="24" y="-25" width="2" height="20" fill="#121212"/>
+        <rect x="28" y="-25" width="2" height="20" fill="#121212"/>
+        <rect x="32" y="-25" width="2" height="20" fill="#121212"/>
+        <!-- DaemonCore (midships) h=6→15, D=4→10 -->
+        <rect x="35" y="-20" width="10" height="15" fill="#bf2f2f" stroke="#121212" stroke-width="1"/>
+        <!-- sigil on core face: chevron (port-daddy fleet) -->
+        <polyline points="37,-12 40,-15 43,-12" fill="none" stroke="#dfff00" stroke-width="1"/>
+        <!-- 3 compute clusters forward of core -->
+        <rect x="50" y="-10" width="5" height="5" fill="#0055ff" stroke="#121212" stroke-width="0.75"/>
+        <rect x="57" y="-10" width="5" height="5" fill="#0055ff" stroke="#121212" stroke-width="0.75"/>
+        <rect x="64" y="-10" width="5" height="5" fill="#0055ff" stroke="#121212" stroke-width="0.75"/>
+      </g>
+
+      <line x1="0" y1="76" x2="164" y2="76" stroke="#121212" stroke-width="1"/>
+      <text x="10" y="100" font-weight="900" font-size="15" fill="#121212">QA SENTINEL</text>
+      <text x="10" y="116" font-size="10" letter-spacing="0.14em" fill="#67645d">SONNET · BATTLESHIP</text>
+      <!-- PURPOSE -->
+      <line x1="10" y1="128" x2="154" y2="128" stroke="#67645d" stroke-width="1"/>
+      <text x="10" y="146" font-size="11" fill="#121212">
+        <tspan x="10" dy="0">Full test suite on every PR.</tspan>
+        <tspan x="10" dy="14">Triages failures, drafts fix</tspan>
+        <tspan x="10" dy="14">proposals. Blocks merge on red.</tspan>
+        <tspan x="10" dy="14">Never writes to main directly.</tspan>
+      </text>
+      <line x1="10" y1="212" x2="154" y2="212" stroke="#67645d" stroke-width="1"/>
+      <text x="10" y="232" font-family="IBM Plex Mono, monospace" font-size="11" fill="#121212">trigger · git-pr</text>
+      <text x="10" y="248" font-family="IBM Plex Mono, monospace" font-size="11" fill="#121212">bond    · $0.25</text>
+      <text x="10" y="264" font-family="IBM Plex Mono, monospace" font-size="11" fill="#121212">budget  · $1.00/d</text>
+      <text x="10" y="280" font-family="IBM Plex Mono, monospace" font-size="11" fill="#67645d">skills  · vitest, quality</text>
+      <!-- actions -->
+      <rect x="10" y="300" width="144" height="26" fill="#dfff00" stroke="#121212" stroke-width="1.5"/>
+      <text x="82" y="317" text-anchor="middle" font-weight="700" font-size="11" fill="#121212">EDIT PROMPT</text>
+      <rect x="10" y="332" width="68" height="22" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+      <text x="44" y="347" text-anchor="middle" font-weight="700" font-size="10" fill="#121212">SKILLS</text>
+      <rect x="86" y="332" width="68" height="22" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+      <text x="120" y="347" text-anchor="middle" font-weight="700" font-size="10" fill="#121212">RATIONALE</text>
+      <rect x="10" y="360" width="144" height="22" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+      <text x="82" y="375" text-anchor="middle" font-weight="700" font-size="10" fill="#67645d">REMOVE FROM FLEET</text>
+    </g>
+
+    <!-- ==== CARD 2: SWEEPER ==== -->
+    <g transform="translate(204 80)">
+      <rect x="0" y="0" width="164" height="412" fill="#f2eee6" stroke="#121212" stroke-width="2" stroke-dasharray="4 4"/>
+      <rect x="0" y="0" width="164" height="76" fill="#e9e2d5"/>
+      <text x="10" y="18" font-size="9" letter-spacing="0.14em" fill="#67645d">port-daddy:fleet:sweeper</text>
+      <!-- sweeper ship: mainD=28→70, prow=9→22.5, 4 towers h=7→17.5, 3 nac L=9→22.5, 2 clusters OBSIDIAN -->
+      <g transform="translate(28 62)">
+        <rect x="0" y="4" width="22.5" height="2.5" fill="#0055ff" stroke="#121212" stroke-width="0.5"/>
+        <rect x="0" y="7" width="22.5" height="2.5" fill="#0055ff" stroke="#121212" stroke-width="0.5"/>
+        <rect x="0" y="10" width="22.5" height="2.5" fill="#0055ff" stroke="#121212" stroke-width="0.5"/>
+        <rect x="0" y="-5" width="70" height="5" fill="#cfc9bb" stroke="#121212" stroke-width="1"/>
+        <polygon points="70,-5 70,0 92.5,-1.5" fill="#cfc9bb" stroke="#121212" stroke-width="1"/>
+        <rect x="14" y="-22.5" width="2" height="17.5" fill="#121212"/>
+        <rect x="18" y="-22.5" width="2" height="17.5" fill="#121212"/>
+        <rect x="22" y="-22.5" width="2" height="17.5" fill="#121212"/>
+        <rect x="26" y="-22.5" width="2" height="17.5" fill="#121212"/>
+        <rect x="30" y="-20" width="10" height="15" fill="#bf2f2f" stroke="#121212" stroke-width="1"/>
+        <polyline points="32,-12 35,-15 38,-12" fill="none" stroke="#dfff00" stroke-width="1"/>
+        <rect x="45" y="-10" width="5" height="5" fill="#121212" stroke="#121212" stroke-width="0.75"/>
+        <rect x="52" y="-10" width="5" height="5" fill="#121212" stroke="#121212" stroke-width="0.75"/>
+      </g>
+
+      <line x1="0" y1="76" x2="164" y2="76" stroke="#121212" stroke-width="1"/>
+      <text x="10" y="100" font-weight="900" font-size="15" fill="#121212">TYPESAFETY</text>
+      <text x="10" y="116" font-size="10" letter-spacing="0.14em" fill="#67645d">HAIKU · CRUISER</text>
+      <line x1="10" y1="128" x2="154" y2="128" stroke="#67645d" stroke-width="1"/>
+      <text x="10" y="146" font-size="11" fill="#121212">
+        <tspan x="10" dy="0">Sweeps *.ts for `any`, unchecked</tspan>
+        <tspan x="10" dy="14">index access, implicit returns.</tspan>
+        <tspan x="10" dy="14">Ships one-file-at-a-time type</tspan>
+        <tspan x="10" dy="14">tightening PRs. Never merges.</tspan>
+      </text>
+      <line x1="10" y1="212" x2="154" y2="212" stroke="#67645d" stroke-width="1"/>
+      <text x="10" y="232" font-family="IBM Plex Mono, monospace" font-size="11" fill="#121212">trigger · *.ts watch</text>
+      <text x="10" y="248" font-family="IBM Plex Mono, monospace" font-size="11" fill="#121212">bond    · $0.10</text>
+      <text x="10" y="264" font-family="IBM Plex Mono, monospace" font-size="11" fill="#121212">budget  · $0.40/d</text>
+      <text x="10" y="280" font-family="IBM Plex Mono, monospace" font-size="11" fill="#67645d">skills  · typescript, refactor</text>
+      <rect x="10" y="300" width="144" height="26" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+      <text x="82" y="317" text-anchor="middle" font-weight="700" font-size="11" fill="#121212">EDIT PROMPT</text>
+      <rect x="10" y="332" width="68" height="22" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+      <text x="44" y="347" text-anchor="middle" font-weight="700" font-size="10" fill="#121212">SKILLS</text>
+      <rect x="86" y="332" width="68" height="22" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+      <text x="120" y="347" text-anchor="middle" font-weight="700" font-size="10" fill="#121212">RATIONALE</text>
+      <rect x="10" y="360" width="144" height="22" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+      <text x="82" y="375" text-anchor="middle" font-weight="700" font-size="10" fill="#67645d">REMOVE FROM FLEET</text>
+    </g>
+
+    <!-- ==== CARD 3: SCRIBE ==== -->
+    <g transform="translate(384 80)">
+      <rect x="0" y="0" width="164" height="412" fill="#f2eee6" stroke="#121212" stroke-width="2" stroke-dasharray="4 4"/>
+      <rect x="0" y="0" width="164" height="76" fill="#e9e2d5"/>
+      <text x="10" y="18" font-size="9" letter-spacing="0.14em" fill="#67645d">port-daddy:fleet:scribe</text>
+      <!-- scribe: mainD=24→60, prow=6→15, 4 towers h=7→17.5, 2 nac L=8→20, 1 cluster LIME -->
+      <g transform="translate(32 62)">
+        <rect x="0" y="4" width="20" height="2.5" fill="#0055ff" stroke="#121212" stroke-width="0.5"/>
+        <rect x="0" y="7" width="20" height="2.5" fill="#0055ff" stroke="#121212" stroke-width="0.5"/>
+        <rect x="0" y="-5" width="60" height="5" fill="#cfc9bb" stroke="#121212" stroke-width="1"/>
+        <polygon points="60,-5 60,0 75,-1.5" fill="#cfc9bb" stroke="#121212" stroke-width="1"/>
+        <rect x="10" y="-22.5" width="2" height="17.5" fill="#121212"/>
+        <rect x="14" y="-22.5" width="2" height="17.5" fill="#121212"/>
+        <rect x="18" y="-22.5" width="2" height="17.5" fill="#121212"/>
+        <rect x="22" y="-22.5" width="2" height="17.5" fill="#121212"/>
+        <rect x="26" y="-20" width="10" height="15" fill="#bf2f2f" stroke="#121212" stroke-width="1"/>
+        <polyline points="28,-12 31,-15 34,-12" fill="none" stroke="#dfff00" stroke-width="1"/>
+        <rect x="42" y="-10" width="5" height="5" fill="#dfff00" stroke="#121212" stroke-width="0.75"/>
+      </g>
+
+      <line x1="0" y1="76" x2="164" y2="76" stroke="#121212" stroke-width="1"/>
+      <text x="10" y="100" font-weight="900" font-size="15" fill="#121212">DOCUMENTARIAN</text>
+      <text x="10" y="116" font-size="10" letter-spacing="0.14em" fill="#67645d">HAIKU · FRIGATE</text>
+      <line x1="10" y1="128" x2="154" y2="128" stroke="#67645d" stroke-width="1"/>
+      <text x="10" y="146" font-size="11" fill="#121212">
+        <tspan x="10" dy="0">Watches CLAUDE.md, README,</tspan>
+        <tspan x="10" dy="14">features.manifest. Opens a PR</tspan>
+        <tspan x="10" dy="14">the moment docs diverge from</tspan>
+        <tspan x="10" dy="14">the code they describe.</tspan>
+      </text>
+      <line x1="10" y1="212" x2="154" y2="212" stroke="#67645d" stroke-width="1"/>
+      <text x="10" y="232" font-family="IBM Plex Mono, monospace" font-size="11" fill="#121212">trigger · doc drift</text>
+      <text x="10" y="248" font-family="IBM Plex Mono, monospace" font-size="11" fill="#121212">bond    · $0.10</text>
+      <text x="10" y="264" font-family="IBM Plex Mono, monospace" font-size="11" fill="#121212">budget  · $0.30/d</text>
+      <text x="10" y="280" font-family="IBM Plex Mono, monospace" font-size="11" fill="#67645d">skills  · technical-writer</text>
+      <rect x="10" y="300" width="144" height="26" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+      <text x="82" y="317" text-anchor="middle" font-weight="700" font-size="11" fill="#121212">EDIT PROMPT</text>
+      <rect x="10" y="332" width="68" height="22" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+      <text x="44" y="347" text-anchor="middle" font-weight="700" font-size="10" fill="#121212">SKILLS</text>
+      <rect x="86" y="332" width="68" height="22" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+      <text x="120" y="347" text-anchor="middle" font-weight="700" font-size="10" fill="#121212">RATIONALE</text>
+      <rect x="10" y="360" width="144" height="22" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+      <text x="82" y="375" text-anchor="middle" font-weight="700" font-size="10" fill="#67645d">REMOVE FROM FLEET</text>
+    </g>
+
+    <!-- ==== CARD 4: HAWK ==== -->
+    <g transform="translate(564 80)">
+      <rect x="0" y="0" width="164" height="412" fill="#f2eee6" stroke="#121212" stroke-width="2" stroke-dasharray="4 4"/>
+      <rect x="0" y="0" width="164" height="76" fill="#e9e2d5"/>
+      <text x="10" y="18" font-size="9" letter-spacing="0.14em" fill="#67645d">port-daddy:fleet:hawk</text>
+      <!-- hawk: mainD=16→40, prow=3→7.5, 3 towers h=6→15, 1 nac L=6→15, 2 clusters BLUE -->
+      <g transform="translate(54 62)">
+        <rect x="0" y="4" width="15" height="2.5" fill="#0055ff" stroke="#121212" stroke-width="0.5"/>
+        <rect x="0" y="-5" width="40" height="5" fill="#cfc9bb" stroke="#121212" stroke-width="1"/>
+        <polygon points="40,-5 40,0 47.5,-1.5" fill="#cfc9bb" stroke="#121212" stroke-width="1"/>
+        <rect x="8" y="-20" width="2" height="15" fill="#121212"/>
+        <rect x="12" y="-20" width="2" height="15" fill="#121212"/>
+        <rect x="16" y="-20" width="2" height="15" fill="#121212"/>
+        <rect x="18" y="-20" width="10" height="15" fill="#bf2f2f" stroke="#121212" stroke-width="1"/>
+        <polyline points="20,-12 23,-15 26,-12" fill="none" stroke="#dfff00" stroke-width="1"/>
+        <rect x="32" y="-10" width="5" height="5" fill="#0055ff" stroke="#121212" stroke-width="0.75"/>
+      </g>
+
+      <line x1="0" y1="76" x2="164" y2="76" stroke="#121212" stroke-width="1"/>
+      <text x="10" y="100" font-weight="900" font-size="15" fill="#121212">PERF HAWK</text>
+      <text x="10" y="116" font-size="10" letter-spacing="0.14em" fill="#67645d">SONNET · SLOOP</text>
+      <line x1="10" y1="128" x2="154" y2="128" stroke="#67645d" stroke-width="1"/>
+      <text x="10" y="146" font-size="11" fill="#121212">
+        <tspan x="10" dy="0">Monitors CI duration on hot</tspan>
+        <tspan x="10" dy="14">paths. When a benchmark</tspan>
+        <tspan x="10" dy="14">drifts +20%, bisects the cause,</tspan>
+        <tspan x="10" dy="14">files a regression ticket.</tspan>
+      </text>
+      <line x1="10" y1="212" x2="154" y2="212" stroke="#67645d" stroke-width="1"/>
+      <text x="10" y="232" font-family="IBM Plex Mono, monospace" font-size="11" fill="#121212">trigger · ci Δ&gt;20%</text>
+      <text x="10" y="248" font-family="IBM Plex Mono, monospace" font-size="11" fill="#121212">bond    · $0.30</text>
+      <text x="10" y="264" font-family="IBM Plex Mono, monospace" font-size="11" fill="#121212">budget  · $1.00/d</text>
+      <text x="10" y="280" font-family="IBM Plex Mono, monospace" font-size="11" fill="#67645d">skills  · perf-profiler</text>
+      <rect x="10" y="300" width="144" height="26" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+      <text x="82" y="317" text-anchor="middle" font-weight="700" font-size="11" fill="#121212">EDIT PROMPT</text>
+      <rect x="10" y="332" width="68" height="22" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+      <text x="44" y="347" text-anchor="middle" font-weight="700" font-size="10" fill="#121212">SKILLS</text>
+      <rect x="86" y="332" width="68" height="22" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+      <text x="120" y="347" text-anchor="middle" font-weight="700" font-size="10" fill="#121212">RATIONALE</text>
+      <rect x="10" y="360" width="144" height="22" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+      <text x="82" y="375" text-anchor="middle" font-weight="700" font-size="10" fill="#67645d">REMOVE FROM FLEET</text>
+    </g>
+
+    <!-- ==== CARD 5: SENTRY (GHOST) ==== -->
+    <g transform="translate(744 80)" opacity="0.95">
+      <rect x="0" y="0" width="164" height="412" fill="#f2eee6" stroke="#67645d" stroke-width="2" stroke-dasharray="3 5"/>
+      <rect x="0" y="0" width="164" height="76" fill="#e9e2d5"/>
+      <text x="10" y="18" font-size="9" letter-spacing="0.14em" fill="#67645d">port-daddy:fleet:sentry</text>
+      <!-- sentry as GHOST: wireframe only, no fills, 4 towers, 2 nac, 1 cluster (outline only) -->
+      <g transform="translate(32 62)" fill="none" stroke="#67645d" stroke-width="1" stroke-dasharray="2 2">
+        <rect x="0" y="4" width="20" height="2.5"/>
+        <rect x="0" y="7" width="20" height="2.5"/>
+        <rect x="0" y="-5" width="60" height="5"/>
+        <polygon points="60,-5 60,0 75,-1.5"/>
+        <rect x="10" y="-22.5" width="2" height="17.5"/>
+        <rect x="14" y="-22.5" width="2" height="17.5"/>
+        <rect x="18" y="-22.5" width="2" height="17.5"/>
+        <rect x="22" y="-22.5" width="2" height="17.5"/>
+        <rect x="26" y="-20" width="10" height="15"/>
+        <rect x="42" y="-10" width="5" height="5"/>
+      </g>
+
+      <line x1="0" y1="76" x2="164" y2="76" stroke="#67645d" stroke-width="1"/>
+      <text x="10" y="100" font-weight="900" font-size="15" fill="#67645d">SENTRY RESP.</text>
+      <text x="10" y="116" font-size="10" letter-spacing="0.14em" fill="#67645d">SONNET · GHOST</text>
+      <line x1="10" y1="128" x2="154" y2="128" stroke="#67645d" stroke-width="1"/>
+      <text x="10" y="146" font-size="11" fill="#67645d">
+        <tspan x="10" dy="0">Picks up prod errors the</tspan>
+        <tspan x="10" dy="14">moment they fire. Reads the</tspan>
+        <tspan x="10" dy="14">stack, opens a WIP branch,</tspan>
+        <tspan x="10" dy="14">attaches a repro test.</tspan>
+      </text>
+      <line x1="10" y1="212" x2="154" y2="212" stroke="#67645d" stroke-width="1"/>
+      <text x="10" y="232" font-family="IBM Plex Mono, monospace" font-size="11" fill="#67645d">trigger · webhook (unset)</text>
+      <text x="10" y="248" font-family="IBM Plex Mono, monospace" font-size="11" fill="#67645d">bond    · $0.50</text>
+      <text x="10" y="264" font-family="IBM Plex Mono, monospace" font-size="11" fill="#67645d">budget  · $2.00/d</text>
+      <text x="10" y="280" font-family="IBM Plex Mono, monospace" font-size="11" fill="#67645d">skills  · debugging, sre</text>
+      <rect x="10" y="300" width="144" height="26" fill="#dfff00" stroke="#121212" stroke-width="1.5"/>
+      <text x="82" y="317" text-anchor="middle" font-weight="700" font-size="11" fill="#121212">WIRE SENTRY WEBHOOK</text>
+      <rect x="10" y="332" width="144" height="22" fill="#f2eee6" stroke="#67645d" stroke-width="1.5"/>
+      <text x="82" y="347" text-anchor="middle" font-weight="700" font-size="10" fill="#67645d">EDIT PROMPT</text>
+      <rect x="10" y="360" width="144" height="22" fill="#f2eee6" stroke="#67645d" stroke-width="1.5"/>
+      <text x="82" y="375" text-anchor="middle" font-weight="700" font-size="10" fill="#67645d">REMOVE FROM FLEET</text>
+    </g>
+
+    <!-- Rationale strip -->
+    <g transform="translate(24 510)">
+      <text x="0" y="-6" font-size="11" letter-spacing="0.14em" fill="#67645d">SHIPWRIGHT RATIONALE · KLEIN-RPD PATTERN MATCH</text>
+      <line x1="0" y1="0" x2="884" y2="0" stroke="#121212" stroke-width="1"/>
+      <text x="0" y="22" font-size="13" fill="#121212">
+        <tspan x="0" dy="0">Recognized pattern: windags 2026-02 — similar test density, PR cadence, strict TS. That fleet survived 30d at $2.20/d with 0 violations.</tspan>
+        <tspan x="0" dy="20">QA Sentinel catches regressions early; Typesafety sweeps the 23 `any`s in routes/. Documentarian keeps CLAUDE.md in sync with features.manifest (4 stale entries).</tspan>
+        <tspan x="0" dy="20">Perf Hawk on merge-queue hot path — CI time drifted +14% last week. No Sentry config found → Sentry Responder parked as GHOST until the webhook is wired.</tspan>
+        <tspan x="0" dy="20">Expected daily spend $3.15; envelope allows $5.00. Bond pool at $1.25 escrow. Simulator confidence 0.91 across 10 seeded runs.</tspan>
+      </text>
+    </g>
+
+    <!-- Cost preview, proportional -->
+    <g transform="translate(24 620)">
+      <text x="0" y="-8" font-size="11" letter-spacing="0.14em" fill="#67645d">PROJECTED DAILY · $3.15 USED / $5.00 ENVELOPE · $1.85 HEADROOM</text>
+      <rect x="0" y="0" width="884" height="28" fill="#f2eee6" stroke="#121212" stroke-width="2"/>
+      <rect x="2" y="2" width="176.8" height="24" fill="#0055ff"/>
+      <rect x="178.8" y="2" width="61.88" height="24" fill="#7db4ff"/>
+      <rect x="240.68" y="2" width="49.5" height="24" fill="#c4cee2"/>
+      <rect x="290.18" y="2" width="91.9" height="24" fill="#dfff00"/>
+      <rect x="382.08" y="2" width="176.8" height="24" fill="#a66f00" fill-opacity="0.35"/>
+      <line x1="558.88" y1="0" x2="558.88" y2="28" stroke="#121212" stroke-width="2"/>
+      <text x="722" y="18" text-anchor="middle" font-size="11" font-family="IBM Plex Mono, monospace" fill="#67645d">HEADROOM $1.85</text>
+      <g font-size="11" font-family="IBM Plex Mono, monospace" fill="#121212" transform="translate(0 44)">
+        <rect x="0" y="0" width="10" height="10" fill="#0055ff"/><text x="16" y="9">sentinel $1.00</text>
+        <rect x="140" y="0" width="10" height="10" fill="#7db4ff"/><text x="156" y="9">sweeper $0.35</text>
+        <rect x="280" y="0" width="10" height="10" fill="#c4cee2"/><text x="296" y="9">scribe $0.28</text>
+        <rect x="400" y="0" width="10" height="10" fill="#dfff00"/><text x="416" y="9">hawk $0.52</text>
+        <rect x="520" y="0" width="10" height="10" fill="#a66f00" fill-opacity="0.35"/><text x="536" y="9">sentry $1.00 (ghost)</text>
+      </g>
+    </g>
+
+    <g transform="translate(24 696)">
+      <rect x="0" y="0" width="884" height="28" fill="#121212" stroke="#121212" stroke-width="2"/>
+      <text x="442" y="20" text-anchor="middle" font-weight="700" font-size="14" fill="#dfff00">SIMULATE 1H · SEED 42 · SPEED 60×</text>
+    </g>
+  </g>
+</svg>

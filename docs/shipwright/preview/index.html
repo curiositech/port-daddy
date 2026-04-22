@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<title>Shipwright Preview · Port Daddy</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  /* Design tokens extracted from website-v2/src/styles/tokens.css.
+     Keep in sync. Swiss-neobrutalist: radius 0, hard shadows,
+     Helvetica for display, IBM Plex Mono for data. */
+  :root {
+    --paper: #f2eee6;
+    --surface: #e9e2d5;
+    --ink: #121212;
+    --muted: #67645d;
+    --hull: #cfc9bb;
+    --blue: #0055ff;
+    --lime: #dfff00;
+    --red: #bf2f2f;
+    --amber: #a66f00;
+    --success: #2d7a43;
+    --font-sans: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    --font-mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+    --shadow-raised: 5px 5px 0 var(--ink);
+    --shadow-pressed: 2px 2px 0 var(--ink);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    line-height: 1.5;
+  }
+  nav.toc {
+    position: sticky; top: 0;
+    background: var(--ink); color: var(--paper);
+    padding: 12px 24px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    border-bottom: 2px solid var(--ink);
+    z-index: 100;
+    display: flex; gap: 24px; flex-wrap: wrap;
+  }
+  nav.toc a { color: var(--paper); text-decoration: none; }
+  nav.toc a:hover { color: var(--lime); }
+  nav.toc .brand { color: var(--lime); font-weight: 900; letter-spacing: -0.02em; text-transform: none; font-size: 14px; }
+  main { max-width: 1440px; margin: 0 auto; padding: 48px 48px 120px; }
+  section { margin-bottom: 96px; }
+  h1 {
+    font-size: clamp(2.5rem, 5vw, 4rem);
+    font-weight: 900; letter-spacing: -0.02em; line-height: 0.96;
+    margin: 0 0 16px;
+  }
+  h2 {
+    font-size: clamp(1.6rem, 3vw, 2.2rem);
+    font-weight: 900; letter-spacing: -0.02em;
+    margin: 0 0 8px;
+    border-top: 2px solid var(--ink);
+    padding-top: 24px;
+  }
+  h3 {
+    font-size: 1.1rem; font-weight: 700; margin: 24px 0 8px;
+  }
+  .meta {
+    font-family: var(--font-mono); font-size: 11px;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--muted);
+  }
+  .meta.ink { color: var(--ink); }
+  .lead { font-size: 18px; max-width: 72ch; margin: 0 0 16px; }
+  code, .mono { font-family: var(--font-mono); }
+  hr { border: 0; border-top: 1px solid var(--ink); margin: 32px 0; }
+
+  /* Hard-border cards, Swiss style */
+  .card {
+    background: var(--paper);
+    border: 2px solid var(--ink);
+    box-shadow: var(--shadow-raised);
+  }
+  .card.ghost { border-style: dashed; box-shadow: 3px 3px 0 var(--muted); }
+  .card.thumbnail { border: 2px dashed var(--ink); box-shadow: none; }
+
+  button, .btn {
+    font-family: var(--font-sans);
+    font-weight: 700; font-size: 13px;
+    background: var(--paper); color: var(--ink);
+    border: 2px solid var(--ink);
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: box-shadow 120ms cubic-bezier(0.16,1,0.3,1);
+    box-shadow: var(--shadow-raised);
+  }
+  button:hover, .btn:hover { box-shadow: var(--shadow-pressed); transform: translate(2px, 2px); }
+  button.primary, .btn.primary { background: var(--blue); color: var(--paper); }
+  button.accent, .btn.accent { background: var(--lime); color: var(--ink); }
+  button.danger, .btn.danger { background: var(--ink); color: var(--lime); }
+  button.small { padding: 4px 8px; font-size: 11px; box-shadow: 3px 3px 0 var(--ink); }
+
+  /* Token swatch */
+  .swatches { display: grid; grid-template-columns: repeat(7, 1fr); gap: 16px; }
+  .swatch { border: 2px solid var(--ink); padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .swatch .chip { height: 80px; border: 2px solid var(--ink); }
+  .swatch code { font-size: 11px; }
+
+  /* Ship grid */
+  .harbor { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .ship-card { padding: 16px; position: relative; }
+  .ship-card .stern-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    border: 1.5px solid var(--ink);
+    position: absolute; top: 14px; right: 14px;
+  }
+  .ship-card .ship-name {
+    font-size: 18px; font-weight: 900; letter-spacing: -0.02em; margin: 8px 0 4px;
+  }
+  .ship-card .ship-meta { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+  .ship-thumb { width: 100%; height: 72px; display: block; overflow: visible; }
+
+  /* Proposal cards row */
+  .proposals { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
+  .proposal { padding: 0; display: flex; flex-direction: column; }
+  .proposal .ident {
+    font-family: var(--font-mono); font-size: 9px; color: var(--muted);
+    padding: 8px 10px; background: var(--surface); letter-spacing: 0.14em;
+  }
+  .proposal .thumb-wrap {
+    height: 76px; display: flex; align-items: flex-end; justify-content: center;
+    padding: 0 8px 8px; background: var(--surface);
+    border-bottom: 1px solid var(--ink);
+  }
+  .proposal .codename {
+    font-size: 15px; font-weight: 900; letter-spacing: -0.02em;
+    padding: 10px 10px 2px;
+  }
+  .proposal .archetype {
+    font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.14em; color: var(--muted);
+    padding: 0 10px 8px;
+  }
+  .proposal .purpose {
+    padding: 8px 10px; font-size: 11px; line-height: 1.45;
+    border-top: 1px solid var(--muted);
+  }
+  .proposal .stats {
+    padding: 8px 10px; font-family: var(--font-mono); font-size: 11px;
+    border-top: 1px solid var(--muted);
+  }
+  .proposal .actions {
+    padding: 8px 10px; display: flex; flex-direction: column; gap: 4px;
+    border-top: 1px solid var(--muted);
+  }
+  .proposal button { width: 100%; padding: 5px; font-size: 10px; box-shadow: 2px 2px 0 var(--ink); }
+  .proposal .row { display: flex; gap: 4px; }
+  .proposal .row button { flex: 1; }
+
+  /* FleetControl Panel */
+  .fc-masthead {
+    background: var(--ink); color: var(--paper);
+    padding: 16px 24px;
+    display: flex; align-items: baseline; gap: 24px;
+  }
+  .fc-masthead h2 {
+    margin: 0; color: var(--paper); font-size: 2rem; border: 0; padding: 0;
+  }
+  .fc-masthead .meta { color: #a59f93; }
+  .fc-masthead .lime { color: var(--lime); }
+  .fc-global {
+    display: grid; grid-template-columns: repeat(6, 1fr);
+    border: 2px solid var(--ink); border-top: 0;
+  }
+  .fc-global > div {
+    padding: 10px 14px;
+    border-right: 2px solid var(--ink);
+    text-align: center;
+  }
+  .fc-global > div:last-child { border-right: 0; }
+  .fc-global > div.accent { background: var(--lime); }
+  .fc-global > div.panic { background: var(--ink); color: var(--lime); }
+  .fc-global .label { font-weight: 700; font-size: 13px; }
+  .fc-global .kbd { font-family: var(--font-mono); font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .fc-global .panic .kbd { color: #a59f93; }
+
+  .fc-slabs { display: grid; grid-template-columns: 27% 40% 1fr; gap: 16px; margin-top: 16px; }
+  .slab { padding: 16px; }
+  .slab h3 { margin: 0 0 4px; font-size: 16px; font-weight: 900; }
+
+  .budget-gauge {
+    display: flex; gap: 16px; align-items: flex-end;
+  }
+  .bar-vertical { position: relative; width: 60px; height: 160px; border: 2px solid var(--ink); }
+  .bar-vertical .fill {
+    position: absolute; left: 2px; right: 2px; bottom: 2px;
+    background: var(--blue);
+  }
+  .bar-vertical .tick {
+    position: absolute; left: -6px; right: 6px;
+    border-top: 2px solid var(--amber);
+  }
+  .bar-vertical .tick.kill { border-color: var(--red); top: 0; }
+  .bar-vertical .tick.throttle { top: 32px; }
+
+  .bond-bar {
+    position: relative; height: 36px;
+    border: 2px solid var(--ink); display: flex;
+  }
+  .bond-bar .seg-escrow { width: 10%; background: var(--blue); border-right: 2px solid var(--ink); }
+  .bond-bar .seg-avail { flex: 1; }
+
+  .commons-bar {
+    position: relative; height: 16px;
+    border: 2px solid var(--ink); margin-top: 4px;
+  }
+  .commons-bar .seg { width: 3%; height: 100%; background: var(--ink); }
+
+  .violation {
+    display: flex; gap: 12px; padding: 8px 0;
+    border-bottom: 1px solid var(--muted);
+  }
+  .voice {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+    padding: 4px 8px; color: var(--paper);
+    letter-spacing: 0.14em;
+  }
+  .voice.mayday { background: var(--red); }
+  .voice.panpan { background: var(--amber); }
+
+  /* Agent roster */
+  .roster {
+    margin-top: 16px;
+    border: 2px solid var(--ink);
+    display: grid; grid-template-columns: 1fr;
+  }
+  .roster .row {
+    display: grid;
+    grid-template-columns: 32px 1fr 1.4fr 0.8fr 0.8fr 1.2fr 3fr;
+    align-items: center;
+    padding: 8px 12px;
+    border-top: 1px solid var(--ink);
+    font-family: var(--font-mono); font-size: 11px;
+  }
+  .roster .row:first-child { border-top: 0; background: var(--surface); font-weight: 700; }
+  .roster .row.ghost { border-left: 4px solid transparent; opacity: 0.7; }
+  .roster .row.throttled { border-left: 4px solid var(--amber); }
+  .roster .row .status {
+    font-family: var(--font-sans); font-weight: 700; font-size: 11px;
+    padding: 4px 8px; color: var(--paper); text-align: center;
+  }
+  .roster .row .status.run { background: var(--blue); }
+  .roster .row .status.thr { background: var(--amber); }
+  .roster .row .status.ghost { background: var(--paper); color: var(--muted); border: 1.5px solid var(--ink); }
+  .roster .row .status.idle { background: var(--paper); color: var(--ink); border: 1.5px solid var(--ink); }
+  .roster .row .controls { display: flex; gap: 4px; }
+  .roster .row .controls button {
+    font-size: 10px; padding: 3px 8px; box-shadow: 2px 2px 0 var(--ink);
+  }
+
+  .audit-strip {
+    margin-top: 24px;
+    background: var(--paper); border: 2px solid var(--ink);
+    padding: 16px;
+    font-family: var(--font-mono); font-size: 11px;
+  }
+  .audit-strip table { width: 100%; border-collapse: collapse; }
+  .audit-strip th, .audit-strip td { text-align: left; padding: 4px 8px; }
+  .audit-strip th { color: var(--muted); font-weight: 400; letter-spacing: 0.14em; font-size: 10px; }
+  .audit-strip td { border-top: 1px solid var(--ink); }
+
+  .kill-switch {
+    margin-top: 24px; background: var(--ink); color: var(--lime);
+    border: 3px solid var(--lime); padding: 16px 24px;
+    text-align: center;
+  }
+  .kill-switch .label { letter-spacing: 0.14em; font-size: 11px; }
+  .kill-switch .title { font-size: 22px; font-weight: 900; letter-spacing: -0.02em; margin: 4px 0 8px; }
+
+  /* Drift demo */
+  .drift {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+  }
+  .drift .ship-stage {
+    height: 260px; background: var(--surface); border: 2px solid var(--ink);
+    display: flex; align-items: flex-end; justify-content: center; padding-bottom: 24px;
+  }
+  .drift table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 12px; margin-top: 12px; }
+  .drift th, .drift td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--ink); }
+  .drift th { color: var(--muted); font-weight: 400; font-size: 10px; letter-spacing: 0.14em; }
+
+  /* Motion grammar table */
+  .motion-table { width: 100%; border-collapse: collapse; }
+  .motion-table th, .motion-table td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--ink); font-size: 12px; }
+  .motion-table th { background: var(--surface); font-size: 11px; letter-spacing: 0.14em; }
+
+  footer { margin-top: 96px; padding-top: 32px; border-top: 2px solid var(--ink); font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+
+  @media (prefers-reduced-motion: reduce) {
+    button:hover, .btn:hover { transform: none; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="toc">
+  <span class="brand">SHIPWRIGHT · PREVIEW</span>
+  <a href="#intro">Intro</a>
+  <a href="#tokens">Tokens</a>
+  <a href="#grammar">Grammar</a>
+  <a href="#drift">Drift</a>
+  <a href="#harbor">Harbor</a>
+  <a href="#proposal">Proposal Cards</a>
+  <a href="#fleetcontrol">FleetControl</a>
+  <a href="#motion">Motion</a>
+  <a href="ships-3d.html" target="_blank" style="color: var(--lime);">→ 3D Live</a>
+</nav>
+
+<main>
+
+<!-- ============================================================ INTRO -->
+<section id="intro">
+  <div class="meta">PORT DADDY · SHIPWRIGHT · STATIC PREVIEW · 2026-04-19</div>
+  <h1>See the components before the build.</h1>
+  <p class="lead">
+    This page is the component showcase for Shipwright and FleetControl,
+    rendered with the real design tokens and the real ship grammar. The
+    SVG ships are side-profile stand-ins for the 3D voxel vessels
+    described in <code>SHIP-GRAMMAR.md</code> — for the live Three.js
+    versions with water and bobbing, open
+    <a href="ships-3d.html" target="_blank">ships-3d.html</a>.
+  </p>
+  <p class="lead meta ink">
+    Companion docs: AGENT-MODEL.md · SHIPWRIGHT-DESIGN.md ·
+    FLEETCONTROL-HARDENING.md · SHIP-GRAMMAR.md · SHIPWRIGHT-DAEMON.md
+    (the archetype) · COMPONENT-BRIEF.md (prop contracts).
+  </p>
+</section>
+
+<!-- ============================================================ TOKENS -->
+<section id="tokens">
+  <h2>Design Tokens</h2>
+  <div class="meta">NEOBRUTALIST-SWISS · RADIUS 0 · HARD OFFSET SHADOW · 4-COLOR PALETTE + NEUTRALS</div>
+  <div class="swatches" style="margin-top: 24px;">
+    <div class="swatch"><div class="chip" style="background: #f2eee6"></div><code>--paper</code><span class="meta">#f2eee6</span></div>
+    <div class="swatch"><div class="chip" style="background: #e9e2d5"></div><code>--surface</code><span class="meta">#e9e2d5</span></div>
+    <div class="swatch"><div class="chip" style="background: #cfc9bb"></div><code>--hull</code><span class="meta">#cfc9bb</span></div>
+    <div class="swatch"><div class="chip" style="background: #121212"></div><code>--ink</code><span class="meta">#121212</span></div>
+    <div class="swatch"><div class="chip" style="background: #0055ff"></div><code>--blue</code><span class="meta">#0055ff</span></div>
+    <div class="swatch"><div class="chip" style="background: #dfff00"></div><code>--lime</code><span class="meta">#dfff00</span></div>
+    <div class="swatch"><div class="chip" style="background: #bf2f2f"></div><code>--red</code><span class="meta">#bf2f2f</span></div>
+  </div>
+
+  <h3 style="margin-top: 32px;">Buttons (neobrutalist-Swiss)</h3>
+  <div style="display: flex; gap: 16px; flex-wrap: wrap; margin-top: 16px;">
+    <button>DEFAULT</button>
+    <button class="primary">PRIMARY</button>
+    <button class="accent">ACCENT</button>
+    <button class="danger">DANGER</button>
+    <button class="small">SMALL</button>
+  </div>
+  <p class="meta" style="margin-top: 8px;">Hover shifts shadow from 5px to 2px (pressed). No softening.</p>
+</section>
+
+<!-- ============================================================ GRAMMAR -->
+<section id="grammar">
+  <h2>Ship Grammar</h2>
+  <div class="meta">IDENTITY → ShipPlan → SIDE-PROFILE SVG · LIVE 3D IN THREE.JS</div>
+  <p class="lead" style="margin-top: 16px;">
+    Given <code>&lt;fleet_prefix&gt;:fleet:&lt;agent_name&gt;</code>, a pure function produces
+    ship geometry: hull dimensions, core color, sigil, trim, towers, nacelles,
+    clusters. Commonality from the agent name (silhouette). Drift from the fleet prefix (livery).
+    864 distinguishable fleet signatures with only 4 palette colors + 8 sigils.
+  </p>
+  <div style="background: var(--surface); border: 2px solid var(--ink); padding: 24px; margin-top: 24px; display: grid; grid-template-columns: auto 1fr; gap: 32px; align-items: center;">
+    <!-- port-daddy:fleet:spark — exploded view, scale 5 -->
+    <svg width="360" height="220" viewBox="-10 -180 360 220">
+      <!-- nacelles (aft, below): V=1, 1 per side visible → 1 -->
+      <rect x="0" y="10" width="35" height="4" fill="#bf2f2f" stroke="#121212" stroke-width="0.5"/>
+      <!-- hull: mainD=20 scale 5 → 100, H=2 scale 5 → 10 -->
+      <rect x="0" y="-10" width="100" height="10" fill="#cfc9bb" stroke="#121212" stroke-width="1"/>
+      <!-- prow: prowD=3 scale 5 → 15 -->
+      <polygon points="100,-10 100,0 115,-2" fill="#cfc9bb" stroke="#121212" stroke-width="1"/>
+      <!-- trim stripe along top (colorTrim for port-daddy:spark: L=5 → (13208+35)%4=3 → Obsidian) -->
+      <line x1="0" y1="-8.5" x2="110" y2="-8.5" stroke="#121212" stroke-width="2"/>
+      <!-- 4 towers aft of core, 2+2 rows, towerH=7 scale 5 → 35 -->
+      <rect x="20" y="-45" width="2.5" height="35" fill="#121212"/>
+      <rect x="24" y="-45" width="2.5" height="35" fill="#121212"/>
+      <rect x="28" y="-45" width="2.5" height="35" fill="#121212"/>
+      <rect x="32" y="-45" width="2.5" height="35" fill="#121212"/>
+      <!-- DaemonCore coreH=6 scale 5 → 30, coreD=4 scale 5 → 20, centered at hull middle (x=50) -->
+      <rect x="40" y="-40" width="20" height="30" fill="#bf2f2f" stroke="#121212" stroke-width="1"/>
+      <!-- Sigil on core front face: port-daddy (H_f=1016): (1016*37)%8 = 37592%8 = 0 → chevron, in accent color Blue (L=5, (1016+5)%4=1 → Blue) -->
+      <polyline points="54,-20 58,-28 62,-20" fill="none" stroke="#0055ff" stroke-width="1.5" stroke-linecap="square"/>
+      <!-- 3 clusters forward of core (accent Blue) -->
+      <rect x="65" y="-20" width="7" height="7" fill="#0055ff" stroke="#121212" stroke-width="0.5"/>
+      <rect x="75" y="-20" width="7" height="7" fill="#0055ff" stroke="#121212" stroke-width="0.5"/>
+      <rect x="85" y="-20" width="7" height="7" fill="#0055ff" stroke="#121212" stroke-width="0.5"/>
+
+      <!-- annotations -->
+      <g font-family="IBM Plex Mono, monospace" font-size="10" fill="#67645d">
+        <line x1="30" y1="-45" x2="30" y2="-60" stroke="#67645d" stroke-width="0.5"/>
+        <text x="30" y="-64" text-anchor="middle">4 TOWERS (C_a=4)</text>
+
+        <line x1="50" y1="-40" x2="50" y2="-78" stroke="#67645d" stroke-width="0.5"/>
+        <text x="50" y="-82" text-anchor="middle">DAEMON CORE · SIGIL</text>
+
+        <line x1="78" y1="-20" x2="78" y2="-98" stroke="#67645d" stroke-width="0.5"/>
+        <text x="78" y="-102" text-anchor="middle">3 CLUSTERS ((L_a%3)+1)</text>
+
+        <line x1="107" y1="-2" x2="140" y2="-2" stroke="#67645d" stroke-width="0.5"/>
+        <text x="145" y="0">PROW (V_a * 3 = 3)</text>
+
+        <line x1="50" y1="0" x2="170" y2="40" stroke="#67645d" stroke-width="0.5"/>
+        <text x="175" y="44">MAINFRAME (W=(L%3)*2+3, D=L*4)</text>
+
+        <line x1="17" y1="14" x2="17" y2="40" stroke="#67645d" stroke-width="0.5"/>
+        <text x="17" y="52" text-anchor="middle">NACELLE (L_a+2 long)</text>
+
+        <line x1="55" y1="-8.5" x2="145" y2="-54" stroke="#67645d" stroke-width="0.5"/>
+        <text x="150" y="-52">TRIM STRIPE (color_trim)</text>
+      </g>
+    </svg>
+    <div>
+      <div class="meta">port-daddy:fleet:spark</div>
+      <h3 style="margin: 8px 0;">L_a=5 · V_a=1 · C_a=4 · H_f=1016</h3>
+      <table class="mono" style="font-size: 12px; border-collapse: collapse;">
+        <tr><td style="padding: 2px 12px 2px 0; color: var(--muted);">mainframe</td><td>7 × 2 × 20</td></tr>
+        <tr><td style="padding: 2px 12px 2px 0; color: var(--muted);">prow</td><td>5 × 2 × 3</td></tr>
+        <tr><td style="padding: 2px 12px 2px 0; color: var(--muted);">core</td><td>5 × 6 × 4 (scale_drift=3)</td></tr>
+        <tr><td style="padding: 2px 12px 2px 0; color: var(--muted);">color_primary</td><td><span style="display:inline-block;width:12px;height:12px;background:#bf2f2f;vertical-align:middle;margin-right:4px;"></span>Signal Red</td></tr>
+        <tr><td style="padding: 2px 12px 2px 0; color: var(--muted);">color_accent</td><td><span style="display:inline-block;width:12px;height:12px;background:#0055ff;vertical-align:middle;margin-right:4px;"></span>Cobalt Blue</td></tr>
+        <tr><td style="padding: 2px 12px 2px 0; color: var(--muted);">color_trim</td><td><span style="display:inline-block;width:12px;height:12px;background:#121212;vertical-align:middle;margin-right:4px;"></span>Obsidian</td></tr>
+        <tr><td style="padding: 2px 12px 2px 0; color: var(--muted);">sigil</td><td>chevron (8 options)</td></tr>
+        <tr><td style="padding: 2px 12px 2px 0; color: var(--muted);">signatures</td><td>4×3×3×8×3 = 864</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ DRIFT DEMO -->
+<section id="drift">
+  <h2>Grammar Drift — same ship, different fleet</h2>
+  <div class="meta">SPARK ACROSS TWO FLEETS · SILHOUETTE STAYS · LIVERY DRIFTS</div>
+  <p class="lead" style="margin-top: 16px;">
+    Both ships are <code>spark</code>: L_a=5, V_a=1, C_a=4 → identical mainframe,
+    prow, cluster count, tower count, nacelle count. What differs is everything the
+    fleet hash touches: core color, accent, trim, sigil, scale_drift.
+  </p>
+  <div class="drift" style="margin-top: 24px;">
+    <div>
+      <div class="meta ink">PORT-DADDY:FLEET:SPARK</div>
+      <div class="ship-stage">
+        <svg width="340" height="200" viewBox="-10 -160 340 200">
+          <!-- scale 5, scale_drift=3 -->
+          <rect x="0" y="10" width="35" height="4" fill="#bf2f2f" stroke="#121212" stroke-width="0.5"/>
+          <rect x="0" y="-10" width="100" height="10" fill="#cfc9bb" stroke="#121212" stroke-width="1"/>
+          <polygon points="100,-10 100,0 115,-2" fill="#cfc9bb" stroke="#121212" stroke-width="1"/>
+          <line x1="0" y1="-8.5" x2="110" y2="-8.5" stroke="#121212" stroke-width="2"/>
+          <rect x="20" y="-45" width="2.5" height="35" fill="#121212"/>
+          <rect x="24" y="-45" width="2.5" height="35" fill="#121212"/>
+          <rect x="28" y="-45" width="2.5" height="35" fill="#121212"/>
+          <rect x="32" y="-45" width="2.5" height="35" fill="#121212"/>
+          <rect x="40" y="-40" width="20" height="30" fill="#bf2f2f" stroke="#121212" stroke-width="1"/>
+          <polyline points="54,-20 58,-28 62,-20" fill="none" stroke="#0055ff" stroke-width="1.5" stroke-linecap="square"/>
+          <rect x="65" y="-20" width="7" height="7" fill="#0055ff" stroke="#121212" stroke-width="0.5"/>
+          <rect x="75" y="-20" width="7" height="7" fill="#0055ff" stroke="#121212" stroke-width="0.5"/>
+          <rect x="85" y="-20" width="7" height="7" fill="#0055ff" stroke="#121212" stroke-width="0.5"/>
+        </svg>
+      </div>
+      <table>
+        <tr><th>H_f</th><td>1016</td></tr>
+        <tr><th>primary</th><td>Signal Red</td></tr>
+        <tr><th>accent</th><td>Cobalt Blue</td></tr>
+        <tr><th>trim</th><td>Obsidian</td></tr>
+        <tr><th>sigil</th><td>chevron</td></tr>
+        <tr><th>scale_drift</th><td>3 (core h=6)</td></tr>
+      </table>
+    </div>
+    <div>
+      <div class="meta ink">EXPUNGEMENT-GUIDE:FLEET:SPARK</div>
+      <div class="ship-stage">
+        <svg width="340" height="200" viewBox="-10 -160 340 200">
+          <!-- H_f=1771. primary=obsidian (3), accent for L=5: (1771+5)%4=0→Red. trim (1771*13+35)%4=(23023+35)%4=2→Lime. scale_drift=(1771%3)+1=2. Sigil (1771*37)%8 = 7 → doubleStripe -->
+          <!-- scale 5, scale_drift=2, coreH=4 scale 5 → 20 -->
+          <rect x="0" y="10" width="35" height="4" fill="#121212" stroke="#121212" stroke-width="0.5"/>
+          <rect x="0" y="-10" width="100" height="10" fill="#cfc9bb" stroke="#121212" stroke-width="1"/>
+          <polygon points="100,-10 100,0 115,-2" fill="#cfc9bb" stroke="#121212" stroke-width="1"/>
+          <!-- trim stripe Lime along top -->
+          <line x1="0" y1="-8.5" x2="110" y2="-8.5" stroke="#dfff00" stroke-width="2"/>
+          <rect x="20" y="-35" width="2.5" height="25" fill="#121212"/>
+          <rect x="24" y="-35" width="2.5" height="25" fill="#121212"/>
+          <rect x="28" y="-35" width="2.5" height="25" fill="#121212"/>
+          <rect x="32" y="-35" width="2.5" height="25" fill="#121212"/>
+          <!-- Core: obsidian, shorter, medium height -->
+          <rect x="40" y="-30" width="20" height="20" fill="#121212" stroke="#121212" stroke-width="1"/>
+          <!-- doubleStripe sigil in accent Red -->
+          <line x1="54" y1="-22" x2="62" y2="-22" stroke="#bf2f2f" stroke-width="1.5" stroke-linecap="square"/>
+          <line x1="54" y1="-18" x2="62" y2="-18" stroke="#bf2f2f" stroke-width="1.5" stroke-linecap="square"/>
+          <!-- Clusters: Red -->
+          <rect x="65" y="-17" width="7" height="7" fill="#bf2f2f" stroke="#121212" stroke-width="0.5"/>
+          <rect x="75" y="-17" width="7" height="7" fill="#bf2f2f" stroke="#121212" stroke-width="0.5"/>
+          <rect x="85" y="-17" width="7" height="7" fill="#bf2f2f" stroke="#121212" stroke-width="0.5"/>
+        </svg>
+      </div>
+      <table>
+        <tr><th>H_f</th><td>1771</td></tr>
+        <tr><th>primary</th><td>Obsidian</td></tr>
+        <tr><th>accent</th><td>Signal Red</td></tr>
+        <tr><th>trim</th><td>Cyber Yellow</td></tr>
+        <tr><th>sigil</th><td>doubleStripe</td></tr>
+        <tr><th>scale_drift</th><td>2 (core h=4)</td></tr>
+      </table>
+    </div>
+  </div>
+  <p class="meta" style="margin-top: 16px;">
+    SAME: mainframe 7×2×20 · prow 5×2×3 · 3 clusters · 4 towers · 2 nacelles.
+    DIFFERENT: every drift variable. Recognition + identity, simultaneously.
+  </p>
+</section>
+
+<!-- ============================================================ HARBOR -->
+<section id="harbor">
+  <h2>Harbor View</h2>
+  <div class="meta">SIX PROJECTS · STERN DOT = FLEET STATUS · ROW 1 HAS FLEETS · ROW 2 DOES NOT</div>
+  <div class="harbor" style="margin-top: 24px;">
+    <!-- port-daddy (red Chevron, Blue accent, Obsidian trim) -->
+    <div class="card ship-card">
+      <span class="stern-dot" style="background: #0055ff;"></span>
+      <svg class="ship-thumb" viewBox="-5 -60 220 80">
+        <rect x="0" y="8" width="26" height="2.5" fill="#bf2f2f"/>
+        <rect x="0" y="-6" width="80" height="6" fill="#cfc9bb" stroke="#121212" stroke-width="1"/>
+        <polygon points="80,-6 80,0 96,-1" fill="#cfc9bb" stroke="#121212" stroke-width="1"/>
+        <line x1="0" y1="-5" x2="88" y2="-5" stroke="#121212" stroke-width="1.5"/>
+        <rect x="18" y="-30" width="2" height="24" fill="#121212"/>
+        <rect x="22" y="-30" width="2" height="24" fill="#121212"/>
+        <rect x="26" y="-30" width="2" height="24" fill="#121212"/>
+        <rect x="30" y="-30" width="2" height="24" fill="#121212"/>
+        <rect x="34" y="-26" width="12" height="20" fill="#bf2f2f" stroke="#121212" stroke-width="1"/>
+        <polyline points="42,-16 44,-19 46,-16" fill="none" stroke="#0055ff" stroke-width="1"/>
+        <rect x="50" y="-13" width="5" height="5" fill="#0055ff"/>
+        <rect x="57" y="-13" width="5" height="5" fill="#0055ff"/>
+        <rect x="64" y="-13" width="5" height="5" fill="#0055ff"/>
+      </svg>
+      <div class="ship-name">PORT-DADDY</div>
+      <div class="ship-meta">SERVER · DAEMON · HOT</div>
+      <div class="ship-meta">127 commits · 8 agents · $1.80/d</div>
+    </div>
+    <!-- expungement-guide -->
+    <div class="card ship-card">
+      <span class="stern-dot" style="background: #0055ff;"></span>
+      <svg class="ship-thumb" viewBox="-5 -60 220 80">
+        <rect x="0" y="8" width="22" height="2.5" fill="#121212"/>
+        <rect x="0" y="-6" width="64" height="6" fill="#cfc9bb" stroke="#121212" stroke-width="1"/>
+        <polygon points="64,-6 64,0 76,-1" fill="#cfc9bb" stroke="#121212" stroke-width="1"/>
+        <line x1="0" y1="-5" x2="70" y2="-5" stroke="#dfff00" stroke-width="1.5"/>
+        <rect x="14" y="-22" width="2" height="16" fill="#121212"/>
+        <rect x="18" y="-22" width="2" height="16" fill="#121212"/>
+        <rect x="22" y="-22" width="2" height="16" fill="#121212"/>
+        <rect x="26" y="-22" width="2" height="16" fill="#121212"/>
+        <rect x="30" y="-18" width="12" height="12" fill="#121212" stroke="#121212" stroke-width="1"/>
+        <line x1="38" y1="-13" x2="40" y2="-13" stroke="#bf2f2f" stroke-width="1"/>
+        <line x1="38" y1="-11" x2="40" y2="-11" stroke="#bf2f2f" stroke-width="1"/>
+        <rect x="46" y="-11" width="5" height="5" fill="#bf2f2f"/>
+        <rect x="53" y="-11" width="5" height="5" fill="#bf2f2f"/>
+        <rect x="60" y="-11" width="5" height="5" fill="#bf2f2f"/>
+      </svg>
+      <div class="ship-name">EXPUNGEMENT-GUIDE</div>
+      <div class="ship-meta">SITE · LEGAL · HOT</div>
+      <div class="ship-meta">89 commits · 3 agents · $0.90/d</div>
+    </div>
+    <!-- windags (hypothetical) -->
+    <div class="card ship-card">
+      <span class="stern-dot" style="background: #0055ff;"></span>
+      <svg class="ship-thumb" viewBox="-5 -60 220 80">
+        <rect x="0" y="8" width="30" height="2.5" fill="#dfff00"/>
+        <rect x="0" y="-6" width="90" height="6" fill="#cfc9bb" stroke="#121212" stroke-width="1"/>
+        <polygon points="90,-6 90,0 106,-1" fill="#cfc9bb" stroke="#121212" stroke-width="1"/>
+        <line x1="0" y1="-5" x2="98" y2="-5" stroke="#bf2f2f" stroke-width="1.5"/>
+        <rect x="18" y="-34" width="2" height="28" fill="#121212"/>
+        <rect x="22" y="-34" width="2" height="28" fill="#121212"/>
+        <rect x="26" y="-34" width="2" height="28" fill="#121212"/>
+        <rect x="30" y="-34" width="2" height="28" fill="#121212"/>
+        <rect x="34" y="-34" width="2" height="28" fill="#121212"/>
+        <rect x="38" y="-28" width="14" height="22" fill="#dfff00" stroke="#121212" stroke-width="1"/>
+        <circle cx="45" cy="-17" r="2" fill="none" stroke="#121212" stroke-width="1"/>
+        <rect x="54" y="-13" width="5" height="5" fill="#121212"/>
+        <rect x="61" y="-13" width="5" height="5" fill="#121212"/>
+      </svg>
+      <div class="ship-name">WINDAGS</div>
+      <div class="ship-meta">APP · MULTI-AGENT · HOT</div>
+      <div class="ship-meta">203 commits · 12 agents · $2.30/d</div>
+    </div>
+    <!-- bosun (no fleet yet, ghost) -->
+    <div class="card ship-card ghost">
+      <span class="stern-dot" style="background: var(--paper);"></span>
+      <svg class="ship-thumb" viewBox="-5 -60 220 80">
+        <rect x="0" y="-6" width="64" height="6" fill="none" stroke="#67645d" stroke-width="1" stroke-dasharray="2 2"/>
+        <polygon points="64,-6 64,0 76,-1" fill="none" stroke="#67645d" stroke-width="1" stroke-dasharray="2 2"/>
+        <rect x="14" y="-22" width="2" height="16" fill="none" stroke="#67645d" stroke-width="1" stroke-dasharray="2 2"/>
+        <rect x="18" y="-22" width="2" height="16" fill="none" stroke="#67645d" stroke-width="1" stroke-dasharray="2 2"/>
+        <rect x="22" y="-22" width="2" height="16" fill="none" stroke="#67645d" stroke-width="1" stroke-dasharray="2 2"/>
+        <rect x="26" y="-22" width="2" height="16" fill="none" stroke="#67645d" stroke-width="1" stroke-dasharray="2 2"/>
+        <rect x="30" y="-18" width="12" height="12" fill="none" stroke="#67645d" stroke-width="1" stroke-dasharray="2 2"/>
+      </svg>
+      <div class="ship-name" style="color: var(--muted);">BOSUN</div>
+      <div class="ship-meta">APP · ASSISTANT · WARM</div>
+      <div class="ship-meta">42 commits · no fleet · —</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ PROPOSAL CARDS -->
+<section id="proposal">
+  <h2>Shipwright Proposal Cards</h2>
+  <div class="meta">FIVE AGENTS · PURPOSE · TRIGGER · BOND · BUDGET · SKILLS · CONTROLS</div>
+  <p class="lead" style="margin-top: 16px;">
+    Each card states what the agent DOES in plain English, stats in mono,
+    and the controls Shipwright offers during proposal editing. The ship
+    thumbnails are computed from <code>port-daddy:fleet:&lt;codename&gt;</code>
+    via the grammar — you can see the silhouette scale from sentinel
+    (battleship) to hawk (sloop).
+  </p>
+
+  <div class="proposals" style="margin-top: 24px;">
+    <!-- SENTINEL: L=8, V=3, C=5 → towers=5, nacelles=6 (3/side), clusters=3, mainD=32 -->
+    <div class="card proposal">
+      <div class="ident">port-daddy:fleet:sentinel</div>
+      <div class="thumb-wrap">
+        <svg width="160" height="70" viewBox="0 -55 160 70">
+          <rect x="0" y="2" width="22" height="2" fill="#bf2f2f"/>
+          <rect x="0" y="5" width="22" height="2" fill="#bf2f2f"/>
+          <rect x="0" y="8" width="22" height="2" fill="#bf2f2f"/>
+          <rect x="0" y="-4" width="72" height="4" fill="#cfc9bb" stroke="#121212" stroke-width="0.8"/>
+          <polygon points="72,-4 72,0 84,-1" fill="#cfc9bb" stroke="#121212" stroke-width="0.8"/>
+          <line x1="0" y1="-3" x2="78" y2="-3" stroke="#0055ff" stroke-width="1"/>
+          <rect x="14" y="-28" width="1.5" height="24" fill="#121212"/>
+          <rect x="16.5" y="-28" width="1.5" height="24" fill="#121212"/>
+          <rect x="19" y="-28" width="1.5" height="24" fill="#121212"/>
+          <rect x="21.5" y="-28" width="1.5" height="24" fill="#121212"/>
+          <rect x="24" y="-28" width="1.5" height="24" fill="#121212"/>
+          <rect x="30" y="-22" width="12" height="18" fill="#bf2f2f" stroke="#121212" stroke-width="0.8"/>
+          <polyline points="38,-14 40,-17 42,-14" fill="none" stroke="#0055ff" stroke-width="0.8"/>
+          <rect x="46" y="-10" width="4" height="4" fill="#0055ff"/>
+          <rect x="52" y="-10" width="4" height="4" fill="#0055ff"/>
+          <rect x="58" y="-10" width="4" height="4" fill="#0055ff"/>
+        </svg>
+      </div>
+      <div class="codename">QA SENTINEL</div>
+      <div class="archetype">SONNET · BATTLESHIP</div>
+      <div class="purpose">
+        Full test suite on every PR. Triages failures, drafts fix proposals.
+        Blocks merge on red. Never writes to main directly.
+      </div>
+      <div class="stats">
+        trigger · git-pr<br>
+        bond &nbsp;&nbsp;· $0.25<br>
+        budget · $1.00/d<br>
+        <span style="color:var(--muted);">skills · vitest, quality</span>
+      </div>
+      <div class="actions">
+        <button class="accent">EDIT PROMPT</button>
+        <div class="row"><button>SKILLS</button><button>RATIONALE</button></div>
+        <button>REMOVE</button>
+      </div>
+    </div>
+
+    <!-- SWEEPER: L=7, V=3, C=4 -->
+    <div class="card proposal">
+      <div class="ident">port-daddy:fleet:sweeper</div>
+      <div class="thumb-wrap">
+        <svg width="160" height="70" viewBox="0 -55 160 70">
+          <rect x="0" y="2" width="20" height="2" fill="#bf2f2f"/>
+          <rect x="0" y="5" width="20" height="2" fill="#bf2f2f"/>
+          <rect x="0" y="8" width="20" height="2" fill="#bf2f2f"/>
+          <rect x="0" y="-4" width="64" height="4" fill="#cfc9bb" stroke="#121212" stroke-width="0.8"/>
+          <polygon points="64,-4 64,0 76,-1" fill="#cfc9bb" stroke="#121212" stroke-width="0.8"/>
+          <line x1="0" y1="-3" x2="70" y2="-3" stroke="#121212" stroke-width="1"/>
+          <rect x="12" y="-25" width="1.5" height="21" fill="#121212"/>
+          <rect x="14.5" y="-25" width="1.5" height="21" fill="#121212"/>
+          <rect x="17" y="-25" width="1.5" height="21" fill="#121212"/>
+          <rect x="19.5" y="-25" width="1.5" height="21" fill="#121212"/>
+          <rect x="26" y="-22" width="10" height="18" fill="#bf2f2f" stroke="#121212" stroke-width="0.8"/>
+          <polyline points="32,-14 34,-17 36,-14" fill="none" stroke="#121212" stroke-width="0.8"/>
+          <rect x="40" y="-10" width="4" height="4" fill="#121212"/>
+          <rect x="46" y="-10" width="4" height="4" fill="#121212"/>
+        </svg>
+      </div>
+      <div class="codename">TYPESAFETY</div>
+      <div class="archetype">HAIKU · CRUISER</div>
+      <div class="purpose">
+        Sweeps *.ts for `any`, unchecked index access, implicit returns.
+        Ships one-file type-tightening PRs. Never merges.
+      </div>
+      <div class="stats">
+        trigger · *.ts watch<br>
+        bond &nbsp;&nbsp;· $0.10<br>
+        budget · $0.40/d<br>
+        <span style="color:var(--muted);">skills · typescript, refactor</span>
+      </div>
+      <div class="actions">
+        <button>EDIT PROMPT</button>
+        <div class="row"><button>SKILLS</button><button>RATIONALE</button></div>
+        <button>REMOVE</button>
+      </div>
+    </div>
+
+    <!-- SCRIBE: L=6, V=2, C=4 -->
+    <div class="card proposal">
+      <div class="ident">port-daddy:fleet:scribe</div>
+      <div class="thumb-wrap">
+        <svg width="160" height="70" viewBox="0 -55 160 70">
+          <rect x="0" y="2" width="16" height="2" fill="#bf2f2f"/>
+          <rect x="0" y="5" width="16" height="2" fill="#bf2f2f"/>
+          <rect x="0" y="-4" width="54" height="4" fill="#cfc9bb" stroke="#121212" stroke-width="0.8"/>
+          <polygon points="54,-4 54,0 64,-1" fill="#cfc9bb" stroke="#121212" stroke-width="0.8"/>
+          <line x1="0" y1="-3" x2="60" y2="-3" stroke="#dfff00" stroke-width="1"/>
+          <rect x="10" y="-25" width="1.5" height="21" fill="#121212"/>
+          <rect x="12.5" y="-25" width="1.5" height="21" fill="#121212"/>
+          <rect x="15" y="-25" width="1.5" height="21" fill="#121212"/>
+          <rect x="17.5" y="-25" width="1.5" height="21" fill="#121212"/>
+          <rect x="22" y="-22" width="8" height="18" fill="#bf2f2f" stroke="#121212" stroke-width="0.8"/>
+          <polyline points="26,-14 28,-17 30,-14" fill="none" stroke="#dfff00" stroke-width="0.8"/>
+          <rect x="34" y="-10" width="4" height="4" fill="#dfff00" stroke="#121212" stroke-width="0.3"/>
+        </svg>
+      </div>
+      <div class="codename">DOCUMENTARIAN</div>
+      <div class="archetype">HAIKU · FRIGATE</div>
+      <div class="purpose">
+        Watches CLAUDE.md, README, features.manifest. Opens a PR the
+        moment docs diverge from the code they describe.
+      </div>
+      <div class="stats">
+        trigger · doc drift<br>
+        bond &nbsp;&nbsp;· $0.10<br>
+        budget · $0.30/d<br>
+        <span style="color:var(--muted);">skills · technical-writer</span>
+      </div>
+      <div class="actions">
+        <button>EDIT PROMPT</button>
+        <div class="row"><button>SKILLS</button><button>RATIONALE</button></div>
+        <button>REMOVE</button>
+      </div>
+    </div>
+
+    <!-- HAWK: L=4, V=1, C=3 -->
+    <div class="card proposal">
+      <div class="ident">port-daddy:fleet:hawk</div>
+      <div class="thumb-wrap">
+        <svg width="160" height="70" viewBox="0 -55 160 70">
+          <rect x="0" y="2" width="12" height="2" fill="#bf2f2f"/>
+          <rect x="0" y="-4" width="36" height="4" fill="#cfc9bb" stroke="#121212" stroke-width="0.8"/>
+          <polygon points="36,-4 36,0 42,-1" fill="#cfc9bb" stroke="#121212" stroke-width="0.8"/>
+          <line x1="0" y1="-3" x2="40" y2="-3" stroke="#0055ff" stroke-width="1"/>
+          <rect x="6" y="-22" width="1.5" height="18" fill="#121212"/>
+          <rect x="8.5" y="-22" width="1.5" height="18" fill="#121212"/>
+          <rect x="11" y="-22" width="1.5" height="18" fill="#121212"/>
+          <rect x="14" y="-20" width="8" height="16" fill="#bf2f2f" stroke="#121212" stroke-width="0.8"/>
+          <polyline points="18,-13 20,-16 22,-13" fill="none" stroke="#0055ff" stroke-width="0.8"/>
+          <rect x="26" y="-10" width="4" height="4" fill="#0055ff"/>
+          <rect x="32" y="-10" width="4" height="4" fill="#0055ff"/>
+        </svg>
+      </div>
+      <div class="codename">PERF HAWK</div>
+      <div class="archetype">SONNET · SLOOP</div>
+      <div class="purpose">
+        Monitors CI duration on hot paths. When a benchmark drifts +20%,
+        bisects the cause, files a regression ticket.
+      </div>
+      <div class="stats">
+        trigger · ci Δ&gt;20%<br>
+        bond &nbsp;&nbsp;· $0.30<br>
+        budget · $1.00/d<br>
+        <span style="color:var(--muted);">skills · perf-profiler</span>
+      </div>
+      <div class="actions">
+        <button>EDIT PROMPT</button>
+        <div class="row"><button>SKILLS</button><button>RATIONALE</button></div>
+        <button>REMOVE</button>
+      </div>
+    </div>
+
+    <!-- SENTRY GHOST -->
+    <div class="card proposal ghost">
+      <div class="ident">port-daddy:fleet:sentry</div>
+      <div class="thumb-wrap">
+        <svg width="160" height="70" viewBox="0 -55 160 70">
+          <rect x="0" y="-4" width="54" height="4" fill="none" stroke="#67645d" stroke-width="0.8" stroke-dasharray="2 2"/>
+          <polygon points="54,-4 54,0 64,-1" fill="none" stroke="#67645d" stroke-width="0.8" stroke-dasharray="2 2"/>
+          <rect x="10" y="-25" width="1.5" height="21" fill="none" stroke="#67645d" stroke-width="0.8" stroke-dasharray="2 2"/>
+          <rect x="12.5" y="-25" width="1.5" height="21" fill="none" stroke="#67645d" stroke-width="0.8" stroke-dasharray="2 2"/>
+          <rect x="15" y="-25" width="1.5" height="21" fill="none" stroke="#67645d" stroke-width="0.8" stroke-dasharray="2 2"/>
+          <rect x="17.5" y="-25" width="1.5" height="21" fill="none" stroke="#67645d" stroke-width="0.8" stroke-dasharray="2 2"/>
+          <rect x="22" y="-22" width="8" height="18" fill="none" stroke="#67645d" stroke-width="0.8" stroke-dasharray="2 2"/>
+        </svg>
+      </div>
+      <div class="codename" style="color: var(--muted);">SENTRY RESP.</div>
+      <div class="archetype">SONNET · GHOST</div>
+      <div class="purpose">
+        Picks up prod errors the moment they fire. Reads the stack, opens
+        a WIP branch, attaches a repro test.
+      </div>
+      <div class="stats">
+        trigger · webhook (unset)<br>
+        bond &nbsp;&nbsp;· $0.50<br>
+        budget · $2.00/d<br>
+        <span style="color:var(--muted);">skills · debug, sre</span>
+      </div>
+      <div class="actions">
+        <button class="accent">WIRE WEBHOOK →</button>
+        <div class="row"><button>SKILLS</button><button>RATIONALE</button></div>
+        <button>REMOVE</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ FLEETCONTROL -->
+<section id="fleetcontrol">
+  <h2>FleetControl Panel — the cockpit</h2>
+  <div class="meta">GLOBAL CONTROLS · SLABS · AGENT ROSTER WITH ROW CONTROLS · AUDIT · KILL</div>
+  <div style="margin-top: 24px;">
+
+    <div class="fc-masthead">
+      <h2>FLEETCONTROL</h2>
+      <div>
+        <div class="meta">PORT-DADDY · 07:52 UTC · DAEMON v3.8.3</div>
+        <div class="meta lime">● ALL SYSTEMS NOMINAL · NO PANIC · CONSERVATION ✓</div>
+      </div>
+    </div>
+
+    <div class="fc-global">
+      <div><div class="label">PAUSE ALL</div><div class="kbd">⇧⌘. · graceful</div></div>
+      <div><div class="label">TOP UP WALLET</div><div class="kbd">⌘U · modal</div></div>
+      <div><div class="label">ADJUST LIMITS</div><div class="kbd">⌘L · concurrency / budget</div></div>
+      <div class="accent"><div class="label">RE-PROPOSE FLEET</div><div class="kbd">⌘R · opens Shipwright</div></div>
+      <div><div class="label">DOWNLOAD LOG</div><div class="kbd">⌘E · 24h .jsonl</div></div>
+      <div class="panic"><div class="label" style="color: var(--red);">PANIC · HALT</div><div class="kbd">⇧⌘P · 2-step confirm</div></div>
+    </div>
+
+    <div class="fc-slabs">
+      <!-- BUDGET -->
+      <div class="card slab">
+        <h3>BUDGET</h3>
+        <div class="meta">DAILY ENVELOPE · $10.00</div>
+        <div class="budget-gauge" style="margin-top: 16px;">
+          <div class="bar-vertical">
+            <div class="fill" style="height: 41%;"></div>
+            <div class="tick throttle"></div>
+            <div class="tick kill"></div>
+          </div>
+          <div>
+            <div style="font-size: 42px; font-weight: 900; letter-spacing: -0.02em;">41%</div>
+            <div class="mono">$4.12 spent</div>
+            <div class="mono" style="color: var(--muted);">$5.88 headroom</div>
+            <div class="meta" style="margin-top: 8px;">RESETS 00:00 UTC</div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px; margin-top: 16px;">
+          <button class="accent small" style="flex:1;">+$10 · TOP UP</button>
+          <button class="small" style="flex:1;">RAISE ENVELOPE</button>
+        </div>
+      </div>
+
+      <!-- BONDS -->
+      <div class="card slab">
+        <h3>BONDS</h3>
+        <div class="meta">ESCROW AGAINST PROJECT WALLET $18.00</div>
+        <div class="bond-bar" style="margin-top: 16px;">
+          <div class="seg-escrow"></div>
+          <div class="seg-avail"></div>
+        </div>
+        <div class="mono" style="display: flex; justify-content: space-between; margin-top: 4px; font-size: 11px;">
+          <span style="color: var(--blue);">ESCROWED $1.80</span>
+          <span>AVAILABLE $16.20</span>
+        </div>
+        <div class="meta" style="margin-top: 16px;">COMMONS POOL · SLASH ACCRUAL</div>
+        <div class="commons-bar"><div class="seg"></div></div>
+        <div class="mono" style="font-size: 11px; display: flex; justify-content: flex-end; margin-top: 2px;">
+          $0.52 · 1 slash this week
+        </div>
+        <div class="meta" style="margin-top: 16px;">ACTIVE BONDS · 5</div>
+        <table class="mono" style="width: 100%; font-size: 11px; margin-top: 4px; border-top: 1px solid var(--ink);">
+          <tr><td style="padding:3px 0;">sentinel-a1</td><td>$0.25</td><td>RUNNING</td><td style="color:var(--muted);">87s</td></tr>
+          <tr><td style="padding:3px 0;">sweeper-42</td><td>$0.10</td><td>RUNNING</td><td style="color:var(--muted);">34s</td></tr>
+          <tr style="color: var(--amber);"><td style="padding:3px 0;">hawk-3</td><td>$0.30</td><td>THROTTLED</td><td>12s</td></tr>
+        </table>
+      </div>
+
+      <!-- VIOLATIONS -->
+      <div class="card slab">
+        <h3>VIOLATIONS</h3>
+        <div class="meta">LAST 24H · 2 EVENTS · 0 RESOLVED</div>
+        <div class="violation" style="margin-top: 12px;">
+          <div class="voice mayday">MAYDAY</div>
+          <div>
+            <div><strong>hawk-3</strong> · budget-breach</div>
+            <div style="color: var(--muted); font-size: 11px;" class="mono">07:41 · slashed $0.30 · quarantined</div>
+          </div>
+        </div>
+        <div class="violation">
+          <div class="voice panpan">PAN-PAN</div>
+          <div>
+            <div><strong>scribe-5</strong> · doc drift &gt; 72h</div>
+            <div style="color: var(--muted); font-size: 11px;" class="mono">07:12 · throttled · awaiting re-sync</div>
+          </div>
+        </div>
+        <div class="meta" style="margin-top: 12px;">ARBITER RULES · 9 ACTIVE</div>
+        <div class="mono" style="font-size: 11px; margin-top: 8px;">
+          ✓ budget · ✓ bond-ceiling · ✓ concurrency<br>
+          ✓ no-force-push · ✓ no-destructive<br>
+          ✓ doc-drift · ✓ conservation-invariant
+        </div>
+        <button class="small" style="width: 100%; margin-top: 12px;">CLEAR RESOLVED · ACK</button>
+      </div>
+    </div>
+
+    <!-- ROSTER -->
+    <div class="roster">
+      <div class="row" style="grid-template-columns: 180px 160px 120px 90px 100px 3fr;">
+        <div>AGENT</div>
+        <div>ARCHETYPE · MODEL</div>
+        <div>COST 60m</div>
+        <div>STATUS</div>
+        <div>BOND · BUDGET</div>
+        <div>CONTROLS</div>
+      </div>
+      <div class="row" style="grid-template-columns: 180px 160px 120px 90px 100px 3fr;">
+        <div><strong>sentinel-a1</strong></div>
+        <div style="color: var(--muted);">QA SENTINEL · sonnet</div>
+        <div style="color: var(--blue);">$0.11</div>
+        <div><div class="status run">RUNNING</div></div>
+        <div style="color: var(--muted);">$0.25 · $1.00/d</div>
+        <div class="controls">
+          <button>EDIT</button><button>⏸</button><button>×</button><button>+$</button><button>−$</button><button>LOG</button>
+        </div>
+      </div>
+      <div class="row" style="grid-template-columns: 180px 160px 120px 90px 100px 3fr;">
+        <div><strong>sweeper-42</strong></div>
+        <div style="color: var(--muted);">TYPESAFETY · haiku</div>
+        <div style="color: var(--blue);">$0.04</div>
+        <div><div class="status run">RUNNING</div></div>
+        <div style="color: var(--muted);">$0.10 · $0.40/d</div>
+        <div class="controls">
+          <button>EDIT</button><button>⏸</button><button>×</button><button>+$</button><button>−$</button><button>LOG</button>
+        </div>
+      </div>
+      <div class="row throttled" style="grid-template-columns: 180px 160px 120px 90px 100px 3fr;">
+        <div style="color: var(--amber);"><strong>hawk-3</strong></div>
+        <div style="color: var(--muted);">PERF HAWK · sonnet</div>
+        <div style="color: var(--amber); font-weight: 700;">$0.82 ⚠</div>
+        <div><div class="status thr">THROTTLED</div></div>
+        <div style="color: var(--muted);">$0.30 · $1.00/d</div>
+        <div class="controls">
+          <button>EDIT</button><button class="accent">▶</button><button>×</button><button class="accent">+$</button><button>−$</button><button>LOG</button>
+        </div>
+      </div>
+      <div class="row" style="grid-template-columns: 180px 160px 120px 90px 100px 3fr;">
+        <div><strong>spark-1</strong></div>
+        <div style="color: var(--muted);">SPARK · opus (monthly)</div>
+        <div style="color: var(--muted);">—</div>
+        <div><div class="status idle">IDLE</div></div>
+        <div style="color: var(--muted);">$1.05 · $2.00/d</div>
+        <div class="controls">
+          <button>EDIT</button><button>⏸</button><button>×</button><button>+$</button><button>−$</button><button>LOG</button>
+        </div>
+      </div>
+      <div class="row ghost" style="grid-template-columns: 180px 160px 120px 90px 100px 3fr;">
+        <div style="color: var(--muted);"><strong>sentry-0</strong></div>
+        <div style="color: var(--muted);">SENTRY RESPONDER · sonnet</div>
+        <div style="color: var(--muted);">— no webhook —</div>
+        <div><div class="status ghost">GHOST</div></div>
+        <div style="color: var(--muted);">$0.50 · $2.00/d</div>
+        <div class="controls">
+          <button class="accent">WIRE WEBHOOK →</button><button>REMOVE</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- AUDIT -->
+    <div class="audit-strip">
+      <div class="meta" style="color: var(--ink); font-size: 13px; font-weight: 900; letter-spacing: -0.02em; text-transform: none;">AUDIT · LAST 5 CONTROL-PLANE ACTIONS</div>
+      <table style="margin-top: 8px;">
+        <thead><tr><th>TIME</th><th>WHO</th><th>ACTION</th><th>TARGET</th><th>DETAIL</th></tr></thead>
+        <tbody>
+          <tr><td>07:41:08</td><td>erich-owens</td><td>throttle</td><td>hawk-3</td><td>reason: budget-breach (0.82/1.00)</td></tr>
+          <tr><td>07:41:08</td><td>daemon</td><td>slash-bond</td><td>hawk-3</td><td>$0.30 → commons-pool (auto)</td></tr>
+          <tr><td>07:12:44</td><td>daemon</td><td>throttle</td><td>scribe-5</td><td>reason: doc-drift 74h (arbiter)</td></tr>
+          <tr><td>06:58:01</td><td>erich-owens</td><td>top-up-wallet</td><td>port-daddy</td><td>+$10.00 → balance $18.00</td></tr>
+          <tr><td>06:30:17</td><td>daemon</td><td>promote-stable</td><td>daemon</td><td>v3.8.3 ← main@62f34af (CI green)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="kill-switch">
+      <div class="label">EMERGENCY</div>
+      <div class="title">PANIC · HALT FLEET</div>
+      <div class="mono" style="font-size: 11px;">SIGTERM all spawns · block new · arm panic tuple</div>
+      <div class="mono" style="font-size: 11px;">Recovery requires human disarm.</div>
+      <button class="accent" style="margin-top: 12px;">⇧⌘P · 2-STEP CONFIRM</button>
+    </div>
+
+    <p class="meta" style="margin-top: 16px;">
+      CONSERVATION ✓ · wallet $16.20 + escrow $1.80 + commons $0.52 = supply $18.52
+    </p>
+  </div>
+</section>
+
+<!-- ============================================================ MOTION GRAMMAR -->
+<section id="motion">
+  <h2>Motion Grammar</h2>
+  <div class="meta">EVERY TRANSITION HAS A JOB · ≤260MS · 180MS DEFAULT · NO DECORATION</div>
+  <table class="motion-table" style="margin-top: 24px;">
+    <thead><tr><th>Surface</th><th>What moves</th><th>Why</th><th>Duration · curve</th></tr></thead>
+    <tbody>
+      <tr><td>Harbor Grid</td><td>Ships drift 1 cell</td><td>Signal commit rate</td><td>60/cph seconds, 180ms ease-out</td></tr>
+      <tr><td>Harbor Grid</td><td>Card hover → shadow pressed</td><td>Affordance</td><td>120ms ease-out</td></tr>
+      <tr><td>Focus entry</td><td>Other ships fold away</td><td>Focus</td><td>180ms ease-out, shared-element</td></tr>
+      <tr><td>Simulation</td><td>Ghost → filled mesh</td><td>Trigger fire</td><td>180ms, material lerp</td></tr>
+      <tr><td>Simulation</td><td>File write path draws</td><td>Trace write</td><td>400ms linear stroke</td></tr>
+      <tr><td>Simulation</td><td>Pheromone glow fade</td><td>Attention decay</td><td>60s geometric decay (not linear)</td></tr>
+      <tr><td>Simulation</td><td>Commit tag slides up</td><td>Commit event</td><td>300ms ease-out</td></tr>
+      <tr><td>FleetControl</td><td>Budget fill animates</td><td>State change</td><td>400ms ease-out</td></tr>
+      <tr><td>FleetControl</td><td>Throttle pulse</td><td>Demand attention, not panic</td><td>1s period sine, emissive</td></tr>
+      <tr><td>FleetControl</td><td>Mayday flash</td><td>Emergency</td><td>2Hz square, no ease — harsh is the point</td></tr>
+      <tr><td>3D ships</td><td>Bob (position.y sine)</td><td>Life, not delight</td><td>0.1u amplitude, 2s period</td></tr>
+      <tr><td>3D ships</td><td>Selected emissive bloom</td><td>Selection glow</td><td>Lerp to intensity 2.0 over 200ms</td></tr>
+      <tr><td>Any</td><td>prefers-reduced-motion</td><td>Accessibility</td><td>Snap, no interpolation</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<footer>
+  <p>
+    Preview authored 2026-04-19 · tokens copy synced with
+    website-v2/src/styles/tokens.css · ship grammar v1 (sigil+trim).<br>
+    Companion: AGENT-MODEL.md (the platform) · SHIP-GRAMMAR.md (the look) ·
+    FLEETCONTROL-HARDENING.md (the enforcement) ·
+    SHIPWRIGHT-DAEMON.md (the archetype).<br>
+    Live 3D: <a href="ships-3d.html" target="_blank">ships-3d.html</a>
+    (Three.js via CDN, optional network).
+  </p>
+</footer>
+
+</main>
+</body>
+</html>

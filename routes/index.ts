@@ -33,6 +33,7 @@ import { harborsPlugin } from './harbors.js';
 import { sortiesPlugin } from './sorties.js';
 import { orchestratorPlugin } from './orchestrator.js';
 import { briefingPlugin } from './briefing.js';
+import { sitrepPlugin } from './sitrep.js';
 // Arbiter and pheromone have different option shapes
 import { arbiterPlugin } from './arbiter.js';
 import { pheromonePlugin } from './pheromone.js';
@@ -89,6 +90,7 @@ export async function registerAllRoutes(
   await fastify.register(harborsPlugin, { deps } as any);
   await fastify.register(orchestratorPlugin, { deps } as any);
   await fastify.register(briefingPlugin, { deps } as any);
+  await fastify.register(sitrepPlugin, { deps } as any);
   await fastify.register(operatorPlugin, { deps } as any);
 
   // These have different option shapes

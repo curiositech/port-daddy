@@ -1,9 +1,9 @@
 ---
 name: port-daddy-cli
-description: "Multi-agent coordination daemon for AI coding agents (v3.8.3). Eliminates port conflicts, tracks sessions, recovers crashed agents, runs background fleets, provides binary IPC for high-frequency communication, pheromone trails for ambient signaling, tuple spaces for shared memory, and declarative fleet orchestration. Use when starting a coding session, coordinating parallel agents, claiming ports for dev servers, leaving notes for other agents, spawning background workers, running declarative agent fleets, or debugging multi-agent failures. Works with Claude Code, Gemini CLI, Cursor, Windsurf, Codex, and any backend Port Daddy can spawn."
+description: "Multi-agent coordination daemon for AI coding agents (v3.8.4). Eliminates port conflicts, tracks sessions, recovers crashed agents, runs background fleets, provides binary IPC for high-frequency communication, pheromone trails for ambient signaling, tuple spaces for shared memory, and declarative fleet orchestration. v3.8.4 adds consolidated verbs: `pd say` (write a finding with optional tuple/pheromone/broadcast fan-outs) and `pd look` / `pd sitrep` (situation-report synthesis — what happened while I was away). Use when starting a coding session, coordinating parallel agents, claiming ports for dev servers, leaving findings for other agents, spawning background workers, running declarative agent fleets, or debugging multi-agent failures. Works with Claude Code, Gemini CLI, Cursor, Windsurf, Codex, and any backend Port Daddy can spawn."
 ---
 
-# Port Daddy v3.8.3 — Agent Coordination That Actually Works
+# Port Daddy v3.8.4 — Agent Coordination That Actually Works
 
 ## The Problem You Have Right Now
 
@@ -70,6 +70,45 @@ Use the richer coordination primitives when they actually add value:
 
 Do not rely on “I’ll just be careful” when another agent is active. In Port Daddy, legible shared state is the whole point.
 
+## Consolidated Verbs (3.8.4) — `pd say` and `pd look`
+
+In 3.8.4 we collapsed the CLI veneer. When you want to leave a finding, use
+ONE command instead of four. When you want to catch up on what's happening,
+use ONE command instead of reading four feeds.
+
+**Write (fan-out with flags):**
+```bash
+pd say "fixed auth bug"                              # note only (to active session)
+pd say "fixed auth bug" --pin                        # note + cross-session tuple
+pd say "fixed auth bug" --heat src/auth.ts=0.7       # note + pheromone heat on the file
+pd say "build broken" --broadcast alerts             # note + pub/sub publish
+# Flags compose — one call runs all fan-outs in parallel:
+pd say "fixed flash of unstyled content in Hero.tsx" \
+       --pin --heat website-v2/src/components/landing/Hero.tsx=0.8
+```
+
+**Read (synthesis across feeds):**
+```bash
+pd look                   # sitrep of last 60 minutes (activity + notes + salvage + spawns)
+pd look --since 120       # widen the window to 2 hours
+pd look --heat            # pivot to the file heat map (pheromone contention)
+pd look --quiet           # one-line summary (good for shell prompts)
+pd sitrep                 # explicit maritime-voice alias for `pd look`
+```
+
+The underlying primitives (`pd note`, `pd tuple out`, `pd pheromone spray`,
+`pd pub`) all still exist and are the right choice when you need to write to
+exactly one surface. `pd say` is the default when you want the fan-out.
+
+**Power-user pheromone CLI (3.8.4):**
+```bash
+pd pheromone file <path> <strength>    # sugar for spray files/<path>/heat
+pd pheromone files [--path prefix]     # file heat map with conflict markers
+pd pheromone show <table> <id>         # all pheromone keys on an entity
+pd pheromone ls                        # every non-zero pheromone across tables
+pd ph files                            # `ph` is the shorthand alias
+```
+
 ## Why This Matters
 
 Without Port Daddy:
@@ -99,7 +138,7 @@ With Port Daddy:
 | `begin_session` | Register as an agent + start a session atomically |
 | `end_session_full` | End session + unregister atomically |
 | `whoami` | What agent am I? What session? What files do I own? |
-| `catch_me_up` | What happened while I was away? Recent activity, notes, dead agents |
+| `sitrep` | Situation report — what happened while I was away? Activity, notes, salvage queue, spawned agents. (CLI: `pd sitrep` / `pd look`. Was `catch_me_up` — kept as back-compat alias.) |
 | `swarm_awareness` | Who else is working here? All agents, sessions, file claims |
 | `file_heat` | Which files are agents fighting over? Pheromone-based contention map |
 | `talk_to_agent` | Send a direct message to a specific fleet agent by name |
