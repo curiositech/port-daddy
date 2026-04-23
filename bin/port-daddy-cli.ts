@@ -2334,6 +2334,18 @@ async function main(): Promise<void> {
         break;
       }
 
+      case 'wallet': {
+        const { handleWallet } = await import('../cli/commands/wallet.js');
+        await handleWallet(positional, options);
+        break;
+      }
+
+      case 'bond': {
+        const { handleBond } = await import('../cli/commands/bond.js');
+        await handleBond(positional, options);
+        break;
+      }
+
       // Tuples — Linda-style tuple space coordination
       case 'tuple':
         await handleTuple(positional, options);

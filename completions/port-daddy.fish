@@ -99,6 +99,7 @@ set -l __pd_commands \
     'salvage' 'resurrection' 'changelog' 'dns' 'files' 'who-owns' 'integration' 'briefing' 'history' 'inbox' \
     'begin' 'b' 'done' 'whoami' 'w' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'watch' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' \
     'say' 'look' 'sitrep' 'pheromone' 'ph' \
+    'wallet' 'bond' \
     'up' 'down' \
     'bench' 'demo' 'fleet' \
     'dashboard' 'channels' 'webhook' 'webhooks' 'metrics' 'config' 'health' 'ports' \
@@ -215,6 +216,41 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a sitrep -d 'Alias for look (the maritime canonical name)'
     complete -c $prog -n __pd_needs_command -a pheromone -d 'Stigmergic coordination (spray, files, show, ls)'
     complete -c $prog -n __pd_needs_command -a ph -d 'Alias for pheromone'
+
+    # FleetControl hardening — wallets + bonds
+    complete -c $prog -n __pd_needs_command -a wallet -d 'Manage project USD wallets (show/top-up/history)'
+    complete -c $prog -n __pd_needs_command -a bond -d 'Inspect and manually slash agent bond escrows'
+
+    # wallet subcommands + flags
+    complete -c $prog -n "__pd_using_command wallet" -x -a 'show' -d 'Show wallet balance + commons pool'
+    complete -c $prog -n "__pd_using_command wallet" -x -a 'top-up' -d 'Deposit virtual USD'
+    complete -c $prog -n "__pd_using_command wallet" -x -a 'history' -d 'Show wallet.topup and bond.slash activity'
+    complete -c $prog -n "__pd_using_command wallet; and __fish_seen_subcommand_from top-up topup" -l usd -x -d 'USD amount to deposit'
+    complete -c $prog -n "__pd_using_command wallet; and __fish_seen_subcommand_from top-up topup" -l yes -d 'Skip confirmation prompt'
+    complete -c $prog -n "__pd_using_command wallet; and __fish_seen_subcommand_from history" -l since -x -d 'Lookback window (e.g. 7d, 24h, 30m)'
+    complete -c $prog -n "__pd_using_command wallet; and __fish_seen_subcommand_from history" -l limit -x -d 'Max entries'
+    complete -c $prog -n "__pd_using_command wallet" -s j -l json -d 'JSON output'
+    complete -c $prog -n "__pd_using_command wallet" -s q -l quiet -d 'Suppress output'
+
+    # bond subcommands + flags
+    complete -c $prog -n "__pd_using_command bond" -x -a 'list' -d 'List bond escrow rows'
+    complete -c $prog -n "__pd_using_command bond" -x -a 'slash' -d 'Manually slash a bond (audited)'
+    complete -c $prog -n "__pd_using_command bond; and __fish_seen_subcommand_from list" -l project -x -d 'Filter by project'
+    complete -c $prog -n "__pd_using_command bond; and __fish_seen_subcommand_from list" -l state -x -a 'escrowed running exiting refunded slashed' -d 'Filter by state'
+    complete -c $prog -n "__pd_using_command bond; and __fish_seen_subcommand_from list" -l limit -x -d 'Max rows'
+    complete -c $prog -n "__pd_using_command bond; and __fish_seen_subcommand_from slash" -l portion -x -d 'Portion to slash (0..1)'
+    complete -c $prog -n "__pd_using_command bond; and __fish_seen_subcommand_from slash" -l reason -x -d 'Audited reason text (required)'
+    complete -c $prog -n "__pd_using_command bond; and __fish_seen_subcommand_from slash" -l yes -d 'Skip confirmation prompt'
+    complete -c $prog -n "__pd_using_command bond" -s j -l json -d 'JSON output'
+    complete -c $prog -n "__pd_using_command bond" -s q -l quiet -d 'Suppress output'
+
+    # fleet panic / unpanic
+    complete -c $prog -n "__pd_using_command fleet" -x -a 'panic' -d 'SIGTERM every running fleet agent (confirmation required)'
+    complete -c $prog -n "__pd_using_command fleet" -x -a 'unpanic' -d 'Disarm a previous panic state'
+    complete -c $prog -n "__pd_using_command fleet; and __fish_seen_subcommand_from panic" -l reason -x -d 'Reason for arming panic (required)'
+    complete -c $prog -n "__pd_using_command fleet; and __fish_seen_subcommand_from panic" -l yes -d 'Skip interactive YES confirmation'
+    complete -c $prog -n "__pd_using_command fleet; and __fish_seen_subcommand_from unpanic" -l reason -x -d 'Reason for disarming panic (required)'
+
     # pd say flags
     complete -c $prog -n "__pd_using_command say" -l pin -d 'Also write a tuple to the fleet harbor'
     complete -c $prog -n "__pd_using_command say" -l heat -x -d 'Also spray pheromone on a file (<path>[=0..1])'

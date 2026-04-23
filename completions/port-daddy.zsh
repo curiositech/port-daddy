@@ -663,6 +663,10 @@ _pd_cmd_fleet() {
     'down:stop all fleet agents'
     'status:show fleet health and recent events'
     'run:run a specific agent from pd-fleet.yml once'
+    'panic:SIGTERM every running fleet agent (confirmation required)'
+    'unpanic:disarm a previous panic state'
+    'validate:parse pd-fleet.yml and check topology'
+    'prompt:one-line fleet status (for shell prompts)'
     'log:show fleet log'
     'gardener:auto-commit uncommitted changes'
     'qa:adversarial review of latest commit'
@@ -678,11 +682,99 @@ _pd_cmd_fleet() {
   _arguments -C \
     '(-h --help)'{-h,--help}'[show help]' \
     '1:subcommand:->subcommand' \
+    '*::args:->args' \
     && return
 
   case "$state" in
     subcommand)
       _describe 'fleet subcommand' fleet_subcmds
+      ;;
+    args)
+      case "${words[2]}" in
+        panic)
+          _arguments \
+            '--reason[reason for arming panic (required)]:reason:' \
+            '--yes[skip interactive YES confirmation]' \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[minimal output]'
+          ;;
+        unpanic)
+          _arguments \
+            '--reason[reason for disarming panic (required)]:reason:' \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[minimal output]'
+          ;;
+      esac
+      ;;
+  esac
+}
+
+_pd_cmd_wallet() {
+  local -a wallet_subcmds
+  wallet_subcmds=(
+    'show:show project wallet balance + commons pool'
+    'top-up:deposit virtual USD into a project wallet'
+    'history:show wallet.topup and bond.slash activity'
+  )
+  local state
+  _arguments -C '1:subcommand:->subcommand' '*::args:->args'
+  case "$state" in
+    subcommand) _describe 'wallet subcommand' wallet_subcmds ;;
+    args)
+      case "${words[2]}" in
+        top-up|topup)
+          _arguments \
+            '--usd[USD amount to deposit (> 0)]:usd:' \
+            '--yes[skip confirmation prompt]' \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[minimal output]'
+          ;;
+        history)
+          _arguments \
+            '--since[lookback window (e.g. 7d, 24h, 30m)]:since:' \
+            '--limit[max entries]:n:' \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[minimal output]'
+          ;;
+        *)
+          _arguments \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[minimal output]'
+          ;;
+      esac
+      ;;
+  esac
+}
+
+_pd_cmd_bond() {
+  local -a bond_subcmds
+  bond_subcmds=(
+    'list:list bond escrow rows (filterable)'
+    'slash:manually slash a bond (audited; requires --reason)'
+  )
+  local state
+  _arguments -C '1:subcommand:->subcommand' '*::args:->args'
+  case "$state" in
+    subcommand) _describe 'bond subcommand' bond_subcmds ;;
+    args)
+      case "${words[2]}" in
+        list|ls)
+          _arguments \
+            '--project[filter by project]:project:' \
+            '--state[filter by state]:state:(escrowed running exiting refunded slashed)' \
+            '--limit[max rows]:n:' \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[minimal output]'
+          ;;
+        slash)
+          _arguments \
+            '--portion[portion to slash (0..1)]:portion:' \
+            '--reason[audited reason text (required)]:reason:' \
+            '--yes[skip confirmation prompt]' \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[minimal output]'
+          ;;
+      esac
       ;;
   esac
 }
@@ -1711,6 +1803,9 @@ _port_daddy() {
     'mcp:start MCP server for Claude Code / Claude Desktop (pd mcp install to configure)'
     'setup:install daemon, MCP, FleetBar, and initialize a project'
     'init:set up Port Daddy for this project (scan, fleet, MCP, git hook)'
+    # Bonds / Wallets — FleetControl hardening
+    'wallet:manage project USD wallets (show/top-up/history)'
+    'bond:inspect and manually slash agent bond escrows'
     # Info
     'version:print version information'
     'help:show help'
@@ -1805,6 +1900,8 @@ _port_daddy() {
         look)                   _pd_cmd_look ;;
         sitrep)                 _pd_cmd_sitrep ;;
         pheromone|ph)           _pd_cmd_pheromone ;;
+        wallet)                 _pd_cmd_wallet ;;
+        bond)                   _pd_cmd_bond ;;
         graph)                  _pd_cmd_graph ;;
         memory)                 _pd_cmd_memory ;;
         ideas)                  _pd_cmd_ideas ;;

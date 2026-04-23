@@ -12,7 +12,8 @@ import { parse as parseYaml } from 'yaml';
 import { createIpcClient } from '../../lib/ipc-client.js';
 import { IpcAction, Performative } from '../../lib/ipc-types.js';
 import * as ui from '../utils/ui.js';
-import { pdFetch, isDaemonRunning, getDaemonUrl } from '../utils/fetch.js';
+import { pdFetch, isDaemonRunning, getDaemonUrl, PORT_DADDY_URL } from '../utils/fetch.js';
+import { isJson, isQuiet, type CLIOptions } from '../types.js';
 import {
   findFleetConfigPath,
   loadFleetConfig,
@@ -613,6 +614,92 @@ async function runAgentByName(agentName: string, preloadedConfig?: ReturnType<ty
   }
 }
 
+// ─── fleet panic / unpanic ─────────────────────────────────────────────────
+
+interface PanicStatus {
+  armed?: boolean;
+  reason?: string | null;
+  pendingConfirmation?: boolean;
+}
+
+async function fleetPanic(options: CLIOptions): Promise<void> {
+  const reason = options.reason ? String(options.reason).trim() : '';
+  if (!reason) {
+    ui.error('Usage: pd fleet panic --reason "<text>" [--yes]');
+    process.exit(1);
+  }
+
+  const firstRes = await pdFetch(`${PORT_DADDY_URL}/fleet/panic`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason, confirm: false }),
+  });
+  const firstData = (await firstRes.json()) as PanicStatus & { error?: string };
+
+  if (!firstRes.ok) {
+    ui.error(firstData.error || `HTTP ${firstRes.status}`);
+    process.exit(1);
+  }
+
+  const pending = firstData.pendingConfirmation;
+
+  if (pending && !options.yes) {
+    console.log('');
+    ui.warn('PANIC will SIGTERM every running fleet agent across all projects.');
+    ui.warn('Reason: ' + reason);
+    console.log('');
+    if (!ui.canPrompt()) {
+      ui.error('Non-interactive session: pass --yes to confirm panic.');
+      process.exit(1);
+    }
+    const typed = await ui.text({ label: 'Type YES to confirm (anything else cancels):', required: false });
+    if ((typed || '').trim() !== 'YES') {
+      ui.warn('Cancelled.');
+      process.exit(1);
+    }
+  }
+
+  const res = await pdFetch(`${PORT_DADDY_URL}/fleet/panic`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason, confirm: true }),
+  });
+  const data = (await res.json()) as PanicStatus & { error?: string };
+
+  if (!res.ok) {
+    ui.error(data.error || `HTTP ${res.status}`);
+    process.exit(1);
+  }
+
+  if (isJson(options)) { console.log(JSON.stringify(data, null, 2)); return; }
+  if (isQuiet(options)) { console.log('armed'); return; }
+  ui.success(`Fleet PANIC armed — reason: ${reason}`);
+}
+
+async function fleetUnpanic(options: CLIOptions): Promise<void> {
+  const reason = options.reason ? String(options.reason).trim() : '';
+  if (!reason) {
+    ui.error('Usage: pd fleet unpanic --reason "<text>"');
+    process.exit(1);
+  }
+
+  const res = await pdFetch(`${PORT_DADDY_URL}/fleet/unpanic`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason }),
+  });
+  const data = (await res.json()) as PanicStatus & { error?: string };
+
+  if (!res.ok) {
+    ui.error(data.error || `HTTP ${res.status}`);
+    process.exit(1);
+  }
+
+  if (isJson(options)) { console.log(JSON.stringify(data, null, 2)); return; }
+  if (isQuiet(options)) { console.log('disarmed'); return; }
+  ui.success(`Fleet PANIC disarmed — reason: ${reason}`);
+}
+
 // ─── fleet prompt ───────────────────────────────────────────────────────────
 
 async function fleetPrompt(): Promise<void> {
@@ -715,6 +802,14 @@ export async function handleFleet(positional: string[], _options: Record<string,
 
     case 'prompt':
       await fleetPrompt();
+      break;
+
+    case 'panic':
+      await fleetPanic(_options as CLIOptions);
+      break;
+
+    case 'unpanic':
+      await fleetUnpanic(_options as CLIOptions);
       break;
 
     case 'help':
