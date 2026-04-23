@@ -66,6 +66,8 @@ import { createSymbolIndex } from './lib/symbol-index.js';
 import { createMergeQueue } from './lib/merge-queue.js';
 import { createCostTracker } from './lib/cost-tracker.js';
 import { createCounters } from './lib/counters.js';
+import { createBonds } from './lib/bonds.js';
+import { createBudgetGuard } from './lib/budget-guard.js';
 import { launchFleetBarIfEnabled } from './lib/fleetbar-launcher.js';
 import { createGraphEdges } from './lib/graph-edges.js';
 import { createEpisodicMemory } from './lib/episodic-memory.js';
@@ -275,6 +277,16 @@ const harborTokens = createHarborTokens(db);
 await harborTokens.initDaemonIdentity();
 const harbors = createHarbors(db, { harborTokens });
 const sorties = createSorties(db, { episodicMemory });
+
+// Bond escrow + budget guard — FleetControl hardening.
+const bonds = createBonds(db, {
+  harbors, noteEncryption,
+  broadcast: (channel, event) => messaging.publish(channel, event),
+});
+const budgetGuard = createBudgetGuard(db, {}, {
+  broadcast: (channel, event) => messaging.publish(channel, event),
+});
+
 semanticIndex.initialize();
 const arbiter = createArbiter(
   { activityLog, agents, sessions, locks, resurrection },
@@ -589,6 +601,7 @@ await registerAllRoutes(
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar,
     harbors, sorties, orchestrator, correlationEngine, spawner, tuples, fleetDaemon,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, counters,
+    bonds, budgetGuard,
     arbiter, barnacle,
     VERSION, CODE_HASH, STARTED_AT, __dirname,
     cleanupStale, getSystemPorts,

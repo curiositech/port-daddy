@@ -46,6 +46,9 @@ import { operatorPlugin } from './operator.js';
 import { graphPlugin } from './graph.js';
 import { memoryPlugin } from './memory.js';
 import { semanticPlugin } from './semantic.js';
+import { bondsPlugin } from './bonds.js';
+import { walletsPlugin } from './wallets.js';
+import { panicPlugin } from './panic.js';
 
 type AnyDeps = Record<string, unknown>;
 
@@ -129,4 +132,11 @@ export async function registerAllRoutes(
   if ((deps as any).semanticResolver) {
     await fastify.register(semanticPlugin, { deps } as any);
   }
+
+  // FleetControl hardening — bond escrow + wallets + panic
+  if ((deps as any).bonds && (deps as any).budgetGuard) {
+    await fastify.register(bondsPlugin, { deps } as any);
+    await fastify.register(walletsPlugin, { deps } as any);
+  }
+  await fastify.register(panicPlugin, { deps } as any);
 }
