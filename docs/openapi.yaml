@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Port Daddy API
-  version: 3.8.3
+  version: 3.9.0
   description: >
     Authoritative port management and service orchestration for multi-agent
     development. Provides atomic port assignment, pub/sub messaging, distributed
@@ -57,6 +57,8 @@ tags:
     description: Project scanning and registry
   - name: config
     description: Configuration loading
+  - name: fleet-control
+    description: Bond escrow, project wallets, budget pause-and-ask, and fleet panic controls
 
 paths:
   # ===========================================================================
@@ -4579,6 +4581,253 @@ paths:
           description: No .portdaddyrc found
         '500':
           $ref: '#/components/responses/InternalError'
+
+  # ===========================================================================
+  # FLEET CONTROL
+  # ===========================================================================
+  /bonds:
+    get:
+      tags: [fleet-control]
+      summary: List bond escrow rows
+      operationId: listBonds
+      parameters:
+        - name: project
+          in: query
+          schema:
+            type: string
+        - name: state
+          in: query
+          schema:
+            type: string
+            enum: [escrowed, running, exiting, refunded, slashed]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 200
+      responses:
+        '200':
+          description: Bond rows
+
+  /bonds/{id}:
+    get:
+      tags: [fleet-control]
+      summary: Get one bond escrow row
+      operationId: getBond
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Bond detail
+        '404':
+          description: Bond not found
+
+  /bonds/{id}/slash:
+    post:
+      tags: [fleet-control]
+      summary: Manually slash a bond
+      operationId: slashBond
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [portion, reason]
+              properties:
+                portion:
+                  type: number
+                  description: USD amount to slash
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Bond slashed
+
+  /wallets:
+    get:
+      tags: [fleet-control]
+      summary: List project wallets
+      operationId: listWallets
+      responses:
+        '200':
+          description: Project wallets
+
+  /wallets/{project}:
+    get:
+      tags: [fleet-control]
+      summary: Get one project wallet
+      operationId: getWallet
+      parameters:
+        - name: project
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Wallet detail
+
+  /wallets/{project}/top-up:
+    post:
+      tags: [fleet-control]
+      summary: Credit a project wallet
+      operationId: topUpWallet
+      parameters:
+        - name: project
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [usd]
+              properties:
+                usd:
+                  type: number
+      responses:
+        '200':
+          description: Wallet credited
+
+  /wallets/{project}/budget:
+    post:
+      tags: [fleet-control]
+      summary: Set or clear the project daily budget
+      operationId: setWalletBudget
+      parameters:
+        - name: project
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                usdPerDay:
+                  type: number
+                  nullable: true
+      responses:
+        '200':
+          description: Budget updated
+
+  /budget/pending:
+    get:
+      tags: [fleet-control]
+      summary: List pending budget-breach kills
+      operationId: listBudgetPendingKills
+      responses:
+        '200':
+          description: Pending budget kills
+
+  /budget/pending/{agentId}:
+    get:
+      tags: [fleet-control]
+      summary: Get one pending budget-breach kill
+      operationId: getBudgetPendingKill
+      parameters:
+        - name: agentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Pending budget kill
+
+  /budget/pending/{agentId}/resolve:
+    post:
+      tags: [fleet-control]
+      summary: Resolve a pending budget-breach kill
+      operationId: resolveBudgetPendingKill
+      parameters:
+        - name: agentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [raise, kill, grace]
+                topUpUsd:
+                  type: number
+                newBudgetUsdPerDay:
+                  type: number
+      responses:
+        '200':
+          description: Pending kill resolved
+
+  /fleet/panic:
+    get:
+      tags: [fleet-control]
+      summary: Get fleet panic status
+      operationId: getFleetPanic
+      responses:
+        '200':
+          description: Panic status
+    post:
+      tags: [fleet-control]
+      summary: Arm the two-step fleet panic switch
+      operationId: armFleetPanic
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                confirm:
+                  type: boolean
+      responses:
+        '200':
+          description: Panic pending or armed
+
+  /fleet/unpanic:
+    post:
+      tags: [fleet-control]
+      summary: Clear fleet panic state
+      operationId: clearFleetPanic
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Panic cleared
 
 components:
   parameters:

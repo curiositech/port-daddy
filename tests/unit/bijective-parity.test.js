@@ -320,6 +320,10 @@ describe('Test Group 3: API -> CLI Parity', () => {
     sorties: ['sortie'],
     graph: ['graph'],
     memory: ['memory'],
+    bonds: ['bond'],
+    wallets: ['wallet'],
+    panic: ['fleet'],
+    budget: ['wallet'],
   };
 
   // API-only routes that have no CLI equivalent (accessed via curl or SDK)

@@ -218,6 +218,15 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     description: 'Shared tuple space for swarm coordination — write, read, take, scan, count',
     tools: ['tuple_out', 'tuple_read', 'tuple_take', 'tuple_scan', 'tuple_count'],
   },
+  'fleet-control': {
+    description: 'Bond escrow, project wallets, budget pause-and-ask, and fleet panic controls',
+    tools: [
+      'list_bonds', 'get_bond', 'slash_bond',
+      'list_wallets', 'get_wallet', 'top_up_wallet', 'set_wallet_budget',
+      'list_budget_pending', 'get_budget_pending', 'resolve_budget_pending',
+      'get_panic_status', 'arm_fleet_panic', 'disarm_fleet_panic',
+    ],
+  },
   'semantic': {
     description: 'Semantic graph and episodic memory inspection — query graph edges, promoted handoffs, and project-level stats',
     tools: ['graph_edges', 'graph_stats', 'memory_episodes', 'memory_stats'],
@@ -1732,6 +1741,152 @@ const TOOLS = [
     },
   },
 
+  // ── FleetControl: Bonds, Wallets, Budgets, Panic ─────────────────────
+  {
+    name: 'list_bonds',
+    description: '[Standard] List bond escrow rows, optionally filtered by project, state, and limit.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        project: { type: 'string', description: 'Optional project filter' },
+        state: { type: 'string', description: 'Optional state: escrowed, running, exiting, refunded, slashed' },
+        limit: { type: 'number', description: 'Maximum rows (default 200)' },
+      },
+    },
+  },
+  {
+    name: 'get_bond',
+    description: '[Standard] Get one bond escrow row by id.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        id: { type: 'number', description: 'Bond id' },
+      },
+      required: ['id'],
+    },
+  },
+  {
+    name: 'slash_bond',
+    description: '[Advanced] Manually slash a bond with an audited reason.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        id: { type: 'number', description: 'Bond id' },
+        portion: { type: 'number', description: 'USD amount to slash' },
+        reason: { type: 'string', description: 'Audited slash reason' },
+      },
+      required: ['id', 'portion', 'reason'],
+    },
+  },
+  {
+    name: 'list_wallets',
+    description: '[Standard] List project wallets with balances and daily budgets.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {},
+    },
+  },
+  {
+    name: 'get_wallet',
+    description: '[Standard] Get one project wallet plus conservation totals.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        project: { type: 'string', description: 'Project name' },
+      },
+      required: ['project'],
+    },
+  },
+  {
+    name: 'top_up_wallet',
+    description: '[Advanced] Credit governance-accounting USD to a project wallet.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        project: { type: 'string', description: 'Project name' },
+        usd: { type: 'number', description: 'Positive USD amount' },
+      },
+      required: ['project', 'usd'],
+    },
+  },
+  {
+    name: 'set_wallet_budget',
+    description: '[Advanced] Set or clear the daily budget required before project agent spawns.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        project: { type: 'string', description: 'Project name' },
+        usd_per_day: { type: 'number', description: 'Positive daily USD budget; omit or null to clear' },
+      },
+      required: ['project'],
+    },
+  },
+  {
+    name: 'list_budget_pending',
+    description: '[Standard] List pending budget-breach kills during the pause-and-ask grace window.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {},
+    },
+  },
+  {
+    name: 'get_budget_pending',
+    description: '[Standard] Get one pending budget-breach kill by agent id.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        agent_id: { type: 'string', description: 'Agent id with pending budget kill' },
+      },
+      required: ['agent_id'],
+    },
+  },
+  {
+    name: 'resolve_budget_pending',
+    description: '[Advanced] Resolve a pending budget kill with raise, kill, or grace.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        agent_id: { type: 'string', description: 'Agent id with pending budget kill' },
+        action: { type: 'string', description: 'raise, kill, or grace' },
+        top_up_usd: { type: 'number', description: 'Required for action=raise' },
+        new_budget_usd_per_day: { type: 'number', description: 'Optional new daily budget for action=raise' },
+        operator: { type: 'string', description: 'Operator/auditor label' },
+      },
+      required: ['agent_id', 'action'],
+    },
+  },
+  {
+    name: 'get_panic_status',
+    description: '[Standard] Get fleet panic status.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {},
+    },
+  },
+  {
+    name: 'arm_fleet_panic',
+    description: '[Advanced] Arm the two-step fleet panic kill switch.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        reason: { type: 'string', description: 'Required panic reason' },
+        confirm: { type: 'boolean', description: 'Set true on the second matching call to arm' },
+      },
+      required: ['reason'],
+    },
+  },
+  {
+    name: 'disarm_fleet_panic',
+    description: '[Advanced] Clear fleet panic state.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        reason: { type: 'string', description: 'Required disarm reason' },
+      },
+      required: ['reason'],
+    },
+  },
+
   // ── Meta-Tool (Progressive Disclosure) ─────────────────────────────
   {
     name: 'get_launch_hints',
@@ -2799,6 +2954,91 @@ async function handleTool(
       } else {
         return JSON.stringify({ success: false, error: 'identity or services is required' });
       }
+      break;
+    }
+
+    // ── FleetControl: Bonds, Wallets, Budgets, Panic ───────────────────
+    case 'list_bonds': {
+      const params = new URLSearchParams();
+      if (args.project) params.set('project', args.project as string);
+      if (args.state) params.set('state', args.state as string);
+      if (args.limit) params.set('limit', String(args.limit));
+      const qs = params.toString() ? `?${params.toString()}` : '';
+      res = await GET(`/bonds${qs}`);
+      break;
+    }
+
+    case 'get_bond': {
+      res = await GET(`/bonds/${encodeURIComponent(String(args.id))}`);
+      break;
+    }
+
+    case 'slash_bond': {
+      res = await POST(`/bonds/${encodeURIComponent(String(args.id))}/slash`, {
+        portion: args.portion,
+        reason: args.reason,
+      });
+      break;
+    }
+
+    case 'list_wallets': {
+      res = await GET('/wallets');
+      break;
+    }
+
+    case 'get_wallet': {
+      res = await GET(`/wallets/${encodeURIComponent(args.project as string)}`);
+      break;
+    }
+
+    case 'top_up_wallet': {
+      res = await POST(`/wallets/${encodeURIComponent(args.project as string)}/top-up`, {
+        usd: args.usd,
+      });
+      break;
+    }
+
+    case 'set_wallet_budget': {
+      const body: Record<string, unknown> = {
+        usdPerDay: args.usd_per_day == null ? null : args.usd_per_day,
+      };
+      res = await POST(`/wallets/${encodeURIComponent(args.project as string)}/budget`, body);
+      break;
+    }
+
+    case 'list_budget_pending': {
+      res = await GET('/budget/pending');
+      break;
+    }
+
+    case 'get_budget_pending': {
+      res = await GET(`/budget/pending/${encodeURIComponent(args.agent_id as string)}`);
+      break;
+    }
+
+    case 'resolve_budget_pending': {
+      const body: Record<string, unknown> = { action: args.action };
+      if (args.top_up_usd != null) body.topUpUsd = args.top_up_usd;
+      if (args.new_budget_usd_per_day != null) body.newBudgetUsdPerDay = args.new_budget_usd_per_day;
+      if (args.operator) body.operator = args.operator;
+      res = await POST(`/budget/pending/${encodeURIComponent(args.agent_id as string)}/resolve`, body);
+      break;
+    }
+
+    case 'get_panic_status': {
+      res = await GET('/fleet/panic');
+      break;
+    }
+
+    case 'arm_fleet_panic': {
+      const body: Record<string, unknown> = { reason: args.reason };
+      if (args.confirm != null) body.confirm = args.confirm;
+      res = await POST('/fleet/panic', body);
+      break;
+    }
+
+    case 'disarm_fleet_panic': {
+      res = await POST('/fleet/unpanic', { reason: args.reason });
       break;
     }
 

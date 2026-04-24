@@ -1,4 +1,4 @@
-# ⚓ Port Daddy (v3.8.3)
+# ⚓ Port Daddy (v3.9.0)
 
 <p align="center">
   <img src="website-v2/public/img/hero-portdaddy.png" alt="Port Daddy — the harbormaster for your AI agents" width="600">
@@ -490,7 +490,7 @@ Port Daddy escrows virtual USD before each agent spawn and can SIGTERM live spaw
 
 **Spawning requires a daily budget.** Every project must set `usd_per_day` before its first spawn; the daemon refuses unbonded agents. Run `pd wallet budget <project> --usd-per-day 5` during project setup. The no-budget-no-spawn rule is an Ostrom-style monitoring invariant: no agent can run without a number to enforce against.
 
-**Budget breach is pause-and-ask, not cliff SIGTERM.** When a spawn crosses 100% of its project's daily budget, Port Daddy posts a *pending kill* with a 60-second grace window and broadcasts on `budget:pending`. During grace, the operator has three options: `raise` (credit the wallet + optionally bump the budget, agent keeps running), `kill` (skip the wait, fire SIGTERM now), or `grace` (extend the window — up to 2 extensions). If nothing happens, the backstop SIGTERM fires at expiry. List pending kills with `pd wallet pending`; resolve one with `pd wallet raise --agent <id> --usd 5`.
+**Budget breach is pause-and-ask, not cliff SIGTERM.** The manifest feature is `budget_guard`: when a spawn crosses 100% of its project's daily budget, Port Daddy posts a *pending kill* with a 60-second grace window and broadcasts on `budget:pending`. During grace, the operator has three options: `raise` (credit the wallet + optionally bump the budget, agent keeps running), `kill` (skip the wait, fire SIGTERM now), or `grace` (extend the window — up to 2 extensions). If nothing happens, the backstop SIGTERM fires at expiry. List pending kills with `pd wallet pending`; resolve one with `pd wallet raise --agent <id> --usd 5`.
 
 ```bash
 # Top up and inspect

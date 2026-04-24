@@ -168,6 +168,21 @@ const TOOL_FEATURE_MAP = {
   'get_config': 'system',
   'wait_for_service': 'wait',
 
+  // FleetControl
+  'list_bonds': 'bonds',
+  'get_bond': 'bonds',
+  'slash_bond': 'bonds',
+  'list_wallets': 'bonds',
+  'get_wallet': 'bonds',
+  'top_up_wallet': 'bonds',
+  'set_wallet_budget': 'bonds',
+  'list_budget_pending': 'budget_guard',
+  'get_budget_pending': 'budget_guard',
+  'resolve_budget_pending': 'budget_guard',
+  'get_panic_status': 'panic',
+  'arm_fleet_panic': 'panic',
+  'disarm_fleet_panic': 'panic',
+
   // Meta-tool (progressive disclosure)
   'pd_discover': 'system',
 
@@ -644,7 +659,8 @@ describe('MCP tiered tool loading', () => {
   const CATEGORY_NAMES = [
     'magic', 'session-lifecycle', 'ports', 'sessions', 'notes', 'locks',
     'messaging', 'agents', 'inbox', 'webhooks', 'integration', 'dns', 'briefing',
-    'tunnels', 'projects', 'changelog', 'activity', 'system', 'tuples', 'sorties', 'semantic',
+    'tunnels', 'projects', 'changelog', 'activity', 'system', 'tuples', 'sorties',
+    'fleet-control', 'semantic',
   ];
 
   it('ESSENTIAL_TOOL_NAMES in server matches expected set', () => {

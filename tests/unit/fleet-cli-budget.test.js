@@ -13,6 +13,7 @@ const mockAssessBackendReadiness = jest.fn();
 
 jest.unstable_mockModule('../../cli/utils/fetch.js', () => ({
   pdFetch: mockPdFetch,
+  PORT_DADDY_URL: 'http://localhost:9876',
   isDaemonRunning: jest.fn(),
   getDaemonUrl: jest.fn(() => 'http://localhost:9876'),
 }));

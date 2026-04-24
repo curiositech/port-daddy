@@ -897,6 +897,7 @@ const ALL_COMMANDS: string[] = [
   'pub', 'publish', 'broadcast', 'sub', 'subscribe', 'listen', 'wait', 'lock', 'unlock', 'locks',
   'up', 'down', 'setup', 'init', 'scan', 's', 'projects', 'p',
   'agent', 'agents', 'swarm', 'inbox', 'log', 'activity',
+  'wallet', 'bond',
   'session', 'sessions', 'note', 'notes', 'say',
   'begin', 'done', 'whoami', 'with-lock', 'learn',
   'n', 'u', 'd',
