@@ -32,7 +32,16 @@ function collectSSE(channel, ms) {
           const dataLine = frame.split('\n').find((l) => l.startsWith('data:'));
           if (!dataLine) continue;
           const payload = dataLine.slice(5).trim();
-          try { events.push(JSON.parse(payload)); } catch { events.push(payload); }
+          // Skip the subscription-ack frame the daemon sends on connect.
+          // Its shape is {"channel":"<name>"} with no other fields.
+          try {
+            const parsed = JSON.parse(payload);
+            const keys = Object.keys(parsed);
+            if (keys.length === 1 && keys[0] === 'channel') continue;
+            events.push(parsed);
+          } catch {
+            events.push(payload);
+          }
         }
       });
     });
