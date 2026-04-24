@@ -275,11 +275,16 @@ describe('info routes runtime summary', () => {
     }));
     expect(body.guardians).toEqual(expect.objectContaining({
       supervisor: expect.objectContaining({ state: 'launchctl_preferred' }),
+      bosun: expect.objectContaining({
+        state: 'healthy',
+        binaryExists: true,
+      }),
       barnacle: expect.objectContaining({
         state: 'healthy',
         binaryExists: true,
       }),
     }));
+    expect(body.guardians.barnacle).toEqual(body.guardians.bosun);
     expect(body.history.recentActivity[0]).toEqual(expect.objectContaining({
       type: 'SESSION_NOTE',
       summary: 'Spark noted a daemon regression',

@@ -167,24 +167,31 @@ function buildRecentHistory(deps: InfoRouteDeps) {
 }
 
 function buildGuardianSummary(deps: InfoRouteDeps) {
+  // ADR-0021: "Bosun" is the canonical watchdog name. The current implementation
+  // still uses the legacy Barnacle sidecar client internally, so expose the same
+  // status under `bosun` for new clients and keep `barnacle` as a compatibility
+  // alias for one minor release.
+  const bosunStatus = deps.barnacle?.getStatus() ?? {
+    monitoredUrl: 'http://localhost:9875/health',
+    binaryPath: '',
+    binaryExists: false,
+    enabled: false,
+    state: 'disabled',
+    reason: 'not installed (optional)',
+    lastCheckAt: null,
+    lastHealthyAt: null,
+    lastFailureAt: null,
+    lastResurrectedAt: null,
+    failureCount: 0,
+  };
+
   return {
     supervisor: {
       state: 'launchctl_preferred',
       summary: 'launchctl is the authoritative daemon supervisor on macOS',
     },
-    barnacle: deps.barnacle?.getStatus() ?? {
-      monitoredUrl: 'http://localhost:9875/health',
-      binaryPath: '',
-      binaryExists: false,
-      enabled: false,
-      state: 'disabled',
-      reason: 'barnacle watcher unavailable',
-      lastCheckAt: null,
-      lastHealthyAt: null,
-      lastFailureAt: null,
-      lastResurrectedAt: null,
-      failureCount: 0,
-    },
+    bosun: bosunStatus,
+    barnacle: bosunStatus,
   };
 }
 

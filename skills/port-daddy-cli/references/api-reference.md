@@ -349,6 +349,18 @@ Combined daemon report. Includes build identity, metrics, detailed fleet breakdo
       "state": "launchctl_preferred",
       "summary": "launchctl is the authoritative daemon supervisor on macOS"
     },
+    "bosun": {
+      "enabled": true,
+      "state": "healthy",
+      "reason": null,
+      "monitoredUrl": "http://localhost:9875/health",
+      "binaryExists": true,
+      "lastCheckAt": 1711234567999,
+      "lastHealthyAt": 1711234567999,
+      "lastFailureAt": null,
+      "lastResurrectedAt": null,
+      "failureCount": 0
+    },
     "barnacle": {
       "enabled": true,
       "state": "healthy",

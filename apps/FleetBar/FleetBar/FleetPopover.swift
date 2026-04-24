@@ -157,8 +157,9 @@ struct FleetPopover: View {
 
     private func daemonReportSection(status: DaemonStatusResponse) -> some View {
         let runtimeColor: Color = status.runtime?.degraded == true ? Fleet.Color.warning : Fleet.Color.healthy
-        let barnacleColor: Color = {
-            switch status.guardians?.barnacle?.state {
+        let bosun = status.guardians?.bosun ?? status.guardians?.barnacle
+        let bosunColor: Color = {
+            switch bosun?.state {
             case "healthy":
                 return Fleet.Color.healthy
             case "disabled":
@@ -191,7 +192,7 @@ struct FleetPopover: View {
                 daemonReportRow(label: "Runtime", value: status.runtime?.state ?? status.status, color: runtimeColor)
                 daemonReportRow(label: "Version", value: status.daemon?.version ?? status.version, color: Fleet.Color.active)
                 daemonReportRow(label: "Code hash", value: status.daemon?.codeHash ?? "unknown")
-                daemonReportRow(label: "Barnacle", value: status.guardians?.barnacle?.state ?? "n/a", color: barnacleColor)
+                daemonReportRow(label: "Bosun", value: bosun?.reason ?? bosun?.state ?? "n/a", color: bosunColor)
             }
 
             if !recentActivity.isEmpty {
