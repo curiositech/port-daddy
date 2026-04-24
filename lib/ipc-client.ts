@@ -68,6 +68,13 @@ export function createIpcClient(options: IpcClientOptions) {
   // Pending request-response correlation map
   const pending = new Map<number, PendingRequest>();
 
+  function withTransportAgent(payload: Record<string, unknown>): Record<string, unknown> {
+    // Transport identity is a default, not a filter override. Query payloads can
+    // intentionally include agentId: undefined or a different agentId.
+    if (Object.prototype.hasOwnProperty.call(payload, 'agentId')) return payload;
+    return { ...payload, agentId: options.agentId };
+  }
+
   function setState(newState: ConnectionStateName) {
     state = newState;
     options.onStateChange?.(newState);
@@ -167,7 +174,7 @@ export function createIpcClient(options: IpcClientOptions) {
     const frame: IpcFrame = {
       type,
       convId: FIRE_AND_FORGET,
-      payload: { ...payload, agentId: options.agentId },
+      payload: withTransportAgent(payload),
     };
     try {
       const buf = encodeFrame(frame);
@@ -203,7 +210,7 @@ export function createIpcClient(options: IpcClientOptions) {
       const frame: IpcFrame = {
         type,
         convId,
-        payload: { ...payload, agentId: options.agentId },
+        payload: withTransportAgent(payload),
       };
 
       try {

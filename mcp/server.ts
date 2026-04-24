@@ -140,7 +140,7 @@ const ESSENTIAL_TOOL_NAMES = new Set([
 const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> = {
   'magic': {
     description: 'High-level composed tools: fleet setup, swarm awareness, situation reports, agent spawning, sortie missions, file heat maps, agent messaging',
-    tools: ['fleet_init', 'fleet_status', 'swarm_awareness', 'sitrep', 'file_heat', 'talk_to_agent', 'spawn_agent', 'run_sortie'],
+    tools: ['fleet_init', 'fleet_status', 'swarm_awareness', 'sitrep', 'catch_me_up', 'file_heat', 'talk_to_agent', 'spawn_agent', 'run_sortie'],
   },
   'session-lifecycle': {
     description: 'Start/end sessions, manage agent registration (sugar commands)',
@@ -3117,7 +3117,7 @@ async function handleTool(
 const server = new Server(
   {
     name: 'port-daddy',
-    version: '3.8.3',
+    version: '3.8.4',
   },
   {
     capabilities: {

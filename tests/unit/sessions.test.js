@@ -9,6 +9,7 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { createTestDb } from '../setup-unit.js';
 import { createSessions } from '../../lib/sessions.js';
+import { createAgents } from '../../lib/agents.js';
 import { ActivityType } from '../../lib/activity.js';
 
 function createMockNoteEncryption() {
@@ -1091,6 +1092,48 @@ describe('Sessions Module', () => {
       const fileCount = db.prepare('SELECT COUNT(*) as count FROM session_files WHERE session_id = ?').get(s1.id);
       expect(noteCount.count).toBe(0);
       expect(fileCount.count).toBe(0);
+    });
+
+    it('should abandon orphaned active sessions after the grace threshold', () => {
+      const started = sessions.start('Orphaned work', {
+        agentId: 'missing-agent',
+        files: ['src/orphan.ts'],
+      });
+
+      db.prepare('UPDATE sessions SET updated_at = ? WHERE id = ?').run(
+        Date.now() - 25 * 60 * 1000,
+        started.id
+      );
+
+      const result = sessions.abandonOrphanedActive({ olderThan: 20 * 60 * 1000 });
+
+      expect(result.success).toBe(true);
+      expect(result.count).toBe(1);
+      expect(result.abandoned).toEqual([started.id]);
+
+      const session = sessions.get(started.id);
+      expect(session.success).toBe(true);
+      expect(session.session.status).toBe('abandoned');
+      expect(session.files[0].releasedAt).not.toBeNull();
+    });
+
+    it('should keep active sessions when the owning agent still exists', () => {
+      const agents = createAgents(db);
+      agents.register('live-agent');
+
+      const started = sessions.start('Still owned', {
+        agentId: 'live-agent',
+      });
+
+      db.prepare('UPDATE sessions SET updated_at = ? WHERE id = ?').run(
+        Date.now() - 25 * 60 * 1000,
+        started.id
+      );
+
+      const result = sessions.abandonOrphanedActive({ olderThan: 20 * 60 * 1000 });
+
+      expect(result.count).toBe(0);
+      expect(sessions.get(started.id).session.status).toBe('active');
     });
   });
 

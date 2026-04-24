@@ -633,6 +633,7 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
 
       // Swarm awareness (magic tools)
       'swarm_awareness': 'system',
+      'sitrep': 'system',
       'catch_me_up': 'system',
       'file_heat': 'pheromone',
       'talk_to_agent': 'inbox',

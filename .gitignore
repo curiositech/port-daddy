@@ -38,6 +38,7 @@ plans/
 .spider/
 .dogfood/
 .remember/
+.cache/
 .public-export/
 CLAUDE.md
 GEMINI.md

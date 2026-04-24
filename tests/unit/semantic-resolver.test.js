@@ -153,4 +153,61 @@ describe('semantic resolver', () => {
     expect(matches[0].term).toBe('css design-system port-daddy site');
     expect(matches[0].similarity).toBeGreaterThan(matches[1].similarity);
   });
+
+  test('persists review overrides and applies them to future candidate pairs', async () => {
+    resolver.observeAliases({
+      projectDir: '/tmp/port-daddy',
+      harbor: 'port-daddy:fleet',
+      sourceType: 'memory',
+      sourceId: 'session-css-1',
+      aliases: [
+        alias('Writing the CSS for Port Daddy website design system', 'css design-system port-daddy site', 'site-1'),
+        alias('Port Daddy API design system css', 'css design-system port-daddy api', 'api-1'),
+      ],
+    });
+
+    await resolver.flush();
+
+    const reviewEvent = resolver
+      .listResolutions({ projectDir: '/tmp/port-daddy', decision: 'review', limit: 1 })[0];
+    expect(reviewEvent.candidateTerm).toBe('css design-system port-daddy site');
+
+    const reviewed = resolver.review(reviewEvent.id, {
+      action: 'reject',
+      reviewer: 'operator',
+      note: 'API styling is a separate workstream.',
+    });
+
+    expect(reviewed.decision).toBe('rejected');
+    expect(reviewed.reviewAction).toBe('reject');
+    expect(reviewed.reviewedBy).toBe('operator');
+
+    resolver.observeAliases({
+      projectDir: '/tmp/port-daddy',
+      harbor: 'port-daddy:fleet',
+      sourceType: 'merge',
+      sourceId: 'entry:api-repeat',
+      aliases: [
+        alias('API styling again', 'css design-system port-daddy api', 'api-2'),
+      ],
+    });
+
+    await resolver.flush();
+
+    const latest = resolver.listResolutions({
+      projectDir: '/tmp/port-daddy',
+      query: 'API styling again',
+      limit: 1,
+    })[0];
+    expect(latest.decision).toBe('rejected');
+    expect(latest.metadata?.override).toEqual(expect.objectContaining({
+      action: 'reject',
+      reviewer: 'operator',
+    }));
+
+    const stats = resolver.stats('/tmp/port-daddy');
+    expect(stats.reviewBacklog).toBe(0);
+    expect(stats.rejectedOverrides).toBeGreaterThanOrEqual(2);
+    expect(tupleWrites.some((entry) => entry.fields[0] === 'semantic:review')).toBe(true);
+  });
 });

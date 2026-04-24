@@ -431,8 +431,8 @@ describe('Agents Module', () => {
       agents.register('agent1');
       agents.register('agent2');
 
-      // Make agent2 stale
-      const staleTime = Date.now() - (agents.DEFAULT_AGENT_TTL + 10000);
+      // Make agent2 old enough to be operationally dead, not merely display-inactive
+      const staleTime = Date.now() - (agents.DEFAULT_CLEANUP_TTL + 10000);
       db.prepare('UPDATE agents SET last_heartbeat = ? WHERE id = ?').run(staleTime, 'agent2');
 
       const result = agents.cleanup(locks);
@@ -449,6 +449,18 @@ describe('Agents Module', () => {
       expect(agent2Check.success).toBe(false);
     });
 
+    it('should not cleanup agents that are only display-inactive', () => {
+      agents.register('agent1');
+
+      const displayInactiveTime = Date.now() - (agents.DEFAULT_AGENT_TTL + 10000);
+      db.prepare('UPDATE agents SET last_heartbeat = ? WHERE id = ?').run(displayInactiveTime, 'agent1');
+
+      const result = agents.cleanup(locks);
+
+      expect(result.cleaned).toBe(0);
+      expect(agents.get('agent1').success).toBe(true);
+    });
+
     it('should release locks held by stale agents', () => {
       // Register an agent and acquire a lock as that agent
       agents.register('doomed-agent');
@@ -458,8 +470,8 @@ describe('Agents Module', () => {
       const before = locks.list({ owner: 'doomed-agent' });
       expect(before.locks.length).toBe(1);
 
-      // Make agent stale
-      const staleTime = Date.now() - (agents.DEFAULT_AGENT_TTL + 10000);
+      // Make agent old enough for cleanup
+      const staleTime = Date.now() - (agents.DEFAULT_CLEANUP_TTL + 10000);
       db.prepare('UPDATE agents SET last_heartbeat = ? WHERE id = ?').run(staleTime, 'doomed-agent');
 
       // Cleanup should release the lock

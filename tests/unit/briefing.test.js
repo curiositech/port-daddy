@@ -394,8 +394,53 @@ describe('renderMarkdown', () => {
 
     const md = briefing.renderMarkdown(data);
     expect(md).toContain('# Project Briefing: empty');
-    expect(md).toContain('**Active sessions:** 0');
+    expect(md).toContain('**Active sessions with live agents:** 0');
     expect(md).toContain('**Dead agents needing salvage:** 0');
+  });
+
+  test('separates orphaned active sessions from sessions with live bodies', () => {
+    const md = briefing.renderMarkdown({
+      project: 'orphaned',
+      generatedAt: new Date().toISOString(),
+      activeSessions: [
+        {
+          id: 'session-live',
+          purpose: 'Live work',
+          status: 'active',
+          phase: 'in_progress',
+          agentId: 'agent-live',
+          worktreeId: null,
+          identityProject: 'orphaned',
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          completedAt: null,
+          metadata: null,
+        },
+        {
+          id: 'session-orphan',
+          purpose: 'Old zombie work',
+          status: 'active',
+          phase: 'in_progress',
+          agentId: 'agent-gone',
+          worktreeId: null,
+          identityProject: 'orphaned',
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          completedAt: null,
+          metadata: null,
+        },
+      ],
+      activeAgents: [{ id: 'agent-live' }],
+      salvageQueue: [],
+      fileClaims: [],
+      recentActivity: [],
+      recentNotes: [],
+      integrationSignals: [],
+      activeServices: [],
+    });
+
+    expect(md).toContain('**Active sessions with live agents:** 1 (Live work)');
+    expect(md).toContain('**Orphaned active sessions:** 1 (Old zombie work)');
   });
 });
 

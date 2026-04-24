@@ -368,6 +368,38 @@ export interface SpawnedAgent {
   error?: string | null;
 }
 
+export type OperatorActorState = 'running' | 'idle' | 'salvaged' | 'orphan_reconciled' | 'historical';
+export type OperatorActorKind = 'scheduled' | 'triggered' | 'watcher' | 'ad_hoc';
+
+/**
+ * Daemon-backed actor lens shared by the control plane and FleetBar.
+ *
+ * Example:
+ * - input: actor payload from `/operator/actors`
+ * - output: one logical actor with fused registry/session/salvage/spawn state
+ */
+export interface OperatorActorEntry {
+  id: string;
+  label: string;
+  purpose: string | null;
+  identity: string | null;
+  fleetAgentName: string | null;
+  inboxTarget: string;
+  isConfiguredFleetAgent: boolean;
+  actorKind: OperatorActorKind;
+  actorState: OperatorActorState;
+  actorStateReason: string;
+  runtimeStatus: string | null;
+  liveness: 'alive' | 'stale' | 'dead' | null;
+  lastActivityAt: number | null;
+  lastSummary: string | null;
+  recentFiles: string[];
+  registry: RegistryAgent | null;
+  spawned: SpawnedAgent | null;
+  salvage: SalvageAgent | null;
+  sessions: SessionSummary[];
+}
+
 export interface SpawnPreflight {
   launchReady: boolean;
   blockedReasons: string[];

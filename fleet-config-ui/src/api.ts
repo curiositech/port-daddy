@@ -13,6 +13,7 @@ import type {
   SessionSummary,
   FileClaim,
   SpawnedAgent,
+  OperatorActorEntry,
   SpawnPreflight,
   ActivityEntry,
   ChannelMessage,
@@ -491,6 +492,27 @@ export async function fetchFilePreview(
     return payload.preview;
   }
   return payload as FilePreview;
+}
+
+/**
+ * Load the daemon-backed actor lens for one project so UI surfaces can render
+ * the same lifecycle truth instead of re-deriving it independently.
+ *
+ * Example:
+ * - input: `{ projectDir: '/Users/me/port-daddy' }`
+ * - output: `[{ id: 'spark', actorState: 'running', ... }]`
+ */
+export async function fetchOperatorActors(opts: {
+  project?: string;
+  projectDir?: string;
+  limit?: number;
+} = {}): Promise<OperatorActorEntry[]> {
+  const params = new URLSearchParams();
+  if (opts.project) params.set('project', opts.project);
+  if (opts.projectDir) params.set('projectDir', opts.projectDir);
+  if (opts.limit) params.set('limit', String(opts.limit));
+  const data = await get<{ actors?: OperatorActorEntry[] }>(`/operator/actors${params.toString() ? `?${params}` : ''}`);
+  return data.actors ?? [];
 }
 
 export async function fetchActivity(limit = 200): Promise<ActivityEntry[]> {

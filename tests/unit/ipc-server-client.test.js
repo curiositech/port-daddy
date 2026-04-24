@@ -136,6 +136,40 @@ describe('IPC Server + Client', () => {
     expect(trackedConn.agentId).toBe('tracked-agent');
   });
 
+  test('request transport agentId does not override explicit query agentId', async () => {
+    const frames = [];
+
+    server = createIpcServer({
+      socketPath,
+      onFrame: (frame, _conn, reply) => {
+        frames.push(frame);
+        reply({
+          type: Performative.INFORM_DONE,
+          convId: frame.convId,
+          payload: { ok: true },
+        });
+      },
+    });
+    await server.start();
+
+    client = createIpcClient({ socketPath, agentId: 'transport-agent', reconnect: false });
+    await client.connect();
+
+    await client.request(Performative.QUERY_REF, {
+      action: 'session.list',
+      agentId: undefined,
+      allWorktrees: true,
+    });
+    await client.request(Performative.QUERY_REF, {
+      action: 'session.list',
+      agentId: 'target-agent',
+      allWorktrees: true,
+    });
+
+    expect(frames[0].payload.agentId).not.toBe('transport-agent');
+    expect(frames[1].payload.agentId).toBe('target-agent');
+  });
+
   test('server broadcast reaches all clients', async () => {
     const received1 = [];
     const received2 = [];

@@ -1,45 +1,77 @@
+import type { OperatorActorEntry } from '../types';
+
+export interface InboxAgentTarget {
+  target: string;
+  label: string;
+  actorState: OperatorActorEntry['actorState'];
+  actorStateReason: string;
+  lastActivityAt: number | null;
+}
+
 /**
- * Normalize the set of agents that are actually eligible for direct inbox
- * delivery. Direct inboxes target the live fleet runtime, so configured-only
- * agents are intentionally excluded here.
+ * Normalize daemon-backed actor entries into direct-inbox targets. Targets are
+ * addressable souls first; waking a live body is best-effort at send time.
  *
  * Example:
- * - input: `['spark', 'spark', ' spider ', '']`
- * - output: `['spark', 'spider']`
+ * - input: `[{ inboxTarget: 'spark', actorState: 'salvaged' }]`
+ * - output: `[{ target: 'spark', label: 'spark', actorState: 'salvaged' }]`
  */
-export function resolveInboxAgentTargets(liveAgents: string[]): string[] {
-  return [...new Set(
-    liveAgents
-      .map((value) => value.trim())
-      .filter((value) => value.length > 0),
-  )];
+export function resolveInboxAgentTargets(actors: OperatorActorEntry[]): InboxAgentTarget[] {
+  const seen = new Set<string>();
+  const priority: Record<OperatorActorEntry['actorState'], number> = {
+    running: 0,
+    salvaged: 1,
+    orphan_reconciled: 2,
+    historical: 3,
+    idle: 4,
+  };
+
+  return [...actors]
+    .sort((left, right) => {
+      const leftPriority = priority[left.actorState];
+      const rightPriority = priority[right.actorState];
+      if (leftPriority !== rightPriority) return leftPriority - rightPriority;
+      return (right.lastActivityAt ?? 0) - (left.lastActivityAt ?? 0);
+    })
+    .flatMap((actor) => {
+      const target = (actor.inboxTarget || actor.fleetAgentName || actor.id || '').trim();
+      if (!target || seen.has(target)) return [];
+      seen.add(target);
+      return [{
+        target,
+        label: actor.label || target,
+        actorState: actor.actorState,
+        actorStateReason: actor.actorStateReason,
+        lastActivityAt: actor.lastActivityAt,
+      }];
+    });
 }
 
 export interface InboxAvailabilityInput {
-  liveAgentCount: number;
+  actorCount: number;
   configuredAgentCount: number;
   projectRunning: boolean;
 }
 
 /**
- * Explain why the direct inbox roster is empty in operator-facing language.
+ * Explain why the direct inbox roster is empty in actor-model language.
  *
  * Example:
- * - input: `{ liveAgentCount: 0, configuredAgentCount: 8, projectRunning: false }`
- * - output: `No live fleet agents are available for direct inbox delivery. Start the fleet to message one of the 8 configured agents.`
+ * - input: `{ actorCount: 0, configuredAgentCount: 8, projectRunning: false }`
+ * - output: `No known project actors are addressable yet. Start the fleet or wait for a first session to create durable actor state for the 8 configured agents.`
  */
 export function describeInboxAgentAvailability(input: InboxAvailabilityInput): string | null {
-  if (input.liveAgentCount > 0) return null;
+  if (input.actorCount > 0) return null;
 
   if (input.configuredAgentCount > 0 && !input.projectRunning) {
     const suffix = input.configuredAgentCount === 1 ? '' : 's';
-    return `No live fleet agents are available for direct inbox delivery. Start the fleet to message one of the ${input.configuredAgentCount} configured agent${suffix}.`;
+    return `No known project actors are addressable yet. Start the fleet or wait for a first session to create durable actor state for the ${input.configuredAgentCount} configured agent${suffix}.`;
   }
 
   if (input.configuredAgentCount > 0) {
     const suffix = input.configuredAgentCount === 1 ? '' : 's';
-    return `No live fleet agents are currently deployed for direct inbox delivery, even though this project has ${input.configuredAgentCount} configured agent${suffix}. Check fleet health or relaunch the project runtime.`;
+    return `This project has ${input.configuredAgentCount} configured agent${suffix}, but the daemon has not surfaced any actor state for them yet. Check runtime truth, salvage, and session lifecycle.`;
   }
 
-  return 'No project agents are configured yet for direct inbox delivery.';
+  return 'No project actors are configured or known yet for direct inbox delivery.';
 }
