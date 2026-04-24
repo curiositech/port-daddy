@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Self-Containment Checker -- Detect Phantom References and Orphaned Files
+Self-Containment Checker — Detect Phantom References and Orphaned Files
 
 Scans all markdown files in a skill directory for path references to
-scripts/, references/, examples/, templates/, agents/, hooks/, and assets/ -- then verifies each referenced file
+scripts/, references/, and assets/ — then verifies each referenced file
 exists. Optionally detects orphaned files (exist but are never referenced).
 
 Usage:
@@ -25,9 +25,9 @@ from pathlib import Path
 from typing import Dict, List, Set, Tuple
 
 
-# ----------------------------------------------------------------------
+# ──────────────────────────────────────────────────────────────────────
 # Types
-# ----------------------------------------------------------------------
+# ──────────────────────────────────────────────────────────────────────
 
 @dataclass
 class Reference:
@@ -51,7 +51,6 @@ class SelfContainmentReport:
     references: List[Reference] = field(default_factory=list)
     orphans: List[OrphanedFile] = field(default_factory=list)
     files_scanned: int = 0
-    files_skipped: List[str] = field(default_factory=list)
 
     @property
     def phantoms(self) -> List[Reference]:
@@ -66,21 +65,12 @@ class SelfContainmentReport:
         return len(self.phantoms) == 0
 
 
-# ----------------------------------------------------------------------
+# ──────────────────────────────────────────────────────────────────────
 # Reference Detection
-# ----------------------------------------------------------------------
+# ──────────────────────────────────────────────────────────────────────
 
 # Directories that constitute skill-internal references
-TRACKED_DIRS = {
-    "scripts",
-    "references",
-    "examples",
-    "templates",
-    "assets",
-    "agents",
-    "hooks",
-    "eval-viewer",
-}
+TRACKED_DIRS = {"scripts", "references", "assets", "agents", "eval-viewer"}
 
 # Pattern matches: references/foo.md, scripts/bar.py, assets/baz.png
 # In various contexts: backticks, quotes, bare paths, markdown links
@@ -91,7 +81,7 @@ REF_PATTERN = re.compile(
 )
 
 # Markers that indicate a line contains an illustrative example rather than a real reference.
-# Lines matching any of these patterns are skipped -- the path they mention is a placeholder.
+# Lines matching any of these patterns are skipped — the path they mention is a placeholder.
 ILLUSTRATIVE_MARKERS = re.compile(
     r"(?:"
     r"e\.g\.,|"                   # (e.g., scripts/foo.py)
@@ -101,19 +91,27 @@ ILLUSTRATIVE_MARKERS = re.compile(
     r"your actual|"               # your actual reference file names
     r"\bsuch as\b|"               # such as references/foo.md
     r"<!-- *phantom-ok *-->|"     # explicit opt-out annotation
-    r"What it looks like"         # Anti-pattern prose examples
+    r"What it looks like|"        # Anti-pattern prose examples
+    r"backtick-formatted path|"   # Evaluation docs describing phantom path detection
+    r"triggering a false phantom|" # Evaluation narrative describing phantom detections
+    r"false positive root cause"  # Evaluation post-mortems about false positives
     r")",
     re.IGNORECASE,
 )
 
-# Files that are meta-documents (evaluations, changelogs) which may quote
-# paths from *other versions* of the skill. References in these files are
-# descriptive (reporting what was found), not operative (claiming a file exists).
-# The checker skips these files entirely to avoid false phantoms.
-META_DOCUMENT_NAMES = {
-    "EVALUATION.md",
-    "CHANGELOG.md",
-}
+
+def strip_inline_code_spans(line: str) -> str:
+    """Return line with inline backtick spans replaced by spaces.
+
+    This lets the caller detect paths in *prose* that happen to appear
+    outside inline code, while ignoring paths that are clearly quoted as
+    code examples (e.g., `references/foo.md`).
+
+    Note: we do NOT strip triple-backtick fences here — those are handled
+    by the outer code-fence tracker.
+    """
+    # Replace all `...` spans with spaces of equal length
+    return re.sub(r"`[^`\n]+`", lambda m: " " * len(m.group()), line)
 
 
 def find_references_in_file(file_path: Path, skill_dir: Path) -> List[Reference]:
@@ -202,9 +200,9 @@ def find_orphans(skill_dir: Path, referenced_paths: Set[str]) -> List[OrphanedFi
     return result
 
 
-# ----------------------------------------------------------------------
+# ──────────────────────────────────────────────────────────────────────
 # Main Check
-# ----------------------------------------------------------------------
+# ──────────────────────────────────────────────────────────────────────
 
 def check_self_contained(
     skill_dir: Path,
@@ -216,20 +214,11 @@ def check_self_contained(
     if not skill_dir.is_dir():
         return report
 
-    # Scan all markdown files, skipping meta-documents
+    # Scan all markdown files
     md_files = list(skill_dir.rglob("*.md"))
-    skipped = []
-    scanned = []
+    report.files_scanned = len(md_files)
+
     for md_file in md_files:
-        if md_file.name in META_DOCUMENT_NAMES:
-            skipped.append(str(md_file.relative_to(skill_dir)))
-        else:
-            scanned.append(md_file)
-
-    report.files_scanned = len(scanned)
-    report.files_skipped = skipped
-
-    for md_file in scanned:
         refs = find_references_in_file(md_file, skill_dir)
         report.references.extend(refs)
 
@@ -249,10 +238,6 @@ def print_report(report: SelfContainmentReport, include_orphans: bool = False):
     print(f"{'='*60}\n")
 
     print(f"  Files scanned: {report.files_scanned}")
-    if report.files_skipped:
-        print(f"  Files skipped (meta-documents): {len(report.files_skipped)}")
-        for f in report.files_skipped:
-            print(f"    - {f}")
     print(f"  References found: {len(report.references)}")
     print(f"  Valid: {len(report.valid_refs)}")
     print(f"  Phantoms: {len(report.phantoms)}")
@@ -261,7 +246,7 @@ def print_report(report: SelfContainmentReport, include_orphans: bool = False):
     if report.phantoms:
         print("  PHANTOM REFERENCES (files referenced but don't exist):")
         for ref in report.phantoms:
-            print(f"    x {ref.source_file}:{ref.source_line} -> {ref.target_path}")
+            print(f"    ✗ {ref.source_file}:{ref.source_line} → {ref.target_path}")
         print()
 
     if include_orphans and report.orphans:
@@ -297,7 +282,6 @@ def main():
             "skill_name": skill_dir.name,
             "passed": report.passed,
             "files_scanned": report.files_scanned,
-            "files_skipped": report.files_skipped,
             "total_references": len(report.references),
             "valid_references": len(report.valid_refs),
             "phantom_count": len(report.phantoms),

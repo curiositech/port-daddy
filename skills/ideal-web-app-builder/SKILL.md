@@ -5,33 +5,13 @@ license: Apache-2.0
 allowed-tools: Read,Write,Edit,Bash,Grep,Glob,WebFetch,WebSearch
 metadata:
   category: Frontend & UI
-  tags:
-    - web-app
-    - design-system
-    - react
-    - accessibility
-    - storybook
-    - performance
-    - security
-    - privacy
-    - operations
-    - sustainability
-  pairs-with:
-    - skill: design-archivist
-      reason: Use for broad visual research and design pattern evidence.
-    - skill: competitive-cartographer
-      reason: Use for positioning and white-space analysis before brand decisions.
-    - skill: design-consistency-auditor
-      reason: Use for adversarial visual and token drift review.
-    - skill: port-daddy-cli
-      reason: Use for coordinated sessions, claims, notes, and background work in Port Daddy repos.
+  tags: [web-app, design-system, react, accessibility, storybook, performance, security, privacy, operations, sustainability]
+  pairs-with: [design-archivist, competitive-cartographer, design-consistency-auditor, port-daddy-cli]
   provenance:
     kind: first-party
-    owners:
-      - port-daddy
+    owners: [port-daddy]
   authorship:
-    maintainers:
-      - port-daddy
+    maintainers: [port-daddy]
 ---
 
 # Ideal Web App Builder

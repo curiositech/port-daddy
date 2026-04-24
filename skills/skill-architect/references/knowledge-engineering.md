@@ -193,13 +193,13 @@ flowchart TD
   E --> P3[Failure stories]
   E --> P4[Aha moments]
   E --> P5[Metaphors]
-  
+
   P1 --> SK[SKILL.md Core Process]
   P2 --> SK
   P3 --> AP[Anti-Patterns section]
   P4 --> AP
   P5 --> SK
-  
+
   SK --> V[Validate with skill-grader]
   AP --> V
   V --> D[Deploy to catalog]

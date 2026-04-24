@@ -91,8 +91,9 @@ stateDiagram-v2
 
 **Example deprecation notice**:
 ```markdown
-> DEPRECATED: This skill is deprecated as of v2.3.0.
-> Use `new-skill-name` instead. Migration guide: `references/migration.md`
+> ⚠️ **DEPRECATED**: This skill is deprecated as of v2.3.0.
+> Use `new-skill-name` instead. Migration guide: add a migration reference when
+> one exists.
 > End of support: 2025-06-01
 ```
 
@@ -138,9 +139,9 @@ Follow Semantic Versioning (SemVer):
 
 | Change Type | Version Bump | Example |
 |-------------|--------------|---------|
-| Bug fix, typo | PATCH (0.0.X) | 1.0.0 -> 1.0.1 |
-| New feature, anti-pattern | MINOR (0.X.0) | 1.0.1 -> 1.1.0 |
-| Breaking change, restructure | MAJOR (X.0.0) | 1.1.0 -> 2.0.0 |
+| Bug fix, typo | PATCH (0.0.X) | 1.0.0 → 1.0.1 |
+| New feature, anti-pattern | MINOR (0.X.0) | 1.0.1 → 1.1.0 |
+| Breaking change, restructure | MAJOR (X.0.0) | 1.1.0 → 2.0.0 |
 
 **CHANGELOG format**:
 ```markdown

@@ -3,13 +3,14 @@
 Skill Scaffolder — Initialize a New Agent Skill Directory
 
 Creates a skill directory with:
-- SKILL.md template (frontmatter, NOT clause placeholder, shibboleth stub)
-- Empty references/ and scripts/ directories
+- SKILL.md template using canonical minimal top-level frontmatter
+- Optional resource directories
 - Starter CHANGELOG.md
 
 Usage:
     python scripts/init_skill.py <name> --path <dir>
     python scripts/init_skill.py <name> --path <dir> --category <cat>
+    python scripts/init_skill.py <name> --path <dir> --resources scripts,references
     python scripts/init_skill.py <name> --path <dir> --with-mermaid
 
 Examples:
@@ -37,12 +38,15 @@ def skill_md_template(
     """Generate SKILL.md template content."""
     title = name.replace("-", " ").title()
 
-    metadata_block = ""
-    if category:
-        metadata_block = f"""metadata:
-  category: {category}
-  tags:
-  - {name.split('-')[0]}
+    tag = name.split("-")[0]
+    category_line = f"  category: {category}\n" if category else ""
+    metadata_block = f"""metadata:
+{category_line}  tags:
+    - {tag}
+  provenance:
+    kind: first-party
+    owners:
+      - some-claude-skills
 """
 
     mermaid_block = ""
@@ -65,7 +69,6 @@ description: >-
   [What it does] [When to use — be slightly pushy].
   NOT for [explicit exclusions].
 allowed-tools: Read,Write,Edit,Bash,Grep,Glob
-argument-hint: '[expected arguments]'
 {metadata_block}---
 
 # {title}
@@ -74,12 +77,12 @@ argument-hint: '[expected arguments]'
 
 ## When to Use
 
-Use for:
+✅ **Use for**:
 - [Specific trigger A]
 - [Specific trigger B]
 - [Specific trigger C]
 
-NOT for:
+❌ **NOT for**:
 - [Exclusion D]
 - [Exclusion E]
 - [Exclusion F]
@@ -114,7 +117,7 @@ NOT for:
 
 ## References
 
-Consult these for deep dives — they are NOT loaded by default:
+Consult these only when needed:
 
 | File | Consult When |
 |------|-------------|
@@ -131,34 +134,8 @@ def changelog_template(name: str) -> str:
 ## v1.0.0 ({today})
 
 - Initial skill creation
-- Core process defined
-- Reference files added
-"""
-
-
-def readme_template(name: str) -> str:
-    """Generate README.md."""
-    title = name.replace("-", " ").title()
-    return f"""# {title}
-
-[Brief description of what this skill does]
-
-## Structure
-
-```
-{name}/
-├── SKILL.md              # Core instructions (<500 lines)
-├── CHANGELOG.md          # Version history
-├── README.md             # This file
-├── references/           # Deep-dive reference material
-└── scripts/              # Validation and utility scripts
-```
-
-## Quick Start
-
-1. Review SKILL.md for core process
-2. Check references/ for deep dives
-3. Run `python scripts/validate_skill.py .` to validate
+- Canonical minimal frontmatter created
+- Repo-local provenance metadata added
 """
 
 
@@ -191,6 +168,7 @@ def init_skill(
     base_path: Path,
     category: str = "",
     with_mermaid: bool = False,
+    resources: list[str] | None = None,
 ) -> Path:
     """Create a new skill directory with template files."""
     skill_dir = base_path / name
@@ -198,10 +176,12 @@ def init_skill(
     if skill_dir.exists():
         raise FileExistsError(f"Directory already exists: {skill_dir}")
 
+    resources = resources or []
+
     # Create directory structure
     skill_dir.mkdir(parents=True)
-    (skill_dir / "references").mkdir()
-    (skill_dir / "scripts").mkdir()
+    for resource in resources:
+        (skill_dir / resource).mkdir()
 
     # Write template files
     (skill_dir / "SKILL.md").write_text(
@@ -210,10 +190,6 @@ def init_skill(
     )
     (skill_dir / "CHANGELOG.md").write_text(
         changelog_template(name),
-        encoding="utf-8",
-    )
-    (skill_dir / "README.md").write_text(
-        readme_template(name),
         encoding="utf-8",
     )
 
@@ -233,6 +209,8 @@ def main():
                         help="Skill category (e.g. 'Code Quality & Testing')")
     parser.add_argument("--with-mermaid", action="store_true",
                         help="Include a starter Mermaid flowchart in the template")
+    parser.add_argument("--resources", default="",
+                        help="Comma-separated resource dirs to create (scripts,references,assets)")
 
     args = parser.parse_args()
 
@@ -247,23 +225,26 @@ def main():
         print(f"Error: Base path does not exist: {base_path}", file=sys.stderr)
         return 1
 
+    resources = [part.strip() for part in args.resources.split(",") if part.strip()]
+
     try:
         skill_dir = init_skill(
             args.name,
             base_path,
             category=args.category,
             with_mermaid=args.with_mermaid,
+            resources=resources,
         )
     except FileExistsError as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1
 
     print(f"Created skill: {skill_dir}")
-    print(f"  SKILL.md")
-    print(f"  CHANGELOG.md")
-    print(f"  README.md")
-    print(f"  references/")
-    print(f"  scripts/")
+    print(f"  ├── SKILL.md")
+    print(f"  ├── CHANGELOG.md")
+    print(f"  ├── README.md")
+    print(f"  ├── references/")
+    print(f"  └── scripts/")
     print()
     print("Next steps:")
     print("  1. Edit SKILL.md — fill in description, process, anti-patterns")
