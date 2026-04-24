@@ -49,7 +49,13 @@ cd "$DEV_DIR"
 TEST_LOG=$(mktemp "${TMPDIR:-/tmp}/port-daddy-promote-tests.XXXXXX.log")
 trap 'rm -f "$TEST_LOG"' EXIT
 
-npm test -- --no-coverage >"$TEST_LOG" 2>&1
+if ! npm test -- --no-coverage >"$TEST_LOG" 2>&1; then
+  FAIL_COUNT=$(grep "Tests:" "$TEST_LOG" | tail -1 | grep -oE '[0-9]+ failed' | grep -oE '[0-9]+' || echo "unknown")
+  echo "${RED}BLOCKED: test gate failed (${FAIL_COUNT} failed)${NC}"
+  echo "${YELLOW}Failure summary:${NC}"
+  grep -A12 "^FAIL " "$TEST_LOG" | tail -80 || tail -80 "$TEST_LOG"
+  exit 1
+fi
 
 PASS_COUNT=$(grep "Tests:" "$TEST_LOG" | tail -1 | grep -oE '[0-9]+ passed' | grep -oE '[0-9]+')
 FAIL_COUNT=$(grep "Tests:" "$TEST_LOG" | tail -1 | grep -oE '[0-9]+ failed' | grep -oE '[0-9]+' || echo "0")
