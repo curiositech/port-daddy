@@ -422,7 +422,13 @@ export function createBriefing(db: Database.Database, deps: BriefingDeps) {
 
     // Current State
     lines.push('## Current State');
-    lines.push(`- **Active sessions:** ${data.activeSessions.length}${data.activeSessions.length > 0 ? ` (${data.activeSessions.map(s => s.purpose).join(', ')})` : ''}`);
+    const activeAgentIds = new Set(data.activeAgents.map(agent => agent.id));
+    const liveBodySessions = data.activeSessions.filter(session => session.agentId && activeAgentIds.has(session.agentId));
+    const orphanedActiveSessions = data.activeSessions.filter(session => !session.agentId || !activeAgentIds.has(session.agentId));
+    lines.push(`- **Active sessions with live agents:** ${liveBodySessions.length}${liveBodySessions.length > 0 ? ` (${liveBodySessions.map(s => s.purpose).join(', ')})` : ''}`);
+    if (orphanedActiveSessions.length > 0) {
+      lines.push(`- **Orphaned active sessions:** ${orphanedActiveSessions.length} (${orphanedActiveSessions.map(s => s.purpose).join(', ')})`);
+    }
     lines.push(`- **Active agents:** ${data.activeAgents.length}${data.activeAgents.length > 0 ? ` (${data.activeAgents.map(a => a.id).join(', ')})` : ''}`);
     lines.push(`- **Dead agents needing salvage:** ${data.salvageQueue.length}${data.salvageQueue.length > 0 ? ` (${data.salvageQueue.map(a => `${a.id} -- ${a.purpose || 'unknown purpose'}`).join(', ')})` : ''}`);
     lines.push(`- **Claimed files:** ${data.fileClaims.length} across ${new Set(data.fileClaims.map(c => c.sessionId)).size} session(s)`);
