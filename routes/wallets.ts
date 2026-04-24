@@ -34,15 +34,17 @@ export const walletsPlugin: FastifyPluginAsync<{ deps: WalletsRouteDeps }> = asy
         return { error: 'wallet enumeration requires db dep' };
       }
       const rows = db.prepare(`
-        SELECT project, balance_usd, commons_pool_usd, created_at, updated_at
+        SELECT project, balance_usd, commons_pool_usd, budget_usd_per_day, created_at, updated_at
           FROM project_wallets ORDER BY project ASC
       `).all() as Array<{
         project: string; balance_usd: number; commons_pool_usd: number;
+        budget_usd_per_day: number | null;
         created_at: number; updated_at: number;
       }>;
       const wallets = rows.map((r) => ({
         project: r.project, balanceUsd: r.balance_usd,
         commonsPoolUsd: r.commons_pool_usd,
+        budgetUsdPerDay: r.budget_usd_per_day,
         createdAt: r.created_at, updatedAt: r.updated_at,
       }));
       return { success: true, wallets, count: wallets.length };
