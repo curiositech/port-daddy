@@ -482,6 +482,33 @@ Fleet status now reflects mailbox semantics: repeated trigger bursts collapse in
 
 The daemon-served control plane now has an explicit `Agents` surface alongside the fleet graph. It is the operator view for all agents in a project slice: configured fleet agents, live registry entries, spawned runs, salvage ghosts, inbox traffic, recent sessions/notes, known pub/sub bindings, and active file claims.
 
+### Bonds & Budget Guard
+
+Port Daddy escrows virtual USD before each agent spawn and can SIGTERM live spawns that breach their daily budget. Spend is observable (cost-tracker); enforcement is separate (bonds). You top up a project wallet; every spawn debits a small bond; clean exits refund it; misbehavior slashes it. `pd fleet panic` arms a two-step global kill-switch that **refunds** (not slashes) every running bond — operator action is not agent misbehavior.
+
+```bash
+# Top up and inspect
+curl -X POST http://localhost:9876/wallets/myapp/top-up \
+  -H 'Content-Type: application/json' -d '{"usd": 20}'
+curl 'http://localhost:9876/bonds?project=myapp&state=running'
+
+# Manually slash a misbehaving agent's bond (audited)
+curl -X POST http://localhost:9876/bonds/42/slash \
+  -H 'Content-Type: application/json' \
+  -d '{"portion": 0.5, "reason": "leaked secrets to stdout"}'
+
+# Two-step panic
+curl -X POST http://localhost:9876/fleet/panic \
+  -H 'Content-Type: application/json' -d '{"reason": "runaway loop"}'
+curl -X POST http://localhost:9876/fleet/panic \
+  -H 'Content-Type: application/json' \
+  -d '{"reason": "runaway loop", "confirm": true}'
+curl -X POST http://localhost:9876/fleet/unpanic \
+  -H 'Content-Type: application/json' -d '{"reason": "root cause fixed"}'
+```
+
+Or via CLI: `pd wallet top-up myapp --usd 20`, `pd bond list --project myapp`, `pd fleet panic --reason "runaway"`.
+
 ### Observability & Cost Tracking
 
 Port Daddy tracks operational metrics and LLM spend across your fleet. Three subsystems work together:
