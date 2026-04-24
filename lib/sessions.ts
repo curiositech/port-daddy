@@ -129,6 +129,10 @@ interface CleanupOptions {
   status?: string;
 }
 
+interface AbandonOrphanedOptions {
+  olderThan?: number;
+}
+
 interface FileConflict {
   filePath: string;
   sessionId: string;
@@ -278,6 +282,18 @@ export function createSessions(
   // Enable foreign key enforcement (needed for CASCADE)
   db.pragma('foreign_keys = ON');
 
+  // Direct-DB test fixtures and older lightweight stores may create sessions
+  // without the live agent registry. In that mode orphan reconciliation has no
+  // authoritative body table to consult, so it must be an explicit no-op instead
+  // of making every direct session operation fail at statement preparation time.
+  const hasAgentsTable = Boolean(
+    db.prepare(`
+      SELECT name FROM sqlite_master
+      WHERE type = 'table' AND name = 'agents'
+      LIMIT 1
+    `).get()
+  );
+
   // Prepared statements
   const stmts = {
     // Sessions
@@ -355,6 +371,21 @@ export function createSessions(
     cleanupOldAny: db.prepare(`
       DELETE FROM sessions WHERE status IN ('completed', 'abandoned') AND updated_at < ?
     `),
+    listOrphanedActive: db.prepare(hasAgentsTable ? `
+        SELECT s.*
+        FROM sessions s
+        LEFT JOIN agents a ON a.id = s.agent_id
+        WHERE s.status = 'active'
+          AND s.agent_id IS NOT NULL
+          AND s.agent_id != ''
+          AND a.id IS NULL
+          AND s.updated_at < ?
+        ORDER BY s.updated_at ASC
+      ` : `
+        SELECT *
+        FROM sessions
+        WHERE 0 AND updated_at < ?
+      `),
 
     // Phase
     setPhase: db.prepare(`
@@ -1723,6 +1754,61 @@ export function createSessions(
     return { cleaned: result.changes };
   }
 
+  /**
+   * Abandon active sessions whose owning agent no longer exists in the registry.
+   *
+   * This repairs lifecycle drift after agent rows are deleted or lost before a
+   * corresponding session end/abandon write happens.
+   */
+  function abandonOrphanedActive(options: AbandonOrphanedOptions = {}) {
+    const { olderThan = 20 * 60 * 1000 } = options;
+    const now = Date.now();
+    const cutoff = now - olderThan;
+    const orphaned = stmts.listOrphanedActive.all(cutoff) as SessionRow[];
+
+    const abandoned: string[] = [];
+    let releasedClaims = 0;
+
+    for (const session of orphaned) {
+      const activeFiles = stmts.getActiveFilesBySession.all(session.id) as SessionFileRow[];
+      if (activeFiles.length > 0) {
+        stmts.releaseAllFiles.run(now, session.id);
+        releasedClaims += activeFiles.length;
+      }
+
+      stmts.updateStatus.run('abandoned', now, now, session.id);
+
+      if (semanticIndex && session.identity_project) {
+        semanticIndex.unindexEntry(session.identity_project, session.id);
+      }
+
+      if (activityLog) {
+        activityLog.log(ActivityType.SESSION_END, {
+          agentId: session.agent_id,
+          targetId: sessionTarget(session.identity_project, session.id),
+          details: `Session orphaned by missing agent registry entry: ${session.id}`,
+          metadata: {
+            sessionId: session.id,
+            status: 'abandoned',
+            orphaned: true,
+            orphanedAgentId: session.agent_id || undefined,
+            identityProject: session.identity_project || undefined,
+            releasedFiles: activeFiles.length,
+          } as unknown as Record<string, unknown>,
+        });
+      }
+
+      abandoned.push(session.id);
+    }
+
+    return {
+      success: true,
+      abandoned,
+      count: abandoned.length,
+      releasedClaims,
+    };
+  }
+
   return {
     start,
     end,
@@ -1741,6 +1827,7 @@ export function createSessions(
     list,
     get,
     cleanup,
+    abandonOrphanedActive,
     setActivityLog,
   };
 }

@@ -395,7 +395,8 @@ function cleanupStale(): ReturnType<typeof services.cleanup> {
   } else {
     interface AgentListItem {
       id: string; name: string | null; isActive: boolean;
-      lastHeartbeat: number; metadata?: { purpose?: string } | null;
+      lastHeartbeat: number; status?: string; metadata?: { purpose?: string } | null;
+      identityProject?: string | null; identityStack?: string | null; identityContext?: string | null;
     }
 
     const allAgents = agents.list();
@@ -440,7 +441,12 @@ function cleanupStale(): ReturnType<typeof services.cleanup> {
         resurrection.check({
           id: agent.id, name: agent.name || agent.id,
           purpose: agent.metadata?.purpose, sessionId,
-          lastHeartbeat: agent.lastHeartbeat, notes
+          lastHeartbeat: agent.lastHeartbeat,
+          status: agent.status,
+          notes,
+          identityProject: agent.identityProject ?? undefined,
+          identityStack: agent.identityStack ?? undefined,
+          identityContext: agent.identityContext ?? undefined,
         });
       }
     }
@@ -452,6 +458,13 @@ function cleanupStale(): ReturnType<typeof services.cleanup> {
         details: `cleaned ${agentCleanup.cleaned} stale agents`,
         metadata: agentCleanup
       });
+    }
+
+    const orphanedSessions = sessions.abandonOrphanedActive({
+      olderThan: agents.DEFAULT_CLEANUP_TTL,
+    });
+    if (orphanedSessions.count > 0) {
+      logger.warn('orphaned_active_sessions_abandoned', orphanedSessions);
     }
   }
 

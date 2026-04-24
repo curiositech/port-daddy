@@ -7,6 +7,7 @@ import {
   fetchAgentInboxStats,
   fetchChannelMessages,
   fetchFileClaims,
+  fetchOperatorActors,
   fetchRegistryAgents,
   fetchSalvageAgents,
   fetchSessions,
@@ -28,6 +29,7 @@ import type {
   InboxStats,
   RegistryAgent,
   SessionSummary,
+  OperatorActorEntry,
   SpawnedAgent,
 } from '../types';
 import { agentColor } from '../types';
@@ -102,12 +104,26 @@ function matchesProjectRegistry(agent: RegistryAgent, projectName: string | null
     || purpose.includes(projectNeedle);
 }
 
-function badgeStyle(kind: 'live' | 'spawn' | 'ghost' | 'fleet' | 'adhoc') {
-  if (kind === 'live') return { backgroundColor: 'var(--pd-success-surface)', color: 'var(--pd-success)', border: '1px solid var(--pd-success-border)' };
-  if (kind === 'spawn') return { backgroundColor: 'var(--pd-warning-surface)', color: 'var(--pd-warning)', border: '1px solid var(--pd-warning-border)' };
-  if (kind === 'ghost') return { backgroundColor: 'var(--pd-accent-surface)', color: 'var(--pd-accent)', border: '1px solid var(--pd-accent-border)' };
+function badgeStyle(kind: 'running' | 'salvaged' | 'orphan_reconciled' | 'historical' | 'idle' | 'fleet' | 'adhoc') {
+  if (kind === 'running') return { backgroundColor: 'var(--pd-success-surface)', color: 'var(--pd-success)', border: '1px solid var(--pd-success-border)' };
+  if (kind === 'salvaged') return { backgroundColor: 'var(--pd-warning-surface)', color: 'var(--pd-warning)', border: '1px solid var(--pd-warning-border)' };
+  if (kind === 'orphan_reconciled') return { backgroundColor: 'var(--pd-accent-surface)', color: 'var(--pd-accent)', border: '1px solid var(--pd-accent-border)' };
+  if (kind === 'historical') return { backgroundColor: 'var(--pd-surface-3)', color: 'var(--pd-text)', border: '1px solid var(--pd-border)' };
+  if (kind === 'idle') return { backgroundColor: 'var(--pd-bg)', color: 'var(--pd-muted)', border: '1px solid var(--pd-border)' };
   if (kind === 'fleet') return { backgroundColor: 'var(--pd-surface-3)', color: 'var(--pd-text)', border: '1px solid var(--pd-border)' };
   return { backgroundColor: 'var(--pd-bg)', color: 'var(--pd-muted)', border: '1px solid var(--pd-border)' };
+}
+
+/**
+ * Normalize a client-side directory entity onto the daemon actor-lens key so
+ * lifecycle data can be joined without duplicating merge heuristics here.
+ *
+ * Example:
+ * - input: `{ id: 'agent-123', fleetAgentName: 'spark' }`
+ * - output: `'spark'`
+ */
+function actorLookupKey(input: { id?: string | null; fleetAgentName?: string | null }): string {
+  return input.fleetAgentName?.trim() || input.id?.trim() || '';
 }
 
 function Section({
@@ -149,6 +165,7 @@ export default function AgentsPanel({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [entities, setEntities] = useState<AgentDirectoryEntry[]>([]);
+  const [actorEntries, setActorEntries] = useState<OperatorActorEntry[]>([]);
   const [projectSessions, setProjectSessions] = useState<SessionSummary[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -163,11 +180,12 @@ export default function AgentsPanel({
     setLoading(true);
     setError(null);
     try {
-      const [registryAgents, spawnedAgents, salvageAgents, sessions] = await Promise.all([
+      const [registryAgents, spawnedAgents, salvageAgents, sessions, actors] = await Promise.all([
         fetchRegistryAgents(),
         fetchSorties(),
         fetchSalvageAgents({ project: projectName ?? undefined, includeResolved: true, limit: 40 }),
         fetchSessions({ project: projectName ?? undefined, includeNotes: true, allWorktrees: true, limit: 40 }),
+        fetchOperatorActors({ project: projectName ?? undefined, projectDir: projectDir ?? undefined, limit: 80 }),
       ]);
 
       const scopedRegistryAgents = registryAgents.filter((agent) => matchesProjectRegistry(agent, projectName));
@@ -178,23 +196,52 @@ export default function AgentsPanel({
         salvageAgents,
         configuredFleetAgents: fleetConfig?.agents.map((agent) => agent.name) ?? [],
       });
+      const entitiesByKey = new Map(nextEntities.map((entity) => [actorLookupKey(entity), entity]));
+      for (const actor of actors) {
+        const key = actorLookupKey(actor);
+        if (!key || entitiesByKey.has(key)) continue;
+        entitiesByKey.set(key, {
+          id: actor.id,
+          label: actor.label,
+          purpose: actor.purpose,
+          identity: actor.identity,
+          fleetAgentName: actor.fleetAgentName,
+          isConfiguredFleetAgent: actor.isConfiguredFleetAgent,
+          registry: actor.registry,
+          spawned: actor.spawned,
+          salvage: actor.salvage,
+          sortTimestamp: actor.lastActivityAt ?? 0,
+        });
+      }
+      const mergedEntities = [...entitiesByKey.values()]
+        .sort((left, right) => right.sortTimestamp - left.sortTimestamp);
 
-      setEntities(nextEntities);
+      setEntities(mergedEntities);
+      setActorEntries(actors);
       setProjectSessions(sessions);
       setSelectedAgentId((current) => {
-        if (current && nextEntities.some((entity) => entity.id === current)) return current;
-        return nextEntities[0]?.id ?? null;
+        if (current && mergedEntities.some((entity) => entity.id === current)) return current;
+        return mergedEntities[0]?.id ?? null;
       });
     } catch (err) {
       setError((err as Error).message);
     } finally {
       setLoading(false);
     }
-  }, [fleetConfig?.agents, projectName]);
+  }, [fleetConfig?.agents, projectDir, projectName]);
 
   const selected = useMemo(
     () => entities.find((entity) => entity.id === selectedAgentId) ?? null,
     [entities, selectedAgentId],
+  );
+
+  const actorByKey = useMemo(() => new Map(
+    actorEntries.map((actor) => [actorLookupKey({ id: actor.id, fleetAgentName: actor.fleetAgentName }), actor]),
+  ), [actorEntries]);
+
+  const selectedActor = useMemo(
+    () => (selected ? actorByKey.get(actorLookupKey(selected)) ?? null : null),
+    [actorByKey, selected],
   );
 
   const selectedFleetAgent = useMemo(() => {
@@ -212,8 +259,8 @@ export default function AgentsPanel({
   );
 
   const selectedSessions = useMemo(
-    () => selected ? projectSessions.filter((session) => session.agentId === selected.id).slice(0, 8) : [],
-    [projectSessions, selected],
+    () => selectedActor?.sessions ?? (selected ? projectSessions.filter((session) => session.agentId === selected.id).slice(0, 8) : []),
+    [projectSessions, selected, selectedActor],
   );
 
   const knownChannels = useMemo(() => (
@@ -236,9 +283,9 @@ export default function AgentsPanel({
     setActionError(null);
     try {
       const [messages, stats, claims, feeds] = await Promise.all([
-        fetchAgentInbox(selected.id, { limit: 20 }),
-        fetchAgentInboxStats(selected.id),
-        fetchFileClaims({ agent: selected.id }),
+        fetchAgentInbox(selectedActor?.inboxTarget ?? selected.id, { limit: 20 }),
+        fetchAgentInboxStats(selectedActor?.inboxTarget ?? selected.id),
+        fetchFileClaims({ agent: selected.registry?.id ?? selected.id }),
         Promise.all(
           knownChannels.map(async (channel) => ({
             logical: channel.logical,
@@ -257,7 +304,7 @@ export default function AgentsPanel({
     } finally {
       setDetailLoading(false);
     }
-  }, [knownChannels, selected]);
+  }, [knownChannels, selected, selectedActor]);
 
   useEffect(() => {
     void loadDirectory();
@@ -268,11 +315,12 @@ export default function AgentsPanel({
   }, [loadDetails]);
 
   const summary = useMemo(() => ({
-    live: entities.filter((entity) => entity.registry).length,
-    spawned: entities.filter((entity) => entity.spawned).length,
-    ghosts: entities.filter((entity) => entity.salvage).length,
-    sessions: projectSessions.length,
-  }), [entities, projectSessions.length]);
+    running: actorEntries.filter((actor) => actor.actorState === 'running').length,
+    salvaged: actorEntries.filter((actor) => actor.actorState === 'salvaged').length,
+    orphaned: actorEntries.filter((actor) => actor.actorState === 'orphan_reconciled').length,
+    historical: actorEntries.filter((actor) => actor.actorState === 'historical').length,
+    idle: actorEntries.filter((actor) => actor.actorState === 'idle').length,
+  }), [actorEntries]);
 
   const runBusy = actionBusy === 'run';
   const pauseBusy = actionBusy === 'pause';
@@ -377,7 +425,7 @@ export default function AgentsPanel({
           <div>
             <div className="text-[10px] font-semibold tracking-wider" style={{ color: 'var(--pd-dim)' }}>ALL AGENTS</div>
             <div className="text-sm font-semibold mt-1" style={{ color: 'var(--pd-text)' }}>
-              Live agents, spawned runs, and salvage ghosts
+              Logical actors across runtime, salvage, and session history
             </div>
           </div>
           <button
@@ -392,20 +440,20 @@ export default function AgentsPanel({
 
         <div className="px-4 py-3 grid grid-cols-2 gap-2 text-[11px]" style={{ borderBottom: '1px solid var(--pd-border)' }}>
           <div className="rounded-md px-3 py-2" style={{ backgroundColor: 'var(--pd-bg)' }}>
-            <div style={{ color: 'var(--pd-dim)' }}>Live registry</div>
-            <div className="font-semibold mt-1" style={{ color: 'var(--pd-text)' }}>{summary.live}</div>
+            <div style={{ color: 'var(--pd-dim)' }}>Running</div>
+            <div className="font-semibold mt-1" style={{ color: 'var(--pd-text)' }}>{summary.running}</div>
           </div>
           <div className="rounded-md px-3 py-2" style={{ backgroundColor: 'var(--pd-bg)' }}>
-            <div style={{ color: 'var(--pd-dim)' }}>Spawned runs</div>
-            <div className="font-semibold mt-1" style={{ color: 'var(--pd-text)' }}>{summary.spawned}</div>
+            <div style={{ color: 'var(--pd-dim)' }}>Salvaged</div>
+            <div className="font-semibold mt-1" style={{ color: 'var(--pd-text)' }}>{summary.salvaged}</div>
           </div>
           <div className="rounded-md px-3 py-2" style={{ backgroundColor: 'var(--pd-bg)' }}>
-            <div style={{ color: 'var(--pd-dim)' }}>Ghosts</div>
-            <div className="font-semibold mt-1" style={{ color: 'var(--pd-text)' }}>{summary.ghosts}</div>
+            <div style={{ color: 'var(--pd-dim)' }}>Orphan reconciled</div>
+            <div className="font-semibold mt-1" style={{ color: 'var(--pd-text)' }}>{summary.orphaned}</div>
           </div>
           <div className="rounded-md px-3 py-2" style={{ backgroundColor: 'var(--pd-bg)' }}>
-            <div style={{ color: 'var(--pd-dim)' }}>Recent sessions</div>
-            <div className="font-semibold mt-1" style={{ color: 'var(--pd-text)' }}>{summary.sessions}</div>
+            <div style={{ color: 'var(--pd-dim)' }}>Historical / idle</div>
+            <div className="font-semibold mt-1" style={{ color: 'var(--pd-text)' }}>{summary.historical + summary.idle}</div>
           </div>
         </div>
 
@@ -421,7 +469,7 @@ export default function AgentsPanel({
           ) : (
             entities.map((entity) => {
               const selectedRow = entity.id === selected?.id;
-              const liveness = entity.registry?.healthAssessment.liveness ?? null;
+              const actor = actorByKey.get(actorLookupKey(entity)) ?? null;
               return (
                 <button
                   key={entity.id}
@@ -435,20 +483,18 @@ export default function AgentsPanel({
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: entity.fleetAgentName ? agentColor(entity.fleetAgentName) : 'var(--pd-text)' }}>
-                        {entity.label}
+                        {actor?.label ?? entity.label}
                       </div>
                       <div className="mt-1 flex flex-wrap gap-1">
-                        {entity.registry && <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={badgeStyle('live')}>live</span>}
-                        {entity.spawned && <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={badgeStyle('spawn')}>{entity.spawned.status}</span>}
-                        {entity.salvage && <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={badgeStyle('ghost')}>{entity.salvage.status}</span>}
+                        {actor && <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={badgeStyle(actor.actorState)}>{actor.actorState.replace(/_/g, ' ')}</span>}
                         <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={badgeStyle(entity.isConfiguredFleetAgent ? 'fleet' : 'adhoc')}>
                           {entity.isConfiguredFleetAgent ? 'fleet' : 'ad hoc'}
                         </span>
                       </div>
                     </div>
                     <div className="text-[10px] font-mono text-right" style={{ color: 'var(--pd-dim)' }}>
-                      {relativeTime(entity.registry?.lastHeartbeat ?? entity.spawned?.completedAt ?? entity.spawned?.startedAt ?? entity.salvage?.staleSince)}
-                      {liveness && <div className="mt-1 uppercase">{liveness}</div>}
+                      {relativeTime(actor?.lastActivityAt ?? entity.registry?.lastHeartbeat ?? entity.spawned?.completedAt ?? entity.spawned?.startedAt ?? entity.salvage?.staleSince)}
+                      {(actor?.liveness ?? entity.registry?.healthAssessment.liveness) && <div className="mt-1 uppercase">{actor?.liveness ?? entity.registry?.healthAssessment.liveness}</div>}
                     </div>
                   </div>
                   <div
@@ -461,7 +507,7 @@ export default function AgentsPanel({
                       WebkitBoxOrient: 'vertical',
                     }}
                   >
-                    {entity.purpose || entity.identity || entity.id}
+                    {actor?.lastSummary || entity.purpose || entity.identity || entity.id}
                   </div>
                 </button>
               );
@@ -487,19 +533,18 @@ export default function AgentsPanel({
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    {selected.registry && <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={badgeStyle('live')}>registry</span>}
-                    {selected.spawned && <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={badgeStyle('spawn')}>spawn {selected.spawned.status}</span>}
-                    {selected.salvage && <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={badgeStyle('ghost')}>ghost {selected.salvage.status}</span>}
+                    {selectedActor && <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={badgeStyle(selectedActor.actorState)}>{selectedActor.actorState.replace(/_/g, ' ')}</span>}
                     <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={badgeStyle(selected.isConfiguredFleetAgent ? 'fleet' : 'adhoc')}>
                       {selected.isConfiguredFleetAgent ? 'fleet agent' : 'ad hoc'}
                     </span>
                   </div>
                   <div className="mt-3 text-sm leading-relaxed" style={{ color: 'var(--pd-text)' }}>
-                    {selected.purpose || 'No operator purpose surfaced yet.'}
+                    {selectedActor?.lastSummary || selected.purpose || 'No operator purpose surfaced yet.'}
                   </div>
                   <div className="mt-3 grid gap-2 text-[12px]" style={{ color: 'var(--pd-muted)' }}>
                     <div><span style={{ color: 'var(--pd-dim)' }}>ID:</span> <span className="font-mono">{selected.id}</span></div>
                     {selected.identity && <div><span style={{ color: 'var(--pd-dim)' }}>Identity:</span> <span className="font-mono">{selected.identity}</span></div>}
+                    {selectedActor && <div><span style={{ color: 'var(--pd-dim)' }}>Actor state:</span> {selectedActor.actorState.replace(/_/g, ' ')} · {selectedActor.actorStateReason}</div>}
                     {selected.registry && <div><span style={{ color: 'var(--pd-dim)' }}>Heartbeat:</span> {relativeTime(selected.registry.lastHeartbeat)} · status {selected.registry.status}</div>}
                     {selected.spawned && <div><span style={{ color: 'var(--pd-dim)' }}>Spawned:</span> {relativeTime(selected.spawned.startedAt)} · backend {selected.spawned.backend} · model {selected.spawned.model}</div>}
                     {selected.salvage?.sessionId && <div><span style={{ color: 'var(--pd-dim)' }}>Ghost session:</span> <span className="font-mono">{selected.salvage.sessionId}</span></div>}
@@ -684,7 +729,7 @@ export default function AgentsPanel({
                           <div>
                             <div className="text-sm font-semibold" style={{ color: 'var(--pd-text)' }}>{session.purpose}</div>
                             <div className="mt-1 flex flex-wrap gap-1">
-                              <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={badgeStyle(session.status === 'active' ? 'live' : session.status === 'completed' ? 'fleet' : 'ghost')}>
+                              <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={badgeStyle(session.status === 'active' ? 'running' : session.status === 'completed' ? 'fleet' : 'historical')}>
                                 {session.status}
                               </span>
                               <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={badgeStyle('adhoc')}>

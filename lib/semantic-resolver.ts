@@ -254,6 +254,7 @@ interface SemanticResolutionRow {
 
 interface SemanticOverrideRow {
   id: number;
+  project_key: string;
   project_dir: string | null;
   canonical_term: string;
   candidate_term: string;
@@ -604,12 +605,45 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
       threshold_review REAL NOT NULL,
       model TEXT NOT NULL,
       metadata TEXT,
+      review_action TEXT,
+      reviewed_by TEXT,
+      review_note TEXT,
+      reviewed_at INTEGER,
       created_at INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_semantic_resolution_created ON semantic_resolution_events(created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_semantic_resolution_decision ON semantic_resolution_events(decision, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_semantic_resolution_project ON semantic_resolution_events(project_dir, created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS semantic_resolution_overrides (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_key TEXT NOT NULL,
+      project_dir TEXT,
+      canonical_term TEXT NOT NULL,
+      candidate_term TEXT NOT NULL,
+      action TEXT NOT NULL,
+      reviewer TEXT,
+      note TEXT,
+      source_event_id INTEGER,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_semantic_override_pair
+      ON semantic_resolution_overrides(project_key, canonical_term, candidate_term);
   `);
+
+  for (const sql of [
+    'ALTER TABLE semantic_resolution_events ADD COLUMN review_action TEXT',
+    'ALTER TABLE semantic_resolution_events ADD COLUMN reviewed_by TEXT',
+    'ALTER TABLE semantic_resolution_events ADD COLUMN review_note TEXT',
+    'ALTER TABLE semantic_resolution_events ADD COLUMN reviewed_at INTEGER',
+  ]) {
+    try {
+      db.exec(sql);
+    } catch {
+      // Existing installations already have the reviewed_* columns.
+    }
+  }
 
   const stmts = {
     getTerm: db.prepare(`
@@ -640,6 +674,16 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
         project_dir, harbor, source_type, source_id, raw_term, canonical_term, candidate_term,
         similarity, decision, threshold_auto, threshold_review, model, metadata, created_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `),
+    getEvent: db.prepare(`
+      SELECT * FROM semantic_resolution_events
+      WHERE id = ?
+      LIMIT 1
+    `),
+    updateEventReview: db.prepare(`
+      UPDATE semantic_resolution_events
+      SET decision = ?, review_action = ?, reviewed_by = ?, review_note = ?, reviewed_at = ?
+      WHERE id = ?
     `),
     listEvents: db.prepare(`
       SELECT * FROM semantic_resolution_events
@@ -675,6 +719,24 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
       FROM semantic_terms
       WHERE model = ?
     `),
+    getOverride: db.prepare(`
+      SELECT * FROM semantic_resolution_overrides
+      WHERE project_key = ? AND canonical_term = ? AND candidate_term = ?
+      LIMIT 1
+    `),
+    upsertOverride: db.prepare(`
+      INSERT INTO semantic_resolution_overrides (
+        project_key, project_dir, canonical_term, candidate_term, action, reviewer, note,
+        source_event_id, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(project_key, canonical_term, candidate_term)
+      DO UPDATE SET
+        action = excluded.action,
+        reviewer = excluded.reviewer,
+        note = excluded.note,
+        source_event_id = excluded.source_event_id,
+        updated_at = excluded.updated_at
+    `),
   };
 
   let embedderPromise: Promise<{ modelId: string; embed(texts: string[]): Promise<number[][]> }> | null = null;
@@ -683,6 +745,24 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
 
   function cacheKey(term: string): string {
     return `${modelId}\x00${term}`;
+  }
+
+  function overrideProjectKey(projectDir: string | null | undefined): string {
+    return projectDir?.trim() || '__global__';
+  }
+
+  function overrideTerms(left: string, right: string): [string, string] {
+    return [left, right].sort((a, b) => a.localeCompare(b)) as [string, string];
+  }
+
+  function getOverride(projectDir: string | null | undefined, left: string, right: string): SemanticResolutionOverride | null {
+    const [canonicalTerm, candidateTerm] = overrideTerms(left, right);
+    const row = stmts.getOverride.get(
+      overrideProjectKey(projectDir),
+      canonicalTerm,
+      candidateTerm,
+    ) as SemanticOverrideRow | undefined;
+    return row ? toResolutionOverride(row) : null;
   }
 
   /**
@@ -804,6 +884,10 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
       thresholdReview: reviewThreshold,
       model: modelId,
       metadata: event.metadata ?? null,
+      reviewAction: null,
+      reviewedBy: null,
+      reviewNote: null,
+      reviewedAt: null,
       createdAt,
     };
   }
@@ -861,7 +945,7 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
     }
 
     if (graphEdges && event.candidateTerm) {
-      const edgeType = event.decision === 'auto' ? 'embedding_match' : 'embedding_candidate';
+      const edgeType = event.decision === 'auto' || event.decision === 'accepted' ? 'embedding_match' : 'embedding_candidate';
       const scope = `semantic:resolution:${event.sourceType}:${event.sourceId}:${event.canonicalTerm}`;
       graphEdges.remember({
         scope,
@@ -911,8 +995,13 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
 
       const best = candidates[0];
       let decision: SemanticResolutionDecision = 'seeded';
+      const override = best ? getOverride(observation.projectDir, alias.canonical, best.term) : null;
       if (best) {
-        if (best.similarity >= autoThreshold) {
+        if (override?.action === 'accept') {
+          decision = 'accepted';
+        } else if (override?.action === 'reject') {
+          decision = 'rejected';
+        } else if (best.similarity >= autoThreshold) {
           decision = 'auto';
         } else if (best.similarity >= reviewThreshold) {
           decision = 'review';
@@ -935,6 +1024,12 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
           fingerprint: alias.fingerprint,
           tokens: alias.tokens,
           candidates,
+          override: override ? {
+            id: override.id,
+            action: override.action,
+            reviewer: override.reviewer,
+            updatedAt: override.updatedAt,
+          } : undefined,
         },
       });
       recordDecisionSignals(event, candidates, observation.agentId);
@@ -1031,6 +1126,80 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
     return rows.map(toResolutionEvent);
   }
 
+  function review(eventId: number, options: {
+    action: SemanticReviewAction;
+    reviewer?: string | null;
+    note?: string | null;
+  }): SemanticResolutionEvent {
+    if (options.action !== 'accept' && options.action !== 'reject') {
+      throw new Error(`Invalid semantic review action: ${options.action}`);
+    }
+
+    const row = stmts.getEvent.get(eventId) as SemanticResolutionRow | undefined;
+    if (!row) {
+      throw new Error(`Semantic resolution event not found: ${eventId}`);
+    }
+
+    const event = toResolutionEvent(row);
+    if (!event.candidateTerm) {
+      throw new Error(`Semantic resolution event ${eventId} has no candidate term to review`);
+    }
+
+    const now = Date.now();
+    const [canonicalTerm, candidateTerm] = overrideTerms(event.canonicalTerm, event.candidateTerm);
+    stmts.upsertOverride.run(
+      overrideProjectKey(event.projectDir),
+      event.projectDir,
+      canonicalTerm,
+      candidateTerm,
+      options.action,
+      options.reviewer ?? null,
+      options.note ?? null,
+      event.id,
+      now,
+      now,
+    );
+
+    const reviewedDecision: SemanticResolutionDecision = options.action === 'accept' ? 'accepted' : 'rejected';
+    stmts.updateEventReview.run(
+      reviewedDecision,
+      options.action,
+      options.reviewer ?? null,
+      options.note ?? null,
+      now,
+      event.id,
+    );
+
+    counters?.bump('semantic.resolution.reviewed', {
+      model: modelId,
+      action: options.action,
+      sourceType: event.sourceType,
+    });
+    counters?.bump(`semantic.resolution.${reviewedDecision}`, {
+      model: modelId,
+      sourceType: event.sourceType,
+    });
+
+    tuples?.out([
+      'semantic:review',
+      options.action,
+      event.canonicalTerm,
+      event.candidateTerm,
+      {
+        eventId: event.id,
+        reviewer: options.reviewer ?? null,
+        note: options.note ?? null,
+      },
+    ], {
+      harbor: event.harbor ?? undefined,
+      writtenBy: options.reviewer ?? undefined,
+      ttlMs: SEMANTIC_TUPLE_TTL_MS,
+    });
+
+    const reviewedRow = stmts.getEvent.get(event.id) as SemanticResolutionRow | undefined;
+    return toResolutionEvent(reviewedRow ?? row);
+  }
+
   /**
    * Summarize threshold health for the full resolver or one project slice.
    */
@@ -1048,6 +1217,8 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
       auto: 0,
       review: 0,
       reject: 0,
+      accepted: 0,
+      rejected: 0,
       error: 0,
     };
     for (const row of decisionRows) {
@@ -1065,6 +1236,9 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
       totalTerms,
       totalEvents: totals.total_events,
       reviewBacklog: decisions.review,
+      reviewedCount: decisions.accepted + decisions.rejected,
+      acceptedOverrides: decisions.accepted,
+      rejectedOverrides: decisions.rejected,
       nearAutoBoundary,
       nearReviewBoundary,
       lastResolvedAt: totals.last_resolved_at,
@@ -1088,6 +1262,7 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
     cacheDir,
     observeAliases,
     listResolutions,
+    review,
     search,
     stats,
     flush,

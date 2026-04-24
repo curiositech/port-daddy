@@ -26,6 +26,7 @@ const DEAD_THRESHOLDS: Record<string, number> = {
   draining: 5 * 60 * 1000,
 };
 const DEFAULT_DEAD_THRESHOLD = 20 * 60 * 1000;
+const DEFAULT_CLEANUP_TTL = DEFAULT_DEAD_THRESHOLD;
 
 function getDeadThresholdForStatus(status?: string): number {
   return DEAD_THRESHOLDS[status || ''] || DEFAULT_DEAD_THRESHOLD;
@@ -240,6 +241,7 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
         AND (skills LIKE ? ESCAPE '\\' OR ? IS NULL)
       ORDER BY last_heartbeat DESC
     `),
+    deleteById: db.prepare('DELETE FROM agents WHERE id = ?'),
     deleteStale: db.prepare('DELETE FROM agents WHERE last_heartbeat < ?'),
     countServices: db.prepare("SELECT COUNT(*) as count FROM services WHERE metadata LIKE ? ESCAPE '\\'"),
     countLocks: db.prepare('SELECT COUNT(*) as count FROM locks WHERE owner = ?')
@@ -745,11 +747,16 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
    */
   function cleanup(locks?: LocksLike) {
     const now = Date.now();
-    const staleAgents = stmts.listStale.all(now - DEFAULT_AGENT_TTL) as AgentRow[];
+    // Cleanup is an operational death decision, not a display concern.
+    // Agents may be "inactive" after 2 minutes for UI purposes while still
+    // remaining eligible for resurrection/salvage until their dead threshold.
+    const cleanupCandidates = (stmts.list.all() as AgentRow[]).filter(
+      (agent) => (now - agent.last_heartbeat) > getDeadThresholdForStatus(agent.status)
+    );
 
     let releasedLocks = 0;
 
-    for (const agent of staleAgents) {
+    for (const agent of cleanupCandidates) {
       // Release locks owned by this agent.
       // Note: services don't track agent ownership (no agent_id column),
       // so service cleanup relies on expires_at TTL and PID liveness checks
@@ -763,13 +770,15 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
       }
     }
 
-    // Delete stale agent records
-    const deleteResult = stmts.deleteStale.run(now - DEFAULT_AGENT_TTL);
+    for (const agent of cleanupCandidates) {
+      stmts.deleteById.run(agent.id);
+    }
 
     return {
-      cleaned: deleteResult.changes,
+      cleaned: cleanupCandidates.length,
+      cleanedAgentIds: cleanupCandidates.map((agent) => agent.id),
       releasedLocks,
-      message: `cleaned ${deleteResult.changes} stale agent(s)`
+      message: `cleaned ${cleanupCandidates.length} stale agent(s)`
     };
   }
 
@@ -786,6 +795,7 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
     DEFAULT_HEARTBEAT_INTERVAL,
     DEFAULT_AGENT_TTL,
     DEFAULT_DISPLAY_TTL,
+    DEFAULT_CLEANUP_TTL,
     VALID_STATUSES: VALID_STATUSES as unknown as string[]
   };
 }

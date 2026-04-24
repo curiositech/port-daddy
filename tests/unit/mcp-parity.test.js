@@ -178,6 +178,7 @@ const TOOL_FEATURE_MAP = {
   'fleet_init': 'fleet',
   'fleet_status': 'fleet',
   'swarm_awareness': 'agents',
+  'sitrep': 'system',
   'catch_me_up': 'activity',
   'file_heat': 'pheromone',
   'talk_to_agent': 'inbox',

@@ -1,13 +1,76 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, statSync } from 'node:fs';
-import { dirname, relative, resolve } from 'node:path';
+import { basename, dirname, relative, resolve } from 'node:path';
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
+import type { createActivityLog } from '../lib/activity.js';
+import type { createAgents } from '../lib/agents.js';
+import { loadFleetConfig, type FleetAgent as ConfiguredFleetAgent } from '../lib/fleet-engine.js';
+import type { createProjects } from '../lib/projects.js';
+import type { createResurrection } from '../lib/resurrection.js';
+import type { createSessions } from '../lib/sessions.js';
+import type { createSpawner } from '../lib/spawner.js';
+
+type AgentsManager = ReturnType<typeof createAgents>;
+type RegistryAgentEntry = ReturnType<AgentsManager['list']>['agents'][number];
+type SessionsManager = ReturnType<typeof createSessions>;
+interface SessionSummaryEntry {
+  id: string;
+  purpose: string | null;
+  status: string;
+  agentId: string | null;
+  updatedAt: number;
+  notes?: Array<{
+    content: string;
+    createdAt: number;
+  }>;
+}
+type ResurrectionManager = ReturnType<typeof createResurrection>;
+type SalvageAgentEntry = ReturnType<ResurrectionManager['list']>['agents'][number];
+type SpawnerManager = ReturnType<typeof createSpawner>;
+type SpawnedAgentEntry = ReturnType<SpawnerManager['list']>[number];
+type ProjectsManager = ReturnType<typeof createProjects>;
+type ProjectEntry = ReturnType<ProjectsManager['getByPath']>;
+type ActivityManager = ReturnType<typeof createActivityLog>;
+type ActivityEntry = ReturnType<ActivityManager['getRecent']>['entries'][number];
+
+type OperatorActorState = 'running' | 'idle' | 'salvaged' | 'orphan_reconciled' | 'historical';
+type OperatorActorKind = 'scheduled' | 'triggered' | 'watcher' | 'ad_hoc';
+
+const KNOWN_REPO_PATH_PREFIXES = [
+  'apps/',
+  'bin/',
+  'cli/',
+  'completions/',
+  'config/',
+  'docs/',
+  'fleet-config-ui/',
+  'lib/',
+  'mcp/',
+  'public/',
+  'routes/',
+  'scripts/',
+  'shared/',
+  'skills/',
+  'tests/',
+  'website-v2/',
+  '.cartographer/',
+  '.claude-plugin/',
+  '.portdaddy/',
+  '.spark/',
+  '.spider/',
+];
 
 interface OperatorRouteDeps {
   logger?: {
     info?: (meta: Record<string, unknown>, message?: string) => void;
     error?: (meta: Record<string, unknown>, message?: string) => void;
   };
+  agents?: AgentsManager;
+  sessions?: SessionsManager;
+  resurrection?: ResurrectionManager;
+  spawner?: SpawnerManager;
+  projects?: ProjectsManager;
+  activityLog?: ActivityManager;
 }
 
 interface OpenFileBody {
@@ -22,12 +85,70 @@ interface FilePreviewBody {
   maxLines?: number;
 }
 
+interface OperatorActorsQuery {
+  project?: string;
+  projectDir?: string;
+  limit?: string;
+}
+
 type PreviewLineKind = 'meta' | 'hunk' | 'add' | 'remove' | 'context';
 
 interface PreviewLine {
   kind: PreviewLineKind;
   text: string;
 }
+
+interface OperatorActorSignal {
+  timestamp: number;
+  summary: string;
+  files: string[];
+}
+
+interface OperatorActorRecord {
+  id: string;
+  label: string;
+  purpose: string | null;
+  identity: string | null;
+  fleetAgentName: string | null;
+  inboxTarget: string;
+  isConfiguredFleetAgent: boolean;
+  actorKind: OperatorActorKind;
+  actorState: OperatorActorState;
+  actorStateReason: string;
+  runtimeStatus: string | null;
+  liveness: 'alive' | 'stale' | 'dead' | null;
+  lastActivityAt: number | null;
+  lastSummary: string | null;
+  recentFiles: string[];
+  registry: RegistryAgentEntry | null;
+  spawned: SpawnedAgentEntry | null;
+  salvage: SalvageAgentEntry | null;
+  sessions: SessionSummaryEntry[];
+}
+
+interface MutableActorRecord {
+  id: string;
+  label: string;
+  purpose: string | null;
+  identity: string | null;
+  fleetAgentName: string | null;
+  inboxTarget: string;
+  isConfiguredFleetAgent: boolean;
+  actorKind: OperatorActorKind;
+  runtimeStatus: string | null;
+  liveness: 'alive' | 'stale' | 'dead' | null;
+  lastActivityAt: number | null;
+  registry: RegistryAgentEntry | null;
+  spawned: SpawnedAgentEntry | null;
+  salvage: SalvageAgentEntry | null;
+  sessions: SessionSummaryEntry[];
+  orphanedAt: number | null;
+  orphanedSummary: string | null;
+  recentFiles: string[];
+  signals: OperatorActorSignal[];
+}
+
+const ORPHAN_RECONCILED_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Resolve an operator-surfaced file token against the current project.
@@ -288,8 +409,513 @@ function buildOpenCommand(
   return { command: 'xdg-open', args: [targetPath] };
 }
 
+/**
+ * Resolve the operator project context from explicit query params and the
+ * durable project registry when a projectDir is available.
+ *
+ * Example:
+ * - input: `{ projectDir: '/repo/port-daddy' }`
+ * - output: `{ projectDir: '/repo/port-daddy', projectName: 'port-daddy' }`
+ */
+function resolveProjectContext(query: OperatorActorsQuery, projects?: ProjectsManager): {
+  projectDir: string | null;
+  projectName: string | null;
+  projectRecord: ProjectEntry;
+} {
+  const requestedProjectDir = typeof query.projectDir === 'string' && query.projectDir.trim()
+    ? resolve(query.projectDir.trim())
+    : null;
+  const requestedProject = typeof query.project === 'string' && query.project.trim()
+    ? query.project.trim()
+    : null;
+
+  const projectRecord = requestedProjectDir && projects?.getByPath
+    ? projects.getByPath(requestedProjectDir)
+    : requestedProject && projects?.get
+      ? projects.get(requestedProject)
+      : null;
+
+  return {
+    projectDir: requestedProjectDir ?? projectRecord?.root ?? null,
+    projectName: projectRecord?.id ?? (requestedProjectDir ? basename(requestedProjectDir) : requestedProject),
+    projectRecord,
+  };
+}
+
+/**
+ * Recover the fleet agent name from semantic identity fields or the
+ * conventional "Fleet agent: <name>" purpose string.
+ *
+ * Example:
+ * - input: `{ identity: 'port-daddy:fleet:spark' }`
+ * - output: `'spark'`
+ */
+function extractFleetAgentName(input: {
+  identity?: string | null;
+  identityStack?: string | null;
+  identityContext?: string | null;
+  purpose?: string | null;
+}): string | null {
+  if (input.identityStack === 'fleet' && input.identityContext) {
+    return input.identityContext;
+  }
+
+  const identity = input.identity?.trim();
+  if (identity) {
+    const segments = identity.split(':').filter(Boolean);
+    const fleetIndex = segments.indexOf('fleet');
+    if (fleetIndex >= 0 && segments[fleetIndex + 1]) {
+      return segments[fleetIndex + 1];
+    }
+  }
+
+  const purpose = input.purpose?.trim();
+  if (!purpose) return null;
+  const match = purpose.match(/^Fleet agent:\s*(.+)$/i);
+  return match?.[1]?.trim() || null;
+}
+
+/**
+ * Rebuild a salvage entry's semantic identity string for actor grouping.
+ *
+ * Example:
+ * - input: `{ identityProject: 'port-daddy', identityStack: 'fleet', identityContext: 'spark' }`
+ * - output: `'port-daddy:fleet:spark'`
+ */
+function identityFromSalvage(agent: SalvageAgentEntry): string | null {
+  return [
+    agent.identityProject,
+    agent.identityStack,
+    agent.identityContext,
+  ].filter((part): part is string => !!part && part.trim().length > 0).join(':') || null;
+}
+
+/**
+ * Match a registry row to a logical project when the daemon has not yet
+ * upgraded every surface to projectDir-native identity keys.
+ *
+ * Example:
+ * - input: `(registryAgent, 'port-daddy')`
+ * - output: `true`
+ */
+function matchesProjectRegistry(agent: RegistryAgentEntry, projectName: string | null): boolean {
+  if (!projectName) return true;
+  const needle = projectName.toLowerCase();
+  const identity = agent.identity?.toLowerCase() ?? '';
+  const purpose = agent.purpose?.toLowerCase() ?? '';
+  return agent.identityProject === projectName
+    || identity === needle
+    || identity.startsWith(`${needle}:`)
+    || purpose.includes(needle);
+}
+
+/**
+ * Match a spawned run to a logical project using the same transitional
+ * heuristics as the control plane today.
+ *
+ * Example:
+ * - input: `(spawnedRun, 'port-daddy')`
+ * - output: `true`
+ */
+function matchesProjectSpawn(agent: SpawnedAgentEntry, projectName: string | null): boolean {
+  if (!projectName) return true;
+  const needle = projectName.toLowerCase();
+  const identity = agent.identity?.toLowerCase() ?? '';
+  const purpose = agent.purpose?.toLowerCase() ?? '';
+  return identity === needle
+    || identity.startsWith(`${needle}:`)
+    || purpose.includes(needle);
+}
+
+/**
+ * Extract file-looking tokens from a note, activity summary, or spawned output.
+ *
+ * Example:
+ * - input: `'Touched routes/operator.ts and apps/FleetBar/FleetStore.swift'`
+ * - output: `['routes/operator.ts', 'apps/FleetBar/FleetStore.swift']`
+ */
+function extractMentionedPaths(text: string | null | undefined, limit = 6): string[] {
+  if (!text) return [];
+  const pattern = /(?:\.{1,2}\/|\/)?(?:[A-Za-z0-9._-]+\/)+[A-Za-z0-9._-]+(?:\.[A-Za-z0-9_-]+)?/g;
+  const matches = text.match(pattern) ?? [];
+  return [...new Set(matches.filter(looksLikeRepoPath))].slice(0, limit);
+}
+
+/**
+ * Keep actor summaries from resurrecting prose slash-phrases as file chips.
+ *
+ * Example:
+ * - input: `'FleetBar/control-plane'`
+ * - output: `false`
+ */
+function looksLikeRepoPath(candidate: string): boolean {
+  if (!candidate || !candidate.includes('/')) return false;
+  if (candidate.includes('://')) return false;
+
+  const normalized = candidate
+    .replace(/^\/+/, '')
+    .replace(/^\.\//, '')
+    .replace(/^\.\.\//, '');
+  if (!normalized) return false;
+  if (KNOWN_REPO_PATH_PREFIXES.some((prefix) => normalized.startsWith(prefix))) return true;
+
+  const parts = normalized.split('/').filter(Boolean);
+  if (parts.length < 2) return false;
+  return (parts[parts.length - 1] ?? '').includes('.');
+}
+
+/**
+ * Clamp long text to a one-card summary without throwing away the beginning.
+ *
+ * Example:
+ * - input: `'A very long summary...'`, `120`
+ * - output: `'A very long summary…'`
+ */
+function truncateText(text: string | null | undefined, maxLength = 220): string | null {
+  const trimmed = text?.trim();
+  if (!trimmed) return null;
+  if (trimmed.length <= maxLength) return trimmed;
+  return `${trimmed.slice(0, maxLength - 1).trimEnd()}…`;
+}
+
+/**
+ * Classify a configured fleet agent into a UI-facing actor kind.
+ *
+ * Example:
+ * - input: `{ schedule: 'every-5-minutes' }`
+ * - output: `'scheduled'`
+ */
+function classifyConfiguredActor(agent: ConfiguredFleetAgent): OperatorActorKind {
+  if (agent.schedule) return 'scheduled';
+  if (agent.trigger || agent.triggerTuple) return 'triggered';
+  return 'triggered';
+}
+
+/**
+ * Merge a file list into a stable, de-duplicated actor-level recent-files set.
+ *
+ * Example:
+ * - input: `['a.ts'], ['a.ts', 'b.ts']`
+ * - output: `['a.ts', 'b.ts']`
+ */
+function mergeRecentFiles(current: string[], next: string[]): string[] {
+  return [...new Set([...current, ...next].filter((value) => value.trim().length > 0))].slice(0, 6);
+}
+
+/**
+ * Derive a single actor-state label from the combined registry/session/salvage
+ * evidence that Port Daddy has for a given logical actor.
+ *
+ * Example:
+ * - input: `{ registry: active, salvage: null, orphanedAt: null }`
+ * - output: `{ actorState: 'running', actorStateReason: 'Live body is registered.' }`
+ */
+function deriveActorState(entry: MutableActorRecord): { actorState: OperatorActorState; actorStateReason: string } {
+  const hasActiveSession = entry.sessions.some((session) => session.status === 'active');
+  const spawnedStatus = entry.spawned?.status ?? null;
+  const hasLiveBody = Boolean(
+    entry.registry?.isActive
+      || entry.registry?.healthAssessment?.liveness === 'alive'
+      || spawnedStatus === 'running',
+  );
+  if (hasLiveBody) {
+    return { actorState: 'running', actorStateReason: 'Live body is registered or spawned.' };
+  }
+
+  if (entry.salvage) {
+    return { actorState: 'salvaged', actorStateReason: 'Actor is queued or marked for salvage/resurrection.' };
+  }
+
+  if (hasActiveSession) {
+    return { actorState: 'orphan_reconciled', actorStateReason: 'Active session exists without a live body and needs reconciliation.' };
+  }
+
+  if (entry.orphanedAt && (Date.now() - entry.orphanedAt) <= ORPHAN_RECONCILED_WINDOW_MS) {
+    return { actorState: 'orphan_reconciled', actorStateReason: 'Recent orphaned session was reconciled after body loss.' };
+  }
+
+  if (entry.sessions.length > 0 || entry.spawned || entry.signals.length > 0) {
+    return { actorState: 'historical', actorStateReason: 'No current body, but recent work history exists.' };
+  }
+
+  return { actorState: 'idle', actorStateReason: 'Known actor with no current body and no recent salvage pressure.' };
+}
+
+/**
+ * Build the operator-facing actor lens for one project. This is the shared
+ * truth both FleetBar and the control plane should render.
+ *
+ * Example:
+ * - input: `{ projectDir: '/repo/port-daddy', projectName: 'port-daddy' }`
+ * - output: `[{ id: 'spark', actorState: 'running', ... }]`
+ */
+function buildOperatorActors(
+  deps: OperatorRouteDeps,
+  query: OperatorActorsQuery,
+): {
+  actors: OperatorActorRecord[];
+  projectDir: string | null;
+  projectName: string | null;
+  summary: Record<OperatorActorState, number>;
+} {
+  const { projectDir, projectName } = resolveProjectContext(query, deps.projects);
+  const configured = projectDir ? loadFleetConfig(projectDir) : null;
+  const configuredFleetAgents = new Set(configured?.agents.map((agent) => agent.name) ?? []);
+  const limit = Math.min(Math.max(parseInt(query.limit ?? '80', 10) || 80, 1), 200);
+
+  const registryAgents = deps.agents?.list({ activeOnly: false }).agents.filter((agent) => matchesProjectRegistry(agent, projectName)) ?? [];
+  const salvageAgents = deps.resurrection?.list({ project: projectName ?? undefined, limit }).agents ?? [];
+  const spawnedAgents = deps.spawner?.list().filter((agent) => matchesProjectSpawn(agent, projectName)) ?? [];
+  const sessions = deps.sessions?.list({
+    project: projectName ?? undefined,
+    includeNotes: true,
+    allWorktrees: true,
+    limit,
+  }) as { sessions: SessionSummaryEntry[] } | undefined;
+  const sessionEntries = sessions?.sessions ?? [];
+  const activityEntries = deps.activityLog?.getRecent({ type: 'session.end', limit: limit * 2 }).entries ?? [];
+  const activeClaims = deps.sessions?.listAllActiveClaims?.().claims ?? [];
+
+  const claimFilesByAgent = new Map<string, string[]>();
+  for (const claim of activeClaims) {
+    if (!claim.agentId) continue;
+    claimFilesByAgent.set(claim.agentId, mergeRecentFiles(claimFilesByAgent.get(claim.agentId) ?? [], [claim.filePath]));
+  }
+
+  const actors = new Map<string, MutableActorRecord>();
+
+  /**
+   * Create or update one mutable actor bucket while preserving the newest
+   * activity timestamp and the strongest source objects.
+   */
+  const upsert = (key: string, patch: Partial<MutableActorRecord>, timestamp: number, signal?: OperatorActorSignal) => {
+    const existing = actors.get(key);
+    const next: MutableActorRecord = {
+      id: patch.id ?? existing?.id ?? key,
+      label: patch.label ?? existing?.label ?? key,
+      purpose: patch.purpose ?? existing?.purpose ?? null,
+      identity: patch.identity ?? existing?.identity ?? null,
+      fleetAgentName: patch.fleetAgentName ?? existing?.fleetAgentName ?? null,
+      inboxTarget: patch.inboxTarget ?? existing?.inboxTarget ?? key,
+      isConfiguredFleetAgent: patch.isConfiguredFleetAgent ?? existing?.isConfiguredFleetAgent ?? false,
+      actorKind: patch.actorKind ?? existing?.actorKind ?? 'ad_hoc',
+      runtimeStatus: patch.runtimeStatus ?? existing?.runtimeStatus ?? null,
+      liveness: patch.liveness ?? existing?.liveness ?? null,
+      lastActivityAt: Math.max(timestamp, patch.lastActivityAt ?? 0, existing?.lastActivityAt ?? 0) || null,
+      registry: patch.registry ?? existing?.registry ?? null,
+      spawned: patch.spawned ?? existing?.spawned ?? null,
+      salvage: patch.salvage ?? existing?.salvage ?? null,
+      sessions: patch.sessions ?? existing?.sessions ?? [],
+      orphanedAt: patch.orphanedAt ?? existing?.orphanedAt ?? null,
+      orphanedSummary: patch.orphanedSummary ?? existing?.orphanedSummary ?? null,
+      recentFiles: mergeRecentFiles(existing?.recentFiles ?? [], patch.recentFiles ?? []),
+      signals: [...(existing?.signals ?? []), ...(signal ? [signal] : [])],
+    };
+    actors.set(key, next);
+  };
+
+  for (const configuredAgent of configured?.agents ?? []) {
+    upsert(configuredAgent.name, {
+      id: configuredAgent.name,
+      label: configuredAgent.name,
+      fleetAgentName: configuredAgent.name,
+      inboxTarget: configuredAgent.name,
+      isConfiguredFleetAgent: true,
+      actorKind: classifyConfiguredActor(configuredAgent),
+    }, 0);
+  }
+
+  for (const agent of registryAgents) {
+    const fleetAgentName = extractFleetAgentName(agent);
+    const key = fleetAgentName ?? agent.id;
+    const files = claimFilesByAgent.get(agent.id) ?? [];
+    upsert(key, {
+      id: fleetAgentName ?? agent.id,
+      label: agent.name || fleetAgentName || agent.id,
+      purpose: agent.purpose ?? null,
+      identity: agent.identity ?? null,
+      fleetAgentName,
+      inboxTarget: fleetAgentName ?? agent.id,
+      isConfiguredFleetAgent: fleetAgentName ? configuredFleetAgents.has(fleetAgentName) : false,
+      actorKind: fleetAgentName ? 'triggered' : 'ad_hoc',
+      runtimeStatus: agent.status ?? null,
+      liveness: agent.healthAssessment?.liveness ?? null,
+      registry: agent,
+      recentFiles: files,
+    }, agent.lastHeartbeat, agent.progress
+      ? { timestamp: agent.lastHeartbeat, summary: agent.progress, files }
+      : undefined);
+  }
+
+  for (const agent of spawnedAgents) {
+    const fleetAgentName = extractFleetAgentName({
+      identity: agent.identity ?? null,
+      purpose: agent.purpose ?? null,
+    });
+    const key = fleetAgentName ?? agent.agentId;
+    const summary = truncateText(agent.status);
+    const files = mergeRecentFiles(claimFilesByAgent.get(agent.agentId) ?? [], extractMentionedPaths(summary));
+    upsert(key, {
+      id: fleetAgentName ?? agent.agentId,
+      label: fleetAgentName || agent.agentId,
+      purpose: agent.purpose ?? null,
+      identity: agent.identity ?? null,
+      fleetAgentName,
+      inboxTarget: fleetAgentName ?? agent.agentId,
+      isConfiguredFleetAgent: fleetAgentName ? configuredFleetAgents.has(fleetAgentName) : false,
+      actorKind: fleetAgentName ? 'triggered' : 'ad_hoc',
+      runtimeStatus: agent.status,
+      spawned: agent,
+      recentFiles: files,
+    }, agent.completedAt ?? agent.startedAt, summary
+      ? { timestamp: agent.completedAt ?? agent.startedAt, summary, files }
+      : undefined);
+  }
+
+  for (const agent of salvageAgents) {
+    const identity = identityFromSalvage(agent);
+    const fleetAgentName = extractFleetAgentName({
+      identity,
+      identityStack: agent.identityStack,
+      identityContext: agent.identityContext,
+      purpose: agent.purpose,
+    });
+    const key = fleetAgentName ?? agent.id;
+    upsert(key, {
+      id: fleetAgentName ?? agent.id,
+      label: agent.name || fleetAgentName || agent.id,
+      purpose: agent.purpose ?? null,
+      identity,
+      fleetAgentName,
+      inboxTarget: fleetAgentName ?? agent.id,
+      isConfiguredFleetAgent: fleetAgentName ? configuredFleetAgents.has(fleetAgentName) : false,
+      actorKind: fleetAgentName ? 'triggered' : 'ad_hoc',
+      runtimeStatus: agent.status,
+      salvage: agent,
+    }, agent.staleSince);
+  }
+
+  for (const session of sessionEntries) {
+    const fleetAgentName = extractFleetAgentName({
+      purpose: session.purpose,
+    });
+    const key = fleetAgentName ?? session.agentId ?? session.id;
+    const files = session.agentId ? (claimFilesByAgent.get(session.agentId) ?? []) : [];
+    const latestNote = [...(session.notes ?? [])]
+      .sort((left, right) => right.createdAt - left.createdAt)[0];
+    const noteSummary = truncateText(latestNote?.content ?? null);
+    const noteFiles = mergeRecentFiles(files, extractMentionedPaths(noteSummary));
+    const existing = actors.get(key);
+    const nextSessions = [...(existing?.sessions ?? []), session]
+      .sort((left, right) => right.updatedAt - left.updatedAt)
+      .slice(0, 8);
+    upsert(key, {
+      id: fleetAgentName ?? session.agentId ?? session.id,
+      label: fleetAgentName ?? session.agentId ?? existing?.label ?? session.id,
+      purpose: session.purpose ?? existing?.purpose ?? null,
+      fleetAgentName,
+      inboxTarget: fleetAgentName ?? session.agentId ?? session.id,
+      isConfiguredFleetAgent: fleetAgentName ? configuredFleetAgents.has(fleetAgentName) : existing?.isConfiguredFleetAgent ?? false,
+      actorKind: fleetAgentName ? (existing?.actorKind ?? 'triggered') : existing?.actorKind ?? 'ad_hoc',
+      sessions: nextSessions,
+      recentFiles: noteFiles,
+    }, session.updatedAt, noteSummary
+      ? { timestamp: latestNote?.createdAt ?? session.updatedAt, summary: noteSummary, files: noteFiles }
+      : undefined);
+  }
+
+  for (const entry of activityEntries) {
+    const metadata = entry.metadata ?? {};
+    const identityProject = typeof metadata.identityProject === 'string' ? metadata.identityProject : null;
+    const orphaned = metadata.orphaned === true;
+    if (!orphaned) continue;
+    if (projectName && identityProject && identityProject !== projectName) continue;
+    const orphanedAgentId = typeof metadata.orphanedAgentId === 'string' ? metadata.orphanedAgentId : null;
+    const key = orphanedAgentId ?? entry.agentId ?? entry.targetId ?? `orphan:${entry.id}`;
+    const summary = truncateText(entry.details || 'Orphaned session reconciled.');
+    const files = extractMentionedPaths(summary);
+    upsert(key, {
+      id: orphanedAgentId ?? entry.agentId ?? entry.targetId ?? key,
+      label: orphanedAgentId ?? entry.agentId ?? key,
+      inboxTarget: orphanedAgentId ?? entry.agentId ?? key,
+      orphanedAt: entry.timestamp,
+      orphanedSummary: summary,
+      recentFiles: files,
+    }, entry.timestamp, summary
+      ? { timestamp: entry.timestamp, summary, files }
+      : undefined);
+  }
+
+  const finalized = [...actors.values()]
+    .map((entry): OperatorActorRecord => {
+      entry.signals.sort((left, right) => right.timestamp - left.timestamp);
+      const state = deriveActorState(entry);
+      return {
+        id: entry.id,
+        label: entry.label,
+        purpose: entry.purpose,
+        identity: entry.identity,
+        fleetAgentName: entry.fleetAgentName,
+        inboxTarget: entry.inboxTarget,
+        isConfiguredFleetAgent: entry.isConfiguredFleetAgent,
+        actorKind: entry.actorKind,
+        actorState: state.actorState,
+        actorStateReason: state.actorStateReason,
+        runtimeStatus: entry.runtimeStatus,
+        liveness: entry.liveness,
+        lastActivityAt: entry.lastActivityAt,
+        lastSummary: entry.signals[0]?.summary ?? entry.orphanedSummary ?? null,
+        recentFiles: mergeRecentFiles(entry.recentFiles, entry.signals.flatMap((signal) => signal.files)).slice(0, 4),
+        registry: entry.registry,
+        spawned: entry.spawned,
+        salvage: entry.salvage,
+        sessions: entry.sessions,
+      };
+    })
+    .sort((left, right) => (right.lastActivityAt ?? 0) - (left.lastActivityAt ?? 0))
+    .slice(0, limit);
+
+  const summary = finalized.reduce<Record<OperatorActorState, number>>((counts, actor) => {
+    counts[actor.actorState] += 1;
+    return counts;
+  }, {
+    running: 0,
+    idle: 0,
+    salvaged: 0,
+    orphan_reconciled: 0,
+    historical: 0,
+  });
+
+  return { actors: finalized, projectDir, projectName, summary };
+}
+
 export const operatorPlugin: FastifyPluginAsync<{ deps: OperatorRouteDeps }> = async (fastify, opts) => {
   const logger = opts.deps.logger;
+
+  fastify.get('/operator/actors', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const query = (request.query || {}) as OperatorActorsQuery;
+      const result = buildOperatorActors(opts.deps, query);
+      return {
+        success: true,
+        projectDir: result.projectDir,
+        project: result.projectName,
+        actors: result.actors,
+        summary: result.summary,
+        count: result.actors.length,
+      };
+    } catch (error) {
+      logger?.error?.({
+        err: error,
+        query: request.query as Record<string, unknown>,
+      }, 'operator_actor_lens_failed');
+      reply.code(500);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to build operator actor lens.',
+      };
+    }
+  });
 
   fastify.post('/operator/open-file', async (request: FastifyRequest, reply: FastifyReply) => {
     const body = (request.body || {}) as OpenFileBody;

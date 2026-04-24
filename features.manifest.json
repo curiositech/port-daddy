@@ -314,7 +314,8 @@
       "description": "Session notes",
       "cli": [
         "note",
-        "notes"
+        "notes",
+        "say"
       ],
       "sdk": [
         "note",
@@ -328,7 +329,8 @@
       ],
       "completions": [
         "note",
-        "notes"
+        "notes",
+        "say"
       ],
       "docs": {
         "readme": true,
@@ -586,7 +588,9 @@
         "config",
         "dashboard",
         "status",
-        "version"
+        "version",
+        "look",
+        "sitrep"
       ],
       "sdk": [
         "version",
@@ -601,6 +605,8 @@
         "GET /config",
         "GET /dashboard/events",
         "GET /ping",
+        "GET /sitrep",
+        "GET /operator/actors",
         "POST /operator/open-file",
         "POST /operator/file-preview"
       ],
@@ -609,7 +615,9 @@
         "config",
         "dashboard",
         "status",
-        "version"
+        "version",
+        "look",
+        "sitrep"
       ],
       "docs": {
         "readme": true,
@@ -724,12 +732,18 @@
     },
     "session_phases": {
       "description": "Session lifecycle phases (planning/in_progress/testing/reviewing/completed/abandoned)",
-      "cli": [],
+      "cli": [
+        "pheromone",
+        "ph"
+      ],
       "sdk": [],
       "routes": [
         "PUT /sessions/:param/phase"
       ],
-      "completions": [],
+      "completions": [
+        "pheromone",
+        "ph"
+      ],
       "docs": {
         "readme": true,
         "sdk": true
@@ -1173,6 +1187,7 @@
       "routes": [
         "GET /semantic/stats",
         "GET /semantic/resolutions",
+        "POST /semantic/resolutions/:param/review",
         "GET /semantic/search"
       ],
       "completions": [],

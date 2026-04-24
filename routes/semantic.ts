@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
-import type { SemanticResolver, SemanticResolutionDecision } from '../lib/semantic-resolver.js';
+import type { SemanticResolver, SemanticResolutionDecision, SemanticReviewAction } from '../lib/semantic-resolver.js';
 
 interface SemanticRouteDeps {
   semanticResolver: SemanticResolver;
@@ -15,6 +15,7 @@ interface SemanticRouteDeps {
  * Sample calls:
  * - `GET /semantic/stats?projectDir=/Users/erichowens/coding/port-daddy`
  * - `GET /semantic/resolutions?decision=review&limit=20`
+ * - `POST /semantic/resolutions/42/review` with `{ "action": "accept" }`
  * - `GET /semantic/search?q=port+daddy+css+tokens&limit=5`
  *
  * Sample response payload:
@@ -68,6 +69,44 @@ export const semanticPlugin: FastifyPluginAsync<{ deps: SemanticRouteDeps }> = a
     } catch (error) {
       metrics.errors += 1;
       logger.error('semantic_resolutions_error', { error: (error as Error).message });
+      reply.code(500);
+      return { success: false, error: 'internal server error' };
+    }
+  });
+
+  /**
+   * Persist an operator review decision for a near-threshold candidate.
+   */
+  fastify.post('/semantic/resolutions/:id/review', async (request, reply) => {
+    try {
+      const id = Number.parseInt((request.params as { id?: string }).id ?? '', 10);
+      const body = (request.body ?? {}) as {
+        action?: SemanticReviewAction;
+        reviewer?: string | null;
+        note?: string | null;
+      };
+      if (!Number.isFinite(id) || id <= 0) {
+        reply.code(400);
+        return { success: false, error: 'resolution id is required' };
+      }
+      if (body.action !== 'accept' && body.action !== 'reject') {
+        reply.code(400);
+        return { success: false, error: 'action must be accept or reject' };
+      }
+      const resolution = semanticResolver.review(id, {
+        action: body.action,
+        reviewer: body.reviewer ?? null,
+        note: body.note ?? null,
+      });
+      return { success: true, resolution };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'semantic review failed';
+      if (message.includes('not found') || message.includes('no candidate term')) {
+        reply.code(404);
+        return { success: false, error: message };
+      }
+      metrics.errors += 1;
+      logger.error('semantic_review_error', { error: message });
       reply.code(500);
       return { success: false, error: 'internal server error' };
     }

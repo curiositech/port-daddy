@@ -309,6 +309,7 @@ describe('Test Group 3: API -> CLI Parity', () => {
     dns: ['dns'],
     briefing: ['briefing'],
     sugar: ['begin', 'done', 'whoami'],
+    sitrep: ['sitrep'],
     launch: ['hints'],
     // arbiter and pheromone are API-only (no CLI commands) — excluded from parity check
     spawn: ['spawn', 'spawned'],

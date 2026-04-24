@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Send } from 'lucide-react';
-import { fetchAgentInbox, fetchAgentInboxStats, publishMessage, sendAgentMessage } from '../api';
+import { fetchAgentInbox, fetchAgentInboxStats, fetchOperatorActors, publishMessage, sendAgentMessage } from '../api';
 import type { InboxMessage, InboxStats, ResolvedChannelTarget } from '../types';
-import { describeInboxAgentAvailability } from '../lib/inbox-targeting';
+import { describeInboxAgentAvailability, resolveInboxAgentTargets, type InboxAgentTarget } from '../lib/inbox-targeting';
 
 interface Props {
   channels: ResolvedChannelTarget[];
-  agents: string[];
   project?: string | null;
+  projectDir?: string | null;
   projectRunning?: boolean;
   configuredAgentCount?: number;
   layout?: 'compact' | 'full';
@@ -17,27 +17,31 @@ type DeliveryMode = 'channel' | 'agent';
 
 /**
  * Operator messaging surface for direct inbox delivery and channel publication.
- * Direct inbox delivery is intentionally limited to live runtime agents so the
- * UI does not advertise targets the daemon cannot actually hail.
+ * Direct inbox delivery now targets durable actors first; the daemon stores the
+ * message regardless of whether a live runtime can be hailed immediately.
  */
 export default function DMPanel({
   channels,
-  agents,
   project,
+  projectDir,
   projectRunning = false,
   configuredAgentCount = 0,
   layout = 'compact',
 }: Props) {
   const [mode, setMode] = useState<DeliveryMode>('agent');
   const [channel, setChannel] = useState(channels[0]?.logical || '');
-  const [agent, setAgent] = useState(agents[0] || '');
+  const [actorTargets, setActorTargets] = useState<InboxAgentTarget[]>([]);
+  const [agent, setAgent] = useState('');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [deliveryNotice, setDeliveryNotice] = useState<string | null>(null);
+  const [actorLoading, setActorLoading] = useState(false);
   const [agentInboxLoading, setAgentInboxLoading] = useState(false);
   const [agentInboxStats, setAgentInboxStats] = useState<InboxStats>({ total: 0, unread: 0 });
   const [agentInboxMessages, setAgentInboxMessages] = useState<InboxMessage[]>([]);
   const [sent, setSent] = useState<Array<{ mode: DeliveryMode; target: string; message: string; ts: number }>>([]);
+
+  const selectedTarget = actorTargets.find((target) => target.target === agent) ?? null;
 
   useEffect(() => {
     if (channels.length > 0 && !channels.some((entry) => entry.logical === channel)) {
@@ -46,16 +50,50 @@ export default function DMPanel({
   }, [channels, channel]);
 
   useEffect(() => {
-    if (agents.length > 0 && !agents.includes(agent)) {
-      setAgent(agents[0]);
+    if (actorTargets.length > 0 && !actorTargets.some((target) => target.target === agent)) {
+      setAgent(actorTargets[0]?.target ?? '');
     }
-    if (agents.length === 0 && agent) {
+    if (actorTargets.length === 0 && agent) {
       setAgent('');
     }
-  }, [agents, agent]);
+  }, [actorTargets, agent]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadActorTargets() {
+      if (!projectDir && !project) {
+        setActorTargets([]);
+        return;
+      }
+
+      setActorLoading(true);
+      try {
+        const actors = await fetchOperatorActors({
+          project: project ?? undefined,
+          projectDir: projectDir ?? undefined,
+          limit: 80,
+        });
+        if (!cancelled) {
+          setActorTargets(resolveInboxAgentTargets(actors));
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setDeliveryNotice((err as Error).message);
+        }
+      } finally {
+        if (!cancelled) {
+          setActorLoading(false);
+        }
+      }
+    }
+
+    loadActorTargets();
+    return () => { cancelled = true; };
+  }, [project, projectDir]);
 
   const inboxAvailabilityNote = describeInboxAgentAvailability({
-    liveAgentCount: agents.length,
+    actorCount: actorTargets.length,
     configuredAgentCount,
     projectRunning,
   });
@@ -99,8 +137,8 @@ export default function DMPanel({
     const trimmed = message.trim();
     const selectedChannel = channels.find((entry) => entry.logical === channel) ?? null;
     const target = mode === 'agent' ? agent : selectedChannel?.logical ?? '';
-    if (mode === 'agent' && agents.length === 0) {
-      setDeliveryNotice(inboxAvailabilityNote ?? 'No live fleet agent is available for direct inbox delivery.');
+    if (mode === 'agent' && actorTargets.length === 0) {
+      setDeliveryNotice(inboxAvailabilityNote ?? 'No known project actor is available for direct inbox delivery.');
       return;
     }
     if (!trimmed || !target) return;
@@ -109,11 +147,11 @@ export default function DMPanel({
     setDeliveryNotice(null);
     try {
       if (mode === 'agent') {
-        const result = await sendAgentMessage(agent, { content: trimmed, project: project ?? undefined, wake: true });
+        const result = await sendAgentMessage(agent, { content: trimmed, project: projectDir ?? project ?? undefined, wake: true });
         setDeliveryNotice(
           result.woke
-            ? `Delivered to ${agent} and hailed successfully.`
-            : `Delivered to ${agent}${result.messageId ? ` as #${result.messageId}` : ''}${result.error ? `, but could not wake a live runtime: ${result.error}.` : '.'}`,
+            ? `Delivered to ${selectedTarget?.label ?? agent} and hailed successfully.`
+            : `Delivered to ${selectedTarget?.label ?? agent}${result.messageId ? ` as #${result.messageId}` : ''}${result.error ? `, but could not wake a live runtime: ${result.error}.` : '.'}`,
         );
         const [stats, messages] = await Promise.all([
           fetchAgentInboxStats(agent),
@@ -174,10 +212,14 @@ export default function DMPanel({
               value={mode === 'agent' ? agent : channel}
               onChange={e => mode === 'agent' ? setAgent(e.target.value) : setChannel(e.target.value)}
               className="pd-select font-mono"
-              disabled={mode === 'agent' ? agents.length === 0 : channels.length === 0}
+              disabled={mode === 'agent' ? actorTargets.length === 0 : channels.length === 0}
             >
               {mode === 'agent'
-                ? agents.map((value) => <option key={value} value={value}>{value}</option>)
+                ? actorTargets.map((target) => (
+                    <option key={target.target} value={target.target}>
+                      {target.label} · {target.actorState}
+                    </option>
+                  ))
                 : channels.map((entry) => <option key={entry.physical} value={entry.logical}>{entry.logical}</option>)}
             </select>
           </div>
@@ -187,10 +229,20 @@ export default function DMPanel({
             </div>
             <div className="text-[12px] leading-relaxed" style={{ color: 'var(--pd-muted)' }}>
               {mode === 'agent'
-                ? 'Use this for bounded operator messages that should wake one agent and keep the conversation out of public channels.'
+                ? 'Use this for bounded operator messages that should reach one actor and keep the conversation out of public channels. Wake is best-effort if no body is currently live.'
                 : 'Use this for broadcast traffic that multiple agents may hear through their trigger channels.'}
             </div>
-            {mode === 'agent' && agents.length === 0 && (
+            {mode === 'agent' && actorLoading && (
+              <div className="mt-2 text-[11px]" style={{ color: 'var(--pd-dim)' }}>
+                Loading actor targets…
+              </div>
+            )}
+            {mode === 'agent' && selectedTarget && (
+              <div className="mt-2 text-[11px]" style={{ color: 'var(--pd-dim)' }}>
+                {selectedTarget.actorState.replace(/_/g, ' ')} · {selectedTarget.actorStateReason}
+              </div>
+            )}
+            {mode === 'agent' && actorTargets.length === 0 && (
               <div className="mt-2 text-[11px]" style={{ color: 'var(--pd-accent)' }}>
                 {inboxAvailabilityNote}
               </div>
@@ -220,11 +272,11 @@ export default function DMPanel({
           </div>
           <div className="flex items-center justify-between gap-3">
             <div className="text-[11px]" style={{ color: 'var(--pd-dim)' }}>
-              {project ? `Scoped to ${project}` : 'No project scope attached'}
+              {project ? `Scoped to ${project}` : projectDir ? `Scoped to ${projectDir}` : 'No project scope attached'}
             </div>
             <button
               onClick={handleSend}
-              disabled={sending || !message.trim() || (mode === 'agent' && agents.length === 0)}
+              disabled={sending || !message.trim() || (mode === 'agent' && actorTargets.length === 0)}
               className="pd-button pd-button-primary"
             >
               <Send size={14} />

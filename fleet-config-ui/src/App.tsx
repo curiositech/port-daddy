@@ -15,7 +15,6 @@ import ActivityRail from './components/ActivityRail';
 import MemoryPanel from './components/MemoryPanel';
 import AgentsPanel from './components/AgentsPanel';
 import { extractMentionedPaths } from './fileMentions';
-import { resolveInboxAgentTargets } from './lib/inbox-targeting';
 import {
   activityTouchedFiles,
   isMeaningfulActivityEntry,
@@ -1128,10 +1127,8 @@ export default function App() {
                       <DMPanel
                         key={`${daemonUrl}:${selectedProjectId ?? 'all'}:inbox`}
                         channels={channelTargets}
-                        agents={resolveInboxAgentTargets(
-                          selectedProject?.agents.map((agent) => agent.agentName) ?? [],
-                        )}
                         project={selectedProjectName ?? undefined}
+                        projectDir={selectedProjectId ?? undefined}
                         projectRunning={selectedProject?.running ?? false}
                         configuredAgentCount={fleetConfig?.agents.length ?? 0}
                         layout="full"

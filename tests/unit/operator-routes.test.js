@@ -10,15 +10,17 @@ const mockSpawnSync = jest.fn(() => ({
   stdout: '',
   stderr: '',
 }));
+const mockExecSync = jest.fn(() => '');
 
 jest.unstable_mockModule('node:child_process', () => ({
   spawn: mockSpawn,
   spawnSync: mockSpawnSync,
+  execSync: mockExecSync,
 }));
 
 const { operatorPlugin } = await import('../../routes/operator.js');
 
-function buildApp() {
+function buildApp(deps = {}) {
   const app = Fastify();
   return {
     app,
@@ -28,6 +30,7 @@ function buildApp() {
           info: jest.fn(),
           error: jest.fn(),
         },
+        ...deps,
       },
     }),
   };
@@ -172,6 +175,53 @@ describe('operator routes', () => {
       kind: 'context',
     }));
     expect(mockSpawnSync).toHaveBeenCalled();
+
+    await app.close();
+  });
+
+  test('GET /operator/actors does not call orphaned active sessions running', async () => {
+    const now = Date.now();
+    const { app, register } = buildApp({
+      agents: {
+        list: jest.fn(() => ({ agents: [] })),
+      },
+      sessions: {
+        list: jest.fn(() => ({
+          sessions: [{
+            id: 'session-orphan',
+            purpose: 'Fleet agent: spark',
+            status: 'active',
+            agentId: 'missing-agent',
+            updatedAt: now,
+            notes: [],
+          }],
+        })),
+        listAllActiveClaims: jest.fn(() => ({ claims: [] })),
+      },
+      resurrection: {
+        list: jest.fn(() => ({ agents: [] })),
+      },
+      spawner: {
+        list: jest.fn(() => []),
+      },
+      activityLog: {
+        getRecent: jest.fn(() => ({ entries: [] })),
+      },
+    });
+    await register();
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/operator/actors?project=port-daddy',
+    });
+
+    expect(res.statusCode).toBe(200);
+    const payload = res.json();
+    expect(payload.actors).toHaveLength(1);
+    expect(payload.actors[0]).toEqual(expect.objectContaining({
+      id: 'spark',
+      actorState: 'orphan_reconciled',
+    }));
 
     await app.close();
   });
