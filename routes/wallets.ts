@@ -76,6 +76,39 @@ export const walletsPlugin: FastifyPluginAsync<{ deps: WalletsRouteDeps }> = asy
     }
   });
 
+  app.post('/wallets/:project/budget', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const project = decodeURIComponent((request.params as Record<string, string>).project || '');
+      if (!project) {
+        reply.code(400);
+        return { error: 'project is required' };
+      }
+      const body = (request.body as Record<string, unknown>) || {};
+      const raw = body.usdPerDay;
+      const usdPerDay =
+        raw == null ? null : typeof raw === 'number' ? raw : Number(raw);
+      if (usdPerDay != null && (!Number.isFinite(usdPerDay) || usdPerDay <= 0)) {
+        reply.code(400);
+        return { error: 'usdPerDay must be a positive finite number, or null to clear' };
+      }
+
+      bonds.setBudget(project, usdPerDay);
+      const wallet = bonds.getWallet(project);
+
+      logger.info('wallet_budget_set', { project, usdPerDay });
+      activityLog?.log('wallet.budget_set', {
+        details: `Wallet '${project}' daily budget set to ${usdPerDay == null ? 'null' : '$' + usdPerDay.toFixed(2)}`,
+        metadata: { project, usdPerDay },
+      });
+      return { success: true, wallet };
+    } catch (err) {
+      if (metrics) metrics.errors++;
+      logger.error('wallet_budget_error', { error: (err as Error).message });
+      reply.code(500);
+      return { error: (err as Error).message || 'internal server error' };
+    }
+  });
+
   app.post('/wallets/:project/top-up', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const project = decodeURIComponent((request.params as Record<string, string>).project || '');

@@ -68,6 +68,7 @@ import { createCostTracker } from './lib/cost-tracker.js';
 import { createCounters } from './lib/counters.js';
 import { createBonds } from './lib/bonds.js';
 import { createBudgetGuard } from './lib/budget-guard.js';
+import { createBudgetPause } from './lib/budget-pause.js';
 import { launchFleetBarIfEnabled } from './lib/fleetbar-launcher.js';
 import { createGraphEdges } from './lib/graph-edges.js';
 import { createEpisodicMemory } from './lib/episodic-memory.js';
@@ -287,21 +288,33 @@ const budgetGuard = createBudgetGuard(db, {}, {
   broadcast: (channel, event) => messaging.publish(channel, event),
 });
 
-// Late-binding spawner ref: cost-tracker needs to call spawner.kill() on a
+// Late-binding spawner ref: cost-tracker needs to trigger spawner.kill() on
 // budget breach, but spawner needs costTracker in its constructor. Resolve
-// with a mutable container — set after both are created. This is cleaner
-// than adding a setter method to one or the other.
+// with a mutable container — set after both are created.
 let spawnerRef: ReturnType<typeof createSpawner> | null = null;
+
+// Pause-and-ask sits between the budget-breach signal and the actual
+// SIGTERM. Default 60s grace; operator can raise, kill, or extend.
+const budgetPause = createBudgetPause({
+  killAgent: (agentId: string) => {
+    logger.warn('budget_kill_executing', { agentId });
+    spawnerRef?.kill(agentId);
+  },
+  bonds,
+  broadcast: (channel, event) => messaging.publish(channel, event),
+});
 
 const costTracker = createCostTracker(db, {
   budgetGuard,
-  // TODO(Track 1b.2): wire a real per-project budget resolver. Until then,
-  // no project has an enforced daily budget — the hook is in place and
-  // ready, but stays inert. To opt a project in, add its budget here.
-  budgetResolver: (_project: string) => null,
-  onKill: (agentId, project, reason) => {
-    logger.warn('budget_kill_triggered', { agentId, project, reason });
-    spawnerRef?.kill(agentId);
+  // Budgets live on project_wallets.budget_usd_per_day. Projects without
+  // a budget set are refused at spawn time (see lib/spawner.ts), so this
+  // resolver returning null for unset projects is fine — we never get here.
+  budgetResolver: (project: string) => bonds.getBudget(project),
+  onKill: ({ agentId, project, reason, spentTodayUsd, budgetUsdPerDay }) => {
+    logger.warn('budget_breach_pending', { agentId, project, reason, spentTodayUsd, budgetUsdPerDay });
+    // Interpose grace window. If operator doesn't resolve within graceMs,
+    // the pause module fires killAgent() automatically.
+    budgetPause.arm({ agentId, project, reason, spentTodayUsd, budgetUsdPerDay });
   },
 });
 const spawner = createSpawner({ costTracker, counters, bonds, enforceTelemetryPolicy: true });
@@ -621,7 +634,7 @@ await registerAllRoutes(
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar,
     harbors, sorties, orchestrator, correlationEngine, spawner, tuples, fleetDaemon,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, counters,
-    bonds, budgetGuard,
+    bonds, budgetGuard, budgetPause,
     arbiter, barnacle,
     VERSION, CODE_HASH, STARTED_AT, __dirname,
     cleanupStale, getSystemPorts,

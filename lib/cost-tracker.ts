@@ -229,8 +229,18 @@ export interface CostTrackerHooks {
   };
   /** Resolve the daily budget for a project. Return null to skip enforcement. */
   budgetResolver?: (project: string) => number | null;
-  /** Called when budget-guard says the spawn must be killed. */
-  onKill?: (agentId: string, project: string, reason: string) => void;
+  /**
+   * Called when budget-guard says the spawn must be killed. The caller
+   * typically routes this through a budget-pause module that interposes
+   * a grace window before actually SIGTERMing — not a direct spawner.kill.
+   */
+  onKill?: (params: {
+    agentId: string;
+    project: string;
+    reason: string;
+    spentTodayUsd: number;
+    budgetUsdPerDay: number;
+  }) => void;
 }
 
 export function createCostTracker(db: Database, hooks: CostTrackerHooks = {}) {
@@ -304,7 +314,13 @@ export function createCostTracker(db: Database, hooks: CostTrackerHooks = {}) {
               budgetUsdPerDay: budget,
             });
             if (decision.kill && onKill) {
-              onKill(opts.spawnId, opts.projectName, decision.reason || 'budget-exceeded');
+              onKill({
+                agentId: opts.spawnId,
+                project: opts.projectName,
+                reason: decision.reason || 'budget-exceeded',
+                spentTodayUsd: decision.spentTodayUsd,
+                budgetUsdPerDay: budget,
+              });
             }
           }
         } catch {

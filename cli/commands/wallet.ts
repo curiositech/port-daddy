@@ -189,6 +189,9 @@ export async function handleWallet(args: string[], options: CLIOptions): Promise
     case 'top-up':
     case 'topup': await handleWalletTopUp(rest[0], options); return;
     case 'history': await handleWalletHistory(rest[0], options); return;
+    case 'budget': await handleWalletBudget(rest[0], options); return;
+    case 'raise': await handleWalletRaise(options); return;
+    case 'pending': await handleWalletPending(options); return;
     case undefined:
     case 'help':
     case '-h':
@@ -197,9 +200,94 @@ export async function handleWallet(args: string[], options: CLIOptions): Promise
       console.log('  pd wallet show <project>');
       console.log('  pd wallet top-up <project> --usd <amount> [--yes]');
       console.log('  pd wallet history <project> [--since 7d] [--limit N]');
+      console.log('  pd wallet budget <project> --usd-per-day <N>    # set daily budget (required for spawn)');
+      console.log('  pd wallet pending                                # list pending budget kills');
+      console.log('  pd wallet raise --agent <id> --usd <N>          # clear a pending kill + top up');
       return;
     default:
       ui.error(`Unknown wallet subcommand: ${sub}`);
       process.exit(1);
   }
+}
+
+export async function handleWalletBudget(project: string | undefined, options: CLIOptions): Promise<void> {
+  if (!project) {
+    ui.error('Usage: pd wallet budget <project> --usd-per-day <N>');
+    process.exit(1);
+  }
+  const raw = (options as Record<string, unknown>)['usd-per-day']
+    ?? (options as Record<string, unknown>).usdPerDay
+    ?? options.usd;
+  const usdPerDay = raw == null ? null : (typeof raw === 'number' ? raw : parseFloat(String(raw)));
+  if (usdPerDay != null && (!Number.isFinite(usdPerDay) || usdPerDay <= 0)) {
+    ui.error('--usd-per-day must be > 0 (or omit to clear)');
+    process.exit(1);
+  }
+
+  const res: PdFetchResponse = await pdFetch(
+    `${PORT_DADDY_URL}/wallets/${encodeURIComponent(project)}/budget`,
+    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ usdPerDay }) },
+  );
+  const data = (await res.json()) as { wallet?: WalletRow; error?: string };
+  if (!res.ok) { ui.error(data.error || `HTTP ${res.status}`); process.exit(1); }
+
+  if (isJson(options)) { console.log(JSON.stringify(data.wallet ?? {}, null, 2)); return; }
+  if (isQuiet(options)) { console.log(usdPerDay == null ? 'cleared' : `$${usdPerDay.toFixed(2)}/day`); return; }
+  ui.success(`Budget for ${project} set to ${usdPerDay == null ? 'none (cleared)' : `$${usdPerDay.toFixed(2)}/day`}`);
+}
+
+export async function handleWalletRaise(options: CLIOptions): Promise<void> {
+  const agentId = typeof options.agent === 'string' ? options.agent : String(options.agent ?? '');
+  if (!agentId) {
+    ui.error('Usage: pd wallet raise --agent <agentId> --usd <N> [--new-budget-per-day <N>]');
+    process.exit(1);
+  }
+  const usdRaw = options.usd;
+  const usd = typeof usdRaw === 'number' ? usdRaw : parseFloat(String(usdRaw ?? ''));
+  if (!Number.isFinite(usd) || usd <= 0) {
+    ui.error('--usd must be > 0');
+    process.exit(1);
+  }
+  const newRaw = (options as Record<string, unknown>)['new-budget-per-day']
+    ?? (options as Record<string, unknown>).newBudgetPerDay;
+  const newBudget = newRaw == null ? undefined : (typeof newRaw === 'number' ? newRaw : parseFloat(String(newRaw)));
+
+  const res: PdFetchResponse = await pdFetch(
+    `${PORT_DADDY_URL}/budget/pending/${encodeURIComponent(agentId)}/resolve`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'raise', topUpUsd: usd, newBudgetUsdPerDay: newBudget }),
+    },
+  );
+  const data = (await res.json()) as { action?: string; project?: string; error?: string };
+  if (!res.ok) { ui.error(data.error || `HTTP ${res.status}`); process.exit(1); }
+
+  if (isJson(options)) { console.log(JSON.stringify(data, null, 2)); return; }
+  if (isQuiet(options)) { console.log('raised'); return; }
+  ui.success(`Pending kill for ${agentId} cleared — wallet credited $${usd.toFixed(2)}${newBudget != null ? `, budget → $${newBudget.toFixed(2)}/day` : ''}`);
+}
+
+export async function handleWalletPending(options: CLIOptions): Promise<void> {
+  const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/budget/pending`);
+  const data = (await res.json()) as { pending?: Array<Record<string, unknown>>; graceMs?: number; error?: string };
+  if (!res.ok) { ui.error(data.error || `HTTP ${res.status}`); process.exit(1); }
+  const rows = data.pending ?? [];
+
+  if (isJson(options)) { console.log(JSON.stringify({ pending: rows, graceMs: data.graceMs }, null, 2)); return; }
+  if (isQuiet(options)) { console.log(String(rows.length)); return; }
+
+  console.log('');
+  console.log(`Pending budget kills · ${rows.length} · grace ${data.graceMs ?? 60000}ms`);
+  console.log('─'.repeat(80));
+  if (rows.length === 0) { console.log('  (none)'); console.log(''); return; }
+  for (const r of rows) {
+    const agentId = String(r.agentId);
+    const project = String(r.project);
+    const expires = typeof r.expiresAt === 'number' ? new Date(r.expiresAt).toISOString().slice(11, 19) : '-';
+    const spent = typeof r.spentTodayUsd === 'number' ? r.spentTodayUsd.toFixed(4) : '?';
+    const budget = typeof r.budgetUsdPerDay === 'number' ? r.budgetUsdPerDay.toFixed(2) : '?';
+    console.log(`  ${agentId}  project=${project}  spent=$${spent}/day=$${budget}  expires@${expires}`);
+  }
+  console.log('');
 }

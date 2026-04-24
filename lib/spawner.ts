@@ -672,6 +672,21 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     const projectName = getProjectName(spec.identity);
     counters?.bump('spawn.started', dims);
 
+    // Block until the project has a daily budget set. Without a budget,
+    // the kill-switch has no number to enforce against — a spawn here
+    // could burn unbounded cost. Refuse and point the operator at the fix.
+    // No-wallet projects get a null budget on first escrow; we block both.
+    if (bonds && projectName) {
+      const budget = bonds.getBudget(projectName);
+      if (budget == null) {
+        counters?.bump('spawn.blocked', dims);
+        return blockedResult(
+          `Spawn blocked: project '${projectName}' has no daily budget set. ` +
+          `Run: pd wallet budget ${projectName} --usd-per-day <N>`,
+        );
+      }
+    }
+
     // Escrow bond BEFORE any spawn work. If the wallet is insufficient OR
     // bonds aren't wired, we refuse here rather than run an unbonded agent —
     // the Ostrom "rule-monitoring" invariant: every running agent has a bond.
