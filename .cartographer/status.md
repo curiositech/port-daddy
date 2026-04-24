@@ -1,9 +1,9 @@
 # Cartographer Status
 
-**Last updated:** 2026-04-11
-**Updated by:** Cartographer (manual invocation)
-**HEAD:** `6d136cc` (Harden sugar session fallback and filepath locks)
-**Previous HEAD:** `df4c351` — 1 new commit since last run
+**Last updated:** 2026-04-24
+**Updated by:** Codex task-inventory pass
+**HEAD:** `0852769`
+**Previous HEAD:** `f45b751` — multiple new commits since last cartographer refresh
 
 ---
 
@@ -17,7 +17,63 @@ The latest committed work still maps overwhelmingly to the Recovery Roadmap (`do
 
 Active threads, ranked by commit recency:
 
+Newest committed truth since the last cartographer refresh:
+
+- `f45b751` — CLI session/sugar/tuple typecheck debt is closed; `npm run typecheck` is green again.
+- `8cddbca` — git-sensitive channel discovery is committed.
+- `8236119` — curated workgroup-ai skills import is committed.
+- `0f77491` — stable cost-tracker migration fix is committed.
+- `175210f` — fail-closed spawn telemetry is committed.
+- `278fa47` — `with-lock` bare `--` parsing fix is committed.
+- `961a41c` / `4765090` — tunnel TTL/orphan cleanup and startup-timeout hardening are committed.
+
+Current validation truth on 2026-04-18:
+
+- broad `npm test` is green at `123/123` suites and `4689/4690` passing tests with `1` intentional skip.
+- focused tuple/semantic suites (`semantic-terms`, `episodic-memory`, `merge-queue`, `fleet-engine`, `fleet-daemon`) are green.
+- `npm run typecheck` is red, but the remaining failures are confined to the pre-existing `cli/commands/diagnostics.ts` `{}`-typing hole rather than this working-tree tuple slice.
+
+Actor-model reconciliation truth on 2026-04-23:
+
+- `docs/adr/0022-durable-actor-souls-and-body-leases.md` now captures the target runtime model: durable actor souls plus ephemeral body leases.
+- The key warning is explicit: do not preserve agent history by merely disabling row deletion. Agent-row deletion currently carries cleanup and authorization semantics, so the migration needs lease/incarnation state first.
+- `/agents` should remain the live-body compatibility view while `/actors` becomes durable identity truth.
+- Inbox, salvage, lock ownership, IPC auth, Arbiter checks, Fleet Control Center, FleetBar, SDK docs, and OpenAPI all need coordinated migration from "registered agent" to `actor exists` plus `body lease is live`.
+
+Task-inventory truth on 2026-04-24:
+
+- `docs/recovery/CURRENT-WORK.md` now has a normalized remaining-slice inventory under `## Active Tasks`.
+- The queue is grouped by actor/domain instead of a duplicate-numbered mixed list: cut/promote discipline, Navigator, durable actors, Coxswain, Sounder, Signalman/Breaker/Caulker, Quartermaster, Harbormaster, Lookout, FleetBar/control plane, sorties/HITL, Cloudflare/remote harbor, archaeology, and skills/research.
+- WAL is already enabled and verified in `lib/db.ts`; the remaining WAL-related task is live diagnostics/doctor visibility, not basic enablement.
+- No brand-new skill blocks the next implementation cut. Useful existing skills include Nygard resilience, Agha actor model, Cloudflare Worker/Pages, agentic zero-trust, FIPA agent management, runtime verification, observability, and cost verification. Proposed future skills are `cloudflare-ai-platform`, `port-daddy-actor-runtime`, `symbolic-coordination`, and `cartographer-bootstrap`.
+- Google Agents CLI research is now captured at `docs/reports/GOOGLE_AGENTS_CLI_RESEARCH_2026-04-24.md`. The important import is lifecycle-first IA and primitives: setup, scaffold/create, enhance, upgrade, run, eval, deploy/promote, publish, observe, plus first-party coding-agent skill bundles. The recovery queue now tracks turning that into a Port Daddy lifecycle/docs/skill proposal instead of copying Google Cloud assumptions blindly.
+
 Newest validated working-tree slice before the next commit:
+
+- **Cartographer / Navigator maritime actor foundation** — uncommitted runtime + fleet-contract slice. The repo now has the first additive `/actors` read surface instead of only a prompt-level roadmap updater:
+  - `docs/adr/0023-cartographer-roadmap-actor.md` defines Cartographer as a durable roadmap/recovery-map actor with a mailbox, read model, tuples, graph edges, and evidence links
+  - `.cartographer/README.md` defines bootstrap reconciliation, document authority classes, tuple vocabulary, graph vocabulary, and patch policy
+  - `pd-fleet.yml` upgrades the compatibility `cartographer` agent prompt to start with Port Daddy context and maintain event-driven roadmap truth
+  - `lib/maritime-actors.ts` defines the canonical maritime roster and projects live body / compatibility fleet status
+  - `routes/actors.ts` exposes `GET /actors` and `GET /actors/:id`; `cartographer` resolves to `navigator`
+  - `features.manifest.json`, `docs/openapi.yaml`, and the Port Daddy skill API reference now include the `/actors` surface
+  - the initial batch cleanup step is explicitly report-first: inventory, classify, extract work/evidence, emit structured state, then propose narrow cleanup patches
+  - sibling systems now have canonical maritime actor names: Navigator, Coxswain, Signalman, Harbormaster, Sounder, Lookout, Breaker, Caulker, and Quartermaster; most should be deterministic projectors with optional LLM bodies
+
+- **Tree-sitter symbol refresh from repo events** — uncommitted working tree. The live server now passes `symbolIndex` into the fleet daemon, and managed projects refresh symbols from existing Port Daddy infrastructure instead of manual `/symbols/parse` calls:
+  - project-scoped `git:committed` messages are consumed by the daemon and normalized to in-project code files
+  - source-file watcher events are debounced and filtered before calling `symbolIndex.parseFile()`
+  - the daemon subscribes to both fleet-name scoped and repo-basename hook channels to survive the current `port-daddy-dev` vs `port-daddy` channel mismatch
+  - validation on 2026-04-24: focused `fleet-daemon` tests are green, `npm run typecheck` is green, and broad `npm test` is green at `132/132` suites and `4816/4817` tests with `1` intentional skip
+  - runtime caveat: the canonical daemon still needs rebuild/relaunch/promotion before this new event-driven symbol refresh is live
+
+- **Tuple-first coordination + semantic harmonization** — uncommitted working tree. Tuple space is now a real first-class coordination fabric for fleet/memory/merge activity instead of a side primitive:
+  - `lib/fleet-engine.ts` accepts `trigger_tuple`, drains tuple mailboxes as launch inputs, and emits semantic alias tuples from fleet work items
+  - `lib/fleet-daemon.ts` emits `fleet:event` tuples for lifecycle truth
+  - `lib/merge-queue.ts` emits `merge:event` tuples plus semantic alias tuples and `alias_of` / `about` graph joins
+  - `lib/episodic-memory.ts` emits `memory:episode` tuples plus semantic alias tuples
+  - `lib/semantic-terms.ts` now provides the deterministic lexical canonicalization layer that collapses phrasing drift like `website design system`, `site design-system`, and `website design tokens` onto the same canonical semantic term
+  - important limit: this is not embedding-backed resolution yet; semantic joins are now explicit and deterministic, but deeper synonym/near-neighbor resolution via Ollama/vector search remains future work
 
 - **Tunnel cost-safety hardening** — uncommitted working tree. Port Daddy-managed tunnels are no longer treated as fire-and-forget child processes:
   - `lib/tunnel.ts` now enforces a default max-active tunnel budget, assigns a default TTL, persists tunnel metadata for restart reconciliation, and periodically sweeps stale/expired tunnel state
@@ -34,6 +90,7 @@ Newest validated working-tree slice before the next commit:
    - Important truth: `portdaddy.dev` is now treated as a failure case, not a migration template. The public `agentsd.ai` shell should be rebuilt against the new contract rather than inheriting the old page forest.
    - That rebuild is now real in the working tree: `website-v2/src/main.tsx` is reduced to `/` + `/docs/**`, public shell components live under `website-v2/src/components/site/`, `website-v2/src/data/publicSite.ts` now drives the landing/docs content, and Storybook coverage exists for the new public primitives/header.
    - The visual direction has also been corrected in-code: the landing page now follows the stronger `v0-agentsd-main` composition language (blue/lime color blocking, proof terminals, architecture diagram, open-core pricing, docs mosaic) instead of the interim generic/brutalist drift.
+   - New truth from the latest pass: the dark-mode shell had real WCAG failures on bright blue/lime surfaces. The working tree now fixes those at the token/component layer, shifts docs module chips from `Available Now` / `Planned` into `Live` / `Roadmap`, and records the resulting persona/friction/appeal analysis at `docs/reports/AGENTSD_PUBLIC_SHELL_AUDIT_2026-04-11.md`.
 
 1. **IPC lock lifetime fix + real IPC regression coverage** — uncommitted working tree. Dogfooding the promoted filepath-lock slice exposed a transport-coupling bug: owner-driven `pd lock <filepath>` calls were succeeding over IPC and then vanishing immediately because daemon disconnect cleanup treated every IPC socket close as agent death. The working tree now removes disconnect-time lock release from `server.ts`, leaving TTL expiry and stale-agent cleanup as the real recovery paths, and the integration harness now exposes an isolated ephemeral IPC socket plus isolated HOME so CLI tests can exercise IPC without falling onto the operator's live daemon.
    - New regression truth on 2026-04-11: `tests/integration/cli.test.js` now proves that filepath locks acquired over IPC remain exclusive across separate CLI invocations and unlock cleanly afterward.
@@ -195,6 +252,8 @@ Burst-cool-burst pattern continues: 37 commits (Mar 30-31), 2 zero-commit days (
 
 ## Observations
 
+- **The actor model is now a runtime migration, not just a Shipwright metaphor.** The repo had been using "agent" for durable identity, live process lease, inbox target, salvage target, and authorization principal. ADR-0022 separates those concerns: souls persist; body leases attach, expire, and carry authority. This is now the governing frame for future `/actors`, salvage, IPC auth, Fleet Control Center, and FleetBar work.
+- **The dangerous shortcut is "just stop deleting agents."** That would preserve history while breaking orphan detection, stale lock cleanup, IPC authorization, and Arbiter assumptions. Any implementation that changes deletion before adding lease/incarnation state should be treated as suspect.
 - **The Recovery Roadmap is the real execution authority.** 5 of 7 new commits map directly to Recovery Track criteria (Track 1 closure, Track 2 FleetBar, 3.8.3 runtime safety). The V4 phase structure is becoming a reference taxonomy rather than an active execution plan. This is fine — as long as both documents are maintained. The cartographer should update both.
 - **The full-suite red slice was mostly parity drift plus one real transport edge.** The repaired failures were not random: `routes/messaging.ts` had stopped honoring `body.message`, the client test still assumed a hardcoded daemon URL, completions/manifest/MCP parity did not fully know about `sortie`, stale spawner mocks no longer matched the `node:fs` import surface, and the Unix-socket integration helper needed to normalize oversized-body `EPIPE` / `ECONNRESET` into the daemon's actual 413 intent.
 - **The orchestrator leak was real runtime debt, not just Jest drama.** Reactive `exec` rules spawned child processes with no cleanup contract and piped their output under Jest, which produced late console logs and open pipe handles. The current working tree now suppresses piped stdio under Jest, `unref()`s child handles, and exposes a shutdown path for the reactive orchestrator. The remaining full-suite worker-force-exit warning is now a different leak, not the same one.
