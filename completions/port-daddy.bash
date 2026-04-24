@@ -129,6 +129,8 @@ _port_daddy() {
     setup init
     # Daemon lifecycle
     start stop restart install uninstall dev ci-gate mcp
+    # Bonds / Wallets — FleetControl hardening
+    wallet bond
     # Info
     version help
   )
@@ -1665,17 +1667,59 @@ _port_daddy() {
       esac
       ;;
 
-    # fleet  init|up|down|status|run|help  [agent-name]
+    # fleet  init|up|down|status|run|panic|unpanic|validate|prompt|help  [agent-name]
     fleet)
       local subcmd="${words[2]:-}"
       case "$subcmd" in
         '')
-          COMPREPLY=( $(compgen -W "init up down status run help" -- "$cur") )
+          COMPREPLY=( $(compgen -W "init up down status run panic unpanic validate prompt help" -- "$cur") )
           ;;
         run)
           COMPREPLY=()  # agent names from pd-fleet.yml — no live lookup
           ;;
+        panic)
+          _pd_opts '--reason --yes --json --quiet'
+          ;;
+        unpanic)
+          _pd_opts '--reason --json --quiet'
+          ;;
         *) _pd_opts '' ;;
+      esac
+      ;;
+
+    # wallet  show|top-up|history  <project>  [options]
+    wallet)
+      local subcmd="${words[2]:-}"
+      case "$subcmd" in
+        '')
+          COMPREPLY=( $(compgen -W "show top-up history help" -- "$cur") )
+          ;;
+        show)           _pd_opts '--json --quiet' ;;
+        top-up|topup)   _pd_opts '--usd --yes --json --quiet' ;;
+        history)        _pd_opts '--since --limit --json --quiet' ;;
+        *)              _pd_opts '' ;;
+      esac
+      ;;
+
+    # bond  list|slash  [args]  [options]
+    bond)
+      local subcmd="${words[2]:-}"
+      case "$subcmd" in
+        '')
+          COMPREPLY=( $(compgen -W "list slash help" -- "$cur") )
+          ;;
+        list|ls)
+          case "$prev" in
+            --state)
+              COMPREPLY=( $(compgen -W "escrowed running exiting refunded slashed" -- "$cur") )
+              ;;
+            *)
+              _pd_opts '--project --state --limit --json --quiet'
+              ;;
+          esac
+          ;;
+        slash)          _pd_opts '--portion --reason --yes --json --quiet' ;;
+        *)              _pd_opts '' ;;
       esac
       ;;
 

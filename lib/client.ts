@@ -508,6 +508,33 @@ interface TunnelStopResponse {
   serviceId: string;
 }
 
+interface BondRecord {
+  id: number;
+  project: string;
+  agent_id: string;
+  archetype?: string | null;
+  bond_usd: number;
+  state: 'escrowed' | 'running' | 'exiting' | 'refunded' | 'slashed';
+  escrowed_at: string;
+  resolved_at?: string | null;
+  slash_reason?: string | null;
+}
+
+interface WalletRow {
+  project: string;
+  balance_usd: number;
+  commons_pool_usd: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+interface PanicStatus {
+  armed: boolean;
+  reason?: string | null;
+  armed_at?: string | null;
+  armed_by?: string | null;
+}
+
 /** Response from getting tunnel status */
 interface TunnelStatusResponse {
   success: boolean;
@@ -3020,6 +3047,76 @@ class PortDaddy {
 
   async harborMemberships(agentId: string): Promise<ListHarborsResponse> {
     return this._request('GET', `/harbors/agent/${encodeURIComponent(agentId)}`) as Promise<ListHarborsResponse>;
+  }
+
+  // ===========================================================================
+  // Bonds / Wallets / Fleet Panic — FleetControl hardening (Track 1b)
+  // ===========================================================================
+
+  async listBonds(filter?: { project?: string; state?: string; limit?: number }): Promise<BondRecord[]> {
+    const params = new URLSearchParams();
+    if (filter?.project) params.set('project', filter.project);
+    if (filter?.state) params.set('state', filter.state);
+    if (filter?.limit != null) params.set('limit', String(filter.limit));
+    const qs = params.toString() ? `?${params}` : '';
+    const data = (await this._request('GET', `/bonds${qs}`)) as { bonds?: BondRecord[] } | BondRecord[];
+    if (Array.isArray(data)) return data;
+    return data.bonds || [];
+  }
+
+  async getBond(id: number): Promise<BondRecord | null> {
+    try {
+      const data = (await this._request('GET', `/bonds/${id}`)) as { bond?: BondRecord } | BondRecord;
+      return (data as { bond?: BondRecord }).bond || (data as BondRecord) || null;
+    } catch (err) {
+      if (err instanceof PortDaddyError && err.status === 404) return null;
+      throw err;
+    }
+  }
+
+  async slashBond(id: number, portion: number, reason: string): Promise<{ ok: boolean; bond: BondRecord }> {
+    return this._request('POST', `/bonds/${id}/slash`, { portion, reason }) as Promise<{ ok: boolean; bond: BondRecord }>;
+  }
+
+  async listWallets(): Promise<WalletRow[]> {
+    const data = (await this._request('GET', '/wallets')) as { wallets?: WalletRow[] } | WalletRow[];
+    if (Array.isArray(data)) return data;
+    return data.wallets || [];
+  }
+
+  async getWallet(project: string): Promise<WalletRow | null> {
+    try {
+      const data = (await this._request('GET', `/wallets/${encodeURIComponent(project)}`)) as
+        | { wallet?: WalletRow }
+        | WalletRow;
+      return (data as { wallet?: WalletRow }).wallet || (data as WalletRow) || null;
+    } catch (err) {
+      if (err instanceof PortDaddyError && err.status === 404) return null;
+      throw err;
+    }
+  }
+
+  async topUpWallet(project: string, usd: number): Promise<WalletRow> {
+    const data = (await this._request(
+      'POST',
+      `/wallets/${encodeURIComponent(project)}/top-up`,
+      { usd },
+    )) as { wallet?: WalletRow } | WalletRow;
+    return (data as { wallet?: WalletRow }).wallet || (data as WalletRow);
+  }
+
+  async getPanicStatus(): Promise<PanicStatus> {
+    return this._request('GET', '/fleet/panic') as Promise<PanicStatus>;
+  }
+
+  async armPanic(reason: string, confirm?: boolean): Promise<PanicStatus & { pendingConfirmation?: boolean }> {
+    return this._request('POST', '/fleet/panic', { reason, confirm: !!confirm }) as Promise<
+      PanicStatus & { pendingConfirmation?: boolean }
+    >;
+  }
+
+  async disarmPanic(reason: string): Promise<PanicStatus> {
+    return this._request('POST', '/fleet/unpanic', { reason }) as Promise<PanicStatus>;
   }
 
   // ===========================================================================

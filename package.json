@@ -22,7 +22,6 @@
   "scripts": {
     "start": "tsx server.ts",
     "daemon:start": "tsx server.ts",
-    "daemon:watch": "tsx bin/watchdog.ts",
     "dev": "tsx bin/port-daddy-cli.ts dev",
     "install-daemon": "tsx install-daemon.ts",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
@@ -38,6 +37,8 @@
     "postversion": "tsx scripts/sync-version.ts && git add .claude-plugin/plugin.json mcp-server.json mcp/server.ts && git commit --amend --no-edit",
     "build": "tsc",
     "prepublishOnly": "npm run build",
+    "build:bosun": "cargo build --manifest-path core/pd-bosun/Cargo.toml --release",
+    "build:bosun:dist": "npm run build:bosun && mkdir -p dist/core && cp core/pd-bosun/target/release/pd-bosun dist/core/pd-bosun",
     "build:bin": "bun build --compile bin/port-daddy-cli.ts --outfile dist/pd-binary",
     "build:bin:all": "bun build --compile bin/port-daddy-cli.ts --outfile dist/pd-darwin-arm64 && bun build --compile --target=bun-linux-x64 bin/port-daddy-cli.ts --outfile dist/pd-linux-x64"
   },

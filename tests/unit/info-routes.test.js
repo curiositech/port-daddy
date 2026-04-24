@@ -275,14 +275,62 @@ describe('info routes runtime summary', () => {
     }));
     expect(body.guardians).toEqual(expect.objectContaining({
       supervisor: expect.objectContaining({ state: 'launchctl_preferred' }),
+      bosun: expect.objectContaining({
+        state: 'healthy',
+        binaryExists: true,
+      }),
       barnacle: expect.objectContaining({
         state: 'healthy',
         binaryExists: true,
       }),
     }));
+    expect(body.guardians.barnacle).toEqual(body.guardians.bosun);
     expect(body.history.recentActivity[0]).toEqual(expect.objectContaining({
       type: 'SESSION_NOTE',
       summary: 'Spark noted a daemon regression',
+    }));
+
+    await app.close();
+  });
+
+  test('GET /status exposes Bosun heartbeat separately from legacy Barnacle alias', async () => {
+    const app = Fastify();
+    await app.register(infoPlugin, {
+      deps: buildDeps({
+        bosunHeartbeat: {
+          getStatus() {
+            return {
+              enabled: true,
+              state: 'healthy',
+              heartbeatPath: '/tmp/port-daddy/heartbeat',
+              intervalMs: 5000,
+              staleAfterMs: 30000,
+              lastWrittenAt: 1_700_000_114_000,
+              lastError: null,
+              writeCount: 2,
+              pid: 4242,
+            };
+          },
+        },
+      }),
+    });
+
+    const res = await app.inject({ method: 'GET', url: '/status' });
+    const body = res.json();
+
+    expect(res.statusCode).toBe(200);
+    expect(body.guardians.bosun).toEqual(expect.objectContaining({
+      state: 'idle',
+      reason: 'daemon heartbeat writer active; supervisor not installed (optional)',
+      heartbeat: expect.objectContaining({
+        heartbeatPath: '/tmp/port-daddy/heartbeat',
+        staleAfterMs: 30000,
+        writeCount: 2,
+      }),
+    }));
+    expect(body.guardians.barnacle).toEqual(expect.objectContaining({
+      monitoredUrl: 'http://localhost:9875/health',
+      binaryPath: '/tmp/pd-barnacle',
     }));
 
     await app.close();

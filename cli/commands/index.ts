@@ -37,3 +37,5 @@ export * from './sitrep.js';
 export * from './pheromone.js';
 export * from './say.js';
 export * from './look.js';
+export * from './wallet.js';
+export * from './bond.js';

@@ -1,4 +1,4 @@
-# Port Daddy HTTP API Reference (v3.8.3)
+# Port Daddy HTTP API Reference (v3.9.0)
 
 Base URL: `http://localhost:9876` by default. If your daemon is running elsewhere, use `pd status` or `PORT_DADDY_URL` to discover the live URL.
 Unix Socket: `~/.port-daddy/daemon.sock`
@@ -348,6 +348,18 @@ Combined daemon report. Includes build identity, metrics, detailed fleet breakdo
     "supervisor": {
       "state": "launchctl_preferred",
       "summary": "launchctl is the authoritative daemon supervisor on macOS"
+    },
+    "bosun": {
+      "enabled": true,
+      "state": "healthy",
+      "reason": null,
+      "monitoredUrl": "http://localhost:9875/health",
+      "binaryExists": true,
+      "lastCheckAt": 1711234567999,
+      "lastHealthyAt": 1711234567999,
+      "lastFailureAt": null,
+      "lastResurrectedAt": null,
+      "failureCount": 0
     },
     "barnacle": {
       "enabled": true,
@@ -740,6 +752,61 @@ List all active file claims across all sessions.
 
 ### GET /files/:path
 Check who owns a specific file path.
+
+---
+
+## FleetControl Bonds, Budgets, And Panic
+
+### GET /bonds
+List bond escrow rows. Query params: `project`, `state`, `limit`.
+
+### GET /bonds/:id
+Read one bond escrow row.
+
+### POST /bonds/:id/slash
+Manually slash a bond with an audited reason.
+
+**Body:** `{ "portion": 0.01, "reason": "arbiter violation" }`
+
+### GET /wallets
+List project wallets, including `balanceUsd`, `commonsPoolUsd`, and `budgetUsdPerDay`.
+
+### GET /wallets/:project
+Read one project wallet plus conservation totals.
+
+### POST /wallets/:project/top-up
+Credit governance-accounting USD to a project wallet.
+
+**Body:** `{ "usd": 20 }`
+
+### POST /wallets/:project/budget
+Set or clear the daily project budget required before agent spawn.
+
+**Body:** `{ "usdPerDay": 5 }`
+
+### GET /budget/pending
+List pending budget-breach kills during the pause-and-ask grace window.
+
+### GET /budget/pending/:agentId
+Read one pending budget-breach kill.
+
+### POST /budget/pending/:agentId/resolve
+Resolve a pending budget kill with `raise`, `kill`, or `grace`.
+
+**Body:** `{ "action": "raise", "topUpUsd": 5, "newBudgetUsdPerDay": 10 }`
+
+### GET /fleet/panic
+Read fleet panic status.
+
+### POST /fleet/panic
+Arm the two-step fleet panic kill switch. First call without `confirm`; second call with matching `reason` and `confirm: true`.
+
+**Body:** `{ "reason": "runaway spend", "confirm": true }`
+
+### POST /fleet/unpanic
+Clear panic state.
+
+**Body:** `{ "reason": "operator resolved incident" }`
 
 ---
 

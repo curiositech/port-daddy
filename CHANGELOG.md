@@ -123,6 +123,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Budget UX (Track 1b.2)
+- **Block-until-budget-set**: spawner refuses any spawn for a project without `budget_usd_per_day` set. Error message points the operator at `pd wallet budget <project> --usd-per-day <N>`.
+- **Pause-and-ask on budget breach**: 100% of daily budget no longer cliff-SIGTERMs. `lib/budget-pause.ts` interposes a 60s grace window, broadcasts on `budget:pending`. Operator resolves with `raise` (credit wallet + optionally bump budget), `kill` (skip grace, fire SIGTERM now), or `grace` (extend; max 2 extensions). Expiry fires the backstop SIGTERM.
+- **New HTTP routes**: `POST /wallets/:project/budget`, `GET /budget/pending`, `GET /budget/pending/:agentId`, `POST /budget/pending/:agentId/resolve`.
+- **New CLI**: `pd wallet budget <project> --usd-per-day <N>`, `pd wallet pending`, `pd wallet raise --agent <id> --usd <N> [--new-budget-per-day <N>]`.
+- **Schema**: `project_wallets.budget_usd_per_day` (nullable REAL); idempotent ALTER on existing DBs.
+- **Bonds API**: `bonds.setBudget(project, usdPerDay | null)`, `bonds.getBudget(project)`.
+- **README**: new honesty paragraph — the wallet is a governance accounting unit, not money. Bonds are a coordination signal under `claude-cli`/`ollama` and a real cost gate under API-priced backends.
+
+### Added — Bonds + Budget-Guard Wiring (Track 1b)
+- Daemon escrows money before every spawn (`lib/bonds.ts`) and SIGTERMs live spawns at 100% of daily budget (`lib/budget-guard.ts`). Advisory-only enforcement is gone.
+- New HTTP routes: `GET /bonds`, `GET /bonds/:id`, `POST /bonds/:id/slash`, `GET /wallets`, `GET /wallets/:project`, `POST /wallets/:project/top-up`, `GET /fleet/panic`, `POST /fleet/panic` (two-step), `POST /fleet/unpanic`.
+- New CLI: `pd wallet show|top-up|history`, `pd bond list|slash`, `pd fleet panic|unpanic`.
+- New SDK methods on `PortDaddy`: `listBonds`, `getBond`, `slashBond`, `listWallets`, `getWallet`, `topUpWallet`, `getPanicStatus`, `armPanic`, `disarmPanic`.
+- Panic is two-step (arm + confirm), broadcasts on `fleet:panic` / `fleet:unpanic`, and refunds running bonds rather than slashing them (operator action, not misbehavior).
+- Shell completions updated in bash, zsh, and fish.
+- Integration coverage: `tests/integration/bonds-wiring.integration.test.js`, `tests/integration/fleet-panic.integration.test.js`.
+
 ### Added
 - **`pd setup` — One-Command Onboarding**: Single command installs daemon (launchd), configures MCP integration across 7 IDE platforms (Claude Code, Claude Desktop, Cursor, Windsurf, VS Code Copilot, Continue, Cline), installs FleetBar (macOS), and initializes the current project. Flags: `--no-daemon`, `--no-mcp`, `--no-fleetbar`, `--no-init`, `--no-fleet`, `--no-hook`, `--project <dir>`. Auto-detects project directories via git root and 15+ language markers (package.json, Cargo.toml, go.mod, etc.).
 - **Cost Tracking System** (`lib/cost-tracker.ts`): Per-spawn LLM cost recording with model pricing table covering Claude Opus 4/Sonnet 4.6/Haiku 4.5, Gemini 2.0 Flash, GPT-4.1, and more. Exact cost from token counts (Claude SDK) or flat per-session estimates for opaque backends (claude-cli: $0.05, aider: $0.10). Methods: `record()`, `total()`, `summary()`, `budgetStatus()`.

@@ -66,10 +66,14 @@ import { createSymbolIndex } from './lib/symbol-index.js';
 import { createMergeQueue } from './lib/merge-queue.js';
 import { createCostTracker } from './lib/cost-tracker.js';
 import { createCounters } from './lib/counters.js';
+import { createBonds } from './lib/bonds.js';
+import { createBudgetGuard } from './lib/budget-guard.js';
+import { createBudgetPause } from './lib/budget-pause.js';
 import { launchFleetBarIfEnabled } from './lib/fleetbar-launcher.js';
 import { createGraphEdges } from './lib/graph-edges.js';
 import { createEpisodicMemory } from './lib/episodic-memory.js';
 import { createSemanticResolver } from './lib/semantic-resolver.js';
+import { createBosunHeartbeat } from './lib/bosun-heartbeat.js';
 
 // Fastify route aggregator (Phase 3 — native Fastify plugins, no Express bridge)
 import { registerAllRoutes } from './routes/index.js';
@@ -172,6 +176,7 @@ const IPC_PATH: string = process.env.PORT_DADDY_IPC || (PREFIX ? join(PREFIX, 'p
 const DISABLE_IPC: boolean = process.env.PORT_DADDY_NO_IPC === '1';
 const PID_FILE: string = PREFIX ? join(PREFIX, 'daemon.pid') : DEFAULT_PID_FILE;
 const PORT_FILE: string = process.env.PORT_DADDY_PORT_FILE || (PREFIX ? join(PREFIX, 'daemon.port') : DEFAULT_PORT_FILE);
+const HEARTBEAT_FILE: string | undefined = process.env.PORT_DADDY_HEARTBEAT_FILE || (PREFIX ? join(PREFIX, 'heartbeat') : undefined);
 
 if (IS_DEV_MODE) {
   const { mkdirSync } = await import('node:fs');
@@ -268,13 +273,55 @@ dns.setActivityLog(activityLog);
 const resolver = createResolver(db);
 dns.setResolver(resolver);
 const briefing = createBriefing(db, { sessions, agents, resurrection, activityLog, services, messaging });
-const costTracker = createCostTracker(db);
-const spawner = createSpawner({ costTracker, counters, enforceTelemetryPolicy: true });
 const sugar = createSugar({ agents, sessions, activityLog });
 const harborTokens = createHarborTokens(db);
 await harborTokens.initDaemonIdentity();
 const harbors = createHarbors(db, { harborTokens });
 const sorties = createSorties(db, { episodicMemory });
+
+// Bond escrow + budget guard — FleetControl hardening. Built BEFORE
+// cost-tracker and spawner so they can inject it as a dep (enforcement
+// teeth) rather than it being observability-only.
+const bonds = createBonds(db, {
+  harbors, noteEncryption,
+  broadcast: (channel, event) => messaging.publish(channel, event),
+});
+const budgetGuard = createBudgetGuard(db, {}, {
+  broadcast: (channel, event) => messaging.publish(channel, event),
+});
+
+// Late-binding spawner ref: cost-tracker needs to trigger spawner.kill() on
+// budget breach, but spawner needs costTracker in its constructor. Resolve
+// with a mutable container — set after both are created.
+let spawnerRef: ReturnType<typeof createSpawner> | null = null;
+
+// Pause-and-ask sits between the budget-breach signal and the actual
+// SIGTERM. Default 60s grace; operator can raise, kill, or extend.
+const budgetPause = createBudgetPause({
+  killAgent: (agentId: string) => {
+    logger.warn('budget_kill_executing', { agentId });
+    spawnerRef?.kill(agentId);
+  },
+  bonds,
+  broadcast: (channel, event) => messaging.publish(channel, event),
+});
+
+const costTracker = createCostTracker(db, {
+  budgetGuard,
+  // Budgets live on project_wallets.budget_usd_per_day. Projects without
+  // a budget set are refused at spawn time (see lib/spawner.ts), so this
+  // resolver returning null for unset projects is fine — we never get here.
+  budgetResolver: (project: string) => bonds.getBudget(project),
+  onKill: ({ agentId, project, reason, spentTodayUsd, budgetUsdPerDay }) => {
+    logger.warn('budget_breach_pending', { agentId, project, reason, spentTodayUsd, budgetUsdPerDay });
+    // Interpose grace window. If operator doesn't resolve within graceMs,
+    // the pause module fires killAgent() automatically.
+    budgetPause.arm({ agentId, project, reason, spentTodayUsd, budgetUsdPerDay });
+  },
+});
+const spawner = createSpawner({ costTracker, counters, bonds, enforceTelemetryPolicy: true });
+spawnerRef = spawner;
+
 semanticIndex.initialize();
 const arbiter = createArbiter(
   { activityLog, agents, sessions, locks, resurrection },
@@ -293,6 +340,18 @@ const mergeQueue = createMergeQueue(db, {
   tuples,
   semanticResolver,
 });
+
+const bosunHeartbeat = createBosunHeartbeat({
+  heartbeatPath: HEARTBEAT_FILE,
+  version: VERSION,
+  codeHash: CODE_HASH,
+  startedAt: STARTED_AT,
+  installDir: __dirname,
+  pidFile: PID_FILE,
+  portFile: PORT_FILE,
+  logger,
+});
+bosunHeartbeat.start();
 
 const barnacle = createBarnacleWatcher(logger);
 barnacle.start();
@@ -589,7 +648,8 @@ await registerAllRoutes(
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar,
     harbors, sorties, orchestrator, correlationEngine, spawner, tuples, fleetDaemon,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, counters,
-    arbiter, barnacle,
+    bonds, budgetGuard, budgetPause,
+    arbiter, barnacle, bosunHeartbeat,
     VERSION, CODE_HASH, STARTED_AT, __dirname,
     cleanupStale, getSystemPorts,
   },
@@ -690,6 +750,7 @@ function shutdown(signal: string): void {
   try { counters.shutdown(); } catch {}
   try { tunnel.stopAll(); } catch {}
   try { tunnel.dispose?.(); } catch {}
+  try { bosunHeartbeat.stop(); } catch {}
   // Stop fleet runners before closing DB (graceful drain)
   try { fleetDaemon.stop(); } catch {}
   systemPortsRefresh.stop();

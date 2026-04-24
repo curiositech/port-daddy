@@ -31,7 +31,7 @@ The formal foundation for this thesis is the **Bonded Commons** paper (Owens, 20
 | Rust core (Kani-verified, FFI) | Deployed | `core/harbor-card-rs/` → `dist/core/libharbor_card_rs.dylib` |
 | Arbiter (6 invariant rules) | Deployed | `lib/arbiter.ts`, `routes/arbiter.ts`, wired in `server.ts` |
 | Note encryption (envelope) | Deployed | `lib/note-encryption.ts`, integrated in `lib/sessions.ts` |
-| Barnacle watchdog (Rust) | Built | `dist/core/pd-barnacle` (6MB binary) |
+| Bosun watchdog (Rust) | In progress | daemon writes `~/.port-daddy/heartbeat`; `core/pd-bosun/` supervises filesystem heartbeat and replaces legacy Barnacle |
 | 10 formal skills | Built | `~/.claude/skills/{mechanism-design,tlaplus,political-philosophy,...}` |
 | Stable branch workflow | Active | `~/port-daddy-stable/` worktree |
 | Fleet agents | Running | 8 agents: gardener, qa, test-gap-hunter, etc. |

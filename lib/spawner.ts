@@ -18,6 +18,7 @@ import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { CostTracker } from './cost-tracker.js';
 import type { Counters } from './counters.js';
+import type { Bonds } from './bonds.js';
 import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
 import { getSecret } from './secret-env.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
@@ -84,6 +85,7 @@ export interface SpawnSpec {
   identity?: string;   // PD semantic identity: project:stack:context
   purpose?: string;    // human-readable task description
   task: string;        // the prompt / task
+  bondUsd?: number;    // per-spawn bond; slashed on misbehavior, refunded on clean exit
   files?: string[];    // for aider backend
   workdir?: string;
   env?: Record<string, string>;
@@ -132,11 +134,14 @@ export interface TelemetryBypassApproval {
 interface AgentRecord extends SpawnedAgent {
   heartbeatInterval: ReturnType<typeof setInterval> | null;
   childProcess: ChildProcess | null;
+  bondId?: number | null;
+  bondUsd?: number;
 }
 
 interface SpawnerDeps {
   costTracker?: CostTracker;
   counters?: Counters;
+  bonds?: Bonds;
   enforceTelemetryPolicy?: boolean;
   telemetryBypassApproval?: TelemetryBypassApproval;
   runnerOverrides?: Partial<Record<SpawnSpec['backend'], (spec: SpawnSpec, model: string) => Promise<BackendRunResult>>>;
@@ -554,10 +559,16 @@ export function createSpawner(deps: SpawnerDeps = {}) {
   const {
     costTracker,
     counters,
+    bonds,
     enforceTelemetryPolicy = true,
     telemetryBypassApproval,
     runnerOverrides = {},
   } = deps;
+
+  // Default bond per spawn when caller doesn't specify one. Tunable via
+  // SpawnSpec.bondUsd; a misbehaving agent slashes this, a clean exit refunds.
+  // Small enough to not block normal fleet operation, large enough to matter.
+  const DEFAULT_BOND_USD = 0.01;
 
   if (!enforceTelemetryPolicy) {
     requireTelemetryBypassApproval(telemetryBypassApproval);
@@ -661,6 +672,47 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     const projectName = getProjectName(spec.identity);
     counters?.bump('spawn.started', dims);
 
+    // Block until the project has a daily budget set. Without a budget,
+    // the kill-switch has no number to enforce against — a spawn here
+    // could burn unbounded cost. Refuse and point the operator at the fix.
+    // No-wallet projects get a null budget on first escrow; we block both.
+    if (bonds && projectName) {
+      const budget = bonds.getBudget(projectName);
+      if (budget == null) {
+        counters?.bump('spawn.blocked', dims);
+        return blockedResult(
+          `Spawn blocked: project '${projectName}' has no daily budget set. ` +
+          `Run: pd wallet budget ${projectName} --usd-per-day <N>`,
+        );
+      }
+    }
+
+    // Escrow bond BEFORE any spawn work. If the wallet is insufficient OR
+    // bonds aren't wired, we refuse here rather than run an unbonded agent —
+    // the Ostrom "rule-monitoring" invariant: every running agent has a bond.
+    const bondUsd = spec.bondUsd ?? DEFAULT_BOND_USD;
+    let bondId: number | null = null;
+    if (bonds && projectName && bondUsd > 0) {
+      try {
+        const receipt = bonds.escrow({
+          project: projectName,
+          agentId,
+          archetype: spec.backend,
+          bondUsd,
+        });
+        if (!receipt || !receipt.ok) {
+          counters?.bump('spawn.blocked', dims);
+          return blockedResult(
+            `Spawn blocked: could not escrow $${bondUsd.toFixed(4)} bond for project '${projectName}' (${receipt?.reason || 'unknown'})`,
+          );
+        }
+        bondId = receipt.id ?? null;
+      } catch (err) {
+        counters?.bump('spawn.blocked', dims);
+        return blockedResult(`Spawn blocked: bond escrow threw — ${(err as Error).message}`);
+      }
+    }
+
     // Register agent record (running)
     const record: AgentRecord = {
       agentId,
@@ -673,8 +725,17 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       completedAt: null,
       heartbeatInterval: null,
       childProcess: null,
+      bondId,
+      bondUsd,
     };
     agents.set(agentId, record);
+
+    // Transition bond: escrowed → running. The markRunning call is what
+    // cost-tracker's budget-guard hook looks at — bond must be 'running'
+    // before any charge can slash it.
+    if (bonds && bondId) {
+      try { bonds.markRunning(bondId); } catch {}
+    }
 
     // PD coordination: register agent
     await pdCoordinate('/agents', {
@@ -791,6 +852,21 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     const doneNote = error ? `Failed: ${error.slice(0, 200)}` : `Completed: ${(output || '').slice(0, 200)}`;
     await pdCoordinate('/sugar/done', { agentId, note: doneNote });
 
+    // Resolve bond. Clean exit → full refund; error → slash full bond with reason.
+    // Why slash on any error: an error means the spawn didn't do its job; the
+    // commons pool absorbs the cost so the operator doesn't eat it silently.
+    if (bonds && bondId) {
+      try {
+        if (error) {
+          bonds.slash(bondId, bondUsd, `spawn-failed: ${error.slice(0, 120)}`);
+        } else {
+          bonds.refund(bondId);
+        }
+      } catch {
+        // bond resolution failures are logged but never fail the spawn path
+      }
+    }
+
     counters?.bump(error ? 'spawn.failed' : 'spawn.completed', dims);
     if (!error) {
       counters?.bump('spawn.duration_ms', dims, Math.max(1, completedAt - startedAt));
@@ -858,6 +934,17 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     record.status = 'killed';
     record.completedAt = Date.now();
     counters?.bump('spawn.killed', metricDims({ backend: record.backend, task: '', identity: record.identity || undefined }, record.model));
+
+    // Kill is an intervention, not a clean exit — slash the bond so the
+    // commons pool captures the cost of the decision. Panic path calls
+    // bonds.refund separately (operator action, not misbehavior) BEFORE
+    // invoking kill, so by the time we get here the bond is either already
+    // resolved (no-op) or this is a real kill-for-cause.
+    if (bonds && record.bondId) {
+      try {
+        bonds.slash(record.bondId, record.bondUsd || 0, 'killed-by-spawner');
+      } catch {}
+    }
 
     // PD coordination: done (fire-and-forget)
     pdCoordinate('/sugar/done', { agentId, note: 'Killed by spawner' }).catch(() => {});

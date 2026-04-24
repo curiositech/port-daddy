@@ -1,4 +1,4 @@
-# ⚓ Port Daddy (v3.8.3)
+# ⚓ Port Daddy (v3.9.0)
 
 <p align="center">
   <img src="website-v2/public/img/hero-portdaddy.png" alt="Port Daddy — the harbormaster for your AI agents" width="600">
@@ -128,7 +128,7 @@ pd version  # Version, code hash, install dir, PID
 curl http://127.0.0.1:9876/status   # Full daemon report including recent activity and spend
 ```
 
-`launchctl` is the canonical supervisor on macOS. Barnacle is auxiliary when its binary is present; it is not the authority for daemon health.
+`launchctl` is the canonical supervisor on macOS. Bosun is the optional non-agent watchdog; the daemon now writes a filesystem heartbeat for it, and the old Barnacle sidecar remains only as a deprecated compatibility implementation name during the V4 rollout.
 
 ---
 
@@ -481,6 +481,39 @@ Each agent gets full PD coordination for free: registration, sessions, heartbeat
 Fleet status now reflects mailbox semantics: repeated trigger bursts collapse into queued work instead of spawning a fresh agent for every wake. When that happens, agent rows can show `status: queued` and a non-zero `queueDepth` so operators can see pending work instead of mistaking it for a miss.
 
 The daemon-served control plane now has an explicit `Agents` surface alongside the fleet graph. It is the operator view for all agents in a project slice: configured fleet agents, live registry entries, spawned runs, salvage ghosts, inbox traffic, recent sessions/notes, known pub/sub bindings, and active file claims.
+
+### Bonds & Budget Guard
+
+Port Daddy escrows virtual USD before each agent spawn and can SIGTERM live spawns that breach their daily budget. Spend is observable (cost-tracker); enforcement is separate (bonds). You top up a project wallet; every spawn debits a small bond; clean exits refund it; misbehavior slashes it. `pd fleet panic` arms a two-step global kill-switch that **refunds** (not slashes) every running bond — operator action is not agent misbehavior.
+
+**What the wallet actually is.** The wallet is a *governance accounting unit*, not money. No payments move; no refunds reach a bank. The "USD" numbers are accounting units denominated against `cost-tracker`'s estimated LLM spend. When the backend is `claude` (SDK → real API), `codex`, `gemini`, or `cloudflare`, those dollars map to real per-token billing. When the backend is `claude-cli` (your Claude Code subscription) or `ollama` (local), per-token marginal cost is ~$0 and bonds become a coordination signal — a quota, a kill-switch, a priority ordering, and an audit trail. Useful, but don't pretend it's money.
+
+**Spawning requires a daily budget.** Every project must set `usd_per_day` before its first spawn; the daemon refuses unbonded agents. Run `pd wallet budget <project> --usd-per-day 5` during project setup. The no-budget-no-spawn rule is an Ostrom-style monitoring invariant: no agent can run without a number to enforce against.
+
+**Budget breach is pause-and-ask, not cliff SIGTERM.** The manifest feature is `budget_guard`: when a spawn crosses 100% of its project's daily budget, Port Daddy posts a *pending kill* with a 60-second grace window and broadcasts on `budget:pending`. During grace, the operator has three options: `raise` (credit the wallet + optionally bump the budget, agent keeps running), `kill` (skip the wait, fire SIGTERM now), or `grace` (extend the window — up to 2 extensions). If nothing happens, the backstop SIGTERM fires at expiry. List pending kills with `pd wallet pending`; resolve one with `pd wallet raise --agent <id> --usd 5`.
+
+```bash
+# Top up and inspect
+curl -X POST http://localhost:9876/wallets/myapp/top-up \
+  -H 'Content-Type: application/json' -d '{"usd": 20}'
+curl 'http://localhost:9876/bonds?project=myapp&state=running'
+
+# Manually slash a misbehaving agent's bond (audited)
+curl -X POST http://localhost:9876/bonds/42/slash \
+  -H 'Content-Type: application/json' \
+  -d '{"portion": 0.5, "reason": "leaked secrets to stdout"}'
+
+# Two-step panic
+curl -X POST http://localhost:9876/fleet/panic \
+  -H 'Content-Type: application/json' -d '{"reason": "runaway loop"}'
+curl -X POST http://localhost:9876/fleet/panic \
+  -H 'Content-Type: application/json' \
+  -d '{"reason": "runaway loop", "confirm": true}'
+curl -X POST http://localhost:9876/fleet/unpanic \
+  -H 'Content-Type: application/json' -d '{"reason": "root cause fixed"}'
+```
+
+Or via CLI: `pd wallet top-up myapp --usd 20`, `pd bond list --project myapp`, `pd fleet panic --reason "runaway"`.
 
 ### Observability & Cost Tracking
 

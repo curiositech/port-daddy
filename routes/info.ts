@@ -8,6 +8,7 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import type { Arbiter } from '../lib/arbiter.js';
 import type { BarnacleWatcherStatus } from '../lib/barnacle-client.js';
+import type { BosunHeartbeatStatus } from '../lib/bosun-heartbeat.js';
 import type { createFleetDaemon } from '../lib/fleet-daemon.js';
 import { formatUptime } from '../shared/port-utils.js';
 
@@ -90,6 +91,9 @@ interface InfoRouteDeps {
   barnacle?: {
     getStatus(): BarnacleWatcherStatus;
   };
+  bosunHeartbeat?: {
+    getStatus(): BosunHeartbeatStatus;
+  };
 }
 
 function buildRuntimeSummary(deps: InfoRouteDeps) {
@@ -167,24 +171,44 @@ function buildRecentHistory(deps: InfoRouteDeps) {
 }
 
 function buildGuardianSummary(deps: InfoRouteDeps) {
+  // ADR-0021: "Bosun" is the canonical watchdog name. `barnacle` remains a
+  // compatibility alias for the old HTTP sidecar, but `bosun` now describes the
+  // file heartbeat that the V4 supervisor consumes.
+  const legacyBarnacleStatus = deps.barnacle?.getStatus() ?? {
+    monitoredUrl: 'http://localhost:9875/health',
+    binaryPath: '',
+    binaryExists: false,
+    enabled: false,
+    state: 'disabled',
+    reason: 'not installed (optional)',
+    lastCheckAt: null,
+    lastHealthyAt: null,
+    lastFailureAt: null,
+    lastResurrectedAt: null,
+    failureCount: 0,
+  };
+  const heartbeat = deps.bosunHeartbeat?.getStatus() ?? null;
+  const bosunStatus = heartbeat ? {
+    ...legacyBarnacleStatus,
+    enabled: heartbeat.enabled,
+    state: heartbeat.state === 'healthy' ? 'idle' : heartbeat.state,
+    reason: heartbeat.state === 'healthy'
+      ? 'daemon heartbeat writer active; supervisor not installed (optional)'
+      : heartbeat.lastError ?? legacyBarnacleStatus.reason,
+    lastCheckAt: heartbeat.lastWrittenAt,
+    lastHealthyAt: heartbeat.state === 'healthy' ? heartbeat.lastWrittenAt : legacyBarnacleStatus.lastHealthyAt,
+    lastFailureAt: heartbeat.state === 'degraded' ? Date.now() : legacyBarnacleStatus.lastFailureAt,
+    failureCount: heartbeat.lastError ? legacyBarnacleStatus.failureCount + 1 : legacyBarnacleStatus.failureCount,
+    heartbeat,
+  } : legacyBarnacleStatus;
+
   return {
     supervisor: {
       state: 'launchctl_preferred',
       summary: 'launchctl is the authoritative daemon supervisor on macOS',
     },
-    barnacle: deps.barnacle?.getStatus() ?? {
-      monitoredUrl: 'http://localhost:9875/health',
-      binaryPath: '',
-      binaryExists: false,
-      enabled: false,
-      state: 'disabled',
-      reason: 'barnacle watcher unavailable',
-      lastCheckAt: null,
-      lastHealthyAt: null,
-      lastFailureAt: null,
-      lastResurrectedAt: null,
-      failureCount: 0,
-    },
+    bosun: bosunStatus,
+    barnacle: legacyBarnacleStatus,
   };
 }
 

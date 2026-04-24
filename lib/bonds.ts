@@ -128,6 +128,7 @@ export interface WalletRow {
   project: string;
   balanceUsd: number;
   commonsPoolUsd: number;
+  budgetUsdPerDay: number | null;
   createdAt: number;
   updatedAt: number;
 }
@@ -195,6 +196,16 @@ export function createBonds(db: Database, deps: BondsDeps = {}) {
       updated_at        INTEGER NOT NULL
     )
   `);
+
+  // Idempotent column add for existing databases. SQLite doesn't support
+  // IF NOT EXISTS on ADD COLUMN — we check PRAGMA first.
+  const walletCols = new Set(
+    (db.prepare('PRAGMA table_info(project_wallets)').all() as Array<{ name: string }>)
+      .map((c) => c.name),
+  );
+  if (!walletCols.has('budget_usd_per_day')) {
+    runDDL(`ALTER TABLE project_wallets ADD COLUMN budget_usd_per_day REAL`);
+  }
   runDDL(`
     CREATE TABLE IF NOT EXISTS bond_escrow (
       id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -234,8 +245,13 @@ export function createBonds(db: Database, deps: BondsDeps = {}) {
      WHERE project = ?
   `);
   const selectWallet = db.prepare(`
-    SELECT project, balance_usd, commons_pool_usd, created_at, updated_at
+    SELECT project, balance_usd, commons_pool_usd, budget_usd_per_day, created_at, updated_at
       FROM project_wallets WHERE project = ?
+  `);
+  const updateWalletBudget = db.prepare(`
+    UPDATE project_wallets
+       SET budget_usd_per_day = ?, updated_at = ?
+     WHERE project = ?
   `);
   const insertBond = db.prepare(`
     INSERT INTO bond_escrow
@@ -365,11 +381,13 @@ export function createBonds(db: Database, deps: BondsDeps = {}) {
   function getWallet(project: string): WalletRow | null {
     const row = selectWallet.get(project) as {
       project: string; balance_usd: number; commons_pool_usd: number;
+      budget_usd_per_day: number | null;
       created_at: number; updated_at: number;
     } | undefined;
     if (!row) return null;
     return {
       project: row.project,
+      budgetUsdPerDay: row.budget_usd_per_day,
       balanceUsd: row.balance_usd,
       commonsPoolUsd: row.commons_pool_usd,
       createdAt: row.created_at,
@@ -631,9 +649,33 @@ export function createBonds(db: Database, deps: BondsDeps = {}) {
     return conservation(project).supplyUsd;
   }
 
+  /**
+   * Set the daily USD budget ceiling for a project. Enforced by the
+   * cost-tracker → budget-guard → spawner.kill chain. Passing null
+   * removes the budget (project falls back to "no enforcement").
+   *
+   * Setting a budget is the gate that unblocks spawning: spawner refuses
+   * to launch a spawn for a project with no budget set.
+   */
+  function setBudget(project: string, usdPerDay: number | null): void {
+    if (usdPerDay != null && (!Number.isFinite(usdPerDay) || usdPerDay <= 0)) {
+      throw new Error('budget must be a positive finite number, or null to clear');
+    }
+    ensureWallet(project);
+    updateWalletBudget.run(usdPerDay, Date.now(), project);
+  }
+
+  /** Return the daily USD budget for a project, or null if none set. */
+  function getBudget(project: string): number | null {
+    const w = getWallet(project);
+    return w ? w.budgetUsdPerDay : null;
+  }
+
   return {
     topUpWallet,
     getWallet,
+    setBudget,
+    getBudget,
     escrow,
     markRunning,
     refund,

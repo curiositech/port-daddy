@@ -1013,6 +1013,49 @@
         "sdk": true
       }
     },
+    "bonds": {
+      "description": "Bond escrow state machine — daemon escrows money before spawn, refunds on clean exit, slashes on violation. Enforcement half of the cost-tracker/bonds split.",
+      "module": "lib/bonds.ts",
+      "cli": ["bond", "wallet"],
+      "sdk": ["listBonds", "getBond", "slashBond", "listWallets", "getWallet", "topUpWallet"],
+      "routes": [
+        "GET /bonds",
+        "GET /bonds/:id",
+        "POST /bonds/:id/slash",
+        "GET /wallets",
+        "GET /wallets/:project",
+        "POST /wallets/:project/budget",
+        "POST /wallets/:project/top-up"
+      ],
+      "completions": ["bond", "wallet"],
+      "docs": { "readme": true, "sdk": false }
+    },
+    "budget_guard": {
+      "description": "Pre-flight canSpawn() + mid-flight onCharge() kill-switch that SIGTERMs live spawns when daily budget is breached. Works in tandem with cost-tracker (observability) and bonds (enforcement).",
+      "module": "lib/budget-guard.ts",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "GET /budget/pending",
+        "GET /budget/pending/:agentId",
+        "POST /budget/pending/:agentId/resolve"
+      ],
+      "completions": [],
+      "docs": { "readme": true, "sdk": false }
+    },
+    "panic": {
+      "description": "Daemon-wide panic kill-switch. Two-step arm (POST without confirm → POST with confirm:true) SIGTERMs every running spawn and refunds their bonds (operator action, not misbehavior).",
+      "module": "routes/panic.ts",
+      "cli": [],
+      "sdk": ["getPanicStatus", "armPanic", "disarmPanic"],
+      "routes": [
+        "GET /fleet/panic",
+        "POST /fleet/panic",
+        "POST /fleet/unpanic"
+      ],
+      "completions": [],
+      "docs": { "readme": true, "sdk": false }
+    },
     "bench": {
       "description": "Performance benchmarking CLI",
       "cli": [

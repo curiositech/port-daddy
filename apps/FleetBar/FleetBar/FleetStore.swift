@@ -133,6 +133,7 @@ struct DaemonRuntimeResponse: Decodable {
 
 struct DaemonGuardiansResponse: Decodable {
     let supervisor: DaemonSupervisorResponse?
+    let bosun: DaemonBarnacleResponse?
     let barnacle: DaemonBarnacleResponse?
 }
 

@@ -21,6 +21,42 @@ import * as ui from '../utils/ui.js';
 // __dirname equivalent for ESM
 const __dirname = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
 
+interface StatusCommandResponse {
+  version?: string;
+  pid?: number;
+  uptimeSeconds?: number;
+  uptimeHuman?: string;
+  active_ports?: number;
+  daemon?: {
+    version?: string;
+    codeHash?: string;
+  };
+  metrics?: {
+    activePorts?: number;
+  };
+  runtime?: {
+    state?: string;
+    degraded?: boolean;
+  };
+  fleet?: {
+    projects?: unknown[];
+    totalAgents?: number;
+  };
+  guardians?: {
+    bosun?: {
+      state?: string;
+      reason?: string | null;
+    };
+    barnacle?: {
+      state?: string;
+      reason?: string | null;
+    };
+  };
+  history?: {
+    lastActivityAt?: number;
+  };
+}
+
 function getLocalCodeHash(): string {
   return calculateRuntimeCodeHash(join(__dirname, '..', '..'));
 }
@@ -109,7 +145,7 @@ export async function handleHealth(id: string | undefined, options: CLIOptions):
   if (id) {
     // Single service health - still query Daemon
     const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/services/health/${encodeURIComponent(id)}`);
-    const data = await res.json();
+    const data = await res.json() as { error?: string; id?: string; healthy?: boolean; port?: number; latencyMs?: number };
     if (!res.ok) {
       ui.error((data.error as string) || `Health check failed for '${id}'`);
       process.exit(1);
@@ -127,7 +163,8 @@ export async function handleHealth(id: string | undefined, options: CLIOptions):
     return;
   }
 
-  // System Health - query the Barnacle (Watchdog)
+  // System Health - query the legacy Barnacle health endpoint when present.
+  // ADR-0021 reserves "Bosun" for the user-facing watchdog name.
   try {
     const res: PdFetchResponse = await pdFetch(`${BARNACLE_URL}/health`);
     const data = await res.json();
@@ -150,7 +187,7 @@ export async function handleHealth(id: string | undefined, options: CLIOptions):
   } catch {
     // Fallback to services health if Barnacle is unreachable
     const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/services/health`);
-    const data = await res.json();
+    const data = await res.json() as StatusCommandResponse;
     // ... rest of original fallback logic
   }
 }
@@ -185,7 +222,7 @@ export async function handleDashboard(opts: { web?: boolean } = {}): Promise<voi
 export async function handleStatus(): Promise<void> {
   try {
     const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/status`);
-    const data = await res.json();
+    const data = await res.json() as StatusCommandResponse;
 
     console.log(`Port Daddy is running`);
     const buildVersion = data.daemon?.version || data.version;
@@ -205,10 +242,15 @@ export async function handleStatus(): Promise<void> {
       console.log(`  Fleet: ${projectCount} project(s), ${data.fleet.totalAgents ?? 0} agent(s)`);
     }
 
-    if (data.guardians?.barnacle) {
-      const barnacle = data.guardians.barnacle;
-      const barnacleReason = barnacle.reason ? ` — ${barnacle.reason}` : '';
-      console.log(`  Barnacle: ${barnacle.state}${barnacleReason}`);
+    const bosun = data.guardians?.bosun ?? data.guardians?.barnacle;
+    if (bosun) {
+      const normalizedState = bosun.state === 'disabled' && bosun.reason?.includes('missing')
+        ? 'not installed (optional)'
+        : bosun.state;
+      const reason = bosun.reason && !bosun.reason.includes('missing') && bosun.reason !== normalizedState
+        ? ` — ${bosun.reason}`
+        : '';
+      console.log(`  Bosun: ${normalizedState}${reason}`);
     }
 
     if (data.history?.lastActivityAt) {

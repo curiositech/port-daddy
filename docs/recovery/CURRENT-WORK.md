@@ -1,18 +1,29 @@
 # Current Recovery Work
 
-Last updated: 2026-04-11
+Last updated: 2026-04-24
 Owner: Codex working session
 
 This is the active execution ledger. If a task is in flight, it belongs here before it belongs in chat.
 
 ## Active Side Thread
 
+Public-site direction is now a hybrid preservation pass, not an `agentsd.ai` replacement:
+
+- do not erase the current broad `website-v2` route surface
+- keep the existing home page and current top-level pages reachable
+- treat the newer docs-family shell, structured docs content, and shared site primitives as additive improvements
+- strip active `agentsd` branding from the live website shell
+- keep the `docs/AGENTSD_*` documents as quarantined research, not as implementation authority for the active site
+
+## Quarantined Reset Research
+
 New public-site reset work for `agentsd.ai` is now captured on disk:
 
 - `docs/AGENTSD_AI_SITE_CONTRACT.md`
 - `docs/AGENTSD_BRAND_IDENTITY.md`
+- `docs/AGENTSD_DEVELOPER_DOCS_SYSTEM_PLAN.md`
 
-This side thread exists to stop future agents from recreating the old public-site sprawl under a new name.
+This research thread remains on disk, but it is not the current implementation direction. The user explicitly rejected using it to replace the active site.
 
 Key constraints now captured there:
 
@@ -33,9 +44,29 @@ Implementation truth now also exists in the working tree:
 - the landing page is now rebuilt against the `v0-agentsd-main` composition language: hard color blocking, proof terminals, architecture diagram, open-core pricing grid, and docs mosaic
 - homepage copy is now product-facing instead of repo-facing: no `portdaddy.dev` references, no self-referential "public shell" language, and no cleanup-ticket tone on the public surface
 - public docs are reduced to the approved section set via `DocsOverview` + `DocsSectionPage` instead of the previous route forest
+- the next docs-system phase is now explicitly planned around a Cloudflare-style developer-docs IA: overview, get started, concepts, best practices, examples, tutorials, reference architectures, reference, and LLM exports
+- docs discovery is now complete enough to move from analysis into execution:
+  - `docs/AGENTSD_DEVELOPER_DOCS_SYSTEM_PLAN.md` now carries a salvage-now / salvage-later / quarantine map
+  - the same plan now carries a concrete backlog `D1` through `D7` for registry, overview, get started, concepts, examples, tutorials/architectures, and LLM/reference exports
+  - the plan also now force-ranks publication order: `Get Started`, `Whitepaper`, `Examples`, `Best Practices`, `Concepts`, `Reference`, `Reference Architectures`, then `Tutorials`
+  - implementation ownership is intentionally split across disjoint write scopes instead of another monolithic docs rewrite
+- current docs-system worker assignments:
+  - `Carver`: docs registry and `/docs/**` route model
+  - `Singer`: get-started and best-practices outline, source-truthed against code
+  - `Tesla`: examples/tutorials/reference-architectures curation matrix with promote/rewrite/archive/delete classification
+- integrated worker outputs now present in-tree:
+  - `website-v2/src/docs-content/` contains structured source-backed `Get Started` and `Best Practices` section content
+  - `docs/reports/D5-D6-PROMOTION-MATRIX.md` classifies examples/tutorials/reference-architectures into promote/rewrite/archive/delete
+  - the active docs shell now uses the canonical docs-family model instead of rendering legacy section aliases like `guides` and `operations` as if they were canonical public sections
+  - `/docs/get-started/*` and `/docs/best-practices/*` now have real leaf-page rendering driven by `website-v2/src/docs-content/` instead of static family-only placeholders
+  - the docs rail and family landing pages now expose clickable subpage navigation for those two families
+  - the `website-v2` shell contract test now enforces the leaf-content integration, and `website-v2` currently builds cleanly after the route/data rewrite
 - Storybook coverage now exists for the new public shell primitives/header
+- dark-mode bright-surface contrast failures have been corrected in the active shell by adding explicit blue/lime foreground tokens and moving terminal-style panels onto stable code-surface tokens
+- routed docs status language is now `Live` / `Compatibility` / `Roadmap` with an in-page legend so module-state chips read as runtime truth, not fake links
+- persona + appeal audit for the routed shell now lives at `docs/reports/AGENTSD_PUBLIC_SHELL_AUDIT_2026-04-11.md`
 
-## Public Site Reset (2026-04-11)
+## Public Site Reset (2026-04-11, Quarantined)
 
 The `agentsd.ai` public-site reset is now explicit repo work, not chat residue.
 
@@ -43,10 +74,64 @@ The `agentsd.ai` public-site reset is now explicit repo work, not chat residue.
   - `docs/AGENTSD_AI_SITE_CONTRACT.md`
   - `docs/AGENTSD_BRAND_IDENTITY.md`
 - These documents exist to prevent `portdaddy.dev`-style page sprawl, layout drift, mascot bleed-through, and public runtime overclaims from reappearing under the `agentsd` brand.
-- The old public site is now treated as a failure case, not a migration target.
-- Future public-site work should start from the new route budget, template budget, truth-label rules, and logo/brand constraints in those docs before adding or rewriting anything in `website-v2`.
+- Do not treat the old public site as a failure case or migration anti-target for active implementation.
+- Future public-site work should preserve the current public surface unless a deliberate migration plan is approved and implemented.
 
 ## Current Thread
+
+### Cartographer Roadmap Actor (2026-04-24)
+
+The current uncommitted slice now promotes Cartographer from a commit-triggered docs updater into the first concrete maritime actor surface:
+
+- `docs/adr/0023-cartographer-roadmap-actor.md` defines the target actor: durable identity, mailbox, roadmap/work-slice read model, tuples, graph edges, and evidence links across docs, sessions, claims, commits, tests, and promotion attempts.
+- `.cartographer/README.md` now defines the operating contract for bootstrap reconciliation, document authority classes, tuple vocabulary, graph vocabulary, and patch policy.
+- `pd-fleet.yml` now gives the compatibility `cartographer` fleet agent Port Daddy-first instructions and a stricter event/upkeep contract.
+- `lib/maritime-actors.ts` defines the canonical maritime actor roster and projects live body / compatibility fleet status from existing daemon state.
+- `routes/actors.ts` exposes `GET /actors` and `GET /actors/:id`; `cartographer` currently resolves to `navigator`.
+- `features.manifest.json`, `docs/openapi.yaml`, and the Port Daddy skill API reference now know about the new `/actors` surface.
+- The initial batch step is explicitly a report-first reconciliation pass. It inventories and classifies extant documents, extracts work items and evidence, emits structured state, and proposes cleanup patches. It must not blindly rewrite every document.
+- The sibling systems discussed in this thread are also actor-shaped and now have canonical maritime names: Navigator for roadmap/recovery state, Coxswain for claims/locks/stale work, Signalman for validation evidence, Harbormaster for promotion readiness, Sounder for semantic graph/synonymy, Lookout for docs/API/skill drift, Breaker for failure propagation, Caulker for robustness repair, and Quartermaster for cost/resource governance. They should all become durable actors with deterministic projectors and optional LLM bodies.
+
+### Tree-Sitter Symbol Refresh From Repo Events (2026-04-24)
+
+The current uncommitted runtime slice makes tree-sitter symbol indexing event-driven instead of requiring manual `/symbols/parse` calls:
+
+- `server.ts` now passes the live `symbolIndex` into the fleet daemon.
+- `lib/fleet-daemon.ts` subscribes managed projects to project-scoped `git:committed` messages and debounced source-file watcher events, then refreshes only supported in-project code files (`ts`, `tsx`, `js`, `jsx`, `mjs`, `cjs`, `py`).
+- The daemon subscribes to both the fleet-config-name scoped channel and the repo-basename hook channel because the current hook computes scope from `basename(projectDir)` while this repo's fleet name is `port-daddy-dev`.
+- New regression coverage in `tests/unit/fleet-daemon.test.js` proves hook-style commit payloads and source watcher events refresh symbols while ignoring docs, generated directories, and outside-project paths.
+- Validation truth: focused `npm test -- tests/unit/fleet-daemon.test.js` is green, `npm run typecheck` is green, and broad `npm test` is green at `132/132` suites and `4816/4817` passing tests with `1` intentional skip.
+- Runtime caveat: the live daemon must be rebuilt/relaunched/promoted before this dogfood path is active in the canonical runtime.
+
+## Ledger Drift Correction (2026-04-12)
+
+The ledger had fallen behind the actual branch state. Current committed truth is:
+
+- `f45b751` — Fix CLI typecheck debt for sessions and tuples
+- `8cddbca` — Add git-sensitive channel discovery
+- `8236119` — Import curated workgroup-ai skills
+- `0f77491` — Fix cost tracker migration for stable daemon
+- `175210f` — Enforce fail-closed spawn telemetry by default
+- `278fa47` — Fix with-lock option separator parsing
+- `961a41c` — Add tunnel TTL and orphan cleanup safeguards
+- `4765090` — Fix tunnel startup timeout leak
+
+Validation truth as of 2026-04-12:
+
+- `npm run typecheck` is green again after `f45b751`; older notes below about broad CLI/client/IPC typecheck debt are now historical, not active.
+- broad `npm test` is green at `117/117` suites and `4662/4663` passing tests with `1` intentional skip.
+- focused `npm test -- --runInBand --detectOpenHandles tests/integration/cli.test.js tests/unit/current-context.test.js` is green with no open-handle report.
+- the older parallel worker-force-exit warning was not reproduced in the latest broad run or the focused handle hunt above, so that debt should now be treated as stale until reproduced again.
+
+Newest active uncommitted slice:
+
+- recovery-ledger reconciliation plus integration-context isolation hardening in:
+  - `docs/recovery/CURRENT-WORK.md`
+  - `.cartographer/status.md`
+  - `tests/helpers/integration-setup.js`
+  - `tests/integration/cli.test.js`
+- the CLI integration harness now writes current-context through an explicit isolated helper and clears isolated context state after each test, instead of relying on implicit process-env side effects.
+- new regression coverage now asserts those integration-context writes stay out of repo-local `.portdaddy/contexts/<slot>.json`.
 
 The live recovery thread has split into two coupled slices:
 
@@ -80,17 +165,40 @@ Newest committed semantic-claim slice now on `HEAD`:
 - `lib/sessions.ts` / `routes/sessions.ts` / `tests/unit/region-claims.test.js` now carry canonical `symbolPath` claim identity with line-range fallback
 - current `HEAD` also includes `30737e0` (`Enforce public repo boundary for local residue`), so recovery docs that still describe symbol-backed claim authority as future work are now wrong
 
-Still-active larger uncommitted slice: semantic graph + episodic memory plumbing wired into the control plane:
+Still-active larger uncommitted slice: tuple-first coordination and semantic graph harmonization:
 - new durable graph surface: `lib/graph-edges.ts`, `routes/graph.ts`, `tests/unit/graph-edges.test.js`
 - new episodic memory surface: `lib/episodic-memory.ts`, `routes/memory.ts`, `tests/unit/episodic-memory.test.js`
 - new operator UI surface: `fleet-config-ui/src/components/MemoryPanel.tsx` plus FleetBar route/tab wiring
+- tuple space is now a real coordination substrate instead of a side primitive:
+  - `lib/fleet-engine.ts` accepts `trigger_tuple` in fleet YAML, drains tuple mailboxes as launch inputs, and emits semantic alias tuples from fleet work items
+  - `lib/fleet-daemon.ts` projects fleet lifecycle into `fleet:event` tuples so downstream systems can consume run truth without scraping logs or channels
+  - `lib/merge-queue.ts` projects merge lifecycle into `merge:event` tuples and emits semantic alias tuples from branch / claim / task metadata
+  - `lib/episodic-memory.ts` projects remembered episodes into `memory:episode` tuples and semantic alias tuples
 - integration glue now writes graph/memory truth from existing systems:
   - `lib/symbol-index.ts` writes file/symbol/dependency edges
-  - `lib/merge-queue.ts` writes merge-entry / branch / file / status edges
+  - `lib/merge-queue.ts` writes merge-entry / branch / file / status edges plus `alias_of` / `about` joins onto canonical semantic terms
   - `lib/sessions.ts` promotes handoffs/findings/decisions/results/failures into episodic memory
   - `lib/sorties.ts` promotes blocked/completed/failed mission moments into episodic memory
   - `routes/tuples.ts` gained filtered tuple scanning so the new Memory view can search live tuple state
+- semantic nomenclature harmonization is now explicit in code:
+  - `lib/semantic-terms.ts` canonicalizes freeform labels into stable token sets, fingerprints them, and emits `semantic:alias` tuples plus `semantic_term --alias_of--> semantic_term` graph edges
+  - `lib/semantic-resolver.ts` now adds the embedding-backed join layer on top using local Transformers.js inference with `Xenova/all-MiniLM-L6-v2`
+  - embeddings are cached under `.cache/transformers/` after the first machine-local download, so semantic resolution is offline-cheap on subsequent runs
+  - thresholds are no longer magic folklore:
+    - auto-join threshold defaults to `0.88`
+    - review threshold defaults to `0.80`
+    - boundary monitoring margin defaults to `0.02`
+  - operator visibility now exists through:
+    - `GET /semantic/stats`
+    - `GET /semantic/resolutions`
+    - `GET /semantic/search`
+    - Fleet Control Center `Memory` panel semantic cards / recent decision feed
+  - near-threshold counts, review backlog, emitted `semantic:resolution` tuples, and persisted `semantic_resolution_events` are the current guardrails against silent threshold drift
 - docs/skill drift also landed in this same working tree: `AGENTS.md` and `skills/port-daddy-cli/SKILL.md` now explicitly require Port Daddy-first coordination on this computer
+- validation truth on 2026-04-18:
+  - broad `npm test` is green at `123/123` suites and `4689/4690` tests with `1` intentional skip
+  - focused tuple/semantic suites (`semantic-terms`, `episodic-memory`, `merge-queue`, `fleet-engine`, `fleet-daemon`) are green
+  - `npm run typecheck` is still red, but the remaining failures are the pre-existing `cli/commands/diagnostics.ts` `{}`-typing hole rather than regressions from this tuple/graph slice
 - teardown / runtime hardening just validated cleanly in the working tree and should be cut next:
   - `lib/ipc-client.ts` now `unref()`s connect, reconnect, and request timeout timers so local IPC clients do not pin Jest workers
   - `lib/client.ts` now `unref()`s the SDK heartbeat interval for the same reason
@@ -170,6 +278,44 @@ Captured from the spawn-storm / remote-harbor thread plus `docs/plans/agentsd_ai
    - centralized human auth dispenser and daemon attestation remain the long-pole trust surface
    - remote harbor design should assume key issuance, registry, Merkleized evidence exchange, and revocation-friendly filters (cuckoo/bloom/Merkle proof path), not just "ship messages over the network"
 
+### Actor-Model Reconciliation (2026-04-23)
+
+Architecture decision now captured in `docs/adr/0022-durable-actor-souls-and-body-leases.md`.
+
+The core conclusion: do not "fix" agent history loss by simply stopping row deletion. The current runtime uses agent-row deletion as part of orphan detection, lock cleanup, IPC authorization, Arbiter checks, and salvage visibility. The correct migration is a durable actor soul plus an ephemeral body lease:
+
+- actor soul: stable identity, mailbox, archetype, belief state, history, and operator-visible addressability
+- body lease: heartbeat, PID/process or transport attachment, incarnation/generation, and authority to perform protected actions
+- salvage: adoption or recovery of a dead/revoked body lease attached to a durable soul, not resurrection of a deleted identity
+- inbox: actor-scoped mailbox; wake status is a separate live-runtime concern
+- auth: protected IPC/HTTP actions require a live lease or delegated token, not mere actor existence
+
+Implementation roadmap additions:
+
+1. Add `/actors`, `/actors/:id`, and `/actors/:id/message` as additive durable-soul surfaces while `/agents` remains the live-body compatibility view.
+2. Add explicit lease/incarnation state before changing cleanup semantics:
+   - `attached`, `draining`, `detached`, `dead`, `revoked`
+   - heartbeat timestamp, PID/process/transport metadata, optional local lease token
+3. Change `pd done`, spawner cleanup, and stale-agent cleanup to detach/revoke body leases instead of deleting durable identities.
+4. Replace `sessions.abandonOrphanedActive()` missing-row logic with dead/revoked-lease detection.
+5. Move lock/file/session/merge authority checks to live leases while preserving durable soul attribution for audit and handoff.
+6. Reframe salvage queue entries as lease recovery/adoption state on an actor soul.
+7. Update Fleet Control Center and FleetBar:
+   - actor directory is durable identity truth
+   - live registry becomes deployment/lease state
+   - salvage ghosts become actor recovery states
+   - direct messages can queue for dormant actors and separately report wake success/failure
+8. Update SDK/OpenAPI/site docs and tests that still say "done unregisters the agent" or "only registered agents have inboxes."
+9. Treat configured fleet agents, projects, harbors, sorties, and trigger keys as mailbox-owning actors so cooldown, dedupe, backoff, singleton, and budget policy have one home instead of being spread across watchers and subscribers.
+
+Unintended consequences to guard against:
+
+- stale processes must not retain lock/session/salvage authority just because their soul persists
+- random `spawned-*` jobs must not pollute the durable actor directory without an archive/retention policy
+- UI counts must not inflate by treating every historic lease as a live agent
+- compatibility fields like `agentUnregistered` need a deprecation window, not a silent shape break
+- inbox persistence needs quota and retention policy once dormant actors become addressable
+
 ## Latest Landed Slice (2026-04-11)
 
 The current-session drift investigation now has a concrete working-tree fix:
@@ -205,218 +351,338 @@ Tunnel cost-safety hardening is now real in the working tree:
 
 ## Active Tasks
 
-1. Decide whether the new graph + episodic-memory slice is the active next cut or just crash residue:
-   - verify the wiring is coherent
-   - verify the tests cover the intended contracts
-   - either commit it as the new live thread or quarantine it explicitly instead of leaving the docs lying
-2. Make the recovery docs match the actual tree:
-   - `CURRENT-WORK.md` and `.cartographer/status.md` must stop claiming Phase 1 / memory work is untouched
-   - keep the Port Daddy-first operator rule synced across repo instructions and skill guidance
-3. Finish the current-session drift cleanup in user-facing docs and remaining command surfaces:
-   - root cause found: one mutable repo-global `.portdaddy/current.json` let concurrent shells/agents stomp each other
-   - hardening landed in the working tree: slot-scoped context files plus fail-closed quick-note/session targeting
-   - live verification passed against the canonical daemon: slot `live-a` and slot `live-b` kept distinct `pd whoami` and `pd note` targeting inside the same checkout
-   - newest follow-up in the working tree: both direct-mode `pd note` and implicit backend-scoped `pd note` now validate repo-local current context before reusing it, so stale context degrades to the intended closed-fail path instead of surfacing `session ... not found`
-   - newest adjacent follow-up now also in the working tree: `pd whoami` accepts explicit `sessionId` fallback so stale agent cleanup no longer masks still-active sessions, and explicit `done(agentId + sessionId)` rejects foreign-session closure with a real `409`
-   - remaining truth task: update user-facing docs/website/help text that still oversimplify `.portdaddy/current.json` as the only context surface
-   - newly observed cleanup debt from 2026-04-11 verification: CLI integration tests still mutate repo-local `.portdaddy/current.json` / slot files during `runCli(...)` coverage, which can stomp a real operator session after the suite finishes; isolate or clean test context explicitly instead of leaving dogfood residue behind
-4. Finish daemon discovery drift cleanup so `9876` is treated as the canonical preferred port, not a mandatory truth. The daemon can already fall back; the surrounding install/CLI/UI surfaces must stop pretending otherwise.
-5. Finish the fleet lease recoverability pass so a project does not remain skipped forever when renewal sees `lock not held` and no other daemon owns the lease.
-6. Finish the last raw project-trigger audit after `lib/fleet-channels.ts` + hook/template scoping so no checked-in path still publishes or inspects naked logical channels where a scoped physical channel is required.
-7. Reload or relaunch old control-plane clients after bundle changes so daemon logs stop mixing stale naked-channel polling with fresh scoped-channel traffic.
-8. Collapse duplicate chrome in Fleet Control Center when embedded:
-   - FleetBar owns the outer nav
-   - the embedded control plane must not render a second top-level nav/header stack
-9. Make Activity, Channels, Inbox, Sorties, and Memory behave like real top-level pages instead of buried panels or empty shells. Fix the bug where there's no project or daemon switcher in Fleet Control Center, and no instructions on how to add new project folders.
-   - Fleet Control Center needs an explicit native project switcher, not a single sticky project badge
-   - embedded mode must not auto-force the first project with no way back to an all-projects view
-   - add obvious “Add project to Port Daddy” entry points with copyable `pd init`, `pd fleet init`, `pd fleet up`, and `pd mcp install` fragments
-   - document what makes a project “real” in the control center: a repo Port Daddy knows about; `pd-fleet.yml` makes it manageable, and starting the fleet on the current daemon makes it live
-10. Upgrade agent detail surfaces to show high-signal recent work:
+This is the normalized remaining-slice inventory as of 2026-04-24. It supersedes the older duplicate-numbered queue below this point in git history, but the detailed evidence remains in the surrounding sections.
+
+### A. Cut, Commit, Promote, And Keep Runtime Truth Aligned
+
+1. Split the dirty working tree into coherent promotable slices instead of one mega-commit:
+   - maritime actor foundation (`/actors`, `pd actor(s)`, manifest/OpenAPI/completions/skill docs, tests)
+   - event-driven Tree-sitter symbol refresh
+   - tuple/graph/memory/semantic harmonization
+   - spawn-discipline and Cloudflare backend work
+   - FleetBar/control-plane project truth and operator UX work
+   - public website/docs/distribution changes
+2. For every runtime-serving slice, run focused tests, `npm run typecheck`, `npm test`, `npm run build`, then promote with `./scripts/promote-stable.sh` before claiming live operator truth.
+3. Keep `/Users/erichowens/port-daddy-stable` clean and non-dogfood-only; no `.spark/`, `.spider/`, daemon DBs/logs, fleet output, or build garbage should accumulate there.
+4. Continue using Port Daddy notes, file claims, tuples, and briefing/salvage for every recovery step so future sessions can reconstruct work without chat archaeology.
+5. Keep release surfaces synchronized in the same slice: README/help, `AGENTS.md`, skills, OpenAPI, MCP parity, completions, website docs, and FleetBar/native affordances.
+
+### B. Navigator And Cartographer
+
+1. Finish the Navigator/Cartographer bootstrap pass as a report-first reconciliation:
+   - inventory authority surfaces
+   - classify docs as authoritative, active-ledger, release-surface, historical, quarantined-research, generated-artifact, stale, or conflicting
+   - extract roadmap items, work slices, blockers, dependencies, evidence, stale claims, and supersession edges
+   - emit `roadmap:item`, `work:slice`, `doc:authority`, `evidence:*`, `blocker`, `depends_on`, and `supersedes` tuples before prose rewrites
+2. Add the durable read model behind the human `.cartographer/status.md` projection:
+   - actors/sessions/claims/files/symbols/commits/tests/promotions graph joins
+   - work-slice status and evidence links
+   - stale/conflicting document report
+   - periodic refresh with cooldown/dedupe/backoff
+3. Decide the first persisted shape: SQLite tables now versus `.cartographer/bootstrap-report.json` plus tuples first.
+4. Decide patch authority: which docs Navigator may update automatically, which require human approval, and which must only receive proposed cleanup patches.
+5. Coordinate ownership with Harbormaster: promotion truth probably belongs to Harbormaster, with Navigator projecting it into the recovery map.
+
+### C. Durable Actor Souls And Body Leases
+
+1. Move beyond the current static `/actors` projection:
+   - add `POST /actors/:id/message`
+   - expose mailbox depth, recent sessions, recent salvage state, last activation, and live lease state
+   - add SDK/CLI/docs surfaces for actor messaging
+2. Add explicit body lease/incarnation state before changing cleanup semantics:
+   - status: `attached`, `draining`, `detached`, `dead`, `revoked`
+   - heartbeat and PID/process/transport metadata
+   - incarnation/generation number
+   - optional local lease token for protected actions
+3. Change normal completion so `pd done`, spawner cleanup, and stale cleanup detach/revoke body leases instead of deleting durable souls.
+4. Replace missing agent row orphan logic with dead/revoked lease detection.
+5. Move protected operations to lease-aware authority:
+   - IPC auth
+   - lock/file/session mutation
+   - merge submission
+   - salvage adoption
+   - Arbiter checks
+6. Keep `/agents` as the live-body compatibility view while Fleet Control Center and FleetBar migrate toward actor-directory truth.
+7. Add tests that prove actor souls survive `done`, inbox survives detachment, stale leases cannot perform protected actions, and stale cleanup releases only lease-owned resources.
+
+### D. Coxswain: Claims, Locks, Stale Assets, And Symbolic Coordination
+
+1. Make file path locks work directly or make the required semantic syntax unambiguous in CLI/help/tests.
+2. Make `who-owns` lease-aware:
+   - last claimed by whom and when
+   - current lease/body status
+   - last edit/mutation evidence
+   - attempted claims/edits
+   - stale/zombie classification and reclaim affordance
+3. Add stale asset salvage, not just stale session salvage:
+   - zombie `session_file` claims must not cripple coordination files
+   - reclaim should be explicit, audited, and evidence-backed
+4. Finish Tree-sitter-backed claim authority:
+   - use canonical `symbolPath` where symbol data exists
+   - keep line ranges only as fallback/display
+   - index non-code coordination documents by section anchors if they are claim hotspots
+5. Wire claims into graph/memory:
+   - `session --claims--> file`
+   - `session --claims_symbol--> symbol`
+   - `actor/session --attempted_claim--> resource`
+   - `session --mutated--> file/symbol`
+6. Feed symbolic-claim truth into merge/conflict prediction and control-plane visualization instead of resting on lossy line spans.
+
+### E. Sounder: Tuple, Graph, Memory, And Semantic Collapse
+
+1. Decide whether the graph + episodic-memory slice is the next real cut or quarantine; do not leave it half-landed.
+2. Finish tuple-first coordination:
+   - `trigger_tuple` fleet inputs
+   - fleet lifecycle as `fleet:event`
+   - merge lifecycle as `merge:event`
+   - memory episodes as `memory:episode`
+   - tuple-triggered fleet agents and IPC tuple fast path if still missing after review
+3. Finish graph/memory runtime surfaces:
+   - `graph_edges`
+   - `episodic_memory`
+   - symbol/file/dependency edges
+   - session/sortie/merge/claim memory promotion
+   - Fleet Control Center Memory panel
+4. Keep synonymy collapse disciplined:
+   - deterministic lexical canonicalization first
+   - embedding-backed near-neighbor suggestions second
+   - review queue for boundary cases
+   - no arbitrary “sounds good” threshold without calibration, examples, and operator-visible review statistics
+5. Add evaluation fixtures for synonym classes that matter to this repo: website/docs/design-system terms, actor/agent/body terms, fleet/project/runtime terms, claim/lock/mutation terms, harbor/lighthouse/remote terms.
+6. Decide whether WordNet is useful only as a weak lexical feature. It should not be the sole authority for repo-specific semantic collapse.
+
+### F. Signalman, Breaker, And Caulker: Validation, Robustness, Failure Propagation
+
+1. Keep adding regression tests for every newly discovered bug that existing tests missed.
+2. Preserve the full-suite discipline: focused tests for iteration, full `npm test` before broad health claims.
+3. Treat any future `A worker process has failed to exit gracefully` warning as real teardown debt even if exit code is green.
+4. Use the Nygard resilience skill for failure propagation, circuit breakers, bulkheads, timeouts, retry storms, and cascading failure work.
+5. Build failure-propagation observability:
+   - failed spawn chains
+   - IPC disconnect cascade cleanup
+   - tunnel/provider failures
+   - retry/backoff state
+   - open circuit state
+6. Add forensic context windows to Arbiter violations so failures include nearby session, tuple, graph, mutation, and process evidence.
+7. Finish any remaining CLI command help hazards such as `pd done --help` performing the command.
+8. Keep WAL health visible: WAL is already enabled in `lib/db.ts`, but diagnostics/doctor should prove journal mode, busy timeout, checkpoint behavior, and DB path truth against the live daemon.
+
+### G. Quartermaster: Spawn Discipline, Costs, Backend Policy, And Fleet Activation
+
+1. Finish default fleet spawn controls:
+   - per-agent cooldown
+   - trigger dedupe
+   - exponential backoff
+   - singleton enforcement
+   - project-level caps
+   - spawn-per-hour caps
+2. Expose those controls in operator surfaces, not only in logs.
+3. Implement actor-style mailboxes so repeated triggers collapse to one queued activation instead of many independent spawns.
+4. Make manual upkeep runs possible even under active-agent pressure; `pd fleet run documentarian` and `pd fleet run cartographer` should not starve behind the always-on fleet.
+5. Separate cheap local upkeep from hosted model escalation:
+   - broad low-signal sweeps default to Ollama/local
+   - operator-triggered high-signal work may request Codex/Claude with an explicit budget
+6. Keep Codex backend spend-aware:
+   - low: `gpt-5.4-mini`
+   - mid: `gpt-5.3-codex`
+   - high: `gpt-5.4`
+7. Keep all-backend tier truth consistent across daemon, CLI, SDK, MCP, fleet model catalog, readiness, and UI.
+8. Keep telemetry fail-closed: no operator launch is acceptable without exact token counts, exact nonzero model rate, and persisted exact nonzero cost unless there is explicit HITL bypass metadata.
+
+### H. Harbormaster: Promotion, Distribution, Daemon Freshness, And Runtime Truth
+
+1. Continue treating promotion as normal runtime hygiene, not a rare ceremony.
+2. Verify live truth after every runtime slice:
+   - socket path
+   - TCP/browser path
+   - FleetBar embedded bundle
+   - live daemon install root
+   - CLI shim path
+3. Finish daemon discovery/loopback cleanup:
+   - no new hardcoded `localhost:9876`
+   - docs/templates/operator labels cleaned up
+   - diagnostics/startup doctor wording honest about preferred versus actual daemon port
+4. Finish fleet lease recoverability verification: `lock not held` plus no holder should reacquire instead of leaving a project skipped.
+5. Kill or replace leaked legacy watchers that still publish naked `git:committed`.
+6. Make project-scoped hook replacement complete in `pd init` / `pd fleet init`.
+7. Finish distribution slices:
+   - packaging docs and package assets
+   - release workflow
+   - macOS pkg signing/notarization path
+   - FleetBar cask/pkg parity
+   - landing-page download truth
+8. Finish Bosun/Barnacle consolidation:
+   - V2 `bin/watchdog.ts` / `daemon:watch` are removed in the active Bosun slice
+   - daemon heartbeat writer and `core/pd-bosun/` std-only supervisor scaffold are in-tree
+   - remaining: distribute `dist/core/pd-bosun`, promote `com.portdaddy.bosun`, then remove legacy Barnacle crate/client/compat field after the compatibility window
+
+### I. Lookout: Docs, Skills, OpenAPI, Website, And Product Truth
+
+1. Keep the Port Daddy-first cooperation instruction synchronized across `AGENTS.md`, skills, README/docs, and generated release surfaces.
+2. Finish docs around slot-scoped `.portdaddy/contexts/<slot>.json`; stop describing `current.json` as the only current-context truth.
+3. Keep `pd fleet validate`, `pd actor(s)`, Cloudflare backend support, actor/body terminology, and backend tier ladders reflected in skill/API/docs surfaces.
+4. Keep public-site work honest:
+   - active site is a hybrid preservation pass, not an `agentsd.ai` replacement
+   - `docs/AGENTSD_*` remains quarantined research unless explicitly promoted
+   - no route jungle regression
+   - no public runtime overclaims
+5. Finish website docs IA only where it supports operator truth:
+   - docs registry
+   - get started
+   - examples
+   - best practices
+   - concepts
+   - reference
+   - LLM exports
+6. Add Lookout drift checks for parity between routes, manifest, OpenAPI, CLI, completions, MCP, website docs, and skill reference.
+7. Translate the Google Agents CLI research into a lifecycle-first Port Daddy docs/CLI proposal:
+   - `setup`
+   - `scaffold create`
+   - `scaffold enhance`
+   - `scaffold upgrade`
+   - `run`
+   - `eval`
+   - `deploy` / `promote`
+   - `publish`
+   - `observe`
+   - agent-engineering skill bundles as a release surface, not loose prose
+
+### J. FleetBar And Fleet Control Center
+
+1. Verify the live native shell after promotion, not only screenshots or dev bundles.
+2. Keep FleetBar opening the real control plane, with no duplicate embedded chrome.
+3. Add a native project switcher and avoid auto-stranding the operator on the first project.
+4. Preserve the selected surface across project changes.
+5. Make Activity, Channels, Inbox, Sorties, Memory, and YAML real full-width top-level pages.
+6. Fix Activity truth:
+   - structured project activity
+   - per-agent last-active
    - non-empty messages
    - recent mutations
-   - touched files
-   - last active time
-11. Improve FleetBar popover so it shows recent per-agent facts instead of only launch shortcuts.
-   - explicit Finder/editor actions for touched files are now shipped
-   - next step is denser recent summaries without re-burying everything behind the full control center
-   - salvage, suspicious stale-active sessions, resume-worthy history, and recent non-trivial notes should be first-class here, not CLI-only
-12. Make sortie launch truthfully debuggable:
-   - preserve chosen backend/model after a launch
-   - surface actual `/spawn` errors inline instead of generic `400 Bad Request`
-   - verify why a "ready" Claude SDK launch can still fail to produce a spawn record
-   - ensure readiness probes check package installation as well as auth/env presence
-13. Remove overlapping agent-detail surfaces:
-   - Activity should focus agents in-page
-   - the global slide-in inspector should stay a Flow tool, not persist across every tab
-14. Respond to the newest operator UX feedback explicitly in-product:
-   - show logical channel names and give examples for creating new event sources
-   - show the actual project label next to the logical/physical channel truth so operators know what to publish against
-   - ship copy-pasteable event-source snippets for TypeScript, Python, and CLI publishers
-   - add an “Add new event sources” teaching surface in Flow and/or the agentic views instead of forcing users to reverse-engineer channel publishing from docs
-   - make Channels expose a channel index/list, not just message traffic
-   - list channels up top somewhere explorable, not only as a scrolling feed
-   - decide whether Inbox belongs inside Agents/Channels instead of as a top-level tab
-   - decide whether Channels should also be reachable as a Flow-side modal/alternate agent view instead of only as a separate page
-   - add better field help/tooltips/tutorial guidance for agent publishing, tools, and sortie inputs
-   - add a real tutorial mode for creating agents instead of expecting users to infer every field from sparse labels
-   - add “add project to Port Daddy” flows in both FleetBar and the full app
-   - design that add-project flow with curated starter fleets for common coding project types plus a bespoke “design my fleet with AI” mode
-15. Fix native-shell operator ergonomics that are still only half-captured:
-   - Fleet Control Center must be a singleton window that refocuses instead of spawning duplicates
-   - the native shell should appear and behave like a first-class app window, including sane Dock activation behavior
-   - make stop/start or pause/enable fleet controls obvious in the native shell instead of hiding them inside secondary surfaces
-   - put per-agent run / pause / stop controls near the agent itself in both FleetBar and the full control plane
-   - support deployable subsets of a fleet so operators can turn on only the agents they want instead of treating "fleet up" as an all-or-nothing always-on mode
-16. Make the control plane layout operator-grade instead of merely pretty:
-   - support resizable split panes where Flow/activity/agent-detail density demands it
-   - keep window chrome from eating the first row of meaningful content in dark mode
-   - remove duplicate or redundant buttons where FleetBar chrome and embedded chrome overlap semantically
-17. Clarify agent taxonomy in the UI:
-   - Gardener and similar cron/scheduled workers should read as scheduled jobs, not normal conversational agents
-   - channel/system noise should stop masquerading as meaningful agent activity
-18. Make Activity truthful and useful by default:
-   - kill the lingering “Waiting for activity” empty state when structured project activity exists
-   - show per-agent last-active, non-empty messages, recent mutations, and artifacts in one obvious place
-   - when focused agent changes, all surviving agent-detail surfaces should switch coherently instead of drifting out of sync
-19. Model ad hoc project agents honestly in the product:
-   - add a distinct UI bucket for manual/ad hoc jobs (`pd agent` and direct `pd spawn`) instead of pretending they are fleet agents or sorties
-   - show these runs from spawned/session history even when they never persist in the live agent registry
-   - let this dogfooding shape the UI: Port Daddy should be able to show its own ad hoc Port Daddy runs clearly
-20. Remove the remaining inspector/focus confusion:
-   - clicking Spark/Spider/etc. should not produce both an in-page “Agent Focus” view and a second overlapping slide-in detail/settings surface
-   - the project log should not be covered by a detail drawer that is not itself project-log-specific
-   - the agent detail slide pane persisting across unrelated top-level tabs is a bug until proven otherwise
-21. Fix the surfaces the operator explicitly says are still not working:
-   - Inbox should move into Agents or Channels if that is the more truthful model, but either way it must actually work
-   - Sorties must be verified end-to-end from the live daemon/UI, not merely made pretty
-   - the sortie mission builder must stop pretending its roster is real until recipes map to explicit agent definitions, editable roster selection, and a documented intra-mission coordination protocol
-   - recipe labels like `investigate`, `fix`, `review`, and `creative` need first-class definitions exposed in-product and in docs, not just UI cards
-   - root-cause the exact Claude SDK launch reset path where the UI said “ready,” attempted launch, then reverted to `claude-cli`
-   - recent sortie outcomes need a denser, scrollable list with drill-in detail instead of tiny collapsed chips
-   - add a real sortie status page and a real sortie results page
-   - add explicit human-in-the-loop controls for approvals, pauses, resumes, and intervention
-   - visualize sortie execution while it is in flight: steps, artifacts, messages, and mutations over time
-22. Finish the operator file-action truthfulness pass:
-   - touched-file actions must resolve relative mutation paths against the correct project/workdir
-   - `Open in Finder` / `Open with default editor` should not degrade to a bare `Not Found` when the app already knows the project context
-23. Put hard discipline around fleet spawn frequency:
-   - runaway fleet spawn counts are a budget-control failure
-   - tighten defaults around `singleton`, respawn/schedule churn, and project limits so background fleets cannot casually burn through scarce Claude/Codex quota
-21. Finish Codex backend support as a real Port Daddy runtime:
-   - daemon, CLI, SDK, readiness probes, and fleet model catalog all recognize `codex`
-   - Codex runs capture `--output-last-message` instead of leaking CLI noise
-   - Codex defaults stay spend-aware (`gpt-5.4-mini` low, `gpt-5.3-codex` mid, `gpt-5.4` high)
-   - verify a real `port-daddy spawn --backend codex ...` launch from the live daemon, not just unit tests
-22. Finish the all-backend model-tier contract:
-   - every backend must have a distinct low/mid/high ladder
-   - `aider` must honor selected models at execution time instead of ignoring them
-   - `custom` must receive resolved model + tier in env so wrapper commands can act on it
-   - `/fleet/models`, `pd agent`, and raw `pd spawn` must all expose the same tier truth
-23. `pd fleet validate` is now back:
-   - parses `pd-fleet.yml`
-   - resolves templates
-   - checks topology cycles
-   - performs a dry run without spawning agents
-24. Curate the best Spark/Spider suggestions into the real roadmap instead of leaving them as residue:
-   - network identity for fleet agents: service claim + DNS + tunnel cascade on spawn/exit
-   - merge queue event bus bridge into ambient messaging
-   - durable tuple-space service offers / acceptance for integration readiness
-   - Arbiter pre-dispatch IPC checks instead of post-hoc-only violation logging
-   - suspend merge-queue branches when the submitting agent dies until salvage/resume
-   - symbol-aware spawn preflight and hot-zone/instability signals for fleet gating
-25. Keep Port Daddy dogfooding honest:
-   - use `pd agent` and `pd sortie` on Port Daddy itself while building delegation surfaces
-   - if a dogfood launch fails, log the exact failure in the recovery hub instead of just saying “it failed”
-   - current truth: `port-daddy sortie run ...` against the live daemon returned `ERROR: Not Found`, so the CLI surface exists but the daemon/runtime route is not reliably there in the canonical live path yet
-26. Build a real system-wide observability dashboard instead of pretending scattered metrics cards are enough:
-   - chart primitive Port Daddy calls over time
-   - chart service/API call volume and error rate over time
-   - show spawn rate, failure rate, duration, message traffic, and service churn in one operator view
-   - distinguish live claims from stale/zombie claims so “72 active ports” cannot quietly mean “72 database rows”
-   - make this available both in the control plane and from a direct daemon-served route
-27. Finish cleaning the full-suite warning path even though the suite now exits green:
-   - current truth on 2026-04-08: `npm test` passes `103/103` suites and `4510/4511` tests, but the parallel run still prints `A worker process has failed to exit gracefully`
-   - repaired in this slice:
-     - messaging route now accepts `body.message`, not just `payload` / `content`
-     - client tests now use daemon discovery truth instead of hardcoded `http://localhost:9876`
-     - `sortie` parity is repaired across CLI, completions, manifest, and MCP category coverage
-     - stale spawner `node:fs` mocks now include `mkdtempSync`
-     - integration helper now normalizes oversized-body `EPIPE` / `ECONNRESET` on the Unix socket into the 413 rejection the daemon actually means
-     - reactive orchestrator exec rules now avoid leaking piped child-process handles under Jest
-   - remaining cleanup:
-     - identify the last parallel-worker leak behind the force-exit warning instead of letting "green enough" become the new lie
-28. Rehabilitate the stable promotion checkout:
-   - stop treating `/Users/erichowens/port-daddy-stable` as a live fleet/daemon workspace
-   - remove or quarantine tracked build garbage like `fleet-live-app/build`
-   - decide whether the lingering stable source edits are worth salvaging or should be discarded before the next promotion
-   - ensure future Spark/Spider/fleet outputs land only in the active dev checkout, not stable
-29. Curate the stable-only Spark/Spider residue and elevate the winners into real roadmap work if still missing here:
-   - `spider-capability-discovery-dns-harbor` -> capability-aware service discovery
-   - `spider-fleet-run-journal` -> persistent fleet history / `pd fleet history`
-   - `spider-forensic-context-windows` -> Arbiter violations with timeline context
-   - `spider-ipc-cascade-cleanup` / `2026-04-05-spider-ipc-disconnect-instant-salvage` -> immediate lock/salvage cleanup on IPC death
-   - `spider-ipc-tuple-fast-path` + `spider-tuple-triggered-fleet-agents` -> tuple-driven fleet execution path
-   - corpus review on 2026-04-11 collapsed the 98-file Spark idea set into canonical backlog families in `docs/recovery/IDEAS-TROVE.md`
-   - `pd ideas list/search/show` now provides a real repo-memory lookup surface over that curated trove and can also search local `.spark/.spider` residue, live daemon notes/tuples, and random repo markdown
-   - fleet prompts now allow narrowly scoped `Bash(pd ideas*)` so Spark/Spider can query the same index instead of relying on memory or repeated filename archaeology
-   - legacy `fleet/spark.sh` now injects structured idea-index and related-match results into its prompts instead of only a raw markdown head slice
-   - recommended first two implementation cuts from that review: `ipc-disconnect-instant-salvage` and `forensic-context-windows`
-   - reject or merge older/duplicative ideas instead of blindly copying stable residue into this repo
-30. Finish the spawn-discipline slice that the latest operator thread approved:
-   - land cooldown, trigger dedupe, and exponential backoff as default fleet controls
-   - expose their state truthfully in operator surfaces instead of letting them remain hidden runtime behavior
-   - follow immediately with actor-style queueing so repeated triggers collapse to one mailbox instead of many independent wakes
-31. Add Cloudflare as a real backend family, not just a nice idea:
-   - Workers AI runtime path in spawn/fleet/backend-readiness/catalog surfaces
-   - AI Gateway planning for centralized policy, caching, observability, and provider routing
-   - Vectorize / AI Search planning for shared retrieval and harbor memory surfaces
-   - evaluate where AutoRAG is a net simplifier versus where graph/trie/tuple-native retrieval should stay in-house
-32. After the locks / tuples tranche, make symbolic coordination real:
-   - upgrade session/file claims from line-range overlap (`file_path`, `start_line`, `end_line`) to Tree-sitter-backed symbol identity wherever symbol data exists
-   - treat the current `symbol` field in `session_files` as insufficient authority; move toward canonical `symbolPath`-backed claims resolved through the symbol index
-   - keep line ranges for fallback, display, and non-indexed files, but stop using them as the only semantic conflict primitive in indexed code
-   - wire the new symbolic-claim truth into graph edges, episodic memory attribution, merge/conflict prediction, and control-plane visualizations so the graph/memory/control-plane slice stops resting on lossy line spans
+   - touched files and artifacts
+7. Add an explicit ad hoc jobs lens for `pd agent` and raw `pd spawn` runs that exist in spawned/session history but not the live fleet registry.
+8. Remove inspector/focus confusion:
+   - Activity focuses agents in-page
+   - global slide-in inspector stays a Flow tool
+   - no persistent detail drawer across unrelated tabs
+9. Keep file actions truthful:
+   - resolve relative paths against the correct project/workdir
+   - expose Finder/default-editor actions
+   - never degrade known context to bare `Not Found`
+10. Make FleetBar popover show recent per-agent summaries, touched files, salvage hints, suspicious stale-active sessions, resume-worthy history, and recent non-trivial notes.
+11. Add obvious project onboarding:
+   - `pd init`
+   - `pd fleet init`
+   - `pd fleet up`
+   - `pd mcp install`
+   - curated starter fleets
+   - “design my fleet with AI” only after budget/readiness gates are clear
+12. Fix native-shell ergonomics:
+   - singleton Fleet Control Center window
+   - sane Dock activation behavior
+   - obvious start/stop/pause/enable controls
+   - per-agent run/pause/stop controls
+   - deployable fleet subsets
+   - resizable split panes where density demands it
+
+### K. Sorties, HITL, DAG UX, And Delegation Modes
+
+1. Verify sortie launch end-to-end against the live daemon and installed CLI.
+2. Preserve chosen backend/model/budget after launch attempts.
+3. Surface daemon `/spawn` or preflight errors inline with exact error text.
+4. Root-cause the Claude SDK readiness/reset path where UI said ready, attempted launch, then reverted to `claude-cli`.
+5. Define sortie recipes like `investigate`, `fix`, `review`, and `creative` in product docs and UI, not only cards.
+6. Make sortie roster selection real and editable against explicit agent definitions.
+7. Add sortie status and results pages:
+   - steps
+   - artifacts
+   - messages
+   - mutations
+   - budget state
+   - drill-in outcomes
+8. Add explicit human-in-the-loop controls for approval, pause, resume, intervention, and result acceptance.
+9. Build DAG-native task decomposition in operator UX with inspectable slices and human approval before dispatch.
+10. Keep `pd agent`, `pd spawn`, `pd sortie`, fleet agents, and harbor missions distinct in product language and history surfaces.
+
+### L. Cloudflare, Remote Harbor, Lighthouse, And Distributed Trust
+
+1. Finish Cloudflare Workers AI as a real backend family:
+   - runtime execution
+   - readiness
+   - model catalog
+   - spawn/fleet CLI
+   - SDK/MCP/OpenAPI/docs
+   - exact telemetry and cost attribution
+2. Add AI Gateway planning and eventual implementation for centralized policy, observability, caching, request retry, model fallback, and provider routing.
+3. Evaluate Vectorize and AI Search for shared retrieval:
+   - remote harbor memory
+   - documentation search
+   - graph/tuple-backed retrieval
+   - controlled RAG pipelines
+4. Evaluate AutoRAG/AI Search as managed infrastructure only where it reduces glue code without replacing Port Daddy’s graph/tuple-native memory authority.
+5. Plan remote harbor/lighthouse as a trust and registry system:
+   - centralized user auth dispenser
+   - daemon attestation
+   - local keychain-backed signing keys
+   - registry for lighthouses and capabilities
+   - Merkleized evidence exchange
+   - revocation filters and definitive proofs
+   - capability attenuation for child agents
+6. Keep Cloudflare research current against official docs before implementation because Workers AI, AI Gateway, Vectorize, and AI Search are moving targets.
+7. Treat Cloudflare tunnels as cost/safety-managed resources, not free background processes.
+
+### M. Archaeology, Ideas, And Roadmap Curation
+
+1. Curate stable-only Spark/Spider residue through `docs/recovery/IDEAS-TROVE.md`, not by promoting raw generated markdown.
+2. Elevate only surviving ideas that still matter:
+   - capability-aware DNS/harbor discovery
+   - persistent fleet run journal / `pd fleet history`
+   - forensic context windows on Arbiter violations
+   - IPC disconnect to immediate salvage/cascade cleanup
+   - tuple-triggered fleet agents
+   - IPC tuple fast path
+   - merge queue event bus bridge
+   - symbol-aware spawn preflight and hot-zone signals
+3. Keep `.spark/`, `.spider/connections/`, and `.dogfood/` ignored local residue unless explicitly curated into real docs/features.
+4. Reject redundant bug batteries that freeze known-bad behavior; fold durable assertions into canonical tests.
+
+### Skills And Research Needed
+
+1. No brand-new skill is strictly blocking the next implementation cut. Existing local skills cover the biggest upcoming domains:
+   - `nygard-2018-release-it-2nd-edition` for Breaker/Caulker resilience and circuit-breaker work
+   - `agha-actor-model` for actor mailbox/lease/runtime modeling
+   - `cloudflare-worker-dev` and `cloudflare-pages-cicd` for Cloudflare runtime and deploy surfaces
+   - `agentic-zero-trust-security`, FIPA agent-management skills, and `proverif-tamarin-protocol-modeling` for remote harbor identity/capability/revocation design
+   - `event-driven-architecture-expert`, `runtime-verification-for-agents`, `observability-apm-expert`, and `cost-verification-auditor` for Signalman/Breaker/Quartermaster work
+2. Skill additions that would help but are not mandatory:
+   - a first-party `cloudflare-ai-platform` skill focused specifically on Workers AI, AI Gateway, Vectorize, AI Search, pricing/limits, and telemetry integration
+   - a first-party `port-daddy-actor-runtime` skill encoding ADR-0022/0023, maritime actor names, lease invariants, and migration traps
+   - a first-party `symbolic-coordination` skill for Tree-sitter claims, symbolPath identity, graph edges, and merge-conflict prediction
+   - a first-party `cartographer-bootstrap` skill for document authority classification, tuple vocabulary, and recovery ledger cleanup policy
+   - a first-party `port-daddy-agent-lifecycle` skill inspired by Google's `agents-cli` skill split, covering setup/scaffold/enhance/upgrade/eval/deploy/publish/observe for Codex, Claude, Gemini, and other skill-aware agents
+3. Research required before the relevant slices:
+   - official Cloudflare docs refresh for Workers AI, AI Gateway, Vectorize, AI Search, model catalog, auth scopes, pricing/limits, and OpenAI-compatible endpoint behavior
+   - actor runtime literature/practice review using Agha plus FIPA AMS/DF separation before schema-locking actor souls and body leases
+   - semantic collapse evaluation design before changing thresholds: labeled examples, false-merge/false-split metrics, review queues, and repo-specific vocabulary
+   - remote harbor threat model before lighthouse implementation: key custody, attestation, delegated tokens, Merkle receipts, revocation filters, and replay resistance
+   - resilience pattern pass using the Nygard skill before adding circuit breakers/backpressure across spawn, tunnel, Cloudflare, IPC, and webhook integration points
+   - deeper implementation read of `google/agents-cli` templates, skill files, eval result formats, and upgrade/merge behavior before copying any lifecycle surface
 
 ## Immediate Next Cuts
 
-1. Restart the current-checkout daemon against the latest server/runtime code and verify the lease-reacquire path actually recovers skipped fleets instead of leaving `/fleet` empty.
-2. Kill or replace stale legacy `port-daddy-stable` watcher processes if they are still the source of cross-project `git:committed` bleed after the scoped channel audit.
-3. Relaunch FleetBar against the latest build and verify the native wrapper picks up the committed activity attribution improvements plus the chrome-free embedded surfaces.
-4. Relaunch FleetBar against the newest `public/fleet-ui` bundle so the live native shell stops carrying stale chrome/channel behavior from already-open WebViews.
-5. Wire the React control plane to consume the newly explicit backend activity attribution so per-agent timelines, files touched, and recent mutations stop falling back to prose matching.
-6. Finish the last repo dirt decisions:
-   - commit the `.gitignore` quarantine for generated spider connection notes
-7. Root-cause the remaining full-suite worker-force-exit warning after the orchestrator exec cleanup instead of declaring victory on exit code alone.
-8. Commit the next control-plane/FleetBar UX slice once the relaunch verifies the native shell and daemon-served bundle still agree.
-9. Verify the sortie launch path end-to-end from the live daemon after the new inline error handling so a failed attempt leaves operator-visible evidence instead of only resetting UI state.
-   - specifically reproduce and explain the “Claude SDK said ready, then launch reset to claude-cli” failure path from the operator report
-10. Finish the remaining `9876` cleanup after the runtime callers:
-   - diagnostics/startup doctor wording
-   - docs/templates/website honesty sweep
-   - any leftover FleetBar/operator labels
-11. Rehabilitate the operator file-action bug shown in live use:
-12. Root-cause why `port-daddy status` reports 72 active ports while `ports cleanup` frees 0:
-   - inspect stale assigned claims with null/dead PIDs
-   - decide whether cleanup should prune them or status should report them separately
-   - add tests that catch zombie-claim inflation instead of only testing expired/running cleanup
-   - Spark/Spider mutation cards are still surfacing relative paths that Finder cannot resolve
-   - fix resolution in both the web control plane and FleetBar/native shell paths
-12. Audit live fleet spawn counts against the declared fleet config and event traffic:
-   - explain why the fleet reached 99 spawns
-   - then add stricter defaults or caps so the fleet behaves within real Claude/Codex usage scarcity
-   - manual upkeep runs also need room to execute; `pd fleet run documentarian` and `pd fleet run cartographer` should not be starved forever behind a saturated always-on fleet
-   - the first local documentarian dogfood timed out on `ollama / qwen2.5-coder:7b` during a broad truth sweep, so we need a better policy for when cheap local docs agents are enough versus when an operator-triggered higher-tier run is warranted
-13. Follow through on dormant/registered fleet project truth now that the first fix is landed:
-   - `/projects` plus `/fleet` now drive a merged project list in both the web control plane and FleetBar, and `/fleet/config/:project` resolves registered stopped projects too
-   - next step is better dormant-vs-live presentation, not making dormant projects invisible again
-   - cost telemetry, FleetBar, and the web control plane should all keep using the same merged project truth
-14. Keep the full test suite in the operator loop:
-15. Fold `docs/plans/agentsd_ai_technical_architecture.md` into the live recovery story:
-   - use it as the production-blueprint counterpart to the recovery ledger, not a disconnected theory doc
-   - explicitly map its shared-medium / actor / revocation / graph-memory ideas onto the Port Daddy queue instead of rediscovering them ad hoc in chat
-   - focused bundles are useful, but always re-run `npm test` before claiming broad repo health
-   - when the full suite fails, write the concrete failing files and root-cause hypotheses here
+1. Cut and validate the maritime actor foundation slice, then promote/restart so live `/actors` and `pd actor(s)` match source.
+2. Cut and validate the event-driven Tree-sitter symbol refresh slice, then verify it against the live daemon with real git and watcher events.
+3. Decide commit-versus-quarantine for the tuple/graph/memory/semantic slice; do not leave it as ambiguous crash residue.
+4. Fix Coxswain coordination debt next: filepath locks or explicit semantic syntax, lease-aware `who-owns`, stale asset reclaim, and claim/mutation graph edges.
+5. Finish spawn discipline in the live fleet: cooldown, dedupe, backoff, singleton, project caps, visible queue state, and manual upkeep room.
+6. Verify FleetBar/control-plane project truth after promotion: registered dormant projects must show up, embedded chrome must stay collapsed, and project switching must not strand the operator.
+7. Verify sortie launch end-to-end from installed CLI and live UI; capture the exact Claude SDK readiness/reset path if it still reproduces.
+8. Repair remaining file-action truth where relative mutation paths still fail to resolve in web or native surfaces.
+9. Root-cause active-port/zombie-claim inflation if `port-daddy status` reports rows that cleanup cannot free.
+10. Add Cloudflare research notes before expanding beyond Workers AI runtime support: official Workers AI, AI Gateway, Vectorize, AI Search, auth, limits, pricing, and telemetry behavior.
+11. Fold `docs/plans/agentsd_ai_technical_architecture.md` into the live recovery story by mapping each shared-medium, actor, revocation, graph-memory, and remote-harbor idea to a concrete queue item.
+12. Convert `docs/reports/GOOGLE_AGENTS_CLI_RESEARCH_2026-04-24.md` into a concrete Port Daddy lifecycle IA proposal before the public/operator docs split drifts further.
+13. Keep the full test suite in the operator loop: focused bundles for iteration, full `npm test` before broad health claims, and failing files/root-cause hypotheses recorded here when the suite fails.
 
 ## Newly Confirmed Truths
 

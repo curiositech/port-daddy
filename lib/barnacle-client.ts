@@ -1,8 +1,10 @@
 /**
- * Barnacle Client — Reciprocal Watcher for the Rust Watchdog
- * 
- * Part of the Ouroboros Architecture: The Daemon watches the Barnacle
- * while the Barnacle watches the Daemon.
+ * Legacy Barnacle Client — compatibility shim for the old Rust watchdog.
+ *
+ * ADR-0021 makes Bosun the user-facing watchdog name and ADR-0015 makes the
+ * target architecture one-way heartbeat supervision. This module still monitors
+ * the V3 `pd-barnacle` sidecar when that binary is present, but absence of the
+ * binary is expected on normal installs and must not read as daemon failure.
  */
 
 import { spawn } from 'node:child_process';
@@ -39,7 +41,7 @@ export function createBarnacleWatcher(logger: any) {
     binaryExists: existsSync(BINARY_PATH),
     enabled: false,
     state: existsSync(BINARY_PATH) ? 'idle' : 'disabled',
-    reason: existsSync(BINARY_PATH) ? null : 'barnacle binary missing',
+    reason: existsSync(BINARY_PATH) ? null : 'not installed (optional)',
     lastCheckAt: null,
     lastHealthyAt: null,
     lastFailureAt: null,
@@ -63,14 +65,14 @@ export function createBarnacleWatcher(logger: any) {
     if (isResurrecting) return;
     isResurrecting = true;
 
-    logger.warn('barnacle_dead', { message: 'Rust Watchdog not responding. Resurrecting...' });
+    logger.warn('barnacle_dead', { message: 'Legacy Rust watchdog not responding. Resurrecting...' });
 
     status.binaryExists = existsSync(BINARY_PATH);
     if (!status.binaryExists) {
       logger.error('barnacle_binary_missing', { path: BINARY_PATH });
       status.enabled = false;
       status.state = 'disabled';
-      status.reason = 'barnacle binary missing';
+      status.reason = 'not installed (optional)';
       isResurrecting = false;
       return;
     }
@@ -83,7 +85,7 @@ export function createBarnacleWatcher(logger: any) {
     child.unref();
     status.enabled = true;
     status.state = 'degraded';
-    status.reason = 'barnacle restart requested';
+    status.reason = 'legacy watchdog restart requested';
     status.lastResurrectedAt = Date.now();
     
     // Reset resurrection flag after a grace period
@@ -108,13 +110,13 @@ export function createBarnacleWatcher(logger: any) {
     if (!status.binaryExists) {
       status.enabled = false;
       status.state = 'disabled';
-      status.reason = 'barnacle binary missing';
+      status.reason = 'not installed (optional)';
       return;
     }
 
     status.enabled = true;
     status.state = 'degraded';
-    status.reason = 'barnacle health check failed';
+    status.reason = 'legacy watchdog health check failed';
     resurrectBarnacle();
   }
 
@@ -126,7 +128,7 @@ export function createBarnacleWatcher(logger: any) {
       if (!status.binaryExists) {
         status.enabled = false;
         status.state = 'disabled';
-        status.reason = 'barnacle binary missing';
+        status.reason = 'not installed (optional)';
         logger.info('barnacle_watcher_disabled', {
           reason: status.reason,
           path: BINARY_PATH,

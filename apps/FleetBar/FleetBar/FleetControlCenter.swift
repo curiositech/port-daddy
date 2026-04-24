@@ -275,10 +275,10 @@ struct FleetControlCenter: View {
             if runtimeState == "nominal" || status.status == "ok" { return Fleet.Color.healthy }
             return Fleet.Color.failure
         }()
-        let barnacle = status.guardians?.barnacle
-        let barnacleColor: Color = {
-            guard let barnacle else { return Fleet.Color.dormant }
-            switch barnacle.state {
+        let bosun = status.guardians?.bosun ?? status.guardians?.barnacle
+        let bosunColor: Color = {
+            guard let bosun else { return Fleet.Color.dormant }
+            switch bosun.state {
             case "healthy":
                 return Fleet.Color.healthy
             case "disabled":
@@ -293,7 +293,7 @@ struct FleetControlCenter: View {
                 daemonMetric(label: "Runtime", value: runtimeState, color: runtimeColor)
                 daemonMetric(label: "Uptime", value: status.uptimeHuman, color: .primary)
                 daemonMetric(label: "Ports", value: "\(status.metrics?.activePorts ?? 0)", color: .primary)
-                daemonMetric(label: "Barnacle", value: barnacle?.state ?? "n/a", color: barnacleColor)
+                daemonMetric(label: "Bosun", value: bosun?.reason ?? bosun?.state ?? "n/a", color: bosunColor)
             }
 
             if let supervisor = status.guardians?.supervisor {

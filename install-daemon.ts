@@ -26,15 +26,23 @@ const TSX_PATH: string = join(__dirname, 'node_modules', '.bin', 'tsx');
 const SERVER_PATH: string = join(__dirname, 'server.ts');
 const LOG_PATH: string = join(__dirname, 'port-daddy.log');
 const ERROR_LOG_PATH: string = join(__dirname, 'port-daddy-error.log');
+const BOSUN_DIST_BINARY: string = join(__dirname, 'dist', 'core', 'pd-bosun');
+const BOSUN_SOURCE_BINARY: string = join(__dirname, 'core', 'pd-bosun', 'target', 'release', 'pd-bosun');
+const BOSUN_BINARY_PATH: string = existsSync(BOSUN_DIST_BINARY) ? BOSUN_DIST_BINARY : BOSUN_SOURCE_BINARY;
+const BOSUN_LOG_PATH: string = join(__dirname, 'pd-bosun.log');
+const BOSUN_ERROR_LOG_PATH: string = join(__dirname, 'pd-bosun-error.log');
 
 // macOS paths
 const PLIST_LABEL: string = 'com.portdaddy.daemon';
+const BOSUN_PLIST_LABEL: string = 'com.portdaddy.bosun';
 const LAUNCH_AGENTS: string = join(homedir(), 'Library', 'LaunchAgents');
 const PLIST_PATH: string = join(LAUNCH_AGENTS, `${PLIST_LABEL}.plist`);
+const BOSUN_PLIST_PATH: string = join(LAUNCH_AGENTS, `${BOSUN_PLIST_LABEL}.plist`);
 
 // Linux paths
 const SYSTEMD_USER_DIR: string = join(homedir(), '.config', 'systemd', 'user');
 const SYSTEMD_UNIT: string = join(SYSTEMD_USER_DIR, 'port-daddy.service');
+const BOSUN_SYSTEMD_UNIT: string = join(SYSTEMD_USER_DIR, 'port-daddy-bosun.service');
 
 function isPortDaddyProcess(command: string): boolean {
   return command.includes('server.ts') ||
@@ -137,6 +145,81 @@ function generatePlist(): string {
 </plist>`;
 }
 
+function generateBosunPlist(): string {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>${BOSUN_PLIST_LABEL}</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>${BOSUN_BINARY_PATH}</string>
+        <string>watch</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>ThrottleInterval</key>
+    <integer>15</integer>
+
+    <key>StandardOutPath</key>
+    <string>${BOSUN_LOG_PATH}</string>
+
+    <key>StandardErrorPath</key>
+    <string>${BOSUN_ERROR_LOG_PATH}</string>
+
+    <key>WorkingDirectory</key>
+    <string>${__dirname}</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>${dirname(BOSUN_BINARY_PATH)}:${dirname(NODE_PATH)}:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+</dict>
+</plist>`;
+}
+
+function loadLaunchAgent(label: string, plistPath: string): boolean {
+  const load: CommandResult = runCommand('launchctl', ['load', plistPath]);
+  if (load.status !== 0) {
+    console.error(`  Failed to load ${label}:`, load.stderr.trim());
+    return false;
+  }
+
+  console.log(`  LaunchAgent loaded (${label})`);
+  const uid = typeof process.getuid === 'function' ? process.getuid() : 501;
+  const kickstart = runCommand('launchctl', ['kickstart', '-k', `gui/${uid}/${label}`]);
+  if (kickstart.status === 0) {
+    console.log(`  LaunchAgent started (${label})`);
+  } else if (kickstart.stderr.trim()) {
+    console.log(`  LaunchAgent kickstart (${label}): ${kickstart.stderr.trim()}`);
+  }
+  return true;
+}
+
+function installBosunMacOS(): boolean {
+  if (!existsSync(BOSUN_BINARY_PATH)) {
+    console.log(`  Bosun not installed: pd-bosun binary missing at ${BOSUN_BINARY_PATH}`);
+    console.log('  Build it with: npm run build:bosun:dist');
+    return true;
+  }
+
+  if (existsSync(BOSUN_PLIST_PATH)) {
+    runCommand('launchctl', ['unload', BOSUN_PLIST_PATH]);
+  }
+
+  writeFileSync(BOSUN_PLIST_PATH, generateBosunPlist());
+  console.log(`  Wrote ${BOSUN_PLIST_PATH}`);
+  return loadLaunchAgent(BOSUN_PLIST_LABEL, BOSUN_PLIST_PATH);
+}
+
 function installMacOS(): boolean {
   // Ensure LaunchAgents directory exists
   if (!existsSync(LAUNCH_AGENTS)) {
@@ -162,27 +245,12 @@ function installMacOS(): boolean {
   writeFileSync(PLIST_PATH, generatePlist());
   console.log(`  Wrote ${PLIST_PATH}`);
 
-  // Load
-  const load: CommandResult = runCommand('launchctl', ['load', PLIST_PATH]);
-  if (load.status === 0) {
-    console.log('  LaunchAgent loaded');
-    const uid = typeof process.getuid === 'function' ? process.getuid() : 501;
-    const kickstart = runCommand('launchctl', ['kickstart', '-k', `gui/${uid}/${PLIST_LABEL}`]);
-    if (kickstart.status === 0) {
-      console.log('  LaunchAgent started');
-    } else if (kickstart.stderr.trim()) {
-      console.log(`  LaunchAgent kickstart: ${kickstart.stderr.trim()}`);
-    }
-    return true;
-  } else {
-    console.error('  Failed to load LaunchAgent:', load.stderr.trim());
-    return false;
-  }
+  return loadLaunchAgent(PLIST_LABEL, PLIST_PATH) && installBosunMacOS();
 }
 
 function uninstallMacOS(): boolean {
   // Unload both old and new labels
-  for (const path of [PLIST_PATH, join(LAUNCH_AGENTS, 'com.erichowens.port-daddy.plist')]) {
+  for (const path of [PLIST_PATH, BOSUN_PLIST_PATH, join(LAUNCH_AGENTS, 'com.erichowens.port-daddy.plist')]) {
     if (existsSync(path)) {
       runCommand('launchctl', ['unload', path]);
       try {
@@ -214,6 +282,12 @@ function statusMacOS(): ServiceState {
   return list.stdout.includes(PLIST_LABEL) ? 'running' : 'installed';
 }
 
+function statusBosunMacOS(): ServiceState {
+  if (!existsSync(BOSUN_PLIST_PATH)) return 'not-installed';
+  const list: CommandResult = runCommand('launchctl', ['list']);
+  return list.stdout.includes(BOSUN_PLIST_LABEL) ? 'running' : 'installed';
+}
+
 // =============================================================================
 // Linux: systemd user service
 // =============================================================================
@@ -236,6 +310,55 @@ Environment=PATH=${dirname(TSX_PATH)}:${dirname(NODE_PATH)}:/usr/local/bin:/usr/
 [Install]
 WantedBy=default.target
 `;
+}
+
+function generateBosunSystemdUnit(): string {
+  return `[Unit]
+Description=Port Daddy Bosun - Filesystem Heartbeat Supervisor
+After=default.target
+
+[Service]
+Type=simple
+ExecStart=${BOSUN_BINARY_PATH} watch
+WorkingDirectory=${__dirname}
+Restart=always
+RestartSec=5
+StandardOutput=append:${BOSUN_LOG_PATH}
+StandardError=append:${BOSUN_ERROR_LOG_PATH}
+Environment=PATH=${dirname(BOSUN_BINARY_PATH)}:${dirname(NODE_PATH)}:/usr/local/bin:/usr/bin:/bin
+
+[Install]
+WantedBy=default.target
+`;
+}
+
+function installBosunLinux(): boolean {
+  if (!existsSync(BOSUN_BINARY_PATH)) {
+    console.log(`  Bosun not installed: pd-bosun binary missing at ${BOSUN_BINARY_PATH}`);
+    console.log('  Build it with: npm run build:bosun:dist');
+    return true;
+  }
+
+  writeFileSync(BOSUN_SYSTEMD_UNIT, generateBosunSystemdUnit());
+  console.log(`  Wrote ${BOSUN_SYSTEMD_UNIT}`);
+
+  const reload = runCommand('systemctl', ['--user', 'daemon-reload']);
+  if (reload.status !== 0) {
+    console.error('  Failed to reload systemd for Bosun:', reload.stderr.trim());
+    return false;
+  }
+  const enable = runCommand('systemctl', ['--user', 'enable', 'port-daddy-bosun.service']);
+  if (enable.status !== 0) {
+    console.error('  Failed to enable Bosun service:', enable.stderr.trim());
+    return false;
+  }
+  const start = runCommand('systemctl', ['--user', 'start', 'port-daddy-bosun.service']);
+  if (start.status !== 0) {
+    console.error('  Failed to start Bosun service:', start.stderr.trim());
+    return false;
+  }
+  console.log('  Bosun service started');
+  return true;
 }
 
 function installLinux(): boolean {
@@ -267,7 +390,7 @@ function installLinux(): boolean {
   const start: CommandResult = runCommand('systemctl', ['--user', 'start', 'port-daddy.service']);
   if (start.status === 0) {
     console.log('  Service started');
-    return true;
+    return installBosunLinux();
   } else {
     console.error('  Failed to start service:', start.stderr.trim());
     return false;
@@ -277,17 +400,20 @@ function installLinux(): boolean {
 function uninstallLinux(): boolean {
   // Stop
   runCommand('systemctl', ['--user', 'stop', 'port-daddy.service']);
+  runCommand('systemctl', ['--user', 'stop', 'port-daddy-bosun.service']);
   console.log('  Service stopped');
 
   // Disable
   runCommand('systemctl', ['--user', 'disable', 'port-daddy.service']);
+  runCommand('systemctl', ['--user', 'disable', 'port-daddy-bosun.service']);
   console.log('  Service disabled');
 
   // Remove unit file
-  if (existsSync(SYSTEMD_UNIT)) {
+  for (const unit of [SYSTEMD_UNIT, BOSUN_SYSTEMD_UNIT]) {
+    if (!existsSync(unit)) continue;
     try {
-      unlinkSync(SYSTEMD_UNIT);
-      console.log(`  Removed ${SYSTEMD_UNIT}`);
+      unlinkSync(unit);
+      console.log(`  Removed ${unit}`);
     } catch (err: unknown) {
       console.error(`  Failed to remove unit file: ${(err as Error).message}`);
     }
@@ -306,6 +432,16 @@ function statusLinux(): ServiceState {
   const status: CommandResult = runCommand('systemctl', ['--user', 'is-active', 'port-daddy.service']);
   const state: string = status.stdout.trim();
 
+  if (state === 'active') return 'running';
+  if (state === 'inactive') return 'installed';
+  if (state === 'failed') return 'failed';
+  return 'installed';
+}
+
+function statusBosunLinux(): ServiceState {
+  if (!existsSync(BOSUN_SYSTEMD_UNIT)) return 'not-installed';
+  const status: CommandResult = runCommand('systemctl', ['--user', 'is-active', 'port-daddy-bosun.service']);
+  const state: string = status.stdout.trim();
   if (state === 'active') return 'running';
   if (state === 'inactive') return 'installed';
   if (state === 'failed') return 'failed';
@@ -368,13 +504,17 @@ function status(): void {
 
   // Platform-specific service check
   let serviceState: ServiceState = 'unknown';
+  let bosunState: ServiceState = 'unknown';
 
   if (PLATFORM === 'darwin') {
     serviceState = statusMacOS();
+    bosunState = statusBosunMacOS();
   } else if (PLATFORM === 'linux') {
     serviceState = statusLinux();
+    bosunState = statusBosunLinux();
   } else {
     serviceState = 'unsupported';
+    bosunState = 'unsupported';
   }
 
   switch (serviceState) {
@@ -397,6 +537,28 @@ function status(): void {
       break;
     case 'unsupported':
       console.log(`  System service: not available on ${PLATFORM}`);
+      break;
+  }
+
+  switch (bosunState) {
+    case 'running':
+      console.log('  Bosun service: installed and running');
+      break;
+    case 'installed':
+      console.log('  Bosun service: installed but not running');
+      break;
+    case 'failed':
+      console.log('  Bosun service: installed but failed');
+      console.log('  Check logs: tail -f ' + BOSUN_ERROR_LOG_PATH);
+      break;
+    case 'not-installed':
+      console.log('  Bosun service: not installed');
+      break;
+    case 'unsupported':
+      console.log(`  Bosun service: not available on ${PLATFORM}`);
+      break;
+    case 'legacy':
+    case 'unknown':
       break;
   }
 
