@@ -270,15 +270,15 @@ dns.setActivityLog(activityLog);
 const resolver = createResolver(db);
 dns.setResolver(resolver);
 const briefing = createBriefing(db, { sessions, agents, resurrection, activityLog, services, messaging });
-const costTracker = createCostTracker(db);
-const spawner = createSpawner({ costTracker, counters, enforceTelemetryPolicy: true });
 const sugar = createSugar({ agents, sessions, activityLog });
 const harborTokens = createHarborTokens(db);
 await harborTokens.initDaemonIdentity();
 const harbors = createHarbors(db, { harborTokens });
 const sorties = createSorties(db, { episodicMemory });
 
-// Bond escrow + budget guard — FleetControl hardening.
+// Bond escrow + budget guard — FleetControl hardening. Built BEFORE
+// cost-tracker and spawner so they can inject it as a dep (enforcement
+// teeth) rather than it being observability-only.
 const bonds = createBonds(db, {
   harbors, noteEncryption,
   broadcast: (channel, event) => messaging.publish(channel, event),
@@ -286,6 +286,26 @@ const bonds = createBonds(db, {
 const budgetGuard = createBudgetGuard(db, {}, {
   broadcast: (channel, event) => messaging.publish(channel, event),
 });
+
+// Late-binding spawner ref: cost-tracker needs to call spawner.kill() on a
+// budget breach, but spawner needs costTracker in its constructor. Resolve
+// with a mutable container — set after both are created. This is cleaner
+// than adding a setter method to one or the other.
+let spawnerRef: ReturnType<typeof createSpawner> | null = null;
+
+const costTracker = createCostTracker(db, {
+  budgetGuard,
+  // TODO(Track 1b.2): wire a real per-project budget resolver. Until then,
+  // no project has an enforced daily budget — the hook is in place and
+  // ready, but stays inert. To opt a project in, add its budget here.
+  budgetResolver: (_project: string) => null,
+  onKill: (agentId, project, reason) => {
+    logger.warn('budget_kill_triggered', { agentId, project, reason });
+    spawnerRef?.kill(agentId);
+  },
+});
+const spawner = createSpawner({ costTracker, counters, bonds, enforceTelemetryPolicy: true });
+spawnerRef = spawner;
 
 semanticIndex.initialize();
 const arbiter = createArbiter(

@@ -211,7 +211,30 @@ function computeCost(
 
 // ─── Module factory ───────────────────────────────────────────────────────────
 
-export function createCostTracker(db: Database) {
+/**
+ * Optional hooks that turn cost-tracker from observability-only into
+ * mid-flight enforcement. When wired:
+ *   - onCharge() is called on every recorded cost event
+ *   - if the BudgetGuard returns { kill: true }, onKill() fires so the
+ *     caller (server.ts) can SIGTERM the live spawn before more money burns
+ */
+export interface CostTrackerHooks {
+  budgetGuard?: {
+    onCharge(params: { project: string; agentId: string; usd: number; budgetUsdPerDay: number }): {
+      kill: boolean;
+      throttle: boolean;
+      spentTodayUsd: number;
+      reason?: string;
+    };
+  };
+  /** Resolve the daily budget for a project. Return null to skip enforcement. */
+  budgetResolver?: (project: string) => number | null;
+  /** Called when budget-guard says the spawn must be killed. */
+  onKill?: (agentId: string, project: string, reason: string) => void;
+}
+
+export function createCostTracker(db: Database, hooks: CostTrackerHooks = {}) {
+  const { budgetGuard, budgetResolver, onKill } = hooks;
   db.exec(`
     CREATE TABLE IF NOT EXISTS cost_events (
       id           TEXT    PRIMARY KEY,
@@ -264,6 +287,31 @@ export function createCostTracker(db: Database) {
         opts.inputTokens ?? null, opts.outputTokens ?? null,
         costUsd, isEstimate ? 1 : 0,
       );
+
+      // Budget-guard enforcement hook — the record above is observability,
+      // this is the teeth. If the project crosses 100% of its daily budget,
+      // onKill fires and the caller SIGTERMs the live spawn. If no
+      // budgetResolver is wired (or it returns null for this project),
+      // enforcement is skipped for that project — intentional opt-in.
+      if (budgetGuard && budgetResolver && opts.projectName && opts.spawnId && costUsd > 0) {
+        try {
+          const budget = budgetResolver(opts.projectName);
+          if (budget && budget > 0 && Number.isFinite(budget)) {
+            const decision = budgetGuard.onCharge({
+              project: opts.projectName,
+              agentId: opts.spawnId,
+              usd: costUsd,
+              budgetUsdPerDay: budget,
+            });
+            if (decision.kill && onKill) {
+              onKill(opts.spawnId, opts.projectName, decision.reason || 'budget-exceeded');
+            }
+          }
+        } catch {
+          // Budget-guard failure must never block cost recording.
+        }
+      }
+
       return {
         id, ts,
         backend: opts.backend, model: opts.model,

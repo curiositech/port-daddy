@@ -46,7 +46,8 @@ interface PanicRouteDeps {
     error(msg: string, meta?: Record<string, unknown>): void;
   };
   spawner?: {
-    listSpawned?: () => Array<{ agentId?: string; id?: string; pid?: number }> | undefined;
+    list(): Array<{ agentId: string; status: string }>;
+    kill(agentId: string): void;
   };
   bonds?: Bonds;
 }
@@ -123,29 +124,32 @@ export const panicPlugin: FastifyPluginAsync<{ deps: PanicRouteDeps }> = async (
       logger.error('fleet_panic_broadcast_failed', { error: (err as Error).message });
     }
 
-    // TODO(track1b-C integration test): confirm spawner.listSpawned shape
+    // CRITICAL ORDERING: refund bonds BEFORE calling spawner.kill().
+    // spawner.kill() slashes the bond as its cleanup step (any kill is
+    // treated as misbehavior by default). Panic is operator action, not
+    // misbehavior — so we refund first. The subsequent slash call inside
+    // kill() becomes a no-op because the bond is already resolved.
     let terminated = 0;
     let refunded = 0;
     try {
-      const live = spawner?.listSpawned?.() || [];
-      for (const s of live) {
-        const pid = s.pid;
-        if (pid && Number.isFinite(pid)) {
-          try { process.kill(pid, 'SIGTERM'); terminated++; }
-          catch (err) { logger.error('fleet_panic_sigterm_failed', { pid, error: (err as Error).message }); }
+      const live = spawner?.list().filter((s) => s.status === 'running') || [];
+      const liveAgentIds = new Set(live.map((s) => s.agentId));
+
+      if (bonds && liveAgentIds.size > 0) {
+        const running = bonds.listBonds({ state: 'running', limit: 1000 });
+        for (const b of running) {
+          if (liveAgentIds.has(b.agentId)) {
+            if (bonds.refund(b.id)) refunded++;
+          }
         }
       }
-      if (bonds) {
-        const agentIds = new Set(
-          live.map((s) => s.agentId || s.id).filter((x): x is string => typeof x === 'string'),
-        );
-        if (agentIds.size > 0) {
-          const running = bonds.listBonds({ state: 'running', limit: 1000 });
-          for (const b of running) {
-            if (agentIds.has(b.agentId)) {
-              if (bonds.refund(b.id)) refunded++;
-            }
-          }
+
+      for (const s of live) {
+        try {
+          spawner?.kill(s.agentId);
+          terminated++;
+        } catch (err) {
+          logger.error('fleet_panic_kill_failed', { agentId: s.agentId, error: (err as Error).message });
         }
       }
     } catch (err) {
