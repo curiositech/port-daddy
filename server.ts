@@ -73,6 +73,7 @@ import { launchFleetBarIfEnabled } from './lib/fleetbar-launcher.js';
 import { createGraphEdges } from './lib/graph-edges.js';
 import { createEpisodicMemory } from './lib/episodic-memory.js';
 import { createSemanticResolver } from './lib/semantic-resolver.js';
+import { createBosunHeartbeat } from './lib/bosun-heartbeat.js';
 
 // Fastify route aggregator (Phase 3 — native Fastify plugins, no Express bridge)
 import { registerAllRoutes } from './routes/index.js';
@@ -175,6 +176,7 @@ const IPC_PATH: string = process.env.PORT_DADDY_IPC || (PREFIX ? join(PREFIX, 'p
 const DISABLE_IPC: boolean = process.env.PORT_DADDY_NO_IPC === '1';
 const PID_FILE: string = PREFIX ? join(PREFIX, 'daemon.pid') : DEFAULT_PID_FILE;
 const PORT_FILE: string = process.env.PORT_DADDY_PORT_FILE || (PREFIX ? join(PREFIX, 'daemon.port') : DEFAULT_PORT_FILE);
+const HEARTBEAT_FILE: string | undefined = process.env.PORT_DADDY_HEARTBEAT_FILE || (PREFIX ? join(PREFIX, 'heartbeat') : undefined);
 
 if (IS_DEV_MODE) {
   const { mkdirSync } = await import('node:fs');
@@ -338,6 +340,18 @@ const mergeQueue = createMergeQueue(db, {
   tuples,
   semanticResolver,
 });
+
+const bosunHeartbeat = createBosunHeartbeat({
+  heartbeatPath: HEARTBEAT_FILE,
+  version: VERSION,
+  codeHash: CODE_HASH,
+  startedAt: STARTED_AT,
+  installDir: __dirname,
+  pidFile: PID_FILE,
+  portFile: PORT_FILE,
+  logger,
+});
+bosunHeartbeat.start();
 
 const barnacle = createBarnacleWatcher(logger);
 barnacle.start();
@@ -635,7 +649,7 @@ await registerAllRoutes(
     harbors, sorties, orchestrator, correlationEngine, spawner, tuples, fleetDaemon,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, counters,
     bonds, budgetGuard, budgetPause,
-    arbiter, barnacle,
+    arbiter, barnacle, bosunHeartbeat,
     VERSION, CODE_HASH, STARTED_AT, __dirname,
     cleanupStale, getSystemPorts,
   },
@@ -736,6 +750,7 @@ function shutdown(signal: string): void {
   try { counters.shutdown(); } catch {}
   try { tunnel.stopAll(); } catch {}
   try { tunnel.dispose?.(); } catch {}
+  try { bosunHeartbeat.stop(); } catch {}
   // Stop fleet runners before closing DB (graceful drain)
   try { fleetDaemon.stop(); } catch {}
   systemPortsRefresh.stop();

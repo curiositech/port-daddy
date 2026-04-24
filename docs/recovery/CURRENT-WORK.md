@@ -512,8 +512,9 @@ This is the normalized remaining-slice inventory as of 2026-04-24. It supersedes
    - FleetBar cask/pkg parity
    - landing-page download truth
 8. Finish Bosun/Barnacle consolidation:
-   - delete or quarantine obsolete watchdog/barnacle code after V4 Bosun replacement is real
-   - update user-facing terminology only after runtime compatibility is safe
+   - V2 `bin/watchdog.ts` / `daemon:watch` are removed in the active Bosun slice
+   - daemon heartbeat writer and `core/pd-bosun/` std-only supervisor scaffold are in-tree
+   - remaining: distribute `dist/core/pd-bosun`, promote `com.portdaddy.bosun`, then remove legacy Barnacle crate/client/compat field after the compatibility window
 
 ### I. Lookout: Docs, Skills, OpenAPI, Website, And Product Truth
 

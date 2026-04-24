@@ -78,12 +78,18 @@ echo "${YELLOW}Installing dependencies in stable...${NC}"
 npm install --production=false 2>&1 | tail -3
 
 # ---------------------------------------------------------------------------
-# Step 6: Re-link (in case bin entries changed)
+# Step 6: Build native Bosun supervisor
+# ---------------------------------------------------------------------------
+echo "${YELLOW}Building pd-bosun in stable...${NC}"
+npm run build:bosun:dist
+
+# ---------------------------------------------------------------------------
+# Step 7: Re-link (in case bin entries changed)
 # ---------------------------------------------------------------------------
 npm link 2>&1 | tail -1
 
 # ---------------------------------------------------------------------------
-# Step 7: Restart daemon
+# Step 8: Restart daemon
 # ---------------------------------------------------------------------------
 echo "${YELLOW}Restarting daemon...${NC}"
 pd stop 2>/dev/null || true
@@ -96,7 +102,7 @@ launchctl kickstart -k "gui/$(id -u)/com.portdaddy.daemon" 2>/dev/null || {
 sleep 4
 
 # ---------------------------------------------------------------------------
-# Step 8: Verify authoritative runtime truth
+# Step 9: Verify authoritative runtime truth
 # ---------------------------------------------------------------------------
 PORT_FILE="$HOME/.port-daddy/daemon.port"
 if [[ ! -f "$PORT_FILE" ]]; then

@@ -128,7 +128,7 @@ pd version  # Version, code hash, install dir, PID
 curl http://127.0.0.1:9876/status   # Full daemon report including recent activity and spend
 ```
 
-`launchctl` is the canonical supervisor on macOS. Bosun is the optional non-agent watchdog; the old Barnacle sidecar is kept only as a compatibility implementation name until V4 Bosun ships.
+`launchctl` is the canonical supervisor on macOS. Bosun is the optional non-agent watchdog; the daemon now writes a filesystem heartbeat for it, and the old Barnacle sidecar remains only as a deprecated compatibility implementation name during the V4 rollout.
 
 ---
 
