@@ -79,6 +79,27 @@ The `agentsd.ai` public-site reset is now explicit repo work, not chat residue.
 
 ## Current Thread
 
+### Port Daddy Website Ideal-Web-App Rehab Handoff (2026-04-24)
+
+The active public-site thread is now an `ideal-web-app-builder` rehabilitation
+handoff for `website-v2`, not another broad replacement reset.
+
+- New authority plan: `docs/plans/port-daddy-website-ideal-web-app-rehab.md`
+- Visual decision board: `docs/plans/port-daddy-website-visual-decision-board.md`
+- Screenshot baseline: `docs/reports/website-rehab-screenshots/`
+- Port Daddy session used for the handoff: `session-80296aef-bf46-4457-b900-b7c9ca9c92fe`
+- Baseline truth:
+  - `npm run build` passes, but warns on a 1.99 MB main chunk
+  - `npm run build-storybook` passes, but warns on a 1.08 MB iframe chunk
+  - `npm run test` fails in `src/data/tutorials.test.ts` because tutorial order, totals, prev/next, title, numeric prop, and orphan route truth have drifted
+  - `npm run lint` fails on real source issues and because ignored `storybook-static` output is still in the lint scope
+- Do not start broad visual or route rewrites until the user approves or amends
+  the visual decision board.
+- The recommended direction is signal-grade infrastructure editorial: preserve
+  the distinct paper/ink/blue/lime identity, normalize it into a three-layer
+  token contract, repair tests/lint first, then rebuild the high-drift MCP page
+  as the first proof slice.
+
 ### Cartographer Roadmap Actor (2026-04-24)
 
 The current uncommitted slice now promotes Cartographer from a commit-triggered docs updater into the first concrete maritime actor surface:
