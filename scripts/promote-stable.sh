@@ -46,7 +46,7 @@ fi
 echo "${YELLOW}Running test suite...${NC}"
 cd "$DEV_DIR"
 
-TEST_LOG=$(mktemp "${TMPDIR:-/tmp}/port-daddy-promote-tests.XXXXXX.log")
+TEST_LOG=$(mktemp "${TMPDIR:-/tmp}/port-daddy-promote-tests.XXXXXX")
 trap 'rm -f "$TEST_LOG"' EXIT
 
 if ! npm test -- --no-coverage >"$TEST_LOG" 2>&1; then
