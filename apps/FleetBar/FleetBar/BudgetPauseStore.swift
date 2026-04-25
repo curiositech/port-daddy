@@ -51,8 +51,11 @@ final class BudgetPauseStore: ObservableObject {
     private var pendingTask: Task<Void, Never>?
     private var resolvedTask: Task<Void, Never>?
 
-    init(baseURL: String) {
-        self.baseURL = baseURL
+    /// Resolves the daemon URL via DaemonLocation (env var → discovery file →
+    /// canonical fallback). NEVER hardcode a port here — the daemon may run
+    /// on a non-default port (CI, multi-machine, custom installs).
+    init(baseURL: String? = nil) {
+        self.baseURL = baseURL ?? DaemonLocation.resolveBaseURL()
     }
 
     func start() {

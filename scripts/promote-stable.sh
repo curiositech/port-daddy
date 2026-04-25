@@ -99,38 +99,83 @@ npm link 2>&1 | tail -1
 # ---------------------------------------------------------------------------
 echo "${YELLOW}Installing daemon and Bosun services...${NC}"
 npm run install-daemon -- install
-sleep 4
+
+print_runtime_diagnostics() {
+  echo "  Daemon log: tail -20 $STABLE_DIR/port-daddy.log"
+  echo "  Error log:  tail -20 $STABLE_DIR/port-daddy-error.log"
+  echo ""
+  echo "${YELLOW}Recent daemon errors:${NC}"
+  tail -20 "$STABLE_DIR/port-daddy-error.log" 2>/dev/null || true
+}
+
+wait_for_file() {
+  local path="$1"
+  local timeout_seconds="$2"
+  local waited=0
+
+  while (( waited < timeout_seconds )); do
+    if [[ -s "$path" ]]; then
+      return 0
+    fi
+
+    sleep 1
+    waited=$((waited + 1))
+  done
+
+  return 1
+}
+
+fetch_json_with_retry() {
+  local url="$1"
+  local timeout_seconds="$2"
+  local waited=0
+  local body=""
+
+  while (( waited < timeout_seconds )); do
+    if body="$(curl -fsS --max-time 3 "$url" 2>/dev/null)"; then
+      printf '%s' "$body"
+      return 0
+    fi
+
+    sleep 2
+    waited=$((waited + 2))
+  done
+
+  return 1
+}
 
 # ---------------------------------------------------------------------------
 # Step 9: Verify authoritative runtime truth
 # ---------------------------------------------------------------------------
 PORT_FILE="$HOME/.port-daddy/daemon.port"
-if [[ ! -f "$PORT_FILE" ]]; then
+if ! wait_for_file "$PORT_FILE" 60; then
   echo "${RED}WARNING: Daemon port file missing after restart.${NC}"
   echo "  Expected: $PORT_FILE"
-  echo "  Check logs: tail -20 $STABLE_DIR/port-daddy-error.log"
+  print_runtime_diagnostics
   exit 1
 fi
 
 DAEMON_PORT="$(tr -d '[:space:]' < "$PORT_FILE")"
 BASE_URL="http://127.0.0.1:${DAEMON_PORT}"
 
-HEALTH_JSON="$(curl -fsS "$BASE_URL/health")" || {
+HEALTH_JSON="$(fetch_json_with_retry "$BASE_URL/health" 90)" || {
   echo "${RED}WARNING: /health did not respond after restart.${NC}"
   echo "  URL: $BASE_URL/health"
-  echo "  Check logs: tail -20 $STABLE_DIR/port-daddy-error.log"
+  print_runtime_diagnostics
   exit 1
 }
 
-VERSION_JSON="$(curl -fsS "$BASE_URL/version")" || {
+VERSION_JSON="$(fetch_json_with_retry "$BASE_URL/version" 30)" || {
   echo "${RED}WARNING: /version did not respond after restart.${NC}"
   echo "  URL: $BASE_URL/version"
+  print_runtime_diagnostics
   exit 1
 }
 
-STATUS_JSON="$(curl -fsS "$BASE_URL/status")" || {
+STATUS_JSON="$(fetch_json_with_retry "$BASE_URL/status" 30)" || {
   echo "${RED}WARNING: /status did not respond after restart.${NC}"
   echo "  URL: $BASE_URL/status"
+  print_runtime_diagnostics
   exit 1
 }
 
