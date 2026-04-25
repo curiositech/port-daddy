@@ -98,7 +98,7 @@ npm link 2>&1 | tail -1
 # Step 8: Reinstall service plists and restart daemon + Bosun
 # ---------------------------------------------------------------------------
 echo "${YELLOW}Installing daemon and Bosun services...${NC}"
-npm run install-daemon
+npm run install-daemon -- install
 sleep 4
 
 # ---------------------------------------------------------------------------
