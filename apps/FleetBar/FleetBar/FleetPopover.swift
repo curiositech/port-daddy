@@ -16,7 +16,7 @@ struct FleetPopover: View {
     @Environment(\.openWindow) private var openWindow
     @ObservedObject var store: FleetStore
     @ObservedObject var costStore: CostStore
-    @StateObject private var budgetStore = BudgetPauseStore(baseURL: "http://localhost:9876")
+    @StateObject private var budgetStore = BudgetPauseStore()
     @AppStorage("fleet.control.theme") private var selectedThemeRaw = "dark"
     @State private var appeared = false
     @State private var showingSettings = false

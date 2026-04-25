@@ -126,6 +126,19 @@ Project-specific shibboleths for proficient Port Daddy work. If you learn a new 
 - Do not hardcode `9876` as if it is guaranteed truth. `9876` is the preferred canonical port, but runtime code must discover the live daemon via the shared socket/port-file helper because the daemon can fall back.
 - Do not hardcode `localhost` as if it is harmless truth either. TCP callers should go through the shared loopback host helper instead of sprinkling new `http://localhost:9876` literals around the repo.
 - If a runtime/helper/UI path needs the daemon URL, prefer the shared discovery helper over inline `http://localhost:9876` defaults.
+
+### Canonical daemon URL — enforced by CI
+
+The rule above is enforced by `tests/unit/no-hardcoded-daemon-url.test.js`. Production source paths (`lib/`, `routes/`, `cli/`, `bin/`, `mcp/`, `shared/`, `apps/FleetBar/`, `public/`, `fleet-config-ui/src/`, `dashboard/`, `website-v2/src/lib/`, plus `server.ts`) must NOT contain `http://localhost:9876` or `http://127.0.0.1:9876` literals. Use:
+
+- **Node:** `getDaemonTcpUrl(process.env.PORT_DADDY_URL)` from `shared/daemon-discovery.ts`
+- **Swift:** `DaemonLocation.resolveBaseURL()`
+- **Web (dashboard, FleetBar webview):** relative paths (no scheme/host)
+- **Web (cross-origin, e.g. fleet-config-ui):** the canonical web resolver in `website-v2/src/lib/daemon-url.ts`
+
+Examples, scripts, tests, and docs/marketing copy in `website-v2/src/{data,docs-content,pages}/` are exempt — they show canonical URLs as part of user-facing guidance. If you legitimately need a literal in an enforced path (e.g. you're writing the resolver itself), add the file to `ALLOWED_FILES` in the parity test with a one-line reason. Reviewer sign-off required.
+
+This rule has bitten us repeatedly when the daemon ran on a non-default port (CI, multi-machine, custom installs) and one drifted literal made the daemon unreachable. The CI guard makes regressions impossible without a deliberate allowlist edit.
 - `pd init` and any hook installer should copy the shared project-scoped post-commit template instead of writing bespoke inline hook logic that can drift.
 - If a fleet project drops into `skipped` with `owner: null` and `fleet lease lost: lock not held`, treat that as a recoverability bug. The daemon should reacquire the lease when nobody else owns it, not sit idle forever.
 - Daemon logs can mix truths from different client generations. A fresh `fleet-ui` load now polls scoped `project:...:` channels correctly, but older already-open FleetBar/browser clients can keep hitting naked `git:committed` until they reload onto the new bundle.
