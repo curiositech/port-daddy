@@ -25,11 +25,11 @@ This document catalogs **domain-specific knowledge that separates novices from e
 4. Negation ("not a cat")
 
 **What CLIP fails at**:
-- Counting objects in images
-- Fine-grained classification (celebrity ID, car models, flower species)
-- Compositional reasoning
-- Spatial understanding
-- Handwritten text (MNIST-style)
+- ❌ Counting objects in images
+- ❌ Fine-grained classification (celebrity ID, car models, flower species)
+- ❌ Compositional reasoning
+- ❌ Spatial understanding
+- ❌ Handwritten text (MNIST-style)
 
 **When to use alternatives**:
 
@@ -223,16 +223,16 @@ function UserProfile() {
 **Expert reality**: MCPs have overhead. Use them strategically.
 
 **Use MCP when**:
-- External API with authentication
-- Stateful connections (WebSocket, database)
-- Real-time data streams
-- Security boundaries (credentials, OAuth)
+- ✅ External API with authentication
+- ✅ Stateful connections (WebSocket, database)
+- ✅ Real-time data streams
+- ✅ Security boundaries (credentials, OAuth)
 
 **Use Scripts when**:
-- Local file operations
-- Batch transformations
-- Stateless computations
-- CLI wrappers
+- ✅ Local file operations
+- ✅ Batch transformations
+- ✅ Stateless computations
+- ✅ CLI wrappers
 
 **Example - Wrong**:
 ```python
@@ -270,7 +270,7 @@ with open(sys.argv[1]) as f:
 
 **Evolution path**:
 ```
-Script -> Multiple Scripts -> Helper Library -> MCP Server
+Script → Multiple Scripts → Helper Library → MCP Server
 ```
 
 Only promote to MCP when complexity justifies it.
@@ -308,13 +308,13 @@ description: Use React Server Components correctly. Use when working with Next.j
 ## Quick Decision Tree
 
 Is your component:
-- Fetching data? -> Server Component
-- Using hooks/events? -> Client Component
-- Both? -> Server Component wrapper + Client Component child
+- Fetching data? → Server Component
+- Using hooks/events? → Client Component
+- Both? → Server Component wrapper + Client Component child
 
 ## Common Anti-Pattern: Everything is 'use client'
 
-Wrong:
+❌ **Wrong**:
 ```jsx
 'use client'
 async function Page() {  // This doesn't work!
@@ -323,7 +323,7 @@ async function Page() {  // This doesn't work!
 }
 ```
 
-Right:
+✅ **Right**:
 ```jsx
 // Server Component (default)
 async function Page() {
@@ -386,7 +386,7 @@ def validate_setup():
     }
 
     for name, passed in checks.items():
-        print(f"{'PASS' if passed else 'FAIL'} {name}")
+        print(f"{'✅' if passed else '❌'} {name}")
 
     return all(checks.values())
 ```
@@ -464,7 +464,7 @@ When documenting anti-patterns, always include:
 - `collage-layout-expert` - arrangement algorithms
 - `event-detection-temporal-intelligence-expert` - clustering
 
-**Lesson**: One domain does not equal one skill. Split by expertise type.
+**Lesson**: One domain ≠ one skill. Split by expertise type.
 
 ---
 
@@ -489,7 +489,7 @@ Run: `npx github-helper-mcp`
 **Root Cause**: Reference Illusion anti-pattern
 
 **Resolution**:
-1. Added `scripts/check_self_contained.py` to detect phantom tools
+1. Added `check_self_contained.py` to detect phantom tools
 2. Either create the MCP or remove the reference
 3. Added validation to CI
 
@@ -510,7 +510,7 @@ Use useEffect with empty deps for componentDidMount behavior
 **By 2024**: This caused issues with React 18 Strict Mode double-mounting
 
 **Symptoms**:
-- Users followed advice and got bugs
+- Users followed advice → got bugs
 - Skill became actively harmful
 - No CHANGELOG to track when content was written
 

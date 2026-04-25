@@ -266,14 +266,36 @@ fn now_ms() -> u64 {
         .as_millis() as u64
 }
 
+/// Interpret a platform `kill -0` probe.
+///
+/// Sample inputs and outputs:
+///
+/// ```text
+/// (success=true, stderr="") -> true
+/// (success=false, stderr="Operation not permitted") -> true
+/// (success=false, stderr="No such process") -> false
+/// ```
+///
+/// macOS can return EPERM when a process exists but the caller cannot signal it.
+/// For Bosun liveness, that is alive: only absence should be treated as dead.
+fn kill_probe_means_alive(success: bool, stderr: &[u8]) -> bool {
+    if success {
+        return true;
+    }
+
+    let stderr_text = String::from_utf8_lossy(stderr).to_ascii_lowercase();
+    stderr_text.contains("operation not permitted")
+        || stderr_text.contains("not permitted")
+        || stderr_text.contains("permission denied")
+}
+
 /// Check whether a PID currently names a live process.
 fn pid_is_alive(pid: u32) -> bool {
     Command::new("kill")
         .args(["-0", &pid.to_string()])
         .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .map(|status| status.success())
+        .output()
+        .map(|output| kill_probe_means_alive(output.status.success(), &output.stderr))
         .unwrap_or(false)
 }
 
@@ -611,6 +633,14 @@ mod tests {
         assert!(!status.would_restart);
         assert_eq!(status.daemon_alive, Some(true));
         let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn kill_probe_treats_permission_denied_as_alive() {
+        assert!(kill_probe_means_alive(true, b""));
+        assert!(kill_probe_means_alive(false, b"kill: 41856: Operation not permitted"));
+        assert!(kill_probe_means_alive(false, b"Permission denied"));
+        assert!(!kill_probe_means_alive(false, b"kill: 41856: No such process"));
     }
 
     #[test]

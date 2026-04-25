@@ -95,25 +95,25 @@ errors=0
 
 # Check SKILL.md exists
 if [ ! -f "$SKILL_DIR/SKILL.md" ]; then
-    echo "Missing SKILL.md"
+    echo "❌ Missing SKILL.md"
     ((errors++))
 else
-    echo "SKILL.md exists"
+    echo "✅ SKILL.md exists"
 fi
 
 # Check line count
 lines=$(wc -l < "$SKILL_DIR/SKILL.md")
 if [ "$lines" -gt 500 ]; then
-    echo "SKILL.md is $lines lines (target: <500)"
+    echo "⚠️  SKILL.md is $lines lines (target: <500)"
 else
-    echo "SKILL.md is $lines lines"
+    echo "✅ SKILL.md is $lines lines"
 fi
 
 # Check for NOT clause in description
 if grep -q "NOT for" "$SKILL_DIR/SKILL.md"; then
-    echo "Description has NOT clause"
+    echo "✅ Description has NOT clause"
 else
-    echo "Missing NOT clause in description"
+    echo "❌ Missing NOT clause in description"
     ((errors++))
 fi
 
@@ -308,10 +308,10 @@ You are a research coordinator. Your job is to:
 ### Orchestration
 \`\`\`
 parallel:
-  - security-scanner -> security_report
-  - style-checker -> style_report
+  - security-scanner → security_report
+  - style-checker → style_report
 then:
-  - architecture-reviewer(security_report, style_report) -> final_review
+  - architecture-reviewer(security_report, style_report) → final_review
 \`\`\`
 
 ### Handoff Protocol
@@ -323,6 +323,25 @@ Each agent produces structured output:
 
 ---
 
+## Advanced Operating Assets
+
+For first-party skills that are distributed, delegated, or synced, consider the
+full operating bundle:
+
+| Asset | Use when | Required qualities |
+|---|---|---|
+| `agents/openai.yaml` | Skill appears in user-level catalogs or UI chips | user-facing display name, short description, default prompt mentioning `$skill-name` |
+| agent prompt files | Delegated specialist work is common | narrow role, input/output contract, validation, no-revert rule |
+| JSON schemas | Plans, scorecards, or handoffs must be linted | deterministic schema, clear required fields |
+| Markdown templates | Humans or agents must review the same shape repeatedly | decision prompts, status fields, evidence fields |
+| `examples/` or `fixtures/` | Validators or activation boundaries need proof | good and bad cases tied to real failure modes |
+| HTML/JSON report script | Review requires one artifact | generated from evidence, not hand-written optimism |
+
+Do not add these as decoration. Add them when missing structure would cause
+drift, weak review, inconsistent subagent handoffs, or stale mirrors.
+
+---
+
 ## Anti-Patterns
 
 ### Phantom Tools
@@ -330,7 +349,7 @@ Each agent produces structured output:
 
 **Why it's wrong**: Users try to run non-existent code, get errors, lose trust in skill
 
-**Fix**: Only reference tools that actually exist and work. Run `scripts/check_self_contained.py` to detect phantom references before shipping.
+**Fix**: Only reference tools that actually exist and work. Run `check_self_contained.py` to detect phantom references before shipping.
 
 ### Template Soup
 **What it looks like**: Scripts are templates with `# TODO: implement` comments
@@ -358,14 +377,14 @@ Each agent produces structured output:
 ## Checklist: Is My Skill Self-Contained?
 
 ```
-[ ] Can a user start using this skill immediately?
-[ ] Are all referenced scripts/tools actually present and working?
-[ ] Do scripts have clear installation instructions?
-[ ] Do scripts handle errors gracefully?
-[ ] If MCP needed, is server implementation complete?
-[ ] If subagents needed, are prompts and workflows defined?
-[ ] Is there a validation script to check environment?
-[ ] Does README explain how to set everything up?
+□ Can a user start using this skill immediately?
+□ Are all referenced scripts/tools actually present and working?
+□ Do scripts have clear installation instructions?
+□ Do scripts handle errors gracefully?
+□ If MCP needed, is server implementation complete?
+□ If subagents needed, are prompts and workflows defined?
+□ Is there a validation script to check environment?
+□ Does README explain how to set everything up?
 ```
 
 ---

@@ -873,6 +873,11 @@
         <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"/></svg></span>
         <span class="nav-label">Salvage</span>
       </div>
+      <div class="nav-item" data-panel="budget" tabindex="0" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"/></svg></span>
+        <span class="nav-label">Budget</span>
+        <span id="nav-budget-badge" class="nav-badge" style="display:none;background:#c0392b;color:#fff;border-radius:8px;padding:1px 6px;font-size:10px;margin-left:4px">0</span>
+      </div>
       <div class="nav-item" data-panel="briefing" tabindex="0" role="tab">
         <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-file"/></svg></span>
         <span class="nav-label">Briefing</span>
@@ -1016,6 +1021,15 @@
         <div id="activity-content"></div>
       </div>
 
+      <!-- Budget Panel — Pending kills + wallets -->
+      <div class="panel" id="panel-budget">
+        <div class="panel-header">
+          <div class="panel-title">Budget Control</div>
+          <div class="panel-actions"><button class="cmd-btn" onclick="refreshBudget()">Refresh</button></div>
+        </div>
+        <div id="budget-content"></div>
+      </div>
+
       <!-- Salvage Panel -->
       <div class="panel" id="panel-salvage">
         <div class="panel-header">
@@ -1144,6 +1158,7 @@
         overview: refreshDashboard, services: refreshServices, agents: refreshAgents,
         sessions: refreshSessions, locks: refreshLocks, channels: refreshChannels,
         activity: refreshActivity, salvage: refreshSalvage, briefing: refreshBriefing,
+        budget: refreshBudget,
         webhooks: refreshWebhooks, projects: refreshProjects, changelog: refreshChangelog,
         config: refreshConfig
       };
@@ -1604,6 +1619,123 @@
     }
 
     /* ── Salvage ── */
+    // ── Budget Control: pending kills + wallets ───────────────────────────
+    var budgetEventSource = null;
+    var budgetReconnectTimer = null;
+
+    async function refreshBudget() {
+      var pendingPromise = apiFetch('/budget/pending').catch(function(){return null;});
+      var walletsPromise = apiFetch('/wallets').catch(function(){return null;});
+      var pendingData = await pendingPromise;
+      var walletsData = await walletsPromise;
+      var pending = pendingData ? (pendingData.pending || []) : [];
+      var wallets = walletsData ? (walletsData.wallets || []) : [];
+      var graceMs = pendingData ? (pendingData.graceMs || 60000) : 60000;
+      updateBudgetBadge(pending.length);
+
+      var html = '';
+      // Pending kills section
+      html += '<div class="card" style="margin-bottom:20px"><div class="card-title">Pending Budget Kills (' + pending.length + ')';
+      html += '<span style="font-size:11px;color:var(--text-muted);margin-left:8px">grace ' + Math.round(graceMs/1000) + 's</span></div>';
+      if (!pending.length) {
+        html += '<div style="padding:12px;color:var(--text-muted)">No pending kills. Quiet seas.</div>';
+      } else {
+        pending.forEach(function(p) {
+          var msLeft = Math.max(0, (p.expiresAt || 0) - Date.now());
+          var sLeft = Math.round(msLeft / 1000);
+          var pct = (p.budgetUsdPerDay > 0) ? Math.round(100 * (p.spentTodayUsd || 0) / p.budgetUsdPerDay) : 0;
+          html += '<div class="salvage-card" style="border-left:3px solid #c0392b;padding:12px;margin-bottom:10px">';
+          html += '<div style="display:flex;justify-content:space-between"><div>';
+          html += '<div style="font-weight:600">' + escHtml(p.agentId) + '</div>';
+          html += '<div class="salvage-detail">project: ' + escHtml(p.project) + ' · spent $' + (p.spentTodayUsd||0).toFixed(4) + ' / $' + (p.budgetUsdPerDay||0).toFixed(2) + '/day (' + pct + '%)</div>';
+          html += '<div class="salvage-detail">reason: ' + escHtml(p.reason || '?') + ' · extended ' + (p.extendedCount||0) + '×</div>';
+          html += '<div class="salvage-detail" style="color:#c0392b">expires in ' + sLeft + 's</div>';
+          html += '</div><div style="display:flex;gap:6px;align-items:flex-start">';
+          html += '<button class="cmd-btn" onclick="resolveBudgetKill(\'' + escAttr(p.agentId) + '\',\'raise\',5)">Raise +$5</button>';
+          html += '<button class="cmd-btn" onclick="resolveBudgetKill(\'' + escAttr(p.agentId) + '\',\'grace\')">+60s grace</button>';
+          html += '<button class="cmd-btn" style="background:#c0392b;color:#fff" onclick="resolveBudgetKill(\'' + escAttr(p.agentId) + '\',\'kill\')">Kill now</button>';
+          html += '</div></div></div>';
+        });
+      }
+      html += '</div>';
+
+      // Wallets section
+      html += '<div class="card"><div class="card-title">Project Wallets (' + wallets.length + ')</div>';
+      if (!wallets.length) {
+        html += '<div style="padding:12px;color:var(--text-muted)">No wallets yet. Top up with: <code>pd wallet top-up &lt;project&gt; --usd 10</code></div>';
+      } else {
+        html += '<table class="data-table"><thead><tr><th>project</th><th>balance</th><th>commons</th><th>budget/day</th></tr></thead><tbody>';
+        wallets.forEach(function(w) {
+          var budget = w.budgetUsdPerDay != null ? '$' + Number(w.budgetUsdPerDay).toFixed(2) : '<span style="color:#c0392b">unset (blocks spawn)</span>';
+          html += '<tr><td>' + escHtml(w.project) + '</td><td>$' + Number(w.balanceUsd||0).toFixed(2) + '</td><td>$' + Number(w.commonsPoolUsd||0).toFixed(2) + '</td><td>' + budget + '</td></tr>';
+        });
+        html += '</tbody></table>';
+      }
+      html += '</div>';
+      setHtml('budget-content', html);
+    }
+
+    function updateBudgetBadge(n) {
+      var badge = document.getElementById('nav-budget-badge');
+      if (!badge) return;
+      if (n > 0) { badge.style.display = 'inline-block'; badge.textContent = String(n); }
+      else { badge.style.display = 'none'; }
+    }
+
+    async function resolveBudgetKill(agentId, action, topUpUsd) {
+      try {
+        var body = { action: action };
+        if (action === 'raise') body.topUpUsd = topUpUsd || 5;
+        var res = await fetch('/budget/pending/' + encodeURIComponent(agentId) + '/resolve', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+        });
+        if (!res.ok) {
+          var err = await res.json().catch(function(){return{};});
+          alert('Resolve failed: ' + (err.error || res.status));
+        }
+        await refreshBudget();
+      } catch (e) { alert('Resolve error: ' + e.message); }
+    }
+
+    function startBudgetSubscriptions() {
+      if (budgetEventSource) return;
+      // We multiplex two channels by opening two EventSources — daemon
+      // supports per-channel SSE. Simpler than a multiplexer.
+      function open(channel, onMsg) {
+        try {
+          var es = new EventSource('/msg/' + channel + '/subscribe');
+          es.onmessage = function(e) {
+            try {
+              var data = JSON.parse(e.data);
+              // Skip subscription-ack frame.
+              var keys = Object.keys(data);
+              if (keys.length === 1 && keys[0] === 'channel') return;
+              onMsg(data);
+            } catch(err) { /* ignore */ }
+          };
+          es.onerror = function() {
+            try { es.close(); } catch(e){}
+            // Reconnect after 5s. Don't keep stacking timers.
+            if (budgetReconnectTimer) return;
+            budgetReconnectTimer = setTimeout(function() {
+              budgetReconnectTimer = null;
+              open(channel, onMsg);
+            }, 5000);
+          };
+          return es;
+        } catch (e) { return null; }
+      }
+      budgetEventSource = open('budget:pending', function() { refreshBudget(); });
+      // Also watch resolved so cross-client (CLI) resolves remove rows here.
+      open('budget:resolved', function() { refreshBudget(); });
+    }
+
+    // Auto-start subscriptions on load so the badge updates even when the
+    // budget panel isn't focused.
+    if (typeof window !== 'undefined') {
+      window.addEventListener('DOMContentLoaded', startBudgetSubscriptions);
+    }
+
     async function refreshSalvage() {
       var data = await apiFetch('/salvage/pending');
       var agents = data ? (data.agents || data.pending || []) : [];

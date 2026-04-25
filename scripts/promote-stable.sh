@@ -46,7 +46,7 @@ fi
 echo "${YELLOW}Running test suite...${NC}"
 cd "$DEV_DIR"
 
-TEST_LOG=$(mktemp "${TMPDIR:-/tmp}/port-daddy-promote-tests.XXXXXX.log")
+TEST_LOG=$(mktemp "${TMPDIR:-/tmp}/port-daddy-promote-tests.XXXXXX")
 trap 'rm -f "$TEST_LOG"' EXIT
 
 if ! npm test -- --no-coverage >"$TEST_LOG" 2>&1; then
@@ -95,16 +95,10 @@ npm run build:bosun:dist
 npm link 2>&1 | tail -1
 
 # ---------------------------------------------------------------------------
-# Step 8: Restart daemon
+# Step 8: Reinstall service plists and restart daemon + Bosun
 # ---------------------------------------------------------------------------
-echo "${YELLOW}Restarting daemon...${NC}"
-pd stop 2>/dev/null || true
-sleep 2
-launchctl kickstart -k "gui/$(id -u)/com.portdaddy.daemon" 2>/dev/null || {
-  launchctl unload ~/Library/LaunchAgents/com.portdaddy.daemon.plist 2>/dev/null || true
-  sleep 1
-  launchctl load ~/Library/LaunchAgents/com.portdaddy.daemon.plist
-}
+echo "${YELLOW}Installing daemon and Bosun services...${NC}"
+npm run install-daemon
 sleep 4
 
 # ---------------------------------------------------------------------------

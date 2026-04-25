@@ -16,7 +16,7 @@ Every description should answer:
 
 ---
 
-## Bad -> Good Examples
+## Bad → Good Examples
 
 ### 1. Too Vague / Generic
 
@@ -51,7 +51,7 @@ Every description should answer:
 **Bad**:
 > "This skill helps you research and summarize complex topics. First it collects requirements, then it searches, then it writes an outline, then it drafts a report, then it revises based on feedback, and it always uses clear language and bullet points with citations and examples and..."
 
-**Problems**: Too long, procedures belong in the SKILL.md body, risks truncation in the catalog scan. The runtime only reads the description for matching -- process details don't help activation.
+**Problems**: Too long, procedures belong in the SKILL.md body, risks truncation in the catalog scan. The runtime only reads the description for matching — process details don't help activation.
 
 **Good**:
 > "Performs structured research and writes 1-3 page synthesis reports on technical or business topics for non-expert readers. Use when requesting a researched overview or briefing document. NOT for quick factual questions, casual brainstorming, or academic papers."
@@ -65,7 +65,7 @@ Every description should answer:
 **Bad**:
 > "This skill reviews code changes and suggests improvements."
 
-**Problems**: Will activate for every coding request -- writing new features, debugging, refactoring, reviewing PRs. Way too broad.
+**Problems**: Will activate for every coding request — writing new features, debugging, refactoring, reviewing PRs. Way too broad.
 
 **Good**:
 > "Reviews existing code changes (diffs, pull requests) in TypeScript and React projects, providing structured feedback on correctness, readability, performance, and tests. Use when sharing diffs or PRs for review. NOT for implementing new features from scratch, debugging runtime errors, or general coding advice."
@@ -122,31 +122,31 @@ description: Plans and reviews database schema and data migrations, focusing on 
 
 ## Activation Strategy
 
-Claude evaluates descriptions semantically, not via keyword matching. Including domain-specific terms still helps -- they're signals for the semantic evaluator -- but Claude reasons about intent, not pattern-matches keywords. Claude also tends to undertrigger (not activate skills when it should). Make descriptions slightly pushy to combat this.
+Claude evaluates descriptions semantically, not via keyword matching. Including domain-specific terms still helps — they're signals for the semantic evaluator — but Claude reasons about intent, not pattern-matches keywords. Claude also tends to undertrigger (not activate skills when it should). Make descriptions slightly pushy to combat this.
 
 ### Domain-Specific Semantic Signals
 
 Include terms that signal your domain:
-- Good: "CLIP", "embeddings", "similarity search"
-- Bad: "computer vision techniques" (too abstract to differentiate)
+- ✅ "CLIP", "embeddings", "similarity search"
+- ❌ "computer vision techniques" (too abstract to differentiate)
 
 ### Verb + Noun Semantic Signals
 
-Users describe actions on objects -- mirror that:
-- Good: "create skill", "improve skill", "debug activation"
-- Bad: "skill-related activities"
+Users describe actions on objects — mirror that:
+- ✅ "create skill", "improve skill", "debug activation"
+- ❌ "skill-related activities"
 
 ### Synonym Coverage
 
-Users phrase things differently -- broader coverage helps semantic matching:
-- Good: "review code", "code review", "PR review", "diff review"
-- Bad: Just "review" (too generic, activates for unrelated reviews)
+Users phrase things differently — broader coverage helps semantic matching:
+- ✅ "review code", "code review", "PR review", "diff review"
+- ❌ Just "review" (too generic, activates for unrelated reviews)
 
 ### Test with Anti-Queries
 
 For every trigger scenario, think of a query that uses similar words but should NOT trigger:
-- "CLIP" -> triggers: "Use CLIP for image search"
-- "CLIP" -> should NOT trigger: "Clip the audio at 30 seconds" (different meaning)
+- "CLIP" → triggers: "Use CLIP for image search"
+- "CLIP" → should NOT trigger: "Clip the audio at 30 seconds" (different meaning)
 
 If anti-queries would false-positive, add them to the NOT clause.
 
@@ -166,7 +166,7 @@ If anti-queries would false-positive, add them to the NOT clause.
 
 ### Domain Expertise Skills
 ```
-[Domain] expertise for [specific area]. Use when [trigger situations -- be slightly pushy].
+[Domain] expertise for [specific area]. Use when [trigger situations — be slightly pushy].
 NOT for [adjacent domains].
 ```
 
@@ -195,14 +195,14 @@ NOT for [creating/implementing the thing being reviewed].
 After writing a description, validate with this checklist:
 
 ```
-- Contains at least one specific verb (creates, reviews, plans, debugs)
-- Names a specific deliverable or domain (PRDs, TypeScript diffs, CLIP embeddings)
-- Is specific and context-rich (semantic matching, not keyword lists)
-- Has a NOT clause with 2-5 explicit exclusions
-- Name and description are aligned (no contradictions)
-- Under 1024 characters (ideally 25-50 words)
-- No process/workflow details (those go in SKILL.md body)
-- Doesn't overlap with other skills in the same repo
+□ Contains at least one specific verb (creates, reviews, plans, debugs)
+□ Names a specific deliverable or domain (PRDs, TypeScript diffs, CLIP embeddings)
+□ Is specific and context-rich (semantic matching, not keyword lists)
+□ Has a NOT clause with 2-5 explicit exclusions
+□ Name and description are aligned (no contradictions)
+□ Under 1024 characters (ideally 25-50 words)
+□ No process/workflow details (those go in SKILL.md body)
+□ Doesn't overlap with other skills in the same repo
 ```
 
 ---

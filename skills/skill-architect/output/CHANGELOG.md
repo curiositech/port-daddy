@@ -1,56 +1,64 @@
 # Changelog: skill-architect
 
-## v2.4.0 (2026-03-16)
+## v2.4.0 (2026-04-24)
 
-### SKILL.md Further Compression (407 -> 381 lines)
+### Advanced Structure And Sync Doctrine
 
-**Platform Constraints section removed**: 16-line table was load-bearing duplication of content in `references/claude-extension-taxonomy.md`. Compressed to a 2-line inline note with pointer to the reference file.
+**Workgroup authority**: Added doctrine that shared skills should be edited in
+the workgroup source first, then mirrored into repo-local and user-level
+locations. Repo copies should stay portable; user-level registries may use
+symlinks to the authoritative workgroup source on a single machine.
 
-**Common Rejection Causes table removed**: 15-line table duplicated what `validate_skill.py` catches automatically. Replaced with a 2-line compact "common mistakes" note in the Frontmatter Rules section, consolidating the most actionable gotchas.
+**Port Daddy grounding**: Added explicit use of Port Daddy sessions, notes,
+claims/locks, tuples, channels, and handoffs for skill mutations inside Port
+Daddy repos, especially when multiple agents or mirrors are involved.
 
-**Description formula table trimmed**: Reduced from 5 bad/good examples to 3 (the full 7-example guide remains in `references/description-guide.md`).
+**Interface and subagent assets**: Added `agents/openai.yaml`,
+`agents/affordance-planner.md`, and `agents/sync-coordinator.md` so the skill
+demonstrates the UI metadata and delegated-agent patterns it now teaches.
 
-### EVALUATION.md (Honest Scoring)
+**Review, schema, and audit artifacts**: Added
+`references/advanced-structure-and-sync.md`,
+`templates/visual-decision-board.md`, `templates/skill-sync-plan.md`,
+`schemas/skill-sync-plan.schema.json`, and
+`scripts/audit_skill_operating_system.py`.
 
-**Per-criterion before/after scoring**: Written with honest corrections to iter-2's inflated self-scores. Iter-2 self-reported 8.8/10 using a 6-dimension rubric; corrected to 7.4/10 using the 7-dimension meta-skill rubric with accurate scoring for Progressive Disclosure (6, not 8), Self-Containment (7, not 9), Visual Artifacts (7, not 9), and the new Self-Consistency dimension (5).
+**Repo/workgroup reconciliation**: Synced the repo copy forward from the newer
+workgroup `skill-architect/skill-architect` bundle before adding this doctrine.
 
-### Scoring Rubric Example Updated
+## v2.3.1 (2026-04-18)
 
-**`references/scoring-rubric.md`**: Updated the skill-architect worked example to reflect the iter-3 scores (8.9/10 composite).
+### Metadata And Doctrine Tightening
 
----
+**Authorship doctrine**: Tightened the active doctrine so first-party skills now explicitly carry both `metadata.provenance` and `metadata.authorship`, with guidance on using `authorship.maintainers` for library/team ownership and `authorship.authors` when original-author data is known.
 
-## v2.3.0 (2026-03-16)
+**Scorecard template**: Added an `authorship` block to `templates/skill-scorecard.json` so dossiers and downstream UI chrome can expose maintainers/authors alongside provenance.
 
-### Self-Consistency Fixes (Meta-Skill Integrity)
+**Validator guidance**: Updated bundled validators to suggest missing `metadata.authorship`, not just missing provenance.
 
-**Invented frontmatter keys removed**: `dependencies`, `bundled-resources`, and `distribution` were listed as valid optional frontmatter keys in SKILL.md and `references/claude-extension-taxonomy.md`, but are NOT recognized by the Claude Code runtime. This directly contradicted the skill's own "Invalid Keys" section. Removed from all locations. The `validate_skill.py` script's `VALID_FRONTMATTER_KEYS` set was updated accordingly.
+**Mermaid doctrine**: Clarified that flowcharts should use explicit direction (`flowchart TD` or `flowchart LR`) rather than a bare `flowchart` declaration.
 
-**HTML entities eradicated across all files**: Iter-2 claimed to have fixed "all" HTML entities but left 31+ instances across reference files. The most damaging were `--&gt;` inside Mermaid diagram examples in `references/visual-artifacts.md` (which breaks rendering), plus `&gt;` and `&lt;` in `references/subagent-design.md`, `references/skill-lifecycle.md`, `references/subagent-template.md`, and `references/self-contained-tools.md`. All replaced with plain `-->`, `>`, `<`.
+**Bundle artifacts**: Added `metadata.authorship` to the live package frontmatter, created `references/INDEX.md`, added Mermaid companion files under `diagrams/`, and created `affordance-scorecard.json` so the package now passes the repo-local artifact checks it teaches.
 
-**EVALUATION.md phantom reference problem solved**: `check_self_contained.py` was FAILING on iter-2 output because EVALUATION.md quoted file paths from the skill being evaluated (e.g., `scripts/analyze.py`, `references/X.md`), which the checker treated as live references. Added `META_DOCUMENT_NAMES` exclusion set to skip EVALUATION.md and CHANGELOG.md during self-containment checks, with tracking of skipped files in the report.
+## v2.3.0 (2026-03-10)
 
-### Scoring Rubric
+### Cross-Evaluation Fixes (sc-on-sa iter-3)
 
-**7th dimension added for meta-skills**: `references/scoring-rubric.md` now includes **Self-Consistency (0-10)** as a 7th scoring dimension, applicable only to meta-skills. Composite formula updated: domain skills use /6, meta-skills use /7. Added worked example showing skill-architect's own score.
+**HTML entities in reference files**: The iter-2 self-evaluation claimed to fix HTML entities "throughout SKILL.md and references," but the `validate_skill.py` script only checked SKILL.md — not other markdown files. Three reference files still contained rendering-broken entities:
 
-### SKILL.md Improvements
+- `references/skill-lifecycle.md` lines 178-182: comparison markers in
+  the Skill Health Indicators table were HTML-entity encoded.
+- `references/subagent-design.md` lines 30-31: `>80%` and `<5k tokens` in Layer 1 preload criteria prose
+- `references/self-contained-tools.md` line 107: `<500` inside a bash `echo` command in a code block
+- `references/subagent-template.md` line 238: `>95%` in the Success Criteria section
 
-**Line count reduced**: From 467 to ~407 lines (compressed description formula, tightened When to Use section, removed emoji markers).
+**Validator gap closed**: `scripts/validate_skill.py` now includes `validate_all_md_html_entities()` — scans all `.md` files recursively (excluding SKILL.md which was already covered). This prevents entity-in-reference-files from escaping future validation passes.
 
-**Self-consistency checklist item added**: "Skill passes its own validation tools (meta-consistency)" now appears in the Validation Checklist.
+**Phantom references in EVALUATION.md**: The iter-2 `EVALUATION.md` itself contained 4 phantom-triggering paths in its prose description of phantom fixes — causing `check_self_contained.py` to fail after the self-evaluation declared it passing. Fixed by adding `<!-- phantom-ok -->` annotations to the 4 lines.
 
-### Validation Script Improvements
+**Extended ILLUSTRATIVE_MARKERS**: Added 3 new suppression patterns to `scripts/check_self_contained.py` covering evaluation-document language (`backtick-formatted path`, `triggering a false phantom`, `false positive root cause`) that future cross-evaluations will generate.
 
-**`validate_skill.py`**: Removed `dependencies`, `bundled-resources`, `distribution` from `VALID_FRONTMATTER_KEYS`. Replaced emoji symbols in report output with plain text markers.
-
-**`check_self_contained.py`**: Added `META_DOCUMENT_NAMES` set to skip EVALUATION.md and CHANGELOG.md. Added `files_skipped` field to report. Updated both human-readable and JSON output to show skipped files.
-
-### Reference File Cleanup
-
-**`references/self-contained-tools.md`**: Removed duplicate closing "Goal:" sentence.
-
-**`references/claude-extension-taxonomy.md`**: Removed invented frontmatter keys (`dependencies`, `bundled-resources`, `distribution`) from the Skills section table.
+**README.md**: Fixed 5 HTML entities (`<500 lines`, `>90%`, `<5%`, `<5k`, `<5 min`). Added v2.2.0 and v2.3.0 entries to the Version History section.
 
 ---
 
@@ -60,7 +68,9 @@
 
 **SKILL.md line count**: Reduced from 504 lines to 467 by compressing the Visual Artifacts Mermaid table from 23 types to the 8 most relevant (full catalog remains in `references/visual-artifacts.md`) and removing script entries from the Reference Files table (scripts are not references).
 
-**HTML entities**: Replaced all `&lt;` with `<` and `&gt;` with `>` throughout SKILL.md and references -- entities were rendering incorrectly in some viewers.
+**HTML entities**: Replaced encoded less-than and greater-than markers
+throughout SKILL.md and references; entities were rendering incorrectly in some
+viewers.
 
 **Phantom references resolved**: `check_self_contained.py` was generating false positives on illustrative example paths in prose. Fixed via two approaches:
 1. Removed backtick-quoted paths from illustrative anti-pattern prose in `references/self-contained-tools.md`, `references/knowledge-engineering.md`, `references/subagent-design.md`, and `references/claude-extension-taxonomy.md`
@@ -74,13 +84,13 @@ Both validators now pass: `validate_skill.py` 0 errors, `check_self_contained.py
 
 ### Mermaid Diagrams
 
-**`references/skill-lifecycle.md`**: Replaced ASCII art state diagram with a proper `stateDiagram-v2` Mermaid diagram encoding the Draft -> Active -> Mature -> Deprecated -> Archived lifecycle.
+**`references/skill-lifecycle.md`**: Replaced ASCII art state diagram with a proper `stateDiagram-v2` Mermaid diagram encoding the Draft → Active → Mature → Deprecated → Archived lifecycle.
 
-**`references/skill-composition.md`**: Replaced all ASCII art dependency diagrams with proper Mermaid flowcharts -- Sequential (flowchart LR with labeled edge), Parallel (fan-out/fan-in flowchart), Hierarchical (graph TD tree), Circular anti-pattern (flowchart with red styling), and full example pipeline.
+**`references/skill-composition.md`**: Replaced all ASCII art dependency diagrams with proper Mermaid flowcharts — Sequential (flowchart LR with labeled edge), Parallel (fan-out/fan-in flowchart), Hierarchical (graph TD tree), Circular anti-pattern (flowchart with red styling), and full example pipeline.
 
 ### Scoring Rubric
 
-**`references/scoring-rubric.md`**: Added 6th scoring dimension -- **Visual Artifacts (0-10)** -- measuring whether complex processes are encoded in Mermaid diagrams rather than prose. Updated composite formula to divide by 6. Fixed HTML entities in score criteria. Updated example evaluation with Visual Artifacts score.
+**`references/scoring-rubric.md`**: Added 6th scoring dimension — **Visual Artifacts (0-10)** — measuring whether complex processes are encoded in Mermaid diagrams rather than prose. Updated composite formula to divide by 6. Fixed HTML entities in score criteria. Updated example evaluation with Visual Artifacts score.
 
 ---
 
@@ -88,11 +98,11 @@ Both validators now pass: `validate_skill.py` 0 errors, `check_self_contained.py
 
 ### Clarifications
 
-**Agent parseability** -- Clarified that Mermaid works for both agents AND humans. Agents read Mermaid as a text-based graph DSL with explicit edge semantics (`A -->|Yes| B`); they don't need rendered pictures. Added "Can Agents Actually Interpret Mermaid?" section to `references/visual-artifacts.md` explaining why formal graph notation is actually more precise for agents than equivalent prose.
+**Agent parseability** — Clarified that Mermaid works for both agents AND humans. Agents read Mermaid as a text-based graph DSL with explicit edge semantics (`A -->|Yes| B`); they don't need rendered pictures. Added "Can Agents Actually Interpret Mermaid?" section to `references/visual-artifacts.md` explaining why formal graph notation is actually more precise for agents than equivalent prose.
 
-**YAML frontmatter is optional** -- Demoted YAML frontmatter from "here's how to configure" to "this is purely for rendering customization; agents ignore it; skip it unless publishing polished docs." Updated both SKILL.md and `references/visual-artifacts.md`.
+**YAML frontmatter is optional** — Demoted YAML frontmatter from "here's how to configure" to "this is purely for rendering customization; agents ignore it; skip it unless publishing polished docs." Updated both SKILL.md and `references/visual-artifacts.md`.
 
-**Raw vs. quoted Mermaid** -- Added guidance: use raw ` ```mermaid ` blocks in SKILL.md (operative content the agent interprets). Only use outer ` ````markdown ` fences in docs *about* Mermaid (illustrative examples). Added SKILL.md's own 6-step process as a raw Mermaid flowchart -- eating our own cooking.
+**Raw vs. quoted Mermaid** — Added guidance: use raw ` ```mermaid ` blocks in SKILL.md (operative content the agent interprets). Only use outer ` ````markdown ` fences in docs *about* Mermaid (illustrative examples). Added SKILL.md's own 6-step process as a raw Mermaid flowchart — eating our own cooking.
 
 ---
 
@@ -100,18 +110,18 @@ Both validators now pass: `validate_skill.py` 0 errors, `check_self_contained.py
 
 ### Visual Artifacts
 
-**New section in SKILL.md**: "Visual Artifacts: Mermaid Diagrams & Code" -- encourages skills to render decision trees, workflows, architectures, timelines, and data models as Mermaid diagrams. Includes quick-reference table mapping content types to diagram types.
+**New section in SKILL.md**: "Visual Artifacts: Mermaid Diagrams & Code" — encourages skills to render decision trees, workflows, architectures, timelines, and data models as Mermaid diagrams. Includes quick-reference table mapping content types to diagram types.
 
-**New reference**: `references/visual-artifacts.md` -- comprehensive guide to all 16+ Mermaid diagram types with:
-- "Can Agents Interpret Mermaid?" section (yes -- it's a text DSL with explicit graph structure)
+**New reference**: `references/visual-artifacts.md` — comprehensive guide to all 16+ Mermaid diagram types with:
+- "Can Agents Interpret Mermaid?" section (yes — it's a text DSL with explicit graph structure)
 - Raw vs. quoted Mermaid guidance
-- Full YAML frontmatter configuration (optional -- for rendering only)
+- Full YAML frontmatter configuration (optional — for rendering only)
 - Concrete examples for every diagram type: flowchart, sequence, state, ER, gantt, mindmap, timeline, pie, quadrant, gitgraph, class, user journey, sankey, XY chart, block, architecture, kanban
 - Node shapes, edge styles, and features for each diagram type
 - Decision matrix: which diagram type for which skill content
 - Best practices for Mermaid in progressive-disclosure skills
 
-**Anti-pattern #10**: "Prose-Only Processes" -- if a skill describes a decision tree or workflow in paragraph form when it could be a Mermaid diagram, that's an improvement opportunity.
+**Anti-pattern #10**: "Prose-Only Processes" — if a skill describes a decision tree or workflow in paragraph form when it could be a Mermaid diagram, that's an improvement opportunity.
 
 **Updated validation checklist**: Now includes "Decision trees/workflows use Mermaid diagrams, not prose."
 
@@ -123,26 +133,26 @@ Both validators now pass: `validate_skill.py` 0 errors, `check_self_contained.py
 
 ### Major Improvements
 
-**SKILL.md rewrite** -- Reduced from 637 lines to 350 lines (was violating its own <500 line rule). Restructured for clarity and actionability.
+**SKILL.md rewrite** — Reduced from 637 lines to 350 lines (was violating its own <500 line rule). Restructured for clarity and actionability.
 
-**Description Formula** -- Expanded with concrete bad->good examples covering 7 common failure modes: too vague, overlapping, mini-manual, missing exclusions, wrong keywords, name mismatch, catch-all. Full guide moved to `references/description-guide.md`.
+**Description Formula** — Expanded with concrete bad→good examples covering 7 common failure modes: too vague, overlapping, mini-manual, missing exclusions, wrong keywords, name mismatch, catch-all. Full guide moved to `references/description-guide.md`.
 
-**Frontmatter Documentation** -- Added newly documented optional fields: `argument-hint`, `disable-model-invocation`, `user-invocable`, `context` (fork), and `metadata`. Previous version was incomplete about what's valid.
+**Frontmatter Documentation** — Added newly documented optional fields: `argument-hint`, `disable-model-invocation`, `user-invocable`, `context` (fork), and `metadata`. Previous version was incomplete about what's valid.
 
-**Subagent-Aware Skill Design** -- New section covering how to design skills that subagents consume effectively: three loading layers (preloaded, dynamic, execution-time), subagent prompt structure (identity, skill rules, task loop, constraints), and orchestrator patterns (single-specialist, chain, parallel).
+**Subagent-Aware Skill Design** — New section covering how to design skills that subagents consume effectively: three loading layers (preloaded, dynamic, execution-time), subagent prompt structure (identity, skill rules, task loop, constraints), and orchestrator patterns (single-specialist, chain, parallel).
 
-**Progressive Disclosure** -- Enhanced with specific lazy-loading rules: reference files are NOT auto-loaded, teach agents to load on-demand per-step, never instruct "read all files first."
+**Progressive Disclosure** — Enhanced with specific lazy-loading rules: reference files are NOT auto-loaded, teach agents to load on-demand per-step, never instruct "read all files first."
 
-**Anti-Pattern #9** -- Added "Eager Loading" to the anti-pattern catalog.
+**Anti-Pattern #9** — Added "Eager Loading" to the anti-pattern catalog.
 
 ### New Reference Files
 
-- `references/description-guide.md` -- Comprehensive guide to writing skill descriptions with bad->good examples, keyword strategy, length guidelines, and testing checklist
-- `references/subagent-design.md` -- Full guide to designing skills for subagent consumption, including three loading layers, subagent prompt structure, orchestrator patterns, input/output contracts, and lazy-loading best practices
+- `references/description-guide.md` — Comprehensive guide to writing skill descriptions with bad→good examples, keyword strategy, length guidelines, and testing checklist
+- `references/subagent-design.md` — Full guide to designing skills for subagent consumption, including three loading layers, subagent prompt structure, orchestrator patterns, input/output contracts, and lazy-loading best practices
 
 ### Updated Reference Files
 
-- `references/subagent-template.md` -- Added four-section prompt structure (Identity, Skill Usage Rules, Task-Handling Loop, Constraints), YAML config with skill references, and skill-aware example patterns
+- `references/subagent-template.md` — Added four-section prompt structure (Identity, Skill Usage Rules, Task-Handling Loop, Constraints), YAML config with skill references, and skill-aware example patterns
 
 ### Removed (Deduplicated)
 
@@ -152,7 +162,7 @@ Both validators now pass: `validate_skill.py` 0 errors, `check_self_contained.py
 
 ### Philosophy Update
 
-From "progressive disclosure machines" to "progressive disclosure machines with lazy-loaded references" -- emphasizing that reference files are only loaded when the agent decides they're relevant to the current step, not eagerly.
+From "progressive disclosure machines" to "progressive disclosure machines with lazy-loaded references" — emphasizing that reference files are only loaded when the agent decides they're relevant to the current step, not eagerly.
 
 ---
 
@@ -188,3 +198,19 @@ From "progressive disclosure machines" to "progressive disclosure machines with 
 
 ### Migration
 Users of skill-coach or skill-creator should switch to skill-architect for the unified experience.
+
+## 2026-04-17
+
+### Updated
+- Rewrote `SKILL.md` around current Claude Code runtime rules and the repo's metadata-first frontmatter discipline
+- Added explicit doctrine for `!` preprocessing, `context: fork`, subagent skill preloading, channels, and scheduled-task distinctions
+- Added templates and examples for scorecards and runtime-export decisions
+
+### References Added
+- `references/channels-and-scheduling.md`
+
+### References Updated
+- `references/claude-code-runtime.md`
+- `references/subagent-design.md`
+- `references/visual-artifacts.md`
+- `references/scoring-rubric.md`

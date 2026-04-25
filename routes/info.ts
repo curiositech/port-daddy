@@ -6,6 +6,8 @@
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
+import { existsSync } from 'fs';
+import { join } from 'path';
 import type { Arbiter } from '../lib/arbiter.js';
 import type { BarnacleWatcherStatus } from '../lib/barnacle-client.js';
 import type { BosunHeartbeatStatus } from '../lib/bosun-heartbeat.js';
@@ -170,6 +172,53 @@ function buildRecentHistory(deps: InfoRouteDeps) {
   };
 }
 
+/**
+ * Resolve the canonical V4 Bosun supervisor binary.
+ *
+ * Sample input and output:
+ *
+ * ```ts
+ * resolveBosunBinaryStatus('/Users/me/port-daddy-stable')
+ * // => { binaryPath: '/Users/me/port-daddy-stable/dist/core/pd-bosun', binaryExists: true }
+ * ```
+ *
+ * `dist/core/pd-bosun` is the release artifact. The source-tree release binary
+ * is only a local-development fallback for checkouts that have not built `dist/`.
+ */
+function resolveBosunBinaryStatus(rootDir: string) {
+  const distBinary = join(rootDir, 'dist', 'core', 'pd-bosun');
+  const sourceBinary = join(rootDir, 'core', 'pd-bosun', 'target', 'release', 'pd-bosun');
+  const binaryPath = existsSync(distBinary) ? distBinary : sourceBinary;
+  return {
+    binaryPath,
+    binaryExists: existsSync(binaryPath),
+  };
+}
+
+/**
+ * Explain the Bosun writer/supervisor state without leaking Barnacle wording.
+ *
+ * Sample input and output:
+ *
+ * ```ts
+ * describeBosunHeartbeat({ state: 'healthy' }, true)
+ * // => 'daemon heartbeat writer active; pd-bosun supervisor binary available'
+ * ```
+ */
+function describeBosunHeartbeat(
+  heartbeat: BosunHeartbeatStatus,
+  binaryExists: boolean,
+  legacyReason: string | null,
+): string | null {
+  if (heartbeat.state !== 'healthy') {
+    return heartbeat.lastError ?? legacyReason;
+  }
+  if (binaryExists) {
+    return 'daemon heartbeat writer active; pd-bosun supervisor binary available';
+  }
+  return 'daemon heartbeat writer active; pd-bosun supervisor not installed (optional)';
+}
+
 function buildGuardianSummary(deps: InfoRouteDeps) {
   // ADR-0021: "Bosun" is the canonical watchdog name. `barnacle` remains a
   // compatibility alias for the old HTTP sidecar, but `bosun` now describes the
@@ -188,13 +237,14 @@ function buildGuardianSummary(deps: InfoRouteDeps) {
     failureCount: 0,
   };
   const heartbeat = deps.bosunHeartbeat?.getStatus() ?? null;
+  const bosunBinary = resolveBosunBinaryStatus(deps.__dirname);
   const bosunStatus = heartbeat ? {
-    ...legacyBarnacleStatus,
+    monitoredUrl: `file://${heartbeat.heartbeatPath}`,
+    binaryPath: bosunBinary.binaryPath,
+    binaryExists: bosunBinary.binaryExists,
     enabled: heartbeat.enabled,
     state: heartbeat.state === 'healthy' ? 'idle' : heartbeat.state,
-    reason: heartbeat.state === 'healthy'
-      ? 'daemon heartbeat writer active; supervisor not installed (optional)'
-      : heartbeat.lastError ?? legacyBarnacleStatus.reason,
+    reason: describeBosunHeartbeat(heartbeat, bosunBinary.binaryExists, legacyBarnacleStatus.reason),
     lastCheckAt: heartbeat.lastWrittenAt,
     lastHealthyAt: heartbeat.state === 'healthy' ? heartbeat.lastWrittenAt : legacyBarnacleStatus.lastHealthyAt,
     lastFailureAt: heartbeat.state === 'degraded' ? Date.now() : legacyBarnacleStatus.lastFailureAt,

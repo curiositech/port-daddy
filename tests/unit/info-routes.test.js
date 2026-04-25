@@ -321,7 +321,10 @@ describe('info routes runtime summary', () => {
     expect(res.statusCode).toBe(200);
     expect(body.guardians.bosun).toEqual(expect.objectContaining({
       state: 'idle',
-      reason: 'daemon heartbeat writer active; supervisor not installed (optional)',
+      monitoredUrl: 'file:///tmp/port-daddy/heartbeat',
+      binaryPath: '/tmp/port-daddy/core/pd-bosun/target/release/pd-bosun',
+      binaryExists: false,
+      reason: 'daemon heartbeat writer active; pd-bosun supervisor not installed (optional)',
       heartbeat: expect.objectContaining({
         heartbeatPath: '/tmp/port-daddy/heartbeat',
         staleAfterMs: 30000,

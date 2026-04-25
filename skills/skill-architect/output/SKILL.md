@@ -1,380 +1,315 @@
 ---
 name: skill-architect
-description: Design, create, audit, and improve Claude Agent Skills with expert-level progressive disclosure. Use when building new skills, reviewing existing skills, debugging activation failures, encoding
-  domain expertise, designing skills for subagent consumption, or understanding platform constraints and distribution surfaces. NOT for general Claude Code features, runtime debugging, non-skill coding, or MCP
-  server implementation.
+description: Design, audit, normalize, and structurally upgrade skills using current Claude Code runtime rules plus repo-local L1/L2/L3 doctrine. Use when creating a skill, repairing activation, choosing support files, hooks, subagents, or planning bulk skill upgrades. NOT for generic coding help, MCP implementation, or one-off prompt writing.
+license: Apache-2.0
 allowed-tools: Read,Write,Edit,Bash,Grep,Glob
-argument-hint: '[skill-path-or-name] [action: create|audit|improve|debug]'
 metadata:
   category: Productivity & Meta
-  tags:
-  - architect
-  - create-skill
-  - improve-skill
-  - skill-audit
-  pairs-with:
-  - skill: skill-creator
-    reason: The architect designs skill structure; the creator guides implementation following those patterns
-  - skill: skill-grader
-    reason: Grading feedback identifies architectural weaknesses that the architect addresses
-  - skill: skill-documentarian
-    reason: Documentation standards complement architectural design for complete skill delivery
+  tags: [skill, architecture, structural-upgrade, knowledge-elicitation, l3]
+  pairs-with: [skill-creator, mermaid-graph-writer, skill-grader]
+  provenance:
+    kind: first-party
+    owners: [some-claude-skills]
+  authorship:
+    maintainers: [some-claude-skills]
 ---
 
-# Skill Architect: The Authoritative Meta-Skill
+# Skill Architect
 
-The unified authority for creating expert-level Agent Skills. Encodes the knowledge that separates a skill that *merely exists* from one that *activates precisely, teaches efficiently, and makes users productive immediately*.
+The doctrine skill for turning skill ideas into runtime-correct, validator-clean, expert-grade bundles.
 
-## Philosophy
+## NOT for
 
-**Great skills are progressive disclosure machines.** They encode real domain expertise (shibboleths), not surface instructions. They follow a three-layer architecture: lightweight metadata for discovery, lean SKILL.md for core process, and reference files for deep dives loaded only on demand.
+- Generic coding help unrelated to skills.
+- Writing one-off prompts with no intention of reuse.
+- Pretending a new MCP server, plugin, or channel is "just a skill" when it is actually a different primitive.
 
----
+## Source Hierarchy
 
-## When to Use This Skill
+Resolve disagreements in this order:
 
-- Creating new skills from scratch or from existing expertise
-- Auditing/reviewing skills for quality, activation, and progressive disclosure
-- Improving activation rates and reducing false positives
-- Encoding domain expertise (shibboleths, anti-patterns, temporal knowledge)
-- Designing skills that subagents consume effectively
-- Building self-contained tools (scripts, MCPs, subagents)
-- Debugging why skills don't activate or activate incorrectly
+1. Official Claude Code docs for runtime truth.
+2. Repo validators and migration scripts for local authoring constraints.
+3. Workgroup source-of-truth rules for shared skills, then repo-local doctrine
+   for L1/L2/L3, CTA, ShadowBox contrast, Mermaid selection, and affordance
+   discipline.
 
-**NOT for**: General Claude Code features (slash commands, MCP server implementation), non-skill coding advice or code review, debugging runtime errors (use domain-specific skills), template generation without real domain expertise to encode.
+Do not blur platform capability with repo convention. A feature can be valid in Claude Code and still be the wrong default for this library.
 
----
+If a workgroup copy exists, treat it as authoritative. Merge useful local
+deltas into that copy first, then mirror validated results into repo-local and
+user-level skill locations.
 
-## Quick Wins (Immediate Improvements)
+## Non-Negotiables
 
-For existing skills, apply in priority order:
+- Treat imported or third-party skills as read-only unless the user explicitly opts them into mutation.
+- Update `CHANGELOG.md` for every first-party skill mutation in this repo.
+- Keep both `metadata.provenance` and `metadata.authorship` present on first-party skills so dossiers and UI chrome can attribute ownership cleanly.
+- Keep `SKILL.md` lean; move depth into `references/`, `scripts/`, `templates/`, `examples/`, or `assets/`.
+- Add `agents/openai.yaml` for first-party skills that are meant to be browsed,
+  chipped, synced, or distributed beyond a one-off local draft.
+- Use the smallest affordance set that materially improves execution. Optional features are not badges.
+- When a skill will delegate work, include concrete subagent prompt assets under
+  `agents/` and explicit ownership, cost, validation, and handoff contracts.
+- In Port Daddy repos, coordinate skill mutations with sessions, notes,
+  file claims/locks, tuples when useful, and handoff evidence.
+- Do not weaken the validator to accept bad structure. Fix the skill instead.
 
-1. **Tighten description** -- Follow `[What] [When to use]. NOT for [Exclusions]` formula
-2. **Check line count** -- SKILL.md must be <500 lines; move depth to `/references`
-3. **Add NOT clause** -- Prevent false activation with explicit exclusions
-4. **Add 1-2 anti-patterns** -- Use shibboleth template (Novice/Expert/Timeline)
-5. **Remove dead files** -- Delete unreferenced files in `scripts/` and `references/` (no phantoms)
-6. **Test activation** -- Write 5 queries that should trigger and 5 that shouldn't
-
----
-
-## Progressive Disclosure Architecture
-
-Skills use three-layer loading. The runtime scans metadata at startup, loads SKILL.md on activation, and pulls reference files *only when the agent decides it needs them*.
-
-| Layer | Content | Size | Loading |
-|-------|---------|------|---------|
-| 1. Metadata | `name` + `description` in frontmatter | ~100 tokens | Always in context (catalog scan) |
-| 2. SKILL.md | Core process, decision trees, brief anti-patterns | <5k tokens | On skill activation |
-| 3. References | Deep dives, examples, templates, specs | Unlimited | On-demand, per-file, only when relevant |
-
-**Critical rules**:
-- Keep SKILL.md under 500 lines. Move depth to `/references`.
-- Reference files are NOT auto-loaded. Only SKILL.md enters context on activation.
-- In SKILL.md, list each reference file with a 1-line description of when to consult it.
-- Never instruct "read all reference files before starting." Instead: "Read only the files relevant to the current step."
-
----
-
-## Frontmatter Rules
-
-### Required Fields
-
-| Key | Purpose | Constraints |
-|-----|---------|-------------|
-| `name` | Lowercase-hyphenated identifier | Max 64 chars, a-z/0-9/hyphens only, no "anthropic" or "claude", no XML tags |
-| `description` | Activation trigger: `[What] [When to use]. NOT for [Exclusions]` | Max 1024 chars, no XML tags. See Description Formula |
-
-### Optional Fields
-
-| Key | Purpose | Example |
-|-----|---------|---------|
-| `allowed-tools` | Comma-separated tool names (least privilege) | `Read,Write,Grep` |
-| `argument-hint` | Hint shown in autocomplete for expected arguments | `"[path] [format]"` |
-| `license` | License identifier | `MIT` |
-| `disable-model-invocation` | If `true`, only user-triggered via `/skill-name` | `true` |
-| `user-invocable` | Controls whether skill appears in UI menus | `true` |
-| `context` | Execution context; `fork` runs skill in isolated subagent | `fork` |
-| `agent` | Which subagent type when `context: fork` | `code-reviewer` |
-| `model` | Override model when skill is active | `sonnet` |
-| `hooks` | Hooks scoped to this skill's lifecycle | See hooks reference |
-| `metadata` | Arbitrary key-value map for tooling/dashboards | `author: your-org` |
-
-### Custom Keys (Safe to Use)
-
-Custom keys like `category`, `tags`, `version` are **ignored by Claude Code** but safe to include for your own tooling (gallery websites, documentation generators, dashboards). Place them inside the `metadata:` block to keep them organized and avoid confusion with real runtime keys.
-
-### Invalid Keys (Confusingly Similar to Valid Ones)
-
-```yaml
-# These look like valid keys but aren't -- use the correct alternatives
-tools: Read,Write           # Use 'allowed-tools' instead
-integrates_with: [...]      # Use SKILL.md body text instead
-outputs: [...]              # Use SKILL.md Output Format section instead
-dependencies: [...]         # Use SKILL.md body text (not a real frontmatter key)
-bundled-resources: [...]    # Use SKILL.md body text (not a real frontmatter key)
-```
-
-**Common mistakes that prevent loading**: `tools:` instead of `allowed-tools:` (silently ignored), YAML list syntax `[Read, Write]` in allowed-tools (use comma-separated string), name with spaces/uppercase (use lowercase-hyphenated), name not matching directory name (causes activation mismatch). Run `python scripts/validate_skill.py <path>` to catch all of these.
-
-**Platform constraints** (name: 64 chars, description: 1024 chars, upload: 8MB, 8 skills/request max, no XML tags): See `references/claude-extension-taxonomy.md` for full details. Skills do NOT sync across Claude.ai, Claude API, and Claude Code -- maintain Git as single source of truth.
-
----
-
-## Description Formula
-
-**Pattern**: `[What it does] [When to use -- be slightly pushy]. NOT for [Exclusions].`
-
-The description is the most important line for activation. Claude's runtime scans descriptions to decide which skill to load. Claude evaluates descriptions **semantically**, not via keyword matching. It reasons about whether your description covers the user's intent. Claude also tends to **undertrigger** -- make descriptions slightly pushy to combat this.
-
-| Problem | Bad | Good |
-|---------|-----|------|
-| Too vague | "Helps with images" | "CLIP semantic search for image-text matching and zero-shot classification. NOT for counting, spatial reasoning, or generation." |
-| No exclusions | "Reviews code changes" | "Reviews TypeScript/React diffs and PRs for correctness. NOT for writing new features." |
-| Catch-all | "Helps with product management" | "Writes and refines product requirement documents (PRDs). NOT for strategy decks." |
-
-**Full guide with more examples**: See `references/description-guide.md`
-
----
-
-## SKILL.md Template
-
-```markdown
----
-name: your-skill-name
-description: [What it does] [When to use -- be slightly pushy]. NOT for [Exclusions].
-allowed-tools: Read,Write
----
-
-# Skill Name
-[One sentence purpose]
-
-## When to Use
-Use for: [A, B, C with specific trigger keywords]
-NOT for: [D, E, F -- explicit boundaries]
-
-## Core Process
-[Mermaid diagrams for decisions/flows. See visual-artifacts.md for catalog]
-
-## Anti-Patterns
-### [Pattern Name]
-**Novice**: [Wrong assumption]
-**Expert**: [Why it's wrong + correct approach]
-**Timeline**: [When this changed, if temporal]
-
-## References
-- `references/guide.md` -- Consult when [specific situation]
-- `references/examples.md` -- Consult for [worked examples of X]
-```
-
----
-
-## The 6-Step Skill Creation Process
+## Primary Decision Tree
 
 ```mermaid
-flowchart LR
-  S1[1. Gather Examples] --> S2[2. Plan Contents]
-  S2 --> S3[3. Initialize]
-  S3 --> S4[4. Write Skill]
-  S4 --> S5[5. Validate]
-  S5 --> S6{Errors?}
-  S6 -->|Yes| S4
-  S6 -->|No| S7[6. Ship & Iterate]
+flowchart TD
+  A[Skill work request] --> B{Imported or first-party?}
+  B -->|Imported| C[Audit only unless user opts in]
+  B -->|First-party| D{Primary goal}
+  D -->|Create| E[Capture trigger set and output contract]
+  D -->|Repair| F[Localize failure: frontmatter, runtime surface, or support files]
+  D -->|Structural upgrade| G[Add L3 scaffolding and affordances only where useful]
+  D -->|Bulk pass| H[Choose safe automations and emit scorecards]
+  E --> I{Need deterministic support files?}
+  F --> I
+  G --> I
+  H --> I
+  I -->|No| J[Keep skill text-first]
+  I -->|Yes| K{Affordance family}
+  K -->|Pre-context| L[Inline ! prelude or preflight script]
+  K -->|Execution| M[In-process or context fork]
+  K -->|Structure| N[Templates, examples, references, schemas]
+  K -->|Review surface| O[Mermaid, JSON, HTML, browser-open artifact]
+  K -->|Lifecycle| P[Hook, channel, or scheduled-task note]
+  K -->|Interface| U[agents/openai.yaml and subagent prompts]
+  K -->|Coordination| V[Port Daddy sessions, claims, notes, tuples]
+  J --> Q[Validate and forward-test]
+  L --> Q
+  M --> Q
+  N --> Q
+  O --> Q
+  P --> Q
+  U --> Q
+  V --> Q
 ```
 
-### Step 1: Gather Concrete Examples
+## Runtime Truths You Must Encode Correctly
 
-Collect 3-5 real queries that should trigger this skill, and 3-5 that should NOT.
+### Official skill surface
 
-### Step 2: Plan Reusable Contents
+- Skill `name` may use lowercase letters, numbers, and hyphens only, up to 64 characters. Numbers are allowed.
+- `description` and `when_to_use` are combined and truncated in the skill listing at 1,536 characters.
+- `allowed-tools` pre-approves tools while the skill is active; it does not restrict the full tool set.
+- `disable-model-invocation: true` makes the skill user-invoked only.
+- `user-invocable: false` hides the skill from the `/` menu while still allowing model invocation.
+- `paths` limits automatic loading to matching files.
+- `shell` controls `!` preprocessing shell choice and only matters when the runtime actually uses native shell preprocessing.
 
-Identify scripts, references, assets that prevent re-work. Also identify shibboleths: domain algorithms, temporal knowledge, framework evolution, common pitfalls.
+### String substitution and preprocessing
 
-### Step 3: Initialize
+- Supported substitutions include `$ARGUMENTS`, indexed `$ARGUMENTS[N]`, `$0`, `$1`, `${CLAUDE_SESSION_ID}`, and `${CLAUDE_SKILL_DIR}`.
+- Inline `!command` and fenced ````!` blocks are preprocessing. They execute before Claude sees the rendered skill content.
+- `${CLAUDE_SKILL_DIR}` is the canonical way to reference bundled scripts or files from preprocessing commands.
+- Use `!` only when runtime state genuinely matters. Do not add shell preludes decoratively.
 
-```bash
-scripts/init_skill.py <skill-name> --path <output-directory>
-```
+### Skill lifecycle
 
-### Step 4: Write the Skill
+- Skill descriptions stay available for discovery.
+- Invoked skill bodies persist in-session after invocation.
+- On compaction, Claude reattaches the most recent invocation of each skill, keeping up to the first 5,000 tokens per skill with a combined 25,000-token budget.
+- This means overloaded `SKILL.md` files silently lose the tail during long sessions. Keep core logic early and keep the file lean.
 
-Order: **Scripts first** (working code) -> **References next** (domain knowledge) -> **SKILL.md last** (core process, reference index).
+### Subagents and forks
 
-Write in imperative form: "To accomplish X, do Y" not "You should do X."
+- `context: fork` runs the skill as a task prompt inside a subagent context.
+- The forked subagent does not inherit the parent conversation history.
+- The `agent` field selects which subagent configuration executes the task.
+- Subagents with a `skills` field preload full skill content at startup; they do not inherit skills from the parent conversation.
+- Plugin subagents ignore `hooks`, `mcpServers`, and `permissionMode`.
 
-### Step 5: Validate
+### Hooks, channels, scheduled tasks
 
-```bash
-python scripts/validate_skill.py <path>
-python scripts/check_self_contained.py <path>
-```
+- Hooks are valid runtime features for skills and agents, but in this repo they should usually be recorded under `metadata.runtime` unless a distribution copy truly needs native top-level `hooks`.
+- Channels are research-preview MCP push integrations into a running local session. They are not a skill frontmatter field.
+- Scheduled tasks are adjacent automation surfaces, not skill frontmatter. Distinguish local/Desktop, cloud/web, and `/loop`.
 
-Fix ERRORS then WARNINGS then SUGGESTIONS.
+## Canonical Frontmatter for This Repo
 
-### Step 6: Iterate
+Keep top-level frontmatter minimal in `some_claude_skills`:
 
-After real-world use: notice struggles, improve SKILL.md and resources, update CHANGELOG.md.
+- `name`
+- `description`
+- `license`
+- `allowed-tools`
+- `metadata`
 
----
+Everything custom belongs under `metadata`, especially:
 
-## Designing Skills for Subagent Consumption
+- `category`
+- `tags`
+- `pairs-with`
+- `badge`
+- `provenance`
+- `authorship`
+- deprecation or privacy flags
+- runtime intent such as hooks, channels, scheduled-task notes, model/fork preference, or review-surface choice
 
-### Three Skill-Loading Layers
+For first-party skills, default `metadata.authorship.maintainers` to the owning library or team, and capture `metadata.authorship.authors` only when the original author signal is known. Only surface native top-level runtime keys in a distribution copy when the runtime behavior depends on them. Record the intent in `metadata.runtime` first so the repo copy stays clean.
 
-1. **Preloaded** (2-5 core skills): Injected into the subagent's system context.
-2. **Dynamically selected**: Subagent receives a catalog (name + 1-line description) and picks 1-3 matching skills.
-3. **Execution-time**: Subagent reads each skill's "When to use" section, follows numbered steps, respects output contracts, runs QA checks.
+## L1, L2, L3: The Upgrade Standard
 
-### Subagent Prompt Structure
+- **L1**: objects, inputs, states, constraints, failure boundaries, environment.
+- **L2**: conceptual distinctions, mechanisms, categories, vocabulary, discriminations.
+- **L3**: cues, thresholds, tradeoff logic, expert recovery moves, sequencing, contrastive judgment, mental simulation.
 
-Four sections: **Identity** (narrow role), **Skill usage rules** (skills as standard operating procedures), **Task loop** (restate, select skills, plan, execute, validate, return), **Constraints** (quality bar, safety, tie-breaking).
+Weak skills stop at L1 or L2. Real structural-upgrade work adds L3 without drowning the skill in textbook prose.
 
-**Full templates and orchestration patterns**: See `references/subagent-design.md`
+When extracting expertise:
 
----
+- Use concrete cases and near misses.
+- Ask what a novice would overlook.
+- Ask what cue changed the expert's mind.
+- Capture minority expert rationale when experts disagree.
+- Prefer contrastive examples over generic "best practices" prose.
+- Shibboleth: if a proposed affordance sounds impressive but does not change runtime behavior, review quality, or determinism, it probably does not belong.
 
-## Visual Artifacts: Mermaid Diagrams
+## Structural Upgrade Target Shape
 
-**For humans**, diagrams render as visual flowcharts, state machines, and timelines. **For agents**, Mermaid is a text-based graph DSL -- `A -->|Yes| B` is an explicit, unambiguous edge. Both audiences benefit.
+First-party skills should usually converge toward:
 
-**Rule**: If a skill describes a process, decision tree, architecture, state machine, or data relationship, include a Mermaid diagram.
+- Decision points
+- Failure modes
+- Worked examples
+- Quality gates
+- Explicit NOT-for boundaries
+- Mermaid only when it clarifies structure better than prose
+- Support files only when they improve determinism, reuse, or evaluation
+- `agents/openai.yaml` when the skill should appear cleanly in UI skill lists,
+  chips, or user-level catalogs
+- Subagent prompt assets when delegation is a normal path, not an edge case
+- Schemas when plans, reports, scorecards, or contracts must be machine-checked
+- Visual decision boards or HTML reports when human review changes execution
+- Eval fixtures when scripts, validators, or activation boundaries need proof
 
-| Skill Content | Diagram Type | Syntax |
-|---------------|-------------|--------|
-| Decision trees / troubleshooting | Flowchart | `flowchart TD` |
-| API/agent communication protocols | Sequence | `sequenceDiagram` |
-| Lifecycle / status transitions | State | `stateDiagram-v2` |
-| Temporal knowledge / evolution | Timeline | `timeline` |
-| Data models / schemas | ER | `erDiagram` |
-| Domain taxonomy / concept maps | Mindmap | `mindmap` |
-| Priority matrices (2-axis) | Quadrant | `quadrantChart` |
-| Infrastructure / cloud topology | Architecture | `architecture-beta` |
+The point is not ceremony. The point is reusable judgment.
 
-**Full catalog (all 23 types) with syntax, examples, and YAML config**: See `references/visual-artifacts.md`
+## Affordance Selection
 
----
+Choose explicitly across these families:
 
-## Encoding Shibboleths
+| Family | Options | Use when |
+|---|---|---|
+| `preContext` | none, inline `!`, preflight script | runtime state must be sampled before reasoning |
+| `executionMode` | in-process, `context: fork`, parallel agents | isolation or independent reasoning materially helps |
+| `structure` | none, references, templates, examples | shape or knowledge would otherwise bloat `SKILL.md` |
+| `reviewSurface` | none, markdown, JSON, Mermaid, HTML, browser-open | a specific artifact improves inspection or handoff |
+| `automation` | none, script, hook | a deterministic action is better than prose |
+| `runtimeAdjacency` | none, channel note, scheduled-task note | the skill participates in a broader automation surface |
+| `interface` | none, `agents/openai.yaml`, icons/assets | the skill is browsed, selected, or synced as a product surface |
+| `coordination` | none, Port Daddy notes/claims/tuples/channels | multiple agents, sessions, or mirrors must stay coherent |
 
-Expert knowledge that separates novices from experts. Things LLMs get wrong due to outdated training data or cargo-culted patterns.
+Guidelines:
 
-### Shibboleth Template
+- Default to in-process.
+- Default to no browser-open artifact unless a human really benefits.
+- Use templates when output regularity matters.
+- Use examples when trigger boundaries or output shape are subtle.
+- Use references when depth is real and not always needed.
+- Use Port Daddy primitives when a skill is edited inside a Port Daddy worktree
+  or synced across workgroup, repo, and user-level locations.
+- Concrete Port Daddy primitives include `pd status`, `pd briefing`,
+  `pd salvage`, `pd session start`, `pd note`, file claims/locks, and tuples.
 
-```markdown
-### Anti-Pattern: [Name]
-**Novice**: "[Wrong assumption]"
-**Expert**: [Why it's wrong, with evidence]
-**Timeline**: [Date]: [Old way] -> [Date]: [New way]
-**LLM mistake**: [Why LLMs suggest the old pattern]
-**Detection**: [How to spot this in code/config]
-```
+## Visual Artifacts and Mermaid
 
-**Full catalog with case studies**: See `references/antipatterns.md`
+Mermaid is not just flowcharts. Choose the type by information shape:
 
----
+- `sequenceDiagram` for protocols and turn-taking
+- `stateDiagram-v2` for lifecycle and status transitions
+- `flowchart` for branching decisions
+- `erDiagram` or `classDiagram` for structured relationships
+- `journey`, `timeline`, `gantt`, `mindmap`, `gitGraph`, `pie`, `quadrantChart`, `xychart-beta`, `sankey-beta`, or `architecture-beta` when those shapes fit better
 
-## Self-Contained Tools and the Extension Taxonomy
+Rules:
 
-Skills are one of seven Claude extension types. Most skills should include scripts. MCPs are only for auth/state boundaries. Plugins are for sharing skills across teams/community.
+- Validate Mermaid after writing it.
+- Prefer stable Mermaid types first.
+- Render or open previews only when visual inspection changes the quality of the review.
+- For many skills, raw Mermaid in `SKILL.md` is enough.
 
-| Need | Extension Type | Key Requirement |
-|------|---------------|-----------------|
-| Domain expertise / process | **Skill** (SKILL.md) | Decision trees, anti-patterns, output contracts |
-| Packaging & distribution | **Plugin** (plugin.json) | Bundles skills + hooks + MCP + agents |
-| External API + auth | **MCP Server** | Working server + setup README |
-| Repeatable local operation | **Script** | Actually runs (not a template), minimal deps |
-| Multi-step orchestration | **Subagent** | 4-section prompt, skills, workflow |
-| User-triggered action | **Slash Command** | Skill with `user-invocable: true` |
-| Lifecycle automation | **Hook** | 17+ events: PreToolUse, PostToolUse, Stop, etc. |
-| Programmatic access | **Agent SDK** | npm/pip package, CI/CD pipelines |
+## Bulk Upgrade Playbook
 
-**Full taxonomy with examples and common mistakes**: See `references/claude-extension-taxonomy.md`
-**Detailed tool patterns**: See `references/self-contained-tools.md`
-**Plugin creation and distribution**: See `references/plugin-architecture.md`
+When upgrading many skills:
 
----
+1. Recover first from the best existing source: structural proposal, worktree bundle, then CTA overlay.
+2. Skip imported, deprecated, wrapper, or explicitly protected skills.
+3. Normalize frontmatter before adding new structure.
+4. Run safe structural passes before creative writing passes.
+5. Add support files only with heuristics that are low-risk at scale:
+   - reference indexes
+   - scorecards
+   - `agents/openai.yaml` for first-party discoverability
+   - subagent prompt assets for delegated workflows
+   - schemas for machine-checked contracts
+   - visual decision board templates for user-approved work
+   - deterministic audit scripts and small eval fixtures
+   - explicit templates/examples for meta-skills and strongly structured skills
+6. In Port Daddy repos, record the migration in a session note, claim the skill
+   paths, and emit a tuple or handoff when another mirror must be updated.
+7. Validate every changed skill and revert on failure.
+8. Emit machine-readable scorecards so progress is inspectable.
 
-## Tool Permissions (Least Privilege)
+## Quality Gates
 
-| Access Level | `allowed-tools` |
-|-------------|-----------------|
-| Read-only | `Read,Grep,Glob` |
-| File modifier | `Read,Write,Edit` |
-| Build integration | `Read,Write,Bash(npm:*,git:*)` |
-| Never for untrusted | Unrestricted `Bash` |
+- Runtime claims match current Claude docs.
+- Repo copies use canonical top-level frontmatter only.
+- Imported bundles were not mutated without permission.
+- First-party skills carry both `metadata.provenance` and `metadata.authorship`.
+- Description is specific and has a strong NOT-for clause.
+- `SKILL.md` stays under 500 lines or pushes depth into support files.
+- References are indexed and loaded conditionally, not by "read everything first".
+- L1, L2, and L3 are present where the task warrants them.
+- Mermaid type matches the information shape and validates.
+- Scripts, templates, examples, hooks, channels, scheduled-task notes, and browser-open artifacts are justified, not ornamental.
+- `agents/openai.yaml` is present for first-party distributed skills and matches
+  the current skill purpose.
+- Subagent assets have narrow scopes, explicit input/output contracts, no-revert
+  rules, and validation gates.
+- Machine-readable contracts have schemas or deterministic validators when drift
+  would be costly.
+- Workgroup, repo-local, and user-level skill copies are synced or explicitly
+  documented as intentionally divergent.
+- `CHANGELOG.md` reflects the change.
+- The skill was forward-tested with positive and negative trigger cases.
 
----
+## Runtime Resources
 
-## Anti-Pattern Summary
+Load only what the decision in front of you needs:
 
-| # | Anti-Pattern | Fix |
-|---|-------------|-----|
-| 1 | Documentation Dump | Decision trees in SKILL.md, depth in `/references` |
-| 2 | Missing NOT clause | Always include "NOT for X, Y, Z" in description |
-| 3 | Phantom Tools | Only reference files that exist and work |
-| 4 | Template Soup | Ship working code or nothing |
-| 5 | Overly Permissive Tools | Least privilege: specific tool list, scoped Bash |
-| 6 | Stale Temporal Knowledge | Date all advice, update quarterly |
-| 7 | Catch-All Skill | Split by expertise type, not domain |
-| 8 | Vague Description | Use `[What] [When to use]. NOT for [Exclusions]` |
-| 9 | Eager Loading | Never "read all files first"; lazy-load references |
-| 10 | Prose-Only Processes | Use Mermaid diagrams for decisions, workflows, architectures |
-
-**Full case studies**: See `references/antipatterns.md`
-
----
-
-## Validation Checklist
-
-```
-[ ] SKILL.md exists and is <500 lines
-[ ] Frontmatter has name + description (minimum required)
-[ ] Description follows [What][When to use] NOT [Exclusions] formula
-[ ] Description is specific and context-rich (semantic activation, not keyword lists)
-[ ] Name and description are aligned (not contradictory)
-[ ] At least 1 anti-pattern with shibboleth template
-[ ] All referenced files actually exist (no phantoms)
-[ ] Scripts work (not templates), have clear CLI, handle errors
-[ ] Reference files each have a 1-line purpose in SKILL.md
-[ ] Processes/decisions/lifecycles use Mermaid diagrams, not prose
-[ ] CHANGELOG.md tracks version history
-[ ] If subagent-consumed: output contracts are defined
-[ ] Skill passes its own validation tools (meta-consistency)
-```
-
-Run automated checks: `python scripts/validate_skill.py <path>` and `python scripts/validate_mermaid.py <path>`
-
----
-
-## Success Metrics
-
-| Metric | Target |
-|--------|--------|
-| Correct activation | >90% |
-| False positive rate | <5% |
-| Token usage | <5k tokens |
-| Time to productive | <5 min |
-
----
-
-## Reference Files
-
-Consult these for deep dives -- they are NOT loaded by default:
-
-| File | Consult When |
-|------|-------------|
-| `references/knowledge-engineering.md` | KE methods for extracting expert knowledge into skills |
-| `references/description-guide.md` | Writing or rewriting a skill description |
-| `references/antipatterns.md` | Looking for shibboleths, case studies, or temporal patterns |
-| `references/self-contained-tools.md` | Adding scripts, MCP servers, or subagents to a skill |
-| `references/subagent-design.md` | Designing skills for subagent consumption or orchestration |
-| `references/claude-extension-taxonomy.md` | Skills vs Plugins vs MCPs vs Hooks vs Agent SDK |
-| `references/plugin-architecture.md` | Creating, packaging, and distributing plugins |
-| `references/visual-artifacts.md` | Adding Mermaid diagrams: all 23 types, YAML config |
-| `references/mcp-template.md` | Building an MCP server for a skill |
-| `references/subagent-template.md` | Defining subagent prompts and multi-agent pipelines |
-| `references/scoring-rubric.md` | Quantitative skill evaluation (0-10 scoring criteria) |
-| `references/skill-composition.md` | Cross-skill dependencies and composition patterns |
-| `references/skill-lifecycle.md` | Maintenance, versioning, and deprecation guidance |
-| `references/activation-debugging.md` | Diagnosing why skills don't activate or false-positive |
-| `agents/cross-evaluator.md` | Template for cross-evaluating skills |
+- `references/claude-code-runtime.md`: official runtime surface, frontmatter, string substitution, preprocessing, lifecycle, and docs URLs.
+- `references/channels-and-scheduling.md`: how channels, local tasks, remote tasks, and `/loop` relate to skills.
+- `references/subagent-design.md`: fork semantics, subagent preload rules, isolation, and permission considerations.
+- `references/expertise-elicitation.md`: ACTA, CDM, ShadowBox, and L3 extraction methods.
+- `references/description-guide.md`: activation and trigger writing.
+- `references/activation-debugging.md`: undertrigger, overtrigger, and collision diagnosis.
+- `references/self-contained-tools.md`: scripts, templates, examples, assets, and tool bundling decisions.
+- `references/visual-artifacts.md`: Mermaid type selection, validation, and browser-open guidance.
+- `references/scoring-rubric.md`: scorecard dimensions for structural-upgrade triage.
+- `references/advanced-structure-and-sync.md`: agents/openai.yaml, subagent
+  assets, schemas, visual review surfaces, eval fixtures, and Port Daddy-grounded
+  workgroup/repo/user-level sync rules.
+- `templates/skill-scorecard.json`: machine-readable per-skill scorecard skeleton.
+- `templates/runtime-export-frontmatter.yaml`: projecting repo intent into a Claude-runtime export copy.
+- `templates/visual-decision-board.md`: human review board for choices that must
+  be approved before execution.
+- `templates/skill-sync-plan.md`: workgroup/repo/user-level sync plan shape.
+- `schemas/skill-sync-plan.schema.json`: machine-checkable sync plan contract.
+- `examples/structural-upgrade-example.md`: concrete first-party upgrade pattern.
+- `examples/runtime-export-example.md`: when to keep data in `metadata.runtime` versus surfacing native keys.
+- `agents/openai.yaml`: UI metadata example for a first-party distributed skill.
+- `agents/cross-evaluator.md`: independent evaluator prompt for cross-checking
+  structural upgrades.
+- `agents/affordance-planner.md`: subagent prompt for choosing support assets.
+- `agents/sync-coordinator.md`: subagent prompt for workgroup/repo/user-level sync.
+- `scripts/validate_skill.py`: canonical repo validator.
+- `scripts/check_self_contained.py`: detect phantom references and orphaned support files.
+- `scripts/validate_mermaid.py`: validate Mermaid structure.
+- `scripts/audit_skill_operating_system.py`: heuristic audit for advanced
+  affordances such as UI metadata, subagent assets, and phantom support files.
+- `scripts/init_skill.py`: scaffold a repo-conformant skill directory.

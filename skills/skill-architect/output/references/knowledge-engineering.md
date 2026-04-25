@@ -24,17 +24,17 @@ Traditional KE built expert systems with formal rules. We build skills with natu
 3. Listen for: decision points, rejection of alternatives, pattern-matching, "obvious" shortcuts that aren't obvious to novices
 4. Extract: decision trees, anti-patterns, temporal knowledge, shibboleths
 
-**What you're extracting**: The expert's **procedural knowledge** -- the steps they follow and why. This maps directly to a skill's "Core Process" section.
+**What you're extracting**: The expert's **procedural knowledge** — the steps they follow and why. This maps directly to a skill's "Core Process" section.
 
 **The gold**: The moments where the expert says "well, obviously you wouldn't..." or "the trick here is..." or "most people get this wrong because...". These are shibboleths. They go in the anti-patterns section.
 
 **Real-world example (University of Southampton)**: A geologist analyzing a hand specimen narrated: "it's obviously a fairly coarse-grained rock... and you've got some nice big orthoclase crystals... quartz, which is this fairly clear mineral." From this, production rules were extracted: `IF grain size is large THEN rock is plutonic`. The verbalization exposed classification logic that the expert used automatically but had never articulated.
 
-**Practical note**: Train the expert to think aloud first using a simple warm-up task (like long multiplication). Uninhibited verbalization is a learned skill. Keep sessions short -- they are mentally exhausting, especially for automatized knowledge the expert has never had to explain.
+**Practical note**: Train the expert to think aloud first using a simple warm-up task (like long multiplication). Uninhibited verbalization is a learned skill. Keep sessions short — they are mentally exhausting, especially for automatized knowledge the expert has never had to explain.
 
 ### Repertory Grid Technique
 
-**What**: Elicit the expert's personal construct system -- the dimensions along which they evaluate things in their domain.
+**What**: Elicit the expert's personal construct system — the dimensions along which they evaluate things in their domain.
 
 **How to apply**:
 1. Present the expert with 3 examples of [domain objects] (e.g., 3 code PRs, 3 building designs, 3 patient cases)
@@ -43,11 +43,11 @@ Traditional KE built expert systems with formal rules. We build skills with natu
 4. Repeat with different triads until constructs stabilize
 5. Rate all examples on all constructs
 
-**What you're extracting**: The expert's **evaluative framework** -- the axes along which they judge quality. These map to the skill's evaluation criteria and to the skill-grader's axes for this domain.
+**What you're extracting**: The expert's **evaluative framework** — the axes along which they judge quality. These map to the skill's evaluation criteria and to the skill-grader's axes for this domain.
 
-**Real-world example (Boeing, 1983-1989)**: Boeing's Expertise Transfer System (ETS) and its successor Aquinas used repertory grids to build 100+ expert system prototypes. In a typical 30-minute session, an associate sat with a domain expert (e.g., a DBMS advisor). The expert listed solutions (database systems), ETS presented triads and elicited discriminating traits, and within an hour a working prototype with production rules was generated. Experts found the process *engaging* rather than threatening -- the analysis tools surfaced implications in their own knowledge they hadn't consciously recognized.
+**Real-world example (Boeing, 1983-1989)**: Boeing's Expertise Transfer System (ETS) and its successor Aquinas used repertory grids to build 100+ expert system prototypes. In a typical 30-minute session, an associate sat with a domain expert (e.g., a DBMS advisor). The expert listed solutions (database systems), ETS presented triads and elicited discriminating traits, and within an hour a working prototype with production rules was generated. Experts found the process *engaging* rather than threatening — the analysis tools surfaced implications in their own knowledge they hadn't consciously recognized.
 
-**Practical note**: Grids become unwieldy beyond ~15-20 elements. Boeing found a 38x35 grid "hard for the expert to use and manage." The solution: hierarchical decomposition -- break a large domain into sub-grids at different abstraction levels.
+**Practical note**: Grids become unwieldy beyond ~15-20 elements. Boeing found a 38×35 grid "hard for the expert to use and manage." The solution: hierarchical decomposition — break a large domain into sub-grids at different abstraction levels.
 
 ### Card Sorting
 
@@ -60,7 +60,7 @@ Traditional KE built expert systems with formal rules. We build skills with natu
 4. Ask why certain items are together and others aren't
 5. Repeat with different experts; compare group structures
 
-**What you're extracting**: The expert's **ontology** -- how they categorize their domain. This maps to domain meta-skills (decomposition patterns) and skill catalog organization.
+**What you're extracting**: The expert's **ontology** — how they categorize their domain. This maps to domain meta-skills (decomposition patterns) and skill catalog organization.
 
 ### Critical Incident Technique
 
@@ -71,11 +71,11 @@ Traditional KE built expert systems with formal rules. We build skills with natu
 2. "Tell me about a time when you caught a problem that someone else missed. How did you spot it?"
 3. Extract: failure modes, recovery strategies, early warning signs
 
-**What you're extracting**: The expert's **failure knowledge** -- what goes wrong and how to prevent it. These map directly to anti-patterns and shibboleths. This is often the most valuable knowledge because it's the hardest to acquire any other way.
+**What you're extracting**: The expert's **failure knowledge** — what goes wrong and how to prevent it. These map directly to anti-patterns and shibboleths. This is often the most valuable knowledge because it's the hardest to acquire any other way.
 
-**Real-world example (Healthcare, Ireland 2020)**: Researchers used CIT to study interdisciplinary team interventions. Seventeen informants described critical incidents, producing seven Context-Mechanism-Outcome Configurations. Two findings emerged ONLY through CIT: prior personal relationships as a contextual enabler and inter-professional tensions as a barrier -- neither identified in the literature review.
+**Real-world example (Healthcare, Ireland 2020)**: Researchers used CIT to study interdisciplinary team interventions. Seventeen informants described critical incidents, producing seven Context-Mechanism-Outcome Configurations. Two findings emerged ONLY through CIT: prior personal relationships as a contextual enabler and inter-professional tensions as a barrier — neither identified in the literature review.
 
-**Real-world example (Flanagan's WWII pilot studies)**: The original CIT application asked trainees and observers to recount incidents of success and failure. Common threads in aptitude, proficiency, and temperament were extracted and used to formulate selection tests for pilots. Incidents "need not be spectacular" -- significance, not drama, defines criticality.
+**Real-world example (Flanagan's WWII pilot studies)**: The original CIT application asked trainees and observers to recount incidents of success and failure. Common threads in aptitude, proficiency, and temperament were extracted and used to formulate selection tests for pilots. Incidents "need not be spectacular" — significance, not drama, defines criticality.
 
 ### Concept Mapping
 
@@ -86,7 +86,7 @@ Traditional KE built expert systems with formal rules. We build skills with natu
 2. Ask: "Map out the key concepts in [domain] and how they connect"
 3. Listen for: hierarchies, causal relationships, conditional dependencies, temporal sequences
 
-**What you're extracting**: The expert's **conceptual structure** -- how ideas relate. This maps to the Mermaid diagrams in skills and to domain meta-skill phase patterns.
+**What you're extracting**: The expert's **conceptual structure** — how ideas relate. This maps to the Mermaid diagrams in skills and to domain meta-skill phase patterns.
 
 ---
 
@@ -106,18 +106,18 @@ Research on expertise (Dreyfus, Ericsson, Klein) identifies how expert thinking 
 | **Metacognition** | Doesn't know what they don't know | Knows precisely what they're uncertain about |
 
 Skills should encode ALL of these dimensions:
-- **Deep structure** -> decision trees based on underlying causes, not surface symptoms
-- **Pattern matching** -> "If you see X, that's almost always Y" shibboleths
-- **Anomaly detection** -> "If this looks unusual, check for Z"
-- **Forward reasoning** -> hypothesis-first diagnostic processes
-- **Chunking** -> domain-specific vocabulary and abbreviations
-- **Metacognition** -> "You should be uncertain about this if..." qualifiers
+- **Deep structure** → decision trees based on underlying causes, not surface symptoms
+- **Pattern matching** → "If you see X, that's almost always Y" shibboleths
+- **Anomaly detection** → "If this looks unusual, check for Z"
+- **Forward reasoning** → hypothesis-first diagnostic processes
+- **Chunking** → domain-specific vocabulary and abbreviations
+- **Metacognition** → "You should be uncertain about this if..." qualifiers
 
 ### The Aha! Moment Problem
 
 The most valuable knowledge is often the hardest to extract: the moment when a practitioner's mental model clicked. The music student who suddenly hears harmonic structure instead of individual notes. The programmer who suddenly sees the dependency graph instead of individual files. The mathematician who suddenly recognizes a problem as homologous to one they've solved before.
 
-These moments represent **conceptual phase transitions** -- qualitative reorganizations of the mental model that can't be reached by accumulating individual facts. They're Kuhnian revolutions at the individual level.
+These moments represent **conceptual phase transitions** — qualitative reorganizations of the mental model that can't be reached by accumulating individual facts. They're Kuhnian revolutions at the individual level.
 
 **How to extract them**:
 1. Ask: "When did [domain] stop feeling confusing and start making sense? What changed?"
@@ -135,10 +135,10 @@ Experts are distinguished not by what they know but by **how they manage what th
 - **Axiomatic certainties**: "I know X is true and can reason from it"
 
 This maps to skill architecture:
-- **Known unknowns** -> Point to a specific reference file (e.g., "Consult the deployment reference when you need runbook procedures") -- make the gap explicit and addressable
-- **Unknown unknowns** -> "If the situation doesn't match any known pattern, escalate to research/human"
-- **Not worth knowing** -> "NOT for X" in the description (explicit scope boundaries)
-- **Axiomatic certainties** -> Decision trees built on stable truths
+- **Known unknowns** → Point to a specific reference file (e.g., "Consult the deployment reference when you need runbook procedures") — make the gap explicit and addressable
+- **Unknown unknowns** → "If the situation doesn't match any known pattern, escalate to research/human"
+- **Not worth knowing** → "NOT for X" in the description (explicit scope boundaries)
+- **Axiomatic certainties** → Decision trees built on stable truths
 
 ---
 
@@ -174,7 +174,7 @@ This extracts the same knowledge that a real interview would, at machine speed.
 
 ### Technique: Cross-Source Triangulation
 
-Extract knowledge from multiple sources about the same domain. Where they agree, that's reliable. Where they disagree, that's interesting -- it may indicate:
+Extract knowledge from multiple sources about the same domain. Where they agree, that's reliable. Where they disagree, that's interesting — it may indicate:
 - A paradigm shift in progress (Kuhnian revolution)
 - Domain-specific school-of-thought divisions
 - Temporal drift (older source vs. newer source)
@@ -217,9 +217,9 @@ For the corpus distillation pipeline (`very-long-text-summarization`), these boo
 | Book | Author | What It Yields |
 |------|--------|---------------|
 | **Sources of Power** | Gary Klein | Recognition-Primed Decision model: experts pattern-match, simulate one option, act. Firefighters, nurses, pilots, military. |
-| **The Reflective Practitioner** | Donald Schon | "Reflection-in-action" across 5 professions (engineering, architecture, management, therapy, planning). Professionals know more than they can say. |
+| **The Reflective Practitioner** | Donald Schön | "Reflection-in-action" across 5 professions (engineering, architecture, management, therapy, planning). Professionals know more than they can say. |
 | **Thinking in Systems** | Donella Meadows | Feedback loops, stocks and flows, leverage points. The meta-mental-model for any complex system. |
-| **Seeing Like a State** | James C. Scott | Metis (practical, local, embodied knowledge) vs. legibility (top-down simplification). Why abstract models destroy the knowledge that makes systems work. |
+| **Seeing Like a State** | James C. Scott | Mētis (practical, local, embodied knowledge) vs. legibility (top-down simplification). Why abstract models destroy the knowledge that makes systems work. |
 | **Range** | David Epstein | Generalists outperform specialists in complex domains. Analogical transfer across fields. |
 
 ### Software Engineering
@@ -241,8 +241,8 @@ For the corpus distillation pipeline (`very-long-text-summarization`), these boo
 
 | Book | What It Yields for Skills |
 |------|--------------------------|
-| **How to Solve It** (Polya) | 67 heuristics: analogy, generalization, working backward, auxiliary problems. The foundation of structured problem-solving. |
-| **Proofs and Refutations** (Lakatos) | Math proceeds by conjecture -> proof -> counterexample -> revision, not clean deduction. Messy iteration as the actual method. |
+| **How to Solve It** (Pólya) | 67 heuristics: analogy, generalization, working backward, auxiliary problems. The foundation of structured problem-solving. |
+| **Proofs and Refutations** (Lakatos) | Math proceeds by conjecture → proof → counterexample → revision, not clean deduction. Messy iteration as the actual method. |
 
 ### Medicine
 
@@ -273,7 +273,7 @@ Cost: ~$0.19 per 300-page book. The entire cross-domain reading list (~12 books,
 ### Quality Gate
 
 Before deploying a KE-derived skill:
-1. Grade it with `skill-grader` -- must score B+ or above overall
+1. Grade it with `skill-grader` — must score B+ or above overall
 2. Test with 5 should-trigger and 5 shouldn't-trigger queries
 3. Run through one complete DAG execution as a dry run
 4. If the skill was derived from source material, include citations ("Based on [Handbook], Chapter 7")

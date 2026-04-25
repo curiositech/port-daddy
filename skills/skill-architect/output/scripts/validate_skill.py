@@ -2,8 +2,14 @@
 """
 Skill Validator — Comprehensive Structural Validation for Agent Skills
 
-Validates a skill directory for correctness: frontmatter fields, description
-quality, file references, line counts, anti-patterns, and naming conventions.
+Validates a skill directory against the canonical `some_claude_skills`
+authoring rules:
+
+- minimal top-level frontmatter
+- repo metadata conventions
+- lean SKILL.md structure
+- no phantom references
+- basic quality-hygiene checks
 
 Usage:
     python scripts/validate_skill.py <skill-dir>
@@ -50,6 +56,8 @@ def parse_frontmatter(text: str) -> Tuple[Optional[Dict[str, Any]], int]:
 
     fm: Dict[str, Any] = {}
     current_key: Optional[str] = None
+    current_nested_key: Optional[str] = None
+    current_nested_indent = 0
     current_indent = 0
     # Track whether current_key has a string value that may span multiple lines
     current_is_scalar = False
@@ -66,6 +74,7 @@ def parse_frontmatter(text: str) -> Tuple[Optional[Dict[str, Any]], int]:
         if m and indent == 0:
             key, val = m.group(1), m.group(2).strip()
             current_key = key
+            current_nested_key = None
             current_indent = 0
             current_is_scalar = False
             if val:
@@ -96,6 +105,38 @@ def parse_frontmatter(text: str) -> Tuple[Optional[Dict[str, Any]], int]:
         # Nested key or list item under current_key
         if current_key and indent > 0:
             current_is_scalar = False
+            if (
+                current_nested_key
+                and indent > current_nested_indent
+                and isinstance(fm.get(current_key), dict)
+                and isinstance(fm[current_key].get(current_nested_key), dict)
+            ):
+                target = fm[current_key][current_nested_key]
+                if stripped.startswith("- "):
+                    item_val = stripped[2:].strip().strip("'\"")
+                    if not isinstance(target, list):
+                        fm[current_key][current_nested_key] = [item_val]
+                    else:
+                        target.append(item_val)
+                    continue
+
+                dm = re.match(r"^(\w[\w-]*):\s*(.*)", stripped)
+                if dm:
+                    deep_key, deep_val = dm.group(1), dm.group(2).strip()
+                    if deep_val.startswith("[") and deep_val.endswith("]"):
+                        target[deep_key] = [
+                            v.strip().strip("'\"") for v in deep_val[1:-1].split(",") if v.strip()
+                        ]
+                    elif deep_val in ("true", "True"):
+                        target[deep_key] = True
+                    elif deep_val in ("false", "False"):
+                        target[deep_key] = False
+                    elif deep_val:
+                        target[deep_key] = deep_val.strip("'\"")
+                    else:
+                        target[deep_key] = {}
+                    continue
+
             if stripped.startswith("- "):
                 item_val = stripped[2:].strip()
                 # List item under a key
@@ -135,6 +176,8 @@ def parse_frontmatter(text: str) -> Tuple[Optional[Dict[str, Any]], int]:
                         fm[current_key][sub_key] = sub_val.strip("'\"")
                     else:
                         fm[current_key][sub_key] = {}
+                        current_nested_key = sub_key
+                        current_nested_indent = indent
                 continue
 
     return fm, end_idx + 1
@@ -183,13 +226,12 @@ class ValidationReport:
 # Validators
 # ──────────────────────────────────────────────────────────────────────
 
-# Only keys recognized by the Claude Code runtime belong here.
-# Custom keys for tooling (category, tags, version) should live inside
-# the metadata: block to avoid confusion with real runtime keys.
 VALID_FRONTMATTER_KEYS = {
-    "name", "description", "allowed-tools", "argument-hint", "license",
-    "disable-model-invocation", "user-invocable", "context", "agent",
-    "model", "hooks", "metadata",
+    "name",
+    "description",
+    "license",
+    "allowed-tools",
+    "metadata",
 }
 
 RESERVED_NAME_WORDS = {"anthropic", "claude"}
@@ -246,12 +288,15 @@ def validate_frontmatter(skill_dir: Path, text: str, report: ValidationReport):
 
     # Check for invalid frontmatter keys
     for key in fm:
-        if key not in VALID_FRONTMATTER_KEYS and key != "metadata":
-            # Keys inside metadata are custom and always valid
-            if not isinstance(fm.get("metadata"), dict) or key not in fm.get("metadata", {}):
-                report.add(rel, 1, "warning", "frontmatter",
-                           f"Unknown frontmatter key '{key}' — will be ignored by runtime. "
-                           f"Move to metadata: block or SKILL.md body")
+        if key not in VALID_FRONTMATTER_KEYS:
+            report.add(
+                rel,
+                1,
+                "error",
+                "frontmatter",
+                f"Unexpected top-level key '{key}' — keep only "
+                f"{', '.join(sorted(VALID_FRONTMATTER_KEYS))} at top level and move custom/runtime-specific data under metadata",
+            )
 
 
 def validate_skill_md(skill_dir: Path, report: ValidationReport):
@@ -285,32 +330,37 @@ def validate_skill_md(skill_dir: Path, report: ValidationReport):
         report.add(rel, 0, "warning", "content",
                    f"Found HTML entities that may render incorrectly: {', '.join(unique)}")
 
-    # Check referenced files exist (skip fenced code blocks — they contain examples)
-    ref_pattern = re.compile(
-        r"(?:`|\"|\')?((?:references|scripts|assets)/[\w./-]+)(?:`|\"|\')?"
-    )
-    fence_pattern = re.compile(r"^\s*(`{3,}|~{3,})")
-    in_code_fence = False
-    for i, line in enumerate(lines, 1):
-        if fence_pattern.match(line):
-            in_code_fence = not in_code_fence
+
+def validate_all_md_html_entities(skill_dir: Path, report: ValidationReport):
+    """Check all .md files (references/, README.md, agents/) for HTML entities.
+
+    validate_skill_md() only checks SKILL.md. Reference files and README
+    often carry HTML entities that escape review — this catches the rest.
+    """
+    HTML_ENTITY_RE = re.compile(r"&(?:lt|gt|amp|quot|apos|nbsp);")
+    checked_already = {"SKILL.md"}
+
+    for md_file in skill_dir.rglob("*.md"):
+        rel = str(md_file.relative_to(skill_dir))
+        if rel in checked_already:
             continue
-        if in_code_fence:
+        try:
+            text = md_file.read_text(encoding="utf-8", errors="replace")
+        except OSError:
             continue
-        for match in ref_pattern.finditer(line):
-            ref_path = match.group(1)
-            full_path = skill_dir / ref_path
-            if not full_path.exists():
-                report.add(rel, i, "error", "phantom",
-                           f"Referenced file does not exist: {ref_path}")
+        entities = HTML_ENTITY_RE.findall(text)
+        if entities:
+            unique = set(entities)
+            report.add(rel, 0, "warning", "content",
+                       f"HTML entities in {rel}: {', '.join(unique)}")
 
 
 def validate_structure(skill_dir: Path, report: ValidationReport):
     """Validate directory structure."""
-    # CHANGELOG.md is recommended
+    # CHANGELOG.md is a repo convention for maintained first-party skills
     if not (skill_dir / "CHANGELOG.md").exists():
-        report.add("", 0, "suggestion", "structure",
-                   "No CHANGELOG.md — recommended for tracking version history")
+        report.add("", 0, "warning", "structure",
+                   "No CHANGELOG.md — maintained first-party skills in this repo should track mutations")
 
     # Check scripts are executable (have shebang or .py extension)
     scripts_dir = skill_dir / "scripts"
@@ -350,6 +400,50 @@ def validate_tags(skill_dir: Path, text: str, report: ValidationReport):
                        "No tags defined in metadata — consider adding for discoverability")
 
 
+def validate_metadata(skill_dir: Path, text: str, report: ValidationReport):
+    """Validate repo-specific metadata expectations."""
+    fm, _ = parse_frontmatter(text)
+    if fm is None:
+        return
+
+    metadata = fm.get("metadata")
+    if metadata is None:
+        report.add("SKILL.md", 1, "warning", "frontmatter",
+                   "Missing metadata block — repo-specific fields such as category, tags, and provenance belong under metadata")
+        return
+
+    if not isinstance(metadata, dict):
+        report.add("SKILL.md", 1, "error", "frontmatter",
+                   "metadata must be a mapping/dictionary")
+        return
+
+    provenance = metadata.get("provenance")
+    authorship = metadata.get("authorship")
+    if provenance is None:
+        report.add("SKILL.md", 1, "suggestion", "frontmatter",
+                   "metadata.provenance missing — add provenance or authorship for first-party/imported tracking")
+    elif not isinstance(provenance, dict):
+        report.add("SKILL.md", 1, "warning", "frontmatter",
+                   "metadata.provenance should be a mapping with at least a kind field")
+    elif "kind" not in provenance:
+        report.add("SKILL.md", 1, "warning", "frontmatter",
+                   "metadata.provenance.kind missing — use values such as first-party or imported")
+
+    if authorship is None:
+        report.add("SKILL.md", 1, "suggestion", "frontmatter",
+                   "metadata.authorship missing — add maintainers/authors for first-party tracking and dossier UI")
+    elif not isinstance(authorship, dict):
+        report.add("SKILL.md", 1, "warning", "frontmatter",
+                   "metadata.authorship should be a mapping")
+
+    tags = metadata.get("tags")
+    imported = isinstance(tags, list) and "imported" in tags
+    provenance_kind = provenance.get("kind") if isinstance(provenance, dict) else None
+    if imported and provenance_kind != "imported":
+        report.add("SKILL.md", 1, "suggestion", "frontmatter",
+                   "Skill is tagged imported but metadata.provenance.kind is not 'imported'")
+
+
 # ──────────────────────────────────────────────────────────────────────
 # Main
 # ──────────────────────────────────────────────────────────────────────
@@ -364,11 +458,13 @@ def validate_skill(skill_dir: Path, strict: bool = False) -> ValidationReport:
 
     validate_skill_md(skill_dir, report)
     validate_structure(skill_dir, report)
+    validate_all_md_html_entities(skill_dir, report)
 
     skill_md = skill_dir / "SKILL.md"
     if skill_md.exists():
         text = skill_md.read_text(encoding="utf-8")
         validate_tags(skill_dir, text, report)
+        validate_metadata(skill_dir, text, report)
 
     if strict:
         # In strict mode, warnings become errors
@@ -387,14 +483,14 @@ def print_report(report: ValidationReport):
     print(f"{'='*60}\n")
 
     if not report.issues:
-        print("  All checks passed\n")
+        print("  ✓ All checks passed\n")
         return
 
     # Group by severity
     for severity, label, symbol in [
-        ("error", "ERRORS", "x"),
-        ("warning", "WARNINGS", "!"),
-        ("suggestion", "SUGGESTIONS", "->"),
+        ("error", "ERRORS", "✗"),
+        ("warning", "WARNINGS", "⚠"),
+        ("suggestion", "SUGGESTIONS", "→"),
     ]:
         items = [i for i in report.issues if i.severity == severity]
         if items:
