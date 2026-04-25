@@ -16,6 +16,7 @@ struct FleetPopover: View {
     @Environment(\.openWindow) private var openWindow
     @ObservedObject var store: FleetStore
     @ObservedObject var costStore: CostStore
+    @StateObject private var budgetStore = BudgetPauseStore(baseURL: "http://localhost:9876")
     @AppStorage("fleet.control.theme") private var selectedThemeRaw = "dark"
     @State private var appeared = false
     @State private var showingSettings = false
@@ -49,6 +50,10 @@ struct FleetPopover: View {
         VStack(spacing: 0) {
             header
             Divider().opacity(0.5)
+            if !budgetStore.pendingKills.isEmpty {
+                budgetPauseBanner
+                Divider().opacity(0.5)
+            }
             if let daemonStatus = store.daemonStatus, store.isDaemonRunning {
                 daemonReportSection(status: daemonStatus)
                 Divider().opacity(0.5)
@@ -77,7 +82,9 @@ struct FleetPopover: View {
         .preferredColorScheme(selectedThemeRaw == "light" ? .light : .dark)
         .onAppear {
             withAnimation(.smooth(duration: 0.4)) { appeared = true }
+            budgetStore.start()
         }
+        .onDisappear { budgetStore.stop() }
     }
 
     private var defaultConsoleProject: String? {
@@ -439,6 +446,62 @@ struct FleetPopover: View {
     //
     // The harbor is empty. Lighthouse pulsing.
     // One icon, one line, one action.
+
+    private var budgetPauseBanner: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.red)
+                Text("Pending budget kills · \(budgetStore.pendingKills.count)")
+                    .font(.headline)
+                Spacer()
+                Text("grace \(Int(budgetStore.graceMs / 1000))s")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            // Note: budgetStore.start() is called on the popover's onAppear,
+            // not here — banner only renders when there are pending kills.
+            ForEach(budgetStore.pendingKills) { kill in
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(kill.agentId)
+                        .font(.system(.caption, design: .monospaced).weight(.semibold))
+                    Text("project: \(kill.project) · spent $\(String(format: "%.4f", kill.spentTodayUsd))/$\(String(format: "%.2f", kill.budgetUsdPerDay))/day")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Text("reason: \(kill.reason) · expires in \(secondsRemaining(kill.expiresAt))s")
+                        .font(.caption2)
+                        .foregroundStyle(.red)
+                    HStack(spacing: 6) {
+                        Button("Raise +$5") {
+                            Task { await budgetStore.raise(agentId: kill.agentId, topUpUsd: 5) }
+                        }
+                        .controlSize(.small)
+                        Button("+60s") {
+                            Task { await budgetStore.extendGrace(agentId: kill.agentId) }
+                        }
+                        .controlSize(.small)
+                        Button("Kill now") {
+                            Task { await budgetStore.killNow(agentId: kill.agentId) }
+                        }
+                        .controlSize(.small)
+                        .tint(.red)
+                    }
+                }
+                .padding(8)
+                .background(Color.red.opacity(0.08))
+                .cornerRadius(6)
+            }
+            if let err = budgetStore.lastError {
+                Text(err).font(.caption2).foregroundStyle(.red)
+            }
+        }
+        .padding(12)
+    }
+
+    private func secondsRemaining(_ expiresAt: TimeInterval) -> Int {
+        let now = Date().timeIntervalSince1970 * 1000
+        return max(0, Int((expiresAt - now) / 1000))
+    }
 
     private var emptyState: some View {
         VStack(spacing: Fleet.Space.l) {
