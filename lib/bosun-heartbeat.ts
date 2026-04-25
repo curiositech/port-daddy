@@ -13,7 +13,7 @@
  *   "pid": 12345,
  *   "writtenAt": 1777050000000,
  *   "uptimeMs": 2500,
- *   "version": "3.9.0",
+ *   "version": "3.10.0",
  *   "codeHash": "abc123",
  *   "startedAt": 1777049997500,
  *   "installDir": "/Users/me/port-daddy-stable",
@@ -149,7 +149,7 @@ export function readBosunHeartbeat(path = defaultBosunHeartbeatPath()): BosunHea
  *
  * ```ts
  * const heartbeat = createBosunHeartbeat({
- *   version: '3.9.0',
+ *   version: '3.10.0',
  *   codeHash: 'abc123',
  *   startedAt: Date.now(),
  *   installDir: '/repo'
