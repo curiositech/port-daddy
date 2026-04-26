@@ -91,6 +91,7 @@ enum Fleet {
         case .scheduled: return "clock"
         case .triggered: return "bolt.fill"
         case .watcher:   return "eye"
+        case .adhoc:     return "person.crop.circle.badge.plus"
         }
     }
 
