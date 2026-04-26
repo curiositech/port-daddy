@@ -103,11 +103,14 @@ export interface FleetRunContext {
   from?: string | null;
   message?: unknown;
   messageContent?: string;
+  tuple?: Tuple;
+  tuplePattern?: unknown[];
+  tupleHarbor?: string | null;
 }
 
 interface RunningAgent {
   name: string;
-  type: 'scheduled' | 'triggered' | 'watcher';
+  type: 'scheduled' | 'triggered' | 'watcher' | 'manual';
   process?: ChildProcess;
   interval?: ReturnType<typeof setInterval>;
   tuplePollInterval?: ReturnType<typeof setInterval>;
@@ -605,7 +608,7 @@ export interface FleetRunnerOptions {
   costTracker?: CostTracker;
   initiallyPausedAgents?: string[];
   tuplePollMs?: number;
-  tuples?: Pick<TupleSpace, 'out' | 'take' | 'count'>;
+  tuples?: Pick<TupleSpace, 'out' | 'take' | 'count' | 'poll' | 'subscribe'>;
   semanticResolver?: Pick<SemanticResolver, 'observeAliases'>;
   messaging?: {
     subscribe(channel: string, callback: (message: unknown) => void): (() => void) | null;
@@ -641,6 +644,16 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
         from: context.from ?? null,
         message: context.message ?? null,
         messageContent: context.messageContent ?? null,
+        tuple: context.tuple ? {
+          id: context.tuple.id,
+          harbor: context.tuple.harbor,
+          fields: context.tuple.fields,
+          writtenBy: context.tuple.writtenBy,
+          createdAt: context.tuple.createdAt,
+          expiresAt: context.tuple.expiresAt,
+        } : null,
+        tuplePattern: context.tuplePattern ?? null,
+        tupleHarbor: context.tupleHarbor ?? context.tuple?.harbor ?? null,
         timestamp: Date.now(),
       },
     ], {
@@ -654,12 +667,46 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     const payload = (tuple.fields[3] && typeof tuple.fields[3] === 'object')
       ? tuple.fields[3] as Record<string, unknown>
       : {};
+    const tuplePayload = (payload.tuple && typeof payload.tuple === 'object')
+      ? payload.tuple as Record<string, unknown>
+      : null;
     return {
       source: (typeof tuple.fields[2] === 'string' ? tuple.fields[2] : 'tuple') as FleetRunContext['source'],
       channel: typeof payload.channel === 'string' ? payload.channel : undefined,
       from: typeof payload.from === 'string' ? payload.from : null,
       message: payload.message,
       messageContent: typeof payload.messageContent === 'string' ? payload.messageContent : undefined,
+      tuple: tuplePayload ? {
+        id: typeof tuplePayload.id === 'number' ? tuplePayload.id : 0,
+        harbor: typeof tuplePayload.harbor === 'string' ? tuplePayload.harbor : null,
+        fields: Array.isArray(tuplePayload.fields) ? tuplePayload.fields : [],
+        writtenBy: typeof tuplePayload.writtenBy === 'string' ? tuplePayload.writtenBy : null,
+        createdAt: typeof tuplePayload.createdAt === 'number' ? tuplePayload.createdAt : tuple.createdAt,
+        expiresAt: typeof tuplePayload.expiresAt === 'number' ? tuplePayload.expiresAt : null,
+      } : undefined,
+      tuplePattern: Array.isArray(payload.tuplePattern) ? payload.tuplePattern : undefined,
+      tupleHarbor: typeof payload.tupleHarbor === 'string' ? payload.tupleHarbor : null,
+    };
+  }
+
+  function contextFromTriggerTuple(pattern: unknown[], tuple: Tuple): FleetRunContext {
+    const message = {
+      tupleId: tuple.id,
+      harbor: tuple.harbor,
+      fields: tuple.fields,
+      writtenBy: tuple.writtenBy,
+      createdAt: tuple.createdAt,
+      expiresAt: tuple.expiresAt,
+      pattern,
+    };
+    return {
+      source: 'tuple' as FleetRunContext['source'],
+      from: tuple.writtenBy,
+      message,
+      messageContent: trimMessage(serializeMessage(message)),
+      tuple,
+      tuplePattern: pattern,
+      tupleHarbor: tuple.harbor,
     };
   }
 
@@ -802,9 +849,10 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
 
     const record: RunningAgent = {
       name: agent.name,
-      type: agent.schedule ? 'scheduled' : 'triggered',
+      type: agent.schedule ? 'scheduled' : (agent.trigger || agent.triggerTuple) ? 'triggered' : 'manual',
       startedAt: Date.now(),
     };
+    const cleanupHandles: Array<() => void> = [];
 
     if (agent.schedule) {
       // Scheduled agent: run immediately, then on interval
@@ -822,7 +870,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       });
 
       if (unsubscribe) {
-        record.watchHandle = unsubscribe;
+        cleanupHandles.push(unsubscribe);
       } else {
         // Fallback for standalone CLI/testing contexts.
         const watchProc = spawn('npx', [
@@ -842,13 +890,49 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
 
     if (options?.tuples) {
       const tuplePollMs = Math.min(Math.max(options.tuplePollMs ?? 1000, 250), 60000);
+      let tupleCursor = 0;
+
+      if (agent.triggerTuple && options.tuples.subscribe) {
+        const unsubscribe = options.tuples.subscribe(
+          agent.triggerTuple,
+          { harbor: tupleHarbor },
+          (tuple) => {
+            void requestAgentRun(agent, contextFromTriggerTuple(agent.triggerTuple!, tuple));
+          },
+        );
+        if (unsubscribe) cleanupHandles.push(unsubscribe);
+      }
+
       record.tuplePollInterval = setInterval(() => {
+        if (agent.triggerTuple && (!options.tuples?.subscribe) && options.tuples?.poll) {
+          const result = options.tuples.poll(agent.triggerTuple, {
+            harbor: tupleHarbor,
+            afterId: tupleCursor,
+          });
+          tupleCursor = result.lastId;
+          if (result.tuple) {
+            void requestAgentRun(agent, contextFromTriggerTuple(agent.triggerTuple, result.tuple));
+          }
+        }
+
         if (pausedAgents.has(agent.name) || activeAgentRuns.has(agent.name)) return;
         if (queueDepthFor(agent.name) === 0) return;
         const tupleContext = takeQueuedTupleContext(agent);
         if (tupleContext) void runAgentOnce(agent, tupleContext);
       }, tuplePollMs);
       record.tuplePollInterval.unref?.();
+    }
+
+    if (cleanupHandles.length > 0) {
+      record.watchHandle = () => {
+        for (const cleanup of cleanupHandles) {
+          try {
+            cleanup();
+          } catch {
+            // Best-effort cleanup only.
+          }
+        }
+      };
     }
 
     if (!agent.schedule && !agent.trigger && !agent.triggerTuple) {
@@ -1053,15 +1137,19 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
   }
 
   function hashTriggerContext(context?: FleetRunContext): string | null {
-    if (!context || context.source !== 'trigger') return null;
+    if (!context || (context.source !== 'trigger' && context.source !== 'tuple')) return null;
     const messageText = (context.messageContent ?? serializeMessage(context.message)).trim();
-    if (!messageText) return null;
+    if (!messageText && !context.tuple) return null;
 
     return createHash('sha1')
       .update(JSON.stringify({
+        source: context.source ?? null,
         channel: context.channel ?? null,
         from: context.from ?? null,
         message: messageText,
+        tuplePattern: context.tuplePattern ?? null,
+        tupleHarbor: context.tupleHarbor ?? null,
+        tupleId: context.tuple?.id ?? null,
       }))
       .digest('hex');
   }
@@ -1080,6 +1168,9 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       `- source: ${context.source || 'trigger'}`,
       context.channel ? `- channel: ${context.channel}` : null,
       context.from ? `- sender: ${context.from}` : null,
+      context.tupleHarbor ? `- tuple harbor: ${context.tupleHarbor}` : null,
+      context.tuplePattern ? `- tuple pattern: ${JSON.stringify(context.tuplePattern)}` : null,
+      context.tuple ? `- tuple id: ${context.tuple.id}` : null,
       '- message:',
       messageText,
       '',
@@ -1091,7 +1182,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
 
   function mergePendingContext(existing: FleetRunContext | undefined, incoming: FleetRunContext): FleetRunContext {
     if (!existing) return incoming;
-    if (incoming.source !== 'trigger') return incoming;
+    if (incoming.source !== 'trigger' && incoming.source !== 'tuple') return incoming;
 
     const mergedMessage = [existing.messageContent, incoming.messageContent]
       .filter((value): value is string => !!value && value.trim().length > 0)
@@ -1099,11 +1190,14 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       .join('\n\n---\n\n');
 
     return {
-      source: 'trigger',
+      source: incoming.source,
       channel: incoming.channel ?? existing.channel,
       from: incoming.from ?? existing.from,
       message: incoming.message ?? existing.message,
       messageContent: mergedMessage || incoming.messageContent || existing.messageContent,
+      tuple: incoming.tuple ?? existing.tuple,
+      tuplePattern: incoming.tuplePattern ?? existing.tuplePattern,
+      tupleHarbor: incoming.tupleHarbor ?? existing.tupleHarbor,
     };
   }
 

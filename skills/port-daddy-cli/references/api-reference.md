@@ -743,15 +743,52 @@ Set session phase.
 
 Phases: `planning`, `in_progress`, `testing`, `reviewing`, `completed`, `abandoned`
 
+### POST /sessions/:id/files
+Claim whole files or function/class regions for a session. Prefer `regions` with canonical `symbolPath` values for code edits that do not span the whole file.
+
+**Whole-file body:** `{ "files": ["/abs/path/src/auth.ts"] }`
+
+**Region body:** `{ "regions": [{ "path": "/abs/path/src/auth.ts", "symbolPath": "AuthService.refreshToken" }] }`
+
+Use `startLine` and `endLine` only as a fallback when no canonical `symbolPath` exists.
+
 ---
 
 ## File Claims (Global)
 
 ### GET /files
-List all active file claims across all sessions.
+List all active file claims across all sessions. Optional query params: `path`, `symbol`, `symbolPath`, `agent`, `purpose`.
 
-### GET /files/:path
-Check who owns a specific file path.
+### GET /files/who-owns
+Check who owns a path or region. Query params: `path`, `startLine`, `endLine`, `symbolPath`.
+
+---
+
+## Symbols And Conflict Prediction
+
+### POST /symbols/parse
+Parse files or a directory into tree-sitter symbols and dependencies.
+
+**Body:** `{ "files": ["/abs/path/src/auth.ts"] }`
+
+**Directory body:** `{ "directory": "/abs/path", "glob": "**/*.ts" }`
+
+### GET /symbols
+Search indexed symbols. Query params: `name`, `type`, `file`, `exported`.
+
+### GET /symbols/stats
+Read symbol-index counts and latest parse timestamp.
+
+### GET /symbols/file/*
+Read all indexed symbols for one absolute file path and whether the index is stale for that file.
+
+### GET /dependencies
+Read dependencies from or to a file. Query params: `file`, `direction=from|to`, `symbol`.
+
+### POST /conflicts/predict
+Predict direct/dependency/signature conflicts between two sets of symbol claims.
+
+**Body:** `{ "claimsA": [{ "filePath": "/abs/path/src/auth.ts", "symbolPath": "AuthService.refreshToken", "type": "modify" }], "claimsB": [] }`
 
 ---
 

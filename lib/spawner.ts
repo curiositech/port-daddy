@@ -738,10 +738,19 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     }
 
     // PD coordination: register agent
+    const coordinationMetadata = {
+      spawn: true,
+      requiresEscrow: true,
+      projectName: projectName ?? null,
+      bondId,
+      bondUsd,
+    };
+
     await pdCoordinate('/agents', {
       id: agentId,
       identity: spec.identity || null,
       purpose: spec.purpose || spec.task.slice(0, 80),
+      metadata: coordinationMetadata,
     });
 
     // PD coordination: start session
@@ -749,6 +758,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       agentId,
       identity: spec.identity || null,
       purpose: spec.purpose || spec.task.slice(0, 80),
+      metadata: coordinationMetadata,
     });
 
     // Start heartbeat interval

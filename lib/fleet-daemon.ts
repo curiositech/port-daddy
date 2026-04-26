@@ -44,7 +44,7 @@ export interface FleetDaemonDeps {
     publish(channel: string, message: unknown): unknown;
     subscribe(channel: string, callback: (message: unknown) => void): (() => void) | null;
   };
-  tuples?: Pick<TupleSpace, 'out' | 'take' | 'count'>;
+  tuples?: Pick<TupleSpace, 'out' | 'take' | 'count' | 'poll' | 'subscribe'>;
   semanticResolver?: Pick<SemanticResolver, 'observeAliases'>;
   /** Winston logger */
   logger: {

@@ -156,7 +156,6 @@ fn proof_capability_attenuation() {
 
 // ─── FFI / Shared Library Boundary ──────────────────────────────────────────
 
-use std::ffi::CStr;
 use std::os::raw::c_char;
 
 /// FFI: Constant-time byte comparison.
