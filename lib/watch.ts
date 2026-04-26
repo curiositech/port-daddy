@@ -56,6 +56,34 @@ export interface WatchHandle {
   stop(): void;
 }
 
+/**
+ * Convert an HTTP Retry-After header into milliseconds.
+ *
+ * Sample input/output:
+ *
+ * ```ts
+ * parseRetryAfterMs('5') // 5000
+ * parseRetryAfterMs('Sun, 26 Apr 2026 18:00:00 GMT') // milliseconds until then
+ * parseRetryAfterMs(undefined) // null
+ * ```
+ */
+export function parseRetryAfterMs(value: string | string[] | undefined): number | null {
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (!raw) return null;
+
+  const seconds = Number.parseFloat(raw);
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return Math.min(Math.ceil(seconds * 1000), 60_000);
+  }
+
+  const dateMs = Date.parse(raw);
+  if (Number.isFinite(dateMs)) {
+    return Math.min(Math.max(dateMs - Date.now(), 0), 60_000);
+  }
+
+  return null;
+}
+
 // =============================================================================
 // Module factory
 // =============================================================================
@@ -97,11 +125,11 @@ export function createWatch() {
 
     // ─── Reconnect with exponential backoff ──────────────────────────────────
 
-    function scheduleReconnect(): void {
+    function scheduleReconnect(delayOverrideMs?: number | null): void {
       if (stopped) return;
       if (once && fired) return;
       // 1s → 2s → 4s → 8s → 16s → 30s (max)
-      const delay = Math.min(1000 * 2 ** reconnectAttempt, 30_000);
+      const delay = delayOverrideMs ?? Math.min(1000 * 2 ** reconnectAttempt, 30_000);
       reconnectAttempt++;
       setTimeout(connect, delay);
     }
@@ -196,7 +224,18 @@ export function createWatch() {
       };
 
       const req = http.request(reqOpts, (res) => {
-        // Successful connection resets the backoff counter
+        const statusCode = res.statusCode ?? 0;
+        const contentType = String(res.headers['content-type'] ?? '');
+        if (statusCode !== 200 || !contentType.includes('text/event-stream')) {
+          const retryAfterMs = parseRetryAfterMs(res.headers['retry-after']);
+          res.resume();
+          res.on('end', () => scheduleReconnect(retryAfterMs));
+          res.on('error', () => scheduleReconnect(retryAfterMs));
+          return;
+        }
+
+        // A real SSE connection resets the backoff counter. Rejected responses
+        // keep their backoff pressure so denied watchers cannot hammer the daemon.
         reconnectAttempt = 0;
 
         let buffer = '';

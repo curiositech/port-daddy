@@ -82,7 +82,10 @@ export const activityPlugin: FastifyPluginAsync<{ deps: ActivityRouteDeps }> = a
 
     try {
       if (!canOpenConnection(clientIp, 'sse')) {
-        reply.code(429);
+        reply
+          .code(429)
+          .header('Retry-After', '10')
+          .header('Cache-Control', 'no-store');
         return { error: 'too many concurrent SSE connections' };
       }
 

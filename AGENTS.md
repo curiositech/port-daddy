@@ -70,6 +70,7 @@ Project-specific shibboleths for proficient Port Daddy work. If you learn a new 
 - Only use logical project name as a display label.
 - Fleet trigger channels are project-scoped by default.
 - The current fleet engine already scopes trigger and publish channels through `lib/fleet-channels.ts`. If cross-project wakeups still happen, suspect leaked legacy `port-daddy-cli watch git:committed ...` processes before assuming the current engine lacks scoping.
+- Daemon-owned YAML watchers must use in-process messaging subscriptions. A stable daemon spawning long-lived `pd watch ... --exec` children for its own watchers is a regression: those children can survive daemon restart, reconnect-storm SSE, and poison Bosun heartbeat truth.
 - Do not treat any hook containing `git:committed` as "already correct". Legacy Port Daddy hooks published naked `git:committed`; installers must detect and replace those in place.
 - Keep YAML logical channels human-readable like `git:committed`, but publish/subscribe on a physical scoped channel derived from `projectDir`.
 - Reserve `global:<channel>` for intentional cross-project fanout. Cross-project wakeups are a bug unless explicitly marked global.
