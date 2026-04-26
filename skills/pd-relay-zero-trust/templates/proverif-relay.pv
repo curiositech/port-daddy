@@ -1,0 +1,110 @@
+(* analyses/relay-handshake.pv
+   PD Relay Handshake — symbolic model skeleton.
+
+   Pair with skill `proverif-tamarin-protocol-modeling` for query-construction
+   guidance and adversary process patterns. This file is a TEMPLATE; fill in
+   queries and tighten where TODO appears.
+*)
+
+set traceDisplay = long.
+
+(* ---------- Types ---------- *)
+type pkey.
+type skey.
+type pkey_x.
+type skey_x.
+type sym_key.
+type fingerprint.
+type nonce.
+type session_id.
+
+(* ---------- Public channels ---------- *)
+free net: channel.            (* attacker-controlled wire after TLS *)
+free oob_harbor: channel [private].   (* out-of-band harbor key exchange *)
+
+(* ---------- Cryptographic primitives ---------- *)
+
+(* Ed25519 *)
+fun pk(skey): pkey.
+fun sign(skey, bitstring): bitstring.
+reduc forall sk: skey, m: bitstring; verify(pk(sk), m, sign(sk, m)) = true.
+
+(* X25519 / HPKE seal-open *)
+fun pk_x(skey_x): pkey_x.
+fun hpke_seal(pkey_x, sym_key): bitstring.
+reduc forall sk: skey_x, k: sym_key; hpke_open(sk, hpke_seal(pk_x(sk), k)) = k.
+
+(* AES-GCM (modeled as authenticated encryption) *)
+fun aead_seal(sym_key, bitstring): bitstring.
+reduc forall k: sym_key, m: bitstring; aead_open(k, aead_seal(k, m)) = m.
+
+(* Hash *)
+fun h(bitstring): bitstring.
+
+(* Fingerprinting *)
+fun fp(pkey): fingerprint.
+
+(* ---------- Long-term keys ---------- *)
+free relay_sk: skey [private].
+free daemon_sk: skey [private].
+free harbor_sk: skey [private].
+free harbor_skx: skey_x [private].
+
+free harbor_pk: pkey.
+free harbor_pkx: pkey_x.
+
+(* ---------- Events ---------- *)
+event PublisherSent(fingerprint, bitstring, nonce).
+event SubscriberAccepts(fingerprint, bitstring, nonce).
+event RelayDelivered(fingerprint, bitstring).
+event CardIssued(fingerprint, bitstring).      (* sub, caps *)
+event CardRevoked(bitstring).                  (* jti *)
+event AttenuatedCardAccepted(fingerprint, fingerprint, bitstring).
+
+(* ---------- Queries (TODO: extend per references/proverif-relay-extension.md) ---------- *)
+
+(* I1: Relay never learns plaintext payload *)
+free secret_payload: bitstring [private].
+query attacker(secret_payload).
+
+(* Authenticity: anything a Subscriber accepts was actually sent by the
+   claimed Publisher *)
+query s: fingerprint, m: bitstring, n: nonce;
+    event(SubscriberAccepts(s, m, n)) ==>
+        event(PublisherSent(s, m, n)).
+
+(* TODO: capability containment for Phase 3 attenuation *)
+(* TODO: revocation effectiveness *)
+(* TODO: non-equivocation under Byzantine relay variant *)
+
+(* ---------- Processes ---------- *)
+
+let Daemon(sk_d: skey, channel_key: sym_key, payload: bitstring) =
+    new n: nonce;
+    event PublisherSent(fp(pk(sk_d)), payload, n);
+    let ct = aead_seal(channel_key, payload) in
+    let envelope = (fp(pk(sk_d)), ct, n) in
+    let sigbits = sign(sk_d, h((envelope))) in
+    out(net, (envelope, sigbits)).
+
+let Relay(sk_r: skey) =
+    in(net, (envelope: bitstring, sigbits: bitstring));
+    (* Relay routes ciphertext; does NOT decrypt. Modeled as forward-only. *)
+    out(net, (envelope, sigbits)).
+
+let Subscriber(sk_s: skey_x, channel_key: sym_key, expected_sender: pkey) =
+    in(net, ((sender_fp: fingerprint, ct: bitstring, n: nonce), sigbits: bitstring));
+    if verify(expected_sender, h(((sender_fp, ct, n))), sigbits) then
+        let payload = aead_open(channel_key, ct) in
+        event SubscriberAccepts(sender_fp, payload, n).
+
+(* ---------- System composition ---------- *)
+process
+    new channel_key: sym_key;        (* harbor members already share via OOB *)
+    let daemon_pk = pk(daemon_sk) in
+    let relay_pk = pk(relay_sk) in
+    (
+        ! Daemon(daemon_sk, channel_key, secret_payload)
+      | ! Relay(relay_sk)
+      | ! Subscriber(harbor_skx, channel_key, daemon_pk)
+    )
