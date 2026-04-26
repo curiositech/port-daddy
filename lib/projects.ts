@@ -69,16 +69,28 @@ const CONTEXT_MARKERS = ['.portdaddy'] as const;
 const SEARCH_ROOT_HINTS = ['coding', 'worktrees', 'src', 'dev', 'Code'] as const;
 const SKIP_DISCOVERY_DIRS = new Set([
   '.git',
+  '.agents',
+  '.cache',
+  '.codex',
+  '.dogfood',
   '.next',
+  '.ruff_cache',
+  '.spark',
+  '.spider',
   '.turbo',
+  '.venv',
   '.yarn',
+  '__pycache__',
   '.pnpm-store',
+  'DerivedData',
+  'Pods',
   'node_modules',
   'coverage',
   'dist',
   'build',
   'out',
   'target',
+  'venv',
   'vendor',
 ]);
 const TEMP_ROOT_PATTERNS = [
@@ -87,6 +99,10 @@ const TEMP_ROOT_PATTERNS = [
   /^\/var\/folders\/.*\/T(?:\/|$)/,
 ];
 const DISCOVERY_CACHE_TTL_MS = 15_000;
+// `/projects` is a hot operator route. Discovery must be opportunistic and
+// bounded so a broad root like the user's home directory cannot starve heartbeat.
+const DISCOVERY_TIME_BUDGET_MS = 750;
+const DISCOVERY_MAX_VISITED_DIRS = 1_500;
 
 let discoveryCache:
   | {
@@ -174,15 +190,28 @@ function compressSearchRoots(roots: string[]): string[] {
 
 function buildDiscoveryRoots(explicitRoots: string[] = []): string[] {
   const home = homedir();
+  const normalizedHome = normalizeRoot(home);
+  const explicitNormalized = [...new Set(explicitRoots.map(normalizeRoot).filter(isDirectory))];
+  const explicitSet = new Set(explicitNormalized);
   const hintedRoots = SEARCH_ROOT_HINTS.map((segment) => join(home, segment));
-  const cwdRoots = [process.cwd(), dirname(process.cwd())];
-  const parentRoots = explicitRoots.map((root) => dirname(normalizeRoot(root)));
-  return compressSearchRoots([
-    ...explicitRoots,
+  const cwd = process.cwd();
+  const cwdParent = dirname(cwd);
+  // Stable runs from ~/port-daddy-stable, so blindly adding dirname(cwd) means
+  // scanning the whole home directory from the daemon request thread.
+  const cwdRoots = cwdParent === normalizedHome ? [cwd] : [cwd, cwdParent];
+  const parentRoots = explicitRoots
+    .map((root) => dirname(normalizeRoot(root)))
+    .filter((root) => !isEphemeralRoot(root));
+  const roots = [
     ...parentRoots,
     ...cwdRoots,
     ...hintedRoots,
-  ]);
+  ].filter((root) => {
+    const normalizedRoot = normalizeRoot(root);
+    return normalizedRoot !== normalizedHome || explicitSet.has(normalizedRoot);
+  });
+  const broadRoots = compressSearchRoots(roots).filter((root) => !explicitSet.has(root));
+  return [...explicitNormalized, ...broadRoots];
 }
 
 function discoverProjectRoots(searchRoots: string[], maxDepth: number, fresh = false): Array<{ root: string; signals: string[] }> {
@@ -193,6 +222,7 @@ function discoverProjectRoots(searchRoots: string[], maxDepth: number, fresh = f
 
   const discovered = new Map<string, Set<string>>();
   const visited = new Set<string>();
+  const deadline = Date.now() + DISCOVERY_TIME_BUDGET_MS;
 
   function remember(root: string, signals: string[]): void {
     if (!signals.length) return;
@@ -203,6 +233,7 @@ function discoverProjectRoots(searchRoots: string[], maxDepth: number, fresh = f
   }
 
   function walk(dir: string, depth: number): void {
+    if (Date.now() > deadline || visited.size >= DISCOVERY_MAX_VISITED_DIRS) return;
     const normalizedDir = normalizeRoot(dir);
     if (visited.has(normalizedDir) || depth > maxDepth || !isDirectory(normalizedDir)) return;
     visited.add(normalizedDir);
@@ -210,6 +241,9 @@ function discoverProjectRoots(searchRoots: string[], maxDepth: number, fresh = f
     const signals = detectProjectSignals(normalizedDir);
     if (signals.length > 0) {
       remember(normalizedDir, signals);
+      // A directory with Port Daddy markers is already a project boundary. The
+      // operator list needs the project, not a recursive inventory of its caches.
+      return;
     }
 
     let entries: Dirent[];
