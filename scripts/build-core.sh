@@ -12,7 +12,7 @@ DIST_DIR="dist/core"
 echo "🦀 Building Port Daddy Rust Core..."
 
 cd $CORE_DIR
-cargo build --release
+cargo build --release -j 1
 
 cd ../..
 mkdir -p $DIST_DIR
