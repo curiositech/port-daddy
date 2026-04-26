@@ -18,6 +18,8 @@ import {
   SectionIntro,
   SectionFrame,
   SurfacePanel,
+  SwissGrid,
+  SwissGridItem,
   TruthBadge,
 } from './primitives'
 import { commercialTracks, proofPanels, proofStats } from '@/data/publicSite'
@@ -74,13 +76,24 @@ export const SectionFrameExample: Story = {
 export const LayoutPrimitives: Story = {
   render: () => (
     <PageContainer width="wide" className="border-2 border-[var(--border-strong)] py-[var(--section-space-y)]">
-      <SectionIntro
-        eyebrow="Layout primitives"
-        title="One container system. One section-intro system."
-        description="These primitives anchor the preserved landing and the newer docs shell to the same spacing, width, and typography decisions."
-        titleClassName="max-w-[14ch]"
-        bodyClassName="max-w-[38rem]"
-      />
+      <SwissGrid>
+        <SwissGridItem span="rail">
+          <SectionIntro
+            eyebrow="Layout primitives"
+            title="One grid system. One section-intro system."
+            description="These primitives anchor the preserved landing and the newer docs shell to the same spacing, width, and typography decisions."
+            titleClassName="max-w-[14ch]"
+          />
+        </SwissGridItem>
+        <SwissGridItem span="body">
+          <SurfacePanel elevation="quiet">
+            <PanelBody className="max-w-[var(--measure-copy)]">
+              New rehabbed routes can compose asymmetrical 12-column layouts without inventing local grid
+              math or widening code-heavy panels on mobile.
+            </PanelBody>
+          </SurfacePanel>
+        </SwissGridItem>
+      </SwissGrid>
     </PageContainer>
   ),
 }

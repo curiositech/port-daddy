@@ -19,6 +19,13 @@
   --codeblock-dot-red: var(--code-dot-red);
   --codeblock-dot-amber: var(--code-dot-amber);
   --codeblock-dot-green: var(--code-dot-green);
+  --grid-columns: var(--layout-grid-columns);
+  --grid-gap: var(--layout-grid-gap);
+  --measure-copy: var(--layout-copy-measure);
+  --measure-caption: var(--layout-caption-measure);
+  --measure-meta: var(--layout-meta-measure);
+  --rule-strong: var(--border-strong);
+  --rule-subtle: var(--border-subtle);
 
   --radius: 0;
   --background: var(--surface-base);

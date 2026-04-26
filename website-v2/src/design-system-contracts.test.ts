@@ -32,6 +32,9 @@ describe('design system contracts', () => {
     expect(sourceTokens).toContain('--layout-max-width-wide: 1440px;')
     expect(sourceTokens).toContain('--layout-gutter: var(--space-5);')
     expect(sourceTokens).toContain('--layout-gutter-lg: var(--space-6);')
+    expect(sourceTokens).toContain('--layout-grid-columns: 12;')
+    expect(sourceTokens).toContain('--layout-grid-gap: var(--space-5);')
+    expect(sourceTokens).toContain('--layout-copy-measure: 62ch;')
     expect(sourceTokens).toContain('--section-space-y: var(--space-8);')
     expect(sourceTokens).toContain('--section-space-y-lg: var(--space-9);')
     expect(sourceTokens).toContain('--section-intro-gap: var(--space-6);')
@@ -42,6 +45,8 @@ describe('design system contracts', () => {
     expect(semanticTokens).toContain('--surface-base:')
     expect(semanticTokens).toContain('--text-primary:')
     expect(roleTokens).toContain('--codeblock-bg: var(--code-bg);')
+    expect(roleTokens).toContain('--grid-columns: var(--layout-grid-columns);')
+    expect(roleTokens).toContain('--measure-copy: var(--layout-copy-measure);')
   })
 
   test('the active token entrypoint preserves the three-layer import order', () => {
@@ -98,12 +103,15 @@ describe('design system contracts', () => {
     const primitives = read('./components/site/primitives.tsx')
 
     expect(primitives).toContain('export function PageContainer')
+    expect(primitives).toContain('export function SwissGrid')
+    expect(primitives).toContain('export function SwissGridItem')
     expect(primitives).toContain('export function SectionIntro')
     expect(primitives).toContain("max-w-[var(--layout-max-width)]")
     expect(primitives).toContain("max-w-[var(--layout-max-width-wide)]")
     expect(primitives).toContain('mx-auto w-full min-w-0')
     expect(primitives).toContain('px-[var(--layout-gutter)]')
     expect(primitives).toContain('lg:px-[var(--layout-gutter-lg)]')
+    expect(primitives).toContain('lg:grid-cols-12')
     expect(primitives).toContain('space-y-[var(--section-intro-gap)]')
   })
 
@@ -137,6 +145,8 @@ describe('design system contracts', () => {
 
     expect(mcpPage).toContain("from '@/components/site/primitives'")
     expect(mcpPage).toContain('PageContainer')
+    expect(mcpPage).toContain('SwissGrid')
+    expect(mcpPage).toContain('SwissGridItem')
     expect(mcpPage).toContain('SectionIntro')
     expect(mcpPage).toContain('SurfacePanel')
     expect(mcpPage).toContain('DocsCodeBlock')
@@ -155,6 +165,8 @@ describe('design system contracts', () => {
 
     expect(stories).toContain('LayoutPrimitives')
     expect(stories).toContain('PageContainer')
+    expect(stories).toContain('SwissGrid')
+    expect(stories).toContain('SwissGridItem')
     expect(stories).toContain('SectionIntro')
   })
 })
