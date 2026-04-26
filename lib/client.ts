@@ -999,6 +999,115 @@ interface NotesResponse {
   count: number;
 }
 
+type MaritimeActorLeaseState = 'attached' | 'recoverable' | 'detached' | 'dormant';
+
+interface ActorMailboxStats {
+  total: number;
+  unread: number;
+  max: number | null;
+}
+
+interface MaritimeActorSignal {
+  id: string;
+  identity?: string | null;
+  purpose?: string | null;
+  status?: string | null;
+  agentId?: string | null;
+  sessionId?: string | null;
+  lastHeartbeat?: number | null;
+  updatedAt?: number | null;
+  liveness?: string | null;
+}
+
+interface MaritimeActorRecord {
+  id: string;
+  label: string;
+  title: string;
+  mission: string;
+  owns: string[];
+  aliases: string[];
+  compatibilityFleetAgent: string | null;
+  mailbox: string;
+  address: string;
+  inboxTarget: string;
+  mailboxStats: ActorMailboxStats | null;
+  leaseState: MaritimeActorLeaseState;
+  liveBodies: MaritimeActorSignal[];
+  recentSessions: MaritimeActorSignal[];
+  salvage: MaritimeActorSignal[];
+  lastActivityAt: number | null;
+  evidence: string[];
+}
+
+interface ListActorsOptions {
+  project?: string;
+  limit?: number;
+}
+
+interface ListActorsResponse {
+  success: boolean;
+  count: number;
+  actors: MaritimeActorRecord[];
+}
+
+interface GetActorOptions {
+  project?: string;
+}
+
+interface GetActorResponse {
+  success: boolean;
+  actor: MaritimeActorRecord;
+  resolvedId: string;
+}
+
+interface MessageActorOptions {
+  from?: string;
+  type?: string;
+  wake?: boolean;
+  project?: string;
+}
+
+interface MessageActorResponse {
+  success: boolean;
+  actorId: string;
+  inboxTarget: string;
+  messageId: number;
+  delivered: boolean;
+  woke: boolean;
+  wake?: unknown;
+}
+
+interface ActorInboxListOptions {
+  unreadOnly?: boolean;
+  limit?: number;
+  since?: number;
+}
+
+interface ActorInboxMessage {
+  id: number;
+  agentId: string;
+  from: string | null;
+  content: unknown;
+  contentType: string;
+  type: string;
+  read: boolean;
+  createdAt: number;
+}
+
+interface ActorInboxListResponse {
+  success: boolean;
+  actorId: string;
+  inboxTarget: string;
+  messages: ActorInboxMessage[];
+  count: number;
+}
+
+interface ActorInboxStatsResponse extends ActorMailboxStats {
+  success: boolean;
+  actorId: string;
+  inboxTarget: string;
+}
+
 /** Region-level file claim descriptor */
 interface FileRegion {
   path: string;
@@ -2684,6 +2793,62 @@ class PortDaddy {
    */
   async tunnelProviders(): Promise<TunnelProvidersResponse> {
     return this._request('GET', '/tunnel/providers') as Promise<TunnelProvidersResponse>;
+  }
+
+  // ──────────────────────────────────────────────────────────────
+  // Maritime actors (durable actor souls + optional live bodies)
+  // ──────────────────────────────────────────────────────────────
+
+  /**
+   * List durable maritime actors projected from live agents, sessions, and salvage state.
+   */
+  async listActors(options: ListActorsOptions = {}): Promise<ListActorsResponse> {
+    const params = new URLSearchParams();
+    if (options.project) params.append('project', options.project);
+    if (options.limit) params.append('limit', String(options.limit));
+    const qs = params.toString();
+    return this._request('GET', `/actors${qs ? '?' + qs : ''}`) as Promise<ListActorsResponse>;
+  }
+
+  /**
+   * Get a durable maritime actor by canonical ID or alias.
+   */
+  async getActor(actorId: string, options: GetActorOptions = {}): Promise<GetActorResponse> {
+    const params = new URLSearchParams();
+    if (options.project) params.append('project', options.project);
+    const qs = params.toString();
+    return this._request('GET', `/actors/${encodeURIComponent(actorId)}${qs ? '?' + qs : ''}`) as Promise<GetActorResponse>;
+  }
+
+  /**
+   * Send a message to a durable actor mailbox.
+   *
+   * Use `wake: true` only when the operator also wants to hail a compatible live fleet body.
+   */
+  async messageActor(actorId: string, content: unknown, options: MessageActorOptions = {}): Promise<MessageActorResponse> {
+    return this._request('POST', `/actors/${encodeURIComponent(actorId)}/message`, {
+      content,
+      ...options,
+    }) as Promise<MessageActorResponse>;
+  }
+
+  /**
+   * Read recent messages from a durable actor mailbox.
+   */
+  async actorInboxList(actorId: string, options: ActorInboxListOptions = {}): Promise<ActorInboxListResponse> {
+    const params = new URLSearchParams();
+    if (options.unreadOnly) params.append('unread', 'true');
+    if (options.limit) params.append('limit', String(options.limit));
+    if (options.since) params.append('since', String(options.since));
+    const qs = params.toString();
+    return this._request('GET', `/actors/${encodeURIComponent(actorId)}/inbox${qs ? '?' + qs : ''}`) as Promise<ActorInboxListResponse>;
+  }
+
+  /**
+   * Read mailbox depth for a durable actor.
+   */
+  async actorInboxStats(actorId: string): Promise<ActorInboxStatsResponse> {
+    return this._request('GET', `/actors/${encodeURIComponent(actorId)}/inbox/stats`) as Promise<ActorInboxStatsResponse>;
   }
 
   // ──────────────────────────────────────────────────────────────

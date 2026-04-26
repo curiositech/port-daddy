@@ -122,6 +122,13 @@ const TOOL_FEATURE_MAP = {
   'unregister_agent': 'agents',
   'get_agent': 'agents',
 
+  // Actors
+  'list_actors': 'actors',
+  'get_actor': 'actors',
+  'message_actor': 'actors',
+  'list_actor_inbox': 'actors',
+  'get_actor_inbox_stats': 'actors',
+
   // Salvage (extended)
   'salvage_complete': 'salvage',
   'salvage_abandon': 'salvage',
@@ -659,7 +666,7 @@ describe('MCP tiered tool loading', () => {
 
   const CATEGORY_NAMES = [
     'magic', 'session-lifecycle', 'advisor', 'ports', 'sessions', 'notes', 'locks',
-    'messaging', 'agents', 'inbox', 'webhooks', 'integration', 'dns', 'briefing',
+    'messaging', 'agents', 'actors', 'inbox', 'webhooks', 'integration', 'dns', 'briefing',
     'tunnels', 'projects', 'changelog', 'activity', 'system', 'tuples', 'sorties',
     'fleet-control', 'semantic',
   ];

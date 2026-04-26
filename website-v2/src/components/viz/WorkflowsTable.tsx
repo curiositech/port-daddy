@@ -1,7 +1,7 @@
 // import * as React from 'react'
 import { motion } from 'framer-motion'
 import { useOrchestratorRules } from '@/hooks/useOrchestratorRules'
-import { deleteOrchestratorRule, publishMessage } from '@/lib/daemon-client'
+import { deleteOrchestratorRule, publishMessage, type OrchestratorRule } from '@/lib/daemon-client'
 import { Badge } from '@/components/ui/Badge'
 import { Play, Plus, Trash2, Zap, Terminal, Activity } from 'lucide-react'
 
@@ -13,20 +13,20 @@ export function WorkflowsTable() {
     try {
       await deleteOrchestratorRule(id)
       window.location.reload(); // Simple refresh for now
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to delete rule');
     }
   };
 
-  const handleRun = async (rule: any) => {
+  const handleRun = async (rule: OrchestratorRule) => {
     try {
       await publishMessage(rule.channelPattern, {
         payload: { triggeredBy: 'dashboard' },
         sender: 'DASHBOARD',
       })
       alert(`Published trigger to ${rule.channelPattern}`);
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to publish trigger');
     }
   };
 

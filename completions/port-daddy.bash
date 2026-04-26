@@ -90,7 +90,7 @@ _port_daddy() {
     # Agent coordination
     pub publish broadcast sub subscribe listen wait lock unlock locks
     # Agent registry
-    agent agents swarm
+    agent agents actor actors swarm
     # Activity
     log activity
     # Sessions & Notes
@@ -603,6 +603,13 @@ _port_daddy() {
     # -----------------------------------------------------------------------
     agents|swarm)
       _pd_opts '--active'
+      ;;
+
+    # -----------------------------------------------------------------------
+    # actor / actors  [id-or-alias]  [--project P]
+    # -----------------------------------------------------------------------
+    actor|actors)
+      _pd_opts '--project --limit --message --from --type --wake --json --quiet'
       ;;
 
     # -----------------------------------------------------------------------

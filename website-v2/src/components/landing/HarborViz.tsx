@@ -36,6 +36,11 @@ function polarToCart(cx: number, cy: number, r: number, angleDeg: number) {
   }
 }
 
+function animationDelay(agent: Agent, salt = 0) {
+  const idNumber = Number.parseInt(agent.id.replace(/\D/g, ''), 10) || 0
+  return ((idNumber * 37 + agent.angle + salt) % 20) / 10
+}
+
 export function HarborViz() {
   const cx = 220
   const cy = 220
@@ -138,7 +143,7 @@ export function HarborViz() {
                 strokeWidth={agent.status === 'active' ? 1.5 : 0.75}
                 strokeDasharray={agent.status === 'dead' ? '3 5' : agent.status === 'idle' ? '5 3' : undefined}
                 animate={agent.status === 'active' ? { opacity: [0.4, 0.8, 0.4] } : { opacity: 0.3 }}
-                transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut', delay: Math.random() * 2 }}
+                transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut', delay: animationDelay(agent) }}
               />
 
               {/* Agent node */}
@@ -151,7 +156,7 @@ export function HarborViz() {
                   ? { r: [agentR, agentR + 2, agentR], opacity: [0.9, 1, 0.9] }
                   : {}
                 }
-                transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut', delay: Math.random() * 2 }}
+                transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut', delay: animationDelay(agent, 7) }}
               />
 
               {/* Status dot */}

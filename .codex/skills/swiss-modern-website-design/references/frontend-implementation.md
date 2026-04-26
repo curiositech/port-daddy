@@ -58,6 +58,19 @@ Useful refactor questions:
 
 These primitives usually outperform highly bespoke marketing components.
 
+## Product-App Adaptation
+
+Swiss-modern web-app work is not a license to turn operational tools into sparse landing pages. Preserve the useful density of dashboards, workbenches, control planes, and forms, then make the surface feel calmer through alignment, type hierarchy, measured spacing, and fewer decorative layers.
+
+For demanding app surfaces:
+- keep navigation and primary actions predictable
+- use compact controls when the user repeats the workflow often
+- align panes, tables, forms, and inspector panels to the same column logic
+- avoid oversized hero typography inside dashboards, sidebars, cards, and tool panels
+- verify screenshots at desktop and mobile breakpoints when layout or motion changes
+- use real product imagery, screenshots, or generated bitmaps when the page needs a visual asset; do not substitute abstract SVG decoration for inspectable content
+- keep motion sparse and stateful: focus, reveal, transition, or feedback
+
 ### Props should encode structure, not novelty
 Prefer:
 - `columns`

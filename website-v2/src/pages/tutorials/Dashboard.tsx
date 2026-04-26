@@ -9,12 +9,12 @@ export function Dashboard() {
     <TutorialLayout
       title="Live Dashboard"
       description="Coordination is hard to visualize in a terminal. The Port Daddy dashboard gives you real-time panels for services, agents, sessions, locks, and system health."
-      number={8}
-      total={16}
+      number={14}
+      total={20}
       level="Beginner"
       readTime="5 min read"
-      prev={{ title: 'Activity Log', href: '/tutorials/time-travel' }}
-      next={{ title: 'Identity Discovery', href: '/tutorials/dns' }}
+      prev={{ title: 'Harbor Tokens (Advisory)', href: '/tutorials/harbors' }}
+      next={{ title: 'Activity Log Inspection', href: '/tutorials/time-travel' }}
     >
       <div className="space-y-12">
         {/* Intro Section */}

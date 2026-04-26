@@ -3,11 +3,12 @@ import { motion, useScroll, useSpring } from 'framer-motion'
 import { Link, useLocation } from 'react-router-dom'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
-import { TutorialProgress, useTutorialProgress } from './TutorialProgress'
+import { TutorialProgress } from './TutorialProgress'
 import { ReorientationPanel } from './ReorientationPanel'
 import { Clock, BookOpen, ChevronRight, Home, Layout, ArrowLeft, ArrowRight, Zap, Shield, Globe, Share2 } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
 import { useTutorialState } from '@/hooks/useTutorialState'
+import { useTutorialProgress } from '@/hooks/useTutorialProgress'
 
 // Nav height matches the h-16 (4rem / 64px) used in Nav.tsx
 const NAV_HEIGHT = '4rem'

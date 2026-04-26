@@ -2,11 +2,11 @@ import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
 import { Surface } from '@/components/ui/Surface'
 import { Link } from 'react-router-dom'
-import { Book, Shield, Activity, Zap, MessageSquare, UserMinus, ChevronRight, Share2, Anchor, Cpu, Search, RefreshCw, Layers } from 'lucide-react'
+import { Book, Shield, Activity, Zap, MessageSquare, UserMinus, ChevronRight, Share2, Anchor, Cpu, Search, RefreshCw, Layers, type LucideIcon } from 'lucide-react'
 import { COOKBOOK_RECIPES } from '@/data/cookbook'
 import { Footer } from '@/components/layout/Footer'
 
-const ICON_MAP: Record<string, any> = {
+const ICON_MAP: Record<string, LucideIcon> = {
   Shield,
   Activity,
   Zap,

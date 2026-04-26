@@ -1,8 +1,9 @@
 import * as React from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { useTheme } from '@/lib/theme'
+import { useTheme } from '@/lib/theme-context'
 import { Sun, Moon, Github, Menu, X, ChevronDown, BookOpen, GraduationCap, LayoutGrid, Bot } from 'lucide-react'
-import { DocsSearch, openDocsSearch } from '@/components/docs/DocsSearch'
+import { DocsSearch } from '@/components/docs/DocsSearch'
+import { openDocsSearch } from '@/components/docs/docsSearchEvents'
 
 interface NavItem {
   label: string

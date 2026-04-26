@@ -1,6 +1,6 @@
 # Current Recovery Work
 
-Last updated: 2026-04-24
+Last updated: 2026-04-26
 Owner: Codex working session
 
 This is the active execution ledger. If a task is in flight, it belongs here before it belongs in chat.
@@ -100,18 +100,122 @@ handoff for `website-v2`, not another broad replacement reset.
   token contract, repair tests/lint first, then rebuild the high-drift MCP page
   as the first proof slice.
 
-### Cartographer Roadmap Actor (2026-04-24)
+### Port Daddy Website First Stabilization Slice (2026-04-26)
 
-The current uncommitted slice now promotes Cartographer from a commit-triggered docs updater into the first concrete maritime actor surface:
+The user approved moving forward from the static visual decision board. Current
+execution session: `session-1a8459c2-808f-4564-ab9d-c5be56fa86bb`.
 
+- Tutorial route truth is repaired while preserving the broad route surface:
+  `/tutorials/semantic-identities` is now canonical, the series has 20 lessons,
+  all page numbers/totals/prev-next links align, and `TutorialProgress` derives
+  from `src/data/tutorials.ts` instead of a duplicate hardcoded list.
+- Generated `storybook-static` output is now excluded from website lint.
+- The real source lint gate is green after fixing fast-refresh export
+  boundaries, React Compiler set-state-in-effect cases, render-time random
+  animation delays, stale Mermaid lint suppression, loose dashboard/viz/page
+  types, and no-useless markdown escapes.
+- Validation truth on 2026-04-26 from `website-v2/`:
+  - `npm run lint`: green
+  - `npm run test -- src/data/tutorials.test.ts`: 35/35 pass
+  - `npm run test`: 7/7 files and 69/69 tests pass
+  - `npm run build`: green with the known large-main-chunk warning
+  - `npm run build-storybook`: green with the known large iframe chunk and
+    `radix-ui` package metadata warnings
+- Remaining website rehab blockers are explicit, not hidden: the main app chunk
+  is still about 1.99 MB minified / 532 kB gzip, token layers are not yet split,
+  MCP mobile contrast remains the first visual proof-slice target, and
+  Storybook/a11y/SEO/PWA/legal/privacy/observability work remains future
+  product-readiness scope.
+
+### Port Daddy Website Token/Performance Slice (2026-04-26)
+
+Follow-on execution session: `session-c2085e79-36d0-4898-9cc5-90c4f60aef3a`.
+
+- The website token entrypoint now imports three explicit layers:
+  `tokens.source.css`, `tokens.semantic.css`, and `tokens.roles.css`.
+- Compatibility role aliases remain in place so legacy route modules can
+  migrate in bounded visual slices.
+- `website-v2/src/main.tsx` now lazy-loads route modules behind a shared
+  `RouteFallback` status primitive instead of statically importing the entire
+  page/docs/tutorial tree into the app entry.
+- `website-v2/vite.config.ts` now isolates the heavy React, Motion, Markdown,
+  Mermaid, Three, and react-force-graph families without creating one giant
+  vendor chunk.
+- Contract tests now enforce token import order, protected-module color-literal
+  discipline, and route lazy loading.
+- Validation truth on 2026-04-26 from `website-v2/`:
+  - `npm run lint`: green
+  - `npm run test -- src/design-system-contracts.test.ts`: 9/9 pass
+  - `npm run test`: 7/7 files and 72/72 tests pass
+  - `npm run build`: green with no chunk-size warning; largest JS chunk is
+    `Mermaid-CMXUcArO.js` at 491.12 kB minified / 136.65 kB gzip, and the app
+    shell chunk is `App-Bp-5vPKf.js` at 20.43 kB minified / 6.80 kB gzip
+- Remaining website rehab blockers: MCP mobile contrast and visual drift, raw
+  visual literals in unprotected legacy pages, Storybook/a11y/SEO/PWA/legal/
+  privacy/observability, and a deeper Mermaid/diagram payload decision.
+
+### Port Daddy Website MCP Proof Route Slice (2026-04-26)
+
+Follow-on execution session: `session-4174ea2d-db24-4af2-a2d4-d9be7421a26c`.
+
+- `/mcp` is now rebuilt on the approved shared public-site primitives instead
+  of the prior ad hoc MCP/provider-color surface.
+- The route now composes `PageContainer`, `SectionIntro`, `SurfacePanel`,
+  `PanelTitle`, `PanelBody`, `BracketLabel`, `BracketLink`, and
+  `DocsCodeBlock`, with tokenized role/semantic colors and no raw route-level
+  color literals.
+- The CLI/MCP/SDK/REST pub/sub surface now uses explicit `tablist`, `tab`, and
+  `tabpanel` semantics.
+- Invalid comma-separated Tailwind arbitrary grid tracks on the MCP route were
+  replaced with space-separated `minmax(0, ...)` tracks; this restored the
+  intended desktop two-column proof layout.
+- Shared public primitives and code blocks now include shrink-safe
+  `min-w-0`/`max-w-full` behavior so wide code samples scroll inside their
+  blocks instead of widening mobile pages.
+- Proof screenshots now exist at:
+  - `docs/reports/website-rehab-screenshots/mcp-proof-desktop.png`
+  - `docs/reports/website-rehab-screenshots/mcp-proof-mobile.png`
+- Validation truth on 2026-04-26 from `website-v2/`:
+  - `npm run lint`: green
+  - `npm run test -- src/design-system-contracts.test.ts`: 10/10 pass
+  - `npm run test`: 7/7 files and 73/73 tests pass
+  - `npm run build`: green with no chunk-size warning; largest JS chunk is
+    `Mermaid-NIUzfny0.js` at 491.12 kB minified / 136.66 kB gzip, and the MCP
+    route chunk is `MCPPage-Cs0vR24E.js` at 18.62 kB minified / 6.08 kB gzip
+- Remaining website rehab blockers: Storybook state matrix, axe/keyboard and
+  manual a11y evidence, SEO/OG/PWA/legal/privacy/observability, raw visual
+  literals in legacy pages outside the protected contract, and a deeper
+  Mermaid/diagram payload decision.
+
+### Cartographer / Navigator Maritime Actor Foundation (2026-04-26)
+
+The current actor slice rebuilds the missing foundation that recovery docs had
+already started referencing. Cartographer is now modeled as the compatibility
+fleet name for the durable `navigator` actor:
+
+- `docs/adr/0022-durable-actor-souls-and-body-leases.md` defines the governing actor split: durable actor souls persist, body leases carry live mutation authority.
 - `docs/adr/0023-cartographer-roadmap-actor.md` defines the target actor: durable identity, mailbox, roadmap/work-slice read model, tuples, graph edges, and evidence links across docs, sessions, claims, commits, tests, and promotion attempts.
 - `.cartographer/README.md` now defines the operating contract for bootstrap reconciliation, document authority classes, tuple vocabulary, graph vocabulary, and patch policy.
-- `pd-fleet.yml` now gives the compatibility `cartographer` fleet agent Port Daddy-first instructions and a stricter event/upkeep contract.
-- `lib/maritime-actors.ts` defines the canonical maritime actor roster and projects live body / compatibility fleet status from existing daemon state.
-- `routes/actors.ts` exposes `GET /actors` and `GET /actors/:id`; `cartographer` currently resolves to `navigator`.
-- `features.manifest.json`, `docs/openapi.yaml`, and the Port Daddy skill API reference now know about the new `/actors` surface.
+- `lib/maritime-actors.ts` defines the canonical maritime actor roster and projects live body, recent session, and salvage evidence from existing daemon state.
+- `routes/actors.ts` exposes `GET /actors`, `GET /actors/:id`, and `POST /actors/:id/message`; `cartographer` currently resolves to `navigator`, and actor messages queue to `actor:<id>` inbox targets without granting dormant actors live mutation authority.
+- `pd actors` and `pd actor <id-or-alias>` expose the directory in the CLI; `--inbox` and `--inbox-stats` expose durable mailbox state separately from live-body wake status.
+- `PortDaddy` SDK clients now have `listActors()`, `getActor()`, `messageActor()`, `actorInboxList()`, and `actorInboxStats()` helpers, with SDK reference docs and request-formation regression coverage.
+- README, completions, `features.manifest.json`, `docs/openapi.yaml`, MCP, and the Port Daddy skill API/SDK references now know about the new actor and actor-inbox surfaces.
 - The initial batch step is explicitly a report-first reconciliation pass. It inventories and classifies extant documents, extracts work items and evidence, emits structured state, and proposes cleanup patches. It must not blindly rewrite every document.
 - The sibling systems discussed in this thread are also actor-shaped and now have canonical maritime names: Navigator for roadmap/recovery state, Coxswain for claims/locks/stale work, Signalman for validation evidence, Harbormaster for promotion readiness, Sounder for semantic graph/synonymy, Lookout for docs/API/skill drift, Breaker for failure propagation, Caulker for robustness repair, and Quartermaster for cost/resource governance. They should all become durable actors with deterministic projectors and optional LLM bodies.
+- Validation truth on 2026-04-26: focused actor + SDK + MCP + parity bundle is green at `551/551`, and `npm run typecheck` / `npm run build` are green. Broad `npm test -- --no-coverage` reached green counts at `142/142` suites and `4973/4974` tests with `1` intentional skip, then hit the known Jest open-handle warning; the hung `--no-coverage` process tree was cleaned up manually.
+
+### Promotion-Gated Release Surface Review (2026-04-26)
+
+The promotion script is now the high-signal trigger for docs/website/SDK/CLI/tutorial/README/skill drift work:
+
+- `scripts/emit-promotion-release-review.mjs` builds a structured promotion review payload, writes a harbor-scoped `promotion:release-surfaces` tuple, and publishes the same payload on the `promotion:release-surfaces` channel.
+- The payload filters generated/build artifact paths, carries changed-file counts, and truncates the file list so promotion review cannot accidentally shove stable archaeology through pub/sub.
+- `scripts/promote-stable.sh` emits that review after the test gate passes and before merging `main` into stable.
+- The trigger is intentionally not a direct spawn. Fleet policy owns activation through the `documentarian` agent, which now listens to `promotion:release-surfaces` with singleton, cooldown, dedupe, and backoff controls.
+- `PORT_DADDY_PROMOTION_REVIEW_REQUIRED=1` makes emission failures block promotion; `PORT_DADDY_PROMOTION_REVIEW_ONLY=1` stops after signaling so release-surface agents can work before stable moves.
+- The contract is covered by `tests/unit/promotion-release-review.test.js`.
+- Validation truth on 2026-04-26: focused promotion/fleet tests are green, `npm run typecheck` and `npm run build` are green, source `pd fleet validate` reports no topology warnings, and broad `npm test -- --no-coverage --runInBand` is green at `143/143` suites and `4980/4981` passing tests with `1` intentional skip.
 
 ### Tree-Sitter Symbol Refresh From Repo Events (2026-04-24)
 
@@ -421,9 +525,10 @@ This is the normalized remaining-slice inventory as of 2026-04-24. It supersedes
 ### C. Durable Actor Souls And Body Leases
 
 1. Move beyond the current static `/actors` projection:
-   - add `POST /actors/:id/message`
-   - expose mailbox depth, recent sessions, recent salvage state, last activation, and live lease state
-   - add SDK/CLI/docs surfaces for actor messaging
+   - `POST /actors/:id/message` now queues durable actor mailbox messages; `GET /actors/:id/inbox` and `GET /actors/:id/inbox/stats` expose mailbox read/depth
+   - next work is body-lease wake policy and richer lease/incarnation state
+   - expose recent sessions, recent salvage state, last activation, and live lease state in control-plane actor views
+   - SDK/client helpers for actor directory, messaging, and inbox reads now exist
 2. Add explicit body lease/incarnation state before changing cleanup semantics:
    - status: `attached`, `draining`, `detached`, `dead`, `revoked`
    - heartbeat and PID/process/transport metadata
@@ -554,7 +659,12 @@ This is the normalized remaining-slice inventory as of 2026-04-24. It supersedes
    - macOS pkg signing/notarization path
    - FleetBar cask/pkg parity
    - landing-page download truth
-8. Finish Bosun/Barnacle consolidation:
+8. Keep promotion-time release-surface review healthy:
+   - `promote-stable.sh` must emit `promotion:release-surfaces` after tests pass and before stable merge
+   - the event must remain tuple + pub/sub, not an unconditional direct AI spawn
+   - Documentarian/Lookout must keep singleton/cooldown/dedupe/backoff so repeated promotion attempts collapse instead of burning fleet budget
+   - use `PORT_DADDY_PROMOTION_REVIEW_REQUIRED=1` when stale docs should block promotion, and `PORT_DADDY_PROMOTION_REVIEW_ONLY=1` when agents need a pre-merge docs pass
+9. Finish Bosun/Barnacle consolidation:
    - V2 `bin/watchdog.ts` / `daemon:watch` are removed in the active Bosun slice
    - daemon heartbeat writer and `core/pd-bosun/` std-only supervisor scaffold are in-tree
    - remaining: distribute `dist/core/pd-bosun`, promote `com.portdaddy.bosun`, then remove legacy Barnacle crate/client/compat field after the compatibility window
@@ -578,7 +688,11 @@ This is the normalized remaining-slice inventory as of 2026-04-24. It supersedes
    - reference
    - LLM exports
 6. Add Lookout drift checks for parity between routes, manifest, OpenAPI, CLI, completions, MCP, website docs, and skill reference.
-7. Translate the Google Agents CLI research into a lifecycle-first Port Daddy docs/CLI proposal:
+7. Keep Lookout/Documentarian focused on promotion-time release surfaces, not every commit:
+   - README, CHANGELOG, feature manifest, OpenAPI, SDK docs, CLI help/completions, website docs/tutorials, MCP instructions, and the distributed Port Daddy skill
+   - scope reviews to the promotion payload's source SHA and changed files
+   - report `CLEAN` with evidence instead of making cosmetic docs churn
+8. Translate the Google Agents CLI research into a lifecycle-first Port Daddy docs/CLI proposal:
    - `setup`
    - `scaffold create`
    - `scaffold enhance`

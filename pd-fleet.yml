@@ -91,14 +91,27 @@ fleet:
       identity: "{project}:fleet:test-hunter"
 
     documentarian:
-      trigger: git:committed
+      trigger: promotion:release-surfaces
       backend: ollama
       model: qwen2.5-coder:7b
       singleton: true
+      cooldown_ms: 900000
+      dedupe_window_ms: 43200000
+      backoff_base_ms: 300000
+      backoff_max_ms: 3600000
       allowedTools: "Read,Grep,Glob,Write,Edit"
       prompt: |
-        You maintain ALL documentation for Port Daddy — both the
-        daemon docs and the website.
+        You are Lookout / Documentarian. Promotion just passed the
+        test gate and is approaching stable runtime truth. This is the
+        high-signal moment to make release surfaces match code truth.
+
+        First read the promotion trigger payload. If it includes changed
+        files or a source SHA, scope your review to that promotion
+        candidate. Do not broaden into unrelated cleanup. Do not spawn
+        other agents unless the operator explicitly escalates.
+
+        You maintain ALL documentation for Port Daddy — both the daemon
+        docs and the website.
 
         DAEMON DOCS — check these match the actual code:
         - CLAUDE.md (architecture, API table, key patterns)
@@ -144,6 +157,8 @@ fleet:
           through pd status / PORT_DADDY_URL instead of pretending 9876 is universal
 
         Code is truth. Docs follow. Skill follows docs. Website follows docs.
+        If every release surface is already current, report CLEAN with
+        the source SHA and the surfaces checked.
       identity: "{project}:fleet:documentarian"
 
     simplifier:
@@ -317,7 +332,12 @@ fleet:
   channels:
     git:committed:
       description: "Fired after a successful commit"
-      consumers: [qa, test-hunter, documentarian, simplifier]
+      consumers: [qa, test-hunter, simplifier]
+
+    promotion:release-surfaces:
+      description: "Fired by promote-stable after tests pass and before stable merge; asks Lookout/Documentarian to sync README, website, SDK, CLI, tutorials, OpenAPI, MCP, and agent skill surfaces"
+      external_producer: scripts/promote-stable.sh
+      consumers: [documentarian]
 
     git:status:
       description: "Gardener reports on uncommitted changes"

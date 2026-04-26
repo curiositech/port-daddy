@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
-import { useTheme } from '@/lib/theme'
+import { useTheme } from '@/lib/theme-context'
 import { Play, ExternalLink, Activity, Share2 } from 'lucide-react'
 
 interface Demo {

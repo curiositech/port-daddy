@@ -18,8 +18,6 @@ export function useChannelLog(daemonUrl: string, channels: ResolvedChannelTarget
     },
     [channels]
   );
-  const channelKey = normalizedChannels.map((channel) => `${channel.logical}:${channel.physical}`).join('|');
-
   const refresh = useCallback(async () => {
     if (normalizedChannels.length === 0) {
       setMessages([]);
@@ -47,15 +45,22 @@ export function useChannelLog(daemonUrl: string, channels: ResolvedChannelTarget
     } catch (err) {
       console.error('Failed to refresh channel log', err);
     }
-  }, [daemonUrl, channelKey, normalizedChannels]);
+  }, [normalizedChannels]);
 
   useEffect(() => {
-    setMessages([]);
-    refresh();
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (cancelled) return;
+      setMessages([]);
+      void refresh();
+    });
 
     const poll = window.setInterval(refresh, 10000);
-    return () => window.clearInterval(poll);
-  }, [refresh]);
+    return () => {
+      cancelled = true;
+      window.clearInterval(poll);
+    };
+  }, [daemonUrl, refresh]);
 
   return { messages, refresh };
 }

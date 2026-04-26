@@ -8,12 +8,12 @@ export function Spawn() {
     <TutorialLayout
       title="Budgeted One-Shot Agents"
       description="Use pd spawn when you want direct daemon-backed execution with explicit identity, explicit cost ceiling, and no long-lived fleet wiring."
-      number={11}
-      total={16}
+      number={12}
+      total={20}
       level="Intermediate"
       readTime="10 min read"
-      prev={{ title: 'Agent Inbox', href: '/tutorials/inbox' }}
-      next={{ title: 'Cryptographic Harbors', href: '/tutorials/harbors' }}
+      prev={{ title: 'Spawn + Watch Pattern', href: '/tutorials/always-on' }}
+      next={{ title: 'Harbor Tokens (Advisory)', href: '/tutorials/harbors' }}
     >
       <div className="space-y-12">
         <section className="space-y-4">

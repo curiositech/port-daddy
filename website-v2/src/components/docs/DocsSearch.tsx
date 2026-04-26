@@ -2,6 +2,7 @@ import * as React from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { Search, X, FileText, Terminal, Code, Cpu, ChevronRight } from 'lucide-react'
+import { OPEN_DOCS_SEARCH_EVENT } from './docsSearchEvents'
 
 interface SearchResult {
   title: string
@@ -103,8 +104,6 @@ interface DocsSearchProps {
   className?: string
 }
 
-const OPEN_EVENT = 'pd-docs-search:open'
-
 export function DocsSearch({ variant = 'full', className }: DocsSearchProps) {
   const navigate = useNavigate()
   const [isOpen, setIsOpen] = React.useState(false)
@@ -181,8 +180,8 @@ export function DocsSearch({ variant = 'full', className }: DocsSearchProps) {
 
   React.useEffect(() => {
     const handleOpen = () => openSearch()
-    window.addEventListener(OPEN_EVENT, handleOpen)
-    return () => window.removeEventListener(OPEN_EVENT, handleOpen)
+    window.addEventListener(OPEN_DOCS_SEARCH_EVENT, handleOpen)
+    return () => window.removeEventListener(OPEN_DOCS_SEARCH_EVENT, handleOpen)
   }, [openSearch])
 
   // Group results by category
@@ -343,8 +342,4 @@ export function DocsSearch({ variant = 'full', className }: DocsSearchProps) {
       )}
     </>
   )
-}
-
-export function openDocsSearch() {
-  window.dispatchEvent(new Event(OPEN_EVENT))
 }

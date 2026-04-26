@@ -36,25 +36,22 @@ This means:
 - **launchctl/systemd** is the OS supervisor. It starts long-lived services.
 - **Bosun** is the future non-agent watchdog. It observes daemon progress from
   outside the daemon and eventually enforces restarts from heartbeat/PID state.
-- **Barnacle** is only the legacy V3 implementation name for the reciprocal
-  Rust sidecar. It is not the product name, and it should not appear in new
-  operator-facing copy except as a deprecated JSON compatibility alias.
+- **Barnacle** is only the legacy V3 implementation name for the retired
+  reciprocal Rust sidecar. It is not the product name and must not appear in
+  runtime source as a compatibility path.
 - **Watchdog** is the generic role. It should appear in explanatory prose, not
   as a separate product/component name.
 
-## Current Compatibility Contract
+## Current Contract
 
-During the V4 Bosun rollout:
+The V4 Bosun rollout has closed the Barnacle compatibility window:
 
-- `lib/barnacle-client.ts` may remain as the legacy implementation shim until
-  the Barnacle compatibility window closes.
-- `/status.guardians.bosun` is the preferred API field and carries the daemon
+- `/status.guardians.bosun` is the only API field and carries the daemon
   heartbeat writer status.
-- `/status.guardians.barnacle` is kept as a deprecated compatibility field for
-  one minor release.
+- `/status.guardians.barnacle` is removed.
 - `pd status` and FleetBar display **Bosun**, not **Barnacle**.
-- Missing sidecar binary is reported as `not installed (optional)`, not as a
-  daemon failure.
+- Missing `pd-bosun` binary is reported as `not installed (optional)`, not as a
+  daemon failure, while the daemon heartbeat writer still reports its own state.
 
 Example `/status` fragment:
 
@@ -69,7 +66,7 @@ Example `/status` fragment:
       "enabled": true,
       "state": "idle",
       "reason": "daemon heartbeat writer active; supervisor not installed (optional)",
-      "monitoredUrl": "http://localhost:9875/health",
+      "monitoredUrl": "file:///Users/me/.port-daddy/heartbeat",
       "binaryExists": false,
       "heartbeat": {
         "heartbeatPath": "/Users/me/.port-daddy/heartbeat",
@@ -78,13 +75,6 @@ Example `/status` fragment:
         "lastWrittenAt": 1777050000000,
         "writeCount": 2
       }
-    },
-    "barnacle": {
-      "enabled": false,
-      "state": "disabled",
-      "reason": "not installed (optional)",
-      "monitoredUrl": "http://localhost:9875/health",
-      "binaryExists": false
     }
   }
 }
@@ -93,8 +83,7 @@ Example `/status` fragment:
 ## Migration Order
 
 1. Rename user-facing status and UI labels from Barnacle to Bosun.
-2. Expose `guardians.bosun` while retaining `guardians.barnacle` as a
-   compatibility field.
+2. Expose `guardians.bosun` as the only watchdog status field.
 3. Delete `bin/watchdog.ts` and `daemon:watch` once no release surface depends
    on that V2 loop. **Done.**
 4. Implement the ADR-0015 one-way heartbeat supervisor as `core/pd-bosun/`.
@@ -103,7 +92,7 @@ Example `/status` fragment:
 5. Ship the installer with two services:
    `com.portdaddy.daemon` and `com.portdaddy.bosun`.
 6. Remove `core/pd-barnacle/`, `lib/barnacle-client.ts`, and
-   `guardians.barnacle` after one compatibility release.
+   `guardians.barnacle`. **Done.**
 
 ## Consequences
 
@@ -123,8 +112,6 @@ Remaining work:
   facts. A daemon writes the shared heartbeat only after it owns the canonical
   PID file, and `pd-bosun` treats heartbeat/PID-file mismatches as foreign
   heartbeat evidence instead of blindly supervising the wrong process.
-- The code still carries `barnacle` internally until the compatibility window
-  closes, but legacy Barnacle monitoring is opt-in via
-  `PORT_DADDY_ENABLE_LEGACY_BARNACLE=1`; Bosun is authoritative by default.
-- Clients must tolerate both `guardians.bosun` and `guardians.barnacle` during
-  the compatibility window.
+- The compatibility window is closed. Runtime source must not carry Barnacle
+  watchers, Barnacle status aliases, or Barnacle opt-in flags.
+- Clients must read `guardians.bosun`.

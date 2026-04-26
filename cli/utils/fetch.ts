@@ -14,9 +14,8 @@ import { CANONICAL_TCP_PORT, LOOPBACK_TCP_HOST, getDaemonTcpUrl, readDaemonPort,
 const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || DEFAULT_SOCK;
 const PORT_FILE: string = process.env.PORT_DADDY_PORT_FILE || DEFAULT_PORT_FILE;
 const PORT_DADDY_URL: string = getDaemonTcpUrl(process.env.PORT_DADDY_URL);
-const BARNACLE_URL: string = process.env.PORT_DADDY_BARNACLE_URL || 'http://localhost:9875';
 
-export { PORT_DADDY_URL, BARNACLE_URL, SOCK_PATH };
+export { PORT_DADDY_URL, SOCK_PATH };
 
 export interface ConnectionTarget {
   socketPath?: string;

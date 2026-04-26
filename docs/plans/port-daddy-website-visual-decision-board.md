@@ -1,11 +1,12 @@
 # Port Daddy Website Visual Decision Board
 
-Last updated: 2026-04-24
-Status: pending user review
+Last updated: 2026-04-26
+Status: approved for first stabilization slice; broader visual/token slices still require evidence updates
 Related plan: `docs/plans/port-daddy-website-ideal-web-app-rehab.md`
 
-Do not start broad visual execution until the user approves or edits the
-decisions below.
+The user approved moving forward from this board on 2026-04-26. Do not treat
+that as blanket permission to skip slice-level evidence for broad token,
+visual, route, content, observability, or legal work.
 
 ## Baseline Screenshots
 
@@ -92,12 +93,14 @@ This means:
 
 ## First Approved Execution Slice
 
-Only after approval:
+Approved and partly executed on 2026-04-26:
 
 1. Stabilize CI truth:
    - repair tutorial tests and canonical route order
    - exclude `storybook-static` from lint
    - fix no-risk lint blockers
+   - status: complete; `npm run lint`, focused tutorial tests, full tests, and
+     `npm run build` now pass, with a remaining large-main-chunk warning
 2. Split token layers with compatibility aliases.
 3. Normalize Button, Badge, Surface, CodeBlock, SiteHeader, and Docs shell
    stories.
@@ -107,10 +110,10 @@ Only after approval:
 
 ## Approval Checklist
 
-- Brand register approved or revised.
-- Shape/radius posture approved.
-- Typography direction approved enough to choose a font shortlist.
-- Color posture approved enough to write source/semantic/role tokens.
+- Brand register approved for first slice.
+- Shape/radius posture approved for first slice.
+- Typography direction approved enough to continue research and shortlist.
+- Color posture approved enough to plan source/semantic/role tokens.
 - Route preservation map approved.
-- First execution slice approved.
+- First execution slice approved and CI stabilization completed.
 - Cheap subagent fanout approved for bounded write sets after the first slice.

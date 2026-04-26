@@ -261,12 +261,9 @@ describe('CLI Integration Tests', () => {
   describe('Sugar Recovery Commands', () => {
     test('done succeeds over IPC when the session is active but the agent registry entry is gone', async () => {
       const slot = `stale-done-${Date.now()}`;
-      const originalSlot = process.env.PORT_DADDY_CONTEXT_SLOT;
       const agentId = `stale-done-agent-${Date.now()}`;
 
       try {
-        process.env.PORT_DADDY_CONTEXT_SLOT = slot;
-
         const begin = await requestWithRetry('/sugar/begin', {
           method: 'POST',
           body: {
@@ -290,7 +287,10 @@ describe('CLI Integration Tests', () => {
         const unregister = await requestWithRetry(`/agents/${encodeURIComponent(agentId)}`, { method: 'DELETE' });
         expect(unregister.ok).toBe(true);
 
-        const result = runCliViaIpc(['done', 'Recovered after agent registry loss', '--json']);
+        const result = runCliViaIpc(
+          ['done', 'Recovered after agent registry loss', '--json'],
+          { env: { PORT_DADDY_CONTEXT_SLOT: slot } },
+        );
         expect(result.success).toBe(true);
 
         const payload = JSON.parse(result.stdout);
@@ -306,8 +306,6 @@ describe('CLI Integration Tests', () => {
         expect(session.data.session.status).toBe('completed');
       } finally {
         clearTestCurrentContext(slot);
-        if (originalSlot === undefined) delete process.env.PORT_DADDY_CONTEXT_SLOT;
-        else process.env.PORT_DADDY_CONTEXT_SLOT = originalSlot;
       }
     });
   });

@@ -554,7 +554,10 @@ export default function App() {
   useEffect(() => {
     if (fleet.loading || fleet.error || !selectedProjectId) return;
     if (projects.some((project) => project.id === selectedProjectId)) return;
-    setSelectedProjectId(null);
+    const timeout = window.setTimeout(() => {
+      setSelectedProjectId((current) => current === selectedProjectId ? null : current);
+    }, 0);
+    return () => window.clearTimeout(timeout);
   }, [fleet.error, fleet.loading, projects, selectedProjectId]);
 
   useEffect(() => {
@@ -587,13 +590,19 @@ export default function App() {
 
   useEffect(() => {
     if (!configAgent || !selectedAgent || configAgent === selectedAgent) return;
-    setInspectorTab('details');
-    setConfigAgent(selectedAgent);
+    const timeout = window.setTimeout(() => {
+      setInspectorTab('details');
+      setConfigAgent((current) => current === configAgent ? selectedAgent : current);
+    }, 0);
+    return () => window.clearTimeout(timeout);
   }, [configAgent, selectedAgent]);
 
   useEffect(() => {
     if (activeTab === 'Flow') return;
-    setConfigAgent(null);
+    const timeout = window.setTimeout(() => {
+      setConfigAgent(null);
+    }, 0);
+    return () => window.clearTimeout(timeout);
   }, [activeTab]);
 
   const projectConfig = selectedProjectId ? fleet.configs.get(selectedProjectId) : undefined;

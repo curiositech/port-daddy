@@ -1,7 +1,7 @@
 import { Link, NavLink } from 'react-router-dom'
 import { Github, Moon, Sun } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
-import { useTheme } from '@/lib/theme'
+import { useTheme } from '@/lib/theme-context'
 import { BrandMark } from './primitives'
 
 const NAV_ITEMS = [

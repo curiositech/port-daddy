@@ -9,12 +9,12 @@ export function TimeTravel() {
     <TutorialLayout
       title="Activity Log Inspection"
       description="When multiple agents work on the same project, the hardest question is 'what happened first?' Learn to use Port Daddy's immutable activity log to reconstruct the sequence of events."
-      number="06"
-      total={14}
+      number={15}
+      total={20}
       level="Intermediate"
       readTime="8 min read"
-      prev={{ title: 'Tunnels', href: '/tutorials/tunnel' }}
-      next={{ title: 'Visual Control Plane', href: '/tutorials/dashboard' }}
+      prev={{ title: 'Live Dashboard', href: '/tutorials/dashboard' }}
+      next={{ title: 'Reactive Pipelines', href: '/tutorials/pipelines' }}
     >
       <div className="space-y-12">
         {/* Concept Section */}

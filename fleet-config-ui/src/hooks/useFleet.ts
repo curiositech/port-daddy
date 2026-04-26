@@ -63,7 +63,7 @@ export function useFleet(daemonUrl: string) {
     } catch (err) {
       setState(s => ({ ...s, status: null, projects: [], loading: false, error: (err as Error).message }));
     }
-  }, [daemonUrl]);
+  }, []);
 
   const refreshFeeds = useCallback(async () => {
     try {
@@ -75,7 +75,7 @@ export function useFleet(daemonUrl: string) {
     } catch (err) {
       console.error('Failed to refresh fleet feeds', err);
     }
-  }, [daemonUrl]);
+  }, []);
 
   const loadConfig = useCallback(async (project: string) => {
     try {
@@ -88,7 +88,7 @@ export function useFleet(daemonUrl: string) {
     } catch (err) {
       console.error('Failed to load config for', project, err);
     }
-  }, [daemonUrl]);
+  }, []);
 
   // Initial fetch + SSE subscription
   useEffect(() => {

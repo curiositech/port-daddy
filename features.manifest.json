@@ -209,6 +209,35 @@
         "sdk": true
       }
     },
+    "actors": {
+      "description": "Durable maritime actor directory",
+      "cli": [
+        "actor",
+        "actors"
+      ],
+      "sdk": [
+        "listActors",
+        "getActor",
+        "messageActor",
+        "actorInboxList",
+        "actorInboxStats"
+      ],
+      "routes": [
+        "GET /actors",
+        "GET /actors/:param",
+        "GET /actors/:param/inbox",
+        "GET /actors/:param/inbox/stats",
+        "POST /actors/:param/message"
+      ],
+      "completions": [
+        "actor",
+        "actors"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": true
+      }
+    },
     "inbox": {
       "description": "Agent inbox messaging",
       "cli": [
@@ -1231,6 +1260,7 @@
       "routes": [
         "GET /semantic/stats",
         "GET /semantic/resolutions",
+        "GET /semantic/resolve",
         "POST /semantic/resolutions/:param/review",
         "GET /semantic/search"
       ],

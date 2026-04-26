@@ -67,15 +67,21 @@ Newest validated working-tree slice before the next commit:
   - dogfooding exposed and repaired inactive-session file-claim zombies in `lib/sessions.ts`; `tests/unit/sessions.test.js` now asserts inactive sessions cannot claim files, inactive unreleased rows do not block conflicts, and terminal sessions cannot be moved back to nonterminal phases
   - important limit: this is deterministic advice only; FleetBar/Fleet Control Center cards, graph edges for recommendations, stale asset reclaim actions, and optional LLM ranking remain follow-up work
 
-- **Cartographer / Navigator maritime actor foundation** — uncommitted runtime + fleet-contract slice. The repo now has the first additive `/actors` read surface instead of only a prompt-level roadmap updater:
+- **Cartographer / Navigator maritime actor foundation** — uncommitted runtime + CLI/docs slice. The repo now has the first additive `/actors` read surface instead of only a prompt-level roadmap updater:
+  - `docs/adr/0022-durable-actor-souls-and-body-leases.md` defines durable actor souls versus live body leases
   - `docs/adr/0023-cartographer-roadmap-actor.md` defines Cartographer as a durable roadmap/recovery-map actor with a mailbox, read model, tuples, graph edges, and evidence links
   - `.cartographer/README.md` defines bootstrap reconciliation, document authority classes, tuple vocabulary, graph vocabulary, and patch policy
-  - `pd-fleet.yml` upgrades the compatibility `cartographer` agent prompt to start with Port Daddy context and maintain event-driven roadmap truth
-  - `lib/maritime-actors.ts` defines the canonical maritime roster and projects live body / compatibility fleet status
-  - `routes/actors.ts` exposes `GET /actors` and `GET /actors/:id`; `cartographer` resolves to `navigator`
-  - `features.manifest.json`, `docs/openapi.yaml`, and the Port Daddy skill API reference now include the `/actors` surface
+  - `lib/maritime-actors.ts` defines the canonical maritime roster and projects live body, recent session, and salvage evidence
+  - `routes/actors.ts` exposes `GET /actors`, `GET /actors/:id`, and `POST /actors/:id/message`; `cartographer` resolves to `navigator`, and actor messages queue to `actor:<id>` inbox targets without granting dormant actors live mutation authority
+  - `pd actors` and `pd actor <id-or-alias>` expose the actor directory in the CLI; `--inbox` and `--inbox-stats` expose durable mailbox state separately from live-body wake status
+  - README, completions, `features.manifest.json`, `docs/openapi.yaml`, MCP, and the Port Daddy skill API/SDK references now include the `/actors` and actor-inbox surfaces
+  - `PortDaddy` SDK clients now have `listActors()`, `getActor()`, `messageActor()`, `actorInboxList()`, and `actorInboxStats()` helpers, with SDK reference docs and request-formation regression coverage
   - the initial batch cleanup step is explicitly report-first: inventory, classify, extract work/evidence, emit structured state, then propose narrow cleanup patches
   - sibling systems now have canonical maritime actor names: Navigator, Coxswain, Signalman, Harbormaster, Sounder, Lookout, Breaker, Caulker, and Quartermaster; most should be deterministic projectors with optional LLM bodies
+  - validation on 2026-04-26: focused actor + SDK + MCP + parity bundle is green at `551/551`, and `npm run typecheck` / `npm run build` are green
+  - broad `npm test -- --no-coverage` reached green counts at `142/142` suites and `4973/4974` tests with `1` intentional skip, then hit the known Jest open-handle warning; the hung `--no-coverage` process tree was cleaned up manually
+
+- **Promotion-gated release-surface review** — new uncommitted Harbormaster/Lookout slice. `promote-stable.sh` now emits a structured `promotion:release-surfaces` tuple and pub/sub signal after tests pass and before stable merge. The fleet `documentarian` now listens to that promotion channel instead of every `git:committed`, with singleton/cooldown/dedupe/backoff controls so docs/website/SDK/CLI/tutorial/README/skill review happens at the high-signal release boundary without directly spawning a swarm. `PORT_DADDY_PROMOTION_REVIEW_REQUIRED=1` can make emission fail-closed; `PORT_DADDY_PROMOTION_REVIEW_ONLY=1` stops before merge so release-surface agents can work first. Regression coverage lives in `tests/unit/promotion-release-review.test.js`. Validation on 2026-04-26: focused tests, typecheck/build, source `pd fleet validate`, and broad in-band Jest are green (`143/143` suites, `4980/4981` tests, `1` intentional skip).
 
 - **Tree-sitter symbol refresh from repo events** — uncommitted working tree. The live server now passes `symbolIndex` into the fleet daemon, and managed projects refresh symbols from existing Port Daddy infrastructure instead of manual `/symbols/parse` calls:
   - project-scoped `git:committed` messages are consumed by the daemon and normalized to in-project code files

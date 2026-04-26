@@ -74,23 +74,6 @@ function buildDeps(overrides = {}) {
         ];
       },
     },
-    barnacle: {
-      getStatus() {
-        return {
-          monitoredUrl: 'http://localhost:9875/health',
-          binaryPath: '/tmp/pd-barnacle',
-          binaryExists: true,
-          enabled: true,
-          state: 'healthy',
-          reason: null,
-          lastCheckAt: 1_700_000_113_000,
-          lastHealthyAt: 1_700_000_113_000,
-          lastFailureAt: null,
-          lastResurrectedAt: null,
-          failureCount: 0,
-        };
-      },
-    },
     ...overrides,
   };
 }
@@ -276,15 +259,11 @@ describe('info routes runtime summary', () => {
     expect(body.guardians).toEqual(expect.objectContaining({
       supervisor: expect.objectContaining({ state: 'launchctl_preferred' }),
       bosun: expect.objectContaining({
-        state: 'healthy',
-        binaryExists: true,
-      }),
-      barnacle: expect.objectContaining({
-        state: 'healthy',
-        binaryExists: true,
+        state: 'disabled',
+        reason: 'daemon heartbeat writer unavailable',
       }),
     }));
-    expect(body.guardians.barnacle).toEqual(body.guardians.bosun);
+    expect(body.guardians).not.toHaveProperty('barnacle');
     expect(body.history.recentActivity[0]).toEqual(expect.objectContaining({
       type: 'SESSION_NOTE',
       summary: 'Spark noted a daemon regression',
@@ -293,7 +272,7 @@ describe('info routes runtime summary', () => {
     await app.close();
   });
 
-  test('GET /status exposes Bosun heartbeat separately from legacy Barnacle alias', async () => {
+  test('GET /status exposes Bosun heartbeat without a Barnacle compatibility alias', async () => {
     const app = Fastify();
     await app.register(infoPlugin, {
       deps: buildDeps({
@@ -331,10 +310,7 @@ describe('info routes runtime summary', () => {
         writeCount: 2,
       }),
     }));
-    expect(body.guardians.barnacle).toEqual(expect.objectContaining({
-      monitoredUrl: 'http://localhost:9875/health',
-      binaryPath: '/tmp/pd-barnacle',
-    }));
+    expect(body.guardians).not.toHaveProperty('barnacle');
 
     await app.close();
   });

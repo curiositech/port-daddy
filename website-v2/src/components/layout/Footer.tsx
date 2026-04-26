@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Github, MessageSquare, ShieldCheck, Heart } from 'lucide-react'
-import { useTheme } from '@/lib/theme'
+import { useTheme } from '@/lib/theme-context'
 import { Badge } from '@/components/ui/Badge'
 
 const FOOTER_LINKS = [

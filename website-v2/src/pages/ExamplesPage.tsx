@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
 import { Surface } from '@/components/ui/Surface'
 import { NeumorphicTerminal } from '@/components/ui/NeumorphicTerminal'
-import { Sparkles, Shield, Layers, Anchor, Zap, Globe, Radio, Users, Search } from 'lucide-react'
+import { Sparkles, Shield, Layers, Anchor, Zap, Globe, Radio, Users, Search, type LucideIcon } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
 
 interface Example {
@@ -13,7 +13,7 @@ interface Example {
   description: string
   what: string[]
   code: string[]
-  icon: any
+  icon: LucideIcon
   color: string
 }
 

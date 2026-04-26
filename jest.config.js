@@ -19,6 +19,10 @@ export default {
   transform: {},
   moduleFileExtensions: ['js', 'mjs', 'ts'],
   extensionsToTreatAsEsm: ['.ts'],
+  // Keep the overall worker pool serial. The integration project shares one
+  // ephemeral daemon across files, and cross-project concurrency with the unit
+  // pool was starving that daemon and producing suite-only flakes in `npm test`.
+  maxWorkers: 1,
   testPathIgnorePatterns: ['/node_modules/', '/tests/benchmark/', '/dist/'],
   collectCoverageFrom: [
     'server.{js,ts}',

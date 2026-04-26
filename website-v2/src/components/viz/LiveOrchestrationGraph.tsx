@@ -3,9 +3,23 @@ import { motion } from 'framer-motion'
 import { SailorAgent } from './SailorAgent'
 import { Anchor, Cpu } from 'lucide-react'
 
+interface OrchestrationService {
+  id: string
+  label?: string
+  type?: string
+  status?: string
+}
+
+interface OrchestrationAgent {
+  id: string
+  label?: string
+  type?: string
+  status?: string
+}
+
 interface LiveOrchestrationGraphProps {
-  services?: any[]
-  agents?: any[]
+  services?: OrchestrationService[]
+  agents?: OrchestrationAgent[]
   onSelectAgent?: (id: string) => void
   selectedAgentId?: string | null
 }

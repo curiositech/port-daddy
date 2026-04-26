@@ -1,9 +1,9 @@
 ---
-license: Apache-2.0
 name: swiss-modern-website-design
-description: Design and implement Swiss modern websites using International Typographic Style principles translated for the contemporary web: strict grids, typography-led hierarchy, asymmetrical composition, disciplined whitespace, restrained color, and editorial clarity. Use for SaaS marketing sites, portfolios, product pages, documentation, dashboards, and design systems that need clarity, rigor, and visual authority. NOT for neobrutalism, skeuomorphic UI, glassmorphism, retro desktop aesthetics, maximalist collage systems, or illustration-first playful brands.
+description: "Design and implement Swiss modern websites and product web apps using International Typographic Style: strict grids, typography-led hierarchy, asymmetrical composition, disciplined whitespace, restrained color, editorial clarity, and visual QA. Use for SaaS marketing, portfolios, product pages, documentation, dashboards, control planes, design systems, and demanding web-app rehab. NOT for neobrutalism, skeuomorphic UI, glassmorphism, retro desktop aesthetics, maximalist collage systems, or illustration-first playful brands."
+license: Apache-2.0
 allowed-tools: Read,Write,Edit,Bash,Glob,Grep
-category: Design & Creative
+category: "Design & Creative"
 tags:
   - swiss-design
   - international-typographic-style
@@ -24,8 +24,8 @@ pairs-with:
 
 # Swiss Modern Website Design
 
-This bundle is intentionally mirrored under `.codex/skills` and `.claude/skills` in this repo.
-Treat the content as one skill with two runtime mirrors, and keep the mirrors identical.
+This bundle is intentionally mirrored under `.codex/skills`, `.agents/skills`, and `.claude/skills` in this repo.
+Treat the content as one skill with multiple runtime mirrors, and keep the mirrors identical.
 
 Use this skill when the right answer is not "minimal" in the generic sense, but **typography-first, grid-disciplined, and compositionally exact**.
 
@@ -47,6 +47,13 @@ Swiss modern design on the web means:
 3. Read `references/frontend-implementation.md` if the user wants code changes.
 4. Read `references/component-patterns.md` for page-section decisions.
 5. Start from a template in `templates/` instead of composing from scratch.
+
+### For demanding web-app work
+1. Pair this skill with the existing app's product workflow instead of treating the work as a poster exercise.
+2. Capture or inspect the current surface before redesigning controls, navigation, panes, dashboards, or forms.
+3. Preserve task density where users need repeated action; make hierarchy and alignment do the cleaning.
+4. Verify the final surface visually on desktop and mobile when assets, complex layout, or motion changed.
+5. Read `references/frontend-implementation.md` for product-app adaptation rules before touching shared components.
 
 ### For a new design or redesign brief
 1. Copy `templates/swiss-modern-design-brief.md`.

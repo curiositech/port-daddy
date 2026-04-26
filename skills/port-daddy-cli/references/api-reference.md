@@ -794,6 +794,40 @@ Predict direct/dependency/signature conflicts between two sets of symbol claims.
 
 ## Advisor / Compass
 
+## Maritime Actors
+
+### GET /actors
+List canonical durable maritime actors with projected live evidence from the
+agent registry, sessions, and salvage queue. Query params: `project`, `limit`.
+
+### GET /actors/:id
+Read one actor by canonical id or alias. `cartographer` resolves to
+`navigator`; other canonical actors include `coxswain`, `signalman`,
+`harbormaster`, `sounder`, `lookout`, `breaker`, `caulker`, and
+`quartermaster`.
+
+### GET /actors/:id/inbox
+Read recent messages queued to a durable actor mailbox. Query params:
+`unread`, `limit`, `since`.
+
+### GET /actors/:id/inbox/stats
+Read mailbox depth for one durable actor. Returns unread and total counts.
+
+### POST /actors/:id/message
+Queue a message to the durable actor mailbox. This writes to the existing inbox
+substrate using targets like `actor:navigator`; it does not grant dormant actors
+mutation authority.
+
+**Body:** `{ "content": "roadmap item needs evidence", "from": "agent-...", "wake": false }`
+
+The actor surface is additive. `/actors` is durable identity and role truth;
+`/agents` remains the live body/lease compatibility view until the lease
+migration lands.
+
+---
+
+## Advisor / Compass
+
 ### GET /advisor
 Query-form coordination advice. Query params: `projectRoot`, `project`, `sessionId`, `agentId`, `task`, `files` (comma-separated), `includeChannels`, `includeTupleHints`.
 
@@ -1073,6 +1107,13 @@ Count tuples, optionally scoped to a harbor.
 ---
 
 ## Semantic Graph
+
+### GET /semantic/resolve
+Resolve a free-form phrase into deterministic semantic aliases, then return live evidence from semantic tuples, episodic memory, merge queue entries, and resolver decisions.
+
+**Query params:** `q`/`query` (required), `projectDir`, `project`, `harbor`, `limit`.
+
+Useful operator check: `GET /semantic/resolve?q=design-system%20CSS%20tasks&projectDir=/Users/you/coding/port-daddy`.
 
 ### GET /graph/edges
 List semantic graph edges.

@@ -5,14 +5,14 @@ import {
   type DaemonErrorKind,
 } from '@/lib/daemon-client'
 
-interface Activity {
+export interface Activity {
   id: number;
   type: string;
   agentId: string | null;
   targetId: string | null;
   details: string | null;
   timestamp: number;
-  metadata?: Record<string, any> | null;
+  metadata?: Record<string, unknown> | null;
 }
 
 interface UseActivityStreamOptions {
@@ -38,7 +38,7 @@ export function useActivityStream(options: UseActivityStreamOptions = {}) {
       setErrorKind(null);
     };
 
-    eventSource.onerror = (_event: Event) => {
+    eventSource.onerror = () => {
       setConnected(false);
       const normalized = describeDaemonError(new TypeError('Connection failed'))
       setError(normalized.message);
@@ -48,7 +48,7 @@ export function useActivityStream(options: UseActivityStreamOptions = {}) {
 
     eventSource.onmessage = (event: MessageEvent<string>) => {
       try {
-        const activity = JSON.parse(event.data);
+        const activity = JSON.parse(event.data) as Activity;
         setActivities((prev) => {
           const next = [activity, ...prev];
           return next.slice(0, limit);

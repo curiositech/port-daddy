@@ -18,6 +18,19 @@ ADRs follow the [MADR format](https://adr.github.io/madr/) (Markdown Architectur
 | [0008](0008-agent-resurrection-pattern.md) | Agent Resurrection Pattern for Dead-Agent Recovery | Accepted | 2025-03 |
 | [0009](0009-mcp-server-integration.md) | MCP Server Integration for Claude Agent Tooling | Accepted | 2025-03 |
 | [0010](0010-maritime-design-language.md) | Maritime Design Language Throughout CLI and Dashboard | Accepted | 2025-02 |
+| [0011](0011-reactive-coordination-kernel.md) | Reactive Coordination Kernel (Bun, Fastify, WAL) | Accepted | 2025-03 |
+| [0012](0012-semantic-token-graph-and-trie.md) | Semantic Token Graph and Radix Trie | Accepted | 2025-03 |
+| [0013](0013-unified-harbor-model.md) | Unified Harbor Model and Cryptographic Security | Accepted | 2025-03 |
+| [0014](0014-the-anchor-protocol.md) | Anchor Protocol and Verifiable Economy | Accepted | 2025-03 |
+| [0015](0015-layered-resurrection.md) | Layered Resurrection and Bosun Watchdog | Accepted | 2025-03 |
+| [0016](0016-hardened-cross-platform-ipc.md) | Hardened Cross-Platform IPC | Accepted | 2025-03 |
+| [0017](0017-db-file-protection-threat-model.md) | DB File Protection and Insider Threat Model | Accepted | 2025-03 |
+| [0018](0018-adversarial-security-analysis.md) | Adversarial Security Analysis of the Anchor Protocol | Accepted | 2025-03 |
+| [0019](0019-declarative-fleet-yaml.md) | Declarative Fleet Configuration | Accepted | 2025-03 |
+| [0020](0020-ipc-failure-modes.md) | IPC Binary Protocol Failure Modes and Mitigations | Accepted | 2025-03 |
+| [0021](0021-bosun-consolidation.md) | Bosun Consolidation | Accepted | 2026-04 |
+| [0022](0022-durable-actor-souls-and-body-leases.md) | Durable Actor Souls and Body Leases | Accepted | 2026-04 |
+| [0023](0023-cartographer-roadmap-actor.md) | Cartographer as Navigator Roadmap Actor | Accepted | 2026-04 |
 
 ## How to Read These
 

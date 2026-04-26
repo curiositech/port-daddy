@@ -72,7 +72,7 @@ export interface FleetConfig {
   limits?: FleetLimits;
   agents: FleetAgent[];
   watchers: FleetWatcher[];
-  channels: Record<string, { description: string; consumers?: string[] }>;
+  channels: Record<string, { description: string; consumers?: string[]; externalProducer?: string | boolean }>;
 }
 
 export interface FleetRuntimeDefaults {
@@ -173,6 +173,8 @@ interface FleetYamlWatcher {
 interface FleetYamlChannel {
   description?: string;
   consumers?: string[];
+  external_producer?: string | boolean;
+  externalProducer?: string | boolean;
 }
 
 interface FleetYamlLimits {
@@ -455,6 +457,7 @@ export function loadFleetConfig(projectDir: string): FleetConfig | null {
       channels[name] = {
         description: s.description || '',
         consumers: s.consumers,
+        externalProducer: s.external_producer ?? s.externalProducer,
       };
     }
   }
@@ -565,8 +568,8 @@ export function validateTopology(config: FleetConfig): TopologyValidation {
   }
 
   // Check for orphan channels (declared but no producer)
-  for (const [channel] of Object.entries(config.channels)) {
-    if (!producerOf.has(channel) && !['git:committed'].includes(channel)) {
+  for (const [channel, metadata] of Object.entries(config.channels)) {
+    if (!producerOf.has(channel) && !metadata.externalProducer && !['git:committed'].includes(channel)) {
       warnings.push(`Channel "${channel}" has no producer in the fleet`);
     }
   }

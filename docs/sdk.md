@@ -340,6 +340,38 @@ await pd.unregister();
 
 ---
 
+## Maritime Actors
+
+Durable maritime actors are the canonical registry for operator roles like `navigator`, `cartographer`, and `bosun`. The SDK exposes both the roster and each actor mailbox.
+
+```javascript
+// List actors, optionally projecting live evidence from one project
+const { actors } = await pd.listActors({ project: 'port-daddy', limit: 25 });
+
+// Read one actor by canonical id or alias
+const { actor } = await pd.getActor('navigator', { project: 'port-daddy' });
+
+// Queue a message to the actor mailbox and optionally wake its live body
+await pd.messageActor('navigator', 'Review the fleet lease drift', {
+  from: 'captain',
+  type: 'operator.request',
+  wake: true,
+  project: 'port-daddy',
+});
+
+// Read actor mailbox contents
+const inbox = await pd.actorInboxList('navigator', {
+  unreadOnly: true,
+  limit: 20,
+});
+
+// Read actor mailbox counters
+const stats = await pd.actorInboxStats('navigator');
+console.log(stats.unread);
+```
+
+---
+
 ## Agent Salvage (Resurrection)
 
 When an agent dies mid-task, Port Daddy preserves its context for another agent to continue.

@@ -1,25 +1,84 @@
 import { describe, expect, test } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync, statSync } from 'node:fs'
 
 function read(relativePath: string) {
   return readFileSync(new URL(relativePath, import.meta.url), 'utf8')
 }
 
+function collectSourceFiles(relativeDir: string): string[] {
+  const dirUrl = new URL(relativeDir, import.meta.url)
+  const entries = readdirSync(dirUrl)
+
+  return entries.flatMap((entry) => {
+    const childRelative = `${relativeDir}/${entry}`
+    const childUrl = new URL(childRelative, import.meta.url)
+    const stat = statSync(childUrl)
+
+    if (stat.isDirectory()) return collectSourceFiles(childRelative)
+    if (!/\.(ts|tsx)$/.test(entry)) return []
+    if (/\.stories\.tsx$/.test(entry)) return []
+
+    return [childRelative]
+  })
+}
+
 describe('design system contracts', () => {
   test('tokens define the semantic layout values that back the normalized website shell', () => {
-    const tokens = read('./styles/tokens.css')
+    const sourceTokens = read('./styles/tokens.source.css')
+    const semanticTokens = read('./styles/tokens.semantic.css')
+    const roleTokens = read('./styles/tokens.roles.css')
 
-    expect(tokens).toContain('--layout-max-width: 1200px;')
-    expect(tokens).toContain('--layout-max-width-wide: 1440px;')
-    expect(tokens).toContain('--layout-gutter: var(--space-5);')
-    expect(tokens).toContain('--layout-gutter-lg: var(--space-6);')
-    expect(tokens).toContain('--section-space-y: var(--space-8);')
-    expect(tokens).toContain('--section-space-y-lg: var(--space-9);')
-    expect(tokens).toContain('--section-intro-gap: var(--space-6);')
-    expect(tokens).toContain('--surface-padding-xl: var(--space-7);')
-    expect(tokens).toContain('--blog-section-break: 80px;')
-    expect(tokens).toContain('--blog-subsection-break: var(--space-7);')
-    expect(tokens).toContain('--blog-rule-gap: var(--space-7);')
+    expect(sourceTokens).toContain('--layout-max-width: 1200px;')
+    expect(sourceTokens).toContain('--layout-max-width-wide: 1440px;')
+    expect(sourceTokens).toContain('--layout-gutter: var(--space-5);')
+    expect(sourceTokens).toContain('--layout-gutter-lg: var(--space-6);')
+    expect(sourceTokens).toContain('--section-space-y: var(--space-8);')
+    expect(sourceTokens).toContain('--section-space-y-lg: var(--space-9);')
+    expect(sourceTokens).toContain('--section-intro-gap: var(--space-6);')
+    expect(sourceTokens).toContain('--surface-padding-xl: var(--space-7);')
+    expect(sourceTokens).toContain('--blog-section-break: 80px;')
+    expect(sourceTokens).toContain('--blog-subsection-break: var(--space-7);')
+    expect(sourceTokens).toContain('--blog-rule-gap: var(--space-7);')
+    expect(semanticTokens).toContain('--surface-base:')
+    expect(semanticTokens).toContain('--text-primary:')
+    expect(roleTokens).toContain('--codeblock-bg: var(--code-bg);')
+  })
+
+  test('the active token entrypoint preserves the three-layer import order', () => {
+    const tokens = read('./styles/tokens.css').trim()
+
+    expect(tokens).toBe([
+      '@import "./tokens.source.css";',
+      '@import "./tokens.semantic.css";',
+      '@import "./tokens.roles.css";',
+    ].join('\n'))
+  })
+
+  test('protected design-system modules do not introduce raw color literals', () => {
+    const protectedFiles = [
+      ...collectSourceFiles('./components/ui'),
+      ...collectSourceFiles('./components/site'),
+      ...collectSourceFiles('./components/docs'),
+      ...collectSourceFiles('./lib'),
+    ].filter((file) => file !== './components/ui/SignalFlags.tsx')
+
+    const colorLiteral = /#[0-9a-fA-F]{3,8}\b|(?:rgb|hsl)a?\(|oklch\(/
+
+    for (const file of protectedFiles) {
+      expect(read(file), `${file} should consume tokenized color roles`).not.toMatch(colorLiteral)
+    }
+  })
+
+  test('route modules are lazy-loaded instead of bundled through static page imports', () => {
+    const mainSource = read('./main.tsx')
+
+    expect(read('./components/layout/RouteFallback.tsx')).toContain('role="status"')
+    expect(mainSource).toContain('<Suspense fallback={<RouteFallback />}>')
+    expect(mainSource).toContain("const App = lazy(() => import('./App'))")
+    expect(mainSource).toContain("import('@/pages/docs/ApiReference')")
+    expect(mainSource).toContain('path=":sectionSlug/*"')
+    expect(mainSource).not.toMatch(/^import .+ from ['"]@\/pages/m)
+    expect(mainSource).not.toMatch(/^import .+ from ['"]\.\/App/m)
   })
 
   test('no active source files still reference the undefined space-12 or space-20 tokens', () => {
@@ -42,6 +101,7 @@ describe('design system contracts', () => {
     expect(primitives).toContain('export function SectionIntro')
     expect(primitives).toContain("max-w-[var(--layout-max-width)]")
     expect(primitives).toContain("max-w-[var(--layout-max-width-wide)]")
+    expect(primitives).toContain('mx-auto w-full min-w-0')
     expect(primitives).toContain('px-[var(--layout-gutter)]')
     expect(primitives).toContain('lg:px-[var(--layout-gutter-lg)]')
     expect(primitives).toContain('space-y-[var(--section-intro-gap)]')
@@ -69,6 +129,25 @@ describe('design system contracts', () => {
       expect(source).toContain('SurfacePanel')
       expect(source).not.toContain("import { Surface }")
     }
+  })
+
+  test('MCP proof route consumes shared primitives and tokenized color roles', () => {
+    const mcpPage = read('./pages/MCPPage.tsx')
+    const colorLiteral = /#[0-9a-fA-F]{3,8}\b|(?:rgb|hsl)a?\(|oklch\(/
+
+    expect(mcpPage).toContain("from '@/components/site/primitives'")
+    expect(mcpPage).toContain('PageContainer')
+    expect(mcpPage).toContain('SectionIntro')
+    expect(mcpPage).toContain('SurfacePanel')
+    expect(mcpPage).toContain('DocsCodeBlock')
+    expect(mcpPage).not.toContain("import { Surface }")
+    expect(mcpPage).not.toContain('grid-cols-[1.05fr,0.95fr]')
+    expect(mcpPage).not.toContain('grid-cols-[0.9fr,1.1fr]')
+    expect(mcpPage).not.toContain('grid-cols-[1fr,1fr]')
+    expect(mcpPage).not.toContain('grid-cols-[1fr,1fr,1.3fr]')
+    expect(mcpPage).not.toContain('grid-cols-[18rem,1fr]')
+    expect(mcpPage).not.toMatch(/style=\{\{[^}]*\b(?:color|background|border|boxShadow):/)
+    expect(mcpPage).not.toMatch(colorLiteral)
   })
 
   test('storybook covers the normalized website layout primitives', () => {

@@ -378,7 +378,7 @@ describe('public shell contracts', () => {
   })
 
   test('brand-primary foreground combinations stay WCAG-safe in both themes', () => {
-    const tokens = read('./styles/tokens.css')
+    const tokens = read('./styles/tokens.semantic.css')
 
     const lightBrandPrimary = tokens.match(/--brand-primary:\s*(#[0-9a-fA-F]{6});/)?.[1]
     const lightBrandPrimaryForeground = tokens.match(/--brand-primary-foreground:\s*(#[0-9a-fA-F]{6});/)?.[1]
@@ -417,7 +417,7 @@ describe('public shell contracts', () => {
 
   test('shared panel primitives are token-driven instead of hardcoded to ad hoc spacing', () => {
     const primitives = read('./components/site/primitives.tsx')
-    const tokens = read('./styles/tokens.css')
+    const tokens = read('./styles/tokens.source.css')
 
     expect(tokens).toContain('--panel-padding:')
     expect(tokens).toContain('--panel-gap:')

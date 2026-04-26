@@ -4,7 +4,7 @@ import { ArrowDown, ArrowRight, Box, Check, Copy, Cpu, Lock } from 'lucide-react
 import { Button } from '@/components/ui/Button'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { NeumorphicTerminal } from '@/components/ui/NeumorphicTerminal'
-import { useTheme } from '@/lib/theme'
+import { useTheme } from '@/lib/theme-context'
 import { cn } from '@/lib/utils'
 import type { AccentTone, CommercialTrack, ProofPanel, TruthState } from '@/data/publicSite'
 
@@ -258,7 +258,7 @@ export function PageContainer({
   return (
     <div
       className={cn(
-        'mx-auto w-full px-[var(--layout-gutter)] lg:px-[var(--layout-gutter-lg)]',
+        'mx-auto w-full min-w-0 px-[var(--layout-gutter)] lg:px-[var(--layout-gutter-lg)]',
         pageContainerWidthClass[width],
         className,
       )}
@@ -658,6 +658,7 @@ export function SurfacePanel({
     <SurfaceToneContext.Provider value={tone}>
       <div
         className={cn(
+          'min-w-0',
           surfaceElevationClass[elevation],
           surfacePaddingClass[padding],
           docsCardTone[tone],
@@ -829,7 +830,7 @@ export function DocsCodeBlock({
 
   if (language === 'cli') {
     return (
-      <div className={cn('space-y-[var(--space-2)]', className)}>
+      <div className={cn('min-w-0 space-y-[var(--space-2)]', className)}>
         <div className="flex items-center justify-between gap-[var(--panel-gap-tight)]">
           <BracketLabel surface={surface}>{terminalLabel}</BracketLabel>
           <Button type="button" variant="secondary" size="sm" aria-label={`Copy ${terminalLabel}`} onClick={handleCopy}>
@@ -852,7 +853,7 @@ export function DocsCodeBlock({
   }
 
   return (
-    <div className={cn('space-y-[var(--space-2)]', className)}>
+    <div className={cn('min-w-0 space-y-[var(--space-2)]', className)}>
       <div className="flex items-center justify-between gap-[var(--panel-gap-tight)]">
         <BracketLabel surface={surface}>{terminalLabel}</BracketLabel>
         <Button type="button" variant="secondary" size="sm" aria-label={`Copy ${terminalLabel}`} onClick={handleCopy}>
