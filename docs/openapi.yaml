@@ -59,6 +59,8 @@ tags:
     description: Configuration loading
   - name: fleet-control
     description: Bond escrow, project wallets, budget pause-and-ask, and fleet panic controls
+  - name: advisor
+    description: Deterministic coordination preflight and suggestibility
 
 paths:
   # ===========================================================================
@@ -1447,6 +1449,75 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '500':
           $ref: '#/components/responses/InternalError'
+
+  /advisor:
+    get:
+      tags: [advisor]
+      summary: Get coordination advice from query parameters
+      operationId: getAdvisorAdvice
+      parameters:
+        - name: projectRoot
+          in: query
+          schema:
+            type: string
+        - name: sessionId
+          in: query
+          schema:
+            type: string
+        - name: agentId
+          in: query
+          schema:
+            type: string
+        - name: task
+          in: query
+          schema:
+            type: string
+        - name: files
+          in: query
+          schema:
+            type: string
+          description: Comma-separated file paths
+      responses:
+        '200':
+          description: Coordination advice with evidence and executable actions
+    post:
+      tags: [advisor]
+      summary: Run structured coordination preflight
+      operationId: runCoordinationPreflight
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                projectRoot:
+                  type: string
+                project:
+                  type: string
+                sessionId:
+                  type: string
+                agentId:
+                  type: string
+                task:
+                  type: string
+                files:
+                  type: array
+                  items:
+                    type: string
+                changedFiles:
+                  type: array
+                  items:
+                    type: string
+                includeChannels:
+                  type: boolean
+                includeTupleHints:
+                  type: boolean
+      responses:
+        '200':
+          description: Coordination advice with summary, input echo, and advice array
+        '400':
+          $ref: '#/components/responses/ValidationError'
 
   # ===========================================================================
   # AGENTS

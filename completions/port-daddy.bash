@@ -106,7 +106,7 @@ _port_daddy() {
     # Briefing & History
     briefing history
     # Consolidated read/write (3.8.4)
-    say look sitrep pheromone ph
+    say look sitrep pheromone ph advise preflight compass
     # Agent Inbox
     inbox
     # AI Agent Spawner + Watch
@@ -1579,6 +1579,13 @@ _port_daddy() {
     # -----------------------------------------------------------------------
     sitrep)
       _pd_opts '--since --project --stack --limit-activity --limit-notes --json --quiet'
+      ;;
+
+    # -----------------------------------------------------------------------
+    # advise / preflight / compass  [files...]  [--task TEXT] [--session ID]
+    # -----------------------------------------------------------------------
+    advise|preflight|compass)
+      _pd_opts '--task --session --sessionId --agent --agentId --dir --projectRoot --channels --tuples --json --quiet'
       ;;
 
     # -----------------------------------------------------------------------

@@ -98,7 +98,7 @@ set -l __pd_commands \
     'session' 'sessions' 'note' 'notes' \
     'salvage' 'resurrection' 'changelog' 'dns' 'files' 'who-owns' 'integration' 'briefing' 'history' 'inbox' \
     'begin' 'b' 'done' 'whoami' 'w' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'watch' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' \
-    'say' 'look' 'sitrep' 'pheromone' 'ph' \
+    'say' 'look' 'sitrep' 'advise' 'preflight' 'compass' 'pheromone' 'ph' \
     'wallet' 'bond' \
     'up' 'down' \
     'bench' 'demo' 'fleet' \
@@ -214,6 +214,9 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a say -d 'Write a finding (note + optional tuple/pheromone/broadcast)'
     complete -c $prog -n __pd_needs_command -a look -d 'Situation report (sitrep default; --heat for file heat map)'
     complete -c $prog -n __pd_needs_command -a sitrep -d 'Alias for look (the maritime canonical name)'
+    complete -c $prog -n __pd_needs_command -a advise -d 'Suggest coordination moves before editing'
+    complete -c $prog -n __pd_needs_command -a preflight -d 'Alias for advise before risky work'
+    complete -c $prog -n __pd_needs_command -a compass -d 'Maritime alias for advise'
     complete -c $prog -n __pd_needs_command -a pheromone -d 'Stigmergic coordination (spray, files, show, ls)'
     complete -c $prog -n __pd_needs_command -a ph -d 'Alias for pheromone'
 
@@ -268,6 +271,16 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command sitrep" -l since -x -d 'Lookback window in minutes (default: 60)'
     complete -c $prog -n "__pd_using_command sitrep" -l project -x -d 'Scope salvage queue to a project'
     complete -c $prog -n "__pd_using_command sitrep" -l stack -x -d 'Scope salvage queue to a stack'
+    # pd advise/preflight/compass flags
+    complete -c $prog -n "__pd_using_command advise preflight compass" -l task -x -d 'Intended work description'
+    complete -c $prog -n "__pd_using_command advise preflight compass" -l session -x -d 'Explicit session ID'
+    complete -c $prog -n "__pd_using_command advise preflight compass" -l sessionId -x -d 'Explicit session ID'
+    complete -c $prog -n "__pd_using_command advise preflight compass" -l agent -x -d 'Explicit agent ID'
+    complete -c $prog -n "__pd_using_command advise preflight compass" -l agentId -x -d 'Explicit agent ID'
+    complete -c $prog -n "__pd_using_command advise preflight compass" -l dir -r -d 'Project root'
+    complete -c $prog -n "__pd_using_command advise preflight compass" -l projectRoot -r -d 'Project root'
+    complete -c $prog -n "__pd_using_command advise preflight compass" -l channels -d 'Include channel suggestions'
+    complete -c $prog -n "__pd_using_command advise preflight compass" -l tuples -d 'Include tuple suggestions'
     # pd pheromone subcommands
     complete -c $prog -n "__pd_using_command pheromone ph" -x -a 'spray file files show ls read list' -d 'Subcommand'
     complete -c $prog -n "__pd_using_command pheromone ph; and __fish_seen_subcommand_from files" -l path -x -d 'Path prefix filter'

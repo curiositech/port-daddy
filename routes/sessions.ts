@@ -269,7 +269,11 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       const result = sessions.setPhase(sessionId, phase);
 
       if (!result.success) {
-        const statusCode = result.error === 'session not found' ? 404 : 400;
+        const statusCode = result.error === 'session not found'
+          ? 404
+          : result.code === 'SESSION_NOT_ACTIVE'
+            ? 409
+            : 400;
         reply.code(statusCode);
         return { ...result, code: result.code || 'SESSION_NOT_FOUND' };
       }
@@ -475,8 +479,13 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       const result = sessions.claimFiles(sessionId, files || [], { regions, force });
 
       if (!result.success) {
-        reply.code(404);
-        return { ...result, code: 'SESSION_NOT_FOUND' };
+        const statusCode = result.code === 'VALIDATION_ERROR'
+          ? 400
+          : result.code === 'SESSION_NOT_ACTIVE'
+            ? 409
+            : 404;
+        reply.code(statusCode);
+        return { ...result, code: result.code || 'SESSION_NOT_FOUND' };
       }
 
       logger.info('session_files_claimed', {

@@ -1451,6 +1451,22 @@ _pd_cmd_sitrep() {
     '(-q --quiet)'{-q,--quiet}'[one-line summary]'
 }
 
+_pd_cmd_advise() {
+  _arguments \
+    '--task[intended work description]:task:' \
+    '--session[explicit session id]:session:' \
+    '--sessionId[explicit session id]:session:' \
+    '--agent[explicit agent id]:agent:' \
+    '--agentId[explicit agent id]:agent:' \
+    '--dir[project root]:directory:_files -/' \
+    '--projectRoot[project root]:directory:_files -/' \
+    '--channels[include channel suggestions]' \
+    '--tuples[include tuple suggestions]' \
+    '(-j --json)'{-j,--json}'[JSON output]' \
+    '(-q --quiet)'{-q,--quiet}'[suppress non-essential output]' \
+    '*:files:_files'
+}
+
 _pd_cmd_pheromone() {
   local -a ph_subcmds
   ph_subcmds=(
@@ -1749,6 +1765,9 @@ _port_daddy() {
     'say:write a finding (note) with optional fan-out to tuple/pheromone/broadcast'
     'look:situation report (sitrep default, --heat for file heat map)'
     'sitrep:explicit alias for look (the maritime name)'
+    'advise:suggest coordination moves before editing'
+    'preflight:alias for advise before risky work'
+    'compass:maritime alias for advise'
     'pheromone:stigmergic coordination (spray, files, show, ls)'
     'ph:alias for pheromone'
     # Agent Inbox
@@ -1899,6 +1918,7 @@ _port_daddy() {
         say)                    _pd_cmd_say ;;
         look)                   _pd_cmd_look ;;
         sitrep)                 _pd_cmd_sitrep ;;
+        advise|preflight|compass) _pd_cmd_advise ;;
         pheromone|ph)           _pd_cmd_pheromone ;;
         wallet)                 _pd_cmd_wallet ;;
         bond)                   _pd_cmd_bond ;;

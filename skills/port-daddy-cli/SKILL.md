@@ -100,6 +100,19 @@ The underlying primitives (`pd note`, `pd tuple out`, `pd pheromone spray`,
 `pd pub`) all still exist and are the right choice when you need to write to
 exactly one surface. `pd say` is the default when you want the fan-out.
 
+**Compass (coordination preflight):**
+```bash
+pd advise src/auth.ts --task "change token refresh"
+pd preflight docs/recovery/CURRENT-WORK.md --tuples
+pd compass --task "handoff blocker to another agent" --channels
+```
+
+Use Compass before risky edits or multi-agent handoffs. It returns deterministic
+recommendations with `why`, `risk`, evidence, confidence, and executable actions
+for session context, active claims, symbol freshness, salvage, channels, tuples,
+and true lock candidates. Agents should call the MCP `coordination_preflight`
+tool for the same advice.
+
 **Power-user pheromone CLI (3.8.4):**
 ```bash
 pd pheromone file <path> <strength>    # sugar for spray files/<path>/heat
@@ -138,6 +151,7 @@ With Port Daddy:
 | `begin_session` | Register as an agent + start a session atomically |
 | `end_session_full` | End session + unregister atomically |
 | `whoami` | What agent am I? What session? What files do I own? |
+| `coordination_preflight` | Compass advice before editing: context, claims, symbols, salvage, channels, tuples, and lock candidates |
 | `sitrep` | Situation report — what happened while I was away? Activity, notes, salvage queue, spawned agents. (CLI: `pd sitrep` / `pd look`. Was `catch_me_up` — kept as back-compat alias.) |
 | `swarm_awareness` | Who else is working here? All agents, sessions, file claims |
 | `file_heat` | Which files are agents fighting over? Pheromone-based contention map |
@@ -160,7 +174,7 @@ With Port Daddy:
 | `tuple_count` | Count tuples matching a pattern |
 
 **Discover more tools by category:**
-Call `pd_discover` with a category name: `magic`, `session-lifecycle`, `ports`, `sessions`, `notes`, `locks`, `messaging`, `agents`, `inbox`, `webhooks`, `integration`, `dns`, `briefing`, `tunnels`, `projects`, `changelog`, `activity`, `system`, `tuples`, `semantic`, `pheromone`
+Call `pd_discover` with a category name: `magic`, `session-lifecycle`, `advisor`, `ports`, `sessions`, `notes`, `locks`, `messaging`, `agents`, `inbox`, `webhooks`, `integration`, `dns`, `briefing`, `tunnels`, `projects`, `changelog`, `activity`, `system`, `tuples`, `semantic`, `pheromone`
 
 **Integration signals:** Use `integration ready` and `integration needs` to coordinate service dependencies. When your service is ready, signal it so other agents can proceed.
 
@@ -574,6 +588,7 @@ Override via environment variables: `PORT_DADDY_SOCK`, `PORT_DADDY_IPC`, `PORT_D
 | `pd with-lock` | Run command under lock with auto-release |
 | `pd pub` / `pd sub` / `pd watch` | Pub/sub messaging |
 | `pd session files add` | Advisory file claims |
+| `pd advise` / `pd preflight` / `pd compass` | Suggest coordination primitives before editing |
 | **Fleet & Agents** | |
 | `pd fleet init` | Create pd-fleet.yml + git hook |
 | `pd fleet up/down/status/validate` | Start/stop/inspect/dry-run the fleet (CLI-attached mode) |

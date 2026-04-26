@@ -124,6 +124,20 @@ The current uncommitted runtime slice makes tree-sitter symbol indexing event-dr
 - Validation truth: focused `npm test -- tests/unit/fleet-daemon.test.js` is green, `npm run typecheck` is green, and broad `npm test` is green at `132/132` suites and `4816/4817` passing tests with `1` intentional skip.
 - Runtime caveat: the live daemon must be rebuilt/relaunched/promoted before this dogfood path is active in the canonical runtime.
 
+### Compass Coordination Advisor (2026-04-26)
+
+The current working tree now has a first deterministic suggestibility slice for humans and agents:
+
+- `lib/advisor.ts` evaluates session context, active file claims, symbol-index freshness, stale salvage, declared channels, tuple-worthy task language, and true lock candidates.
+- `routes/advisor.ts` exposes `GET /advisor` and `POST /advisor`.
+- `pd advise`, `pd preflight`, and `pd compass` call the advisor and render executable recommendations.
+- MCP now exposes `coordination_preflight` as an essential tool so agents can ask Port Daddy what coordination primitives to use before editing.
+- The slice is deterministic first: every recommendation carries `why`, `risk`, `evidence`, confidence, and one or more executable actions. LLM ranking/explanation remains future work.
+- While dogfooding claims, this slice exposed and fixed a real zombie-asset bug: `claimFiles()` could add invisible-but-conflicting claims to inactive sessions, `getFileConflicts()` could report unreleased rows from inactive sessions, and `setPhase()` could move terminal sessions back to nonterminal phases without restoring status. `lib/sessions.ts` now rejects inactive-session claims, ignores inactive rows in conflict checks, and keeps terminal phase/status coherent; `tests/unit/sessions.test.js` covers these failure states.
+- Validation truth on 2026-04-26: focused `sessions` + advisor/parity tests are green (`572/572`), and `npm run typecheck` is green. Broad `npm test -- --no-coverage` reached green counts at `139/139` suites and `4919/4920` passing tests with `1` intentional skip, then hung after Jest's open-handle warning.
+- Teardown caveat: the broad-run exit blocker is an integration test harness process tree (`jest -> tsx -> server.ts`) on a surface actively claimed by `session-c4cc1a46-77ba-4c72-85cf-9ce13637cc97` / `agent-e802a389` (`tests/helpers/global-teardown.js`, `tests/helpers/ephemeral-daemon.js`). Compass recorded tuple `5474`, inboxed that agent, cleaned up its own hung PIDs, and did not edit across that active claim.
+- Runtime caveat: the canonical daemon must be rebuilt/relaunched/promoted before this advisor surface is live in operator truth.
+
 ## Ledger Drift Correction (2026-04-12)
 
 The ledger had fallen behind the actual branch state. Current committed truth is:
@@ -450,6 +464,12 @@ This is the normalized remaining-slice inventory as of 2026-04-24. It supersedes
    - `actor/session --attempted_claim--> resource`
    - `session --mutated--> file/symbol`
 6. Feed symbolic-claim truth into merge/conflict prediction and control-plane visualization instead of resting on lossy line spans.
+7. Build on the new Compass advisor slice:
+   - surface `pd advise` / `coordination_preflight` in FleetBar and Fleet Control Center
+   - add stale asset reclaim actions with lease/body evidence
+   - project file claims and attempted claims into graph edges
+   - teach the advisor section-anchor claims for hot coordination docs
+   - keep recommendations deterministic, evidence-backed, and executable
 
 ### E. Sounder: Tuple, Graph, Memory, And Semantic Collapse
 

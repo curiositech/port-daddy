@@ -686,6 +686,19 @@ describe('Sessions Module', () => {
       expect(result.error).toMatch(/session not found/);
     });
 
+    it('should reject claims for inactive sessions instead of creating zombie claims', () => {
+      const started = sessions.start('Work item');
+      sessions.abandon(started.id);
+
+      const result = sessions.claimFiles(started.id, ['src/zombie.ts']);
+
+      expect(result.success).toBe(false);
+      expect(result.code).toBe('SESSION_NOT_ACTIVE');
+
+      const conflicts = sessions.getFileConflicts(['src/zombie.ts']);
+      expect(conflicts.conflicts).toHaveLength(0);
+    });
+
     it('should reject empty filePaths array', () => {
       const started = sessions.start('Work item');
       const result = sessions.claimFiles(started.id, []);
@@ -799,6 +812,31 @@ describe('Sessions Module', () => {
       const result = sessions.getFileConflicts(['src/shared.ts']);
 
       expect(result.conflicts).toHaveLength(2);
+    });
+
+    it('should ignore unreleased zombie rows from inactive sessions', () => {
+      const started = sessions.start('Old abandoned', { files: ['src/zombie.ts'] });
+      db.prepare("UPDATE sessions SET status = 'abandoned' WHERE id = ?").run(started.id);
+
+      const result = sessions.getFileConflicts(['src/zombie.ts']);
+
+      expect(result.conflicts).toHaveLength(0);
+    });
+  });
+
+  describe('setPhase', () => {
+    it('should not revive a terminal session into a nonterminal phase', () => {
+      const started = sessions.start('Work item');
+      sessions.abandon(started.id);
+
+      const result = sessions.setPhase(started.id, 'reviewing');
+
+      expect(result.success).toBe(false);
+      expect(result.code).toBe('SESSION_NOT_ACTIVE');
+
+      const got = sessions.get(started.id);
+      expect(got.session.status).toBe('abandoned');
+      expect(got.session.phase).toBe('abandoned');
     });
   });
 

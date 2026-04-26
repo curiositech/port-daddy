@@ -37,6 +37,9 @@ export async function startEphemeralDaemon(options = {}) {
   const dbPath = join(tmpDir, 'test.db');
   const sockPath = join(tmpDir, 'test.sock');
   const ipcPath = join(tmpDir, 'test.ipc');
+  const pidPath = join(tmpDir, 'daemon.pid');
+  const portFile = join(tmpDir, 'daemon.port');
+  const heartbeatFile = join(tmpDir, 'heartbeat');
   const homeDir = join(tmpDir, 'home');
   const contextDir = join(tmpDir, 'context');
   mkdirSync(homeDir, { recursive: true });
@@ -49,6 +52,9 @@ export async function startEphemeralDaemon(options = {}) {
       PORT_DADDY_DB: dbPath,
       PORT_DADDY_SOCK: sockPath,
       PORT_DADDY_IPC: ipcPath,
+      PORT_DADDY_PID_FILE: pidPath,
+      PORT_DADDY_PORT_FILE: portFile,
+      PORT_DADDY_HEARTBEAT_FILE: heartbeatFile,
       PORT_DADDY_NO_TCP: '1',
       PORT_DADDY_SILENT: '1',
       NODE_ENV: 'test'

@@ -96,6 +96,8 @@ import {
   handleGraph, handleMemory, handleIdeas,
   // Consolidated read/write verbs + sitrep + pheromone (3.8.4)
   handleSitrep, handleSay, handleLook, handlePheromone,
+  // Coordination advisor / suggestibility
+  handleAdvisor,
 } from '../cli/commands/index.js';
 import { getDaemonTcpUrl, readDaemonPort, resolveDaemonTcpTarget } from '../shared/daemon-discovery.js';
 import { calculateRuntimeCodeHash } from '../shared/code-hash.js';
@@ -133,6 +135,7 @@ const TIER_2_COMMANDS: Set<string> = new Set([
   'agent', 'agents',
   'up', 'down', 'watch', 'swarm', 'fleet',
   'channels', 'webhook', 'webhooks', 'tunnel', 'dns', 'inbox',
+  'advise', 'preflight', 'compass',
   'metrics', 'health', 'dashboard',
   'bench', 'demo', 'tuple', 'sortie'
 ]);
@@ -516,11 +519,12 @@ function buildHelp(): string {
     `  ${G}pd agent${Z} "task"         One-shot autopilot delegation`,
     `  ${G}pd agent register${Z}        Register as an agent`,
     `  ${G}pd salvage${Z}               Pick up a dead agent's work`,
+    `  ${G}pd advise${Z}                Suggest coordination moves before editing`,
     `  ${G}pd graph stats${Z}           Inspect semantic graph totals`,
     `  ${G}pd memory episodes${Z}       Inspect episodic memory`,
     `  ${G}pd ideas search${Z} "text"   Search ideas, notes, tuples, and repo markdown`,
     '',
-    `${D}pd help <topic> for details — topics: setup, sessions, locks, agents, ports, messaging, dns, orchestration, sugar, semantic, ideas, tutorial${Z}`,
+    `${D}pd help <topic> for details — topics: setup, sessions, locks, agents, ports, messaging, dns, orchestration, sugar, semantic, advisor, ideas, tutorial${Z}`,
     `${D}Dashboard: ${PORT_DADDY_URL}  •  Tutorial: pd learn${Z}`,
   );
 
@@ -844,6 +848,25 @@ Examples:
   pd memory episodes --project port-daddy --type handoff
   pd memory stats --dir /Users/you/coding/port-daddy`,
 
+  advisor: `Advisor / Compass \u2014 Suggest coordination moves before editing
+
+Commands:
+  advise [files...]         Inspect current context, file claims, symbols, salvage, channels, tuples, and lock candidates
+  preflight [files...]      Alias for advise, intended before a risky edit
+  compass [files...]        Maritime alias for advise
+    --task <text>           Describe the intended work
+    --session <id>          Explicit session ID
+    --agent <id>            Explicit agent ID
+    --dir <path>            Project root
+    --channels              Include channel suggestions even if task text is ambiguous
+    --tuples                Include tuple suggestions even if task text is ambiguous
+    --json                  Machine-readable advice objects
+
+Examples:
+  pd advise lib/sessions.ts --task "fix file claim conflict"
+  pd preflight docs/recovery/CURRENT-WORK.md --tuples
+  pd compass --task "handoff blocker to another agent" --channels`,
+
   ideas: `Ideas Search \u2014 Search canonical ideas plus live repo memory
 
 Commands:
@@ -904,6 +927,7 @@ const ALL_COMMANDS: string[] = [
   'dashboard', 'channels', 'webhook', 'webhooks', 'metrics', 'config', 'health', 'ports',
   'start', 'stop', 'restart', 'status', 'install', 'uninstall', 'dev', 'ci-gate',
   'doctor', 'diagnose', 'hints', 'mcp', 'version', 'help', 'bench', 'look', 'sitrep',
+  'advise', 'preflight', 'compass',
   'salvage', 'resurrection', 'changelog', 'tunnel',
   'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
   'b', 'w', 'who-owns', 'history', 'tutorial', 'files',
@@ -2252,6 +2276,12 @@ async function main(): Promise<void> {
       case 'pheromone':
       case 'ph':
         await handlePheromone(positional[0], positional.slice(1), options);
+        break;
+
+      case 'advise':
+      case 'preflight':
+      case 'compass':
+        await handleAdvisor(positional, options);
         break;
 
       case 'integration':
