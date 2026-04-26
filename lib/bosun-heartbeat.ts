@@ -145,7 +145,9 @@ export function readBosunHeartbeat(path = defaultBosunHeartbeatPath()): BosunHea
  *
  * The writer performs atomic `write temp -> rename` updates so the supervisor
  * never observes a partially-written JSON document. Calling `start()` writes
- * immediately, then repeats every `intervalMs`.
+ * immediately, then repeats every `intervalMs`. The interval intentionally stays
+ * referenced because Bosun heartbeat progress is mandatory daemon liveness, not
+ * an optional background metric.
  *
  * Input:
  *
@@ -268,7 +270,6 @@ export function createBosunHeartbeat(options: BosunHeartbeatOptions) {
           // writeOnce records the error in status.
         }
       }, intervalMs);
-      timer.unref?.();
       options.logger?.info?.('bosun_heartbeat_started', {
         path: heartbeatPath,
         intervalMs,
