@@ -442,6 +442,8 @@ This is the normalized remaining-slice inventory as of 2026-04-24. It supersedes
    - use canonical `symbolPath` where symbol data exists
    - keep line ranges only as fallback/display
    - index non-code coordination documents by section anchors if they are claim hotspots
+   - expose first-class CLI/MCP symbol discovery and claim-refinement affordances, not only region-claim pass-through
+   - make symbol freshness automatic in the promoted daemon; the event-driven refresh design exists in recovery notes/stash residue but is not current committed runtime truth
 5. Wire claims into graph/memory:
    - `session --claims--> file`
    - `session --claims_symbol--> symbol`

@@ -96,6 +96,7 @@ export const IpcAction = {
   TUPLE_OUT:      'tuple.out',
   TUPLE_RD:       'tuple.rd',
   TUPLE_IN:       'tuple.in',
+  TUPLE_POLL:     'tuple.poll',
   TUPLE_SCAN:     'tuple.scan',
   TUPLE_COUNT:    'tuple.count',
 

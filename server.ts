@@ -322,12 +322,18 @@ const costTracker = createCostTracker(db, {
 const spawner = createSpawner({ costTracker, counters, bonds, enforceTelemetryPolicy: true });
 spawnerRef = spawner;
 
+function resolveArbiterStrictMode(value: string | undefined): boolean {
+  if (value === undefined || value.trim() === '') return true;
+  return !new Set(['0', 'false', 'off', 'no', 'observe', 'observe_only']).has(value.trim().toLowerCase());
+}
+
 semanticIndex.initialize();
+const arbiterStrictMode = resolveArbiterStrictMode(process.env.PORT_DADDY_ARBITER_STRICT);
 const arbiter = createArbiter(
-  { activityLog, agents, sessions, locks, resurrection },
-  { strictMode: false }
+  { activityLog, agents, sessions, locks, resurrection, bonds },
+  { strictMode: arbiterStrictMode }
 );
-console.error('[Arbiter] Runtime invariant enforcement active (6 rules, strictMode=false)');
+console.error(`[Arbiter] Runtime invariant enforcement active (6 rules, strictMode=${arbiterStrictMode})`);
 const pheromones = createPheromoneManager(db);
 pheromones.start();
 

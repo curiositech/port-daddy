@@ -146,6 +146,9 @@ export function createSugar(deps: SugarDeps) {
       sessionOpts.files = files;
       if (force) sessionOpts.force = force;
     }
+    if (metadata && typeof metadata === 'object') {
+      sessionOpts.metadata = metadata;
+    }
 
     const sessionResult = sessions.start(purpose.trim(), sessionOpts);
     if (!sessionResult.success) {
@@ -187,6 +190,7 @@ export function createSugar(deps: SugarDeps) {
       targetId: sessionTarget(identityProject, sessionResult.id as string),
       details: `Agent ${agentId} began: ${purpose.trim()}`,
       metadata: {
+        ...(metadata && typeof metadata === 'object' ? metadata : {}),
         agentId,
         sessionId: sessionResult.id as string,
         identity: identity || null,

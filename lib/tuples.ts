@@ -30,6 +30,13 @@ export interface Tuple {
   expiresAt: number | null;
 }
 
+export interface TuplePollResult {
+  tuple: Tuple | null;
+  lastId: number;
+}
+
+type TupleSubscriberCallback = (tuple: Tuple) => void;
+
 export function createTupleSpace(db: Database.Database) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS tuples (
@@ -50,6 +57,24 @@ export function createTupleSpace(db: Database.Database) {
   );
   const deleteStmt = db.prepare('DELETE FROM tuples WHERE id = ?');
   const cleanupStmt = db.prepare('DELETE FROM tuples WHERE expires_at IS NOT NULL AND expires_at < ?');
+  const subscribers = new Map<number, {
+    pattern: unknown[];
+    harbor?: string;
+    callback: TupleSubscriberCallback;
+  }>();
+  let nextSubscriberId = 1;
+
+  function notifySubscribers(tuple: Tuple): void {
+    for (const sub of subscribers.values()) {
+      if (sub.harbor && sub.harbor !== tuple.harbor) continue;
+      if (!matchesPattern(tuple.fields, sub.pattern)) continue;
+      try {
+        sub.callback(tuple);
+      } catch (error) {
+        console.error('tuple subscriber callback failed:', error);
+      }
+    }
+  }
 
   /** Write a tuple to the space. */
   function out(
@@ -67,7 +92,7 @@ export function createTupleSpace(db: Database.Database) {
       expiresAt
     );
 
-    return {
+    const tuple = {
       id: result.lastInsertRowid as number,
       harbor: options?.harbor ?? null,
       fields,
@@ -75,6 +100,8 @@ export function createTupleSpace(db: Database.Database) {
       createdAt: now,
       expiresAt,
     };
+    notifySubscribers(tuple);
+    return tuple;
   }
 
   /**
@@ -182,6 +209,40 @@ export function createTupleSpace(db: Database.Database) {
     return matches;
   }
 
+  /**
+   * Poll for the next tuple after a cursor.
+   * Returns the first matching tuple in ascending ID order, or advances the cursor
+   * past inspected non-matching rows so callers do not rescan forever.
+   */
+  function poll(
+    pattern: unknown[],
+    options?: { harbor?: string; afterId?: number; limit?: number }
+  ): TuplePollResult {
+    cleanupStmt.run(Date.now());
+
+    const afterId = Math.max(0, options?.afterId ?? 0);
+    const limit = Math.min(Math.max(options?.limit ?? 200, 1), 1000);
+    const now = Date.now();
+    const rows = options?.harbor
+      ? db.prepare(
+        'SELECT * FROM tuples WHERE harbor = ? AND id > ? AND (expires_at IS NULL OR expires_at > ?) ORDER BY id ASC LIMIT ?'
+      ).all(options.harbor, afterId, now, limit) as TupleRow[]
+      : db.prepare(
+        'SELECT * FROM tuples WHERE id > ? AND (expires_at IS NULL OR expires_at > ?) ORDER BY id ASC LIMIT ?'
+      ).all(afterId, now, limit) as TupleRow[];
+
+    let lastId = afterId;
+    for (const row of rows) {
+      const tuple = rowToTuple(row);
+      lastId = tuple.id;
+      if (matchesPattern(tuple.fields, pattern)) {
+        return { tuple, lastId };
+      }
+    }
+
+    return { tuple: null, lastId };
+  }
+
   /** List all tuples, optionally filtered by harbor. */
   function scan(harbor?: string): Tuple[] {
     cleanupStmt.run(Date.now());
@@ -208,7 +269,32 @@ export function createTupleSpace(db: Database.Database) {
     return cleanupStmt.run(Date.now()).changes;
   }
 
-  return { out, rd, take, scan, count, cleanup };
+  /**
+   * Subscribe to matching tuple writes. This is in-process delivery, mirroring
+   * the messaging module's live fanout while keeping tuple storage authoritative.
+   */
+  function subscribe(
+    pattern: unknown[],
+    options: { harbor?: string } | undefined,
+    callback: TupleSubscriberCallback
+  ): (() => void) | null {
+    if (!Array.isArray(pattern) || pattern.length === 0) return null;
+    const id = nextSubscriberId++;
+    subscribers.set(id, {
+      pattern,
+      harbor: options?.harbor,
+      callback,
+    });
+    return () => {
+      subscribers.delete(id);
+    };
+  }
+
+  function destroy(): void {
+    subscribers.clear();
+  }
+
+  return { out, rd, take, poll, scan, count, cleanup, subscribe, destroy };
 }
 
 export type TupleSpace = ReturnType<typeof createTupleSpace>;

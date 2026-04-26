@@ -12,10 +12,23 @@ Project-specific shibboleths for proficient Port Daddy work. If you learn a new 
   - `pd begin --identity <project>:<task>`
 - If you are going to edit files, coordinate through Port Daddy primitives, not only prose:
   - leave a `pd note` describing scope and intended files
-  - use file claims / locks for overlapping edits or critical sections
+  - prefer symbol/region claims for code edits when the symbol index knows the file; use whole-file claims only when the edit truly spans the file or no symbol/section identity exists
+  - use `pd lock` / `pd with-lock` for scarce critical sections, generated artifacts, migrations, promotion, or other work that really must be exclusive
   - use tuples, inbox, pheromones, or other shared state when the task benefits from machine-readable coordination
 - Treat plain shell inspection without a Port Daddy session as insufficient for this repo unless you are doing truly trivial read-only work.
 - When handing work to another agent, give it the live Port Daddy identity/session anchor and tell it to coordinate through briefing, salvage, notes, claims/locks, and tuples instead of “being careful.”
+
+## Symbol And Region Claims
+
+- Do not default to whole-file ownership for code files if the work is naturally function/class scoped.
+- Current truth: Port Daddy has AST-backed `symbolPath` region claims in the session API/SDK, and CLI/MCP pass-through affordances for region claims. Symbol discovery and freshness are still too manual; treat that as UX/tooling debt, not product intent.
+- For code edits with likely overlap:
+  - inspect available symbols with `/symbols?file=<absolute-path>`; parse first with `POST /symbols/parse` if the file is stale or missing
+  - claim `{ path, symbolPath }` through `POST /sessions/:id/files` or the SDK `claimFiles(..., { regions: [...] })`
+  - fall back to explicit `startLine`/`endLine` only when no canonical `symbolPath` exists
+- If you do not know the exact functions yet, start with a narrow note plus the smallest plausible whole-file claim, then refine to symbol/region claims as soon as inspection identifies the touched symbols.
+- Stale symbol indexes are coordination hazards. If claim resolution says a `symbolPath` is missing or stale, refresh the symbol index before widening to a file claim.
+- File claims remain advisory. Locks are stronger and should be rarer: use them for non-mergeable resources, not as a substitute for symbol-level edit intent.
 
 ## Canonical Runtime
 

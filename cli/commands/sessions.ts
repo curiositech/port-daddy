@@ -21,6 +21,13 @@ type FileClaimResult = Awaited<ReturnType<PortDaddy['claimFiles']>>;
 type FileReleaseResult = Awaited<ReturnType<PortDaddy['releaseFiles']>>;
 type NoteResult = Awaited<ReturnType<PortDaddy['note']>>;
 type ErrorBody = Record<string, unknown>;
+type FileRegion = {
+  path: string;
+  startLine?: number;
+  endLine?: number;
+  symbol?: string;
+  symbolPath?: string;
+};
 
 function createSessionClient(options: CLIOptions): PortDaddy {
   const current = readCurrentContext();
@@ -36,6 +43,56 @@ function getErrorBody(error: unknown): ErrorBody {
     if (body && typeof body === 'object') return body as ErrorBody;
   }
   return {};
+}
+
+function stringOption(options: CLIOptions, ...keys: string[]): string | undefined {
+  for (const key of keys) {
+    const value = options[key];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return undefined;
+}
+
+function numberOption(options: CLIOptions, ...keys: string[]): number | undefined {
+  const raw = keys.map(key => options[key]).find(value => value !== undefined);
+  if (raw === undefined) return undefined;
+  const parsed = typeof raw === 'number' ? raw : Number(raw);
+  return Number.isFinite(parsed) ? parsed : NaN;
+}
+
+function buildRegionFromOptions(paths: string[], options: CLIOptions): FileRegion[] | undefined {
+  const symbolPath = stringOption(options, 'symbol-path', 'symbolPath');
+  const symbol = stringOption(options, 'symbol');
+  const startLine = numberOption(options, 'start-line', 'startLine');
+  const endLine = numberOption(options, 'end-line', 'endLine');
+  const hasStart = startLine !== undefined;
+  const hasEnd = endLine !== undefined;
+  const hasRegion = Boolean(symbolPath || symbol || hasStart || hasEnd);
+
+  if (!hasRegion) return undefined;
+  if (paths.length !== 1) {
+    ui.error('Region claims operate on exactly one path. Use separate commands for multiple regions.');
+    process.exit(1);
+  }
+  if (Number.isNaN(startLine) || Number.isNaN(endLine)) {
+    ui.error('--start-line and --end-line must be numbers');
+    process.exit(1);
+  }
+  if (hasStart !== hasEnd) {
+    ui.error('Provide both --start-line and --end-line for line-range claims');
+    process.exit(1);
+  }
+  if (!symbolPath && !hasStart) {
+    ui.error('Region claims require --symbol-path or both --start-line and --end-line');
+    process.exit(1);
+  }
+
+  const region: FileRegion = { path: paths[0] };
+  if (symbolPath) region.symbolPath = symbolPath;
+  if (symbol) region.symbol = symbol;
+  if (hasStart) region.startLine = startLine;
+  if (hasEnd) region.endLine = endLine;
+  return [region];
 }
 
 /**
@@ -240,8 +297,10 @@ async function sessionFiles(rest: string[], options: CLIOptions): Promise<void> 
   const paths = rest.slice(1);
   if (paths.length === 0) {
     console.error(`Usage: port-daddy session files ${filesCmd} <paths...>`);
+    console.error(`       Region options: --symbol-path SYMBOL_PATH or --start-line N --end-line N [--symbol NAME]`);
     process.exit(1);
   }
+  const regions = buildRegionFromOptions(paths, options);
 
   const pd = createSessionClient(options);
   let listData: SessionListResult;
@@ -268,7 +327,9 @@ async function sessionFiles(rest: string[], options: CLIOptions): Promise<void> 
   if (filesCmd === 'add') {
     let data: FileClaimResult;
     try {
-      data = await pd.claimFiles(sessionId, paths);
+      data = regions
+        ? await pd.claimFiles(sessionId, [], { regions, force: Boolean(options.force) })
+        : await pd.claimFiles(sessionId, paths);
     } catch (error) {
       const errorBody = getErrorBody(error);
       ui.error((errorBody.error as string) || (error as Error).message || 'Failed to claim files');
@@ -287,12 +348,15 @@ async function sessionFiles(rest: string[], options: CLIOptions): Promise<void> 
     if (isJson(options)) {
       console.log(JSON.stringify(data, null, 2));
     } else if (!isQuiet(options)) {
-      console.log(`Claimed ${paths.length} file(s) in session ${sessionId}`);
+      const claimed = Array.isArray(data.claimed) ? data.claimed.length : paths.length;
+      console.log(`Claimed ${claimed} file(s) in session ${sessionId}`);
     }
   } else {
     let data: FileReleaseResult;
     try {
-      data = await pd.releaseFiles(sessionId, paths);
+      data = regions
+        ? await pd.releaseFiles(sessionId, [], { regions })
+        : await pd.releaseFiles(sessionId, paths);
     } catch (error) {
       const errorBody = getErrorBody(error);
       ui.error((errorBody.error as string) || (error as Error).message || 'Failed to release files');
@@ -405,7 +469,7 @@ export async function handleFiles(options: CLIOptions): Promise<void> {
  */
 export async function handleWhoOwns(filePath: string | undefined, options: CLIOptions): Promise<void> {
   if (!filePath) {
-    console.error('Usage: port-daddy who-owns <file-path>[:<startLine>-<endLine>]');
+    console.error('Usage: port-daddy who-owns <file-path>[:<startLine>-<endLine>] [--symbol-path SYMBOL_PATH]');
     process.exit(1);
   }
 
@@ -419,10 +483,26 @@ export async function handleWhoOwns(filePath: string | undefined, options: CLIOp
     startLine = parseInt(rangeMatch[2], 10);
     endLine = parseInt(rangeMatch[3], 10);
   }
+  const optionStartLine = numberOption(options, 'start-line', 'startLine');
+  const optionEndLine = numberOption(options, 'end-line', 'endLine');
+  if (Number.isNaN(optionStartLine) || Number.isNaN(optionEndLine)) {
+    ui.error('--start-line and --end-line must be numbers');
+    process.exit(1);
+  }
+  if (optionStartLine !== undefined) startLine = optionStartLine;
+  if (optionEndLine !== undefined) endLine = optionEndLine;
+  if ((startLine === undefined) !== (endLine === undefined)) {
+    ui.error('Provide both --start-line and --end-line for line-range ownership checks');
+    process.exit(1);
+  }
+  const symbolPath = stringOption(options, 'symbol-path', 'symbolPath');
 
   let url = `${PORT_DADDY_URL}/files/who-owns?path=${encodeURIComponent(actualPath)}`;
   if (startLine !== undefined && endLine !== undefined) {
     url += `&startLine=${startLine}&endLine=${endLine}`;
+  }
+  if (symbolPath) {
+    url += `&symbolPath=${encodeURIComponent(symbolPath)}`;
   }
 
   const res: PdFetchResponse = await pdFetch(url);
@@ -447,6 +527,7 @@ export async function handleWhoOwns(filePath: string | undefined, options: CLIOp
     startLine: number | null;
     endLine: number | null;
     symbol: string | null;
+    symbolPath?: string | null;
   }>;
 
   if (isQuiet(options)) {
@@ -454,7 +535,11 @@ export async function handleWhoOwns(filePath: string | undefined, options: CLIOp
     return;
   }
 
-  const displayPath = startLine ? `${actualPath}:${startLine}-${endLine}` : actualPath;
+  const displayPath = symbolPath
+    ? `${actualPath}#${symbolPath}`
+    : startLine
+      ? `${actualPath}:${startLine}-${endLine}`
+      : actualPath;
   if (!owners || owners.length === 0) {
     console.log(`${displayPath}: unclaimed`);
     return;
@@ -466,6 +551,7 @@ export async function handleWhoOwns(filePath: string | undefined, options: CLIOp
     let region = '';
     if (o.startLine != null && o.endLine != null) {
       region = ` [lines ${o.startLine}-${o.endLine}${o.symbol ? ': ' + o.symbol : ''}]`;
+      if (o.symbolPath) region += ` (${o.symbolPath})`;
     } else {
       region = ' [whole file]';
     }

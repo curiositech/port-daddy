@@ -3317,6 +3317,39 @@ class PortDaddy {
   }
 
   /**
+   * Poll for the next matching tuple after a cursor.
+   * This is the tuple-space equivalent of message long-polling.
+   */
+  async tuplePoll(
+    pattern: unknown[],
+    options: { harbor?: string; afterId?: number; limit?: number } = {}
+  ): Promise<{ success: boolean; tuple: TupleEntry | null; lastId: number }> {
+    const ipcResult = await this._requestViaIpc<{ success: boolean; tuple: TupleEntry | null; lastId: number; error?: string }>(
+      IpcAction.TUPLE_POLL,
+      {
+        pattern,
+        harbor: options.harbor,
+        afterId: options.afterId,
+        limit: options.limit,
+      },
+      { performative: Performative.QUERY_REF },
+    );
+    if (ipcResult) {
+      if (ipcResult.success === false) {
+        this._throwIpcParityError(ipcResult, 'Failed to poll tuples', 400);
+      }
+      return ipcResult;
+    }
+
+    const params = new URLSearchParams();
+    params.set('pattern', JSON.stringify(pattern));
+    if (options.harbor) params.set('harbor', options.harbor);
+    if (options.afterId !== undefined) params.set('after', String(options.afterId));
+    if (options.limit !== undefined) params.set('limit', String(options.limit));
+    return this._request('GET', `/tuples/poll?${params.toString()}`) as Promise<{ success: boolean; tuple: TupleEntry | null; lastId: number }>;
+  }
+
+  /**
    * Scan all tuples in the space, optionally filtered by harbor.
    *
    * @example
