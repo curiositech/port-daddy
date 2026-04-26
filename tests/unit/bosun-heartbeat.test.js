@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, jest, test } from '@jest/globals';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -68,6 +68,7 @@ describe('Bosun heartbeat writer', () => {
       lastWrittenAt: 1_700_000_005_000,
       lastError: null,
       writeCount: 1,
+      ownerPid: null,
     }));
   });
 
@@ -107,6 +108,46 @@ describe('Bosun heartbeat writer', () => {
       enabled: false,
       state: 'stopped',
       writeCount: 2,
+    }));
+  });
+
+  test('canonical guard refuses to overwrite a heartbeat from a foreign daemon', () => {
+    const heartbeatPath = tmpHeartbeatPath();
+    const pidFile = join(heartbeatPath, '..', 'daemon.pid');
+    writeFileSync(pidFile, '9999\n');
+    const writer = createWriter({
+      heartbeatPath,
+      pidFile,
+      pid: 4242,
+      requirePidFileMatch: true,
+    });
+
+    expect(() => writer.writeOnce()).toThrow(/belongs to 9999, not heartbeat pid 4242/);
+    expect(writer.getStatus()).toEqual(expect.objectContaining({
+      enabled: true,
+      state: 'degraded',
+      ownerPid: 9999,
+      writeCount: 0,
+    }));
+  });
+
+  test('canonical guard writes after the pid file names the current daemon', () => {
+    const heartbeatPath = tmpHeartbeatPath();
+    const pidFile = join(heartbeatPath, '..', 'daemon.pid');
+    writeFileSync(pidFile, '4242\n');
+    const writer = createWriter({
+      heartbeatPath,
+      pidFile,
+      pid: 4242,
+      requirePidFileMatch: true,
+    });
+
+    writer.writeOnce();
+
+    expect(writer.getStatus()).toEqual(expect.objectContaining({
+      state: 'healthy',
+      ownerPid: 4242,
+      writeCount: 1,
     }));
   });
 });

@@ -355,9 +355,9 @@ const bosunHeartbeat = createBosunHeartbeat({
   installDir: __dirname,
   pidFile: PID_FILE,
   portFile: PORT_FILE,
+  requirePidFileMatch: true,
   logger,
 });
-bosunHeartbeat.start();
 
 const barnacle = createBarnacleWatcher(logger);
 barnacle.start();
@@ -878,6 +878,7 @@ try { unlinkSync(SOCK_PATH); } catch {}
 const sockServer = http.createServer((req, res) => { app.routing(req, res); });
 sockServer.listen(SOCK_PATH, async () => {
   try { writeFileSync(PID_FILE, String(process.pid)); } catch {}
+  bosunHeartbeat.start();
   logger.info('socket_started', { socket: SOCK_PATH, version: VERSION });
 
   // Tertiary: Binary IPC socket for agent hot path

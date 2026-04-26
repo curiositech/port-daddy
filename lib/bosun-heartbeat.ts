@@ -75,6 +75,7 @@ export interface BosunHeartbeatStatus {
   lastError: string | null;
   writeCount: number;
   pid: number;
+  ownerPid: number | null;
 }
 
 export interface BosunHeartbeatOptions {
@@ -88,6 +89,7 @@ export interface BosunHeartbeatOptions {
   pidFile?: string;
   portFile?: string;
   pid?: number;
+  requirePidFileMatch?: boolean;
   now?: () => number;
   uptimeMs?: () => number;
   logger?: {
@@ -184,7 +186,27 @@ export function createBosunHeartbeat(options: BosunHeartbeatOptions) {
     lastError: null,
     writeCount: 0,
     pid,
+    ownerPid: null,
   };
+
+  function readPidFileOwner(): number | null {
+    try {
+      const raw = readFileSync(pidFile, 'utf8').trim();
+      const ownerPid = Number.parseInt(raw, 10);
+      return Number.isInteger(ownerPid) && ownerPid > 0 ? ownerPid : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function assertCanonicalOwnership(): void {
+    if (!options.requirePidFileMatch) return;
+    const ownerPid = readPidFileOwner();
+    status.ownerPid = ownerPid;
+    if (ownerPid !== pid) {
+      throw new Error(`canonical pid file ${pidFile} belongs to ${ownerPid ?? 'nobody'}, not heartbeat pid ${pid}`);
+    }
+  }
 
   function buildPayload(): BosunHeartbeatPayload {
     return {
@@ -208,6 +230,7 @@ export function createBosunHeartbeat(options: BosunHeartbeatOptions) {
     const tempPath = join(targetDir, `.heartbeat.${pid}.${payload.writtenAt}.tmp`);
 
     try {
+      assertCanonicalOwnership();
       mkdirSync(targetDir, { recursive: true, mode: 0o700 });
       writeFileSync(tempPath, `${JSON.stringify(payload)}\n`, { mode: 0o600 });
       renameSync(tempPath, heartbeatPath);
