@@ -56,6 +56,7 @@ function sseMessage(payload) {
 
 describe('Watch Module — createWatch()', () => {
   let createWatch;
+  let parseRetryAfterMs;
   let httpRequestSpy;
   let activeFakes = [];
 
@@ -68,6 +69,7 @@ describe('Watch Module — createWatch()', () => {
     // Import the real module; we'll test behaviors that don't require live SSE.
     const mod = await import('../../lib/watch.js');
     createWatch = mod.createWatch;
+    parseRetryAfterMs = mod.parseRetryAfterMs;
   });
 
   afterEach(() => {
@@ -91,6 +93,21 @@ describe('Watch Module — createWatch()', () => {
       const handle = watch('test-channel', { exec: 'echo test' });
       expect(typeof handle.stop).toBe('function');
       handle.stop(); // clean up
+    });
+  });
+
+  describe('Retry-After parsing', () => {
+    it('converts numeric Retry-After seconds to milliseconds', () => {
+      expect(parseRetryAfterMs('5')).toBe(5000);
+    });
+
+    it('caps retry hints so a bad daemon response cannot park watchers forever', () => {
+      expect(parseRetryAfterMs('3600')).toBe(60000);
+    });
+
+    it('returns null for absent or invalid retry hints', () => {
+      expect(parseRetryAfterMs(undefined)).toBeNull();
+      expect(parseRetryAfterMs('not a date')).toBeNull();
     });
   });
 

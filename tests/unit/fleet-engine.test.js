@@ -769,6 +769,56 @@ test('BUG A: stopAll must call watchHandle to unsubscribe in-process triggers', 
   expect(unsubscribe).toHaveBeenCalledTimes(1);
 });
 
+test('YAML watchers use daemon-owned subscriptions instead of leaking pd watch processes', async () => {
+  let watcherCallback;
+  const unsubscribe = jest.fn();
+  const subscribe = jest.fn((channel, callback) => {
+    watcherCallback = callback;
+    return unsubscribe;
+  });
+  const projectDir = '/tmp/proj';
+  const config = {
+    name: 'test-fleet',
+    limits: { budgetUsdPerDay: 5 },
+    agents: [],
+    watchers: [
+      { name: 'notify', trigger: 'qa:findings', exec: 'echo "$PD_MESSAGE_CONTENT"' },
+    ],
+    channels: {},
+  };
+  const physicalChannel = resolveFleetChannel('qa:findings', projectDir, config.name);
+
+  const runner = createFleetRunner(config, projectDir, {
+    messaging: { subscribe },
+  });
+
+  runner.startAll();
+  await Promise.resolve();
+  await Promise.resolve();
+
+  expect(subscribe).toHaveBeenCalledWith(physicalChannel, expect.any(Function));
+  expect(mockSpawn).not.toHaveBeenCalled();
+
+  watcherCallback({ payload: 'QA found issues' });
+
+  expect(mockSpawn).toHaveBeenCalledWith(
+    '/bin/sh',
+    ['-c', 'echo "$PD_MESSAGE_CONTENT"'],
+    expect.objectContaining({
+      cwd: projectDir,
+      shell: false,
+      stdio: 'ignore',
+      env: expect.objectContaining({
+        PD_CHANNEL: physicalChannel,
+        PD_MESSAGE_CONTENT: 'QA found issues',
+      }),
+    }),
+  );
+
+  runner.stopAll();
+  expect(unsubscribe).toHaveBeenCalledTimes(1);
+});
+
 // ─── BUG B: hailAgent singleton check uses wrong map ───────────────────────
 
 test('BUG B: hailAgent allows singleton hail when no run is in flight', async () => {

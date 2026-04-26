@@ -112,6 +112,7 @@ interface RunningAgent {
   name: string;
   type: 'scheduled' | 'triggered' | 'watcher' | 'manual';
   process?: ChildProcess;
+  childProcesses?: Set<ChildProcess>;
   interval?: ReturnType<typeof setInterval>;
   tuplePollInterval?: ReturnType<typeof setInterval>;
   watchHandle?: () => void;
@@ -793,6 +794,14 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       try { record.watchHandle(); } catch { /* ignore unsubscribe failures */ }
       record.watchHandle = undefined;
     }
+    if (record.childProcesses) {
+      for (const child of record.childProcesses) {
+        if (!child.killed) {
+          try { child.kill('SIGTERM'); } catch { /* already dead */ }
+        }
+      }
+      record.childProcesses.clear();
+    }
     if (record.process) {
       const pid = record.process.pid;
       if (pid) {
@@ -946,6 +955,26 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     if (running.has(watcher.name)) return;
     const physicalTriggerChannel = resolveChannel(watcher.trigger);
 
+    const unsubscribe = options?.messaging?.subscribe(physicalTriggerChannel, (message: unknown) => {
+      triggerWatcherExec(watcher, physicalTriggerChannel, message);
+    });
+
+    if (unsubscribe) {
+      running.set(watcher.name, {
+        name: watcher.name,
+        type: 'watcher',
+        childProcesses: new Set(),
+        watchHandle: unsubscribe,
+        startedAt: Date.now(),
+      });
+      emit({
+        type: 'watcher_started', agent: watcher.name, project,
+        identity: `${project}:fleet:${watcher.name}`,
+        timestamp: Date.now(), details: { trigger: watcher.trigger, physicalTrigger: physicalTriggerChannel, mode: 'in-process' },
+      });
+      return;
+    }
+
     const watchProc = spawn('npx', [
       'tsx', join(projectDir, 'bin', 'port-daddy-cli.ts'),
       'watch', physicalTriggerChannel,
@@ -953,7 +982,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     ], {
       cwd: projectDir,
       env: { ...process.env, PD_URL: getFleetDaemonUrl() },
-      stdio: 'pipe',
+      stdio: 'ignore',
       detached: true,
     });
     watchProc.unref();
@@ -967,7 +996,87 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     emit({
       type: 'watcher_started', agent: watcher.name, project,
       identity: `${project}:fleet:${watcher.name}`,
-      timestamp: Date.now(), details: { trigger: watcher.trigger, physicalTrigger: physicalTriggerChannel },
+      timestamp: Date.now(), details: { trigger: watcher.trigger, physicalTrigger: physicalTriggerChannel, mode: 'external-pd-watch' },
+    });
+  }
+
+  /**
+   * Execute a YAML watcher command from the daemon-owned subscription path.
+   *
+   * Sample input:
+   *
+   * ```ts
+   * triggerWatcherExec(
+   *   { name: 'notify', trigger: 'qa:findings', exec: 'say "$PD_MESSAGE_CONTENT"' },
+   *   'project:port-daddy-dev:abc:qa:findings',
+   *   { payload: 'QA found issues' }
+   * )
+   * ```
+   *
+   * Sample output:
+   *
+   * ```json
+   * {
+   *   "type": "watcher_triggered",
+   *   "agent": "notify",
+   *   "details": { "physicalTrigger": "project:port-daddy-dev:abc:qa:findings" }
+   * }
+   * ```
+   */
+  function triggerWatcherExec(watcher: FleetWatcher, physicalTriggerChannel: string, message: unknown): void {
+    const record = running.get(watcher.name);
+    if (!record) return;
+
+    const children = record.childProcesses ?? new Set<ChildProcess>();
+    record.childProcesses = children;
+    if (children.size >= 3) {
+      console.error(`[Fleet] Watcher ${watcher.name} concurrency limit reached; dropping message`);
+      return;
+    }
+
+    const dataStr = serializeMessage(message);
+    const context = contextFromMessage(watcher.trigger, message);
+    const messageContent = context.messageContent ?? dataStr;
+    const child = spawn('/bin/sh', ['-c', watcher.exec], {
+      cwd: projectDir,
+      shell: false,
+      stdio: 'ignore',
+      env: {
+        ...process.env,
+        PD_MESSAGE: dataStr,
+        PD_MESSAGE_CONTENT: messageContent,
+        PD_CHANNEL: physicalTriggerChannel,
+        PD_TIMESTAMP: new Date().toISOString(),
+      },
+    });
+
+    children.add(child);
+    const timer = setTimeout(() => {
+      if (!child.killed) {
+        try { child.kill('SIGTERM'); } catch { /* already dead */ }
+      }
+    }, 30_000);
+    timer.unref?.();
+
+    child.on('error', (err) => {
+      console.error(`[Fleet] Watcher ${watcher.name} exec error:`, err.message);
+    });
+    child.on('exit', () => {
+      clearTimeout(timer);
+      children.delete(child);
+    });
+
+    emit({
+      type: 'watcher_triggered',
+      agent: watcher.name,
+      project,
+      identity: `${project}:fleet:${watcher.name}`,
+      timestamp: Date.now(),
+      details: {
+        trigger: watcher.trigger,
+        physicalTrigger: physicalTriggerChannel,
+        childPid: child.pid,
+      },
     });
   }
 
