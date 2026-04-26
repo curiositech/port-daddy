@@ -37,8 +37,9 @@ Current Compass advisor validation truth on 2026-04-26:
 
 - focused advisor/parity bundle is green: `tests/unit/advisor.test.js`, `tests/unit/bijective-parity.test.js`, `tests/unit/mcp-parity.test.js`, `tests/unit/manifest-enforcement.test.js`, and `tests/unit/endpoint-parity.test.js`.
 - `npm run typecheck` is green.
-- broad `npm test -- --no-coverage` is green at `139/139` suites and `4916/4917` passing tests with `1` intentional skip.
-- teardown caveat cleared in this validation pass: the final clean broad run exited without Jest's open-handle warning after the custom daemon heartbeat isolation fix in `65f41df`.
+- focused `sessions` + advisor/parity bundle is green at `572/572` tests after adding inactive-session claim regression coverage.
+- broad `npm test -- --no-coverage` reached green counts at `139/139` suites and `4919/4920` passing tests with `1` intentional skip, then hung after Jest's open-handle warning.
+- remaining caveat: the broad-run exit blocker is the integration harness daemon process tree (`jest -> tsx -> server.ts`) on files actively claimed by the Bosun session `session-c4cc1a46-77ba-4c72-85cf-9ce13637cc97`. Compass recorded tuple `5474`, inboxed `agent-e802a389`, and cleaned up its own hung PIDs rather than editing across that active claim.
 
 Actor-model reconciliation truth on 2026-04-23:
 
@@ -63,6 +64,7 @@ Newest validated working-tree slice before the next commit:
   - `pd advise`, `pd preflight`, and `pd compass` render the advice for humans
   - MCP exposes `coordination_preflight` as an essential agent tool
   - parity surfaces were updated in the feature manifest, completions, tests, skill docs, and API reference
+  - dogfooding exposed and repaired inactive-session file-claim zombies in `lib/sessions.ts`; `tests/unit/sessions.test.js` now asserts inactive sessions cannot claim files, inactive unreleased rows do not block conflicts, and terminal sessions cannot be moved back to nonterminal phases
   - important limit: this is deterministic advice only; FleetBar/Fleet Control Center cards, graph edges for recommendations, stale asset reclaim actions, and optional LLM ranking remain follow-up work
 
 - **Cartographer / Navigator maritime actor foundation** — uncommitted runtime + fleet-contract slice. The repo now has the first additive `/actors` read surface instead of only a prompt-level roadmap updater:
