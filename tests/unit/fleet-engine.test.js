@@ -1008,6 +1008,26 @@ describe('validateTopology', () => {
     expect(result.warnings.some((warning) => warning.includes('orphan'))).toBe(true);
   });
 
+  test('does not warn for channels marked with an external producer', () => {
+    const config = {
+      name: 'test',
+      agents: [
+        { name: 'documentarian', trigger: 'promotion:release-surfaces', backend: 'ollama', prompt: 'x' },
+      ],
+      watchers: [],
+      channels: {
+        'promotion:release-surfaces': {
+          description: 'Promotion script publishes this channel',
+          externalProducer: 'scripts/promote-stable.sh',
+        },
+      },
+    };
+
+    const result = validateTopology(config);
+    expect(result.valid).toBe(true);
+    expect(result.warnings.some((warning) => warning.includes('promotion:release-surfaces'))).toBe(false);
+  });
+
   test('self-trigger (agent publishes to its own trigger) is not a cycle', () => {
     const config = {
       name: 'test',

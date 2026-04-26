@@ -205,6 +205,18 @@ fleet name for the durable `navigator` actor:
 - The sibling systems discussed in this thread are also actor-shaped and now have canonical maritime names: Navigator for roadmap/recovery state, Coxswain for claims/locks/stale work, Signalman for validation evidence, Harbormaster for promotion readiness, Sounder for semantic graph/synonymy, Lookout for docs/API/skill drift, Breaker for failure propagation, Caulker for robustness repair, and Quartermaster for cost/resource governance. They should all become durable actors with deterministic projectors and optional LLM bodies.
 - Validation truth on 2026-04-26: focused actor + SDK + MCP + parity bundle is green at `551/551`, and `npm run typecheck` / `npm run build` are green. Broad `npm test -- --no-coverage` reached green counts at `142/142` suites and `4973/4974` tests with `1` intentional skip, then hit the known Jest open-handle warning; the hung `--no-coverage` process tree was cleaned up manually.
 
+### Promotion-Gated Release Surface Review (2026-04-26)
+
+The promotion script is now the high-signal trigger for docs/website/SDK/CLI/tutorial/README/skill drift work:
+
+- `scripts/emit-promotion-release-review.mjs` builds a structured promotion review payload, writes a harbor-scoped `promotion:release-surfaces` tuple, and publishes the same payload on the `promotion:release-surfaces` channel.
+- The payload filters generated/build artifact paths, carries changed-file counts, and truncates the file list so promotion review cannot accidentally shove stable archaeology through pub/sub.
+- `scripts/promote-stable.sh` emits that review after the test gate passes and before merging `main` into stable.
+- The trigger is intentionally not a direct spawn. Fleet policy owns activation through the `documentarian` agent, which now listens to `promotion:release-surfaces` with singleton, cooldown, dedupe, and backoff controls.
+- `PORT_DADDY_PROMOTION_REVIEW_REQUIRED=1` makes emission failures block promotion; `PORT_DADDY_PROMOTION_REVIEW_ONLY=1` stops after signaling so release-surface agents can work before stable moves.
+- The contract is covered by `tests/unit/promotion-release-review.test.js`.
+- Validation truth on 2026-04-26: focused promotion/fleet tests are green, `npm run typecheck` and `npm run build` are green, source `pd fleet validate` reports no topology warnings, and broad `npm test -- --no-coverage --runInBand` is green at `143/143` suites and `4980/4981` passing tests with `1` intentional skip.
+
 ### Tree-Sitter Symbol Refresh From Repo Events (2026-04-24)
 
 The current uncommitted runtime slice makes tree-sitter symbol indexing event-driven instead of requiring manual `/symbols/parse` calls:
@@ -647,7 +659,12 @@ This is the normalized remaining-slice inventory as of 2026-04-24. It supersedes
    - macOS pkg signing/notarization path
    - FleetBar cask/pkg parity
    - landing-page download truth
-8. Finish Bosun/Barnacle consolidation:
+8. Keep promotion-time release-surface review healthy:
+   - `promote-stable.sh` must emit `promotion:release-surfaces` after tests pass and before stable merge
+   - the event must remain tuple + pub/sub, not an unconditional direct AI spawn
+   - Documentarian/Lookout must keep singleton/cooldown/dedupe/backoff so repeated promotion attempts collapse instead of burning fleet budget
+   - use `PORT_DADDY_PROMOTION_REVIEW_REQUIRED=1` when stale docs should block promotion, and `PORT_DADDY_PROMOTION_REVIEW_ONLY=1` when agents need a pre-merge docs pass
+9. Finish Bosun/Barnacle consolidation:
    - V2 `bin/watchdog.ts` / `daemon:watch` are removed in the active Bosun slice
    - daemon heartbeat writer and `core/pd-bosun/` std-only supervisor scaffold are in-tree
    - remaining: distribute `dist/core/pd-bosun`, promote `com.portdaddy.bosun`, then remove legacy Barnacle crate/client/compat field after the compatibility window
@@ -671,7 +688,11 @@ This is the normalized remaining-slice inventory as of 2026-04-24. It supersedes
    - reference
    - LLM exports
 6. Add Lookout drift checks for parity between routes, manifest, OpenAPI, CLI, completions, MCP, website docs, and skill reference.
-7. Translate the Google Agents CLI research into a lifecycle-first Port Daddy docs/CLI proposal:
+7. Keep Lookout/Documentarian focused on promotion-time release surfaces, not every commit:
+   - README, CHANGELOG, feature manifest, OpenAPI, SDK docs, CLI help/completions, website docs/tutorials, MCP instructions, and the distributed Port Daddy skill
+   - scope reviews to the promotion payload's source SHA and changed files
+   - report `CLEAN` with evidence instead of making cosmetic docs churn
+8. Translate the Google Agents CLI research into a lifecycle-first Port Daddy docs/CLI proposal:
    - `setup`
    - `scaffold create`
    - `scaffold enhance`

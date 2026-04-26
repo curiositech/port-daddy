@@ -152,7 +152,7 @@ With Port Daddy:
 - Immutable notes — full audit trail of every decision
 - Salvage queue — dead agent work is preserved and claimable
 - Pub/sub + file claims — agents coordinate without stepping on each other
-- Background fleet — QA, docs, testing run automatically on every commit
+- Background fleet — QA/testing can run on commit, while release-surface docs sync wakes at promotion time when it matters most
 - Binary IPC — sub-microsecond heartbeats and pheromone sprays over Unix socket
 - Pheromone trails — ambient numeric signals that decay over time for contention detection
 - Tuple space — shared typed memory for swarm coordination
@@ -303,7 +303,7 @@ You don't need to use IPC directly. The SDK and CLI use it transparently for hot
 
 ## Fleet: Background Agents (v3.8.3)
 
-Declare agents in YAML. They fire on git commits, cron schedules, or pub/sub messages. Auto-respawn on crash with circuit breaker. **As of v3.8.3, fleets run inside the daemon process** — they start automatically on daemon boot and survive terminal close.
+Declare agents in YAML. They fire on git commits, promotion review signals, cron schedules, tuple patterns, or pub/sub messages. Auto-respawn on crash with circuit breaker. **As of v3.8.3, fleets run inside the daemon process** — they start automatically on daemon boot and survive terminal close.
 
 **Two modes:**
 
@@ -325,7 +325,9 @@ curl -XPOST "$PD_URL/fleet/reload"  # Reload after editing pd-fleet.yml
 curl "$PD_URL/fleet/events"       # SSE lifecycle stream
 ```
 
-The starter fleet includes: **QA** (bug hunting), **Documentarian** (docs sync), **Cartographer** (roadmap tracking), **Spark** (idea generation), **Spider** (cross-feature connections).
+The starter fleet includes: **QA** (bug hunting), **Documentarian / Lookout** (promotion-time release-surface sync), **Cartographer** (roadmap tracking), **Spark** (idea generation), **Spider** (cross-feature connections).
+
+For Port Daddy's own repo, `./scripts/promote-stable.sh` emits a `promotion:release-surfaces` tuple and pub/sub signal after tests pass and before the stable merge. Documentarian listens there, with singleton/cooldown/dedupe/backoff controls, so README, website docs/tutorials, SDK/CLI references, OpenAPI/MCP, and this skill are checked at the moment they become operator-facing truth instead of on every low-signal commit.
 
 `pd fleet status` now surfaces backend readiness and sandbox-sensitive local execution hints so users can see install/auth/permission blockers before a fleet run fails.
 
@@ -488,12 +490,14 @@ fleet:
 - Prefer local-first tiers for always-on fleets: cheap Ollama loops for broad coverage, Codex for higher-signal code work, Claude CLI only when its tool surface is specifically needed
 - Template variables (`{project}`) resolve from the YAML context
 - `on_success: publish <channel>` chains agents via pub/sub (DAG topology validated at startup)
+- `channels.<name>.external_producer` documents channels produced by scripts/hooks outside the fleet so validation stays quiet without pretending an agent owns the source
 - Fleet harbor auto-created on start — all agents share a semantic namespace
 - Each agent gets full PD coordination: registration, sessions, heartbeats, salvage on crash
 - Auto-respawn with `respawn: true` and `max_respawns` circuit breaker
 - **Daemon mode**: fleet auto-discovered from known Port Daddy repos on daemon boot; editing `pd-fleet.yml` triggers hot-reload; SIGHUP reloads all fleets
 - **Project fleet leases**: daemon-owned fleets are singleton per project across daemons; another daemon may discover the same `pd-fleet.yml`, but it must skip starting that project if a lease is already held
 - **Resource limits**: `limits.max_concurrent_spawns` and `limits.max_spawns_per_hour` prevent runaway agents
+- **Trigger discipline**: use `cooldown_ms`, `dedupe_window_ms`, and backoff settings for high-signal maintenance agents so repeated commits/promotions collapse instead of spawning a storm
 - Lifecycle events published to `fleet:events` channel for dashboard/menu bar subscriptions
 
 Keep the distinction clear:
