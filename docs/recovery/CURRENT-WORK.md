@@ -217,6 +217,18 @@ The promotion script is now the high-signal trigger for docs/website/SDK/CLI/tut
 - The contract is covered by `tests/unit/promotion-release-review.test.js`.
 - Validation truth on 2026-04-26: focused promotion/fleet tests are green, `npm run typecheck` and `npm run build` are green, source `pd fleet validate` reports no topology warnings, and broad `npm test -- --no-coverage --runInBand` is green at `143/143` suites and `4980/4981` passing tests with `1` intentional skip.
 
+### Port Daddy Skill Happy Path Polish (2026-04-26)
+
+The distributed `port-daddy-cli` skill now starts as an agent runbook instead of
+a feature catalog:
+
+- frontmatter now names the default command path directly
+- the first section is `Default Agent Happy Path`: `pd status`, `pd briefing`, optional `pd salvage`, `pd begin`, `pd advise`, `pd note`, file/symbol claims, result note, and `pd done`
+- a small decision table explains when to branch to ports, locks, tuples, inbox/actors, sitrep, delegation, integration signals, and DNS
+- advanced surfaces remain documented, but below the runbook and explicitly marked non-default
+- `tests/unit/port-daddy-skill-authority.test.js` now asserts the happy path exists, is ordered, and stays before advanced/reference material
+- Validation truth on 2026-04-26: focused skill authority and distribution freshness tests are green (`54/54`).
+
 ### Tree-Sitter Symbol Refresh From Repo Events (2026-04-24)
 
 The current uncommitted runtime slice makes tree-sitter symbol indexing event-driven instead of requiring manual `/symbols/parse` calls:

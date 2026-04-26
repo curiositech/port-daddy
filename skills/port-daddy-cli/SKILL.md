@@ -1,199 +1,110 @@
 ---
 name: port-daddy-cli
-description: "Multi-agent coordination daemon for AI coding agents (v3.8.4). Eliminates port conflicts, tracks sessions, recovers crashed agents, runs background fleets, provides binary IPC for high-frequency communication, pheromone trails for ambient signaling, tuple spaces for shared memory, and declarative fleet orchestration. v3.8.4 adds consolidated verbs: `pd say` (write a finding with optional tuple/pheromone/broadcast fan-outs) and `pd look` / `pd sitrep` (situation-report synthesis — what happened while I was away). Use when starting a coding session, coordinating parallel agents, claiming ports for dev servers, leaving findings for other agents, spawning background workers, running declarative agent fleets, or debugging multi-agent failures. Works with Claude Code, Gemini CLI, Cursor, Windsurf, Codex, and any backend Port Daddy can spawn."
+description: "Use Port Daddy to start and coordinate repo work on this machine. Default agent path: `pd status`, `pd briefing`, optional `pd salvage`, `pd begin`, `pd advise`, `pd note`, precise file/port/lock claims as needed, then `pd done`. Reach for tuples, inbox, pheromones, agents, sorties, and fleets only when the task specifically needs those advanced coordination surfaces."
 ---
 
-# Port Daddy v3.8.4 — Agent Coordination That Actually Works
+# Port Daddy CLI
 
-## The Problem You Have Right Now
+Use this skill as a **coordination runbook**, not as a catalog. The happy path
+below is what an agent should do by default. Everything after that is a branch
+for a specific need.
 
-You're an AI agent. You're about to start a dev server. Which port? 3000? Taken. 3001? Another agent grabbed it. You pick a random port. Now nothing can find your server.
+## Default Agent Happy Path
 
-Meanwhile, another agent is editing the same file you are. Neither of you knows. You'll both commit. One of you loses work.
-
-A third agent crashed 20 minutes ago — halfway through a migration. Its work is orphaned. Nobody knows.
-
-**Port Daddy solves all of this in one daemon.**
-
-## Quick Start (Do This First)
+Run this sequence for any non-trivial repo task on this computer:
 
 ```bash
-# 1. Check live truth first
+# 1. Establish live truth before local archaeology.
 pd status
 pd briefing
-pd salvage --project myapp    # if crash residue or abandoned work may matter
 
-# 2. Start your session — ALWAYS do this before non-trivial repo work
-pd begin "Building auth module" --identity myapp:auth-agent
-
-# 3. Claim a port — deterministic, never conflicts
-PORT=$(pd claim myapp:api:main -q)
-
-# 4. Publish your intended scope for other agents
-pd note "Owning auth flow work. Expect edits in src/auth/* and tests/auth/*"
-
-# 5. Coordinate actual edits with real shared state
-pd session files add src/auth/*.ts
-pd lock auth-migration --ttl 300
-pd tuple out '["handoff","auth","refresh-token-investigation"]'
-
-# 6. End cleanly
-pd done
-```
-
-## Recovery And Cooperation Protocol
-
-When you are entering an existing repo on this machine, especially after a crash or in parallel with other agents, use this order:
-
-```bash
-pd status
-pd briefing
+# 2. Check crash residue only when the briefing, user, or repo history suggests it.
 pd salvage --project <project>
-pd begin "<task>" --identity <project>:<task>
-pd note "Scope, intended files, blockers, and who should coordinate with me"
+
+# 3. Start one named work session.
+pd begin "<plain-language task>" --identity <project>:<task>
+# If a session is already active, inspect it before starting another one:
+pd whoami
+
+# 4. Ask Port Daddy what coordination is appropriate before editing.
+pd advise <likely-file-or-dir> --task "<plain-language task>"
+
+# 5. Tell other agents what you intend to touch.
+pd note "Scope: <task>. Likely files: <paths>. Risks/blockers: <anything important>."
+
+# 6. Claim the smallest real edit surface before mutation.
+pd session files add <path>
+pd session files add <path> --symbol-path <ClassOrFunction.name>
+
+# 7. Do the work, test it, then leave the result and close cleanly.
+pd note "Result: <what changed>. Validation: <commands run>. Remaining: <if any>."
+pd done "<short outcome>"
 ```
 
-Use the richer coordination primitives when they actually add value:
+If you remember only one thing: **status, briefing, begin, advise, note, claim,
+work, note, done**.
 
-- `pd note`
-  - human-readable scope, handoffs, blockers, and conclusions
-- `pd session files add`
-  - advisory edit ownership before touching files; prefer symbol/region claims through the HTTP API/SDK when edits are function-scoped
-- `pd lock` / `pd with-lock`
-  - truly exclusive sections like migrations, releases, or rewrites of a shared generated artifact
-- tuple space
-  - machine-readable shared state, work queues, rendezvous points, and durable handoff tokens
-- inbox / direct agent messaging
-  - targeted coordination with a known agent identity
-- pheromones / file heat
-  - ambient contention and hotspot detection when multiple agents may collide
+## Small Decision Table
 
-Do not rely on “I’ll just be careful” when another agent is active. In Port Daddy, legible shared state is the whole point.
+Use this table when the happy path reveals a specific need:
 
-## Consolidated Verbs (3.8.4) — `pd say` and `pd look`
+| Need | Use | Rule of Thumb |
+|------|-----|---------------|
+| Start or finish work | `pd begin` / `pd done` | One active session per coherent task. |
+| Inspect current session | `pd whoami` | Use when context is unclear or `pd begin` reports an active session. |
+| Explain scope or handoff | `pd note` | Human-readable truth; use this first. |
+| Decide coordination before editing | `pd advise` / `pd preflight` | Ask before risky edits or handoffs. |
+| Edit files safely | `pd session files add` | Prefer symbol claims when the target function/class is known. |
+| Run a dev server | `pd claim <project>:<service>:<context> -q` | Never hardcode a random port. |
+| Exclusive critical section | `pd with-lock <resource> -- <command>` | Use for migrations, promotion, generated artifacts, and non-mergeable work. |
+| Crash or abandoned work | `pd salvage --project <project>` | Read before restarting work someone may have half-finished. |
+| Machine-readable handoff | `pd tuple out ...` | Use only when another process/agent should query it. |
+| Direct message | `pd inbox send` or `pd actor <id> --message` | Use when you know the recipient. |
+| Catch up after time away | `pd look` / `pd sitrep` | Read recent activity instead of scraping logs manually. |
+| Delegate work | `pd agent`, `pd sortie`, or `pd fleet` | Only after budget/readiness and telemetry policy are clear. |
+| Service dependency ready/needed | `pd integration ready` / `pd integration needs` | Use when one service is waiting on another. |
+| Local service naming | DNS records through Port Daddy | Use when agents need stable local names instead of copied URLs. |
 
-In 3.8.4 we collapsed the CLI veneer. When you want to leave a finding, use
-ONE command instead of four. When you want to catch up on what's happening,
-use ONE command instead of reading four feeds.
+## MCP Equivalents
 
-**Write (fan-out with flags):**
-```bash
-pd say "fixed auth bug"                              # note only (to active session)
-pd say "fixed auth bug" --pin                        # note + cross-session tuple
-pd say "fixed auth bug" --heat src/auth.ts=0.7       # note + pheromone heat on the file
-pd say "build broken" --broadcast alerts             # note + pub/sub publish
-# Flags compose — one call runs all fan-outs in parallel:
-pd say "fixed flash of unstyled content in Hero.tsx" \
-       --pin --heat website-v2/src/components/landing/Hero.tsx=0.8
-```
+If you are using MCP tools instead of the CLI, mirror the same order:
 
-**Read (synthesis across feeds):**
-```bash
-pd look                   # sitrep of last 60 minutes (activity + notes + salvage + spawns)
-pd look --since 120       # widen the window to 2 hours
-pd look --heat            # pivot to the file heat map (pheromone contention)
-pd look --quiet           # one-line summary (good for shell prompts)
-pd sitrep                 # explicit maritime-voice alias for `pd look`
-```
+1. `begin_session`
+2. `coordination_preflight`
+3. `add_note`
+4. file claim tools or `claim_port` only when needed
+5. `end_session_full`
 
-The underlying primitives (`pd note`, `pd tuple out`, `pd pheromone spray`,
-`pd pub`) all still exist and are the right choice when you need to write to
-exactly one surface. `pd say` is the default when you want the fan-out.
+Use `pd_discover` only after the happy path tells you a specialized surface is
+needed. Do not begin by browsing every available tool.
 
-**Compass (coordination preflight):**
-```bash
-pd advise src/auth.ts --task "change token refresh"
-pd preflight docs/recovery/CURRENT-WORK.md --tuples
-pd compass --task "handoff blocker to another agent" --channels
-```
+## Coordination Rules
 
-Use Compass before risky edits or multi-agent handoffs. It returns deterministic
-recommendations with `why`, `risk`, evidence, confidence, and executable actions
-for session context, active claims, symbol freshness, salvage, channels, tuples,
-and true lock candidates. Agents should call the MCP `coordination_preflight`
-tool for the same advice.
+- Use **notes** for human-readable scope, decisions, blockers, and validation.
+- Use **file claims** for advisory edit ownership. They warn and start a
+  conversation; they are not hard locks.
+- Use **symbol claims** for function/class-scoped code edits when the symbol
+  index knows the file.
+- Use **locks** only for scarce, non-mergeable critical sections.
+- Use **tuples** when a fact needs to be machine-readable by other automation.
+- Use **inbox/actors** for targeted delivery to a known agent or durable role.
+- Use **pheromones/file heat** for ambient contention signals, not normal status
+  updates.
+- Use **agents/sorties/fleets** for delegation, not as a substitute for a clear
+  local session.
 
-**Maritime actor directory:**
-```bash
-pd actors --project port-daddy
-pd actor navigator
-pd actor cartographer --json
-pd actor navigator --message "roadmap item needs evidence"
-pd actor navigator --inbox --unread
-pd actor navigator --inbox-stats
-```
+## Advanced Surfaces
 
-`pd actors` lists durable maritime actor souls such as Navigator, Coxswain,
-Signalman, Harbormaster, Sounder, Lookout, Breaker, Caulker, and
-Quartermaster. This is not a replacement for `/agents`: `/actors` is durable
-identity and role truth, while `/agents` remains the live body/lease
-compatibility view until the body-lease migration is complete.
+The rest of this file is reference material. Read it only when the happy path or
+the decision table points you there. Full API and SDK details live in:
 
-**Power-user pheromone CLI (3.8.4):**
-```bash
-pd pheromone file <path> <strength>    # sugar for spray files/<path>/heat
-pd pheromone files [--path prefix]     # file heat map with conflict markers
-pd pheromone show <table> <id>         # all pheromone keys on an entity
-pd pheromone ls                        # every non-zero pheromone across tables
-pd ph files                            # `ph` is the shorthand alias
-```
+- `references/api-reference.md`
+- `references/sdk-reference.md`
+- `references/multi-agent-patterns.md`
 
-## Why This Matters
-
-Without Port Daddy:
-- Port conflicts every time two agents run dev servers
-- No record of what agents did or decided
-- Crashed agents leave orphaned work nobody finds
-- No way for agents to signal each other
-- File edit collisions destroy work silently
-
-With Port Daddy:
-- Deterministic ports — same identity always gets the same port
-- Immutable notes — full audit trail of every decision
-- Salvage queue — dead agent work is preserved and claimable
-- Pub/sub + file claims — agents coordinate without stepping on each other
-- Background fleet — QA/testing can run on commit, while release-surface docs sync wakes at promotion time when it matters most
-- Binary IPC — sub-microsecond heartbeats and pheromone sprays over Unix socket
-- Pheromone trails — ambient numeric signals that decay over time for contention detection
-- Tuple space — shared typed memory for swarm coordination
-- Semantic trie — O(k) identity lookups replacing SQL LIKE scans
-
-## MCP Tools Available
-
-**Start here (high-level, one call does many things):**
-
-| Tool | What It Does |
-|------|-------------|
-| `begin_session` | Register as an agent + start a session atomically |
-| `end_session_full` | End session + unregister atomically |
-| `whoami` | What agent am I? What session? What files do I own? |
-| `coordination_preflight` | Compass advice before editing: context, claims, symbols, salvage, channels, tuples, and lock candidates |
-| `sitrep` | Situation report — what happened while I was away? Activity, notes, salvage queue, spawned agents. (CLI: `pd sitrep` / `pd look`. Was `catch_me_up` — kept as back-compat alias.) |
-| `swarm_awareness` | Who else is working here? All agents, sessions, file claims |
-| `list_actors` / `get_actor` / `message_actor` / `list_actor_inbox` / `get_actor_inbox_stats` | Durable maritime actor directory and mailbox; `/actors` role truth separate from live `/agents` bodies |
-| `file_heat` | Which files are agents fighting over? Pheromone-based contention map |
-| `talk_to_agent` | Send a direct message to a specific fleet agent by name |
-| `claim_port` | Get a deterministic port for a service identity |
-| `add_note` | Leave an immutable breadcrumb (notes can never be deleted) |
-| `acquire_lock` | Distributed lock for critical sections |
-| `spawn_agent` | Launch a background AI agent with a task |
-| `fleet_init` | Set up a background agent fleet with git hooks and pd-fleet.yml |
-| `pd_discover` | Find additional tools by category |
-
-**Tuple space tools (shared swarm memory):**
-
-| Tool | What It Does |
-|------|-------------|
-| `tuple_out` | Write a typed tuple to the shared space (harbor-scoped) |
-| `tuple_read` | Read tuples matching a pattern (non-destructive) |
-| `tuple_take` | Atomically read + remove tuples matching a pattern |
-| `tuple_scan` | List all tuples in a harbor or global space |
-| `tuple_count` | Count tuples matching a pattern |
-
-**Discover more tools by category:**
-Call `pd_discover` with a category name: `magic`, `session-lifecycle`, `advisor`, `ports`, `sessions`, `notes`, `locks`, `messaging`, `agents`, `inbox`, `webhooks`, `integration`, `dns`, `briefing`, `tunnels`, `projects`, `changelog`, `activity`, `system`, `tuples`, `semantic`, `pheromone`
-
-**Integration signals:** Use `integration ready` and `integration needs` to coordinate service dependencies. When your service is ready, signal it so other agents can proceed.
+Useful advanced commands still include `pd say`, `pd look`, `pd actors`,
+`pd pheromone`, `pd tuple`, `pd fleet`, `pd agent`, `pd sortie`, `pd graph`,
+`pd memory`, and `pd ideas`, but they are **not** the default starting point.
 
 ## Core Concepts
 
