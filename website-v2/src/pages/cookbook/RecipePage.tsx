@@ -2,11 +2,11 @@ import { motion, useScroll, useSpring } from 'framer-motion'
 import { useParams, Link, Navigate } from 'react-router-dom'
 import { Badge } from '@/components/ui/Badge'
 import { COOKBOOK_RECIPES } from '@/data/cookbook'
-import { ChevronLeft, Shield, Activity, Zap, MessageSquare, UserMinus, Network, Share2, Anchor, Cpu, Search, RefreshCw, Layers, BookOpen } from 'lucide-react'
+import { ChevronLeft, Shield, Activity, Zap, MessageSquare, UserMinus, Network, Share2, Anchor, Cpu, Search, RefreshCw, Layers, BookOpen, type LucideIcon } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { Footer } from '@/components/layout/Footer'
 
-const ICON_MAP: Record<string, any> = {
+const ICON_MAP: Record<string, LucideIcon> = {
   Shield,
   Activity,
   Zap,

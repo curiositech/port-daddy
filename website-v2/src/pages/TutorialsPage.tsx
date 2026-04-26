@@ -2,13 +2,14 @@ import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
 import { Surface } from '@/components/ui/Surface'
 import { Link } from 'react-router-dom'
-import { Clock, Play, Zap, Shield, Globe, Sparkles, Anchor, Share2, Layers, Search, Box, History, Terminal, Mail, Candy, Eye, Monitor, Workflow, Radio, Ship, Bot, Droplets } from 'lucide-react'
+import { Clock, Play, Zap, Shield, Globe, Sparkles, Anchor, Share2, Layers, Search, Box, History, Terminal, Mail, Candy, Eye, Monitor, Workflow, Radio, Ship, Bot, Droplets, type LucideIcon } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
 import { TUTORIALS as TUTORIALS_DATA } from '@/data/tutorials'
 
 // Map slugs to icons
-const ICON_MAP: Record<string, any> = {
+const ICON_MAP: Record<string, LucideIcon> = {
   'getting-started': Sparkles,
+  'semantic-identities': Anchor,
   'multi-agent': Share2,
   'monorepo': Box,
   'debugging': Search,
@@ -38,7 +39,7 @@ interface TutorialWithIcon {
   time: string
   tags: string[]
   href: string
-  icon: any
+  icon: LucideIcon
 }
 
 const TUTORIALS: TutorialWithIcon[] = TUTORIALS_DATA.map(t => ({

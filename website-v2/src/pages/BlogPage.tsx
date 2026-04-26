@@ -84,25 +84,18 @@ const installTabs: InstallTab[] = [
 ]
 
 function TypewriterText({ text, speed = 40 }: { text: string; speed?: number }) {
-  const [displayed, setDisplayed] = useState('')
   const [idx, setIdx] = useState(0)
-
-  useEffect(() => {
-    setDisplayed('')
-    setIdx(0)
-  }, [text])
 
   useEffect(() => {
     if (idx < text.length) {
       const t = setTimeout(() => {
-        setDisplayed(prev => prev + text[idx])
         setIdx(prev => prev + 1)
       }, speed)
       return () => clearTimeout(t)
     }
   }, [idx, text, speed])
 
-  return <span>{displayed}<span className="animate-pulse opacity-60">▋</span></span>
+  return <span>{text.slice(0, idx)}<span className="animate-pulse opacity-60">▋</span></span>
 }
 
 function InstallTerminal() {
@@ -161,7 +154,7 @@ function InstallTerminal() {
           <div className="flex items-center gap-3 font-mono text-sm overflow-x-auto">
             <span className="text-[var(--brand-primary)] select-none shrink-0">$</span>
             <span className="text-[var(--text-primary)] whitespace-nowrap">
-              <TypewriterText text={tab.cmd} speed={35} />
+              <TypewriterText key={tab.cmd} text={tab.cmd} speed={35} />
             </span>
           </div>
           <button

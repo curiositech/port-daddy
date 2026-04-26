@@ -1,31 +1,31 @@
 import { useState, useEffect } from 'react'
 
+function readHasReturned(tutorialNumber: number) {
+  if (typeof window === 'undefined') return false
+
+  const stored = window.localStorage.getItem('pd-last-tutorial')
+  if (!stored || Number.parseInt(stored, 10) !== tutorialNumber) return false
+
+  const lastVisit = window.localStorage.getItem('pd-last-visit')
+  if (!lastVisit) return false
+
+  const hoursSince = (Date.now() - Number.parseInt(lastVisit, 10)) / (1000 * 60 * 60)
+  return hoursSince > 0.5
+}
+
 export function useTutorialState(tutorialNumber: number) {
-  const [hasReturned, setHasReturned] = useState(false)
+  const [hasReturned, setHasReturned] = useState(() => readHasReturned(tutorialNumber))
 
   useEffect(() => {
-    const stored = localStorage.getItem('pd-last-tutorial')
-
-    if (stored && parseInt(stored) === tutorialNumber) {
-      const lastVisit = localStorage.getItem('pd-last-visit')
-      if (lastVisit) {
-        const hoursSince = (Date.now() - parseInt(lastVisit)) / (1000 * 60 * 60)
-        if (hoursSince > 0.5) { // Show reorientation if away for >30 min
-          setHasReturned(true)
-        }
-      }
-    }
-
-    // Save current position
-    localStorage.setItem('pd-last-tutorial', tutorialNumber.toString())
-    localStorage.setItem('pd-last-visit', Date.now().toString())
+    window.localStorage.setItem('pd-last-tutorial', tutorialNumber.toString())
+    window.localStorage.setItem('pd-last-visit', Date.now().toString())
   }, [tutorialNumber])
 
   const dismissReturn = () => setHasReturned(false)
 
   const markVisit = () => {
-    localStorage.setItem('pd-last-tutorial', tutorialNumber.toString())
-    localStorage.setItem('pd-last-visit', Date.now().toString())
+    window.localStorage.setItem('pd-last-tutorial', tutorialNumber.toString())
+    window.localStorage.setItem('pd-last-visit', Date.now().toString())
   }
 
   return { hasReturned, dismissReturn, markVisit }

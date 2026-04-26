@@ -528,9 +528,9 @@
         <h1>Stabilize the site before making it beautiful.</h1>
         <p class="lead">
           This board translates the `ideal-web-app-builder` handoff into a static
-          HTML review artifact. It shows the current screenshots, the failing
-          gates, the proposed design direction, and the exact approvals needed
-          before broad code changes.
+          HTML review artifact. The first stabilization slice is now approved
+          and executed; the board remains the visual checkpoint for the next
+          token, route, content, and proof-slice decisions.
         </p>
         <div class="hero-actions" aria-label="Source artifacts">
           <a class="pill primary" href="../plans/port-daddy-website-ideal-web-app-rehab.md">Open rehab plan</a>
@@ -544,9 +544,10 @@
           <div class="section-head">
             <h2>Current Truth</h2>
             <p>
-              The website can build and Storybook can build, but this is not a
-              stable or approved implementation state. Tests, lint, accessibility,
-              route metadata, PWA posture, legal pages, and observability still
+              The first stabilization slice is complete: lint, tests, and the
+              production build are green. This is still not a finished ideal web
+              app: accessibility evidence, token layers, route metadata, PWA
+              posture, legal pages, observability, and bundle performance still
               need explicit work.
             </p>
           </div>
@@ -555,17 +556,17 @@
             <article class="card card-pad metric">
               <span>Build</span>
               <b class="warn">Pass, large</b>
-              <p>Vite builds, but the main chunk is 1.99 MB minified and 532.82 kB gzip.</p>
+              <p>Vite builds. The main chunk remains 1.99 MB minified and 532.32 kB gzip.</p>
             </article>
             <article class="card card-pad metric">
               <span>Tests</span>
-              <b class="bad">20 fail</b>
-              <p>Tutorial ordering, totals, prev/next links, titles, prop format, and orphan routes drifted.</p>
+              <b class="ok">Pass</b>
+              <p>Focused tutorial tests pass at 35/35, and the full Vitest suite passes at 69/69.</p>
             </article>
             <article class="card card-pad metric">
               <span>Lint</span>
-              <b class="bad">75 errors</b>
-              <p>Generated Storybook output is in scope, and real source issues remain mixed into the report.</p>
+              <b class="ok">Pass</b>
+              <p>Generated Storybook output is ignored, and the real source ESLint gate is green.</p>
             </article>
             <article class="card card-pad metric">
               <span>Storybook</span>
@@ -692,8 +693,9 @@
           <div class="section-head">
             <h2>Approval Decisions</h2>
             <p>
-              These are the decisions that should be reviewed visually before
-              any broad token, route, layout, or content rewrite.
+              These decisions were approved for the first stabilization slice
+              on 2026-04-26. They still govern future broad token, route,
+              layout, and content rewrites.
             </p>
           </div>
           <div class="matrix" role="region" aria-label="Approval decision table" tabindex="0">
@@ -775,13 +777,13 @@
             <article class="step">
               <div>
                 <h3>Approve or revise this board.</h3>
-                <p>Brand register, route map, shape system, and typography posture must be explicit before broad visual changes.</p>
+                <p>Status: approved for the first stabilization slice. Future broad visual changes still need slice-level evidence.</p>
               </div>
             </article>
             <article class="step">
               <div>
                 <h3>Repair baseline truth.</h3>
-                <p>Fix tutorial tests, exclude generated Storybook output from lint, and clear no-risk lint blockers.</p>
+                <p>Status: complete. Tutorial truth, lint scope, lint blockers, full tests, and build are green.</p>
               </div>
             </article>
             <article class="step">
@@ -811,7 +813,7 @@
           <div class="card card-pad stack">
             <span class="kicker">Do not claim done</span>
             <ul class="list">
-              <li>The website is not stable until tests and lint are green.</li>
+              <li>The website is not product-ready just because tests and lint are green.</li>
               <li>The design system is not ideal until token layers are enforced.</li>
               <li>Accessibility is not acceptable while MCP mobile contrast fails.</li>
               <li>Performance is not acceptable while the app ships oversized route chunks.</li>

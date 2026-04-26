@@ -5,9 +5,24 @@ import {
   type DaemonErrorKind,
 } from '@/lib/daemon-client'
 
+export interface TimelineEvent {
+  id?: number | string
+  type?: string
+  agentId?: string | null
+  targetId?: string | null
+  details?: string | null
+  timestamp?: number
+  createdAt?: number | string
+  content?: string
+  message?: string
+  payload?: unknown
+  source?: string
+  sender?: string
+}
+
 export function useTimeline(options: { limit?: number; agentId?: string; sessionId?: string; interval?: number } = {}) {
   const { limit = 50, agentId, sessionId, interval = 5000 } = options;
-  const [events, setEvents] = useState<any[]>([]);
+  const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [errorKind, setErrorKind] = useState<DaemonErrorKind | null>(null);
@@ -20,7 +35,7 @@ export function useTimeline(options: { limit?: number; agentId?: string; session
         const data = await fetchActivityTimeline({ limit, agentId, sessionId })
         
         if (mounted) {
-          setEvents(data);
+          setEvents(data as TimelineEvent[]);
           setError(null);
           setErrorKind(null);
         }

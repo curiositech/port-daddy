@@ -9,12 +9,12 @@ export function AlwaysOn() {
     <TutorialLayout
       title="Always-On Avatars"
       description="Most agents are ephemeral. Learn to deploy persistent background processes that maintain harbor-scoped state and respond to global swarm signals 24/7."
-      number={4}
-      total={16}
+      number={11}
+      total={20}
       level="Intermediate"
       readTime="10 min read"
-      prev={{ title: 'Harbors', href: '/tutorials/harbors' }}
-      next={{ title: 'Tunnels', href: '/tutorials/tunnel' }}
+      prev={{ title: 'Sugar Commands', href: '/tutorials/sugar' }}
+      next={{ title: 'pd spawn: Launch Agent Fleets', href: '/tutorials/pd-spawn' }}
     >
       <div className="space-y-12">
         {/* Intro Section */}

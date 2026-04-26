@@ -1,9 +1,9 @@
 # Port Daddy Website Ideal Web App Rehab Plan
 
-Last updated: 2026-04-24
-Owner session: `session-80296aef-bf46-4457-b900-b7c9ca9c92fe`
+Last updated: 2026-04-26
+Owner session: `session-1a8459c2-808f-4564-ab9d-c5be56fa86bb`
 Skill contract: `ideal-web-app-builder`
-Status: intake complete enough for user visual review; broad execution not approved yet
+Status: visual decision board approved; first stabilization slice implemented
 
 This is the on-disk source of truth for rehabilitating `website-v2` into a
 premium, stable, token-disciplined web app. Keep this file current before code
@@ -56,10 +56,10 @@ fanout. Do not let implementation outrun the visual decision board.
 
 | Gate | Result | Evidence |
 |---|---|---|
-| Build | Pass with warning | `dist/assets/index-CN56fPdw.js` is 1,990.71 kB minified / 532.82 kB gzip; Vite warns about chunks over 500 kB. |
-| Tests | Fail | `src/data/tutorials.test.ts`: 20 failed, 49 passed. Failures are tutorial totals/order, prev/next symmetry, numeric prop format, title drift, and orphaned `SemanticIdentities`. |
-| Lint | Fail | 75 errors / 18 warnings. Major groups: generated `storybook-static` not ignored by ESLint, React compiler rules, `Math.random()` during render, fast-refresh export boundaries, `any` types, stale disabled rule `no-unsanitized/property`, and content string escapes. |
-| Storybook build | Pass with warning | Build succeeds, but preview iframe chunk is 1,080.43 kB / 304.51 kB gzip and Storybook reports missing package metadata for `radix-ui`. |
+| Build | Pass with warning | 2026-04-26: `npm run build` passes. Main chunk remains large at `dist/assets/index-BaSk2LNq.js`, 1,989.94 kB minified / 532.32 kB gzip; Vite still warns about chunks over 500 kB. |
+| Tests | Pass | 2026-04-26: focused `npm run test -- src/data/tutorials.test.ts` passes at 35/35, and full `npm run test` passes at 7/7 files and 69/69 tests. |
+| Lint | Pass | 2026-04-26: `npm run lint` passes after excluding generated Storybook output, repairing fast-refresh export boundaries, removing React Compiler set-state-in-effect violations, and narrowing dashboard/viz/page types. |
+| Storybook build | Pass with warning | 2026-04-26: `npm run build-storybook` passes. Preview iframe remains large at 1,080.43 kB / 304.51 kB gzip and Storybook reports missing package metadata for `radix-ui`. |
 | Screenshot baseline | Captured | `docs/reports/website-rehab-screenshots/`. |
 
 ## Screenshot Baseline
@@ -92,10 +92,11 @@ Visible diagnosis from the baseline:
 ## Visual Decision Review
 
 - Review artifact: `docs/plans/port-daddy-website-visual-decision-board.md`
-- Approval status: pending user review.
-- Approval date: not approved.
-- Rule: do not execute broad visual, route, content, or token rewrites until
-  the user approves or amends the decision board.
+- Static review artifact: `docs/reports/port-daddy-website-visual-decision-board.html`
+- Approval status: approved for the first stabilization slice.
+- Approval date: 2026-04-26.
+- Rule: broad token, route, content, observability, PWA, legal, and visual
+  rewrites still need slice-level evidence and plan updates before fanout.
 
 ## Research Baseline
 
@@ -204,8 +205,8 @@ map.
 
 | Surface | Current issue | Decision | Migration path | Status |
 |---|---|---|---|---|
-| Tutorial system | failing tests around totals, numbering, prev/next, orphan route | preserve behavior, fix truth | repair canonical `tutorials.ts` and page props before visual fanout | pending |
-| ESLint config | lints ignored Storybook output; many real source issues mixed with generated noise | normalize | exclude generated dirs first, then fix real source categories | pending |
+| Tutorial system | failing tests around totals, numbering, prev/next, orphan route | preserve behavior, fix truth | repair canonical `tutorials.ts` and page props before visual fanout | completed for first slice |
+| ESLint config | lints ignored Storybook output; many real source issues mixed with generated noise | normalize | exclude generated dirs first, then fix real source categories | completed for current lint gate |
 | Token files | source, semantic, and role tokens are interleaved | normalize | split token layers, keep compatibility aliases, add drift tests | pending |
 | MCP page | hardcoded provider colors, inline styles, mobile AAA failure | replace | rebuild on approved primitives and token roles | pending |
 | Storybook | exists but state coverage is shallow | normalize | add component matrices and a11y addon after primitives stabilize | pending |
@@ -214,13 +215,54 @@ map.
 | Observability | no Sentry/browser telemetry setup found | add if approved | privacy-first Sentry wrapper, release tags, scrub rules, dashboards | pending |
 | Legal/privacy | no complete terms/privacy route found | add | product-specific terms/privacy/support/security-contact pages | pending |
 
+### 2026-04-26 Stabilization Slice
+
+Implemented after the visual decision board was approved:
+
+- Preserved the broad tutorial route surface and promoted
+  `/tutorials/semantic-identities` into the canonical tutorial sequence.
+- Repaired tutorial numbering, totals, and previous/next links across all 20
+  tutorial pages.
+- Replaced the duplicated hardcoded tutorial-progress list with canonical data
+  from `src/data/tutorials.ts`.
+- Split `useTutorialProgress` out of the component module and made local
+  storage initialization lazy, avoiding fast-refresh and React Compiler debt.
+- Excluded generated `storybook-static` output from ESLint.
+- Removed deterministic-source lint blockers: render-time `Math.random()` in
+  `HarborViz`, stale Mermaid `no-unsanitized/property` suppression, `any`
+  types in dashboard/viz/page surfaces, no-useless markdown escapes, and
+  fast-refresh non-component exports.
+- Split theme/docs-search/signal-flag helper exports out of component modules.
+- Converted typewriter/loading/tutorial-return states away from synchronous
+  state resets in effects.
+
+Validation on 2026-04-26:
+
+- `npm run lint` from `website-v2/`: pass.
+- `npm run test -- src/data/tutorials.test.ts` from `website-v2/`: 35/35 pass.
+- `npm run test` from `website-v2/`: 69/69 pass.
+- `npm run build` from `website-v2/`: pass with the known large-main-chunk
+  warning.
+- `npm run build-storybook` from `website-v2/`: pass with the known large
+  iframe chunk warning and `radix-ui` package metadata warning.
+
+Remaining launch blockers:
+
+- Main app bundle is still roughly 1.99 MB minified / 532 kB gzip; route and
+  Mermaid/3D chunk splitting should be the next performance slice.
+- Token layers are still not split into source, semantic, and role files.
+- MCP mobile contrast failure remains the first visual proof-slice target.
+- Storybook state matrices, a11y addon evidence, SEO/OG/PWA/legal/privacy, and
+  observability are still unimplemented product-readiness work.
+
 ## Sessions and Ownership
 
 | Session | Owner | Scope | Files | Status | Notes |
 |---|---|---|---|---|---|
-| `session-80296aef-bf46-4457-b900-b7c9ca9c92fe` | Codex | intake, plan, screenshots, decision board | docs plan files, `website-v2` | in progress | no broad code edits yet |
-| future 1 | lead | approve visual direction and lock token contract | docs plan, token files | pending | user approval required |
-| future 2 | worker swarm | tutorial/lint/build stabilization | tutorial/data/lint files | blocked | after approval |
+| `session-80296aef-bf46-4457-b900-b7c9ca9c92fe` | Codex | intake, plan, screenshots, decision board | docs plan files, `website-v2` | completed | static board created and reviewed |
+| `session-1a8459c2-808f-4564-ab9d-c5be56fa86bb` | Codex | tutorial/lint/build stabilization | tutorial/data/lint/viz/docs helper files | in progress | lint/test/build green on 2026-04-26 |
+| future 1 | lead | lock token contract | docs plan, token files | pending | next approval/work slice |
+| future 2 | worker swarm | performance chunk split and token inventory | Vite/routes/Mermaid/3D/token files | pending | after first slice lands |
 | future 3 | worker swarm | primitives and Storybook state matrix | components/styles/stories | blocked | after token contract |
 | future 4 | worker swarm | route/page normalization | page dirs by route | blocked | disjoint write sets |
 | future 5 | reviewers | a11y/perf/security/privacy/product truth | read-mostly | blocked | adversarial gates |
@@ -231,8 +273,8 @@ Use only after the user approves the visual decision board.
 
 | Agent | Cost tier | Write set | Task | Gates | Status |
 |---|---|---|---|---|---|
-| Tutorial repair worker | low/mid | `website-v2/src/pages/tutorials`, `website-v2/src/data/tutorials.ts`, tests | repair tutorial order/nav truth | `npm run test -- src/data/tutorials.test.ts` | blocked |
-| ESLint hygiene worker | low | `website-v2/eslint.config.js`, narrow source files | exclude generated output and fix no-risk lint debt | `npm run lint` | blocked |
+| Tutorial repair worker | low/mid | `website-v2/src/pages/tutorials`, `website-v2/src/data/tutorials.ts`, tests | repair tutorial order/nav truth | `npm run test -- src/data/tutorials.test.ts` | completed locally |
+| ESLint hygiene worker | low | `website-v2/eslint.config.js`, narrow source files | exclude generated output and fix no-risk lint debt | `npm run lint` | completed locally |
 | Token auditor | low/read-only first | styles/components | produce raw value inventory and token split patch plan | drift report | blocked |
 | Primitive worker | mid | `src/components/ui`, `src/components/site`, stories | normalize Button/Badge/Surface/CodeBlock | Storybook build + tests | blocked |
 | MCP page worker | mid | `src/pages/MCPPage.tsx`, related data/stories | rebuild MCP page on approved primitives | screenshots + a11y | blocked |

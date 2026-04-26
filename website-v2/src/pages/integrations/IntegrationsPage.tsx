@@ -2,11 +2,11 @@ import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
 import { Surface } from '@/components/ui/Surface'
 import { Link } from 'react-router-dom'
-import { Boxes, ChevronRight, Puzzle, Sparkles, Zap, Globe, Shield, Terminal, MessageSquare, Anchor } from 'lucide-react'
+import { Boxes, ChevronRight, Puzzle, Sparkles, Zap, Globe, Shield, Terminal, MessageSquare, Anchor, type LucideIcon } from 'lucide-react'
 import { INTEGRATIONS } from '@/data/integrations'
 import { Footer } from '@/components/layout/Footer'
 
-const CATEGORY_ICONS: Record<string, any> = {
+const CATEGORY_ICONS: Record<string, LucideIcon> = {
   LLM: Sparkles,
   Framework: Boxes,
   IDE: Terminal,

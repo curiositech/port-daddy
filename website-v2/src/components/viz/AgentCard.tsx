@@ -4,6 +4,12 @@ import { Card, CardHeader, CardContent } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Users, Zap, Shield, Cpu, Activity, Globe, MessageSquare } from 'lucide-react'
 
+interface AgentCardMetadata {
+  capabilities?: string[]
+  protocols?: string[]
+  version?: string
+}
+
 interface AgentCardProps {
   agent: {
     id: string;
@@ -14,7 +20,7 @@ interface AgentCardProps {
     identity: string | null;
     purpose: string | null;
     progress: string | null;
-    agentCard: any | null;
+    agentCard: AgentCardMetadata | null;
     healthAssessment: {
       liveness: 'alive' | 'stale' | 'dead';
     };

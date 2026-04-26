@@ -1,10 +1,12 @@
 import * as React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useActivityStream } from '@/hooks/useActivityStream'
-import { useTimeline } from '@/hooks/useTimeline'
-import { Activity, Zap, Lock, User, MessageSquare, Terminal, History, Search, Radio, LifeBuoy, Skull } from 'lucide-react'
+import { useActivityStream, type Activity as LiveActivity } from '@/hooks/useActivityStream'
+import { useTimeline, type TimelineEvent } from '@/hooks/useTimeline'
+import { Activity, Zap, Lock, User, MessageSquare, Terminal, History, Search, Radio, LifeBuoy, Skull, type LucideIcon } from 'lucide-react'
 
-const ICON_MAP: Record<string, any> = {
+type ActivityItemModel = LiveActivity | TimelineEvent
+
+const ICON_MAP: Record<string, LucideIcon> = {
   'service.claim': Terminal,
   'service.release': Terminal,
   'lock.acquire': Lock,
@@ -17,15 +19,25 @@ const ICON_MAP: Record<string, any> = {
   'agent.salvage': LifeBuoy,
 }
 
-function ActivityItem({ activity, isNote }: { activity: any; isNote?: boolean }) {
-  const isError = activity.type?.includes('error') || activity.type?.includes('fail') || activity.type?.includes('dead');
-  const isSalvage = activity.type?.includes('salvage');
-  const isDeath = activity.type === 'agent.unregister' || activity.type?.includes('dead');
+function activityContent(activity: ActivityItemModel) {
+  if ('content' in activity && activity.content) return activity.content
+  if (activity.details) return activity.details
+  if ('message' in activity && activity.message) return activity.message
+  if (!('payload' in activity) || activity.payload == null) return null
+  return typeof activity.payload === 'string' ? activity.payload : JSON.stringify(activity.payload)
+}
+
+function ActivityItem({ activity, isNote }: { activity: ActivityItemModel; isNote?: boolean }) {
+  const type = activity.type ?? ''
+  const isError = type.includes('error') || type.includes('fail') || type.includes('dead');
+  const isSalvage = type.includes('salvage');
+  const isDeath = type === 'agent.unregister' || type.includes('dead');
+  const timestamp = activity.timestamp ?? ('createdAt' in activity ? activity.createdAt : undefined)
   
-  const Icon = isNote ? MessageSquare : isSalvage ? LifeBuoy : isDeath ? Skull : (ICON_MAP[activity.type] || Zap);
-  const time = new Date(activity.timestamp || activity.createdAt).toLocaleTimeString()
+  const Icon = isNote ? MessageSquare : isSalvage ? LifeBuoy : isDeath ? Skull : (ICON_MAP[type] || Zap);
+  const time = timestamp ? new Date(timestamp).toLocaleTimeString() : ''
   
-  const content = activity.content || activity.details || activity.message || (activity.payload ? (typeof activity.payload === 'string' ? activity.payload : JSON.stringify(activity.payload)) : null);
+  const content = activityContent(activity);
 
   return (
     <motion.div
@@ -40,7 +52,7 @@ function ActivityItem({ activity, isNote }: { activity: any; isNote?: boolean })
       <motion.div className="flex-1 min-w-0 font-sans">
         <motion.div className="flex items-center justify-between gap-2 mb-0.5 font-sans">
           <motion.span className={`text-[10px] font-black uppercase tracking-wider font-sans ${isNote ? 'text-[var(--brand-accent)]' : 'text-[var(--text-muted)]'}`}>
-            {activity.source === 'note' ? `Note` : activity.type}
+            {'source' in activity && activity.source === 'note' ? `Note` : type}
           </motion.span>
           <motion.span className="text-[10px] font-mono text-[var(--text-muted)] shrink-0 opacity-40">
             {time}
@@ -49,9 +61,9 @@ function ActivityItem({ activity, isNote }: { activity: any; isNote?: boolean })
         <motion.p className={`text-sm font-medium leading-tight font-sans ${isNote ? 'italic text-[var(--text-secondary)]' : 'text-[var(--text-primary)]'}`}>
           {content}
         </motion.p>
-        {(activity.agentId || activity.sender) && (
+        {(activity.agentId || ('sender' in activity && activity.sender)) && (
           <motion.div className="text-[9px] font-mono text-[var(--text-muted)] mt-1 uppercase tracking-tighter opacity-40">
-            {activity.agentId ? `Agent: ${activity.agentId}` : `From: ${activity.sender}`}
+            {activity.agentId ? `Agent: ${activity.agentId}` : `From: ${'sender' in activity ? activity.sender : ''}`}
           </motion.div>
         )}
       </motion.div>
@@ -64,7 +76,7 @@ export function ActivityFeed() {
   const { activities: liveActivities, connected, errorKind: liveErrorKind } = useActivityStream({ limit: 20 });
   const { events: historyEvents, errorKind: historyErrorKind } = useTimeline({ limit: 50 });
 
-  const displayItems = mode === 'live' ? liveActivities : historyEvents;
+  const displayItems: ActivityItemModel[] = mode === 'live' ? liveActivities : historyEvents;
   const liveSignalLabel = connected
     ? 'Signal Active'
     : liveErrorKind === 'network'
@@ -119,7 +131,7 @@ export function ActivityFeed() {
         <motion.div className="flex flex-col gap-2 font-sans">
           <AnimatePresence initial={false}>
             {displayItems.map((a, idx) => (
-              <ActivityItem key={a.id || idx} activity={a} isNote={a.source === 'note'} />
+              <ActivityItem key={a.id || idx} activity={a} isNote={'source' in a && a.source === 'note'} />
             ))}
           </AnimatePresence>
           {displayItems.length === 0 && (

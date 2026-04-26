@@ -91,5 +91,5 @@ function Badge({ className, variant = 'default', size = 'md', style, ...props }:
   )
 }
 
-export { Badge, badgeVariants }
+export { Badge }
 export type { BadgeProps }

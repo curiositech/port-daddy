@@ -24,9 +24,10 @@ export function useDaemonData<T>(path: string, interval = 2000) {
           setData(json);
           setError(null);
         }
-      } catch (err: any) {
-        if (err.name !== 'AbortError' && mounted) {
-          setError(err.message);
+      } catch (err) {
+        if (err instanceof DOMException && err.name === 'AbortError') return
+        if (mounted) {
+          setError(err instanceof Error ? err.message : 'Failed to fetch daemon data');
         }
       } finally {
         if (mounted) setLoading(false);

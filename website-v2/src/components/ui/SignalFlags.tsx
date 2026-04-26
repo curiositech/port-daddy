@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { cn } from '@/lib/utils'
+import { SIGNAL_FLAG_META, type FlagName } from './signalFlagMeta'
 
 /**
  * Maritime Signal Flags — SVG renderings of the 6 ICS flags
@@ -14,63 +15,11 @@ import { cn } from '@/lib/utils'
 // Types
 // ---------------------------------------------------------------------------
 
-export type FlagName = 'charlie' | 'november' | 'kilo' | 'uniform' | 'victor' | 'lima'
-
-export interface SignalFlagMeta {
-  name: string
-  letter: string
-  meaning: string
-  usedFor: string
-}
-
 export interface SignalFlagProps {
   flag: FlagName
   size?: 'sm' | 'md' | 'lg'
   className?: string
   title?: string
-}
-
-// ---------------------------------------------------------------------------
-// Metadata
-// ---------------------------------------------------------------------------
-
-export const SIGNAL_FLAG_META: Record<FlagName, SignalFlagMeta> = {
-  charlie: {
-    name: 'Charlie',
-    letter: 'C',
-    meaning: 'Affirmative',
-    usedFor: 'Success, acquired, completed',
-  },
-  november: {
-    name: 'November',
-    letter: 'N',
-    meaning: 'Negative',
-    usedFor: 'Errors, failures',
-  },
-  kilo: {
-    name: 'Kilo',
-    letter: 'K',
-    meaning: 'Ready to communicate',
-    usedFor: 'Listening, standby, ready',
-  },
-  uniform: {
-    name: 'Uniform',
-    letter: 'U',
-    meaning: 'Danger ahead',
-    usedFor: 'Warnings, conflicts',
-  },
-  victor: {
-    name: 'Victor',
-    letter: 'V',
-    meaning: 'Require assistance',
-    usedFor: 'Mayday, help needed',
-  },
-  lima: {
-    name: 'Lima',
-    letter: 'L',
-    meaning: 'Stop immediately',
-    usedFor: 'Stop, halt, blocked',
-  },
 }
 
 // ---------------------------------------------------------------------------
@@ -264,3 +213,5 @@ export function SignalFlagLegend({ size = 'md', className, verbose = false }: Si
     </div>
   )
 }
+
+export type { FlagName, SignalFlagMeta } from './signalFlagMeta'

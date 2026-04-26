@@ -43,25 +43,18 @@ const tabs: Tab[] = [
 ];
 
 const TypewriterText: React.FC<{ text: string; speed?: number }> = ({ text, speed = 50 }) => {
-  const [displayedText, setDisplayedText] = useState('');
   const [currentIndex, setCurrentIndex] = useState(0);
-
-  useEffect(() => {
-    setDisplayedText('');
-    setCurrentIndex(0);
-  }, [text]);
 
   useEffect(() => {
     if (currentIndex < text.length) {
       const timeout = setTimeout(() => {
-        setDisplayedText((prev) => prev + text[currentIndex]);
         setCurrentIndex((prev) => prev + 1);
       }, speed);
       return () => clearTimeout(timeout);
     }
   }, [currentIndex, text, speed]);
 
-  return <span>{displayedText}</span>;
+  return <span>{text.slice(0, currentIndex)}</span>;
 };
 
 const InstallCTASection: React.FC = () => {
@@ -209,7 +202,7 @@ const InstallCTASection: React.FC = () => {
                   style={{ color: 'var(--text-primary)' }}
                 >
                   <span style={{ color: 'var(--brand-primary)' }}>$ </span>
-                  <TypewriterText text={activeTabData.command} speed={50} />
+                  <TypewriterText key={activeTabData.command} text={activeTabData.command} speed={50} />
                 </code>
               </div>
             </div>

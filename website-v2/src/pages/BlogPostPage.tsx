@@ -1,7 +1,7 @@
-import { useMemo } from 'react'
+import { isValidElement, useMemo, type ReactElement, type ReactNode } from 'react'
 import { useParams, Link, Navigate } from 'react-router-dom'
 import { motion, useScroll, useSpring } from 'framer-motion'
-import ReactMarkdown from 'react-markdown'
+import ReactMarkdown, { type Components } from 'react-markdown'
 import { blogPosts } from '@/data/blogData'
 import { Mermaid } from '@/components/ui/Mermaid'
 import { CodeBlock } from '@/components/ui/CodeBlock'
@@ -40,6 +40,15 @@ const heroImages: Record<string, string> = {
 interface Directive {
   type: 'terminal' | 'syllogism' | 'code' | 'figure'
   arg?: string  // filename for syllogism, caption for figure
+}
+
+interface MarkdownCodeElementProps {
+  className?: string
+  children?: ReactNode
+}
+
+function isCodeElement(node: ReactNode): node is ReactElement<MarkdownCodeElementProps> {
+  return isValidElement<MarkdownCodeElementProps>(node)
 }
 
 /**
@@ -138,6 +147,70 @@ export function BlogPostPage() {
 
   // Track code block index across renders
   let codeBlockCounter = 0
+  const markdownComponents: Components = {
+    // ── Structural overrides only. Typography comes from .blog-article CSS. ──
+    pre({ children }) {
+      const codeChild = Array.isArray(children) ? children[0] : children
+      if (isCodeElement(codeChild)) {
+        const cls = codeChild.props.className || ''
+        const match = /language-(\w+)/.exec(cls)
+        const lang = match?.[1]
+        const text = String(codeChild.props.children ?? '').replace(/\n$/, '')
+        const blockIndex = codeBlockCounter++
+        const directive = directives.get(blockIndex)
+
+        if (lang === 'mermaid') {
+          return (
+            <figure>
+              <Mermaid chart={text} />
+              <figcaption>{directive?.arg || 'Diagram'}</figcaption>
+            </figure>
+          )
+        }
+
+        if (directive?.type === 'terminal') {
+          return <NeumorphicTerminal code={text} language="bash" animate={false} />
+        }
+
+        if (directive?.type === 'syllogism') {
+          return <SyllogismCard text={text} filename={directive.arg || 'SYLLOGISM.md'} />
+        }
+
+        if (directive?.type === 'figure') {
+          return (
+            <figure>
+              <CodeBlock language={lang}>{text}</CodeBlock>
+              <figcaption>{directive.arg}</figcaption>
+            </figure>
+          )
+        }
+
+        return <CodeBlock language={lang}>{text}</CodeBlock>
+      }
+      return <pre>{children}</pre>
+    },
+
+    // Internal links use React Router
+    a({ href, children }) {
+      if (href?.startsWith('/')) return <Link to={href}>{children}</Link>
+      return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>
+    },
+
+    // Tables need overflow wrapper
+    table({ children }) {
+      return <div className="overflow-x-auto"><table>{children}</table></div>
+    },
+
+    // Images get figure treatment
+    img({ src, alt }) {
+      return (
+        <figure>
+          <img src={src} alt={alt} />
+          {alt && <figcaption>{alt}</figcaption>}
+        </figure>
+      )
+    },
+  }
 
   return (
     <motion.div
@@ -208,73 +281,7 @@ export function BlogPostPage() {
             transition={{ duration: 0.7, delay: 0.2 }}
             className="blog-article"
           >
-            <ReactMarkdown
-              components={{
-                // ── Structural overrides only. Typography comes from .blog-article CSS. ──
-
-                pre({ children }: any) {
-                  const codeChild = Array.isArray(children) ? children[0] : children
-                  if (codeChild?.props) {
-                    const cls = codeChild.props.className || ''
-                    const match = /language-(\w+)/.exec(cls)
-                    const lang = match?.[1]
-                    const text = String(codeChild.props.children).replace(/\n$/, '')
-                    const blockIndex = codeBlockCounter++
-                    const directive = directives.get(blockIndex)
-
-                    if (lang === 'mermaid') {
-                      return (
-                        <figure>
-                          <Mermaid chart={text} />
-                          <figcaption>{directive?.arg || 'Diagram'}</figcaption>
-                        </figure>
-                      )
-                    }
-
-                    if (directive?.type === 'terminal') {
-                      return <NeumorphicTerminal code={text} language="bash" animate={false} />
-                    }
-
-                    if (directive?.type === 'syllogism') {
-                      return <SyllogismCard text={text} filename={directive.arg || 'SYLLOGISM.md'} />
-                    }
-
-                    if (directive?.type === 'figure') {
-                      return (
-                        <figure>
-                          <CodeBlock language={lang}>{text}</CodeBlock>
-                          <figcaption>{directive.arg}</figcaption>
-                        </figure>
-                      )
-                    }
-
-                    return <CodeBlock language={lang}>{text}</CodeBlock>
-                  }
-                  return <pre>{children}</pre>
-                },
-
-                // Internal links use React Router
-                a({ href, children }: any) {
-                  if (href?.startsWith('/')) return <Link to={href}>{children}</Link>
-                  return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>
-                },
-
-                // Tables need overflow wrapper
-                table({ children }: any) {
-                  return <div className="overflow-x-auto"><table>{children}</table></div>
-                },
-
-                // Images get figure treatment
-                img({ src, alt }: any) {
-                  return (
-                    <figure>
-                      <img src={src} alt={alt} />
-                      {alt && <figcaption>{alt}</figcaption>}
-                    </figure>
-                  )
-                },
-              }}
-            >
+            <ReactMarkdown components={markdownComponents}>
               {cleaned}
             </ReactMarkdown>
           </motion.article>

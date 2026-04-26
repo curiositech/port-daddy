@@ -471,11 +471,12 @@ export function JumpToDiscussion({ count }: { count?: number }) {
 // ── Main Component ──────────────────────────────────────────
 
 export function BlogComments({ slug }: BlogCommentsProps) {
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [commentsResult, setCommentsResult] = useState<{ slug: string; comments: Comment[] } | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const comments = commentsResult?.slug === slug ? commentsResult.comments : [];
+  const loading = loaded && commentsResult?.slug !== slug;
 
   // Lazy load: only fetch when the section scrolls into view
   useEffect(() => {
@@ -499,12 +500,20 @@ export function BlogComments({ slug }: BlogCommentsProps) {
   // Fetch comments once visible
   useEffect(() => {
     if (!loaded) return;
-    setLoading(true);
+    let cancelled = false;
+
     fetch(`/api/comments?slug=${encodeURIComponent(slug)}`)
       .then((r) => r.json())
-      .then((data) => setComments(data.comments ?? []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      .then((data: { comments?: Comment[] }) => {
+        if (!cancelled) setCommentsResult({ slug, comments: data.comments ?? [] });
+      })
+      .catch(() => {
+        if (!cancelled) setCommentsResult({ slug, comments: [] });
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [loaded, slug]);
 
   // Thread organization
@@ -539,7 +548,10 @@ export function BlogComments({ slug }: BlogCommentsProps) {
       }
 
       if (data.comment) {
-        setComments((prev) => [...prev, data.comment]);
+        setCommentsResult((prev) => ({
+          slug,
+          comments: [...(prev?.slug === slug ? prev.comments : []), data.comment],
+        }));
       }
       setReplyTo(null);
     },
@@ -556,10 +568,14 @@ export function BlogComments({ slug }: BlogCommentsProps) {
     if (!res.ok) return;
     const data = await res.json();
 
-    setComments((prev) =>
-      prev.map((c) => (c.id === commentId ? { ...c, likes: data.likes } : c))
+    setCommentsResult((prev) => prev?.slug === slug
+      ? {
+          slug,
+          comments: prev.comments.map((c) => (c.id === commentId ? { ...c, likes: data.likes } : c)),
+        }
+      : prev
     );
-  }, []);
+  }, [slug]);
 
   return (
     <section id="comments" className="mt-16">

@@ -1,16 +1,37 @@
 import * as React from 'react'
 import ForceGraph3D from 'react-force-graph-3d'
 import { motion } from 'framer-motion'
-import { useTheme } from '@/lib/theme'
+import { useTheme } from '@/lib/theme-context'
 
-interface GraphData {
-  nodes: any[]
-  links: any[]
+interface GraphService {
+  id: string
 }
 
-export function Graph3D({ services = [], agents = [] }: { services: any[], agents: any[] }) {
+interface GraphAgent {
+  id: string
+  identity?: string | null
+}
+
+interface GraphNode {
+  id: string
+  name: string
+  color: string
+  size: number
+}
+
+interface GraphLink {
+  source: string
+  target: string
+  color: string
+}
+
+interface GraphData {
+  nodes: GraphNode[]
+  links: GraphLink[]
+}
+
+export function Graph3D({ services = [], agents = [] }: { services?: GraphService[], agents?: GraphAgent[] }) {
   const { theme } = useTheme()
-  const fgRef = React.useRef<any>(null)
 
   const data = React.useMemo<GraphData>(() => {
     // Harbor Heritage palette (resolved hex — 3D library can't use CSS vars)
@@ -21,17 +42,17 @@ export function Graph3D({ services = [], agents = [] }: { services: any[], agent
     const nodes = [
       { id: 'core', name: 'Port Daddy', color: TEAL_400, size: 12 }
     ]
-    const links: any[] = []
+    const links: GraphLink[] = []
 
-    services.forEach((s: any) => {
+    services.forEach((s) => {
       nodes.push({ id: `svc:${s.id}`, name: s.id, color: TEAL_300, size: 8 })
       links.push({ source: 'core', target: `svc:${s.id}`, color: TEAL_400 })
     })
 
-    agents.forEach((a: any) => {
+    agents.forEach((a) => {
       nodes.push({ id: `agt:${a.id}`, name: a.id, color: GOLD_300, size: 6 })
       // Heuristic connection
-      const service = services.find((s: any) => a.identity?.startsWith(s.id.split(':')[0]))
+      const service = services.find((s) => a.identity?.startsWith(s.id.split(':')[0]))
       links.push({ source: service ? `svc:${service.id}` : 'core', target: `agt:${a.id}`, color: GOLD_300 })
     })
 
@@ -41,12 +62,11 @@ export function Graph3D({ services = [], agents = [] }: { services: any[], agent
   return (
     <motion.div className="w-full h-full rounded-3xl overflow-hidden border border-[var(--border-subtle)] bg-[var(--surface-overlay)] font-sans">
       <ForceGraph3D
-        ref={fgRef}
         graphData={data}
         nodeLabel="name"
-        nodeColor={(node: any) => node.color}
-        nodeVal={(node: any) => node.size}
-        linkColor={(link: any) => link.color}
+        nodeColor="color"
+        nodeVal="size"
+        linkColor="color"
         backgroundColor={theme === 'dark' ? '#1E1B18' : '#F5F1E9'} /* p-ebony-700 / p-stone-50 */
         showNavInfo={false}
         linkOpacity={0.3}

@@ -1,9 +1,9 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { ThemeProvider } from '@/lib/theme'
-import { Nav } from '@/components/landing/Nav'
 import { DocsLayout } from '@/components/docs/DocsLayout'
+import { MainLayout } from '@/components/layout/MainLayout'
 
 // Pages
 import App from './App.tsx'
@@ -168,15 +168,6 @@ import { TemplatePage } from '@/pages/blueprints/TemplatePage'
 import * as Tutorials from '@/pages/tutorials'
 
 import './index.css'
-
-function MainLayout() {
-  return (
-    <>
-      <Nav />
-      <Outlet />
-    </>
-  )
-}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -1,11 +1,5 @@
 import * as React from 'react'
-
-type Theme = 'dark' | 'light'
-
-const ThemeContext = React.createContext<{
-  theme: Theme
-  toggle: () => void
-}>({ theme: 'dark', toggle: () => {} })
+import { ThemeContext, type Theme } from './theme-context'
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = React.useState<Theme>(() => {
@@ -37,8 +31,4 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       </div>
     </ThemeContext.Provider>
   )
-}
-
-export function useTheme() {
-  return React.useContext(ThemeContext)
 }

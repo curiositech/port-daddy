@@ -3,7 +3,7 @@
  *
  * These catch the class of bugs introduced in c1fbbc9:
  *   - tutorials.ts reordered to 19 but individual pages kept stale number/total
- *   - TutorialProgress.tsx duplicates tutorials.ts with no enforcement
+ *   - TutorialProgress.tsx duplicated tutorials.ts with no enforcement
  *   - Orphaned tutorial files not listed in tutorials.ts
  */
 import { describe, it, expect } from 'vitest'
@@ -13,19 +13,32 @@ import { TUTORIALS } from './tutorials'
 
 const TUTORIALS_DIR = resolve(__dirname, '../pages/tutorials')
 
-// Read TutorialProgress.tsx and extract its hardcoded array
-function parseTutorialProgressArray(): { number: number; title: string; href: string }[] {
-  const src = readFileSync(
-    resolve(__dirname, '../components/tutorials/TutorialProgress.tsx'),
-    'utf-8'
-  )
-  const entries: { number: number; title: string; href: string }[] = []
-  const re = /\{\s*number:\s*(\d+),\s*title:\s*'([^']+)',\s*href:\s*'([^']+)'/g
-  let m
-  while ((m = re.exec(src))) {
-    entries.push({ number: parseInt(m[1], 10), title: m[2], href: m[3] })
-  }
-  return entries
+const FILE_TO_SLUG: Record<string, string> = {
+  'GettingStarted.tsx': 'getting-started',
+  'SemanticIdentities.tsx': 'semantic-identities',
+  'MultiAgentOrchestration.tsx': 'multi-agent',
+  'Monorepo.tsx': 'monorepo',
+  'Debugging.tsx': 'debugging',
+  'Tunnel.tsx': 'tunnel',
+  'DNSResolver.tsx': 'dns',
+  'SessionPhases.tsx': 'session-phases',
+  'Inbox.tsx': 'inbox',
+  'Sugar.tsx': 'sugar',
+  'AlwaysOn.tsx': 'always-on',
+  'Spawn.tsx': 'pd-spawn',
+  'Harbors.tsx': 'harbors',
+  'Dashboard.tsx': 'dashboard',
+  'TimeTravel.tsx': 'time-travel',
+  'Pipelines.tsx': 'pipelines',
+  'Watch.tsx': 'watch',
+  'RemoteHarbors.tsx': 'remote-harbors',
+  'Fleet.tsx': 'fleet',
+  'Pheromone.tsx': 'pheromone',
+}
+
+function tutorialForFile(file: string) {
+  const slug = FILE_TO_SLUG[basename(file)]
+  return slug ? TUTORIALS.find(t => t.slug === slug) : undefined
 }
 
 // Extract number={N} and total={N} from a tutorial TSX file
@@ -78,18 +91,15 @@ describe('tutorials.ts data integrity', () => {
 })
 
 describe('TutorialProgress.tsx stays in sync with tutorials.ts', () => {
-  const progressEntries = parseTutorialProgressArray()
+  const progressSource = readFileSync(
+    resolve(__dirname, '../components/tutorials/TutorialProgress.tsx'),
+    'utf-8'
+  )
 
-  it('has the same number of entries as tutorials.ts', () => {
-    expect(progressEntries.length).toBe(TUTORIALS.length)
-  })
-
-  it('entries match tutorials.ts in order, number, and href', () => {
-    progressEntries.forEach((entry, i) => {
-      const canonical = TUTORIALS[i]
-      expect(entry.number).toBe(i + 1)
-      expect(entry.href).toBe(canonical.href)
-    })
+  it('derives its roadmap from tutorials.ts instead of duplicating tutorial rows', () => {
+    expect(progressSource).toContain("TUTORIALS as CANONICAL_TUTORIALS")
+    expect(progressSource).toContain('CANONICAL_TUTORIALS.map')
+    expect(progressSource).not.toMatch(/const TUTORIALS:\s*Tutorial\[\]\s*=\s*\[/)
   })
 })
 
@@ -133,31 +143,7 @@ describe('individual tutorial pages have correct number and total', () => {
     expect(failures).toEqual([])
   })
 
-  // Map every known tutorial file to its slug for number-prop checking.
-  // This replaces the hardcoded 5-file list so ALL pages are verified.
-  const fileToSlug: Record<string, string> = {
-    'GettingStarted.tsx': 'getting-started',
-    'MultiAgentOrchestration.tsx': 'multi-agent',
-    'Monorepo.tsx': 'monorepo',
-    'Debugging.tsx': 'debugging',
-    'Tunnel.tsx': 'tunnel',
-    'DNSResolver.tsx': 'dns',
-    'SessionPhases.tsx': 'session-phases',
-    'Inbox.tsx': 'inbox',
-    'Sugar.tsx': 'sugar',
-    'AlwaysOn.tsx': 'always-on',
-    'Spawn.tsx': 'pd-spawn',
-    'Harbors.tsx': 'harbors',
-    'Dashboard.tsx': 'dashboard',
-    'TimeTravel.tsx': 'time-travel',
-    'Pipelines.tsx': 'pipelines',
-    'Watch.tsx': 'watch',
-    'RemoteHarbors.tsx': 'remote-harbors',
-    'Fleet.tsx': 'fleet',
-    'Pheromone.tsx': 'pheromone',
-  }
-
-  for (const [fileName, slug] of Object.entries(fileToSlug)) {
+  for (const [fileName, slug] of Object.entries(FILE_TO_SLUG)) {
     it(`${fileName} number matches tutorials.ts canonical ordering`, () => {
       const filePath = resolve(TUTORIALS_DIR, fileName)
       const { number } = extractProps(filePath)
@@ -205,26 +191,15 @@ describe('prev/next navigation chain is consistent', () => {
   it('prev/next links are symmetric — if A.next=B then B.prev=A', () => {
     // Build href -> nav map
     const navMap = new Map<string, { prev: string | null; next: string | null; file: string }>()
-    const hrefForFile = new Map<string, string>()
-
     for (const file of tutorialFiles) {
       const { prev, next } = extractNavLinks(file)
-      // Derive this file's tutorial href from the slug
-      const slugMatch = readFileSync(file, 'utf-8').match(/href:\s*'(\/tutorials\/[^']+)'/)
-      // Also try to find via title matching
-      const titleMatch = readFileSync(file, 'utf-8').match(/title="([^"]+)"/)
-      const tutorial = TUTORIALS.find(t => {
-        const fileBase = basename(file, '.tsx').toLowerCase().replace(/-/g, '')
-        const slugNorm = t.slug.replace(/-/g, '')
-        return fileBase === slugNorm || fileBase.includes(slugNorm) || slugNorm.includes(fileBase)
-      })
+      const tutorial = tutorialForFile(file)
       if (tutorial) {
         navMap.set(tutorial.href, {
           prev: prev?.href ?? null,
           next: next?.href ?? null,
           file: basename(file),
         })
-        hrefForFile.set(basename(file), tutorial.href)
       }
     }
 
@@ -247,11 +222,7 @@ describe('prev/next navigation chain is consistent', () => {
     const nextMap = new Map<string, string>()
     for (const file of tutorialFiles) {
       const { next } = extractNavLinks(file)
-      const tutorial = TUTORIALS.find(t => {
-        const fileBase = basename(file, '.tsx').toLowerCase().replace(/-/g, '')
-        const slugNorm = t.slug.replace(/-/g, '')
-        return fileBase === slugNorm || fileBase.includes(slugNorm) || slugNorm.includes(fileBase)
-      })
+      const tutorial = tutorialForFile(file)
       if (tutorial && next) {
         nextMap.set(tutorial.href, next.href)
       }
@@ -302,19 +273,14 @@ describe('number prop type consistency', () => {
 })
 
 describe('TutorialProgress title consistency', () => {
-  const progressEntries = parseTutorialProgressArray()
-
-  it('TutorialProgress titles match tutorials.ts titles', () => {
-    const mismatches: string[] = []
-    progressEntries.forEach((entry, i) => {
-      const canonical = TUTORIALS[i]
-      if (entry.title !== canonical.title) {
-        mismatches.push(
-          `#${i + 1}: TutorialProgress="${entry.title}" vs tutorials.ts="${canonical.title}"`
-        )
-      }
-    })
-    expect(mismatches).toEqual([])
+  it('TutorialProgress does not hardcode titles that can drift from tutorials.ts', () => {
+    const progressSource = readFileSync(
+      resolve(__dirname, '../components/tutorials/TutorialProgress.tsx'),
+      'utf-8'
+    )
+    for (const tutorial of TUTORIALS) {
+      expect(progressSource).not.toContain(`title: '${tutorial.title}'`)
+    }
   })
 })
 
@@ -322,9 +288,6 @@ describe('no orphaned tutorial files', () => {
   it('every exported tutorial component routes to a tutorials.ts entry', () => {
     const indexSrc = readFileSync(resolve(TUTORIALS_DIR, 'index.ts'), 'utf-8')
     const exportedComponents = [...indexSrc.matchAll(/export \{ (\w+) \}/g)].map(m => m[1])
-
-    // Build set of all hrefs from tutorials.ts
-    const knownHrefs = new Set(TUTORIALS.map(t => t.href))
 
     // For each exported component, read its file and check its route exists in tutorials.ts
     const orphaned: string[] = []

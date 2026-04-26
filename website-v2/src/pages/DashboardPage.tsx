@@ -16,12 +16,20 @@ import { Footer } from '@/components/layout/Footer'
 
 // --- Unified Timeline Component ---
 
+interface TimelineItem {
+  id?: number | string
+  type?: string
+  timestamp?: number
+  agentId?: string | null
+  details?: string | null
+}
+
 function UnifiedTimeline() {
   const { activities: liveItems, connected, errorKind: liveErrorKind } = useActivityStream({ limit: 50 });
   const { events: historyItems, errorKind: historyErrorKind } = useTimeline({ limit: 100 });
 
-  const allItems = React.useMemo(() => {
-    const combined = [...liveItems];
+  const allItems = React.useMemo<TimelineItem[]>(() => {
+    const combined: TimelineItem[] = [...liveItems];
     const liveIds = new Set(liveItems.map(i => i.id || `${i.timestamp}-${i.type}`));
 
     historyItems.forEach(item => {
@@ -31,7 +39,7 @@ function UnifiedTimeline() {
       }
     });
 
-    return combined.sort((a, b) => b.timestamp - a.timestamp);
+    return combined.sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
   }, [liveItems, historyItems]);
 
   const liveStatusLabel = connected
@@ -101,7 +109,7 @@ function UnifiedTimeline() {
                <motion.div className="flex-1 space-y-2">
                   <motion.div className="flex items-center justify-between">
                      <motion.span className="text-[10px] font-black uppercase tracking-widest text-[var(--brand-primary)]">{item.agentId || 'system'}</motion.span>
-                     <motion.span className="text-[9px] font-mono" style={{ color: 'var(--text-muted)' }}>{new Date(item.timestamp).toLocaleTimeString()}</motion.span>
+                     <motion.span className="text-[9px] font-mono" style={{ color: 'var(--text-muted)' }}>{item.timestamp ? new Date(item.timestamp).toLocaleTimeString() : ''}</motion.span>
                   </motion.div>
                   <motion.p className="text-sm leading-relaxed m-0 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--text-secondary)' }}>{item.details}</motion.p>
                </motion.div>

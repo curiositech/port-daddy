@@ -21,8 +21,18 @@ export const TUTORIALS: Tutorial[] = [
     href: '/tutorials/getting-started',
   },
   {
-    slug: 'multi-agent',
+    slug: 'semantic-identities',
     number: '02',
+    title: 'Semantic Identities: Why Names Matter',
+    description: 'Learn the project:stack:context identity model behind deterministic ports, agent names, sessions, and wildcard queries.',
+    level: 'beginner',
+    time: '8 min',
+    tags: ['identity', 'naming', 'ports'],
+    href: '/tutorials/semantic-identities',
+  },
+  {
+    slug: 'multi-agent',
+    number: '03',
     title: 'Multi-Agent Orchestration',
     description: 'Coordinate two agents on the same project. File claims, conflict detection, pub/sub signals, and session notes.',
     level: 'intermediate',
@@ -32,7 +42,7 @@ export const TUTORIALS: Tutorial[] = [
   },
   {
     slug: 'monorepo',
-    number: '03',
+    number: '04',
     title: 'Monorepo Mastery',
     description: 'Scan a monorepo, detect all services, assign ports in bulk, and orchestrate them with pd up / pd down.',
     level: 'intermediate',
@@ -42,7 +52,7 @@ export const TUTORIALS: Tutorial[] = [
   },
   {
     slug: 'debugging',
-    number: '04',
+    number: '05',
     title: 'Debugging with Port Daddy',
     description: 'Use the activity log, session notes timeline, and pd diagnostics to track down what went wrong.',
     level: 'intermediate',
@@ -52,7 +62,7 @@ export const TUTORIALS: Tutorial[] = [
   },
   {
     slug: 'tunnel',
-    number: '05',
+    number: '06',
     title: 'Tunnels',
     description: 'Expose local services to the internet instantly with pd tunnel. Works with ngrok, cloudflared, and localtunnel.',
     level: 'beginner',
@@ -62,7 +72,7 @@ export const TUTORIALS: Tutorial[] = [
   },
   {
     slug: 'dns',
-    number: '06',
+    number: '07',
     title: 'DNS Resolver',
     description: 'Register human-readable names for services. Stop hardcoding ports -- resolve myapp-api everywhere.',
     level: 'intermediate',
@@ -72,7 +82,7 @@ export const TUTORIALS: Tutorial[] = [
   },
   {
     slug: 'session-phases',
-    number: '07',
+    number: '08',
     title: 'Session Phases',
     description: 'Drive agents through planning, coding, reviewing, and done with integration signals and phase-aware salvage.',
     level: 'advanced',
@@ -82,7 +92,7 @@ export const TUTORIALS: Tutorial[] = [
   },
   {
     slug: 'inbox',
-    number: '08',
+    number: '09',
     title: 'Inbox & Messaging',
     description: 'Direct agent-to-agent messaging with inboxes, pub/sub channels, and SSE real-time subscriptions.',
     level: 'advanced',
@@ -92,7 +102,7 @@ export const TUTORIALS: Tutorial[] = [
   },
   {
     slug: 'sugar',
-    number: '09',
+    number: '10',
     title: 'Sugar Commands',
     description: 'pd begin, pd done, pd whoami, pd with-lock -- the high-level API that wraps all Port Daddy primitives.',
     level: 'beginner',
@@ -102,7 +112,7 @@ export const TUTORIALS: Tutorial[] = [
   },
   {
     slug: 'always-on',
-    number: '10',
+    number: '11',
     title: 'Spawn + Watch Pattern',
     description: 'Combine pd spawn and pd watch to build agents that react to pub/sub signals automatically. Built-in backends: Ollama, Codex, Claude, Claude CLI, Gemini, and Aider.',
     level: 'advanced',
@@ -112,7 +122,7 @@ export const TUTORIALS: Tutorial[] = [
   },
   {
     slug: 'pd-spawn',
-    number: '11',
+    number: '12',
     title: 'pd spawn: Launch Agent Fleets',
     description: 'Spawn Ollama, Codex, Claude, or Aider agents with Port Daddy coordination auto-wired. Sessions, heartbeats, notes, and salvage -- all automatic.',
     level: 'advanced',
@@ -122,7 +132,7 @@ export const TUTORIALS: Tutorial[] = [
   },
   {
     slug: 'harbors',
-    number: '12',
+    number: '13',
     title: 'Harbor Tokens (Advisory)',
     description: 'Create permission namespaces for agent teams. HMAC-signed tokens with TTLs. Enforcement is advisory in the current version.',
     level: 'advanced',
@@ -132,7 +142,7 @@ export const TUTORIALS: Tutorial[] = [
   },
   {
     slug: 'dashboard',
-    number: '13',
+    number: '14',
     title: 'Live Dashboard',
     description: 'Visualize your swarm. Real-time panels for services, agents, sessions, locks, and system health.',
     level: 'beginner',
@@ -142,7 +152,7 @@ export const TUTORIALS: Tutorial[] = [
   },
   {
     slug: 'time-travel',
-    number: '14',
+    number: '15',
     title: 'Activity Log Inspection',
     description: 'Query the append-only event timeline. Correlate infrastructure events with agent session notes to diagnose coordination failures.',
     level: 'intermediate',
@@ -152,7 +162,7 @@ export const TUTORIALS: Tutorial[] = [
   },
   {
     slug: 'pipelines',
-    number: '15',
+    number: '16',
     title: 'Reactive Pipelines',
     description: 'Build event-driven pipelines that chain pub/sub channels, watches, and spawned agents into automated workflows.',
     level: 'advanced',
@@ -162,7 +172,7 @@ export const TUTORIALS: Tutorial[] = [
   },
   {
     slug: 'watch',
-    number: '16',
+    number: '17',
     title: 'Swarm Observation',
     description: 'Use pd watch to observe agent activity across channels and trigger automated responses to swarm events.',
     level: 'intermediate',
@@ -172,7 +182,7 @@ export const TUTORIALS: Tutorial[] = [
   },
   {
     slug: 'remote-harbors',
-    number: '17',
+    number: '18',
     title: 'Multiplayer Localhost',
     description: 'Connect multiple developers to a shared Port Daddy instance using remote harbors, tunnels, and DNS resolution.',
     level: 'advanced',
@@ -182,7 +192,7 @@ export const TUTORIALS: Tutorial[] = [
   },
   {
     slug: 'fleet',
-    number: '18',
+    number: '19',
     title: 'Fleet: Background Agents',
     description: 'Declare your background agent fleet in YAML. Wire it to git commits. Watch QA, docs, and idea engines run automatically on every push.',
     level: 'intermediate',
@@ -192,7 +202,7 @@ export const TUTORIALS: Tutorial[] = [
   },
   {
     slug: 'pheromone',
-    number: '19',
+    number: '20',
     title: 'Pheromone Trails',
     description: 'Agents leave decaying numeric signals on entities. Other agents sniff them for ambient awareness. No channels, no subscriptions -- just signals that fade.',
     level: 'intermediate',

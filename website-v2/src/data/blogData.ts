@@ -402,7 +402,7 @@ while true; do
   pd spawn --backend claude-cli \\
     --identity "$IDENTITY" \\
     --purpose "$TASK" \\
-    -- "\${CONTEXT:+\$CONTEXT }\$TASK"
+    -- "\${CONTEXT:+$CONTEXT }$TASK"
 
   echo "Agent exited. Checking salvage queue in 10s..."
   sleep 10
@@ -1069,7 +1069,7 @@ if [ $EXIT_CODE -eq 0 ]; then
   pd note "All tests passed"
 else
   FAILURES=$(tail -20 /tmp/test-output.log)
-  pd pub tests:failed "{\\\"status\\\":\\\"failed\\\",\\\"output\\\":\\\"$FAILURES\\\"}"
+  pd pub tests:failed '{"status":"failed","output":"'"$FAILURES"'"}'
   pd note "Tests failed -- spawning fix agent"
 fi
 pd done

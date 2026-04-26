@@ -100,6 +100,33 @@ handoff for `website-v2`, not another broad replacement reset.
   token contract, repair tests/lint first, then rebuild the high-drift MCP page
   as the first proof slice.
 
+### Port Daddy Website First Stabilization Slice (2026-04-26)
+
+The user approved moving forward from the static visual decision board. Current
+execution session: `session-1a8459c2-808f-4564-ab9d-c5be56fa86bb`.
+
+- Tutorial route truth is repaired while preserving the broad route surface:
+  `/tutorials/semantic-identities` is now canonical, the series has 20 lessons,
+  all page numbers/totals/prev-next links align, and `TutorialProgress` derives
+  from `src/data/tutorials.ts` instead of a duplicate hardcoded list.
+- Generated `storybook-static` output is now excluded from website lint.
+- The real source lint gate is green after fixing fast-refresh export
+  boundaries, React Compiler set-state-in-effect cases, render-time random
+  animation delays, stale Mermaid lint suppression, loose dashboard/viz/page
+  types, and no-useless markdown escapes.
+- Validation truth on 2026-04-26 from `website-v2/`:
+  - `npm run lint`: green
+  - `npm run test -- src/data/tutorials.test.ts`: 35/35 pass
+  - `npm run test`: 7/7 files and 69/69 tests pass
+  - `npm run build`: green with the known large-main-chunk warning
+  - `npm run build-storybook`: green with the known large iframe chunk and
+    `radix-ui` package metadata warnings
+- Remaining website rehab blockers are explicit, not hidden: the main app chunk
+  is still about 1.99 MB minified / 532 kB gzip, token layers are not yet split,
+  MCP mobile contrast remains the first visual proof-slice target, and
+  Storybook/a11y/SEO/PWA/legal/privacy/observability work remains future
+  product-readiness scope.
+
 ### Cartographer Roadmap Actor (2026-04-24)
 
 The current uncommitted slice now promotes Cartographer from a commit-triggered docs updater into the first concrete maritime actor surface:
