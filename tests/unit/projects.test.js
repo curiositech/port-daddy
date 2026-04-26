@@ -253,6 +253,30 @@ describe('Projects Module', () => {
       expect(known.find((entry) => entry.root === fleetRoot)?.sources).toContain('discovered');
     });
 
+    it('treats discovered project roots as scan boundaries', () => {
+      const workspace = mkdtempSync(join(tmpdir(), 'pd-projects-boundary-'));
+      const fleetRoot = join(workspace, 'fleet-alpha');
+      const nestedRoot = join(fleetRoot, 'packages', 'nested-fleet');
+      const siblingRoot = join(workspace, 'fleet-beta');
+      tempRoots.push(workspace);
+
+      mkdirSync(nestedRoot, { recursive: true });
+      mkdirSync(siblingRoot, { recursive: true });
+      writeFileSync(join(fleetRoot, 'pd-fleet.yml'), 'name: fleet-alpha\nagents: []\nwatchers: []\nchannels: {}\n');
+      writeFileSync(join(nestedRoot, 'pd-fleet.yml'), 'name: nested-fleet\nagents: []\nwatchers: []\nchannels: {}\n');
+      writeFileSync(join(siblingRoot, '.portdaddyrc'), JSON.stringify({ project: 'fleet-beta', services: {} }));
+
+      const known = projects.listKnown({
+        discoveryRoots: [workspace],
+        maxDepth: 4,
+        fresh: true,
+      });
+
+      expect(known.some((entry) => entry.root === fleetRoot)).toBe(true);
+      expect(known.some((entry) => entry.root === siblingRoot)).toBe(true);
+      expect(known.some((entry) => entry.root === nestedRoot)).toBe(false);
+    });
+
     it('filters stale temp registrations that no longer have durable Port Daddy markers', () => {
       const workspace = mkdtempSync(join(tmpdir(), 'pd-projects-stale-'));
       const staleRoot = join(workspace, 'empty-project');

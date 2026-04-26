@@ -143,6 +143,7 @@ Project-specific shibboleths for proficient Port Daddy work. If you learn a new 
 - Bosun heartbeat truth is canonical-daemon truth, not "any server.ts process is alive" truth. A daemon must only write the shared heartbeat after it owns the canonical PID file, and `pd-bosun` must treat heartbeat/PID-file mismatches as foreign provenance rather than healthy supervision.
 - Do not `unref()` the daemon's Bosun heartbeat interval. Unlike SDK or spawner helper heartbeats, this timer is the mandatory liveness contract that keeps the external supervisor from killing an otherwise reachable but idle daemon.
 - Legacy Barnacle is not the default supervisor anymore. `pd-bosun` is authoritative; the old HTTP Barnacle watcher should stay disabled unless explicitly opted in with `PORT_DADDY_ENABLE_LEGACY_BARNACLE=1`.
+- Hot operator routes must not perform broad synchronous filesystem discovery. In particular, `/projects` must not scan `~/` or recursively walk inside discovered project roots from the daemon request thread; that starves heartbeat and lets Bosun kill an otherwise booted daemon.
 
 ### Canonical daemon URL — enforced by CI
 
