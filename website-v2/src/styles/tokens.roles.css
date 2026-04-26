@@ -1,0 +1,43 @@
+:root {
+  --bg-base: var(--surface-base);
+  --bg-surface: var(--surface-raised);
+  --bg-overlay: var(--surface-overlay);
+  --bg-glass: var(--surface-glass);
+  --bg-code: var(--code-bg);
+  --text-code: var(--code-text);
+  --shadow-neu-raised: var(--shadow-raised);
+  --shadow-neu-inset: var(--shadow-inset);
+  --shadow-neu-sm: var(--shadow-sm);
+  --shadow-neu-flat: var(--shadow-flat);
+  --codeblock-bg: var(--code-bg);
+  --codeblock-header-bg: var(--code-header-bg);
+  --codeblock-border: var(--code-border);
+  --codeblock-text: var(--code-text);
+  --codeblock-filename: var(--code-comment);
+  --codeblock-copy: var(--text-muted);
+  --codeblock-copy-hover: var(--text-primary);
+  --codeblock-dot-red: var(--code-dot-red);
+  --codeblock-dot-amber: var(--code-dot-amber);
+  --codeblock-dot-green: var(--code-dot-green);
+
+  --radius: 0;
+  --background: var(--surface-base);
+  --foreground: var(--text-primary);
+  --card: var(--surface-raised);
+  --card-foreground: var(--text-primary);
+  --popover: var(--surface-raised);
+  --popover-foreground: var(--text-primary);
+  --primary: var(--brand-primary);
+  --primary-foreground: var(--brand-primary-foreground);
+  --secondary: var(--surface-strong);
+  --secondary-foreground: var(--text-primary);
+  --muted: var(--surface-strong);
+  --muted-foreground: var(--text-secondary);
+  --accent: var(--brand-accent);
+  --accent-foreground: var(--brand-accent-foreground);
+  --destructive: var(--status-error);
+  --destructive-foreground: var(--text-inverse);
+  --border: var(--border-default);
+  --input: var(--border-default);
+  --ring: var(--interactive-focus);
+}

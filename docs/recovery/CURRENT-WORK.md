@@ -1,6 +1,6 @@
 # Current Recovery Work
 
-Last updated: 2026-04-24
+Last updated: 2026-04-26
 Owner: Codex working session
 
 This is the active execution ledger. If a task is in flight, it belongs here before it belongs in chat.
@@ -126,6 +126,33 @@ execution session: `session-1a8459c2-808f-4564-ab9d-c5be56fa86bb`.
   MCP mobile contrast remains the first visual proof-slice target, and
   Storybook/a11y/SEO/PWA/legal/privacy/observability work remains future
   product-readiness scope.
+
+### Port Daddy Website Token/Performance Slice (2026-04-26)
+
+Follow-on execution session: `session-c2085e79-36d0-4898-9cc5-90c4f60aef3a`.
+
+- The website token entrypoint now imports three explicit layers:
+  `tokens.source.css`, `tokens.semantic.css`, and `tokens.roles.css`.
+- Compatibility role aliases remain in place so legacy route modules can
+  migrate in bounded visual slices.
+- `website-v2/src/main.tsx` now lazy-loads route modules behind a shared
+  `RouteFallback` status primitive instead of statically importing the entire
+  page/docs/tutorial tree into the app entry.
+- `website-v2/vite.config.ts` now isolates the heavy React, Motion, Markdown,
+  Mermaid, Three, and react-force-graph families without creating one giant
+  vendor chunk.
+- Contract tests now enforce token import order, protected-module color-literal
+  discipline, and route lazy loading.
+- Validation truth on 2026-04-26 from `website-v2/`:
+  - `npm run lint`: green
+  - `npm run test -- src/design-system-contracts.test.ts`: 9/9 pass
+  - `npm run test`: 7/7 files and 72/72 tests pass
+  - `npm run build`: green with no chunk-size warning; largest JS chunk is
+    `Mermaid-CMXUcArO.js` at 491.12 kB minified / 136.65 kB gzip, and the app
+    shell chunk is `App-Bp-5vPKf.js` at 20.43 kB minified / 6.80 kB gzip
+- Remaining website rehab blockers: MCP mobile contrast and visual drift, raw
+  visual literals in unprotected legacy pages, Storybook/a11y/SEO/PWA/legal/
+  privacy/observability, and a deeper Mermaid/diagram payload decision.
 
 ### Cartographer Roadmap Actor (2026-04-24)
 

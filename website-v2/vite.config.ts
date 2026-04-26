@@ -20,6 +20,20 @@ export default defineConfig({
     port: 3144,
     strictPort: true,
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined
+          if (id.includes('three') || id.includes('react-force-graph')) return 'vendor-3d'
+          if (id.includes('react-markdown')) return 'vendor-markdown'
+          if (id.includes('framer-motion')) return 'vendor-motion'
+          if (id.includes('react') || id.includes('scheduler')) return 'vendor-react'
+          return undefined
+        },
+      },
+    },
+  },
   test: {
     environment: 'node',
     include: ['src/**/*.test.{ts,tsx}'],

@@ -3,7 +3,7 @@
 Last updated: 2026-04-26
 Owner session: `session-1a8459c2-808f-4564-ab9d-c5be56fa86bb`
 Skill contract: `ideal-web-app-builder`
-Status: visual decision board approved; first stabilization slice implemented
+Status: visual decision board approved; stabilization plus token/performance slices implemented
 
 This is the on-disk source of truth for rehabilitating `website-v2` into a
 premium, stable, token-disciplined web app. Keep this file current before code
@@ -29,14 +29,17 @@ fanout. Do not let implementation outrun the visual decision board.
   over this rehab without explicit approval.
 - Existing repo mode: dirty-repo rehabilitation, even though the git worktree
   is clean, because the site has known architectural, design, and test drift.
-- Dirty files to preserve: none in `git status` after the skill commit/push.
-  Ignored local residue under `website-v2/` includes `dist/`,
+- Dirty files to preserve: current tree includes unrelated actor, semantic,
+  CLI, skill, and recovery-ledger work outside this website slice. Stage
+  website rehab files explicitly and do not bundle those other slices.
+- Ignored local residue under `website-v2/` includes `dist/`,
   `storybook-static/`, logs, `.DS_Store`, and local helper scripts.
 
 ## Current-State Intake
 
-- Branch: `main`, in sync with `origin/main` after pushing `3ef7224`.
+- Branch: `main`, in sync with `origin/main` after pushing `5d29704`.
 - Recent commits:
+  - `5d29704 Stabilize website rehab baseline`
   - `3ef7224 Upgrade skill architecture doctrine`
   - `66996a1 Harden promotion test diagnostics`
   - `b074370 Add V4 Bosun heartbeat supervisor`
@@ -56,8 +59,8 @@ fanout. Do not let implementation outrun the visual decision board.
 
 | Gate | Result | Evidence |
 |---|---|---|
-| Build | Pass with warning | 2026-04-26: `npm run build` passes. Main chunk remains large at `dist/assets/index-BaSk2LNq.js`, 1,989.94 kB minified / 532.32 kB gzip; Vite still warns about chunks over 500 kB. |
-| Tests | Pass | 2026-04-26: focused `npm run test -- src/data/tutorials.test.ts` passes at 35/35, and full `npm run test` passes at 7/7 files and 69/69 tests. |
+| Build | Pass | 2026-04-26 latest: `npm run build` passes with no Vite chunk-size warning after route lazy loading. Largest generated JS chunk is `Mermaid-CMXUcArO.js` at 491.12 kB minified / 136.65 kB gzip; the first stabilization build had warned on a 1,989.94 kB main chunk. |
+| Tests | Pass | 2026-04-26 latest: full `npm run test` passes at 7/7 files and 72/72 tests, including design-system contract coverage for token layering and route lazy loading. |
 | Lint | Pass | 2026-04-26: `npm run lint` passes after excluding generated Storybook output, repairing fast-refresh export boundaries, removing React Compiler set-state-in-effect violations, and narrowing dashboard/viz/page types. |
 | Storybook build | Pass with warning | 2026-04-26: `npm run build-storybook` passes. Preview iframe remains large at 1,080.43 kB / 304.51 kB gzip and Storybook reports missing package metadata for `radix-ui`. |
 | Screenshot baseline | Captured | `docs/reports/website-rehab-screenshots/`. |
@@ -207,7 +210,8 @@ map.
 |---|---|---|---|---|
 | Tutorial system | failing tests around totals, numbering, prev/next, orphan route | preserve behavior, fix truth | repair canonical `tutorials.ts` and page props before visual fanout | completed for first slice |
 | ESLint config | lints ignored Storybook output; many real source issues mixed with generated noise | normalize | exclude generated dirs first, then fix real source categories | completed for current lint gate |
-| Token files | source, semantic, and role tokens are interleaved | normalize | split token layers, keep compatibility aliases, add drift tests | pending |
+| Token files | source, semantic, and role tokens were interleaved | normalize | split token layers, keep compatibility aliases, add drift tests | completed for entrypoint and protected-module contract |
+| Route bundling | all route/page modules were statically imported into the app entry | normalize | lazy-load route modules and isolate heavy vendor families | completed for public routes |
 | MCP page | hardcoded provider colors, inline styles, mobile AAA failure | replace | rebuild on approved primitives and token roles | pending |
 | Storybook | exists but state coverage is shallow | normalize | add component matrices and a11y addon after primitives stabilize | pending |
 | SEO/meta | app-wide defaults plus limited title/description hook; no per-route OG images | replace | route metadata registry, generated social images, sitemap/robots | pending |
@@ -246,11 +250,45 @@ Validation on 2026-04-26:
 - `npm run build-storybook` from `website-v2/`: pass with the known large
   iframe chunk warning and `radix-ui` package metadata warning.
 
+### 2026-04-26 Token and Performance Slice
+
+Implemented after the first stabilization commit:
+
+- Split the active token entrypoint into explicit source, semantic, and
+  role layers:
+  - `website-v2/src/styles/tokens.source.css`
+  - `website-v2/src/styles/tokens.semantic.css`
+  - `website-v2/src/styles/tokens.roles.css`
+  - `website-v2/src/styles/tokens.css`
+- Preserved compatibility aliases so legacy pages can migrate in bounded
+  route slices instead of breaking all at once.
+- Added contract tests for token import order, protected-module raw color
+  literals, and the router lazy-loading contract.
+- Replaced the static route import fanout in `website-v2/src/main.tsx` with
+  `React.lazy` and `Suspense`.
+- Added `RouteFallback` as a reusable layout primitive with `role="status"`.
+- Added conservative Vite manual chunking for React, Motion, Markdown, Mermaid,
+  Three, and react-force-graph families without flattening everything into one
+  oversized vendor chunk.
+
+Validation on 2026-04-26 from `website-v2/`:
+
+- `npm run lint`: pass.
+- `npm run test -- src/design-system-contracts.test.ts`: 9/9 pass.
+- `npm run test`: 72/72 pass.
+- `npm run build`: pass with no chunk-size warning. Largest JS chunk is now
+  `Mermaid-CMXUcArO.js` at 491.12 kB minified / 136.65 kB gzip; the app route
+  shell chunk is `App-Bp-5vPKf.js` at 20.43 kB minified / 6.80 kB gzip.
+
 Remaining launch blockers:
 
-- Main app bundle is still roughly 1.99 MB minified / 532 kB gzip; route and
-  Mermaid/3D chunk splitting should be the next performance slice.
-- Token layers are still not split into source, semantic, and role files.
+- Mermaid remains just under the default 500 kB warning threshold. The next
+  performance pass should defer Mermaid rendering more aggressively or replace
+  some route diagrams with pre-rendered/static assets where interaction is not
+  needed.
+- Raw color literals and hardcoded visual values still exist in unprotected
+  legacy page modules, especially the MCP surface targeted for the next proof
+  slice.
 - MCP mobile contrast failure remains the first visual proof-slice target.
 - Storybook state matrices, a11y addon evidence, SEO/OG/PWA/legal/privacy, and
   observability are still unimplemented product-readiness work.
@@ -260,12 +298,12 @@ Remaining launch blockers:
 | Session | Owner | Scope | Files | Status | Notes |
 |---|---|---|---|---|---|
 | `session-80296aef-bf46-4457-b900-b7c9ca9c92fe` | Codex | intake, plan, screenshots, decision board | docs plan files, `website-v2` | completed | static board created and reviewed |
-| `session-1a8459c2-808f-4564-ab9d-c5be56fa86bb` | Codex | tutorial/lint/build stabilization | tutorial/data/lint/viz/docs helper files | in progress | lint/test/build green on 2026-04-26 |
-| future 1 | lead | lock token contract | docs plan, token files | pending | next approval/work slice |
-| future 2 | worker swarm | performance chunk split and token inventory | Vite/routes/Mermaid/3D/token files | pending | after first slice lands |
-| future 3 | worker swarm | primitives and Storybook state matrix | components/styles/stories | blocked | after token contract |
-| future 4 | worker swarm | route/page normalization | page dirs by route | blocked | disjoint write sets |
-| future 5 | reviewers | a11y/perf/security/privacy/product truth | read-mostly | blocked | adversarial gates |
+| `session-1a8459c2-808f-4564-ab9d-c5be56fa86bb` | Codex | tutorial/lint/build stabilization | tutorial/data/lint/viz/docs helper files | completed | committed as `5d29704` |
+| `session-c2085e79-36d0-4898-9cc5-90c4f60aef3a` | Codex | token contract and route chunking | token files, router entry, Vite config, contract tests | completed | lint/test/build green on 2026-04-26 |
+| future 1 | lead | rebuild MCP proof route | `MCPPage`, related primitives/stories/screenshots | pending | next approval/work slice |
+| future 2 | worker swarm | primitives and Storybook state matrix | components/styles/stories | blocked | after MCP proof route identifies primitive gaps |
+| future 3 | worker swarm | route/page normalization | page dirs by route | blocked | disjoint write sets |
+| future 4 | reviewers | a11y/perf/security/privacy/product truth | read-mostly | blocked | adversarial gates |
 
 ## Cheap Subagent Execution Plan
 
@@ -275,7 +313,8 @@ Use only after the user approves the visual decision board.
 |---|---|---|---|---|---|
 | Tutorial repair worker | low/mid | `website-v2/src/pages/tutorials`, `website-v2/src/data/tutorials.ts`, tests | repair tutorial order/nav truth | `npm run test -- src/data/tutorials.test.ts` | completed locally |
 | ESLint hygiene worker | low | `website-v2/eslint.config.js`, narrow source files | exclude generated output and fix no-risk lint debt | `npm run lint` | completed locally |
-| Token auditor | low/read-only first | styles/components | produce raw value inventory and token split patch plan | drift report | blocked |
+| Token auditor | low/read-only first | styles/components | produce raw value inventory and token split patch plan | drift report | completed locally for protected modules |
+| Performance chunk worker | low/mid | `main.tsx`, Vite config, heavy route components | split route bundles and heavy vendor families | build without chunk warning | completed locally |
 | Primitive worker | mid | `src/components/ui`, `src/components/site`, stories | normalize Button/Badge/Surface/CodeBlock | Storybook build + tests | blocked |
 | MCP page worker | mid | `src/pages/MCPPage.tsx`, related data/stories | rebuild MCP page on approved primitives | screenshots + a11y | blocked |
 | SEO/PWA worker | low/mid | metadata registry, public assets | add route metadata, manifest, favicons, OG generation plan | build + metadata tests | blocked |
@@ -359,13 +398,13 @@ handoff with files changed and residual risks.
 
 | Gate | Command or method | Evidence | Status | Risk |
 |---|---|---|---|---|
-| Typecheck/build | `npm run build` | pass, chunk warning | partial | large JS |
-| Unit tests | `npm run test` | 20 failures in tutorials test | fail | route truth drift |
-| Lint | `npm run lint` | 75 errors, 18 warnings | fail | generated output mixed with real issues |
+| Typecheck/build | `npm run build` | pass, no chunk warning in latest website build | pass | Mermaid chunk remains near threshold |
+| Unit tests | `npm run test` | 72/72 pass | pass | tests do not yet cover a11y/SEO/PWA/legal |
+| Lint | `npm run lint` | pass | pass | raw-value enforcement is still scoped to protected modules |
 | Storybook | `npm run build-storybook` | pass, chunk warning | partial | coverage shallow |
 | Accessibility | axe/Storybook + Playwright + manual keyboard | not run | pending | known MCP contrast failure |
 | Mobile screenshots | Playwright screenshots | captured, one suspect home mobile artifact | partial | retest needed |
-| Performance | Vite bundle output, later Lighthouse/Web Vitals | large chunks | fail | hydration/bundle cost |
+| Performance | Vite bundle output, later Lighthouse/Web Vitals | route chunking eliminated Vite warning | partial | needs Lighthouse/Web Vitals and Mermaid follow-up |
 | SEO metadata | static scan | global defaults only | fail | weak route metadata |
 | Observability | dependency/config scan | not found | fail | blind production |
 | Security/privacy | static inventory | incomplete | pending | data/headers unknown |
@@ -384,26 +423,32 @@ handoff with files changed and residual risks.
    - exclude generated Storybook output from lint
    - fix no-risk lint errors that block CI
 3. Split and enforce the token contract with compatibility aliases.
-4. Normalize base primitives and Storybook state matrices.
+4. Split route and heavy vendor bundles until the build has no default chunk
+   warning.
 5. Rebuild the MCP page as the first vertical slice because it has visible
    mobile contrast failure and high drift.
-6. Normalize docs shell/header/footer so marketing and docs feel like one
+6. Normalize base primitives and Storybook state matrices around the MCP proof
+   route.
+7. Normalize docs shell/header/footer so marketing and docs feel like one
    product.
-7. Normalize blog/editorial cards, route metadata, and OG image system.
-8. Add legal/privacy/support/security-contact pages and product claims ledger.
-9. Add observability, Web Vitals, analytics taxonomy, Sentry/privacy controls,
+8. Normalize blog/editorial cards, route metadata, and OG image system.
+9. Add legal/privacy/support/security-contact pages and product claims ledger.
+10. Add observability, Web Vitals, analytics taxonomy, Sentry/privacy controls,
    PWA/favicons if approved.
-10. Run adversarial a11y/performance/security/product-truth review.
-11. Only then consider deleting legacy/quarantined UI code.
+11. Run adversarial a11y/performance/security/product-truth review.
+12. Only then consider deleting legacy/quarantined UI code.
 
 ## What Must Not Be Claimed Done Yet
 
-- The site is not stable: tests and lint are red.
-- The design system is not ideal: tokens are not cleanly layered and production
-  pages still use hardcoded visual values.
+- The site is not production-complete: website lint, tests, and build are
+  green, but a11y, Storybook matrix, SEO, PWA, legal, observability, and route
+  visual proof work remain.
+- The design system is not ideal yet: token layers now exist, but production
+  pages still include hardcoded visual values outside protected modules.
 - Accessibility is not acceptable: MCP mobile has visible contrast failure and
   focus/keyboard gates have not run.
-- Performance is not acceptable: build and Storybook have large chunks.
+- Performance is improved, not done: the app build no longer warns, but
+  Lighthouse/Web Vitals and Storybook bundle work remain.
 - SEO/social/PWA/legal/observability are incomplete.
 - The existing screenshots are a baseline, not an approval artifact.
 
@@ -412,3 +457,4 @@ handoff with files changed and residual risks.
 | Date | Change | Reason |
 |---|---|---|
 | 2026-04-24 | Created pessimistic rehab plan from ideal-web-app-builder intake | Prepare website stabilization handoff after skill commit/push |
+| 2026-04-26 | Recorded token split, route lazy loading, and no-warning build evidence | Keep the pessimistic plan aligned with the second website rehab slice |
