@@ -3,7 +3,7 @@
 Last updated: 2026-04-26
 Owner session: `session-1a8459c2-808f-4564-ab9d-c5be56fa86bb`
 Skill contract: `ideal-web-app-builder`
-Status: visual decision board approved; stabilization plus token/performance slices implemented
+Status: visual decision board approved; stabilization, token/performance, and MCP proof-route slices implemented
 
 This is the on-disk source of truth for rehabilitating `website-v2` into a
 premium, stable, token-disciplined web app. Keep this file current before code
@@ -59,8 +59,8 @@ fanout. Do not let implementation outrun the visual decision board.
 
 | Gate | Result | Evidence |
 |---|---|---|
-| Build | Pass | 2026-04-26 latest: `npm run build` passes with no Vite chunk-size warning after route lazy loading. Largest generated JS chunk is `Mermaid-CMXUcArO.js` at 491.12 kB minified / 136.65 kB gzip; the first stabilization build had warned on a 1,989.94 kB main chunk. |
-| Tests | Pass | 2026-04-26 latest: full `npm run test` passes at 7/7 files and 72/72 tests, including design-system contract coverage for token layering and route lazy loading. |
+| Build | Pass | 2026-04-26 latest: `npm run build` passes with no Vite chunk-size warning after route lazy loading and the MCP proof-route rebuild. Largest generated JS chunk is `Mermaid-NIUzfny0.js` at 491.12 kB minified / 136.66 kB gzip; `MCPPage-Cs0vR24E.js` is 18.62 kB minified / 6.08 kB gzip. |
+| Tests | Pass | 2026-04-26 latest: full `npm run test` passes at 7/7 files and 73/73 tests, including design-system contract coverage for token layering, route lazy loading, MCP primitive usage, and shrink-safe public primitives. |
 | Lint | Pass | 2026-04-26: `npm run lint` passes after excluding generated Storybook output, repairing fast-refresh export boundaries, removing React Compiler set-state-in-effect violations, and narrowing dashboard/viz/page types. |
 | Storybook build | Pass with warning | 2026-04-26: `npm run build-storybook` passes. Preview iframe remains large at 1,080.43 kB / 304.51 kB gzip and Storybook reports missing package metadata for `radix-ui`. |
 | Screenshot baseline | Captured | `docs/reports/website-rehab-screenshots/`. |
@@ -73,6 +73,8 @@ fanout. Do not let implementation outrun the visual decision board.
 - Docs mobile: `docs/reports/website-rehab-screenshots/docs-mobile.png`
 - MCP desktop: `docs/reports/website-rehab-screenshots/mcp-desktop.png`
 - MCP mobile: `docs/reports/website-rehab-screenshots/mcp-mobile.png`
+- MCP proof desktop: `docs/reports/website-rehab-screenshots/mcp-proof-desktop.png`
+- MCP proof mobile: `docs/reports/website-rehab-screenshots/mcp-proof-mobile.png`
 - Blog desktop: `docs/reports/website-rehab-screenshots/blog-desktop.png`
 - Blog mobile: `docs/reports/website-rehab-screenshots/blog-mobile.png`
 
@@ -89,6 +91,9 @@ Visible diagnosis from the baseline:
 - MCP mobile has severe contrast failure: hero paragraph text is nearly
   invisible on the light background and the headline overlap/weight reads
   unstable.
+- MCP proof screenshots now show the rebuilt route on shared primitives:
+  desktop uses the intended two-column proof layout, and mobile wraps without
+  page-level horizontal clipping. Full a11y/keyboard evidence still remains.
 - Blog and MCP carry many hardcoded style decisions and should be normalized
   after the system contract is approved.
 
@@ -212,7 +217,7 @@ map.
 | ESLint config | lints ignored Storybook output; many real source issues mixed with generated noise | normalize | exclude generated dirs first, then fix real source categories | completed for current lint gate |
 | Token files | source, semantic, and role tokens were interleaved | normalize | split token layers, keep compatibility aliases, add drift tests | completed for entrypoint and protected-module contract |
 | Route bundling | all route/page modules were statically imported into the app entry | normalize | lazy-load route modules and isolate heavy vendor families | completed for public routes |
-| MCP page | hardcoded provider colors, inline styles, mobile AAA failure | replace | rebuild on approved primitives and token roles | pending |
+| MCP page | hardcoded provider colors, inline styles, mobile AAA failure | replace | rebuild on approved primitives and token roles | completed for first proof route |
 | Storybook | exists but state coverage is shallow | normalize | add component matrices and a11y addon after primitives stabilize | pending |
 | SEO/meta | app-wide defaults plus limited title/description hook; no per-route OG images | replace | route metadata registry, generated social images, sitemap/robots | pending |
 | PWA/favicons | minimal assets; no manifest discovered | add if approved | app.webmanifest, icon set, offline strategy decision | pending |
@@ -287,11 +292,57 @@ Remaining launch blockers:
   some route diagrams with pre-rendered/static assets where interaction is not
   needed.
 - Raw color literals and hardcoded visual values still exist in unprotected
-  legacy page modules, especially the MCP surface targeted for the next proof
-  slice.
-- MCP mobile contrast failure remains the first visual proof-slice target.
+  legacy page modules outside the now-rebuilt MCP proof route.
+- MCP visual contrast/overflow has proof screenshots now, but axe, keyboard,
+  and screen-reader checks are still pending.
 - Storybook state matrices, a11y addon evidence, SEO/OG/PWA/legal/privacy, and
   observability are still unimplemented product-readiness work.
+
+### 2026-04-26 MCP Proof Route Slice
+
+Implemented after the token/performance slice:
+
+- Rebuilt `/mcp` on the approved public-site primitives:
+  `PageContainer`, `SectionIntro`, `SurfacePanel`, `PanelTitle`, `PanelBody`,
+  `BracketLabel`, `BracketLink`, and `DocsCodeBlock`.
+- Removed the previous ad hoc provider-color surface from the MCP route. The
+  page now consumes tokenized role/semantic colors and shared code panels.
+- Added an accessible tab pattern for the CLI/MCP/SDK/REST pub/sub surface with
+  `tablist`, `tab`, and `tabpanel` semantics.
+- Rewrote the route copy around supportable Port Daddy primitives: sessions,
+  ports, locks, pub/sub, salvage, fleets, tuple space, budgets, and daemon
+  authority.
+- Fixed invalid Tailwind arbitrary grid tracks that used comma-separated
+  values. The rebuilt page now uses space-separated `minmax(0, ...)` tracks so
+  desktop grids actually render.
+- Hardened shared public primitives and code blocks with `min-w-0`/`max-w-full`
+  behavior so wide code samples scroll inside their blocks instead of widening
+  the page on mobile.
+- Added design-system contract coverage that the MCP route uses shared
+  primitives, avoids raw color literals and visual inline styles, avoids the old
+  invalid grid-track literals, and that the shared page container is shrink-safe.
+- Captured proof screenshots:
+  - `docs/reports/website-rehab-screenshots/mcp-proof-desktop.png`
+  - `docs/reports/website-rehab-screenshots/mcp-proof-mobile.png`
+
+Validation on 2026-04-26 from `website-v2/`:
+
+- `npm run lint`: pass.
+- `npm run test -- src/design-system-contracts.test.ts`: 10/10 pass.
+- `npm run test`: 73/73 pass.
+- `npm run build`: pass with no chunk-size warning. Largest JS chunk is
+  `Mermaid-NIUzfny0.js` at 491.12 kB minified / 136.66 kB gzip; the MCP route
+  chunk is `MCPPage-Cs0vR24E.js` at 18.62 kB minified / 6.08 kB gzip.
+- Playwright screenshots at 1440x1200 and 390x1200: pass by manual inspection
+  for settled-route capture, desktop grid layout, mobile wrapping, and no
+  page-level horizontal clipping.
+
+Remaining launch blockers after this slice:
+
+- Storybook coverage for the MCP route's underlying states is not complete.
+- Axe/keyboard/manual screen-reader checks have not run for the rebuilt route.
+- SEO/OG/PWA/legal/privacy/observability remain future product-readiness work.
+- Mermaid remains near the default chunk warning threshold.
 
 ## Sessions and Ownership
 
@@ -300,7 +351,7 @@ Remaining launch blockers:
 | `session-80296aef-bf46-4457-b900-b7c9ca9c92fe` | Codex | intake, plan, screenshots, decision board | docs plan files, `website-v2` | completed | static board created and reviewed |
 | `session-1a8459c2-808f-4564-ab9d-c5be56fa86bb` | Codex | tutorial/lint/build stabilization | tutorial/data/lint/viz/docs helper files | completed | committed as `5d29704` |
 | `session-c2085e79-36d0-4898-9cc5-90c4f60aef3a` | Codex | token contract and route chunking | token files, router entry, Vite config, contract tests | completed | lint/test/build green on 2026-04-26 |
-| future 1 | lead | rebuild MCP proof route | `MCPPage`, related primitives/stories/screenshots | pending | next approval/work slice |
+| `session-4174ea2d-db24-4af2-a2d4-d9be7421a26c` | Codex | rebuild MCP proof route | `MCPPage`, shared site/code primitives, contract tests, screenshots | completed | desktop/mobile proof screenshots captured on 2026-04-26 |
 | future 2 | worker swarm | primitives and Storybook state matrix | components/styles/stories | blocked | after MCP proof route identifies primitive gaps |
 | future 3 | worker swarm | route/page normalization | page dirs by route | blocked | disjoint write sets |
 | future 4 | reviewers | a11y/perf/security/privacy/product truth | read-mostly | blocked | adversarial gates |
@@ -315,8 +366,8 @@ Use only after the user approves the visual decision board.
 | ESLint hygiene worker | low | `website-v2/eslint.config.js`, narrow source files | exclude generated output and fix no-risk lint debt | `npm run lint` | completed locally |
 | Token auditor | low/read-only first | styles/components | produce raw value inventory and token split patch plan | drift report | completed locally for protected modules |
 | Performance chunk worker | low/mid | `main.tsx`, Vite config, heavy route components | split route bundles and heavy vendor families | build without chunk warning | completed locally |
-| Primitive worker | mid | `src/components/ui`, `src/components/site`, stories | normalize Button/Badge/Surface/CodeBlock | Storybook build + tests | blocked |
-| MCP page worker | mid | `src/pages/MCPPage.tsx`, related data/stories | rebuild MCP page on approved primitives | screenshots + a11y | blocked |
+| Primitive worker | mid | `src/components/ui`, `src/components/site`, stories | normalize Button/Badge/Surface/CodeBlock | Storybook build + tests | started locally for shrink-safe public primitives; state matrix still blocked |
+| MCP page worker | mid | `src/pages/MCPPage.tsx`, related data/stories | rebuild MCP page on approved primitives | screenshots + a11y | completed locally for screenshots; a11y gate remains |
 | SEO/PWA worker | low/mid | metadata registry, public assets | add route metadata, manifest, favicons, OG generation plan | build + metadata tests | blocked |
 | Observability/privacy worker | mid | Sentry wrapper, docs/legal | add privacy-first telemetry design | tests + privacy packet | blocked |
 | Adversarial reviewer | low/read-only | whole `website-v2` | falsify done claims | failure report first | blocked |
@@ -399,11 +450,11 @@ handoff with files changed and residual risks.
 | Gate | Command or method | Evidence | Status | Risk |
 |---|---|---|---|---|
 | Typecheck/build | `npm run build` | pass, no chunk warning in latest website build | pass | Mermaid chunk remains near threshold |
-| Unit tests | `npm run test` | 72/72 pass | pass | tests do not yet cover a11y/SEO/PWA/legal |
+| Unit tests | `npm run test` | 73/73 pass | pass | tests do not yet cover a11y/SEO/PWA/legal |
 | Lint | `npm run lint` | pass | pass | raw-value enforcement is still scoped to protected modules |
 | Storybook | `npm run build-storybook` | pass, chunk warning | partial | coverage shallow |
-| Accessibility | axe/Storybook + Playwright + manual keyboard | not run | pending | known MCP contrast failure |
-| Mobile screenshots | Playwright screenshots | captured, one suspect home mobile artifact | partial | retest needed |
+| Accessibility | axe/Storybook + Playwright + manual keyboard | MCP visual blocker repaired by screenshot, axe/keyboard not run | partial | non-visual a11y still unproven |
+| Mobile screenshots | Playwright screenshots | MCP proof mobile recaptured; baseline screenshots retained | partial | full route matrix still needed |
 | Performance | Vite bundle output, later Lighthouse/Web Vitals | route chunking eliminated Vite warning | partial | needs Lighthouse/Web Vitals and Mermaid follow-up |
 | SEO metadata | static scan | global defaults only | fail | weak route metadata |
 | Observability | dependency/config scan | not found | fail | blind production |
@@ -426,7 +477,8 @@ handoff with files changed and residual risks.
 4. Split route and heavy vendor bundles until the build has no default chunk
    warning.
 5. Rebuild the MCP page as the first vertical slice because it has visible
-   mobile contrast failure and high drift.
+   mobile contrast failure and high drift. Completed for the first proof route
+   on 2026-04-26; keep a11y/Storybook as follow-up gates.
 6. Normalize base primitives and Storybook state matrices around the MCP proof
    route.
 7. Normalize docs shell/header/footer so marketing and docs feel like one
@@ -445,8 +497,9 @@ handoff with files changed and residual risks.
   visual proof work remain.
 - The design system is not ideal yet: token layers now exist, but production
   pages still include hardcoded visual values outside protected modules.
-- Accessibility is not acceptable: MCP mobile has visible contrast failure and
-  focus/keyboard gates have not run.
+- Accessibility is not acceptable yet: MCP mobile visual contrast/overflow has
+  proof screenshots, but focus, keyboard, axe, and screen-reader gates have not
+  run.
 - Performance is improved, not done: the app build no longer warns, but
   Lighthouse/Web Vitals and Storybook bundle work remain.
 - SEO/social/PWA/legal/observability are incomplete.
@@ -458,3 +511,4 @@ handoff with files changed and residual risks.
 |---|---|---|
 | 2026-04-24 | Created pessimistic rehab plan from ideal-web-app-builder intake | Prepare website stabilization handoff after skill commit/push |
 | 2026-04-26 | Recorded token split, route lazy loading, and no-warning build evidence | Keep the pessimistic plan aligned with the second website rehab slice |
+| 2026-04-26 | Recorded MCP proof-route rebuild, shared primitive overflow fix, screenshots, and 73/73 test evidence | Keep plan truth aligned after the first visual proof route |

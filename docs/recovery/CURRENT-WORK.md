@@ -154,6 +154,39 @@ Follow-on execution session: `session-c2085e79-36d0-4898-9cc5-90c4f60aef3a`.
   visual literals in unprotected legacy pages, Storybook/a11y/SEO/PWA/legal/
   privacy/observability, and a deeper Mermaid/diagram payload decision.
 
+### Port Daddy Website MCP Proof Route Slice (2026-04-26)
+
+Follow-on execution session: `session-4174ea2d-db24-4af2-a2d4-d9be7421a26c`.
+
+- `/mcp` is now rebuilt on the approved shared public-site primitives instead
+  of the prior ad hoc MCP/provider-color surface.
+- The route now composes `PageContainer`, `SectionIntro`, `SurfacePanel`,
+  `PanelTitle`, `PanelBody`, `BracketLabel`, `BracketLink`, and
+  `DocsCodeBlock`, with tokenized role/semantic colors and no raw route-level
+  color literals.
+- The CLI/MCP/SDK/REST pub/sub surface now uses explicit `tablist`, `tab`, and
+  `tabpanel` semantics.
+- Invalid comma-separated Tailwind arbitrary grid tracks on the MCP route were
+  replaced with space-separated `minmax(0, ...)` tracks; this restored the
+  intended desktop two-column proof layout.
+- Shared public primitives and code blocks now include shrink-safe
+  `min-w-0`/`max-w-full` behavior so wide code samples scroll inside their
+  blocks instead of widening mobile pages.
+- Proof screenshots now exist at:
+  - `docs/reports/website-rehab-screenshots/mcp-proof-desktop.png`
+  - `docs/reports/website-rehab-screenshots/mcp-proof-mobile.png`
+- Validation truth on 2026-04-26 from `website-v2/`:
+  - `npm run lint`: green
+  - `npm run test -- src/design-system-contracts.test.ts`: 10/10 pass
+  - `npm run test`: 7/7 files and 73/73 tests pass
+  - `npm run build`: green with no chunk-size warning; largest JS chunk is
+    `Mermaid-NIUzfny0.js` at 491.12 kB minified / 136.66 kB gzip, and the MCP
+    route chunk is `MCPPage-Cs0vR24E.js` at 18.62 kB minified / 6.08 kB gzip
+- Remaining website rehab blockers: Storybook state matrix, axe/keyboard and
+  manual a11y evidence, SEO/OG/PWA/legal/privacy/observability, raw visual
+  literals in legacy pages outside the protected contract, and a deeper
+  Mermaid/diagram payload decision.
+
 ### Cartographer Roadmap Actor (2026-04-24)
 
 The current uncommitted slice now promotes Cartographer from a commit-triggered docs updater into the first concrete maritime actor surface:

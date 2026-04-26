@@ -124,7 +124,7 @@ export function CodeBlock({ children, language, filename, className, copyable = 
   return (
     <div
       className={cn(
-        'code-block-wrapper relative overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--code-bg)] shadow-[var(--shadow-flat)]',
+        'code-block-wrapper relative max-w-full min-w-0 overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--code-bg)] shadow-[var(--shadow-flat)]',
         className,
       )}
     >
@@ -154,7 +154,7 @@ export function CodeBlock({ children, language, filename, className, copyable = 
 
       {/* Code */}
       <pre
-        className="m-0 overflow-x-auto bg-[var(--code-bg)] px-4 py-4 font-mono text-[14px] leading-[1.65]"
+        className="m-0 max-w-full overflow-x-auto bg-[var(--code-bg)] px-4 py-4 font-mono text-[14px] leading-[1.65]"
         style={{ color: 'var(--code-text)' }}
       >{
         language === 'bash' || language === 'shell' || !language

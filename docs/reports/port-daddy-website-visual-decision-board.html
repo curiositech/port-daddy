@@ -528,9 +528,10 @@
         <h1>Stabilize the site before making it beautiful.</h1>
         <p class="lead">
           This board translates the `ideal-web-app-builder` handoff into a static
-          HTML review artifact. The first stabilization slice is now approved
-          and executed; the board remains the visual checkpoint for the next
-          token, route, content, and proof-slice decisions.
+          HTML review artifact. The stabilization, token/performance, and MCP
+          proof-route slices are now executed; the board remains the visual
+          checkpoint for the next component-state, content, and product-readiness
+          decisions.
         </p>
         <div class="hero-actions" aria-label="Source artifacts">
           <a class="pill primary" href="../plans/port-daddy-website-ideal-web-app-rehab.md">Open rehab plan</a>
@@ -544,24 +545,24 @@
           <div class="section-head">
             <h2>Current Truth</h2>
             <p>
-              The first stabilization slice is complete: lint, tests, and the
-              production build are green. This is still not a finished ideal web
-              app: accessibility evidence, token layers, route metadata, PWA
-              posture, legal pages, observability, and bundle performance still
-              need explicit work.
+              Stabilization, token layering, route chunking, and the MCP proof
+              route are complete for their first slices. This is still not a
+              finished ideal web app: accessibility evidence, Storybook state
+              matrices, route metadata, PWA posture, legal pages, observability,
+              and deeper diagram-payload decisions still need explicit work.
             </p>
           </div>
 
           <div class="grid summary-grid" aria-label="Baseline gate summary">
             <article class="card card-pad metric">
               <span>Build</span>
-              <b class="warn">Pass, large</b>
-              <p>Vite builds. The main chunk remains 1.99 MB minified and 532.32 kB gzip.</p>
+              <b class="ok">Pass</b>
+              <p>Vite builds with no chunk warning. The largest JS chunk is Mermaid at 491.12 kB minified / 136.66 kB gzip.</p>
             </article>
             <article class="card card-pad metric">
               <span>Tests</span>
               <b class="ok">Pass</b>
-              <p>Focused tutorial tests pass at 35/35, and the full Vitest suite passes at 69/69.</p>
+              <p>The focused design-system contract passes at 10/10, and the full Vitest suite passes at 73/73.</p>
             </article>
             <article class="card card-pad metric">
               <span>Lint</span>
@@ -633,14 +634,32 @@
             </figure>
             <figure class="card shot mobile">
               <figcaption>
-                <span class="caption">MCP mobile</span>
-                <span class="tag">Accessibility blocker</span>
+                <span class="caption">MCP mobile baseline</span>
+                <span class="tag">Fixed in proof slice</span>
                 <p>
-                  The hero paragraph nearly disappears on mobile. This route is
-                  the right first proof slice after baseline stabilization.
+                  The original hero paragraph nearly disappeared on mobile. It
+                  remains here as baseline evidence for the proof-route change.
                 </p>
               </figcaption>
               <img src="website-rehab-screenshots/mcp-mobile.png" alt="Mobile screenshot of the MCP page with low-contrast hero body copy.">
+            </figure>
+            <figure class="card shot">
+              <img src="website-rehab-screenshots/mcp-proof-desktop.png" alt="Desktop screenshot of the rebuilt MCP proof route with two-column hero and tokenized proof panel.">
+              <figcaption>
+                <span class="caption">MCP proof desktop</span>
+                <span class="tag">Proof slice</span>
+              </figcaption>
+            </figure>
+            <figure class="card shot mobile">
+              <figcaption>
+                <span class="caption">MCP proof mobile</span>
+                <span class="tag">Proof slice</span>
+                <p>
+                  The rebuilt route wraps mobile copy and keeps wide terminal
+                  content inside the code block instead of widening the page.
+                </p>
+              </figcaption>
+              <img src="website-rehab-screenshots/mcp-proof-mobile.png" alt="Mobile screenshot of the rebuilt MCP proof route with readable copy and contained code panel.">
             </figure>
             <figure class="card shot">
               <img src="website-rehab-screenshots/blog-desktop.png" alt="Desktop screenshot of the blog page with article cards and editorial sections.">
@@ -741,7 +760,7 @@
                 </tr>
                 <tr>
                   <td>First proof route</td>
-                  <td>Rebuild `/mcp` first after baseline stabilization</td>
+                  <td>Rebuild `/mcp` first after baseline stabilization; first proof route complete</td>
                   <td>Defer MCP and polish home first</td>
                   <td>MCP has visible mobile contrast failure and high drift.</td>
                 </tr>
@@ -789,19 +808,19 @@
             <article class="step">
               <div>
                 <h3>Split the token layers.</h3>
-                <p>Create source tokens, semantic aliases, and component role tokens with compatibility aliases for existing code.</p>
+                <p>Status: complete for the active entrypoint. Source tokens, semantic aliases, role tokens, and compatibility aliases are in place.</p>
               </div>
             </article>
             <article class="step">
               <div>
                 <h3>Normalize primitives and stories.</h3>
-                <p>Button, Badge, Surface, CodeBlock, SiteHeader, and Docs shell need state matrices and accessibility coverage.</p>
+                <p>Status: partial. Public primitives and code blocks gained shrink-safe mobile behavior; Button, Badge, Surface, SiteHeader, Docs shell, and state matrices still need work.</p>
               </div>
             </article>
             <article class="step">
               <div>
                 <h3>Rebuild `/mcp` as the proof slice.</h3>
-                <p>Use approved tokens and primitives, then verify desktop/mobile screenshots, contrast, keyboard, and bundle impact.</p>
+                <p>Status: complete for visual proof. The route uses approved primitives/tokens, has desktop/mobile screenshots, and builds cleanly; axe, keyboard, and Storybook gates remain.</p>
               </div>
             </article>
           </div>
@@ -814,9 +833,9 @@
             <span class="kicker">Do not claim done</span>
             <ul class="list">
               <li>The website is not product-ready just because tests and lint are green.</li>
-              <li>The design system is not ideal until token layers are enforced.</li>
-              <li>Accessibility is not acceptable while MCP mobile contrast fails.</li>
-              <li>Performance is not acceptable while the app ships oversized route chunks.</li>
+              <li>The design system is not ideal until all page slices migrate and state matrices exist.</li>
+              <li>Accessibility is not acceptable until axe, keyboard, focus, and screen-reader evidence exists.</li>
+              <li>Performance is improved, not done, while Mermaid and diagram payload decisions remain.</li>
             </ul>
           </div>
           <div class="card card-pad stack">

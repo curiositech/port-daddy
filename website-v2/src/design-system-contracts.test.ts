@@ -101,6 +101,7 @@ describe('design system contracts', () => {
     expect(primitives).toContain('export function SectionIntro')
     expect(primitives).toContain("max-w-[var(--layout-max-width)]")
     expect(primitives).toContain("max-w-[var(--layout-max-width-wide)]")
+    expect(primitives).toContain('mx-auto w-full min-w-0')
     expect(primitives).toContain('px-[var(--layout-gutter)]')
     expect(primitives).toContain('lg:px-[var(--layout-gutter-lg)]')
     expect(primitives).toContain('space-y-[var(--section-intro-gap)]')
@@ -128,6 +129,25 @@ describe('design system contracts', () => {
       expect(source).toContain('SurfacePanel')
       expect(source).not.toContain("import { Surface }")
     }
+  })
+
+  test('MCP proof route consumes shared primitives and tokenized color roles', () => {
+    const mcpPage = read('./pages/MCPPage.tsx')
+    const colorLiteral = /#[0-9a-fA-F]{3,8}\b|(?:rgb|hsl)a?\(|oklch\(/
+
+    expect(mcpPage).toContain("from '@/components/site/primitives'")
+    expect(mcpPage).toContain('PageContainer')
+    expect(mcpPage).toContain('SectionIntro')
+    expect(mcpPage).toContain('SurfacePanel')
+    expect(mcpPage).toContain('DocsCodeBlock')
+    expect(mcpPage).not.toContain("import { Surface }")
+    expect(mcpPage).not.toContain('grid-cols-[1.05fr,0.95fr]')
+    expect(mcpPage).not.toContain('grid-cols-[0.9fr,1.1fr]')
+    expect(mcpPage).not.toContain('grid-cols-[1fr,1fr]')
+    expect(mcpPage).not.toContain('grid-cols-[1fr,1fr,1.3fr]')
+    expect(mcpPage).not.toContain('grid-cols-[18rem,1fr]')
+    expect(mcpPage).not.toMatch(/style=\{\{[^}]*\b(?:color|background|border|boxShadow):/)
+    expect(mcpPage).not.toMatch(colorLiteral)
   })
 
   test('storybook covers the normalized website layout primitives', () => {
