@@ -119,7 +119,12 @@ Remaining work:
 
 - Build and distribute `dist/core/pd-bosun` in the stable package before
   enabling `com.portdaddy.bosun` by default everywhere.
+- Bosun heartbeats are canonical-daemon facts, not "any daemon process is alive"
+  facts. A daemon writes the shared heartbeat only after it owns the canonical
+  PID file, and `pd-bosun` treats heartbeat/PID-file mismatches as foreign
+  heartbeat evidence instead of blindly supervising the wrong process.
 - The code still carries `barnacle` internally until the compatibility window
-  closes.
+  closes, but legacy Barnacle monitoring is opt-in via
+  `PORT_DADDY_ENABLE_LEGACY_BARNACLE=1`; Bosun is authoritative by default.
 - Clients must tolerate both `guardians.bosun` and `guardians.barnacle` during
   the compatibility window.

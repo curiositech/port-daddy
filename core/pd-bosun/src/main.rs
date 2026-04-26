@@ -16,8 +16,9 @@ use std::env;
 use std::error::Error;
 use std::fmt;
 use std::fs;
+use std::io;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::Command;
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -25,6 +26,18 @@ const HEARTBEAT_SCHEMA: &str = "port-daddy.bosun.heartbeat.v1";
 const DEFAULT_INTERVAL_MS: u64 = 5_000;
 const DEFAULT_STALE_AFTER_MS: u64 = 30_000;
 const DEFAULT_DAEMON_LABEL: &str = "com.portdaddy.daemon";
+#[cfg(unix)]
+const SIGNAL_PROBE: i32 = 0;
+#[cfg(unix)]
+const SIGNAL_KILL: i32 = 9;
+#[cfg(unix)]
+const ESRCH: i32 = 3;
+
+#[cfg(unix)]
+extern "C" {
+    fn kill(pid: i32, sig: i32) -> i32;
+    fn getuid() -> u32;
+}
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
@@ -113,11 +126,14 @@ struct Config {
 struct BosunStatus {
     state: String,
     reason: String,
+    action: String,
     heartbeat_path: String,
     stale_after_ms: u64,
     age_ms: Option<u64>,
     pid: Option<u32>,
     daemon_alive: Option<bool>,
+    canonical_pid: Option<u32>,
+    canonical_alive: Option<bool>,
     would_restart: bool,
     daemon_version: Option<String>,
     daemon_code_hash: Option<String>,
@@ -258,6 +274,21 @@ fn json_value_slice<'a>(raw: &'a str, key: &str) -> Result<&'a str> {
     Ok(after_key[colon + 1..].trim_start())
 }
 
+/// Read the canonical daemon PID recorded by the daemon once it owns the socket.
+///
+/// Sample inputs and outputs:
+///
+/// ```text
+/// "/Users/me/.port-daddy/daemon.pid" containing "12345\n" -> Some(12345)
+/// missing or malformed pid file -> None
+/// ```
+fn read_pid_file(path: &str) -> Option<u32> {
+    fs::read_to_string(path)
+        .ok()
+        .and_then(|raw| raw.trim().parse::<u32>().ok())
+        .filter(|pid| *pid > 0)
+}
+
 /// Return the current Unix epoch in milliseconds.
 fn now_ms() -> u64 {
     SystemTime::now()
@@ -278,6 +309,7 @@ fn now_ms() -> u64 {
 ///
 /// macOS can return EPERM when a process exists but the caller cannot signal it.
 /// For Bosun liveness, that is alive: only absence should be treated as dead.
+#[cfg(any(test, not(unix)))]
 fn kill_probe_means_alive(success: bool, stderr: &[u8]) -> bool {
     if success {
         return true;
@@ -290,13 +322,40 @@ fn kill_probe_means_alive(success: bool, stderr: &[u8]) -> bool {
 }
 
 /// Check whether a PID currently names a live process.
+#[cfg(unix)]
+fn pid_is_alive(pid: u32) -> bool {
+    match send_signal(pid, SIGNAL_PROBE) {
+        Ok(()) => true,
+        Err(errno) => errno != ESRCH,
+    }
+}
+
+/// Check whether a PID currently names a live process.
+#[cfg(not(unix))]
 fn pid_is_alive(pid: u32) -> bool {
     Command::new("kill")
         .args(["-0", &pid.to_string()])
-        .stdout(Stdio::null())
         .output()
         .map(|output| kill_probe_means_alive(output.status.success(), &output.stderr))
         .unwrap_or(false)
+}
+
+/// Send a Unix signal without spawning `/bin/kill`.
+///
+/// Sample inputs and outputs:
+///
+/// ```text
+/// send_signal(12345, 0) -> Ok(()) when the process exists
+/// send_signal(12345, 9) -> Ok(()) after SIGKILL is accepted
+/// ```
+#[cfg(unix)]
+fn send_signal(pid: u32, signal: i32) -> std::result::Result<(), i32> {
+    let rc = unsafe { kill(pid as i32, signal) };
+    if rc == 0 {
+        Ok(())
+    } else {
+        Err(io::Error::last_os_error().raw_os_error().unwrap_or(-1))
+    }
 }
 
 /// Inspect the heartbeat and decide whether Bosun would restart the daemon.
@@ -308,11 +367,14 @@ fn inspect(config: &Config, now: u64) -> BosunStatus {
             return BosunStatus {
                 state: "missing".to_string(),
                 reason: err.to_string(),
+                action: "restart_daemon".to_string(),
                 heartbeat_path,
                 stale_after_ms: config.stale_after_ms,
                 age_ms: None,
                 pid: None,
                 daemon_alive: None,
+                canonical_pid: None,
+                canonical_alive: None,
                 would_restart: true,
                 daemon_version: None,
                 daemon_code_hash: None,
@@ -327,16 +389,56 @@ fn inspect(config: &Config, now: u64) -> BosunStatus {
     };
 
     let age_ms = now.saturating_sub(heartbeat.written_at);
-    let alive = pid_is_alive(heartbeat.pid);
-    if !alive {
+    let canonical_pid = read_pid_file(&heartbeat.pid_file);
+    let canonical_alive = canonical_pid.map(pid_is_alive);
+    let heartbeat_alive = pid_is_alive(heartbeat.pid);
+
+    if let Some(owner_pid) = canonical_pid {
+        if owner_pid != heartbeat.pid {
+            let owner_alive = canonical_alive.unwrap_or(false);
+            return BosunStatus {
+                state: "foreign".to_string(),
+                reason: format!(
+                    "heartbeat pid {} does not match canonical pid file owner {}",
+                    heartbeat.pid, owner_pid
+                ),
+                action: if owner_alive {
+                    "ignore_foreign_heartbeat".to_string()
+                } else {
+                    "kill_foreign_and_restart".to_string()
+                },
+                heartbeat_path,
+                stale_after_ms: config.stale_after_ms,
+                age_ms: Some(age_ms),
+                pid: Some(heartbeat.pid),
+                daemon_alive: Some(heartbeat_alive),
+                canonical_pid,
+                canonical_alive,
+                would_restart: !owner_alive,
+                daemon_version: Some(heartbeat.version),
+                daemon_code_hash: Some(heartbeat.code_hash),
+                daemon_uptime_ms: Some(heartbeat.uptime_ms),
+                daemon_started_at: Some(heartbeat.started_at),
+                daemon_install_dir: Some(heartbeat.install_dir),
+                daemon_pid_file: Some(heartbeat.pid_file),
+                daemon_port_file: Some(heartbeat.port_file),
+                daemon_hostname: Some(heartbeat.hostname),
+            };
+        }
+    }
+
+    if !heartbeat_alive {
         return BosunStatus {
             state: "dead".to_string(),
             reason: format!("daemon pid {} is not alive", heartbeat.pid),
+            action: "restart_daemon".to_string(),
             heartbeat_path,
             stale_after_ms: config.stale_after_ms,
             age_ms: Some(age_ms),
             pid: Some(heartbeat.pid),
             daemon_alive: Some(false),
+            canonical_pid,
+            canonical_alive,
             would_restart: true,
             daemon_version: Some(heartbeat.version),
             daemon_code_hash: Some(heartbeat.code_hash),
@@ -353,11 +455,14 @@ fn inspect(config: &Config, now: u64) -> BosunStatus {
         return BosunStatus {
             state: "stale".to_string(),
             reason: format!("heartbeat age {}ms exceeds {}ms", age_ms, config.stale_after_ms),
+            action: "restart_daemon".to_string(),
             heartbeat_path,
             stale_after_ms: config.stale_after_ms,
             age_ms: Some(age_ms),
             pid: Some(heartbeat.pid),
             daemon_alive: Some(true),
+            canonical_pid,
+            canonical_alive,
             would_restart: true,
             daemon_version: Some(heartbeat.version),
             daemon_code_hash: Some(heartbeat.code_hash),
@@ -373,11 +478,14 @@ fn inspect(config: &Config, now: u64) -> BosunStatus {
     BosunStatus {
         state: "healthy".to_string(),
         reason: "daemon heartbeat is fresh".to_string(),
+        action: "none".to_string(),
         heartbeat_path,
         stale_after_ms: config.stale_after_ms,
         age_ms: Some(age_ms),
         pid: Some(heartbeat.pid),
         daemon_alive: Some(true),
+        canonical_pid,
+        canonical_alive,
         would_restart: false,
         daemon_version: Some(heartbeat.version),
         daemon_code_hash: Some(heartbeat.code_hash),
@@ -391,6 +499,33 @@ fn inspect(config: &Config, now: u64) -> BosunStatus {
 }
 
 /// Kill the recorded daemon PID when it is still present.
+#[cfg(unix)]
+fn kill_daemon(pid: Option<u32>, dry_run: bool) -> Result<()> {
+    let Some(pid) = pid else {
+        return Ok(());
+    };
+    if dry_run {
+        eprintln!("[pd-bosun] dry-run: would SIGKILL daemon pid {}", pid);
+        return Ok(());
+    }
+    match send_signal(pid, SIGNAL_KILL) {
+        Ok(()) => {
+            eprintln!("[pd-bosun] SIGKILL sent to daemon pid {}", pid);
+            Ok(())
+        }
+        Err(ESRCH) => {
+            eprintln!("[pd-bosun] daemon pid {} is already gone", pid);
+            Ok(())
+        }
+        Err(errno) => Err(Box::new(BosunError(format!(
+            "failed to SIGKILL daemon pid {}: errno {}",
+            pid, errno
+        )))),
+    }
+}
+
+/// Kill the recorded daemon PID when it is still present.
+#[cfg(not(unix))]
 fn kill_daemon(pid: Option<u32>, dry_run: bool) -> Result<()> {
     let Some(pid) = pid else {
         return Ok(());
@@ -438,6 +573,12 @@ fn kickstart_daemon(label: &str, dry_run: bool) -> Result<()> {
 
 /// Resolve the current numeric user id for launchd's `gui/<uid>/...` namespace.
 fn current_uid() -> String {
+    #[cfg(unix)]
+    {
+        return unsafe { getuid() }.to_string();
+    }
+    #[cfg(not(unix))]
+    {
     Command::new("id")
         .arg("-u")
         .output()
@@ -452,6 +593,7 @@ fn current_uid() -> String {
         .filter(|value| !value.is_empty())
         .or_else(|| env::var("UID").ok())
         .unwrap_or_else(|| "501".to_string())
+    }
 }
 
 /// Enforce a stale/dead heartbeat decision.
@@ -508,11 +650,14 @@ fn status_to_json(status: &BosunStatus) -> String {
             "{{\n",
             "  \"state\": \"{}\",\n",
             "  \"reason\": \"{}\",\n",
+            "  \"action\": \"{}\",\n",
             "  \"heartbeatPath\": \"{}\",\n",
             "  \"staleAfterMs\": {},\n",
             "  \"ageMs\": {},\n",
             "  \"pid\": {},\n",
             "  \"daemonAlive\": {},\n",
+            "  \"canonicalPid\": {},\n",
+            "  \"canonicalAlive\": {},\n",
             "  \"wouldRestart\": {},\n",
             "  \"daemonVersion\": {},\n",
             "  \"daemonCodeHash\": {},\n",
@@ -526,11 +671,14 @@ fn status_to_json(status: &BosunStatus) -> String {
         ),
         json_escape(&status.state),
         json_escape(&status.reason),
+        json_escape(&status.action),
         json_escape(&status.heartbeat_path),
         status.stale_after_ms,
         option_u64(status.age_ms),
         option_u32(status.pid),
         option_bool(status.daemon_alive),
+        option_u32(status.canonical_pid),
+        option_bool(status.canonical_alive),
         status.would_restart,
         option_string(status.daemon_version.as_deref()),
         option_string(status.daemon_code_hash.as_deref()),
@@ -582,9 +730,17 @@ mod tests {
 
     /// Build a minimal heartbeat fixture for status tests.
     fn heartbeat_json(pid: u32, written_at: u64) -> String {
+        heartbeat_json_with_pid_file(pid, written_at, "/runtime/daemon.pid")
+    }
+
+    /// Build a heartbeat fixture whose `pidFile` points at a chosen path.
+    fn heartbeat_json_with_pid_file(pid: u32, written_at: u64, pid_file: &str) -> String {
         format!(
-            "{{\"schema\":\"{}\",\"pid\":{},\"writtenAt\":{},\"uptimeMs\":5000,\"version\":\"test\",\"codeHash\":\"hash\",\"startedAt\":1000,\"installDir\":\"/repo\",\"pidFile\":\"/runtime/daemon.pid\",\"portFile\":\"/runtime/daemon.port\",\"hostname\":\"host\"}}",
-            HEARTBEAT_SCHEMA, pid, written_at
+            "{{\"schema\":\"{}\",\"pid\":{},\"writtenAt\":{},\"uptimeMs\":5000,\"version\":\"test\",\"codeHash\":\"hash\",\"startedAt\":1000,\"installDir\":\"/repo\",\"pidFile\":\"{}\",\"portFile\":\"/runtime/daemon.port\",\"hostname\":\"host\"}}",
+            HEARTBEAT_SCHEMA,
+            pid,
+            written_at,
+            json_escape(pid_file)
         )
     }
 
@@ -636,6 +792,26 @@ mod tests {
     }
 
     #[test]
+    fn foreign_heartbeat_is_ignored_when_canonical_pid_is_alive() {
+        let suffix = std::process::id();
+        let heartbeat_path = env::temp_dir().join(format!("foreign-heartbeat-{}.json", suffix));
+        let pid_path = env::temp_dir().join(format!("foreign-heartbeat-{}.pid", suffix));
+        let pid_path_text = pid_path.display().to_string();
+        write(&pid_path, std::process::id().to_string()).unwrap();
+        write(&heartbeat_path, heartbeat_json_with_pid_file(999_999, 20_000, &pid_path_text)).unwrap();
+
+        let status = inspect(&test_config(heartbeat_path.clone()), 25_000);
+
+        assert_eq!(status.state, "foreign");
+        assert_eq!(status.action, "ignore_foreign_heartbeat");
+        assert!(!status.would_restart);
+        assert_eq!(status.canonical_pid, Some(std::process::id()));
+        assert_eq!(status.canonical_alive, Some(true));
+        let _ = fs::remove_file(heartbeat_path);
+        let _ = fs::remove_file(pid_path);
+    }
+
+    #[test]
     fn kill_probe_treats_permission_denied_as_alive() {
         assert!(kill_probe_means_alive(true, b""));
         assert!(kill_probe_means_alive(false, b"kill: 41856: Operation not permitted"));
@@ -648,11 +824,14 @@ mod tests {
         let status = BosunStatus {
             state: "healthy".to_string(),
             reason: "daemon heartbeat is fresh".to_string(),
+            action: "none".to_string(),
             heartbeat_path: "/tmp/heartbeat".to_string(),
             stale_after_ms: 30_000,
             age_ms: Some(100),
             pid: Some(123),
             daemon_alive: Some(true),
+            canonical_pid: Some(123),
+            canonical_alive: Some(true),
             would_restart: false,
             daemon_version: Some("3.9.0".to_string()),
             daemon_code_hash: Some("hash".to_string()),
@@ -667,7 +846,9 @@ mod tests {
         let json = status_to_json(&status);
 
         assert!(json.contains("\"state\": \"healthy\""));
+        assert!(json.contains("\"action\": \"none\""));
         assert!(json.contains("\"wouldRestart\": false"));
+        assert!(json.contains("\"canonicalPid\": 123"));
         assert!(json.contains("\"daemonVersion\": \"3.9.0\""));
     }
 }

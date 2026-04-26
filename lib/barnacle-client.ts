@@ -12,11 +12,13 @@ import { join } from 'node:path';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { LOOPBACK_TCP_HOST } from '../shared/daemon-discovery.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BARNACLE_PORT = 9875;
-const BARNACLE_URL = `http://localhost:${BARNACLE_PORT}/health`;
+const BARNACLE_URL = `http://${LOOPBACK_TCP_HOST}:${BARNACLE_PORT}/health`;
 const BINARY_PATH = join(__dirname, '../dist/core/pd-barnacle');
+const LEGACY_BARNACLE_ENABLED = envTruthy(process.env.PORT_DADDY_ENABLE_LEGACY_BARNACLE);
 
 export interface BarnacleWatcherStatus {
   monitoredUrl: string;
@@ -30,6 +32,44 @@ export interface BarnacleWatcherStatus {
   lastFailureAt: number | null;
   lastResurrectedAt: number | null;
   failureCount: number;
+}
+
+/**
+ * Return true when an environment flag explicitly opts into legacy Barnacle.
+ *
+ * Input:
+ *
+ * ```ts
+ * envTruthy('yes')
+ * ```
+ *
+ * Output:
+ *
+ * ```ts
+ * true
+ * ```
+ */
+function envTruthy(value: string | undefined): boolean {
+  return matchesTruthy(value?.trim());
+}
+
+/**
+ * Match conventional truthy flag spellings.
+ *
+ * Input:
+ *
+ * ```ts
+ * matchesTruthy('1')
+ * ```
+ *
+ * Output:
+ *
+ * ```ts
+ * true
+ * ```
+ */
+function matchesTruthy(value: string | undefined): boolean {
+  return value === '1' || value === 'true' || value === 'TRUE' || value === 'yes' || value === 'YES' || value === 'on' || value === 'ON';
 }
 
 export function createBarnacleWatcher(logger: any) {
@@ -125,6 +165,17 @@ export function createBarnacleWatcher(logger: any) {
       if (timer) return;
 
       status.binaryExists = existsSync(BINARY_PATH);
+      if (!LEGACY_BARNACLE_ENABLED) {
+        status.enabled = false;
+        status.state = 'disabled';
+        status.reason = 'legacy Barnacle disabled; Bosun is authoritative';
+        logger.info('barnacle_watcher_disabled', {
+          reason: status.reason,
+          path: BINARY_PATH,
+        });
+        return;
+      }
+
       if (!status.binaryExists) {
         status.enabled = false;
         status.state = 'disabled';

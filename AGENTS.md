@@ -139,6 +139,8 @@ Project-specific shibboleths for proficient Port Daddy work. If you learn a new 
 - Do not hardcode `9876` as if it is guaranteed truth. `9876` is the preferred canonical port, but runtime code must discover the live daemon via the shared socket/port-file helper because the daemon can fall back.
 - Do not hardcode `localhost` as if it is harmless truth either. TCP callers should go through the shared loopback host helper instead of sprinkling new `http://localhost:9876` literals around the repo.
 - If a runtime/helper/UI path needs the daemon URL, prefer the shared discovery helper over inline `http://localhost:9876` defaults.
+- Bosun heartbeat truth is canonical-daemon truth, not "any server.ts process is alive" truth. A daemon must only write the shared heartbeat after it owns the canonical PID file, and `pd-bosun` must treat heartbeat/PID-file mismatches as foreign provenance rather than healthy supervision.
+- Legacy Barnacle is not the default supervisor anymore. `pd-bosun` is authoritative; the old HTTP Barnacle watcher should stay disabled unless explicitly opted in with `PORT_DADDY_ENABLE_LEGACY_BARNACLE=1`.
 
 ### Canonical daemon URL — enforced by CI
 
