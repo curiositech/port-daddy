@@ -1,7 +1,7 @@
 # Port Daddy Website Visual Decision Board
 
 Last updated: 2026-04-26
-Status: approved for first stabilization slice; broader visual/token slices still require evidence updates
+Status: approved for first stabilization slice; Swiss-modern grid layer now added as a proof slice
 Related plan: `docs/plans/port-daddy-website-ideal-web-app-rehab.md`
 
 The user approved moving forward from this board on 2026-04-26. Do not treat
@@ -15,6 +15,8 @@ visual, route, content, observability, or legal work.
 | Home | `docs/reports/website-rehab-screenshots/home-desktop.png` | `docs/reports/website-rehab-screenshots/home-mobile.png` |
 | Docs | `docs/reports/website-rehab-screenshots/docs-desktop.png` | `docs/reports/website-rehab-screenshots/docs-mobile.png` |
 | MCP | `docs/reports/website-rehab-screenshots/mcp-desktop.png` | `docs/reports/website-rehab-screenshots/mcp-mobile.png` |
+| MCP proof | `docs/reports/website-rehab-screenshots/mcp-proof-desktop.png` | `docs/reports/website-rehab-screenshots/mcp-proof-mobile.png` |
+| MCP Swiss layer | `docs/reports/website-rehab-screenshots/mcp-swiss-desktop.png` | `docs/reports/website-rehab-screenshots/mcp-swiss-mobile.png` |
 | Blog | `docs/reports/website-rehab-screenshots/blog-desktop.png` | `docs/reports/website-rehab-screenshots/blog-mobile.png` |
 
 The home-mobile screenshot was retaken after an initial bad capture and now
@@ -52,6 +54,9 @@ This means:
   a three-layer token contract
 - use TypeUI-style inspiration from Refined, Paper, Perspective, and a small
   amount of Neobrutalism, without copying a design kit blindly
+- layer in Swiss-modern discipline from the local skill: 12-column grids,
+  typographic hierarchy, disciplined asymmetry, flatter surfaces, exact
+  measures, and scarce accent use without turning the brand grayscale
 
 ## Decisions Needed
 
@@ -61,6 +66,7 @@ This means:
 | Shape system | Mostly square protocol panels with a small integral radius ladder | Zero radius everywhere, large pill/blob radii | Current route mix is visibly inconsistent. |
 | Typography | One high-quality sans/display family plus technical mono; role-specific weights | Keep `font-black` everywhere, buy a distinctive display face immediately | Type is the fastest path to making the site feel intentional. |
 | Color system | Source palette in token files only, semantic/role tokens everywhere else | Keep arbitrary page-level colors | Required for WCAG, dark mode, and maintainability. |
+| Grid system | 12-column Swiss editorial grid primitive for new proof slices | Keep local `grid-cols-*` math in every page | Prevents arbitrary widths from rebuilding drift route by route. |
 | Route strategy | Preserve broad current route surface, stabilize and normalize in slices | Replace with tiny site, delete old pages | Current recovery notes warn against another replacement reset. |
 | MCP page | First route replacement slice | Defer until later | It has visible mobile contrast failure and large drift. |
 | PWA | Add manifest/favicons; decide offline scope after content audit | Skip PWA entirely | A docs/product tool can benefit from installability, but offline caching has correctness risks. |
@@ -102,10 +108,15 @@ Approved and partly executed on 2026-04-26:
    - status: complete; `npm run lint`, focused tutorial tests, full tests, and
      `npm run build` now pass, with a remaining large-main-chunk warning
 2. Split token layers with compatibility aliases.
-3. Normalize Button, Badge, Surface, CodeBlock, SiteHeader, and Docs shell
+3. Add Swiss-modern structural layer:
+   - source and role tokens for grid columns, grid gaps, and copy measures
+   - shared `SwissGrid` and `SwissGridItem` primitives
+   - flatter public elevation tokens
+   - status: complete for the first MCP proof route slice
+4. Normalize Button, Badge, Surface, CodeBlock, SiteHeader, and Docs shell
    stories.
-4. Rebuild `/mcp` as the proof slice.
-5. Capture desktop/mobile screenshots and run a11y/perf gates before touching
+5. Rebuild `/mcp` as the proof slice.
+6. Capture desktop/mobile screenshots and run a11y/perf gates before touching
    the next route.
 
 ## Approval Checklist
@@ -116,4 +127,6 @@ Approved and partly executed on 2026-04-26:
 - Color posture approved enough to plan source/semantic/role tokens.
 - Route preservation map approved.
 - First execution slice approved and CI stabilization completed.
+- Swiss-modern grid layer approved by follow-up request and applied to the MCP
+  proof route with desktop/mobile screenshots.
 - Cheap subagent fanout approved for bounded write sets after the first slice.

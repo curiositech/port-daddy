@@ -29,6 +29,8 @@ import {
   PanelTitle,
   SectionIntro,
   SurfacePanel,
+  SwissGrid,
+  SwissGridItem,
 } from '@/components/site/primitives'
 
 type Tone = 'paper' | 'blue' | 'lime'
@@ -480,8 +482,9 @@ export default function McpPage() {
       />
 
       <header className="border-b-2 border-[var(--border-strong)] bg-[var(--surface-base)]">
-        <PageContainer width="wide" className="grid gap-[var(--space-7)] py-[var(--section-space-y)] lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:items-end lg:py-[var(--space-10)]">
-          <div className="space-y-[var(--space-6)]">
+        <PageContainer width="wide" className="py-[var(--section-space-y)] lg:py-[var(--space-10)]">
+          <SwissGrid className="items-end">
+            <SwissGridItem span="wide" className="space-y-[var(--space-6)]">
             <BracketLabel>Model Context Protocol</BracketLabel>
             <div className="space-y-[var(--space-5)]">
               <PanelTitle as="h1" size="hero" className="max-w-[12ch]">
@@ -499,26 +502,29 @@ export default function McpPage() {
                 Inspect fleet CLI
               </BracketLink>
             </div>
-          </div>
+            </SwissGridItem>
 
-          <SurfacePanel tone="blue" className="space-y-[var(--panel-gap-loose)]">
-            <div className="space-y-[var(--space-2)]">
-              <PanelEyebrow tone="primary">Install surface</PanelEyebrow>
-              <PanelTitle as="p" size="display" tone="primary">
-                pd mcp install
-              </PanelTitle>
-              <PanelBody tone="primary" className="max-w-none">
-                One local daemon. MCP-compatible clients. Durable session truth.
-              </PanelBody>
-            </div>
-            <DocsCodeBlock
-              code={`pd install
+            <SwissGridItem span="narrow">
+              <SurfacePanel tone="blue" className="space-y-[var(--panel-gap-loose)]">
+                <div className="space-y-[var(--space-2)]">
+                  <PanelEyebrow tone="primary">Install surface</PanelEyebrow>
+                  <PanelTitle as="p" size="display" tone="primary">
+                    pd mcp install
+                  </PanelTitle>
+                  <PanelBody tone="primary" className="max-w-none">
+                    One local daemon. MCP-compatible clients. Durable session truth.
+                  </PanelBody>
+                </div>
+                <DocsCodeBlock
+                  code={`pd install
 pd mcp install
 pd begin --identity myapp:agent --purpose "coordinate MCP work"`}
-              language="cli"
-              label="Setup"
-            />
-          </SurfacePanel>
+                  language="cli"
+                  label="Setup"
+                />
+              </SurfacePanel>
+            </SwissGridItem>
+          </SwissGrid>
         </PageContainer>
       </header>
 
@@ -530,36 +536,49 @@ pd begin --identity myapp:agent --purpose "coordinate MCP work"`}
       </SectionBand>
 
       <SectionBand id="tools">
-        <PageContainer width="wide" className="space-y-[var(--space-7)]">
-          <SectionIntro
-            eyebrow="High-level MCP tools"
-            title="Useful calls that carry Port Daddy authority."
-            description="The MCP surface does not expose a loose bag of shell wrappers. The important calls preserve identity, budget, files, session notes, and recovery semantics."
-            titleSize="display"
-          />
-          <div className="grid gap-[var(--space-5)] md:grid-cols-2 xl:grid-cols-3">
-            {MAGIC_TOOLS.map((tool, index) => (
-              <ToolCard key={tool.name} tool={tool} index={index} />
-            ))}
-          </div>
+        <PageContainer width="wide">
+          <SwissGrid>
+            <SwissGridItem span="rail">
+              <SectionIntro
+                eyebrow="High-level MCP tools"
+                title="Useful calls that carry Port Daddy authority."
+                description="The MCP surface does not expose a loose bag of shell wrappers. The important calls preserve identity, budget, files, session notes, and recovery semantics."
+                titleSize="display"
+              />
+            </SwissGridItem>
+            <SwissGridItem span="body">
+              <div className="grid gap-[var(--space-5)] md:grid-cols-2 xl:grid-cols-3">
+                {MAGIC_TOOLS.map((tool, index) => (
+                  <ToolCard key={tool.name} tool={tool} index={index} />
+                ))}
+              </div>
+            </SwissGridItem>
+          </SwissGrid>
         </PageContainer>
       </SectionBand>
 
       <SectionBand id="channels" tone="sunken">
-        <PageContainer width="wide" className="space-y-[var(--space-7)]">
-          <SectionIntro
-            eyebrow="Pub/Sub radio"
-            title="A channel is the same channel everywhere."
-            description="CLI hooks, MCP clients, SDK integrations, and REST/SSE consumers publish into the same scoped channel model. That keeps background fleets and interactive agents synchronized."
-            titleSize="display"
-          />
-          <ChannelTabs />
+        <PageContainer width="wide">
+          <SwissGrid>
+            <SwissGridItem span="rail">
+              <SectionIntro
+                eyebrow="Pub/Sub radio"
+                title="A channel is the same channel everywhere."
+                description="CLI hooks, MCP clients, SDK integrations, and REST/SSE consumers publish into the same scoped channel model. That keeps background fleets and interactive agents synchronized."
+                titleSize="display"
+              />
+            </SwissGridItem>
+            <SwissGridItem span="body">
+              <ChannelTabs />
+            </SwissGridItem>
+          </SwissGrid>
         </PageContainer>
       </SectionBand>
 
       <SectionBand id="fleet">
-        <PageContainer width="wide" className="grid gap-[var(--space-7)] lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-start">
-          <div className="space-y-[var(--section-intro-gap)]">
+        <PageContainer width="wide">
+          <SwissGrid className="items-start">
+            <SwissGridItem span="wide" className="space-y-[var(--section-intro-gap)]">
             <SectionIntro
               eyebrow="Fleet recovery"
               title="Respawn is a policy, not a hope."
@@ -567,11 +586,12 @@ pd begin --identity myapp:agent --purpose "coordinate MCP work"`}
               titleSize="display"
             />
             <LifecycleDiagram />
-          </div>
-          <SurfacePanel className="space-y-[var(--panel-gap)]">
-            <PanelEyebrow>pd-fleet.yml</PanelEyebrow>
-            <DocsCodeBlock
-              code={`fleet:
+            </SwissGridItem>
+            <SwissGridItem span="narrow">
+              <SurfacePanel className="space-y-[var(--panel-gap)]">
+                <PanelEyebrow>pd-fleet.yml</PanelEyebrow>
+                <DocsCodeBlock
+                  code={`fleet:
   name: myapp
   agents:
     qa:
@@ -590,16 +610,19 @@ pd begin --identity myapp:agent --purpose "coordinate MCP work"`}
       budget_usd_per_day: 1.00
       prompt: |
         Propose one codebase improvement.`}
-              language="text"
-              label="Fleet config"
-            />
-          </SurfacePanel>
+                  language="text"
+                  label="Fleet config"
+                />
+              </SurfacePanel>
+            </SwissGridItem>
+          </SwissGrid>
         </PageContainer>
       </SectionBand>
 
       <SectionBand id="memory" tone="raised">
-        <PageContainer width="wide" className="grid gap-[var(--space-7)] lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
-          <div className="space-y-[var(--section-intro-gap)]">
+        <PageContainer width="wide">
+          <SwissGrid className="items-start">
+            <SwissGridItem span="half" className="space-y-[var(--section-intro-gap)]">
             <SectionIntro
               eyebrow="Tuple space"
               title="Shared memory for parallel agents."
@@ -623,9 +646,10 @@ pd begin --identity myapp:agent --purpose "coordinate MCP work"`}
                 </SurfacePanel>
               ))}
             </div>
-          </div>
-          <DocsCodeBlock
-            code={`await tuple_out({
+            </SwissGridItem>
+            <SwissGridItem span="half">
+              <DocsCodeBlock
+                code={`await tuple_out({
   tuple: ["connection", "trie+pubsub=routing", "spider", 0.9],
   harbor: "myapp:fleet"
 })
@@ -639,23 +663,29 @@ const task = await tuple_in({
   pattern: ["task", "*", "pending"],
   harbor: "myapp:fleet"
 })`}
-            language="typescript"
-            label="Tuple coordination"
-          />
+                language="typescript"
+                label="Tuple coordination"
+              />
+            </SwissGridItem>
+          </SwissGrid>
         </PageContainer>
       </SectionBand>
 
       <SectionBand id="discovery">
         <PageContainer width="wide" className="space-y-[var(--space-7)]">
-          <div className="grid gap-[var(--space-7)] lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-            <SectionIntro
-              eyebrow="Tool discovery"
-              title="Small default surface, full system on demand."
-              description="Agents should not start every turn with an overwhelming tool list. The default surface stays tight, then specialized categories unlock only when the task needs them."
-              titleSize="display"
-            />
-            <EssentialTools />
-          </div>
+          <SwissGrid>
+            <SwissGridItem span="wide">
+              <SectionIntro
+                eyebrow="Tool discovery"
+                title="Small default surface, full system on demand."
+                description="Agents should not start every turn with an overwhelming tool list. The default surface stays tight, then specialized categories unlock only when the task needs them."
+                titleSize="display"
+              />
+            </SwissGridItem>
+            <SwissGridItem span="narrow">
+              <EssentialTools />
+            </SwissGridItem>
+          </SwissGrid>
           <DiscoverGrid />
         </PageContainer>
       </SectionBand>

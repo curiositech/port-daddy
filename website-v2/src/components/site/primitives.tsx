@@ -246,6 +246,17 @@ const pageContainerWidthClass = {
   wide: 'max-w-[var(--layout-max-width-wide)]',
 } as const
 
+const swissGridSpanClass = {
+  full: 'lg:col-span-12',
+  half: 'lg:col-span-6',
+  third: 'lg:col-span-4',
+  twoThirds: 'lg:col-span-8',
+  narrow: 'lg:col-span-5',
+  wide: 'lg:col-span-7',
+  rail: 'lg:col-span-3',
+  body: 'lg:col-span-9',
+} as const
+
 export function PageContainer({
   children,
   className,
@@ -263,6 +274,39 @@ export function PageContainer({
         className,
       )}
     >
+      {children}
+    </div>
+  )
+}
+
+export function SwissGrid({
+  children,
+  className,
+}: {
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <div
+      data-slot="swiss-grid"
+      className={cn('grid min-w-0 grid-cols-1 gap-[var(--grid-gap)] lg:grid-cols-12', className)}
+    >
+      {children}
+    </div>
+  )
+}
+
+export function SwissGridItem({
+  children,
+  className,
+  span = 'full',
+}: {
+  children: ReactNode
+  className?: string
+  span?: keyof typeof swissGridSpanClass
+}) {
+  return (
+    <div data-slot="swiss-grid-item" className={cn('min-w-0', swissGridSpanClass[span], className)}>
       {children}
     </div>
   )
@@ -293,7 +337,7 @@ export function SectionIntro({
       <PanelTitle as={titleAs} size={titleSize} className={titleClassName}>
         {title}
       </PanelTitle>
-      <PanelBody className={bodyClassName}>{description}</PanelBody>
+      <PanelBody className={cn('max-w-[var(--measure-copy)]', bodyClassName)}>{description}</PanelBody>
     </div>
   )
 }

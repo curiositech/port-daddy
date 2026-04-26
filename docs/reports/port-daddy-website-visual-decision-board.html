@@ -528,10 +528,10 @@
         <h1>Stabilize the site before making it beautiful.</h1>
         <p class="lead">
           This board translates the `ideal-web-app-builder` handoff into a static
-          HTML review artifact. The stabilization, token/performance, and MCP
-          proof-route slices are now executed; the board remains the visual
-          checkpoint for the next component-state, content, and product-readiness
-          decisions.
+          HTML review artifact. The stabilization, token/performance, MCP
+          proof-route, and Swiss-modern grid-layer slices are now executed; the
+          board remains the visual checkpoint for the next component-state,
+          content, and product-readiness decisions.
         </p>
         <div class="hero-actions" aria-label="Source artifacts">
           <a class="pill primary" href="../plans/port-daddy-website-ideal-web-app-rehab.md">Open rehab plan</a>
@@ -545,11 +545,12 @@
           <div class="section-head">
             <h2>Current Truth</h2>
             <p>
-              Stabilization, token layering, route chunking, and the MCP proof
-              route are complete for their first slices. This is still not a
-              finished ideal web app: accessibility evidence, Storybook state
-              matrices, route metadata, PWA posture, legal pages, observability,
-              and deeper diagram-payload decisions still need explicit work.
+              Stabilization, token layering, route chunking, the MCP proof
+              route, and the first Swiss-modern grid layer are complete for
+              their first slices. This is still not a finished ideal web app:
+              accessibility evidence, Storybook state matrices, route metadata,
+              PWA posture, legal pages, observability, and deeper diagram-payload
+              decisions still need explicit work.
             </p>
           </div>
 
@@ -557,7 +558,7 @@
             <article class="card card-pad metric">
               <span>Build</span>
               <b class="ok">Pass</b>
-              <p>Vite builds with no chunk warning. The largest JS chunk is Mermaid at 491.12 kB minified / 136.66 kB gzip.</p>
+              <p>Vite builds with no chunk warning. The largest JS chunk is Mermaid at 491.12 kB minified / 136.65 kB gzip.</p>
             </article>
             <article class="card card-pad metric">
               <span>Tests</span>
@@ -662,6 +663,24 @@
               <img src="website-rehab-screenshots/mcp-proof-mobile.png" alt="Mobile screenshot of the rebuilt MCP proof route with readable copy and contained code panel.">
             </figure>
             <figure class="card shot">
+              <img src="website-rehab-screenshots/mcp-swiss-desktop.png" alt="Desktop screenshot of the MCP page after Swiss-modern grid layering with clearer 12-column alignment.">
+              <figcaption>
+                <span class="caption">MCP Swiss desktop</span>
+                <span class="tag">Grid layer</span>
+              </figcaption>
+            </figure>
+            <figure class="card shot mobile">
+              <figcaption>
+                <span class="caption">MCP Swiss mobile</span>
+                <span class="tag">Grid layer</span>
+                <p>
+                  The Swiss layer preserves mobile readability while the desktop
+                  layout moves to a stricter editorial grid and flatter surfaces.
+                </p>
+              </figcaption>
+              <img src="website-rehab-screenshots/mcp-swiss-mobile.png" alt="Mobile screenshot of the MCP page after Swiss-modern grid layering.">
+            </figure>
+            <figure class="card shot">
               <img src="website-rehab-screenshots/blog-desktop.png" alt="Desktop screenshot of the blog page with article cards and editorial sections.">
               <figcaption>
                 <span class="caption">Blog desktop</span>
@@ -701,6 +720,7 @@
               <li>Use TypeUI-style `Refined` for typography discipline.</li>
               <li>Use `Paper` for docs tactility and artifact credibility.</li>
               <li>Use `Perspective` for diagrams and system explanation.</li>
+              <li>Use Swiss-modern structure for grids, measure, rhythm, and restraint.</li>
               <li>Keep only a measured amount of neobrutalist pressure.</li>
             </ul>
           </div>
@@ -751,6 +771,12 @@
                   <td>Source palette in token files only, semantic and role tokens everywhere else</td>
                   <td>Keep arbitrary page-level colors</td>
                   <td>Required for WCAG, dark mode, and maintainability.</td>
+                </tr>
+                <tr>
+                  <td>Grid system</td>
+                  <td>Shared 12-column Swiss editorial grid primitive for new proof slices</td>
+                  <td>Keep local grid math inside each page</td>
+                  <td>Prevents arbitrary widths from rebuilding visual drift route by route.</td>
                 </tr>
                 <tr>
                   <td>Route strategy</td>
@@ -814,7 +840,13 @@
             <article class="step">
               <div>
                 <h3>Normalize primitives and stories.</h3>
-                <p>Status: partial. Public primitives and code blocks gained shrink-safe mobile behavior; Button, Badge, Surface, SiteHeader, Docs shell, and state matrices still need work.</p>
+                <p>Status: partial. Public primitives and code blocks gained shrink-safe mobile behavior; SwissGrid exists; Button, Badge, Surface, SiteHeader, Docs shell, and state matrices still need work.</p>
+              </div>
+            </article>
+            <article class="step">
+              <div>
+                <h3>Layer in Swiss-modern structure.</h3>
+                <p>Status: complete for the first proof slice. Source and role tokens now include grid and measure roles, shadows are flatter, and `/mcp` uses the shared 12-column grid.</p>
               </div>
             </article>
             <article class="step">
@@ -833,7 +865,7 @@
             <span class="kicker">Do not claim done</span>
             <ul class="list">
               <li>The website is not product-ready just because tests and lint are green.</li>
-              <li>The design system is not ideal until all page slices migrate and state matrices exist.</li>
+              <li>The design system is not ideal until all page slices migrate to shared grid/measure primitives and state matrices exist.</li>
               <li>Accessibility is not acceptable until axe, keyboard, focus, and screen-reader evidence exists.</li>
               <li>Performance is improved, not done, while Mermaid and diagram payload decisions remain.</li>
             </ul>

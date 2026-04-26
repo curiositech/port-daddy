@@ -17,7 +17,8 @@ import {
   writeCurrentContext,
 } from '../../cli/utils/current-context.js';
 
-const STATE_FILE = join(tmpdir(), 'port-daddy-test-state.json');
+const TEST_STATE_FILE_ENV = 'PORT_DADDY_TEST_STATE_FILE';
+const FALLBACK_STATE_FILE = join(tmpdir(), 'port-daddy-test-state.json');
 const TSX_PATH = join(import.meta.dirname, '../../node_modules/.bin/tsx');
 const DAEMON_BODY_LIMIT_BYTES = 10 * 1024;
 // Full-suite integration runs can saturate CPU hard enough that spawning a
@@ -37,6 +38,10 @@ const TEST_ENV = {
 };
 
 let _state = null;
+
+function getStateFile() {
+  return process.env[TEST_STATE_FILE_ENV] || FALLBACK_STATE_FILE;
+}
 
 function getDaemonStateFromEnv() {
   const sockPath = process.env[TEST_ENV.sockPath];
@@ -76,15 +81,18 @@ function applyTestEnv(state) {
  */
 export function getDaemonState() {
   if (!_state) {
-    try {
-      _state = JSON.parse(readFileSync(STATE_FILE, 'utf8'));
-    } catch {
-      _state = getDaemonStateFromEnv();
+    _state = getDaemonStateFromEnv();
+    if (!_state) {
+      try {
+        _state = JSON.parse(readFileSync(getStateFile(), 'utf8'));
+      } catch {
+        _state = null;
+      }
     }
   }
 
   if (!_state) {
-    throw new Error(`missing ephemeral daemon state: ${STATE_FILE}`);
+    throw new Error(`missing ephemeral daemon state: ${getStateFile()}`);
   }
 
   applyTestEnv(_state);

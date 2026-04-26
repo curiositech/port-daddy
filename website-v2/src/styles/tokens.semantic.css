@@ -57,11 +57,11 @@
   --voice-over: var(--text-muted);
   --voice-out: var(--text-muted);
 
-  --shadow-raised: 5px 5px 0 var(--border-strong);
+  --shadow-raised: 3px 3px 0 var(--border-strong);
   --shadow-inset: inset 2px 2px 0 rgba(18, 18, 18, 0.12);
-  --shadow-sm: 3px 3px 0 var(--border-strong);
+  --shadow-sm: 2px 2px 0 var(--border-strong);
   --shadow-flat: 0 0 0 var(--border-strong);
-  --shadow-pressed: 2px 2px 0 var(--border-strong);
+  --shadow-pressed: 1px 1px 0 var(--border-strong);
 
   --code-bg: #12161f;
   --code-header-bg: #0d1118;
@@ -116,11 +116,11 @@
   --status-error: #ff7d7d;
   --status-info: #7db4ff;
 
-  --shadow-raised: 6px 6px 0 var(--border-strong);
+  --shadow-raised: 3px 3px 0 var(--border-strong);
   --shadow-inset: inset 2px 2px 0 rgba(245, 243, 237, 0.12);
-  --shadow-sm: 3px 3px 0 var(--border-strong);
+  --shadow-sm: 2px 2px 0 var(--border-strong);
   --shadow-flat: 0 0 0 var(--border-strong);
-  --shadow-pressed: 2px 2px 0 var(--border-strong);
+  --shadow-pressed: 1px 1px 0 var(--border-strong);
 
   --code-bg: #0b0d11;
   --code-header-bg: #080a0e;

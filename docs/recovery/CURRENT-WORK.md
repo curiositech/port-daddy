@@ -187,6 +187,48 @@ Follow-on execution session: `session-4174ea2d-db24-4af2-a2d4-d9be7421a26c`.
   literals in legacy pages outside the protected contract, and a deeper
   Mermaid/diagram payload decision.
 
+### Port Daddy Website Swiss-Modern Grid Layer Slice (2026-04-26)
+
+Follow-on execution session: `session-d43caa83-9525-4a04-a1b4-57df1ef92916`.
+
+- The local `swiss-modern-website-design` skill was used as the design lens for
+  this slice. The implementation is an overlay on the Port Daddy identity, not
+  a grayscale replacement: keep paper/ink/blue/lime, but make the grid,
+  measure, typography, and surface depth stricter.
+- The Swiss-modern audit against `website-v2` reported remaining drift:
+  219 literal color instances, 145 unique literal colors, 203 radius patterns,
+  121 shadow patterns, and 185 width patterns.
+- Source and role tokens now include a formal grid/measure layer:
+  `--layout-grid-columns`, `--layout-grid-gap`, `--layout-copy-measure`,
+  `--layout-caption-measure`, `--layout-meta-measure`, `--grid-*`, and
+  `--measure-*`.
+- Shared elevation tokens are flatter (`--shadow-raised`, `--shadow-sm`, and
+  `--shadow-pressed`) so the public shell reads more like editorial
+  infrastructure and less like a stack of decorative cards.
+- `website-v2/src/components/site/primitives.tsx` now exports `SwissGrid` and
+  `SwissGridItem` for 12-column desktop composition with a mobile-safe
+  single-column collapse.
+- The public primitive Storybook story now demonstrates the Swiss grid contract.
+- `/mcp` now uses the Swiss grid for the proof route: 7/5 hero composition,
+  3/9 rail/body sections, and 6/6 or 7/5 proof sections while preserving mobile
+  wrapping.
+- Proof screenshots now exist at:
+  - `docs/reports/website-rehab-screenshots/mcp-swiss-desktop.png`
+  - `docs/reports/website-rehab-screenshots/mcp-swiss-mobile.png`
+- Validation truth on 2026-04-26 from `website-v2/`:
+  - `npm run lint`: green
+  - `npm run test -- src/design-system-contracts.test.ts`: 10/10 pass
+  - `npm run test`: 7/7 files and 73/73 tests pass
+  - `npm run build`: green with no chunk-size warning; largest JS chunk is
+    `Mermaid-C7kUbfif.js` at 491.12 kB minified / 136.65 kB gzip, and the MCP
+    route chunk is `MCPPage-BRPJpuq-.js` at 18.66 kB minified / 6.12 kB gzip
+  - `npm run build-storybook`: green with the known large iframe chunk warning
+    and `radix-ui` package metadata warning
+- Remaining website rehab blockers: broader route migration to the Swiss grid,
+  Storybook state matrix, axe/keyboard/manual a11y evidence, SEO/OG/PWA/legal/
+  privacy/observability, raw visual literals in legacy pages, and a deeper
+  Mermaid/diagram payload decision.
+
 ### Cartographer / Navigator Maritime Actor Foundation (2026-04-26)
 
 The current actor slice rebuilds the missing foundation that recovery docs had

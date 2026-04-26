@@ -10,6 +10,25 @@ private struct RecentAgentHighlight: Identifiable {
     var id: String { "\(projectId)::\(agent.id)" }
 }
 
+private func agentStatusColor(_ status: FleetAgent.AgentStatus) -> Color {
+    switch status {
+    case .running:
+        return Fleet.Color.healthy
+    case .queued, .armed, .scheduled, .orphanReconciled:
+        return Fleet.Color.active
+    case .paused, .salvaged:
+        return Fleet.Color.warning
+    case .failed:
+        return Fleet.Color.failure
+    case .dead:
+        return Fleet.Color.dead
+    case .historical:
+        return Fleet.Color.dormant.opacity(0.8)
+    case .idle:
+        return Fleet.Color.dormant.opacity(0.45)
+    }
+}
+
 // MARK: - Main Popover
 
 struct FleetPopover: View {
@@ -286,7 +305,7 @@ struct FleetPopover: View {
                     VStack(alignment: .leading, spacing: 5) {
                         HStack(spacing: Fleet.Space.s) {
                             Circle()
-                                .fill(item.agent.status.isDeployed ? Fleet.Color.healthy : Fleet.Color.dormant.opacity(0.45))
+                                .fill(agentStatusColor(item.agent.status))
                                 .frame(width: 7, height: 7)
                             Text(item.agent.name)
                                 .font(.system(.caption, design: .monospaced).weight(.semibold))
@@ -823,19 +842,30 @@ struct AgentRow: View {
                         .foregroundStyle(.quaternary)
                         .frame(width: 52, alignment: .trailing)
                 }
-                Button(agent.status == .paused ? "Resume" : "Pause", action: onPauseToggle)
-                    .buttonStyle(.borderless)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(agent.status == .paused ? Fleet.Color.healthy : Fleet.Color.warning)
-                Button("Run", action: onRunAgent)
-                    .buttonStyle(.borderless)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(Fleet.Color.active)
+                if agent.canControl {
+                    Button(agent.status == .paused ? "Resume" : "Pause", action: onPauseToggle)
+                        .buttonStyle(.borderless)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(agent.status == .paused ? Fleet.Color.healthy : Fleet.Color.warning)
+                    Button("Run", action: onRunAgent)
+                        .buttonStyle(.borderless)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(Fleet.Color.active)
+                }
             }
             if let lastSummary = agent.lastSummary, !lastSummary.isEmpty {
                 Text(lastSummary)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .padding(.leading, Fleet.Space.xl + Fleet.Space.xs + Fleet.Space.s + Fleet.Space.l)
+            }
+            if let statusReason = agent.statusReason,
+               !statusReason.isEmpty,
+               statusReason != agent.lastSummary {
+                Text(statusReason)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
                     .lineLimit(2)
                     .padding(.leading, Fleet.Space.xl + Fleet.Space.xs + Fleet.Space.s + Fleet.Space.l)
             }
@@ -888,6 +918,21 @@ struct AgentRow: View {
             Image(systemName: "pause.circle.fill")
                 .font(.system(size: 9))
                 .foregroundStyle(Fleet.Color.warning)
+
+        case .salvaged:
+            Image(systemName: "wrench.and.screwdriver.fill")
+                .font(.system(size: 9))
+                .foregroundStyle(Fleet.Color.warning)
+
+        case .orphanReconciled:
+            Image(systemName: "arrow.triangle.2.circlepath.circle.fill")
+                .font(.system(size: 9))
+                .foregroundStyle(Fleet.Color.active)
+
+        case .historical:
+            Image(systemName: "clock.arrow.trianglehead.counterclockwise.rotate.90")
+                .font(.system(size: 9))
+                .foregroundStyle(Fleet.Color.dormant)
 
         case .idle:
             Circle()
@@ -964,6 +1009,10 @@ struct EventLabel: View {
         case "agent_paused":      return "paused"
         case "agent_resumed":     return "armed"
         case "watcher_triggered": return "fired"
+        case "salvaged":          return "salvaged"
+        case "orphan_reconciled": return "reconciled"
+        case "historical":        return "history"
+        case "idle":              return "idle"
         default: return event
         }
     }
@@ -976,6 +1025,10 @@ struct EventLabel: View {
         case "agent_paused":      return Fleet.Color.warning
         case "agent_resumed":     return Fleet.Color.active
         case "watcher_triggered": return Fleet.Color.warning
+        case "salvaged":          return Fleet.Color.warning
+        case "orphan_reconciled": return Fleet.Color.active
+        case "historical":        return Fleet.Color.dormant
+        case "idle":              return Fleet.Color.dormant
         default: return .secondary
         }
     }

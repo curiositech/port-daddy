@@ -2,6 +2,13 @@ import SwiftUI
 import Combine
 import Darwin
 
+private extension String {
+    var nilIfEmpty: String? {
+        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+}
+
 // MARK: - Data Model
 
 struct FleetProject: Identifiable {
@@ -20,7 +27,10 @@ struct FleetAgent: Identifiable {
     let id: String  // identity (project:fleet:agent)
     let name: String
     let type: AgentType  // scheduled, triggered, watcher
+    let isConfiguredFleetAgent: Bool
+    let inboxTarget: String?
     var status: AgentStatus
+    var statusReason: String?
     var queueDepth: Int
     var lastActivity: Date?
     var lastEvent: String?
@@ -29,10 +39,12 @@ struct FleetAgent: Identifiable {
 
     enum AgentType: String, Codable {
         case scheduled, triggered, watcher
+        case adhoc = "ad_hoc"
     }
 
     enum AgentStatus: String {
         case running, queued, armed, scheduled, paused, idle, failed, dead
+        case salvaged, orphanReconciled = "orphan_reconciled", historical
 
         var isDeployed: Bool {
             switch self {
@@ -42,6 +54,10 @@ struct FleetAgent: Identifiable {
                 return false
             }
         }
+    }
+
+    var canControl: Bool {
+        isConfiguredFleetAgent && type != .adhoc
     }
 }
 
@@ -97,6 +113,41 @@ struct AgentResponse: Decodable {
     let paused: Bool
     let uptime: Double
     let queueDepth: Int?
+}
+
+struct OperatorActorsResponse: Decodable {
+    let success: Bool
+    let projectDir: String?
+    let project: String?
+    let actors: [OperatorActorResponse]
+    let count: Int
+}
+
+struct OperatorActorResponse: Decodable {
+    let id: String
+    let label: String
+    let purpose: String?
+    let identity: String?
+    let fleetAgentName: String?
+    let inboxTarget: String
+    let isConfiguredFleetAgent: Bool
+    let actorKind: ActorKind
+    let actorState: ActorState
+    let actorStateReason: String
+    let runtimeStatus: String?
+    let lastActivityAt: Double?
+    let lastSummary: String?
+    let recentFiles: [String]
+
+    enum ActorKind: String, Decodable {
+        case scheduled, triggered, watcher
+        case adHoc = "ad_hoc"
+    }
+
+    enum ActorState: String, Decodable {
+        case running, idle, salvaged, historical
+        case orphanReconciled = "orphan_reconciled"
+    }
 }
 
 struct DaemonStatusResponse: Decodable {
@@ -397,7 +448,10 @@ class FleetStore: ObservableObject {
                 daemonStatus = nil
             }
             applyStatus(status, registeredProjects: registeredProjects)
-            await enrichProjectsFromBriefings()
+            let actorEnriched = await enrichProjectsFromActors()
+            if !actorEnriched {
+                await enrichProjectsFromBriefings()
+            }
             lastRefresh = Date()
         } catch {
             isDaemonRunning = false
@@ -563,7 +617,10 @@ class FleetStore: ObservableObject {
                     id: "\(fleet.project):fleet:\(agent.name)",
                     name: agent.name,
                     type: FleetAgent.AgentType(rawValue: agent.type) ?? .triggered,
+                    isConfiguredFleetAgent: true,
+                    inboxTarget: agent.name,
                     status: FleetAgent.AgentStatus(rawValue: agent.status) ?? (agent.running ? .running : agent.paused ? .paused : .idle),
+                    statusReason: existing?.statusReason,
                     queueDepth: agent.queueDepth ?? 0,
                     lastActivity: existing?.lastActivity,
                     lastEvent: existing?.lastEvent,
@@ -647,6 +704,194 @@ class FleetStore: ObservableObject {
             expandedProjects.remove(id)
         } else {
             expandedProjects.insert(id)
+        }
+    }
+
+    /**
+     * Merge daemon actor-lens records into the FleetBar project list so
+     * configured idle actors, salvage state, and historical residue remain
+     * visible even when no live runtime body is registered.
+     *
+     * Example:
+     * - input: `/fleet` plus `/operator/actors?projectDir=...`
+     * - output: project rows that still show `spark` as salvaged or historical
+     */
+    private func enrichProjectsFromActors() async -> Bool {
+        guard isDaemonRunning, !projects.isEmpty else { return false }
+
+        var nextProjects = projects
+        var loadedAny = false
+        await withTaskGroup(of: (String, [OperatorActorResponse]?).self) { group in
+            for project in nextProjects {
+                group.addTask { [baseURL] in
+                    guard var components = URLComponents(string: "\(baseURL)/operator/actors") else {
+                        return (project.id, nil)
+                    }
+                    components.queryItems = [
+                        URLQueryItem(name: "projectDir", value: project.projectDir),
+                        URLQueryItem(name: "limit", value: "80"),
+                    ]
+                    guard let url = components.url else { return (project.id, nil) }
+                    do {
+                        let (data, response) = try await URLSession.shared.data(from: url)
+                        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+                            return (project.id, nil)
+                        }
+                        let envelope = try JSONDecoder().decode(OperatorActorsResponse.self, from: data)
+                        return (project.id, envelope.actors)
+                    } catch {
+                        return (project.id, nil)
+                    }
+                }
+            }
+
+            for await (projectId, actors) in group {
+                guard let projectIndex = nextProjects.firstIndex(where: { $0.id == projectId }),
+                      let actors else { continue }
+                loadedAny = true
+                mergeActorEntries(actors, into: &nextProjects[projectIndex])
+            }
+        }
+
+        if loadedAny {
+            projects = nextProjects
+        }
+        return loadedAny
+    }
+
+    /**
+     * Join logical actor records onto the current native project snapshot using
+     * the daemon inbox target or configured fleet name as the durable key.
+     *
+     * Example:
+     * - input: existing running `spark` row + historical `spark` actor record
+     * - output: one `spark` row carrying summary, files, and actor lifecycle
+     */
+    private func mergeActorEntries(_ actors: [OperatorActorResponse], into project: inout FleetProject) {
+        var mergedByKey = Dictionary(uniqueKeysWithValues: project.agents.map { (actorMergeKey(for: $0), $0) })
+
+        for actor in actors {
+            let key = actorMergeKey(for: actor)
+            let existing = mergedByKey[key]
+            let nextType = existing?.type ?? mapActorType(actor.actorKind)
+            let nextSummary = actor.lastSummary?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let nextFiles = actor.recentFiles.isEmpty
+                ? (existing?.recentFiles ?? [])
+                : Array(actor.recentFiles.prefix(4))
+            let agentName = actor.fleetAgentName?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+                ?? actor.label.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+                ?? actor.id
+
+            mergedByKey[key] = FleetAgent(
+                id: existing?.id ?? synthesizeAgentId(for: actor, projectName: project.name, fallbackName: agentName),
+                name: agentName,
+                type: nextType,
+                isConfiguredFleetAgent: actor.isConfiguredFleetAgent,
+                inboxTarget: actor.inboxTarget,
+                status: mapActorStatus(actor),
+                statusReason: actor.actorStateReason,
+                queueDepth: existing?.queueDepth ?? 0,
+                lastActivity: actor.lastActivityAt.map { Date(timeIntervalSince1970: $0 / 1000) } ?? existing?.lastActivity,
+                lastEvent: actor.runtimeStatus ?? actor.actorState.rawValue,
+                lastSummary: nextSummary?.nilIfEmpty ?? existing?.lastSummary,
+                recentFiles: nextFiles
+            )
+        }
+
+        project.agents = Array(mergedByKey.values)
+            .sorted { lhs, rhs in
+                switch (lhs.lastActivity, rhs.lastActivity) {
+                case let (left?, right?) where left != right:
+                    return left > right
+                case (.some, nil):
+                    return true
+                case (nil, .some):
+                    return false
+                default:
+                    return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+                }
+            }
+    }
+
+    private func actorMergeKey(for actor: OperatorActorResponse) -> String {
+        if let fleetAgentName = actor.fleetAgentName?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !fleetAgentName.isEmpty {
+            return fleetAgentName.lowercased()
+        }
+        return actor.inboxTarget.lowercased()
+    }
+
+    private func actorMergeKey(for agent: FleetAgent) -> String {
+        if let inboxTarget = agent.inboxTarget?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !inboxTarget.isEmpty {
+            return inboxTarget.lowercased()
+        }
+        return agent.name.lowercased()
+    }
+
+    private func synthesizeAgentId(for actor: OperatorActorResponse, projectName: String, fallbackName: String) -> String {
+        if let identity = actor.identity?.trimmingCharacters(in: .whitespacesAndNewlines), !identity.isEmpty {
+            return identity
+        }
+        if let fleetAgentName = actor.fleetAgentName?.trimmingCharacters(in: .whitespacesAndNewlines), !fleetAgentName.isEmpty {
+            return "\(projectName):fleet:\(fleetAgentName)"
+        }
+        return actor.id.isEmpty ? "\(projectName):actor:\(fallbackName)" : actor.id
+    }
+
+    private func mapActorType(_ kind: OperatorActorResponse.ActorKind) -> FleetAgent.AgentType {
+        switch kind {
+        case .scheduled:
+            return .scheduled
+        case .triggered:
+            return .triggered
+        case .watcher:
+            return .watcher
+        case .adHoc:
+            return .adhoc
+        }
+    }
+
+    /**
+     * Translate daemon actor lifecycle state into FleetBar-native status badges.
+     *
+     * Example:
+     * - input: `{ actorState: .salvaged, runtimeStatus: nil }`
+     * - output: `.salvaged`
+     */
+    private func mapActorStatus(_ actor: OperatorActorResponse) -> FleetAgent.AgentStatus {
+        switch actor.runtimeStatus?.lowercased() {
+        case "running":
+            return .running
+        case "queued":
+            return .queued
+        case "armed":
+            return .armed
+        case "scheduled":
+            return .scheduled
+        case "paused":
+            return .paused
+        case "failed":
+            return .failed
+        case "dead":
+            return .dead
+        case "idle":
+            return .idle
+        default:
+            break
+        }
+
+        switch actor.actorState {
+        case .running:
+            return .running
+        case .idle:
+            return .idle
+        case .salvaged:
+            return .salvaged
+        case .orphanReconciled:
+            return .orphanReconciled
+        case .historical:
+            return .historical
         }
     }
 
