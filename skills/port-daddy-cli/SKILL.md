@@ -58,7 +58,7 @@ Use the richer coordination primitives when they actually add value:
 - `pd note`
   - human-readable scope, handoffs, blockers, and conclusions
 - `pd session files add`
-  - advisory edit ownership before touching files
+  - advisory edit ownership before touching files; prefer symbol/region claims through the HTTP API/SDK when edits are function-scoped
 - `pd lock` / `pd with-lock`
   - truly exclusive sections like migrations, releases, or rewrites of a shared generated artifact
 - tuple space
@@ -210,6 +210,8 @@ pd session files add src/auth/login.ts
 
 Claims are advisory — they warn, don't lock. Hard locks cause deadlocks. Advisory claims cause conversations.
 Canonical syntax is `pd session files add|rm`. The older `claim|release` forms are accepted as compatibility aliases, but new docs and examples should use `add|rm`.
+
+For code files, avoid widening coordination to a whole file when the task is naturally function/class scoped. Use `pd session files add src/auth.ts --symbol-path AuthService.refreshToken` when the symbol index knows the target; see `references/api-reference.md` for HTTP/API details. Whole-file `pd session files add` is still the fallback when you do not yet know the symbol or the edit spans the file. `pd lock` is stronger than a claim and belongs on scarce critical sections, generated artifacts, migrations, promotion, and other non-mergeable resources.
 
 ### Pub/Sub Messaging
 

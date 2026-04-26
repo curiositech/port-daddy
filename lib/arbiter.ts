@@ -14,13 +14,16 @@
 import { join, dirname } from 'node:path';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 import { ActivityType, type createActivityLog } from './activity.js';
 import type { createAgents } from './agents.js';
 import type { createSessions } from './sessions.js';
 import type { createLocks } from './locks.js';
 import type { createResurrection } from './resurrection.js';
+import type { Bonds } from './bonds.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const require = createRequire(import.meta.url);
 
 // ─── Rust Enforcer Bridge (FFI) ─────────────────────────────────────────────
 
@@ -29,10 +32,45 @@ const libPath = join(
   '../dist/core/libharbor_card_rs.' + (process.platform === 'darwin' ? 'dylib' : 'so')
 );
 
-let enforcer: {
+type NativeEnforcer = {
   constantTimeCompare: (a: Buffer, aLen: number, b: Buffer, bLen: number) => boolean;
   verifyCapsSubset: (rootJson: string, rootLen: number, subJson: string, subLen: number) => boolean;
-} | null = null;
+};
+
+let enforcer: NativeEnforcer | null = null;
+let enforcerLoadAttempted = false;
+let enforcerLoadError: string | null = null;
+
+function loadNativeEnforcer(): NativeEnforcer | null {
+  if (enforcerLoadAttempted) return enforcer;
+  enforcerLoadAttempted = true;
+
+  if (!existsSync(libPath)) {
+    enforcerLoadError = `Rust enforcer library missing at ${libPath}`;
+    return null;
+  }
+
+  try {
+    const koffi = require('koffi');
+    const lib = koffi.load(libPath);
+    enforcer = {
+      constantTimeCompare: lib.func(
+        'bool harbor_constant_time_compare(const uint8_t *a, size_t a_len, const uint8_t *b, size_t b_len)'
+      ),
+      verifyCapsSubset: lib.func(
+        'bool harbor_verify_caps_subset_json(const char *root_json, size_t root_len, const char *sub_json, size_t sub_len)'
+      ),
+    };
+    enforcerLoadError = null;
+    console.error('[Arbiter] Rust enforcer loaded via FFI');
+  } catch (err) {
+    enforcer = null;
+    enforcerLoadError = (err as Error).message;
+    console.error('[Arbiter] Rust FFI load failed:', enforcerLoadError);
+  }
+
+  return enforcer;
+}
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -56,6 +94,7 @@ export interface ArbiterDeps {
   sessions: ReturnType<typeof createSessions>;
   locks: ReturnType<typeof createLocks>;
   resurrection?: ReturnType<typeof createResurrection>;
+  bonds?: Bonds;
 }
 
 // ─── Rules ──────────────────────────────────────────────────────────────────
@@ -147,10 +186,10 @@ const RULE_DEFINITIONS: Record<RuleName, RuleDefinition> = {
     requiresEnforcer: false,
   },
   ESCROW_POSITIVE: {
-    description: 'Reserve escrow enforcement for future Float Plan economics.',
+    description: 'Require spawned-agent sessions with escrow metadata to map to a positive active bond.',
     category: 'economics',
     defaultSeverity: 'violation',
-    engine: 'stub',
+    engine: 'runtime',
     requiresEnforcer: false,
   },
   LOCK_OWNER_VALID: {
@@ -175,7 +214,7 @@ export function createArbiter(
   deps: ArbiterDeps,
   config: ArbiterConfig = { strictMode: false }
 ) {
-  const { activityLog, agents, sessions, locks, resurrection } = deps;
+  const { activityLog, agents, sessions, locks, resurrection, bonds } = deps;
   const violations: Violation[] = [];
   const startedAt = Date.now();
   let nextViolationId = 1;
@@ -183,28 +222,7 @@ export function createArbiter(
   // Track note counts per session for monotonicity checking
   const sessionNoteCounts = new Map<string, number>();
 
-  // Try to load the Rust enforcer (non-blocking if unavailable)
-  if (existsSync(libPath)) {
-    import('koffi').then((koffiModule: any) => {
-      try {
-        const koffi = koffiModule.default ?? koffiModule;
-        const lib = koffi.load(libPath);
-        enforcer = {
-          constantTimeCompare: lib.func(
-            'bool harbor_constant_time_compare(const uint8_t *a, size_t a_len, const uint8_t *b, size_t b_len)'
-          ),
-          verifyCapsSubset: lib.func(
-            'bool harbor_verify_caps_subset_json(const char *root_json, size_t root_len, const char *sub_json, size_t sub_len)'
-          ),
-        };
-        console.error('[Arbiter] Rust enforcer loaded via FFI');
-      } catch (err) {
-        console.error('[Arbiter] Rust FFI load failed:', (err as Error).message);
-      }
-    }).catch(() => {
-      console.error('[Arbiter] koffi not available, running without Rust enforcer');
-    });
-  }
+  loadNativeEnforcer();
 
   // ─── Activity Log Subscription ──────────────────────────────────────────
 
@@ -336,19 +354,76 @@ export function createArbiter(
 
   /**
    * Rule 4: Escrow Positive (from TLA+ EscrowInvariant)
-   * When Float Plans are implemented, every active session must have escrow > 0.
-   * Currently a stub that checks for the field's existence.
+   * Spawn sessions that declare escrow requirements must point at a
+   * positive, active bond. Plain human/CLI sessions can still exist
+   * without a bond; the rule applies once metadata says this is a
+   * bonded runtime body.
    */
   function checkEscrowPositive(entry: any) {
-    // Float Plans not yet implemented — log as info when they are
-    const escrow = entry.metadata?.escrow;
-    if (escrow !== undefined && escrow <= 0) {
+    const metadata = entry.metadata ?? {};
+    const escrow = readFiniteUsd(metadata.escrow ?? metadata.escrowUsd ?? metadata.bondUsd);
+    const bondId = readPositiveInteger(metadata.bondId);
+    const requiresEscrow = metadata.requiresEscrow === true
+      || metadata.spawn === true
+      || bondId !== null;
+
+    if (escrow !== null && escrow <= 0) {
       recordViolation('ESCROW_POSITIVE', 'violation',
         `Session started with non-positive escrow: ${escrow}`,
         entry.agentId, { escrow }
       );
+      return;
     }
-    // When escrow field is absent, no violation — Float Plans not active yet
+
+    if (!requiresEscrow) return;
+
+    if (!bonds) {
+      recordViolation('ESCROW_POSITIVE', 'violation',
+        'Session declared escrow requirement, but bond escrow module is not wired into Arbiter',
+        entry.agentId, { bondId, escrow }
+      );
+      return;
+    }
+
+    if (bondId === null) {
+      recordViolation('ESCROW_POSITIVE', 'violation',
+        'Session declared escrow requirement without a bondId',
+        entry.agentId, { escrow }
+      );
+      return;
+    }
+
+    const bond = bonds.getBond(bondId);
+    if (!bond) {
+      recordViolation('ESCROW_POSITIVE', 'violation',
+        `Session references missing bond ${bondId}`,
+        entry.agentId, { bondId, escrow }
+      );
+      return;
+    }
+
+    if (entry.agentId && bond.agentId !== entry.agentId) {
+      recordViolation('ESCROW_POSITIVE', 'violation',
+        `Session agent ${entry.agentId} references bond ${bondId} owned by ${bond.agentId}`,
+        entry.agentId, { bondId, owner: bond.agentId }
+      );
+      return;
+    }
+
+    if (bond.bondUsd <= 0) {
+      recordViolation('ESCROW_POSITIVE', 'violation',
+        `Session references non-positive bond ${bondId}: ${bond.bondUsd}`,
+        entry.agentId, { bondId, bondUsd: bond.bondUsd }
+      );
+      return;
+    }
+
+    if (!['escrowed', 'running', 'exiting'].includes(bond.state)) {
+      recordViolation('ESCROW_POSITIVE', 'violation',
+        `Session references resolved bond ${bondId} in state ${bond.state}`,
+        entry.agentId, { bondId, state: bond.state }
+      );
+    }
   }
 
   /**
@@ -467,10 +542,12 @@ export function createArbiter(
 
     if (ruleName === 'CAP_ESCALATION' && !enforcer) {
       coverage = 'degraded';
-      degradedReason = 'Rust FFI enforcer unavailable; capability subset checks are advisory only.';
-    } else if (ruleName === 'ESCROW_POSITIVE') {
-      coverage = 'stubbed';
-      degradedReason = 'Float Plans are not active yet, so escrow positivity is not fully enforced.';
+      degradedReason = enforcerLoadError
+        ? `Rust FFI enforcer unavailable: ${enforcerLoadError}`
+        : 'Rust FFI enforcer unavailable; capability subset checks are advisory only.';
+    } else if (ruleName === 'ESCROW_POSITIVE' && !bonds) {
+      coverage = 'degraded';
+      degradedReason = 'Bond escrow module is not wired into Arbiter; escrow metadata cannot be verified against the ledger.';
     }
 
     return {
@@ -507,12 +584,12 @@ export function createArbiter(
       });
     }
 
-    if (ruleDetails.some((rule) => rule.name === 'ESCROW_POSITIVE' && rule.coverage === 'stubbed')) {
+    if (ruleDetails.some((rule) => rule.name === 'ESCROW_POSITIVE' && rule.coverage === 'degraded')) {
       degraded.push({
-        code: 'escrow_rule_stubbed',
+        code: 'escrow_bonds_unavailable',
         component: 'arbiter',
         affectedRules: ['ESCROW_POSITIVE'],
-        message: 'Escrow positivity remains a placeholder until Float Plans / escrow-backed sessions exist.',
+        message: 'Escrow positivity cannot validate declared bond metadata because bonds are not wired into Arbiter.',
       });
     }
 
@@ -561,6 +638,24 @@ export function createArbiter(
     /** Stop the arbiter (unsubscribe from activity log) */
     stop: stopWatching,
   };
+}
+
+function readFiniteUsd(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function readPositiveInteger(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isInteger(value) && value > 0) return value;
+  if (typeof value === 'string' && /^\d+$/.test(value)) {
+    const parsed = Number(value);
+    return parsed > 0 ? parsed : null;
+  }
+  return null;
 }
 
 export type Arbiter = ReturnType<typeof createArbiter>;

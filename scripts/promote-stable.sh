@@ -49,7 +49,7 @@ cd "$DEV_DIR"
 TEST_LOG=$(mktemp "${TMPDIR:-/tmp}/port-daddy-promote-tests.XXXXXX")
 trap 'rm -f "$TEST_LOG"' EXIT
 
-if ! npm test -- --no-coverage >"$TEST_LOG" 2>&1; then
+if ! npm test -- --no-coverage --runInBand >"$TEST_LOG" 2>&1; then
   FAIL_COUNT=$(grep "Tests:" "$TEST_LOG" | tail -1 | grep -oE '[0-9]+ failed' | grep -oE '[0-9]+' || echo "unknown")
   echo "${RED}BLOCKED: test gate failed (${FAIL_COUNT} failed)${NC}"
   echo "${YELLOW}Failure summary:${NC}"
@@ -84,18 +84,24 @@ echo "${YELLOW}Installing dependencies in stable...${NC}"
 npm install --production=false 2>&1 | tail -3
 
 # ---------------------------------------------------------------------------
-# Step 6: Build native Bosun supervisor
+# Step 6: Build native Rust enforcement core
+# ---------------------------------------------------------------------------
+echo "${YELLOW}Building Rust FFI core in stable...${NC}"
+npm run build:core:dist
+
+# ---------------------------------------------------------------------------
+# Step 7: Build native Bosun supervisor
 # ---------------------------------------------------------------------------
 echo "${YELLOW}Building pd-bosun in stable...${NC}"
 npm run build:bosun:dist
 
 # ---------------------------------------------------------------------------
-# Step 7: Re-link (in case bin entries changed)
+# Step 8: Re-link (in case bin entries changed)
 # ---------------------------------------------------------------------------
 npm link 2>&1 | tail -1
 
 # ---------------------------------------------------------------------------
-# Step 8: Reinstall service plists and restart daemon + Bosun
+# Step 9: Reinstall service plists and restart daemon + Bosun
 # ---------------------------------------------------------------------------
 echo "${YELLOW}Installing daemon and Bosun services...${NC}"
 npm run install-daemon -- install
@@ -145,7 +151,7 @@ fetch_json_with_retry() {
 }
 
 # ---------------------------------------------------------------------------
-# Step 9: Verify authoritative runtime truth
+# Step 10: Verify authoritative runtime truth
 # ---------------------------------------------------------------------------
 PORT_FILE="$HOME/.port-daddy/daemon.port"
 if ! wait_for_file "$PORT_FILE" 60; then

@@ -25,6 +25,7 @@ const DAEMON_BODY_LIMIT_BYTES = 10 * 1024;
 // Keep the harness above that contention window so we kill genuine hangs,
 // not healthy commands that simply lost the scheduler for a few seconds.
 const CLI_COMMAND_TIMEOUT_MS = 30_000;
+const CLI_CONTEXT_SLOT = `ppid-${process.pid}`;
 const TEST_ENV = {
   sockPath: 'PORT_DADDY_TEST_SOCK',
   ipcPath: 'PORT_DADDY_TEST_IPC',
@@ -167,6 +168,9 @@ export function runCli(args, options = {}) {
   const { sockPath, dbPath, contextDir } = getDaemonState();
   const cliPath = join(import.meta.dirname, '../../bin/port-daddy-cli.ts');
   const { env: extraEnv = {}, ...spawnOptions } = options;
+  const contextSlot = extraEnv.PORT_DADDY_CONTEXT_SLOT
+    || process.env.PORT_DADDY_CONTEXT_SLOT
+    || CLI_CONTEXT_SLOT;
 
   // Use --direct to silence daemon-unreachable warnings if we are intentionally 
   // bypassing the socket (useful for debugging)
@@ -177,6 +181,7 @@ export function runCli(args, options = {}) {
     PORT_DADDY_SOCK: sockPath,
     PORT_DADDY_DB: dbPath,
     PORT_DADDY_CONTEXT_DIR: contextDir,
+    PORT_DADDY_CONTEXT_SLOT: contextSlot,
     // Clear PORT_DADDY_URL so CLI uses socket
     PORT_DADDY_URL: '',
     // Skip freshness check during integration tests to avoid noise and races
@@ -218,12 +223,16 @@ export function runCliViaIpc(args, options = {}) {
   const { ipcPath, homeDir, contextDir } = getDaemonState();
   const cliPath = join(import.meta.dirname, '../../bin/port-daddy-cli.ts');
   const { env: extraEnv = {}, ...spawnOptions } = options;
+  const contextSlot = extraEnv.PORT_DADDY_CONTEXT_SLOT
+    || process.env.PORT_DADDY_CONTEXT_SLOT
+    || CLI_CONTEXT_SLOT;
 
   const testEnv = {
     ...process.env,
     HOME: homeDir,
     PORT_DADDY_IPC: ipcPath,
     PORT_DADDY_CONTEXT_DIR: contextDir,
+    PORT_DADDY_CONTEXT_SLOT: contextSlot,
     PORT_DADDY_URL: '',
     PORT_DADDY_SOCK: '',
     PORT_DADDY_SKIP_FRESHNESS_CHECK: '1',

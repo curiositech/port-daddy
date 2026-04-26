@@ -1176,6 +1176,7 @@
         "POST /tuples",
         "GET /tuples",
         "DELETE /tuples",
+        "GET /tuples/poll",
         "GET /tuples/scan",
         "GET /tuples/count"
       ],

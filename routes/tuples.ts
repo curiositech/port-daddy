@@ -4,6 +4,7 @@
  * POST   /tuples           — Write a tuple (out)
  * GET    /tuples           — Read tuples by pattern (rd)
  * DELETE /tuples           — Take tuples by pattern (in — removes matches)
+ * GET    /tuples/poll      — Poll for the next matching tuple after a cursor
  * GET    /tuples/scan      — List all tuples
  * GET    /tuples/count     — Count tuples
  */
@@ -74,6 +75,39 @@ export const tuplesPlugin: FastifyPluginAsync<TupleOpts> = async (app, opts) => 
     });
 
     return { success: true, taken, count: taken.length };
+  });
+
+  // GET /tuples/poll?pattern=[...]&harbor=...&after=...&limit=N — Poll for next matching tuple
+  app.get('/tuples/poll', async (request: FastifyRequest, reply: FastifyReply) => {
+    const {
+      pattern: patternStr,
+      harbor,
+      after: afterStr,
+      limit: limitStr,
+    } = request.query as Record<string, string | undefined>;
+    const afterId = afterStr ? parseInt(afterStr, 10) : 0;
+    const limit = limitStr ? parseInt(limitStr, 10) : undefined;
+
+    let pattern: unknown[] = ['*'];
+    if (patternStr) {
+      try {
+        pattern = JSON.parse(patternStr);
+        if (!Array.isArray(pattern)) {
+          reply.code(400);
+          return { success: false, error: 'pattern must be a JSON array' };
+        }
+      } catch {
+        reply.code(400);
+        return { success: false, error: 'pattern must be valid JSON array' };
+      }
+    }
+
+    const result = tuples.poll(pattern, {
+      harbor,
+      afterId,
+      limit,
+    });
+    return { success: true, tuple: result.tuple, lastId: result.lastId };
   });
 
   // GET /tuples/scan?harbor=...&limit=...&query=...&pattern=[...] — List tuples

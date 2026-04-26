@@ -882,6 +882,7 @@ export function createSessions(
         targetId: sessionTarget(identityProject, id),
         details: `Session started: ${trimmedPurpose}`,
         metadata: {
+          ...(metadata && typeof metadata === 'object' ? metadata : {}),
           sessionId: id,
           purpose: trimmedPurpose,
           agentId: agentId || undefined,

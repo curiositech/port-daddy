@@ -54,6 +54,18 @@ function createMockLocks() {
   return {};
 }
 
+function createMockBonds(initialBonds = {}) {
+  const bonds = new Map(Object.entries(initialBonds).map(([id, bond]) => [Number(id), bond]));
+  return {
+    getBond(id) {
+      return bonds.get(Number(id)) || null;
+    },
+    _set(id, bond) {
+      bonds.set(Number(id), bond);
+    },
+  };
+}
+
 function buildDeps(overrides = {}) {
   return {
     activityLog: overrides.activityLog || createMockActivityLog(),
@@ -61,6 +73,7 @@ function buildDeps(overrides = {}) {
     sessions: createMockSessions(),
     locks: createMockLocks(),
     resurrection: overrides.resurrection,
+    bonds: overrides.bonds,
   };
 }
 
@@ -131,16 +144,15 @@ describe('getStatus()', () => {
 
     expect(status.summary.mode).toBe('observe_only');
     expect(status.summary.criticalAction).toBe('log_only');
-    expect(status.summary.stubbedRules).toBeGreaterThanOrEqual(1);
     expect(status.degraded).toEqual(expect.arrayContaining([
       expect.objectContaining({ code: 'strict_mode_disabled' }),
-      expect.objectContaining({ code: 'escrow_rule_stubbed' }),
+      expect.objectContaining({ code: 'escrow_bonds_unavailable' }),
     ]));
 
     const escrowRule = status.ruleDetails.find((rule) => rule.name === 'ESCROW_POSITIVE');
     expect(escrowRule).toEqual(expect.objectContaining({
-      coverage: 'stubbed',
-      engine: 'stub',
+      coverage: 'degraded',
+      engine: 'runtime',
       degradedReason: expect.any(String),
     }));
 
@@ -154,6 +166,21 @@ describe('getStatus()', () => {
         expect.objectContaining({ code: 'ffi_enforcer_unavailable' }),
       ]));
     }
+
+    arbiter.stop();
+  });
+
+  test('reports escrow rule as enforced when bonds are wired', () => {
+    const arbiter = createArbiter(buildDeps({ bonds: createMockBonds() }));
+    const status = arbiter.getStatus();
+    const escrowRule = status.ruleDetails.find((rule) => rule.name === 'ESCROW_POSITIVE');
+
+    expect(escrowRule).toEqual(expect.objectContaining({
+      coverage: 'enforced',
+      engine: 'runtime',
+      degradedReason: null,
+    }));
+    expect(status.degraded.find((reason) => reason.code === 'escrow_bonds_unavailable')).toBeUndefined();
 
     arbiter.stop();
   });
@@ -176,7 +203,7 @@ describe('getStatus()', () => {
     expect(status.summary.criticalAction).toBe('man_overboard');
     expect(status.degraded.find((reason) => reason.code === 'strict_mode_disabled')).toBeUndefined();
     expect(status.degraded).toEqual(expect.arrayContaining([
-      expect.objectContaining({ code: 'escrow_rule_stubbed' }),
+      expect.objectContaining({ code: 'escrow_bonds_unavailable' }),
     ]));
 
     arbiter.stop();
@@ -620,6 +647,78 @@ describe('Rule: ESCROW_POSITIVE', () => {
 
     const violations = arbiter.getViolations().filter(v => v.rule === 'ESCROW_POSITIVE');
     expect(violations).toHaveLength(0);
+    arbiter.stop();
+  });
+
+  test('fires when a spawned session requires escrow but omits bondId', () => {
+    const activityLog = createMockActivityLog();
+    const arbiter = createArbiter({ ...buildDeps({ bonds: createMockBonds() }), activityLog });
+
+    activityLog.emit({
+      type: ActivityType.SESSION_START,
+      agentId: 'agent-1',
+      metadata: { spawn: true, requiresEscrow: true, bondUsd: 0.25 },
+    });
+
+    const violations = arbiter.getViolations().filter(v => v.rule === 'ESCROW_POSITIVE');
+    expect(violations).toHaveLength(1);
+    expect(violations[0].details).toContain('without a bondId');
+    arbiter.stop();
+  });
+
+  test('does not fire when spawned session references a positive active bond', () => {
+    const activityLog = createMockActivityLog();
+    const bonds = createMockBonds({
+      42: { id: 42, agentId: 'agent-1', bondUsd: 0.25, state: 'running' },
+    });
+    const arbiter = createArbiter({ ...buildDeps({ bonds }), activityLog });
+
+    activityLog.emit({
+      type: ActivityType.SESSION_START,
+      agentId: 'agent-1',
+      metadata: { spawn: true, requiresEscrow: true, bondId: 42, bondUsd: 0.25 },
+    });
+
+    const violations = arbiter.getViolations().filter(v => v.rule === 'ESCROW_POSITIVE');
+    expect(violations).toHaveLength(0);
+    arbiter.stop();
+  });
+
+  test('fires when spawned session references another agent bond', () => {
+    const activityLog = createMockActivityLog();
+    const bonds = createMockBonds({
+      42: { id: 42, agentId: 'agent-owner', bondUsd: 0.25, state: 'running' },
+    });
+    const arbiter = createArbiter({ ...buildDeps({ bonds }), activityLog });
+
+    activityLog.emit({
+      type: ActivityType.SESSION_START,
+      agentId: 'agent-1',
+      metadata: { spawn: true, requiresEscrow: true, bondId: 42, bondUsd: 0.25 },
+    });
+
+    const violations = arbiter.getViolations().filter(v => v.rule === 'ESCROW_POSITIVE');
+    expect(violations).toHaveLength(1);
+    expect(violations[0].details).toContain('owned by agent-owner');
+    arbiter.stop();
+  });
+
+  test('fires when spawned session references a resolved bond', () => {
+    const activityLog = createMockActivityLog();
+    const bonds = createMockBonds({
+      42: { id: 42, agentId: 'agent-1', bondUsd: 0.25, state: 'refunded' },
+    });
+    const arbiter = createArbiter({ ...buildDeps({ bonds }), activityLog });
+
+    activityLog.emit({
+      type: ActivityType.SESSION_START,
+      agentId: 'agent-1',
+      metadata: { spawn: true, requiresEscrow: true, bondId: 42, bondUsd: 0.25 },
+    });
+
+    const violations = arbiter.getViolations().filter(v => v.rule === 'ESCROW_POSITIVE');
+    expect(violations).toHaveLength(1);
+    expect(violations[0].details).toContain('resolved bond');
     arbiter.stop();
   });
 });

@@ -290,6 +290,21 @@ export function createIpcRouter(deps: IpcRouterDeps) {
     return { success: true, taken, count: taken.length };
   });
 
+  handlers.set(IpcAction.TUPLE_POLL, (p) => {
+    if (!Array.isArray(p.pattern)) {
+      return { success: false, error: 'pattern must be a JSON array' };
+    }
+    const result = (deps.tuples as { poll?: (pattern: unknown[], options?: { harbor?: string; afterId?: number; limit?: number }) => { tuple: Tuple | null; lastId: number } } | undefined)?.poll?.(
+      p.pattern,
+      {
+        harbor: typeof p.harbor === 'string' ? p.harbor : undefined,
+        afterId: typeof p.afterId === 'number' ? p.afterId : undefined,
+        limit: typeof p.limit === 'number' ? p.limit : undefined,
+      },
+    ) ?? { tuple: null, lastId: typeof p.afterId === 'number' ? p.afterId : 0 };
+    return { success: true, tuple: result.tuple, lastId: result.lastId };
+  });
+
   handlers.set(IpcAction.TUPLE_SCAN, (p) => {
     const harbor = typeof p.harbor === 'string' ? p.harbor : undefined;
     const limit = typeof p.limit === 'number' ? Math.min(Math.max(p.limit, 1), 500) : 200;
