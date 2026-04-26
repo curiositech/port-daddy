@@ -174,9 +174,10 @@ const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || (PREFIX ? join(PREFIX, 
 const DISABLE_TCP: boolean = process.env.PORT_DADDY_NO_TCP === '1';
 const IPC_PATH: string = process.env.PORT_DADDY_IPC || (PREFIX ? join(PREFIX, 'port-daddy.ipc') : DEFAULT_IPC);
 const DISABLE_IPC: boolean = process.env.PORT_DADDY_NO_IPC === '1';
-const PID_FILE: string = PREFIX ? join(PREFIX, 'daemon.pid') : DEFAULT_PID_FILE;
-const PORT_FILE: string = process.env.PORT_DADDY_PORT_FILE || (PREFIX ? join(PREFIX, 'daemon.port') : DEFAULT_PORT_FILE);
-const HEARTBEAT_FILE: string | undefined = process.env.PORT_DADDY_HEARTBEAT_FILE || (PREFIX ? join(PREFIX, 'heartbeat') : undefined);
+const CUSTOM_RUNTIME_DIR: string | undefined = PREFIX ?? (process.env.PORT_DADDY_SOCK ? dirname(process.env.PORT_DADDY_SOCK) : undefined);
+const PID_FILE: string = process.env.PORT_DADDY_PID_FILE || (CUSTOM_RUNTIME_DIR ? join(CUSTOM_RUNTIME_DIR, 'daemon.pid') : DEFAULT_PID_FILE);
+const PORT_FILE: string = process.env.PORT_DADDY_PORT_FILE || (CUSTOM_RUNTIME_DIR ? join(CUSTOM_RUNTIME_DIR, 'daemon.port') : DEFAULT_PORT_FILE);
+const HEARTBEAT_FILE: string | undefined = process.env.PORT_DADDY_HEARTBEAT_FILE || (CUSTOM_RUNTIME_DIR ? join(CUSTOM_RUNTIME_DIR, 'heartbeat') : undefined);
 
 if (IS_DEV_MODE) {
   const { mkdirSync } = await import('node:fs');
