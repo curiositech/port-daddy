@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useTheme } from '@/lib/theme-context'
-import { Sun, Moon, Github, Menu, X, ChevronDown, BookOpen, GraduationCap, LayoutGrid, Bot } from 'lucide-react'
+import { Sun, Moon, Github, Menu, X, ChevronDown, BookOpen, GraduationCap, LayoutGrid, Bot, Code2, ChefHat } from 'lucide-react'
 import { DocsSearch } from '@/components/docs/DocsSearch'
 import { openDocsSearch } from '@/components/docs/docsSearchEvents'
 
@@ -29,6 +29,18 @@ const NAV_STRUCTURE: NavSection[] = [
         href: '/tutorials',
         description: 'Step-by-step guides for beginners',
         icon: GraduationCap
+      },
+      {
+        label: 'Examples',
+        href: '/examples',
+        description: 'Runnable patterns by primitive',
+        icon: Code2
+      },
+      {
+        label: 'Cookbook',
+        href: '/cookbook',
+        description: 'Long-form recipes for coordination, scaling, resilience',
+        icon: ChefHat
       },
       {
         label: 'Fleet Agents',
