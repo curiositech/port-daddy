@@ -792,6 +792,35 @@ Predict direct/dependency/signature conflicts between two sets of symbol claims.
 
 ---
 
+## Advisor / Compass
+
+### GET /advisor
+Query-form coordination advice. Query params: `projectRoot`, `project`, `sessionId`, `agentId`, `task`, `files` (comma-separated), `includeChannels`, `includeTupleHints`.
+
+### POST /advisor
+Structured coordination preflight for humans, CLI, SDK-style callers, and MCP agents.
+
+**Body:**
+```json
+{
+  "projectRoot": "/abs/path/to/repo",
+  "sessionId": "session-...",
+  "agentId": "agent-...",
+  "task": "change token refresh",
+  "files": ["/abs/path/src/auth.ts"],
+  "includeChannels": false,
+  "includeTupleHints": false
+}
+```
+
+**Response:** `{ success, summary, input, advice[] }`
+
+Each advice item includes `id`, `category`, `severity`, `title`, `why`, `risk`, `confidence`, `evidence[]`, and `actions[]`. Current deterministic categories are `context`, `claim`, `lock`, `symbol`, `salvage`, `channel`, and `tuple`.
+
+MCP equivalent: `coordination_preflight`.
+
+---
+
 ## FleetControl Bonds, Budgets, And Panic
 
 ### GET /bonds

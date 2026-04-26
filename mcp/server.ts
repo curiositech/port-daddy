@@ -131,6 +131,7 @@ const ESSENTIAL_TOOL_NAMES = new Set([
   // Magic tools — high-level composed operations for vibe coders
   'fleet_init',
   'swarm_awareness',
+  'coordination_preflight',
   'sitrep',
   'catch_me_up',  // DEPRECATED 3.8.4 — alias for sitrep. Kept for back-compat.
   'spawn_agent',
@@ -145,6 +146,10 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
   'session-lifecycle': {
     description: 'Start/end sessions, manage agent registration (sugar commands)',
     tools: ['begin_session', 'end_session_full', 'whoami'],
+  },
+  'advisor': {
+    description: 'Deterministic coordination preflight: context integrity, claims, symbols, salvage, channels, tuples, and locks',
+    tools: ['coordination_preflight'],
   },
   'ports': {
     description: 'Claim, release, and list port assignments',
@@ -315,6 +320,47 @@ const TOOLS = [
         agent_id: {
           type: 'string',
           description: 'Your agent ID (from begin_session response)',
+        },
+      },
+    },
+  },
+  {
+    name: 'coordination_preflight',
+    description:
+      '[Essential] Deterministic Compass advice before editing or coordinating. Checks session context, ' +
+      'file-claim contention, symbol-index freshness, stale salvage, channel fit, tuple-worthy facts, ' +
+      'and true lock candidates. Use this before modifying files or launching work that may overlap others.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        project_root: {
+          type: 'string',
+          description: 'Project root directory. Defaults to the daemon process context if omitted.',
+        },
+        task: {
+          type: 'string',
+          description: 'Brief description of intended work.',
+        },
+        session_id: {
+          type: 'string',
+          description: 'Current Port Daddy session ID, if known.',
+        },
+        agent_id: {
+          type: 'string',
+          description: 'Current agent ID, if known.',
+        },
+        files: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Files the agent expects to inspect or edit.',
+        },
+        include_channels: {
+          type: 'boolean',
+          description: 'Force channel suggestions even if task text is ambiguous.',
+        },
+        include_tuple_hints: {
+          type: 'boolean',
+          description: 'Force tuple suggestions even if task text is ambiguous.',
         },
       },
     },
@@ -2216,7 +2262,7 @@ const TOOLS = [
       '[Essential] List available Port Daddy tool categories and their tools. ' +
       'In default mode, only essential tools are loaded. Use this to discover ' +
       'additional tools by category, then call them directly by name. ' +
-      'Categories: session-lifecycle, ports, sessions, notes, locks, messaging, agents, inbox, ' +
+      'Categories: session-lifecycle, advisor, ports, sessions, notes, locks, messaging, agents, inbox, ' +
       'webhooks, integration, dns, briefing, tunnels, projects, changelog, activity, system, tuples, semantic.',
     inputSchema: {
       type: 'object' as const,
@@ -2299,6 +2345,19 @@ async function handleTool(
     case 'whoami': {
       const qs = args.agent_id ? `?agentId=${encodeURIComponent(args.agent_id as string)}` : '';
       res = await GET(`/sugar/whoami${qs}`);
+      break;
+    }
+
+    case 'coordination_preflight': {
+      const body: Record<string, unknown> = {};
+      if (args.project_root) body.projectRoot = args.project_root;
+      if (args.task) body.task = args.task;
+      if (args.session_id) body.sessionId = args.session_id;
+      if (args.agent_id) body.agentId = args.agent_id;
+      if (args.files) body.files = args.files;
+      if (args.include_channels) body.includeChannels = true;
+      if (args.include_tuple_hints) body.includeTupleHints = true;
+      res = await POST('/advisor', body);
       break;
     }
 
@@ -3369,6 +3428,7 @@ const server = new Server(
       'Services use semantic identities in project:stack:context format (e.g. "myapp:api:main").',
       'Same identity always maps to the same port -- deterministic hashing.',
       'Start every session with begin_session, end with end_session_full.',
+      'Run coordination_preflight before editing files or coordinating work with possible overlap.',
       'Check check_salvage before starting new work -- another agent may have died mid-task.',
       'Use pd_discover to find additional tools (DNS, locks, pub/sub, tunnels, webhooks, inbox, etc.).',
       'File claims are advisory -- they announce intent, not enforce locks.',

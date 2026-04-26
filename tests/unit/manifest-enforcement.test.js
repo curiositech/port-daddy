@@ -544,6 +544,7 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'begin_session': 'sugar',
       'end_session_full': 'sugar',
       'whoami': 'sugar',
+      'coordination_preflight': 'advisor',
 
       // DNS
       'dns_register': 'dns',

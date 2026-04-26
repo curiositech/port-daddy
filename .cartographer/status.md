@@ -1,8 +1,8 @@
 # Cartographer Status
 
-**Last updated:** 2026-04-24
-**Updated by:** Codex task-inventory pass
-**HEAD:** `0852769`
+**Last updated:** 2026-04-26
+**Updated by:** Codex Compass advisor slice
+**HEAD:** `65f41df`
 **Previous HEAD:** `f45b751` — multiple new commits since last cartographer refresh
 
 ---
@@ -33,6 +33,13 @@ Current validation truth on 2026-04-18:
 - focused tuple/semantic suites (`semantic-terms`, `episodic-memory`, `merge-queue`, `fleet-engine`, `fleet-daemon`) are green.
 - `npm run typecheck` is red, but the remaining failures are confined to the pre-existing `cli/commands/diagnostics.ts` `{}`-typing hole rather than this working-tree tuple slice.
 
+Current Compass advisor validation truth on 2026-04-26:
+
+- focused advisor/parity bundle is green: `tests/unit/advisor.test.js`, `tests/unit/bijective-parity.test.js`, `tests/unit/mcp-parity.test.js`, `tests/unit/manifest-enforcement.test.js`, and `tests/unit/endpoint-parity.test.js`.
+- `npm run typecheck` is green.
+- broad `npm test -- --no-coverage` is green at `139/139` suites and `4916/4917` passing tests with `1` intentional skip.
+- teardown caveat cleared in this validation pass: the final clean broad run exited without Jest's open-handle warning after the custom daemon heartbeat isolation fix in `65f41df`.
+
 Actor-model reconciliation truth on 2026-04-23:
 
 - `docs/adr/0022-durable-actor-souls-and-body-leases.md` now captures the target runtime model: durable actor souls plus ephemeral body leases.
@@ -49,6 +56,14 @@ Task-inventory truth on 2026-04-24:
 - Google Agents CLI research is now captured at `docs/reports/GOOGLE_AGENTS_CLI_RESEARCH_2026-04-24.md`. The important import is lifecycle-first IA and primitives: setup, scaffold/create, enhance, upgrade, run, eval, deploy/promote, publish, observe, plus first-party coding-agent skill bundles. The recovery queue now tracks turning that into a Port Daddy lifecycle/docs/skill proposal instead of copying Google Cloud assumptions blindly.
 
 Newest validated working-tree slice before the next commit:
+
+- **Compass / coordination advisor suggestibility** — uncommitted CLI/MCP/API slice. The repo now has a deterministic first pass at telling agents and humans which coordination primitives to use before editing:
+  - `lib/advisor.ts` emits evidence-backed recommendations over session context, file claims, symbol freshness, salvage, declared channels, tuple-worthy facts, and true lock candidates
+  - `routes/advisor.ts` exposes `GET /advisor` and `POST /advisor`
+  - `pd advise`, `pd preflight`, and `pd compass` render the advice for humans
+  - MCP exposes `coordination_preflight` as an essential agent tool
+  - parity surfaces were updated in the feature manifest, completions, tests, skill docs, and API reference
+  - important limit: this is deterministic advice only; FleetBar/Fleet Control Center cards, graph edges for recommendations, stale asset reclaim actions, and optional LLM ranking remain follow-up work
 
 - **Cartographer / Navigator maritime actor foundation** — uncommitted runtime + fleet-contract slice. The repo now has the first additive `/actors` read surface instead of only a prompt-level roadmap updater:
   - `docs/adr/0023-cartographer-roadmap-actor.md` defines Cartographer as a durable roadmap/recovery-map actor with a mailbox, read model, tuples, graph edges, and evidence links

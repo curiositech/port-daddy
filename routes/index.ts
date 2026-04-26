@@ -50,6 +50,7 @@ import { bondsPlugin } from './bonds.js';
 import { walletsPlugin } from './wallets.js';
 import { panicPlugin } from './panic.js';
 import { budgetPlugin } from './budget.js';
+import { advisorPlugin } from './advisor.js';
 
 type AnyDeps = Record<string, unknown>;
 
@@ -144,4 +145,7 @@ export async function registerAllRoutes(
   // Budget pause-and-ask — operator interposition between breach and SIGTERM.
   // Plugin self-degrades to 501 if budgetPause dep absent.
   await fastify.register(budgetPlugin, { deps } as any);
+
+  // Deterministic coordination suggestibility for humans and agents.
+  await fastify.register(advisorPlugin, { deps } as any);
 }

@@ -91,6 +91,7 @@ const TOOL_FEATURE_MAP = {
   'begin_session': 'sugar',
   'end_session_full': 'sugar',
   'whoami': 'sugar',
+  'coordination_preflight': 'advisor',
 
   // DNS
   'dns_register': 'dns',
@@ -653,11 +654,11 @@ describe('MCP tiered tool loading', () => {
     'begin_session', 'end_session_full', 'whoami',
     'claim_port', 'release_port', 'add_note',
     'acquire_lock', 'list_services',
-    'fleet_init', 'swarm_awareness', 'catch_me_up', 'spawn_agent',
+    'fleet_init', 'swarm_awareness', 'coordination_preflight', 'catch_me_up', 'spawn_agent',
   ];
 
   const CATEGORY_NAMES = [
-    'magic', 'session-lifecycle', 'ports', 'sessions', 'notes', 'locks',
+    'magic', 'session-lifecycle', 'advisor', 'ports', 'sessions', 'notes', 'locks',
     'messaging', 'agents', 'inbox', 'webhooks', 'integration', 'dns', 'briefing',
     'tunnels', 'projects', 'changelog', 'activity', 'system', 'tuples', 'sorties',
     'fleet-control', 'semantic',
@@ -706,10 +707,10 @@ describe('MCP tiered tool loading', () => {
     }
   });
 
-  it('tiered mode should expose 13 tools (12 essential + pd_discover)', () => {
+  it('tiered mode should expose 14 tools (13 essential + pd_discover)', () => {
     // In default (non-full) mode, only essential + pd_discover are listed
     const tieredCount = ESSENTIAL_NAMES.length + 1; // +1 for pd_discover
-    expect(tieredCount).toBe(13);
+    expect(tieredCount).toBe(14);
   });
 });
 

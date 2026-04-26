@@ -1240,6 +1240,28 @@
         "sdk": false
       }
     },
+    "advisor": {
+      "description": "Deterministic coordination advisor for preflight suggestions across sessions, claims, symbols, salvage, channels, tuples, and locks",
+      "cli": [
+        "advise",
+        "preflight",
+        "compass"
+      ],
+      "sdk": [],
+      "routes": [
+        "GET /advisor",
+        "POST /advisor"
+      ],
+      "completions": [
+        "advise",
+        "preflight",
+        "compass"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
+    },
     "ideas": {
       "description": "Canonical ideation trove inspection and dedupe over docs/recovery/IDEAS-TROVE.md with optional local Spark/Spider residue",
       "cli": [

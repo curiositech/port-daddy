@@ -39,3 +39,4 @@ export * from './say.js';
 export * from './look.js';
 export * from './wallet.js';
 export * from './bond.js';
+export * from './advisor.js';

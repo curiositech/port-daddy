@@ -449,7 +449,7 @@ export function createSessions(
     getActiveClaimsForPaths: db.prepare(`
       SELECT sf.*, s.purpose FROM session_files sf
       JOIN sessions s ON s.id = sf.session_id
-      WHERE sf.file_path = ? AND sf.released_at IS NULL
+      WHERE sf.file_path = ? AND sf.released_at IS NULL AND s.status = 'active'
     `),
     getActiveClaimsForFileExcludingSession: db.prepare(`
       SELECT sf.*, s.purpose, s.agent_id FROM session_files sf
@@ -936,7 +936,10 @@ export function createSessions(
     stmts.releaseAllFiles.run(now, sessionId);
     const releasedFiles = activeFiles.map(f => f.file_path);
 
-    // Update session status
+    // Keep the coarse lifecycle status and operator-facing phase coherent.
+    if (status === 'completed' || status === 'abandoned') {
+      stmts.setPhase.run(status, now, sessionId);
+    }
     stmts.updateStatus.run(status, now, now, sessionId);
 
     // Remove from trie (targeted 1:N removal by entryId)
@@ -1274,6 +1277,13 @@ export function createSessions(
     if (!session) {
       return { success: false, error: 'session not found' };
     }
+    if (session.status !== 'active') {
+      return {
+        success: false,
+        error: `session is ${session.status}; only active sessions can claim files`,
+        code: 'SESSION_NOT_ACTIVE',
+      };
+    }
 
     const now = Date.now();
     const claimed: string[] = [];
@@ -1588,6 +1598,13 @@ export function createSessions(
     if (!session) {
       return { success: false, error: 'session not found' };
     }
+    if (session.status !== 'active' && normalizedPhase !== session.status) {
+      return {
+        success: false,
+        error: `session is ${session.status}; terminal sessions cannot move to phase "${normalizedPhase}"`,
+        code: 'SESSION_NOT_ACTIVE',
+      };
+    }
 
     const now = Date.now();
     stmts.setPhase.run(normalizedPhase, now, sessionId);
@@ -1777,6 +1794,7 @@ export function createSessions(
         releasedClaims += activeFiles.length;
       }
 
+      stmts.setPhase.run('abandoned', now, session.id);
       stmts.updateStatus.run('abandoned', now, now, session.id);
 
       if (semanticIndex && session.identity_project) {

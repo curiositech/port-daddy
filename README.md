@@ -190,12 +190,19 @@ pd say "build broken on main, rolling back" --broadcast alerts
 pd look --since 30                 # last 30m synthesis
 pd look --heat                     # file heat map (pheromone contention)
 pd sitrep                          # explicit maritime-voice alias
+
+# Compass — what coordination primitive should I use before editing?
+pd advise lib/sessions.ts --task "fix symbol claim conflict"
+pd preflight docs/recovery/CURRENT-WORK.md --tuples
 ```
 
 `pd say` flags compose — `--pin --heat path=0.8 --broadcast alerts` is four
 HTTP calls in parallel from a single command. `pd look` returns a four-way
 synthesis (activity + notes + salvage queue + spawned agents) with a
-one-line `summary` suitable for shell prompts.
+one-line `summary` suitable for shell prompts. `pd advise` / `pd preflight`
+returns deterministic recommendations with evidence and executable actions:
+session/context integrity, active claims, symbol freshness, stale salvage,
+declared channels, tuple-worthy facts, and true lock candidates.
 
 ### Webhooks & Life Cycles
 - **Webhooks:** `pd webhooks` subscribe external systems to swarm events.
