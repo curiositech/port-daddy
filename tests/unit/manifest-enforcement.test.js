@@ -575,6 +575,13 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'unregister_agent': 'agents',
       'get_agent': 'agents',
 
+      // Actors
+      'list_actors': 'actors',
+      'get_actor': 'actors',
+      'message_actor': 'actors',
+      'list_actor_inbox': 'actors',
+      'get_actor_inbox_stats': 'actors',
+
       // Salvage (extended)
       'salvage_complete': 'salvage',
       'salvage_abandon': 'salvage',

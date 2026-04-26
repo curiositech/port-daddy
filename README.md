@@ -194,6 +194,12 @@ pd sitrep                          # explicit maritime-voice alias
 # Compass — what coordination primitive should I use before editing?
 pd advise lib/sessions.ts --task "fix symbol claim conflict"
 pd preflight docs/recovery/CURRENT-WORK.md --tuples
+
+# Actors — durable maritime roles plus live body/session/salvage signals
+pd actors --project port-daddy
+pd actor cartographer
+pd actor navigator --message "roadmap item needs evidence"
+pd actor navigator --inbox-stats
 ```
 
 `pd say` flags compose — `--pin --heat path=0.8 --broadcast alerts` is four
@@ -203,6 +209,12 @@ one-line `summary` suitable for shell prompts. `pd advise` / `pd preflight`
 returns deterministic recommendations with evidence and executable actions:
 session/context integrity, active claims, symbol freshness, stale salvage,
 declared channels, tuple-worthy facts, and true lock candidates.
+`pd actors` shows durable maritime actor souls such as Navigator, Coxswain,
+Signalman, Harbormaster, Sounder, Lookout, Breaker, Caulker, and
+Quartermaster; `pd actor cartographer` resolves to Navigator for compatibility.
+`pd actor <id> --message` queues to the durable actor mailbox without granting a
+dormant actor live mutation authority; `--inbox` and `--inbox-stats` expose
+queued mailbox state separately from live-body wake status.
 
 ### Webhooks & Life Cycles
 - **Webhooks:** `pd webhooks` subscribe external systems to swarm events.

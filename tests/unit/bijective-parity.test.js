@@ -296,6 +296,7 @@ describe('Test Group 3: API -> CLI Parity', () => {
     messaging: ['pub', 'sub', 'channels'],
     locks: ['lock', 'unlock', 'locks'],
     agents: ['agent', 'agents'],
+    actors: ['actor', 'actors'],
     health: ['health'],
     activity: ['log', 'activity'],
     webhooks: ['webhook'],

@@ -21,6 +21,7 @@ the code lands per the staging order in `SHIPWRIGHT-DESIGN.md §15`.
 | `FLEETCONTROL-HARDENING.md` | Track 1 tech spec. Bond escrow state machine (TLA+ sketch), SQLite schema, module surface, kill-switch pipeline, test matrix. |
 | `SHIPWRIGHT-DAEMON.md` | The Shipwright *archetype* — one archetype among seven defined in AGENT-MODEL. DSPy prompt, Klein RPD episodic memory, simulation engine, chat. |
 | `COMPONENT-BRIEF.md` | Component contracts (14 React components + R3F suite). Used by 21st.dev MCP + humans. |
+| `INTEGRATION-PLAN.md` | Track 3b plan for extending `fleet-config-ui/` instead of creating a second dashboard: surfaces, query routes, state, API, realtime, FleetBar, build/deploy boundaries. |
 
 ### Preview — open in a browser
 
@@ -60,7 +61,8 @@ the code lands per the staging order in `SHIPWRIGHT-DESIGN.md §15`.
 4. `FLEETCONTROL-HARDENING.md` — the load-bearing work that lands first.
 5. `SHIPWRIGHT-DAEMON.md` — the archetype, with the runtime moved to AGENT-MODEL.
 6. `COMPONENT-BRIEF.md` — once the above is agreed.
-7. `preview/index.html` — see the whole thing. Then `ships-3d.html` for live motion.
+7. `INTEGRATION-PLAN.md` — how the component contracts enter Fleet Control Center.
+8. `preview/index.html` — see the whole thing. Then `ships-3d.html` for live motion.
 
 ## Skills used to author this
 

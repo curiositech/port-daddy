@@ -566,6 +566,105 @@ describe('Locks', () => {
 });
 
 // =============================================================================
+// Maritime Actors
+// =============================================================================
+
+describe('Maritime actors', () => {
+  let pd;
+  beforeEach(() => {
+    pd = createClient({ agentId: 'actor-client' });
+  });
+
+  test('listActors encodes project and limit filters', async () => {
+    queueResponse({ success: true, actors: [], count: 0 });
+
+    await pd.listActors({ project: 'port-daddy', limit: 3 });
+
+    expect(receivedRequests[0].method).toBe('GET');
+    expect(receivedRequests[0].url).toBe('/actors?project=port-daddy&limit=3');
+  });
+
+  test('getActor accepts compatibility aliases', async () => {
+    queueResponse({
+      success: true,
+      actor: { id: 'navigator', label: 'Navigator' },
+      resolvedId: 'navigator',
+    });
+
+    const result = await pd.getActor('cartographer', { project: 'port-daddy' });
+
+    expect(result.resolvedId).toBe('navigator');
+    expect(receivedRequests[0].method).toBe('GET');
+    expect(receivedRequests[0].url).toBe('/actors/cartographer?project=port-daddy');
+  });
+
+  test('messageActor sends mailbox payload with optional wake metadata', async () => {
+    queueResponse({
+      success: true,
+      actorId: 'navigator',
+      inboxTarget: 'actor:navigator',
+      messageId: 7,
+      delivered: true,
+      woke: false,
+    });
+
+    const result = await pd.messageActor('navigator', 'refresh roadmap truth', {
+      from: 'agent-a',
+      type: 'roadmap.request',
+      wake: true,
+      project: 'port-daddy',
+    });
+
+    expect(result.inboxTarget).toBe('actor:navigator');
+    expect(receivedRequests[0].method).toBe('POST');
+    expect(receivedRequests[0].url).toBe('/actors/navigator/message');
+    expect(receivedRequests[0].body).toEqual({
+      content: 'refresh roadmap truth',
+      from: 'agent-a',
+      type: 'roadmap.request',
+      wake: true,
+      project: 'port-daddy',
+    });
+  });
+
+  test('actorInboxList reads durable mailbox messages with filters', async () => {
+    queueResponse({
+      success: true,
+      actorId: 'navigator',
+      inboxTarget: 'actor:navigator',
+      messages: [],
+      count: 0,
+    });
+
+    await pd.actorInboxList('cartographer', {
+      unreadOnly: true,
+      limit: 5,
+      since: 100,
+    });
+
+    expect(receivedRequests[0].method).toBe('GET');
+    expect(receivedRequests[0].url).toBe('/actors/cartographer/inbox?unread=true&limit=5&since=100');
+  });
+
+  test('actorInboxStats reads durable mailbox depth', async () => {
+    queueResponse({
+      success: true,
+      actorId: 'navigator',
+      inboxTarget: 'actor:navigator',
+      total: 3,
+      unread: 1,
+      max: 1000,
+    });
+
+    const result = await pd.actorInboxStats('navigator');
+
+    expect(result.unread).toBe(1);
+    expect(receivedRequests[0].method).toBe('GET');
+    expect(receivedRequests[0].url).toBe('/actors/navigator/inbox/stats');
+  });
+});
+
+// =============================================================================
 // Tuples
 // =============================================================================
 

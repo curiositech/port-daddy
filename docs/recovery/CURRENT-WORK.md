@@ -187,18 +187,23 @@ Follow-on execution session: `session-4174ea2d-db24-4af2-a2d4-d9be7421a26c`.
   literals in legacy pages outside the protected contract, and a deeper
   Mermaid/diagram payload decision.
 
-### Cartographer Roadmap Actor (2026-04-24)
+### Cartographer / Navigator Maritime Actor Foundation (2026-04-26)
 
-The current uncommitted slice now promotes Cartographer from a commit-triggered docs updater into the first concrete maritime actor surface:
+The current actor slice rebuilds the missing foundation that recovery docs had
+already started referencing. Cartographer is now modeled as the compatibility
+fleet name for the durable `navigator` actor:
 
+- `docs/adr/0022-durable-actor-souls-and-body-leases.md` defines the governing actor split: durable actor souls persist, body leases carry live mutation authority.
 - `docs/adr/0023-cartographer-roadmap-actor.md` defines the target actor: durable identity, mailbox, roadmap/work-slice read model, tuples, graph edges, and evidence links across docs, sessions, claims, commits, tests, and promotion attempts.
 - `.cartographer/README.md` now defines the operating contract for bootstrap reconciliation, document authority classes, tuple vocabulary, graph vocabulary, and patch policy.
-- `pd-fleet.yml` now gives the compatibility `cartographer` fleet agent Port Daddy-first instructions and a stricter event/upkeep contract.
-- `lib/maritime-actors.ts` defines the canonical maritime actor roster and projects live body / compatibility fleet status from existing daemon state.
-- `routes/actors.ts` exposes `GET /actors` and `GET /actors/:id`; `cartographer` currently resolves to `navigator`.
-- `features.manifest.json`, `docs/openapi.yaml`, and the Port Daddy skill API reference now know about the new `/actors` surface.
+- `lib/maritime-actors.ts` defines the canonical maritime actor roster and projects live body, recent session, and salvage evidence from existing daemon state.
+- `routes/actors.ts` exposes `GET /actors`, `GET /actors/:id`, and `POST /actors/:id/message`; `cartographer` currently resolves to `navigator`, and actor messages queue to `actor:<id>` inbox targets without granting dormant actors live mutation authority.
+- `pd actors` and `pd actor <id-or-alias>` expose the directory in the CLI; `--inbox` and `--inbox-stats` expose durable mailbox state separately from live-body wake status.
+- `PortDaddy` SDK clients now have `listActors()`, `getActor()`, `messageActor()`, `actorInboxList()`, and `actorInboxStats()` helpers, with SDK reference docs and request-formation regression coverage.
+- README, completions, `features.manifest.json`, `docs/openapi.yaml`, MCP, and the Port Daddy skill API/SDK references now know about the new actor and actor-inbox surfaces.
 - The initial batch step is explicitly a report-first reconciliation pass. It inventories and classifies extant documents, extracts work items and evidence, emits structured state, and proposes cleanup patches. It must not blindly rewrite every document.
 - The sibling systems discussed in this thread are also actor-shaped and now have canonical maritime names: Navigator for roadmap/recovery state, Coxswain for claims/locks/stale work, Signalman for validation evidence, Harbormaster for promotion readiness, Sounder for semantic graph/synonymy, Lookout for docs/API/skill drift, Breaker for failure propagation, Caulker for robustness repair, and Quartermaster for cost/resource governance. They should all become durable actors with deterministic projectors and optional LLM bodies.
+- Validation truth on 2026-04-26: focused actor + SDK + MCP + parity bundle is green at `551/551`, and `npm run typecheck` / `npm run build` are green. Broad `npm test -- --no-coverage` reached green counts at `142/142` suites and `4973/4974` tests with `1` intentional skip, then hit the known Jest open-handle warning; the hung `--no-coverage` process tree was cleaned up manually.
 
 ### Tree-Sitter Symbol Refresh From Repo Events (2026-04-24)
 
@@ -508,9 +513,10 @@ This is the normalized remaining-slice inventory as of 2026-04-24. It supersedes
 ### C. Durable Actor Souls And Body Leases
 
 1. Move beyond the current static `/actors` projection:
-   - add `POST /actors/:id/message`
-   - expose mailbox depth, recent sessions, recent salvage state, last activation, and live lease state
-   - add SDK/CLI/docs surfaces for actor messaging
+   - `POST /actors/:id/message` now queues durable actor mailbox messages; `GET /actors/:id/inbox` and `GET /actors/:id/inbox/stats` expose mailbox read/depth
+   - next work is body-lease wake policy and richer lease/incarnation state
+   - expose recent sessions, recent salvage state, last activation, and live lease state in control-plane actor views
+   - SDK/client helpers for actor directory, messaging, and inbox reads now exist
 2. Add explicit body lease/incarnation state before changing cleanup semantics:
    - status: `attached`, `draining`, `detached`, `dead`, `revoked`
    - heartbeat and PID/process/transport metadata

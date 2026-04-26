@@ -393,27 +393,30 @@ export default function MemoryPanel({
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(null);
 
-    Promise.all([
-      fetchTupleEntries({ harbor: harbor || undefined, query, limit: 50 }),
-      fetchGraphEdges({ projectDir, query, limit: 120 }),
-      fetchEpisodes({ projectDir, project: projectName || undefined, harbor: harbor || undefined, query, limit: 80 }),
-      fetchGraphStats(projectDir),
-      fetchMemoryStats(projectDir, projectName || undefined),
-      fetchSemanticStats(projectDir),
-      fetchSemanticResolutions({ projectDir, query, limit: 60 }),
-    ])
-      .then(([
-        tupleData,
-        edgeData,
-        episodeData,
-        graphStatsData,
-        memoryStatsData,
-        semanticStatsData,
-        semanticResolutionData,
-      ]) => {
+    async function loadMemorySurfaces() {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const [
+          tupleData,
+          edgeData,
+          episodeData,
+          graphStatsData,
+          memoryStatsData,
+          semanticStatsData,
+          semanticResolutionData,
+        ] = await Promise.all([
+          fetchTupleEntries({ harbor: harbor || undefined, query, limit: 50 }),
+          fetchGraphEdges({ projectDir, query, limit: 120 }),
+          fetchEpisodes({ projectDir, project: projectName || undefined, harbor: harbor || undefined, query, limit: 80 }),
+          fetchGraphStats(projectDir),
+          fetchMemoryStats(projectDir, projectName || undefined),
+          fetchSemanticStats(projectDir),
+          fetchSemanticResolutions({ projectDir, query, limit: 60 }),
+        ]);
+
         if (cancelled) return;
         setTuples(tupleData);
         setEdges(edgeData);
@@ -422,14 +425,15 @@ export default function MemoryPanel({
         setMemoryStats(memoryStatsData);
         setSemanticStats(semanticStatsData);
         setSemanticResolutions(semanticResolutionData);
-      })
-      .catch((err: Error) => {
+      } catch (err) {
         if (cancelled) return;
-        setError(err.message);
-      })
-      .finally(() => {
+        setError(err instanceof Error ? err.message : String(err));
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    }
+
+    void Promise.resolve().then(loadMemorySurfaces);
 
     return () => {
       cancelled = true;

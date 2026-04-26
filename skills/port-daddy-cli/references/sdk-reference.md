@@ -1,4 +1,4 @@
-# Port Daddy JavaScript SDK Reference (v3.8.3)
+# Port Daddy JavaScript SDK Reference (v3.11.0)
 
 The `PortDaddy` class provides a programmatic interface to the Port Daddy daemon. Works in Node.js 18+ (uses native `fetch`). Automatically uses Binary IPC for high-frequency operations (heartbeats, pheromone sprays, pub/sub) when the daemon's IPC socket is available, falling back to HTTP.
 
@@ -152,6 +152,38 @@ Get agent info. Defaults to this client's `agentId`.
 
 ### `pd.listAgents(options?)`
 List agents. Options: `activeOnly`. Returns `{ agents, count }`.
+
+---
+
+## Maritime Actors
+
+Durable maritime actors are stable role identities such as `navigator`, `coxswain`, `signalman`, `harbormaster`, `sounder`, `lookout`, `breaker`, `caulker`, and `quartermaster`. They can have zero, one, or many live agent bodies attached. Messages target actor mailboxes like `actor:navigator`, so the work item survives body churn.
+
+### `pd.listActors(options?)`
+List actor projections. Options: `project`, `limit`. Returns `{ actors, count }`.
+
+### `pd.getActor(idOrAlias, options?)`
+Get one actor by canonical ID or compatibility alias. Options: `project`. For example, `cartographer` resolves to `navigator`.
+
+### `pd.messageActor(idOrAlias, content, options?)`
+Send a mailbox message to an actor. Options: `from`, `type`, `project`, `wake`.
+
+Use `wake: true` only when you also want to hail a compatible live fleet body; mailbox delivery does not require a live body.
+
+### `pd.actorInboxList(idOrAlias, options?)`
+Read recent messages queued to a durable actor mailbox. Options: `unreadOnly`, `limit`, `since`.
+
+### `pd.actorInboxStats(idOrAlias)`
+Read mailbox depth for one durable actor. Returns `{ unread, total, max }`.
+
+```js
+await pd.messageActor('navigator', 'Refresh roadmap truth from CURRENT-WORK.md', {
+  from: 'agent-123',
+  type: 'roadmap.request',
+  project: 'port-daddy',
+  wake: true,
+})
+```
 
 ---
 

@@ -175,6 +175,10 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     description: 'Agent registry, heartbeats, salvage/resurrection',
     tools: ['register_agent', 'agent_heartbeat', 'unregister_agent', 'get_agent', 'list_agents', 'check_salvage', 'claim_salvage', 'salvage_complete', 'salvage_abandon', 'salvage_dismiss'],
   },
+  'actors': {
+    description: 'Durable maritime actor directory and live lease projections',
+    tools: ['list_actors', 'get_actor', 'message_actor', 'list_actor_inbox', 'get_actor_inbox_stats'],
+  },
   'inbox': {
     description: 'Agent-to-agent direct messaging via inbox',
     tools: ['inbox_send', 'inbox_read', 'inbox_stats', 'inbox_mark_read', 'inbox_mark_all_read', 'inbox_clear'],
@@ -961,6 +965,124 @@ const TOOLS = [
           description: 'Filter by purpose pattern (e.g. "*bug*" or "*feature*")',
         },
       },
+    },
+  },
+  {
+    name: 'list_actors',
+    description:
+      '[Standard] List canonical maritime actor souls with live bodies, recent sessions, salvage, and inbox targets.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        project: {
+          type: 'string',
+          description: 'Optional logical project filter (for example, "port-daddy").',
+        },
+        limit: {
+          type: 'number',
+          description: 'Maximum number of sessions and salvage records to inspect per projection.',
+        },
+      },
+    },
+  },
+  {
+    name: 'get_actor',
+    description:
+      '[Standard] Get one canonical maritime actor by id or alias, including live body and recent work signals.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        actor_id: {
+          type: 'string',
+          description: 'Actor id or alias, such as "navigator", "cartographer", or "coxswain".',
+        },
+        project: {
+          type: 'string',
+          description: 'Optional logical project filter (for example, "port-daddy").',
+        },
+        limit: {
+          type: 'number',
+          description: 'Maximum number of sessions and salvage records to inspect per projection.',
+        },
+      },
+      required: ['actor_id'],
+    },
+  },
+  {
+    name: 'message_actor',
+    description:
+      '[Standard] Queue a message to a durable maritime actor mailbox. Does not grant dormant actors live mutation authority.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        actor_id: {
+          type: 'string',
+          description: 'Actor id or alias, such as "navigator", "cartographer", or "coxswain".',
+        },
+        content: {
+          type: 'string',
+          description: 'Message content to queue.',
+        },
+        from: {
+          type: 'string',
+          description: 'Sender agent id or operator label.',
+        },
+        type: {
+          type: 'string',
+          description: 'Optional message type.',
+        },
+        wake: {
+          type: 'boolean',
+          description: 'Try to hail the compatibility fleet body when one exists.',
+        },
+        project: {
+          type: 'string',
+          description: 'Optional project hint for wake routing.',
+        },
+      },
+      required: ['actor_id', 'content'],
+    },
+  },
+  {
+    name: 'list_actor_inbox',
+    description:
+      '[Standard] Read recent messages queued to a durable maritime actor mailbox.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        actor_id: {
+          type: 'string',
+          description: 'Actor id or alias, such as "navigator", "cartographer", or "coxswain".',
+        },
+        unread_only: {
+          type: 'boolean',
+          description: 'Only return unread messages.',
+        },
+        limit: {
+          type: 'number',
+          description: 'Maximum messages to return.',
+        },
+        since: {
+          type: 'number',
+          description: 'Only return messages created after this epoch-millis timestamp.',
+        },
+      },
+      required: ['actor_id'],
+    },
+  },
+  {
+    name: 'get_actor_inbox_stats',
+    description:
+      '[Standard] Read mailbox depth for a durable maritime actor.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        actor_id: {
+          type: 'string',
+          description: 'Actor id or alias, such as "navigator", "cartographer", or "coxswain".',
+        },
+      },
+      required: ['actor_id'],
     },
   },
 
@@ -2262,7 +2384,7 @@ const TOOLS = [
       '[Essential] List available Port Daddy tool categories and their tools. ' +
       'In default mode, only essential tools are loaded. Use this to discover ' +
       'additional tools by category, then call them directly by name. ' +
-      'Categories: session-lifecycle, advisor, ports, sessions, notes, locks, messaging, agents, inbox, ' +
+      'Categories: session-lifecycle, advisor, ports, sessions, notes, locks, messaging, agents, actors, inbox, ' +
       'webhooks, integration, dns, briefing, tunnels, projects, changelog, activity, system, tuples, semantic.',
     inputSchema: {
       type: 'object' as const,
@@ -2631,6 +2753,51 @@ async function handleTool(
       if (args.purpose) params.set('purpose', args.purpose as string);
       const qs = params.toString() ? `?${params.toString()}` : '';
       res = await GET(`/agents${qs}`);
+      break;
+    }
+
+    case 'list_actors': {
+      const params = new URLSearchParams();
+      if (args.project) params.set('project', args.project as string);
+      if (typeof args.limit === 'number') params.set('limit', String(args.limit));
+      const qs = params.toString() ? `?${params.toString()}` : '';
+      res = await GET(`/actors${qs}`);
+      break;
+    }
+
+    case 'get_actor': {
+      const params = new URLSearchParams();
+      if (args.project) params.set('project', args.project as string);
+      if (typeof args.limit === 'number') params.set('limit', String(args.limit));
+      const qs = params.toString() ? `?${params.toString()}` : '';
+      res = await GET(`/actors/${encodeURIComponent(args.actor_id as string)}${qs}`);
+      break;
+    }
+
+    case 'message_actor': {
+      const body: Record<string, unknown> = {
+        content: args.content,
+      };
+      if (args.from) body.from = args.from;
+      if (args.type) body.type = args.type;
+      if (typeof args.wake === 'boolean') body.wake = args.wake;
+      if (args.project) body.project = args.project;
+      res = await POST(`/actors/${encodeURIComponent(args.actor_id as string)}/message`, body);
+      break;
+    }
+
+    case 'list_actor_inbox': {
+      const params = new URLSearchParams();
+      if (args.unread_only) params.set('unread', 'true');
+      if (typeof args.limit === 'number') params.set('limit', String(args.limit));
+      if (typeof args.since === 'number') params.set('since', String(args.since));
+      const qs = params.toString() ? `?${params.toString()}` : '';
+      res = await GET(`/actors/${encodeURIComponent(args.actor_id as string)}/inbox${qs}`);
+      break;
+    }
+
+    case 'get_actor_inbox_stats': {
+      res = await GET(`/actors/${encodeURIComponent(args.actor_id as string)}/inbox/stats`);
       break;
     }
 

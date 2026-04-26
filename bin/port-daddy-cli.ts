@@ -98,6 +98,8 @@ import {
   handleSitrep, handleSay, handleLook, handlePheromone,
   // Coordination advisor / suggestibility
   handleAdvisor,
+  // Maritime actor directory
+  handleActors,
 } from '../cli/commands/index.js';
 import { getDaemonTcpUrl, readDaemonPort, resolveDaemonTcpTarget } from '../shared/daemon-discovery.js';
 import { calculateRuntimeCodeHash } from '../shared/code-hash.js';
@@ -132,7 +134,7 @@ const TIER_1_COMMANDS: Set<string> = new Set([
 
 const TIER_2_COMMANDS: Set<string> = new Set([
   'pub', 'publish', 'sub', 'subscribe', 'wait', 'broadcast', 'listen',
-  'agent', 'agents',
+  'agent', 'agents', 'actor', 'actors',
   'up', 'down', 'watch', 'swarm', 'fleet',
   'channels', 'webhook', 'webhooks', 'tunnel', 'dns', 'inbox',
   'advise', 'preflight', 'compass',
@@ -519,12 +521,13 @@ function buildHelp(): string {
     `  ${G}pd agent${Z} "task"         One-shot autopilot delegation`,
     `  ${G}pd agent register${Z}        Register as an agent`,
     `  ${G}pd salvage${Z}               Pick up a dead agent's work`,
+    `  ${G}pd actors${Z}                Inspect durable maritime actor souls`,
     `  ${G}pd advise${Z}                Suggest coordination moves before editing`,
     `  ${G}pd graph stats${Z}           Inspect semantic graph totals`,
     `  ${G}pd memory episodes${Z}       Inspect episodic memory`,
     `  ${G}pd ideas search${Z} "text"   Search ideas, notes, tuples, and repo markdown`,
     '',
-    `${D}pd help <topic> for details — topics: setup, sessions, locks, agents, ports, messaging, dns, orchestration, sugar, semantic, advisor, ideas, tutorial${Z}`,
+    `${D}pd help <topic> for details — topics: setup, sessions, locks, agents, actors, ports, messaging, dns, orchestration, sugar, semantic, advisor, ideas, tutorial${Z}`,
     `${D}Dashboard: ${PORT_DADDY_URL}  •  Tutorial: pd learn${Z}`,
   );
 
@@ -654,6 +657,42 @@ Examples:
   pd agents --active --json
   pd salvage --project myapp
   pd salvage claim dead-agent-99`,
+
+  actors: `Maritime Actors \u2014 Durable coordination souls and live body signals
+
+Commands:
+  actors                    List canonical maritime actors and live lease signals
+    --project <name>        Filter live session/agent/salvage evidence by project
+    --limit <n>             Limit session/salvage evidence per actor
+    -j, --json              Output as JSON
+
+  actor <id-or-alias>       Show one actor by canonical id or alias
+                            Examples: navigator, cartographer, coxswain
+    --project <name>        Filter live evidence by project
+    --message <text>        Queue a message to the actor mailbox
+    --inbox                 Read recent actor mailbox messages
+    --inbox-stats           Show actor mailbox depth
+    --unread                With --inbox, only show unread messages
+    --wake                  Try to hail the compatibility fleet body, if one exists
+    -j, --json              Output as JSON
+
+Actors:
+  navigator                 Roadmap, recovery map, and Cartographer compatibility
+  coxswain                  Claims, locks, stale assets, and symbolic coordination
+  signalman                 Tests, validation, and evidence
+  harbormaster              Promotion, daemon freshness, and runtime truth
+  sounder                   Tuples, graph, memory, and semantic collapse
+  lookout                   Docs, OpenAPI, skills, and product truth
+  breaker                   Failure propagation and circuit breakers
+  caulker                   Robustness repair and leak sealing
+  quartermaster             Costs, spawn discipline, and backend policy
+
+Examples:
+  pd actors --project port-daddy
+  pd actor cartographer
+  pd actor navigator --message "roadmap item needs evidence"
+  pd actor navigator --inbox --unread
+  pd actor coxswain --json`,
 
   ports: `Port Management \u2014 Claim, release, and query ports
 
@@ -919,7 +958,7 @@ const ALL_COMMANDS: string[] = [
   'claim', 'c', 'release', 'r', 'find', 'f', 'list', 'l', 'ps', 'url', 'env',
   'pub', 'publish', 'broadcast', 'sub', 'subscribe', 'listen', 'wait', 'lock', 'unlock', 'locks',
   'up', 'down', 'setup', 'init', 'scan', 's', 'projects', 'p',
-  'agent', 'agents', 'swarm', 'inbox', 'log', 'activity',
+  'agent', 'agents', 'actor', 'actors', 'swarm', 'inbox', 'log', 'activity',
   'wallet', 'bond',
   'session', 'sessions', 'note', 'notes', 'say',
   'begin', 'done', 'whoami', 'with-lock', 'learn',
@@ -1964,6 +2003,14 @@ async function main(): Promise<void> {
       case 'agents':
       case 'swarm':
         await handleAgents(options);
+        break;
+
+      case 'actor':
+        await handleActors(positional, options);
+        break;
+
+      case 'actors':
+        await handleActors([], options);
         break;
 
       // Self-healing / resurrection

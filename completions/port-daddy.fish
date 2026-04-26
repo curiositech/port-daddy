@@ -94,7 +94,7 @@ complete -c pd -s V -l version -d 'Print version'
 set -l __pd_commands \
     'claim' 'c' 'release' 'r' 'find' 'f' 'list' 'l' 'ps' 'services' 'url' 'env' 'tunnel' \
     'pub' 'publish' 'broadcast' 'sub' 'subscribe' 'listen' 'wait' 'lock' 'unlock' 'locks' \
-    'agent' 'agents' 'swarm' 'log' 'activity' \
+    'agent' 'agents' 'actor' 'actors' 'swarm' 'log' 'activity' \
     'session' 'sessions' 'note' 'notes' \
     'salvage' 'resurrection' 'changelog' 'dns' 'files' 'who-owns' 'integration' 'briefing' 'history' 'inbox' \
     'begin' 'b' 'done' 'whoami' 'w' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'watch' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' \
@@ -210,6 +210,10 @@ for prog in port-daddy pd
     # Tuple space
     complete -c $prog -n __pd_needs_command -a tuple -d 'Linda-style tuple space (out, rd, in, scan, count)'
 
+    # Maritime actors
+    complete -c $prog -n __pd_needs_command -a actor -d 'Show one durable maritime actor'
+    complete -c $prog -n __pd_needs_command -a actors -d 'List durable maritime actors'
+
     # Consolidated read/write (3.8.4)
     complete -c $prog -n __pd_needs_command -a say -d 'Write a finding (note + optional tuple/pheromone/broadcast)'
     complete -c $prog -n __pd_needs_command -a look -d 'Situation report (sitrep default; --heat for file heat map)'
@@ -281,6 +285,14 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command advise preflight compass" -l projectRoot -r -d 'Project root'
     complete -c $prog -n "__pd_using_command advise preflight compass" -l channels -d 'Include channel suggestions'
     complete -c $prog -n "__pd_using_command advise preflight compass" -l tuples -d 'Include tuple suggestions'
+
+    # pd actor/actors flags
+    complete -c $prog -n "__pd_using_command actor actors" -l project -x -d 'Project filter'
+    complete -c $prog -n "__pd_using_command actor actors" -l limit -x -d 'Evidence result limit'
+    complete -c $prog -n "__pd_using_command actor" -l message -x -d 'Queue a message to the actor mailbox'
+    complete -c $prog -n "__pd_using_command actor" -l from -x -d 'Message sender'
+    complete -c $prog -n "__pd_using_command actor" -l type -x -d 'Message type'
+    complete -c $prog -n "__pd_using_command actor" -l wake -d 'Try to hail compatibility fleet body'
     # pd pheromone subcommands
     complete -c $prog -n "__pd_using_command pheromone ph" -x -a 'spray file files show ls read list' -d 'Subcommand'
     complete -c $prog -n "__pd_using_command pheromone ph; and __fish_seen_subcommand_from files" -l path -x -d 'Path prefix filter'

@@ -296,6 +296,142 @@ Fixed 480px wide vertical list: top 3 projects × cost tick + status chip. Wraps
 
 ---
 
+## R3F component suite contract (Track 3a)
+
+This section is the handoff boundary between the static mocks and the real
+renderer. The current code slice scaffolds these contracts under
+`fleet-config-ui/src/ships/` without introducing WebGL dependencies yet. The
+zero-GPU path is intentional: FleetBar, tests, cards, and snapshot fallbacks must
+consume the same `ShipPlan` data before the R3F implementation lands.
+
+### 15. `AgentShip`
+
+Reads `buildShip(identity)` from `ship-grammar.ts` and renders one ship from a
+plain `ShipPlan`.
+
+**Current scaffold:** `AgentShip.tsx` renders a deterministic SVG fallback and
+exposes `data-ship-renderer="svg-contract"`. The future R3F implementation keeps
+the same props and replaces the inner renderer with meshes:
+
+- one `<mesh>` per `ShipBlock` group: mainframe, prow, daemon core, clusters,
+  towers, nacelles, trim
+- `useFrame` bobbing and roll for `running`, disabled by `reducedMotion`
+- material state table for `idle`, `throttled`, `selected`, `unselected`,
+  `ghost`, `slashed`, and `mayday`
+- `selected` lerps emissive to `metrics.colorPrimary` with intensity `2.0` over
+  200ms
+
+**Props**
+```ts
+interface AgentShipProps {
+  identity: string;
+  status?: ShipRuntimeState;
+  selected?: boolean;
+  reducedMotion?: boolean;
+  scale?: number;
+  plan?: ShipPlan;
+  className?: string;
+  style?: CSSProperties;
+  ariaLabel?: string;
+}
+```
+
+### 16. `FleetStage`
+
+Owns the scene frame and reduced-motion boundary.
+
+**Current scaffold:** `FleetStage.tsx` is a hard-bordered dependency-free shell.
+The future R3F implementation replaces its interior with:
+
+- subdivided `planeGeometry(240, 240, 64, 64)` rotated horizontal
+- custom water `ShaderMaterial` with `uTime`
+- vertex displacement:
+  `sin(x*0.08 + t*0.6)*0.35 + cos(z*0.11 + t*0.45)*0.25`
+- orthographic camera at roughly 30-degree elevation
+- low-key ambient and directional light
+
+### 17. `DitherPipeline`
+
+Named postprocessing boundary for the renderer.
+
+**Current scaffold:** `DitherPipeline.tsx` is a transparent wrapper that exposes
+the palette and enabled state as data attributes. The future implementation uses
+`EffectComposer`, `BloomPass`, then an 8x8 Bayer `DitherEffect`. Bloom must run
+before dither so selected ships crunch outward into pixel stipples.
+
+Default palette:
+
+```ts
+['#f2eee6', '#121212', '#bf2f2f', '#0055ff', '#dfff00']
+```
+
+### 18. `AgentCardThumbnail`
+
+Renders N ships in a fixed thumbnail strip.
+
+**Current scaffold:** defaults to the SVG fallback path. The R3F path must use
+one shared `<Canvas frameloop="demand">` for all thumbnails in a card/list
+surface. Do not create one WebGL context per ship or per card.
+
+**Props**
+```ts
+interface AgentCardThumbnailProps {
+  identities: string[];
+  selectedIdentity?: string;
+  statusByIdentity?: Record<string, ShipRuntimeState>;
+  mode?: 'svg' | 'r3f';
+  className?: string;
+  ariaLabel?: string;
+}
+```
+
+### 19. `SnapshotWorkerClient`
+
+Fetches server-rendered ship images for contexts where WebGL is unavailable.
+
+**Current scaffold:** `useShipSnapshot()` posts `{ identity, state, size, mode }`
+when an endpoint is configured; otherwise `SnapshotWorkerClient` falls back to
+`AgentShip`. The future worker endpoint renders the R3F scene headlessly and
+returns `png`, `gif`, or `apng`.
+
+**Props**
+```ts
+interface SnapshotWorkerClientProps {
+  endpoint?: string;
+  identity: string;
+  state?: ShipRuntimeState;
+  size?: number;
+  mode?: 'png' | 'gif' | 'apng';
+  fallbackMode?: 'svg' | 'r3f';
+  className?: string;
+  alt?: string;
+}
+```
+
+### 20. `ship-grammar.ts`
+
+Pure identity-to-plan grammar. No React, no Three, no DOM. This is the shared
+truth consumed by R3F, SVG fallback, snapshot workers, and tests.
+
+**Exports**
+```ts
+buildShip(identity: string): ShipPlan
+parseShipIdentity(identity: string): { fleet: string; agent: string }
+renderShipSvgFragment(plan: ShipPlan, opts?: { scale?: number; ghost?: boolean }): string
+shipSvgViewBox(plan: ShipPlan, scale?: number): string
+```
+
+**Acceptance for the implementation pass**
+
+- R3F imports live only inside the implementation files, not in
+  `ship-grammar.ts`.
+- SVG and R3F surfaces must render the same `ShipPlan` for the same identity.
+- Reduced-motion snaps state changes and disables bobbing.
+- Thumbnail lists use one shared canvas or SVG, never N WebGL contexts.
+- Snapshot failures degrade to deterministic SVG, not broken image chrome.
+
+---
+
 ## Build order (for the MCP)
 
 1. **Tokens sanity test** — before any component call, read `tokens.css` and include

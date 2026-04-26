@@ -441,6 +441,19 @@ _pd_cmd_agents() {
     '(-h --help)'{-h,--help}'[show help]'
 }
 
+_pd_cmd_actors() {
+  _arguments \
+    '--project[filter live evidence by project]:project:' \
+    '--limit[max session/salvage evidence]:count:' \
+    '--message[queue a message to the actor mailbox]:message:' \
+    '--from[message sender]:sender:' \
+    '--type[message type]:type:' \
+    '--wake[try to hail compatibility fleet body]' \
+    '(-j --json)'{-j,--json}'[JSON output]' \
+    '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+    '1:actor id or alias:(navigator cartographer coxswain signalman harbormaster sounder lookout breaker caulker quartermaster)'
+}
+
 _pd_cmd_log() {
   _arguments \
     '--limit[max entries to return]:count:' \
@@ -1727,6 +1740,8 @@ _port_daddy() {
     # Agent registry
     'agent:manage an agent (register/heartbeat/unregister)'
     'agents:list registered agents'
+    'actor:show one durable maritime actor'
+    'actors:list durable maritime actors'
     'swarm:list registered agents (alias for agents)'
     # Activity
     'log:tail the activity log'
@@ -1868,6 +1883,7 @@ _port_daddy() {
         locks)              _pd_cmd_locks ;;
         agent)              _pd_cmd_agent ;;
         agents|swarm)        _pd_cmd_agents ;;
+        actor|actors)        _pd_cmd_actors ;;
         log)                _pd_cmd_log ;;
         activity)           _pd_cmd_activity ;;
         session)            _pd_cmd_session ;;

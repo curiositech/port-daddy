@@ -113,6 +113,22 @@ for session context, active claims, symbol freshness, salvage, channels, tuples,
 and true lock candidates. Agents should call the MCP `coordination_preflight`
 tool for the same advice.
 
+**Maritime actor directory:**
+```bash
+pd actors --project port-daddy
+pd actor navigator
+pd actor cartographer --json
+pd actor navigator --message "roadmap item needs evidence"
+pd actor navigator --inbox --unread
+pd actor navigator --inbox-stats
+```
+
+`pd actors` lists durable maritime actor souls such as Navigator, Coxswain,
+Signalman, Harbormaster, Sounder, Lookout, Breaker, Caulker, and
+Quartermaster. This is not a replacement for `/agents`: `/actors` is durable
+identity and role truth, while `/agents` remains the live body/lease
+compatibility view until the body-lease migration is complete.
+
 **Power-user pheromone CLI (3.8.4):**
 ```bash
 pd pheromone file <path> <strength>    # sugar for spray files/<path>/heat
@@ -154,6 +170,7 @@ With Port Daddy:
 | `coordination_preflight` | Compass advice before editing: context, claims, symbols, salvage, channels, tuples, and lock candidates |
 | `sitrep` | Situation report — what happened while I was away? Activity, notes, salvage queue, spawned agents. (CLI: `pd sitrep` / `pd look`. Was `catch_me_up` — kept as back-compat alias.) |
 | `swarm_awareness` | Who else is working here? All agents, sessions, file claims |
+| `list_actors` / `get_actor` / `message_actor` / `list_actor_inbox` / `get_actor_inbox_stats` | Durable maritime actor directory and mailbox; `/actors` role truth separate from live `/agents` bodies |
 | `file_heat` | Which files are agents fighting over? Pheromone-based contention map |
 | `talk_to_agent` | Send a direct message to a specific fleet agent by name |
 | `claim_port` | Get a deterministic port for a service identity |
@@ -589,6 +606,7 @@ Override via environment variables: `PORT_DADDY_SOCK`, `PORT_DADDY_IPC`, `PORT_D
 | `pd pub` / `pd sub` / `pd watch` | Pub/sub messaging |
 | `pd session files add` | Advisory file claims |
 | `pd advise` / `pd preflight` / `pd compass` | Suggest coordination primitives before editing |
+| `pd actors` / `pd actor <id>` | Inspect durable maritime actor souls and live body signals |
 | **Fleet & Agents** | |
 | `pd fleet init` | Create pd-fleet.yml + git hook |
 | `pd fleet up/down/status/validate` | Start/stop/inspect/dry-run the fleet (CLI-attached mode) |
