@@ -9,7 +9,6 @@ import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import { existsSync } from 'fs';
 import { join } from 'path';
 import type { Arbiter } from '../lib/arbiter.js';
-import type { BarnacleWatcherStatus } from '../lib/barnacle-client.js';
 import type { BosunHeartbeatStatus } from '../lib/bosun-heartbeat.js';
 import type { createFleetDaemon } from '../lib/fleet-daemon.js';
 import { formatUptime } from '../shared/port-utils.js';
@@ -89,9 +88,6 @@ interface InfoRouteDeps {
       costUsd: number;
       isEstimate: boolean;
     }>;
-  };
-  barnacle?: {
-    getStatus(): BarnacleWatcherStatus;
   };
   bosunHeartbeat?: {
     getStatus(): BosunHeartbeatStatus;
@@ -196,7 +192,8 @@ function resolveBosunBinaryStatus(rootDir: string) {
 }
 
 /**
- * Explain the Bosun writer/supervisor state without leaking Barnacle wording.
+ * Explain the Bosun writer/supervisor state without leaking retired watchdog
+ * wording into operator-facing status.
  *
  * Sample input and output:
  *
@@ -208,10 +205,9 @@ function resolveBosunBinaryStatus(rootDir: string) {
 function describeBosunHeartbeat(
   heartbeat: BosunHeartbeatStatus,
   binaryExists: boolean,
-  legacyReason: string | null,
 ): string | null {
   if (heartbeat.state !== 'healthy') {
-    return heartbeat.lastError ?? legacyReason;
+    return heartbeat.lastError;
   }
   if (binaryExists) {
     return 'daemon heartbeat writer active; pd-bosun supervisor binary available';
@@ -220,22 +216,6 @@ function describeBosunHeartbeat(
 }
 
 function buildGuardianSummary(deps: InfoRouteDeps) {
-  // ADR-0021: "Bosun" is the canonical watchdog name. `barnacle` remains a
-  // compatibility alias for the old HTTP sidecar, but `bosun` now describes the
-  // file heartbeat that the V4 supervisor consumes.
-  const legacyBarnacleStatus = deps.barnacle?.getStatus() ?? {
-    monitoredUrl: 'http://localhost:9875/health',
-    binaryPath: '',
-    binaryExists: false,
-    enabled: false,
-    state: 'disabled',
-    reason: 'not installed (optional)',
-    lastCheckAt: null,
-    lastHealthyAt: null,
-    lastFailureAt: null,
-    lastResurrectedAt: null,
-    failureCount: 0,
-  };
   const heartbeat = deps.bosunHeartbeat?.getStatus() ?? null;
   const bosunBinary = resolveBosunBinaryStatus(deps.__dirname);
   const bosunStatus = heartbeat ? {
@@ -244,13 +224,25 @@ function buildGuardianSummary(deps: InfoRouteDeps) {
     binaryExists: bosunBinary.binaryExists,
     enabled: heartbeat.enabled,
     state: heartbeat.state === 'healthy' ? 'idle' : heartbeat.state,
-    reason: describeBosunHeartbeat(heartbeat, bosunBinary.binaryExists, legacyBarnacleStatus.reason),
+    reason: describeBosunHeartbeat(heartbeat, bosunBinary.binaryExists),
     lastCheckAt: heartbeat.lastWrittenAt,
-    lastHealthyAt: heartbeat.state === 'healthy' ? heartbeat.lastWrittenAt : legacyBarnacleStatus.lastHealthyAt,
-    lastFailureAt: heartbeat.state === 'degraded' ? Date.now() : legacyBarnacleStatus.lastFailureAt,
-    failureCount: heartbeat.lastError ? legacyBarnacleStatus.failureCount + 1 : legacyBarnacleStatus.failureCount,
+    lastHealthyAt: heartbeat.state === 'healthy' ? heartbeat.lastWrittenAt : null,
+    lastFailureAt: heartbeat.state === 'degraded' ? Date.now() : null,
+    failureCount: heartbeat.lastError ? 1 : 0,
     heartbeat,
-  } : legacyBarnacleStatus;
+  } : {
+    monitoredUrl: null,
+    binaryPath: bosunBinary.binaryPath,
+    binaryExists: bosunBinary.binaryExists,
+    enabled: false,
+    state: 'disabled',
+    reason: 'daemon heartbeat writer unavailable',
+    lastCheckAt: null,
+    lastHealthyAt: null,
+    lastFailureAt: null,
+    failureCount: 0,
+    heartbeat: null,
+  };
 
   return {
     supervisor: {
@@ -258,7 +250,6 @@ function buildGuardianSummary(deps: InfoRouteDeps) {
       summary: 'launchctl is the authoritative daemon supervisor on macOS',
     },
     bosun: bosunStatus,
-    barnacle: legacyBarnacleStatus,
   };
 }
 

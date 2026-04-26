@@ -9,7 +9,7 @@ import { existsSync, readFileSync, accessSync, constants } from 'node:fs';
 import { spawnSync, spawn } from 'node:child_process';
 import type { SpawnSyncReturns } from 'node:child_process';
 import { ANSI as marANSI } from '../../lib/maritime.js';
-import { pdFetch, PORT_DADDY_URL, BARNACLE_URL, SOCK_PATH, getDaemonUrl } from '../utils/fetch.js';
+import { pdFetch, PORT_DADDY_URL, SOCK_PATH, getDaemonUrl } from '../utils/fetch.js';
 import { CLIOptions, isJson } from '../types.js';
 import { separator, tableHeader } from '../utils/output.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
@@ -44,10 +44,6 @@ interface StatusCommandResponse {
   };
   guardians?: {
     bosun?: {
-      state?: string;
-      reason?: string | null;
-    };
-    barnacle?: {
       state?: string;
       reason?: string | null;
     };
@@ -163,33 +159,36 @@ export async function handleHealth(id: string | undefined, options: CLIOptions):
     return;
   }
 
-  // System Health - query the legacy Barnacle health endpoint when present.
-  // ADR-0021 reserves "Bosun" for the user-facing watchdog name.
-  try {
-    const res: PdFetchResponse = await pdFetch(`${BARNACLE_URL}/health`);
-    const data = await res.json();
+  const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/health`);
+  const data = await res.json() as {
+    status?: string;
+    error?: string;
+    uptime_seconds?: number;
+    pid?: number;
+    runtime?: { state?: string; degraded?: boolean };
+  };
 
-    if (isJson(options)) {
-      console.log(JSON.stringify(data, null, 2));
-      return;
-    }
-
-    const systemStatus = data.system_status as string;
-    const daemon = data.daemon as any;
-
-    console.log('');
-    console.log(`System Status: ${systemStatus === 'healthy' ? marANSI.fgGreen : marANSI.fgYellow}${systemStatus.toUpperCase()}${marANSI.reset}`);
-    separator(50);
-    console.log(`Daemon:   ${daemon.status === 'ok' ? 'Online' : 'Degraded'}`);
-    console.log(`Watchdog: Online (PID ${data.barnacle_pid})`);
-    console.log(`Uptime:   ${Math.floor(daemon.uptime_seconds / 60)}m ${daemon.uptime_seconds % 60}s`);
-    console.log('');
-  } catch {
-    // Fallback to services health if Barnacle is unreachable
-    const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/services/health`);
-    const data = await res.json() as StatusCommandResponse;
-    // ... rest of original fallback logic
+  if (!res.ok) {
+    ui.error(data.error || 'Failed to get daemon health');
+    process.exit(1);
   }
+
+  if (isJson(options)) {
+    console.log(JSON.stringify(data, null, 2));
+    return;
+  }
+
+  const runtimeState = data.runtime?.state ?? (data.status === 'ok' ? 'nominal' : 'degraded');
+  const statusColor = data.status === 'ok' && !data.runtime?.degraded ? marANSI.fgGreen : marANSI.fgYellow;
+
+  console.log('');
+  console.log(`System Status: ${statusColor}${runtimeState.toUpperCase()}${marANSI.reset}`);
+  separator(50);
+  console.log(`Daemon:   ${data.status === 'ok' ? 'Online' : 'Degraded'}${data.pid ? ` (PID ${data.pid})` : ''}`);
+  if (data.uptime_seconds !== undefined) {
+    console.log(`Uptime:   ${Math.floor(data.uptime_seconds / 60)}m ${data.uptime_seconds % 60}s`);
+  }
+  console.log('');
 }
 
 /**
@@ -242,7 +241,7 @@ export async function handleStatus(): Promise<void> {
       console.log(`  Fleet: ${projectCount} project(s), ${data.fleet.totalAgents ?? 0} agent(s)`);
     }
 
-    const bosun = data.guardians?.bosun ?? data.guardians?.barnacle;
+    const bosun = data.guardians?.bosun;
     if (bosun) {
       const normalizedState = bosun.state === 'disabled' && bosun.reason?.includes('missing')
         ? 'not installed (optional)'

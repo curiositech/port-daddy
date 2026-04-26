@@ -61,6 +61,7 @@ const ENFORCED_PATH_PREFIXES = [
   'public/',          // web dashboard
   'fleet-config-ui/src/',
   'dashboard/',
+  'core/',
   // website-v2 is mostly marketing/docs that legitimately shows the canonical
   // URL in code samples. Only enforce on the runtime daemon-client code under
   // website-v2/src/lib/.
@@ -75,6 +76,14 @@ const ENFORCED_FILES = new Set([
 const FORBIDDEN_PATTERNS = [
   'http://localhost:9876',
   'http://127\\.0\\.0\\.1:9876',
+];
+
+const FORBIDDEN_BARNACLE_PATTERNS = [
+  'PORT_DADDY_ENABLE_LEGACY_BARNACLE',
+  'createBarnacleWatcher',
+  'BARNACLE_URL',
+  'pd-barnacle',
+  'guardians\\.barnacle',
 ];
 
 const INCLUDE_EXTS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.swift', '.rs']);
@@ -94,7 +103,6 @@ const EXCLUDE_PATH_PREFIXES = [
   'tests/benchmark/',
   'port-daddy-stable/',
   'core/pd-bosun/target/',
-  'core/pd-barnacle/target/',
 ];
 
 // Test files legitimately reference the canonical URL to verify resolver
@@ -161,6 +169,21 @@ describe('no-hardcoded-daemon-url', () => {
           `  - Web:   relative paths (no scheme/host)\n` +
           `If this hit is legitimate, add the file to ALLOWED_FILES in this test with a reason.`;
         throw new Error(msg);
+      }
+      expect(offenders).toEqual([]);
+    });
+  }
+
+  for (const pattern of FORBIDDEN_BARNACLE_PATTERNS) {
+    test(`no source file contains retired Barnacle runtime path ${pattern}`, () => {
+      const offenders = findOffenders(pattern);
+      if (offenders.length > 0) {
+        const detail = offenders.map((o) => `  ${o.path}:${o.lineNumber}  ${o.line}`).join('\n');
+        throw new Error(
+          `Found ${offenders.length} retired Barnacle runtime reference(s):\n${detail}\n\n` +
+          `Bosun is the only watchdog runtime path. Do not reintroduce Barnacle ` +
+          `watchers, compatibility fields, opt-in flags, or pd-barnacle sources.`,
+        );
       }
       expect(offenders).toEqual([]);
     });

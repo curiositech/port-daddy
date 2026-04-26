@@ -50,7 +50,6 @@ import { createHarbors } from './lib/harbors.js';
 import { createHarborTokens } from './lib/harbor-tokens.js';
 import { createSorties } from './lib/sorties.js';
 import { createPheromoneManager } from './lib/pheromone.js';
-import { createBarnacleWatcher } from './lib/barnacle-client.js';
 import { createReactiveOrchestrator } from './lib/orchestrator.js';
 import { createCorrelationEngine } from './lib/correlation.js';
 import { createArbiter } from './lib/arbiter.js';
@@ -360,9 +359,6 @@ const bosunHeartbeat = createBosunHeartbeat({
   logger,
 });
 
-const barnacle = createBarnacleWatcher(logger);
-barnacle.start();
-
 const orchestrator = createReactiveOrchestrator(db, messaging, spawner);
 const correlationEngine = createCorrelationEngine(activityLog, sessions);
 
@@ -656,7 +652,7 @@ await registerAllRoutes(
     harbors, sorties, orchestrator, correlationEngine, spawner, tuples, fleetDaemon,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, counters,
     bonds, budgetGuard, budgetPause,
-    arbiter, barnacle, bosunHeartbeat,
+    arbiter, bosunHeartbeat,
     VERSION, CODE_HASH, STARTED_AT, __dirname,
     cleanupStale, getSystemPorts,
   },
