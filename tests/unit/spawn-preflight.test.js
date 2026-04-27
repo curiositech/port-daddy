@@ -125,4 +125,47 @@ describe('assessSpawnPreflight', () => {
       model: 'claude-haiku-4-5-20251001',
     });
   });
+
+  test('explains every blocked backend attempt when none are launchable', async () => {
+    mockResolveFleetAgentRuntime.mockReturnValue({
+      backend: 'ollama',
+      model: 'qwen2.5-coder:7b',
+      modelTier: undefined,
+      backendSource: 'agent',
+      modelSource: 'agent',
+      warnings: [],
+    });
+    mockAssessBackendReadiness.mockResolvedValue({
+      backend: 'ollama',
+      status: 'needs_setup',
+      summary: 'Ollama is blocked until exact telemetry exists.',
+      nextStep: 'Use a Claude model with an exact nonzero rate.',
+    });
+
+    const result = await assessSpawnPreflight({
+      backend: 'ollama',
+      model: 'qwen2.5-coder:7b',
+      identity: 'port-daddy:fleet:cartographer',
+      budgetUsd: 0.75,
+    }, {
+      costTracker: {
+        budgetStatus: jest.fn(() => ({
+          project: 'port-daddy',
+          budgetUsdPerDay: 0.75,
+          spentUsd: 0,
+          remainingUsd: 0.75,
+          percentUsed: 0,
+          overBudget: false,
+        })),
+      },
+    });
+
+    expect(result.launchReady).toBe(false);
+    expect(result.blockedReasons.join('\n')).toContain(
+      'No launchable backend (every configured attempt is blocked at readiness):',
+    );
+    expect(result.blockedReasons.join('\n')).toContain(
+      'ollama:qwen2.5-coder:7b — Ollama is blocked until exact telemetry exists. Next: Use a Claude model with an exact nonzero rate.',
+    );
+  });
 });
