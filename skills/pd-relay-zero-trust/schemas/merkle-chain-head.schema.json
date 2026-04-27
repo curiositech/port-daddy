@@ -4,11 +4,11 @@
   "title": "Signed Chain Head",
   "description": "A periodic, signed checkpoint of a per-publisher event chain. Heads are published to the relay AND optionally anchored externally (DNS TXT, signed git commit, transparency log).",
   "type": "object",
-  "required": ["v", "sender", "channel", "tip_seq", "tip_hash", "issued_at", "alg", "sig", "kid"],
+  "required": ["v", "sender", "tip_seq", "tip_hash", "issued_at", "alg", "sig", "kid"],
   "properties": {
     "v": {"const": 1},
     "sender": {"type": "string"},
-    "channel": {"type": "string", "description": "Optional channel scope; null/absent = whole-publisher chain across all channels"},
+    "channel": {"type": ["string", "null"], "description": "Optional channel scope; null/absent = whole-publisher chain across all channels"},
     "tip_seq": {"type": "integer", "minimum": 0},
     "tip_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "issued_at": {"type": "integer"},

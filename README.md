@@ -619,8 +619,8 @@ Commit this to your repo so every developer gets the same deterministic port map
 |---------|------|
 | **Leader Election** | Use locks to appoint a single master agent in a worker swarm. (`/cookbook/leader-election`) |
 | **P2P Handshake** | Use inboxes as signaling servers to establish high-bandwidth WebRTC tunnels. (`/cookbook/p2p-webrtc`) |
-| **Agentic Escrow** | Hold lock-backed payouts until an Arbiter agent verifies work quality. *(planned — see `docs/plans/PHONE-INTEGRATION-AND-WEBAPP-REHAB-PLAN.md`)* |
-| **The Brig** | Automatically isolate or salvage agents who deviate from their manifest. *(planned — see `docs/plans/PHONE-INTEGRATION-AND-WEBAPP-REHAB-PLAN.md`)* |
+| **Agentic Escrow** | Hold lock-backed payouts until an Arbiter agent verifies work quality. *(planned — see `docs/plans/PHONE-INTEGRATION-MASTER-PLAN.md`)* |
+| **The Brig** | Automatically isolate or salvage agents who deviate from their manifest. *(planned — see `docs/plans/PHONE-INTEGRATION-MASTER-PLAN.md`)* |
 
 Two recipe surfaces exist today:
 - **`/examples`** — short SDK-snippet patterns by primitive (sessions, pub/sub, locks, salvage, harbors, etc.)

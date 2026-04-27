@@ -14,7 +14,7 @@ Input  (Request.payload):
   {
     "client_hello": {...},
     "server_hello": {...},
-    "now": int    # unix timestamp; defaults to client_hello.iat + 1
+    "now": int    # unix timestamp; defaults to card.iat + 1
   }
 
 Output: { "ok": bool, "findings": [ { "severity", "code", "message" } ] }
@@ -53,9 +53,20 @@ def handle(payload: dict) -> dict:
             "server_hello.nonce_c does not echo client_hello.nonce_c")
 
     card = ch.get("card", {}) or {}
-    cap_index = {(c.get("op"), c.get("channel")) for c in card.get("cap", [])}
+    cap_index: set[tuple[str, str]] = set()
+    for c in card.get("cap", []):
+        op, channel = c.get("op"), c.get("channel")
+        if not isinstance(op, str) or not isinstance(channel, str):
+            add("error", "cap_entry_malformed",
+                f"card.cap entry has non-string op/channel: {c!r}")
+            continue
+        cap_index.add((op, channel))
     for sub in ch.get("subscriptions", []):
         ch_name = sub.get("channel", "")
+        if not isinstance(ch_name, str):
+            add("error", "sub_channel_malformed",
+                f"subscriptions entry has non-string channel: {sub!r}")
+            continue
         # Must have either explicit (sub, channel) or wildcard parent
         ok = False
         for op, channel in cap_index:

@@ -68,7 +68,7 @@ ProVerif extension required before any "formally verified" claims (see `referenc
 - Revocation propagation ≤ 5s
 - 99.9% relay availability SLO
 
-## Decision
+## Outcome
 
 [Approved / Needs Revision]
 

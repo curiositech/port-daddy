@@ -104,9 +104,32 @@ if __name__ == "__main__":
     if "--selftest" in sys.argv[1:]:
         selftest()
     else:
-        # The expected_command must match either; we accept both.
+        # Accept either envelope.encrypt or envelope.decrypt. We parse stdin
+        # once here (run() would read stdin a second time and find it empty).
         import json as _j
+        from _envelope import VERSION, write_error, write_ok  # noqa: E402
         raw = sys.stdin.read()
-        req = _j.loads(raw) if raw.strip() else {}
-        cmd = req.get("command", "envelope.encrypt")
-        run(handle, expected_command=cmd)
+        if not raw.strip():
+            write_error("empty_request", "stdin was empty")
+            sys.exit(2)
+        try:
+            req = _j.loads(raw)
+        except _j.JSONDecodeError as e:
+            write_error("invalid_json", f"stdin is not valid JSON: {e}")
+            sys.exit(2)
+        if req.get("kind") != "request" or req.get("version") != VERSION:
+            write_error("invalid_envelope",
+                        "expected kind=request and matching version")
+            sys.exit(2)
+        cmd = req.get("command")
+        if cmd not in ("envelope.encrypt", "envelope.decrypt"):
+            write_error("wrong_command",
+                        f"expected envelope.encrypt or envelope.decrypt; got {cmd!r}",
+                        trace_id=req.get("trace_id"))
+            sys.exit(2)
+        try:
+            result = handle(req.get("payload", {}))
+        except Exception as e:  # noqa: BLE001 — boundary
+            write_error("handler_failed", str(e), trace_id=req.get("trace_id"))
+            sys.exit(1)
+        write_ok(result, trace_id=req.get("trace_id"))

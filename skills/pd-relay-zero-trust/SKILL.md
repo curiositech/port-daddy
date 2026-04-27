@@ -3,37 +3,12 @@ license: Apache-2.0
 name: pd-relay-zero-trust
 description: Architects Port Daddy's outbound-only event relay and the zero-trust crypto stack that governs it — PKI choice (ACME vs OIDC vs Web-of-Trust), per-publisher Merkle event chains, harbor cards on the wire, Phase 3 capability attenuation, E2E payload encryption, ProVerif extension, and the V4 remote-harbor redefinition. Use when designing the relay, writing the PKI/relay/V4 ADRs, deciding PKI strategy with proponent/pragmatic/antagonist deliberation, scaffolding ACME or OIDC, building Merkle chain primitives, or extending the symbolic protocol model. NOT for implementing the local daemon, generic harbor-card refactors, Float Plan economic settlement (deferred), or generic zero-trust theory (use agentic-zero-trust-security).
 allowed-tools: Read,Write,Edit,Bash,Grep,Glob
-argument-hint: '[task: pki-decide|design-relay|build-merkle|attenuate|encrypt|extend-proverif|redefine-v4|threat-review]'
 metadata:
   category: Security & Architecture
-  tags:
-    - zero-trust
-    - relay
-    - pki
-    - merkle
-    - harbor-cards
-    - macaroons
-    - proverif
-    - port-daddy
-  pairs-with:
-    - skill: agentic-zero-trust-security
-      reason: Provides general zero-trust theory; this skill applies it to PD's relay
-    - skill: proverif-tamarin-protocol-modeling
-      reason: Used by extend-proverif task to model the relay's expanded surface
-    - skill: skill-architect
-      reason: This skill follows skill-architect conventions and quality gates
-  subagents:
-    - acme-specialist
-    - proponent
-    - pragmatic
-    - antagonist
-category: Security & Architecture
-tags:
-  - port-daddy
-  - relay
-  - zero-trust
-  - pki
-  - merkle
+  argument-hint: '[task: pki-decide|design-relay|build-merkle|attenuate|encrypt|extend-proverif|redefine-v4|threat-review]'
+  tags: [zero-trust, relay, pki, merkle, harbor-cards, macaroons, proverif, port-daddy]
+  pairs-with: [agentic-zero-trust-security, proverif-tamarin-protocol-modeling, skill-architect]
+  subagents: [acme-specialist, proponent, pragmatic, antagonist]
 ---
 
 # pd-relay-zero-trust

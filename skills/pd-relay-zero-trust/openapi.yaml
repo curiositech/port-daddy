@@ -129,12 +129,12 @@ paths:
                   data: { ... merkle_chain_head ... }
 
   /v1/chain/{sender}/{channel}/head:
+    parameters:
+      - { name: sender, in: path, required: true, schema: { type: string } }
+      - { name: channel, in: path, required: true, schema: { type: string } }
     get:
       tags: [chain]
       summary: Latest signed chain head for a (sender, channel)
-      parameters:
-        - { name: sender, in: path, required: true, schema: { type: string } }
-        - { name: channel, in: path, required: true, schema: { type: string } }
       responses:
         '200':
           description: Signed chain head
@@ -144,14 +144,9 @@ paths:
                 $ref: '#/components/schemas/ChainHead'
         '404':
           description: No head recorded for this (sender, channel)
-
-  /v1/chain/{sender}/{channel}/head:
     put:
       tags: [chain]
       summary: Publish a new signed chain head
-      parameters:
-        - { name: sender, in: path, required: true, schema: { type: string } }
-        - { name: channel, in: path, required: true, schema: { type: string } }
       requestBody:
         required: true
         content:

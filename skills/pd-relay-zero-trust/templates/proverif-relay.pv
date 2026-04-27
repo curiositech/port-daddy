@@ -27,15 +27,18 @@ free oob_harbor: channel [private].   (* out-of-band harbor key exchange *)
 (* Ed25519 *)
 fun pk(skey): pkey.
 fun sign(skey, bitstring): bitstring.
+fun verify(pkey, bitstring, bitstring): bool.
 reduc forall sk: skey, m: bitstring; verify(pk(sk), m, sign(sk, m)) = true.
 
 (* X25519 / HPKE seal-open *)
 fun pk_x(skey_x): pkey_x.
 fun hpke_seal(pkey_x, sym_key): bitstring.
+fun hpke_open(skey_x, bitstring): sym_key.
 reduc forall sk: skey_x, k: sym_key; hpke_open(sk, hpke_seal(pk_x(sk), k)) = k.
 
 (* AES-GCM (modeled as authenticated encryption) *)
 fun aead_seal(sym_key, bitstring): bitstring.
+fun aead_open(sym_key, bitstring): bitstring.
 reduc forall k: sym_key, m: bitstring; aead_open(k, aead_seal(k, m)) = m.
 
 (* Hash *)

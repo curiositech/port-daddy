@@ -13,7 +13,8 @@ Input  (Request.payload):
       "fail_mode_if_bypassed":  str,
       "key_material":           {described|"none"},
       "trust_boundary_crossed": [boundary names],
-      "proverif_query_added":   bool | "n/a"
+      "proverif_query_added":   bool | "n/a",
+      "e2e_preserved":          bool   # required when threatens_invariants includes "I1"
     }
   }
 
