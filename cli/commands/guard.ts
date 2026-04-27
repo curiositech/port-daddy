@@ -167,9 +167,9 @@ function guardHookBlock(): string {
   return [
     HOOK_START,
     'if command -v pd >/dev/null 2>&1; then',
-    '  pd guard check --staged --hook',
+    '  pd guard check --staged --hook || exit $?',
     'elif command -v port-daddy >/dev/null 2>&1; then',
-    '  port-daddy guard check --staged --hook',
+    '  port-daddy guard check --staged --hook || exit $?',
     'else',
     '  echo "Coordination Guard: pd command not found." >&2',
     '  exit 1',

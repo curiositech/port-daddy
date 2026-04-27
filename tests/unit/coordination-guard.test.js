@@ -104,4 +104,21 @@ describe('Coordination Guard', () => {
     expect(merged).toContain('Port Daddy Coordination Guard');
     expect(merged.indexOf('pd guard check --staged --hook')).toBeLessThan(merged.lastIndexOf('exit 0'));
   });
+
+  test('managed pre-commit block exits before later hook success paths when guard fails', () => {
+    const existing = [
+      '#!/usr/bin/env zsh',
+      'echo old guard',
+      'exit 0',
+      '',
+    ].join('\n');
+
+    const merged = mergePreCommitHook(existing);
+
+    expect(merged).toContain('pd guard check --staged --hook || exit $?');
+    expect(merged).toContain('port-daddy guard check --staged --hook || exit $?');
+    expect(merged.indexOf('pd guard check --staged --hook || exit $?')).toBeLessThan(
+      merged.lastIndexOf('exit 0'),
+    );
+  });
 });
