@@ -4,6 +4,7 @@ import {
   evaluateGuardFacts,
   mergePreCommitHook,
   normalizeGuardConfig,
+  ownerQueryPaths,
 } from '../../cli/commands/guard.js';
 
 describe('Coordination Guard', () => {
@@ -40,6 +41,18 @@ describe('Coordination Guard', () => {
     expect(result.passed).toBe(true);
     expect(result.shouldBlock).toBe(false);
     expect(result.violations).toEqual([]);
+  });
+
+  test('queries relative staged paths and absolute claim paths for the same repo file', () => {
+    expect(ownerQueryPaths('docs/recovery/CURRENT-WORK.md', '/repo')).toEqual([
+      'docs/recovery/CURRENT-WORK.md',
+      '/repo/docs/recovery/CURRENT-WORK.md',
+    ]);
+
+    expect(ownerQueryPaths('/repo/.cartographer/status.md', '/repo')).toEqual([
+      '/repo/.cartographer/status.md',
+      '.cartographer/status.md',
+    ]);
   });
 
   test('blocks in enforce mode without active Port Daddy context', () => {

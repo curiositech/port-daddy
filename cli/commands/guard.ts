@@ -1,5 +1,5 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import * as ui from '../utils/ui.js';
 import { pdFetch, PORT_DADDY_URL, type PdFetchResponse } from '../utils/fetch.js';
@@ -145,6 +145,45 @@ function stagedFiles(cwd = process.cwd()): string[] {
 
 function normalizeFiles(files: string[]): string[] {
   return Array.from(new Set(files.map(file => file.trim()).filter(Boolean)));
+}
+
+function posixPath(path: string): string {
+  return path.split('\\').join('/');
+}
+
+function relativePathInside(root: string, path: string): string | null {
+  const rel = relative(root, path);
+  if (!rel || rel.startsWith('..') || isAbsolute(rel)) return null;
+  return posixPath(rel);
+}
+
+export function ownerQueryPaths(file: string, repoRoot = process.cwd()): string[] {
+  const trimmed = file.trim();
+  if (!trimmed) return [];
+
+  const root = resolve(repoRoot);
+  const paths = new Set<string>([trimmed]);
+
+  if (isAbsolute(trimmed)) {
+    const rel = relativePathInside(root, trimmed);
+    if (rel) paths.add(rel);
+  } else {
+    paths.add(resolve(root, trimmed));
+  }
+
+  return Array.from(paths);
+}
+
+function mergeOwners(owners: GuardOwner[]): GuardOwner[] {
+  const seen = new Set<string>();
+  const merged: GuardOwner[] = [];
+  for (const owner of owners) {
+    const key = `${owner.sessionId ?? ''}\0${owner.agentId ?? ''}\0${owner.purpose ?? ''}\0${owner.phase ?? ''}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(owner);
+  }
+  return merged;
 }
 
 function dirtyFiles(cwd = process.cwd()): string[] {
@@ -321,15 +360,20 @@ async function loadActiveContext(cwd = process.cwd()): Promise<{
   }
 }
 
-async function loadOwners(files: string[]): Promise<Record<string, GuardOwner[]>> {
+async function loadOwners(files: string[], repoRoot = process.cwd()): Promise<Record<string, GuardOwner[]>> {
   const ownersByFile: Record<string, GuardOwner[]> = {};
   for (const file of files) {
-    try {
-      const data = await fetchJson(`/files/who-owns?path=${encodeURIComponent(file)}`);
-      ownersByFile[file] = Array.isArray(data.owners) ? data.owners as GuardOwner[] : [];
-    } catch {
-      ownersByFile[file] = [];
+    const owners: GuardOwner[] = [];
+    for (const queryPath of ownerQueryPaths(file, repoRoot)) {
+      try {
+        const data = await fetchJson(`/files/who-owns?path=${encodeURIComponent(queryPath)}`);
+        if (Array.isArray(data.owners)) owners.push(...data.owners as GuardOwner[]);
+      } catch {
+        // Keep checking the alternate spelling. A daemon/API mismatch should not
+        // erase owners found through the other canonical form.
+      }
     }
+    ownersByFile[file] = mergeOwners(owners);
   }
   return ownersByFile;
 }
@@ -384,7 +428,8 @@ async function runCheck(positional: string[], options: CLIOptions): Promise<Guar
       ? positional
       : dirtyFiles(cwd));
   const context = await loadActiveContext(cwd);
-  const ownersByFile = mode === 'off' || files.length === 0 ? {} : await loadOwners(files);
+  const root = gitRoot(cwd) ?? cwd;
+  const ownersByFile = mode === 'off' || files.length === 0 ? {} : await loadOwners(files, root);
   return evaluateGuardFacts({
     config,
     mode,
