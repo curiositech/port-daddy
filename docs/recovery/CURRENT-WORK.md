@@ -282,6 +282,39 @@ Follow-on execution session: `session-d43caa83-9525-4a04-a1b4-57df1ef92916`.
   privacy/observability, raw visual literals in legacy pages, and a deeper
   Mermaid/diagram payload decision.
 
+### Port Daddy Website Storybook and MCP A11y Slice (2026-04-26)
+
+Follow-on execution session: `session-38334c91-8bed-45d4-85be-da069cd41648`.
+
+- Storybook a11y is now configured to run axe through `wcag2aaa` plus
+  `color-contrast-enhanced`, matching the stricter MCP route gate instead of
+  silently stopping its label at AA.
+- The public primitive Storybook matrix now participates in the design-system
+  contract alongside Button, Badge, Surface, CodeBlock, and the MCP route
+  story.
+- The MCP pub/sub tabs now declare vertical tablist orientation and are covered
+  by contract checks for roving tab index, ArrowDown/ArrowRight/Home/End
+  navigation, and visible focus.
+- Refreshed a11y evidence now lives at
+  `docs/reports/website-rehab-a11y/mcp-a11y-report.json`; it records 0 desktop
+  axe violations, 0 mobile axe violations, 4 tabs, visible focus outline, and
+  no horizontal overflow at 1440x1200 or 390x1200.
+- Validation truth on 2026-04-26 from `website-v2/`:
+  - `npm run lint`: green
+  - `npm run test -- src/design-system-contracts.test.ts`: 11/11 pass
+  - `npm run test`: 7/7 files and 74/74 tests pass
+  - `npm run test:a11y:mcp`: green with refreshed report/screenshots
+  - `npm run build`: green with no chunk-size warning; largest JS chunk is
+    `Mermaid-CMec62CS.js` at 491.12 kB minified / 136.65 kB gzip, and the MCP
+    route chunk is `MCPPage-Cqgjlo-C.js` at 19.34 kB minified / 6.39 kB gzip
+  - `npm run build-storybook`: green with the known large iframe chunk warning
+    and `radix-ui` package metadata warning; iframe is 1,087.59 kB minified /
+    307.00 kB gzip
+- Remaining website rehab blockers: route-wide a11y/manual screen-reader
+  evidence, route-composite Storybook matrices, SEO/OG/PWA/legal/privacy/
+  observability, raw visual literals in legacy pages, and a deeper
+  Mermaid/diagram payload decision.
+
 ### Cartographer / Navigator Maritime Actor Foundation (2026-04-26)
 
 The current actor slice rebuilds the missing foundation that recovery docs had

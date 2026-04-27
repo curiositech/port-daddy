@@ -390,7 +390,7 @@ function ChannelTabs() {
 
   return (
     <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-[var(--space-5)] lg:grid-cols-[18rem_minmax(0,1fr)]">
-      <div role="tablist" aria-label="Pub/sub access surface" className="grid min-w-0 gap-[var(--space-2)]">
+      <div role="tablist" aria-label="Pub/sub access surface" aria-orientation="vertical" className="grid min-w-0 gap-[var(--space-2)]">
         {CHANNEL_SURFACES.map((item, index) => (
           <button
             key={item.id}

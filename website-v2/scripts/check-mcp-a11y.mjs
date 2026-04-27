@@ -182,7 +182,7 @@ async function main() {
       generatedAt: new Date().toISOString(),
       targetUrl,
       axe: {
-        standard: 'wcag2a/wcag2aa/wcag21a/wcag21aa/wcag22aa plus color-contrast-enhanced',
+        standard: 'wcag2a/wcag2aa/wcag21a/wcag21aa/wcag22aa/wcag2aaa plus color-contrast-enhanced',
         desktopViolations: desktopAxe.violations.length,
         mobileViolations: mobileAxe.violations.length,
         violations,

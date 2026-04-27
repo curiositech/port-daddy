@@ -17,7 +17,7 @@ const preview: Preview = {
       options: {
         runOnly: {
           type: 'tag',
-          values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'],
+          values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'wcag2aaa'],
         },
         rules: {
           'color-contrast-enhanced': { enabled: true },

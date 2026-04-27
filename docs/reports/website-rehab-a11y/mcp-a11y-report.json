@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-04-27T01:02:48.063Z",
+  "generatedAt": "2026-04-27T01:44:07.372Z",
   "targetUrl": "http://127.0.0.1:3110/mcp",
   "axe": {
-    "standard": "wcag2a/wcag2aa/wcag21a/wcag21aa/wcag22aa plus color-contrast-enhanced",
+    "standard": "wcag2a/wcag2aa/wcag21a/wcag21aa/wcag22aa/wcag2aaa plus color-contrast-enhanced",
     "desktopViolations": 0,
     "mobileViolations": 0,
     "violations": []
@@ -18,7 +18,7 @@
     "focusVisible": {
       "outlineStyle": "solid",
       "outlineWidth": "2px",
-      "outlineColor": "rgb(249, 245, 237)"
+      "outlineColor": "rgb(243, 240, 232)"
     }
   },
   "overflow": {
