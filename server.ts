@@ -77,6 +77,7 @@ import { createCounters } from './lib/counters.js';
 import { createBonds } from './lib/bonds.js';
 import { createBudgetGuard } from './lib/budget-guard.js';
 import { createBudgetPause } from './lib/budget-pause.js';
+import { createQuorum } from './lib/quorum.js';
 import { launchFleetBarIfEnabled } from './lib/fleetbar-launcher.js';
 import { createGraphEdges } from './lib/graph-edges.js';
 import { createEpisodicMemory } from './lib/episodic-memory.js';
@@ -182,6 +183,8 @@ const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || (PREFIX ? join(PREFIX, 
 const DISABLE_TCP: boolean = process.env.PORT_DADDY_NO_TCP === '1';
 const IPC_PATH: string = process.env.PORT_DADDY_IPC || (PREFIX ? join(PREFIX, 'port-daddy.ipc') : DEFAULT_IPC);
 const DISABLE_IPC: boolean = process.env.PORT_DADDY_NO_IPC === '1';
+const DISABLE_FLEET: boolean = process.env.PORT_DADDY_NO_FLEET === '1';
+const DISABLE_FLEETBAR: boolean = process.env.PORT_DADDY_NO_FLEETBAR === '1';
 const CUSTOM_RUNTIME_DIR: string | undefined = PREFIX ?? (process.env.PORT_DADDY_SOCK ? dirname(process.env.PORT_DADDY_SOCK) : undefined);
 const PID_FILE: string = process.env.PORT_DADDY_PID_FILE || (CUSTOM_RUNTIME_DIR ? join(CUSTOM_RUNTIME_DIR, 'daemon.pid') : DEFAULT_PID_FILE);
 const PORT_FILE: string = process.env.PORT_DADDY_PORT_FILE || (CUSTOM_RUNTIME_DIR ? join(CUSTOM_RUNTIME_DIR, 'daemon.port') : DEFAULT_PORT_FILE);
@@ -254,6 +257,7 @@ const semanticResolver = createSemanticResolver(db, {
   logger,
 });
 const episodicMemory = createEpisodicMemory(db, { tuples, graphEdges, semanticResolver });
+const quorum = createQuorum({ tuples });
 
 const services = createServices(db, { semanticIndex });
 const messaging = createMessaging(db);
@@ -660,9 +664,10 @@ await registerAllRoutes(
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar,
     harbors, sorties, orchestrator, correlationEngine, spawner, tuples, fleetDaemon,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, counters,
+    quorum,
     bonds, budgetGuard, budgetPause,
     arbiter, bosunHeartbeat,
-    VERSION, CODE_HASH, STARTED_AT, __dirname,
+    VERSION, CODE_HASH, STARTED_AT, __dirname, repoRoot: REPO_ROOT,
     cleanupStale, getSystemPorts,
   },
   arbiter,
@@ -796,32 +801,42 @@ function onReady(): void {
   });
   webhooks.retryPending();
 
-  // Start fleet daemon — auto-discovers pd-fleet.yml in registered projects
-  try {
-    fleetDaemon.start();
-    const status = fleetDaemon.getStatus();
-    if (status.fleets.length > 0) {
-      logger.info('fleet_daemon_active', {
-        fleets: status.fleets.map(f => f.project),
-        totalAgents: status.totalAgents,
-        totalWatchers: status.totalWatchers,
-      });
+  // Start fleet daemon — auto-discovers pd-fleet.yml in registered projects.
+  // Named sidecar profiles default this off so they cannot accidentally arm the
+  // same project fleet as the canonical daemon.
+  if (DISABLE_FLEET) {
+    logger.info('fleet_daemon_disabled', { reason: 'PORT_DADDY_NO_FLEET' });
+  } else {
+    try {
+      fleetDaemon.start();
+      const status = fleetDaemon.getStatus();
+      if (status.fleets.length > 0) {
+        logger.info('fleet_daemon_active', {
+          fleets: status.fleets.map(f => f.project),
+          totalAgents: status.totalAgents,
+          totalWatchers: status.totalWatchers,
+        });
+      }
+    } catch (err) {
+      logger.error('fleet_daemon_start_failed', { error: (err as Error).message });
     }
-  } catch (err) {
-    logger.error('fleet_daemon_start_failed', { error: (err as Error).message });
   }
 
-  const fleetBarLaunch = launchFleetBarIfEnabled({
-    logger,
-    repoRoot: REPO_ROOT,
-    daemonPort: PORT,
-  });
-
-  if (fleetBarLaunch.launched) {
-    logger.info('fleetbar_launch_complete', {
-      target: fleetBarLaunch.target,
+  if (DISABLE_FLEETBAR) {
+    logger.info('fleetbar_launch_skipped', { reason: 'PORT_DADDY_NO_FLEETBAR' });
+  } else {
+    const fleetBarLaunch = launchFleetBarIfEnabled({
+      logger,
+      repoRoot: REPO_ROOT,
       daemonPort: PORT,
     });
+
+    if (fleetBarLaunch.launched) {
+      logger.info('fleetbar_launch_complete', {
+        target: fleetBarLaunch.target,
+        daemonPort: PORT,
+      });
+    }
   }
 }
 

@@ -119,6 +119,8 @@ _port_daddy() {
     graph memory ideas
     # Cartographer roadmap projection
     roadmap
+    # Quorum (swarm consensus primitive)
+    quorum
     # System & Monitoring
     dashboard channels webhook webhooks metrics config health ports
     # Orchestration
@@ -130,7 +132,7 @@ _port_daddy() {
     # Project onboarding
     setup init
     # Daemon lifecycle
-    start stop restart install uninstall dev ci-gate mcp
+    start stop restart install uninstall dev daemon ci-gate mcp
     # Bonds / Wallets — FleetControl hardening
     wallet bond
     # Info

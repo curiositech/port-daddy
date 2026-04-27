@@ -39,6 +39,130 @@ Status meanings used here:
 These are the highest-signal ideas from the corpus and should shape the next
 runtime cuts.
 
+### `cartographer-roadmap-progress-screen`
+
+- status: `now`
+- why it matters:
+  - the FOMO-killer. Right now ideas land in IDEAS-TROVE.md /
+    DOGFOOD-FEEDBACK.md / ROADMAP.md "Next Cuts" and feel buried —
+    operator has to remember to open four files to know what's pending
+  - cartographer already maintains all of this; what's missing is a
+    single screen that surfaces it at a glance every dashboard open
+- next cut:
+  - add a "Roadmap Progress" panel to `public/index.html` (or a new
+    dedicated page) showing in one view:
+    `Next Cuts` (from `docs/ROADMAP.md`), open dogfood feedback (from
+    `DOGFOOD-FEEDBACK.md`), curated trove `now` items, `CURRENT-WORK.md`,
+    velocity (commits/day last 7d), and the top 3 closest-to-shipping +
+    top 3 blocked items (Cartographer already computes these for
+    `.cartographer/status.md`)
+  - server-side: a `/cartographer/roadmap-progress` endpoint that
+    parses the markdown sources and returns structured JSON, so the
+    panel doesn't fetch raw markdown from the client
+- provenance:
+  - operator request 2026-04-26 ("Can cartographer have a screen of just
+    roadmap progress showing backlog, bugs, future ideas, future define
+    roadmap...?")
+
+### `coordination-guard-extended-enforcement`
+
+- status: `now`
+- why it matters:
+  - Coordination Guard already exists (`cli/commands/guard.ts`, modes
+    `off|warn|enforce`) but only fires on `git pre-commit`. Agents can
+    edit, run shell, and ship work without ever calling `pd begin`
+    or claiming files
+  - the `pd note`/`pd say` ambiguous-session error this week was caused
+    by exactly this: I made edits without a session, so notes had no
+    home
+- next cut:
+  - enable Guard for this repo by default (`.portdaddy/coordination-guard.json`
+    with `enabled: true, mode: enforce`)
+  - extend Guard to fire on additional surfaces: SessionStart hook
+    (Claude Code `~/.claude/hooks/SessionStart`), PreToolUse hook on
+    `Edit`/`Write` (require active claim), PreToolUse hook on `Bash`
+    matching `git commit|git push` (already covered, but explicit)
+  - first-run for a repo with `pd-fleet.yml`: auto-emit
+    `.portdaddy/coordination-guard.json` with `enabled:true, mode:warn`
+- provenance:
+  - operator question 2026-04-26 ("We have 'Coordination Guard', by
+    the way, is that the enforcement you want?") → yes, this is the
+    right primitive; just extend its reach
+
+### `crew-screen-roles-not-pids`
+
+- status: `now`
+- why it matters:
+  - dashboard currently shows agents-by-PID. Operators think in *roles*:
+    Cartographer / Spark / Spider / QA / Lookout / Navigator /
+    Shipwright / Promotion Coordinator
+  - cross-session continuity for a role gets lost when the underlying
+    agent process changes
+- next cut:
+  - add a "Crew" panel to the dashboard showing each declared fleet
+    role with: last-run timestamp, last-run cost, currently
+    doing/idle, blocked-reason if blocked
+  - read sources: `/fleet`, `/agents/:id/inbox/stats`, recent cost
+    events from `/metrics/cost/recent`, and the new fleet-launchability
+    fields just landed
+  - first-class abstraction is *role*; agent process is the runtime
+    detail you click in for
+- provenance:
+  - operator question 2026-04-26 ("These roles, like promotion
+    coordinator, can they be visible at a high level on the first
+    project screen?")
+
+### `coordination-ticker-as-high-signal-feed`
+
+- status: `now`
+- why it matters:
+  - `coordination:inconsistency` is already the right channel for
+    cross-cutting findings, but it's hidden behind SSE subscription
+  - operators want a live ticker where they can scan recent agent-to-
+    agent signal at a glance
+- next cut:
+  - add a "Coordination" ticker panel to the dashboard subscribed to
+    `coordination:inconsistency` via SSE
+  - severity-color entries (warning / critical), with a one-line
+    summary + click-through to the full payload
+  - signal/noise hygiene: routine progress belongs in notes; ticker
+    is for cross-slice contradictions only (already enforced by
+    AGENTS.md guidance, but the panel should reinforce by showing a
+    "this looks like progress, not a contradiction" hint when an
+    agent posts something low-severity)
+- provenance:
+  - operator question 2026-04-26 ("The agent group chat being a
+    high-signal ticker?")
+
+### `quorum-driven-dynamic-launch`
+
+- status: `now` (Phase 1: primitive); `backlog` (Phase 2: auto-spawn)
+- why it matters:
+  - difference between "fleet of cron jobs" and "actual swarm" is
+    that swarms can decide *what they need* and *spawn it*
+  - the primitives are mostly here (tuples, `pd actor`, `pd say
+    --broadcast`, harbor-scoped voting) — what's missing is a
+    composable quorum proposal/vote object
+- next cut (Phase 1 — primitive):
+  - new module `lib/quorum.ts`: tuple-backed proposals
+    `['quorum:proposal', proposalId, { role, reason, threshold,
+      proposedBy, expiresAt }]` and votes
+    `['quorum:vote', proposalId, voterId, { stance, weight, at }]`
+  - new endpoints: `POST /quorum/propose`, `POST /quorum/vote`,
+    `GET /quorum/proposals`, `GET /quorum/proposals/:id`
+  - CLI: `pd quorum propose`, `pd quorum vote`, `pd quorum list`
+- next cut (Phase 2 — auto-spawn):
+  - role registry of "spawnable on quorum" roles (Promotion
+    Coordinator, Crisis Response, etc.) — declared in `pd-fleet.yml`
+    under `spawnable_roles:`
+  - daemon background tick: when a proposal hits threshold +
+    `auto_spawn: true`, fleet daemon spawns the role through
+    the regular spawn pipeline (telemetry policy, wallet, bond all
+    apply)
+- provenance:
+  - operator question 2026-04-26 ("Can port-daddy launch these
+    things dynamically when a quorum of agents agree on need?")
+
 ### `capability-discovery-dns-harbor`
 
 - status: `now`

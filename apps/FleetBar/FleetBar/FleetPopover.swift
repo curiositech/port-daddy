@@ -619,8 +619,6 @@ struct FleetPopover: View {
 
     private var emptyState: some View {
         VStack(spacing: Fleet.Space.l) {
-            Spacer()
-
             Image(systemName: "sailboat")
                 .font(.system(size: 40, weight: .ultraLight))
                 .foregroundStyle(.quaternary)
@@ -667,10 +665,9 @@ struct FleetPopover: View {
                     .disabled(store.isStartingDaemon)
                 }
             }
-
-            Spacer()
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, minHeight: 220, alignment: .center)
+        .padding(.vertical, Fleet.Space.xl)
     }
 
     // MARK: - Project List

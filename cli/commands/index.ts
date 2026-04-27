@@ -34,6 +34,7 @@ export * from './setup.js';
 export * from './semantic.js';
 export * from './ideas.js';
 export * from './roadmap.js';
+export * from './quorum.js';
 export * from './sitrep.js';
 export * from './pheromone.js';
 export * from './say.js';

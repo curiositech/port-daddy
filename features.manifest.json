@@ -678,7 +678,8 @@
         "install",
         "uninstall",
         "dev",
-        "mcp"
+        "mcp",
+        "daemon"
       ],
       "sdk": [],
       "routes": [],
@@ -689,7 +690,8 @@
         "install",
         "uninstall",
         "dev",
-        "mcp"
+        "mcp",
+        "daemon"
       ],
       "docs": {
         "readme": true,
@@ -1340,16 +1342,35 @@
       }
     },
     "roadmap": {
-      "description": "Cartographer roadmap projection — structured Next Cuts + curated `now` ideas + dogfood feedback in one read-only payload so operators stop opening four files at once",
+      "description": "Cartographer roadmap projection — `pd roadmap` CLI/completion surface paired with the routed `cartographer` feature so operators see Next Cuts + curated now + dogfood feedback in one terminal call",
       "cli": [
         "roadmap"
       ],
       "sdk": [],
-      "routes": [
-        "GET /cartographer/roadmap-progress"
-      ],
+      "routes": [],
       "completions": [
         "roadmap"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "Routes for this feature live under the `cartographer` feature to avoid duplication"
+    },
+    "quorum": {
+      "description": "Tuple-backed propose/vote primitive for swarm decisions — agents propose roles, others vote, threshold-cross emits a `quorum:passed` tuple subscribers can react to",
+      "cli": [
+        "quorum"
+      ],
+      "sdk": [],
+      "routes": [
+        "POST /quorum/propose",
+        "POST /quorum/vote",
+        "GET /quorum/proposals",
+        "GET /quorum/proposals/:id"
+      ],
+      "completions": [
+        "quorum"
       ],
       "docs": {
         "readme": false,

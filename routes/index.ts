@@ -53,6 +53,7 @@ import { walletsPlugin } from './wallets.js';
 import { panicPlugin } from './panic.js';
 import { budgetPlugin } from './budget.js';
 import { advisorPlugin } from './advisor.js';
+import { quorumPlugin } from './quorum.js';
 
 type AnyDeps = Record<string, unknown>;
 
@@ -154,4 +155,10 @@ export async function registerAllRoutes(
 
   // Deterministic coordination suggestibility for humans and agents.
   await fastify.register(advisorPlugin, { deps } as any);
+
+  // Quorum primitive — tuple-backed proposals/votes for swarm decisions.
+  // Only mounts if a quorum dep was constructed (depends on tuple space).
+  if ((deps as any).quorum) {
+    await fastify.register(quorumPlugin, { deps } as any);
+  }
 }

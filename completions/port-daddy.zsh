@@ -1865,6 +1865,8 @@ _port_daddy() {
     'ideas:search the canonical ideas trove and local residue'
     # Cartographer roadmap projection
     'roadmap:show Cartographer-curated Next Cuts, ideas, and dogfood feedback'
+    # Quorum (swarm consensus primitive)
+    'quorum:propose, vote, list, or inspect swarm proposals'
     # System & Monitoring
     'dashboard:open web dashboard in browser'
     'channels:list pub/sub channels'
@@ -1899,6 +1901,7 @@ _port_daddy() {
     'dev:start daemon in development mode (foreground)'
     'ci-gate:exit non-zero if daemon is running stale code'
     'mcp:start MCP server for Claude Code / Claude Desktop (pd mcp install to configure)'
+    'daemon:daemon lifecycle subcommands (status, log, doctor)'
     'setup:install daemon, MCP, FleetBar, and initialize a project'
     'init:set up Port Daddy for this project (scan, fleet, MCP, git hook)'
     # Bonds / Wallets — FleetControl hardening
