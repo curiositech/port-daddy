@@ -541,6 +541,17 @@ old rounded/nautical visual system from production code:
   circular hero glow, replaced the dashboard anchor icon usage with network
   iconography, and reduced dashboard panel/value/status radii from rounded
   legacy shapes to smaller design-system tokens.
+- Eliminated the homepage feature-card icon tiles that read as neon yellow on
+  beige inset relief. Feature cards now use numbered Swiss panels, border
+  rules, category metadata, and no icon container.
+- Removed the matching neon sparkle treatment from the secondary CTA button so
+  the homepage no longer reintroduces the same yellow-on-beige cue one screen
+  later.
+- Removed the CTA's decorative inset icon block as well, rather than leaving
+  the same relief pattern with a different icon color.
+- Replaced the public shell's neon accent header strip and active-nav state
+  with brand-primary blue so the fixed chrome no longer reintroduces yellow
+  neon while reviewing the landing page.
 - Production source no longer references `NeumorphicTerminal` or
   `SailorAgent`; the remaining sailor wording in source is the explicit
   retired-hero regression test.
@@ -860,3 +871,4 @@ handoff with files changed and residual risks.
 | 2026-04-27 | Added SEO metadata/discovery slice, generated sitemap/robots/llms artifacts, and 82/82 test evidence | Keep plan truth aligned after centralizing route metadata and crawler/LLM discovery |
 | 2026-04-27 | Added Gemini/Nano Banana generated visual replacement slice, optimized assets, first-viewport browser proof, and 83/83 test evidence | Keep plan truth aligned after replacing the retired sailor hero and generated social fallbacks |
 | 2026-04-27 | Removed production `NeumorphicTerminal` and `SailorAgent` surfaces, added rectilinear command/agent primitives, and reran website gates | Keep plan truth aligned after retiring the most explicit old visual metaphors |
+| 2026-04-27 | Eliminated homepage neon/beige feature-card icon tiles, the matching CTA cue, and the neon header strip | Respond to live visual review feedback on the feature grid |

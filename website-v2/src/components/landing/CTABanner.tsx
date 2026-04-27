@@ -1,8 +1,7 @@
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Github, Network, Terminal, Sparkles } from 'lucide-react'
+import { ArrowRight, Github, Terminal } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
-import { Surface } from '@/components/ui/Surface'
 
 export function CTABanner() {
   return (
@@ -30,14 +29,6 @@ export function CTABanner() {
       >
         <motion.div className="flex flex-col items-center gap-6">
            <Badge variant="teal" className="px-8 py-3 text-[11px] font-black uppercase tracking-[0.25em]">The Protocol</Badge>
-           <Surface depth="inset" radius="md" padding="none" className="w-24 h-24 flex items-center justify-center">
-              <motion.div
-                animate={{ y: [0, -12, 0] }}
-                transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-              >
-                <Network style={{ color: 'var(--brand-primary)' }} size={48} />
-              </motion.div>
-           </Surface>
         </motion.div>
 
         <motion.div className="space-y-6 flex flex-col items-center">
@@ -74,23 +65,23 @@ export function CTABanner() {
             <motion.button
               className="w-full sm:w-auto px-8 sm:px-16 py-4 sm:py-8 rounded-[var(--radius-md)] font-black text-base sm:text-2xl flex items-center justify-center gap-3 sm:gap-4 transition-all"
               style={{
-                background: 'var(--surface-raised)',
+                background: 'var(--surface-base)',
                 color: 'var(--text-primary)',
-                boxShadow: 'var(--shadow-sm)',
-                border: 'none',
+                boxShadow: 'none',
+                border: '2px solid var(--border-strong)',
                 cursor: 'pointer',
               }}
-              whileHover={{ scale: 1.05, y: -6, boxShadow: 'var(--shadow-flat)' }}
+              whileHover={{ y: -4, background: 'var(--surface-raised)' }}
               whileTap={{ scale: 0.95, boxShadow: 'var(--shadow-pressed)' }}
             >
-              <Sparkles size={22} style={{ color: 'var(--brand-accent)' }} />
+              <ArrowRight size={22} style={{ color: 'var(--brand-primary)' }} />
               LEARN THE PROTOCOL
             </motion.button>
           </Link>
         </motion.div>
 
         <motion.div className="pt-16 flex flex-col items-center gap-6">
-           {/* Install command in inset terminal */}
+          {/* Install command rail */}
            <div className="flex flex-col sm:flex-row gap-4 sm:gap-8 items-center">
              <motion.div
                className="flex items-center gap-3 sm:gap-4 px-4 sm:px-8 py-3 sm:py-4 rounded-[var(--radius-sm)] font-mono text-[11px] sm:text-xs font-black uppercase tracking-widest"

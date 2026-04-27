@@ -133,6 +133,13 @@ Current coordination session: `session-a4b3a18d-1651-4d2b-b4ca-e83fb79b5ea3`.
   circular hero glow, anchor iconography, or large rounded panel/status radii.
   Production source no longer references the old terminal or sailor component
   names.
+- Live visual review follow-up: the homepage feature-card icon tiles that read
+  as neon yellow on beige inset relief were removed. Feature cards now use
+  numbered Swiss panels with border rules and category metadata instead of icon
+  containers. The matching neon sparkle on the secondary CTA was also replaced
+  with a blue arrow and a flat bordered button treatment, and the CTA's
+  decorative inset icon block was removed. The fixed public shell header strip
+  and active nav state now use brand-primary blue instead of neon accent.
 - Validation for that cleanup from `website-v2/`: `npm run lint`, `npm run
   test` (8/8 files and 83/83 tests), `npm run build`, and `npm run
   build-storybook` all passed. Storybook still prints the known iframe-size and
