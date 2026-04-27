@@ -478,9 +478,11 @@ class FleetStore: ObservableObject {
     var totalFailed: Int { projects.reduce(0) { $0 + $1.failedCount } }
     var projectsNeedingBudget: Int { projects.filter(\.needsBudget).count }
 
-    init() {
+    init(autoStart: Bool = true) {
         self.preferences = FleetBarPreferenceStore.load()
         self.baseURL = DaemonLocation.resolveBaseURL()
+
+        guard autoStart else { return }
 
         // Initial fetch + start SSE
         Task {
