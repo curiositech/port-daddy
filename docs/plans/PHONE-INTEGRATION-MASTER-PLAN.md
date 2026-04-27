@@ -51,13 +51,13 @@ Realistic shape:
 
 ### Track A — Decisions (blockers)
 
-**A1. PKI choice (ADR-0021)**
+**A1. PKI choice (ADR-0025)**
 Owner: human-led deliberation using `skills/pd-relay-zero-trust`.
 Process:
 1. `python3 scripts/pki_decision.py --selftest` baseline scoring
 2. Dispatch `agents/proponent.md`, `agents/pragmatic.md`, `agents/antagonist.md`
 3. Consult `agents/acme-specialist.md` if ACME is in contention
-4. Synthesize into `templates/ADR-PKI-Decision.md` → `docs/adr/0021-pki-decision.md`
+4. Synthesize into `templates/ADR-PKI-Decision.md` → `docs/adr/0025-pki-decision.md`
 Effort: ~1 deliberation session.
 Blocks: A4 (Relay v0). Does NOT block A2, A3, A5, A6.
 
@@ -85,8 +85,8 @@ Depends on B1 shipping.
 
 ### Track C — Relay v0 (after A1)
 
-**C1. ADR-0022 Relay Architecture**
-Use `templates/ADR-Relay-Architecture.md`. Lands as `docs/adr/0022-relay-architecture.md`.
+**C1. ADR-0026 Relay Architecture**
+Use `templates/ADR-Relay-Architecture.md`. Lands as `docs/adr/0026-relay-architecture.md`.
 
 **C2. Relay implementation**
 - `lib/relay-envelope.ts` (pure-fn wire format)
@@ -120,7 +120,7 @@ Copy `templates/proverif-relay.pv` into `analyses/relay-handshake.pv`. Fill in
 queries from `references/proverif-relay-extension.md`. Run; iterate until I1 +
 authentication pass.
 
-**E3. ADR-0023 V4 Remote Harbor Redefinition**
+**E3. ADR-0027 V4 Remote Harbor Redefinition**
 Use `templates/ADR-V4-Remote-Harbor-Redefinition.md`. Update `V4-DAG.md`,
 `v4.dag.yaml`, `V4-MASTER-PLAN.md`, `README.md`. Implement `pd harbor share` /
 `pd harbor join`.

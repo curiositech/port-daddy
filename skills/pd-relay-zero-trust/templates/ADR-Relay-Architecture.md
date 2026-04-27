@@ -1,12 +1,12 @@
-# ADR-0022. Relay v0 Architecture
+# ADR-0026. Relay v0 Architecture
 
 ## Status
 
-Proposed (depends on ADR-0021)
+Proposed (depends on ADR-0025)
 
 ## Context
 
-PD daemons today coordinate locally. Users want to federate events between machines: dev laptop ↔ CI runner ↔ team bot ↔ third-party SaaS. Building this as direct daemon-to-daemon (Part XVII of V4-DAG, ~1,500 LOE) is the wrong scope (see ADR-0023).
+PD daemons today coordinate locally. Users want to federate events between machines: dev laptop ↔ CI runner ↔ team bot ↔ third-party SaaS. Building this as direct daemon-to-daemon (Part XVII of V4-DAG, ~1,500 LOE) is the wrong scope (see ADR-0027).
 
 We need a cloud-side fabric that:
 - Routes events between authenticated daemons and external publishers
@@ -21,7 +21,7 @@ Build **Relay v0** with the following surface:
 
 - **Transport**: HTTPS + Server-Sent Events. TLS 1.3.
 - **Auth**: Ed25519 harbor cards (Phase 2) at the wire; Phase 3 attenuation for delegated publishers.
-- **Identity bootstrap**: per ADR-0021.
+- **Identity bootstrap**: per ADR-0025.
 - **Namespacing**: `<harbor_fingerprint>:<channel>` where `harbor_fingerprint = SHA256(harbor_pub_key)`.
 - **E2E payload**: AES-256-GCM with HPKE-wrapped per-channel keys; relay sees ciphertext only.
 - **Integrity**: per-publisher Merkle event chains; signed periodic chain heads with optional external anchoring.
@@ -79,7 +79,7 @@ ProVerif extension required before any "formally verified" claims (see `referenc
 - External publishers (CI, bots, browsers) gain a single integration point
 - Existing crypto primitives (Ed25519, AES-GCM, HPKE) reused
 - Path to Phase 3 attenuation for fine-grained CI delegation
-- "Remote Harbor" (ADR-0023) becomes feasible without distributed sync
+- "Remote Harbor" (ADR-0027) becomes feasible without distributed sync
 
 **Negative**:
 - Operational dependency on relay availability for federation
@@ -103,7 +103,7 @@ ProVerif extension required before any "formally verified" claims (see `referenc
 1. **Schemas + libraries** (Week 1): `lib/relay-envelope.ts`, `lib/merkle-chain.ts`, JSON schemas in repo.
 2. **Local handshake spec + verifier** (Week 2): `verify_relay_handshake.py` integration, golden vectors.
 3. **Cloudflare DO prototype** (Week 3-4): one harbor → one DO → SSE fan-out.
-4. **Identity registry + ACME enrollment** (Week 5-6): per ADR-0021.
+4. **Identity registry + ACME enrollment** (Week 5-6): per ADR-0025.
 5. **Phase 3 attenuation** (Week 7-8): per `references/harbor-card-attenuation.md`.
 6. **ProVerif extension** (Week 7-8 in parallel): per `references/proverif-relay-extension.md`.
 7. **Beta program** (Week 9-10): three external teams.
@@ -114,8 +114,8 @@ ProVerif extension required before any "formally verified" claims (see `referenc
 - ADR-0014 (Anchor Protocol)
 - ADR-0013 (Unified Harbor Model)
 - ADR-0019 (Declarative Fleet YAML)
-- ADR-0021 (PKI Decision) — depends on
-- ADR-0023 (V4 Remote Harbor Redefinition) — depends on this
+- ADR-0025 (PKI Decision) — depends on
+- ADR-0027 (V4 Remote Harbor Redefinition) — depends on this
 - references/relay-architecture.md
 - references/threat-model.md
 - references/merkle-chain-design.md

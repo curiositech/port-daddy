@@ -1,4 +1,4 @@
-# ADR-0023. V4 Remote Harbor: Redefinition
+# ADR-0027. V4 Remote Harbor: Redefinition
 
 ## Status
 
@@ -25,7 +25,7 @@ User research (informal, 2026-Q1): when users say "remote harbor," they mean:
 
 Not present: "my SQLite db should replicate to my desktop."
 
-The Relay (ADR-0022) solves (1)-(4) without state replication.
+The Relay (ADR-0026) solves (1)-(4) without state replication.
 
 ## Decision
 
@@ -98,8 +98,8 @@ No code is broken by this redefinition because Part XVII was not built.
 
 - ADR-0013 (Unified Harbor Model) — the harbor primitive
 - ADR-0014 (Anchor Protocol) — the identity primitive
-- ADR-0021 (PKI Decision)
-- ADR-0022 (Relay Architecture) — the transport
+- ADR-0025 (PKI Decision)
+- ADR-0026 (Relay Architecture) — the transport
 - references/v4-remote-harbor-redefinition.md
 - V4-DAG.md, v4.dag.yaml — the documents being amended
 

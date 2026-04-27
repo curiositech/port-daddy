@@ -1,6 +1,6 @@
 # V4 Remote Harbor: Redefinition
 
-**Load when**: writing ADR-0023 (V4 Remote Harbor Redefinition); arguing against Part XVII scope.
+**Load when**: writing ADR-0027 (V4 Remote Harbor Redefinition); arguing against Part XVII scope.
 
 ## TL;DR
 
@@ -72,7 +72,7 @@ If we ever want true state replication, we add it as a **separate** feature with
 
 `V4-DAG.md` and `v4.dag.yaml` need:
 - Part XVII renamed/replaced with "Remote Harbor via Relay Federation"
-- Reference to ADR-0023
+- Reference to ADR-0027
 - Removed: HLC, 5-bucket Merkle, LWW conflict resolution
 - Added: shared keypair UX, relay namespace mapping
 
@@ -101,7 +101,7 @@ Use `templates/ADR-V4-Remote-Harbor-Redefinition.md`. Required sections:
 - Decision: redefine as relay federation
 - Consequences: state stays local; pub/sub federates; reduced complexity; explicit non-goals
 - Migration: doc/code references to update
-- Related: ADR-0013 (Unified Harbor), ADR-0014 (Anchor Protocol), ADR-0019 (Fleet YAML), ADR-0021 (PKI Decision), ADR-0022 (Relay Architecture)
+- Related: ADR-0013 (Unified Harbor), ADR-0014 (Anchor Protocol), ADR-0019 (Fleet YAML), ADR-0025 (PKI Decision), ADR-0026 (Relay Architecture)
 
 ## Open question
 

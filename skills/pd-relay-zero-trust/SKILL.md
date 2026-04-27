@@ -65,7 +65,7 @@ flowchart TD
 Pass `argument-hint` to enter a specific branch. Each branch loads only the references it needs.
 
 ### `pki-decide`
-Drives the deliberation between ACME, OIDC, Web-of-Trust, and hybrids. Outputs ADR-0021.
+Drives the deliberation between ACME, OIDC, Web-of-Trust, and hybrids. Outputs ADR-0025.
 
 ```
 Deliberate:
@@ -84,7 +84,7 @@ Produces the Relay v0 ADR + OpenAPI surface.
 ```
 Build:
 ├─ Load references/relay-architecture.md, threat-model.md
-├─ Confirm PKI ADR (0021) is accepted, else block
+├─ Confirm PKI ADR (0025) is accepted, else block
 ├─ Generate openapi.yaml (or update if exists)
 ├─ Validate handshake with scripts/verify_relay_handshake.py against schemas/relay-handshake.schema.json
 └─ Output: templates/ADR-Relay-Architecture.md filled in
@@ -206,7 +206,7 @@ Synthesis is the human's responsibility (or the calling agent's), not a subagent
 ### Re-implementing the Sync Protocol (Part XVII Trap)
 **Novice**: "Remote harbors need bidirectional state replication between daemons."
 **Expert**: The *user-facing win* of remote harbors is "my fleet sees my CI's events." That's pub/sub federation, not state sync. Part XVII is 1,500 LOE we don't need.
-**Timeline**: V4-DAG.md (v3.x) over-spec'd this. ADR-0023 (this skill's output) deletes the scope creep.
+**Timeline**: V4-DAG.md (v3.x) over-spec'd this. ADR-0027 (this skill's output) deletes the scope creep.
 
 ### Trusted Sequencer for Merkle Order
 **Novice**: "The relay mints the next hash; everyone trusts the relay."
@@ -291,9 +291,9 @@ Synthesis is the human's responsibility (or the calling agent's), not a subagent
 
 | Template | Output |
 |----------|--------|
-| `templates/ADR-PKI-Decision.md` | ADR-0021 |
-| `templates/ADR-Relay-Architecture.md` | ADR-0022 |
-| `templates/ADR-V4-Remote-Harbor-Redefinition.md` | ADR-0023 |
+| `templates/ADR-PKI-Decision.md` | ADR-0025 |
+| `templates/ADR-Relay-Architecture.md` | ADR-0026 |
+| `templates/ADR-V4-Remote-Harbor-Redefinition.md` | ADR-0027 |
 | `templates/relay-handshake-message.json` | Reference handshake payload |
 | `templates/attenuated-card.json` | Reference Phase 3 chain |
 | `templates/proverif-relay.pv` | Skeleton ProVerif model |

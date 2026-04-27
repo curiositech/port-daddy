@@ -5,7 +5,7 @@ info:
   description: |
     Outbound-only event relay for Port Daddy daemons and external publishers.
     The relay routes ciphertext between authenticated harbor members.
-    Identity bootstrap per ADR-0021 (PKI Decision); transport per ADR-0022.
+    Identity bootstrap per ADR-0025 (PKI Decision); transport per ADR-0026.
 
     Threat model: see references/threat-model.md.
     All payloads are end-to-end encrypted (relay sees only metadata).

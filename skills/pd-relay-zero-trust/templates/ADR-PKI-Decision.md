@@ -1,4 +1,4 @@
-# ADR-0021. Relay PKI Decision
+# ADR-0025. Relay PKI Decision
 
 ## Status
 
@@ -6,7 +6,7 @@ Proposed
 
 ## Context
 
-The PD Relay (see ADR-0022) federates events between local daemons and external publishers (CI runners, browsers, bots). It is outbound-only from daemons and end-to-end encrypted, but it requires an authentication and identity layer:
+The PD Relay (see ADR-0026) federates events between local daemons and external publishers (CI runners, browsers, bots). It is outbound-only from daemons and end-to-end encrypted, but it requires an authentication and identity layer:
 
 - Daemons must prove identity to the relay
 - External publishers (GH Actions, Slack, etc.) must prove identity
@@ -82,8 +82,8 @@ Defaults shipped:
 
 - ADR-0014 (Anchor Protocol)
 - ADR-0013 (Unified Harbor Model)
-- ADR-0022 (Relay Architecture) — depends on this
-- ADR-0023 (V4 Remote Harbor Redefinition) — composes with this
+- ADR-0026 (Relay Architecture) — depends on this
+- ADR-0027 (V4 Remote Harbor Redefinition) — composes with this
 - references/zero-trust-foundations.md
 - references/pki-decision-matrix.md
 - references/threat-model.md

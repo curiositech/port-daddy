@@ -18,10 +18,10 @@ Initial skill scaffold.
 
 ### Conventions
 - All scripts read/write JSON envelopes per `schemas/script-io.schema.json`
-- ADR templates target ADR numbers 0021 (PKI), 0022 (relay), 0023 (remote harbor redefinition)
+- ADR templates target ADR numbers 0025 (PKI), 0026 (relay), 0027 (remote harbor redefinition); the original 0021/0022/0023 numbers were already allocated to bosun-consolidation, durable-actor-souls, and cartographer-roadmap; 0024 was claimed by daemon-profiles while this skill was being authored
 - Reference depth follows skill-architect L2/L3 progressive disclosure
 
 ### Open work tracked outside this changelog
 - Land actual relay code under `lib/`, `routes/`, `mcp/` (out of scope for this skill, but informed by it)
 - Extend ProVerif models in `analyses/` per `references/proverif-relay-extension.md`
-- Update `V4-DAG.md`, `v4.dag.yaml`, `V4-MASTER-PLAN.md` per ADR-0023
+- Update `V4-DAG.md`, `v4.dag.yaml`, `V4-MASTER-PLAN.md` per ADR-0027

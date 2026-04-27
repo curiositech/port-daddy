@@ -20,7 +20,7 @@ Two approaches:
 
 **Approach A** (preferred): The daemon issues a Phase 3 attenuation in advance, sealed for the GH Action's ephemeral key.
 
-**Approach B** (composes with OIDC ADR-0021): The relay accepts the GH Action's OIDC token, verifies claims (`repository == erichowens/port-daddy`), and mints a Phase 3 attenuated card on Erich's behalf using a delegation authority Erich pre-registered.
+**Approach B** (composes with OIDC ADR-0025): The relay accepts the GH Action's OIDC token, verifies claims (`repository == erichowens/port-daddy`), and mints a Phase 3 attenuated card on Erich's behalf using a delegation authority Erich pre-registered.
 
 We walk through Approach B (more dynamic, scales to many actions).
 

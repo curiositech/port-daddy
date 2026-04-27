@@ -64,7 +64,7 @@ Daemon POSTs this to `https://relay.portdaddy.dev/v1/handshake` over TLS 1.3.
 Relay performs:
 
 1. **Parse + schema validation** against `relay-handshake.schema.json`. Reject 400 on mismatch.
-2. **Lookup daemon identity** in registry by `daemon.fingerprint`. If not registered → 401 with `enrollment_required` (pointer to enrollment URL per ADR-0021's PKI choice).
+2. **Lookup daemon identity** in registry by `daemon.fingerprint`. If not registered → 401 with `enrollment_required` (pointer to enrollment URL per ADR-0025's PKI choice).
 3. **Verify card signature** using daemon's published Ed25519 pubkey. Reject 401 on bad sig.
 4. **Verify card not revoked** (JTI not in revocation list). Reject 403 on revoked.
 5. **Verify card not expired** (`exp > now`). Reject 401 on expired.
