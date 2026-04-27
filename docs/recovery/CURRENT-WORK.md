@@ -79,6 +79,116 @@ The `agentsd.ai` public-site reset is now explicit repo work, not chat residue.
 
 ## Current Thread
 
+### Port Daddy Website Generated Visual Replacement Slice (2026-04-27)
+
+Current coordination session: `session-a4b3a18d-1651-4d2b-b4ca-e83fb79b5ea3`.
+
+- This is the next bounded `ideal-web-app-builder` rehab slice after the SEO
+  metadata/discovery work. The user explicitly rejected the remaining sailor
+  photo / rounded visual direction and provided a Gemini API key for generated
+  content.
+- Added `website-v2/scripts/generate-gemini-assets.mjs`,
+  `npm run generate:visuals`, and `npm run optimize:visuals`. The generator
+  loads `GEMINI_API_KEY` from the shell, repo-root `.env.local`, or
+  `website-v2/.env.local`; secrets are not written to source or manifest.
+- Generated and optimized four Gemini/Nano Banana visual assets under
+  `website-v2/public/img/generated/` with manifest provenance:
+  `control-plane-hero`, `control-plane-og`, `agent-runtime-map`, and
+  `salvage-ledger`, each with JPEG plus WebP variants.
+- Replaced the homepage hero image with the generated control-plane schematic,
+  moved the hero two-column breakpoint to `min-[900px]` so the image appears in
+  the in-app browser first viewport, and deleted the retired
+  `website-v2/public/img/hero-portdaddy.png` asset.
+- Default social metadata now uses `/img/generated/control-plane-og.jpg`.
+  Blog fallback imagery now uses generated WebP page images instead of the
+  retired sailor image or missing blog hero files.
+- Touched legacy shape/copy surfaces were narrowed: hero chips and CTA buttons
+  use smaller token radii, the CTA banner no longer says "harbormaster" or
+  uses an anchor icon, `Badge` defaults are flatter and squared, and stale
+  "neumorphic" comments in touched files were renamed to tokenized elevation
+  language.
+- Regression coverage: `src/seo-metadata.test.tsx` now asserts the default
+  social image is generated and the retired sailor hero file is absent.
+- Browser proof:
+  `docs/reports/website-rehab-screenshots/generated-hero-homepage.png`.
+- Validation truth on 2026-04-27 from `website-v2/`:
+  - `npm run generate:visuals`: generated 4 assets with
+    `gemini-3.1-flash-image-preview`
+  - `npm run optimize:visuals`: optimized 4 generated assets
+  - `npm run generate:seo`: generated SEO artifacts for 182 canonical routes
+  - `npm run lint`: pass
+  - `npm run test`: 8/8 files and 83/83 tests pass
+  - `npm run build`: pass; largest generated JS chunk remains Mermaid at
+    491.00 kB minified / 136.63 kB gzip
+  - `npm run build-storybook`: pass with the known Storybook iframe-size and
+    `radix-ui` package metadata warnings
+  - root `npm test -- --no-coverage`: 153/153 suites passed, 5082/5083 tests
+    passed, 1 intentional skip; existing console noise included git-probe,
+    telemetry-bypass, keychain/plaintext fallback, and subscriber-error test
+    logs
+- Follow-on visual-metaphor cleanup: `NeumorphicTerminal` was renamed to
+  `CommandTerminal`, the dashboard `SailorAgent` SVG was replaced with a
+  rectilinear `AgentNodeMark`, and the live graph/home feature cards now use
+  tighter token radii. The dashboard route also no longer uses the blurred
+  circular hero glow, anchor iconography, or large rounded panel/status radii.
+  Production source no longer references the old terminal or sailor component
+  names.
+- Live visual review follow-up: the homepage feature-card icon tiles that read
+  as neon yellow on beige inset relief were removed. Feature cards now use
+  numbered Swiss panels with border rules and category metadata instead of icon
+  containers. The matching neon sparkle on the secondary CTA was also replaced
+  with a blue arrow and a flat bordered button treatment, and the CTA's
+  decorative inset icon block was removed. The fixed public shell header strip
+  and active nav state now use brand-primary blue instead of neon accent. The
+  hero headline's "fighting each other" emphasis also no longer uses a
+  blue-to-error gradient; it now uses the existing brand-primary token with a
+  contract test guarding against gradient text regression.
+- Tutorials index branding has also been rewritten: the first viewport now uses
+  "Operator training" and "Learn the control-plane protocol" instead of
+  "Academy of Coordination" / "Master the Swarm Logic"; the index cards are
+  flat numbered curriculum panels, and the catalogue titles/descriptions/tags
+  avoid the retired swarm/pheromone/harbor-token marketing language.
+- Latest validation for this website copy cleanup from `website-v2/`: `npm run
+  lint`, `npm run test` (8/8 files and 86/86 tests), `npm run build`, and
+  `git diff --check` all passed. The earlier Storybook pass still carries the
+  known iframe-size and `radix-ui` package metadata warnings.
+- Remaining website rehab work: route-specific OG image generation,
+  PWA/favicons, legal/privacy/support/security-contact pages, observability/Web
+  Vitals, claims ledger, broader rounded/glow route cleanup, and manual
+  reduced-motion/forced-colors/screen-reader proof.
+
+### Port Daddy Website SEO Metadata And Discovery Slice (2026-04-27)
+
+Current coordination session: `session-7d6f4ac6-5c47-401d-853b-804be7eecbd6`.
+
+- This is the next bounded `ideal-web-app-builder` rehab slice after the public
+  shell unification work.
+- The website now has a canonical source-backed metadata registry at
+  `website-v2/src/data/siteMetadata.ts` covering 182 indexable public URLs.
+  It draws from existing route/data truth for docs families, tutorials, blog
+  posts, integrations, cookbook recipes, and templates.
+- React Router now mounts `DocumentMeta`, which updates title, description,
+  canonical URL, robots, Open Graph, Twitter card, article fields, tags, and
+  JSON-LD on SPA navigation through the upgraded `useDocumentMeta` hook.
+- `npm run generate:seo` now writes `public/sitemap.xml`, `public/robots.txt`,
+  and `public/llms.txt` from that same registry. `npm run build` runs this as
+  `prebuild` so checked-in discovery artifacts are regenerated before the
+  production bundle.
+- SEO tests now enforce unique canonical URLs, existing social image files,
+  blog article metadata, generated sitemap/robots parity, LLM discovery
+  entrypoints, and real document-head mutation.
+- Validation truth on 2026-04-27 from `website-v2/`:
+  - `npm run generate:seo`: generated SEO artifacts for 182 canonical routes
+  - `npm run test -- src/seo-metadata.test.tsx`: 6/6 pass
+  - `npm run lint`: pass
+  - `npm run test`: 8/8 files and 82/82 tests pass
+  - `npm run build`: pass; largest JS chunk remains Mermaid at 491.00 kB
+    minified / 136.64 kB gzip
+- Remaining website rehab work: prerender/static metadata for non-home routes,
+  dedicated OG image generation beyond verified existing images, PWA/favicons,
+  legal/privacy/support/security-contact pages, observability/Web Vitals,
+  claims ledger, and manual reduced-motion/forced-colors/screen-reader proof.
+
 ### Promotion And Build-Artifact Hygiene (2026-04-27)
 
 Current coordination session: `session-940abfb1-8d54-4058-a7c3-3515b3b921c7`.

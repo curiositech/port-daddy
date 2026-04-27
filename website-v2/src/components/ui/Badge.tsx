@@ -3,13 +3,13 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
 /**
- * Badge — neumorphic inset pill for status, categories, and labels.
- * Uses semantic tokens from the harbor heritage design system.
+ * Badge — compact tokenized label for status, categories, and filters.
+ * Uses semantic tokens from the public-site design system.
  */
 const badgeVariants = cva(
   [
     'inline-flex w-fit shrink-0 items-center justify-center gap-1',
-    'rounded-full text-xs font-semibold uppercase tracking-wider',
+    'rounded-[var(--radius-sm)] text-xs font-semibold uppercase tracking-wider',
     'whitespace-nowrap transition-all duration-200',
     '[&>svg]:pointer-events-none [&>svg]:size-3',
   ].join(' '),
@@ -39,33 +39,39 @@ const badgeVariants = cva(
 
 const variantStyles: Record<string, React.CSSProperties> = {
   default: {
-    background: 'var(--surface-sunken)',
-    boxShadow: 'var(--shadow-pressed)',
+    background: 'var(--surface-overlay)',
+    border: '1px solid var(--border-subtle)',
+    boxShadow: 'none',
     color: 'var(--text-primary)',
   },
   red: {
     background: 'color-mix(in srgb, var(--status-error) 15%, var(--surface-base))',
-    boxShadow: 'var(--shadow-pressed)',
+    border: '1px solid color-mix(in srgb, var(--status-error) 28%, var(--border-subtle))',
+    boxShadow: 'none',
     color: 'var(--status-error-on-tint)',
   },
   teal: {
     background: 'color-mix(in srgb, var(--brand-secondary) 15%, var(--surface-base))',
-    boxShadow: 'var(--shadow-pressed)',
+    border: '1px solid color-mix(in srgb, var(--brand-secondary) 28%, var(--border-subtle))',
+    boxShadow: 'none',
     color: 'var(--brand-secondary)',
   },
   gold: {
     background: 'color-mix(in srgb, var(--brand-accent) 20%, var(--surface-base))',
-    boxShadow: 'var(--shadow-pressed)',
+    border: '1px solid color-mix(in srgb, var(--brand-accent) 30%, var(--border-subtle))',
+    boxShadow: 'none',
     color: 'var(--brand-accent-on-tint)',
   },
   success: {
     background: 'color-mix(in srgb, var(--status-success) 15%, var(--surface-base))',
-    boxShadow: 'var(--shadow-pressed)',
+    border: '1px solid color-mix(in srgb, var(--status-success) 28%, var(--border-subtle))',
+    boxShadow: 'none',
     color: 'var(--status-success-on-tint)',
   },
   warning: {
     background: 'color-mix(in srgb, var(--status-warning) 15%, var(--surface-base))',
-    boxShadow: 'var(--shadow-pressed)',
+    border: '1px solid color-mix(in srgb, var(--status-warning) 28%, var(--border-subtle))',
+    boxShadow: 'none',
     color: 'var(--status-warning-on-tint)',
   },
   outline: {

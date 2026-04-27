@@ -433,7 +433,7 @@ describe('public shell contracts', () => {
     expect(primitives).toContain('DocsCodeBlock')
     expect(primitives).toContain('BracketAnchor')
     expect(primitives).toContain('BracketNavLink')
-    expect(primitives).toContain('NeumorphicTerminal')
+    expect(primitives).toContain('CommandTerminal')
     expect(primitives).toContain('SurfaceToneContext')
     expect(primitives).toContain('useSurfaceTone')
     expect(primitives).toContain('LandingSection')
@@ -467,7 +467,7 @@ describe('public shell contracts', () => {
 
   test('shared docs code wrapper delegates to the site primitive instead of forking another code surface', () => {
     const docsCodeBlock = read('./components/docs/DocsCodeBlock.tsx')
-    const terminal = read('./components/ui/NeumorphicTerminal.tsx')
+    const terminal = read('./components/ui/CommandTerminal.tsx')
 
     expect(docsCodeBlock).toContain("import { DocsCodeBlock as SiteDocsCodeBlock } from '@/components/site/primitives'")
     expect(docsCodeBlock).not.toContain("import { CodeBlock }")

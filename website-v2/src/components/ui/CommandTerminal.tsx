@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { CodeBlock } from './CodeBlock'
 
-interface NeumorphicTerminalProps {
+interface CommandTerminalProps {
   code: string
   title?: string
   language?: string
@@ -10,14 +10,14 @@ interface NeumorphicTerminalProps {
   copyable?: boolean
 }
 
-export function NeumorphicTerminal({
+export function CommandTerminal({
   code,
   title,
   language = 'bash',
   typewriterSpeed = 25,
   animate = true,
   copyable = true,
-}: NeumorphicTerminalProps) {
+}: CommandTerminalProps) {
   const trimmed = code.trim()
   const [displayedCode, setDisplayedCode] = useState(animate ? '' : trimmed)
   const [isTyping, setIsTyping] = useState(animate)

@@ -1,0 +1,58 @@
+{
+  "generatedAt": "2026-04-27T20:47:42.241Z",
+  "generator": "website-v2/scripts/generate-gemini-assets.mjs",
+  "source": "Google Gemini API Nano Banana image generation",
+  "docs": "https://ai.google.dev/gemini-api/docs/image-generation",
+  "note": "Prompts intentionally exclude nautical, human, fake quote, and bubbly extruded SaaS imagery.",
+  "generatedAssets": [
+    {
+      "id": "agent-runtime-map",
+      "file": "/img/generated/agent-runtime-map.jpg",
+      "mimeType": "image/jpeg",
+      "aspectRatio": "16:9",
+      "imageSize": "1K",
+      "model": "gemini-3.1-flash-image-preview",
+      "prompt": "Port Daddy visual identity direction:\n- Subject: local-first AI agent coordination, daemon runtime, ports, locks, sessions, notes, salvage, budget gates, and recovery flows.\n- Visual language: Swiss-modern editorial infrastructure diagram, precise grid, crisp thin rules, architectural drawing discipline, tactile paper grain, deep ink, technical blue, restrained lime, quiet warm off-white.\n- Must not include people, sailors, boats, harbors, docks, nautical costumes, mascots, emojis, fake testimonials, readable brand logos, glossy stock-photo styling, bubbly extruded SaaS UI, pill-heavy dashboards, purple-blue gradients, or random surrealism.\n- Do not render visible words, letters, numbers, labels, headings, UI copy, brand marks, or fake code. Use abstract ticks, short lines, and geometric marks only.\n- Make it feel premium, serious, current, and operational.\n\nCreate a supporting editorial illustration of an always-on background-agent runtime.\nComposition: a rigorous map of cheaper worker lanes, watchdog checks, queue pressure, budget gates, and escalation routes. Use a restrained technical palette and Swiss grid.\nNo people, no boats, no cartoon robots, no speech bubbles, no fake UI screenshots, no visible words, no letters, no numbers.",
+      "jpegQuality": 82,
+      "webpFile": "/img/generated/agent-runtime-map.webp",
+      "webpQuality": 82
+    },
+    {
+      "id": "control-plane-hero",
+      "file": "/img/generated/control-plane-hero.jpg",
+      "mimeType": "image/jpeg",
+      "aspectRatio": "16:9",
+      "imageSize": "2K",
+      "model": "gemini-3.1-flash-image-preview",
+      "prompt": "Port Daddy visual identity direction:\n- Subject: local-first AI agent coordination, daemon runtime, ports, locks, sessions, notes, salvage, budget gates, and recovery flows.\n- Visual language: Swiss-modern editorial infrastructure diagram, precise grid, crisp thin rules, architectural drawing discipline, tactile paper grain, deep ink, technical blue, restrained lime, quiet warm off-white.\n- Must not include people, sailors, boats, harbors, docks, nautical costumes, mascots, emojis, fake testimonials, readable brand logos, glossy stock-photo styling, bubbly extruded SaaS UI, pill-heavy dashboards, purple-blue gradients, or random surrealism.\n- Do not render visible words, letters, numbers, labels, headings, UI copy, brand marks, or fake code. Use abstract ticks, short lines, and geometric marks only.\n- Make it feel premium, serious, current, and operational.\n\nCreate a hero image for the top of a developer-tool website.\nComposition: a wide, slightly top-down control-plane map where agent sessions are represented as rectilinear modules connected by port lines, locks, tuple channels, and recovery lanes. Use depth through layered paper, ink, and precise shadows, not soft rounded extrusion.\nLeave a calm negative-space band on the left third so the website headline can sit beside it without visual fighting.\nNo humans. No nautical objects. No big rounded cards. No mock browser chrome. No visible words or numbers.",
+      "jpegQuality": 82,
+      "webpFile": "/img/generated/control-plane-hero.webp",
+      "webpQuality": 82
+    },
+    {
+      "id": "control-plane-og",
+      "file": "/img/generated/control-plane-og.jpg",
+      "mimeType": "image/jpeg",
+      "aspectRatio": "16:9",
+      "imageSize": "2K",
+      "model": "gemini-3.1-flash-image-preview",
+      "prompt": "Port Daddy visual identity direction:\n- Subject: local-first AI agent coordination, daemon runtime, ports, locks, sessions, notes, salvage, budget gates, and recovery flows.\n- Visual language: Swiss-modern editorial infrastructure diagram, precise grid, crisp thin rules, architectural drawing discipline, tactile paper grain, deep ink, technical blue, restrained lime, quiet warm off-white.\n- Must not include people, sailors, boats, harbors, docks, nautical costumes, mascots, emojis, fake testimonials, readable brand logos, glossy stock-photo styling, bubbly extruded SaaS UI, pill-heavy dashboards, purple-blue gradients, or random surrealism.\n- Do not render visible words, letters, numbers, labels, headings, UI copy, brand marks, or fake code. Use abstract ticks, short lines, and geometric marks only.\n- Make it feel premium, serious, current, and operational.\n\nCreate an Open Graph/social image for Port Daddy.\nComposition: centered infrastructure diagram with one authoritative control-plane spine, multiple agent nodes, abstract port marks, lock/checkpoint motifs, and a recovery ledger path. It should crop safely at 1200 by 630.\nNo headline text, no labels, no logos, no humans, no nautical imagery, no rounded app mockups.",
+      "jpegQuality": 82,
+      "webpFile": "/img/generated/control-plane-og.webp",
+      "webpQuality": 82
+    },
+    {
+      "id": "salvage-ledger",
+      "file": "/img/generated/salvage-ledger.jpg",
+      "mimeType": "image/jpeg",
+      "aspectRatio": "16:9",
+      "imageSize": "1K",
+      "model": "gemini-3.1-flash-image-preview",
+      "prompt": "Port Daddy visual identity direction:\n- Subject: local-first AI agent coordination, daemon runtime, ports, locks, sessions, notes, salvage, budget gates, and recovery flows.\n- Visual language: Swiss-modern editorial infrastructure diagram, precise grid, crisp thin rules, architectural drawing discipline, tactile paper grain, deep ink, technical blue, restrained lime, quiet warm off-white.\n- Must not include people, sailors, boats, harbors, docks, nautical costumes, mascots, emojis, fake testimonials, readable brand logos, glossy stock-photo styling, bubbly extruded SaaS UI, pill-heavy dashboards, purple-blue gradients, or random surrealism.\n- Do not render visible words, letters, numbers, labels, headings, UI copy, brand marks, or fake code. Use abstract ticks, short lines, and geometric marks only.\n- Make it feel premium, serious, current, and operational.\n\nCreate a supporting editorial illustration of crash recovery and salvage.\nComposition: archival ledger sheets, event traces, file-claim paths, and restored work fragments being reconciled into a clean timeline. Serious, beautiful, diagrammatic, and operational.\nNo nautical metaphors, no skulls, no horror mood, no fake code text, no people, no visible words, no letters, no numbers.",
+      "jpegQuality": 82,
+      "webpFile": "/img/generated/salvage-ledger.webp",
+      "webpQuality": 82
+    }
+  ],
+  "optimizedAt": "2026-04-27T20:50:54.000Z"
+}

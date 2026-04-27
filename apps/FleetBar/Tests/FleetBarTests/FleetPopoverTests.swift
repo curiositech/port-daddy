@@ -65,4 +65,63 @@ final class FleetPopoverTests: XCTestCase {
         let scrollView = try inspected.find(ViewType.ScrollView.self)
         XCTAssertNotNil(scrollView)
     }
+
+    /// Verifies long Bosun diagnostics stay readable in the Daemon Report.
+    ///
+    /// Sample input:
+    /// `daemon heartbeat writer active; pd-bosun supervisor binary available`
+    ///
+    /// Sample output:
+    /// The Bosun status text has no single-line limit, so SwiftUI can wrap it.
+    func testDaemonReportBosunDiagnosticCanWrap() throws {
+        let bosunReason = "daemon heartbeat writer active; pd-bosun supervisor binary available"
+        let monitoredURL = try XCTUnwrap(URL(string: DaemonLocation.resolveBaseURL()))
+            .appendingPathComponent("status")
+            .absoluteString
+        let store = FleetStore(autoStart: false)
+        store.isDaemonRunning = true
+        store.projects = []
+        store.daemonStatus = DaemonStatusResponse(
+            status: "running",
+            version: "3.11.0",
+            pid: 61830,
+            uptimeSeconds: 38,
+            uptimeHuman: "38 sec",
+            daemon: DaemonBuildResponse(
+                version: "3.11.0",
+                codeHash: "e11c6ea29427",
+                startedAt: 1_777_328_400_000,
+                installDir: "/Users/erichowens/port-daddy-stable",
+                nodeVersion: "v24.0.0"
+            ),
+            metrics: nil,
+            runtime: DaemonRuntimeResponse(state: "nominal", degraded: false),
+            guardians: DaemonGuardiansResponse(
+                supervisor: nil,
+                bosun: DaemonBarnacleResponse(
+                    enabled: true,
+                    state: "idle",
+                    reason: bosunReason,
+                    monitoredUrl: monitoredURL,
+                    binaryExists: true,
+                    lastCheckAt: nil,
+                    lastHealthyAt: nil,
+                    lastFailureAt: nil,
+                    lastResurrectedAt: nil,
+                    failureCount: 0
+                ),
+                barnacle: nil
+            ),
+            history: DaemonHistoryResponse(
+                lastActivityAt: nil,
+                recentActivity: [],
+                recentSpend: []
+            )
+        )
+
+        let inspected = try FleetPopover(store: store, costStore: CostStore(autoStart: false)).inspect()
+
+        let bosunStatus = try inspected.find(text: bosunReason)
+        XCTAssertNil(try bosunStatus.lineLimit())
+    }
 }

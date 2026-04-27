@@ -2,6 +2,7 @@ import { StrictMode, Suspense, lazy, type ComponentType } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { ThemeProvider } from '@/lib/theme'
+import { DocumentMeta } from '@/components/layout/DocumentMeta'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { RouteFallback } from '@/components/layout/RouteFallback'
 import './index.css'
@@ -173,6 +174,7 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ThemeProvider>
       <BrowserRouter>
+        <DocumentMeta />
         <Suspense fallback={<RouteFallback />}>
           <Routes>
             <Route element={<MainLayout />}>

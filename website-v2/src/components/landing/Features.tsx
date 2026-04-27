@@ -1,19 +1,6 @@
 import { motion } from 'framer-motion'
-import { Surface } from '@/components/ui/Surface'
 import { PageContainer, PanelBody, PanelTitle, SectionIntro } from '@/components/site/primitives'
 import { PRODUCT_FEATURES } from '@/data/product'
-import {
-  Anchor, Radio, Shield, History, Cpu, Sparkles, Terminal
-} from 'lucide-react'
-
-const ICON_MAP: Record<string, typeof Anchor> = {
-  'ports': Anchor,
-  'coordination': Radio,
-  'security': Shield,
-  'observability': History,
-  'agents': Cpu,
-  'intelligence': Sparkles
-}
 
 const container = {
   hidden: {},
@@ -46,35 +33,37 @@ export function Features() {
           initial="hidden"
           animate="show"
         >
-          {PRODUCT_FEATURES.map((feature) => {
-            const Icon = ICON_MAP[feature.category] || Terminal
-
+          {PRODUCT_FEATURES.map((feature, index) => {
             return (
               <motion.div key={feature.id} variants={item}>
-                <Surface depth="raised" radius="2xl" padding="lg" interactive className="h-full">
-                  <div className="relative space-y-[var(--space-4)]">
-                    <Surface depth="inset" radius="md" padding="none" className="flex h-10 w-10 items-center justify-center">
-                      <Icon size={18} className="text-[var(--brand-accent)]" />
-                    </Surface>
-
+                <article className="h-full border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-5)] transition-colors hover:bg-[var(--surface-raised)]">
+                  <div className="relative flex h-full flex-col gap-[var(--space-4)]">
+                    <div className="flex items-center justify-between border-b-2 border-[var(--border-strong)] pb-[var(--space-3)]">
+                      <span className="font-mono text-[10px] font-black uppercase tracking-[0.22em] text-[var(--text-primary)]">
+                        {String(index + 1).padStart(2, '0')}
+                      </span>
+                      <span className="border-l-2 border-[var(--border-strong)] pl-[var(--space-3)] font-sans text-[10px] font-black uppercase tracking-[0.22em] text-[var(--text-secondary)]">
+                        {feature.category}
+                      </span>
+                    </div>
                     <PanelTitle as="h3" size="nav" className="max-w-none">
                       {feature.title}
                     </PanelTitle>
 
-                    <PanelBody size="compact" className="max-w-none">
+                    <PanelBody size="compact" className="max-w-none flex-1">
                       {feature.description}
                     </PanelBody>
 
                     {/* CLI snippet */}
                     <div
-                      className="flex items-center gap-2 px-3 py-2 font-mono text-xs rounded-[var(--radius-sm)]"
+                      className="flex items-center gap-2 border-2 border-[var(--border-strong)] px-3 py-2 font-mono text-xs"
                       style={{ background: 'var(--code-bg)' }}
                     >
                       <span className="text-[var(--code-prompt)] select-none">$</span>
                       <span className="text-[var(--code-text)]">{feature.cli}</span>
                     </div>
                   </div>
-                </Surface>
+                </article>
               </motion.div>
             )
           })}

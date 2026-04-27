@@ -278,7 +278,7 @@ const agentInbox = createAgentInbox(db, (agentId, message) => {
     signal: (message as any).signal || 'report'
   });
 });
-const resurrection = createResurrection(db);
+const resurrection = createResurrection(db, { sessions });
 const changelog = createChangelog(db);
 const tunnel = createTunnel(db);
 const dns = createDns(db);

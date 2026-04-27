@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
 import { Surface } from '@/components/ui/Surface'
-import { NeumorphicTerminal } from '@/components/ui/NeumorphicTerminal'
+import { CommandTerminal } from '@/components/ui/CommandTerminal'
 import { Sparkles, Shield, Layers, Anchor, Zap, Globe, Radio, Users, Search, type LucideIcon } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
 
@@ -239,7 +239,7 @@ export function ExamplesPage() {
                 </div>
 
                 <div className="flex-1 w-full relative max-w-2xl">
-                   <NeumorphicTerminal
+                   <CommandTerminal
                      code={ex.code.map(line =>
                        (line.startsWith('pd') || line.startsWith('curl')) ? `$ ${line}` :
                        line.startsWith('#') ? line :

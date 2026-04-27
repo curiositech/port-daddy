@@ -153,7 +153,7 @@ a {
   transition: color 0.2s ease;
 }
 
-/* Inline code — neumorphic inset pill, NOT black background */
+/* Inline code uses tokenized inset contrast, not a black-code default. */
 code:not(pre code) {
   display: inline-flex;
   align-items: center;
@@ -329,7 +329,7 @@ pre code {
   max-width: 100%;
 }
 
-/* Code blocks — neumorphic inset surface */
+/* Code blocks use tokenized inset contrast. */
 .blog-article .code-block-wrapper {
   background: color-mix(in srgb, var(--surface-sunken) 100%, var(--text-primary) 8%) !important;
   box-shadow: var(--shadow-inset) !important;

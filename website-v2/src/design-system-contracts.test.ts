@@ -131,6 +131,17 @@ describe('design system contracts', () => {
     }
   })
 
+  test('hero headline emphasis stays inside the brand token system', () => {
+    const hero = read('./components/landing/Hero.tsx')
+
+    expect(hero).toContain('fighting each other.')
+    expect(hero).toContain('text-[var(--brand-primary)]')
+    expect(hero).not.toContain('bg-gradient-to-r')
+    expect(hero).not.toContain('bg-clip-text')
+    expect(hero).not.toContain('text-transparent')
+    expect(hero).not.toContain('var(--status-error)')
+  })
+
   test('legacy docs detail generators consume shared website primitives instead of ad hoc surface composition', () => {
     const commandPage = read('./components/docs/CommandPage.tsx')
     const sdkFunctionPage = read('./components/docs/SdkFunctionPage.tsx')
