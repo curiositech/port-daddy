@@ -88,8 +88,8 @@ Current coordination session: `session-940abfb1-8d54-4058-a7c3-3515b3b921c7`.
 - Live daemon truth after promotion: Port Daddy `3.11.0`, PID `13470`, `/health` `ok`, runtime `nominal`, install dir `/Users/erichowens/port-daddy-stable`.
 - FleetBar was rebuilt, reinstalled, and launchd-kickstarted; the live FleetBar process is PID `14267`.
 - Promotion exposed a stable-hygiene bug: `scripts/build-core.sh` built inside the tracked `core/harbor-card-rs/target/release/**` tree, dirtying the stable checkout after a successful promotion.
-- The build script is being patched to build the Rust FFI core through an external Cargo target directory (`PORT_DADDY_CORE_TARGET_DIR`, `CARGO_TARGET_DIR`, or a per-checkout temp path) before copying the shared library into `dist/core`.
-- Once verified, clean stable-checkout Rust target residue from this promotion run; it is generated build output, not source truth.
+- The build script now builds the Rust FFI core through an external Cargo target directory (`PORT_DADDY_CORE_TARGET_DIR`, `CARGO_TARGET_DIR`, or a per-checkout temp path) before copying the shared library into `dist/core`.
+- A follow-up promotion passed the same `5025`-test gate and promoted stable through `418a1d0`; the stable checkout is clean after the corrected build path.
 
 ### Promotion Recovery Closeout (2026-04-27)
 
