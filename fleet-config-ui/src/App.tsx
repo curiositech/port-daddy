@@ -29,6 +29,7 @@ import {
   pauseFleetAgent,
   resumeFleetAgent,
   runFleetAgent,
+  setFleetConfigBudget,
   startFleet,
   stopFleet,
   formatDaemonLabel,
@@ -744,6 +745,20 @@ export default function App() {
       configuredWatcherCount: number;
       signals: string[];
       sources: string[];
+      operatorState?: 'running' | 'ready' | 'blocked' | 'service_only' | 'context_only' | 'missing';
+      operatorSummary?: string;
+      operatorNextAction?: string;
+      fleetConfigStatus?: 'ready' | 'missing_budget' | 'invalid' | 'missing';
+      budgetUsdPerDay?: number | null;
+      configError?: string | null;
+      configWarnings?: string[];
+      remediation?: {
+        action: 'start_fleet' | 'set_budget' | 'fix_yaml' | 'create_fleet' | 'run_scan';
+        title: string;
+        detail: string;
+        command?: string;
+        suggestedBudgetUsdPerDay?: number;
+      } | null;
     }>();
 
     for (const project of fleet.projects) {
@@ -760,6 +775,14 @@ export default function App() {
         configuredWatcherCount: project.configuredWatcherCount ?? 0,
         signals: project.signals ?? [],
         sources: project.sources ?? [],
+        operatorState: project.operatorState,
+        operatorSummary: project.operatorSummary,
+        operatorNextAction: project.operatorNextAction,
+        fleetConfigStatus: project.fleetConfigStatus,
+        budgetUsdPerDay: project.budgetUsdPerDay,
+        configError: project.configError,
+        configWarnings: project.configWarnings ?? [],
+        remediation: project.remediation,
       });
     }
 
@@ -777,6 +800,14 @@ export default function App() {
         configuredWatcherCount: existing?.configuredWatcherCount ?? 0,
         signals: existing?.signals ?? [],
         sources: [...new Set([...(existing?.sources ?? []), 'runtime'])],
+        operatorState: existing?.operatorState ?? 'running',
+        operatorSummary: existing?.operatorSummary,
+        operatorNextAction: existing?.operatorNextAction,
+        fleetConfigStatus: existing?.fleetConfigStatus,
+        budgetUsdPerDay: existing?.budgetUsdPerDay,
+        configError: existing?.configError,
+        configWarnings: existing?.configWarnings ?? [],
+        remediation: existing?.remediation,
       });
     }
 
@@ -1076,6 +1107,34 @@ export default function App() {
     } catch (err) { alert((err as Error).message); }
   }, [selectedProject, fleet]);
 
+  const handleStartProject = useCallback(async (projectDir: string) => {
+    try {
+      await startFleet(projectDir);
+      fleet.refresh();
+      fleet.refreshFeeds();
+    } catch (err) {
+      alert((err as Error).message);
+    }
+  }, [fleet]);
+
+  const handleSetProjectBudget = useCallback(async (projectDir: string, usdPerDay: number) => {
+    try {
+      await setFleetConfigBudget(projectDir, usdPerDay);
+      fleet.refresh();
+      fleet.loadConfig(projectDir);
+    } catch (err) {
+      alert((err as Error).message);
+    }
+  }, [fleet]);
+
+  const handleOpenProjectYaml = useCallback((projectId: string) => {
+    setSelectedProjectId(projectId);
+    setSelectedAgent(null);
+    setSelectedChannel(null);
+    setConfigAgent(null);
+    setActiveTab('YAML');
+  }, []);
+
   const handleAgentRunNow = useCallback(async (agentName: string) => {
     if (!selectedProjectId) return;
     try {
@@ -1128,7 +1187,13 @@ export default function App() {
           {selectedProject.running ? <><Square size={8} /> Stop Fleet</> : <><Play size={8} /> Start Fleet</>}
         </button>
       </div>
-      <ProjectPicker projects={projects} selected={selectedProjectId} onSelect={selectProject} />
+      <ProjectPicker
+        projects={projects}
+        selected={selectedProjectId}
+        onSelect={selectProject}
+        onStartProject={(project) => void handleStartProject(project.projectDir)}
+        onSetBudget={(project, usdPerDay) => void handleSetProjectBudget(project.projectDir, usdPerDay)}
+      />
     </div>
   ) : null;
 
@@ -1185,7 +1250,13 @@ export default function App() {
                 <span style={{ color: 'var(--pd-accent)' }}>Daemon offline</span>&nbsp;at {formatDaemonLabel(daemonUrl)}: {fleet.error}
               </div>
             ) : (
-              <AllProjectsList projects={projects} onSelect={selectProject} />
+              <AllProjectsList
+                projects={projects}
+                onSelect={selectProject}
+                onStartProject={(project) => void handleStartProject(project.projectDir)}
+                onSetBudget={(project, usdPerDay) => void handleSetProjectBudget(project.projectDir, usdPerDay)}
+                onOpenYaml={(project) => handleOpenProjectYaml(project.id)}
+              />
             )}
           </motion.div>
         ) : (

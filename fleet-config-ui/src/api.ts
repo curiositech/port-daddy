@@ -242,6 +242,13 @@ export async function saveFleetConfig(project: string, yaml: string): Promise<{
   return put(`/fleet/config/${encodeURIComponent(project)}`, { yaml });
 }
 
+export async function setFleetConfigBudget(project: string, usdPerDay: number): Promise<{
+  success: boolean;
+  budgetUsdPerDay: number;
+}> {
+  return post(`/fleet/config/${encodeURIComponent(project)}/budget`, { usdPerDay });
+}
+
 export async function startFleet(projectDir?: string, enabledAgents?: string[]): Promise<{ success: boolean }> {
   if (!projectDir && !enabledAgents) return post('/fleet/start');
   return post('/fleet/start', {
