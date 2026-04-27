@@ -82,7 +82,7 @@ struct FleetPopover: View {
                 Divider().opacity(0.5)
             }
             if store.isDaemonRunning {
-                CostDashboard(store: costStore)
+                consoleStatusSection
                 Divider().opacity(0.5)
             }
             if showingSettings {
@@ -426,20 +426,20 @@ struct FleetPopover: View {
 
                     Button {
                         Task {
-                            if store.projects.isEmpty {
+                            if store.totalActive == 0 {
                                 await store.startFleet()
                             } else {
                                 await store.stopFleet()
                             }
                         }
                     } label: {
-                        Image(systemName: store.projects.isEmpty ? "play.fill" : "stop.fill")
+                        Image(systemName: store.totalActive == 0 ? "play.fill" : "stop.fill")
                             .fontWeight(.medium)
-                            .foregroundStyle(store.projects.isEmpty ? Fleet.Color.healthy : Fleet.Color.failure)
+                            .foregroundStyle(store.totalActive == 0 ? Fleet.Color.healthy : Fleet.Color.failure)
                             .contentTransition(.symbolEffect(.replace))
                     }
                     .buttonStyle(.borderless)
-                    .help(store.projects.isEmpty ? "Start fleet" : "Stop fleet")
+                    .help(store.totalActive == 0 ? "Start fleet" : "Stop fleet")
                 }
             }
         }
@@ -456,9 +456,89 @@ struct FleetPopover: View {
     private var headerSubtitle: String {
         let active = store.totalActive
         let total  = store.totalAgents
+        if store.projectsNeedingBudget > 0 {
+            return "\(store.projectsNeedingBudget) need budget, \(active)/\(total) active"
+        }
         if active == 0 && total == 0 { return "No agents" }
         if active == 0 { return "\(total) idle" }
         return "\(active) active, \(total - active) idle"
+    }
+
+    private var consoleStatusSection: some View {
+        let budgetBlocked = store.projects.filter(\.needsBudget)
+        let readyStopped = store.projects.filter { $0.operatorState == .ready }
+
+        return VStack(alignment: .leading, spacing: Fleet.Space.s) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Console")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Text("Shared project readiness, budgets, and control-plane truth")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+                Spacer()
+                Button {
+                    openControlPlane(.flow)
+                } label: {
+                    Label("Open", systemImage: "macwindow")
+                        .font(.caption2.weight(.semibold))
+                }
+                .buttonStyle(.borderless)
+                .foregroundStyle(Fleet.Color.active)
+            }
+
+            HStack(spacing: Fleet.Space.s) {
+                ConsoleMetric(
+                    title: "projects",
+                    value: "\(store.projects.count)",
+                    color: Fleet.Color.active
+                )
+                ConsoleMetric(
+                    title: "budget",
+                    value: "\(budgetBlocked.count)",
+                    color: budgetBlocked.isEmpty ? Fleet.Color.healthy : Fleet.Color.warning
+                )
+                ConsoleMetric(
+                    title: "ready",
+                    value: "\(readyStopped.count)",
+                    color: readyStopped.isEmpty ? Fleet.Color.dormant : Fleet.Color.healthy
+                )
+                ConsoleMetric(
+                    title: "agents",
+                    value: "\(store.totalActive)/\(store.totalAgents)",
+                    color: store.totalActive > 0 ? Fleet.Color.healthy : Fleet.Color.dormant
+                )
+            }
+
+            if let blocker = budgetBlocked.first {
+                HStack(spacing: Fleet.Space.s) {
+                    Image(systemName: blocker.statusIcon)
+                        .foregroundStyle(blocker.statusColor)
+                    Text("\(blocker.name): \(blocker.operatorNextAction)")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                    Spacer()
+                    Button("Set $\(Int(blocker.suggestedBudgetUsdPerDay))/day") {
+                        Task {
+                            await store.setFleetBudget(
+                                projectDir: blocker.projectDir,
+                                usdPerDay: blocker.suggestedBudgetUsdPerDay
+                            )
+                            await costStore.refresh()
+                        }
+                    }
+                    .buttonStyle(.borderless)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(Fleet.Color.warning)
+                }
+            }
+        }
+        .padding(.horizontal, Fleet.Space.l)
+        .padding(.vertical, Fleet.Space.s)
+        .background(Fleet.Chrome.panel)
     }
 
     // MARK: - Empty State
@@ -588,6 +668,12 @@ struct FleetPopover: View {
                         project: project,
                         isExpanded: store.expandedProjects.contains(project.id),
                         onToggle: { withAnimation(Fleet.Motion.expandSpring) { store.toggleProject(project.id) } },
+                        onOpenProject: {
+                            openControlPlane(.flow, project: project.id)
+                        },
+                        onRemediateProject: {
+                            handleProjectRemediation(project)
+                        },
                         onInspectAgent: { agentName in
                             openControlPlane(.activity, project: project.id, agent: agentName)
                         },
@@ -680,6 +766,49 @@ struct FleetPopover: View {
         .padding(.vertical, Fleet.Space.s)
         .background(Fleet.Chrome.panel)
     }
+
+    private func handleProjectRemediation(_ project: FleetProject) {
+        switch project.remediation?.action {
+        case "set_budget":
+            Task {
+                await store.setFleetBudget(
+                    projectDir: project.projectDir,
+                    usdPerDay: project.suggestedBudgetUsdPerDay
+                )
+                await costStore.refresh()
+            }
+        case "start_fleet":
+            Task { await store.startFleet(projectDir: project.projectDir) }
+        case "fix_yaml":
+            openControlPlane(.yaml, project: project.id)
+        default:
+            openControlPlane(.flow, project: project.id)
+        }
+    }
+}
+
+private struct ConsoleMetric: View {
+    let title: String
+    let value: String
+    let color: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title.uppercased())
+                .font(.system(size: 8, weight: .semibold))
+                .foregroundStyle(.tertiary)
+            Text(value)
+                .font(.system(.caption, design: .monospaced).weight(.semibold))
+                .foregroundStyle(color)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, Fleet.Space.s)
+        .padding(.vertical, 6)
+        .background(
+            Fleet.Chrome.card,
+            in: RoundedRectangle(cornerRadius: Fleet.Radius.small, style: .continuous)
+        )
+    }
 }
 
 // MARK: - Project Section
@@ -688,6 +817,8 @@ struct ProjectSection: View {
     let project: FleetProject
     let isExpanded: Bool
     let onToggle: () -> Void
+    let onOpenProject: () -> Void
+    let onRemediateProject: () -> Void
     let onInspectAgent: (String) -> Void
     let onRunAgent: (String) -> Void
     let onPauseToggle: (String, Bool) -> Void
@@ -722,16 +853,21 @@ struct ProjectSection: View {
                         .animation(Fleet.Motion.snappy, value: isExpanded)
                         .frame(width: 12)
 
-                    // Folder — weight matches text
-                    Image(systemName: "folder.fill")
+                    Image(systemName: project.statusIcon)
                         .font(.system(size: 12))
                         .fontWeight(.medium)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(project.statusColor)
 
                     Text(project.name)
                         .font(.subheadline.weight(.medium))
 
                     Spacer()
+
+                    StatusTextCapsule(
+                        label: project.statusLabel,
+                        color: project.statusColor,
+                        icon: project.statusIcon
+                    )
 
                     // Status capsules — only appear when meaningful
                     if project.failedCount > 0 {
@@ -749,7 +885,7 @@ struct ProjectSection: View {
                         )
                     }
 
-                    Text("\(project.agents.count)")
+                    Text("\(project.visibleAgentCount)")
                         .font(.caption2)
                         .foregroundStyle(.quaternary)
                 }
@@ -761,29 +897,91 @@ struct ProjectSection: View {
 
             // Agent rows — staggered cascade
             if isExpanded {
-                ForEach(Array(orderedAgents.enumerated()), id: \.element.id) { index, agent in
-                    AgentRow(
-                        agent: agent,
-                        onInspect: { onInspectAgent(agent.name) },
-                        onRunAgent: { onRunAgent(agent.name) },
-                        onPauseToggle: { onPauseToggle(agent.name, agent.status == .paused) },
-                        onOpenInEditor: onOpenInEditor,
-                        onRevealInFinder: onRevealInFinder
-                    )
-                        .transition(
-                            .asymmetric(
-                                insertion: .opacity
-                                    .combined(with: .offset(y: -4))
-                                    .animation(
-                                        Fleet.Motion.expandSpring
-                                            .delay(Double(index) * Fleet.Motion.rowStagger)
-                                    ),
-                                removal: .opacity.animation(.smooth(duration: 0.12))
-                            )
+                ProjectReadinessRow(
+                    project: project,
+                    onOpenProject: onOpenProject,
+                    onRemediateProject: onRemediateProject
+                )
+
+                if orderedAgents.isEmpty {
+                    Text("No live agent rows yet")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, Fleet.Space.l)
+                        .padding(.bottom, Fleet.Space.s)
+                } else {
+                    ForEach(Array(orderedAgents.enumerated()), id: \.element.id) { index, agent in
+                        AgentRow(
+                            agent: agent,
+                            onInspect: { onInspectAgent(agent.name) },
+                            onRunAgent: { onRunAgent(agent.name) },
+                            onPauseToggle: { onPauseToggle(agent.name, agent.status == .paused) },
+                            onOpenInEditor: onOpenInEditor,
+                            onRevealInFinder: onRevealInFinder
                         )
+                            .transition(
+                                .asymmetric(
+                                    insertion: .opacity
+                                        .combined(with: .offset(y: -4))
+                                        .animation(
+                                            Fleet.Motion.expandSpring
+                                                .delay(Double(index) * Fleet.Motion.rowStagger)
+                                        ),
+                                    removal: .opacity.animation(.smooth(duration: 0.12))
+                                )
+                            )
+                    }
                 }
             }
         }
+    }
+}
+
+private struct ProjectReadinessRow: View {
+    let project: FleetProject
+    let onOpenProject: () -> Void
+    let onRemediateProject: () -> Void
+
+    var body: some View {
+        HStack(alignment: .top, spacing: Fleet.Space.s) {
+            Image(systemName: project.statusIcon)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(project.statusColor)
+                .frame(width: Fleet.Space.l)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(project.operatorSummary)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                Text(project.operatorNextAction)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(2)
+            }
+
+            Spacer(minLength: Fleet.Space.s)
+
+            Button {
+                onOpenProject()
+            } label: {
+                Image(systemName: "macwindow")
+            }
+            .buttonStyle(.borderless)
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(Fleet.Color.active)
+            .help("Open console")
+
+            if let remediation = project.remediation {
+                Button(remediation.title, action: onRemediateProject)
+                    .buttonStyle(.borderless)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(project.statusColor)
+            }
+        }
+        .padding(.horizontal, Fleet.Space.l)
+        .padding(.bottom, Fleet.Space.s)
     }
 }
 
@@ -1035,6 +1233,28 @@ struct EventLabel: View {
 }
 
 // MARK: - Status Capsule
+
+struct StatusTextCapsule: View {
+    let label: String
+    let color: Color
+    let icon: String
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: icon)
+                .font(.system(size: 7))
+            Text(label)
+                .font(.system(.caption2, design: .rounded).weight(.medium))
+        }
+        .foregroundStyle(color)
+        .padding(.horizontal, Fleet.Space.xs + 2)
+        .padding(.vertical, 2)
+        .background(
+            color.opacity(0.08),
+            in: RoundedRectangle(cornerRadius: Fleet.Radius.small, style: .continuous)
+        )
+    }
+}
 
 struct StatusCapsule: View {
     let count: Int

@@ -49,7 +49,10 @@ pd note "Scope: <task>. Likely files: <paths>. Risks/blockers: <anything importa
 pd session files add <path>
 pd session files add <path> --symbol-path <ClassOrFunction.name>
 
-# 7. Do the work, test it, then leave the result and close cleanly.
+# 7. If this repo has Coordination Guard enabled, check before commit.
+pd guard check --staged
+
+# 8. Do the work, test it, then leave the result and close cleanly.
 pd note "Result: <what changed>. Validation: <commands run>. Remaining: <if any>."
 pd done "<short outcome>"
 ```
@@ -67,14 +70,15 @@ Use this table when the happy path reveals a specific need:
 | Inspect current session | `pd whoami` | Use when context is unclear or `pd begin` reports an active session. |
 | Explain scope or handoff | `pd note` | Human-readable truth; use this first. |
 | Decide coordination before editing | `pd advise` / `pd preflight` | Ask before risky edits or handoffs. |
+| Enforce coordination before commit | `pd guard` | Use `pd guard install --mode enforce` to require an active session plus file claims in any repo. |
 | Edit files safely | `pd session files add` | Prefer symbol claims when the target function/class is known. |
 | Run a dev server | `pd claim <project>:<service>:<context> -q` | Never hardcode a random port. |
 | Exclusive critical section | `pd with-lock <resource> -- <command>` | Use for migrations, promotion, generated artifacts, and non-mergeable work. |
-| Crash or abandoned work | `pd salvage --project <project>` | Read before restarting work someone may have half-finished. |
+| Crash or abandoned work | `pd salvage --project <project>` / `pd salvage --summary` | Read before restarting work someone may have half-finished; use summary mode when the queue is noisy. |
 | Roadmap or what-next truth | `pd actor cartographer` / `pd actor navigator --inbox` | Ask the durable roadmap actor; docs are evidence, not the actor. |
 | Skill/docs/API drift | `pd actor lookout --message` | Queue release-surface drift for the durable docs/skill owner. |
 | Machine-readable handoff | `pd tuple out ...` | Use only when another process/agent should query it. |
-| Direct message | `pd inbox send` or `pd actor <id> --message` | Use when you know the recipient. |
+| Direct message | `pd inbox send` or `pd actor <id> --message` | Use when you know the recipient; use `pd actor <id> --inbox --mark-read` only after the role mail has been processed. |
 | Catch up after time away | `pd look` / `pd sitrep` | Read recent activity instead of scraping logs manually. |
 | Delegate work | `pd agent`, `pd sortie`, or `pd fleet` | Only after budget/readiness and telemetry policy are clear. |
 | Service dependency ready/needed | `pd integration ready` / `pd integration needs` | Use when one service is waiting on another. |
@@ -100,6 +104,8 @@ Default behavior for every non-trivial slice:
 - use actor inboxes for durable role ownership, especially Navigator,
   Coxswain, Lookout, Harbormaster, Sounder, Signalman, Breaker, Caulker, and
   Quartermaster
+- mark durable actor inbox messages read only after their coordination content
+  has been incorporated into the roadmap, recovery ledger, or a live handoff
 - use pheromones/file heat for ambient contention, not ordinary status updates
 
 Coordination is not just collision avoidance. If another agent's assumptions,
@@ -193,6 +199,10 @@ needed. Do not begin by browsing every available tool.
 - Use **notes** for human-readable scope, decisions, blockers, and validation.
 - Use **file claims** for advisory edit ownership. They warn and start a
   conversation; they are not hard locks.
+- Use **Coordination Guard** when convention is not enough. `pd guard enable
+  --mode enforce && pd guard install` writes a local `.portdaddy/` config and
+  pre-commit hook so commits require a live Port Daddy session and matching file
+  claims.
 - Use **symbol claims** for function/class-scoped code edits when the symbol
   index knows the file.
 - Use **locks** only for scarce, non-mergeable critical sections.

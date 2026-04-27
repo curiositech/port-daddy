@@ -813,6 +813,10 @@ Read recent messages queued to a durable actor mailbox. Query params:
 ### GET /actors/:id/inbox/stats
 Read mailbox depth for one durable actor. Returns unread and total counts.
 
+### PUT /actors/:id/inbox/read-all
+Mark all messages in a durable actor mailbox as read. This acknowledges role
+mail without deleting durable evidence.
+
 ### POST /actors/:id/message
 Queue a message to the durable actor mailbox. This writes to the existing inbox
 substrate using targets like `actor:navigator`; it does not grant dormant actors

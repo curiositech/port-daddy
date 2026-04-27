@@ -2,8 +2,9 @@
 const swcTransform = {
   '^.+\\.tsx?$': ['@swc/jest', {
     jsc: {
-      parser: { syntax: 'typescript', decorators: true },
+      parser: { syntax: 'typescript', decorators: true, tsx: true },
       target: 'es2022',
+      transform: { react: { runtime: 'automatic' } },
     },
     module: { type: 'es6' },
   }],
@@ -17,8 +18,8 @@ const moduleNameMapper = {
 export default {
   testEnvironment: 'node',
   transform: {},
-  moduleFileExtensions: ['js', 'mjs', 'ts'],
-  extensionsToTreatAsEsm: ['.ts'],
+  moduleFileExtensions: ['js', 'mjs', 'ts', 'tsx'],
+  extensionsToTreatAsEsm: ['.ts', '.tsx'],
   // Keep the overall worker pool serial. The integration project shares one
   // ephemeral daemon across files, and cross-project concurrency with the unit
   // pool was starving that daemon and producing suite-only flakes in `npm test`.
@@ -47,8 +48,8 @@ export default {
       testEnvironment: 'node',
       transform: { ...swcTransform },
       moduleNameMapper,
-      moduleFileExtensions: ['js', 'mjs', 'ts'],
-      extensionsToTreatAsEsm: ['.ts'],
+      moduleFileExtensions: ['js', 'mjs', 'ts', 'tsx'],
+      extensionsToTreatAsEsm: ['.ts', '.tsx'],
       testMatch: ['<rootDir>/tests/unit/**/*.test.{js,ts}'],
       setupFiles: ['<rootDir>/tests/jest.env.js'],
       setupFilesAfterEnv: [],

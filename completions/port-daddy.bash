@@ -106,7 +106,7 @@ _port_daddy() {
     # Briefing & History
     briefing history
     # Consolidated read/write (3.8.4)
-    say look sitrep pheromone ph advise preflight compass
+    say look sitrep pheromone ph advise preflight compass guard
     # Agent Inbox
     inbox
     # AI Agent Spawner + Watch
@@ -1593,6 +1593,36 @@ _port_daddy() {
     # -----------------------------------------------------------------------
     advise|preflight|compass)
       _pd_opts '--task --session --sessionId --agent --agentId --dir --projectRoot --channels --tuples --json --quiet'
+      ;;
+
+    # -----------------------------------------------------------------------
+    # guard  status|check|enable|disable|install  [files...]  [options]
+    # -----------------------------------------------------------------------
+    guard)
+      local guard_subcommands='status check enable disable install'
+      local subcmd=""
+      for (( i = 1; i < cword; i++ )); do
+        local w="${words[$i]}"
+        if [[ "$w" == "guard" ]]; then
+          if (( i + 1 < cword )); then
+            subcmd="${words[$((i+1))]}"
+          fi
+          break
+        fi
+      done
+
+      case "$prev" in
+        --mode)
+          COMPREPLY=( $(compgen -W "warn enforce off" -- "$cur") )
+          ;;
+        *)
+          if [[ -z "$subcmd" ]]; then
+            COMPREPLY=( $(compgen -W "$guard_subcommands" -- "$cur") )
+          else
+            _pd_opts '--mode --warn --enforce --off --staged --hook --json --quiet'
+          fi
+          ;;
+      esac
       ;;
 
     # -----------------------------------------------------------------------

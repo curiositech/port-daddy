@@ -275,4 +275,33 @@ export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = asyn
       max: deps.agentInbox.MAX_INBOX_MESSAGES ?? null,
     };
   });
+
+  fastify.put('/actors/:id/inbox/read-all', async (
+    request: FastifyRequest<{ Params: ActorParams }>,
+    reply: FastifyReply,
+  ) => {
+    const actor = actorOr404(request.params.id, deps);
+    if (!actor) {
+      return reply.code(404).send({
+        success: false,
+        error: `Unknown maritime actor: ${request.params.id}`,
+        code: 'ACTOR_NOT_FOUND',
+      });
+    }
+    if (!deps.agentInbox) {
+      return reply.code(501).send({
+        success: false,
+        error: 'actor inbox is unavailable',
+        code: 'ACTOR_INBOX_UNAVAILABLE',
+      });
+    }
+
+    const result = deps.agentInbox.markAllRead(actor.inboxTarget);
+    return {
+      success: true,
+      actorId: actor.id,
+      inboxTarget: actor.inboxTarget,
+      marked: result.marked ?? 0,
+    };
+  });
 };

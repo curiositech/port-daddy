@@ -1,6 +1,6 @@
 # Current Recovery Work
 
-Last updated: 2026-04-26
+Last updated: 2026-04-27
 Owner: Codex working session
 
 This is the active execution ledger. If a task is in flight, it belongs here before it belongs in chat.
@@ -78,6 +78,17 @@ The `agentsd.ai` public-site reset is now explicit repo work, not chat residue.
 - Future public-site work should preserve the current public surface unless a deliberate migration plan is approved and implemented.
 
 ## Current Thread
+
+### Stale Work Visibility And Actor Inbox Triage (2026-04-27)
+
+Current execution session: `session-3c9f287b-3b90-493e-b867-7dff73136071`.
+
+- This slice intentionally avoided the runtime/backend files that were active under the Claude SDK / cartographer launchability work.
+- `pd salvage --project port-daddy --summary` now exposes the stale/dead queue as non-live triage: status counts, age buckets, project scope, encrypted-note redaction count, and a direct comparison hint for `pd sessions --active` / `pd agents --active`.
+- Encrypted note blobs in salvage output are now redacted instead of flooding the terminal with ciphertext. The current dogfood read showed 54 non-live `port-daddy` entries, 40 encrypted notes redacted, 4 entries under 2 hours, 43 from 2-24 hours, and 7 over 24 hours.
+- Actor inbox triage now has an explicit acknowledgement path: `pd actor <id> --inbox --mark-read` calls `PUT /actors/:id/inbox/read-all` after printing messages. This marks messages read without deleting them.
+- The Navigator inbox was inspected but not acknowledged in this slice. It currently has 6 unread messages, including roadmap/promotion coordination requests that should stay durable until the responsible roadmap actor or operator intentionally marks them read.
+- Validation truth: `npm test -- tests/unit/salvage-visibility.test.js tests/unit/actors-routes.test.js --runInBand` passed 2 suites / 7 tests; `npm run typecheck` passed; `git diff --check` passed; source CLI dogfood for `pd salvage --summary`, `pd actor navigator --inbox-stats`, and `pd actor navigator --inbox --unread --limit 2` succeeded.
 
 ### Port Daddy Skill And Actor-Truth Repair (2026-04-26)
 

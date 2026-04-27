@@ -217,8 +217,8 @@ fleet:
       # (3) harvesting .spark/feedback/ on a steady cadence is more useful
       #     than reactive bursts that compete for slots
       schedule: "*/30 * * * *"
-      backend: ollama
-      model: qwen2.5-coder:7b
+      backend: claude
+      model: claude-haiku-4-5-20251001
       singleton: true
       allowedTools: "Read,Grep,Glob,Write"
       prompt: |

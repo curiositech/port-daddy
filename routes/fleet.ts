@@ -92,18 +92,18 @@ function setFleetYamlBudget(yaml: string, usdPerDay: number): string {
   if (doc.errors.length > 0) {
     throw new Error(doc.errors.map((err) => err.message).join('; '));
   }
-  if (!isMap(doc.contents)) {
+  if (!isMap<string, unknown>(doc.contents)) {
     throw new Error('Invalid YAML object');
   }
 
   const nestedFleet = doc.contents.get('fleet', true);
-  const target = isMap(nestedFleet) ? nestedFleet : doc.contents;
+  const target = isMap<string, unknown>(nestedFleet) ? nestedFleet : doc.contents;
   const limits = target.get('limits', true);
 
-  if (isMap(limits)) {
+  if (isMap<string, unknown>(limits)) {
     limits.set('budget_usd_per_day', usdPerDay);
   } else {
-    target.set('limits' as any, { budget_usd_per_day: usdPerDay } as any);
+    target.set('limits', { budget_usd_per_day: usdPerDay });
   }
 
   return String(doc);

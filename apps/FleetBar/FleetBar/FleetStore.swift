@@ -11,16 +11,125 @@ private extension String {
 
 // MARK: - Data Model
 
+enum ProjectOperatorState: String {
+    case running
+    case ready
+    case blocked
+    case serviceOnly = "service_only"
+    case contextOnly = "context_only"
+    case missing
+}
+
+enum FleetConfigStatus: String {
+    case ready
+    case missingBudget = "missing_budget"
+    case invalid
+    case missing
+}
+
+struct ProjectRemediation {
+    let action: String
+    let title: String
+    let detail: String
+    let command: String?
+    let suggestedBudgetUsdPerDay: Double?
+}
+
 struct FleetProject: Identifiable {
     let id: String  // projectDir
     let name: String
     let projectDir: String
     var agents: [FleetAgent]
     var startedAt: Date?
+    var configuredAgentCount: Int = 0
+    var configuredWatcherCount: Int = 0
+    var operatorState: ProjectOperatorState = .missing
+    var operatorSummary: String = "No operator readiness has been reported yet."
+    var operatorNextAction: String = "Open the console for current project truth."
+    var fleetConfigStatus: FleetConfigStatus = .missing
+    var budgetUsdPerDay: Double?
+    var configError: String?
+    var configWarnings: [String] = []
+    var remediation: ProjectRemediation?
+    var signals: [String] = []
+    var sources: [String] = []
 
     var activeCount: Int { agents.filter { $0.status.isDeployed }.count }
     var idleCount: Int { agents.filter { $0.status == .idle || $0.status == .paused }.count }
     var failedCount: Int { agents.filter { $0.status == .failed }.count }
+    var visibleAgentCount: Int { max(agents.count, configuredAgentCount) }
+    var isRunning: Bool { operatorState == .running || activeCount > 0 }
+    var needsBudget: Bool { fleetConfigStatus == .missingBudget || remediation?.action == "set_budget" }
+
+    var suggestedBudgetUsdPerDay: Double {
+        remediation?.suggestedBudgetUsdPerDay ?? 5
+    }
+
+    var statusLabel: String {
+        switch operatorState {
+        case .running:
+            return "running"
+        case .ready:
+            return "ready"
+        case .blocked:
+            return fleetConfigStatus == .missingBudget ? "needs budget" : "blocked"
+        case .serviceOnly:
+            return "pd up config"
+        case .contextOnly:
+            return "context only"
+        case .missing:
+            return "not configured"
+        }
+    }
+
+    var statusIcon: String {
+        switch operatorState {
+        case .running:
+            return "dot.radiowaves.left.and.right"
+        case .ready:
+            return "checkmark.circle.fill"
+        case .blocked:
+            return fleetConfigStatus == .missingBudget ? "wallet.pass" : "exclamationmark.triangle.fill"
+        case .serviceOnly:
+            return "server.rack"
+        case .contextOnly:
+            return "doc.text.magnifyingglass"
+        case .missing:
+            return "questionmark.folder"
+        }
+    }
+
+    var statusColor: Color {
+        switch operatorState {
+        case .running:
+            return Fleet.Color.healthy
+        case .ready:
+            return Fleet.Color.active
+        case .blocked:
+            return Fleet.Color.warning
+        case .serviceOnly, .contextOnly:
+            return Fleet.Color.dormant
+        case .missing:
+            return Fleet.Color.failure
+        }
+    }
+
+    var sortRank: Int {
+        switch operatorState {
+        case .running:
+            return 0
+        case .blocked:
+            return 1
+        case .ready:
+            return 2
+        case .serviceOnly:
+            return 3
+        case .contextOnly:
+            return 4
+        case .missing:
+            return 5
+        }
+    }
 }
 
 struct FleetAgent: Identifiable {
@@ -84,8 +193,8 @@ struct RegisteredProjectResponse: Decodable {
     let root: String
     let type: String
     let serviceCount: Int
-    let lastScanned: String
-    let createdAt: String
+    let lastScanned: StringCodable?
+    let createdAt: StringCodable?
     let frameworks: [String]
     let signals: [String]?
     let sources: [String]?
@@ -93,6 +202,22 @@ struct RegisteredProjectResponse: Decodable {
     let running: Bool?
     let configuredAgentCount: Int?
     let configuredWatcherCount: Int?
+    let operatorState: String?
+    let operatorSummary: String?
+    let operatorNextAction: String?
+    let fleetConfigStatus: String?
+    let budgetUsdPerDay: Double?
+    let configError: String?
+    let configWarnings: [String]?
+    let remediation: ProjectRemediationResponse?
+}
+
+struct ProjectRemediationResponse: Decodable {
+    let action: String
+    let title: String
+    let detail: String
+    let command: String?
+    let suggestedBudgetUsdPerDay: Double?
 }
 
 struct FleetResponse: Decodable {
@@ -348,9 +473,10 @@ class FleetStore: ObservableObject {
 
     @Published var isStartingDaemon = false
 
-    var totalAgents: Int { projects.reduce(0) { $0 + $1.agents.count } }
+    var totalAgents: Int { projects.reduce(0) { $0 + $1.visibleAgentCount } }
     var totalActive: Int { projects.reduce(0) { $0 + $1.activeCount } }
     var totalFailed: Int { projects.reduce(0) { $0 + $1.failedCount } }
+    var projectsNeedingBudget: Int { projects.filter(\.needsBudget).count }
 
     init() {
         self.preferences = FleetBarPreferenceStore.load()
@@ -496,6 +622,32 @@ class FleetStore: ObservableObject {
         await refresh()
     }
 
+    func setFleetBudget(projectDir: String, usdPerDay: Double = 5) async {
+        guard let encodedProject = encodePathSegment(projectDir),
+              let url = URL(string: "\(baseURL)/fleet/config/\(encodedProject)/budget") else {
+            settingsMessage = "Could not prepare budget update"
+            return
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["usdPerDay": usdPerDay])
+
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+                settingsMessage = "Budget update failed"
+                await refresh()
+                return
+            }
+            settingsMessage = String(format: "Budget set to $%.2f/day", usdPerDay)
+        } catch {
+            settingsMessage = "Budget update failed"
+        }
+        await refresh()
+    }
+
     func runAgent(projectDir: String, agentName: String) async {
         guard let url = URL(string: "\(baseURL)/fleet/agent/run") else { return }
         var request = URLRequest(url: url)
@@ -527,6 +679,12 @@ class FleetStore: ObservableObject {
     }
 
     // MARK: - Local Helpers
+
+    private func encodePathSegment(_ value: String) -> String? {
+        var allowed = CharacterSet.urlPathAllowed
+        allowed.remove(charactersIn: "/")
+        return value.addingPercentEncoding(withAllowedCharacters: allowed)
+    }
 
     private func startLaunchAgentDaemon() -> Bool {
         let uid = String(getuid())
@@ -604,9 +762,89 @@ class FleetStore: ObservableObject {
 
     // MARK: - State Updates
 
+    private func projectMetadata(from registered: RegisteredProjectResponse?, fallbackRunning: Bool) -> (
+        configuredAgentCount: Int,
+        configuredWatcherCount: Int,
+        operatorState: ProjectOperatorState,
+        operatorSummary: String,
+        operatorNextAction: String,
+        fleetConfigStatus: FleetConfigStatus,
+        budgetUsdPerDay: Double?,
+        configError: String?,
+        configWarnings: [String],
+        remediation: ProjectRemediation?,
+        signals: [String],
+        sources: [String]
+    ) {
+        let operatorState = registered?.operatorState.flatMap(ProjectOperatorState.init(rawValue:))
+            ?? (fallbackRunning ? .running : .missing)
+        let fleetConfigStatus = registered?.fleetConfigStatus.flatMap(FleetConfigStatus.init(rawValue:))
+            ?? (fallbackRunning ? .ready : .missing)
+        let remediation = registered?.remediation.map {
+            ProjectRemediation(
+                action: $0.action,
+                title: $0.title,
+                detail: $0.detail,
+                command: $0.command,
+                suggestedBudgetUsdPerDay: $0.suggestedBudgetUsdPerDay
+            )
+        }
+
+        return (
+            configuredAgentCount: registered?.configuredAgentCount ?? 0,
+            configuredWatcherCount: registered?.configuredWatcherCount ?? 0,
+            operatorState: operatorState,
+            operatorSummary: registered?.operatorSummary ?? (fallbackRunning ? "Fleet is running on this daemon." : "No operator readiness has been reported yet."),
+            operatorNextAction: registered?.operatorNextAction ?? (fallbackRunning ? "Inspect the shared console." : "Open the console for current project truth."),
+            fleetConfigStatus: fleetConfigStatus,
+            budgetUsdPerDay: registered?.budgetUsdPerDay,
+            configError: registered?.configError,
+            configWarnings: registered?.configWarnings ?? [],
+            remediation: remediation,
+            signals: registered?.signals ?? [],
+            sources: registered?.sources ?? []
+        )
+    }
+
+    private func makeProject(
+        id: String,
+        name: String,
+        projectDir: String,
+        agents: [FleetAgent],
+        startedAt: Date?,
+        registered: RegisteredProjectResponse?,
+        fallbackRunning: Bool
+    ) -> FleetProject {
+        let metadata = projectMetadata(from: registered, fallbackRunning: fallbackRunning)
+        return FleetProject(
+            id: id,
+            name: name,
+            projectDir: projectDir,
+            agents: agents,
+            startedAt: startedAt,
+            configuredAgentCount: max(metadata.configuredAgentCount, agents.count),
+            configuredWatcherCount: metadata.configuredWatcherCount,
+            operatorState: fallbackRunning ? .running : metadata.operatorState,
+            operatorSummary: metadata.operatorSummary,
+            operatorNextAction: metadata.operatorNextAction,
+            fleetConfigStatus: metadata.fleetConfigStatus,
+            budgetUsdPerDay: metadata.budgetUsdPerDay,
+            configError: metadata.configError,
+            configWarnings: metadata.configWarnings,
+            remediation: metadata.remediation,
+            signals: metadata.signals,
+            sources: metadata.sources
+        )
+    }
+
     private func applyStatus(_ status: FleetStatusResponse, registeredProjects: [RegisteredProjectResponse] = []) {
+        var registeredByRoot: [String: RegisteredProjectResponse] = [:]
+        for project in registeredProjects {
+            registeredByRoot[project.root] = project
+        }
         var runningProjectsByDir: [String: FleetProject] = [:]
         for fleet in status.fleets {
+            let registered = registeredByRoot[fleet.projectDir]
             let agents = fleet.agents.map { agent in
                 // Preserve existing agent state (last event etc.) if we have it
                 let existing = projects
@@ -628,26 +866,33 @@ class FleetStore: ObservableObject {
                     recentFiles: existing?.recentFiles ?? []
                 )
             }
-            runningProjectsByDir[fleet.projectDir] = FleetProject(
+            runningProjectsByDir[fleet.projectDir] = makeProject(
                 id: fleet.projectDir,
-                name: fleet.project,
+                name: registered?.displayName ?? fleet.project,
                 projectDir: fleet.projectDir,
                 agents: agents,
-                startedAt: Date(timeIntervalSince1970: fleet.startedAt / 1000)
+                startedAt: Date(timeIntervalSince1970: fleet.startedAt / 1000),
+                registered: registered,
+                fallbackRunning: true
             )
         }
         for registeredProject in registeredProjects {
             guard runningProjectsByDir[registeredProject.root] == nil else { continue }
-            runningProjectsByDir[registeredProject.root] = FleetProject(
+            runningProjectsByDir[registeredProject.root] = makeProject(
                 id: registeredProject.root,
                 name: registeredProject.displayName ?? registeredProject.id,
                 projectDir: registeredProject.root,
                 agents: [],
-                startedAt: nil
+                startedAt: nil,
+                registered: registeredProject,
+                fallbackRunning: false
             )
         }
         let newProjects = Array(runningProjectsByDir.values)
             .sorted { lhs, rhs in
+                if lhs.sortRank != rhs.sortRank {
+                    return lhs.sortRank < rhs.sortRank
+                }
                 let lhsStarted = lhs.startedAt?.timeIntervalSince1970 ?? 0
                 let rhsStarted = rhs.startedAt?.timeIntervalSince1970 ?? 0
                 if lhsStarted != rhsStarted {

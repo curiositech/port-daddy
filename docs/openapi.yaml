@@ -1559,6 +1559,41 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /actors/{id}/inbox/read-all:
+    put:
+      tags: [actors]
+      summary: Mark all durable actor mailbox messages as read
+      operationId: markMaritimeActorInboxRead
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Actor id or alias, for example navigator or cartographer
+      responses:
+        '200':
+          description: Actor mailbox messages marked read
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  actorId:
+                    type: string
+                  inboxTarget:
+                    type: string
+                  marked:
+                    type: integer
+        '404':
+          description: Unknown actor id or alias
+        '501':
+          description: Actor inbox unavailable in this runtime
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /actors/{id}/message:
     post:
       tags: [actors]

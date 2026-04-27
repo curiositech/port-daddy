@@ -153,6 +153,7 @@ describe('info routes runtime summary', () => {
               skipped: [{ project: 'beta', projectDir: '/repo/beta', reason: 'duplicate', owner: 'fleetd:test' }],
               totalAgents: 4,
               totalWatchers: 1,
+              totalLaunchableAgents: 2,
             };
           },
         },
@@ -182,6 +183,7 @@ describe('info routes runtime summary', () => {
         projects: 1,
         skippedProjects: 1,
         totalAgents: 4,
+        launchableAgents: 2,
       }),
     }));
     expect(body.fleet).toEqual(expect.objectContaining({
@@ -189,6 +191,7 @@ describe('info routes runtime summary', () => {
       projects: 1,
       agents: 4,
       watchers: 1,
+      launchableAgents: 2,
       skippedProjects: 1,
     }));
     await app.close();
@@ -217,11 +220,16 @@ describe('info routes runtime summary', () => {
                   watchers: 1,
                   channels: 2,
                   startedAt: 1_700_000_000_000,
+                  launchableAgents: 0,
+                  blockedAgents: [
+                    { agent: 'watcher', backend: 'ollama', reason: 'Ollama is blocked until telemetry is exact.' },
+                  ],
                 },
               ],
               skipped: [{ project: 'beta', projectDir: '/repo/beta', reason: 'duplicate', owner: 'fleetd:test' }],
               totalAgents: 1,
               totalWatchers: 1,
+              totalLaunchableAgents: 0,
             };
           },
         },
@@ -241,8 +249,19 @@ describe('info routes runtime summary', () => {
     }));
     expect(body.fleet).toEqual(expect.objectContaining({
       running: true,
+      totalLaunchableAgents: 0,
+      launchableAgents: 0,
       totalAgents: 1,
       totalWatchers: 1,
+      projects: expect.arrayContaining([
+        expect.objectContaining({
+          name: 'alpha',
+          launchableAgents: 0,
+          blockedAgents: [
+            expect.objectContaining({ agent: 'watcher', backend: 'ollama' }),
+          ],
+        }),
+      ]),
       skippedProjects: expect.arrayContaining([
         expect.objectContaining({
           project: 'beta',

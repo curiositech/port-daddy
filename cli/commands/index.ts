@@ -41,3 +41,4 @@ export * from './wallet.js';
 export * from './bond.js';
 export * from './advisor.js';
 export * from './actors.js';
+export * from './guard.js';

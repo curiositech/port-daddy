@@ -98,7 +98,7 @@ set -l __pd_commands \
     'session' 'sessions' 'note' 'notes' \
     'salvage' 'resurrection' 'changelog' 'dns' 'files' 'who-owns' 'integration' 'briefing' 'history' 'inbox' \
     'begin' 'b' 'done' 'whoami' 'w' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'watch' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' \
-    'say' 'look' 'sitrep' 'advise' 'preflight' 'compass' 'pheromone' 'ph' \
+    'say' 'look' 'sitrep' 'advise' 'preflight' 'compass' 'guard' 'pheromone' 'ph' \
     'wallet' 'bond' \
     'up' 'down' \
     'bench' 'demo' 'fleet' \
@@ -221,6 +221,7 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a advise -d 'Suggest coordination moves before editing'
     complete -c $prog -n __pd_needs_command -a preflight -d 'Alias for advise before risky work'
     complete -c $prog -n __pd_needs_command -a compass -d 'Maritime alias for advise'
+    complete -c $prog -n __pd_needs_command -a guard -d 'Enforce Port Daddy session and file-claim discipline'
     complete -c $prog -n __pd_needs_command -a pheromone -d 'Stigmergic coordination (spray, files, show, ls)'
     complete -c $prog -n __pd_needs_command -a ph -d 'Alias for pheromone'
 
@@ -285,6 +286,14 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command advise preflight compass" -l projectRoot -r -d 'Project root'
     complete -c $prog -n "__pd_using_command advise preflight compass" -l channels -d 'Include channel suggestions'
     complete -c $prog -n "__pd_using_command advise preflight compass" -l tuples -d 'Include tuple suggestions'
+    # pd guard subcommands and flags
+    complete -c $prog -n "__pd_using_command guard" -x -a 'status check enable disable install' -d 'Subcommand'
+    complete -c $prog -n "__pd_using_command guard; and __fish_seen_subcommand_from check enable install" -l mode -x -a 'warn enforce off' -d 'Override guard mode'
+    complete -c $prog -n "__pd_using_command guard; and __fish_seen_subcommand_from check enable install" -l warn -d 'Warn instead of blocking'
+    complete -c $prog -n "__pd_using_command guard; and __fish_seen_subcommand_from check enable install" -l enforce -d 'Block on violations'
+    complete -c $prog -n "__pd_using_command guard; and __fish_seen_subcommand_from check" -l off -d 'Disable this check'
+    complete -c $prog -n "__pd_using_command guard; and __fish_seen_subcommand_from check" -l staged -d 'Check staged files'
+    complete -c $prog -n "__pd_using_command guard; and __fish_seen_subcommand_from check" -l hook -d 'Format output for a git hook'
 
     # pd actor/actors flags
     complete -c $prog -n "__pd_using_command actor actors" -l project -x -d 'Project filter'

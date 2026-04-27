@@ -1480,6 +1480,56 @@ _pd_cmd_advise() {
     '*:files:_files'
 }
 
+_pd_cmd_guard() {
+  local -a guard_subcmds
+  guard_subcmds=(
+    'status:show Coordination Guard status'
+    'check:verify session and file-claim discipline'
+    'enable:write project config and enable guard checks'
+    'disable:turn guard checks off for this project'
+    'install:install or update the managed pre-commit hook'
+  )
+
+  _arguments -C \
+    '1:subcommand:->subcommand' \
+    '*::args:->args'
+
+  case "$state" in
+    subcommand)
+      _describe 'subcommand' guard_subcmds
+      ;;
+    args)
+      case "${words[2]}" in
+        check)
+          _arguments \
+            '--mode[override guard mode]:mode:(off warn enforce)' \
+            '--warn[warn instead of blocking]' \
+            '--enforce[block on violations]' \
+            '--off[disable this check]' \
+            '--staged[check staged files]' \
+            '--hook[format output for a git hook]' \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[suppress non-essential output]' \
+            '*:files:_files'
+          ;;
+        enable|install)
+          _arguments \
+            '--mode[guard mode]:mode:(warn enforce)' \
+            '--warn[warn instead of blocking]' \
+            '--enforce[block on violations]' \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[suppress non-essential output]'
+          ;;
+        status|disable)
+          _arguments \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[suppress non-essential output]'
+          ;;
+      esac
+      ;;
+  esac
+}
+
 _pd_cmd_pheromone() {
   local -a ph_subcmds
   ph_subcmds=(
@@ -1783,6 +1833,7 @@ _port_daddy() {
     'advise:suggest coordination moves before editing'
     'preflight:alias for advise before risky work'
     'compass:maritime alias for advise'
+    'guard:enforce Port Daddy session and file-claim discipline'
     'pheromone:stigmergic coordination (spray, files, show, ls)'
     'ph:alias for pheromone'
     # Agent Inbox
@@ -1935,6 +1986,7 @@ _port_daddy() {
         look)                   _pd_cmd_look ;;
         sitrep)                 _pd_cmd_sitrep ;;
         advise|preflight|compass) _pd_cmd_advise ;;
+        guard)                  _pd_cmd_guard ;;
         pheromone|ph)           _pd_cmd_pheromone ;;
         wallet)                 _pd_cmd_wallet ;;
         bond)                   _pd_cmd_bond ;;

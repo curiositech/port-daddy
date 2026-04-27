@@ -43,6 +43,7 @@ interface ActorsResponse {
   total?: number;
   unread?: number;
   max?: number | null;
+  marked?: number;
   delivered?: boolean;
   woke?: boolean;
   error?: string;
@@ -89,6 +90,18 @@ async function fetchActorInbox(actorId: string, options: CLIOptions): Promise<Ac
 
 async function fetchActorInboxStats(actorId: string): Promise<ActorsResponse> {
   return fetchActors(`/actors/${encodeURIComponent(actorId)}/inbox/stats`);
+}
+
+async function markActorInboxRead(actorId: string): Promise<ActorsResponse> {
+  const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/actors/${encodeURIComponent(actorId)}/inbox/read-all`, {
+    method: 'PUT',
+  });
+  const data = await res.json() as unknown as ActorsResponse & { marked?: number };
+  if (!res.ok || !data.success) {
+    ui.error(data.error || `actor inbox mark-read failed with status ${res.status}`);
+    process.exit(1);
+  }
+  return data;
 }
 
 async function sendActorMessage(actorId: string, options: CLIOptions): Promise<ActorsResponse> {
@@ -216,6 +229,12 @@ export async function handleActors(positional: string[], options: CLIOptions): P
       return;
     }
     printInboxMessages(data);
+    if (options['mark-read'] === true || options.ack === true) {
+      const result = await markActorInboxRead(actorId);
+      if (!isQuiet(options)) {
+        console.log(`Marked ${result.marked ?? 0} message${result.marked === 1 ? '' : 's'} read in ${result.inboxTarget ?? actorId}`);
+      }
+    }
     return;
   }
 

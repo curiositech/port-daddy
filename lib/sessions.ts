@@ -1117,7 +1117,7 @@ export function createSessions(
       } else if (sessionsInWorktree.length > 1) {
         return {
           success: false,
-          error: 'multiple active sessions exist in this worktree; pass --session or --agent',
+          error: 'multiple active sessions exist in this worktree; specify a sessionId or agentId',
           code: 'AMBIGUOUS_ACTIVE_SESSION',
         };
       }
