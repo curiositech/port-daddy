@@ -234,6 +234,41 @@ export interface MemoryStats {
   lastUpdated: number | null;
 }
 
+export interface RoadmapNextCut {
+  slug: string;
+  summary: string;
+}
+
+export type RoadmapFeedbackStatus = 'now' | 'backlog' | 'parked' | 'merge' | 'unknown';
+
+export interface RoadmapFeedbackEntry {
+  slug: string;
+  status: RoadmapFeedbackStatus;
+  surface: string | null;
+  hook: string | null;
+}
+
+export interface RoadmapProgress {
+  generatedAt: number;
+  sources: {
+    roadmapPath: string;
+    ideasTrovePath: string;
+    dogfoodFeedbackPath: string;
+    currentWorkPath: string;
+    cartographerStatusPath: string;
+  };
+  freshness: {
+    latestUpdateMs: number | null;
+    hoursSinceLastUpdate: number | null;
+  };
+  nextCuts: RoadmapNextCut[];
+  ideasNow: RoadmapFeedbackEntry[];
+  dogfoodFeedback: RoadmapFeedbackEntry[];
+  currentWorkExcerpt: string | null;
+  cartographerStatusExcerpt: string | null;
+  warnings: string[];
+}
+
 export type SemanticResolutionDecision = 'seeded' | 'auto' | 'review' | 'reject' | 'error';
 
 /**

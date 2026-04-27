@@ -97,7 +97,7 @@ set -l __pd_commands \
     'agent' 'agents' 'actor' 'actors' 'swarm' 'log' 'activity' \
     'session' 'sessions' 'note' 'notes' \
     'salvage' 'resurrection' 'changelog' 'dns' 'files' 'who-owns' 'integration' 'briefing' 'history' 'inbox' \
-    'begin' 'b' 'done' 'whoami' 'w' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'watch' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' \
+    'begin' 'b' 'done' 'whoami' 'w' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'watch' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' 'roadmap' \
     'say' 'look' 'sitrep' 'advise' 'preflight' 'compass' 'guard' 'pheromone' 'ph' \
     'wallet' 'bond' \
     'up' 'down' \
@@ -171,6 +171,7 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a graph -d 'Inspect semantic graph edges and stats'
     complete -c $prog -n __pd_needs_command -a memory -d 'Inspect episodic memory entries and stats'
     complete -c $prog -n __pd_needs_command -a ideas -d 'Search ideas, notes, tuples, and repo markdown'
+    complete -c $prog -n __pd_needs_command -a roadmap -d 'Show Cartographer-curated Next Cuts and dogfood feedback'
 
     # Agent Inbox
     complete -c $prog -n __pd_needs_command -a inbox -d 'Agent-to-agent direct messaging inbox'
@@ -755,4 +756,13 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command ideas; and __fish_seen_subcommand_from list search show" -l include-raw -d 'Include local .spark/.spider residue'
     complete -c $prog -n "__pd_using_command ideas" -s j -l json -d 'JSON output'
     complete -c $prog -n "__pd_using_command ideas" -s q -l quiet -d 'Suppress output'
+
+    # roadmap
+    complete -c $prog -n "__pd_using_command roadmap" -l dir -r -d 'Project directory'
+    complete -c $prog -n "__pd_using_command roadmap" -l root -r -d 'Project root'
+    complete -c $prog -n "__pd_using_command roadmap" -l projectDir -r -d 'Project directory'
+    complete -c $prog -n "__pd_using_command roadmap" -l limit -x -d 'Rows per section'
+    complete -c $prog -n "__pd_using_command roadmap" -l no-excerpts -d 'Hide current-work and Cartographer excerpts'
+    complete -c $prog -n "__pd_using_command roadmap" -s j -l json -d 'JSON output'
+    complete -c $prog -n "__pd_using_command roadmap" -s q -l quiet -d 'Agent-readable section:slug output'
 end

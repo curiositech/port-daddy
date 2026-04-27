@@ -14,6 +14,7 @@ import ActivityPanel from './components/ActivityPanel';
 import ActivityRail from './components/ActivityRail';
 import MemoryPanel from './components/MemoryPanel';
 import AgentsPanel from './components/AgentsPanel';
+import RoadmapPanel from './components/RoadmapPanel';
 import ShipwrightPanel from './shipwright/ShipwrightPanel';
 import { extractMentionedPaths } from './fileMentions';
 import {
@@ -53,8 +54,8 @@ import type {
   TopologyValidation,
 } from './types';
 
-type MainTab = 'Flow' | 'Agents' | 'Activity' | 'Channels' | 'Inbox' | 'Sorties' | 'Memory' | 'Shipwright' | 'YAML';
-type ControlSurface = 'flow' | 'agents' | 'activity' | 'channels' | 'inbox' | 'sorties' | 'memory' | 'shipwright' | 'yaml';
+type MainTab = 'Flow' | 'Roadmap' | 'Agents' | 'Activity' | 'Channels' | 'Inbox' | 'Sorties' | 'Memory' | 'Shipwright' | 'YAML';
+type ControlSurface = 'flow' | 'roadmap' | 'agents' | 'activity' | 'channels' | 'inbox' | 'sorties' | 'memory' | 'shipwright' | 'yaml';
 
 function canUseWindow(): boolean {
   return typeof window !== 'undefined';
@@ -67,6 +68,7 @@ function normalizeSurface(value: string | null): ControlSurface {
     case 'inbox':
     case 'sorties':
     case 'memory':
+    case 'roadmap':
     case 'shipwright':
     case 'yaml':
     case 'agents':
@@ -81,6 +83,8 @@ function surfaceToMainTab(surface: ControlSurface): MainTab {
   switch (surface) {
     case 'flow':
       return 'Flow';
+    case 'roadmap':
+      return 'Roadmap';
     case 'agents':
       return 'Agents';
     case 'activity':
@@ -104,6 +108,7 @@ function surfaceToMainTab(surface: ControlSurface): MainTab {
 
 function mainTabToSurface(activeTab: MainTab): ControlSurface {
   if (activeTab === 'Agents') return 'agents';
+  if (activeTab === 'Roadmap') return 'roadmap';
   if (activeTab === 'Activity') return 'activity';
   if (activeTab === 'Channels') return 'channels';
   if (activeTab === 'Inbox') return 'inbox';
@@ -1374,7 +1379,7 @@ export default function App() {
 
   const configAgentData = fleetConfig?.agents.find(a => a.name === configAgent);
   const daemonRunning = fleet.status?.running ?? false;
-  const surfaceTabs: MainTab[] = ['Flow', 'Agents', 'Activity', 'Channels', 'Inbox', 'Sorties', 'Memory', 'Shipwright', 'YAML'];
+  const surfaceTabs: MainTab[] = ['Flow', 'Roadmap', 'Agents', 'Activity', 'Channels', 'Inbox', 'Sorties', 'Memory', 'Shipwright', 'YAML'];
   const allProjectSurfaceTabs: MainTab[] = ['Flow', 'Shipwright'];
   const showProjectSidebar = activeTab === 'Flow' && !embedded;
   const visibleSurfaceTabs = selectedProjectId ? surfaceTabs : allProjectSurfaceTabs;
@@ -1676,6 +1681,12 @@ export default function App() {
                         }}
                         onRunFleetAgent={(name) => handleAgentRunNow(name)}
                         onPauseFleetAgent={(name, paused) => handleAgentPauseToggle(name, paused)}
+                      />
+                    )}
+                    {activeTab === 'Roadmap' && (
+                      <RoadmapPanel
+                        projectDir={selectedProjectId ?? undefined}
+                        projectName={selectedProjectName ?? undefined}
                       />
                     )}
                     {activeTab === 'Channels' && (

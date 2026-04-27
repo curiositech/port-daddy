@@ -1339,6 +1339,23 @@
         "sdk": false
       }
     },
+    "roadmap": {
+      "description": "Cartographer roadmap projection — structured Next Cuts + curated `now` ideas + dogfood feedback in one read-only payload so operators stop opening four files at once",
+      "cli": [
+        "roadmap"
+      ],
+      "sdk": [],
+      "routes": [
+        "GET /cartographer/roadmap-progress"
+      ],
+      "completions": [
+        "roadmap"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
     "cost_tracker": {
       "description": "LLM cost recording per spawn \u2014 model pricing, project budgets, burn rate tracking",
       "cli": [],

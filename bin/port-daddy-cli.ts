@@ -94,6 +94,7 @@ import {
   handleTuple,
   // Semantic graph + episodic memory
   handleGraph, handleMemory, handleIdeas,
+  handleRoadmap,
   // Consolidated read/write verbs + sitrep + pheromone (3.8.4)
   handleSitrep, handleSay, handleLook, handlePheromone,
   // Coordination advisor / suggestibility
@@ -141,7 +142,7 @@ const TIER_2_COMMANDS: Set<string> = new Set([
   'channels', 'webhook', 'webhooks', 'tunnel', 'dns', 'inbox',
   'advise', 'preflight', 'compass', 'guard',
   'metrics', 'health', 'dashboard',
-  'bench', 'demo', 'tuple', 'sortie'
+  'bench', 'demo', 'tuple', 'sortie', 'roadmap'
 ]);
 
 /**
@@ -529,8 +530,9 @@ function buildHelp(): string {
     `  ${G}pd graph stats${Z}           Inspect semantic graph totals`,
     `  ${G}pd memory episodes${Z}       Inspect episodic memory`,
     `  ${G}pd ideas search${Z} "text"   Search ideas, notes, tuples, and repo markdown`,
+    `  ${G}pd roadmap${Z}               Show Cartographer's current roadmap projection`,
     '',
-    `${D}pd help <topic> for details — topics: setup, sessions, locks, agents, actors, ports, messaging, dns, orchestration, sugar, semantic, advisor, guard, ideas, tutorial${Z}`,
+    `${D}pd help <topic> for details — topics: setup, sessions, locks, agents, actors, ports, messaging, dns, orchestration, sugar, semantic, advisor, guard, ideas, roadmap, tutorial${Z}`,
     `${D}Dashboard: ${PORT_DADDY_URL}  •  Tutorial: pd learn${Z}`,
   );
 
@@ -963,6 +965,21 @@ Examples:
   pd ideas search "phase 3 parity debt" --sources markdown
   pd ideas show tuple-driven-fleet`,
 
+  roadmap: `Roadmap Projection \u2014 Cartographer-curated work for agents
+
+Commands:
+  roadmap                   Show Next Cuts, curated now items, and dogfood feedback
+    --dir <path>            Project directory (defaults to cwd)
+    --limit <n>             Limit rows per section (default: 8)
+    --no-excerpts           Hide CURRENT-WORK and Cartographer status excerpts
+    -q, --quiet             Print machine-readable section:slug lines
+    -j, --json              Output the raw Cartographer projection
+
+Examples:
+  pd roadmap
+  pd roadmap --limit 3 --no-excerpts
+  pd roadmap --dir /Users/you/coding/port-daddy --json`,
+
   tutorial: `Interactive Tutorial \u2014 Learn Port Daddy step by step
 
 Commands:
@@ -996,7 +1013,7 @@ const ALL_COMMANDS: string[] = [
   'n', 'u', 'd',
   'dashboard', 'channels', 'webhook', 'webhooks', 'metrics', 'config', 'health', 'ports',
   'start', 'stop', 'restart', 'status', 'install', 'uninstall', 'dev', 'ci-gate',
-  'doctor', 'diagnose', 'hints', 'mcp', 'version', 'help', 'bench', 'look', 'sitrep',
+  'doctor', 'diagnose', 'hints', 'mcp', 'version', 'help', 'bench', 'look', 'sitrep', 'roadmap',
   'advise', 'preflight', 'compass', 'guard',
   'salvage', 'resurrection', 'changelog', 'tunnel',
   'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
@@ -2474,6 +2491,10 @@ async function main(): Promise<void> {
 
       case 'ideas':
         await handleIdeas(positional, options);
+        break;
+
+      case 'roadmap':
+        await handleRoadmap(options);
         break;
 
       default: {

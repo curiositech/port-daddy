@@ -117,6 +117,8 @@ _port_daddy() {
     tuple
     # Semantic graph + episodic memory
     graph memory ideas
+    # Cartographer roadmap projection
+    roadmap
     # System & Monitoring
     dashboard channels webhook webhooks metrics config health ports
     # Orchestration
@@ -1709,6 +1711,11 @@ _port_daddy() {
           ;;
         *) _pd_opts '' ;;
       esac
+      ;;
+
+    # roadmap  [options]
+    roadmap)
+      _pd_opts '--dir --root --projectDir --limit --no-excerpts --json --quiet'
       ;;
 
     # fleet  init|up|down|status|run|panic|unpanic|validate|prompt|help  [agent-name]

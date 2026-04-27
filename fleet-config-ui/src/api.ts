@@ -27,6 +27,7 @@ import type {
   GraphStats,
   Episode,
   MemoryStats,
+  RoadmapProgress,
   SemanticResolutionDecision,
   SemanticResolutionEvent,
   SemanticResolutionStats,
@@ -224,6 +225,12 @@ export async function fetchFleetStatus(): Promise<FleetDaemonStatus> {
 export async function fetchProjects(): Promise<ProjectSummary[]> {
   const payload = await get<{ success: boolean; projects: ProjectSummary[] }>('/projects');
   return payload.projects ?? [];
+}
+
+export async function fetchRoadmapProgress(projectDir?: string): Promise<RoadmapProgress> {
+  const params = new URLSearchParams();
+  if (projectDir) params.set('root', projectDir);
+  return get(`/cartographer/roadmap-progress${params.toString() ? `?${params}` : ''}`);
 }
 
 export async function fetchCoordinationGuard(projectDir: string): Promise<CoordinationGuardEnvelope> {
