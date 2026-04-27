@@ -20,6 +20,8 @@ node_modules/
 # Build output
 dist/
 **/target/
+**/__pycache__/
+*.py[cod]
 
 # Test coverage
 coverage/
