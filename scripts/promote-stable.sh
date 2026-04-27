@@ -153,7 +153,7 @@ wait_for_file() {
       return 0
     fi
 
-    sleep 1
+    /bin/sleep 1
     waited=$((waited + 1))
   done
 
@@ -172,7 +172,7 @@ fetch_json_with_retry() {
       return 0
     fi
 
-    sleep 2
+    /bin/sleep 2
     waited=$((waited + 2))
   done
 
