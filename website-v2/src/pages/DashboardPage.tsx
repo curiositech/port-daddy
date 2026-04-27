@@ -199,7 +199,7 @@ export function DashboardPage() {
 
            {/* Left Column: Visual Graph */}
            <motion.div className="lg:col-span-8 space-y-5">
-              {/* 3D visualization wrapped in neumorphic surface */}
+              {/* 3D visualization wrapped in a tokenized elevation surface */}
               <Surface depth="raised" radius="2xl" padding="none" className="p-6 h-[600px] relative overflow-hidden group">
 
                  <motion.div className="absolute top-6 left-6 z-10 flex items-center gap-4">

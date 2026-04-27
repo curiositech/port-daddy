@@ -7,7 +7,7 @@ import { TUTORIALS } from './tutorials'
 
 export const SITE_NAME = 'Port Daddy'
 export const SITE_ORIGIN = 'https://portdaddy.dev'
-export const DEFAULT_SITE_IMAGE = '/img/hero-portdaddy.png'
+export const DEFAULT_SITE_IMAGE = '/img/generated/control-plane-og.jpg'
 export const DEFAULT_SITE_DESCRIPTION =
   'Port Daddy is a local-first coordination daemon for AI agents, dev servers, ports, sessions, locks, salvage, and operator-visible multi-agent workflows.'
 

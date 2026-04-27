@@ -1,10 +1,10 @@
 # Port Daddy Website Ideal Web App Rehab Plan
 
 Last updated: 2026-04-27
-Owner session: `session-7d6f4ac6-5c47-401d-853b-804be7eecbd6`
+Owner session: `session-a4b3a18d-1651-4d2b-b4ca-e83fb79b5ea3`
 Skill contract: `ideal-web-app-builder` plus `swiss-modern-website-design`
 Status: visual decision board approved; stabilization, token/performance, MCP proof-route, Swiss-modern grid-layer, Storybook state-matrix, MCP a11y, and public shell unification slices implemented
-SEO metadata/discovery slice implemented
+SEO metadata/discovery and generated visual replacement slices implemented
 
 This is the on-disk source of truth for rehabilitating `website-v2` into a
 premium, stable, token-disciplined web app. Keep this file current before code
@@ -60,9 +60,9 @@ fanout. Do not let implementation outrun the visual decision board.
 
 | Gate | Result | Evidence |
 |---|---|---|
-| Build | Pass | 2026-04-26 latest: `npm run build` passes with no Vite chunk-size warning after route lazy loading, the MCP proof-route rebuild, the Swiss grid layer, and the a11y/Storybook gate alignment. Largest generated JS chunk is `Mermaid-CMec62CS.js` at 491.12 kB minified / 136.65 kB gzip; `MCPPage-Cqgjlo-C.js` is 19.34 kB minified / 6.39 kB gzip. |
-| Tests | Pass | 2026-04-27 latest: full `npm run test` passes at 8/8 files and 82/82 tests, including design-system contract coverage plus route metadata, sitemap/robots/LLM discovery, social images, and SPA document-head behavior. |
-| Lint | Pass | 2026-04-26: `npm run lint` passes after excluding generated Storybook output, repairing fast-refresh export boundaries, removing React Compiler set-state-in-effect violations, and narrowing dashboard/viz/page types. |
+| Build | Pass | 2026-04-27 latest: `npm run build` passes after generated visual replacement. Largest generated JS chunk remains `Mermaid-JRtoNcsk.js` at 491.00 kB minified / 136.63 kB gzip. |
+| Tests | Pass | 2026-04-27 latest: full `npm run test` passes at 8/8 files and 83/83 tests, including design-system contract coverage plus route metadata, sitemap/robots/LLM discovery, generated social-image manifest coverage, and SPA document-head behavior. |
+| Lint | Pass | 2026-04-27: `npm run lint` passes after the generated visual replacement slice. |
 | Storybook build | Pass with warning | 2026-04-26: `npm run build-storybook` passes with the a11y addon configured through `wcag2aaa` plus `color-contrast-enhanced`. Preview iframe remains large at 1,087.59 kB / 307.00 kB gzip and Storybook reports missing package metadata for `radix-ui`. |
 | MCP a11y | Pass for proof route | 2026-04-26: `npm run test:a11y:mcp` passes against `/mcp` at desktop 1440x1200 and mobile 390x1200 with 0 axe violations, keyboard roving-tab checks, visible focus outline, and no horizontal overflow. Report: `docs/reports/website-rehab-a11y/mcp-a11y-report.json`. |
 | Public shell a11y | Pass for route matrix | 2026-04-26: `npm run test:a11y:shell` passes for `/`, `/docs`, `/mcp`, and `/blog` at desktop 1440x1200 and mobile 390x1200 with 0 axe violations, one shared shell header/footer/main, a visible skip link, and no horizontal overflow. Report: `docs/reports/website-rehab-a11y/public-shell-a11y-report.json`. |
@@ -93,6 +93,8 @@ fanout. Do not let implementation outrun the visual decision board.
     `docs/reports/website-rehab-screenshots/shell-mcp-mobile.png`
   - Blog: `docs/reports/website-rehab-screenshots/shell-blog-desktop.png`,
     `docs/reports/website-rehab-screenshots/shell-blog-mobile.png`
+- Generated visual replacement proof:
+  `docs/reports/website-rehab-screenshots/generated-hero-homepage.png`
 
 Visible diagnosis from the baseline:
 
@@ -465,6 +467,73 @@ Remaining launch blockers after this slice:
 - SEO/OG/PWA/legal/privacy/observability and the claims ledger remain future
   product-readiness work.
 
+### 2026-04-27 Generated Visual Replacement Slice
+
+Implemented after the user rejected the sailor/rounded visual direction and
+provided a Gemini API key:
+
+- Added `website-v2/scripts/generate-gemini-assets.mjs` plus
+  `npm run generate:visuals` and `npm run optimize:visuals`.
+- The generator reads `GEMINI_API_KEY` from the shell, repo-root `.env.local`,
+  or `website-v2/.env.local`; the key is never written to source or the
+  generated manifest.
+- Generated four Nano Banana / Gemini assets under
+  `website-v2/public/img/generated/`:
+  - `control-plane-hero.jpg` / `control-plane-hero.webp`
+  - `control-plane-og.jpg` / `control-plane-og.webp`
+  - `agent-runtime-map.jpg` / `agent-runtime-map.webp`
+  - `salvage-ledger.jpg` / `salvage-ledger.webp`
+- Added `website-v2/public/img/generated/manifest.json` with model, prompt,
+  optimization, and provenance metadata.
+- Optimized generated JPEGs through ImageMagick at quality 82 and generated
+  WebP variants through `cwebp` at quality 82. The visible home hero uses WebP
+  with a JPEG fallback; the default OG image remains JPEG for crawler/social
+  compatibility.
+- Replaced the homepage sailor hero with the generated control-plane schematic,
+  moved the responsive hero breakpoint to `min-[900px]` so the visual appears
+  in the in-app browser first viewport, and removed the unused
+  `website-v2/public/img/hero-portdaddy.png` asset.
+- Updated default social metadata and blog fallback imagery to use generated
+  assets rather than the retired sailor image or missing blog files.
+- Removed the most visible legacy wording and shape drift in the touched public
+  surfaces: hero pills, CTA banner copy/icon/radii, badge default shape, and
+  stale "neumorphic" comments in touched source/story files.
+- Added a regression test that the default social image is generated and the
+  retired sailor hero does not exist.
+- Browser proof:
+  `docs/reports/website-rehab-screenshots/generated-hero-homepage.png`.
+
+Validation on 2026-04-27 from `website-v2/`:
+
+- `npm run generate:visuals`: generated 4 assets with
+  `gemini-3.1-flash-image-preview`.
+- `npm run optimize:visuals`: optimized 4 generated assets.
+- `npm run generate:seo`: generated SEO artifacts for 182 canonical routes.
+- `npm run lint`: pass.
+- `npm run test`: 8/8 files and 83/83 tests pass.
+- `npm run build`: pass; largest generated JS chunk remains Mermaid at
+  491.00 kB minified / 136.63 kB gzip.
+- `npm run build-storybook`: pass with the known Storybook iframe size warning
+  and `radix-ui` package metadata warning.
+- root `npm test -- --no-coverage`: 153/153 suites passed, 5082/5083 tests
+  passed, 1 intentional skip; existing console noise included git-probe,
+  telemetry-bypass, keychain/plaintext fallback, and subscriber-error test
+  logs.
+- Browser verification: in-app browser loaded `http://127.0.0.1:3111/` and
+  showed the generated schematic in the first viewport.
+
+Remaining launch blockers after this slice:
+
+- The old `NeumorphicTerminal` and `SailorAgent` component names still exist
+  as compatibility surfaces; rename/remove them in a focused route-composite
+  cleanup rather than in this generated-asset slice.
+- Public docs/tutorial content still uses the product term "harbor" where it
+  names real Port Daddy capability primitives. That is product vocabulary, not
+  the rejected sailor-photo visual direction.
+- PWA/favicons, legal/privacy/support/security-contact, observability,
+  Lighthouse/Web Vitals, reduced-motion, forced-colors, and manual
+  screen-reader evidence remain open.
+
 ### 2026-04-27 SEO Metadata and Discovery Slice
 
 Implemented after the shared public shell slice:
@@ -741,9 +810,9 @@ handoff with files changed and residual risks.
 - Performance is improved, not done: the app build no longer warns, but
   Lighthouse/Web Vitals and Storybook bundle work remain.
 - SEO/social is improved, not done: canonical metadata, runtime head tags,
-  sitemap, robots, and LLM discovery now exist, but prerendering, full
-  dedicated OG image generation, PWA/favicons, legal, and observability are
-  incomplete.
+  sitemap, robots, LLM discovery, and generated default visual assets now
+  exist, but prerendering, full route-specific OG image generation,
+  PWA/favicons, legal, and observability are incomplete.
 - The existing screenshots are a baseline, not an approval artifact.
 
 ## Change Log
@@ -757,3 +826,4 @@ handoff with files changed and residual risks.
 | 2026-04-26 | Added Storybook state-matrix and MCP a11y evidence, including WCAG AAA axe tags and refreshed report | Keep plan truth aligned after hardening the component and route accessibility gates |
 | 2026-04-26 | Added shared public shell, shell route-matrix a11y gate, contrast-critical role tokens, and refreshed desktop/mobile screenshots | Keep plan truth aligned after unifying the website shell across home/docs/MCP/blog |
 | 2026-04-27 | Added SEO metadata/discovery slice, generated sitemap/robots/llms artifacts, and 82/82 test evidence | Keep plan truth aligned after centralizing route metadata and crawler/LLM discovery |
+| 2026-04-27 | Added Gemini/Nano Banana generated visual replacement slice, optimized assets, first-viewport browser proof, and 83/83 test evidence | Keep plan truth aligned after replacing the retired sailor hero and generated social fallbacks |

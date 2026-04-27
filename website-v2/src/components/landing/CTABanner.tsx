@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Anchor, Github, Terminal, Sparkles } from 'lucide-react'
+import { Github, Network, Terminal, Sparkles } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Surface } from '@/components/ui/Surface'
 
@@ -29,14 +29,13 @@ export function CTABanner() {
         className="relative max-w-5xl mx-auto text-center flex flex-col items-center gap-8"
       >
         <motion.div className="flex flex-col items-center gap-6">
-           <Badge variant="teal" className="px-8 py-3 text-[11px] font-black uppercase tracking-[0.25em]">The Departure</Badge>
-           {/* Anchor icon in inset circle */}
-           <Surface depth="inset" radius="3xl" padding="none" className="w-24 h-24 flex items-center justify-center">
+           <Badge variant="teal" className="px-8 py-3 text-[11px] font-black uppercase tracking-[0.25em]">The Protocol</Badge>
+           <Surface depth="inset" radius="md" padding="none" className="w-24 h-24 flex items-center justify-center">
               <motion.div
                 animate={{ y: [0, -12, 0] }}
                 transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
               >
-                <Anchor style={{ color: 'var(--brand-primary)' }} size={48} />
+                <Network style={{ color: 'var(--brand-primary)' }} size={48} />
               </motion.div>
            </Surface>
         </motion.div>
@@ -44,7 +43,7 @@ export function CTABanner() {
         <motion.div className="space-y-6 flex flex-col items-center">
            <motion.h2 className="text-2xl sm:text-4xl lg:text-6xl font-display font-black tracking-tighter leading-[0.85] m-0" style={{ color: 'var(--text-primary)' }}>
              Your agents deserve a <br />
-             <motion.span style={{ color: 'var(--brand-primary)' }}>harbormaster.</motion.span>
+             <motion.span style={{ color: 'var(--brand-primary)' }}>control plane.</motion.span>
            </motion.h2>
 
         <p className="text-base sm:text-lg text-[var(--text-secondary)] max-w-xl mx-auto mb-6 sm:mb-10 px-4">
@@ -54,7 +53,7 @@ export function CTABanner() {
         <motion.div className="flex flex-col sm:flex-row flex-wrap gap-4 sm:gap-6 justify-center items-center pt-4 w-full sm:w-auto">
           {/* Primary CTA */}
           <motion.button
-            className="w-full sm:w-auto px-8 sm:px-16 py-4 sm:py-8 rounded-full font-black text-base sm:text-2xl flex items-center justify-center gap-3 sm:gap-4 transition-all"
+            className="w-full sm:w-auto px-8 sm:px-16 py-4 sm:py-8 rounded-[var(--radius-md)] font-black text-base sm:text-2xl flex items-center justify-center gap-3 sm:gap-4 transition-all"
             style={{
               background: 'var(--brand-primary)',
               color: 'var(--text-inverse)',
@@ -73,7 +72,7 @@ export function CTABanner() {
           {/* Secondary CTA */}
           <Link to="/tutorials/getting-started" className="no-underline w-full sm:w-auto">
             <motion.button
-              className="w-full sm:w-auto px-8 sm:px-16 py-4 sm:py-8 rounded-full font-black text-base sm:text-2xl flex items-center justify-center gap-3 sm:gap-4 transition-all"
+              className="w-full sm:w-auto px-8 sm:px-16 py-4 sm:py-8 rounded-[var(--radius-md)] font-black text-base sm:text-2xl flex items-center justify-center gap-3 sm:gap-4 transition-all"
               style={{
                 background: 'var(--surface-raised)',
                 color: 'var(--text-primary)',
@@ -94,7 +93,7 @@ export function CTABanner() {
            {/* Install command in inset terminal */}
            <div className="flex flex-col sm:flex-row gap-4 sm:gap-8 items-center">
              <motion.div
-               className="flex items-center gap-3 sm:gap-4 px-4 sm:px-8 py-3 sm:py-4 rounded-full font-mono text-[11px] sm:text-xs font-black uppercase tracking-widest"
+               className="flex items-center gap-3 sm:gap-4 px-4 sm:px-8 py-3 sm:py-4 rounded-[var(--radius-sm)] font-mono text-[11px] sm:text-xs font-black uppercase tracking-widest"
                style={{ color: 'var(--text-muted)' }}
              >
                 <Terminal size={18} style={{ color: 'var(--brand-primary)' }} />
@@ -102,7 +101,7 @@ export function CTABanner() {
              </motion.div>
              <span className="text-[var(--text-muted)] opacity-30 hidden sm:block">or</span>
              <motion.div
-               className="flex items-center gap-3 sm:gap-4 px-4 sm:px-8 py-3 sm:py-4 rounded-full font-mono text-[11px] sm:text-xs font-black uppercase tracking-widest"
+               className="flex items-center gap-3 sm:gap-4 px-4 sm:px-8 py-3 sm:py-4 rounded-[var(--radius-sm)] font-mono text-[11px] sm:text-xs font-black uppercase tracking-widest"
                style={{ color: 'var(--text-muted)' }}
              >
                 <Terminal size={18} style={{ color: 'var(--brand-primary)' }} />

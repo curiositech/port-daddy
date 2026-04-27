@@ -79,6 +79,59 @@ The `agentsd.ai` public-site reset is now explicit repo work, not chat residue.
 
 ## Current Thread
 
+### Port Daddy Website Generated Visual Replacement Slice (2026-04-27)
+
+Current coordination session: `session-a4b3a18d-1651-4d2b-b4ca-e83fb79b5ea3`.
+
+- This is the next bounded `ideal-web-app-builder` rehab slice after the SEO
+  metadata/discovery work. The user explicitly rejected the remaining sailor
+  photo / rounded visual direction and provided a Gemini API key for generated
+  content.
+- Added `website-v2/scripts/generate-gemini-assets.mjs`,
+  `npm run generate:visuals`, and `npm run optimize:visuals`. The generator
+  loads `GEMINI_API_KEY` from the shell, repo-root `.env.local`, or
+  `website-v2/.env.local`; secrets are not written to source or manifest.
+- Generated and optimized four Gemini/Nano Banana visual assets under
+  `website-v2/public/img/generated/` with manifest provenance:
+  `control-plane-hero`, `control-plane-og`, `agent-runtime-map`, and
+  `salvage-ledger`, each with JPEG plus WebP variants.
+- Replaced the homepage hero image with the generated control-plane schematic,
+  moved the hero two-column breakpoint to `min-[900px]` so the image appears in
+  the in-app browser first viewport, and deleted the retired
+  `website-v2/public/img/hero-portdaddy.png` asset.
+- Default social metadata now uses `/img/generated/control-plane-og.jpg`.
+  Blog fallback imagery now uses generated WebP page images instead of the
+  retired sailor image or missing blog hero files.
+- Touched legacy shape/copy surfaces were narrowed: hero chips and CTA buttons
+  use smaller token radii, the CTA banner no longer says "harbormaster" or
+  uses an anchor icon, `Badge` defaults are flatter and squared, and stale
+  "neumorphic" comments in touched files were renamed to tokenized elevation
+  language.
+- Regression coverage: `src/seo-metadata.test.tsx` now asserts the default
+  social image is generated and the retired sailor hero file is absent.
+- Browser proof:
+  `docs/reports/website-rehab-screenshots/generated-hero-homepage.png`.
+- Validation truth on 2026-04-27 from `website-v2/`:
+  - `npm run generate:visuals`: generated 4 assets with
+    `gemini-3.1-flash-image-preview`
+  - `npm run optimize:visuals`: optimized 4 generated assets
+  - `npm run generate:seo`: generated SEO artifacts for 182 canonical routes
+  - `npm run lint`: pass
+  - `npm run test`: 8/8 files and 83/83 tests pass
+  - `npm run build`: pass; largest generated JS chunk remains Mermaid at
+    491.00 kB minified / 136.63 kB gzip
+  - `npm run build-storybook`: pass with the known Storybook iframe-size and
+    `radix-ui` package metadata warnings
+  - root `npm test -- --no-coverage`: 153/153 suites passed, 5082/5083 tests
+    passed, 1 intentional skip; existing console noise included git-probe,
+    telemetry-bypass, keychain/plaintext fallback, and subscriber-error test
+    logs
+- Remaining website rehab work: rename/remove compatibility surfaces such as
+  `NeumorphicTerminal` and `SailorAgent` in a focused composite cleanup,
+  route-specific OG image generation, PWA/favicons, legal/privacy/support/
+  security-contact pages, observability/Web Vitals, claims ledger, and manual
+  reduced-motion/forced-colors/screen-reader proof.
+
 ### Port Daddy Website SEO Metadata And Discovery Slice (2026-04-27)
 
 Current coordination session: `session-7d6f4ac6-5c47-401d-853b-804be7eecbd6`.

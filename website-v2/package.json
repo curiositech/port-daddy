@@ -9,6 +9,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "generate:visuals": "node scripts/generate-gemini-assets.mjs",
+    "optimize:visuals": "node scripts/generate-gemini-assets.mjs --optimize-existing",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "test": "vitest run",

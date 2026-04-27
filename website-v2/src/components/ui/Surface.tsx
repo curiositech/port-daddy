@@ -3,8 +3,8 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
 /**
- * Surface — the fundamental neumorphic container.
- * Every visible area on the page is a Surface.
+ * Surface — the legacy tokenized elevation container.
+ * New public-site sections should prefer the primitives in components/site.
  * Three depth levels: raised (default), flat, inset.
  */
 const surfaceVariants = cva(
@@ -42,14 +42,14 @@ const surfaceVariants = cva(
     },
     defaultVariants: {
       depth: 'raised',
-      radius: '2xl',
+      radius: 'lg',
       padding: 'md',
       interactive: false,
     },
   }
 )
 
-// Depth → inline style map (CSS custom properties for neumorphic shadows)
+// Depth -> inline style map using design-system elevation tokens.
 const depthStyles: Record<string, React.CSSProperties> = {
   raised: {
     background: 'var(--surface-raised)',

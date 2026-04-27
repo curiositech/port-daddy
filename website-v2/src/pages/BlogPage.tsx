@@ -19,7 +19,7 @@ const heroImages: Record<string, string> = {
   'pubsub-self-healing-test-pipeline': '/img/blog/pub-sub-hero.png',
   'fleet-agents-as-infrastructure': '/img/blog/fleet-management-hero.png',
   'spark-and-spider-the-creative-engine': '/img/blog/spark-spider-hero.png',
-  'formal-verification-anchor-protocol': '/img/hero-portdaddy.png',
+  'formal-verification-anchor-protocol': '/img/generated/control-plane-og.webp',
 }
 
 // Tag color mapping

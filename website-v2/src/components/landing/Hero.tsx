@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
-import { Surface } from '@/components/ui/Surface'
 import { IntentModal } from '@/components/ui/IntentModal'
 import { PageContainer, SectionIntro } from '@/components/site/primitives'
 import { ArrowRight, Terminal } from 'lucide-react'
@@ -12,14 +11,14 @@ export function Hero() {
 
   return (
     <section className="relative flex items-center overflow-hidden py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
-      {/* Subtle dot grid on the neumorphic surface */}
+      {/* Swiss-grid field for the infrastructure diagram. */}
       <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{
         backgroundImage: 'radial-gradient(circle, var(--text-muted) 1px, transparent 1px)',
         backgroundSize: '24px 24px',
       }} />
 
       <PageContainer className="relative z-10">
-        <div className="grid items-center gap-[var(--space-6)] lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:gap-[var(--space-8)]">
+        <div className="grid items-center gap-[var(--space-6)] min-[900px]:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] min-[900px]:gap-[var(--space-8)]">
           {/* Left -- Copy */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
@@ -30,7 +29,7 @@ export function Hero() {
             <Link to="/mcp" className="no-underline">
               <motion.div
                 whileHover={{ scale: 1.02 }}
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold mb-4 cursor-pointer"
+                className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] px-3 py-1.5 text-xs font-semibold mb-4 cursor-pointer"
                 style={{
                   background: 'color-mix(in srgb, var(--brand-primary) 12%, transparent)',
                   border: '1px solid color-mix(in srgb, var(--brand-primary) 25%, transparent)',
@@ -69,7 +68,7 @@ export function Hero() {
               ].map((label) => (
                 <span
                   key={label}
-                  className="text-xs font-semibold px-3 py-1 rounded-full"
+                  className="rounded-[var(--radius-sm)] px-3 py-1 text-xs font-semibold"
                   style={{
                     background: 'color-mix(in srgb, var(--brand-secondary) 10%, transparent)',
                     border: '1px solid color-mix(in srgb, var(--brand-secondary) 20%, transparent)',
@@ -105,13 +104,23 @@ export function Hero() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.2, ease: 'easeOut' as const }}
           >
-            <Surface depth="raised" radius="2xl" padding="none" className="overflow-hidden">
-              <img
-                src="/img/hero-portdaddy.png"
-                alt="Port Daddy — the harbormaster for your AI agents"
-                className="w-full h-auto block"
-              />
-            </Surface>
+            <figure
+              className="overflow-hidden rounded-[var(--radius-md)] border"
+              style={{
+                background: 'var(--surface-raised)',
+                borderColor: 'var(--border-subtle)',
+                boxShadow: 'var(--shadow-sm)',
+              }}
+            >
+              <picture>
+                <source srcSet="/img/generated/control-plane-hero.webp" type="image/webp" />
+                <img
+                  src="/img/generated/control-plane-hero.jpg"
+                  alt="Port Daddy control-plane visualization showing agent sessions, locks, ports, and recovery flows"
+                  className="block aspect-[16/9] h-auto w-full object-cover"
+                />
+              </picture>
+            </figure>
           </motion.div>
         </div>
       </PageContainer>

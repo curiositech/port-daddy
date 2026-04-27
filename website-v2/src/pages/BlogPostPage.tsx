@@ -21,10 +21,10 @@ const heroImages: Record<string, string> = {
   'pubsub-self-healing-test-pipeline': '/img/blog/pub-sub-hero.png',
   'fleet-agents-as-infrastructure': '/img/blog/fleet-management-hero.png',
   'spark-and-spider-the-creative-engine': '/img/blog/spark-spider-hero.png',
-  'formal-verification-anchor-protocol': '/img/hero-portdaddy.png',
-  'port-daddy-for-teams': '/img/blog/teams-hero.png',
-  'claude-code-port-daddy-integration': '/img/blog/claude-code-hero.png',
-  'performance-at-scale': '/img/blog/performance-hero.png',
+  'formal-verification-anchor-protocol': '/img/generated/control-plane-og.webp',
+  'port-daddy-for-teams': '/img/generated/agent-runtime-map.webp',
+  'claude-code-port-daddy-integration': '/img/generated/agent-runtime-map.webp',
+  'performance-at-scale': '/img/generated/control-plane-hero.webp',
 }
 
 // ─── Directive system ─────────────────────────────────────────────────────

@@ -8,6 +8,7 @@ import {
   absoluteImageUrl,
   absoluteUrl,
   canonicalUrlForRoute,
+  DEFAULT_SITE_IMAGE,
   getRouteMetadata,
   isIndexableRoute,
   siteMetadataRoutes,
@@ -59,6 +60,16 @@ describe('website SEO metadata', () => {
       expect(route.author).toBe(post.author)
       expect(absoluteImageUrl(route.image)).toMatch(/^https:\/\/portdaddy\.dev\/img\//)
     }
+  })
+
+  test('default social image is generated and does not fall back to the retired sailor hero', () => {
+    const manifestPath = resolve(publicDir, 'img/generated/manifest.json')
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
+    const generatedFiles = manifest.generatedAssets.map((asset: { file: string }) => asset.file)
+
+    expect(DEFAULT_SITE_IMAGE).toBe('/img/generated/control-plane-og.jpg')
+    expect(generatedFiles).toContain(DEFAULT_SITE_IMAGE)
+    expect(existsSync(resolve(publicDir, 'img/hero-portdaddy.png'))).toBe(false)
   })
 
   test('generated sitemap and robots.txt are derived from indexable metadata routes', () => {
