@@ -18,6 +18,9 @@ import type {
   ActivityEntry,
   ChannelMessage,
   FilePreview,
+  CoordinationGuardAction,
+  CoordinationGuardEnvelope,
+  CoordinationGuardMode,
   StoryNote,
   TupleEntry,
   GraphEdge,
@@ -221,6 +224,23 @@ export async function fetchFleetStatus(): Promise<FleetDaemonStatus> {
 export async function fetchProjects(): Promise<ProjectSummary[]> {
   const payload = await get<{ success: boolean; projects: ProjectSummary[] }>('/projects');
   return payload.projects ?? [];
+}
+
+export async function fetchCoordinationGuard(projectDir: string): Promise<CoordinationGuardEnvelope> {
+  const params = new URLSearchParams({ projectDir });
+  return get(`/operator/coordination-guard?${params.toString()}`);
+}
+
+export async function runCoordinationGuardAction(input: {
+  projectDir: string;
+  action: CoordinationGuardAction;
+  mode?: Exclude<CoordinationGuardMode, 'off'>;
+}): Promise<CoordinationGuardEnvelope> {
+  return post('/operator/coordination-guard', {
+    projectDir: input.projectDir,
+    action: input.action,
+    mode: input.mode ?? 'enforce',
+  });
 }
 
 export async function fetchFleetConfig(project: string): Promise<{

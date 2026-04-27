@@ -85,6 +85,54 @@ interface FilePreviewBody {
   maxLines?: number;
 }
 
+type CoordinationGuardAction = 'status' | 'check' | 'enable' | 'install';
+type CoordinationGuardMode = 'off' | 'warn' | 'enforce';
+
+interface CoordinationGuardStatus {
+  success: boolean;
+  name: string;
+  enabled: boolean;
+  mode: CoordinationGuardMode;
+  requireSession: boolean;
+  requireClaims: boolean;
+  configPath: string;
+  projectDir: string;
+}
+
+interface CoordinationGuardCheck {
+  success: boolean;
+  passed: boolean;
+  shouldBlock: boolean;
+  mode: CoordinationGuardMode;
+  enabled: boolean;
+  files: string[];
+  agentId?: string | null;
+  sessionId?: string | null;
+  violations: Array<{
+    code: string;
+    severity: 'warning' | 'critical';
+    message: string;
+    file?: string;
+    owners?: Array<{
+      sessionId?: string | null;
+      agentId?: string | null;
+      purpose?: string | null;
+      phase?: string | null;
+    }>;
+  }>;
+}
+
+interface CoordinationGuardQuery {
+  project?: string;
+  projectDir?: string;
+}
+
+interface CoordinationGuardBody extends CoordinationGuardQuery {
+  action?: CoordinationGuardAction;
+  mode?: CoordinationGuardMode;
+  staged?: boolean;
+}
+
 interface OperatorActorsQuery {
   project?: string;
   projectDir?: string;
@@ -440,6 +488,83 @@ function resolveProjectContext(query: OperatorActorsQuery, projects?: ProjectsMa
     projectName: projectRecord?.id ?? (requestedProjectDir ? basename(requestedProjectDir) : requestedProject),
     projectRecord,
   };
+}
+
+function resolveGuardProject(input: CoordinationGuardQuery, projects?: ProjectsManager): {
+  projectDir: string;
+  projectName: string | null;
+} {
+  const context = resolveProjectContext(input, projects);
+  const projectDir = resolve(context.projectDir ?? process.cwd());
+  if (!existsSync(projectDir) || !statSync(projectDir).isDirectory()) {
+    throw new Error(`Project directory not found: ${projectDir}`);
+  }
+  return {
+    projectDir,
+    projectName: context.projectName ?? basename(projectDir),
+  };
+}
+
+function normalizeGuardAction(value: unknown): CoordinationGuardAction {
+  if (value === 'check' || value === 'enable' || value === 'install' || value === 'status') return value;
+  return 'status';
+}
+
+function normalizeGuardMode(value: unknown, fallback: Exclude<CoordinationGuardMode, 'off'> = 'enforce'): Exclude<CoordinationGuardMode, 'off'> {
+  return value === 'warn' || value === 'enforce' ? value : fallback;
+}
+
+function spawnText(value: string | Buffer | null | undefined): string {
+  if (typeof value === 'string') return value;
+  return value ? value.toString('utf8') : '';
+}
+
+function isMissingCommand(error: unknown): boolean {
+  return !!error && typeof error === 'object' && 'code' in error && (error as { code?: unknown }).code === 'ENOENT';
+}
+
+function runGuardCli(projectDir: string, args: string[]) {
+  for (const command of ['pd', 'port-daddy']) {
+    const result = spawnSync(command, ['guard', ...args, '--dir', projectDir], {
+      cwd: projectDir,
+      encoding: 'utf8',
+      env: process.env,
+    });
+    if (!isMissingCommand(result.error)) return { command, result };
+  }
+  const result = spawnSync('pd', ['guard', ...args, '--dir', projectDir], {
+    cwd: projectDir,
+    encoding: 'utf8',
+    env: process.env,
+  });
+  return { command: 'pd', result };
+}
+
+function parseGuardJson<T>(stdout: string, commandLabel: string): T {
+  const trimmed = stdout.trim();
+  if (!trimmed) throw new Error(`${commandLabel} returned no JSON output.`);
+  try {
+    return JSON.parse(trimmed) as T;
+  } catch (error) {
+    throw new Error(`${commandLabel} returned invalid JSON: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+function guardFailureMessage(commandLabel: string, result: ReturnType<typeof spawnSync>): string {
+  const stderr = spawnText(result.stderr).trim();
+  const stdout = spawnText(result.stdout).trim();
+  const error = result.error instanceof Error ? result.error.message : '';
+  return [stderr, stdout, error, `${commandLabel} failed`].find(Boolean) ?? `${commandLabel} failed`;
+}
+
+function readCoordinationGuardStatus(projectDir: string): CoordinationGuardStatus {
+  const { command, result } = runGuardCli(projectDir, ['status', '--json']);
+  const commandLabel = `${command} guard status`;
+  if (result.status !== 0) {
+    throw new Error(guardFailureMessage(commandLabel, result));
+  }
+  const status = parseGuardJson<Omit<CoordinationGuardStatus, 'projectDir'>>(spawnText(result.stdout), commandLabel);
+  return { ...status, projectDir };
 }
 
 /**
@@ -921,6 +1046,86 @@ function buildOperatorActors(
 
 export const operatorPlugin: FastifyPluginAsync<{ deps: OperatorRouteDeps }> = async (fastify, opts) => {
   const logger = opts.deps.logger;
+
+  fastify.get('/operator/coordination-guard', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const query = (request.query || {}) as CoordinationGuardQuery;
+      const { projectDir, projectName } = resolveGuardProject(query, opts.deps.projects);
+      const status = readCoordinationGuardStatus(projectDir);
+      return {
+        success: true,
+        project: projectName,
+        projectDir,
+        status,
+      };
+    } catch (error) {
+      logger?.error?.({
+        err: error,
+        query: request.query as Record<string, unknown>,
+      }, 'operator_coordination_guard_status_failed');
+      reply.code(500);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to read Coordination Guard status.',
+      };
+    }
+  });
+
+  fastify.post('/operator/coordination-guard', async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = (request.body || {}) as CoordinationGuardBody;
+    const action = normalizeGuardAction(body.action);
+    const mode = normalizeGuardMode(body.mode);
+
+    try {
+      const { projectDir, projectName } = resolveGuardProject(body, opts.deps.projects);
+
+      if (action === 'status') {
+        const status = readCoordinationGuardStatus(projectDir);
+        return { success: true, action, project: projectName, projectDir, status };
+      }
+
+      if (action === 'check') {
+        const args = ['check', body.staged === false ? '' : '--staged', '--mode', mode, '--json'].filter(Boolean);
+        const { command, result } = runGuardCli(projectDir, args);
+        const commandLabel = `${command} guard check`;
+        const check = parseGuardJson<CoordinationGuardCheck>(spawnText(result.stdout), commandLabel);
+        if (result.status !== 0 && !check.shouldBlock) {
+          throw new Error(guardFailureMessage(commandLabel, result));
+        }
+        const status = readCoordinationGuardStatus(projectDir);
+        return { success: true, action, project: projectName, projectDir, status, check };
+      }
+
+      const args = action === 'install'
+        ? ['install', '--mode', mode]
+        : ['enable', '--mode', mode];
+      const { command, result } = runGuardCli(projectDir, args);
+      const commandLabel = `${command} guard ${action}`;
+      if (result.status !== 0) {
+        throw new Error(guardFailureMessage(commandLabel, result));
+      }
+      const status = readCoordinationGuardStatus(projectDir);
+      const message = spawnText(result.stdout).trim() || `${commandLabel} completed`;
+      logger?.info?.({
+        action,
+        mode,
+        projectDir,
+        project: projectName,
+      }, 'operator_coordination_guard_action');
+      return { success: true, action, project: projectName, projectDir, status, message };
+    } catch (error) {
+      logger?.error?.({
+        err: error,
+        body,
+      }, 'operator_coordination_guard_action_failed');
+      reply.code(500);
+      return {
+        success: false,
+        action,
+        error: error instanceof Error ? error.message : 'Coordination Guard action failed.',
+      };
+    }
+  });
 
   fastify.get('/operator/actors', async (request: FastifyRequest, reply: FastifyReply) => {
     try {

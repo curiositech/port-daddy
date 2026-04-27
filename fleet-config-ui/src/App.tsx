@@ -29,6 +29,8 @@ import {
   pauseFleetAgent,
   resumeFleetAgent,
   runFleetAgent,
+  fetchCoordinationGuard,
+  runCoordinationGuardAction,
   setFleetConfigBudget,
   startFleet,
   stopFleet,
@@ -38,7 +40,18 @@ import {
   getDaemonUrl,
   setDaemonUrl,
 } from './api';
-import type { ActivityEntry, FleetConfig, FleetEvent, FleetLimits, ResolvedChannelTarget, StoryNote, TopologyValidation } from './types';
+import type {
+  ActivityEntry,
+  CoordinationGuardAction,
+  CoordinationGuardCheck,
+  CoordinationGuardStatus,
+  FleetConfig,
+  FleetEvent,
+  FleetLimits,
+  ResolvedChannelTarget,
+  StoryNote,
+  TopologyValidation,
+} from './types';
 
 type MainTab = 'Flow' | 'Agents' | 'Activity' | 'Channels' | 'Inbox' | 'Sorties' | 'Memory' | 'Shipwright' | 'YAML';
 type ControlSurface = 'flow' | 'agents' | 'activity' | 'channels' | 'inbox' | 'sorties' | 'memory' | 'shipwright' | 'yaml';
@@ -445,6 +458,22 @@ function formatUsd(value: number | null | undefined): string {
   return `$${value.toFixed(2)}`;
 }
 
+function guardModeCopy(status: CoordinationGuardStatus | null): string {
+  if (!status) return 'unknown';
+  if (!status.enabled || status.mode === 'off') return 'off';
+  return status.mode;
+}
+
+function guardCheckCopy(check: CoordinationGuardCheck | null): string | null {
+  if (!check) return null;
+  if (check.passed) {
+    return check.files.length > 0
+      ? `passed on ${check.files.length} staged file${check.files.length === 1 ? '' : 's'}`
+      : 'passed: no staged files';
+  }
+  return `${check.violations.length} blocker${check.violations.length === 1 ? '' : 's'} found`;
+}
+
 function OperatorCockpitDeck({
   running,
   configuredAgents,
@@ -456,11 +485,16 @@ function OperatorCockpitDeck({
   eventCount,
   selectedAgent,
   selectedChannel,
+  coordinationGuard,
+  coordinationGuardCheck,
+  coordinationGuardBusy,
+  coordinationGuardError,
   onClearFocus,
   onToggleFleet,
   onRefresh,
   onShowAgents,
   onEditYaml,
+  onCoordinationGuardAction,
 }: {
   running: boolean;
   configuredAgents: number;
@@ -472,15 +506,26 @@ function OperatorCockpitDeck({
   eventCount: number;
   selectedAgent: string | null;
   selectedChannel: string | null;
+  coordinationGuard: CoordinationGuardStatus | null;
+  coordinationGuardCheck: CoordinationGuardCheck | null;
+  coordinationGuardBusy: CoordinationGuardAction | null;
+  coordinationGuardError: string | null;
   onClearFocus: () => void;
   onToggleFleet: () => void;
   onRefresh: () => void;
   onShowAgents: () => void;
   onEditYaml: () => void;
+  onCoordinationGuardAction: (action: CoordinationGuardAction) => void;
 }) {
   const budget = limits?.budgetUsdPerDay;
   const hasBudget = typeof budget === 'number' && Number.isFinite(budget) && budget > 0;
   const focusLabel = selectedAgent ? `agent:${selectedAgent}` : selectedChannel ? `channel:${selectedChannel}` : 'whole fleet';
+  const guardMode = guardModeCopy(coordinationGuard);
+  const guardActive = guardMode === 'enforce';
+  const guardCheck = guardCheckCopy(coordinationGuardCheck);
+  const guardStatusText = coordinationGuardError
+    ? coordinationGuardError
+    : guardCheck ?? (guardActive ? 'enforce mode: session + file claims required' : 'install enforce mode for this project');
 
   return (
     <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-surface)' }}>
@@ -560,6 +605,44 @@ function OperatorCockpitDeck({
               <FileCog size={13} />
               <span>YAML</span>
             </button>
+          </div>
+          <div
+            className="mt-3 rounded-lg border px-2.5 py-2"
+            style={{
+              backgroundColor: guardActive ? 'var(--pd-success-surface)' : 'var(--pd-warning-surface)',
+              borderColor: guardActive ? 'var(--pd-success-border)' : 'var(--pd-warning-border)',
+            }}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="inline-flex items-center gap-1.5 text-[10px] font-semibold tracking-wider" style={{ color: guardActive ? 'var(--pd-success)' : 'var(--pd-warning)' }}>
+                <ShieldCheck size={12} />
+                <span>COORDINATION GUARD</span>
+              </div>
+              <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ backgroundColor: 'var(--pd-bg)', color: guardActive ? 'var(--pd-success)' : 'var(--pd-warning)' }}>
+                {guardMode}
+              </span>
+            </div>
+            <div className="mt-1 text-[10px] font-semibold leading-snug" style={{ color: coordinationGuardError ? 'var(--pd-accent)' : 'var(--pd-muted)' }}>
+              {guardStatusText}
+            </div>
+            <div className="mt-2 grid grid-cols-3 gap-1.5">
+              {(['check', 'enable', 'install'] as CoordinationGuardAction[]).map((action) => (
+                <button
+                  key={action}
+                  disabled={coordinationGuardBusy !== null}
+                  onClick={() => onCoordinationGuardAction(action)}
+                  className="rounded-md px-2 py-1.5 text-[10px] font-semibold capitalize disabled:cursor-not-allowed"
+                  style={{
+                    backgroundColor: 'var(--pd-surface)',
+                    color: 'var(--pd-text)',
+                    border: '1px solid var(--pd-border)',
+                    opacity: coordinationGuardBusy && coordinationGuardBusy !== action ? 0.55 : 1,
+                  }}
+                >
+                  {coordinationGuardBusy === action ? 'Running' : action === 'install' ? 'Install hook' : action}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -730,6 +813,10 @@ export default function App() {
   const [inspectorTab, setInspectorTab] = useState<'details' | 'settings'>('details');
   const [activeTab, setActiveTab] = useState<MainTab>(surfaceToMainTab(initialRoute.surface));
   const [browserResolvedChannels, setBrowserResolvedChannels] = useState<Record<string, string>>({});
+  const [coordinationGuard, setCoordinationGuard] = useState<CoordinationGuardStatus | null>(null);
+  const [coordinationGuardCheck, setCoordinationGuardCheck] = useState<CoordinationGuardCheck | null>(null);
+  const [coordinationGuardBusy, setCoordinationGuardBusy] = useState<CoordinationGuardAction | null>(null);
+  const [coordinationGuardError, setCoordinationGuardError] = useState<string | null>(null);
 
   const projects = useMemo(() => {
     const runtimeByDir = new Map((fleet.status?.fleets ?? []).map((fleetProject) => [fleetProject.projectDir, fleetProject]));
@@ -875,6 +962,28 @@ export default function App() {
   const fleetConfig: FleetConfig | null = projectConfig?.parsed ?? null;
   const topology: TopologyValidation | null = projectConfig?.topology ?? null;
   const selectedAgentNames = useMemo(() => selectedProject?.agents.map(agent => agent.agentName) ?? [], [selectedProject]);
+  const selectedProjectDir = selectedProject?.projectDir ?? null;
+
+  const refreshCoordinationGuard = useCallback(async () => {
+    if (!selectedProjectDir) {
+      setCoordinationGuard(null);
+      setCoordinationGuardCheck(null);
+      setCoordinationGuardError(null);
+      return;
+    }
+    try {
+      const result = await fetchCoordinationGuard(selectedProjectDir);
+      setCoordinationGuard(result.status);
+      setCoordinationGuardError(null);
+    } catch (err) {
+      setCoordinationGuard(null);
+      setCoordinationGuardError((err as Error).message);
+    }
+  }, [selectedProjectDir]);
+
+  useEffect(() => {
+    void refreshCoordinationGuard();
+  }, [refreshCoordinationGuard]);
 
   const logicalChannelNames = useMemo(() => {
     if (!fleetConfig) return [];
@@ -1172,7 +1281,29 @@ export default function App() {
     if (selectedProjectId) {
       fleet.loadConfig(selectedProjectId);
     }
-  }, [fleet, selectedProjectId]);
+    void refreshCoordinationGuard();
+  }, [fleet, selectedProjectId, refreshCoordinationGuard]);
+
+  const handleCoordinationGuardAction = useCallback(async (action: CoordinationGuardAction) => {
+    if (!selectedProjectDir) return;
+    setCoordinationGuardBusy(action);
+    setCoordinationGuardError(null);
+    try {
+      const result = await runCoordinationGuardAction({
+        projectDir: selectedProjectDir,
+        action,
+        mode: 'enforce',
+      });
+      setCoordinationGuard(result.status);
+      if (result.check) setCoordinationGuardCheck(result.check);
+      else setCoordinationGuardCheck(null);
+    } catch (err) {
+      setCoordinationGuardError((err as Error).message);
+    } finally {
+      setCoordinationGuardBusy(null);
+    }
+  }, [selectedProjectDir]);
+
   const projectSidebar = selectedProject ? (
     <div className="h-full overflow-hidden p-4 flex flex-col"
       style={{ borderRight: '1px solid var(--pd-border)', backgroundColor: 'color-mix(in srgb, var(--pd-surface) 74%, var(--pd-bg))' }}>
@@ -1323,6 +1454,10 @@ export default function App() {
                         eventCount={flowEventCount}
                         selectedAgent={selectedAgent}
                         selectedChannel={selectedChannel}
+                        coordinationGuard={coordinationGuard}
+                        coordinationGuardCheck={coordinationGuardCheck}
+                        coordinationGuardBusy={coordinationGuardBusy}
+                        coordinationGuardError={coordinationGuardError}
                         onClearFocus={() => {
                           setSelectedAgent(null);
                           setSelectedChannel(null);
@@ -1331,6 +1466,7 @@ export default function App() {
                         onRefresh={handleProjectRefresh}
                         onShowAgents={() => setActiveTab('Agents')}
                         onEditYaml={() => setActiveTab('YAML')}
+                        onCoordinationGuardAction={(action) => void handleCoordinationGuardAction(action)}
                       />
 
                       <div className="flex-1 min-h-0 overflow-hidden grid gap-4 p-4 2xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.85fr)]">

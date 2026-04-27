@@ -180,6 +180,177 @@ describe('operator routes', () => {
     await app.close();
   });
 
+  test('GET /operator/coordination-guard returns guard status for a project', async () => {
+    const { app, register } = buildApp();
+    await register();
+
+    const projectDir = process.cwd();
+    mockSpawnSync.mockReturnValueOnce({
+      status: 0,
+      stdout: JSON.stringify({
+        success: true,
+        name: 'Coordination Guard',
+        enabled: true,
+        mode: 'enforce',
+        requireSession: true,
+        requireClaims: true,
+        configPath: path.join(projectDir, '.portdaddy/coordination-guard.json'),
+      }),
+      stderr: '',
+    });
+
+    const res = await app.inject({
+      method: 'GET',
+      url: `/operator/coordination-guard?projectDir=${encodeURIComponent(projectDir)}`,
+    });
+
+    expect(res.statusCode).toBe(200);
+    const payload = res.json();
+    expect(payload).toEqual(expect.objectContaining({
+      success: true,
+      projectDir,
+      status: expect.objectContaining({
+        mode: 'enforce',
+        projectDir,
+      }),
+    }));
+    expect(mockSpawnSync).toHaveBeenCalledWith('pd', [
+      'guard',
+      'status',
+      '--json',
+      '--dir',
+      projectDir,
+    ], expect.objectContaining({
+      cwd: projectDir,
+      encoding: 'utf8',
+    }));
+
+    await app.close();
+  });
+
+  test('POST /operator/coordination-guard returns blocking staged check results without HTTP failure', async () => {
+    const { app, register } = buildApp();
+    await register();
+
+    const projectDir = process.cwd();
+    mockSpawnSync
+      .mockReturnValueOnce({
+        status: 1,
+        stdout: JSON.stringify({
+          success: false,
+          passed: false,
+          shouldBlock: true,
+          mode: 'enforce',
+          enabled: true,
+          files: ['routes/operator.ts'],
+          agentId: 'agent-1',
+          sessionId: 'session-1',
+          violations: [{
+            code: 'unclaimed-file',
+            severity: 'critical',
+            file: 'routes/operator.ts',
+            message: 'routes/operator.ts is not claimed by the active Port Daddy session.',
+          }],
+        }),
+        stderr: '',
+      })
+      .mockReturnValueOnce({
+        status: 0,
+        stdout: JSON.stringify({
+          success: true,
+          name: 'Coordination Guard',
+          enabled: true,
+          mode: 'enforce',
+          requireSession: true,
+          requireClaims: true,
+          configPath: path.join(projectDir, '.portdaddy/coordination-guard.json'),
+        }),
+        stderr: '',
+      });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/operator/coordination-guard',
+      payload: {
+        action: 'check',
+        projectDir,
+        mode: 'enforce',
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const payload = res.json();
+    expect(payload.check).toEqual(expect.objectContaining({
+      shouldBlock: true,
+      violations: [expect.objectContaining({ code: 'unclaimed-file' })],
+    }));
+    expect(mockSpawnSync).toHaveBeenNthCalledWith(1, 'pd', [
+      'guard',
+      'check',
+      '--staged',
+      '--mode',
+      'enforce',
+      '--json',
+      '--dir',
+      projectDir,
+    ], expect.objectContaining({ cwd: projectDir }));
+
+    await app.close();
+  });
+
+  test('POST /operator/coordination-guard can install enforce mode and refresh status', async () => {
+    const { app, register } = buildApp();
+    await register();
+
+    const projectDir = process.cwd();
+    mockSpawnSync
+      .mockReturnValueOnce({
+        status: 0,
+        stdout: 'Coordination Guard installed\n',
+        stderr: '',
+      })
+      .mockReturnValueOnce({
+        status: 0,
+        stdout: JSON.stringify({
+          success: true,
+          name: 'Coordination Guard',
+          enabled: true,
+          mode: 'enforce',
+          requireSession: true,
+          requireClaims: true,
+          configPath: path.join(projectDir, '.portdaddy/coordination-guard.json'),
+        }),
+        stderr: '',
+      });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/operator/coordination-guard',
+      payload: {
+        action: 'install',
+        projectDir,
+        mode: 'enforce',
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual(expect.objectContaining({
+      success: true,
+      action: 'install',
+      status: expect.objectContaining({ mode: 'enforce' }),
+    }));
+    expect(mockSpawnSync).toHaveBeenNthCalledWith(1, 'pd', [
+      'guard',
+      'install',
+      '--mode',
+      'enforce',
+      '--dir',
+      projectDir,
+    ], expect.objectContaining({ cwd: projectDir }));
+
+    await app.close();
+  });
+
   test('GET /operator/actors does not call orphaned active sessions running', async () => {
     const now = Date.now();
     const { app, register } = buildApp({
