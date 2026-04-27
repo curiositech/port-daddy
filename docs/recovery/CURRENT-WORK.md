@@ -79,6 +79,29 @@ The `agentsd.ai` public-site reset is now explicit repo work, not chat residue.
 
 ## Current Thread
 
+### Port Daddy Skill And Actor-Truth Repair (2026-04-26)
+
+Original execution session: `session-a7366433-5e18-4deb-b78a-561b77163e23`.
+Continuation merge/UI honesty session: `session-d50ed49e-60b5-4e0a-8387-50884f127176`.
+
+- The active request is to use `skill-architect` to repair the confusing/out-of-date agent skill and improve skill governance across the repo.
+- Live actor truth was verified: `pd actor cartographer` resolves to the durable `navigator` actor, whose mission covers roadmap, recovery-ledger, work-slices, and cartographer-status. `pd actor lookout` is the release-surface owner for docs/API/skills/product truth.
+- `pd actor --message` queues durable mailbox work; it is not an immediate answer. Agents still need to read live Port Daddy state and authority docs when no live body responds.
+- `skills/port-daddy-cli/SKILL.md` now has first-party metadata and an explicit roadmap/skill actor workflow before MCP/reference material.
+- `skills/port-daddy-cli/SKILL.md` and `AGENTS.md` now encode the ambient-collaboration policy: agents should publish structured scope/evidence; durable actors/watchers should call out material inconsistencies; no forced constant peer chat.
+- The policy now explicitly includes goal/invariant-level inconsistency detection: security/auth/privacy/trust-boundary/API-shape drift, product/UX direction mismatch, and strong inferred operator goals. Example: a raw text API should be flagged if adjacent work indicates authenticated secure API expectations, even when the raw endpoint is not locally broken.
+- Live coordination evidence exposed a gap worth fixing next: `/operator/actors` can show active sessions as stale/salvaged while `pd sessions --active` still lists them, and `pd agents --active` can return zero. That should be surfaced as a coordination inconsistency instead of leaving the operator to reconcile it manually.
+- A worktree-scoped `coordination:inconsistency` channel now exists. Tuple `6213` records the default policy for operator-worthy cross-agent conflicts, and tuple `6249` records implied-goal inconsistency detection.
+- `tests/unit/port-daddy-skill-authority.test.js` now guards first-party skill metadata and the live actor consultation path.
+- `skills/port-daddy-cli/CHANGELOG.md` records this skill-surface mutation.
+- `scripts/audit-skills.mjs` now provides deterministic JSON/Markdown governance scanning for every visible repo skill; current scan sees 109 skills, 70 missing at least one of `license`, `allowed-tools`, or `metadata`, 4 first-party skills, and 19 imported-literature skills.
+- `docs/reports/SKILL_GOVERNANCE_AUDIT_2026-04-26.md` records the broader audit and warns not to blindly rewrite imported/research skills.
+- The validated `port-daddy-cli` skill and references were mirrored into `/Users/erichowens/.agents/skills/port-daddy-cli/` so new agents can load the updated instructions.
+- The workgroup `port-daddy` skill has now received an adapted merge at `/Users/erichowens/coding/workgroup-ai/skills/port-daddy/`: it keeps the workgroup package name, gains the current repo/user runbook body, gets a changelog entry, and has references mirrored from `skills/port-daddy-cli/references/`.
+- Skill diff honesty: the repo and user installed `port-daddy-cli` skills were identical at 729 lines, while the workgroup `port-daddy` skill was an older 409-line surface with a 546-line diff against the repo copy; its API reference was also stale by 755 diff lines and its SDK reference by 49 diff lines.
+- UI honesty: Fleet Control Center already used the coordination substrate generically through actors, channels, tuples, graph, and memory views, but it did not first-class the new `coordination:inconsistency` layer. `fleet-config-ui` now surfaces project-level coordination inconsistency callouts from that channel and jumps the operator into the channel when opened. Native FleetBar still only benefits indirectly through the embedded control plane/actor lens; a native popover alert remains future work.
+- Validation truth: `npm test -- tests/unit/port-daddy-skill-authority.test.js tests/unit/skill-governance-audit.test.js --runInBand` passed 2 suites / 9 tests; `pd fleet validate` passed with no topology warnings; `git diff --check` passed; `npm run build` from `fleet-config-ui/` passed with the existing large-chunk warning.
+
 ### Shipwright Fleet UI Surface (2026-04-26)
 
 Shipwright is now visible in the real Fleet Control Center instead of only in
@@ -257,6 +280,39 @@ Follow-on execution session: `session-d43caa83-9525-4a04-a1b4-57df1ef92916`.
 - Remaining website rehab blockers: broader route migration to the Swiss grid,
   Storybook state matrix, axe/keyboard/manual a11y evidence, SEO/OG/PWA/legal/
   privacy/observability, raw visual literals in legacy pages, and a deeper
+  Mermaid/diagram payload decision.
+
+### Port Daddy Website Storybook and MCP A11y Slice (2026-04-26)
+
+Follow-on execution session: `session-38334c91-8bed-45d4-85be-da069cd41648`.
+
+- Storybook a11y is now configured to run axe through `wcag2aaa` plus
+  `color-contrast-enhanced`, matching the stricter MCP route gate instead of
+  silently stopping its label at AA.
+- The public primitive Storybook matrix now participates in the design-system
+  contract alongside Button, Badge, Surface, CodeBlock, and the MCP route
+  story.
+- The MCP pub/sub tabs now declare vertical tablist orientation and are covered
+  by contract checks for roving tab index, ArrowDown/ArrowRight/Home/End
+  navigation, and visible focus.
+- Refreshed a11y evidence now lives at
+  `docs/reports/website-rehab-a11y/mcp-a11y-report.json`; it records 0 desktop
+  axe violations, 0 mobile axe violations, 4 tabs, visible focus outline, and
+  no horizontal overflow at 1440x1200 or 390x1200.
+- Validation truth on 2026-04-26 from `website-v2/`:
+  - `npm run lint`: green
+  - `npm run test -- src/design-system-contracts.test.ts`: 11/11 pass
+  - `npm run test`: 7/7 files and 74/74 tests pass
+  - `npm run test:a11y:mcp`: green with refreshed report/screenshots
+  - `npm run build`: green with no chunk-size warning; largest JS chunk is
+    `Mermaid-CMec62CS.js` at 491.12 kB minified / 136.65 kB gzip, and the MCP
+    route chunk is `MCPPage-Cqgjlo-C.js` at 19.34 kB minified / 6.39 kB gzip
+  - `npm run build-storybook`: green with the known large iframe chunk warning
+    and `radix-ui` package metadata warning; iframe is 1,087.59 kB minified /
+    307.00 kB gzip
+- Remaining website rehab blockers: route-wide a11y/manual screen-reader
+  evidence, route-composite Storybook matrices, SEO/OG/PWA/legal/privacy/
+  observability, raw visual literals in legacy pages, and a deeper
   Mermaid/diagram payload decision.
 
 ### Cartographer / Navigator Maritime Actor Foundation (2026-04-26)

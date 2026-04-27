@@ -1,9 +1,9 @@
 # Cartographer Status
 
 **Last updated:** 2026-04-26
-**Updated by:** Codex Shipwright UI slice
-**HEAD:** `f689337`
-**Previous HEAD:** `65f41df` — multiple new commits since last cartographer refresh
+**Updated by:** Codex skill-governance slice
+**HEAD:** `295854d`
+**Previous HEAD:** `f689337` — daemon lease reclaim and skill-governance work now sit after the Shipwright Fleet UI slice
 
 ---
 
@@ -19,6 +19,9 @@ Active threads, ranked by commit recency:
 
 Newest committed truth since the last cartographer refresh:
 
+- `295854d` — stale fleet leases are reclaimed on daemon restart. Stable was
+  promoted from `main@295854d`, and the live daemon reports version `3.11.0`
+  from `/Users/erichowens/port-daddy-stable`.
 - `f689337` — Shipwright is now a real Fleet Control Center surface. The app
   accepts `surface=shipwright`, renders an all-project fixture-backed workbench,
   shows fixture labels instead of pretending daemon truth, and ships a rebuilt
@@ -48,6 +51,62 @@ Current Compass advisor validation truth on 2026-04-26:
 - focused `sessions` + advisor/parity bundle is green at `572/572` tests after adding inactive-session claim regression coverage.
 - broad `npm test -- --no-coverage` reached green counts at `139/139` suites and `4919/4920` passing tests with `1` intentional skip, then hung after Jest's open-handle warning.
 - remaining caveat: the broad-run exit blocker is the integration harness daemon process tree (`jest -> tsx -> server.ts`) on files actively claimed by the Bosun session `session-c4cc1a46-77ba-4c72-85cf-9ce13637cc97`. Compass recorded tuple `5474`, inboxed `agent-e802a389`, and cleaned up its own hung PIDs rather than editing across that active claim.
+
+Skill-governance truth on 2026-04-26:
+
+- The active Port Daddy skill repair session is
+  `session-a7366433-5e18-4deb-b78a-561b77163e23`.
+- `pd actor cartographer` now resolves live to the durable `navigator` actor,
+  which owns roadmap, recovery-ledger, work-slices, and cartographer-status.
+- The `port-daddy-cli` skill now tells agents to query `pd actor
+  cartographer`, `pd actor navigator --inbox*`, and `pd actor lookout
+  --message` for roadmap/what-next and skill/docs drift before trusting stale
+  prose.
+- `AGENTS.md` and the `port-daddy-cli` skill now define ambient collaboration:
+  agents should publish structured facts through notes, claims, tuples, scoped
+  channels, and actor inboxes; durable actors/watchers should escalate only
+  material inconsistencies instead of forcing constant peer chat.
+- The collaboration policy now covers implied operator goals, not just bugs:
+  security/auth/privacy/trust-boundary/API-shape drift, public product or UX
+  contradictions, and locally correct work that violates strong inferred
+  direction should be surfaced through `coordination:inconsistency`.
+- The `coordination:inconsistency` worktree channel and tuple `6213` capture
+  that operator-worthy callout policy for live tooling.
+- Tuple `6249` records the example policy that a raw text API can conflict with
+  adjacent authenticated secure API work even when no one explicitly asked
+  whether the raw endpoint should be secure.
+- A fresh live read showed the coordination gap directly: `pd sessions
+  --active` listed two active sessions, while `pd agents --active --json`
+  returned zero live registered agents and `/operator/actors` classified the
+  same sessions as stale/salvaged. That mismatch belongs in Coxswain/Lookout
+  follow-up work.
+- `tests/unit/port-daddy-skill-authority.test.js` now guards both first-party
+  metadata and this live actor consultation path.
+- `scripts/audit-skills.mjs` now records skill governance deterministically.
+  Current scan: 109 visible skills under `skills/` and `.codex/skills/`, 70
+  missing at least one of `license`, `allowed-tools`, or `metadata`, 4
+  first-party skills, and 19 imported-literature skills.
+- The validated user-level installed copy at
+  `/Users/erichowens/.agents/skills/port-daddy-cli/` was mirrored from the repo.
+  The workgroup `port-daddy` skill has now been adapted at
+  `/Users/erichowens/coding/workgroup-ai/skills/port-daddy/` without renaming
+  the package surface: the body is aligned with the current runbook, the
+  changelog records the merge, and references match the repo skill references.
+- Difference check: repo and user installed `port-daddy-cli` were already
+  identical at 729 lines; the workgroup copy was an older 409-line surface with
+  a 546-line diff, missing briefing/advise/ambient coordination/actor truth and
+  current backend/delegation guidance. Its API reference was stale by 755 diff
+  lines and its SDK reference by 49 diff lines.
+- Fleet Control Center did use coordination primitives generically through
+  actors, channels, tuples, graph, and memory, but not the new
+  `coordination:inconsistency` policy specifically. The web control plane now
+  renders project-level callouts for that channel; FleetBar native still needs a
+  dedicated popover alert if the operator wants the warning outside the embedded
+  web control plane.
+- Validation on the continuation session
+  `session-d50ed49e-60b5-4e0a-8387-50884f127176`: focused skill-governance tests
+  passed, `pd fleet validate` passed, `git diff --check` passed, and
+  `fleet-config-ui` production build passed with the known large-chunk warning.
 
 Actor-model reconciliation truth on 2026-04-23:
 

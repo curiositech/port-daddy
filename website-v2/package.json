@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:a11y:mcp": "node scripts/check-mcp-a11y.mjs"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",
@@ -39,6 +40,7 @@
   "devDependencies": {
     "@eslint/js": "^9.39.1",
     "@playwright/test": "^1.58.2",
+    "@storybook/addon-a11y": "10.2.19",
     "@storybook/react": "^10.2.19",
     "@storybook/react-vite": "^10.2.19",
     "@tailwindcss/typography": "^0.5.19",

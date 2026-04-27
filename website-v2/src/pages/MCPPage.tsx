@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useState, type KeyboardEvent, type ReactNode } from 'react'
 import { motion, useScroll, useSpring } from 'framer-motion'
 import {
   Activity,
@@ -332,6 +332,7 @@ function ToolCard({ tool, index }: { tool: MagicTool; index: number }) {
 
   return (
     <motion.article
+      className="min-w-0"
       initial={{ opacity: 0, y: 18 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-80px' }}
@@ -361,11 +362,36 @@ function ToolCard({ tool, index }: { tool: MagicTool; index: number }) {
 function ChannelTabs() {
   const [active, setActive] = useState(CHANNEL_SURFACES[0].id)
   const surface = CHANNEL_SURFACES.find((item) => item.id === active) ?? CHANNEL_SURFACES[0]
+  const activeIndex = CHANNEL_SURFACES.findIndex((item) => item.id === active)
+  const focusTab = (index: number) => {
+    const next = CHANNEL_SURFACES[index]
+    if (!next) return
+    document.getElementById(`mcp-channel-tab-${next.id}`)?.focus()
+    setActive(next.id)
+  }
+  const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
+      event.preventDefault()
+      focusTab((index + 1) % CHANNEL_SURFACES.length)
+    }
+    if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
+      event.preventDefault()
+      focusTab((index - 1 + CHANNEL_SURFACES.length) % CHANNEL_SURFACES.length)
+    }
+    if (event.key === 'Home') {
+      event.preventDefault()
+      focusTab(0)
+    }
+    if (event.key === 'End') {
+      event.preventDefault()
+      focusTab(CHANNEL_SURFACES.length - 1)
+    }
+  }
 
   return (
-    <div className="grid gap-[var(--space-5)] lg:grid-cols-[18rem_minmax(0,1fr)]">
-      <div role="tablist" aria-label="Pub/sub access surface" className="grid gap-[var(--space-2)]">
-        {CHANNEL_SURFACES.map((item) => (
+    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-[var(--space-5)] lg:grid-cols-[18rem_minmax(0,1fr)]">
+      <div role="tablist" aria-label="Pub/sub access surface" aria-orientation="vertical" className="grid min-w-0 gap-[var(--space-2)]">
+        {CHANNEL_SURFACES.map((item, index) => (
           <button
             key={item.id}
             id={`mcp-channel-tab-${item.id}`}
@@ -373,8 +399,10 @@ function ChannelTabs() {
             role="tab"
             aria-selected={active === item.id}
             aria-controls={`mcp-channel-panel-${item.id}`}
+            tabIndex={activeIndex === index ? 0 : -1}
             onClick={() => setActive(item.id)}
-            className="group flex w-full items-center justify-between border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] px-[var(--space-4)] py-[var(--space-3)] text-left text-[var(--text-primary)] transition-colors aria-selected:bg-[var(--brand-primary)] aria-selected:text-[var(--brand-primary-foreground)]"
+            onKeyDown={(event) => handleKeyDown(event, index)}
+            className="group flex w-full items-center justify-between border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] px-[var(--space-4)] py-[var(--space-3)] text-left text-[var(--text-primary)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] aria-selected:bg-[var(--brand-primary)] aria-selected:text-[var(--brand-primary-foreground)]"
           >
             <span className="flex items-center gap-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)]">
               <item.icon aria-hidden="true" className="h-[var(--space-4)] w-[var(--space-4)]" />
@@ -384,7 +412,7 @@ function ChannelTabs() {
           </button>
         ))}
       </div>
-      <div id={`mcp-channel-panel-${surface.id}`} role="tabpanel" aria-labelledby={`mcp-channel-tab-${surface.id}`}>
+      <div id={`mcp-channel-panel-${surface.id}`} role="tabpanel" aria-labelledby={`mcp-channel-tab-${surface.id}`} className="min-w-0">
         <SurfacePanel className="space-y-[var(--panel-gap)]">
           <div className="space-y-[var(--space-2)]">
             <BracketLabel>{surface.label}</BracketLabel>

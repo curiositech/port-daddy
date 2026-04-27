@@ -35,6 +35,53 @@ struct FleetControlCenter: View {
         return store.projects.first(where: { $0.id == selectedProjectId })
     }
 
+    private var selectedCostProject: ProjectCostStatus? {
+        if let selectedProject {
+            return costStore.liveProjects.first(where: { $0.projectDir == selectedProject.projectDir })
+                ?? costStore.liveProjects.first(where: { $0.projectName == selectedProject.name })
+        }
+        return costStore.liveProjects.first(where: { $0.budgetUsdPerDay != nil })
+            ?? costStore.liveProjects.first
+    }
+
+    private var totalBudgetCap: Double? {
+        let total = costStore.liveProjects.compactMap(\.budgetUsdPerDay).reduce(0, +)
+        return total > 0 ? total : nil
+    }
+
+    private var budgetBadgeValue: String {
+        if let selectedCostProject, let budget = selectedCostProject.budgetUsdPerDay {
+            return String(format: "$%.2f / $%.2f", selectedCostProject.totalUsd, budget)
+        }
+        if selectedProject != nil {
+            return "no cap"
+        }
+        if let totalBudgetCap {
+            return String(format: "$%.2f / $%.2f", costStore.todaySpend, totalBudgetCap)
+        }
+        return String(format: "$%.2f", costStore.todaySpend)
+    }
+
+    private var budgetBadgeDetail: String {
+        if selectedCostProject?.budgetUsdPerDay != nil {
+            return "selected fleet daily cap"
+        }
+        if selectedProject != nil {
+            return "selected fleet has no cap"
+        }
+        if let totalBudgetCap {
+            return String(format: "all live fleet caps total $%.2f/day", totalBudgetCap)
+        }
+        return "no live fleet budget cap"
+    }
+
+    private var budgetBadgeColor: Color {
+        if costStore.overBudgetProjectCount > 0 { return Fleet.Color.failure }
+        if costStore.nearBudgetProjectCount > 0 { return Fleet.Color.warning }
+        if selectedCostProject?.budgetUsdPerDay != nil || totalBudgetCap != nil { return Fleet.Color.healthy }
+        return Fleet.Color.dormant
+    }
+
     private var selectedAgent: String? {
         get { selectedAgentStorage.isEmpty ? nil : selectedAgentStorage }
         nonmutating set { selectedAgentStorage = newValue ?? "" }
@@ -163,13 +210,9 @@ struct FleetControlCenter: View {
                         color: store.isDaemonRunning ? Fleet.Color.healthy : Fleet.Color.failure
                     )
                     statusBadge(
-                        title: "Spend",
-                        value: String(format: "$%.2f", costStore.todaySpend),
-                        color: costStore.overBudgetProjectCount > 0
-                            ? Fleet.Color.failure
-                            : costStore.nearBudgetProjectCount > 0
-                                ? Fleet.Color.warning
-                                : Fleet.Color.active
+                        title: "Budget",
+                        value: budgetBadgeValue,
+                        color: budgetBadgeColor
                     )
                     statusBadge(
                         title: "Agents",
@@ -185,72 +228,11 @@ struct FleetControlCenter: View {
 
             HStack(spacing: Fleet.Space.m) {
                 projectMenu
-                surfaceStrip
-                Spacer(minLength: Fleet.Space.m)
-            }
-
-            HStack(spacing: Fleet.Space.s) {
-                ActionPill(
-                    title: selectedTheme == "dark" ? "Light" : "Dark",
-                    systemImage: selectedTheme == "dark" ? "sun.max" : "moon",
-                    color: Fleet.Color.active
-                ) {
-                    selectedTheme = selectedTheme == "dark" ? "light" : "dark"
-                    reloadToken = UUID()
+                ScrollView(.horizontal, showsIndicators: false) {
+                    surfaceStrip
                 }
-
-                ActionPill(
-                    title: fleetActionTitle,
-                    systemImage: fleetActionIcon,
-                    color: fleetActionColor
-                ) {
-                    Task {
-                        if let selectedProject {
-                            if selectedProject.activeCount > 0 {
-                                await store.stopFleet(projectDir: selectedProject.projectDir)
-                            } else {
-                                await store.startFleet(projectDir: selectedProject.projectDir)
-                            }
-                        } else if store.totalActive > 0 {
-                            await store.stopFleet()
-                        } else {
-                            await store.startFleet()
-                        }
-                        reloadToken = UUID()
-                    }
-                }
-
-                ActionPill(
-                    title: store.isDaemonRunning ? "Reload" : "Start Daemon",
-                    systemImage: store.isDaemonRunning ? "arrow.clockwise" : "play.fill",
-                    color: store.isDaemonRunning ? Fleet.Color.active : Fleet.Color.healthy
-                ) {
-                    Task {
-                        if store.isDaemonRunning {
-                            await refreshAll()
-                            reloadToken = UUID()
-                        } else {
-                            store.startDaemon()
-                        }
-                    }
-                }
-
-                ActionPill(
-                    title: "Add Project",
-                    systemImage: "plus",
-                    color: Fleet.Color.healthy
-                ) {
-                    showingAddProject = true
-                }
-
-                ActionPill(
-                    title: "Browser",
-                    systemImage: "safari",
-                    color: Fleet.Color.warning,
-                    action: openInBrowser
-                )
-
                 Spacer(minLength: 0)
+                commandControls
             }
         }
         .padding(.horizontal, Fleet.Space.l)
@@ -260,15 +242,72 @@ struct FleetControlCenter: View {
         }
     }
 
-    private func daemonReportStrip(status: DaemonStatusResponse) -> some View {
-        HStack(alignment: .top, spacing: Fleet.Space.s) {
-            daemonSummaryCard(status: status)
-            daemonBuildCard(status: status)
-            daemonHistoryCard(status: status)
+    private var commandControls: some View {
+        HStack(spacing: Fleet.Space.s) {
+            ActionPill(
+                title: selectedTheme == "dark" ? "Light" : "Dark",
+                systemImage: selectedTheme == "dark" ? "sun.max" : "moon",
+                color: Fleet.Color.active
+            ) {
+                selectedTheme = selectedTheme == "dark" ? "light" : "dark"
+                reloadToken = UUID()
+            }
+
+            ActionPill(
+                title: fleetActionTitle,
+                systemImage: fleetActionIcon,
+                color: fleetActionColor
+            ) {
+                Task {
+                    if let selectedProject {
+                        if selectedProject.activeCount > 0 {
+                            await store.stopFleet(projectDir: selectedProject.projectDir)
+                        } else {
+                            await store.startFleet(projectDir: selectedProject.projectDir)
+                        }
+                    } else if store.totalActive > 0 {
+                        await store.stopFleet()
+                    } else {
+                        await store.startFleet()
+                    }
+                    reloadToken = UUID()
+                }
+            }
+
+            ActionPill(
+                title: store.isDaemonRunning ? "Reload" : "Start Daemon",
+                systemImage: store.isDaemonRunning ? "arrow.clockwise" : "play.fill",
+                color: store.isDaemonRunning ? Fleet.Color.active : Fleet.Color.healthy
+            ) {
+                Task {
+                    if store.isDaemonRunning {
+                        await refreshAll()
+                        reloadToken = UUID()
+                    } else {
+                        store.startDaemon()
+                    }
+                }
+            }
+
+            ActionPill(
+                title: "Add Project",
+                systemImage: "plus",
+                color: Fleet.Color.healthy
+            ) {
+                showingAddProject = true
+            }
+
+            ActionPill(
+                title: "Browser",
+                systemImage: "safari",
+                color: Fleet.Color.warning,
+                action: openInBrowser
+            )
         }
+        .fixedSize(horizontal: true, vertical: false)
     }
 
-    private func daemonSummaryCard(status: DaemonStatusResponse) -> some View {
+    private func daemonReportStrip(status: DaemonStatusResponse) -> some View {
         let runtimeState = status.runtime?.state ?? "unknown"
         let runtimeColor: Color = {
             if status.runtime?.degraded == true { return Fleet.Color.warning }
@@ -276,141 +315,88 @@ struct FleetControlCenter: View {
             return Fleet.Color.failure
         }()
         let bosun = status.guardians?.bosun ?? status.guardians?.barnacle
-        let bosunColor: Color = {
-            guard let bosun else { return Fleet.Color.dormant }
-            switch bosun.state {
-            case "healthy":
-                return Fleet.Color.healthy
-            case "disabled":
-                return Fleet.Color.dormant
-            default:
-                return Fleet.Color.warning
-            }
-        }()
-
-        return daemonCard(title: "Daemon Truth") {
-            HStack(spacing: Fleet.Space.l) {
-                daemonMetric(label: "Runtime", value: runtimeState, color: runtimeColor)
-                daemonMetric(label: "Uptime", value: status.uptimeHuman, color: .primary)
-                daemonMetric(label: "Ports", value: "\(status.metrics?.activePorts ?? 0)", color: .primary)
-                daemonMetric(label: "Bosun", value: bosun?.reason ?? bosun?.state ?? "n/a", color: bosunColor)
-            }
-
-            if let supervisor = status.guardians?.supervisor {
-                Text(supervisor.summary)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-        }
-    }
-
-    private func daemonBuildCard(status: DaemonStatusResponse) -> some View {
         let daemon = status.daemon
         let buildVersion = daemon?.version ?? status.version
         let buildHash = daemon?.codeHash ?? "unknown"
-        let installDir = daemon?.installDir ?? store.daemonURL
+        let recentActivity = status.history?.recentActivity.first
+        let recentSpend = status.history?.recentSpend.first
+        let recentSpendProject = recentSpend?.projectName
+            ?? recentSpend?.projectDir.map { URL(fileURLWithPath: $0).lastPathComponent }
+        let recentSummary = recentActivity?.summary
+            ?? recentSpend.map { String(format: "$%.3f %@", $0.costUsd, $0.model) }
+            ?? "No recent signal"
+        let recentDetail = recentActivity?.agentId
+            ?? recentActivity?.type.lowercased()
+            ?? recentSpendProject
+            ?? "history quiet"
 
-        return daemonCard(title: "Build") {
-            HStack(spacing: Fleet.Space.l) {
-                daemonMetric(label: "Version", value: buildVersion, color: Fleet.Color.active)
-                daemonMetric(label: "Code hash", value: buildHash, color: .primary)
-                daemonMetric(label: "PID", value: "\(status.pid)", color: .primary)
-            }
+        return HStack(spacing: Fleet.Space.m) {
+            compactTruthMetric(
+                icon: "checkmark.seal",
+                title: "Live Truth",
+                value: runtimeState,
+                detail: bosun?.reason ?? bosun?.state ?? status.uptimeHuman,
+                color: runtimeColor
+            )
 
-            Text(installDir)
-                .font(.system(.caption2, design: .monospaced))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
+            Divider()
+
+            compactTruthMetric(
+                icon: "shippingbox",
+                title: "Build",
+                value: buildVersion,
+                detail: "\(buildHash) · pid \(status.pid)",
+                color: Fleet.Color.active
+            )
+
+            Divider()
+
+            compactTruthMetric(
+                icon: "wallet.pass",
+                title: "Budget",
+                value: budgetBadgeValue,
+                detail: budgetBadgeDetail,
+                color: budgetBadgeColor
+            )
+
+            Divider()
+
+            compactTruthMetric(
+                icon: "waveform.path.ecg",
+                title: "Recent",
+                value: recentSummary,
+                detail: recentDetail,
+                color: recentSpend?.isEstimate == true ? Fleet.Color.warning : Fleet.Color.active
+            )
         }
-    }
-
-    private func daemonHistoryCard(status: DaemonStatusResponse) -> some View {
-        let history = status.history
-        let recentActivity = Array(history?.recentActivity.prefix(2) ?? [])
-        let recentSpend = Array(history?.recentSpend.prefix(2) ?? [])
-
-        return daemonCard(title: "Recent") {
-            if recentActivity.isEmpty && recentSpend.isEmpty {
-                Text("No recent daemon activity recorded")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else {
-                VStack(alignment: .leading, spacing: 6) {
-                    ForEach(recentActivity) { entry in
-                        daemonTimelineLine(
-                            summary: entry.summary,
-                            detail: entry.agentId ?? entry.type.lowercased(),
-                            timestampMs: entry.timestamp,
-                            color: Fleet.Color.active
-                        )
-                    }
-
-                    ForEach(recentSpend) { event in
-                        let scope = event.projectName
-                            ?? (event.projectDir.map { URL(fileURLWithPath: $0).lastPathComponent })
-                            ?? "unscoped"
-                        daemonTimelineLine(
-                            summary: String(format: "$%.3f %@", event.costUsd, event.model),
-                            detail: [scope, event.isEstimate ? "estimate" : nil].compactMap { $0 }.joined(separator: " · "),
-                            timestampMs: event.timestamp,
-                            color: event.isEstimate ? Fleet.Color.warning : Fleet.Color.healthy
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    private func daemonCard<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(title.uppercased())
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.secondary)
-            content()
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, Fleet.Space.m)
-        .padding(.vertical, Fleet.Space.s)
+        .padding(.vertical, 8)
         .background(
             Fleet.Chrome.card,
             in: RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous)
         )
     }
 
-    private func daemonMetric(label: String, value: String, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(label.uppercased())
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.secondary)
-            Text(value)
-                .font(.system(.caption, design: .monospaced).weight(.medium))
-                .foregroundStyle(color)
-        }
-    }
-
-    private func daemonTimelineLine(summary: String, detail: String, timestampMs: Double, color: Color) -> some View {
+    private func compactTruthMetric(icon: String, title: String, value: String, detail: String, color: Color) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: Fleet.Space.s) {
-            Circle()
-                .fill(color)
-                .frame(width: 6, height: 6)
+            Image(systemName: icon)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(color)
+                .frame(width: 16)
             VStack(alignment: .leading, spacing: 2) {
-                Text(summary)
-                    .font(.caption)
-                    .foregroundStyle(.primary)
+                Text(title.uppercased())
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Text(value)
+                    .font(.system(.caption, design: .monospaced).weight(.semibold))
+                    .foregroundStyle(color)
                     .lineLimit(1)
-                HStack(spacing: 4) {
-                    if !detail.isEmpty {
-                        Text(detail)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                    Text(Date(timeIntervalSince1970: timestampMs / 1000), style: .relative)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                }
+                Text(detail)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 

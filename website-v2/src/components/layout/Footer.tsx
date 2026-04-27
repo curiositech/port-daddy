@@ -76,6 +76,7 @@ export function Footer() {
                 href="https://github.com/curiositech/port-daddy"
                 target="_blank"
                 rel="noopener noreferrer"
+                aria-label="Open Port Daddy on GitHub"
                 className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-all"
                 style={{ boxShadow: 'var(--shadow-inset)' }}
               >
@@ -85,6 +86,7 @@ export function Footer() {
                 href="https://github.com/curiositech/port-daddy/discussions"
                 target="_blank"
                 rel="noopener noreferrer"
+                aria-label="Open Port Daddy GitHub discussions"
                 className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-all"
                 style={{ boxShadow: 'var(--shadow-inset)' }}
               >

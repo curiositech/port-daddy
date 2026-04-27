@@ -54,3 +54,41 @@ export const Sizes: Story = {
     </div>
   ),
 }
+
+export const StateMatrix: Story = {
+  parameters: {
+    a11y: {
+      test: 'error',
+    },
+  },
+  render: () => (
+    <div className="grid max-w-[54rem] gap-[var(--space-5)] bg-[var(--surface-base)] p-[var(--space-6)] text-[var(--text-primary)]">
+      <div className="grid gap-[var(--space-2)]">
+        <p className="font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)]">
+          Badge state matrix
+        </p>
+        <p className="max-w-[var(--measure-copy)] text-[var(--text-secondary)]">
+          Covers neutral, status, warning/error, outline, icon, dense, and long-label states without introducing page-local color values.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-[var(--space-3)]">
+        <Badge variant="default">Neutral</Badge>
+        <Badge variant="success">Live</Badge>
+        <Badge variant="warning">Stale</Badge>
+        <Badge variant="red">Blocked</Badge>
+        <Badge variant="teal">
+          <Anchor aria-hidden="true" />
+          Ports
+        </Badge>
+        <Badge variant="gold">
+          <Cpu aria-hidden="true" />
+          Agents
+        </Badge>
+        <Badge variant="outline">Compatibility</Badge>
+        <Badge size="sm" variant="success">Dense</Badge>
+        <Badge size="lg" variant="outline">Long audited system status</Badge>
+      </div>
+    </div>
+  ),
+}

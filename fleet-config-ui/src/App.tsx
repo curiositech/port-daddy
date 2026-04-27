@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Wifi, Sun, Moon, Square, Play, RefreshCw, Users } from 'lucide-react';
+import { Activity, CheckCircle2, FileCog, Gauge, ShieldCheck, Sun, Moon, Play, RefreshCw, Square, Users, WalletCards, Wifi } from 'lucide-react';
 import { AllProjectsList } from './components/ProjectPicker';
 import ProjectPicker from './components/ProjectPicker';
 import AgentCard from './components/AgentCard';
 import AgentConfigPanel from './components/AgentConfigPanel';
 import FlowGraph from './components/FlowGraph';
-import ChannelLog from './components/ChannelLog';
+import ChannelLog, { type ChannelEvent } from './components/ChannelLog';
 import DMPanel from './components/DMPanel';
 import SortiePanel from './components/SortiePanel';
 import YAMLEditor from './components/YAMLEditor';
@@ -37,7 +37,7 @@ import {
   getDaemonUrl,
   setDaemonUrl,
 } from './api';
-import type { ActivityEntry, FleetConfig, FleetEvent, ResolvedChannelTarget, StoryNote, TopologyValidation } from './types';
+import type { ActivityEntry, FleetConfig, FleetEvent, FleetLimits, ResolvedChannelTarget, StoryNote, TopologyValidation } from './types';
 
 type MainTab = 'Flow' | 'Agents' | 'Activity' | 'Channels' | 'Inbox' | 'Sorties' | 'Memory' | 'Shipwright' | 'YAML';
 type ControlSurface = 'flow' | 'agents' | 'activity' | 'channels' | 'inbox' | 'sorties' | 'memory' | 'shipwright' | 'yaml';
@@ -283,23 +283,23 @@ function Header({
   }
 
   return (
-    <div className="flex items-center justify-between px-6 py-3 flex-shrink-0"
+    <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 flex-shrink-0"
       style={{ borderBottom: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-bg)' }}>
-      <div className="flex items-center gap-3">
-        <Wifi size={14} color="var(--pd-accent)" />
-        <button onClick={onBack} className="font-bold tracking-wide text-sm hover:opacity-80 font-mono" style={{ color: 'var(--pd-text)' }}>
+      <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+        <Wifi className="shrink-0" size={14} color="var(--pd-accent)" />
+        <button onClick={onBack} className="shrink-0 font-bold tracking-wide text-sm hover:opacity-80 font-mono" style={{ color: 'var(--pd-text)' }}>
           PortDaddy
         </button>
-        <span className="opacity-20" style={{ color: 'var(--pd-text)' }}>:</span>
-        <span className="text-xs tracking-widest" style={{ color: 'var(--pd-muted)' }}>AGENTIC CONTROL PLANE</span>
+        <span className="hidden opacity-20 sm:inline" style={{ color: 'var(--pd-text)' }}>:</span>
+        <span className="hidden text-xs tracking-widest sm:inline" style={{ color: 'var(--pd-muted)' }}>AGENTIC CONTROL PLANE</span>
         {project && <>
-          <span className="opacity-20" style={{ color: 'var(--pd-text)' }}>·</span>
-          <span className="text-sm font-mono" style={{ color: 'var(--pd-accent)' }}>{project}</span>
+          <span className="hidden opacity-20 sm:inline" style={{ color: 'var(--pd-text)' }}>·</span>
+          <span className="min-w-0 truncate text-sm font-mono" style={{ color: 'var(--pd-accent)' }}>{project}</span>
         </>}
       </div>
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2 rounded-md px-2 py-1" style={{ border: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-surface)' }}>
-          <span className="text-[10px] font-semibold tracking-wider opacity-35" style={{ color: 'var(--pd-text)' }}>
+      <div className="flex min-w-0 flex-1 flex-wrap items-center justify-start gap-2 sm:justify-end">
+        <div className="flex min-w-0 max-w-full items-center gap-2 rounded-md px-2 py-1" style={{ border: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-surface)' }}>
+          <span className="hidden text-[10px] font-semibold tracking-wider opacity-35 sm:inline" style={{ color: 'var(--pd-text)' }}>
             DAEMON
           </span>
           <select
@@ -322,9 +322,9 @@ function Header({
           style={{ color: 'var(--pd-text)', border: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-surface)' }}
         >
           {theme === 'dark' ? <Sun size={13} /> : <Moon size={13} />}
-          <span>{theme === 'dark' ? 'Light' : 'Dark'}</span>
+          <span className="hidden sm:inline">{theme === 'dark' ? 'Light' : 'Dark'}</span>
         </button>
-        <div className="flex items-center gap-1.5">
+        <div className="hidden items-center gap-1.5 lg:flex">
           <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: daemonRunning ? 'var(--pd-success)' : 'var(--pd-accent)' }} />
           <span className="text-xs font-mono" style={{ color: 'var(--pd-muted)' }}>
             {formatDaemonLabel(daemonUrl)} {daemonRunning ? 'online' : 'offline'}
@@ -439,6 +439,233 @@ function ProjectControlStrip({
   );
 }
 
+function formatUsd(value: number | null | undefined): string {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 'n/a';
+  return `$${value.toFixed(2)}`;
+}
+
+function OperatorCockpitDeck({
+  running,
+  configuredAgents,
+  runtimeAgents,
+  activeRuntimeAgents,
+  limits,
+  noteCount,
+  mutationFileCount,
+  eventCount,
+  selectedAgent,
+  selectedChannel,
+  onClearFocus,
+  onToggleFleet,
+  onRefresh,
+  onShowAgents,
+  onEditYaml,
+}: {
+  running: boolean;
+  configuredAgents: number;
+  runtimeAgents: number;
+  activeRuntimeAgents: number;
+  limits?: FleetLimits;
+  noteCount: number;
+  mutationFileCount: number;
+  eventCount: number;
+  selectedAgent: string | null;
+  selectedChannel: string | null;
+  onClearFocus: () => void;
+  onToggleFleet: () => void;
+  onRefresh: () => void;
+  onShowAgents: () => void;
+  onEditYaml: () => void;
+}) {
+  const budget = limits?.budgetUsdPerDay;
+  const hasBudget = typeof budget === 'number' && Number.isFinite(budget) && budget > 0;
+  const focusLabel = selectedAgent ? `agent:${selectedAgent}` : selectedChannel ? `channel:${selectedChannel}` : 'whole fleet';
+
+  return (
+    <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-surface)' }}>
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-[10px] font-semibold tracking-wider" style={{ color: 'var(--pd-dim)' }}>OPERATOR COCKPIT</div>
+          <div className="mt-1 text-sm font-semibold truncate" style={{ color: 'var(--pd-text)' }}>
+            Actions, budget, and signal priority
+          </div>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          <span
+            className="rounded-full px-2 py-1 text-[10px] font-semibold"
+            style={{
+              backgroundColor: running ? 'var(--pd-success-surface)' : 'var(--pd-warning-surface)',
+              color: running ? 'var(--pd-success)' : 'var(--pd-warning)',
+              border: `1px solid ${running ? 'var(--pd-success-border)' : 'var(--pd-warning-border)'}`,
+            }}
+          >
+            {running ? 'run controls active' : 'start fleet to run agents'}
+          </span>
+          <span className="rounded-full px-2 py-1 text-[10px] font-semibold" style={{ backgroundColor: 'var(--pd-bg)', color: 'var(--pd-muted)', border: '1px solid var(--pd-border)' }}>
+            focus: {focusLabel}
+          </span>
+          {(selectedAgent || selectedChannel) && (
+            <button
+              onClick={onClearFocus}
+              className="text-[10px] px-2 py-1 rounded"
+              style={{ backgroundColor: 'var(--pd-bg)', color: 'var(--pd-muted)', border: '1px solid var(--pd-border)' }}
+            >
+              Clear focus
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-3 grid gap-3 2xl:grid-cols-[minmax(260px,0.9fr)_minmax(260px,0.85fr)_minmax(300px,1fr)]">
+        <div className="rounded-lg border px-3 py-3" style={{ backgroundColor: 'var(--pd-bg)', borderColor: 'var(--pd-border)' }}>
+          <div className="flex items-center gap-2 text-[10px] font-semibold tracking-wider" style={{ color: 'var(--pd-dim)' }}>
+            <Gauge size={12} />
+            <span>ACTIONS</span>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <button
+              onClick={onToggleFleet}
+              className="inline-flex items-center justify-center gap-1.5 rounded-md px-2.5 py-2 text-[11px] font-semibold"
+              style={{
+                backgroundColor: running ? 'var(--pd-accent-surface)' : 'var(--pd-success-surface)',
+                color: running ? 'var(--pd-accent)' : 'var(--pd-success)',
+                border: `1px solid ${running ? 'var(--pd-accent-border)' : 'var(--pd-success-border)'}`,
+              }}
+            >
+              {running ? <Square size={13} /> : <Play size={13} />}
+              <span>{running ? 'Stop fleet' : 'Start fleet'}</span>
+            </button>
+            <button
+              onClick={onRefresh}
+              className="inline-flex items-center justify-center gap-1.5 rounded-md px-2.5 py-2 text-[11px] font-semibold"
+              style={{ color: 'var(--pd-text)', border: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-surface)' }}
+            >
+              <RefreshCw size={13} />
+              <span>Refresh</span>
+            </button>
+            <button
+              onClick={onShowAgents}
+              className="inline-flex items-center justify-center gap-1.5 rounded-md px-2.5 py-2 text-[11px] font-semibold"
+              style={{ color: 'var(--pd-text)', border: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-surface)' }}
+            >
+              <Users size={13} />
+              <span>Agents</span>
+            </button>
+            <button
+              onClick={onEditYaml}
+              className="inline-flex items-center justify-center gap-1.5 rounded-md px-2.5 py-2 text-[11px] font-semibold"
+              style={{ color: 'var(--pd-text)', border: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-surface)' }}
+            >
+              <FileCog size={13} />
+              <span>YAML</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="rounded-lg border px-3 py-3" style={{ backgroundColor: 'var(--pd-bg)', borderColor: hasBudget ? 'var(--pd-success-border)' : 'var(--pd-warning-border)' }}>
+          <div className="flex items-center gap-2 text-[10px] font-semibold tracking-wider" style={{ color: 'var(--pd-dim)' }}>
+            <WalletCards size={12} />
+            <span>BUDGET</span>
+          </div>
+          <div className="mt-2 flex items-end justify-between gap-3">
+            <div>
+              <div className="text-lg font-mono font-semibold" style={{ color: hasBudget ? 'var(--pd-success)' : 'var(--pd-warning)' }}>
+                {hasBudget ? `${formatUsd(budget)}/day` : 'no cap'}
+              </div>
+              <div className="mt-0.5 text-[10px] font-semibold" style={{ color: 'var(--pd-muted)' }}>
+                {hasBudget ? 'configured daily ceiling' : 'launches will fail closed'}
+              </div>
+            </div>
+            <span className="rounded-full px-2 py-1 text-[10px] font-semibold" style={{ backgroundColor: hasBudget ? 'var(--pd-success-surface)' : 'var(--pd-warning-surface)', color: hasBudget ? 'var(--pd-success)' : 'var(--pd-warning)' }}>
+              {hasBudget ? 'non-zero' : 'missing'}
+            </span>
+          </div>
+        </div>
+
+        <div className="rounded-lg border px-3 py-3" style={{ backgroundColor: 'var(--pd-bg)', borderColor: 'var(--pd-border)' }}>
+          <div className="flex items-center gap-2 text-[10px] font-semibold tracking-wider" style={{ color: 'var(--pd-dim)' }}>
+            <ShieldCheck size={12} />
+            <span>SIGNAL VALUE</span>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-2 text-[10px]">
+            <span className="rounded-md px-2 py-1.5 font-semibold" style={{ backgroundColor: 'var(--pd-success-surface)', color: 'var(--pd-success)' }}>
+              {activeRuntimeAgents}/{runtimeAgents} live
+            </span>
+            <span className="rounded-md px-2 py-1.5 font-semibold" style={{ backgroundColor: 'var(--pd-surface)', color: 'var(--pd-text)', border: '1px solid var(--pd-border)' }}>
+              {configuredAgents} configured
+            </span>
+            <span className="rounded-md px-2 py-1.5 font-semibold" style={{ backgroundColor: 'var(--pd-surface)', color: 'var(--pd-text)', border: '1px solid var(--pd-border)' }}>
+              {noteCount} notes
+            </span>
+            <span className="rounded-md px-2 py-1.5 font-semibold" style={{ backgroundColor: 'var(--pd-surface)', color: 'var(--pd-text)', border: '1px solid var(--pd-border)' }}>
+              {mutationFileCount} files
+            </span>
+          </div>
+          <div className="mt-2 flex items-center gap-1.5 text-[10px]" style={{ color: 'var(--pd-muted)' }}>
+            <CheckCircle2 size={11} />
+            <span>{eventCount} meaningful live signals after filtering</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CoordinationCallouts({
+  events,
+  onOpenChannel,
+}: {
+  events: ChannelEvent[];
+  onOpenChannel: (channel: string) => void;
+}) {
+  if (events.length === 0) return null;
+
+  const latest = events.slice(0, 3);
+
+  return (
+    <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-accent-surface)' }}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-[10px] font-semibold tracking-wider" style={{ color: 'var(--pd-accent)' }}>COORDINATION INCONSISTENCY</div>
+          <div className="mt-1 text-sm font-semibold" style={{ color: 'var(--pd-text)' }}>
+            {events.length} operator-worthy cross-agent signal{events.length === 1 ? '' : 's'} need review.
+          </div>
+          <div className="mt-1 text-xs" style={{ color: 'var(--pd-muted)' }}>
+            These are not routine status updates. They indicate overlapping claims, planning/UX drift, trust-boundary/API-shape drift, stale active/dead signals, or budget activation risks.
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => onOpenChannel('coordination:inconsistency')}
+          className="rounded-md px-2.5 py-1.5 text-[11px] font-semibold"
+          style={{ color: 'var(--pd-accent)', border: '1px solid var(--pd-accent-border)', backgroundColor: 'var(--pd-bg)' }}
+        >
+          Open channel
+        </button>
+      </div>
+      <div className="mt-3 grid gap-2 md:grid-cols-3">
+        {latest.map((event) => (
+          <button
+            key={event.id}
+            type="button"
+            onClick={() => onOpenChannel(event.channel)}
+            className="rounded-lg border px-3 py-2 text-left"
+            style={{ borderColor: 'var(--pd-accent-border)', backgroundColor: 'var(--pd-bg)' }}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-mono text-[10px]" style={{ color: 'var(--pd-dim)' }}>{event.ts}</span>
+              <span className="rounded-full px-1.5 py-0.5 text-[9px] font-bold" style={{ color: 'var(--pd-accent)', backgroundColor: 'var(--pd-accent-surface)' }}>
+                REVIEW
+              </span>
+            </div>
+            <div className="mt-1 line-clamp-2 text-xs" style={{ color: 'var(--pd-text)' }}>{event.message}</div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function matchesProject(fields: unknown[], project: string | null, agentNames: string[]): boolean {
   if (!project) return true;
   const haystack = fields.map(stringifySearchField).join(' ').toLowerCase();
@@ -482,6 +709,10 @@ function isLowSignalChannelMessage(summary: string, publisher: string | null): b
   return false;
 }
 
+function isCoordinationInconsistencyChannel(channel: string): boolean {
+  return channel === 'coordination:inconsistency' || channel.endsWith(':coordination:inconsistency');
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -497,7 +728,6 @@ export default function App() {
   const [configAgent, setConfigAgent] = useState<string | null>(initialRoute.agent);
   const [inspectorTab, setInspectorTab] = useState<'details' | 'settings'>('details');
   const [activeTab, setActiveTab] = useState<MainTab>(surfaceToMainTab(initialRoute.surface));
-  const [flowGraphHeight, setFlowGraphHeight] = useState(336);
   const [browserResolvedChannels, setBrowserResolvedChannels] = useState<Record<string, string>>({});
 
   const projects = useMemo(() => {
@@ -758,7 +988,7 @@ export default function App() {
           ts: new Date(message.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
           channel: message.channel,
           publisher: message.sender ?? 'system',
-          outcome: ((message.channel.includes('findings') || message.channel.includes('alert') || summary.toLowerCase().includes('error'))
+          outcome: ((message.channel.includes('findings') || message.channel.includes('alert') || isCoordinationInconsistencyChannel(message.channel) || summary.toLowerCase().includes('error'))
             ? 'findings'
             : 'clean') as 'clean' | 'findings',
           message: summary,
@@ -769,6 +999,11 @@ export default function App() {
 
     return realMessages;
   }, [channelLog.messages, fleetConfig]);
+
+  const coordinationCallouts = useMemo(
+    () => channelLogEvents.filter((event) => isCoordinationInconsistencyChannel(event.channel)),
+    [channelLogEvents],
+  );
 
   const resetSelection = (projectId: string | null = null) => {
     setSelectedProjectId(projectId);
@@ -831,24 +1066,6 @@ export default function App() {
     setSelectedChannel(channelName);
     if (channelName) setSelectedAgent(null);
   }, []);
-
-  const startFlowResize = useCallback((startY: number) => {
-    if (!canUseWindow()) return;
-    const initialHeight = flowGraphHeight;
-
-    const handleMove = (event: MouseEvent) => {
-      const delta = event.clientY - startY;
-      setFlowGraphHeight(Math.max(240, Math.min(520, initialHeight + delta)));
-    };
-
-    const handleUp = () => {
-      window.removeEventListener('mousemove', handleMove);
-      window.removeEventListener('mouseup', handleUp);
-    };
-
-    window.addEventListener('mousemove', handleMove);
-    window.addEventListener('mouseup', handleUp);
-  }, [flowGraphHeight]);
 
   const handleFleetToggle = useCallback(async () => {
     if (!selectedProject) return;
@@ -946,6 +1163,16 @@ export default function App() {
         />
       )}
 
+      {selectedProject && !embedded && (
+        <CoordinationCallouts
+          events={coordinationCallouts}
+          onOpenChannel={(channelName) => {
+            setActiveTab('Channels');
+            focusChannel(channelName);
+          }}
+        />
+      )}
+
       <AnimatePresence mode="wait">
         {!selectedProjectId ? (
           <motion.div key="all" className="flex-1 overflow-y-auto" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -20 }}>
@@ -969,76 +1196,81 @@ export default function App() {
               {showProjectSidebar ? <div>{projectSidebar}</div> : null}
               <div className="overflow-hidden flex flex-col">
                 {activeTab === 'Flow' ? (
-                  <div className="flex-1 overflow-hidden grid" style={{ gridTemplateRows: `${flowGraphHeight}px 14px minmax(0, 1fr)` }}>
-                    <div className="overflow-hidden" style={{ borderBottom: '1px solid var(--pd-border)' }}>
-                      {fleetConfig ? (
-                        <FlowGraph
-                          config={fleetConfig}
-                          topology={topology}
-                          theme={theme}
-                          selectedAgent={selectedAgent}
-                          selectedChannel={selectedChannel}
-                          onAgentSelect={focusAgent}
-                          onChannelSelect={focusChannel}
-                        />
-                      ) : (
-                        <div className="flex items-center justify-center h-full opacity-20" style={{ color: 'var(--pd-text)' }}>Loading config...</div>
-                      )}
-                    </div>
-
-                    <button
-                      type="button"
-                      aria-label="Resize flow panels"
-                      onMouseDown={(event) => startFlowResize(event.clientY)}
-                      className="cursor-row-resize"
-                      style={{ backgroundColor: 'var(--pd-surface-3)', borderBottom: '1px solid var(--pd-border)', borderTop: '1px solid var(--pd-border)' }}
-                    >
-                      <div className="mx-auto h-full flex items-center justify-center">
-                        <div className="h-1 w-16 rounded-full" style={{ backgroundColor: 'var(--pd-border)' }} />
-                      </div>
-                    </button>
-
-                    <div className="overflow-hidden flex flex-col">
-                      <div className="px-4 py-3 flex items-center justify-between gap-3" style={{ borderBottom: '1px solid var(--pd-border)' }}>
+                  <div className="flex-1 min-h-0 overflow-hidden grid xl:grid-cols-[minmax(430px,0.9fr)_minmax(540px,1.1fr)]">
+                    <div className="min-h-0 overflow-hidden flex flex-col" style={{ borderRight: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-bg)' }}>
+                      <div className="px-4 py-3 flex items-center justify-between gap-3" style={{ borderBottom: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-surface)' }}>
                         <div className="min-w-0">
-                          <div className="text-[10px] font-semibold tracking-wider opacity-30" style={{ color: 'var(--pd-text)' }}>OPERATOR COCKPIT</div>
-                          <div className="mt-1 text-sm font-semibold" style={{ color: 'var(--pd-text)' }}>
-                            Backend roster, recent work, sessions, notes, and mutation evidence
+                          <div className="flex items-center gap-2 text-[10px] font-semibold tracking-wider" style={{ color: 'var(--pd-dim)' }}>
+                            <Activity size={12} />
+                            <span>FLOW MAP</span>
+                          </div>
+                          <div className="mt-1 text-sm font-semibold truncate" style={{ color: 'var(--pd-text)' }}>
+                            Triggers, publishes, and agent relationships
                           </div>
                         </div>
                         <div className="flex items-center gap-2 flex-wrap justify-end">
-                          {(selectedAgent || selectedChannel) && (
-                            <button
-                              onClick={() => {
-                                setSelectedAgent(null);
-                                setSelectedChannel(null);
-                              }}
-                              className="text-[10px] px-2 py-1 rounded"
-                              style={{ backgroundColor: 'var(--pd-bg)', color: 'var(--pd-muted)', border: '1px solid var(--pd-border)' }}
-                            >
-                              Clear focus
-                            </button>
+                          <span className="rounded-full px-2 py-1 text-[10px] font-semibold" style={{ backgroundColor: 'var(--pd-bg)', color: 'var(--pd-muted)', border: '1px solid var(--pd-border)' }}>
+                            {channelTargets.length} channels
+                          </span>
+                          {topology?.valid === false ? (
+                            <span className="rounded-full px-2 py-1 text-[10px] font-semibold" style={{ backgroundColor: 'var(--pd-warning-surface)', color: 'var(--pd-warning)', border: '1px solid var(--pd-warning-border)' }}>
+                              topology warnings
+                            </span>
+                          ) : (
+                            <span className="rounded-full px-2 py-1 text-[10px] font-semibold" style={{ backgroundColor: 'var(--pd-success-surface)', color: 'var(--pd-success)', border: '1px solid var(--pd-success-border)' }}>
+                              topology clean
+                            </span>
                           )}
-                          <span className="rounded-full px-2 py-1 text-[10px] font-semibold" style={{ backgroundColor: 'var(--pd-bg)', color: 'var(--pd-muted)', border: '1px solid var(--pd-border)' }}>
-                            {flowNoteCount} notes
-                          </span>
-                          <span className="rounded-full px-2 py-1 text-[10px] font-semibold" style={{ backgroundColor: 'var(--pd-bg)', color: 'var(--pd-muted)', border: '1px solid var(--pd-border)' }}>
-                            {flowMutationFileCount} files touched
-                          </span>
-                          <div className="text-[10px] font-mono" style={{ color: 'var(--pd-dim)' }}>
-                            {selectedProject?.agents.filter(a => a.status !== 'paused').length ?? 0} deployed · {fleetConfig?.agents.length ?? 0} agents · {flowEventCount} live signals
-                          </div>
                         </div>
                       </div>
-                      <div className="flex-1 overflow-hidden grid gap-4 p-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.8fr)]">
-                        <div className="min-h-0 overflow-y-auto">
+                      <div className="flex-1 min-h-0 overflow-hidden">
+                        {fleetConfig ? (
+                          <FlowGraph
+                            config={fleetConfig}
+                            topology={topology}
+                            theme={theme}
+                            selectedAgent={selectedAgent}
+                            selectedChannel={selectedChannel}
+                            onAgentSelect={focusAgent}
+                            onChannelSelect={focusChannel}
+                          />
+                        ) : (
+                          <div className="flex items-center justify-center h-full opacity-20" style={{ color: 'var(--pd-text)' }}>Loading config...</div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="min-h-0 overflow-hidden flex flex-col">
+                      <OperatorCockpitDeck
+                        running={selectedProject?.running ?? false}
+                        configuredAgents={fleetConfig?.agents.length ?? 0}
+                        runtimeAgents={selectedProject?.agents.length ?? 0}
+                        activeRuntimeAgents={selectedProject?.agents.filter((agent) => agent.status !== 'paused').length ?? 0}
+                        limits={fleetConfig?.limits}
+                        noteCount={flowNoteCount}
+                        mutationFileCount={flowMutationFileCount}
+                        eventCount={flowEventCount}
+                        selectedAgent={selectedAgent}
+                        selectedChannel={selectedChannel}
+                        onClearFocus={() => {
+                          setSelectedAgent(null);
+                          setSelectedChannel(null);
+                        }}
+                        onToggleFleet={() => void handleFleetToggle()}
+                        onRefresh={handleProjectRefresh}
+                        onShowAgents={() => setActiveTab('Agents')}
+                        onEditYaml={() => setActiveTab('YAML')}
+                      />
+
+                      <div className="flex-1 min-h-0 overflow-hidden grid gap-4 p-4 2xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.85fr)]">
+                        <div className="min-h-0 overflow-y-auto pr-1">
                           {flowBackendRoster.length > 0 ? (
-                            <div className="mb-4 rounded-xl border px-3 py-3" style={{ backgroundColor: 'var(--pd-surface-3)', borderColor: 'var(--pd-border)' }}>
+                            <div className="mb-4 rounded-lg border px-3 py-3" style={{ backgroundColor: 'var(--pd-surface-3)', borderColor: 'var(--pd-border)' }}>
                               <div className="flex items-center justify-between gap-3">
                                 <div>
-                                  <div className="text-[10px] font-semibold tracking-wider" style={{ color: 'var(--pd-dim)' }}>RUNTIME ROSTER</div>
+                                  <div className="text-[10px] font-semibold tracking-wider" style={{ color: 'var(--pd-dim)' }}>BACKENDS</div>
                                   <div className="mt-1 text-sm font-semibold" style={{ color: 'var(--pd-text)' }}>
-                                    Codex, Claude, Gemini, Ollama, and custom workers at a glance
+                                    Launch roster
                                   </div>
                                 </div>
                                 <div className="flex flex-wrap justify-end gap-1.5">

@@ -208,3 +208,84 @@ export const LandingSystemPanels: Story = {
     </div>
   ),
 }
+
+export const StateMatrix: Story = {
+  parameters: {
+    a11y: {
+      test: 'error',
+    },
+  },
+  render: () => (
+    <PageContainer width="wide" className="bg-[var(--surface-base)] py-[var(--section-space-y)]">
+      <SwissGrid>
+        <SwissGridItem span="rail">
+          <SectionIntro
+            eyebrow="Primitive matrix"
+            title="Shared primitives carry states before routes do."
+            description="This matrix keeps layout, panel tone, code, links, and dense editorial states visible in Storybook before they spread through page code."
+            titleClassName="max-w-[14ch]"
+          />
+        </SwissGridItem>
+
+        <SwissGridItem span="body" className="grid gap-[var(--space-4)]">
+          <div className="grid gap-[var(--space-4)] lg:grid-cols-3">
+            <SurfacePanel tone="paper" className="space-y-[var(--space-3)]">
+              <PanelEyebrow>Default</PanelEyebrow>
+              <PanelTitle as="h3" size="nav">Paper panel</PanelTitle>
+              <PanelBody size="compact" className="max-w-none">
+                Neutral content, long copy, and normal text contrast.
+              </PanelBody>
+            </SurfacePanel>
+            <SurfacePanel tone="blue" className="space-y-[var(--space-3)]">
+              <PanelEyebrow tone="primary">Selected</PanelEyebrow>
+              <PanelTitle as="h3" size="nav" tone="primary">Primary panel</PanelTitle>
+              <PanelBody size="compact" tone="primary" className="max-w-none">
+                Selected or high-emphasis state with foreground tokens.
+              </PanelBody>
+            </SurfacePanel>
+            <SurfacePanel tone="lime" className="space-y-[var(--space-3)]">
+              <PanelEyebrow tone="accent">Accent</PanelEyebrow>
+              <PanelTitle as="h3" size="nav" tone="accent">Accent panel</PanelTitle>
+              <PanelBody size="compact" tone="accent" className="max-w-none">
+                Positive state without local literal color decisions.
+              </PanelBody>
+            </SurfacePanel>
+          </div>
+
+          <SurfacePanel className="space-y-[var(--space-4)]">
+            <PanelEyebrow>Interactive states</PanelEyebrow>
+            <div className="flex flex-wrap gap-[var(--space-3)]">
+              <BracketAnchor href="#default" tone="blue" active>
+                Active anchor
+              </BracketAnchor>
+              <BracketAnchor href="#secondary" tone="lime">
+                Secondary anchor
+              </BracketAnchor>
+              <BracketAnchor href="#quiet" side="left">
+                Quiet anchor
+              </BracketAnchor>
+            </div>
+            <DocsCodeBlock
+              code={'pd status\npd briefing\npd note "storybook matrix checked"'}
+              language="cli"
+              label="Operator evidence"
+            />
+          </SurfacePanel>
+
+          <div className="grid gap-[var(--space-4)] md:grid-cols-2">
+            <DocsNoteCard label="Empty state" title="No signals yet" tone="paper">
+              <PanelBody size="compact" className="max-w-none">
+                Empty content states still use a concrete title, explanation, and recoverable next action.
+              </PanelBody>
+            </DocsNoteCard>
+            <DocsNoteCard label="Error state" title="Evidence missing" tone="paper">
+              <PanelBody size="compact" className="max-w-none">
+                Error states state what failed and which gate must be rerun.
+              </PanelBody>
+            </DocsNoteCard>
+          </div>
+        </SwissGridItem>
+      </SwissGrid>
+    </PageContainer>
+  ),
+}
