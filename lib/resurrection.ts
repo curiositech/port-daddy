@@ -222,6 +222,11 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
     }
   }
 
+  function applyLimit<T>(rows: T[], limit?: number): T[] {
+    if (!Number.isFinite(limit) || !limit || limit <= 0) return rows;
+    return rows.slice(0, Math.floor(limit));
+  }
+
   function formatQueueEntry(row: ResurrectionQueueRow): StaleAgent {
     const metadata = parseMetadata(row.metadata);
     return {
@@ -318,7 +323,7 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
      * Get pending resurrections
      * Filters by identity prefix if provided (project or project:stack)
      */
-    pending(options: { project?: string; stack?: string } = {}) {
+    pending(options: { project?: string; stack?: string; limit?: number } = {}) {
       let rows: ResurrectionQueueRow[];
 
       if (options.project?.includes('*') || options.stack?.includes('*')) {
@@ -332,11 +337,12 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
       } else {
         rows = stmts.listPending.all() as ResurrectionQueueRow[];
       }
+      const limitedRows = applyLimit(rows, options.limit);
 
       return {
         success: true,
-        agents: rows.map(formatQueueEntry),
-        count: rows.length,
+        agents: limitedRows.map(formatQueueEntry),
+        count: limitedRows.length,
         filtered: !!options.project,
       };
     },

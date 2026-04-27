@@ -277,6 +277,16 @@ describe('Resurrection Module', () => {
       const result = resurrection.pending();
       expect(result.count).toBe(0);
     });
+
+    it('should respect limit parameter', () => {
+      for (let i = 0; i < 10; i++) {
+        queueDeadAgent(`agent-${i}`);
+      }
+
+      const result = resurrection.pending({ limit: 3 });
+      expect(result.count).toBe(3);
+      expect(result.agents).toHaveLength(3);
+    });
   });
 
   // ======================================================================

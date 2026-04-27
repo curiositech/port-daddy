@@ -32,7 +32,7 @@ interface ResurrectionRouteDeps {
   };
   metrics: { errors: number };
   resurrection: {
-    pending(options?: { project?: string; stack?: string }): { success: boolean; agents: StaleAgent[]; count: number; filtered?: boolean };
+    pending(options?: { project?: string; stack?: string; limit?: number }): { success: boolean; agents: StaleAgent[]; count: number; filtered?: boolean };
     list(options?: { limit?: number; project?: string; stack?: string }): { success: boolean; agents: StaleAgent[]; count: number; filtered?: boolean };
     claim(agentId: string): { success: boolean; agent?: StaleAgent; context?: Record<string, unknown>; error?: string };
     complete(oldAgentId: string, newAgentId: string): { success: boolean };
@@ -61,10 +61,17 @@ export const resurrectionPlugin: FastifyPluginAsync<{ deps: ResurrectionRouteDep
 
   // Shared handler implementations as async functions
 
+  function parseLimit(value: unknown): number | undefined {
+    if (value === undefined || value === null || value === '') return undefined;
+    const parsed = Number.parseInt(String(value), 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+  }
+
   async function fHandlePending(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const { project, stack } = request.query as any;
+      const { limit, project, stack } = request.query as any;
       return resurrection.pending({
+        limit: parseLimit(limit),
         project: project as string | undefined,
         stack: stack as string | undefined
       });
@@ -80,7 +87,7 @@ export const resurrectionPlugin: FastifyPluginAsync<{ deps: ResurrectionRouteDep
     try {
       const { limit, project, stack } = request.query as any;
       return resurrection.list({
-        limit: limit ? parseInt(limit as string, 10) : undefined,
+        limit: parseLimit(limit),
         project: project as string | undefined,
         stack: stack as string | undefined
       });

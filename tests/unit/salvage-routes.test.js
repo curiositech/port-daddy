@@ -7,7 +7,7 @@
  * Uses Fastify inject() — no real HTTP server needed.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import Fastify from 'fastify';
 import { resurrectionPlugin } from '../../routes/resurrection.js';
 
@@ -20,18 +20,18 @@ function createMockDeps() {
     },
     metrics: { errors: 0 },
     resurrection: {
-      pending: (opts = {}) => ({
+      pending: jest.fn((opts = {}) => ({
         success: true,
         agents: [],
         count: 0,
         filtered: !!opts.project,
-      }),
-      list: (opts = {}) => ({
+      })),
+      list: jest.fn((opts = {}) => ({
         success: true,
         agents: [],
         count: 0,
         filtered: !!opts.project,
-      }),
+      })),
       claim: (agentId) => ({
         success: true,
         agent: { id: agentId, name: agentId, status: 'dead' },
@@ -80,6 +80,19 @@ describe('Salvage Route Aliasing', () => {
       expect(res.statusCode).toBe(200);
       const body = res.json();
       expect(body.success).toBe(true);
+    });
+
+    it('GET /salvage/pending should pass limit and filters to the pending queue', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/salvage/pending?limit=2&project=port-daddy&stack=runtime',
+      });
+      expect(res.statusCode).toBe(200);
+      expect(deps.resurrection.pending).toHaveBeenCalledWith({
+        limit: 2,
+        project: 'port-daddy',
+        stack: 'runtime',
+      });
     });
 
     it('POST /salvage/claim/:agentId should claim an agent', async () => {
