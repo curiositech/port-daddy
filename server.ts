@@ -7,6 +7,15 @@
  * Unix domain socket primary, TCP secondary for dashboard access.
  */
 
+// Load .env files BEFORE the snapshot, otherwise keys that live in
+// project-local .env / .env.local never make it into the secret cache.
+// (Snapshot runs once, deletes from process.env; subsequent fleet-level
+// env loading would be invisible to getSecret().) See lib/secret-env.ts.
+import { loadEnvFiles } from './lib/env-loader.js';
+import { fileURLToPath as _fileURLToPath } from 'url';
+import { dirname as _dirname } from 'path';
+loadEnvFiles(_dirname(_fileURLToPath(import.meta.url)));
+
 // Snapshot sensitive env BEFORE any other module loads — many libraries
 // read process.env at module-init time, so this has to run first so
 // dependencies (Fastify plugins, winston, Anthropic SDK, etc.) cannot

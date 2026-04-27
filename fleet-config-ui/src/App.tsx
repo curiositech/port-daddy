@@ -494,6 +494,7 @@ function OperatorCockpitDeck({
   onRefresh,
   onShowAgents,
   onEditYaml,
+  onSetBudget,
   onCoordinationGuardAction,
 }: {
   running: boolean;
@@ -515,10 +516,14 @@ function OperatorCockpitDeck({
   onRefresh: () => void;
   onShowAgents: () => void;
   onEditYaml: () => void;
+  onSetBudget: (usdPerDay: number) => Promise<void>;
   onCoordinationGuardAction: (action: CoordinationGuardAction) => void;
 }) {
   const budget = limits?.budgetUsdPerDay;
   const hasBudget = typeof budget === 'number' && Number.isFinite(budget) && budget > 0;
+  const [budgetDraft, setBudgetDraft] = useState(hasBudget ? budget.toFixed(2) : '5.00');
+  const [budgetBusy, setBudgetBusy] = useState(false);
+  const [budgetError, setBudgetError] = useState<string | null>(null);
   const focusLabel = selectedAgent ? `agent:${selectedAgent}` : selectedChannel ? `channel:${selectedChannel}` : 'whole fleet';
   const guardMode = guardModeCopy(coordinationGuard);
   const guardActive = guardMode === 'enforce';
@@ -526,6 +531,35 @@ function OperatorCockpitDeck({
   const guardStatusText = coordinationGuardError
     ? coordinationGuardError
     : guardCheck ?? (guardActive ? 'enforce mode: session + file claims required' : 'install enforce mode for this project');
+  const parsedBudgetDraft = Number(budgetDraft);
+  const budgetDraftValid = Number.isFinite(parsedBudgetDraft) && parsedBudgetDraft > 0;
+  const budgetChanged = !hasBudget || Math.abs(parsedBudgetDraft - budget) > 0.0001;
+
+  useEffect(() => {
+    if (hasBudget) {
+      setBudgetDraft(budget.toFixed(2));
+    } else {
+      setBudgetDraft('5.00');
+    }
+    setBudgetError(null);
+  }, [budget, hasBudget]);
+
+  const applyBudget = async (usdPerDay: number) => {
+    if (!Number.isFinite(usdPerDay) || usdPerDay <= 0) {
+      setBudgetError('Enter a positive daily cap.');
+      return;
+    }
+    setBudgetBusy(true);
+    setBudgetError(null);
+    try {
+      await onSetBudget(usdPerDay);
+      setBudgetDraft(usdPerDay.toFixed(2));
+    } catch (err) {
+      setBudgetError((err as Error).message);
+    } finally {
+      setBudgetBusy(false);
+    }
+  };
 
   return (
     <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-surface)' }}>
@@ -664,6 +698,72 @@ function OperatorCockpitDeck({
               {hasBudget ? 'non-zero' : 'missing'}
             </span>
           </div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+            <label className="min-w-0">
+              <span className="block text-[10px] font-semibold tracking-wider" style={{ color: 'var(--pd-dim)' }}>DAILY CAP USD</span>
+              <input
+                type="number"
+                min="0.01"
+                step="0.25"
+                inputMode="decimal"
+                value={budgetDraft}
+                onChange={(event) => {
+                  setBudgetDraft(event.target.value);
+                  if (budgetError) setBudgetError(null);
+                }}
+                className="mt-1 w-full rounded-md px-2 py-2 text-sm font-mono"
+                style={{
+                  backgroundColor: 'var(--pd-surface)',
+                  color: 'var(--pd-text)',
+                  border: `1px solid ${budgetDraftValid ? 'var(--pd-border)' : 'var(--pd-warning-border)'}`,
+                }}
+                aria-label="Daily budget cap in USD"
+              />
+            </label>
+            <div className="flex items-end gap-2">
+              {!hasBudget && (
+                <button
+                  type="button"
+                  disabled={budgetBusy}
+                  onClick={() => void applyBudget(5)}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-md px-2.5 py-2 text-[11px] font-semibold disabled:cursor-not-allowed"
+                  style={{
+                    backgroundColor: 'var(--pd-success-surface)',
+                    color: 'var(--pd-success)',
+                    border: '1px solid var(--pd-success-border)',
+                    opacity: budgetBusy ? 0.6 : 1,
+                  }}
+                >
+                  <WalletCards size={13} />
+                  <span>Set $5/day</span>
+                </button>
+              )}
+              <button
+                type="button"
+                disabled={budgetBusy || !budgetDraftValid || !budgetChanged}
+                onClick={() => void applyBudget(parsedBudgetDraft)}
+                className="inline-flex items-center justify-center gap-1.5 rounded-md px-2.5 py-2 text-[11px] font-semibold disabled:cursor-not-allowed"
+                style={{
+                  backgroundColor: budgetChanged ? 'var(--pd-success-surface)' : 'var(--pd-surface)',
+                  color: budgetChanged ? 'var(--pd-success)' : 'var(--pd-muted)',
+                  border: `1px solid ${budgetChanged ? 'var(--pd-success-border)' : 'var(--pd-border)'}`,
+                  opacity: budgetBusy || !budgetDraftValid || !budgetChanged ? 0.65 : 1,
+                }}
+              >
+                <CheckCircle2 size={13} />
+                <span>{budgetBusy ? 'Saving' : 'Apply cap'}</span>
+              </button>
+            </div>
+          </div>
+          {budgetError ? (
+            <div className="mt-2 text-[10px] font-semibold" style={{ color: 'var(--pd-accent)' }}>
+              {budgetError}
+            </div>
+          ) : (
+            <div className="mt-2 text-[10px]" style={{ color: 'var(--pd-muted)' }}>
+              Writes <span className="font-mono">limits.budget_usd_per_day</span> and refreshes this fleet.
+            </div>
+          )}
         </div>
 
         <div className="rounded-lg border px-3 py-3" style={{ backgroundColor: 'var(--pd-bg)', borderColor: 'var(--pd-border)' }}>
@@ -1226,13 +1326,16 @@ export default function App() {
     }
   }, [fleet]);
 
-  const handleSetProjectBudget = useCallback(async (projectDir: string, usdPerDay: number) => {
+  const handleSetProjectBudget = useCallback(async (projectDir: string, usdPerDay: number, options: { showAlert?: boolean } = {}) => {
     try {
       await setFleetConfigBudget(projectDir, usdPerDay);
       fleet.refresh();
       fleet.loadConfig(projectDir);
     } catch (err) {
-      alert((err as Error).message);
+      if (options.showAlert !== false) {
+        alert((err as Error).message);
+      }
+      throw err;
     }
   }, [fleet]);
 
@@ -1323,7 +1426,7 @@ export default function App() {
         selected={selectedProjectId}
         onSelect={selectProject}
         onStartProject={(project) => void handleStartProject(project.projectDir)}
-        onSetBudget={(project, usdPerDay) => void handleSetProjectBudget(project.projectDir, usdPerDay)}
+        onSetBudget={(project, usdPerDay) => void handleSetProjectBudget(project.projectDir, usdPerDay).catch(() => undefined)}
       />
     </div>
   ) : null;
@@ -1385,7 +1488,7 @@ export default function App() {
                 projects={projects}
                 onSelect={selectProject}
                 onStartProject={(project) => void handleStartProject(project.projectDir)}
-                onSetBudget={(project, usdPerDay) => void handleSetProjectBudget(project.projectDir, usdPerDay)}
+                onSetBudget={(project, usdPerDay) => void handleSetProjectBudget(project.projectDir, usdPerDay).catch(() => undefined)}
                 onOpenYaml={(project) => handleOpenProjectYaml(project.id)}
               />
             )}
@@ -1466,6 +1569,11 @@ export default function App() {
                         onRefresh={handleProjectRefresh}
                         onShowAgents={() => setActiveTab('Agents')}
                         onEditYaml={() => setActiveTab('YAML')}
+                        onSetBudget={(usdPerDay) => (
+                          selectedProject
+                            ? handleSetProjectBudget(selectedProject.projectDir, usdPerDay, { showAlert: false })
+                            : Promise.resolve()
+                        )}
                         onCoordinationGuardAction={(action) => void handleCoordinationGuardAction(action)}
                       />
 

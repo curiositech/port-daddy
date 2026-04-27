@@ -17,7 +17,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import { readFileSync, watch as fsWatch, type FSWatcher } from 'node:fs';
+import { watch as fsWatch, type FSWatcher } from 'node:fs';
 import { join, basename } from 'node:path';
 import {
   loadFleetConfig,
@@ -29,6 +29,7 @@ import {
   type FleetRunContext,
 } from './fleet-engine.js';
 import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
+import { loadEnvFiles } from './env-loader.js';
 import type { CostTracker } from './cost-tracker.js';
 import type { SemanticResolver } from './semantic-resolver.js';
 import type { TupleSpace } from './tuples.js';
@@ -205,45 +206,9 @@ const FLEET_PROJECT_LEASE_RENEW_MS = 10000;
 
 // ─── Env Loading ────────────────────────────────────────────────────────────
 
-/**
- * Load .env.local / .env files for API keys.
- * The daemon process may not have ANTHROPIC_API_KEY etc. in its launchd env,
- * so we load from the project directory and common locations.
- */
-function loadEnvFiles(projectDir: string): void {
-  const searchDirs = [
-    projectDir,
-    process.env.HOME || '',
-  ];
-
-  const fileNames = ['.env.local', '.env', '.port-daddy-env'];
-
-  for (const dir of searchDirs) {
-    if (!dir) continue;
-    for (const name of fileNames) {
-      try {
-        const lines = readFileSync(join(dir, name), 'utf-8').split('\n');
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed || trimmed.startsWith('#')) continue;
-          const eqIdx = trimmed.indexOf('=');
-          if (eqIdx === -1) continue;
-          const key = trimmed.slice(0, eqIdx).trim();
-          let val = trimmed.slice(eqIdx + 1).trim();
-          if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
-            val = val.slice(1, -1);
-          }
-          // Don't overwrite existing env vars (explicit launchd config takes priority)
-          if (!process.env[key]) {
-            process.env[key] = val;
-          }
-        }
-      } catch {
-        // Non-critical — file likely doesn't exist
-      }
-    }
-  }
-}
+// .env loading lives in lib/env-loader.ts so it can run from server.ts
+// before snapshotSensitiveEnv() — otherwise project-local API keys never
+// land in the secret cache.
 
 // ─── Factory ────────────────────────────────────────────────────────────────
 
