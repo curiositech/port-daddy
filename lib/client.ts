@@ -1114,6 +1114,7 @@ interface FileRegion {
   startLine?: number;
   endLine?: number;
   symbol?: string;
+  symbolPath?: string;
 }
 
 /** Matches the actual POST /sessions/:id/files response */
@@ -1128,6 +1129,7 @@ interface FileClaimResponse {
     startLine?: number | null;
     endLine?: number | null;
     symbol?: string | null;
+    symbolPath?: string | null;
   }>;
 }
 

@@ -225,6 +225,21 @@ describe('Region-Level File Claims', () => {
       expect(result.error).toMatch(/symbolPath/i);
     });
 
+    it('should preserve symbolPath when indexed data is missing but line fallback is explicit', () => {
+      const sid = makeSession();
+      const result = sessions.claimFiles(sid, [], {
+        regions: [{ path: 'src/routes.ts', startLine: 10, endLine: 50, symbolPath: 'routes.handleAuth' }]
+      });
+
+      expect(result.success).toBe(true);
+
+      const claims = sessions.listAllActiveClaims();
+      const claim = claims.claims.find(c => c.filePath === 'src/routes.ts');
+      expect(claim.symbolPath).toBe('routes.handleAuth');
+      expect(claim.startLine).toBe(10);
+      expect(claim.endLine).toBe(50);
+    });
+
     it('should claim region without symbol', () => {
       const sid = makeSession();
       sessions.claimFiles(sid, [], {

@@ -723,7 +723,7 @@ export function createSessions(
         startLine: region.startLine ?? null,
         endLine: region.endLine ?? null,
         symbol: region.symbol ?? null,
-        symbolPath: null,
+        symbolPath: region.symbolPath ?? null,
       },
     };
   }
