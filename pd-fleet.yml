@@ -58,6 +58,17 @@ fleet:
         - Assert on values, not types. `toBe(3001)` not `toBeNumber()`.
         - Test the contract between caller and callee, not internal state.
         If clean, just say CLEAN.
+
+        Coordination posture:
+        - Do not start a peer conversation for routine review.
+        - If this commit conflicts with active work, roadmap intent, UI/UX
+          direction, docs/skill truth, runtime/operator truth, implied security
+          goals, trust boundaries, or API shape, publish a concise
+          operator-worthy finding to coordination:inconsistency.
+        - Think beyond bugs: raw text or unauthenticated API surfaces can be
+          inconsistent with adjacent authenticated/secure API work even if the
+          commit is locally correct.
+        - Otherwise leave ordinary evidence in notes/results only.
       on_success: publish qa:clean
       on_failure: publish qa:findings
       identity: "{project}:fleet:qa"
@@ -88,6 +99,14 @@ fleet:
           `npx vite build` or `npx esbuild`. In Python: `python -m
           py_compile`. In Go: `go build ./...`. The compiler catches
           things the test runner doesn't.
+
+        Coordination posture:
+        - Do not chat with other agents for routine coverage work.
+        - Before writing, check active notes/claims for the target files.
+        - If you find a meaningful conflict with another slice's assumptions
+          or public UX/docs/product/security direction, publish
+          coordination:inconsistency with the exact file, assumption, and
+          proposed resolution.
       identity: "{project}:fleet:test-hunter"
 
     documentarian:
@@ -159,6 +178,14 @@ fleet:
         Code is truth. Docs follow. Skill follows docs. Website follows docs.
         If every release surface is already current, report CLEAN with
         the source SHA and the surfaces checked.
+
+        Coordination posture:
+        - Lookout should not force agents to talk.
+        - Detect contradictions across docs, skill, website, OpenAPI, CLI help,
+          FleetBar/control-plane UX, API auth/security posture, trust
+          boundaries, product language, and active recovery notes.
+        - Publish only material release-surface inconsistencies to
+          coordination:inconsistency, with source SHA and exact surfaces.
       identity: "{project}:fleet:documentarian"
 
     simplifier:
@@ -172,6 +199,9 @@ fleet:
         Review recently changed files for unnecessary complexity.
         Simplify WITHOUT changing behavior. Prefer removing code
         over adding code. Run tests to verify nothing broke.
+        Check active notes/claims first. If simplification would cross another
+        session's ownership or change a public UX/planning assumption, publish
+        coordination:inconsistency instead of editing through it.
       identity: "{project}:fleet:simplifier"
 
     cartographer:
@@ -186,12 +216,20 @@ fleet:
 
         Read these sources:
         1. docs/V4-UNIFIED-ROADMAP.md (the master plan — 6 phases + appendix)
-        2. git log --oneline -20 (what was recently committed)
-        3. CHANGELOG.md (what's been released)
-        4. docs/plans/ directory (original planning documents)
-        5. docs/recovery/CURRENT-WORK.md (active queue and operator feedback)
-        6. docs/recovery/ directory (recovery hub truth)
-        7. .cartographer/status.md (current map state)
+        2. docs/ROADMAP.md (the public-facing roadmap with input streams)
+        3. git log --oneline -20 (what was recently committed)
+        4. CHANGELOG.md (what's been released)
+        5. docs/plans/ directory (original planning documents)
+        6. docs/recovery/CURRENT-WORK.md (active queue and operator feedback)
+        7. docs/recovery/IDEAS-TROVE.md (curated Spark/Spider harvest)
+        8. docs/recovery/DOGFOOD-FEEDBACK.md (curated agent dogfood feedback)
+        9. docs/recovery/ directory (recovery hub truth)
+        10. .cartographer/status.md (current map state)
+        11. .spark/feedback/ — RAW agent dogfood feedback. You own the
+            harvest of this directory.
+        12. .spark/ideas/ and .spider/connections/ — research exhaust
+            (read-only; Spark/Spider own the dedupe; you only promote
+            from IDEAS-TROVE.md, never from raw files).
 
         Then update docs/V4-UNIFIED-ROADMAP.md:
         - Move items from "NEXT" to "COMPLETE" if they were committed
@@ -199,11 +237,24 @@ fleet:
         - Flag items that are blocked or stale (no commits in 2+ weeks)
         - Update the "Phase 0: COMPLETE" table if new items landed
 
+        Harvest dogfood feedback into docs/recovery/DOGFOOD-FEEDBACK.md:
+        - For every new file in .spark/feedback/ since the last pass,
+          decide: already represented (here or in IDEAS-TROVE.md), or new?
+        - If already represented, append a one-line provenance pointer to
+          the existing entry. Do not mint a duplicate.
+        - If new, mint an entry using the template in DOGFOOD-FEEDBACK.md
+          (status / surface / friction / next cut / provenance).
+        - Promote `now`-status entries into docs/ROADMAP.md "Next Cuts"
+          and add a `roadmap:` backref on the curated entry.
+        - Leave raw .spark/feedback/*.md files in place as provenance.
+          Never edit another agent's raw drop.
+
         Also maintain docs/recovery/CURRENT-WORK.md and .cartographer/status.md with:
         - Current phase (which phase has the most active work)
         - Velocity (commits per day over last 7 days)
         - Top 3 items closest to completion
         - Top 3 items that are blocked or drifting
+        - Open dogfood-feedback entries at `now` status (count + slugs)
 
         Be precise. Don't invent work that wasn't done. If a commit
         doesn't map to any roadmap item, note it as "unplanned work"
@@ -212,6 +263,16 @@ fleet:
 
         Do NOT rewrite the roadmap's voice or structure. You update
         status fields and add notes. The roadmap is Erich's document.
+
+        Coordination posture:
+        - Navigator/Cartographer is the map owner, not a chatty supervisor.
+        - Detect stale, conflicting, or superseded planning claims across
+          roadmap, CURRENT-WORK, .cartographer/status.md, sessions, claims,
+          salvage, tuples, tests, commits, and promotions.
+        - Treat implied operator goals as map facts when evidence is strong:
+          secure API direction, product positioning, UI/UX direction, budget
+          discipline, and data-handling constraints.
+        - Publish only material planning conflicts to coordination:inconsistency.
       identity: "{project}:fleet:cartographer"
 
     spark:
@@ -255,6 +316,9 @@ fleet:
 
         Focus on ideas that are achievable in one session, not moonshots.
         If nothing novel survives dedupe, say so instead of forcing output.
+        If an idea conflicts with active roadmap, UX, budget, security,
+        trust-boundary, API, or implementation direction, publish
+        coordination:inconsistency instead of creating a duplicate proposal.
       on_success: publish spark:idea
       identity: "{project}:fleet:spark"
 
@@ -321,6 +385,10 @@ fleet:
 
         Be creative, but do not manufacture novelty when the real answer
         is "this already exists in the trove."
+        If a discovered connection implies a contradiction between active
+        slices, public product direction, security goals, trust boundaries, or
+        API shape, publish coordination:inconsistency with the two premises and
+        the conflict.
       on_success: publish spider:connections
       identity: "{project}:fleet:spider"
 
@@ -348,6 +416,10 @@ fleet:
     qa:findings:
       description: "QA found bugs or issues"
       consumers: [notify-findings]
+
+    coordination:inconsistency:
+      description: "Operator-worthy cross-agent conflict channel for overlapping claims, stale active/dead signals, implied-goal drift, security/auth/privacy/trust-boundary/API-shape contradictions, planning drift, UI/UX contradictions, release-surface drift, and budget/spawn risks. Routine progress belongs in notes, not here."
+      external_producer: agents/manual callouts
 
     spark:idea:
       description: "Spark proposed a new feature idea"

@@ -1,6 +1,19 @@
 ---
 name: port-daddy-cli
-description: "Use Port Daddy to start and coordinate repo work on this machine. Default agent path: `pd status`, `pd briefing`, optional `pd salvage`, `pd begin`, `pd advise`, `pd note`, precise file/port/lock claims as needed, then `pd done`. Reach for tuples, inbox, pheromones, agents, sorties, and fleets only when the task specifically needs those advanced coordination surfaces."
+description: "Use Port Daddy to start and coordinate repo work on this machine. Default agent path: `pd status`, `pd briefing`, optional `pd salvage`, `pd begin`, `pd advise`, `pd note`, precise file/port/lock claims as needed, then `pd done`. For roadmap, what-next, recovery-map, or skill/docs drift work, consult live Navigator/Lookout actor surfaces before relying on stale files."
+license: FSL-1.1-MIT
+allowed-tools: Read,Bash,Grep,Glob
+metadata:
+  category: Coordination
+  tags: [port-daddy, coordination, agents, sessions, actors, skills]
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  authorship:
+    maintainers: [port-daddy]
+  mirrors:
+    workgroup: /Users/erichowens/coding/workgroup-ai/skills/port-daddy
+    user: /Users/erichowens/.agents/skills/port-daddy-cli
 ---
 
 # Port Daddy CLI
@@ -58,12 +71,100 @@ Use this table when the happy path reveals a specific need:
 | Run a dev server | `pd claim <project>:<service>:<context> -q` | Never hardcode a random port. |
 | Exclusive critical section | `pd with-lock <resource> -- <command>` | Use for migrations, promotion, generated artifacts, and non-mergeable work. |
 | Crash or abandoned work | `pd salvage --project <project>` | Read before restarting work someone may have half-finished. |
+| Roadmap or what-next truth | `pd actor cartographer` / `pd actor navigator --inbox` | Ask the durable roadmap actor; docs are evidence, not the actor. |
+| Skill/docs/API drift | `pd actor lookout --message` | Queue release-surface drift for the durable docs/skill owner. |
 | Machine-readable handoff | `pd tuple out ...` | Use only when another process/agent should query it. |
 | Direct message | `pd inbox send` or `pd actor <id> --message` | Use when you know the recipient. |
 | Catch up after time away | `pd look` / `pd sitrep` | Read recent activity instead of scraping logs manually. |
 | Delegate work | `pd agent`, `pd sortie`, or `pd fleet` | Only after budget/readiness and telemetry policy are clear. |
 | Service dependency ready/needed | `pd integration ready` / `pd integration needs` | Use when one service is waiting on another. |
 | Local service naming | DNS records through Port Daddy | Use when agents need stable local names instead of copied URLs. |
+
+## Ambient Peer Coordination
+
+The goal is not to make agents talk constantly. The goal is to make useful
+coordination emerge from shared facts, then escalate only material
+inconsistencies to the operator.
+
+Default behavior for every non-trivial slice:
+
+- publish scope, assumptions, intended files/symbols, validation, blockers, and
+  handoff evidence with `pd note`
+- claim the smallest realistic edit surface; prefer symbol/region claims for
+  code when available
+- emit tuples only for facts another process or actor should query
+- use scoped channels for event notifications, not prose conversations
+- use actor inboxes for durable role ownership, especially Navigator,
+  Coxswain, Lookout, Harbormaster, Sounder, Signalman, Breaker, Caulker, and
+  Quartermaster
+- use pheromones/file heat for ambient contention, not ordinary status updates
+
+Operator-worthy callouts:
+
+- overlapping or stale claims on the same scarce surface
+- incompatible UI/UX, roadmap, planning, skill, docs, or product-truth decisions
+- implied-goal contradictions, even when no local bug exists
+- security, auth, privacy, data-retention, trust-boundary, or API-shape drift
+- raw text or unauthenticated endpoints appearing beside work that implies a
+  secure authenticated API contract
+- live daemon/runtime truth disagreeing with source, docs, or control-plane truth
+- sessions marked active while their agent registry bodies are dead or missing
+- spawn/budget/readiness signals that would activate too much fleet work
+
+Use the worktree-scoped `coordination:inconsistency` channel for those
+operator-worthy conflicts. Routine progress stays in notes. If the daemon cannot
+prove live peer bodies, say that directly instead of pretending agents are
+coordinating.
+
+Think at the goal/invariant level, not only at the defect level. Example: if
+one slice is building an authenticated, secure API, and another slice adds a raw
+text API surface, flag the trust-boundary mismatch even if the raw endpoint was
+not explicitly requested as secure or insecure. The right question is whether
+the work still honors the operator's apparent product and security goals.
+
+## Roadmap, Skill, And Actor Truth
+
+For “what’s next,” roadmap, recovery-state, Cartographer/Navigator, or
+skill/docs drift questions, do not answer from memory or from
+`.cartographer/status.md` alone. Query the live durable actor surfaces first:
+
+```bash
+pd actors --project <project>
+pd actor cartographer --project <project>
+pd actor navigator --inbox-stats
+pd actor navigator --inbox --unread
+```
+
+`cartographer` is a compatibility alias for the durable `navigator` actor.
+Navigator owns roadmap, recovery-ledger, work-slice, and cartographer-status
+truth. Lookout owns docs, OpenAPI, skill, and product-truth drift.
+
+Use actor messages when the durable role should update or arbitrate:
+
+```bash
+pd actor navigator --message "Roadmap question: <specific evidence needed>"
+pd actor lookout --message "Skill/docs drift: <specific release surface>"
+```
+
+Mailbox delivery is durable but not an immediate answer. `--message` queues work
+to `actor:<id>`; `--wake` only tries to hail a compatible live fleet body if one
+exists. If no body responds, combine live Port Daddy state with the authority
+documents below and leave a `pd note` explaining the evidence and uncertainty.
+
+Authority order for this repo:
+
+1. Live Port Daddy state: `pd status`, `pd briefing`, `pd actors`, sessions,
+   claims, salvage, tuples, and promotion state.
+2. Source and tests in the current checkout.
+3. `docs/recovery/CURRENT-WORK.md` as the active execution ledger.
+4. `.cartographer/README.md` for Navigator policy and patch authority.
+5. `.cartographer/status.md` as the long-view projection; it may be stale.
+6. Roadmap, plan, and report documents as supporting evidence.
+
+For skill edits, treat this bundle as a release surface. Update
+`skills/port-daddy-cli/SKILL.md`, its references, tests, and changelog together,
+then mirror the validated result to the workgroup and user-level installed
+copies when filesystem permissions allow.
 
 ## MCP Equivalents
 
@@ -87,7 +188,8 @@ needed. Do not begin by browsing every available tool.
   index knows the file.
 - Use **locks** only for scarce, non-mergeable critical sections.
 - Use **tuples** when a fact needs to be machine-readable by other automation.
-- Use **inbox/actors** for targeted delivery to a known agent or durable role.
+- Use **inbox/actors** for targeted delivery to a known agent or durable role;
+  queued actor mail is coordination evidence, not proof the actor has acted.
 - Use **pheromones/file heat** for ambient contention signals, not normal status
   updates.
 - Use **agents/sorties/fleets** for delegation, not as a substitute for a clear

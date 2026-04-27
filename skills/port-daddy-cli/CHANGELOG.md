@@ -1,0 +1,11 @@
+# Port Daddy CLI Skill Changelog
+
+## 2026-04-26
+
+- Added first-party skill metadata, license, allowed-tool declaration, and mirror locations.
+- Added an explicit Navigator/Cartographer and Lookout actor workflow for roadmap, what-next, recovery-map, and skill/docs drift questions.
+- Clarified that actor mailbox delivery is durable coordination evidence, not an immediate answer.
+- Added ambient peer coordination guidance: agents should publish structured facts and escalate only material inconsistencies, not force constant peer chat.
+- Added goal/invariant-level inconsistency guidance for security, auth, privacy, trust-boundary, API-shape, and product-direction drift.
+- Added deterministic skill governance audit tooling and tests for repo-wide skill scanning.
+- Recorded that skill edits must update the skill, references, tests, changelog, and installed/workgroup mirrors together.
