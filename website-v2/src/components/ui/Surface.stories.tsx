@@ -59,3 +59,61 @@ export const DepthStack: Story = {
     </div>
   ),
 }
+
+export const StateMatrix: Story = {
+  parameters: {
+    a11y: {
+      test: 'error',
+    },
+  },
+  render: () => (
+    <div className="grid max-w-[72rem] gap-[var(--space-5)] bg-[var(--surface-base)] p-[var(--space-6)] text-[var(--text-primary)]">
+      <div className="grid gap-[var(--space-2)]">
+        <p className="font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)]">
+          Surface state matrix
+        </p>
+        <p className="max-w-[var(--measure-copy)] text-[var(--text-secondary)]">
+          Covers depth, density, interactive, empty, error, and overflow conditions for card-like surfaces.
+        </p>
+      </div>
+
+      <div className="grid gap-[var(--space-4)] md:grid-cols-2 xl:grid-cols-3">
+        <Surface depth="raised" padding="lg" radius="none">
+          <h3 className="mb-[var(--space-2)] font-display text-[length:var(--type-panel-title-nav-size)] font-black">
+            Raised
+          </h3>
+          <p className="text-[var(--text-secondary)]">Default card or panel surface.</p>
+        </Surface>
+        <Surface depth="flat" padding="lg" radius="none">
+          <h3 className="mb-[var(--space-2)] font-display text-[length:var(--type-panel-title-nav-size)] font-black">
+            Flat
+          </h3>
+          <p className="text-[var(--text-secondary)]">Quiet grouping surface for dense layouts.</p>
+        </Surface>
+        <Surface depth="inset" padding="lg" radius="none">
+          <h3 className="mb-[var(--space-2)] font-display text-[length:var(--type-panel-title-nav-size)] font-black">
+            Inset
+          </h3>
+          <p className="text-[var(--text-secondary)]">Input wells, terminal wells, and passive status surfaces.</p>
+        </Surface>
+        <Surface depth="raised" padding="lg" radius="none" interactive tabIndex={0} role="button">
+          <h3 className="mb-[var(--space-2)] font-display text-[length:var(--type-panel-title-nav-size)] font-black">
+            Interactive
+          </h3>
+          <p className="text-[var(--text-secondary)]">Keyboard-focusable surface for command affordances.</p>
+        </Surface>
+        <Surface depth="raised" padding="lg" radius="none" className="border-2 border-[var(--status-error)]">
+          <h3 className="mb-[var(--space-2)] font-display text-[length:var(--type-panel-title-nav-size)] font-black">
+            Error
+          </h3>
+          <p className="text-[var(--text-secondary)]">Failure state uses status tokens instead of local color.</p>
+        </Surface>
+        <Surface depth="flat" padding="lg" radius="none">
+          <p className="font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+            Empty state
+          </p>
+        </Surface>
+      </div>
+    </div>
+  ),
+}

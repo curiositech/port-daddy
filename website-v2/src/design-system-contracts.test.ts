@@ -150,6 +150,11 @@ describe('design system contracts', () => {
     expect(mcpPage).toContain('SectionIntro')
     expect(mcpPage).toContain('SurfacePanel')
     expect(mcpPage).toContain('DocsCodeBlock')
+    expect(mcpPage).toContain('onKeyDown')
+    expect(mcpPage).toContain('tabIndex={activeIndex === index ? 0 : -1}')
+    expect(mcpPage).toContain("event.key === 'ArrowDown'")
+    expect(mcpPage).toContain("event.key === 'End'")
+    expect(mcpPage).toContain('focus-visible:outline-[var(--interactive-focus)]')
     expect(mcpPage).not.toContain("import { Surface }")
     expect(mcpPage).not.toContain('grid-cols-[1.05fr,0.95fr]')
     expect(mcpPage).not.toContain('grid-cols-[0.9fr,1.1fr]')
@@ -164,9 +169,41 @@ describe('design system contracts', () => {
     const stories = read('./components/site/PublicPrimitives.stories.tsx')
 
     expect(stories).toContain('LayoutPrimitives')
+    expect(stories).toContain('StateMatrix')
     expect(stories).toContain('PageContainer')
     expect(stories).toContain('SwissGrid')
     expect(stories).toContain('SwissGridItem')
     expect(stories).toContain('SectionIntro')
+  })
+
+  test('storybook and MCP a11y evidence are wired as release gates', () => {
+    const packageJson = read('../package.json')
+    const storybookMain = read('../.storybook/main.ts')
+    const storybookPreview = read('../.storybook/preview.ts')
+    const mcpStory = read('./pages/MCPPage.stories.tsx')
+    const a11yScript = read('../scripts/check-mcp-a11y.mjs')
+    const stateMatrixStories = [
+      read('./components/ui/Button.stories.tsx'),
+      read('./components/ui/Badge.stories.tsx'),
+      read('./components/ui/Surface.stories.tsx'),
+      read('./components/ui/CodeBlock.stories.tsx'),
+      read('./components/site/PublicPrimitives.stories.tsx'),
+    ]
+
+    expect(packageJson).toContain('"@storybook/addon-a11y": "10.2.19"')
+    expect(packageJson).toContain('"test:a11y:mcp": "node scripts/check-mcp-a11y.mjs"')
+    expect(storybookMain).toContain("'@storybook/addon-a11y'")
+    expect(storybookPreview).toContain("test: 'error'")
+    expect(storybookPreview).toContain("'color-contrast-enhanced': { enabled: true }")
+    expect(mcpStory).toContain("title: 'Pages/MCP Proof Route'")
+    expect(mcpStory).toContain('MobileAuditFrame')
+    expect(a11yScript).toContain('wcag2aaa')
+    expect(a11yScript).toContain('assertNoHorizontalOverflow')
+    expect(a11yScript).toContain('runKeyboardChecks')
+
+    for (const source of stateMatrixStories) {
+      expect(source).toContain('StateMatrix')
+      expect(source).toContain("test: 'error'")
+    }
   })
 })

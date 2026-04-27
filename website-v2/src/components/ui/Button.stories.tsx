@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { Button } from './Button'
-import { Anchor, ArrowRight, Copy, Download, Play } from 'lucide-react'
+import { Anchor, ArrowRight, Copy, Download, LoaderCircle, Play, Trash2 } from 'lucide-react'
 
 const meta = {
   title: 'UI/Button',
@@ -176,6 +176,58 @@ export const DisabledVariants: Story = {
       <Button variant="secondary" disabled>Secondary</Button>
       <Button variant="ghost" disabled>Ghost</Button>
       <Button variant="outline" disabled>Outline</Button>
+    </div>
+  ),
+}
+
+export const StateMatrix: Story = {
+  parameters: {
+    a11y: {
+      test: 'error',
+    },
+  },
+  render: () => (
+    <div className="grid max-w-[64rem] gap-[var(--space-5)] bg-[var(--surface-base)] p-[var(--space-6)] text-[var(--text-primary)]">
+      <div className="grid gap-[var(--space-2)]">
+        <p className="font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)]">
+          Button state matrix
+        </p>
+        <p className="max-w-[var(--measure-copy)] text-[var(--text-secondary)]">
+          Covers default, icon, focus-visible, active intent, loading, disabled, destructive, and empty/icon-only states.
+        </p>
+      </div>
+
+      <div className="grid gap-[var(--space-3)] md:grid-cols-2 xl:grid-cols-4">
+        <Button variant="primary">Default</Button>
+        <Button variant="secondary">
+          <Download size={16} />
+          With icon
+        </Button>
+        <Button
+          variant="outline"
+          className="outline-2 outline-offset-3 outline-[var(--interactive-focus)]"
+        >
+          Focus visible
+        </Button>
+        <Button variant="primary" aria-pressed="true">
+          <Play size={16} />
+          Active
+        </Button>
+        <Button variant="secondary" aria-busy="true" disabled>
+          <LoaderCircle size={16} aria-hidden="true" className="animate-spin" />
+          Loading
+        </Button>
+        <Button variant="primary" disabled>
+          Disabled
+        </Button>
+        <Button variant="danger">
+          <Trash2 size={16} />
+          Destructive
+        </Button>
+        <Button size="icon" aria-label="Copy command">
+          <Copy size={16} />
+        </Button>
+      </div>
     </div>
   ),
 }

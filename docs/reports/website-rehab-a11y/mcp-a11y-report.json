@@ -1,0 +1,40 @@
+{
+  "generatedAt": "2026-04-27T01:02:48.063Z",
+  "targetUrl": "http://127.0.0.1:3110/mcp",
+  "axe": {
+    "standard": "wcag2a/wcag2aa/wcag21a/wcag21aa/wcag22aa plus color-contrast-enhanced",
+    "desktopViolations": 0,
+    "mobileViolations": 0,
+    "violations": []
+  },
+  "keyboard": {
+    "tabCount": 4,
+    "rovingKeys": [
+      "ArrowDown",
+      "ArrowRight",
+      "End",
+      "Home"
+    ],
+    "focusVisible": {
+      "outlineStyle": "solid",
+      "outlineWidth": "2px",
+      "outlineColor": "rgb(249, 245, 237)"
+    }
+  },
+  "overflow": {
+    "desktop": {
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "bodyScrollWidth": 1440
+    },
+    "mobile": {
+      "clientWidth": 390,
+      "scrollWidth": 390,
+      "bodyScrollWidth": 390
+    }
+  },
+  "screenshots": {
+    "desktop": "docs/reports/website-rehab-screenshots/mcp-a11y-desktop.png",
+    "mobile": "docs/reports/website-rehab-screenshots/mcp-a11y-mobile.png"
+  }
+}

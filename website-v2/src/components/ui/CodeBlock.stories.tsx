@@ -200,3 +200,46 @@ export const CopyableComparison: Story = {
     </div>
   ),
 }
+
+export const StateMatrix: Story = {
+  parameters: {
+    a11y: {
+      test: 'error',
+    },
+  },
+  args: {
+    children: '',
+  },
+  render: () => (
+    <div className="grid max-w-[72rem] gap-[var(--space-5)] bg-[var(--surface-base)] p-[var(--space-6)] text-[var(--text-primary)]">
+      <div className="grid gap-[var(--space-2)]">
+        <p className="font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)]">
+          Code block state matrix
+        </p>
+        <p className="max-w-[var(--measure-copy)] text-[var(--text-secondary)]">
+          Covers copyable, read-only, TypeScript, shell, long-line overflow, and empty output states.
+        </p>
+      </div>
+
+      <div className="grid gap-[var(--space-4)] lg:grid-cols-2">
+        <CodeBlock language="bash" filename="copyable.sh">
+          {'pd begin --identity myapp:docs --purpose "ship a11y evidence"'}
+        </CodeBlock>
+        <CodeBlock language="bash" filename="readonly.log" copyable={false}>
+          {`session started
+files claimed
+storybook a11y addon configured`}
+        </CodeBlock>
+        <CodeBlock language="typescript" filename="client.ts">
+          {'const status = await pd.fleetStatus({ harbor: "myapp:fleet" })\nconsole.log(status.agents.length)'}
+        </CodeBlock>
+        <CodeBlock language="bash" filename="overflow.sh">
+          {'pd pub project:very-long-scope-name:git:committed --content \'{"sha":"abc123","path":"src/components/site/PublicPrimitives.stories.tsx"}\''}
+        </CodeBlock>
+        <CodeBlock language="text" filename="empty.txt" copyable={false}>
+          {''}
+        </CodeBlock>
+      </div>
+    </div>
+  ),
+}
