@@ -71,12 +71,20 @@ Stale-work visibility truth on 2026-04-27:
 - Navigator inbox was read but not acknowledged. It currently has 6 unread messages; at least two are still meaningful roadmap/promotion coordination requests.
 - Validation: focused salvage/actor route tests passed, `npm run typecheck` passed, `git diff --check` passed, and source CLI dogfood for salvage summary and Navigator inbox reads succeeded.
 
-Promotion recovery truth on 2026-04-27:
+Promotion/hygiene truth on 2026-04-27:
+
+- Current `main` was pushed to origin at `89f17ac`; stable was promoted through `65f2b4e` after `./scripts/promote-stable.sh` passed `5025` tests with `0` failures.
+- Live daemon truth after that promotion: Port Daddy `3.11.0`, PID `13470`, health `ok`, runtime `nominal`, install dir `/Users/erichowens/port-daddy-stable`.
+- FleetBar was rebuilt, reinstalled, and launchd-kickstarted; live process PID `14267`.
+- Promotion exposed a build hygiene bug: `scripts/build-core.sh` built inside the tracked `core/harbor-card-rs/target/release/**` tree, leaving stable dirty after a successful promotion.
+- The fix is to build the Rust FFI core via an external Cargo target directory and copy only the resulting shared library into `dist/core`; stable Rust target dirt from the promotion run should be cleaned as generated residue, not promoted as source.
+
+Historical promotion recovery truth on 2026-04-27:
 
 - The official promotion rerun was owned by the Harbormaster path under `pd with-lock stable-promotion`; the lock released after completion.
 - Remote `main` is `717f4f49bbb382851fe582b926ce88dc2f06b69f`; remote `stable` is `40cf79d9f5846986fc6ed8ed696061fd2268a856`.
 - Live daemon truth after promotion: Port Daddy `3.11.0`, code hash `ce3faf8fb34e`, install dir `/Users/erichowens/port-daddy-stable`, health `ok`, runtime `nominal`.
-- Stable checkout still has generated Rust target dirt under `core/harbor-card-rs/target/release/**`; do not mistake it for source work.
+- Stable checkout had generated Rust target dirt under `core/harbor-card-rs/target/release/**`; do not mistake that class of artifact for source work.
 - `pd sessions --active` and actor projections still disagree with `pd agents --active --json` after daemon restart. This is now an explicit Coxswain coordination debt item, not a private observation.
 
 Skill-governance truth on 2026-04-26:
