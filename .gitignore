@@ -1,6 +1,10 @@
 # Dependencies
 node_modules/
 
+# Python bytecode
+__pycache__/
+*.pyc
+
 # Database
 *.db
 *.db-wal
