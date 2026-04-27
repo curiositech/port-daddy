@@ -709,6 +709,79 @@ describe('CLI Integration Tests', () => {
       runCli(['session', 'rm', sessionId]);
     });
 
+    test('session files can claim and release a symbol region with line fallback', () => {
+      const agentId = `symbol-region-agent-${Date.now()}`;
+      const tempDir = mkdtempSync(join(tmpdir(), 'pd-symbol-region-'));
+      const filePath = join(tempDir, 'region-claim.ts');
+      writeFileSync(filePath, [
+        'export function target() {',
+        '  return 1;',
+        '}',
+        '',
+        'export function other() {',
+        '  return 2;',
+        '}',
+      ].join('\n'));
+
+      let sessionId;
+      try {
+        sessionId = runCli([
+          'session',
+          'start',
+          'Symbol region claim test',
+          '--agent',
+          agentId,
+          '-q',
+        ]).stdout.trim();
+
+        const claimResult = runCli([
+          'session',
+          'files',
+          'add',
+          filePath,
+          '--symbol-path',
+          'target',
+          '--start-line',
+          '1',
+          '--end-line',
+          '3',
+          '--agent',
+          agentId,
+          '--json',
+        ]);
+        expect(claimResult.success).toBe(true);
+        const claimData = JSON.parse(claimResult.stdout);
+        expect(claimData.success).toBe(true);
+        expect(claimData.claimed).toContain(filePath);
+
+        const ownerResult = runCli(['who-owns', filePath, '--symbol-path', 'target', '--json']);
+        expect(ownerResult.success).toBe(true);
+        const ownerData = JSON.parse(ownerResult.stdout);
+        expect(ownerData.claimed).toBe(true);
+        expect(ownerData.owners.some(owner => owner.symbolPath === 'target')).toBe(true);
+
+        const releaseResult = runCli([
+          'session',
+          'files',
+          'rm',
+          filePath,
+          '--symbol-path',
+          'target',
+          '--start-line',
+          '1',
+          '--end-line',
+          '3',
+          '--agent',
+          agentId,
+        ]);
+        expect(releaseResult.success).toBe(true);
+        expect(releaseResult.stdout).toContain(`Released 1 file(s) from session ${sessionId}`);
+      } finally {
+        if (sessionId) runCli(['session', 'rm', sessionId]);
+        rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+
     // Bug #3: Sessions list was showing "undefinedundefinedNaNd"
     // because CLI expected { startedAt, fileCount, noteCount }
     // but API returns { createdAt, updatedAt, completedAt }

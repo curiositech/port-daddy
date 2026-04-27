@@ -31,6 +31,7 @@ ADRs follow the [MADR format](https://adr.github.io/madr/) (Markdown Architectur
 | [0021](0021-bosun-consolidation.md) | Bosun Consolidation | Accepted | 2026-04 |
 | [0022](0022-durable-actor-souls-and-body-leases.md) | Durable Actor Souls and Body Leases | Accepted | 2026-04 |
 | [0023](0023-cartographer-roadmap-actor.md) | Cartographer as Navigator Roadmap Actor | Accepted | 2026-04 |
+| [0024](0024-daemon-profiles.md) | Named Daemon Profiles | Accepted | 2026-04 |
 
 ## How to Read These
 

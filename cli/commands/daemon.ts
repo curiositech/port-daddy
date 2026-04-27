@@ -5,22 +5,53 @@
  */
 
 import { join } from 'node:path';
-import { existsSync, watch } from 'node:fs';
+import { closeSync, existsSync, openSync, readFileSync, watch } from 'node:fs';
 import type { FSWatcher } from 'node:fs';
+import http from 'node:http';
 import { spawn, spawnSync } from 'node:child_process';
 import type { ChildProcess, SpawnSyncReturns } from 'node:child_process';
 import { pdFetch, PORT_DADDY_URL, getDaemonUrl } from '../utils/fetch.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import { printBanner, printCompactHeader, printFarewell, WHEEL, ANCHOR, ANSI } from '../../lib/banner.js';
 import { autoFixStartupBlockers, diagnoseStartupBlockers } from '../utils/startup-doctor.js';
-import { readDaemonPort } from '../../shared/daemon-discovery.js';
+import { LOOPBACK_TCP_HOST, readDaemonPort } from '../../shared/daemon-discovery.js';
 import { calculateRuntimeCodeHash, listRuntimeSourceFiles } from '../../shared/code-hash.js';
+import {
+  buildDaemonProfileEnv,
+  ensureDaemonProfileDir,
+  isProcessRunning,
+  listDaemonProfiles,
+  readDaemonProfileState,
+  readNumberFile,
+  resolveDaemonProfile,
+  writeDaemonProfileState,
+  type DaemonProfilePaths,
+  type DaemonProfileState,
+} from '../../lib/daemon-profiles.js';
 import * as ui from '../utils/ui.js';
 
 // __dirname equivalent for ESM
 const __dirname = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
 const STARTUP_HEALTH_TIMEOUT_MS = 10000;
 const SHUTDOWN_TIMEOUT_MS = 5000;
+const PROFILE_STARTUP_TIMEOUT_MS = 30000;
+
+interface DaemonCommandOptions {
+  [key: string]: unknown;
+  json?: boolean;
+  quiet?: boolean;
+  profile?: string;
+  port?: string | number | boolean;
+  fleet?: boolean;
+  fleetbar?: boolean;
+  force?: boolean;
+}
+
+interface SocketJsonResponse {
+  ok: boolean;
+  status: number;
+  data: Record<string, unknown> | string | null;
+}
 
 async function waitForDaemonHealthy(timeoutMs: number = STARTUP_HEALTH_TIMEOUT_MS): Promise<unknown | null> {
   const attempts = Math.max(1, Math.ceil(timeoutMs / 100));
@@ -49,12 +80,355 @@ async function waitForProcessExit(pid: number, timeoutMs: number = SHUTDOWN_TIME
   return false;
 }
 
+function parseProfilePort(raw: string | number | boolean | undefined, fallback: number | null = null): number | null {
+  if (raw === undefined || raw === false || raw === true) return fallback;
+  const parsed = Number.parseInt(String(raw), 10);
+  if (!Number.isInteger(parsed) || parsed < 1024 || parsed > 65535) {
+    throw new Error(`Invalid daemon profile port: ${raw}`);
+  }
+  return parsed;
+}
+
+function getRequestedProfile(action: string, positional: string[], options: DaemonCommandOptions): string {
+  const profile = options.profile || positional[1];
+  if (typeof profile === 'string' && profile.trim()) return profile;
+  throw new Error(`Usage: pd daemon ${action} <profile>`);
+}
+
+function requestJsonViaSocket(sockPath: string, path: string, timeout = 1500): Promise<SocketJsonResponse | null> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (value: SocketJsonResponse | null): void => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
+
+    const req = http.request({
+      socketPath: sockPath,
+      path,
+      method: 'GET',
+      timeout,
+    }, (res) => {
+      const chunks: Buffer[] = [];
+      res.on('data', (chunk: Buffer) => chunks.push(chunk));
+      res.on('end', () => {
+        const text = Buffer.concat(chunks).toString();
+        let data: SocketJsonResponse['data'] = text;
+        try {
+          data = text ? JSON.parse(text) as Record<string, unknown> : null;
+        } catch {
+          data = text;
+        }
+        finish({
+          ok: (res.statusCode ?? 0) >= 200 && (res.statusCode ?? 0) < 300,
+          status: res.statusCode ?? 0,
+          data,
+        });
+      });
+    });
+
+    req.on('error', () => finish(null));
+    req.on('timeout', () => {
+      req.destroy();
+      finish(null);
+    });
+    req.end();
+  });
+}
+
+async function waitForProfileHealth(profile: DaemonProfilePaths, timeoutMs = PROFILE_STARTUP_TIMEOUT_MS): Promise<SocketJsonResponse | null> {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    if (existsSync(profile.sockPath)) {
+      const health = await requestJsonViaSocket(profile.sockPath, '/health', 2000);
+      if (health?.ok) return health;
+    }
+    await new Promise<void>(r => setTimeout(r, 150));
+  }
+  return null;
+}
+
+function readProfileRuntimeState(profile: DaemonProfilePaths): DaemonProfileState {
+  const saved = readDaemonProfileState(profile);
+  return {
+    name: profile.name,
+    pid: readNumberFile(profile.pidFile) ?? saved?.pid ?? null,
+    port: readNumberFile(profile.portFile) ?? saved?.port ?? null,
+    preferredPort: saved?.preferredPort ?? null,
+    runtimeDir: profile.runtimeDir,
+    socketPath: profile.sockPath,
+    ipcPath: profile.ipcPath,
+    dbPath: profile.dbPath,
+    startedAt: saved?.startedAt ?? null,
+    cwd: saved?.cwd ?? null,
+    fleetEnabled: saved?.fleetEnabled ?? false,
+    fleetBarEnabled: saved?.fleetBarEnabled ?? false,
+  };
+}
+
+function profileUrl(state: Pick<DaemonProfileState, 'port'>): string | null {
+  return state.port ? `http://${LOOPBACK_TCP_HOST}:${state.port}` : null;
+}
+
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, "'\\''")}'`;
+}
+
+function tailFile(path: string, maxChars = 4000): string {
+  try {
+    const text = readFileSync(path, 'utf8');
+    return text.slice(-maxChars).trim();
+  } catch {
+    return '';
+  }
+}
+
+async function describeProfile(profile: DaemonProfilePaths): Promise<DaemonProfileState & { running: boolean; healthy: boolean }> {
+  const state = readProfileRuntimeState(profile);
+  const health = existsSync(profile.sockPath)
+    ? await requestJsonViaSocket(profile.sockPath, '/health')
+    : null;
+  const healthData = health?.data && typeof health.data === 'object' ? health.data as Record<string, unknown> : {};
+  const pid = typeof healthData.pid === 'number' ? healthData.pid : state.pid;
+  const port = readNumberFile(profile.portFile) ?? state.port;
+  return {
+    ...state,
+    pid,
+    port,
+    running: Boolean(health?.ok) || isProcessRunning(pid),
+    healthy: Boolean(health?.ok),
+  };
+}
+
+function printProfileState(state: DaemonProfileState & { running: boolean; healthy: boolean }): void {
+  const url = profileUrl(state);
+  const status = state.healthy ? 'healthy' : state.running ? 'running-unhealthy' : 'stopped';
+  console.log(`${state.name}: ${status}`);
+  console.log(`  PID: ${state.pid ?? '-'}`);
+  console.log(`  Port: ${state.port ?? '-'}`);
+  console.log(`  URL: ${url ?? '-'}`);
+  console.log(`  Runtime: ${state.runtimeDir}`);
+  console.log(`  Socket: ${state.socketPath}`);
+  console.log(`  DB: ${state.dbPath}`);
+  console.log(`  Log: ${join(state.runtimeDir, 'daemon.log')}`);
+  console.log(`  Fleet: ${state.fleetEnabled ? 'enabled' : 'disabled'}`);
+}
+
 function getLocalCodeHash(): string {
   return calculateRuntimeCodeHash(join(__dirname, '..', '..'));
 }
 
 function isCanonicalDaemonTarget(): boolean {
   return !process.env.PORT_DADDY_URL && !process.env.PORT_DADDY_SOCK && !process.env.PORT_DADDY_PORT_FILE;
+}
+
+export async function handleDaemonCommand(positional: string[], options: DaemonCommandOptions = {}): Promise<void> {
+  const action = positional[0] || 'list';
+  const libDir: string = join(__dirname, '..', '..');
+  const tsxBin: string = join(libDir, 'node_modules', '.bin', 'tsx');
+  const serverScript: string = join(libDir, 'server.ts');
+
+  switch (action) {
+    case 'list':
+    case 'ls': {
+      const profiles = listDaemonProfiles();
+      const rows = await Promise.all(profiles.map((profile) => describeProfile(profile)));
+      if (options.json) {
+        console.log(JSON.stringify({ profiles: rows }, null, 2));
+        return;
+      }
+      if (rows.length === 0) {
+        ui.info('No named daemon profiles yet');
+        ui.info('Start one with: pd daemon start dev --port 9877');
+        return;
+      }
+      console.log('');
+      for (const row of rows) {
+        const status = row.healthy ? 'healthy' : row.running ? 'running-unhealthy' : 'stopped';
+        const url = profileUrl(row) ?? '-';
+        console.log(`${row.name.padEnd(18)} ${status.padEnd(18)} pid=${String(row.pid ?? '-').padEnd(8)} url=${url}`);
+      }
+      console.log('');
+      return;
+    }
+
+    case 'status': {
+      if (!positional[1] && !options.profile) {
+        await handleDaemonCommand(['list'], options);
+        return;
+      }
+      const profile = resolveDaemonProfile(getRequestedProfile(action, positional, options));
+      const state = await describeProfile(profile);
+      if (options.json) {
+        console.log(JSON.stringify(state, null, 2));
+      } else {
+        printProfileState(state);
+      }
+      return;
+    }
+
+    case 'start': {
+      const profile = resolveDaemonProfile(getRequestedProfile(action, positional, options));
+      ensureDaemonProfileDir(profile);
+
+      const current = await describeProfile(profile);
+      if (current.healthy) {
+        if (options.json) {
+          console.log(JSON.stringify({ success: true, alreadyRunning: true, profile: current }, null, 2));
+        } else {
+          ui.info(`Daemon profile "${profile.name}" already running (PID ${current.pid})`);
+          const url = profileUrl(current);
+          if (url) console.log(`  URL: ${url}`);
+        }
+        return;
+      }
+
+      if (current.pid && isProcessRunning(current.pid)) {
+        if (!options.force) {
+          ui.error(`Profile "${profile.name}" has a live PID ${current.pid} but did not answer health checks.`);
+          ui.info(`Retry with: pd daemon start ${profile.name} --force`);
+          process.exit(1);
+        }
+        try {
+          process.kill(current.pid, 'SIGTERM');
+        } catch {}
+        await waitForProcessExit(current.pid, SHUTDOWN_TIMEOUT_MS);
+      }
+
+      const preferredPort = parseProfilePort(options.port, current.preferredPort);
+      const logFd = openSync(profile.logFile, 'a');
+      let child: ChildProcess;
+      try {
+        child = spawn(tsxBin, [serverScript], {
+          env: buildDaemonProfileEnv(profile, {
+            port: preferredPort,
+            enableFleet: options.fleet === true,
+            enableFleetBar: options.fleetbar === true,
+          }),
+          stdio: ['ignore', logFd, logFd],
+          detached: true,
+        });
+      } finally {
+        closeSync(logFd);
+      }
+      child.unref();
+
+      const health = await waitForProfileHealth(profile);
+      if (!health?.ok) {
+        ui.error(`Daemon profile "${profile.name}" failed to become healthy`);
+        const logTail = tailFile(profile.logFile);
+        if (logTail) {
+          console.error(logTail);
+        } else {
+          ui.info(`No startup log was written at ${profile.logFile}`);
+        }
+        process.exit(1);
+      }
+
+      const healthData = health.data && typeof health.data === 'object' ? health.data as Record<string, unknown> : {};
+      const state: DaemonProfileState = {
+        name: profile.name,
+        pid: typeof healthData.pid === 'number' ? healthData.pid : child.pid ?? null,
+        port: readNumberFile(profile.portFile),
+        preferredPort,
+        runtimeDir: profile.runtimeDir,
+        socketPath: profile.sockPath,
+        ipcPath: profile.ipcPath,
+        dbPath: profile.dbPath,
+        startedAt: new Date().toISOString(),
+        cwd: process.cwd(),
+        fleetEnabled: options.fleet === true,
+        fleetBarEnabled: options.fleetbar === true,
+      };
+      writeDaemonProfileState(profile, state);
+
+      if (options.json) {
+        console.log(JSON.stringify({ success: true, profile: state }, null, 2));
+      } else {
+        ui.success(`Daemon profile "${profile.name}" running (PID ${state.pid})`);
+        console.log(`  Runtime: ${state.runtimeDir}`);
+        console.log(`  Socket: ${state.socketPath}`);
+        console.log(`  Log: ${profile.logFile}`);
+        console.log(`  URL: ${profileUrl(state) ?? '-'}`);
+        console.log(`  Use: eval "$(pd daemon env ${profile.name})"`);
+      }
+      return;
+    }
+
+    case 'stop': {
+      const profile = resolveDaemonProfile(getRequestedProfile(action, positional, options));
+      const current = await describeProfile(profile);
+      const pid = current.pid;
+      if (!pid || !isProcessRunning(pid)) {
+        if (options.json) {
+          console.log(JSON.stringify({ success: true, alreadyStopped: true, profile: current }, null, 2));
+        } else {
+          ui.warn(`Daemon profile "${profile.name}" is not running`);
+        }
+        return;
+      }
+
+      try {
+        process.kill(pid, 'SIGTERM');
+      } catch {}
+      let exited = await waitForProcessExit(pid, SHUTDOWN_TIMEOUT_MS);
+      if (!exited && options.force) {
+        try {
+          process.kill(pid, 'SIGKILL');
+        } catch {}
+        exited = await waitForProcessExit(pid, 2000);
+      }
+      if (!exited) {
+        ui.error(`Daemon profile "${profile.name}" PID ${pid} did not stop cleanly`);
+        ui.info(`Retry with: pd daemon stop ${profile.name} --force`);
+        process.exit(1);
+      }
+
+      const stoppedState: DaemonProfileState = {
+        name: current.name,
+        pid: null,
+        port: current.port,
+        preferredPort: current.preferredPort,
+        runtimeDir: current.runtimeDir,
+        socketPath: current.socketPath,
+        ipcPath: current.ipcPath,
+        dbPath: current.dbPath,
+        startedAt: null,
+        cwd: current.cwd,
+        fleetEnabled: current.fleetEnabled,
+        fleetBarEnabled: current.fleetBarEnabled,
+      };
+      writeDaemonProfileState(profile, stoppedState);
+
+      if (options.json) {
+        console.log(JSON.stringify({ success: true, stoppedPid: pid, profile: profile.name }, null, 2));
+      } else {
+        ui.success(`Daemon profile "${profile.name}" stopped (was PID ${pid})`);
+      }
+      return;
+    }
+
+    case 'env': {
+      const profile = resolveDaemonProfile(getRequestedProfile(action, positional, options));
+      console.log(`export PORT_DADDY_PROFILE=${shellQuote(profile.name)}`);
+      console.log(`export PORT_DADDY_DB=${shellQuote(profile.dbPath)}`);
+      console.log(`export PORT_DADDY_SOCK=${shellQuote(profile.sockPath)}`);
+      console.log(`export PORT_DADDY_IPC=${shellQuote(profile.ipcPath)}`);
+      console.log(`export PORT_DADDY_PID_FILE=${shellQuote(profile.pidFile)}`);
+      console.log(`export PORT_DADDY_PORT_FILE=${shellQuote(profile.portFile)}`);
+      console.log(`export PORT_DADDY_HEARTBEAT_FILE=${shellQuote(profile.heartbeatFile)}`);
+      console.log(`export PORT_DADDY_NO_FLEET=1`);
+      console.log(`export PORT_DADDY_NO_FLEETBAR=1`);
+      console.log(`unset PORT_DADDY_URL PD_URL PORT_DADDY_PREFIX`);
+      return;
+    }
+
+    default:
+      ui.error(`Unknown daemon command: ${action}`);
+      ui.info('Usage: pd daemon <list|status|start|stop|env> [profile]');
+      process.exit(1);
+  }
 }
 
 async function stopRunningCanonicalDaemon(localCodeHash: string, daemonPort: number): Promise<boolean> {

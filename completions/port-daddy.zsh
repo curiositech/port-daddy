@@ -1710,6 +1710,17 @@ _pd_cmd_ideas() {
   esac
 }
 
+_pd_cmd_roadmap() {
+  _arguments \
+    '--dir[project directory]:path:_files -/' \
+    '--root[project root]:path:_files -/' \
+    '--projectDir[project directory]:path:_files -/' \
+    '--limit[rows per section]:limit:' \
+    '--no-excerpts[hide current-work and Cartographer excerpts]' \
+    '(-j --json)'{-j,--json}'[output JSON]' \
+    '(-q --quiet)'{-q,--quiet}'[agent-readable section:slug output]'
+}
+
 _pd_cmd_inbox() {
   local -a inbox_subcmds
   inbox_subcmds=(
@@ -1852,6 +1863,10 @@ _port_daddy() {
     'graph:inspect semantic graph edges and stats'
     'memory:inspect episodic memory entries and stats'
     'ideas:search the canonical ideas trove and local residue'
+    # Cartographer roadmap projection
+    'roadmap:show Cartographer-curated Next Cuts, ideas, and dogfood feedback'
+    # Quorum (swarm consensus primitive)
+    'quorum:propose, vote, list, or inspect swarm proposals'
     # System & Monitoring
     'dashboard:open web dashboard in browser'
     'channels:list pub/sub channels'
@@ -1886,6 +1901,7 @@ _port_daddy() {
     'dev:start daemon in development mode (foreground)'
     'ci-gate:exit non-zero if daemon is running stale code'
     'mcp:start MCP server for Claude Code / Claude Desktop (pd mcp install to configure)'
+    'daemon:daemon lifecycle subcommands (status, log, doctor)'
     'setup:install daemon, MCP, FleetBar, and initialize a project'
     'init:set up Port Daddy for this project (scan, fleet, MCP, git hook)'
     # Bonds / Wallets — FleetControl hardening
@@ -1993,6 +2009,7 @@ _port_daddy() {
         graph)                  _pd_cmd_graph ;;
         memory)                 _pd_cmd_memory ;;
         ideas)                  _pd_cmd_ideas ;;
+        roadmap)                _pd_cmd_roadmap ;;
         mcp)                _arguments '1:subcommand:(start install)' ;;
         version|help)       ;;
         *)                  ;;

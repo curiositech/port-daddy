@@ -69,7 +69,7 @@ import {
   // Diagnostics
   handleMetrics, handleConfigCmd, handleHealth, handlePorts, handleDashboard, handleDoctor, handleStatus, handleVersion, handleHints,
   // Daemon
-  handleDaemon, handleDev,
+  handleDaemon, handleDaemonCommand, handleDev,
   // Benchmarking
   handleBench,
   // Setup
@@ -94,6 +94,8 @@ import {
   handleTuple,
   // Semantic graph + episodic memory
   handleGraph, handleMemory, handleIdeas,
+  handleRoadmap,
+  handleQuorum,
   // Consolidated read/write verbs + sitrep + pheromone (3.8.4)
   handleSitrep, handleSay, handleLook, handlePheromone,
   // Coordination advisor / suggestibility
@@ -141,7 +143,7 @@ const TIER_2_COMMANDS: Set<string> = new Set([
   'channels', 'webhook', 'webhooks', 'tunnel', 'dns', 'inbox',
   'advise', 'preflight', 'compass', 'guard',
   'metrics', 'health', 'dashboard',
-  'bench', 'demo', 'tuple', 'sortie'
+  'bench', 'demo', 'tuple', 'sortie', 'roadmap'
 ]);
 
 /**
@@ -529,8 +531,10 @@ function buildHelp(): string {
     `  ${G}pd graph stats${Z}           Inspect semantic graph totals`,
     `  ${G}pd memory episodes${Z}       Inspect episodic memory`,
     `  ${G}pd ideas search${Z} "text"   Search ideas, notes, tuples, and repo markdown`,
+    `  ${G}pd roadmap${Z}               Show Cartographer's current roadmap projection`,
+    `  ${G}pd daemon list${Z}           Inspect named sidecar daemon profiles`,
     '',
-    `${D}pd help <topic> for details — topics: setup, sessions, locks, agents, actors, ports, messaging, dns, orchestration, sugar, semantic, advisor, guard, ideas, tutorial${Z}`,
+    `${D}pd help <topic> for details — topics: setup, sessions, locks, agents, actors, ports, messaging, dns, orchestration, sugar, semantic, advisor, guard, ideas, roadmap, daemon, tutorial${Z}`,
     `${D}Dashboard: ${PORT_DADDY_URL}  •  Tutorial: pd learn${Z}`,
   );
 
@@ -963,6 +967,41 @@ Examples:
   pd ideas search "phase 3 parity debt" --sources markdown
   pd ideas show tuple-driven-fleet`,
 
+  roadmap: `Roadmap Projection \u2014 Cartographer-curated work for agents
+
+Commands:
+  roadmap                   Show Next Cuts, curated now items, and dogfood feedback
+    --dir <path>            Project directory (defaults to cwd)
+    --limit <n>             Limit rows per section (default: 8)
+    --no-excerpts           Hide CURRENT-WORK and Cartographer status excerpts
+    -q, --quiet             Print machine-readable section:slug lines
+    -j, --json              Output the raw Cartographer projection
+
+Examples:
+  pd roadmap
+  pd roadmap --limit 3 --no-excerpts
+  pd roadmap --dir /Users/you/coding/port-daddy --json`,
+
+  daemon: `Daemon Profiles \u2014 Named sidecar daemons beside the canonical daemon
+
+Commands:
+  daemon list                         List named sidecar profiles
+  daemon status <profile>             Show one profile's runtime, socket, DB, and URL
+  daemon start <profile>              Start an isolated profile
+    --port <port>                     Preferred TCP port (falls forward if busy)
+    --fleet                           Allow this profile to arm fleet runners
+    --fleetbar                        Allow this profile to launch FleetBar
+    --force                           Replace an unhealthy live PID for this profile
+  daemon stop <profile>               Stop a named profile
+    --force                           Escalate to SIGKILL if SIGTERM does not exit
+  daemon env <profile>                Print shell exports to target that profile
+
+Examples:
+  pd daemon start dev --port 9877
+  pd daemon list
+  eval "$(pd daemon env dev)"
+  pd daemon stop dev`,
+
   tutorial: `Interactive Tutorial \u2014 Learn Port Daddy step by step
 
 Commands:
@@ -995,14 +1034,15 @@ const ALL_COMMANDS: string[] = [
   'begin', 'done', 'whoami', 'with-lock', 'learn',
   'n', 'u', 'd',
   'dashboard', 'channels', 'webhook', 'webhooks', 'metrics', 'config', 'health', 'ports',
-  'start', 'stop', 'restart', 'status', 'install', 'uninstall', 'dev', 'ci-gate',
-  'doctor', 'diagnose', 'hints', 'mcp', 'version', 'help', 'bench', 'look', 'sitrep',
+  'start', 'stop', 'restart', 'status', 'install', 'uninstall', 'dev', 'daemon', 'ci-gate',
+  'doctor', 'diagnose', 'hints', 'mcp', 'version', 'help', 'bench', 'look', 'sitrep', 'roadmap',
   'advise', 'preflight', 'compass', 'guard',
   'salvage', 'resurrection', 'changelog', 'tunnel',
   'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
   'b', 'w', 'who-owns', 'history', 'tutorial', 'files',
   'spawn', 'spawned', 'watch',
   'harbor', 'harbors', 'demo', 'fleet', 'tuple', 'sortie', 'graph', 'memory', 'ideas',
+  'quorum',
 ];
 
 /** Simple Levenshtein distance for short strings */
@@ -2101,6 +2141,10 @@ async function main(): Promise<void> {
         await handleDaemon('restart');
         break;
 
+      case 'daemon':
+        await handleDaemonCommand(positional, options);
+        break;
+
       case 'status':
         await handleStatus();
         break;
@@ -2474,6 +2518,14 @@ async function main(): Promise<void> {
 
       case 'ideas':
         await handleIdeas(positional, options);
+        break;
+
+      case 'roadmap':
+        await handleRoadmap(options);
+        break;
+
+      case 'quorum':
+        await handleQuorum(positional, options);
         break;
 
       default: {

@@ -42,6 +42,7 @@ are not backlog authority on their own.
 5. Raw Spark and Spider output may stay on disk locally, but the curated trove is the authoritative ideation surface and duplicate raw files should be merged there instead of promoted blindly.
 6. Website/distribution work cannot keep preempting core daemon, fleet, and observability work indefinitely.
 7. Fleet ownership is singleton per project even if multiple daemons are running; a second daemon may discover a fleet config, but it must not start that project fleet.
+8. Named sidecar daemon profiles are legitimate local multiplicity. They must live under isolated profile runtime dirs, default fleet/FleetBar side effects off, and remain explicitly targeted instead of competing with the canonical daemon.
 
 ## Current Shipping Order
 

@@ -5,6 +5,7 @@ describe('cli/utils/freshness', () => {
     expect(shouldCheckDaemonFreshness('watch')).toBe(false);
     expect(shouldCheckDaemonFreshness('spawn')).toBe(false);
     expect(shouldCheckDaemonFreshness('fleet')).toBe(false);
+    expect(shouldCheckDaemonFreshness('daemon')).toBe(false);
     expect(shouldCheckDaemonFreshness('version')).toBe(false);
     expect(shouldCheckDaemonFreshness('claim')).toBe(true);
   });

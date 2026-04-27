@@ -322,6 +322,8 @@ describe('Test Group 3: API -> CLI Parity', () => {
     sorties: ['sortie'],
     graph: ['graph'],
     memory: ['memory'],
+    cartographer: ['roadmap'],
+    quorum: ['quorum'],
     bonds: ['bond'],
     wallets: ['wallet'],
     panic: ['fleet'],

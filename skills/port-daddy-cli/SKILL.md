@@ -620,10 +620,14 @@ All runtime files live in `~/.port-daddy/` (not `/tmp/`). This eliminates symlin
 | `~/.port-daddy/daemon.ipc` | Binary IPC socket (agent hot path) |
 | `~/.port-daddy/daemon.pid` | PID file |
 | `~/.port-daddy/daemon.port` | TCP port file (dashboard discovery) |
+| `~/.port-daddy/instances/<profile>/` | Named sidecar daemon runtime dirs (`pd daemon start <profile>`) |
 | `~/.port-daddy/master.key` | AES-256-GCM master key for note encryption |
 | `~/.port-daddy/ui-preferences.json` | Shared UI preferences (FleetBar menu bar companion) |
 
 Override via environment variables: `PORT_DADDY_SOCK`, `PORT_DADDY_IPC`, `PORT_DADDY_PORT_FILE`.
+For an isolated named daemon, use `pd daemon env <profile>` instead of hand-writing
+paths; it exports the profile socket, IPC path, DB path, pid file, port file,
+and sidecar-safe fleet/FleetBar guards.
 
 ## CLI Quick Reference
 
@@ -684,6 +688,7 @@ Fleet rows are mailbox-driven now: if an agent is already running and more trigg
 | `pd arbiter status` | Invariant enforcement status |
 | `pd arbiter violations` | List recorded violations |
 | `pd dev start/stop/status` | Isolated dev daemon (port 9877) |
+| `pd daemon start/list/status/stop/env <profile>` | Named sidecar daemon profiles under `~/.port-daddy/instances/` |
 
 ## Decision Matrix: Which Tool When
 
@@ -697,6 +702,7 @@ Fleet rows are mailbox-driven now: if an agent is already running and more trigg
 | Direct message to a specific agent | `talk_to_agent` MCP tool or `pd inbox send` |
 | Background automation (terminal-attached) | `pd fleet init` + `pd fleet up` |
 | Background automation (always-on, survives terminal) | Place `pd-fleet.yml` in a repo with durable Port Daddy markers; daemon auto-starts it |
+| Need another daemon beside the canonical one | `pd daemon start <profile> --port <port>`, then `eval "$(pd daemon env <profile>)"` in shells that should target it |
 | Reload fleet after editing pd-fleet.yml | `PD_URL="\${PORT_DADDY_URL:-http://localhost:9876}"; curl -XPOST "$PD_URL/fleet/reload"` or `kill -HUP <daemon-pid>` |
 | Share knowledge across agents | `pd tuple out` / `pd tuple rd` |
 | Check whether Spark/Spider or the repo already had this idea | `pd ideas search "query" --include-raw` |
