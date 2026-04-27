@@ -501,7 +501,7 @@ export default function McpPage() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen bg-[var(--surface-base)] pt-[var(--nav-height)] font-sans text-[var(--text-primary)]"
+      className="min-h-screen bg-[var(--surface-base)] font-sans text-[var(--text-primary)]"
     >
       <motion.div
         aria-hidden="true"
@@ -509,59 +509,60 @@ export default function McpPage() {
         style={{ scaleX }}
       />
 
-      <header className="border-b-2 border-[var(--border-strong)] bg-[var(--surface-base)]">
-        <PageContainer width="wide" className="py-[var(--section-space-y)] lg:py-[var(--space-10)]">
-          <SwissGrid className="items-end">
-            <SwissGridItem span="wide" className="space-y-[var(--space-6)]">
-            <BracketLabel>Model Context Protocol</BracketLabel>
-            <div className="space-y-[var(--space-5)]">
-              <PanelTitle as="h1" size="hero" className="max-w-[12ch]">
-                A control plane your agents can actually use.
-              </PanelTitle>
-              <PanelBody className="max-w-[48rem]">
-                Port Daddy exposes sessions, ports, locks, pub/sub, salvage, fleets, and tuple space as MCP tools. Agents coordinate through the same daemon operators already use, instead of inventing invisible side channels.
-              </PanelBody>
-            </div>
-            <div className="flex flex-wrap gap-[var(--space-3)]">
-              <BracketLink to="/docs/mcp" tone="blue">
-                Read MCP docs
-              </BracketLink>
-              <BracketLink to="/docs/cli/fleet" tone="lime">
-                Inspect fleet CLI
-              </BracketLink>
-            </div>
-            </SwissGridItem>
+      <main id="main-content">
+        <header className="border-b-2 border-[var(--border-strong)] bg-[var(--surface-base)]">
+          <PageContainer width="wide" className="py-[var(--section-space-y)] lg:py-[var(--space-10)]">
+            <SwissGrid className="items-end">
+              <SwissGridItem span="wide" className="space-y-[var(--space-6)]">
+              <BracketLabel>Model Context Protocol</BracketLabel>
+              <div className="space-y-[var(--space-5)]">
+                <PanelTitle as="h1" size="hero" className="max-w-[12ch]">
+                  A control plane your agents can actually use.
+                </PanelTitle>
+                <PanelBody className="max-w-[48rem]">
+                  Port Daddy exposes sessions, ports, locks, pub/sub, salvage, fleets, and tuple space as MCP tools. Agents coordinate through the same daemon operators already use, instead of inventing invisible side channels.
+                </PanelBody>
+              </div>
+              <div className="flex flex-wrap gap-[var(--space-3)]">
+                <BracketLink to="/docs/mcp" tone="blue">
+                  Read MCP docs
+                </BracketLink>
+                <BracketLink to="/docs/cli/fleet" tone="lime">
+                  Inspect fleet CLI
+                </BracketLink>
+              </div>
+              </SwissGridItem>
 
-            <SwissGridItem span="narrow">
-              <SurfacePanel tone="blue" className="space-y-[var(--panel-gap-loose)]">
-                <div className="space-y-[var(--space-2)]">
-                  <PanelEyebrow tone="primary">Install surface</PanelEyebrow>
-                  <PanelTitle as="p" size="display" tone="primary">
-                    pd mcp install
-                  </PanelTitle>
-                  <PanelBody tone="primary" className="max-w-none">
-                    One local daemon. MCP-compatible clients. Durable session truth.
-                  </PanelBody>
-                </div>
-                <DocsCodeBlock
-                  code={`pd install
+              <SwissGridItem span="narrow">
+                <SurfacePanel tone="blue" className="space-y-[var(--panel-gap-loose)]">
+                  <div className="space-y-[var(--space-2)]">
+                    <PanelEyebrow tone="primary">Install surface</PanelEyebrow>
+                    <PanelTitle as="p" size="display" tone="primary">
+                      pd mcp install
+                    </PanelTitle>
+                    <PanelBody tone="primary" className="max-w-none">
+                      One local daemon. MCP-compatible clients. Durable session truth.
+                    </PanelBody>
+                  </div>
+                  <DocsCodeBlock
+                    code={`pd install
 pd mcp install
 pd begin --identity myapp:agent --purpose "coordinate MCP work"`}
-                  language="cli"
-                  label="Setup"
-                />
-              </SurfacePanel>
-            </SwissGridItem>
-          </SwissGrid>
-        </PageContainer>
-      </header>
+                    language="cli"
+                    label="Setup"
+                  />
+                </SurfacePanel>
+              </SwissGridItem>
+            </SwissGrid>
+          </PageContainer>
+        </header>
 
-      <SectionBand tone="raised">
-        <PageContainer width="wide" className="space-y-[var(--space-6)]">
-          <MetricStrip />
-          <RuntimeTable />
-        </PageContainer>
-      </SectionBand>
+        <SectionBand tone="raised">
+          <PageContainer width="wide" className="space-y-[var(--space-6)]">
+            <MetricStrip />
+            <RuntimeTable />
+          </PageContainer>
+        </SectionBand>
 
       <SectionBand id="tools">
         <PageContainer width="wide">
@@ -718,25 +719,26 @@ const task = await tuple_in({
         </PageContainer>
       </SectionBand>
 
-      <SectionBand tone="sunken">
-        <PageContainer className="space-y-[var(--space-6)] text-center">
-          <BracketLabel>Start coordinated</BracketLabel>
-          <PanelTitle as="h2" size="display" className="mx-auto max-w-[14ch]">
-            Give the next MCP client a real operating model.
-          </PanelTitle>
-          <PanelBody className="mx-auto max-w-[44rem]">
-            Install the daemon, wire the MCP server, start a session, and let agents use the same coordination primitives that the CLI and control plane already trust.
-          </PanelBody>
-          <div className="flex flex-wrap justify-center gap-[var(--space-3)]">
-            <BracketLink to="/docs/quickstart" tone="blue">
-              Quick start
-            </BracketLink>
-            <BracketLink to="/docs/mcp" tone="lime">
-              MCP reference
-            </BracketLink>
-          </div>
-        </PageContainer>
-      </SectionBand>
+        <SectionBand tone="sunken">
+          <PageContainer className="space-y-[var(--space-6)] text-center">
+            <BracketLabel>Start coordinated</BracketLabel>
+            <PanelTitle as="h2" size="display" className="mx-auto max-w-[14ch]">
+              Give the next MCP client a real operating model.
+            </PanelTitle>
+            <PanelBody className="mx-auto max-w-[44rem]">
+              Install the daemon, wire the MCP server, start a session, and let agents use the same coordination primitives that the CLI and control plane already trust.
+            </PanelBody>
+            <div className="flex flex-wrap justify-center gap-[var(--space-3)]">
+              <BracketLink to="/docs/quickstart" tone="blue">
+                Quick start
+              </BracketLink>
+              <BracketLink to="/docs/mcp" tone="lime">
+                MCP reference
+              </BracketLink>
+            </div>
+          </PageContainer>
+        </SectionBand>
+      </main>
 
       <Footer />
     </motion.div>

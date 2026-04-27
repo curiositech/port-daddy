@@ -44,6 +44,10 @@ describe('design system contracts', () => {
     expect(sourceTokens).toContain('--blog-rule-gap: var(--space-7);')
     expect(semanticTokens).toContain('--surface-base:')
     expect(semanticTokens).toContain('--text-primary:')
+    expect(semanticTokens).toContain('--brand-primary-on-tint:')
+    expect(semanticTokens).toContain('--brand-accent-on-tint:')
+    expect(semanticTokens).toContain('--status-warning-on-tint:')
+    expect(semanticTokens).toContain('--code-channel-scope:')
     expect(roleTokens).toContain('--codeblock-bg: var(--code-bg);')
     expect(roleTokens).toContain('--grid-columns: var(--layout-grid-columns);')
     expect(roleTokens).toContain('--measure-copy: var(--layout-copy-measure);')
@@ -63,6 +67,7 @@ describe('design system contracts', () => {
     const protectedFiles = [
       ...collectSourceFiles('./components/ui'),
       ...collectSourceFiles('./components/site'),
+      ...collectSourceFiles('./components/layout'),
       ...collectSourceFiles('./components/docs'),
       ...collectSourceFiles('./lib'),
     ].filter((file) => file !== './components/ui/SignalFlags.tsx')
@@ -207,5 +212,42 @@ describe('design system contracts', () => {
       expect(source).toContain('StateMatrix')
       expect(source).toContain("test: 'error'")
     }
+  })
+
+  test('the public shell uses the shared site header and footer instead of the legacy landing shell', () => {
+    const mainLayout = read('./components/layout/MainLayout.tsx')
+    const app = read('./App.tsx')
+    const footer = read('./components/layout/Footer.tsx')
+    const headerStory = read('./components/site/SiteHeader.stories.tsx')
+
+    expect(mainLayout).toContain("import { SiteHeader } from '@/components/site/SiteHeader'")
+    expect(mainLayout).toContain('<SiteHeader />')
+    expect(mainLayout).not.toContain("components/landing/Nav")
+    expect(read('./components/site/SiteHeader.tsx')).toContain('data-shell="site-header"')
+    expect(app).not.toContain("components/landing/Nav")
+    expect(app).not.toContain('<Nav />')
+    expect(footer.trim()).toBe("export { SiteFooter as Footer } from '@/components/site/SiteFooter'")
+    expect(headerStory).toContain('ShellFrame')
+    expect(headerStory).toContain('StateMatrix')
+    expect(headerStory).toContain('SiteFooter')
+    expect(headerStory).toContain("test: 'error'")
+  })
+
+  test('contrast-critical shell surfaces use dedicated high-contrast role tokens', () => {
+    const badge = read('./components/ui/Badge.tsx')
+    const blogPage = read('./pages/BlogPage.tsx')
+    const codeBlock = read('./components/ui/CodeBlock.tsx')
+    const primitives = read('./components/site/primitives.tsx')
+    const colorLiteral = /#[0-9a-fA-F]{3,8}\b|(?:rgb|hsl)a?\(|oklch\(/
+
+    expect(badge).toContain('var(--status-error-on-tint)')
+    expect(badge).toContain('var(--brand-accent-on-tint)')
+    expect(badge).toContain('var(--status-success-on-tint)')
+    expect(badge).toContain('var(--status-warning-on-tint)')
+    expect(codeBlock).toContain('var(--code-channel-scope)')
+    expect(codeBlock).toContain('var(--code-channel-sep)')
+    expect(primitives).not.toContain('className="opacity-80"')
+    expect(blogPage).toContain('badgeMeta.background')
+    expect(blogPage).not.toMatch(colorLiteral)
   })
 })

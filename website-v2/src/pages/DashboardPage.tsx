@@ -129,7 +129,7 @@ export function DashboardPage() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen flex flex-col pt-[var(--nav-height)] font-sans selection:bg-[var(--brand-primary)] selection:text-white"
+      className="min-h-screen flex flex-col font-sans selection:bg-[var(--brand-primary)] selection:text-white"
       style={{ background: 'var(--surface-base)' }}
     >
       {/* Hero Section */}

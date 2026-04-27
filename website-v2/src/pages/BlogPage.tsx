@@ -132,7 +132,10 @@ function InstallTerminal() {
             {t.label}
             {t.featured && activeId !== t.id && (
               <span className="ml-1 px-1 py-0.5 rounded text-[8px] font-black uppercase"
-                style={{ background: 'rgba(204,61,46,0.15)', color: 'var(--brand-secondary)' }}>
+                style={{
+                  background: 'color-mix(in srgb, var(--status-error) 15%, var(--surface-base))',
+                  color: 'var(--status-error-on-tint)',
+                }}>
                 new
               </span>
             )}
@@ -244,7 +247,7 @@ function FeaturedArticle({ post }: { post: typeof blogPosts[0] }) {
               ))}
             </div>
 
-            <div className="flex items-center gap-3 pt-2 text-[11px] font-black uppercase tracking-widest text-[var(--brand-primary)] group-hover:gap-5 transition-all">
+            <div className="flex items-center gap-3 pt-2 text-[11px] font-black uppercase tracking-widest text-[var(--brand-primary-on-tint)] group-hover:gap-5 transition-all">
               Read Article
               <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
             </div>
@@ -367,10 +370,22 @@ const entryPoints = [
 ]
 
 // Badge labels for feature cards
-const featureBadgeLabel: Record<string, { label: string; color: string }> = {
-  new: { label: 'New', color: 'var(--brand-primary)' },
-  fleet: { label: 'Fleet', color: '#C4851A' },
-  security: { label: 'Proven', color: 'var(--brand-secondary)' },
+const featureBadgeLabel: Record<string, { label: string; background: string; color: string }> = {
+  new: {
+    label: 'New',
+    background: 'color-mix(in srgb, var(--brand-primary) 14%, var(--surface-base))',
+    color: 'var(--brand-primary-on-tint)',
+  },
+  fleet: {
+    label: 'Fleet',
+    background: 'color-mix(in srgb, var(--status-warning) 14%, var(--surface-base))',
+    color: 'var(--status-warning-on-tint)',
+  },
+  security: {
+    label: 'Proven',
+    background: 'color-mix(in srgb, var(--status-error) 14%, var(--surface-base))',
+    color: 'var(--status-error-on-tint)',
+  },
 }
 
 export function BlogPage() {
@@ -380,7 +395,7 @@ export function BlogPage() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen bg-[var(--surface-base)] flex flex-col pt-[var(--nav-height)] font-sans selection:bg-[var(--brand-primary)] selection:text-white"
+      className="min-h-screen bg-[var(--surface-base)] flex flex-col font-sans selection:bg-[var(--brand-primary)] selection:text-white"
     >
       {/* ===== HERO + FEATURES ===== */}
       <Surface depth="raised" radius="none" padding="none" className="pb-16 sm:pb-20 px-4 sm:px-6 lg:px-10 relative overflow-hidden">
@@ -498,7 +513,7 @@ export function BlogPage() {
                       {badgeMeta && (
                         <span
                           className="shrink-0 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest"
-                          style={{ background: `${badgeMeta.color}18`, color: badgeMeta.color }}
+                          style={{ background: badgeMeta.background, color: badgeMeta.color }}
                         >
                           {badgeMeta.label}
                         </span>

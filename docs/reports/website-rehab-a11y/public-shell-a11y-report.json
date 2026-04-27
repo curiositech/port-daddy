@@ -1,0 +1,170 @@
+{
+  "generatedAt": "2026-04-27T03:37:18.434Z",
+  "baseUrl": "http://127.0.0.1:3112",
+  "axe": {
+    "standard": "wcag2a/wcag2aa/wcag21a/wcag21aa/wcag22aa/wcag2aaa plus color-contrast-enhanced",
+    "violations": 0
+  },
+  "routes": [
+    {
+      "route": "/",
+      "viewport": "desktop",
+      "shell": {
+        "headers": 1,
+        "shellHeaders": 1,
+        "footers": 1,
+        "mains": 1,
+        "primaryNavs": 1,
+        "mobileNavs": 1
+      },
+      "overflow": {
+        "clientWidth": 1440,
+        "scrollWidth": 1440,
+        "bodyScrollWidth": 1440
+      },
+      "axeViolations": 0,
+      "violations": [],
+      "screenshot": "docs/reports/website-rehab-screenshots/shell-home-desktop.png"
+    },
+    {
+      "route": "/",
+      "viewport": "mobile",
+      "shell": {
+        "headers": 1,
+        "shellHeaders": 1,
+        "footers": 1,
+        "mains": 1,
+        "primaryNavs": 1,
+        "mobileNavs": 1
+      },
+      "overflow": {
+        "clientWidth": 390,
+        "scrollWidth": 390,
+        "bodyScrollWidth": 390
+      },
+      "axeViolations": 0,
+      "violations": [],
+      "screenshot": "docs/reports/website-rehab-screenshots/shell-home-mobile.png"
+    },
+    {
+      "route": "/docs",
+      "viewport": "desktop",
+      "shell": {
+        "headers": 1,
+        "shellHeaders": 1,
+        "footers": 1,
+        "mains": 1,
+        "primaryNavs": 1,
+        "mobileNavs": 1
+      },
+      "overflow": {
+        "clientWidth": 1440,
+        "scrollWidth": 1440,
+        "bodyScrollWidth": 1440
+      },
+      "axeViolations": 0,
+      "violations": [],
+      "screenshot": "docs/reports/website-rehab-screenshots/shell-docs-desktop.png"
+    },
+    {
+      "route": "/docs",
+      "viewport": "mobile",
+      "shell": {
+        "headers": 1,
+        "shellHeaders": 1,
+        "footers": 1,
+        "mains": 1,
+        "primaryNavs": 1,
+        "mobileNavs": 1
+      },
+      "overflow": {
+        "clientWidth": 390,
+        "scrollWidth": 390,
+        "bodyScrollWidth": 390
+      },
+      "axeViolations": 0,
+      "violations": [],
+      "screenshot": "docs/reports/website-rehab-screenshots/shell-docs-mobile.png"
+    },
+    {
+      "route": "/mcp",
+      "viewport": "desktop",
+      "shell": {
+        "headers": 2,
+        "shellHeaders": 1,
+        "footers": 1,
+        "mains": 1,
+        "primaryNavs": 1,
+        "mobileNavs": 1
+      },
+      "overflow": {
+        "clientWidth": 1440,
+        "scrollWidth": 1440,
+        "bodyScrollWidth": 1440
+      },
+      "axeViolations": 0,
+      "violations": [],
+      "screenshot": "docs/reports/website-rehab-screenshots/shell-mcp-desktop.png"
+    },
+    {
+      "route": "/mcp",
+      "viewport": "mobile",
+      "shell": {
+        "headers": 2,
+        "shellHeaders": 1,
+        "footers": 1,
+        "mains": 1,
+        "primaryNavs": 1,
+        "mobileNavs": 1
+      },
+      "overflow": {
+        "clientWidth": 390,
+        "scrollWidth": 390,
+        "bodyScrollWidth": 390
+      },
+      "axeViolations": 0,
+      "violations": [],
+      "screenshot": "docs/reports/website-rehab-screenshots/shell-mcp-mobile.png"
+    },
+    {
+      "route": "/blog",
+      "viewport": "desktop",
+      "shell": {
+        "headers": 1,
+        "shellHeaders": 1,
+        "footers": 1,
+        "mains": 1,
+        "primaryNavs": 1,
+        "mobileNavs": 1
+      },
+      "overflow": {
+        "clientWidth": 1440,
+        "scrollWidth": 1440,
+        "bodyScrollWidth": 1440
+      },
+      "axeViolations": 0,
+      "violations": [],
+      "screenshot": "docs/reports/website-rehab-screenshots/shell-blog-desktop.png"
+    },
+    {
+      "route": "/blog",
+      "viewport": "mobile",
+      "shell": {
+        "headers": 1,
+        "shellHeaders": 1,
+        "footers": 1,
+        "mains": 1,
+        "primaryNavs": 1,
+        "mobileNavs": 1
+      },
+      "overflow": {
+        "clientWidth": 390,
+        "scrollWidth": 390,
+        "bodyScrollWidth": 390
+      },
+      "axeViolations": 0,
+      "violations": [],
+      "screenshot": "docs/reports/website-rehab-screenshots/shell-blog-mobile.png"
+    }
+  ]
+}

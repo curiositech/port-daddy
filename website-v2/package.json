@@ -11,7 +11,8 @@
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "test": "vitest run",
-    "test:a11y:mcp": "node scripts/check-mcp-a11y.mjs"
+    "test:a11y:mcp": "node scripts/check-mcp-a11y.mjs",
+    "test:a11y:shell": "node scripts/check-public-shell-a11y.mjs"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",

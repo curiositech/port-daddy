@@ -125,14 +125,14 @@ export function TerminalDemos() {
           bodyClassName="max-w-[36rem]"
         />
 
-        <div className="grid lg:grid-cols-[240px,1fr] gap-4 sm:gap-6">
+        <div className="grid w-full min-w-0 max-w-full gap-4 overflow-hidden sm:gap-6 lg:grid-cols-[240px_minmax(0,1fr)] lg:overflow-visible">
           {/* Tabs */}
-          <div className="flex lg:flex-col gap-2 overflow-x-auto pb-2 lg:pb-0 -mx-2 px-2 lg:mx-0 lg:px-0">
+          <div className="flex w-full max-w-full min-w-0 gap-2 overflow-x-auto pb-2 lg:flex-col lg:overflow-visible lg:pb-0">
             {DEMOS.map((demo) => (
               <button
                 key={demo.id}
                 onClick={() => setActiveDemo(demo)}
-                className="text-left px-4 py-3 rounded-[var(--radius-lg)] transition-all duration-200 cursor-pointer shrink-0 lg:shrink"
+                className="min-w-[10rem] shrink-0 cursor-pointer rounded-[var(--radius-lg)] px-4 py-3 text-left transition-all duration-200 lg:min-w-0 lg:shrink"
                 style={{
                   background: activeDemo.id === demo.id ? 'var(--surface-overlay)' : 'transparent',
                   boxShadow: activeDemo.id === demo.id ? 'var(--shadow-inset)' : 'none',
@@ -163,6 +163,7 @@ export function TerminalDemos() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
+            className="min-w-0 max-w-full overflow-hidden"
           >
             <NeumorphicTerminal
               code={activeDemo.code}
