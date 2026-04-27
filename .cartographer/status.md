@@ -1,9 +1,9 @@
 # Cartographer Status
 
 **Last updated:** 2026-04-26
-**Updated by:** Codex Compass advisor slice
-**HEAD:** `65f41df`
-**Previous HEAD:** `f45b751` — multiple new commits since last cartographer refresh
+**Updated by:** Codex Shipwright UI slice
+**HEAD:** `f689337`
+**Previous HEAD:** `65f41df` — multiple new commits since last cartographer refresh
 
 ---
 
@@ -19,6 +19,14 @@ Active threads, ranked by commit recency:
 
 Newest committed truth since the last cartographer refresh:
 
+- `f689337` — Shipwright is now a real Fleet Control Center surface. The app
+  accepts `surface=shipwright`, renders an all-project fixture-backed workbench,
+  shows fixture labels instead of pretending daemon truth, and ships a rebuilt
+  `public/fleet-ui` bundle. Validation: Fleet UI lint/build, focused
+  ship-grammar test, browser smoke via Chromium CDP, and broad `npm test`
+  (`143/143` suites, `4981/4982` passing, `1` skip) are green.
+- `2cc9fee` — Fleet UI served bundle was rebuilt for the first Shipwright
+  grammar/API/fixture slice.
 - `f45b751` — CLI session/sugar/tuple typecheck debt is closed; `npm run typecheck` is green again.
 - `8cddbca` — git-sensitive channel discovery is committed.
 - `8236119` — curated workgroup-ai skills import is committed.
