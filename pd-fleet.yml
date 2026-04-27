@@ -9,7 +9,11 @@
 # Codex mini for code-changing agents, and custom for non-LLM jobs.
 
 fleet:
-  name: port-daddy-dev
+  # Name must match `basename(projectDir)` so the post-commit hook's
+  # `project:<basename>:<hash>:git:committed` channel matches what
+  # `lib/fleet-channels.ts` subscribes on (slug = fleet.name). Renaming
+  # this field breaks every git:committed-triggered agent silently.
+  name: port-daddy
   harbor: "{project}:fleet"
 
   limits:
@@ -205,7 +209,14 @@ fleet:
       identity: "{project}:fleet:simplifier"
 
     cartographer:
-      trigger: git:committed
+      # Scheduled instead of git:committed because:
+      # (1) roadmap maintenance is not per-commit work — every 30m is plenty
+      # (2) git:committed already fires qa, test-hunter, simplifier, and
+      #     cartographer simultaneously; with max_concurrent_spawns=2,
+      #     cartographer always lost the race and never started
+      # (3) harvesting .spark/feedback/ on a steady cadence is more useful
+      #     than reactive bursts that compete for slots
+      schedule: "*/30 * * * *"
       backend: ollama
       model: qwen2.5-coder:7b
       singleton: true
