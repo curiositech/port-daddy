@@ -284,6 +284,60 @@ describe('createFleetDaemon', () => {
     ]);
   });
 
+  test('startProject() reclaims a stale fleet lease held by a dead daemon pid', () => {
+    const killSpy = jest.spyOn(process, 'kill').mockImplementation((pid, signal) => {
+      if (pid === 424242 && signal === 0) {
+        const error = new Error('no such process');
+        error.code = 'ESRCH';
+        throw error;
+      }
+      return true;
+    });
+    const acquire = jest.fn()
+      .mockReturnValueOnce({
+        success: false,
+        error: 'lock is held',
+        holder: 'fleetd:port-daddy-stable:unknown:424242',
+      })
+      .mockReturnValueOnce({ success: true });
+    const release = jest.fn(() => ({ success: true }));
+    const deps = makeDeps({
+      locks: {
+        acquire,
+        release,
+        extend: jest.fn(() => ({ success: true, expiresAt: Date.now() + 30000 })),
+        check: jest.fn(() => ({
+          success: true,
+          held: true,
+          owner: 'fleetd:port-daddy-stable:unknown:424242',
+        })),
+      },
+    });
+
+    try {
+      mockLoadFleetConfig.mockReturnValue(makeConfig('reclaimed-project'));
+      mockGetStatus.mockReturnValue([]);
+
+      const daemon = makeDaemon(deps);
+      expect(daemon.startProject('/test/reclaimed')).toEqual({ success: true });
+
+      expect(release).toHaveBeenCalledWith(expect.stringMatching(/^fleet:project:/), { force: true });
+      expect(acquire).toHaveBeenCalledTimes(2);
+      expect(deps.logger.warn).toHaveBeenCalledWith(
+        'fleet_project_stale_lease_reclaimed',
+        expect.objectContaining({
+          project: 'reclaimed',
+          projectDir: '/test/reclaimed',
+          holder: 'fleetd:port-daddy-stable:unknown:424242',
+        })
+      );
+      expect(daemon.getStatus().fleets).toHaveLength(1);
+      expect(daemon.getStatus().skipped).toHaveLength(0);
+    } finally {
+      killSpy.mockRestore();
+    }
+  });
+
   test('renewal reacquires a project lease if the lock row disappears without a new owner', () => {
     const setIntervalSpy = jest.spyOn(global, 'setInterval');
     let held = false;

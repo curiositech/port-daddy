@@ -360,6 +360,19 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
     return { success: true };
   }
 
+  function isStaleFleetLeaseHolder(holder: string | null): boolean {
+    if (!holder?.startsWith('fleetd:')) return false;
+    const pid = Number.parseInt(holder.split(':').at(-1) || '', 10);
+    if (!Number.isFinite(pid) || pid <= 0 || pid === process.pid) return false;
+
+    try {
+      process.kill(pid, 0);
+      return false;
+    } catch (error) {
+      return (error as NodeJS.ErrnoException).code === 'ESRCH';
+    }
+  }
+
   function stopManagedFleet(projectDir: string, options: { releaseLease?: boolean } = {}): boolean {
     const { releaseLease = true } = options;
     const managed = fleets.get(projectDir);
@@ -428,7 +441,7 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
 
   function acquireProjectLease(projectDir: string, projectName: string): { success: boolean; error?: string } {
     const lockName = getProjectLeaseName(projectDir);
-    const result = locks.acquire(lockName, {
+    let result = locks.acquire(lockName, {
       owner: daemonOwner,
       pid: process.pid,
       ttl: FLEET_PROJECT_LEASE_TTL_MS,
@@ -443,6 +456,37 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
 
     if (!result.success) {
       const holder = result.holder || null;
+      if (isStaleFleetLeaseHolder(holder)) {
+        logger.warn('fleet_project_stale_lease_reclaimed', {
+          project: projectName,
+          projectDir,
+          holder,
+        });
+        locks.release(lockName, { force: true });
+        result = locks.acquire(lockName, {
+          owner: daemonOwner,
+          pid: process.pid,
+          ttl: FLEET_PROJECT_LEASE_TTL_MS,
+          metadata: {
+            projectDir,
+            projectName,
+            daemonOwner,
+            daemonDir,
+            daemonPort: process.env.PORT_DADDY_PORT || process.env.PORT || null,
+          },
+        });
+        if (result.success) {
+          projectLeases.set(projectDir, {
+            lockName,
+            owner: daemonOwner,
+            projectDir,
+            projectName,
+          });
+          clearSkippedProject(projectDir);
+          startLeaseRenewal();
+          return { success: true };
+        }
+      }
       const reason = holder
         ? `fleet lease already held by ${holder}`
         : `fleet lease unavailable: ${result.error || 'unknown'}`;
