@@ -112,6 +112,57 @@ export interface FilePreview {
   lines: FilePreviewLine[];
 }
 
+export type CoordinationGuardMode = 'off' | 'warn' | 'enforce';
+export type CoordinationGuardAction = 'status' | 'check' | 'enable' | 'install';
+
+export interface CoordinationGuardOwner {
+  sessionId?: string | null;
+  agentId?: string | null;
+  purpose?: string | null;
+  phase?: string | null;
+}
+
+export interface CoordinationGuardViolation {
+  code: string;
+  severity: 'warning' | 'critical';
+  message: string;
+  file?: string;
+  owners?: CoordinationGuardOwner[];
+}
+
+export interface CoordinationGuardStatus {
+  success: boolean;
+  name: string;
+  enabled: boolean;
+  mode: CoordinationGuardMode;
+  requireSession: boolean;
+  requireClaims: boolean;
+  configPath: string;
+  projectDir: string;
+}
+
+export interface CoordinationGuardCheck {
+  success: boolean;
+  passed: boolean;
+  shouldBlock: boolean;
+  mode: CoordinationGuardMode;
+  enabled: boolean;
+  files: string[];
+  agentId?: string | null;
+  sessionId?: string | null;
+  violations: CoordinationGuardViolation[];
+}
+
+export interface CoordinationGuardEnvelope {
+  success: boolean;
+  action?: CoordinationGuardAction;
+  project?: string | null;
+  projectDir: string;
+  status: CoordinationGuardStatus;
+  check?: CoordinationGuardCheck;
+  message?: string;
+}
+
 export interface ResolvedChannelTarget {
   logical: string;
   physical: string;
