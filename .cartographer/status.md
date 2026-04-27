@@ -1,9 +1,10 @@
 # Cartographer Status
 
 **Last updated:** 2026-04-27
-**Updated by:** Codex stale-work visibility slice
-**HEAD:** `7b91e37`
-**Previous HEAD:** `295854d` — several promotion/UI cleanup commits landed before the current stale-work visibility slice
+**Updated by:** Codex promotion recovery closeout
+**HEAD:** `717f4f4`
+**Stable:** `40cf79d` — promoted from `main@717f4f4` and pushed to `origin/stable`
+**Previous HEAD:** `7b91e37` — Shipwright component review shots, before the guard/stale-visibility/promotion recovery stack landed
 
 ---
 
@@ -19,6 +20,13 @@ Active threads, ranked by commit recency:
 
 Newest committed truth since the last cartographer refresh:
 
+- `40cf79d` — stable promotion commit for `main@717f4f4`; pushed to `origin/stable`. Promotion gate passed `147/147` Jest suites, `5019` tests, `1` skip, then rebuilt/reinstalled the stable daemon.
+- `717f4f4` — promotion verification wait loops now use explicit `/bin/sleep` so daemon port/runtime verification actually waits instead of failing red after a healthy install.
+- `fccce3a` — actor inbox acknowledgement and salvage summary release surfaces are documented in OpenAPI and the Port Daddy skill/API reference.
+- `806bb8a` — Coordination Guard hooks now fail closed when `pd guard check` fails instead of printing ENFORCE errors and falling through to a later `exit 0`.
+- `41eb63f` — stale-work visibility improved: `pd salvage --summary`, encrypted salvage-note redaction, actor inbox mark-read route/CLI, parity surfaces, and docs recovery updates.
+- `b9ea3bb` / `8630817` — Shipwright view coverage and Coordination Guard hook checks landed from peer sessions.
+- `7a65e5d` — fleet launchability surfaces now expose backend/readiness blockers; `@anthropic-ai/sdk` is installed and Cartographer moved onto Claude Haiku with explicit status/health/preflight signals.
 - `7b91e37` — Shipwright component review shots are committed.
 - `28cbfe2` — FleetBar now surfaces project readiness.
 - `57b51ca` — tracked Python bytecode artifacts were removed.
@@ -58,10 +66,18 @@ Current Compass advisor validation truth on 2026-04-26:
 Stale-work visibility truth on 2026-04-27:
 
 - `pd salvage --project port-daddy --summary` now makes the salvage queue legible as non-live triage instead of a wall of zombie rows: status counts, age buckets, project scope, encrypted-note redaction counts, and active-work comparison commands.
-- Encrypted salvage notes are redacted in CLI output. Current dogfood truth: 54 non-live `port-daddy` entries, 40 encrypted notes redacted, 4 entries under 2 hours, 43 from 2-24 hours, and 7 over 24 hours.
+- Encrypted salvage notes are redacted in CLI output. Current post-promotion dogfood truth: 57 non-live `port-daddy` entries, 60 encrypted notes redacted, 6 entries under 2 hours, 44 from 2-24 hours, and 7 over 24 hours.
 - Actor inboxes now have an explicit acknowledgement route and CLI path: `PUT /actors/:id/inbox/read-all` and `pd actor <id> --inbox --mark-read`. The messages remain stored; only unread state changes.
 - Navigator inbox was read but not acknowledged. It currently has 6 unread messages; at least two are still meaningful roadmap/promotion coordination requests.
 - Validation: focused salvage/actor route tests passed, `npm run typecheck` passed, `git diff --check` passed, and source CLI dogfood for salvage summary and Navigator inbox reads succeeded.
+
+Promotion recovery truth on 2026-04-27:
+
+- The official promotion rerun was owned by the Harbormaster path under `pd with-lock stable-promotion`; the lock released after completion.
+- Remote `main` is `717f4f49bbb382851fe582b926ce88dc2f06b69f`; remote `stable` is `40cf79d9f5846986fc6ed8ed696061fd2268a856`.
+- Live daemon truth after promotion: Port Daddy `3.11.0`, code hash `ce3faf8fb34e`, install dir `/Users/erichowens/port-daddy-stable`, health `ok`, runtime `nominal`.
+- Stable checkout still has generated Rust target dirt under `core/harbor-card-rs/target/release/**`; do not mistake it for source work.
+- `pd sessions --active` and actor projections still disagree with `pd agents --active --json` after daemon restart. This is now an explicit Coxswain coordination debt item, not a private observation.
 
 Skill-governance truth on 2026-04-26:
 
