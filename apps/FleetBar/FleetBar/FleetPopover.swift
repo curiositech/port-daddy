@@ -158,6 +158,13 @@ struct FleetPopover: View {
         ])
     }
 
+    /// Renders one compact Daemon Report metric.
+    ///
+    /// Sample input:
+    /// `label: "Runtime", value: "nominal", color: Fleet.Color.healthy`
+    ///
+    /// Sample output:
+    /// A small uppercase label above a single-line monospaced value.
     private func daemonReportRow(label: String, value: String, color: Color = .primary) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label.uppercased())
@@ -167,6 +174,28 @@ struct FleetPopover: View {
                 .font(.system(.caption, design: .monospaced).weight(.medium))
                 .foregroundStyle(color)
                 .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Renders a full-width Daemon Report diagnostic that must remain legible.
+    ///
+    /// Sample input:
+    /// `label: "Bosun", value: "idle — daemon heartbeat writer active"`
+    ///
+    /// Sample output:
+    /// A full-width report row whose value wraps instead of truncating.
+    private func daemonReportDiagnostic(label: String, value: String, color: Color = .primary) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label.uppercased())
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.tertiary)
+            Text(value)
+                .font(.system(.caption, design: .monospaced).weight(.medium))
+                .foregroundStyle(color)
+                .lineLimit(nil)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -229,11 +258,13 @@ struct FleetPopover: View {
                 }
             }
 
-            HStack(spacing: Fleet.Space.m) {
-                daemonReportRow(label: "Runtime", value: status.runtime?.state ?? status.status, color: runtimeColor)
-                daemonReportRow(label: "Version", value: status.daemon?.version ?? status.version, color: Fleet.Color.active)
-                daemonReportRow(label: "Code hash", value: status.daemon?.codeHash ?? "unknown")
-                daemonReportRow(label: "Bosun", value: bosun?.reason ?? bosun?.state ?? "n/a", color: bosunColor)
+            VStack(alignment: .leading, spacing: Fleet.Space.s) {
+                HStack(spacing: Fleet.Space.m) {
+                    daemonReportRow(label: "Runtime", value: status.runtime?.state ?? status.status, color: runtimeColor)
+                    daemonReportRow(label: "Version", value: status.daemon?.version ?? status.version, color: Fleet.Color.active)
+                    daemonReportRow(label: "Code hash", value: status.daemon?.codeHash ?? "unknown")
+                }
+                daemonReportDiagnostic(label: "Bosun", value: bosun?.reason ?? bosun?.state ?? "n/a", color: bosunColor)
             }
 
             if !recentActivity.isEmpty {
