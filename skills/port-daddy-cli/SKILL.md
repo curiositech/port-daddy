@@ -49,7 +49,10 @@ pd note "Scope: <task>. Likely files: <paths>. Risks/blockers: <anything importa
 pd session files add <path>
 pd session files add <path> --symbol-path <ClassOrFunction.name>
 
-# 7. Do the work, test it, then leave the result and close cleanly.
+# 7. If this repo has Coordination Guard enabled, check before commit.
+pd guard check --staged
+
+# 8. Do the work, test it, then leave the result and close cleanly.
 pd note "Result: <what changed>. Validation: <commands run>. Remaining: <if any>."
 pd done "<short outcome>"
 ```
@@ -67,6 +70,7 @@ Use this table when the happy path reveals a specific need:
 | Inspect current session | `pd whoami` | Use when context is unclear or `pd begin` reports an active session. |
 | Explain scope or handoff | `pd note` | Human-readable truth; use this first. |
 | Decide coordination before editing | `pd advise` / `pd preflight` | Ask before risky edits or handoffs. |
+| Enforce coordination before commit | `pd guard` | Use `pd guard install --mode enforce` to require an active session plus file claims in any repo. |
 | Edit files safely | `pd session files add` | Prefer symbol claims when the target function/class is known. |
 | Run a dev server | `pd claim <project>:<service>:<context> -q` | Never hardcode a random port. |
 | Exclusive critical section | `pd with-lock <resource> -- <command>` | Use for migrations, promotion, generated artifacts, and non-mergeable work. |
@@ -193,6 +197,10 @@ needed. Do not begin by browsing every available tool.
 - Use **notes** for human-readable scope, decisions, blockers, and validation.
 - Use **file claims** for advisory edit ownership. They warn and start a
   conversation; they are not hard locks.
+- Use **Coordination Guard** when convention is not enough. `pd guard enable
+  --mode enforce && pd guard install` writes a local `.portdaddy/` config and
+  pre-commit hook so commits require a live Port Daddy session and matching file
+  claims.
 - Use **symbol claims** for function/class-scoped code edits when the symbol
   index knows the file.
 - Use **locks** only for scarce, non-mergeable critical sections.

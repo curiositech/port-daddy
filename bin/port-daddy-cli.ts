@@ -100,6 +100,8 @@ import {
   handleAdvisor,
   // Maritime actor directory
   handleActors,
+  // Coordination Guard enforcement controls
+  handleGuard,
 } from '../cli/commands/index.js';
 import { getDaemonTcpUrl, readDaemonPort, resolveDaemonTcpTarget } from '../shared/daemon-discovery.js';
 import { calculateRuntimeCodeHash } from '../shared/code-hash.js';
@@ -137,7 +139,7 @@ const TIER_2_COMMANDS: Set<string> = new Set([
   'agent', 'agents', 'actor', 'actors',
   'up', 'down', 'watch', 'swarm', 'fleet',
   'channels', 'webhook', 'webhooks', 'tunnel', 'dns', 'inbox',
-  'advise', 'preflight', 'compass',
+  'advise', 'preflight', 'compass', 'guard',
   'metrics', 'health', 'dashboard',
   'bench', 'demo', 'tuple', 'sortie'
 ]);
@@ -523,11 +525,12 @@ function buildHelp(): string {
     `  ${G}pd salvage${Z}               Pick up a dead agent's work`,
     `  ${G}pd actors${Z}                Inspect durable maritime actor souls`,
     `  ${G}pd advise${Z}                Suggest coordination moves before editing`,
+    `  ${G}pd guard${Z}                 Enforce session + file-claim discipline`,
     `  ${G}pd graph stats${Z}           Inspect semantic graph totals`,
     `  ${G}pd memory episodes${Z}       Inspect episodic memory`,
     `  ${G}pd ideas search${Z} "text"   Search ideas, notes, tuples, and repo markdown`,
     '',
-    `${D}pd help <topic> for details — topics: setup, sessions, locks, agents, actors, ports, messaging, dns, orchestration, sugar, semantic, advisor, ideas, tutorial${Z}`,
+    `${D}pd help <topic> for details — topics: setup, sessions, locks, agents, actors, ports, messaging, dns, orchestration, sugar, semantic, advisor, guard, ideas, tutorial${Z}`,
     `${D}Dashboard: ${PORT_DADDY_URL}  •  Tutorial: pd learn${Z}`,
   );
 
@@ -906,6 +909,32 @@ Examples:
   pd preflight docs/recovery/CURRENT-WORK.md --tuples
   pd compass --task "handoff blocker to another agent" --channels`,
 
+  guard: `Coordination Guard \u2014 Enforce Port Daddy coordination discipline
+
+Commands:
+  guard status              Show active session, checked files, and violations
+  guard check [files...]    Verify current dirty files or explicit files
+    --staged                Check staged files only, for pre-commit hooks
+    --mode <mode>           off | warn | enforce
+    -j, --json              Machine-readable result
+
+  guard enable              Write project config in enforce mode
+    --mode <warn|enforce>   Select enforcement strength
+  guard disable             Turn checks off for this project
+  guard install             Install/update the managed pre-commit hook block
+    --mode <warn|enforce>   Default: enforce
+
+What it enforces:
+  - an active Port Daddy session exists
+  - changed files are claimed by the active session
+  - files claimed by another active session block in enforce mode
+
+Examples:
+  pd guard status
+  pd guard check --staged --mode enforce
+  pd guard enable --mode enforce
+  pd guard install --mode enforce`,
+
   ideas: `Ideas Search \u2014 Search canonical ideas plus live repo memory
 
 Commands:
@@ -966,7 +995,7 @@ const ALL_COMMANDS: string[] = [
   'dashboard', 'channels', 'webhook', 'webhooks', 'metrics', 'config', 'health', 'ports',
   'start', 'stop', 'restart', 'status', 'install', 'uninstall', 'dev', 'ci-gate',
   'doctor', 'diagnose', 'hints', 'mcp', 'version', 'help', 'bench', 'look', 'sitrep',
-  'advise', 'preflight', 'compass',
+  'advise', 'preflight', 'compass', 'guard',
   'salvage', 'resurrection', 'changelog', 'tunnel',
   'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
   'b', 'w', 'who-owns', 'history', 'tutorial', 'files',
@@ -2329,6 +2358,10 @@ async function main(): Promise<void> {
       case 'preflight':
       case 'compass':
         await handleAdvisor(positional, options);
+        break;
+
+      case 'guard':
+        await handleGuard(positional, options);
         break;
 
       case 'integration':
