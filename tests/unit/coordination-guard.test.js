@@ -134,4 +134,39 @@ describe('Coordination Guard', () => {
       merged.lastIndexOf('exit 0'),
     );
   });
+
+  test('upgrades legacy guard block missing || exit $? in place', () => {
+    // The pre-fix hook format propagated nothing — `pd guard check` would
+    // print ENFORCE errors but the surrounding `if/elif/else` discarded
+    // the exit code, then the script's trailing `exit 0` ran anyway.
+    // mergePreCommitHook MUST replace the legacy block (matched by markers)
+    // with the new block, restoring exit-code propagation in both branches.
+    const legacyBlock = [
+      '#!/usr/bin/env zsh',
+      '',
+      '# >>> Port Daddy Coordination Guard',
+      'if command -v pd >/dev/null 2>&1; then',
+      '  pd guard check --staged --hook',
+      'elif command -v port-daddy >/dev/null 2>&1; then',
+      '  port-daddy guard check --staged --hook',
+      'else',
+      '  echo "Coordination Guard: pd command not found." >&2',
+      '  exit 1',
+      'fi',
+      '# <<< Port Daddy Coordination Guard',
+      'exit 0',
+      '',
+    ].join('\n');
+
+    const merged = mergePreCommitHook(legacyBlock);
+
+    expect(merged).toContain('pd guard check --staged --hook || exit $?');
+    expect(merged).toContain('port-daddy guard check --staged --hook || exit $?');
+    // No bare lines remain — every guard call propagates.
+    expect(merged).not.toMatch(/^\s*pd guard check --staged --hook$/m);
+    expect(merged).not.toMatch(/^\s*port-daddy guard check --staged --hook$/m);
+    // Only one managed block — replacement, not duplication.
+    const startMarkers = merged.match(/# >>> Port Daddy Coordination Guard/g) ?? [];
+    expect(startMarkers).toHaveLength(1);
+  });
 });
