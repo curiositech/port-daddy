@@ -537,6 +537,10 @@ old rounded/nautical visual system from production code:
   agent node/status radii to design-system token radii.
 - Tightened homepage feature-card radius from `2xl` to `lg` so the public
   landing surface keeps moving toward the Swiss-modern, low-rounding contract.
+- Cleaned the dashboard route's most obvious residue: removed the blurred
+  circular hero glow, replaced the dashboard anchor icon usage with network
+  iconography, and reduced dashboard panel/value/status radii from rounded
+  legacy shapes to smaller design-system tokens.
 - Production source no longer references `NeumorphicTerminal` or
   `SailorAgent`; the remaining sailor wording in source is the explicit
   retired-hero regression test.

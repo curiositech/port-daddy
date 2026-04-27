@@ -129,8 +129,10 @@ Current coordination session: `session-a4b3a18d-1651-4d2b-b4ca-e83fb79b5ea3`.
 - Follow-on visual-metaphor cleanup: `NeumorphicTerminal` was renamed to
   `CommandTerminal`, the dashboard `SailorAgent` SVG was replaced with a
   rectilinear `AgentNodeMark`, and the live graph/home feature cards now use
-  tighter token radii. Production source no longer references the old terminal
-  or sailor component names.
+  tighter token radii. The dashboard route also no longer uses the blurred
+  circular hero glow, anchor iconography, or large rounded panel/status radii.
+  Production source no longer references the old terminal or sailor component
+  names.
 - Validation for that cleanup from `website-v2/`: `npm run lint`, `npm run
   test` (8/8 files and 83/83 tests), `npm run build`, and `npm run
   build-storybook` all passed. Storybook still prints the known iframe-size and
